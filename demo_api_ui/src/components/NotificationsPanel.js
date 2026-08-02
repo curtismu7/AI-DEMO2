@@ -36,13 +36,16 @@ export const DEFAULT_NOTIFICATION_PREFS = NOTIFICATION_CATEGORIES.reduce(
 
 export default function NotificationsPanel({ prefs, onBack }) {
   const [values, setValues] = useState({ ...DEFAULT_NOTIFICATION_PREFS, ...(prefs || {}) });
-  const [savingKey, setSavingKey] = useState(null);
+  // Every save posts the whole preference object and the route replaces it, so two
+  // in-flight saves can land out of order and drop a toggle. One at a time.
+  const [saving, setSaving] = useState(false);
 
   const toggle = async (key) => {
+    if (saving) return;
     const previous = values;
     const next = { ...values, [key]: !values[key] };
     setValues(next);
-    setSavingKey(key);
+    setSaving(true);
     try {
       await bffAxios.post('/api/auth/oauth/user/notification-preferences', {
         notificationPrefs: next,
@@ -51,7 +54,7 @@ export default function NotificationsPanel({ prefs, onBack }) {
       setValues(previous);
       notifyError(err.response?.data?.error || 'Failed to update notification preference');
     } finally {
-      setSavingKey(null);
+      setSaving(false);
     }
   };
 
@@ -66,7 +69,7 @@ export default function NotificationsPanel({ prefs, onBack }) {
         >
           <MdArrowBack />
         </button>
-        <span className="notifications-panel-title">Notifications</span>
+        <span className="notifications-panel-title">Preferences</span>
       </div>
 
       <p className="notifications-panel-intro">Choose what this bank may notify you about.</p>
@@ -83,7 +86,7 @@ export default function NotificationsPanel({ prefs, onBack }) {
                 type="checkbox"
                 className="notifications-panel-switch"
                 checked={Boolean(values[category.key])}
-                disabled={savingKey === category.key}
+                disabled={saving}
                 onChange={() => toggle(category.key)}
               />
             </label>

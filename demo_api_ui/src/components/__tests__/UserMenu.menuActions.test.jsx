@@ -59,7 +59,7 @@ describe('UserMenu menu actions', () => {
 
   it('opens the notification preferences panel and returns to the menu', () => {
     open();
-    fireEvent.click(screen.getByText('Notifications'));
+    fireEvent.click(screen.getByText('Preferences'));
     expect(screen.getByText('Choose what this bank may notify you about.')).toBeInTheDocument();
     expect(screen.queryByText('Profile')).not.toBeInTheDocument();
 
@@ -69,7 +69,7 @@ describe('UserMenu menu actions', () => {
 
   it('persists a toggled category and reverts it when the save fails', async () => {
     open();
-    fireEvent.click(screen.getByText('Notifications'));
+    fireEvent.click(screen.getByText('Preferences'));
 
     const toggle = screen.getByRole('checkbox', { name: /Transfers and payments/ });
     expect(toggle.checked).toBe(true);
@@ -86,6 +86,29 @@ describe('UserMenu menu actions', () => {
     await waitFor(() => expect(toggle.checked).toBe(false));
   });
 
+  it('does not let a second toggle race an in-flight save', async () => {
+    let finishSave;
+    bffAxios.post.mockImplementationOnce(() => new Promise((resolve) => { finishSave = resolve; }));
+
+    open();
+    fireEvent.click(screen.getByText('Preferences'));
+
+    const transfers = screen.getByRole('checkbox', { name: /Transfers and payments/ });
+    const lowBalance = screen.getByRole('checkbox', { name: /Low balance/ });
+
+    fireEvent.click(transfers);
+    await waitFor(() => expect(lowBalance).toBeDisabled());
+
+    // Both saves post the whole object, so a second one landing out of order would
+    // overwrite the first. The sibling toggle stays inert until the save settles.
+    fireEvent.click(lowBalance);
+    expect(bffAxios.post).toHaveBeenCalledTimes(1);
+    expect(lowBalance.checked).toBe(true);
+
+    finishSave({ data: {} });
+    await waitFor(() => expect(lowBalance).not.toBeDisabled());
+  });
+
   it('seeds the toggles from the saved user preference', () => {
     render(
       <MemoryRouter>
@@ -93,7 +116,7 @@ describe('UserMenu menu actions', () => {
       </MemoryRouter>,
     );
     fireEvent.click(screen.getByLabelText('User menu'));
-    fireEvent.click(screen.getByText('Notifications'));
+    fireEvent.click(screen.getByText('Preferences'));
 
     expect(screen.getByRole('checkbox', { name: /Low balance/ }).checked).toBe(false);
     expect(screen.getByRole('checkbox', { name: /Security alerts/ }).checked).toBe(true);

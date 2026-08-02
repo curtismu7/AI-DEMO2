@@ -110,7 +110,7 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
             </button>
             <button className="user-menu-item" type="button" onClick={() => setView('notifications')}>
               <MdNotifications className="user-menu-item-icon" />
-              <span>Notifications</span>
+              <span>Preferences</span>
             </button>
             <button className="user-menu-item" type="button" onClick={() => goTo(settingsPath)}>
               <MdSettings className="user-menu-item-icon" />
