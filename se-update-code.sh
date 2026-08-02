@@ -17,6 +17,7 @@
 #   mcp       demo_mcp_server     → ai-demo-mcp-server         → mcp-server
 #   gateway   demo_mcp_gateway    → ai-demo-mcp-gateway        → mcp-gateway
 #   agent     langchain_agent     → ai-demo-langchain-agent    → langchain-agent
+#   agentsvc  demo_agent_service  → ai-demo-agent-service      → agent-service
 #   authz     demo_authz_server   → ai-demo-authz-server       → mcp-gateway (sidecar)
 #   mastra    mastra_agent        → ai-demo-mastra-agent       → mastra-agent
 #   openai    openai_agent        → ai-demo-openai-agent       → openai-agent
@@ -44,6 +45,7 @@ compose_svc() {
     mcp)      echo "mcp-server" ;;
     gateway)  echo "mcp-gateway" ;;
     agent)    echo "langchain-agent" ;;
+    agentsvc) echo "agent-service" ;;
     authz)    echo "authz-server" ;;
     mastra)   echo "mastra-agent" ;;
     openai)   echo "openai-agent" ;;
@@ -62,6 +64,7 @@ ghcr_img() {
     mcp)      echo "ai-demo-mcp-server" ;;
     gateway)  echo "ai-demo-mcp-gateway" ;;
     agent)    echo "ai-demo-langchain-agent" ;;
+    agentsvc) echo "ai-demo-agent-service" ;;
     authz)    echo "ai-demo-authz-server" ;;
     mastra)   echo "ai-demo-mastra-agent" ;;
     openai)   echo "ai-demo-openai-agent" ;;
@@ -94,6 +97,7 @@ k8s_dep() {
     mcp)      echo "mcp-server" ;;
     gateway)  echo "mcp-gateway" ;;
     agent)    echo "langchain-agent" ;;
+    agentsvc) echo "agent-service" ;;
     authz)    echo "mcp-gateway" ;;
     mastra)   echo "mastra-agent" ;;
     openai)   echo "openai-agent" ;;
