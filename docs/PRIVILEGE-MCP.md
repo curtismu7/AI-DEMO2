@@ -251,7 +251,15 @@ rpc error: code = Unknown desc = not found`. Two console-side items remain:
   live node `e40f4540-…`, which the proxy logs as a node conflict. Delete the old node in
   the console.
 
-**4. The client points at the Privilege cloud API, not a gateway.**
+**4. The client pointed at the Privilege cloud API, not a gateway — RESOLVED 2026-08-02.**
+`PRIVILEGE_MCPGW_URL` now defaults to the gateway frontend
+`https://local.ping-devops.com:8680/mcp` (still overridable, so the SE cluster can use
+`https://ai-demo.ping-devops.com/mcpgw`). Discovery also no longer dies when that gateway is
+unreachable: the initial metadata fetch was unguarded, so a socket error threw before the
+PingOne OIDC fallback could run and `/auth/start` answered `500 {"error":"fetch failed"}` —
+sign-in was impossible whenever the gateway was down. The fallback now also applies to any
+unrecognised host, since the gateway wizard is configured with this environment's OIDC
+endpoints. Kept for the record, the reason the old value could never work:
 `PRIVILEGE_MCPGW_URL` is `https://privilege.pingone.com/api/mcp`, while
 `ping-mcpgw/README.md` specifies the gateway frontend `https://local.ping-devops.com:8680`.
 Every call therefore returns:

@@ -271,12 +271,24 @@ async function discoverAuth(session) {
     discoverHeaders['x-procyon-session-id'] = session.config._procyonSessionId ||
       (session.config._procyonSessionId = crypto.randomUUID());
   }
-  const response = await fetch(session.config.mcpUrl, { method: 'GET', headers: discoverHeaders });
-  const bodyText = await response.text();
+  // An unreachable MCP URL must NOT abort discovery: the PingOne OIDC fallback
+  // below can still resolve the endpoints. Unguarded, this fetch threw straight
+  // out of the function and /auth/start answered 500 {"error":"fetch failed"} —
+  // sign-in was impossible whenever the gateway was down, even though the
+  // fallback a few lines later would have worked.
+  let response = null;
+  let bodyText = '';
+  let transportError = null;
+  try {
+    response = await fetch(session.config.mcpUrl, { method: 'GET', headers: discoverHeaders });
+    bodyText = await response.text();
+  } catch (err) {
+    transportError = err;
+  }
   let body;
   try { body = JSON.parse(bodyText); } catch { body = {}; }
 
-  const authHeader = response.headers.get('www-authenticate') || '';
+  const authHeader = (response && response.headers.get('www-authenticate')) || '';
   const authUriMatch = authHeader.match(/authorization_uri="([^"]+)"/);
   const authorizationUri = body.authorization_uri || (authUriMatch ? authUriMatch[1] : null);
   const tokenUri = body.token_uri || null;
@@ -288,8 +300,14 @@ async function discoverAuth(session) {
     const mcpUrl = new URL(session.config.mcpUrl);
     const envMatch = mcpUrl.pathname.match(/\/v1\/environments\/([0-9a-fA-F-]{36})\/mcp\/?$/);
     let envId = envMatch?.[1];
-    // Privilege Cloud authenticates via its own SSO PingOne environment
-    if (!envId && (mcpUrl.hostname === 'privilege.pingone.com' || mcpUrl.hostname.endsWith('.applications.privilege.pingone.com'))) {
+    // Privilege Cloud authenticates via its own SSO PingOne environment. The
+    // same fallback applies to a self-hosted MCP GATEWAY frontend
+    // (local.ping-devops.com:8680): the gateway wizard is configured with this
+    // environment's OIDC endpoints, so PRIVILEGE_SSO_ENV_ID is the right answer
+    // for any host we do not recognise — not just privilege.pingone.com.
+    // Without this, pointing the client at the gateway made sign-in impossible
+    // whenever the gateway itself could not be reached to self-advertise.
+    if (!envId) {
       envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
     }
     const authHost = mcpUrl.host.startsWith('api.') ? mcpUrl.host.replace(/^api\./, 'auth.') : 'auth.pingone.com';
@@ -305,7 +323,13 @@ async function discoverAuth(session) {
     }
   } catch { /* fall through */ }
 
-  throw new Error(`Failed to discover OAuth metadata from MCP URL. status=${response.status}`);
+  // `response.status` alone was useless when the fetch never completed — it threw
+  // a TypeError on null. Name what failed and what would fix it.
+  throw new Error(transportError
+    ? `Failed to discover OAuth metadata: ${session.config.mcpUrl} is unreachable (${transportError.message}), `
+      + 'and no PRIVILEGE_SSO_ENV_ID / PINGONE_ENVIRONMENT_ID is set to fall back on. '
+      + 'Start the MCP gateway (docker compose --profile mcpgw up -d ping-mcpgw) or fix PRIVILEGE_MCPGW_URL.'
+    : `Failed to discover OAuth metadata from MCP URL. status=${response.status}`);
 }
 
 // ---------------------------------------------------------------------------
