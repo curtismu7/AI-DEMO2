@@ -69,7 +69,13 @@ function peerOfSpan(span) {
   if (!urlish) return null;
   if (/pingone\.com/i.test(urlish)) return { id: 'pingone', label: 'PingOne' };
   if (/:809\d\b/.test(urlish)) return { id: 'llm', label: 'LLM' };
-  if (/mortgage/i.test(urlish)) return { id: 'mortgage-app', label: 'Mortgage App' };
+  // Matches the service under BOTH names: it was renamed mortgage-service ->
+  // api-resource-server, and a trace captured before that rename still carries
+  // the old host. Matching only /mortgage/ silently dropped the node from every
+  // graph once compose started emitting api-resource-server:8082.
+  if (/mortgage|api-resource-server/i.test(urlish)) {
+    return { id: 'api-resource-server', label: 'API Resource Server' };
+  }
   return null;
 }
 
