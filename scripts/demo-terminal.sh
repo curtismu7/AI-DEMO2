@@ -158,7 +158,11 @@ demo_detect_docker() {
 # a constraint on host RAM and irrelevant to the Docker memory ceiling — the two
 # budgets are not interchangeable.
 # Populates LLM_EFFECTIVE and LLM_WEIGHTS_BYTES.
+# demo_detect_llm <native|docker|cluster>
+# The context matters: oMLX is native-only, so reporting it in the Compose or
+# cluster panel would name a backend those launchers will not use.
 demo_detect_llm() {
+  local context="${1:-native}"
   if [[ -n "${LLM_DETECTED:-}" ]]; then return 0; fi
   LLM_DETECTED=1
   LLM_EFFECTIVE=""
@@ -169,10 +173,10 @@ demo_detect_llm() {
     # Reuse the launchers' own resolution rather than second-guessing it.
     # shellcheck source=/dev/null
     source "${resolver}" 2>/dev/null || true
-    LLM_EFFECTIVE="$(resolve_llm_backend 2>/dev/null || true)"
+    LLM_EFFECTIVE="$(resolve_llm_backend "${context}" 2>/dev/null || true)"
   fi
   if [[ -z "${LLM_EFFECTIVE}" ]]; then
-    if [[ "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
+    if [[ "${context}" == "native" && "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
       LLM_EFFECTIVE="omlx"
     else
       LLM_EFFECTIVE="llamacpp"
@@ -323,7 +327,7 @@ demo_machine_banner() {
   # Populated for every mode — the Docker ceiling is part of choosing a launcher,
   # not just part of running one.
   demo_detect_launchers
-  demo_detect_llm
+  demo_detect_llm "${mode}"
 
   echo ""
   demo_box_open "${CYAN}" "MACHINE"
@@ -427,8 +431,10 @@ demo_machine_advice() {
     fi
   fi
 
-  if [[ "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
-    demo_ok "Apple Silicon — ${YELLOW}${BOLD}LLM_BACKEND=omlx${RESET} runs the model on Metal (the default here)."
+  if [[ "${LLM_EFFECTIVE}" == "omlx" || "${LLM_EFFECTIVE}" == "mlx" ]]; then
+    demo_ok "Apple Silicon — ${YELLOW}${BOLD}${LLM_EFFECTIVE}${RESET} runs the model on Metal (native default)."
+  elif [[ "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
+    demo_ok "${DIM}llamacpp${RESET} host tiers — oMLX is ${YELLOW}${BOLD}./run.sh${RESET} only, so the llm-proxy container keeps :8090."
   else
     demo_ok "No Metal backend — ${DIM}LLM_BACKEND=llamacpp${RESET} (default); expect a slower token rate."
   fi
