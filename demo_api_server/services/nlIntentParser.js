@@ -1372,7 +1372,25 @@ function parseForFallback(text, verticalCtx = {}) {
     ) {
       return { ...bankingIntent };
     }
-    return { ...bankingIntent, vertical: 'banking' };
+    // A genuine banking action (transfer, balance, transactions, accounts …) is
+    // BANKING'S OWN pattern, so it may only win where banking is the active
+    // vertical — or where none is, the context-free case the cascade exists
+    // for. Typed inside another vertical it is a FOREIGN vertical's pattern and
+    // must not resolve, exactly as retail's \borders?\b must not resolve inside
+    // manufacturing: only the active vertical's own patterns may.
+    //
+    // This one deliberately does NOT early-return. #1228 established the early
+    // return because falling through handed the prompt to the keyword sweep,
+    // which coerced it to a DIFFERENT wrong vertical. #1261 then confined that
+    // sweep to `!activeVertical`, and this branch falls through only when
+    // activeVertical is set — so the sweep is unreachable from here. Every
+    // branch still below keeps the active vertical: parseEducation returns
+    // without a vertical, the own-keyword branch returns the active one, and
+    // the trailing branch returns kind:'unknown' on it, which the resolver
+    // renders as the no-match naming that vertical.
+    if (!activeVertical || activeVertical === 'banking') {
+      return { ...bankingIntent, vertical: 'banking' };
+    }
   }
 
   // Protocol/AI teaching intents ("what is PAR", "explain step-up") open an

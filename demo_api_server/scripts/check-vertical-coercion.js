@@ -119,75 +119,55 @@ const BOGUS_VERTICAL_IDS = [undefined, null, '', '   ', 'not-a-vertical', 'const
 // ── Pinned exceptions ─────────────────────────────────────────────────────────
 
 /*
- * PINNED: parseForFallback tags a genuine banking ACTION vertical:'banking'
- * regardless of the active vertical, so `show my balance` typed in healthcare
- * resolves to banking. That is arguably correct — it really is a banking
- * request — and the product decision is still open. It is pinned here rather
- * than failed. If it is later decided that the active vertical must win, THIS
- * GATE is the place that changes: delete the pin and the gate turns red until
- * the resolver stops switching verticals.
+ * SETTLED — was PINNED_BANKING_ACTION_WINS, now an assertion.
+ *
+ * The pin recorded an open product decision: parseForFallback tagged a genuine
+ * banking ACTION vertical:'banking' whatever the active vertical was, so `show
+ * my balance` typed in healthcare resolved to banking. The pin said "that is
+ * arguably correct, and if it is ever decided that the active vertical must
+ * win, THIS GATE is the place that changes".
+ *
+ * It has been decided: the ACTIVE VERTICAL WINS, symmetrically. Only the active
+ * vertical's own patterns resolve; every other vertical's — banking's included
+ * — must not. So these two rows flipped from pinned exceptions to asserted
+ * behaviour, which is strictly stronger than the pin was: instead of recording
+ * that the resolver switches verticals, the gate now fails if it ever does
+ * again.
+ *
+ * Both must reach an explicit NO-MATCH rather than merely keeping the id. The
+ * distinction is the whole point of the decision: a government session asking
+ * for a transfer must be TOLD government has no such action, not quietly handed
+ * government's chips as though something matched.
  */
-const PINNED_BANKING_ACTION_WINS = [
-  { activeVertical: 'healthcare', prompt: 'show my balance', resolvesTo: 'banking' },
-  { activeVertical: 'government', prompt: 'transfer $100 from checking to savings', resolvesTo: 'banking' },
+const SETTLED_ACTIVE_VERTICAL_WINS = [
+  { activeVertical: 'healthcare', prompt: 'show my balance' },
+  { activeVertical: 'government', prompt: 'transfer $100 from checking to savings' },
 ];
 
 /*
- * PINNED: the same shape as PINNED_BANKING_ACTION_WINS, at chip-message scale.
+ * FIXED — the list is now EMPTY, and every one of the 123 chip messages is
+ * ASSERTED to keep the active vertical in all 13 of them.
  *
- * This list used to hold 52 entries covering TWO different defects. The cascade
- * defect is now fixed in nlIntentParser.js and 32 of them are gone; what is left
- * is one class, and it is the open product decision above rather than a bug.
- *
- * WHAT WAS FIXED (32 deleted). parseForFallback was an ordered cascade whose
- * every branch outranked the active vertical, so a chip message typed in ANY
- * vertical went to whichever branch claimed it first — 30 of the 123 manifest
- * chip messages coerced even inside their OWN vertical. Two changes ended that:
- *   - The literal-vertical keyword branches (retail / sporting-goods /
- *     government / workforce / university / manufacturing) now only GUESS when
- *     no vertical is active, and the active vertical's own branch is consulted
- *     before any other's. That retired all 22 keyword-sweep pins, including
- *     manufacturing's "show my work orders" which retail's \borders?\b took.
- *   - Five parseBanking actions that are cross-vertical by their own definition
- *     (unusual_patterns, vertical_feature_demo, invest_demo, mcp_tools, plus
- *     web_search from #1232) no longer carry a banking claim, so the active
- *     vertical stands. That retired the other 10, including healthcare's
- *     "show my health record".
- *
- * WHAT REMAINS (20). Every surviving entry is a genuine banking ACTION —
+ * This list held 52 entries covering TWO defects. #1261 fixed the cascade and
+ * deleted 32. The remaining 20 were one class: a genuine banking ACTION —
  * transactions x6, transfer x5, balance x4, accounts x3, mortgage_demo,
- * sensitive_account_details — reached because the phrasing genuinely overlaps
- * banking's ("pto balance", "order history"). Whether a real banking action
- * should outrank the active vertical is the SAME open decision pinned in
- * PINNED_BANKING_ACTION_WINS; settling it there settles these too.
+ * sensitive_account_details — outranking the active vertical because the
+ * phrasing overlaps banking's ("pto balance", "order history", "transfer my
+ * membership"). That was the open product decision, not a bug, so they stayed.
  *
- * Each entry is [prompt, verticalItResolvesTo]. The outcome does not depend on
- * which vertical is active, so one key per prompt is exact. Fixing a row means
- * DELETING it — the gate fails on a pin that no longer reproduces.
+ * The decision is settled: the ACTIVE VERTICAL WINS, symmetrically. A banking
+ * action is BANKING'S OWN pattern and may only win where banking is active, or
+ * where no vertical is — exactly the rule #1261 applied to retail's \borders?\b.
+ * Verified per row through the production resolver: each prompt now keeps its
+ * OWN vertical (retail's "order history" -> retail, workforce's "pto balance"
+ * -> workforce, admin's "adjust account balance" -> admin) while banking's own
+ * claim is untouched inside banking and with no vertical active.
+ *
+ * Emptied rather than deleted so the stale-pin check below stays wired: an
+ * entry here is the documented way to record an accepted coercion, and with
+ * none, C6 fails on any vertical switch at all.
  */
-const PINNED_CASCADE_COERCIONS = [
-  // -> banking (parseBanking claims it as a real banking action)
-  ['show last 5 transactions for this customer', 'banking'],
-  ['show all accounts for this customer', 'banking'],
-  ['adjust account balance', 'banking'],
-  ['what is my balance', 'banking'],
-  ['transfer $300 from checking to savings', 'banking'],
-  ['transfer $600 from checking to savings', 'banking'],
-  ['show my mortgage', 'banking'],
-  ['run an intent-bound transfer within my RAR grant', 'banking'],
-  ['get my accounts', 'banking'],
-  ['show my accounts', 'banking'],
-  ['recent transactions', 'banking'],
-  ['show my sensitive account details', 'banking'],
-  ['transfer $600 from checking to savings with CIBA approval', 'banking'],
-  ['Summarize my recent visits', 'banking'],
-  ['show my trade history', 'banking'],
-  ['order history', 'banking'],
-  ['store credit balance', 'banking'],
-  ['Compare my recent purchases side by side', 'banking'],
-  ['transfer my membership', 'banking'],
-  ['pto balance', 'banking'],
-];
+const PINNED_CASCADE_COERCIONS = [];
 
 /*
  * KNOWN-UNFIXED — NOT ACCEPTED, NOT A PIN.
@@ -712,19 +692,23 @@ function checkFallbackModuleShape(verticals, byVertical) {
 }
 
 /**
- * C9 — the one accepted exception, pinned rather than failed.
- * See PINNED_BANKING_ACTION_WINS above: a genuine banking action is tagged
- * banking whatever the active vertical is, and whether that is right is still an
- * open product decision. Asserted here so it is a stated behaviour rather than
- * an unexamined one, and so a change to it is a deliberate edit to this gate.
+ * C9 — the settled decision, asserted rather than pinned.
+ * See SETTLED_ACTIVE_VERTICAL_WINS above. A genuine banking action typed in
+ * another vertical must keep that vertical AND report an explicit no-match.
+ * Both halves are asserted: keeping the id while serving that vertical's chips
+ * would claim a match for a prompt nothing in it matched.
  */
-async function checkAcceptedException() {
-  for (const { activeVertical, prompt, resolvesTo } of PINNED_BANKING_ACTION_WINS) {
+async function checkSettledActiveVerticalWins() {
+  for (const { activeVertical, prompt } of SETTLED_ACTIVE_VERTICAL_WINS) {
     const parsed = parseForFallback(prompt, { verticalId: activeVertical });
     const r = await resolveFallbackChips(prompt, { verticalId: activeVertical });
-    if (parsed.vertical !== resolvesTo || r.verticalId !== resolvesTo) {
-      fail('stale-pin',
-        `PINNED_BANKING_ACTION_WINS expects ${q(prompt)} in '${activeVertical}' to resolve to '${resolvesTo}', but parseForFallback said ${JSON.stringify(parsed.vertical)} and the resolver said ${JSON.stringify(r.verticalId)}. If the open decision was settled and the active vertical now wins, delete this pin.`);
+    if (parsed.vertical !== activeVertical) {
+      fail('active-vertical-wins',
+        `${q(prompt)} in '${activeVertical}' made parseForFallback claim ${JSON.stringify(parsed.vertical)}. A banking action is BANKING'S OWN pattern; typed in another vertical it must not resolve, so the active vertical has to stand.`);
+    }
+    if (!r.noMatch) {
+      fail('active-vertical-wins',
+        `${q(prompt)} in '${activeVertical}' resolved to '${r.verticalId}' with ${(r.chips || []).length} chips instead of an explicit no-match. '${activeVertical}' has no such action, and saying so is the point of the decision — silently serving its chips reports a match that never happened.`);
     }
   }
 }
@@ -748,7 +732,7 @@ async function main() {
   await checkActivityAnalysisPrompts(verticals, byVertical);
   checkReadPrimaryToolOwnership();
   checkFallbackModuleShape(verticals, byVertical);
-  await checkAcceptedException();
+  await checkSettledActiveVerticalWins();
 
   const chipCount = verticals.reduce((n, e) => n + e.chips.length, 0);
 
@@ -769,7 +753,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`✅ check-vertical-coercion PASSED — ${chipCount} chip messages x ${verticals.length} verticals, plus teaching, activity-analysis, unroutable, bogus-vertical and parse-error prompts, resolve to the active vertical or to an explicit no-match. ${PINNED_CASCADE_COERCIONS.length + PINNED_FOREIGN_TOOLS.length + PINNED_BANKING_ACTION_WINS.length} pinned pre-existing exceptions still reproduce.`);
+  console.log(`✅ check-vertical-coercion PASSED — ${chipCount} chip messages x ${verticals.length} verticals, plus teaching, activity-analysis, unroutable, bogus-vertical and parse-error prompts, resolve to the active vertical or to an explicit no-match. ${PINNED_CASCADE_COERCIONS.length + PINNED_FOREIGN_TOOLS.length} pinned pre-existing exceptions still reproduce.`);
 
   if (knownUnfixedSeen.length) {
     console.log(`\n⚠️  ${knownUnfixedSeen.length} KNOWN-UNFIXED coercion(s) reproduced. These are bugs on main, not accepted behaviour — the gate reports them instead of exiting 1 so it can stay blocking. See the KNOWN_UNFIXED_* blocks in this file for the sites.`);

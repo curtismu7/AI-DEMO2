@@ -365,6 +365,122 @@ describe('fallbackDataResolver', () => {
       expect(result).not.toHaveProperty('closestCandidate');
     });
 
+    /*
+     * SETTLED — the active vertical wins, symmetrically.
+     *
+     * The last surviving coercion class was the genuine banking ACTION:
+     * parseForFallback tagged transfer / balance / transactions / accounts
+     * vertical:'banking' whatever vertical was active, so "pto balance" typed in
+     * workforce and "order history" typed in retail both resolved to banking.
+     * The product decision that pinned it is settled: only the ACTIVE vertical's
+     * own patterns resolve, and a banking action is BANKING'S OWN pattern — the
+     * same rule #1261 applied to retail's \borders?\b inside manufacturing.
+     */
+    const BANKING_ACTIONS_IN_OTHER_VERTICALS = [
+      ['workforce', 'pto balance'],
+      ['retail', 'store credit balance'],
+      ['healthcare', 'show my balance'],
+      ['healthcare', 'Summarize my recent visits'],
+      ['investment', 'show my trade history'],
+      ['government', 'transfer $100 to savings'],
+      ['admin', 'adjust account balance'],
+    ];
+
+    it.each(BANKING_ACTIONS_IN_OTHER_VERTICALS)(
+      'does not claim banking for the banking action %j typed in %s',
+      (vertical, prompt) => {
+        const intent = nlIntentParser.parseForFallback(prompt, { verticalId: vertical });
+        expect(intent.vertical).toBe(vertical);
+      }
+    );
+
+    /*
+     * Keeping the id is only half of it. Serving that vertical's fallback chips
+     * would report a MATCH for a prompt nothing in it matched, and the only
+     * caller (AIAgent.fetchNoMatch) drops any result without `noMatch` — so the
+     * user saw a hard-coded banking-phrased sentence instead of a card naming
+     * their vertical. A government session asking to transfer money must be
+     * TOLD government has no such action.
+     */
+    it.each(BANKING_ACTIONS_IN_OTHER_VERTICALS)(
+      'reports an explicit no-match naming %s for the banking action %j',
+      async (vertical, prompt) => {
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: vertical,
+        });
+        expect(result.verticalId).toBe(vertical);
+        expect(result.noMatch).toBe(true);
+        expect(result.chips).toEqual([]);
+        expect(result.message).toContain(vertical);
+        expect(leaksBanking(result.suggestions || [])).toBe(false);
+      }
+    );
+
+    /*
+     * The symmetric half: another vertical's pattern typed in BANKING must fail
+     * as unknown too. "show my work orders" is manufacturing's phrasing and
+     * banking has no action for it, so banking must say so rather than serve its
+     * own chips as though something matched.
+     */
+    it('reports an explicit no-match naming banking for a foreign prompt typed in banking', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'show my work orders',
+        { verticalId: 'banking' }
+      );
+      expect(result.verticalId).toBe('banking');
+      expect(result.noMatch).toBe(true);
+      expect(result.chips).toEqual([]);
+      expect(result.message).toContain('banking');
+    });
+
+    /*
+     * Blast radius. Banking's own claim is untouched where banking IS active and
+     * where NO vertical is — the two cases a banking pattern legitimately owns.
+     * This is the regression the change could most easily cause.
+     */
+    it('still resolves a banking action to banking inside banking', async () => {
+      for (const prompt of ['show my balance', 'what is my balance', 'recent transactions', 'show my accounts']) {
+        const intent = nlIntentParser.parseForFallback(prompt, { verticalId: 'banking' });
+        expect(intent.vertical).toBe('banking');
+
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: 'banking',
+        });
+        expect(result.verticalId).toBe('banking');
+        expect(result.noMatch).toBeUndefined();
+        expect(result.chips.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('still resolves a banking action to banking when no vertical is active', () => {
+      for (const prompt of ['transfer $100', 'show my balance', 'recent transactions']) {
+        const intent = nlIntentParser.parseForFallback(prompt, { verticalId: undefined });
+        expect(intent.vertical).toBe('banking');
+      }
+    });
+
+    /*
+     * Class 1 is NOT symmetric-failed. A cross-vertical action has no vertical of
+     * its own, so it keeps the active one instead of no-matching — including
+     * 'show my health record', which is banking chip bk-deny's text. That chip is
+     * mode=direct (extractChips.js: direct chips never reach the NL parser), so
+     * its cross-vertical Authorize DENY demo does not depend on this path, but
+     * the Class 1 rule must not regress into a no-match either way.
+     */
+    it('keeps the active vertical, not a no-match, for a cross-vertical action', async () => {
+      for (const [vertical, prompt] of [
+        ['banking', 'show my health record'],
+        ['healthcare', 'show my health record'],
+        ['government', 'spot any unusual activity'],
+      ]) {
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: vertical,
+        });
+        expect(result.verticalId).toBe(vertical);
+        expect(result.noMatch).toBeUndefined();
+      }
+    });
+
     it('returns a no-match instead of banking when intent parsing throws', async () => {
       const spy = jest
         .spyOn(nlIntentParser, 'parseForFallback')
