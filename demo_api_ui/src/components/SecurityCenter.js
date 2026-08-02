@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
+import { loadPublicConfig } from '../services/configService';
 import './SecurityCenter.css';
 
 function deviceTypeLabel(type) {
@@ -14,13 +15,23 @@ function deviceTypeLabel(type) {
   return map[type] || type;
 }
 
-export default function SecurityCenter() {
+export default function SecurityCenter({ user }) {
   const [activeTab, setActiveTab] = useState('overview');
 
   // MFA device list
   const [devices, setDevices] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+
+  // Current BFF session — backs the Overview and Sessions tabs. /api/auth/session
+  // returns only the caller's own session; PingOne exposes no list-all-sessions
+  // endpoint through this BFF, so neither tab can show other devices' sessions.
+  const [session, setSession] = useState(null);
+  const [sessionError, setSessionError] = useState(null);
+
+  // PingOne environment id — only used to build the self-service link on the
+  // Password tab. Absent config just drops the link, never blocks the panel.
+  const [envId, setEnvId] = useState(null);
 
   // Mounted guard — prevents setState on unmounted component during async operations
   const mountedRef = useRef(true);
@@ -64,10 +75,42 @@ export default function SecurityCenter() {
     }
   }, []);
 
+  // Overview reports the device count, so it needs the same fetch the MFA tab does.
   useEffect(() => {
-    if (activeTab !== 'mfa') return;
+    if (activeTab !== 'mfa' && activeTab !== 'overview') return;
     fetchDevices();
   }, [activeTab, fetchDevices]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'include' });
+        const data = await res.json();
+        if (!cancelled && mountedRef.current) setSession(data);
+      } catch (err) {
+        if (!cancelled && mountedRef.current) {
+          setSessionError(err.message || 'Failed to load session.');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfg = await loadPublicConfig();
+        if (!cancelled && mountedRef.current) {
+          setEnvId(cfg?.pingone_environment_id || null);
+        }
+      } catch {
+        // Link is optional — a missing env id just renders the panel without it.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   async function handleDelete(deviceId) {
     setDeletingId(deviceId);
@@ -455,8 +498,206 @@ export default function SecurityCenter() {
     );
   }
 
+  const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ')
+    || user?.username
+    || session?.user?.email
+    || 'this account';
+
+  // authType comes straight from /api/auth/session: 'oauth' for a PingOne
+  // federated sign-in, 'session' for a seeded local user.
+  const authType = session?.authType || null;
+  const isFederated = authType === 'oauth';
+  const deviceCount = devices === null ? null : devices.length;
+
+  function renderOverviewTab() {
+    return (
+      <div>
+        <h3 style={{ marginTop: 0 }}>Overview</h3>
+        <div className="status-grid">
+          <div className="status-item">
+            <span className="status-icon">👤</span>
+            <div>
+              <div className="status-title">Signed in as</div>
+              <div className="status-desc">{displayName}</div>
+            </div>
+          </div>
+
+          <div className="status-item">
+            <span className="status-icon">🔐</span>
+            <div>
+              <div className="status-title">Sign-in method</div>
+              <div className="status-desc">
+                {authType === null
+                  ? 'Checking...'
+                  : isFederated
+                    ? 'PingOne (OAuth / OIDC)'
+                    : 'Local demo account'}
+              </div>
+            </div>
+          </div>
+
+          <div className="status-item">
+            <span className="status-icon">🔑</span>
+            <div>
+              <div className="status-title">Multi-factor auth</div>
+              <div className="status-desc">
+                {fetchError ? (
+                  <span className="security-status--error">Could not load devices</span>
+                ) : deviceCount === null ? (
+                  'Checking...'
+                ) : deviceCount === 0 ? (
+                  <span className="security-status--warn">No devices registered</span>
+                ) : (
+                  <span className="security-status--ok">
+                    {deviceCount} device{deviceCount === 1 ? '' : 's'} registered
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="status-item">
+            <span className="status-icon">{session?.authenticated ? '✅' : '⚠️'}</span>
+            <div>
+              <div className="status-title">Session</div>
+              <div className="status-desc">
+                {session === null
+                  ? 'Checking...'
+                  : session.authenticated
+                    ? <span className="security-status--ok">Active</span>
+                    : <span className="security-status--warn">Not signed in</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {deviceCount === 0 && !fetchError && (
+          <p style={{ marginTop: '1.5rem' }}>
+            <button type="button" className="btn btn-primary" onClick={() => setActiveTab('mfa')}>
+              Add a security method
+            </button>
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function renderPasswordTab() {
+    // A PingOne user has no local password to change — routes/oauthUser.js stores
+    // `password: null` for them, so the BFF's change-password route can only ever
+    // reject. Send them to PingOne self-service rather than offer a dead form.
+    return (
+      <div>
+        <h3 style={{ marginTop: 0 }}>Password</h3>
+        {isFederated || authType === null ? (
+          <>
+            <p>
+              Your password is managed by PingOne. This account signs in through
+              PingOne, so there is no separate password stored by this demo.
+            </p>
+            {envId ? (
+              <p>
+                <a
+                  className="btn btn-outline"
+                  href={`https://apps.pingone.com/${envId}/myaccount`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Manage password in PingOne
+                </a>
+              </p>
+            ) : (
+              <p className="demo-unavailable">
+                PingOne environment is not configured, so the self-service link is unavailable.
+              </p>
+            )}
+          </>
+        ) : (
+          <p>
+            This is a seeded local demo account. Password changes are not exposed
+            in the customer UI — an administrator resets these accounts.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function renderSessionsTab() {
+    return (
+      <div>
+        <h3 style={{ marginTop: 0 }}>Sessions</h3>
+        {sessionError && <p style={{ color: '#dc2626' }}>{sessionError}</p>}
+        {!sessionError && session === null && (
+          <p className="demo-unavailable">Loading session...</p>
+        )}
+        {!sessionError && session !== null && (
+          <>
+            <div className="status-grid">
+              <div className="status-item">
+                <span className="status-icon">{session.authenticated ? '✅' : '⚠️'}</span>
+                <div>
+                  <div className="status-title">Status</div>
+                  <div className="status-desc">
+                    {session.authenticated ? 'Signed in' : 'Not signed in'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="status-item">
+                <span className="status-icon">🔐</span>
+                <div>
+                  <div className="status-title">Authenticated by</div>
+                  <div className="status-desc">
+                    {isFederated ? 'PingOne (OAuth / OIDC)' : authType || 'unknown'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="status-item">
+                <span className="status-icon">👤</span>
+                <div>
+                  <div className="status-title">Account</div>
+                  <div className="status-desc">{session.user?.email || displayName}</div>
+                </div>
+              </div>
+
+              <div className="status-item">
+                <span className="status-icon">
+                  {session.sessionStoreHealthy === true ? '✅' : '⚠️'}
+                </span>
+                <div>
+                  <div className="status-title">Session store</div>
+                  <div className="status-desc">
+                    {/* /api/auth/session sends `req._sessionStoreHealthy ?? null`, so
+                        null means "not reported", not "fine". Only an explicit true
+                        is healthy — anything else must not be painted green. */}
+                    {session.sessionStoreHealthy === true ? (
+                      <span className="security-status--ok">Healthy</span>
+                    ) : session.sessionStoreHealthy === false ? (
+                      <span className="security-status--warn">Degraded</span>
+                    ) : (
+                      <span className="security-status--warn">Unknown</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="demo-unavailable">
+              This shows your current session only. Listing or revoking sessions on
+              other devices needs a PingOne sessions endpoint this demo does not expose.
+            </p>
+          </>
+        )}
+      </div>
+    );
+  }
+
   const renderContent = () => {
     if (activeTab === 'mfa') return renderMfaTab();
+    if (activeTab === 'overview') return renderOverviewTab();
+    if (activeTab === 'password') return renderPasswordTab();
+    if (activeTab === 'sessions') return renderSessionsTab();
     return <p className="demo-unavailable">This feature is not available in this demo.</p>;
   };
 
