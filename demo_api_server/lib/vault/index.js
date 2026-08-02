@@ -18,11 +18,14 @@
  *     tampering between entries
  *   - close() zeroes the KEK + every DEK Buffer so a later memory dump can't
  *     reveal them
- *   - atomic save: write to filePath + '.tmp', then rename
+ *   - atomic save: write to a per-writer tmp file (O_EXCL, 0600), fsync it and
+ *     its directory, then rename; a generation check refuses to overwrite a
+ *     file that changed underneath the handle
  */
 
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
+const path = require('node:path');
 const crypto = require('node:crypto');
 const {
   deriveKek,
@@ -55,6 +58,52 @@ const GENERIC_OPEN_ERROR = 'vault: open failed (bad password or tampered file)';
 
 const auditPath = (vaultPath) => vaultPath + '.audit.log';
 
+/**
+ * Write `data` to `filePath` atomically and durably.
+ *
+ * The tmp path is per-writer, not `filePath + '.tmp'`: a shared tmp name let two
+ * concurrent savers interleave their JSON into one file, and the survivor's
+ * rename published the splice — an unreadable vault with no backup. `wx` also
+ * refuses to open an existing path, so a symlink pre-planted at the tmp name
+ * can no longer redirect the envelope (and `mode` is honoured, which it is not
+ * when writeFile lands on an existing file).
+ *
+ * fsync on the file and its directory is what makes the rename survive a crash;
+ * without it the rename can be visible while the data is not.
+ */
+async function writeFileAtomic(filePath, data) {
+  const dir = path.dirname(filePath);
+  const tmp = `${filePath}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  let fh;
+  try {
+    fh = await fsp.open(tmp, 'wx', 0o600);
+    await fh.writeFile(data);
+    await fh.sync();
+    await fh.close();
+    fh = null;
+    await fsp.rename(tmp, filePath);
+  } catch (err) {
+    if (fh) await fh.close().catch(() => {});
+    await fsp.unlink(tmp).catch(() => {});
+    throw err;
+  }
+  // Directory fsync persists the rename itself. Best-effort: not every platform
+  // permits opening a directory, and a failure here must not fail the save.
+  try {
+    const dirFh = await fsp.open(dir, 'r');
+    await dirFh.sync().catch(() => {});
+    await dirFh.close();
+  } catch {
+    /* platform does not support directory fsync */
+  }
+}
+
+/** Identity of the on-disk file a handle was opened from, for lost-update detection. */
+async function fileGeneration(filePath) {
+  const st = await fsp.stat(filePath);
+  return `${st.mtimeMs}:${st.size}:${st.ino}`;
+}
+
 async function createVault(filePath, password) {
   if (!password) throw new VaultPasswordRequiredError('vault: password required');
   if (fs.existsSync(filePath)) {
@@ -78,9 +127,7 @@ async function createVault(filePath, password) {
     entries: {},
   };
   envelope.fileHmac = computeFileHmac(envelope, hkdfFileHmacKey(kek));
-  const tmp = filePath + '.tmp';
-  await fsp.writeFile(tmp, canonicalJson(envelope), { mode: 0o600 });
-  await fsp.rename(tmp, filePath);
+  await writeFileAtomic(filePath, canonicalJson(envelope));
   recordAudit(auditPath(filePath), {
     op: 'open',
     key: null,
@@ -104,6 +151,9 @@ async function openVault(filePath, password) {
     throw new VaultNotFoundError('vault: file not found at ' + filePath);
   }
   const buf = await fsp.readFile(filePath);
+  // Identity of the bytes this handle was built from; save() refuses to publish
+  // over a different generation.
+  let generation = await fileGeneration(filePath);
   let envelope;
   try {
     envelope = parseEnvelope(buf);
@@ -302,9 +352,25 @@ async function openVault(filePath, password) {
       }
       envelope.entries = outEntries;
       envelope.fileHmac = computeFileHmac(envelope, hkdfFileHmacKey(kek));
-      const tmp = filePath + '.tmp';
-      await fsp.writeFile(tmp, canonicalJson(envelope), { mode: 0o600 });
-      await fsp.rename(tmp, filePath);
+      // Lost-update guard: two handles opened from the same file each hold a
+      // full copy of every entry, so the later save() used to silently erase
+      // the other's set()s. This narrows that to a loud error — it cannot close
+      // the window between this check and the rename, but it catches every
+      // interleaving where the other writer finished first.
+      const current = await fileGeneration(filePath);
+      if (current !== generation) {
+        recordAudit(auditPath(filePath), {
+          op: 'save',
+          key: null,
+          caller: 'vault.js',
+          result: 'stale_generation',
+        });
+        throw new VaultIntegrityError(
+          'vault: file changed on disk since it was opened — reopen and retry',
+        );
+      }
+      await writeFileAtomic(filePath, canonicalJson(envelope));
+      generation = await fileGeneration(filePath);
       recordAudit(auditPath(filePath), {
         op: 'save',
         key: null,

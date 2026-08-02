@@ -102,6 +102,72 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-02 — Vault master password was readable from an unauthenticated endpoint; `save()` was not atomic
+
+**Files changed:** `demo_api_server/services/apiCallTrackerService.js`,
+`demo_api_server/server.js`, `demo_api_server/lib/vault/index.js`,
+`demo_api_server/tests/vaultPasswordNotTracked.test.js`,
+`demo_api_server/tests/vault/vault.atomicSave.test.js`, `.gitignore`,
+`docs/incident-response/vault-history-exposure.md`.
+
+**What was broken:** two independent critical defects found in a full vault review.
+
+1. **Master password disclosure.** The global `/api` tracker
+   (`server.js:652`) captured `req.body` unredacted; `TRACKING_SKIP_PREFIXES`
+   did not cover the vault paths, so `POST /api/admin/vault/unlock` was
+   tracked. `apiCallTrackerService` sanitized **headers only** — `formatBody`
+   just `JSON.stringify`d the body — and dual-wrote every entry into the shared
+   `__global__` bucket. `routes/apiCallTracker.js:27-31` serves that bucket by
+   default, and `server.js` mounted `/api/api-calls` with **no
+   `authenticateToken`**, unlike every neighbouring mount. Net: after any admin
+   unlock, an unauthenticated `GET /api/api-calls?limit=100` returned the vault
+   master password in cleartext; `/rotate` returned both old and new. The
+   client-side ring buffer (`apiTrafficStore.js`) already redacted these keys —
+   only the server twin was missed. The `Cookie` header was truncated rather
+   than removed, exposing both ends of the admin session cookie on the same
+   open endpoint. Directly falsified `adminVault.js:24-25` ("physically cannot
+   leak a password value") and `AdminVaultPage.jsx:162-164` ("never persisted
+   server-side").
+2. **Non-atomic vault save.** `save()` and `createVault()` wrote to a fixed
+   `filePath + '.tmp'` with no lock, no `O_EXCL`, and no fsync. Two concurrent
+   savers interleaved their JSON into that one path; the surviving `rename`
+   published the splice and the vault reopened as
+   `VaultIntegrityError: envelope is not valid JSON` — total loss, no backup.
+   `{ mode: 0o600 }` was silently ignored when the tmp file already existed
+   (yielding an 0644 vault), and `writeFile` followed a symlink pre-planted at
+   the predictable tmp path, writing the full envelope plus `kdf.salt` to an
+   attacker-chosen target. Non-corrupting interleavings silently discarded the
+   other handle's `set()`s.
+
+**What was fixed:** `formatBody` now redacts a `REDACT_BODY_KEYS` set mirroring
+the UI's, recursively (bodies nest); `cookie`/`set-cookie` are redacted in full
+while bearer-token truncation is kept deliberately (this demo teaches token
+shape); `/api/api-calls` is mounted behind `authenticateToken`, matching its
+Telemetry/Tracing siblings. Vault writes go through a new `writeFileAtomic()` —
+per-writer tmp name, `wx` (O_EXCL), explicit `0600`, fsync of file and parent
+directory, tmp cleanup on failure — and `save()` compares an
+mtime/size/inode generation against the one captured at open, turning a silent
+lost update into a loud `VaultIntegrityError`.
+
+**Do not break:** `/api/api-calls` must stay behind `authenticateToken`;
+`formatBody` is the single choke point every tracked request AND response body
+passes through — do not add a body path that bypasses it. Vault writes must not
+return to a shared `.tmp` name; the generation check must run before the rename.
+`/secrets.vault*.tmp` must stay gitignored — that file is complete ciphertext.
+
+**Verify:**
+`CI=true npx jest tests/vaultPasswordNotTracked.test.js tests/vault/vault.atomicSave.test.js`
+(10/10). Revert-to-RED confirmed: reverting `apiCallTrackerService.js` +
+`server.js` gives 5 failed / 0 passed; reverting `lib/vault/index.js` gives 4
+failed / 1 passed (the concurrency case is timing-dependent, the symlink, mode,
+and lost-update proofs are deterministic). Grep `server.js` for
+`'/api/api-calls', authenticateToken`.
+
+**Not fixed here — operator action required:** the vault ciphertext and the
+password that opens it are both still reachable from `origin/main` in a public
+repo. See `docs/incident-response/vault-history-exposure.md`. No secret was
+rotated by this change.
+
 ### 2026-08-01 — Gateway actor allow-list was narrower than the policy it mirrors
 
 **Files changed:** `demo_mcp_gateway/src/auth/toolScopes.ts`,
