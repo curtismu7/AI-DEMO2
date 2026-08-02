@@ -6,9 +6,12 @@
  *
  * Rules (mirrors check-goldens.js):
  *   - ORPHAN (fail): a ledger entry's useCaseId no longer exists in the catalog.
- *   - MALFORMED (fail): missing required fields.
+ *   - MALFORMED (fail): missing required fields, or a status outside the vocabulary.
  *   - FAIL STATUS (fail): any entry with status "FAIL" — the report must not be
  *     green when a check recorded failure (unit-parse PASS must not hide this).
+ *   - UNPROVEN (counted, not a failure): the check ran with the runtime conditions
+ *     stubbed. Absence of proof is not a defect, so it does not fail the gate —
+ *     but it is printed on every run so it cannot pass for coverage.
  *   - STALE (warn only): checkedAt older than MAX_AGE_DAYS.
  */
 const fs = require('fs');
@@ -17,6 +20,9 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const LEDGER_ROOT = path.join(ROOT, 'demo_api_server', 'data', 'step-verification');
 const REQUIRED = ['vertical', 'useCaseId', 'triggerType', 'mode', 'status', 'checkedAt'];
+const { STATUSES } = require(path.join(
+  __dirname, '..', 'demo_api_server', 'services', 'stepVerificationLedger.js',
+));
 const MAX_AGE_DAYS = Number(process.env.STEP_VERIFICATION_MAX_AGE_DAYS || 30);
 
 // A few ledger entries legitimately reference ids outside the main USE_CASES
@@ -48,6 +54,8 @@ function checkStepVerification() {
   let oldestDays = 0;
   const ids = catalogUseCaseIds();
   let total = 0;
+  let proven = 0;
+  let unproven = 0;
 
   if (fs.existsSync(LEDGER_ROOT)) {
     for (const vertical of fs.readdirSync(LEDGER_ROOT)) {
@@ -69,6 +77,13 @@ function checkStepVerification() {
         if (entry.useCaseId && !ids.has(entry.useCaseId)) {
           failures.push(`[orphan] ${key}: useCaseId "${entry.useCaseId}" no longer in useCases.js — delete or fix`);
         }
+        if (entry.status && !STATUSES.includes(entry.status)) {
+          failures.push(
+            `[malformed] ${key}: unknown status "${entry.status}" — expected one of ${STATUSES.join(', ')}`,
+          );
+        }
+        if (entry.status === 'PASS') proven++;
+        if (entry.status === 'UNPROVEN') unproven++;
         if (entry.status === 'FAIL') {
           failures.push(
             `[fail] ${key}: status FAIL`
@@ -87,12 +102,16 @@ function checkStepVerification() {
     }
   }
 
-  return { failures, warnings, oldestDays, total };
+  return { failures, warnings, oldestDays, total, proven, unproven };
 }
 
 if (require.main === module) {
-  const { failures, warnings, oldestDays, total } = checkStepVerification();
-  console.log(`[check-step-verification] ${total} ledger entries` + (total ? `; oldest check ${oldestDays}d ago` : ''));
+  const { failures, warnings, oldestDays, total, proven, unproven } = checkStepVerification();
+  console.log(
+    `[check-step-verification] ${total} ledger entries`
+    + ` — ${proven} proven, ${unproven} unproven (declaration-only)`
+    + (total ? `; oldest check ${oldestDays}d ago` : ''),
+  );
   for (const w of warnings) console.warn('  ' + w);
   if (failures.length) {
     console.error('[check-step-verification] FAILED:');

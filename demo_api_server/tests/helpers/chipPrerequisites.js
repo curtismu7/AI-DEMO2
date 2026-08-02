@@ -209,6 +209,14 @@ function assertSharedChipPrerequisites(uc, result) {
   // The negative control: with the flags off, the check must notice every one
   // of them. Without this the all-ON stub makes the whole case vacuous.
   expect(flagsOffDetected.sort()).toEqual([...requiredFlags].sort());
+
+  // Canary for the honesty rule. This check stubs the flag store, so whatever it
+  // records must never read as coverage — the file on disk must say UNPROVEN (or
+  // FAIL when a prerequisite is genuinely missing), never PASS. If someone drops
+  // the flagsAssumedOn/provesDeclaredOnly stamps, or the writer stops downgrading,
+  // 225 declaration-only rows silently become green again.
+  const written = JSON.parse(require('fs').readFileSync(result.ledgerPath, 'utf8'));
+  expect(written.status).not.toBe('PASS');
 }
 
 module.exports = {

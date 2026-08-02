@@ -3,7 +3,7 @@
   "useCaseId": "UC22",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "PASS",
+  "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "large_trade",
   "checkedAt": "2026-08-02",
