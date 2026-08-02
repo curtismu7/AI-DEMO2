@@ -67,6 +67,125 @@ Ory Keto, Cedar and OPA.
 
 ---
 
+# Stage 0 — vertical parity contract
+
+Every vertical behaves the same way, carries the same intents (intent, not
+wording), goes through the same server flow its use case requires, and fails the
+same way on purpose. Verticals get added later and all of them matter, so parity
+has to be enforced by a gate rather than by discipline.
+
+## Two cohorts, both fully gated
+
+**Class A — customer verticals (9).** banking, government, healthcare,
+investment, manufacturing, retail, sporting-goods, university, workforce.
+One shared canonical intent catalog. Every vertical implements every intent, in
+its own domain language, pointing at its own tool.
+
+**Class B — exception verticals (4).** admin, admin-console, oauth-teaching,
+pingone-admin. Each declares its **own** intent catalog. Not exempt: each is
+held to the same implementation and test standard as Class A — declared intents,
+deliberate failures, step-verification coverage, gated chips. These carry demos
+that matter as much as the customer verticals.
+
+The gate does not care which cohort a vertical is in. It cares that the
+vertical implements its declared catalog completely.
+
+## Canonical catalog is derived, not authored
+
+Banking is the reference row: 15 chips, and the only vertical carrying negative
+intents. The generator derives the Class A catalog from banking's intents and
+reports every vertical's missing cells. The catalog is **not** hand-written into
+this document — hand-enumerating it here would go stale the first time a chip
+is added.
+
+Each intent is `{ intentId, semantic, mode, negative? }`. A vertical instantiates
+it as `{ message, tool }`. Same intent, different words, different tool.
+
+## intent-topology.json is a matrix, not a list
+
+Rows are intents, columns are verticals. Each cell holds
+`{ message, mode, declaredTool, resolvedTool, resolverPath, overlayPrecedence }`.
+
+**An empty cell is a build error.** That single rule is what makes "all verticals
+behave the same" checkable instead of aspirational, and it is what makes a newly
+added vertical fail loudly until it is complete.
+
+## Measured gaps as of 2026-08-02
+
+Negative intents — **banking is the only vertical that has any**. Every other
+vertical's single `direct` chip is a happy path:
+
+| Vertical | `direct` / `llm` chips | Kind |
+|---|---|---|
+| banking | `bk-dpop` — *"fire a token with the wrong audience at the gateway"* | negative, wrong-aud |
+| banking | `bk-deny` — *"show my health record"*, `denyTool: show_health_record` | negative, cross-vertical |
+| banking | `bk-bad-scope` — resolves `test_wrong_scope` | negative, bad scope |
+| banking | `bk-direct` → `get_my_accounts`, `bk8` (llm) | happy path |
+| government | `gv-direct` → `view_permits`, `gv6` (llm) | happy path only |
+| healthcare | `hc-direct` → `view_records`, `hc9` (llm) | happy path only |
+| investment | `inv-direct` → `view_portfolios`, `inv-llm` | happy path only |
+| manufacturing | `mf-direct` → `view_work_orders`, `mf6` (llm) | happy path only |
+| retail | `rt-direct` → `list_orders` | happy path only, **no llm chip** |
+| sporting-goods | `sg-direct` → `gear_order_status` | happy path only, **no llm chip** |
+| university | `un-direct` → `view_courses`, `un8` (llm) | happy path only |
+| workforce | `wf-direct` → `list_expenses`, `wf10` (llm) | happy path only |
+
+Other Class A gaps:
+
+| Gap | Missing in |
+|---|---|
+| `groups` block — sensitive tool ungated | government, investment, manufacturing, university |
+| `llm` chip | retail, sporting-goods |
+| `tiers` | all 8 except banking |
+| Chip count | 9–15, no two verticals agree |
+
+Step-verification coverage (which use cases a vertical actually proves):
+
+| Vertical | Unique UCs | Ledger files |
+|---|---|---|
+| retail | 27 | 47 |
+| banking | 25 | 68 |
+| healthcare | 24 | 56 |
+| government, investment, manufacturing, sporting-goods, university, workforce | 24 | 44 each |
+| pingone-admin | 4 | 11 |
+| admin | 0 | **no directory** |
+| admin-console | 0 | **no directory** |
+| oauth-teaching | 0 | **no directory** |
+
+Structural keys missing: `delegation` and `featurePage` from all four Class B
+verticals; `identity` from admin and admin-console; `demoUsers` from
+pingone-admin.
+
+## Negative-intent parity: all three, every Class A vertical
+
+Decided. Each of the 9 customer verticals carries all three deliberate failures:
+
+1. **Wrong audience** — fire a token with the wrong `aud` at the gateway.
+   Vertical-agnostic; replicates directly from `bk-dpop`.
+2. **Cross-vertical DENY** — name another vertical's tool to trigger an Authorize
+   DENY. Needs a rule for which foreign tool each vertical points at; proposed:
+   each Class A vertical targets the `sensitive_*` tool of the next vertical in
+   alphabetical order, wrapping. This keeps every pairing distinct and every
+   target real. ⚠️ Confirm before implementing — an arbitrary pairing that lands
+   on an unprovisioned tool degrades to a 502 rather than a DENY.
+3. **Bad scope** — resolves a `test_wrong_scope` equivalent.
+
+Class B verticals declare their own deliberate failures appropriate to what they
+demo, held to the same "must exist and must actually deny" standard.
+
+## Honest size
+
+Roughly 24 new negative chip declarations (8 verticals × 3), 2 new `llm` chips,
+4 new `groups` blocks, plus whatever the generator's gap report shows for
+happy-path intents once the canonical catalog is derived. Three Class B
+verticals need step-verification coverage built from zero.
+
+This is the largest part of the work and it is deliberately generated-and-checked
+rather than hand-maintained, because the same gap will reappear the next time a
+vertical is added.
+
+---
+
 # Stage 1 — one intent table, both paths read it
 
 ## Governing invariant
@@ -365,21 +484,31 @@ untouched — failures surface as build errors, not demo surprises. Stage 2 keep
 
 # Success criteria
 
-1. `intent-topology.json` exists, covers 120/120 chips, zero silent skips.
-2. `npm run verticals:check` fails on a deliberately mis-declared chip tool.
-3. `npm run verticals:check` fails on a deliberate phrase collision within a
+1. `intent-topology.json` exists as an intent × vertical matrix, covers every
+   chip, zero silent skips.
+2. **Parity:** no empty cell. Every Class A vertical implements every canonical
+   intent; every Class B vertical implements its own declared catalog completely.
+   Adding a stub vertical with a missing intent fails the check.
+3. **Deliberate failures:** all 9 Class A verticals carry all three negative
+   intents, and each one actually denies — wrong-aud, cross-vertical, bad scope.
+   A negative chip that returns 200, or 502s instead of denying, is a failure.
+4. **Step-verification:** every vertical has a ledger directory with coverage for
+   its declared use cases, including admin, admin-console and oauth-teaching,
+   which have none today.
+5. `npm run verticals:check` fails on a deliberately mis-declared chip tool.
+6. `npm run verticals:check` fails on a deliberate phrase collision within a
    vertical, and on a deliberate overlay tool-name shadow.
-4. `pingone-admin` chips resolve through heuristics with `LLM_BACKEND=llamacpp`
+7. `pingone-admin` chips resolve through heuristics with `LLM_BACKEND=llamacpp`
    and report non-empty `toolsCalled`.
-5. `npm run intent:sweep:llm` reports zero contradictions across all chip phrases
+8. `npm run intent:sweep:llm` reports zero contradictions across all chip phrases
    (heuristic tool equals LLM tool, or the LLM abstains).
-6. Stage 2: with `ff_authorize_group_policy` ON, a $5,000 transfer for a Standard
+9. Stage 2: with `ff_authorize_group_policy` ON, a $5,000 transfer for a Standard
    user is denied by **real** PingOne Authorize — verified against the cloud
    decision, not the mock — and the same denial reproduces after a fresh snapshot
    import, with the `act` mapping intact.
-7. Stage 2: all **nine** `sensitive_*` tools are group-gated. A non-privileged
-   user is denied each one by real P1AZ, in every one of the nine verticals —
-   including the four that have no gate today (government, investment,
-   manufacturing, university).
-8. `cd demo_api_server && CI=true npm test -- --forceExit` green.
-9. `npm run topology:verify` green.
+10. Stage 2: all **nine** `sensitive_*` tools are group-gated. A non-privileged
+    user is denied each one by real P1AZ, in every one of the nine verticals —
+    including the four that have no gate today (government, investment,
+    manufacturing, university).
+11. `cd demo_api_server && CI=true npm test -- --forceExit` green.
+12. `npm run topology:verify` green.
