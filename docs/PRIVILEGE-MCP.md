@@ -14,24 +14,65 @@ This repo contains a **client** for that gateway (`/privilege-mcp-client`), a **
 that drives the OAuth and MCP protocol on the client's behalf, and Compose/K8s wiring for
 running the gateway itself.
 
-> Status as of 2026-08-02: the client, the relay and the protocol handling all work.
-> The live path to Privilege is **down** — the gateway's enrollment token has expired and
-> the client is pointed at the Privilege cloud API rather than at a gateway. See
+> Status as of 2026-08-02: the client, the relay and the protocol handling all work, and
+> `/api/privilege-mcp-simple` performs a real token-to-MCP call end to end today. The
+> **gateway** path is still blocked on two PingOne Privilege console steps. See
 > [Current state](#current-state-verified-2026-08-02).
+
+---
+
+## Who is the MCP client, and who is the MCP server
+
+Read this first. Almost every confusion about this feature comes from losing track of which
+side of the protocol a component is on.
+
+MCP has exactly two roles. A **client** opens a session and calls `tools/list` and
+`tools/call`. A **server** owns the tools and answers. Everything else — gateway, relay,
+proxy — is one of those two roles wearing a costume.
+
+| Component | MCP role | Talks to |
+|---|---|---|
+| Privilege MCP Client page (browser) | not an MCP participant — it is a UI that drives the BFF | the BFF, over plain HTTPS |
+| **BFF relay** (`/api/privilege-mcp/*`, `/api/privilege-mcp-simple/*`) | **MCP CLIENT** | the gateway, or the MCP server directly |
+| **Privilege MCP Gateway** (`ping-mcpgw`) | **BOTH** — MCP *server* to the BFF, MCP *client* to `mcp-server` | BFF inbound; `mcp-server` outbound |
+| **`mcp-server`** (`demo_mcp_server`) | **MCP SERVER** — owns the tools | answers whoever presents a valid token |
+| PingOne AS / Privilege control plane | neither — identity and policy planes | OAuth and gRPC, not MCP |
+
+Three consequences worth internalising:
+
+1. **The browser is never an MCP client here.** It cannot be: MCP needs a client secret and
+   a service-to-service token. The page clicks buttons; the BFF speaks MCP. That is why
+   every MCP concept (`initialize`, session id, protocol version) lives in the BFF routes
+   and not in React.
+2. **The gateway is a man-in-the-middle by design.** It terminates one MCP session from the
+   BFF and opens a second one to `mcp-server`. That is precisely what lets it apply policy
+   and record the session — and why `mcp-server` needs no Privilege-specific code.
+3. **The MCP server is the resource, not the gateway.** Tokens for tool calls carry
+   `aud: mcpserver.ping.demo`. A token minted for the gateway's own audience will not open
+   a tool call, and vice versa. Most "401 / insufficient scope" confusion is an audience or
+   scope mismatch, not a broken gateway.
+
+The demo can run the client role two ways:
+
+| Route | MCP client | Identity it carries | Works today |
+|---|---|---|---|
+| `/api/privilege-mcp` | BFF, on behalf of a signed-in human | user token (OAuth code + PKCE) | needs the console steps |
+| `/api/privilege-mcp-simple` | BFF, as itself | machine token (`client_credentials`) | yes — verified end to end |
 
 ---
 
 ## Moving parts
 
-| Component | Where it runs | Identity | Notes |
-|---|---|---|---|
-| Privilege MCP Client page | Browser, `/privilege-mcp-client` | the signed-in demo user | React page; drives everything through the BFF |
-| BFF relay | `demo-api-server`, `/api/privilege-mcp/*` | express session | [`routes/privilegeMcpClient.js`](../demo_api_server/routes/privilegeMcpClient.js) — OAuth PKCE, MCP JSON-RPC relay, SSE event stream |
-| Privilege MCP Gateway (MCPGW) | `ping-mcpgw` container, `:8680` | enrollment JWT | image `public.ecr.aws/s7q1z8z4/privilege-proxy`, binary `/procyon/bin/cyonproxy`; Compose profile `mcpgw` |
-| PingOne authorization server | `auth.pingone.com/<envId>/as` | OAuth client | mints the user's access token |
-| PingOne Privilege control plane | `grpc.privilege.pingone.com:443` | enrollment JWT | the gateway dials **out**; no inbound firewall holes |
-| Privilege cloud API | `privilege.pingone.com/api/mcp` | Privilege session | tenant API — **not** the gateway frontend (see [Current state](#current-state-verified-2026-08-02)) |
-| MCP server | `mcp-server:8080/mcp` | audience `mcpserver.ping.demo` | the protected resource; Privilege-unaware |
+| Component | MCP role | Where it runs | Identity | Notes |
+|---|---|---|---|---|
+| Privilege MCP Client page | UI only | Browser, `/privilege-mcp-client` | the signed-in demo user | React page; drives everything through the BFF |
+| BFF interactive relay | MCP client | `demo-api-server`, `/api/privilege-mcp/*` | express session + user token | [`routes/privilegeMcpClient.js`](../demo_api_server/routes/privilegeMcpClient.js) — OAuth PKCE, MCP JSON-RPC relay, SSE event stream |
+| BFF simple relay | MCP client | `demo-api-server`, `/api/privilege-mcp-simple/*` | machine token | [`routes/privilegeMcpSimple.js`](../demo_api_server/routes/privilegeMcpSimple.js) — `client_credentials` in, MCP out; no browser flow |
+| Privilege MCP Gateway (MCPGW) | server **and** client | `ping-mcpgw` container, `:8623` | enrollment JWT | image `public.ecr.aws/s7q1z8z4/privilege-proxy`, binary `/procyon/bin/cyonproxy`; Compose profile `mcpgw`; reads `pingone.env` from `/var/lib/procyon/config` |
+| PingOne authorization server | — | `auth.pingone.com/<envId>/as` | OAuth client | mints both the user and machine tokens |
+| PingOne Privilege control plane | — | `grpc.privilege.pingone.com:443` | enrollment JWT | the gateway dials **out**; no inbound firewall holes |
+| Privilege cloud API | — | `privilege.pingone.com/api/mcp` | Privilege session | tenant API — **not** the gateway frontend (see [Current state](#current-state-verified-2026-08-02)) |
+| MCP server | **MCP server** | `mcp-server:8080/mcp` | audience `mcpserver.ping.demo` | the protected resource; Privilege-unaware |
 
 "Procyon" appears throughout the gateway's wire protocol and binary names — it is the
 product Privilege was built from, so `x-procyon-session-id` and `cyonproxy` are expected,
@@ -83,33 +124,39 @@ reaches the gateway and how session recordings leave it.
 
 ## Architecture
 
+Boxes are labelled with their MCP role. Note the gateway is a server on its left edge and a
+client on its right — that double role is the whole mechanism.
+
 ```mermaid
 graph TB
-    subgraph browser["Browser"]
-        UI["/privilege-mcp-client<br/>React page"]
+    subgraph browser["Browser — no MCP here"]
+        UI["/privilege-mcp-client<br/>React page (UI only)"]
     end
 
     subgraph demo["Demo stack (Docker Compose)"]
-        BFF["demo-api-server<br/>/api/privilege-mcp/*"]
-        GW["ping-mcpgw :8680<br/>cyonproxy"]
-        MCP["mcp-server :8080<br/>Privilege-unaware"]
+        BFF["demo-api-server<br/><b>MCP CLIENT</b><br/>/api/privilege-mcp/* (user)<br/>/api/privilege-mcp-simple/* (machine)"]
+        GW["ping-mcpgw :8623 — cyonproxy<br/><b>MCP SERVER</b> to the BFF<br/><b>MCP CLIENT</b> to mcp-server"]
+        MCP["mcp-server :8080<br/><b>MCP SERVER</b> — owns the tools<br/>aud mcpserver.ping.demo"]
     end
 
-    subgraph ping["PingOne (cloud)"]
+    subgraph ping["PingOne (cloud) — identity and policy, not MCP"]
         AS["Authorization server<br/>auth.pingone.com/{envId}/as"]
         CP["Privilege control plane<br/>grpc.privilege.pingone.com:443"]
         API["Privilege cloud API<br/>privilege.pingone.com/api/mcp"]
     end
 
-    UI -->|"HTTPS + session cookie"| BFF
+    UI -->|"HTTPS + session cookie<br/>(not MCP)"| BFF
     BFF -.->|"SSE: live relay events"| UI
-    BFF -->|"OAuth 2.0 code + PKCE"| AS
-    BFF -->|"MCP JSON-RPC over HTTP"| GW
-    GW -->|"MCP JSON-RPC"| MCP
+    BFF -->|"OAuth 2.0 code + PKCE (user)<br/>client_credentials (machine)"| AS
+    BFF -->|"MCP session 1<br/>JSON-RPC over HTTP"| GW
+    GW -->|"MCP session 2<br/>policy applied between them"| MCP
+    BFF -->|"MCP direct — simple route,<br/>works today"| MCP
     GW <-->|"outbound gRPC<br/>enrollment JWT"| CP
-    BFF -.->|"currently configured here<br/>instead of the gateway"| API
+    API -.->|"NOT the gateway frontend"| GW
 
+    classDef mcpserver stroke-width:3px
     classDef broken stroke-dasharray: 5 5
+    class MCP,GW mcpserver
     class API broken
 ```
 
@@ -119,11 +166,11 @@ graph TB
 sequenceDiagram
     autonumber
     participant U as Operator
-    participant P as Client page
-    participant B as BFF relay
+    participant P as Client page (UI)
+    participant B as BFF — MCP CLIENT
     participant A as PingOne AS
-    participant G as MCP Gateway
-    participant M as MCP server
+    participant G as Gateway — MCP server+client
+    participant M as mcp-server — MCP SERVER
 
     U->>P: Sign In with Privilege
     P->>B: POST /auth/start
@@ -184,17 +231,45 @@ Relay handlers surface the **upstream** status: an upstream 4xx passes through, 
 else becomes 500. A Privilege policy DENY therefore reaches the page as a 4xx with its
 reason, not as an opaque server error.
 
+### The simple relay — `/api/privilege-mcp-simple`
+
+Same MCP client role, no human. Use it to prove the token-to-MCP path without any console
+prerequisite, and as the Postman target
+([`postman/Privilege-MCP-Simple.postman_collection.json`](../postman/Privilege-MCP-Simple.postman_collection.json)).
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/status` | target URL, mTLS on/off, whether a token is cached |
+| POST | `/tools/list` | mint if needed, handshake, list tools |
+| POST | `/tools/call` | invoke one tool by name |
+
+Two details that are easy to get wrong and are pinned by tests:
+
+- **Name the scopes.** A bare `client_credentials` on the Privilege SSO app is rejected —
+  *"May not request scopes for multiple resources"* — because the app holds grants on three
+  resources. And `mcp:invoke` alone opens the transport but fails every tool with
+  *"Insufficient scope for tool 'get_my_accounts'"*. The working value is
+  `read write mcp:invoke`, all on the `mcpserver.ping.demo` resource.
+- **Send `mcp-protocol-version`** on every non-`initialize` request, taken from the
+  `initialize` response, or the MCP server answers `400`.
+
+A `client_credentials` token is a machine identity with no user, so `get_my_accounts`
+correctly returns `count: 0`. User-scoped data needs the interactive route.
+
 ## Configuration
 
 | Variable | Set in | Meaning |
 |---|---|---|
-| `PRIVILEGE_MCPGW_URL` | `docker-compose.yml` | MCP URL the client page defaults to — should be the **gateway frontend** |
+| `PRIVILEGE_MCPGW_URL` | `docker-compose.yml` | MCP URL the client page defaults to — the **gateway frontend** (`https://local.ping-devops.com:8623/mcp`) |
+| `PRIVILEGE_SIMPLE_MCP_URL` | env, optional | target of the simple relay; defaults to `https://mcp-server:8080/mcp`. Point at the gateway to route the same code through Privilege |
+| `PRIVILEGE_SIMPLE_SCOPE` | env, optional | scopes for the machine token; defaults to `read write mcp:invoke` |
 | `PRIVILEGE_SSO_CLIENT_ID` / `_SECRET` | `docker-compose.yml` | OAuth client for the user sign-in |
 | `PRIVILEGE_SSO_ENV_ID` | `docker-compose.yml` | env used for OIDC discovery fallback |
 | `PRIVILEGE_LOGIN_HINT` | `docker-compose.yml` | pre-fills the Privilege user at sign-on |
 | `PRIVILEGE_MCP_CALLBACK_HOST` | env, optional | overrides the callback host (default `local.ping-devops.com:4000`) |
 | `PRIVILEGE_PROXY_TOKEN` | root `.env` | enrollment JWT passed to the gateway as `ENV_PROXY_TOKEN` |
-| `ping-mcpgw/config/proxy-token` | file, gitignored | same JWT, mounted at `/procyon/ssl/proxy-token.data` (preferred — the proxy writes back to it) |
+| `ping-mcpgw/config/proxy-token` | file, gitignored | same JWT; the proxy persists its exchanged copy into the `mcpgw-ssl` volume |
+| `ping-mcpgw/config/pingone.env` | file, gitignored | `SERVER_URL` + the OIDC endpoints the gateway uses to authenticate MCP clients. Mounted at `/var/lib/procyon/config`. The BFF can author it via `PUT /api/privilege-mcp/env` |
 
 Gateway setup — registering it, attaching an MCP Server application, authoring the DENY
 rule, enabling recording — is in [`ping-mcpgw/README.md`](../ping-mcpgw/README.md). Those
@@ -239,9 +314,26 @@ The token now arrives only via `ENV_PROXY_TOKEN` and `/procyon/ssl` is the writa
 That is also why a hand-run container was up instead of the Compose service: the Compose
 one crash-looped.
 
-**3. The gateway is enrolled but not yet serving `:8680`** — `https://local.ping-devops.com:8680`
-does not answer, and the control plane reports `Error sending update to mesh controller:
-rpc error: code = Unknown desc = not found`. Two console-side items remain:
+**3. The gateway is enrolled but serves no MCP listener at all.** Proven by elimination —
+three plausible local causes were fixed and it still does not listen:
+
+- **Port.** The compose command forced `-listen :8680`. Inside the container the only bound
+  ports were **8090 (loopback)** and an ephemeral, so the published host port accepted a TCP
+  connection and closed it — `UND_ERR_SOCKET` from the BFF, `ECONNREFUSED` container to
+  container. Now `:8623`, the product's documented MCP traffic port (its k8s ingress maps
+  `443 -> 8623`).
+- **`pingone.env` was never mounted.** The file existed in `ping-mcpgw/config` — the BFF
+  even writes it via `PUT /api/privilege-mcp/env` — but the gateway container mounted only
+  ssl, logs and recordings, so the proxy never read it. Its `SERVER_URL` also pointed at a
+  fourth port (`8643`) matching nothing. Now mounted at `/var/lib/procyon/config` with
+  `SERVER_URL` aligned to `:8623`.
+- **Enrollment.** Healthy: the proxy logs `established command stream`, receives
+  `MedusaLinkEvent` watch events, and even logs `Created frontend node`.
+
+After all three, still no listener on 8623 or 8680, and the control plane keeps reporting
+`Error sending update to mesh controller: rpc error: code = Unknown desc = not found`. The
+MCP frontend is created only when the console defines an application for it to serve. Two
+console-side items remain:
 
 - No **MCP Server application** is attached to cluster `ai-demo-se` yet — README step 4
   (Frontend URL `https://local.ping-devops.com:8680`, MCP Server URL `http://mcp-server:8080/mcp`).

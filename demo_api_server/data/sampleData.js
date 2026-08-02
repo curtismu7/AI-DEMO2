@@ -8,6 +8,16 @@ const { roundToCents } = require('../utils/money');
 const SEED_CUSTOMER_PASSWORD = process.env.SEED_CUSTOMER_PASSWORD || 'password123';
 const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin123';
 
+// Hash ONCE per distinct password, at module scope. bcryptjs is pure JS, so a
+// single hashSync at cost 10 runs ~1.8s here — an order of magnitude slower than
+// the native binding. The three customer seeds share one plaintext, so hashing
+// per user cost ~7s of pure duplication on every require of this module, which is
+// on the critical path of booting the whole BFF. Distinct salts across seed rows
+// buy nothing: the plaintext is identical and compareSync works against any valid
+// hash of it.
+const SEED_CUSTOMER_HASH = bcrypt.hashSync(SEED_CUSTOMER_PASSWORD, 10);
+const SEED_ADMIN_HASH = bcrypt.hashSync(SEED_ADMIN_PASSWORD, 10);
+
 // Sample users with hashed passwords
 const sampleUsers = [
   {
@@ -16,7 +26,7 @@ const sampleUsers = [
     email: 'john.doe@example.com',
     firstName: 'John',
     lastName: 'Doe',
-    password: bcrypt.hashSync(SEED_CUSTOMER_PASSWORD, 10),
+    password: SEED_CUSTOMER_HASH,
     role: 'customer',
     createdAt: new Date('2024-01-15'),
     isActive: true
@@ -27,7 +37,7 @@ const sampleUsers = [
     email: 'jane.smith@example.com',
     firstName: 'Jane',
     lastName: 'Smith',
-    password: bcrypt.hashSync(SEED_CUSTOMER_PASSWORD, 10),
+    password: SEED_CUSTOMER_HASH,
     role: 'customer',
     createdAt: new Date('2024-01-20'),
     isActive: true
@@ -38,7 +48,7 @@ const sampleUsers = [
     email: 'mike.johnson@example.com',
     firstName: 'Mike',
     lastName: 'Johnson',
-    password: bcrypt.hashSync(SEED_CUSTOMER_PASSWORD, 10),
+    password: SEED_CUSTOMER_HASH,
     role: 'customer',
     createdAt: new Date('2024-02-01'),
     isActive: true
@@ -49,7 +59,7 @@ const sampleUsers = [
     email: 'admin@bank.com',
     firstName: 'Admin',
     lastName: 'User',
-    password: bcrypt.hashSync(SEED_ADMIN_PASSWORD, 10),
+    password: SEED_ADMIN_HASH,
     role: 'admin',
     createdAt: new Date('2024-01-01'),
     isActive: true
