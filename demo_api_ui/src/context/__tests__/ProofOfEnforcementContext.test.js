@@ -304,6 +304,39 @@ describe('gateway-denied attack sims reach a verdict', () => {
   });
 });
 
+// Regression: a run that ENDED in failure read identically to one still in
+// flight — "Waiting on authorize-decision" — because the verdict ignored
+// trace.outcome, which completeTrace(false) already sets. During the gateway
+// mTLS scheme break, PingOne Authorize returned PERMIT and the tool call died
+// downstream; the strip still said the run was waiting on the decision.
+describe('a failed run is not reported as still waiting', () => {
+  const ENTRY = {
+    useCaseId: 'delegated-access-with-proof',
+    title: 'Delegated access with proof',
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'authorize-decision', 'tool-dispatched'], activity: ['token'] },
+  };
+  const partial = (outcome) => ({
+    tokenEvents: [{ id: 'user-token' }],
+    authorize: null,
+    mcpResult: null,
+    outcome,
+  });
+
+  test('still in flight keeps the waiting wording', () => {
+    const v = computeVerdict(partial(null), ENTRY);
+    expect(v.state).toBe('incomplete');
+    expect(v.resultText).toBe('Waiting on authorize-decision, tool-dispatched');
+  });
+
+  test('an ended-in-error run says it failed, and names where it stopped', () => {
+    const v = computeVerdict(partial('error'), ENTRY);
+    expect(v.state).toBe('incomplete');
+    expect(v.resultText).toBe('Run failed before authorize-decision, tool-dispatched');
+    expect(v.missingSteps).toEqual(['authorize-decision', 'tool-dispatched']);
+  });
+});
+
 // Regression: a deny-like expectation used to be satisfied by ANY non-PERMIT
 // decision. mcpToolPipeline collapses step-up and HITL to 'INDETERMINATE', so a
 // use case advertising a hard DENY rendered "Verified (denied as expected)" when
