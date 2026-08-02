@@ -61,6 +61,49 @@ describe('fallbackDataResolver', () => {
       expect(leaksBanking(result.suggestions || [])).toBe(false);
     });
 
+    // Protocol-education prompts ("what is PAR", "explain step-up") are
+    // vertical-agnostic teaching, not banking data. They must never drag the
+    // active vertical over to banking.
+    it('never returns banking chips for a protocol-education prompt in healthcare', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'explain sensitive data',
+        { verticalId: 'healthcare' }
+      );
+      expect(result.verticalId).toBe('healthcare');
+      expect(leaksBanking(result.chips)).toBe(false);
+      expect(leaksBanking(result.suggestions || [])).toBe(false);
+    });
+
+    it('never returns banking chips for a protocol-education prompt in investment', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'explain pkce',
+        { verticalId: 'investment' }
+      );
+      expect(result.verticalId).toBe('investment');
+      expect(leaksBanking(result.chips)).toBe(false);
+      expect(leaksBanking(result.suggestions || [])).toBe(false);
+    });
+
+    it('returns a structured no-match for a protocol-education prompt when no vertical is active', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'explain token exchange',
+        { verticalId: undefined }
+      );
+      expect(result.verticalId).not.toBe('banking');
+      expect(result.noMatch).toBe(true);
+      expect(result.chips).toEqual([]);
+    });
+
+    it('still serves banking chips for a protocol-education prompt inside banking', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'explain token exchange',
+        { verticalId: 'banking' }
+      );
+      expect(result.verticalId).toBe('banking');
+      expect(result.noMatch).toBeUndefined();
+      expect(result.chips.some((c) => c.tool === 'create_transfer')).toBe(true);
+    });
+
     it('returns a structured no-match instead of banking when no vertical is active', async () => {
       const result = await fallbackDataResolver.resolveFallbackChips(
         'hello world',
