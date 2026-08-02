@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">1
+<title>Resource Server Pages — Current + 3 Alternatives</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; padding: 40px 20px; }
+  h1 { text-align: center; font-size: 24px; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #8b949e; font-size: 13px; margin-bottom: 40px; }
+
+  .section { margin-bottom: 60px; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; }
+  .section-header { padding: 16px 24px; background: #161b22; border-bottom: 1px solid #30363d; display: flex; align-items: center; gap: 12px; }
+  .section-header h2 { font-size: 16px; font-weight: 600; }
+  .section-header .tag { font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; }
+  .tag--current { background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb; }
+  .tag--alt { background: #23863633; color: #3fb950; border: 1px solid #238636; }
+
+  .pages-row { display: flex; gap: 0; }
+  .page-mock { flex: 1; min-width: 0; border-right: 1px solid #30363d; padding: 20px; }
+  .page-mock:last-child { border-right: none; }
+  .page-mock h3 { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+
+  /* Mini RS page mocks */
+  .rs-mock { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; font-size: 11px; }
+  .rs-mock .rs-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #21262d; }
+  .rs-mock .rs-badge { font-size: 8px; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+  .rs-badge--olb { background: #1f6feb33; color: #58a6ff; }
+  .rs-badge--mcp { background: #23863633; color: #3fb950; }
+  .rs-badge--api { background: #d2992233; color: #d29922; }
+  .rs-mock .rs-title { font-weight: 600; font-size: 13px; }
+  .rs-mock .rs-subtitle { color: #8b949e; font-size: 10px; }
+
+  .rs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .rs-card { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 8px 10px; }
+  .rs-card .label { font-size: 9px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rs-card .value { font-size: 12px; font-weight: 600; color: #e6edf3; margin-top: 2px; }
+  .rs-card .value--accent { color: #58a6ff; }
+  .rs-card .value--green { color: #3fb950; }
+  .rs-card .value--gold { color: #d29922; }
+
+  .rs-claims { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .rs-claim { display: flex; gap: 6px; padding: 2px 0; border-bottom: 1px solid #21262d; }
+  .rs-claim:last-child { border-bottom: none; }
+  .rs-ck { color: #58a6ff; min-width: 50px; }
+  .rs-cv { color: #c9d1d9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .rs-vertical-data { margin-top: 10px; padding: 10px; background: #0d1117; border: 1px solid #21262d; border-radius: 6px; }
+  .rs-vertical-data h4 { font-size: 10px; color: #d29922; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rs-vertical-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; border-bottom: 1px solid #161b22; }
+  .rs-vertical-row:last-child { border-bottom: none; }
+
+  .rs-tabs { display: flex; gap: 0; margin-bottom: 10px; }
+  .rs-tab { padding: 4px 10px; font-size: 10px; border: 1px solid #30363d; background: #0d1117; color: #8b949e; cursor: pointer; }
+  .rs-tab:first-child { border-radius: 4px 0 0 4px; }
+  .rs-tab:last-child { border-radius: 0 4px 4px 0; }
+  .rs-tab--active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+
+  .rs-token-box { margin-top: 8px; padding: 8px; background: #0d1117; border: 1px solid #21262d; border-radius: 6px; }
+  .rs-token-box h4 { font-size: 9px; color: #3fb950; text-transform: uppercase; margin-bottom: 4px; }
+  .rs-token-raw { font-family: monospace; font-size: 9px; color: #8b949e; word-break: break-all; line-height: 1.3; }
+
+  .rs-proof { margin-top: 8px; padding: 8px 10px; background: #23863620; border: 1px solid #238636; border-radius: 6px; }
+  .rs-proof .label { font-size: 9px; color: #3fb950; font-weight: 600; }
+  .rs-proof .desc { font-size: 10px; color: #c9d1d9; margin-top: 2px; }
+
+  .rs-nav-row { margin-top: 10px; display: flex; gap: 6px; }
+  .rs-nav-btn { font-size: 9px; padding: 4px 10px; border-radius: 4px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; cursor: pointer; }
+  .rs-nav-btn--primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+  .notes { padding: 16px 24px; background: #0d1117; border-top: 1px solid #30363d; font-size: 12px; color: #8b949e; }
+  .notes strong { color: #e6edf3; }
+  .notes ul { margin: 6px 0 0 16px; }
+  .notes li { margin-bottom: 3px; }
+
+  /* Alt-specific styles */
+  .split-view { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .split-left { border-right: 1px solid #21262d; padding-right: 10px; }
+  .split-right { padding-left: 10px; }
+
+  .timeline { margin-top: 8px; }
+  .timeline-step { display: flex; gap: 8px; padding: 4px 0; font-size: 10px; }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: #1f6feb; margin-top: 2px; flex-shrink: 0; }
+  .timeline-dot--green { background: #3fb950; }
+  .timeline-dot--gold { background: #d29922; }
+</style>
+</head>
+<body>
+
+<h1>Resource Server Pages — Mock Comparison</h1>
+<p class="subtitle">Current state + 3 proposed alternatives. All 3 RS pages are generic (work with any vertical).</p>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- CURRENT STATE -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Current State</h2>
+    <span class="tag tag--current">AS-IS</span>
+  </div>
+  <div class="pages-row">
+    <!-- OLB -->
+    <div class="page-mock">
+      <h3>MCP Server (OLB) — /resource-server</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--olb">OLB</span>
+          <span class="rs-title">OIDC Resource Server</span>
+        </div>
+        <div class="rs-tabs">
+          <span class="rs-tab rs-tab--active">Login RS</span>
+          <span class="rs-tab">In-flow RS</span>
+        </div>
+        <div class="rs-grid">
+          <div class="rs-card"><div class="label">Total Balance</div><div class="value value--accent">$47,832.50</div></div>
+          <div class="rs-card"><div class="label">Accounts</div><div class="value">3 accounts</div></div>
+        </div>
+        <div class="rs-claims">
+          <div class="rs-claim"><span class="rs-ck">sub</span><span class="rs-cv">a1b2c3d4-...</span></div>
+          <div class="rs-claim"><span class="rs-ck">aud</span><span class="rs-cv">mcpserver.ping.demo</span></div>
+          <div class="rs-claim"><span class="rs-ck">scope</span><span class="rs-cv">accounts:read transactions:read</span></div>
+          <div class="rs-claim"><span class="rs-ck">act</span><span class="rs-cv">{sub: "agent-client-id"}</span></div>
+        </div>
+        <div style="margin-top: 8px; font-size: 10px; color: #8b949e;">+ ResourceServerTester (3-col IDE layout) below</div>
+      </div>
+    </div>
+
+    <!-- MCP Resource Server -->
+    <div class="page-mock">
+      <h3>MCP Resource Server — (interstitial only)</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--mcp">MCP RS</span>
+          <span class="rs-title">Interstitial Modal (4s auto-dismiss)</span>
+        </div>
+        <div style="text-align: center; padding: 20px 0; color: #8b949e; font-size: 11px;">
+          <div style="font-size: 14px; margin-bottom: 6px;">Routing to MCP Resource Server</div>
+          <div>Tool: <code>get_portfolio_summary</code></div>
+          <div style="margin-top: 10px;">3 server nodes shown (OLB dim, Invest highlighted, API dim)</div>
+          <div style="margin-top: 6px; color: #d29922;">No dedicated page — returns to chat after 4s</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Resource Server -->
+    <div class="page-mock">
+      <h3>API Resource Server — (interstitial only)</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--api">API RS</span>
+          <span class="rs-title">Interstitial Modal (4s auto-dismiss)</span>
+        </div>
+        <div style="text-align: center; padding: 20px 0; color: #8b949e; font-size: 11px;">
+          <div style="font-size: 14px; margin-bottom: 6px;">Routing to API Resource Server</div>
+          <div>Tool: <code>show_mortgage</code></div>
+          <div style="margin-top: 10px;">Shows: protocol=HTTP REST, auth=X-API-Key</div>
+          <div style="margin-top: 6px; color: #d29922;">No dedicated page — returns to chat after 4s</div>
+          <div style="margin-top: 4px; color: #3fb950;">Has vertical-specific data (enrollment, permit, workOrder, invest) but only in interstitial</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <strong>Issues:</strong>
+    <ul>
+      <li>Only OLB has a full page (/resource-server). MCP RS and API RS are interstitial-only (4s popup, then back to chat).</li>
+      <li>No vertical navigates to a dedicated RS page — everything returns to chat.</li>
+      <li>API RS has vertical-specific data (feature-records.generated.json) but it's not displayed in a page.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- ALTERNATIVE A: Tab-per-RS on a single unified page -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Alternative A — Unified 3-Tab RS Page</h2>
+    <span class="tag tag--alt">OPTION A</span>
+  </div>
+  <div class="pages-row">
+    <div class="page-mock">
+      <h3>Single page: /resource-server?rs=olb</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--olb">OLB</span>
+          <span class="rs-title">Resource Server Inspector</span>
+        </div>
+        <div class="rs-tabs">
+          <span class="rs-tab rs-tab--active">MCP Server (OLB)</span>
+          <span class="rs-tab">MCP Resource Server</span>
+          <span class="rs-tab">API Resource Server</span>
+        </div>
+        <div class="rs-grid">
+          <div class="rs-card"><div class="label">Total Balance</div><div class="value value--accent">$47,832.50</div></div>
+          <div class="rs-card"><div class="label">Accounts</div><div class="value">3</div></div>
+          <div class="rs-card"><div class="label">Auth</div><div class="value value--green">RFC 8693</div></div>
+          <div class="rs-card"><div class="label">Audience</div><div class="value">mcpserver.ping.demo</div></div>
+        </div>
+        <div class="rs-claims">
+          <div class="rs-claim"><span class="rs-ck">sub</span><span class="rs-cv">a1b2c3d4-e5f6-...</span></div>
+          <div class="rs-claim"><span class="rs-ck">aud</span><span class="rs-cv">mcpserver.ping.demo</span></div>
+          <div class="rs-claim"><span class="rs-ck">act</span><span class="rs-cv">{sub: "agent-client"}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="page-mock">
+      <h3>Same page: /resource-server?rs=invest</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--mcp">MCP RS</span>
+          <span class="rs-title">Resource Server Inspector</span>
+        </div>
+        <div class="rs-tabs">
+          <span class="rs-tab">MCP Server (OLB)</span>
+          <span class="rs-tab rs-tab--active">MCP Resource Server</span>
+          <span class="rs-tab">API Resource Server</span>
+        </div>
+        <div class="rs-grid">
+          <div class="rs-card"><div class="label">Portfolio Value</div><div class="value value--green">$234,500</div></div>
+          <div class="rs-card"><div class="label">Holdings</div><div class="value">12</div></div>
+          <div class="rs-card"><div class="label">Auth</div><div class="value value--green">RFC 8693</div></div>
+          <div class="rs-card"><div class="label">Audience</div><div class="value">mcp-invest.ping.demo</div></div>
+        </div>
+        <div class="rs-claims">
+          <div class="rs-claim"><span class="rs-ck">sub</span><span class="rs-cv">a1b2c3d4-e5f6-...</span></div>
+          <div class="rs-claim"><span class="rs-ck">aud</span><span class="rs-cv">mcp-invest.ping.demo</span></div>
+          <div class="rs-claim"><span class="rs-ck">scope</span><span class="rs-cv">invest:read</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="page-mock">
+      <h3>Same page: /resource-server?rs=apikey&vertical=healthcare</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--api">API RS</span>
+          <span class="rs-title">Resource Server Inspector</span>
+        </div>
+        <div class="rs-tabs">
+          <span class="rs-tab">MCP Server (OLB)</span>
+          <span class="rs-tab">MCP Resource Server</span>
+          <span class="rs-tab rs-tab--active">API Resource Server</span>
+        </div>
+        <div class="rs-grid">
+          <div class="rs-card"><div class="label">Auth Method</div><div class="value value--gold">X-API-Key</div></div>
+          <div class="rs-card"><div class="label">Disposition</div><div class="value">api_key</div></div>
+        </div>
+        <div class="rs-vertical-data">
+          <h4>Healthcare — Patient Record</h4>
+          <div class="rs-vertical-row"><span>Member ID</span><span>HC-2024-0891</span></div>
+          <div class="rs-vertical-row"><span>Coverage</span><span>PPO Gold</span></div>
+          <div class="rs-vertical-row"><span>Deductible Used</span><span>$1,200 / $3,000</span></div>
+          <div class="rs-vertical-row"><span>Next Appointment</span><span>2026-09-15</span></div>
+        </div>
+        <div class="rs-proof">
+          <div class="label">Gateway Proof</div>
+          <div class="desc">OAuth bearer → X-API-Key swap. Service never sees the user's token.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <strong>Concept:</strong> Single /resource-server page with 3 tabs. Query param <code>?rs=olb|invest|apikey&vertical=X</code> selects which tab + vertical data to show.
+    <ul>
+      <li>Pro: One URL, simple navigation. Agent just changes the query param.</li>
+      <li>Pro: API RS tab shows vertical-specific data (healthcare, retail, gov, etc.)</li>
+      <li>Con: All 3 RS on one page reduces the visual impact of "navigating to a different server".</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- ALTERNATIVE B: 3 Separate Full Pages (split token + data) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Alternative B — 3 Separate Full Pages (Split View: Token + Data)</h2>
+    <span class="tag tag--alt">OPTION B</span>
+  </div>
+  <div class="pages-row">
+    <div class="page-mock">
+      <h3>/rs/olb — MCP Server (OLB)</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--olb">MCP SERVER (OLB)</span>
+          <span class="rs-subtitle">:8080 • WebSocket • RFC 8693</span>
+        </div>
+        <div class="split-view">
+          <div class="split-left">
+            <div style="font-size: 9px; color: #58a6ff; text-transform: uppercase; margin-bottom: 4px;">Token Presented</div>
+            <div class="rs-claims">
+              <div class="rs-claim"><span class="rs-ck">sub</span><span class="rs-cv">a1b2c3d4-...</span></div>
+              <div class="rs-claim"><span class="rs-ck">aud</span><span class="rs-cv">mcpserver.ping.demo</span></div>
+              <div class="rs-claim"><span class="rs-ck">scope</span><span class="rs-cv">accounts:read tx:read</span></div>
+              <div class="rs-claim"><span class="rs-ck">act</span><span class="rs-cv">{sub: "agent-..."}</span></div>
+              <div class="rs-claim"><span class="rs-ck">exp</span><span class="rs-cv">3m 42s remaining</span></div>
+            </div>
+          </div>
+          <div class="split-right">
+            <div style="font-size: 9px; color: #3fb950; text-transform: uppercase; margin-bottom: 4px;">Data Returned</div>
+            <div class="rs-card" style="margin-bottom: 4px;"><div class="label">Checking ****4521</div><div class="value value--accent">$12,340.00</div></div>
+            <div class="rs-card" style="margin-bottom: 4px;"><div class="label">Savings ****7788</div><div class="value value--accent">$35,492.50</div></div>
+            <div class="rs-card"><div class="label">Recent Txn</div><div class="value">-$85.00 Whole Foods</div></div>
+          </div>
+        </div>
+        <div class="rs-nav-row">
+          <span class="rs-nav-btn rs-nav-btn--primary">Back to Agent</span>
+          <span class="rs-nav-btn">Token Details</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-mock">
+      <h3>/rs/invest — MCP Resource Server</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--mcp">MCP RESOURCE SERVER</span>
+          <span class="rs-subtitle">:8081 • WebSocket • RFC 8693</span>
+        </div>
+        <div class="split-view">
+          <div class="split-left">
+            <div style="font-size: 9px; color: #58a6ff; text-transform: uppercase; margin-bottom: 4px;">Token Presented</div>
+            <div class="rs-claims">
+              <div class="rs-claim"><span class="rs-ck">sub</span><span class="rs-cv">a1b2c3d4-...</span></div>
+              <div class="rs-claim"><span class="rs-ck">aud</span><span class="rs-cv">mcp-invest.ping.demo</span></div>
+              <div class="rs-claim"><span class="rs-ck">scope</span><span class="rs-cv">invest:read</span></div>
+              <div class="rs-claim"><span class="rs-ck">exp</span><span class="rs-cv">4m 12s remaining</span></div>
+            </div>
+          </div>
+          <div class="split-right">
+            <div style="font-size: 9px; color: #3fb950; text-transform: uppercase; margin-bottom: 4px;">Portfolio Data</div>
+            <div class="rs-card" style="margin-bottom: 4px;"><div class="label">Total Value</div><div class="value value--green">$234,500</div></div>
+            <div class="rs-card" style="margin-bottom: 4px;"><div class="label">Holdings</div><div class="value">AAPL, MSFT, VOO +9</div></div>
+            <div class="rs-card"><div class="label">YTD Return</div><div class="value value--green">+12.4%</div></div>
+          </div>
+        </div>
+        <div class="rs-nav-row">
+          <span class="rs-nav-btn rs-nav-btn--primary">Back to Agent</span>
+          <span class="rs-nav-btn">Token Details</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-mock">
+      <h3>/rs/api?vertical=manufacturing — API Resource Server</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--api">API RESOURCE SERVER</span>
+          <span class="rs-subtitle">:8082 • HTTP REST • X-API-Key</span>
+        </div>
+        <div class="split-view">
+          <div class="split-left">
+            <div style="font-size: 9px; color: #d29922; text-transform: uppercase; margin-bottom: 4px;">Credential Swap</div>
+            <div class="rs-claims">
+              <div class="rs-claim"><span class="rs-ck">in</span><span class="rs-cv">Bearer eyJhbG...</span></div>
+              <div class="rs-claim"><span class="rs-ck">out</span><span class="rs-cv">X-API-Key: a8f3...</span></div>
+              <div class="rs-claim"><span class="rs-ck">sub</span><span class="rs-cv">a1b2c3d4 (X-User-Sub)</span></div>
+            </div>
+            <div class="rs-proof">
+              <div class="label">Gateway Proof</div>
+              <div class="desc">Bearer dropped. API key injected.</div>
+            </div>
+          </div>
+          <div class="split-right">
+            <div style="font-size: 9px; color: #3fb950; text-transform: uppercase; margin-bottom: 4px;">Manufacturing — Work Order</div>
+            <div class="rs-vertical-data" style="margin-top: 0;">
+              <div class="rs-vertical-row"><span>WO Number</span><span>WO-2026-4412</span></div>
+              <div class="rs-vertical-row"><span>Product</span><span>CNC Assembly Jig</span></div>
+              <div class="rs-vertical-row"><span>Status</span><span style="color:#3fb950">In Progress</span></div>
+              <div class="rs-vertical-row"><span>Qty</span><span>250 units</span></div>
+              <div class="rs-vertical-row"><span>Due</span><span>2026-08-30</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rs-nav-row">
+          <span class="rs-nav-btn rs-nav-btn--primary">Back to Agent</span>
+          <span class="rs-nav-btn">Credential Details</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <strong>Concept:</strong> 3 separate routes (/rs/olb, /rs/invest, /rs/api?vertical=X). Each is a split view: left = token/credential proof, right = data returned. API RS shows vertical-specific data.
+    <ul>
+      <li>Pro: Clear visual that "I left the chat and went to a different resource server page."</li>
+      <li>Pro: API RS keeps vertical-specific data (work orders, permits, enrollments, etc.)</li>
+      <li>Pro: Split view shows both "what was presented" and "what came back" side-by-side.</li>
+      <li>Con: 3 components to maintain (but they share a common shell).</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- ALTERNATIVE C: Timeline/Journey page (shows the full path) -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Alternative C — Journey Page (Request Timeline + RS Result)</h2>
+    <span class="tag tag--alt">OPTION C</span>
+  </div>
+  <div class="pages-row">
+    <div class="page-mock">
+      <h3>/rs/olb — with request timeline</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--olb">MCP SERVER (OLB)</span>
+          <span class="rs-title">Request Journey</span>
+        </div>
+        <div class="timeline">
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>User prompt</strong> — "show my accounts"</span></div>
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>Intent extracted</strong> — balance_inquiry (0.94)</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--gold"></span><span><strong>Intent token minted</strong> — permitted: [get_my_accounts, get_account_balance]</span></div>
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>RFC 8693 exchange</strong> — aud: mcpserver.ping.demo</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--green"></span><span><strong>MCP Server response</strong> — 3 accounts, $47,832.50 total</span></div>
+        </div>
+        <div class="rs-grid" style="margin-top: 10px;">
+          <div class="rs-card"><div class="label">Checking ****4521</div><div class="value value--accent">$12,340</div></div>
+          <div class="rs-card"><div class="label">Savings ****7788</div><div class="value value--accent">$35,492</div></div>
+        </div>
+        <div class="rs-nav-row">
+          <span class="rs-nav-btn rs-nav-btn--primary">Back to Agent</span>
+          <span class="rs-nav-btn">Full Token Chain</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-mock">
+      <h3>/rs/invest — with request timeline</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--mcp">MCP RESOURCE SERVER</span>
+          <span class="rs-title">Request Journey</span>
+        </div>
+        <div class="timeline">
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>User prompt</strong> — "show my portfolios"</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--gold"></span><span><strong>Intent token</strong> — portfolio_view (0.91)</span></div>
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>RFC 8693 exchange</strong> — aud: mcp-invest.ping.demo, scope: invest:read</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--green"></span><span><strong>MCP Resource Server</strong> — portfolio $234,500, 12 holdings</span></div>
+        </div>
+        <div class="rs-grid" style="margin-top: 10px;">
+          <div class="rs-card"><div class="label">Portfolio Value</div><div class="value value--green">$234,500</div></div>
+          <div class="rs-card"><div class="label">YTD</div><div class="value value--green">+12.4%</div></div>
+        </div>
+        <div class="rs-nav-row">
+          <span class="rs-nav-btn rs-nav-btn--primary">Back to Agent</span>
+          <span class="rs-nav-btn">Full Token Chain</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-mock">
+      <h3>/rs/api?vertical=university — with request timeline</h3>
+      <div class="rs-mock">
+        <div class="rs-header">
+          <span class="rs-badge rs-badge--api">API RESOURCE SERVER</span>
+          <span class="rs-title">Request Journey</span>
+        </div>
+        <div class="timeline">
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>User prompt</strong> — "show my enrollment"</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--gold"></span><span><strong>Intent token</strong> — enrollment_view (0.88)</span></div>
+          <div class="timeline-step"><span class="timeline-dot"></span><span><strong>Gateway disposition</strong> — api_key</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--gold"></span><span><strong>Credential swap</strong> — Bearer → X-API-Key</span></div>
+          <div class="timeline-step"><span class="timeline-dot timeline-dot--green"></span><span><strong>API Resource Server</strong> — enrollment record returned</span></div>
+        </div>
+        <div class="rs-vertical-data" style="margin-top: 10px;">
+          <h4>University — Enrollment Record</h4>
+          <div class="rs-vertical-row"><span>Student ID</span><span>STU-2026-1147</span></div>
+          <div class="rs-vertical-row"><span>Program</span><span>B.S. Computer Science</span></div>
+          <div class="rs-vertical-row"><span>Credits</span><span>94 / 120</span></div>
+          <div class="rs-vertical-row"><span>GPA</span><span>3.72</span></div>
+          <div class="rs-vertical-row"><span>Status</span><span style="color:#3fb950">Active</span></div>
+        </div>
+        <div class="rs-nav-row">
+          <span class="rs-nav-btn rs-nav-btn--primary">Back to Agent</span>
+          <span class="rs-nav-btn">Credential Proof</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <strong>Concept:</strong> Same 3 routes as Alt B, but adds a request timeline showing the full journey (prompt → intent → exchange → response). Includes intent token in the flow.
+    <ul>
+      <li>Pro: Shows the FULL security chain — intent extraction, token binding, exchange, RS response.</li>
+      <li>Pro: API RS keeps vertical-specific data with the timeline showing the credential swap.</li>
+      <li>Pro: "Full Token Chain" button links to the existing token chain page for deep-dive.</li>
+      <li>Con: More info density — might overwhelm non-technical viewers.</li>
+      <li>Compromise: Timeline could be collapsed by default, expanded on click.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="section">
+  <div class="section-header">
+    <h2>Recommendation</h2>
+  </div>
+  <div class="notes">
+    <strong>Alt B (Split View)</strong> is the cleanest for demos. Alt C adds intent token visibility but can be collapsed.
+    <ul>
+      <li><strong>All alternatives keep vertical-specific data</strong> on the API RS page (healthcare records, work orders, permits, etc.)</li>
+      <li>The 3 RS pages share a generic shell — vertical data is injected by query param.</li>
+      <li>Agent navigation: after tool call, <code>window.location = '/rs/api?vertical=healthcare'</code> instead of returning to chat.</li>
+      <li>Each vertical has 1 UC that navigates to the appropriate RS page (9 verticals × 1 = 9 navigations across 3 pages).</li>
+    </ul>
+    <br>
+    <strong>Service rename plan (next restart):</strong>
+    <ul>
+      <li><code>demo_mcp_invest</code> → <code>demo_mcp_resource_server</code> (dir, Docker service, package.json name)</li>
+      <li><code>demo_mortgage_service</code> → <code>demo_api_resource_server</code> (dir, Docker service, package.json name)</li>
+      <li>Env vars: MORTGAGE_SERVICE_* → API_RS_* (with backwards-compat fallback for one release)</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
