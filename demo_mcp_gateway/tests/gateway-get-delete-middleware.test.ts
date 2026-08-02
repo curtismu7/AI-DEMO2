@@ -44,6 +44,8 @@ const stubConfig: GatewayConfig = {
   gatewayResourceUri: GATEWAY_AUDIENCE,
   mcpOlbWsUrl: 'ws://localhost:8080',
   mcpResourceServerWsUrl: 'ws://localhost:8081',
+  mcpResourceServerHttpUrl: 'http://localhost:8081',
+  mcpResourceServerApiKey: '',
   mcpOlbResourceUri: UPSTREAM_AUDIENCE,
   mcpResourceServerResourceUri: 'https://mcp-resource-server.example.com',
   pingAuthorizeEndpoint: '',
