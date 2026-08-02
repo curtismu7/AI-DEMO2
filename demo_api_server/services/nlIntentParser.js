@@ -300,11 +300,15 @@ function extractIntentAndConfidence(message) {
   // Government intents
   if (/\b(permits?|building permit|zoning permit)\b/.test(t))
     return { intent: "view_permits", toolName: "view_permits", confidence: 0.85 };
-  if (/\b(filings?|file|filed)\b/.test(t))
+  if (/\b(filings?|filed)\b/.test(t))
     return { intent: "view_filings", toolName: "view_filings", confidence: 0.8 };
+  if (/\b(complaints?|reported issue)\b/.test(t))
+    return { intent: "view_complaints", toolName: "view_complaints", confidence: 0.8 };
+  if (/\b(tax assess|property tax)\b/.test(t))
+    return { intent: "view_tax_assessments", toolName: "view_tax_assessments", confidence: 0.8 };
   if (/\b(violations?|code violation)\b/.test(t))
     return { intent: "view_permits", toolName: "view_permits", confidence: 0.8 };
-  if (/\b(fees?|pay fee|assessment)\b/.test(t))
+  if (/\b(fees?|pay fee)\b/.test(t))
     return { intent: "view_fees", toolName: "view_fees", confidence: 0.8 };
 
   // Unknown/ambiguous intent
