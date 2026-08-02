@@ -131,9 +131,12 @@ describe('privilege MCP client token refresh', () => {
       return jsonResponse({ error: 'unauthorized' }, { status: 401 });
     });
 
+    // 401, not 500: refresh was rejected, so the caller genuinely needs to
+    // re-authenticate. This used to assert 500 — the relay flattened every
+    // upstream failure — which contradicted this test's own name.
     const res = await request(app).post('/api/privilege-mcp/rpc')
       .send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })
-      .expect(500);
+      .expect(401);
     expect(res.body.error).toContain('401');
 
     const state = await request(app).get('/api/privilege-mcp/state').expect(200);
