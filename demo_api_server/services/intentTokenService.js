@@ -96,6 +96,10 @@ const INTENT_TO_PERMITTED_TOOLS = {
   pay_fee:                  ['pay_fee', 'view_fees', 'view_permits'],
   sensitive_tax_record:     ['sensitive_tax_record', 'view_permits'],
   release_record:           ['release_record', 'view_permits'],
+  // Airlines
+  get_airline_bookings:     ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'],
+  get_flight_status:        ['get_flight_status', 'get_airline_bookings', 'check_seat_availability'],
+  check_seat_availability:  ['check_seat_availability', 'get_flight_status', 'get_airline_bookings'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
@@ -128,6 +132,8 @@ const READ_ONLY_TOOLS = [
   'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
   'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
   'view_library', 'view_scholarships', 'view_advisors',
+  // Airlines
+  'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
   // Code search (cross-vertical, read-only)
   'code_search', 'get_code', 'list_codebases',
 ];
@@ -162,6 +168,10 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   investment: [
     'view_portfolios', 'view_holdings', 'view_trades', 'view_dividends',
     'view_portfolio_value', 'sequential_think',
+  ],
+  airlines: [
+    'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
+    'sequential_think',
   ],
   manufacturing: [
     'view_work_orders', 'view_inventory', 'view_production_history',
