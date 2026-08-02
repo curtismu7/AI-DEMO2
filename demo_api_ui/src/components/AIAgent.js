@@ -12,6 +12,7 @@ import { useIndustryBranding } from "../context/IndustryBrandingContext";
 import { useVertical } from "../vertical/useVertical";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
+import { useThemeOptional } from "../context/ThemeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
@@ -757,23 +758,11 @@ export default function BankingAgent({
     } catch {}
   }, [showRfcInfo]);
 
-  /** Dark mode for the dark-capable panels (Token Chain rail). Persisted.
-      Deliberately NOT seeded from the OS preference: only some components carry
-      dark styling, so following the OS turned the rail dark on load with no
-      control to turn it off. Applied as data-theme on the document root because
-      the rail mounts on ~28 pages outside the agent's own subtree. */
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      return localStorage.getItem("ba_dark_mode") === "true";
-    } catch {}
-    return false;
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem("ba_dark_mode", String(darkMode));
-    } catch {}
-    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
-  }, [darkMode]);
+  /** Dark mode for the dark-capable panels (Token Chain rail). The state, its
+      persistence and the data-theme attribute now live in ThemeProvider so the
+      choice holds on pages where this agent is not mounted — the rail renders on
+      ~28 of them. This switch is one control over that shared state, not its owner. */
+  const { darkMode, setDarkMode } = useThemeOptional();
 
   /** Whether the heuristic fast-path is enabled (ff_heuristic_enabled). false = LLM-only mode. */
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
