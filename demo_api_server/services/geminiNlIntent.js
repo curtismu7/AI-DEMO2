@@ -445,21 +445,6 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
     return { source: 'heuristic', result: heuristicResult };
   }
 
-  // provider:"pingone-admin" = PingOne MCP Admin chip — skip heuristic, go straight to Helix.
-  if (provider === 'pingone-admin') {
-    const { resolveLlmProvider } = require('./llmProviderResolver');
-    const { provider: llmProvider } = resolveLlmProvider(langchainConfig);
-    if (llmProvider !== 'helix') {
-      return {
-        source: 'heuristic',
-        result: { kind: 'none', message: 'PingOne Admin tools require Helix to be configured. Open the Helix tab in the agent and add base_url + api_key + agent_id.' },
-        llm_attempted: false,
-        llm_not_configured: true,
-      };
-    }
-    // Fall through with selectedProvider forced to 'helix' below.
-  }
-
   // Fallback vs LLM-only (ff_heuristic_enabled):
   //   true  → short-circuit known chips (fast / cheap) even when an LLM mode
   //           like Google Gemini is selected.
@@ -487,26 +472,26 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       : heuristicEnabled;
   }
 
-  if (provider !== 'pingone-admin' && heuristicRoutingEnabled && heuristicResult && heuristicResult.kind !== 'none') {
+  if (heuristicRoutingEnabled && heuristicResult && heuristicResult.kind !== 'none') {
     return { source: 'heuristic', result: heuristicResult };
   }
 
   // Repeat free-text: return a prior LLM structured result before paying again.
   // Only reached after heuristic miss / LLM-only mode (heuristic path returned above).
-  if (provider !== 'pingone-admin') {
-    const cached = nlIntentResultCache.get(cacheKey);
-    if (cached) {
-      const ms = Date.now() - startedAt;
-      console.log(
-        `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${cached.source} `
-        + `action=${actionName(cached.result) || cached.result?.kind || 'unknown'} ms=${ms} cache=hit msg="${msgPreview}"`,
-      );
-      return { ...cached, cache_hit: true };
-    }
+  const cached = nlIntentResultCache.get(cacheKey);
+  if (cached) {
+    const ms = Date.now() - startedAt;
+    console.log(
+      `[nlIntent] vertical=${activeVertical || 'none'} provider=${provider} source=${cached.source} `
+      + `action=${actionName(cached.result) || cached.result?.kind || 'unknown'} ms=${ms} cache=hit msg="${msgPreview}"`,
+    );
+    return { ...cached, cache_hit: true };
   }
 
   // 2. FALLBACK TO LLM — when heuristic doesn't recognize the input
-  // Use configured provider (Helix, LM Studio, etc.) based on langchainConfig
+  // Use configured provider (Helix, LM Studio, etc.) based on langchainConfig.
+  // "pingone-admin" is a routing marker, not an LLM — resolve it to whatever
+  // provider is configured (it is NOT pinned to Helix).
   const { resolveLlmProvider } = require('./llmProviderResolver');
   const selectedProvider = (provider === 'auto' || provider === 'pingone-admin')
     ? resolveLlmProvider(langchainConfig).provider
