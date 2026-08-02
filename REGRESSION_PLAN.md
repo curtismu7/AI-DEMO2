@@ -102,6 +102,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-02 — Token Chain rail went dark on load with no control; text as small as 9px
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** PR #1212 added a 152-line dark palette to the Token Chain
+rail keyed to `@media (prefers-color-scheme: dark)` — the browser's setting, not
+the app's. Nothing else in the app is dark-capable and no toggle was ever added,
+so any browser reporting dark (OS setting, Chrome "Auto dark mode for web
+contents", or a sticky DevTools *Emulate prefers-color-scheme* override) rendered
+a dark, black-bordered rail inside light chrome, on load, with no way to turn it
+off. Separately, the rail's base type ran 9px–12.5px — unreadable in a demo.
+
+**What was fixed:** the palette is unchanged; only its trigger moved. All 31
+rules are now keyed to `:root[data-theme="dark"]`, set by a new "Dark mode"
+switch in the agent header (`Check variant="switch"`, beside "RFC info"),
+persisted to `ba_dark_mode`, defaulting to light. The attribute goes on the
+document root because the rail mounts on ~28 pages, none inside the agent's
+subtree. Font floor raised across the rail: 9→11, 9.5→11, 10→11.5, 10.5→12,
+11→12.5, 11.5→12.5, 12→13, 12.5→13.5, 13→14 (35 declarations).
+
+**Do not break:** the toggle must not seed from `prefers-color-scheme` — that is
+the defect. Do not re-add an OS-keyed dark block to a component while the rest of
+the app has no dark styling. Agent dock/FAB state, panel sizing and every
+auth/session path are untouched.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0) and `npm run test:unit`
+(2566 passed; the 9 failures — monospace regression, spinnerService ×4,
+ResourceServerPage.dualView ×3, UserDashboard sha256 canary — all reproduce on
+clean `origin/main`). `grep -c prefers-color-scheme TokenChainTraceRail.css` → 0.
+
 ### 2026-08-02 — Vault subsystem failed open in six places; two hardening guards were dead code
 
 **Files changed:** `oauth-mcp/src/index.ts`, `demo_mcp_gateway/src/vault.ts`,
