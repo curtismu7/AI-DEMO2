@@ -74,6 +74,100 @@ describe('fallbackDataResolver', () => {
       expect(result.message.length).toBeGreaterThan(0);
     });
 
+    // --- web_search is vertical-agnostic, never a banking claim -----------
+    //
+    // parseBanking's trailing catch-all turns any unexcluded "what is X" /
+    // "who is X" / "tell me about X" phrasing into a web_search action. The
+    // action dispatches brave_search and appears in no vertical manifest, so
+    // it belongs to no vertical. Tagging it 'banking' pulled account and
+    // transfer chips into every other vertical.
+
+    const WEB_SEARCH_PROMPTS = [
+      'what is step-up mfa',
+      'what is par',
+      'who is the ceo of acme',
+      'tell me about widgets',
+    ];
+
+    it('does not tag a web_search intent with the banking vertical', () => {
+      for (const prompt of WEB_SEARCH_PROMPTS) {
+        const intent = nlIntentParser.parseForFallback(prompt, {
+          verticalId: 'investment',
+        });
+        expect(intent.banking && intent.banking.action).toBe('web_search');
+        expect(intent.vertical).toBeUndefined();
+      }
+    });
+
+    it.each(WEB_SEARCH_PROMPTS)(
+      'keeps the active investment vertical for the web_search prompt %j',
+      async (prompt) => {
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: 'investment',
+        });
+        expect(result.verticalId).toBe('investment');
+        expect(leaksBanking(result.chips)).toBe(false);
+        expect(leaksBanking(result.suggestions || [])).toBe(false);
+      }
+    );
+
+    it('keeps the active healthcare vertical for a web_search prompt', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'what is step-up mfa',
+        { verticalId: 'healthcare' }
+      );
+      expect(result.verticalId).toBe('healthcare');
+      expect(leaksBanking(result.chips)).toBe(false);
+      expect(leaksBanking(result.suggestions || [])).toBe(false);
+    });
+
+    it('keeps the active government vertical for a web_search prompt', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'what is par',
+        { verticalId: 'government' }
+      );
+      expect(result.verticalId).toBe('government');
+      expect(leaksBanking(result.chips)).toBe(false);
+      expect(leaksBanking(result.suggestions || [])).toBe(false);
+    });
+
+    it('returns a structured no-match for a web_search prompt with no active vertical', async () => {
+      const result = await fallbackDataResolver.resolveFallbackChips(
+        'what is step-up mfa',
+        { verticalId: undefined }
+      );
+      expect(result.verticalId).not.toBe('banking');
+      expect(result.noMatch).toBe(true);
+      expect(result.chips).toEqual([]);
+    });
+
+    it('still serves banking chips for a web_search prompt inside banking', async () => {
+      for (const prompt of WEB_SEARCH_PROMPTS) {
+        const intent = nlIntentParser.parseForFallback(prompt, {
+          verticalId: 'banking',
+        });
+        // The intent itself survives — only the vertical claim is dropped.
+        expect(intent.kind).toBe('banking');
+        expect(intent.banking.action).toBe('web_search');
+        expect(intent.banking.query).toBeTruthy();
+
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: 'banking',
+        });
+        expect(result.verticalId).toBe('banking');
+        expect(result.noMatch).toBeUndefined();
+        expect(result.chips.some((c) => c.tool === 'create_transfer')).toBe(true);
+      }
+    });
+
+    it('still claims the banking vertical for real banking actions', async () => {
+      // Guard the fix's blast radius: only web_search loses the tag.
+      const intent = nlIntentParser.parseForFallback('transfer $100', {
+        verticalId: 'undefined',
+      });
+      expect(intent.vertical).toBe('banking');
+    });
+
     it('returns a no-match with the active vertical own suggestions for a vertical with no fallback chip file', async () => {
       const result = await fallbackDataResolver.resolveFallbackChips(
         'hello world',

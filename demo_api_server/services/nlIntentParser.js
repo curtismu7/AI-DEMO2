@@ -1297,6 +1297,20 @@ function parseForFallback(text, verticalCtx = {}) {
   // Use existing parseEducation and parseBanking for quick vertical detection
   const bankingIntent = parseBanking(t);
   if (bankingIntent && bankingIntent.kind !== 'none') {
+    // web_search is parseBanking's trailing catch-all: any unexcluded
+    // "what is X" / "who is X" / "tell me about X" phrasing reaches it from
+    // ANY vertical. It dispatches brave_search, reads no banking data and
+    // appears in no vertical's manifest, so it belongs to no vertical —
+    // tagging it 'banking' pulled account and transfer chips into
+    // healthcare, government and every other vertical. Return it WITHOUT a
+    // vertical so the caller keeps the active one, or reaches buildNoMatch
+    // when there is none. The early return still matters: falling through
+    // would let the keyword cascade below claim these prompts ("equipment",
+    // "schedule", "inventory") and coerce them to a different wrong
+    // vertical instead.
+    if (bankingIntent.banking && bankingIntent.banking.action === 'web_search') {
+      return { ...bankingIntent };
+    }
     return { ...bankingIntent, vertical: 'banking' };
   }
 
