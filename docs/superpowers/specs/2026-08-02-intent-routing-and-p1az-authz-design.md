@@ -106,9 +106,11 @@ consumers. Divergence becomes structurally hard rather than merely detected.
    vertical-parameterized, not expressible as a flat map.
 3. **Two new checks** — phrase collision within a vertical, and overlay
    tool-name shadowing from `mergeToolsByName` / `authzFor`.
-4. **Backfill 22 `tool` declarations** on chips that already resolve correctly
-   but never declared a tool (`ot1`–`ot10` → `explain_concept`, `rt5`/`rt9` →
-   `list_orders`, etc.).
+4. **Backfill the no-tool chips** that already resolve correctly but never
+   declared a tool (`ot1`–`ot10` → `explain_concept`, `rt5`/`rt9` →
+   `list_orders`, etc.). `oauth-teaching` is the bulk: all 12 of its chips.
+   Count is 25 by direct manifest parse against 26 in the original pass — a
+   one-chip discrepancy to reconcile during implementation, not to guess at now.
 5. **Delete 4 Helix guards** — `geminiNlIntent.js` lines 448, 490, 496, 511:
 
    ```js
@@ -162,7 +164,29 @@ Those chips are dispatched by the UI, so their heuristic action never needs to
 equal a BFF tool name. The comparison was invalid.
 
 Real chip count is **120**, not the 399 first reported — the earlier count
-included every `id` field in the manifests, not just `chips10`.
+included every `id` field in the manifests, not just chips.
+
+Chips live at **`manifest.dashboard.chips10`**, not at the manifest top level.
+`demo_api_server/scripts/extractChips.js` reads the banking manifest as the CI
+baseline; `tests/real/shared/all-chips-pipeline.test.js` is the cross-vertical
+reader. The generator must use the same nesting or it will silently find zero.
+
+Verified distribution — 12 verticals carry chips, `admin-console` has none:
+
+| Vertical | Chips | No tool | `tiers` | `groups` |
+|---|---|---|---|---|
+| banking | 15 | 3 | Y | Y |
+| retail | 15 | 4 | – | Y |
+| oauth-teaching | 12 | 12 | – | – |
+| healthcare | 10 | 1 | – | Y |
+| workforce | 10 | 1 | – | Y |
+| government | 9 | 1 | – | – |
+| investment | 9 | 1 | – | – |
+| manufacturing | 9 | 1 | – | – |
+| university | 9 | 1 | – | – |
+| sporting-goods | 9 | 0 | – | Y |
+| admin | 8 | 0 | – | – |
+| pingone-admin | 5 | 0 | – | – |
 
 ---
 
@@ -181,6 +205,26 @@ explicitly marked `DEPRECATED — group policy lives in
 config/verticals/*/manifest.json`, and `services/groupPolicy.js` (246 lines) is
 the single accessor.
 
+### ⚠️ The gap that correction exposed
+
+Nine verticals ship a `sensitive_*` tool. Only five gate it. Four have the tool
+and **no `groups` block at all**:
+
+| Vertical | Sensitive tool | Gated |
+|---|---|---|
+| banking | `get_sensitive_account_details` | ✅ |
+| healthcare | `sensitive_patient_records` | ✅ |
+| retail | `sensitive_order_history` | ✅ |
+| sporting-goods | `sensitive_membership_details` | ✅ |
+| workforce | `sensitive_payroll_details` | ✅ |
+| government | `sensitive_tax_record` | ❌ |
+| investment | `sensitive_holdings` | ❌ |
+| manufacturing | `sensitive_supplier_contract` | ❌ |
+| university | `sensitive_student_finance` | ❌ |
+
+This is inconsistency, not intent — a demo run in government or investment shows
+no group gate on data the vertical itself labels sensitive.
+
 ## The real reason to do this
 
 The data feeds the **simulator**. `simulatedAuthorizeService.js:863-888` calls
@@ -197,6 +241,26 @@ via `ff_authorize_group_policy`.
 
 Stage 2 moves that story into the product being sold. That is the value, not
 de-duplication.
+
+## Scope — close the gap, then relocate all nine
+
+Decided: do not relocate only what exists today. That would carry the
+inconsistency into P1AZ and leave four verticals demoing an ungated sensitive
+tool.
+
+**Step 1 — close the gap.** Add `groups` blocks to government, investment,
+manufacturing and university, following the shape the other four non-banking
+verticals already use (`categories.privileged` / `categories.delegates`, plus a
+`restrictedTools` entry pointing the vertical's `sensitive_*` tool at
+`privileged`). Provision the corresponding PingOne groups — see
+`services/pingoneProvisionService.js`, already a consumer of this data.
+
+**Step 2 — relocate all nine.** Move group-restricted-tool policy for all nine
+verticals, plus banking's tier ceilings, into P1AZ via the snapshot generator.
+
+`tiers` stays banking-only. Tier ceilings are amount-based and only meaningful
+where a value transfer exists; inventing thresholds for verticals without one
+would add demo surface with no story behind it.
 
 ## Import path (option C, confirmed already in place)
 
@@ -313,5 +377,9 @@ untouched — failures surface as build errors, not demo surprises. Stage 2 keep
    user is denied by **real** PingOne Authorize — verified against the cloud
    decision, not the mock — and the same denial reproduces after a fresh snapshot
    import, with the `act` mapping intact.
-7. `cd demo_api_server && CI=true npm test -- --forceExit` green.
-8. `npm run topology:verify` green.
+7. Stage 2: all **nine** `sensitive_*` tools are group-gated. A non-privileged
+   user is denied each one by real P1AZ, in every one of the nine verticals —
+   including the four that have no gate today (government, investment,
+   manufacturing, university).
+8. `cd demo_api_server && CI=true npm test -- --forceExit` green.
+9. `npm run topology:verify` green.
