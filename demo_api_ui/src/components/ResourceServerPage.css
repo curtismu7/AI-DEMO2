@@ -34,6 +34,22 @@
   color: #f1f5f9;
 }
 
+/* Journey page cross-nav */
+.rsp-journey-links {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 24px; background: #0f172a; border-bottom: 1px solid #1e293b;
+}
+.rsp-journey-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.rsp-journey-link {
+  font-size: 11px; padding: 3px 10px; border-radius: 4px;
+  text-decoration: none; font-weight: 600; border: 1px solid;
+  transition: opacity 0.15s;
+}
+.rsp-journey-link:hover { opacity: 0.8; }
+.rsp-journey-link--olb { color: #58a6ff; border-color: #1f6feb; background: #1f6feb22; }
+.rsp-journey-link--invest { color: #3fb950; border-color: #238636; background: #23863622; }
+.rsp-journey-link--api { color: #d29922; border-color: #d29922; background: #d2992222; }
+
 .rsp-hero--inflow .rsp-hero-balance {
   letter-spacing: 0.02em;
 }

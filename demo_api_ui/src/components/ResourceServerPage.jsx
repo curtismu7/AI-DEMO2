@@ -1,5 +1,6 @@
 // banking_api_ui/src/components/ResourceServerPage.jsx
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import ResourceServerTester, { INFLOW_PROBE_TARGETS, INFLOW_SOURCES } from './ResourceServerTester';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
@@ -267,6 +268,13 @@ export default function ResourceServerPage() {
         >
           In-flow RS
         </button>
+      </div>
+
+      <div className="rsp-journey-links">
+        <span className="rsp-journey-label">Journey Pages</span>
+        <Link to="/rs/olb" className="rsp-journey-link rsp-journey-link--olb">OLB</Link>
+        <Link to="/rs/invest" className="rsp-journey-link rsp-journey-link--invest">Invest</Link>
+        <Link to="/rs/api?tool=show_mortgage&vertical=mortgage" className="rsp-journey-link rsp-journey-link--api">API RS</Link>
       </div>
 
       <div className="rsp-explainer">
