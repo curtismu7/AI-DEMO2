@@ -171,6 +171,7 @@ import {
   HitlChipMark,
 } from "./agentChrome";
 import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
+import AgentNoMatchCard from "./AgentNoMatchCard";
 
 // Phase 266 H2 audit: TokenChain credentialPath stamping origins per setTokenEvents call:
 //   line 3433 (scopeTestRes.tokenEvents)  — origin: scope-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
@@ -6334,6 +6335,24 @@ export default function BankingAgent({
         return;
       }
     }
+    // kind:'none' is the server's explicit "routed nowhere" signal. Ask the BFF
+    // for the structured no-match result so the failure is visible and the
+    // offered next steps come from the ACTIVE vertical only — a bare sentence
+    // here used to leave the user guessing which vertical refused them.
+    if (result.kind === "none") {
+      const noMatch = await fetchNoMatch(nlUserText);
+      if (noMatch) {
+        addMessage("assistant", noMatch.message, null, {
+          source: _source,
+          noMatch: true,
+          noMatchVerticalId: noMatch.verticalId,
+          noMatchIntentsConsidered: noMatch.intentsConsidered,
+          noMatchClosestCandidate: noMatch.closestCandidate,
+          noMatchSuggestions: noMatch.suggestions,
+        });
+        return;
+      }
+    }
     // Prefer the server's message (heuristic / LLM produces a useful one).
     // The hard-coded fallback is only for the rare case where result.message
     // is missing — e.g. server crashed before populating it.
@@ -6344,6 +6363,33 @@ export default function BankingAgent({
       null,
       { source: _source },
     );
+  }
+
+  /**
+   * Fetch the BFF's structured no-match result for a prompt that routed nowhere.
+   * Returns null when the endpoint is unreachable or answers with anything other
+   * than a no-match, so the caller keeps its existing plain-text behaviour
+   * instead of rendering an empty card.
+   */
+  async function fetchNoMatch(prompt) {
+    const text = (prompt || "").trim();
+    if (!text) return null;
+    try {
+      const { data } = await bffAxios.get("/api/fallback/chips", {
+        params: { prompt: text, verticalId: effectiveVerticalId || "" },
+      });
+      if (!data?.noMatch || !data.message) return null;
+      return {
+        message: data.message,
+        verticalId: data.verticalId || null,
+        intentsConsidered: data.intentsConsidered,
+        closestCandidate: data.closestCandidate,
+        suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+      };
+    } catch (e) {
+      console.warn("[agent] no-match lookup failed:", e?.message);
+      return null;
+    }
   }
 
   /**
@@ -9862,6 +9908,21 @@ export default function BankingAgent({
                           </span>
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--toolsteps">
                             <ToolProgressChips steps={msg.steps} />
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.noMatch) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <AgentNoMatchCard
+                              verticalId={msg.noMatchVerticalId}
+                              intentsConsidered={msg.noMatchIntentsConsidered}
+                              closestCandidate={msg.noMatchClosestCandidate}
+                              suggestions={msg.noMatchSuggestions}
+                              onSelect={(s) => handleChipActivate(s)}
+                            />
                           </div>
                         </div>
                       );
