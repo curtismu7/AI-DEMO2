@@ -1,0 +1,108 @@
+import React from "react";
+import "./AgentNoMatchCard.css";
+
+/**
+ * Renders the BFF's structured no-match result (GET /api/fallback/chips) so a
+ * prompt that routed nowhere fails visibly instead of silently.
+ *
+ * The server resolves to one vertical or to none — never to a substitute — so
+ * every suggestion here belongs to the active vertical. Fields are rendered
+ * only when the server actually sent them: `closestCandidate` is deliberately
+ * absent from the server payload (the parser is an ordered regex cascade with
+ * no score), so it stays hidden rather than being invented.
+ */
+
+/** "sporting-goods" → "Sporting Goods". The server sends only the id. */
+export function verticalDisplayName(verticalId) {
+  if (!verticalId) return null;
+  return String(verticalId)
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * "CareConnect (Healthcare)" — the brand keeps the demo immersive, the vertical
+ * states what actually scoped the refusal. A vertical whose manifest has no
+ * `identity.displayName` falls back to the vertical alone rather than rendering
+ * empty parentheses, and a brand identical to the vertical is not repeated.
+ */
+export function noMatchSubject(verticalId, brandName) {
+  const name = verticalDisplayName(verticalId);
+  const brand = typeof brandName === "string" ? brandName.trim() : "";
+  // No vertical means nothing scoped the refusal, so a brand alone would be a
+  // lie about what happened — the caller renders "No vertical is active".
+  if (!name) return null;
+  if (!brand || brand.toLowerCase() === name.toLowerCase()) return name;
+  return `${brand} (${name})`;
+}
+
+export default function AgentNoMatchCard({
+  verticalId = null,
+  brandName = null,
+  intentsConsidered,
+  closestCandidate,
+  suggestions = [],
+  onSelect,
+}) {
+  const name = verticalDisplayName(verticalId);
+  const subject = noMatchSubject(verticalId, brandName);
+  const heading = subject
+    ? `No matching action in ${subject}`
+    : "No vertical is active";
+  const why = name
+    ? `${name} has no action for that request, and the agent will not answer it using another vertical's data.`
+    : "No vertical is active, so there was nothing to match that request against. Choose a vertical and ask again.";
+
+  return (
+    <div className="ba-nomatch-card">
+      <div className="ba-nomatch-head">
+        <span aria-hidden="true">⚠️</span> {heading}
+      </div>
+      <p className="ba-nomatch-why">{why}</p>
+
+      <dl className="ba-nomatch-diag">
+        {verticalId ? (
+          <div className="ba-nomatch-diag-row">
+            <dt>Vertical</dt>
+            <dd>{verticalId}</dd>
+          </div>
+        ) : null}
+        {typeof intentsConsidered === "number" ? (
+          <div className="ba-nomatch-diag-row">
+            <dt>Intents considered</dt>
+            <dd>{intentsConsidered}</dd>
+          </div>
+        ) : null}
+        {closestCandidate ? (
+          <div className="ba-nomatch-diag-row">
+            <dt>Closest candidate</dt>
+            <dd>{closestCandidate}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      {suggestions.length > 0 ? (
+        <div className="ba-nomatch-suggest">
+          <div className="ba-nomatch-suggest-label">
+            {name ? `Try one of these ${name} actions:` : "Try one of these:"}
+          </div>
+          <div className="ba-nomatch-chips">
+            {suggestions.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="ba-nomatch-chip"
+                title={s.message || s.label}
+                onClick={() => onSelect?.(s)}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
