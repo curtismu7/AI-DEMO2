@@ -235,16 +235,61 @@ Decided. Each of the 9 customer verticals carries all three deliberate failures:
 
 1. **Wrong audience** — fire a token with the wrong `aud` at the gateway.
    Vertical-agnostic; replicates directly from `bk-dpop`.
-2. **Cross-vertical DENY** — name another vertical's tool to trigger an Authorize
-   DENY. Needs a rule for which foreign tool each vertical points at; proposed:
-   each Class A vertical targets the `sensitive_*` tool of the next vertical in
-   alphabetical order, wrapping. This keeps every pairing distinct and every
-   target real. ⚠️ Confirm before implementing — an arbitrary pairing that lands
-   on an unprovisioned tool degrades to a 502 rather than a DENY.
+2. **Cross-vertical DENY** — name another vertical's tool to trigger a DENY.
+   Pairing rule confirmed below; every target verified to exist.
 3. **Bad scope** — resolves a `test_wrong_scope` equivalent.
 
 Class B verticals declare their own deliberate failures appropriate to what they
 demo, held to the same "must exist and must actually deny" standard.
+
+### Cross-vertical DENY — pairing rule
+
+The mechanism is already uniform across Class A and needs no invention. Every
+customer vertical has a `featurePage.mcpTool` gated by a **distinct**
+`featureScope`, and a vertical's token never carries another vertical's
+featureScope. Naming a foreign `featurePage.mcpTool` therefore denies on scope.
+
+Banking's existing `bk-deny` is exactly this pattern: it targets
+`show_health_record`, which is healthcare's `featurePage.mcpTool`, gated by
+`records:read`. The rule generalises it rather than inventing anything.
+
+**Rule: each Class A vertical's cross-vertical DENY chip targets the
+`featurePage.mcpTool` of the alphabetically next Class A vertical, wrapping.**
+
+| Source vertical | Target vertical | `denyTool` | Denied by scope |
+|---|---|---|---|
+| banking | healthcare *(grandfathered)* | `show_health_record` | `records:read` |
+| government | healthcare | `show_health_record` | `records:read` |
+| healthcare | investment | `show_investment` | `invest:read` |
+| investment | manufacturing | `show_work_order` | `workorders:read` |
+| manufacturing | retail | `show_large_purchase` | `largepurchase:read` |
+| retail | sporting-goods | `show_gear_order` | `gear:read` |
+| sporting-goods | university | `show_enrollment` | `transcript:read` |
+| university | workforce | `show_expense_report` | `expense:read` |
+| workforce | banking | `show_mortgage` | `mortgage:read` |
+
+All nine target tools were verified to exist as real, provisioned
+`featurePage.mcpTool` values, so the earlier 502-instead-of-DENY concern does not
+apply to this pairing.
+
+**Banking is grandfathered** to its current healthcare target rather than moved
+to government. `bk-deny` is a working, demoed chip whose behaviour is documented
+in `scripts/extractChips.js:18-22`; changing its message and target to satisfy a
+naming rule would touch protected demo surface for no functional gain. Two
+consequences, both harmless and recorded so nobody "fixes" them later:
+healthcare is targeted twice (from banking and government), and government's
+`show_permit` is targeted by nothing.
+
+**Why this is not a duplicate of the bad-scope intent.** `bk-bad-scope` resolves
+a synthetic `test_wrong_scope` tool — it proves the scope check fires. The
+cross-vertical DENY names a *real tool in a real other vertical* — it proves
+domain isolation holds between two live verticals. Different claims; both worth
+demoing.
+
+⚠️ Verification requirement: each of the nine must produce an actual DENY, not a
+502 and not a 200. A negative chip that errors out looks like a broken demo
+rather than a working control, and a negative chip that succeeds is the failure
+this whole plan exists to catch.
 
 ## Honest size
 
@@ -565,6 +610,8 @@ untouched — failures surface as build errors, not demo surprises. Stage 2 keep
 3. **Deliberate failures:** all 9 Class A verticals carry all three negative
    intents, and each one actually denies — wrong-aud, cross-vertical, bad scope.
    A negative chip that returns 200, or 502s instead of denying, is a failure.
+   The cross-vertical DENY is verified per the pairing table: nine sources, nine
+   real `featurePage.mcpTool` targets, each denied on the target's `featureScope`.
 4. **Step-verification:** every vertical has a ledger directory with coverage for
    its declared use cases, including admin, admin-console and oauth-teaching,
    which have none today.
