@@ -265,7 +265,8 @@ Agentic tool calls **navigate the user to a dedicated RS page** — not just ret
 
 ## TODO
 
-- [ ] Wire `ResourceServerInterstitial` to navigate to `/rs/*` pages after countdown (useNavigate imported but not connected)
+- [x] Wire `ResourceServerInterstitial` to navigate to `/rs/*` pages after countdown (`buildRsRoute` + `useNavigate`)
+- [x] Add all 9 vertical `feature-data.json` files (was 4, now 9)
 - [ ] Docker service renames: `demo_mcp_invest` → `demo_mcp_resource_server`, `demo_mortgage_service` → `demo_api_resource_server`
 - [ ] Add per-vertical custom card layouts in RS page right panel (currently generic k/v renderer for all API RS verticals)
 - [ ] Add RS page links to the existing `/resource-server` page (cross-navigation)
