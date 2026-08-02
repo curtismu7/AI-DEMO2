@@ -92,6 +92,13 @@ services:
       # api-server boot logs out all users (server.js defaults this ON when unset),
       # so a redeploy silently blanks logged-in pages like /themes until re-auth.
       CLEAR_SESSIONS_ON_BOOT: "false"
+      # The vault's audit trail defaults to a sibling of the vault file, which
+      # here is /secrets.vault (a :ro mount at container root, owned by root).
+      # appuser cannot create /secrets.vault.audit.log, so the fail-closed
+      # writability check at open threw EACCES and the BFF refused to start
+      # entirely. Point the trail at the persistent volume instead — same
+      # enforcement, writable location.
+      VAULT_AUDIT_LOG_PATH: "/app/data/persistent/secrets.vault.audit.log"
       # TLS cert paths — BFF auto-detects these and serves HTTPS when they exist
       SSL_CRT_FILE: "/certs/api.ping.demo+2.pem"
       SSL_KEY_FILE:  "/certs/api.ping.demo+2-key.pem"

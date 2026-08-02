@@ -56,7 +56,18 @@ const NAME_RE = /^[A-Z_][A-Z0-9_]*$/;
 const VALUE_MAX_BYTES = 64 * 1024;
 const GENERIC_OPEN_ERROR = 'vault: open failed (bad password or tampered file)';
 
-const auditPath = (vaultPath) => vaultPath + '.audit.log';
+/**
+ * Where the audit trail is written. Defaults to a sibling of the vault, which is
+ * right for a checkout but wrong in a container: compose mounts the vault at
+ * `/secrets.vault:ro`, so the sibling path lands in container root — owned by
+ * root, mode 0755, and the BFF runs as appuser. `assertAuditWritable()` then
+ * throws EACCES at open and the whole BFF refuses to start.
+ *
+ * VAULT_AUDIT_LOG_PATH points the trail at a writable volume instead. It moves
+ * WHERE the log lives, never WHETHER it is enforced: an unwritable path still
+ * fails closed exactly as before.
+ */
+const auditPath = (vaultPath) => process.env.VAULT_AUDIT_LOG_PATH || vaultPath + '.audit.log';
 
 /**
  * Write `data` to `filePath` atomically and durably.
