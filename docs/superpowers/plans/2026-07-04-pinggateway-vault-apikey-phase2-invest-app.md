@@ -11,10 +11,10 @@
 ## Global Constraints
 
 - Work in the worktree `feat/pinggateway-vault-apikey` (`.claude/worktrees/pg-vault-apikey`). Never edit the main checkout. Stage files explicitly; verify `git branch --show-current` before each commit. `node_modules` already exists in the sub-projects in this worktree.
-- The invest service key name is `DEMO_INVEST_SERVICE_KEY` (already a Phase-1 vault entry); its value `demo-invest-key-0000` (last4 `0000`). The backend route segment is `invest`.
+- The invest service key name is `DEMO_MCP_RESOURCE_SERVER_KEY` (already a Phase-1 vault entry); its value `demo-invest-key-0000` (last4 `0000`). The backend route segment is `invest`.
 - Mirror the existing `show_mortgage` / mortgage patterns exactly — invest is a sibling in every map, never a special case.
-- `demo_data_service` is `demo_mortgage_service/server.js`; it validates `X-API-Key` (SHA-256 + `timingSafeEqual`) and auto-registers `GET /<route>` for each entry in its `VERTICALS` map.
-- Node gateway Jest: `cd demo_mcp_gateway && npx jest <pattern>`. Backend Jest: `cd demo_mortgage_service && npx jest <pattern>` (or the repo's runner if that service has no jest — see Task 1). UI Vitest: `cd demo_api_ui && npx vitest run <pattern>`.
+- `demo_data_service` is `demo_api_resource_server/server.js`; it validates `X-API-Key` (SHA-256 + `timingSafeEqual`) and auto-registers `GET /<route>` for each entry in its `VERTICALS` map.
+- Node gateway Jest: `cd demo_mcp_gateway && npx jest <pattern>`. Backend Jest: `cd demo_api_resource_server && npx jest <pattern>` (or the repo's runner if that service has no jest — see Task 1). UI Vitest: `cd demo_api_ui && npx vitest run <pattern>`.
 - Do NOT modify IG (`ping-gateway/`) or recreate any container in Phase 2.
 
 ---
@@ -22,19 +22,19 @@
 ### Task 1: `demo_data_service` — add the `invest` vertical (`GET /invest`)
 
 **Files:**
-- Modify: `demo_mortgage_service/server.js` (the `VERTICALS` map, ~lines 78–92)
-- Test: `demo_mortgage_service/` — add `tests/invest-route.test.js` (create `tests/` if absent)
+- Modify: `demo_api_resource_server/server.js` (the `VERTICALS` map, ~lines 78–92)
+- Test: `demo_api_resource_server/` — add `tests/invest-route.test.js` (create `tests/` if absent)
 
 **Interfaces:**
 - Produces: `GET /invest` (behind `requireApiKey`) → 200 with a portfolio record; 401 without a valid `X-API-Key`. The record's top-level field is `invest`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `demo_mortgage_service/tests/invest-route.test.js`:
+Create `demo_api_resource_server/tests/invest-route.test.js`:
 
 ```js
 const request = require('supertest');
-process.env.MORTGAGE_SERVICE_API_KEY = 'demo-mortgage-key-0000';
+process.env.API_RESOURCE_SERVER_API_KEY = 'demo-mortgage-key-0000';
 const app = require('../server');
 
 describe('GET /invest', () => {
@@ -54,12 +54,12 @@ describe('GET /invest', () => {
 
 - [ ] **Step 2: Run it → RED**
 
-Run: `cd demo_mortgage_service && npx jest tests/invest-route.test.js`
+Run: `cd demo_api_resource_server && npx jest tests/invest-route.test.js`
 Expected: FAIL — `/invest` returns 404 (`not_found`), so the 200 test fails. (If `supertest`/`jest` are absent in this service, install dev-only: `npm i -D jest supertest` — gitignored — and add `"test":"jest"` to its package.json if missing; note it in your report.)
 
 - [ ] **Step 3: Add the `invest` vertical**
 
-In `demo_mortgage_service/server.js`, inside the `VERTICALS` object (sibling to `mortgage`/`retail`/`expense`), add:
+In `demo_api_resource_server/server.js`, inside the `VERTICALS` object (sibling to `mortgage`/`retail`/`expense`), add:
 
 ```js
   invest: {
@@ -85,15 +85,15 @@ In `demo_mortgage_service/server.js`, inside the `VERTICALS` object (sibling to 
 
 - [ ] **Step 4: Run it → GREEN**
 
-Run: `cd demo_mortgage_service && npx jest tests/invest-route.test.js`
+Run: `cd demo_api_resource_server && npx jest tests/invest-route.test.js`
 Expected: PASS — 2/2.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pg-vault-apikey
-git add demo_mortgage_service/server.js demo_mortgage_service/tests/invest-route.test.js
-[ -f demo_mortgage_service/package.json ] && git add demo_mortgage_service/package.json
+git add demo_api_resource_server/server.js demo_api_resource_server/tests/invest-route.test.js
+[ -f demo_api_resource_server/package.json ] && git add demo_api_resource_server/package.json
 git commit -m "feat(data-service): add /invest portfolio route"
 ```
 
@@ -119,14 +119,14 @@ Create `demo_mcp_gateway/tests/investDispatch.test.ts`:
 import { routeTool, backendHttpUrl } from '../src/router';
 import { getScopesForGatewayTool } from '../src/auth/toolScopes';
 
-const cfg: any = { mortgageServiceBaseUrl: 'http://mortgage-service:8082' };
+const cfg: any = { apiResourceServerBaseUrl: 'http://api-resource-server:8082' };
 
 describe('show_investment api-key disposition', () => {
   test('routes to the apikey disposition', () => {
     expect(routeTool('show_investment')).toBe('apikey');
   });
   test('backend URL targets the /invest route', () => {
-    expect(backendHttpUrl('apikey', 'show_investment', cfg)).toBe('http://mortgage-service:8082/invest');
+    expect(backendHttpUrl('apikey', 'show_investment', cfg)).toBe('http://api-resource-server:8082/invest');
   });
   test('requires invest:read scope', () => {
     expect(getScopesForGatewayTool('show_investment')).toContain('invest:read');
@@ -184,7 +184,7 @@ git commit -m "feat(gateway): register show_investment on the api-key dispositio
 - Test: extend `demo_mcp_gateway/tests/investDispatch.test.ts`
 
 **Interfaces:**
-- Produces: the api-key MCP result `_meta` gains `apiCall: 'GET /<routeSegment>'`; `apiKeyMaskedLast4` reflects the actually-injected key (`config.mortgageServiceApiKey`), not the marker key.
+- Produces: the api-key MCP result `_meta` gains `apiCall: 'GET /<routeSegment>'`; `apiKeyMaskedLast4` reflects the actually-injected key (`config.apiResourceServerApiKey`), not the marker key.
 
 - [ ] **Step 1: Write the failing test (extend the invest test file)**
 
@@ -197,8 +197,8 @@ import nock from 'nock';
 describe('show_investment _meta', () => {
   afterEach(() => nock.cleanAll());
   test('result _meta carries apiCall and the injected key last4', async () => {
-    nock('http://mortgage-service:8082').get('/invest').reply(200, { invest: { portfolioId: 'INV-8842' } });
-    const conf: any = { mortgageServiceBaseUrl: 'http://mortgage-service:8082', mortgageServiceApiKey: 'demo-invest-key-9999' };
+    nock('http://api-resource-server:8082').get('/invest').reply(200, { invest: { portfolioId: 'INV-8842' } });
+    const conf: any = { apiResourceServerBaseUrl: 'http://api-resource-server:8082', apiResourceServerApiKey: 'demo-invest-key-9999' };
     const out: any = await buildApiKeyToolResult('show_investment', 'user-sub', undefined, conf);
     expect(out.ok).toBe(true);
     expect(out.result._meta.apiCall).toBe('GET /invest');
@@ -220,7 +220,7 @@ In `demo_mcp_gateway/src/apiKeyDispatch.ts`:
 - Derive the last4 from the injected key when the caller didn't pass one. Change the `last4` line (~98) to:
 
 ```ts
-  const injected = config.mortgageServiceApiKey || '';
+  const injected = config.apiResourceServerApiKey || '';
   const last4 = apiKeyMaskedLast4 || (injected.length >= 4 ? injected.slice(-4) : 'XXXX');
 ```
 
@@ -257,26 +257,26 @@ git commit -m "feat(gateway): add _meta.apiCall + inject-key last4 to api-key re
 - Modify: `docker-compose.yml` (`mcp-gateway` `environment:` block, ~315-324)
 
 **Interfaces:**
-- Produces: `mcp-gateway` resolves `config.mortgageServiceBaseUrl` to `http://mortgage-service:8082` (reachable in-container) instead of the `localhost:8082` default, so the api-key dispatch's backend GET actually succeeds in Docker.
+- Produces: `mcp-gateway` resolves `config.apiResourceServerBaseUrl` to `http://api-resource-server:8082` (reachable in-container) instead of the `localhost:8082` default, so the api-key dispatch's backend GET actually succeeds in Docker.
 
 - [ ] **Step 1: Add the env var**
 
 In `docker-compose.yml`, in the `mcp-gateway` `environment:` block, add:
 
 ```yaml
-      MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
+      API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"   # api-key dispatch backend (mortgage + invest routes)
 ```
 
 - [ ] **Step 2: Validate compose parses**
 
-Run: `cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pg-vault-apikey && docker compose -f docker-compose.yml config >/dev/null 2>&1 && echo OK` (create a temp empty gitignored `demo_api_server/.env` only if the required-env_file check demands it, then delete it). Expected: `OK`, and the rendered `mcp-gateway` env includes `MORTGAGE_SERVICE_URL`. Do NOT run `up`/recreate.
+Run: `cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pg-vault-apikey && docker compose -f docker-compose.yml config >/dev/null 2>&1 && echo OK` (create a temp empty gitignored `demo_api_server/.env` only if the required-env_file check demands it, then delete it). Expected: `OK`, and the rendered `mcp-gateway` env includes `API_RESOURCE_SERVER_URL`. Do NOT run `up`/recreate.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pg-vault-apikey
 git add docker-compose.yml
-git commit -m "fix(gateway): set MORTGAGE_SERVICE_URL so the api-key path reaches the backend in Docker"
+git commit -m "fix(gateway): set API_RESOURCE_SERVER_URL so the api-key path reaches the backend in Docker"
 ```
 
 ---
@@ -424,6 +424,6 @@ git commit -m "feat(trace): surface api-key call + masked key on the resource-se
 
 - **Spec coverage (Rev-2 Phase 2 list):** /invest route → T1; show_investment registration → T2; `_meta.apiCall` + last4 → T3; Docker base-URL fix → T4; UI apiCall row + entry point → T5; trace surfacing → T6. Covered.
 - **Placeholder scan:** all steps carry literal code. The two "read the sibling first" instructions (toolScopes entry in T2, the vertical-manifest wiring in T5, the component test harness in T5) are mirror-an-existing-pattern directives with the exact sibling named — not deferred work; the implementer copies a known-good neighbor.
-- **Type/name consistency:** `show_investment` / route segment `invest` / `DEMO_INVEST_SERVICE_KEY` / `_meta.apiCall` / `apiKeyMaskedLast4` are identical across backend, gateway, UI, and trace tasks. `mortgageServiceBaseUrl`/`mortgageServiceApiKey` are the real config field names from `config.ts`.
+- **Type/name consistency:** `show_investment` / route segment `invest` / `DEMO_MCP_RESOURCE_SERVER_KEY` / `_meta.apiCall` / `apiKeyMaskedLast4` are identical across backend, gateway, UI, and trace tasks. `apiResourceServerBaseUrl`/`apiResourceServerApiKey` are the real config field names from `config.ts`.
 - **No live IG / no recreate:** every task is unit-tested; the only Docker touch (T4) is a `config`-validated env add. IG and the running stack are untouched — that is Phase 3.
 - **Risk:** T5 (UI entry point) has the most discovery — the exact manifest wiring depends on the `banking` manifest's current `featurePage`; the task bounds it to "smallest change to reach the invest feature page" and requires the implementer to document what they wired.

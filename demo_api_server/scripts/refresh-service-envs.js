@@ -409,15 +409,15 @@ async function main() {
   });
   console.log('[refresh-envs] Wrote openai_agent/.env');
 
-  // ── demo_mcp_invest/.env ──────────────────────────────────────────────────
-  writeEnvFile(path.join(ROOT, 'demo_mcp_invest', '.env'), {
+  // ── demo_mcp_resource_server/.env ──────────────────────────────────────────────────
+  writeEnvFile(path.join(ROOT, 'demo_mcp_resource_server', '.env'), {
     ...shared,
     PINGONE_TOKEN_ENDPOINT:      `${asBase}/token`,
     PINGONE_AUTHORIZATION_ENDPOINT: `${asBase}/authorize`,
     MCP_SERVER_RESOURCE_URI:     fb('PINGONE_RESOURCE_MCP_SERVER_URI') || fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo',
-    MCP_INVEST_AUDIENCE:         fb('MCP_INVEST_AUDIENCE') || 'mcp-invest.ping.demo',
+    MCP_RESOURCE_SERVER_AUDIENCE:         fb('MCP_RESOURCE_SERVER_AUDIENCE') || 'mcp-resource-server.ping.demo',
   });
-  console.log('[refresh-envs] Wrote demo_mcp_invest/.env');
+  console.log('[refresh-envs] Wrote demo_mcp_resource_server/.env');
 
   // ── demo_hitl_service/.env ────────────────────────────────────────────────
   const hitlAllowedOrigins = [
@@ -469,9 +469,9 @@ async function main() {
   const mcpServerAud = topology.resources?.['Super Banking MCP Server']?.uri
     || fb('MCP_SERVER_RESOURCE_URI')
     || 'mcpserver.ping.demo';
-  const mcpInvestAud = topology.resources?.['Super Banking MCP Invest']?.uri
-    || fb('MCP_INVEST_RESOURCE_URI')
-    || 'mcp-invest.ping.demo';
+  const mcpResourceServerAud = topology.resources?.['Super Banking MCP Invest']?.uri
+    || fb('MCP_RESOURCE_SERVER_RESOURCE_URI')
+    || 'mcp-resource-server.ping.demo';
   const mcpGatewayAud = topology.resources?.['Super Banking MCP Gateway']?.uri
     || fb('MCP_GW_RESOURCE_URI')
     || 'mcpgateway.ping.demo';
@@ -504,11 +504,11 @@ async function main() {
     // (or a 200 with the wrong aud). Must include `write` or write tools
     // 502 with "Insufficient scope".
     PG_OLB_SCOPE:                   'read write',
-    PG_INVEST_RESOURCE_URI:         mcpInvestAud,
+    PG_MCP_RESOURCE_SERVER_URI:         mcpResourceServerAud,
     // Same single-resource rule: invest resource mirrored/native scopes only.
     PG_INVEST_SCOPE:                'invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
-    PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
+    PG_INVEST_BACKEND_URL:          'http://mcp-resource-server:8081',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     // Intent Token verification in scripts/groovy/p1az-decision.groovy resolves
     // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the
@@ -519,7 +519,7 @@ async function main() {
     // whichever one is actually configured.
     INTENT_TOKEN_SECRET:            fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
-    PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
+    PG_API_RESOURCE_SERVER_URL:        'http://api-resource-server:8082',
     // PingGateway Groovy P1AZ filter — mirrors BFF PingOne Authorize (real backend).
     // P1AZ_DECISION_ENDPOINT_ID is the MCP decision endpoint (same as
     // authorize_mcp_decision_endpoint_id). It is NOT a worker — the worker is
@@ -550,12 +550,12 @@ async function main() {
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
-  // ── demo_mortgage_service/.env ────────────────────────────────────────────
-  const mortgageKey = fb('DEMO_MORTGAGE_SERVICE_KEY') || 'demo-mortgage-key-0000';
-  writeEnvFile(path.join(ROOT, 'demo_mortgage_service', '.env'), {
-    MORTGAGE_SERVICE_API_KEY: mortgageKey,
+  // ── demo_api_resource_server/.env ────────────────────────────────────────────
+  const mortgageKey = fb('DEMO_API_RESOURCE_SERVER_KEY') || 'demo-mortgage-key-0000';
+  writeEnvFile(path.join(ROOT, 'demo_api_resource_server', '.env'), {
+    API_RESOURCE_SERVER_API_KEY: mortgageKey,
   });
-  console.log('[refresh-envs] Wrote demo_mortgage_service/.env');
+  console.log('[refresh-envs] Wrote demo_api_resource_server/.env');
 
   console.log('[refresh-envs] All service .env files refreshed from PingOne.');
 }

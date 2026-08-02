@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mortgage-service
+  name: api-resource-server
   namespace: ai-demo
   labels:
     app: ai-demo
-    component: mortgage-service
+    component: api-resource-server
 spec:
   replicas: 1
   # Quota-safe restarts: terminate the old pod before creating the new one so a
@@ -18,16 +18,16 @@ spec:
   selector:
     matchLabels:
       app: ai-demo
-      component: mortgage-service
+      component: api-resource-server
   template:
     metadata:
       labels:
         app: ai-demo
-        component: mortgage-service
+        component: api-resource-server
     spec:
       containers:
-      - name: mortgage-service
-        image: ai-demo-k8-mortgage-service:latest
+      - name: api-resource-server
+        image: ai-demo-k8-api-resource-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8082
@@ -35,16 +35,16 @@ spec:
         env:
         - name: NODE_ENV
           value: "production"
-        - name: MORTGAGE_SERVICE_PORT   # server reads MORTGAGE_SERVICE_PORT, not PORT
+        - name: API_RESOURCE_SERVER_PORT   # server reads API_RESOURCE_SERVER_PORT, not PORT
           value: "8082"
-        - name: MORTGAGE_SERVICE_HOST     # default 127.0.0.1 is unreachable cross-pod
+        - name: API_RESOURCE_SERVER_HOST     # default 127.0.0.1 is unreachable cross-pod
           value: "0.0.0.0"
         - name: DEMO_API_BASE_URL
           value: "https://demo-api-server:3001"
         envFrom:
         - configMapRef:
             name: ai-demo-config
-        # MORTGAGE_SERVICE_API_KEY — provisioned by create-secrets.sh
+        # API_RESOURCE_SERVER_API_KEY — provisioned by create-secrets.sh
         # (align_service_api_keys) with the SAME value the BFF vault bridge
         # serves, so apikey-dispatch never 401s on a fresh deploy.
         - secretRef:
@@ -69,11 +69,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mortgage-service
+  name: api-resource-server
   namespace: ai-demo
   labels:
     app: ai-demo
-    component: mortgage-service
+    component: api-resource-server
 spec:
   type: ClusterIP
   ports:
@@ -83,4 +83,4 @@ spec:
     name: http
   selector:
     app: ai-demo
-    component: mortgage-service
+    component: api-resource-server

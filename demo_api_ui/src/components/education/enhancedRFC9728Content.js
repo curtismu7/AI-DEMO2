@@ -20,7 +20,7 @@ const SERVICE_NAMES = {
   bff:       { label: 'BFF (this server)', port: process.env.REACT_APP_API_PORT || 3001 },
   mcp_olb:   { label: 'MCP OLB Server',   port: 8080 },
   mcp_gw:    { label: 'Ping Agent Gateway',      port: 3005 },
-  mcp_invest: { label: 'MCP Resource Server', port: 8081 },
+  mcp_resource_server: { label: 'MCP Resource Server', port: 8081 },
 };
 
 function StatusBadge({ status }) {

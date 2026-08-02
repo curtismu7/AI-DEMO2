@@ -15,7 +15,7 @@
 - **Minimal diff:** name the element, change only that. No adjacent cleanup.
 - **Do NOT break** auth/OAuth, RFC 8693 token exchange, BFF sessions, admin/customer role enforcement, HITL consent, ports/hosts, or the behavior of existing Quick Flags and the invariant flags `ff_heuristic_enabled`, `ff_authorize_simulated`, `ff_gateway_brokered_exchange`.
 - **`ff_tracing` must stay UN-pinned:** do NOT add it to `PINNED_ENV_ALIASES` (featureFlags.js) or the `envFallbackMap` (configStore.js). That is what keeps it a live toggle, not a locked 🔐.
-- **The 7 instrumented services** (the ones that mount `otel-instrument.js` and set `OTEL_EXPORTER_OTLP_ENDPOINT`): `demo-api-server`, `mcp-server`, `mcp-gateway`, `agent-service`, `hitl-service`, `mcp-invest`, `authz-server`.
+- **The 7 instrumented services** (the ones that mount `otel-instrument.js` and set `OTEL_EXPORTER_OTLP_ENDPOINT`): `demo-api-server`, `mcp-server`, `mcp-gateway`, `agent-service`, `hitl-service`, `mcp-resource-server`, `authz-server`.
 - **UI build gate:** after any `demo_api_ui/` change, `cd demo_api_ui && npm run build` must exit 0 before the task is done.
 - **Run jest from a worktree** with: `./node_modules/.bin/jest --testPathIgnorePatterns=/node_modules/ --runTestsByPath <file>` (repo jest config ignores `.claude/worktrees/` paths).
 
@@ -211,7 +211,7 @@ _read_demo_stack_flags() {
   # Tracing (ff_tracing): OFF stops Jaeger and recreates the instrumented
   # services with an empty OTLP endpoint so otel-instrument.js no-ops. ON is the
   # compose default — ensure Jaeger is up.
-  local otel_services="demo-api-server mcp-server mcp-gateway agent-service hitl-service mcp-invest authz-server"
+  local otel_services="demo-api-server mcp-server mcp-gateway agent-service hitl-service mcp-resource-server authz-server"
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true

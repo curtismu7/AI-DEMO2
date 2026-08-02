@@ -31,11 +31,11 @@ This is a **documentation-accuracy fix**, so it gets a §4 Bug Fix Log entry (th
 
 ## Findings (audited 2026-05-15 against implemented code)
 
-Ground truth: 9 services — `banking_api_server` :3001, `banking_api_ui` :4000, `banking_mcp_server` :8080, `banking_mcp_gateway` :3005, `banking_mcp_invest` :8081, `banking_hitl_service` :3009, `banking_agent_service` :3006, `banking_mortgage_service` :8082, `langchain_agent` :8888 (uvicorn) / :8889 (chat WS) / :8890 (health+inspector).
+Ground truth: 9 services — `banking_api_server` :3001, `banking_api_ui` :4000, `banking_mcp_server` :8080, `banking_mcp_gateway` :3005, `banking_mcp_resource_server` :8081, `banking_hitl_service` :3009, `banking_agent_service` :3006, `banking_api_resource_server` :8082, `langchain_agent` :8888 (uvicorn) / :8889 (chat WS) / :8890 (health+inspector).
 
 ### F1 — 🔴 Port collision bug in `architecture.mmd` (the only hard error)
 
-- `architecture.mmd:96` — `HealthInsp["Health :8081\n/health · /inspector/mcp-host"]`. langchain_agent's health/inspector is **:8890**, not :8081. :8081 is `banking_mcp_invest`. The same file lists invest correctly on :8081 at line 110 → **two services collide on :8081 in one diagram**.
+- `architecture.mmd:96` — `HealthInsp["Health :8081\n/health · /inspector/mcp-host"]`. langchain_agent's health/inspector is **:8890**, not :8081. :8081 is `banking_mcp_resource_server`. The same file lists invest correctly on :8081 at line 110 → **two services collide on :8081 in one diagram**.
 - Same line uses a literal `\n` instead of `<br/>` (mermaid renders the backslash-n literally).
 - `architecture.mmd:94` — subgraph title `langchain_agent (Python · FastAPI + WS)` omits all three ports (8888/8889/8890).
 - **Not** present in `architecture-simple.mmd` — that file (line 50) is correct: `:8888 chat WS :8889 - health :8890`. Per Phase 270 §4 note, `architecture-simple.mmd` is the source for `overview.png`; `architecture.mmd` is the detailed 14-node source for `overview2.png`.
@@ -48,9 +48,9 @@ The Jest test only requires a service to appear in *one* `.mmd`. Individual rend
 |---|---|---|
 | `/architecture/system` (ArchitectureTabsPanel → InteractiveArchDiagram) | hardcoded JSX, 5 nodes | Self-labeled "intentionally partial". Comment already points to `overview.png` as authoritative (Phase 270). **Decision: leave the 5-node interactive view; it is deliberately a teaser, and §4 records the user chose to keep it.** Only verify the pointer comment is accurate. |
 | `/architecture/overview` (ArchitectureOverviewPage) | `architecture-simple.mmd` → `overview.png` | Complete already (Phase 270 brought it current). Verify PNG mtime ≥ source after F1 regen. |
-| `/architecture/token-flow` (ArchitectureTokenFlowPage) | hardcoded JSX, 15-step | No `banking_hitl_service`, no `banking_mortgage_service`, no `banking_resource_server`. Vintage pre-Phase-266. |
-| `/architecture/flow` (ArchitectureFlowPage) | hardcoded JSX, 28-step React Flow | `banking_mcp_invest` absent; HITL only a generic node. |
-| `/architecture/phase-266` (Phase266ArchitecturePage) | live Mermaid in JSX | No `banking_mcp_invest`, no `banking_hitl_service`. **Decision: acceptable — this page is scoped to the Phase 266 three-credential-path story; invest/HITL are out of that scope. Add a one-line scope caption instead of forcing unrelated nodes in.** |
+| `/architecture/token-flow` (ArchitectureTokenFlowPage) | hardcoded JSX, 15-step | No `banking_hitl_service`, no `banking_api_resource_server`, no `banking_resource_server`. Vintage pre-Phase-266. |
+| `/architecture/flow` (ArchitectureFlowPage) | hardcoded JSX, 28-step React Flow | `banking_mcp_resource_server` absent; HITL only a generic node. |
+| `/architecture/phase-266` (Phase266ArchitecturePage) | live Mermaid in JSX | No `banking_mcp_resource_server`, no `banking_hitl_service`. **Decision: acceptable — this page is scoped to the Phase 266 three-credential-path story; invest/HITL are out of that scope. Add a one-line scope caption instead of forcing unrelated nodes in.** |
 
 ### F3 — 🟡 Conceptual-model inaccuracy (user chose "make it accurate")
 
@@ -76,8 +76,8 @@ Regenerate PNGs via the **existing pinned pipeline** (`scripts/build-diagrams.sh
 
 These are hardcoded JSX, not `.mmd`. The change is **additive node/edge data + labels**, no logic change to the simulation engines.
 
-- `ArchitectureTokenFlowPage.js`: add `banking_hitl_service` (:3009), `banking_mortgage_service` (:8082), `banking_resource_server` (logical on :3001) to the participant set and the relevant credential-path scenarios. The page already encodes the three Phase 266 paths in narrative steps — extend the node list to match.
-- `ArchitectureFlowPage.js`: add a `banking_mcp_invest` (:8081) node + the invest WS edge; promote the generic `hitl` node label to `banking_hitl_service :3009`.
+- `ArchitectureTokenFlowPage.js`: add `banking_hitl_service` (:3009), `banking_api_resource_server` (:8082), `banking_resource_server` (logical on :3001) to the participant set and the relevant credential-path scenarios. The page already encodes the three Phase 266 paths in narrative steps — extend the node list to match.
+- `ArchitectureFlowPage.js`: add a `banking_mcp_resource_server` (:8081) node + the invest WS edge; promote the generic `hitl` node label to `banking_hitl_service :3009`.
 
 Minimal-diff rule: touch only the node/edge/participant declaration arrays and their labels. Do not restyle, re-layout, or refactor the React Flow / step-engine code.
 

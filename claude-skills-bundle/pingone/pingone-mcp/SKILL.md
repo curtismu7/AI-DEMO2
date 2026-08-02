@@ -12,7 +12,7 @@ state during development. It is PingOne's own admin-plane endpoint:
 
 `envId`/`region` come from `demo_api_server/.env` (`PINGONE_ENVIRONMENT_ID`,
 `PINGONE_REGION`). Do NOT confuse it with this repo's data-plane MCP servers
-(`demo_mcp_server`, `demo_mcp_gateway`, `demo_mcp_invest`) — those serve
+(`demo_mcp_server`, `demo_mcp_gateway`, `demo_mcp_resource_server`) — those serve
 banking tools to end users, not PingOne administration.
 
 ## MCP-first rule

@@ -33,8 +33,8 @@ const NODE_GRID = {
   'pingone-sso':     { col: 4, row: 0 },
   'hitl-service':    { col: 4, row: 1 },
   'mcp-server':      { col: 5, row: -1 },
-  'mcp-invest':      { col: 5, row: 0 },
-  'mortgage-service':{ col: 5, row: 1 },
+  'mcp-resource-server':      { col: 5, row: 0 },
+  'api-resource-server':{ col: 5, row: 1 },
 };
 
 // Deterministic, overlap-free positions keyed by node id. NODE_GRID is static,
@@ -60,8 +60,8 @@ const NODE_LAYER = {
   'pingone-sso':     'policy',
   'hitl-service':    'tool',
   'mcp-server':      'backend',
-  'mcp-invest':      'backend',
-  'mortgage-service':'backend',
+  'mcp-resource-server':      'backend',
+  'api-resource-server':'backend',
 };
 
 // Human-readable display labels (overrides the id as label)
@@ -86,8 +86,8 @@ const NODE_SUB = {
   'pingone-sso':     'IDP · Token Exchange',
   'hitl-service':    'http:3009',
   'mcp-server':      'http:8080 · OLB',
-  'mcp-invest':      'http:8081',
-  'mortgage-service':'http:8082',
+  'mcp-resource-server':      'http:8081',
+  'api-resource-server':'http:8082',
 };
 
 function buildSeedNodes() {
@@ -120,8 +120,8 @@ function buildSeedEdges(nodes) {
     ['mcp-gateway',     'authz-server'],
     ['mcp-gateway',     'hitl-service'],
     ['mcp-gateway',     'mcp-server'],
-    ['mcp-gateway',     'mcp-invest'],
-    ['mcp-gateway',     'mortgage-service'],
+    ['mcp-gateway',     'mcp-resource-server'],
+    ['mcp-gateway',     'api-resource-server'],
   ];
   const nodeIds = new Set(nodes.map(n => n.id));
   return pairs

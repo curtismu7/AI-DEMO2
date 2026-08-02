@@ -147,7 +147,7 @@ The same machinery backs interactive transaction consent (e.g. the agent consent
 The MCP servers do **not** trust the gateway blindly. Each independently:
 
 - **Validates the token** — RFC 7662 introspection against PingOne (`demo_mcp_server`'s `BankingAuthenticationManager`), or local JWT/JWKS validation; the BFF supports both modes via `VALIDATION_MODE` (`introspection` default, or `jwt`). Introspection results are cached with a TTL.
-- **Checks the audience** — the token `aud` must match that server's resource URI (e.g. `demo_mcp_invest` rejects tokens not audienced for it).
+- **Checks the audience** — the token `aud` must match that server's resource URI (e.g. `demo_mcp_resource_server` rejects tokens not audienced for it).
 - **Enforces scopes** — the tool's required scopes must be a subset of the token's scopes.
 
 The gateway forwards the BFF-issued token (already audienced to the gateway) to the backend. Each backend independently validates the audience claim, so a token issued for the gateway cannot be replayed directly against a different backend resource URI.

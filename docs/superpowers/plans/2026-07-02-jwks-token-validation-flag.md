@@ -671,7 +671,7 @@ docker compose -p jwks-test -f docker-compose.yml -f /private/tmp/claude-502/-Us
 sleep 20 && docker logs ping-gateway-jwks-test 2>&1 | tail -20
 ```
 
-Expected: IG starts and the logs show routes `mcp-olb-jwks`, `mcp-olb-primary`, `mcp-invest`, `oauth-passthrough` loaded with no route-load errors. A Groovy compile error in the script appears here as a route failure — fix before proceeding.
+Expected: IG starts and the logs show routes `mcp-olb-jwks`, `mcp-olb-primary`, `mcp-resource-server`, `oauth-passthrough` loaded with no route-load errors. A Groovy compile error in the script appears here as a route failure — fix before proceeding.
 
 - [ ] **Step 3: Run the curl matrix**
 

@@ -331,7 +331,7 @@ cd /Users/cmuir/Development/AI-DEMO2
 docker rm -f aam-verify 2>/dev/null
 docker run -d --name aam-verify --network ai-demo_ai-demo -p 3037:8080 \
   --env-file ./ping-gateway/.env \
-  -e PG_MORTGAGE_BACKEND_URL=http://mortgage-service:8082 \
+  -e PG_API_RESOURCE_SERVER_URL=http://api-resource-server:8082 \
   -v "$PWD/.claude/worktrees/<wt>/ping-gateway/config:/var/gateway/config:ro" \
   -v "$PWD/.claude/worktrees/<wt>/ping-gateway/scripts/groovy:/var/gateway/scripts/groovy:ro" \
   -v "$PWD/mcp-tool-schemas.json:/var/gateway/config/mcp-tool-schemas.json:ro" \

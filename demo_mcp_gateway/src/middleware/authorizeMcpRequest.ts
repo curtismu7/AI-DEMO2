@@ -217,7 +217,7 @@ export function buildAuthorizeMcpRequest(
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
   const exchangeClient = new McpTokenExchangeClient(config);
-  // Exchange per tool: invest tools need the mcp-invest audience — a hardcoded
+  // Exchange per tool: invest tools need the mcp-resource-server audience — a hardcoded
   // 'olb' exchange minted an mcpserver-audience token that the invest backend
   // (and mcp-server, which does not serve invest tools) both reject.
   const doExchange = deps?.exchange ?? ((t: string, tool?: string) => exchangeClient.exchange(t, tool));
@@ -971,7 +971,7 @@ export function buildAuthorizeMcpRequest(
     // ── Step 3.5: Phase 266/267 disposition dispatch (BL-02 transport parity) ──────
     // tools/call for an api_key-disposition tool bypasses upstream forwarding —
     // the gateway calls the api-key backend directly (Phase 267: show_mortgage →
-    // banking_mortgage_service). The WS handler (index.ts) has always done this;
+    // banking_api_resource_server). The WS handler (index.ts) has always done this;
     // the HTTP path used to skip it and raw-proxy to OLB, producing "Unknown tool".
     // Shared logic lives in apiKeyDispatch (one source, both transports).
     // dual_token (Path B) and bankingdata (Path C) are HTTP-parity via their

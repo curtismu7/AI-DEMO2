@@ -41,7 +41,7 @@ spec:
           value: "production"
         - name: MCP_GW_PORT
           value: "3005"
-        # NB: the gateway reads MCP_OLB_WS_URL / MCP_INVEST_WS_URL (NOT the
+        # NB: the gateway reads MCP_OLB_WS_URL / MCP_RESOURCE_SERVER_WS_URL (NOT the
         # MCP_GW_*-prefixed names). Those backend URLs are set in the
         # ai-demo-config configmap so every consumer gets the in-cluster value.
         - name: MCP_GW_PASSTHROUGH_TO_MCP_SERVER

@@ -58,8 +58,8 @@ Deployment name (`metadata.name`) — what `kubectl ... deployment/<name>` and
 | `mcp-gateway` | `60-mcp-gateway-deployment.yaml` | `.` (repo root) | MCP authorization gateway |
 | `agent-service` | `61-agent-service-deployment.yaml` | `./demo_agent_service` | Node agent service |
 | `hitl-service` | `62-hitl-service-deployment.yaml` | `./demo_hitl_service` | Human-in-the-loop consent service |
-| `mcp-invest` | `63-mcp-invest-deployment.yaml` | `./demo_mcp_invest` | Investment MCP server |
-| `mortgage-service` | `64-mortgage-service-deployment.yaml` | `./demo_mortgage_service` | Mortgage demo service |
+| `mcp-resource-server` | `63-mcp-resource-server-deployment.yaml` | `./demo_mcp_resource_server` | Investment MCP server |
+| `api-resource-server` | `64-api-resource-server-deployment.yaml` | `./demo_api_resource_server` | Mortgage demo service |
 | `mastra-agent` | `65-mastra-agent-deployment.yaml` | `./mastra_agent` | Mastra agent runtime |
 | `openai-agent` | `66-openai-agent-deployment.yaml` | `./openai_agent` | OpenAI agent runtime |
 | `pydantic-agent` | `67-pydantic-agent-deployment.yaml` | `./pydantic_agent` | Pydantic-AI agent runtime |
@@ -493,11 +493,11 @@ kubectl rollout status deployment svc1 svc2 svc3 -n <namespace>
 **AI Demo example** (from smoke check #2 failure):
 ```bash
 kubectl rollout restart deployment embeddings frontend hitl-service \
-  llama-tier5 llamaindex-agent llm-proxy mcp-code-search mcp-invest \
+  llama-tier5 llamaindex-agent llm-proxy mcp-code-search mcp-resource-server \
   tier-manager weaviate -n ping-devops-cmuir
 
 kubectl rollout status deployment embeddings frontend hitl-service \
-  llama-tier5 llamaindex-agent llm-proxy mcp-code-search mcp-invest \
+  llama-tier5 llamaindex-agent llm-proxy mcp-code-search mcp-resource-server \
   tier-manager weaviate -n ping-devops-cmuir
 ```
 

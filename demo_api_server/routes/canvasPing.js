@@ -15,10 +15,10 @@ const SERVICES = {
   'pydantic-agent':  { host: 'pydantic-agent',    port: 8893, scheme: 'http',  path: '/health' },
   'mcp-gateway':     { host: 'mcp-gateway',       port: 3005, scheme: 'http',  path: '/health' },
   'mcp-server':      { host: 'mcp-server',        port: 8080, scheme: 'http',  path: '/health' },
-  'mcp-invest':      { host: 'mcp-invest',        port: 8081, scheme: 'http',  path: '/health' },
+  'mcp-resource-server':      { host: 'mcp-resource-server',        port: 8081, scheme: 'http',  path: '/health' },
   'mcp-proxy':       { host: 'mcp-proxy',         port: 8895, scheme: 'http',  path: '/health' },
   'ping-gateway':    { host: 'ping-gateway',      port: 8080, scheme: 'http',  path: '/health' },
-  'mortgage-service':{ host: 'mortgage-service',  port: 8082, scheme: 'http',  path: '/health' },
+  'api-resource-server':{ host: 'api-resource-server',  port: 8082, scheme: 'http',  path: '/health' },
   'hitl-service':    { host: 'hitl-service',      port: 3009, scheme: 'http',  path: '/health' },
 };
 

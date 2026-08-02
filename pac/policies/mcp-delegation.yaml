@@ -156,7 +156,7 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
       obligation:
         code: mcp-bypass-attempt
         payload: "Token aud targets an upstream resource behind the gateway (D-05 bypass attempt)."
-      - Request.TokenAudActual in ("mcpserver.ping.demo", "mcp-invest.ping.demo", "https://banking-resource-server.ping.demo")
+      - Request.TokenAudActual in ("mcpserver.ping.demo", "mcp-resource-server.ping.demo", "https://banking-resource-server.ping.demo")
 
     # -----------------------------------------------------------------------
     # Audience validation: token must be for one of the registered MCP gateways

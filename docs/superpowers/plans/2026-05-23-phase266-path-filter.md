@@ -197,7 +197,7 @@ Replace the existing `export default function Phase266ArchitecturePage()` block 
 // tagPathNodes() checks whether a <g>'s text content *contains* one of these
 // strings. More specific strings first to avoid substring false-positives.
 const PATH_NODE_MAP = {
-  A: ["MortgageService", "PathInfo"],
+  A: ["ApiResourceServer", "PathInfo"],
   B: ["Identity", "InternalIdToken"],
   C: ["Accounts", "Transactions", "BankingDb"],
   shared: ["User", "SPA", "Gateway", "PingOne", "Session"],
@@ -313,7 +313,7 @@ export default function Phase266ArchitecturePage() {
         <p className="p266-arch-subtitle">
           Scope: this view is intentionally limited to the Phase 266
           credential-disposition paths. The investment MCP server
-          (banking_mcp_invest) and HITL consent service (banking_hitl_service)
+          (banking_mcp_resource_server) and HITL consent service (banking_hitl_service)
           are out of scope here — see the Flow and Token Flow pages for those.
         </p>
       </header>
@@ -406,7 +406,7 @@ const PATH_LEGEND = [
     label: "Path A — API-key (mortgage service)",
     swatch: "#b45309",
     description:
-      'Gateway swaps bearer for service API key, calls banking_mortgage_service :8082 (X-API-Key). Prompt: "show mortgage data".',
+      'Gateway swaps bearer for service API key, calls banking_api_resource_server :8082 (X-API-Key). Prompt: "show mortgage data".',
   },
   {
     key: "B",
@@ -471,7 +471,7 @@ Click **Path A — API-key**.
 Verify:
 - Path A button becomes amber (`#fef3c7` background, `#b45309` border/text)
 - "All" button reverts to inactive (outline, muted)
-- In the diagram: `MortgageService` and `PathInfo` nodes remain at full opacity
+- In the diagram: `ApiResourceServer` and `PathInfo` nodes remain at full opacity
 - `Identity`, `InternalIdToken`, `Accounts`, `Transactions`, `BankingDb` nodes fade to ~15% opacity
 - `User`, `SPA`, `Gateway`, `PingOne`, `Session` nodes stay at full opacity (shared)
 - Specs and Key Decisions sections below are unchanged

@@ -38,26 +38,26 @@ def ROUTE_FOR_TOOL = [
     show_work_order    : 'workOrder',
 ]
 // tool -> vault key name the BFF bridge will return. Every api_key-disposition
-// tool hits the SAME backend (demo_mortgage_service / demo_data_service), which
-// validates every vertical against a single shared secret (MORTGAGE_SERVICE_API_KEY).
-// So every tool presents DEMO_MORTGAGE_SERVICE_KEY — the only demo backend key
+// tool hits the SAME backend (demo_api_resource_server / demo_data_service), which
+// validates every vertical against a single shared secret (API_RESOURCE_SERVER_API_KEY).
+// So every tool presents DEMO_API_RESOURCE_SERVER_KEY — the only demo backend key
 // seeded (setupFresh.js) and the value the backend accepts. Tools omitted here
 // would fail with "no vault key configured" even after P1AZ PERMIT.
 def KEY_FOR_TOOL = [
-    show_mortgage      : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_investment    : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_large_purchase: 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_health_record : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_gear_order    : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_expense_report: 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_permit        : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_enrollment    : 'DEMO_MORTGAGE_SERVICE_KEY',
-    show_work_order    : 'DEMO_MORTGAGE_SERVICE_KEY',
+    show_mortgage      : 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_investment    : 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_large_purchase: 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_health_record : 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_gear_order    : 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_expense_report: 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_permit        : 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_enrollment    : 'DEMO_API_RESOURCE_SERVER_KEY',
+    show_work_order    : 'DEMO_API_RESOURCE_SERVER_KEY',
 ]
 
 def bffVaultUrl   = System.getenv('BFF_VAULT_KEY_URL') ?: ''
 def bffSecret     = System.getenv('BFF_INTERNAL_SECRET') ?: ''
-def backendBase   = System.getenv('PG_MORTGAGE_BACKEND_URL') ?: 'http://mortgage-service:8082'
+def backendBase   = System.getenv('PG_API_RESOURCE_SERVER_URL') ?: 'http://api-resource-server:8082'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 def rpcError = { id, code, message ->

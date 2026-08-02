@@ -62,7 +62,7 @@ Drawn to match the spatial regions in `diagram-overview-regions.js` (left-to-rig
 | `n-bff` | BFF | demo_api_server :3001 |
 | `n-mcp-gw` | MCP Gateway | :3005 |
 | `n-mcp-server` | MCP Server | :8080 |
-| `n-mcp-invest` | MCP Invest | :8081 |
+| `n-mcp-resource-server` | MCP Invest | :8081 |
 | `n-agent` | Agent Service | :3006 / :8888 |
 | `n-pingone` | PingOne | OAuth AS |
 | `n-pingauthorize` | PingAuthorize | PDP |

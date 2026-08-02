@@ -3,13 +3,13 @@
  * gen-feature-data.js — collect each vertical's feature-page record from its own
  * directory and emit the backend data file the demo data service serves, so a
  * new vertical's feature-page data lives WITH the vertical (config/verticals/<id>/
- * feature-data.json) instead of being hand-added to demo_mortgage_service.
+ * feature-data.json) instead of being hand-added to demo_api_resource_server.
  *
  * For every vertical whose manifest declares a `featurePage` AND ships a
  * feature-data.json, this writes an entry keyed by the backend route segment
  * (== manifest.featurePage.dataKey, which is what the gateway's
  * APIKEY_BACKEND_ROUTES sends) into:
- *   demo_mortgage_service/feature-records.generated.json
+ *   demo_api_resource_server/feature-records.generated.json
  * which server.js merges over its inline VERTICALS map (inline = legacy verticals
  * not yet migrated; generated wins). Additive + backward-compatible.
  *
@@ -23,7 +23,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const VERTICALS_DIR = path.join(ROOT, 'demo_api_server', 'config', 'verticals');
-const OUT_PATH = path.join(ROOT, 'demo_mortgage_service', 'feature-records.generated.json');
+const OUT_PATH = path.join(ROOT, 'demo_api_resource_server', 'feature-records.generated.json');
 
 function collect() {
   // eslint-disable-next-line global-require

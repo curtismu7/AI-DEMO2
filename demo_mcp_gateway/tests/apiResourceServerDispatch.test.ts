@@ -4,7 +4,7 @@
  * Phase 267 — mortgage Path A: routing + Authorize-layer scope decision.
  *
  *   1. Routing — show_mortgage is an apikey tool that resolves to the
- *      banking_mortgage_service URL; other apikey tools stay Gateway-only.
+ *      banking_api_resource_server URL; other apikey tools stay Gateway-only.
  *   2. Scope decision — mortgage:read is enforced by the Authorize
  *      layer, NOT the tool dispatch. When PingOne Authorize is unconfigured
  *      both transports apply evaluateScopeDecisionLocally(), which must mirror
@@ -29,8 +29,8 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const CONFIG = {
-  mortgageServiceBaseUrl: 'http://localhost:8082',
-  mortgageServiceApiKey: 'demo-mortgage-key-0000',
+  apiResourceServerBaseUrl: 'http://localhost:8082',
+  apiResourceServerApiKey: 'demo-mortgage-key-0000',
   // PingAuthorize intentionally NOT configured — exercises the local decision.
   pingAuthorizeEndpoint: '',
   pingAuthorizeWorkerId: '',
@@ -149,7 +149,7 @@ describe('Phase 267 — HTTP and WS transports behave identically (no-PA mode)',
 // (buildApiKeyToolResult) called by BOTH transports. Before this, the
 // dispatch was inlined in the WS handler only; HTTP POST /mcp raw-proxied
 // show_mortgage to the OLB upstream → "Unknown tool". This block proves the
-// shared dispatch reaches banking_mortgage_service and shapes the result —
+// shared dispatch reaches banking_api_resource_server and shapes the result —
 // the exact behaviour both index.ts (WS) and authorizeMcpRequest.ts (HTTP)
 // now depend on (BL-02 transport parity).
 describe('Phase 267 — shared api_key dispatch (buildApiKeyToolResult, BL-02)', () => {

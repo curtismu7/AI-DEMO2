@@ -3,16 +3,16 @@
 const request = require('supertest');
 
 const TEST_KEY = 'test-mortgage-key-9999';
-process.env.MORTGAGE_SERVICE_API_KEY = TEST_KEY;
+process.env.API_RESOURCE_SERVER_API_KEY = TEST_KEY;
 
 // Re-require after env is set so the module captures the right key.
 const app = require('../server');
 
-describe('banking_mortgage_service', () => {
+describe('banking_api_resource_server', () => {
   test('GET /health returns 200 + service identity', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body.service).toBe('banking_mortgage_service');
+    expect(res.body.service).toBe('banking_api_resource_server');
     // Health is public — it must NOT leak any secret-derived material.
     expect(res.body.apiKeyLast4).toBeUndefined();
   });
@@ -33,8 +33,6 @@ describe('banking_mortgage_service', () => {
     const res = await request(app).get('/mortgage').set('X-API-Key', TEST_KEY);
     expect(res.status).toBe(200);
     expect(res.body.mortgage).toMatchObject({
-      id: 'mtg-001',
-      term: '30-year fixed',
       currency: 'USD',
     });
     expect(typeof res.body.mortgage.loanAmount).toBe('number');

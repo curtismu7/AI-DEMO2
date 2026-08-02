@@ -58,8 +58,8 @@ AI Agents (langchain / mastra / openai / pydantic)
             ├── demo_authz_server      ← PERMIT / DENY decisions
             ├── demo_hitl_service      ← human approval challenges
             ├── demo_mcp_server        ← banking tools  → demo_api_server
-            ├── demo_mcp_invest        ← investment tools → demo_api_server
-            └── demo_mortgage_service  ← API-key-gated vertical records
+            ├── demo_mcp_resource_server        ← investment tools → demo_api_server
+            └── demo_api_resource_server  ← API-key-gated vertical records
 
 jwt-verifier-mcp-server  ← standalone debug / teaching tool
 ping-gateway             ← production-grade equivalent of demo_mcp_gateway`}</pre>
@@ -86,7 +86,7 @@ function McpLayerTab() {
         <Card>
           <Row label="Takes in">Agent WebSocket connections with bearer tokens, JSON-RPC tool-call messages</Row>
           <Row label="Gives back">Tool results, HITL challenge status, auth errors</Row>
-          <Row label="Calls">demo_authz_server (policy), demo_hitl_service (HITL), demo_mcp_server, demo_mcp_invest, demo_mortgage_service</Row>
+          <Row label="Calls">demo_authz_server (policy), demo_hitl_service (HITL), demo_mcp_server, demo_mcp_resource_server, demo_api_resource_server</Row>
           <Row label="RFC">Publishes RFC 9728 metadata at <code>/.well-known/oauth-protected-resource</code></Row>
         </Card>
       </Section>
@@ -106,10 +106,10 @@ function McpLayerTab() {
         </Card>
       </Section>
 
-      <Section title="demo_mcp_invest" role="Investment vertical MCP server">
+      <Section title="demo_mcp_resource_server" role="Investment vertical MCP server">
         <p style={{ marginTop: 4 }}>
           Lightweight counterpart to demo_mcp_server for investment accounts. Validates tokens
-          against the <code>mcp-invest.ping.demo</code> audience and filters the toolset by scope.
+          against the <code>mcp-resource-server.ping.demo</code> audience and filters the toolset by scope.
         </p>
         <Card>
           <Row label="Tools">get_investment_accounts, get_investment_balance, get_investment_portfolio, place_investment_order</Row>
@@ -175,7 +175,7 @@ function CoreBackendTab() {
         </Card>
       </Section>
 
-      <Section title="demo_mortgage_service" role="API-key-gated vertical record service">
+      <Section title="demo_api_resource_server" role="API-key-gated vertical record service">
         <p style={{ marginTop: 4 }}>
           Demonstrates the "gateway swaps bearer token for an API key" pattern. Each vertical
           path returns demo records. Uses timing-safe key comparison — never touches OAuth.

@@ -4,7 +4,7 @@ _Last updated: 2026-06-11. Covers the MCP server hardening + local-LLM work land
 
 ## Summary
 
-Audited `demo_mcp_server` (+ `demo_mcp_invest`) against the MCP spec (2025-11-25) and
+Audited `demo_mcp_server` (+ `demo_mcp_resource_server`) against the MCP spec (2025-11-25) and
 industry best practices (Anthropic / OpenAI / xAI), then shipped a series of small,
 verified, reviewed PRs. Also wired **Ollama (Qwen3-8B)** as a local LLM provider across
 all three agent stacks.
@@ -74,6 +74,6 @@ baseline — **zero new failures** — plus added tests.
 
 ## Key references
 - Skill: `.claude/skills/mcp-server/SKILL.md`
-- Servers: `demo_mcp_server/` (banking, :8080), `demo_mcp_invest/` (:8081)
+- Servers: `demo_mcp_server/` (banking, :8080), `demo_mcp_resource_server/` (:8081)
 - Consumers of MCP tool results: `demo_api_server/services/mcpToolPipeline.js` (BFF),
   `langchain_agent/src/agent/mcp_tool_provider.py` (Python agent), `HttpMCPTransport` (403 promotion).

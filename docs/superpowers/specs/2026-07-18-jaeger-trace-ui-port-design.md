@@ -19,7 +19,7 @@ existing `/tracing` page. Port method: **verbatim-port + adapt** — keep the
   (`jaeger:16686` / OTLP `4317`), `JAEGER_QUERY_URL` on the BFF.
 - OTel auto-instrumentation (`scripts/otel-instrument.js`) on 7 services:
   `demo-api-server`, `mcp-server`, `mcp-gateway`, `agent-service`,
-  `hitl-service`, `mcp-invest`, `authz-server`. `agent-service` also has a
+  `hitl-service`, `mcp-resource-server`, `authz-server`. `agent-service` also has a
   custom tracer (`demo_agent_service/src/otel.ts`).
 - BFF Jaeger proxy `demo_api_server/routes/tracing.js` +
   `services/tracingGraph.js`.
@@ -40,7 +40,7 @@ existing `/tracing` page. Port method: **verbatim-port + adapt** — keep the
   | Token Exchange | service=`demo-api-server`, HTTP POST to PingOne `/as/token`, token-exchange grant |
   | Authorization | service=`authz-server`, decision-evaluation spans |
   | Tool Call | service=`mcp-gateway` or `mcp-server`, MCP `tools/call` |
-  | Backend API | service=`mcp-invest` / downstream HTTP spans |
+  | Backend API | service=`mcp-resource-server` / downstream HTTP spans |
 
   ACP's CIBA and identity-proofing builders are dropped (no equivalent).
   An HITL step is added only if `hitl-service` spans appear in the captured

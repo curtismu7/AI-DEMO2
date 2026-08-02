@@ -46,7 +46,7 @@ ALL_AGENTS="langchain mastra openai pydantic"
 # Optional feature backends (investment + mortgage tools). They start normally
 # with `deploy`; `./k8s/deploy.sh extras off|on` stops/starts just these two to
 # shed (or restore) memory on demand without touching the rest of the stack.
-EXTRA_SERVICES="mcp-invest mortgage-service"
+EXTRA_SERVICES="mcp-resource-server api-resource-server"
 RAG_SERVICES="weaviate embeddings mcp-code-search llamaindex-agent"
 DEFAULT_YOTUO_PATH="${LLM_MODELS_HOST_PATH:-$(cd "$SCRIPT_DIR/.." && pwd)/.local/models}"
 
@@ -92,8 +92,8 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/63-mcp-invest-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/64-mortgage-service-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
   kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (replicas:0 until `rag on`)
@@ -138,7 +138,7 @@ deploy() {
   # and exit codes, then report any failures at the end.
   info "Waiting for rollouts in parallel (timeout 3m each)..."
   local _pids=() _deps=()
-  for dep in jaeger mcp-server mcp-invest mortgage-service hitl-service \
+  for dep in jaeger mcp-server mcp-resource-server api-resource-server hitl-service \
              demo-api-server ping-gateway agent-service \
              "${AGENT_SELECTION}-agent" frontend; do
     kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s &
@@ -362,8 +362,8 @@ forward_specs_for_profile() {
         "svc/frontend           4000:4000"
         "svc/demo-api-server 3001:3001"
         "svc/mcp-server         8080:8080"
-        "svc/mcp-invest         8081:8081"
-        "svc/mortgage-service   8082:8082"
+        "svc/mcp-resource-server         8081:8081"
+        "svc/api-resource-server   8082:8082"
         "svc/mcp-gateway        3005:3005"
         "svc/ping-gateway       3036:8080"
         "svc/mcp-proxy          8895:8895"

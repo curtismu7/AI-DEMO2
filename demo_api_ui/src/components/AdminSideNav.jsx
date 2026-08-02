@@ -850,6 +850,8 @@ export default function AdminSideNav({ user }) {
         { label: "Agent Onboarding Flow Subway (Node)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (MM)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "MCP Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
+        { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
+        { label: "Privilege MCP (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
       ],
     },
     {

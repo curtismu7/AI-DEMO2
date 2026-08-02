@@ -4,9 +4,9 @@
 
 **Goal:** Add two fully-wired industry verticals — Government (CivicPermit · Permits & Licensing) and University (Super University · Registrar & Enrollment) — as skins over the demo's five banking primitives, with working feature pages.
 
-**Architecture:** Each vertical is a `config/verticals/<id>/` directory (`manifest.json` + `mock-data.json`) discovered at server `init()` — no code registers it. Domain vocabulary maps to the fixed banking actions (`accounts`/`balance`/`transactions`/`transfer`/`feature`) via the manifest, the `THEME_VOCAB` heuristic, and the Helix theme directive. The feature page (5th chip) is served over the API-key path through `demo_mortgage_service` → MCP gateway → MCP registry, gated by a vertical-specific OAuth scope provisioned in PingOne.
+**Architecture:** Each vertical is a `config/verticals/<id>/` directory (`manifest.json` + `mock-data.json`) discovered at server `init()` — no code registers it. Domain vocabulary maps to the fixed banking actions (`accounts`/`balance`/`transactions`/`transfer`/`feature`) via the manifest, the `THEME_VOCAB` heuristic, and the Helix theme directive. The feature page (5th chip) is served over the API-key path through `demo_api_resource_server` → MCP gateway → MCP registry, gated by a vertical-specific OAuth scope provisioned in PingOne.
 
-**Tech Stack:** Node.js (demo_api_server), TypeScript (demo_mcp_gateway, demo_mcp_server), Express (demo_mortgage_service), Zod (manifest validation), Jest (api-server tests).
+**Tech Stack:** Node.js (demo_api_server), TypeScript (demo_mcp_gateway, demo_mcp_server), Express (demo_api_resource_server), Zod (manifest validation), Jest (api-server tests).
 
 ## Global Constraints
 
@@ -34,7 +34,7 @@
 - Modify: `CHANGELOG.md`
 
 **PR 2 — feature-page backend (Tier 3):**
-- Modify: `demo_mortgage_service/server.js` (`VERTICALS` map: add `permit`, `enrollment`)
+- Modify: `demo_api_resource_server/server.js` (`VERTICALS` map: add `permit`, `enrollment`)
 - Modify: `demo_mcp_gateway/src/router.ts` (`APIKEY_TOOLS`, `APIKEY_BACKEND_ROUTES`)
 - Modify: `demo_mcp_gateway/src/apiKeyDispatch.ts` (`TOOL_DISPLAY_NAMES`)
 - Modify: `demo_mcp_server/src/tools/BankingToolRegistry.ts` (`TOOLS` map, visibility-only)
@@ -715,12 +715,12 @@ gh pr create --title "feat: Government + University verticals (config)" --body "
 ### Task 10: Backend feature-page records
 
 **Files:**
-- Modify: `demo_mortgage_service/server.js` (`VERTICALS` map)
+- Modify: `demo_api_resource_server/server.js` (`VERTICALS` map)
 
 **Interfaces:**
 - Produces: `GET /permit` and `GET /enrollment` (X-API-Key gated) returning `{ permit: {...} }` / `{ enrollment: {...} }` whose field paths match the manifest `featurePage.fields` from Tasks 1 and 5.
 
-- [ ] **Step 1: Add two entries to the `VERTICALS` object** in `demo_mortgage_service/server.js` (the existing `for…of Object.entries(VERTICALS)` loop auto-registers the routes):
+- [ ] **Step 1: Add two entries to the `VERTICALS` object** in `demo_api_resource_server/server.js` (the existing `for…of Object.entries(VERTICALS)` loop auto-registers the routes):
 
 ```javascript
   permit: {
@@ -761,17 +761,17 @@ gh pr create --title "feat: Government + University verticals (config)" --body "
 
 - [ ] **Step 2: Verify both endpoints return data**
 
-Run (with the service running, or `node server.js` in `demo_mortgage_service`):
+Run (with the service running, or `node server.js` in `demo_api_resource_server`):
 ```bash
-curl -s -H "X-API-Key: ${MORTGAGE_SERVICE_API_KEY:-demo-mortgage-key-0000}" http://localhost:3070/permit
-curl -s -H "X-API-Key: ${MORTGAGE_SERVICE_API_KEY:-demo-mortgage-key-0000}" http://localhost:3070/enrollment
+curl -s -H "X-API-Key: ${API_RESOURCE_SERVER_API_KEY:-demo-mortgage-key-0000}" http://localhost:3070/permit
+curl -s -H "X-API-Key: ${API_RESOURCE_SERVER_API_KEY:-demo-mortgage-key-0000}" http://localhost:3070/enrollment
 ```
 Expected: JSON with `permit`/`enrollment` objects + `source`, `authMechanism`, `note`. (Confirm the port from the service's startup log if 3070 differs.)
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add demo_mortgage_service/server.js
+git add demo_api_resource_server/server.js
 git commit -m "feat(backend): permit + enrollment feature-page records"
 ```
 
@@ -871,7 +871,7 @@ git push
 - [ ] **Step 5: Open PR 2**
 
 ```bash
-gh pr create --title "feat: Government + University feature-page backends" --body "Wires show_permit + show_enrollment through demo_mortgage_service, the MCP gateway, and the MCP registry; provisions permits:read + transcript:read in PingOne. Completes the two verticals (feature pages return real data). Spec: docs/superpowers/specs/2026-06-19-government-university-verticals-design.md"
+gh pr create --title "feat: Government + University feature-page backends" --body "Wires show_permit + show_enrollment through demo_api_resource_server, the MCP gateway, and the MCP registry; provisions permits:read + transcript:read in PingOne. Completes the two verticals (feature pages return real data). Spec: docs/superpowers/specs/2026-06-19-government-university-verticals-design.md"
 ```
 
 ---

@@ -944,12 +944,12 @@
         <div class="row"><span class="title">demo_mcp_server</span><span class="port">:8080</span></div>
         <div class="sub">Banking MCP (WS)<br/>aud: <code>mcp_banking</code><br/>calls back to BFF <code>/api/*</code></div>
       </div>
-      <div class="nbox mcp" id="n-mcp-invest" style="left: 1640px; top: 320px;">
-        <div class="row"><span class="title">demo_mcp_invest</span><span class="port">:8081</span></div>
-        <div class="sub">Invest MCP (WS)<br/>aud: <code>mcp_invest</code></div>
+      <div class="nbox mcp" id="n-mcp-resource-server" style="left: 1640px; top: 320px;">
+        <div class="row"><span class="title">demo_mcp_resource_server</span><span class="port">:8081</span></div>
+        <div class="sub">Invest MCP (WS)<br/>aud: <code>mcp_resource_server</code></div>
       </div>
       <div class="nbox mcp" id="n-mcp-mortgage" data-scn="C" style="left: 1640px; top: 540px;">
-        <div class="row"><span class="title">demo_mortgage_service</span><span class="port">:8082</span></div>
+        <div class="row"><span class="title">demo_api_resource_server</span><span class="port">:8082</span></div>
         <div class="sub">REST resource server<br/>Gateway converts → <code>X-API-Key</code></div>
       </div>
 
@@ -1064,7 +1064,7 @@
           <path d="M 1580,400 C 1600,400 1620,400 1640,400" stroke="#3a4a8c" stroke-width="2.2" fill="none" marker-end="url(#ar-indigo)"/>
           <g class="layer-label">
             <rect class="label-bg" x="1456" y="390" width="172" height="20" rx="4" stroke="#3a4a8c"/>
-            <text x="1462" y="404" fill="#3a4a8c">WS · aud:mcp_invest</text>
+            <text x="1462" y="404" fill="#3a4a8c">WS · aud:mcp_resource_server</text>
           </g>
         </g>
 
@@ -1192,7 +1192,7 @@
       </div>
       <div class="hop"><span class="dot" style="background:var(--moss);"></span>Audience-narrowed to one resource: banking <code>:8080</code>, invest <code>:8081</code>, or mortgage <code>:8082</code>.</div>
 <pre><span class="k">"sub"</span>: <span class="v">"user@example.com"</span>,
-<span class="k">"aud"</span>: <span class="a">"mcp_banking | mcp_invest | mortgage_api"</span>,
+<span class="k">"aud"</span>: <span class="a">"mcp_banking | mcp_resource_server | mortgage_api"</span>,
 <span class="k">"iss"</span>: <span class="v">"pingone"</span>,
 <span class="k">"scope"</span>: <span class="s">"read write"</span>,
 <span class="k">"act"</span>: {

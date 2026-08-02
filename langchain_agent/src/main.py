@@ -57,7 +57,7 @@ class LangChainMCPApplication:
         
         try:
             # Start health check server first (port 8890 by default; override with HEALTH_HTTP_PORT).
-            # 8081 is reserved for banking_mcp_invest in run-bank.sh — do not revert.
+            # 8081 is reserved for banking_mcp_resource_server in run-bank.sh — do not revert.
             health_port = self.config.chat.health_http_port
             logger.info("Starting health check server on port %s...", health_port)
             self.health_server = HealthCheckServer(port=health_port)

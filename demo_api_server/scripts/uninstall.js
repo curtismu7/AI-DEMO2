@@ -118,7 +118,7 @@ const SERVICES = [
   'demo_mcp_gateway',
   'demo_hitl_service',
   'demo_agent_service',
-  'demo_mcp_invest',
+  'demo_mcp_resource_server',
 ];
 
 // ── Phase definitions (data, not actions — used by both the table and main) ──

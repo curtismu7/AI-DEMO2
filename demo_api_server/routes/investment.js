@@ -7,12 +7,12 @@ const verticalDispatch = require('../services/verticalDispatch');
 
 /**
  * Portfolio summary — backs the A2A Investment Advisor specialist's
- * get_portfolio_summary tool (demo_mcp_invest). Reuses the investment
+ * get_portfolio_summary tool (demo_mcp_resource_server). Reuses the investment
  * vertical's existing per-user data store (config/verticals/investment/data.js)
  * so the A2A path reflects the same portfolio state the chat/heuristic path
  * already shows via view_portfolios/view_portfolio_value — no new data model.
  */
-// Accept 'read' (regular session tokens) OR 'invest:read' (A2A nested-act tokens from mcp-invest).
+// Accept 'read' (regular session tokens) OR 'invest:read' (A2A nested-act tokens from mcp-resource-server).
 router.get('/accounts/:accountId/portfolio', authenticateToken, requireScopes(['read', 'invest:read']), (req, res) => {
   const plugin = verticalDispatch.resolvePlugin('investment');
   const store = plugin.getDataStore();

@@ -1174,7 +1174,7 @@ fi
 # (tsc) when dist/index.js is missing. SVC_INSTALL_FLAGS handles services that
 # need extra `npm install` flags. Loud failure on any error — silent skips here
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
-SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mcp_weather demo_mortgage_service mastra_agent demo_authz_server)
+SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_mcp_weather demo_api_resource_server mastra_agent demo_authz_server)
 SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "ts"          "")
 SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    ""            "")
 
@@ -1555,13 +1555,13 @@ if [[ -d "$BASEDIR/demo_agent_service" ]]; then
 fi
 
 # ── MCP Invest Server on :8081 ──────────────────────────────────────────────
-if [[ -d "$BASEDIR/demo_mcp_invest" ]]; then
+if [[ -d "$BASEDIR/demo_mcp_resource_server" ]]; then
   echo "[INVEST] Starting MCP Invest Server on :8081..."
   (
-    cd "$BASEDIR/demo_mcp_invest"
+    cd "$BASEDIR/demo_mcp_resource_server"
     PORT=8081 \
     OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
-    OTEL_SERVICE_NAME="mcp-invest" \
+    OTEL_SERVICE_NAME="mcp-resource-server" \
     NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
     npm start > "${LOG_INVEST}" 2>&1
   ) &
@@ -1593,11 +1593,11 @@ fi
 # API-key-gated. Gateway swaps the user's OAuth bearer for X-API-Key and calls
 # this service on the api_key disposition. Single GET /mortgage route returns
 # a dummy mortgage record.
-if [[ -d "$BASEDIR/demo_mortgage_service" ]]; then
+if [[ -d "$BASEDIR/demo_api_resource_server" ]]; then
   echo "[MORTGAGE] Starting Mortgage Service on :8082..."
   (
-    cd "$BASEDIR/demo_mortgage_service"
-    MORTGAGE_SERVICE_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
+    cd "$BASEDIR/demo_api_resource_server"
+    API_RESOURCE_SERVER_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
   ) &
   echo $! > "$PID_MORTGAGE"
 fi

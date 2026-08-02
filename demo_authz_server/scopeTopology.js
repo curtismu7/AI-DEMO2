@@ -118,7 +118,7 @@ function gatewayAudience() {
  * (D-05) blacklist. A valid INBOUND token never carries any of these; a client
  * must obtain a gateway-targeted token and let the gateway exchange it for the
  * next hop. Mirrors demo_mcp_gateway GatewayTokenPolicy's upstreamAuds
- * (mcpOlbResourceUri, mcpInvestResourceUri, bankingResourceServerResourceUri),
+ * (mcpOlbResourceUri, mcpResourceServerResourceUri, bankingResourceServerResourceUri),
  * sourced from the SoT manifest + env, with the gateway's own URI excluded.
  */
 function upstreamAudiences() {

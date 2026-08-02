@@ -22,7 +22,7 @@ const path = require('path');
 
 const GATEWAY_AUD = 'mcpgateway.ping.demo';
 const OLB_AUD = 'mcpserver.ping.demo';
-const INVEST_AUD = 'mcp-invest.ping.demo';
+const MCP_RS_AUD = 'mcp-resource-server.ping.demo';
 const BANKING_RS_AUD = 'https://banking-resource-server.ping.demo';
 const AI_AGENT_ACTOR = 'test-ai-agent';
 
@@ -103,7 +103,7 @@ test('DENY bypass_attempt — multi-aud [gateway, OLB backend] (space-separated)
 });
 
 test('DENY bypass_attempt — multi-aud [gateway, invest] (JSON-array form)', async () => {
-  const body = await decide({ TokenAudActual: JSON.stringify([GATEWAY_AUD, INVEST_AUD]) });
+  const body = await decide({ TokenAudActual: JSON.stringify([GATEWAY_AUD, MCP_RS_AUD]) });
   assert.strictEqual(body.decision, 'DENY');
   assert.match(body.reason, /bypass_attempt/);
 });

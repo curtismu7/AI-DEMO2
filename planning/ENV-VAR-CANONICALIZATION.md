@@ -101,8 +101,8 @@ docker logs ai-demo-mcp-server --tail 3000 | grep -oE '"aud":(\[[^]]*\]|"[^"]*")
 `PINGONE_RESOURCE_MCP_SERVER_URI` already holds. Enabling Rule 2 against it matches all
 observed live traffic; it will reject only tokens missing that audience, which is the intent.
 
-Invest traffic does not pass this check: `ai-demo-mcp-invest` runs the separate
-`demo_mcp_invest` codebase, and `enforceUpstreamContract` / `lastHopAuthorization` appear
+Invest traffic does not pass this check: `ai-demo-mcp-resource-server` runs the separate
+`demo_mcp_resource_server` codebase, and `enforceUpstreamContract` / `lastHopAuthorization` appear
 only under `demo_mcp_server/src`. A single-valued `upstreamAudience` is therefore safe.
 
 Corollary: `MCP_SERVER_RESOURCE_URI=mcpgateway.ping.demo` in `.env` is simply **wrong** —
@@ -116,9 +116,9 @@ the correct value already exists, under the correctly-named `PINGONE_RESOURCE_MC
 One name, issuer base vs authorization-server base. Resolve by splitting into
 `PINGONE_ISSUER_BASE_URL` and `PINGONE_AS_BASE_URL`, not by picking one value.
 
-### D-3 — `MORTGAGE_SERVICE_API_KEY` mismatch
+### D-3 — `API_RESOURCE_SERVER_API_KEY` mismatch
 
-Root `.env` and `demo_mortgage_service/.env` hold different values. Matches the known
+Root `.env` and `demo_api_resource_server/.env` hold different values. Matches the known
 "backend rejected the service API key" symptom.
 
 ### D-4 — `langchain_agent` identity drift
@@ -179,7 +179,7 @@ Convention:
 | `PINGONE_RESOURCE_MCP_SERVER_URI` | `mcpserver.ping.demo` | `PG_OLB_RESOURCE_URI` | 21 |
 | `PINGONE_RESOURCE_AGENT_GATEWAY_URI` | — | `AI_AGENT_INTERMEDIATE_AUDIENCE` | 13 |
 | `PINGONE_RESOURCE_BANKING_API_URI` | — | `ENDUSER_AUDIENCE`, `BANKING_API_RESOURCE_URI` | — |
-| `PINGONE_RESOURCE_INVEST_URI` | — | `MCP_INVEST_AUDIENCE`, `PG_INVEST_RESOURCE_URI` | — |
+| `PINGONE_RESOURCE_INVEST_URI` | — | `MCP_RESOURCE_SERVER_AUDIENCE`, `PG_MCP_RESOURCE_SERVER_URI` | — |
 | `PINGONE_RESOURCE_PINGGATEWAY_URI` | `api.ping.demo:3036/mcp` | `PG_GATEWAY_RESOURCE_ID` | 8 |
 | `PINGONE_INTROSPECTION_ENDPOINT` | — | `GW_INTROSPECTION_ENDPOINT` | 14 |
 | `PINGONE_PAR_ENDPOINT` | — | `OAUTH_PAR_ENDPOINT` | 2 |

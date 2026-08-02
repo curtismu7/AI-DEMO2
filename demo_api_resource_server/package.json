@@ -1,7 +1,7 @@
 {
-  "name": "banking-mortgage-service",
+  "name": "banking-api-resource-server",
   "version": "1.0.0",
-  "description": "API-key-gated mortgage data backend for Phase 266 Path A demo (aud: mortgage-service.bxf.com)",
+  "description": "API-key-gated mortgage data backend for Phase 266 Path A demo (aud: api-resource-server.bxf.com)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

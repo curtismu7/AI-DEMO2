@@ -1,37 +1,37 @@
 'use strict';
 
 /**
- * banking_mortgage_service — Phase 266 Path A backend.
+ * banking_api_resource_server — Phase 266 Path A backend.
  *
  * A minimal API-key-gated service that returns dummy demo records per vertical.
  * The MCP gateway calls this service on the api_key disposition: it sends
  * `X-API-Key: <key>` (no OAuth bearer) and gets the record payload back.
  *
- * Auth model: shared secret in `MORTGAGE_SERVICE_API_KEY`. No JWT, no aud check.
+ * Auth model: shared secret in `API_RESOURCE_SERVER_API_KEY`. No JWT, no aud check.
  * This is intentionally the simplest possible service — the demo point is
  * "the gateway swapped the user's bearer for a service API key and called a
  * different backend."
  *
- * Port: 8082 (default; override with MORTGAGE_SERVICE_PORT)
+ * Port: 8082 (default; override with API_RESOURCE_SERVER_PORT)
  */
 
 require('dotenv').config();
 const crypto = require('crypto');
 const express = require('express');
 
-// Accept MORTGAGE_SERVICE_PORT=0 (ephemeral port); only fall back on a
+// Accept API_RESOURCE_SERVER_PORT=0 (ephemeral port); only fall back on a
 // missing/non-integer value rather than any falsy value.
-const parsedPort = Number(process.env.MORTGAGE_SERVICE_PORT);
+const parsedPort = Number(process.env.API_RESOURCE_SERVER_PORT);
 const PORT = Number.isInteger(parsedPort) && parsedPort >= 0 ? parsedPort : 8082;
-const HOST = process.env.MORTGAGE_SERVICE_HOST || '127.0.0.1';
+const HOST = process.env.API_RESOURCE_SERVER_HOST || '127.0.0.1';
 
 // Never ship a usable committed default. Production requires an explicit env key;
 // local/dev generates an ephemeral key for the process lifetime when unset.
 const DEFAULT_MORTGAGE_KEY = 'demo-mortgage-key-0000';
-const envKey = (process.env.MORTGAGE_SERVICE_API_KEY || '').trim();
+const envKey = (process.env.API_RESOURCE_SERVER_API_KEY || '').trim();
 if (envKey === DEFAULT_MORTGAGE_KEY || (process.env.NODE_ENV === 'production' && !envKey)) {
   console.error(
-    '[demo-mortgage-service] FATAL: set MORTGAGE_SERVICE_API_KEY to a non-default secret. ' +
+    '[demo-api-resource-server] FATAL: set API_RESOURCE_SERVER_API_KEY to a non-default secret. ' +
     'The committed demo default is rejected.'
   );
   process.exit(1);
@@ -39,8 +39,8 @@ if (envKey === DEFAULT_MORTGAGE_KEY || (process.env.NODE_ENV === 'production' &&
 const API_KEY = envKey || crypto.randomBytes(24).toString('hex');
 if (!envKey) {
   console.warn(
-    '[demo-mortgage-service] MORTGAGE_SERVICE_API_KEY unset — using ephemeral process key. ' +
-    'Set MORTGAGE_SERVICE_API_KEY so the MCP gateway can call this service.'
+    '[demo-api-resource-server] API_RESOURCE_SERVER_API_KEY unset — using ephemeral process key. ' +
+    'Set API_RESOURCE_SERVER_API_KEY so the MCP gateway can call this service.'
   );
 }
 
@@ -53,7 +53,7 @@ app.use(express.json({ limit: '64kb' }));
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
-    service: 'banking_mortgage_service',
+    service: 'banking_api_resource_server',
     port: PORT,
   });
 });
@@ -218,18 +218,18 @@ app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 
 if (require.main === module) {
   const server = app.listen(PORT, HOST, () => {
-    console.log(`[demo-mortgage-service] Ready on :${PORT}`);
+    console.log(`[demo-api-resource-server] Ready on :${PORT}`);
   });
 
   // Graceful shutdown — drain in-flight requests before exit
   const shutdown = (signal) => {
-    console.log(`[demo-mortgage-service] ${signal} received — shutting down`);
+    console.log(`[demo-api-resource-server] ${signal} received — shutting down`);
     server.close(() => {
-      console.log('[demo-mortgage-service] HTTP server closed');
+      console.log('[demo-api-resource-server] HTTP server closed');
       process.exit(0);
     });
     setTimeout(() => {
-      console.error('[demo-mortgage-service] Drain timeout — forcing exit');
+      console.error('[demo-api-resource-server] Drain timeout — forcing exit');
       process.exit(1);
     }, 5000);
   };

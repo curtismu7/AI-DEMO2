@@ -22,8 +22,8 @@ REPOS=(
   ai-demo/mcp-gateway
   ai-demo/agent-service
   ai-demo/hitl-service
-  ai-demo/mcp-invest
-  ai-demo/mortgage-service
+  ai-demo/mcp-resource-server
+  ai-demo/api-resource-server
   ai-demo/langchain-agent
   ai-demo/openai-agent
   ai-demo/mastra-agent

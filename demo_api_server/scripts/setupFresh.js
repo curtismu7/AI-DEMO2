@@ -559,14 +559,14 @@ function readEnvSafely() {
   catch (_e) { return null; }
 }
 
-// Seed DEMO_MORTGAGE_SERVICE_KEY into the BFF .env if absent, so vault-migrate
+// Seed DEMO_API_RESOURCE_SERVER_KEY into the BFF .env if absent, so vault-migrate
 // has a value to copy into the vault on a clean install. The default matches
 // the mortgage service's own fallback — both sides use the same key unless an
 // operator changes them in lockstep.
 function seedMortgageKey() {
   const existing = readEnvSafely() || '';
-  if (envHas(existing, 'DEMO_MORTGAGE_SERVICE_KEY')) return;
-  const line = 'DEMO_MORTGAGE_SERVICE_KEY=demo-mortgage-key-0000\n';
+  if (envHas(existing, 'DEMO_API_RESOURCE_SERVER_KEY')) return;
+  const line = 'DEMO_API_RESOURCE_SERVER_KEY=demo-mortgage-key-0000\n';
   fs.appendFileSync(ENV_FILE, existing.endsWith('\n') ? line : `\n${line}`);
 }
 

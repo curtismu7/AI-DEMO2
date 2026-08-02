@@ -53,9 +53,9 @@ Two ideas hold the whole thing together:
 | **Frontend** | `demo_api_ui` | React + Vite → nginx | 4000 (HTTPS) | SPA; talks only to the BFF over cookies |
 | **MCP Gateway** | `demo_mcp_gateway` | TypeScript | 3005 | Validates inbound tokens, runs Authorize policy, performs token exchange, routes tool calls, triggers HITL |
 | **MCP Server (primary)** | `demo_mcp_server` | TypeScript | 8080 (WS + HTTP) | Primary tool server; introspects tokens; banking + vertical tools |
-| **MCP Invest** | `demo_mcp_invest` | TypeScript | 8081 (WS) | Investment/portfolio tool server |
+| **MCP Invest** | `demo_mcp_resource_server` | TypeScript | 8081 (WS) | Investment/portfolio tool server |
 | **HITL Service** | `demo_hitl_service` | Node | 3009 | Human approval challenges (create / poll / respond) |
-| **Mortgage Service** | `demo_mortgage_service` | Node | 8082 | API-key-gated resource (demonstrates token→API-key swap) |
+| **Mortgage Service** | `demo_api_resource_server` | Node | 8082 | API-key-gated resource (demonstrates token→API-key swap) |
 | **Mock Authz Server** | `demo_authz_server` | Node | 9001 | Drop-in replacement for PingOne Authorize + introspection (dev/test) |
 | **Agent Service** | `demo_agent_service` | TypeScript | 3006 (→3016 in Docker) | Reasoning-only agent (Helix / Anthropic) |
 | **LangChain Agent** | `langchain_agent` | Python / FastAPI | 8888 (SSE), 8889 (WS), 8890 (health) | Full MCP-driven agent orchestrator |
@@ -118,8 +118,8 @@ Routing is **hybrid and operator-selectable**:
 Agents do not call resource servers directly. They go through the **MCP Gateway**, which is the security choke point (see §3.4). The gateway routes each tool to its backend:
 
 - **`olb`** (default) → `demo_mcp_server` (accounts, balances, transfers, deposits, withdrawals, vertical tools).
-- **`invest`** → `demo_mcp_invest` (portfolio, holdings, investment transactions).
-- **`apikey`** → `demo_mortgage_service` (token is swapped for a service API key — shows credential-translation at the edge).
+- **`invest`** → `demo_mcp_resource_server` (portfolio, holdings, investment transactions).
+- **`apikey`** → `demo_api_resource_server` (token is swapped for a service API key — shows credential-translation at the edge).
 - **`dualtoken` / `bankingdata`** → BFF/resource HTTP endpoints.
 
 MCP servers speak JSON-RPC 2.0 over WebSocket (and a streamable HTTP transport): `initialize` → `tools/list` → `tools/call`. Each MCP server independently validates the bearer token (RFC 7662 introspection or local JWT/JWKS) and enforces scopes — defense in depth, not trust-the-gateway.
@@ -203,6 +203,6 @@ A read like "show my accounts" follows the same path but the heuristic floor oft
 | Authorize pipeline | `demo_api_server/services/pingOneAuthorizeService.js`, `simulatedAuthorizeService.js`, `demo_mcp_gateway/src/pingAuthorizeGuard.ts` |
 | Agent routing | `demo_api_server/services/agentModeResolver.js`, `nlIntentParser.js` |
 | Verticals | `demo_api_server/config/verticals/`, `services/verticalManifest/` |
-| MCP tools | `demo_mcp_server/src/tools/`, `demo_mcp_invest/src/tools/` |
+| MCP tools | `demo_mcp_server/src/tools/`, `demo_mcp_resource_server/src/tools/` |
 
 > Note: the repository root contains many historical planning/phase docs. This file, `SERVICE_TOPOLOGY.md`, `SECURITY_ARCHITECTURE.md`, and `docker-compose.yml` are the current-state sources of truth for architecture.

@@ -1,6 +1,6 @@
 # How To Test: Prompt → LLM → PingGateway → P1AZ → Mortgage App (API-Key Path)
 
-This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **mortgage app** path (`/path/mortgage`). The agent calls `show_mortgage` through PingGateway; P1AZ checks `mortgage:read`; the gateway **swaps** the user's OAuth bearer for a service API key before calling `banking_mortgage_service`.
+This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **mortgage app** path (`/path/mortgage`). The agent calls `show_mortgage` through PingGateway; P1AZ checks `mortgage:read`; the gateway **swaps** the user's OAuth bearer for a service API key before calling `banking_api_resource_server`.
 
 **Last verified:** 2026-07-09 (k8s / OrbStack; live `show_mortgage` → `credentialPath=api_key`)
 
@@ -12,7 +12,7 @@ This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test
 | BFF health | ✅ `healthy` |
 | MCP gateway in-cluster | ✅ `ok` |
 | LLM proxy | ✅ `healthy` |
-| `mortgage-service` pod | ✅ (see kubectl below) |
+| `api-resource-server` pod | ✅ (see kubectl below) |
 | Screenshot capture | ✅ 5/5 |
 
 Agent steps use mocked NL + `show_mortgage` MCP response; architecture (01) and mortgage page layout (04) reflect live UI routes.
@@ -22,7 +22,7 @@ Agent steps use mocked NL + `show_mortgage` MCP response; architecture (01) and 
 Same stack as the PERMIT banking guide, plus:
 
 - Customer token includes **`mortgage:read`** scope (re-login if the gateway returns `insufficient_scope`)
-- `mortgage-service` running in-cluster (`k8s/64-mortgage-service-deployment.yaml`)
+- `api-resource-server` running in-cluster (`k8s/64-api-resource-server-deployment.yaml`)
 - Feature flags: `ff_mcp_gateway_pinggateway=true`, real P1AZ (`ff_authorize_simulated=false`)
 
 **Trigger:** chip **My mortgage** or prompt **`show my mortgage`**
@@ -39,7 +39,7 @@ sequenceDiagram
     participant LLM as langchain_agent
     participant GW as Ping Agent Gateway
     participant P1AZ as PingOne Authorize
-    participant MS as banking_mortgage_service
+    participant MS as banking_api_resource_server
 
     User->>UI: "show my mortgage"
     UI->>BFF: POST /api/demo-agent/nl → mortgage_demo
@@ -108,12 +108,12 @@ Expected: redirect to **`/path/mortgage`** with loan details and **Credential sw
 ```bash
 curl -sk https://api.ping.demo:3001/health
 kubectl exec -n ai-demo deploy/demo-api-server -- wget -qO- http://mcp-gateway:3005/health
-kubectl get pods -n ai-demo -l component=mortgage-service
+kubectl get pods -n ai-demo -l component=api-resource-server
 
 # Mortgage backend (in-cluster)
 kubectl exec -n ai-demo deploy/demo-api-server -- \
-  wget -qO- http://mortgage-service:8082/health 2>/dev/null || \
-  wget -qO- http://mortgage-service:8082/mortgage 2>/dev/null | head -c 200
+  wget -qO- http://api-resource-server:8082/health 2>/dev/null || \
+  wget -qO- http://api-resource-server:8082/mortgage 2>/dev/null | head -c 200
 ```
 
 Live tool call (session cookie required):
@@ -143,7 +143,7 @@ Output: `docs/screenshots/llm-pinggateway-p1az-mortgage-flow/*.png`
 | `/path/mortgage` empty state | Gateway call not run or navigation without state | Run prompt from agent (not direct URL) |
 | `insufficient_scope` | Missing `mortgage:read` | Re-consent / re-login with mortgage scope |
 | DENY from P1AZ | Wrong vertical or policy | Use banking customer; check Authorize rules |
-| Gateway 502 to mortgage | `mortgage-service` down | `kubectl get pods -l component=mortgage-service` |
+| Gateway 502 to mortgage | `api-resource-server` down | `kubectl get pods -l component=api-resource-server` |
 
 ## Related guides
 
@@ -156,7 +156,7 @@ Output: `docs/screenshots/llm-pinggateway-p1az-mortgage-flow/*.png`
 - Mortgage UI: `demo_api_ui/src/components/MortgagePathPage.jsx`
 - Agent dispatch: `demo_api_ui/src/components/AIAgent.js` (`mortgage_demo` / `show_mortgage`)
 - Gateway api_key routing: `demo_mcp_gateway/src/router.ts`, `demo_mcp_gateway/src/apiKeyDispatch.ts`
-- Mortgage backend: `demo_mortgage_service/server.js`
+- Mortgage backend: `demo_api_resource_server/server.js`
 - NL intent: `demo_api_server/services/nlIntentParser.js` (mortgage_demo)
 
 ---

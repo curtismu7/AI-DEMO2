@@ -120,7 +120,7 @@ Comprehensive breakdown of all **13 services** (Node.js, TypeScript, and Python)
 
 ---
 
-### 5. demo_mcp_invest (TypeScript)
+### 5. demo_mcp_resource_server (TypeScript)
 
 - **Port:** 8081 (loopback only)
 - **Entry Point:** `dist/index.js` (compiled from `src/index.ts`)
@@ -168,7 +168,7 @@ Comprehensive breakdown of all **13 services** (Node.js, TypeScript, and Python)
 
 ---
 
-### 7. demo_mortgage_service (Node.js - Plain JS)
+### 7. demo_api_resource_server (Node.js - Plain JS)
 
 - **Port:** 8082 (loopback only)
 - **Entry Point:** `server.js`
@@ -363,9 +363,9 @@ python3 -m venv .venv
 | **api_ui** | React | 4000 | Dashboard, admin, landing — SPA |
 | **mcp_server** | TypeScript | 8080 | Banking tools (accounts, transfers, transactions) |
 | **mcp_gateway** | TypeScript | 3005 | Routes tools, token exchange, API-key swapping |
-| **mcp_invest** | TypeScript | 8081 | Investment/portfolio tools |
+| **mcp_resource_server** | TypeScript | 8081 | Investment/portfolio tools |
 | **hitl_service** | Node.js | 3009 | Human approval for high-value transactions |
-| **mortgage_service** | Node.js | 8082 | Dummy API-key-gated backend |
+| **api_resource_server** | Node.js | 8082 | Dummy API-key-gated backend |
 | **agent_service** | TypeScript | 3016→3006 | Internal reasoning (shared-secret gated) |
 | **langchain_agent** | Python | 8888 | LangChain agent runtime (concurrent) |
 | **openai_agent** | Python | 8891 | OpenAI SDK agent runtime (concurrent) |

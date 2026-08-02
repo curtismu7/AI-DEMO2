@@ -24,10 +24,10 @@ if (DISABLED_INSECURE) {
 }
 
 // The ONLY names this endpoint will ever return. Demo backend keys only.
-const ALLOWED = new Set(['DEMO_MORTGAGE_SERVICE_KEY', 'DEMO_INVEST_SERVICE_KEY']);
+const ALLOWED = new Set(['DEMO_API_RESOURCE_SERVER_KEY', 'DEMO_MCP_RESOURCE_SERVER_KEY']);
 
 // Committed defaults the mortgage backend hard-rejects at boot (see
-// demo_mortgage_service/server.js and ensure-service-keys.js KNOWN_DEFAULTS).
+// demo_api_resource_server/server.js and ensure-service-keys.js KNOWN_DEFAULTS).
 const KNOWN_DEFAULT_KEYS = new Set(['demo-mortgage-key-0000', 'mortgage-compose-dev-key']);
 
 function secretOk(presented) {
@@ -50,13 +50,13 @@ router.get('/vault/service-key', (req, res) => {
   if (!ALLOWED.has(name)) {
     return res.status(404).json({ error: 'not_allowlisted' });
   }
-  // getEffective resolves FIELD_DEFS defaults + env aliases (DEMO_MORTGAGE_SERVICE_KEY)
+  // getEffective resolves FIELD_DEFS defaults + env aliases (DEMO_API_RESOURCE_SERVER_KEY)
   // so the bridge works before vault-migrate has seeded LMDB/vault entries.
   const value = configStore.getEffective(name.toLowerCase());
   if (value === null || value === undefined || value === '') {
     return res.status(404).json({ error: 'key_unset' });
   }
-  // Mirror demo_mortgage_service's boot guard: the backend hard-rejects the
+  // Mirror demo_api_resource_server's boot guard: the backend hard-rejects the
   // committed defaults, so serving one here can only produce a confusing 401
   // ("backend rejected the service API key") several hops downstream. In
   // production, fail HERE with an explicit provisioning error instead.

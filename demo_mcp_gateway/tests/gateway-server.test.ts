@@ -49,9 +49,9 @@ const stubConfig: GatewayConfig = {
   tokenEndpoint: 'https://auth.example.com/token',
   gatewayResourceUri: GATEWAY_AUDIENCE,
   mcpOlbWsUrl: 'ws://localhost:8080',
-  mcpInvestWsUrl: 'ws://localhost:8081',
+  mcpResourceServerWsUrl: 'ws://localhost:8081',
   mcpOlbResourceUri: 'https://mcp-olb.example.com',
-  mcpInvestResourceUri: 'https://mcp-invest.example.com',
+  mcpResourceServerResourceUri: 'https://mcp-resource-server.example.com',
   pingAuthorizeEndpoint: '',
   pingAuthorizeWorkerId: '',
   p1azEnabled: false,
@@ -62,8 +62,8 @@ const stubConfig: GatewayConfig = {
   devBypass: false,
   // Phase 266 fields
   demoApiKeyServiceKey: 'demo-api-key-0000',
-  mortgageServiceBaseUrl: 'http://localhost:8082',
-  mortgageServiceApiKey: 'demo-mortgage-key-0000',
+  apiResourceServerBaseUrl: 'http://localhost:8082',
+  apiResourceServerApiKey: 'demo-mortgage-key-0000',
   bffInternalIdTokenUrl: 'http://localhost:3001/internal/id-token',
   bffInternalSecret: 'dev-shared-secret-change-me',
   bankingResourceServerBaseUrl: 'http://localhost:3001',
@@ -329,7 +329,7 @@ describe('GatewayServer — Plan 243-01 foundational tests', () => {
       expect(res.body.bankingResourceServerBaseUrl).toBe('http://localhost:3001');
       // secrets are never projected
       expect(res.body.clientSecret).toBeUndefined();
-      expect(res.body.mortgageServiceApiKey).toBeUndefined();
+      expect(res.body.apiResourceServerApiKey).toBeUndefined();
       expect(JSON.stringify(res.body)).not.toContain('demo-mortgage-key');
     });
   });

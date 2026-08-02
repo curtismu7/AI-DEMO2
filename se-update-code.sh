@@ -22,8 +22,8 @@
 #   openai    openai_agent        → ai-demo-openai-agent       → openai-agent
 #   pydantic  pydantic_agent      → ai-demo-pydantic-agent     → pydantic-agent
 #   hitl      demo_hitl_service   → ai-demo-hitl-service       → hitl-service
-#   invest    demo_mcp_invest     → ai-demo-mcp-invest         → mcp-invest
-#   mortgage  demo_mortgage_service → ai-demo-mortgage-service → mortgage-service
+#   invest    demo_mcp_resource_server     → ai-demo-mcp-resource-server         → mcp-resource-server
+#   mortgage  demo_api_resource_server → ai-demo-api-resource-server → api-resource-server
 
 set -euo pipefail
 
@@ -49,8 +49,8 @@ compose_svc() {
     openai)   echo "openai-agent" ;;
     pydantic) echo "pydantic-agent" ;;
     hitl)     echo "hitl-service" ;;
-    invest)   echo "mcp-invest" ;;
-    mortgage) echo "mortgage-service" ;;
+    invest)   echo "mcp-resource-server" ;;
+    mortgage) echo "api-resource-server" ;;
     *)        echo "" ;;
   esac
 }
@@ -67,8 +67,8 @@ ghcr_img() {
     openai)   echo "ai-demo-openai-agent" ;;
     pydantic) echo "ai-demo-pydantic-agent" ;;
     hitl)     echo "ai-demo-hitl-service" ;;
-    invest)   echo "ai-demo-mcp-invest" ;;
-    mortgage) echo "ai-demo-mortgage-service" ;;
+    invest)   echo "ai-demo-mcp-resource-server" ;;
+    mortgage) echo "ai-demo-api-resource-server" ;;
     *)        echo "" ;;
   esac
 }
@@ -99,8 +99,8 @@ k8s_dep() {
     openai)   echo "openai-agent" ;;
     pydantic) echo "pydantic-agent" ;;
     hitl)     echo "hitl-service" ;;
-    invest)   echo "mcp-invest" ;;
-    mortgage) echo "mortgage-service" ;;
+    invest)   echo "mcp-resource-server" ;;
+    mortgage) echo "api-resource-server" ;;
     *)        echo "" ;;
   esac
 }

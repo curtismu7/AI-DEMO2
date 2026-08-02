@@ -73,7 +73,7 @@ In `docker-compose.yml`:
   - **ON** → ensure `jaeger` is up (compose default; effectively a no-op when
     already running).
 - The 7 services: `demo-api-server`, `mcp-server`, `mcp-gateway`,
-  `agent-service`, `hitl-service`, `mcp-invest`, `authz-server` (the set that
+  `agent-service`, `hitl-service`, `mcp-resource-server`, `authz-server` (the set that
   mounts `otel-instrument.js`, per docker-compose.yml).
 
 ### 4. The pill (`demo_api_ui/src/components/QuickFlagsPill.js`)

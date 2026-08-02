@@ -1,11 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mcp-invest
+  name: mcp-resource-server
   namespace: ai-demo
   labels:
     app: ai-demo
-    component: mcp-invest
+    component: mcp-resource-server
 spec:
   replicas: 1
   # Quota-safe restarts: terminate the old pod before creating the new one so a
@@ -18,16 +18,16 @@ spec:
   selector:
     matchLabels:
       app: ai-demo
-      component: mcp-invest
+      component: mcp-resource-server
   template:
     metadata:
       labels:
         app: ai-demo
-        component: mcp-invest
+        component: mcp-resource-server
     spec:
       containers:
-      - name: mcp-invest
-        image: ai-demo-k8-mcp-invest:latest
+      - name: mcp-resource-server
+        image: ai-demo-k8-mcp-resource-server:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8081
@@ -41,7 +41,7 @@ spec:
         - name: MCP_SERVER_PORT
           value: "8081"
         - name: MCP_RESOURCE_URL
-          value: "http://mcp-invest:8081"
+          value: "http://mcp-resource-server:8081"
         - name: DEMO_API_BASE_URL
           value: "https://demo-api-server:3001"
         # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
@@ -50,7 +50,7 @@ spec:
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://jaeger:4317"
         - name: OTEL_SERVICE_NAME
-          value: "mcp-invest"
+          value: "mcp-resource-server"
         - name: NODE_OPTIONS
           value: "-r /otel/otel-instrument.js"
         envFrom:
@@ -92,11 +92,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mcp-invest
+  name: mcp-resource-server
   namespace: ai-demo
   labels:
     app: ai-demo
-    component: mcp-invest
+    component: mcp-resource-server
 spec:
   type: ClusterIP
   ports:
@@ -106,4 +106,4 @@ spec:
     name: ws
   selector:
     app: ai-demo
-    component: mcp-invest
+    component: mcp-resource-server

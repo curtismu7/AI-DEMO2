@@ -16,7 +16,7 @@ vi.mock('../../components/ResourceServerInterstitial', () => ({
   __esModule: true,
   SERVERS: {
     olb: { id: 'olb', name: 'MCP Server (OLB)', port: 8080, protocol: 'WebSocket', auth: 'JWT', audience: 'mcpserver.ping.demo', color: '#2563eb' },
-    invest: { id: 'invest', name: 'MCP Resource Server', port: 8081, protocol: 'WebSocket', auth: 'JWT', audience: 'mcp-invest.ping.demo', color: '#047857' },
+    invest: { id: 'invest', name: 'MCP Resource Server', port: 8081, protocol: 'WebSocket', auth: 'JWT', audience: 'mcp-resource-server.ping.demo', color: '#047857' },
     apikey: { id: 'apikey', name: 'API Resource Server', port: 8082, protocol: 'HTTP REST', auth: 'X-API-Key', audience: '(none)', color: '#d97706' },
   },
 }));

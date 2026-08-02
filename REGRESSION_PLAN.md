@@ -611,7 +611,7 @@ through the decision-endpoint path regardless of `ff_aam`.
 **Verify:** Live against real PingOne (env `01d89b06`), isolated container,
 running stack never repointed: DENY (`decision=DENY backend=real`,
 `response_code "401"`) and, via the mock, both PERMIT (`200`,
-`{"service":"banking_mortgage_service"}`) and DENY (`403`) with the
+`{"service":"banking_api_resource_server"}`) and DENY (`403`) with the
 Sideband JSON captured and `Authorization: <redacted>`; 11/11 routes load,
 0 build errors, 0 `Thread blocked`; `/health` 200 and `/mcp` no-token 401
 unchanged. `demo_authz_server` sideband 9/9 (211/217 full suite — the 6
@@ -1223,31 +1223,31 @@ is what makes a stale cached secret recoverable by editing `.env`.
 **Verify:** `CI=true npx jest src/__tests__/workerCredsBootstrap.test.js` (6 pass);
 revert `configStore.js` alone and 4 of the 6 fail.
 
-### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
+### 2026-07-26 — MCP_RESOURCE_SERVER_AUDIENCE was accepted on every MCP callback, not just the portfolio read
 
 **Files changed:** `demo_api_server/middleware/auth.js`,
-`demo_api_server/tests/mcpInvestAudience.regression.test.js` (new).
+`demo_api_server/tests/mcpResourceServerAudience.regression.test.js` (new).
 
-**What was broken:** `validatePingOneCoreToken` pushed `MCP_INVEST_AUDIENCE` into the
+**What was broken:** `validatePingOneCoreToken` pushed `MCP_RESOURCE_SERVER_AUDIENCE` into the
 shared `gwAuds` list and folded the `/api/investment/.../portfolio` route into the same
 `isMcpCallback` predicate as the banking read/write callbacks. The audience check is
 `isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a))`, so an A2A investment
-token (`aud=mcp-invest.ping.demo`, scopes `invest:read`) satisfied the audience gate on
+token (`aud=mcp-resource-server.ping.demo`, scopes `invest:read`) satisfied the audience gate on
 `POST /api/transactions`, `GET /api/accounts/my`, and the other write callbacks —
 routes it should never reach. Confirmed by reverting the fix: the regression suite's
 two rejection tests both fail against the old code.
 
 **What was fixed:** Split the predicate. `isMcpBankingCallback` keeps the banking /
 Path-B routes and matches against `gwAuds`; `isInvestPortfolioCallback` is separate and
-accepts **only** `MCP_INVEST_AUDIENCE`, on the portfolio path only. `MCP_INVEST_AUDIENCE`
+accepts **only** `MCP_RESOURCE_SERVER_AUDIENCE`, on the portfolio path only. `MCP_RESOURCE_SERVER_AUDIENCE`
 is no longer added to `gwAuds` at all.
 
-**Do not break:** Never re-add `MCP_INVEST_AUDIENCE` to `gwAuds` — that single line is
+**Do not break:** Never re-add `MCP_RESOURCE_SERVER_AUDIENCE` to `gwAuds` — that single line is
 the whole bug. The gateway/PingGateway/MCP-server audiences must keep working on the
 banking callbacks, and an enduser-audience token must keep working on the portfolio
 route; both are covered by regression tests.
 
-**Verify:** `CI=true npx jest tests/mcpInvestAudience.regression.test.js` (5 pass).
+**Verify:** `CI=true npx jest tests/mcpResourceServerAudience.regression.test.js` (5 pass).
 Revert `auth.js` alone and 2 of the 5 must fail — that is the proof the gate is real.
 
 ### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
@@ -1454,26 +1454,26 @@ those two got the gateway chain to a full PERMIT, but the live UI test still
 failed with two more stacked causes, live-diagnosed via temporary debug
 logging in the running containers (reverted after diagnosis):
 
-1. `demo_mcp_invest`'s running Docker image predated commit `64dbb43b7`
+1. `demo_mcp_resource_server`'s running Docker image predated commit `64dbb43b7`
    ("disable TLS cert verification for internal BFF calls") by two days —
    same "stale image" class of bug as `demo_mcp_gateway`. The compiled
    `investToolHandler.js` only read `BANKING_API_BASE_URL` (unset) with a
    `http://localhost:3001` fallback — never the correct
    `DEMO_API_BASE_URL=https://demo-api-server:3001` — so `get_portfolio_summary`
-   tried to call the BFF on `localhost` *inside the mcp-invest container*
+   tried to call the BFF on `localhost` *inside the mcp-resource-server container*
    (ECONNREFUSED, surfaced as an empty-message `AggregateError`, which is why
    the earlier symptom was a blank `{"error":""}` instead of a real message).
 2. Fixing #1 reached the real BFF and got a real `401`: `middleware/auth.js`
    already has the exact accommodation for this ("A2A investment specialist
-   callback: mcp-invest calls the BFF with a gateway-exchanged token
-   (aud=mcp-invest.ping.demo)") gated on `MCP_INVEST_AUDIENCE` — but that env
+   callback: mcp-resource-server calls the BFF with a gateway-exchanged token
+   (aud=mcp-resource-server.ping.demo)") gated on `MCP_RESOURCE_SERVER_AUDIENCE` — but that env
    var was never set in `demo_api_server/.env`, so the accommodation never
-   activated and the audience check rejected the token mcp-invest legitimately
+   activated and the audience check rejected the token mcp-resource-server legitimately
    received from Exchange #3.
 
-**What was fixed:** Rebuilt the `demo_mcp_invest` image (no source change
+**What was fixed:** Rebuilt the `demo_mcp_resource_server` image (no source change
 needed, same as `demo_mcp_gateway`). Added
-`MCP_INVEST_AUDIENCE=mcp-invest.ping.demo` (documented here in
+`MCP_RESOURCE_SERVER_AUDIENCE=mcp-resource-server.ping.demo` (documented here in
 `.env.example`; also added directly to the local `demo_api_server/.env`,
 which is gitignored).
 
@@ -1481,7 +1481,7 @@ which is gitignored).
 `{"prompt":"hand off to a specialist","vertical":"banking","forceHeuristic":true}`
 to `/api/agent/invoke` now returns `"Delegation complete — Investment Advisor
 retrieved get portfolio summary on your behalf (act-chain depth 2)."` —
-confirmed on two consecutive calls. If `MCP_INVEST_AUDIENCE` or either image
+confirmed on two consecutive calls. If `MCP_RESOURCE_SERVER_AUDIENCE` or either image
 goes stale again, the symptom returns as `mcp_error` / `tool_error` on this
 same prompt, not this specific message.
 
@@ -1559,7 +1559,7 @@ specialist") failed end-to-end. Live-diagnosed via a real browser session
    engine turns into a fail-closed DENY.
 3. Fixing #1 and #2 gets the full chain to PERMIT
    (`P1AZDecision: forwarded`, `BackendExchange: forwarded` to the real
-   `mcp-invest` backend) — `get_portfolio_summary` itself then returns an
+   `mcp-resource-server` backend) — `get_portfolio_summary` itself then returns an
    empty-error envelope (`{"error":""}`). This is a separate, narrower,
    tool-specific data issue (not an auth/infra bug) and is NOT fixed by this
    entry — noted here so it isn't mistaken for a regression of #1/#2.
@@ -2215,7 +2215,7 @@ accidentally widen the policy.
   from nested inside `config` to a sibling of `type` (on the `Chain`'s inner `handler` object);
   `StripWeatherPrefix`'s `mappings` changed from regex form (`"^/mcp/weather(.*)$": "/mcp$1"`)
   to literal-prefix form (`"/mcp/weather": "/mcp"`).
-- `ping-gateway/config/routes/02-mcp-invest.json` — identical fix to `StripInvestPrefix`'s
+- `ping-gateway/config/routes/02-mcp-resource-server.json` — identical fix to `StripInvestPrefix`'s
   mapping and `ReverseProxyHandler`'s `baseURI` placement (same bug, same shape, copy-pasted
   into this route originally; not yet user-visible because invest's separate, pre-existing
   `token_exchange_failed` issue fails earlier in the chain and had never let a request reach
@@ -2267,7 +2267,7 @@ without the same live-token verification done here.
 tool-execution layer (blocked only by mcp-weather's own unrelated `ENABLED_TOOLS` config —
 confirmed identical to curling mcp-weather directly, not a gateway defect); `New York`
 (non-Texas) returns the correct `403` Texas-scope denial from `tx-weather-scope.groovy`. No
-`BadGatewayFilter`/`Connection refused` in gateway logs for either call. `02-mcp-invest.json`
+`BadGatewayFilter`/`Connection refused` in gateway logs for either call. `02-mcp-resource-server.json`
 verified to hot-reload cleanly with the same fix (its own separate `token_exchange_failed` issue
 still blocks full end-to-end verification of its reverse-proxy stage — out of scope here).
 
@@ -2293,7 +2293,7 @@ The GLOBAL `rsFilter` heap's
 on every single call, and `OAuth2ResourceServerFilter` reports that as a generic `401
 invalid_token` to the caller (indistinguishable from an actually-invalid token, and not
 logged to stdout at INFO level — silent). Every route that references the bare `"rsFilter"`
-heap object by name (`02-mcp-invest.json`, `00-mcp-invest-jwks.json`,
+heap object by name (`02-mcp-resource-server.json`, `00-mcp-resource-server-jwks.json`,
 `00-mcp-weather.json`) has been rejecting every real, valid, correctly-scoped bearer token
 since introspection was wired up — this is not new, and not specific to weather-mcp. It was
 never caught before because no route using bare `rsFilter` had ever been exercised with a
@@ -3695,7 +3695,7 @@ route selects introspection credentials by the token's `client_id` claim
 (matching `*CLIENT_ID`/`*CLIENT_SECRET` env pair, fallback to configured
 default); the HTTP-ingress middleware exchanges per tool
 (`exchangeClient.exchange(token, toolName)`), and `forwardToUpstream` proxies
-invest-routed tools over WS to mcp-invest exactly like the WS ingress.
+invest-routed tools over WS to mcp-resource-server exactly like the WS ingress.
 
 **Do not break:** non-invest HTTP-ingress traffic still exchanges to OLB and
 forwards to mcp-server unchanged; default-client tokens still introspect with
@@ -4140,7 +4140,7 @@ per test (loadFresh) to keep the lazy-require mock identity aligned.
 Live-env only (no commit): ping-gateway container recreate (stale single-file
 bind mount of `mcp-tool-schemas.json` — macOS VirtioFS loses the mount when
 the host file is replaced, PingGateway then 500s every `/mcp` POST),
-`MORTGAGE_SERVICE_API_KEY` re-mint + vault sync, and
+`API_RESOURCE_SERVER_API_KEY` re-mint + vault sync, and
 `SIMULATED_AUTHORIZE_CONSENT_TYPES=` (explicit empty) in `demo_api_server/.env`.
 
 **What was broken:** three stacked faults surfaced once the PingGateway `/mcp`

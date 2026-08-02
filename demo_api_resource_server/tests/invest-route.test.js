@@ -1,5 +1,5 @@
 const request = require('supertest');
-process.env.MORTGAGE_SERVICE_API_KEY = 'test-mortgage-key-not-default';
+process.env.API_RESOURCE_SERVER_API_KEY = 'test-mortgage-key-not-default';
 const app = require('../server');
 
 describe('GET /invest', () => {

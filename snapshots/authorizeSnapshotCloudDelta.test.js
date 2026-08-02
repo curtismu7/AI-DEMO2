@@ -267,7 +267,7 @@ test('3a: loadSot derives the upstream audiences from the SoT (mock parity)', ()
   const res = readSot().resources;
   assert.deepStrictEqual(upstreamAudiences, [
     res['Super Banking MCP Server'].uri,     // mcpserver.ping.demo
-    res['Super Banking MCP Invest'].uri,     // mcp-invest.ping.demo
+    res['Super Banking MCP Invest'].uri,     // mcp-resource-server.ping.demo
     'https://banking-resource-server.ping.demo', // banking RS (env default, same as scopeTopology.js)
   ]);
   assert.ok(!upstreamAudiences.includes(res['Super Banking MCP Gateway'].uri),

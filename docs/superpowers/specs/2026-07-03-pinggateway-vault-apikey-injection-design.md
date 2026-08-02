@@ -9,7 +9,7 @@
 Demonstrate **credential mediation through PingGateway/IG**: a fake backend API
 key lives encrypted in the vault; **IG pulls it from the vault at request time
 and injects it (`X-API-Key`)** when proxying to backend resources
-(`mortgage-service` and `mcp-invest`). The user's OAuth token never carries the
+(`api-resource-server` and `mcp-resource-server`). The user's OAuth token never carries the
 backend key — IG mediates it. Each injection is **observable in the Token Chain
 Trace Rail**.
 
@@ -21,7 +21,7 @@ Trace Rail**.
 | 2 | Vault→gateway bridge | Runtime fetch — IG fetches the key from a BFF endpoint at request time (cached) |
 | 3 | Backend enforcement | Injected + observable. Mortgage already enforces `X-API-Key`; investment is observe-only |
 | 4 | Which gateway | **PingGateway/IG** (`ai-demo-ping-gateway`), the enforcement point when `ff_mcp_gateway_pinggateway=true` (the running-stack default) |
-| 5 | Backends | Both mortgage (`mortgage-service:8082`) and investment (`mcp-invest:8081`) |
+| 5 | Backends | Both mortgage (`api-resource-server:8082`) and investment (`mcp-resource-server:8081`) |
 | 6 | Observability | New Token Chain Trace Rail step per injection |
 | 7 | IG→BFF trust | **Mount the mkcert CA into IG + import to the JVM truststore**; IG→BFF stays TLS-verified (approach A) |
 | 8 | Delivery | **Three sequential, independently-testable phases** (Foundation → Investment → Mortgage) |
@@ -39,11 +39,11 @@ Trace Rail**.
 - **Routing:** the BFF client always POSTs to `${gateway}/mcp`
   (`demo_api_server/services/mcpGatewayClient.js:58-60`); there is **no per-tool
   path logic**. IG selects routes purely by `request.uri.path`
-  (`01-mcp-olb.json` matches `^/mcp(?!/invest)`, `02-mcp-invest.json` matches
+  (`01-mcp-olb.json` matches `^/mcp(?!/invest)`, `02-mcp-resource-server.json` matches
   `^/mcp/invest`).
-- **Protocol:** `mortgage-service` (`demo_mortgage_service/server.js`) is REST
+- **Protocol:** `api-resource-server` (`demo_api_resource_server/server.js`) is REST
   (`GET /mortgage`, validates `x-api-key` via SHA-256 + `timingSafeEqual`, 401 on
-  mismatch). `mcp-invest` is an MCP server. So the mortgage hop is a REST↔MCP
+  mismatch). `mcp-resource-server` is an MCP server. So the mortgage hop is a REST↔MCP
   translation, not a plain reverse-proxy.
 - **TLS:** the BFF serves `/internal/*` **HTTPS-only** in Docker
   (`server.js:2291-2316`, cert files always present). The IG container has **no
@@ -66,10 +66,10 @@ that also does the REST↔MCP translation.
 ### Investment (`get_investment_*`) — augment existing IG invest route
 
 ```text
-Agent → BFF → IG  ▸ 02-mcp-invest route (existing RFC 8693 token-exchange, unchanged)
+Agent → BFF → IG  ▸ 02-mcp-resource-server route (existing RFC 8693 token-exchange, unchanged)
      + NEW Groovy filter (vault-key-inject): GET vault key from BFF bridge (cached),
-       add header  X-API-Key: <DEMO_INVEST_SERVICE_KEY>
-     → ReverseProxy → mcp-invest:8081   (observe-only; mcp-invest logs "received key ✓")
+       add header  X-API-Key: <DEMO_MCP_RESOURCE_SERVER_KEY>
+     → ReverseProxy → mcp-resource-server:8081   (observe-only; mcp-resource-server logs "received key ✓")
      + IG augments the response _meta.tokenEvents with a `vault-key-inject` event
 ```
 
@@ -81,7 +81,7 @@ Agent → BFF (NEW: tool→path map routes show_mortgage to `${gateway}/mcp/mort
           1. inbound rsFilter/introspection + require mortgage:read scope   [existing IG filters]
           2. Scriptable HANDLER (mortgage-apikey-dispatch.groovy):
                - GET vault key from BFF bridge (cached, TLS-verified)
-               - GET http://mortgage-service:8082/mortgage  with X-API-Key (no bearer)
+               - GET http://api-resource-server:8082/mortgage  with X-API-Key (no bearer)
                - build the MCP JSON-RPC result: content[].text = JSON.stringify(record),
                  _meta.credentialPath='api_key', _meta.tokenEvents=[evt-inbound, evt-scope,
                  evt-swap(masked last4), evt-backend, vault-key-inject]
@@ -97,17 +97,17 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
 ### Phase 1 — Foundation (vault + BFF bridge + IG↔BFF trust)
 
 1. **Vault entries** (`secrets.vault`, via vault CLI + `VAULT_PASSWORD`):
-   - `DEMO_MORTGAGE_SERVICE_KEY = demo-mortgage-key-0000` (must match
-     `mortgage-service`'s `MORTGAGE_SERVICE_API_KEY`).
-   - `DEMO_INVEST_SERVICE_KEY = demo-invest-key-0000` (observe-only).
-   - Add `DEMO_INVEST_SERVICE_KEY` to the `vault-migrate.js` allow-list
-     (`DEMO_MORTGAGE_SERVICE_KEY` is already there, line 80).
+   - `DEMO_API_RESOURCE_SERVER_KEY = demo-mortgage-key-0000` (must match
+     `api-resource-server`'s `API_RESOURCE_SERVER_API_KEY`).
+   - `DEMO_MCP_RESOURCE_SERVER_KEY = demo-invest-key-0000` (observe-only).
+   - Add `DEMO_MCP_RESOURCE_SERVER_KEY` to the `vault-migrate.js` allow-list
+     (`DEMO_API_RESOURCE_SERVER_KEY` is already there, line 80).
 2. **BFF bridge** `demo_api_server/routes/vaultServiceKey.js`, mounted
    `app.use('/internal', require('./routes/vaultServiceKey'))`:
    - `GET /internal/vault/service-key?name=<NAME>`.
    - Guard: `x-internal-gateway-secret` header === `BFF_INTERNAL_SECRET`
      (`crypto.timingSafeEqual`, mirroring `routes/mcpAuditIngest.js`). 403 on miss.
-   - **Allow-list** `{DEMO_MORTGAGE_SERVICE_KEY, DEMO_INVEST_SERVICE_KEY}`; other
+   - **Allow-list** `{DEMO_API_RESOURCE_SERVER_KEY, DEMO_MCP_RESOURCE_SERVER_KEY}`; other
      names → 404 (never leak a real secret).
    - Reads `configStore.get('<name lowercased>')`; 404 if unset.
    - Response `{ name, value }`.
@@ -117,7 +117,7 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
      (idempotent) before `start.sh`.
    - Add IG env: `BFF_INTERNAL_SECRET`, `BFF_VAULT_KEY_URL`
      (`https://demo-api-server:3001/internal/vault/service-key`),
-     `PG_MORTGAGE_BACKEND_URL` (`http://mortgage-service:8082`).
+     `PG_API_RESOURCE_SERVER_URL` (`http://api-resource-server:8082`).
    - Teach `demo_api_server/scripts/refresh-service-envs.js` to write
      `BFF_INTERNAL_SECRET` + the mortgage vars into `ping-gateway/.env` (it is
      auto-generated; hand edits are overwritten).
@@ -125,12 +125,12 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
 ### Phase 2 — Investment injection on IG
 
 4. `ping-gateway/scripts/groovy/vault-key-inject.groovy` — GET
-   `System.getenv('BFF_VAULT_KEY_URL')?name=DEMO_INVEST_SERVICE_KEY` with header
+   `System.getenv('BFF_VAULT_KEY_URL')?name=DEMO_MCP_RESOURCE_SERVER_KEY` with header
    `x-internal-gateway-secret: System.getenv('BFF_INTERNAL_SECRET')`, TLS-verified
    (`HttpURLConnection`, GET, `conn.inputStream.text`), cache in `globals` with a
    60s TTL, then `request.headers.put('X-API-Key', [key])`. On fetch failure: log
    and proceed without the header (observe-only).
-5. Add the filter to `ping-gateway/config/routes/02-mcp-invest.json` before the
+5. Add the filter to `ping-gateway/config/routes/02-mcp-resource-server.json` before the
    `ReverseProxyHandler`.
 6. IG augments the invest MCP response `_meta.tokenEvents` with a
    `vault-key-inject` event (masked last4).
@@ -148,13 +148,13 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
 9. `ping-gateway/config/routes/04-mcp-mortgage.json` — condition `^/mcp/mortgage`,
    inbound rsFilter + `mortgage:read` scope, then the scriptable handler.
 10. `ping-gateway/scripts/groovy/mortgage-apikey-dispatch.groovy` — fetch vault
-    key (reuse the Phase-2 cache helper), `GET PG_MORTGAGE_BACKEND_URL/mortgage`
+    key (reuse the Phase-2 cache helper), `GET PG_API_RESOURCE_SERVER_URL/mortgage`
     with `X-API-Key`, build the MCP JSON-RPC result (shape from
     `apiKeyDispatch.ts:153-199`) incl. `_meta.tokenEvents` with `vault-key-inject`.
 11. **Trace Rail:** mortgage path now emits the same `vault-key-inject` event;
     covered by the Phase-2 builder change. Add a mortgage evidence test.
-12. **Topology/env:** register `PG_MORTGAGE_BACKEND_URL` /
-    `MORTGAGE_SERVICE_URL` in `service-topology.json` (`mortgage-service` already
+12. **Topology/env:** register `PG_API_RESOURCE_SERVER_URL` /
+    `API_RESOURCE_SERVER_URL` in `service-topology.json` (`api-resource-server` already
     in `services`) so `npm run topology:check` stays green.
 
 ## Error handling
@@ -178,10 +178,10 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
   to the bridge returns the key (proves the truststore import).
 - **Phase 2:** unit — `buildTraceSteps` emits the `vault-key-inject` step given the
   event; the empty-trace id list updates to 12. Integration — an invest tool call
-  carries `X-API-Key` to `mcp-invest` and the Rail shows the step.
+  carries `X-API-Key` to `mcp-resource-server` and the Rail shows the step.
 - **Phase 3:** unit — `mcpGatewayClient` builds `/mcp/mortgage` for `show_mortgage`
   and `/mcp` otherwise. Integration — `show_mortgage` end-to-end returns the record,
-  `mortgage-service` saw a valid `X-API-Key`, the Rail shows the step.
+  `api-resource-server` saw a valid `X-API-Key`, the Rail shows the step.
 - **Drift:** `npm run topology:check` green after the mortgage backend var is added.
 - **Live demo check** on the running Docker stack each phase.
 
@@ -195,7 +195,7 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
 ## Out of scope
 
 - Rotating or changing any real secret.
-- Making `mcp-invest` hard-enforce the injected key (stays observe-only).
+- Making `mcp-resource-server` hard-enforce the injected key (stays observe-only).
 - api_key dispositions for other verticals (healthcare/retail/etc.).
 - Removing the Node gateway's existing api_key path (left intact for the
   flag-false route).
@@ -204,13 +204,13 @@ produced by `demo_mcp_gateway/src/apiKeyDispatch.ts` so the UI is unchanged.
 
 ## Revision 2 (2026-07-04) — "Reading B": invest is an API-key backend, and re-phasing
 
-**What changed:** exploration of the invest path showed the existing `mcp-invest`
+**What changed:** exploration of the invest path showed the existing `mcp-resource-server`
 is a **WebSocket, OAuth-token-exchange** MCP server that the BFF never routes to
-IG's invest route (the BFF posts every tool to `/mcp`, and mcp-invest speaks WS,
-not HTTP). So "IG injects a static X-API-Key into mcp-invest" (Revision 1's
+IG's invest route (the BFF posts every tool to `/mcp`, and mcp-resource-server speaks WS,
+not HTTP). So "IG injects a static X-API-Key into mcp-resource-server" (Revision 1's
 investment design) is not viable. Confirmed with the user: **"invest" means a
 second API-key-gated app that mirrors mortgage** — a new `/invest` route on the
-same api-key-gated `demo_data_service` (`demo_mortgage_service`, which already
+same api-key-gated `demo_data_service` (`demo_api_resource_server`, which already
 serves `/mortgage`, `/retail`, `/healthcare`, …), reached through the **same**
 credential-mediation path as mortgage. This supersedes the "augment the invest
 route" design above.
@@ -238,7 +238,7 @@ result's `_meta` (read in `AIAgent.js` `vertical_feature_demo`). We add an
   3. `apiKeyDispatch.ts`: add `_meta.apiCall` (e.g. `GET /invest`) and fix the
      masked last4 to reflect the actually-injected key (currently WS shows the
      Phase-266 marker key's last4, HTTP shows `XXXX`).
-  4. Docker fix: give `mcp-gateway` `MORTGAGE_SERVICE_URL=http://mortgage-service:8082`
+  4. Docker fix: give `mcp-gateway` `API_RESOURCE_SERVER_URL=http://api-resource-server:8082`
      so the api-key dispatch reaches the backend in-container (today it defaults
      to `localhost:8082`, unreachable → the real mortgage/invest call fails).
   5. UI: `VerticalFeaturePage.jsx` — render the new `_meta.apiCall` line in the
