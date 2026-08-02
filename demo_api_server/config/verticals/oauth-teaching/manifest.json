@@ -46,18 +46,18 @@
       { "key": "teaching", "label": "Start Learning" }
     ],
     "chips10": [
-      { "id": "ot1", "label": "What is OAuth?", "message": "what is oauth", "mode": "both" },
-      { "id": "ot2", "label": "Auth code + PKCE", "message": "what is the authorization code flow with pkce", "mode": "both" },
-      { "id": "ot3", "label": "ID vs access token", "message": "what is the difference between an id token and an access token", "mode": "both" },
-      { "id": "ot4", "label": "Scopes & least privilege", "message": "explain scopes and least privilege", "mode": "both" },
-      { "id": "ot5", "label": "Refresh tokens", "message": "explain refresh tokens", "mode": "both" },
-      { "id": "ot6", "label": "Client credentials", "message": "what is the client credentials grant", "mode": "both" },
-      { "id": "ot7", "label": "Token exchange (RFC 8693)", "message": "how does token exchange work (rfc 8693)", "mode": "both" },
-      { "id": "ot8", "label": "act / may_act delegation", "message": "what is act and may_act delegation", "mode": "both" },
-      { "id": "ot9", "label": "Introspection (RFC 7662)", "message": "what is token introspection", "mode": "both" },
-      { "id": "ot10", "label": "Step-up auth (RFC 9470)", "message": "what is step-up authentication", "mode": "both" },
-      { "id": "ot11", "label": "Demo: real token exchange", "message": "demonstrate a real token exchange", "mode": "both" },
-      { "id": "ot12", "label": "Demo: HITL approval", "message": "demonstrate hitl approval", "mode": "both" }
+      { "id": "ot1", "label": "What is OAuth?", "message": "what is oauth", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot2", "label": "Auth code + PKCE", "message": "what is the authorization code flow with pkce", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot3", "label": "ID vs access token", "message": "what is the difference between an id token and an access token", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot4", "label": "Scopes & least privilege", "message": "explain scopes and least privilege", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot5", "label": "Refresh tokens", "message": "explain refresh tokens", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot6", "label": "Client credentials", "message": "what is the client credentials grant", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot7", "label": "Token exchange (RFC 8693)", "message": "how does token exchange work (rfc 8693)", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot8", "label": "act / may_act delegation", "message": "what is act and may_act delegation", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot9", "label": "Introspection (RFC 7662)", "message": "what is token introspection", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot10", "label": "Step-up auth (RFC 9470)", "message": "what is step-up authentication", "mode": "both", "tool": "explain_concept" },
+      { "id": "ot11", "label": "Demo: real token exchange", "message": "demonstrate a real token exchange", "mode": "both", "tool": "demonstrate_token_exchange" },
+      { "id": "ot12", "label": "Demo: HITL approval", "message": "demonstrate hitl approval", "mode": "both", "tool": "demonstrate_hitl" }
     ]
   },
   "scopes": {

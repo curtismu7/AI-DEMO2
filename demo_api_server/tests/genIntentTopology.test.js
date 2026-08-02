@@ -340,10 +340,8 @@ describe('runChecks against the live manifests', () => {
   let issues;
   beforeAll(() => { issues = gen.runChecks(gen.buildRows()); });
 
-  it('reports the known undeclared-tool gaps rather than passing silently', () => {
-    const undeclared = issues.filter((i) => i.code === 'missing_declared_tool');
-    // oauth-teaching declares no tool on any of its 12 chips.
-    expect(undeclared.filter((i) => i.vertical === 'oauth-teaching')).toHaveLength(12);
+  it('reports zero blocking gaps — this is what `npm run intents:check` gates on', () => {
+    expect(fails(issues)).toEqual([]);
   });
 
   it('does not report a tool_mismatch for any *-jwt or *-feature chip', () => {
@@ -351,5 +349,60 @@ describe('runChecks against the live manifests', () => {
     const bogus = issues.filter((i) => i.code === 'tool_mismatch'
       && /-(jwt|feature)$/.test(i.chipId));
     expect(bogus).toEqual([]);
+  });
+});
+
+/**
+ * Revert-to-RED: the gate is only worth having if removing a declaration turns
+ * it red. Each case reads the REAL manifest chip (so deleting the declaration
+ * from the manifest fails the first assertion loudly), then feeds the reverted
+ * shape through the same check the CLI runs.
+ */
+describe('the gate goes RED when a backfilled declaration is reverted', () => {
+  const manifestOf = (v) => require(`../config/verticals/${v}/manifest.json`);
+  const chipOf = (v, id) => manifestOf(v).dashboard.chips10.find((c) => c.id === id);
+
+  /** Live row for a chip, as `check` builds it. */
+  const liveRow = (() => {
+    let rows;
+    return (v, id) => {
+      if (!rows) rows = gen.buildRows();
+      return rows.find((r) => r.vertical === v && r.chipId === id);
+    };
+  })();
+
+  it.each([
+    ['oauth-teaching', 'ot1', 'explain_concept'],
+    ['oauth-teaching', 'ot11', 'demonstrate_token_exchange'],
+    ['retail', 'rt10', 'view_recently_viewed'],
+    ['banking', 'bk-bad-scope', 'test_wrong_scope'],
+    ['banking', 'bk-dpop', 'test_wrong_audience'],
+    ['banking', 'bk8', 'get_my_transactions'],
+    ['investment', 'inv-llm', 'show_investment'],
+    ['workforce', 'wf10', 'list_expenses'],
+  ])('%s/%s declares %s, and dropping it FAILS missing_declared_tool', (v, id, tool) => {
+    expect(chipOf(v, id).tool).toBe(tool);
+
+    const row = liveRow(v, id);
+    expect(fails(gen.checkResolution([row]))).toEqual([]);
+
+    const reverted = { ...row, declaredTool: null, declaredToolSource: null };
+    expect(fails(gen.checkResolution([reverted])).map((i) => i.code))
+      .toEqual(['missing_declared_tool']);
+  });
+
+  it('bk-a2a FAILS tool_mismatch again if the actionToTool alias is dropped', () => {
+    const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
+    expect(ACTION_TO_TOOL.sensitive_account_details).toBe('get_sensitive_account_details');
+
+    const row = liveRow('banking', 'bk-a2a');
+    expect(fails(gen.checkResolution([row]))).toEqual([]);
+
+    // Without the alias, resolveToolForAction falls back to identity on the
+    // heuristic action name — exactly the state before the mapping was added.
+    const reverted = { ...row, resolvedTool: row.heuristicAction };
+    const red = fails(gen.checkResolution([reverted]));
+    expect(red.map((i) => i.code)).toEqual(['tool_mismatch']);
+    expect(red[0].detail).toContain('get_sensitive_account_details');
   });
 });

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "topology:check": "node scripts/gen-service-topology.js check",
-    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js && node scripts/check-p1az-worker-secret-sync.js && node scripts/gen-demo-flag-map.js --check && node demo_api_server/scripts/useCaseSweep.js --dry-run",
+    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js && node scripts/check-p1az-worker-secret-sync.js && node scripts/gen-demo-flag-map.js --check && node demo_api_server/scripts/useCaseSweep.js --dry-run && node demo_api_server/scripts/gen-intent-topology.js check",
     "test:codegraph-index": "node --test scripts/check-codegraph-demo-index.test.js && bash langchain_agent/scripts/run-codegraph-index-tests.sh",
     "regression:paths": "node scripts/check-regression-plan-paths.js",
     "smoke:pingone-mcp": "node scripts/smoke-pingone-mcp.js",

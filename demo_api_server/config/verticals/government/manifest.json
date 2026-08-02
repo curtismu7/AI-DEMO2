@@ -82,7 +82,7 @@
       { "id": "gv5", "label": "🔑 Release record", "message": "release my permit record", "mode": "both", "hitlTrigger": true, "elicitationTrigger": true, "challenge": "step_up", "tool": "release_record", "useCaseId": "step-up-required" },
       { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit", "useCaseId": "delegated-access-with-proof" },
       { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "challenge": "consent", "tool": "sensitive_tax_record", "useCaseId": "a2a-delegation", "group": "advanced" },
-      { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "llm" },
+      { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "llm", "tool": "view_permits" },
       { "id": "gv-direct", "label": "Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" }
     ],
     "securityShowcase": {
