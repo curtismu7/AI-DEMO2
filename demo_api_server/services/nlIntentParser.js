@@ -934,7 +934,14 @@ function parseHeuristic(
   if (INVEST_FEATURE_RE.test(t)) {
     return { kind: "banking", banking: { action: "invest_demo" } };
   }
-  const featureTrigger = FEATURE_TRIGGERS[vertical];
+  // hasOwnProperty: `vertical` is request-supplied and VALID_VERTICAL_RE accepts
+  // `constructor`, so a bare lookup returned the INHERITED Object constructor.
+  // `?.` only guards nullish, so `.test(t)` was then called on a function that has
+  // none — POST /api/demo-agent/nl {vertical:"constructor"} 500'd with
+  // "featureTrigger?.test is not a function".
+  const featureTrigger = Object.prototype.hasOwnProperty.call(FEATURE_TRIGGERS, vertical)
+    ? FEATURE_TRIGGERS[vertical]
+    : null;
   if (featureTrigger?.test(t) || /\bshow\s+vertical\s+feature\b/.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
   }
