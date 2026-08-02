@@ -210,22 +210,47 @@
   overflow-y: auto;
 }
 
-/* --- Sequence diagram --- */
+/* --- Protocol hops (Token Topology visual language) --- */
 
-.sequence-diagram-container {
+/* The node cards carry the Token Topology dark surface, so the panel around
+   them is dark too — light page chrome behind them left the card text, which
+   inherits its colour, invisible. */
+.pp-topology {
   flex: 1;
   min-height: 300px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px;
   border-radius: 8px;
-  background-color: var(--pp-bg-surface);
-  border: 1px solid var(--pp-border);
-  overflow: auto;
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+  color: #e6edf3;
+  overflow-x: auto;
 }
 
-.sequence-diagram-container svg {
-  max-width: 100%;
+/* Centre the arrow between the two cards of a hop rather than top-aligning it */
+.pp-topology__hop {
+  align-items: center;
+}
+
+/* Endpoints are far longer than the topology panel's one-word connector
+   labels, so the run needs more room than the stock 30px line allows. */
+/* Fixed width keeps every target card on the same column, however long the
+   endpoint label is. */
+.pp-topology .ttp-conn {
+  padding-top: 0;
+  padding-inline: 6px;
+  width: 230px;
+}
+
+.pp-topology .ttp-line {
+  width: 72px;
+}
+
+.pp-topology .ttp-conn-label {
+  max-width: 200px;
+  word-break: break-word;
 }
 
 /* --- Execution controls --- */
