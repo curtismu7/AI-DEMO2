@@ -31,7 +31,10 @@
 const fs = require('node:fs');
 const os = require('node:os');
 
-const ALLOWED = new Set(['op', 'key', 'result', 'caller']);
+// `seq` joins the original four fields. It is the vault's rollback counter, not
+// a secret: it is an integer that also lives in cleartext in the envelope, so it
+// widens the schema without widening what the log can disclose.
+const ALLOWED = new Set(['op', 'key', 'result', 'caller', 'seq']);
 
 // Operations that change vault state AND are recorded before anything persists,
 // so throwing here leaves no on-disk change. `save` is deliberately absent: it
@@ -63,6 +66,7 @@ function recordAudit(filePath, entry) {
     caller: entry.caller,
     host: os.hostname(),
     result: entry.result,
+    ...(entry.seq === undefined ? {} : { seq: entry.seq }),
   }) + '\n';
   try {
     // mode applies only when appendFileSync creates the file; an existing log
@@ -105,4 +109,45 @@ function assertAuditWritable(filePath) {
   }
 }
 
-module.exports = { recordAudit, assertAuditWritable };
+/**
+ * Highest `seq` ever recorded in `filePath`, or 0 if the log is absent, empty,
+ * or predates the counter.
+ *
+ * This is the anchor for rollback detection: the vault file alone cannot prove
+ * its own freshness, because an attacker who swaps in an older envelope also
+ * swaps in that envelope's valid HMAC. The append-only log is separate state,
+ * so a vault whose `seq` is BELOW a seq already witnessed here has been rewound.
+ *
+ * Scope, stated plainly: this detects rollback of the VAULT. An attacker who
+ * rewinds the log in the same motion is not caught, and a log legitimately
+ * starting fresh (a new VAULT_AUDIT_LOG_PATH, a wiped volume) returns 0 and
+ * detects nothing — deliberately, so a rotated log cannot brick a good vault.
+ *
+ * Parse failures are skipped rather than thrown: a torn final line from a crash
+ * mid-append must not make the vault unopenable.
+ *
+ * @param {string} filePath
+ * @returns {number}
+ */
+function highestRecordedSeq(filePath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return 0; // no log yet — nothing witnessed, nothing to compare against
+  }
+  let max = 0;
+  for (const line of raw.split('\n')) {
+    if (!line) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue; // torn or hand-edited line — ignore, do not fail the open
+    }
+    if (Number.isSafeInteger(rec && rec.seq) && rec.seq > max) max = rec.seq;
+  }
+  return max;
+}
+
+module.exports = { recordAudit, assertAuditWritable, highestRecordedSeq };

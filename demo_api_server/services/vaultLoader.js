@@ -135,7 +135,9 @@ async function loadVaultIntoConfigStore(opts = {}) {
   //    and tampered-file — we log only err.message (no err.stack — no argon2 names).
   let vault;
   try {
-    vault = await vaultLib.openVault(vaultPath, password);
+    // Name ourselves in the audit trail. Without this every line said 'vault.js'
+    // and a boot-time load was indistinguishable from a CLI or web unlock.
+    vault = await vaultLib.openVault(vaultPath, password, { caller: 'vaultLoader' });
   } catch (err) {
     logger.error('[vault] open failed:', err.message);
     throw err;
@@ -216,6 +218,9 @@ async function unlockVaultAtRuntime(opts = {}) {
   const configStore = opts.configStore ?? require('./configStore');
   const vaultLib    = opts.vaultLib    ?? require('../lib/vault');
   const logger      = opts.logger      ?? console;
+  // Audit attribution flows in from the route so a web unlock is distinguishable
+  // from a CLI one; 'vaultLoader' is the fallback for a direct programmatic call.
+  const caller      = opts.caller      ?? 'vaultLoader';
 
   if (typeof password !== 'string' || password.length === 0) {
     const err = new Error('vault: password required');
@@ -230,7 +235,7 @@ async function unlockVaultAtRuntime(opts = {}) {
 
   let vault;
   try {
-    vault = await vaultLib.openVault(vaultPath, password);
+    vault = await vaultLib.openVault(vaultPath, password, { caller });
   } catch (err) {
     // Generic log — never err.stack (no argon/kek/dek leak). Mirrors loadVaultIntoConfigStore.
     logger.error('[vault] runtime open failed:', err.message);
