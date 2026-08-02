@@ -663,15 +663,20 @@ export default function SecurityCenter({ user }) {
 
               <div className="status-item">
                 <span className="status-icon">
-                  {session.sessionStoreHealthy === false ? '⚠️' : '✅'}
+                  {session.sessionStoreHealthy === true ? '✅' : '⚠️'}
                 </span>
                 <div>
                   <div className="status-title">Session store</div>
                   <div className="status-desc">
-                    {session.sessionStoreHealthy === false ? (
+                    {/* /api/auth/session sends `req._sessionStoreHealthy ?? null`, so
+                        null means "not reported", not "fine". Only an explicit true
+                        is healthy — anything else must not be painted green. */}
+                    {session.sessionStoreHealthy === true ? (
+                      <span className="security-status--ok">Healthy</span>
+                    ) : session.sessionStoreHealthy === false ? (
                       <span className="security-status--warn">Degraded</span>
                     ) : (
-                      <span className="security-status--ok">Healthy</span>
+                      <span className="security-status--warn">Unknown</span>
                     )}
                   </div>
                 </div>

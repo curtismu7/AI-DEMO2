@@ -93,4 +93,23 @@ describe('SecurityCenter tabs', () => {
 
     await waitFor(() => expect(screen.getByText('Degraded')).toBeInTheDocument());
   });
+
+  // The BFF sends `req._sessionStoreHealthy ?? null`, so null means "not
+  // reported" — painting that green would claim a health check that never ran.
+  it('shows unknown, not healthy, when the BFF reports null store health', async () => {
+    mockFetch({ session: { sessionStoreHealthy: null } });
+    render(<SecurityCenter user={USER} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
+
+    await waitFor(() => expect(screen.getByText('Unknown')).toBeInTheDocument());
+    expect(screen.queryByText('Healthy')).not.toBeInTheDocument();
+  });
+
+  it('shows healthy only on an explicit true', async () => {
+    mockFetch({ session: { sessionStoreHealthy: true } });
+    render(<SecurityCenter user={USER} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
+
+    await waitFor(() => expect(screen.getByText('Healthy')).toBeInTheDocument());
+  });
 });
