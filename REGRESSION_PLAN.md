@@ -180,12 +180,32 @@ would prompt for consent regardless of amount. Thresholds are **250 / 500 / 2000
 to match the constants already in the environment, not the 300/600/2500 the
 deleted BFF ladder used; the demo amounts still land in the intended bands.
 
+**Same bug, second transport:** the Node gateway read only the decision label
+too — there was no statement classification anywhere in `demo_mcp_gateway/src`.
+New `src/auth/authorizeObligations.ts` ports the BFF classifier;
+`PingOneAuthorizeClient` and `pingAuthorizeGuard` (WS) both use it, and a
+PERMIT carrying an obligation no longer resolves to PERMIT. `AuthzDecision` gained
+an `obligation` field so step-up and consent stay distinguishable, and the HTTP
+middleware emits `step_up_required` for the former (no challenge is minted — a
+receipt cannot satisfy MFA). The BFF needed no change: it already merges
+`raw.statements` (pingOneAuthorizeService `_classifyRawObligations`).
+
 **Do not break:** the skip is conditional on `useGateway` — a tool executed
 locally has no second PEP, and skipping there is fail-open. Statement
-classification must stay in sync with `services/authorizeObligations.js`; if the
-codes drift, a live obligation silently stops gating (there is no test that can
-catch that from the mock alone). Step-up must not be dischargeable by a HITL
-receipt, or vice versa — they are different mechanisms.
+classification must stay in sync across all three readers
+(`services/authorizeObligations.js`, `src/auth/authorizeObligations.ts`,
+`p1az-decision.groovy`); if the codes drift, a live obligation silently stops
+gating. Step-up must not be dischargeable by a HITL receipt, or vice versa —
+they are different mechanisms.
+
+**Known remaining divergence (mock vs live), deliberately NOT changed here:** the
+mock authz server returns `decision: INDETERMINATE` for an obligation; live P1AZ
+returns `decision: PERMIT` + `statements[]` and uses INDETERMINATE for
+"could not evaluate". Every reader now classifies statements, so both shapes gate
+correctly — but the labels still differ. Flipping the mock is a ~75-touch-point
+change (41 mock assertions plus BFF/gateway tests) and MUST come after the reader
+fixes, never before: flip first and any reader still branching on the label
+alone stops gating, which fails OPEN.
 
 **Verify:** `cd demo_api_server && CI=true npx jest --forceExit --maxWorkers=2`.
 Groovy parsed against the running IG's own Groovy 4.0.28.

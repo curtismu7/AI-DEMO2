@@ -51,7 +51,7 @@ import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from 
 import { verifyDpopProof } from '../dpopVerify';
 import { verifyWebBotAuth } from '../webBotAuthVerify';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolArgs } from '../rarEnforce';
-import type { TratClaims, PolicySource } from '../auth/PingOneAuthorizeClient';
+import type { TratClaims, PolicySource, AuthzDecision } from '../auth/PingOneAuthorizeClient';
 import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 
@@ -804,7 +804,10 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 3: PingOne Authorize evaluation (D-06) ───────────────────────────────
-    let authzDecision;
+    // Typed explicitly: inferring from the first assignment dropped `obligation`
+    // (only the fail-closed literal below was in the union), so the statement-based
+    // gate could not be read here.
+    let authzDecision: AuthzDecision | undefined;
     try {
       if (deps) {
         authzDecision = await deps.authorize(
@@ -903,6 +906,23 @@ export function buildAuthorizeMcpRequest(
         'Content-Type': 'application/json',
         'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
       });
+
+      // Step-up is a different precondition from consent: MFA, not a human. It
+      // gets its own code so the agent drives the right flow, and no HITL
+      // challenge is minted (a receipt cannot satisfy MFA). Parity with
+      // PingGateway's p1az-decision.groovy.
+      if (authzDecision.obligation === 'stepUp' && !hitlApproved) {
+        res.end(JSON.stringify({
+          error: 'step_up_required',
+          message: 'Step-up authentication required',
+          decision: authzDecision.decision,
+          tool: toolName ?? '',
+          policy_source: authzDecision.policySource,
+          ...(authzDecision.degraded ? { degraded: true } : {}),
+          login_required: false,
+        }));
+        return;
+      }
 
       if (authzDecision.decision === 'INDETERMINATE') {
         // HITL obligation. Anti-loop: a verified-approved receipt that still
