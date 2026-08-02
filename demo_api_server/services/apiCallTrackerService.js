@@ -128,13 +128,19 @@ function clearApiCalls(sessionId = GLOBAL_SESSION_ID) {
  */
 function sanitizeHeaders(headers) {
   const sensitiveKeys = ['authorization', 'cookie', 'set-cookie', 'x-api-key', 'x-auth-token'];
+  // Truncation is deliberate for bearer tokens (this demo teaches token shape),
+  // but a session cookie has no teaching value and its ends are enough to
+  // fingerprint the admin's session — always redact those in full.
+  const alwaysFullyRedact = ['cookie', 'set-cookie'];
   const sanitized = { ...headers };
 
   for (const key of Object.keys(sanitized)) {
     const lowerKey = key.toLowerCase();
     if (sensitiveKeys.includes(lowerKey)) {
       const value = sanitized[key];
-      if (typeof value === 'string' && value.length > 20) {
+      if (alwaysFullyRedact.includes(lowerKey) && value) {
+        sanitized[key] = '***REDACTED***';
+      } else if (typeof value === 'string' && value.length > 20) {
         sanitized[key] = value.substring(0, 10) + '***' + value.substring(value.length - 10);
       } else if (value) {
         sanitized[key] = '***REDACTED***';
@@ -146,19 +152,58 @@ function sanitizeHeaders(headers) {
 }
 
 /**
- * Format body for display (pretty print JSON if possible)
+ * Server-side mirror of demo_api_ui/src/services/apiTrafficStore.js
+ * REDACT_BODY_KEYS. The client buffer already redacted these; this side did
+ * not, so `POST /api/admin/vault/unlock` parked the vault master password in
+ * the shared __global__ bucket in plaintext.
+ */
+const REDACT_BODY_KEYS = new Set([
+  'access_token',
+  'refresh_token',
+  'id_token',
+  'client_secret',
+  'password',
+  'token',
+  'client_credentials',
+  'code_verifier',
+  'currentpassword',
+  'newpassword',
+]);
+
+/**
+ * Recursively replace known secret-bearing keys. Nested because bodies are not
+ * always flat (`{ credentials: { password } }`).
+ */
+function redactBodyKeys(value) {
+  if (Array.isArray(value)) return value.map(redactBodyKeys);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = REDACT_BODY_KEYS.has(k.toLowerCase())
+        ? '***REDACTED***'
+        : redactBodyKeys(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Format body for display (pretty print JSON if possible).
+ * Redacts secret keys first — a tracked body is readable by every reader of
+ * the shared explorer buffer.
  */
 function formatBody(body) {
   if (typeof body === 'string') {
     try {
       const parsed = JSON.parse(body);
-      return JSON.stringify(parsed, null, 2);
+      return JSON.stringify(redactBodyKeys(parsed), null, 2);
     } catch {
       return body;
     }
   }
   if (typeof body === 'object') {
-    return JSON.stringify(body, null, 2);
+    return JSON.stringify(redactBodyKeys(body), null, 2);
   }
   return String(body);
 }
@@ -268,4 +313,5 @@ module.exports = {
   getSessionTokens,
   clearSessionTokens,
   _resetForTests,
+  redactBodyKeys,
 };

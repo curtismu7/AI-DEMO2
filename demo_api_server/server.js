@@ -1335,7 +1335,11 @@ app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // accessibility of its Telemetry sibling (the Tracing page).
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
-app.use('/api/api-calls', apiCallTrackerRoutes);
+// The tracker dual-writes every /api/* call into a shared __global__ bucket that
+// this router serves by default, so an unguarded mount published one user's
+// request bodies to anyone who could reach the port. Any logged-in user, matching
+// its Telemetry/Tracing siblings above.
+app.use('/api/api-calls', authenticateToken, apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
 app.use('/api/verticals', authenticateToken, verticalManifestRoutes);
 app.use('/api/groups', authenticateToken, groupMembershipRoutes);

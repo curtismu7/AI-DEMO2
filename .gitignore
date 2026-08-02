@@ -131,14 +131,20 @@ demo_api_server/data/persistent/lmdb/data.mdb
 /out.txt
 
 # Encrypted credential vault — NEVER commit. This repo is PUBLIC, and the vault's
-# AES-256-GCM ciphertext is only as strong as VAULT_PASSWORD, which is currently the
-# same string as the demo account password and appears in cleartext in tracked files
-# (e2e-use-cases-test.js, tests/scripts/ensure-service-keys.readEnvValue.test.js).
-# Committing the vault therefore publishes every credential inside it. Keep the file
-# local: vaultLoader treats a missing vault as a clean no-op ('no_vault_file') and
-# falls back to .env / process.env, and run-docker.sh handles its absence explicitly.
+# AES-256-GCM ciphertext is only as strong as VAULT_PASSWORD, which is the same
+# string as the demo account password. 441eb756 (#1104) removed that literal from
+# the working tree, but it is still reachable in history, as are two secrets.vault
+# blobs — see docs/incident-response/vault-history-exposure.md. Committing the vault
+# publishes every credential inside it. Keep the file local: vaultLoader treats a
+# missing vault as a clean no-op ('no_vault_file') and falls back to .env /
+# process.env, and run-docker.sh handles its absence explicitly.
 /secrets.vault
 /secrets.vault.audit.log
+# In-flight envelopes from vault save()/createVault. Complete ciphertext, same
+# sensitivity as the vault itself; a crash between write and rename leaves one
+# behind. The glob covers both the legacy `.tmp` name and the per-writer
+# `secrets.vault.<pid>.<rand>.tmp` form.
+/secrets.vault*.tmp
 
 # Privilege proxy enrollment token (contains tenant secrets)
 ping-mcpgw/config/proxy-token
