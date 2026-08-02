@@ -757,6 +757,24 @@ export default function BankingAgent({
     } catch {}
   }, [showRfcInfo]);
 
+  /** Dark mode for the dark-capable panels (Token Chain rail). Persisted.
+      Deliberately NOT seeded from the OS preference: only some components carry
+      dark styling, so following the OS turned the rail dark on load with no
+      control to turn it off. Applied as data-theme on the document root because
+      the rail mounts on ~28 pages outside the agent's own subtree. */
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem("ba_dark_mode") === "true";
+    } catch {}
+    return false;
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("ba_dark_mode", String(darkMode));
+    } catch {}
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
+
   /** Whether the heuristic fast-path is enabled (ff_heuristic_enabled). false = LLM-only mode. */
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
   /** Whether the floating results panel is enabled (ff_agent_results_panel). false = panel hidden; results inline only. */
@@ -8130,6 +8148,17 @@ export default function BankingAgent({
                   title="Show or hide RFC token-event messages in the chat"
                 >
                   RFC info
+                </Check>
+                {/* Dark mode switch — drives data-theme on the document root, which the
+                    dark-capable panels (Token Chain rail) key off. */}
+                <Check
+                  variant="switch"
+                  className="ba-header-toggle-label"
+                  checked={darkMode}
+                  onChange={(e) => setDarkMode(e.target.checked)}
+                  title="Switch the Token Chain panel between light and dark"
+                >
+                  Dark mode
                 </Check>
                 {modelAdvisory && (
                   <span
