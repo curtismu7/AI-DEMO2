@@ -78,6 +78,24 @@ function hasHandler(src, action) {
 }
 
 /**
+ * Tool names the gateway can actually dispatch, from scope-topology.json.
+ *
+ * Exported because it is the reachability half of "does this chip's tool exist":
+ * scripts/gen-intent-topology.js asks the same question of every `direct` chip
+ * (whose tool/denyTool is called by name, with no NL parser in the path), and a
+ * second copy of this read would drift from the one below.
+ * @returns {Set<string>} empty when the topology cannot be read from here
+ */
+function gatewayToolNames() {
+  try {
+    const t = JSON.parse(fs.readFileSync(TOPOLOGY, 'utf8')).tools || {};
+    return new Set(Array.isArray(t) ? t.map((x) => x && x.name).filter(Boolean) : Object.keys(t));
+  } catch (_) {
+    return new Set();
+  }
+}
+
+/**
  * @returns {{missingHandlers:string[], featureIssues:string[], handled:number, featureOk:number}}
  */
 function auditUiDispatch() {
@@ -95,11 +113,7 @@ function auditUiDispatch() {
     }
   }
 
-  let topologyTools = new Set();
-  try {
-    const t = JSON.parse(fs.readFileSync(TOPOLOGY, 'utf8')).tools || {};
-    topologyTools = new Set(Array.isArray(t) ? t.map((x) => x && x.name).filter(Boolean) : Object.keys(t));
-  } catch (_) { topologyTools = new Set(); }
+  const topologyTools = gatewayToolNames();
 
   let dirs = [];
   try { dirs = fs.readdirSync(VERTICALS_DIR); } catch (_) { dirs = []; }
@@ -185,4 +199,4 @@ const uiDispatch = {
 };
 
 register(uiDispatch);
-module.exports = { uiDispatch, auditUiDispatch };
+module.exports = { uiDispatch, auditUiDispatch, gatewayToolNames };
