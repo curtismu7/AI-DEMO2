@@ -96,7 +96,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // deployment topology URLs
   'mcp_server_url', 'mcp_gateway_http_url', 'mcp_pinggateway_url', 'mcp_demo_gateway_url', 'mcp_step9_resource_uri',
   'frontend_url', 'frontend_admin_url', 'react_app_client_url', 'public_app_url', 'frontend_dashboard_url',
-  'mcp_olb_ws_url', 'mcp_invest_ws_url', 'upstream_mcp_url',
+  'mcp_olb_ws_url', 'mcp_resource_server_ws_url', 'upstream_mcp_url',
   // pingone_mcp_server_url is an alias for mcp_server_url — deployment URL, not env identity
   'pingone_mcp_server_url',
   // internal shared secrets + session
@@ -130,7 +130,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'admin_role', 'user_role', 'admin_username', 'admin_role_claim', 'pingone_admin_role_claim',
   'marketing_customer_login_mode', 'marketing_demo_username_hint', 'marketing_demo_password_hint',
   'demo_username', 'demo_password', 'demo_admin_username', 'demo_admin_password', 'demo_accounts',
-  'demo_apikey_backend_service_key', 'demo_mortgage_service_key', 'demo_invest_service_key',
+  'demo_apikey_backend_service_key', 'demo_api_resource_server_key', 'demo_invest_service_key',
   'enterprise_mcp_allowed_groups', 'enterprise_mcp_resource_uris',
   'default_user_type',
   // oauth behavior / callbacks (deployment, not env identity)

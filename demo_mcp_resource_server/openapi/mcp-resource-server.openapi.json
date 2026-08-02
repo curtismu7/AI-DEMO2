@@ -6,7 +6,7 @@
     "version": "1.0.0"
   },
   "servers": [
-    { "url": "https://mcp-invest.bxf.com", "description": "Production mcp-invest" },
+    { "url": "https://mcp-resource-server.bxf.com", "description": "Production mcp-resource-server" },
     { "url": "http://localhost:8081", "description": "Local development" }
   ],
   "security": [

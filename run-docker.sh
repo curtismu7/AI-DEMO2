@@ -101,7 +101,7 @@ fi
 
 # Core banking demo — always started by default.
 CORE_SERVICES=(
-  ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
+  ui mcp-server mcp-resource-server mcp-weather api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
 )
@@ -619,10 +619,10 @@ SERVICES=(
   "langchain-agent|LangChain Agent      |8888|http://localhost:8888"
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
-  "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-resource-server|MCP Invest            |8081|http://localhost:8081"
   "mcp-weather|MCP Weather           |8896|http://localhost:8896"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
-  "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
+  "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
@@ -1119,7 +1119,7 @@ cmd_demo_sync() {
   # compose default — ensure Jaeger is up.
   # The demo-auth-gated services are always up now (see the sync above), so
   # they are always part of the instrumented set.
-  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-invest authz-server mcp-gateway"
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway"
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
@@ -1304,7 +1304,7 @@ cmd_start() {
   echo ""
 
   # Auto-provision the apikey-dispatch service key (vault + .env) BEFORE `up`
-  # so mortgage-service boots with a non-default key on fresh clones and any
+  # so api-resource-server boots with a non-default key on fresh clones and any
   # rotation is picked up by the recreated containers. Fails soft.
   # Force a fresh key with: ROTATE_SERVICE_KEYS=1 ./run-docker.sh start
   node demo_api_server/scripts/ensure-service-keys.js

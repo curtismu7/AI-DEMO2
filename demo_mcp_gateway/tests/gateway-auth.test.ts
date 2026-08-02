@@ -43,7 +43,7 @@ function makeToken(sub: string, aud: string | string[], extra: Record<string, un
 
 const GATEWAY_AUD = 'https://mcp-gateway.example.com';
 const OLB_AUD = 'https://mcp-olb.example.com';
-const INVEST_AUD = 'https://mcp-invest.example.com';
+const MCP_RS_AUD = 'https://mcp-resource-server.example.com';
 
 const stubConfig: GatewayConfig = {
   port: 3099,
@@ -54,9 +54,9 @@ const stubConfig: GatewayConfig = {
   tokenEndpoint: 'https://auth.example.com/token',
   gatewayResourceUri: GATEWAY_AUD,
   mcpOlbWsUrl: 'ws://localhost:8080',
-  mcpInvestWsUrl: 'ws://localhost:8081',
+  mcpResourceServerWsUrl: 'ws://localhost:8081',
   mcpOlbResourceUri: OLB_AUD,
-  mcpInvestResourceUri: INVEST_AUD,
+  mcpResourceServerResourceUri: MCP_RS_AUD,
   pingAuthorizeEndpoint: 'https://pingauthorize.example.com',
   pingAuthorizeWorkerId: 'worker-01',
   p1azEnabled: true,
@@ -67,8 +67,8 @@ const stubConfig: GatewayConfig = {
   devBypass: false,
   // Phase 266 fields
   demoApiKeyServiceKey: 'demo-api-key-0000',
-  mortgageServiceBaseUrl: 'http://localhost:8082',
-  mortgageServiceApiKey: 'demo-mortgage-key-0000',
+  apiResourceServerBaseUrl: 'http://localhost:8082',
+  apiResourceServerApiKey: 'demo-mortgage-key-0000',
   bffInternalIdTokenUrl: 'http://localhost:3001/internal/id-token',
   bffInternalSecret: 'dev-shared-secret-change-me',
   bankingResourceServerBaseUrl: 'http://localhost:3001',
@@ -175,7 +175,7 @@ describe('GatewayTokenPolicy', () => {
   });
 
   it('rejects when token aud contains invest server audience (anti-bypass: D-05)', () => {
-    const decoded = decodedToken({ aud: INVEST_AUD });
+    const decoded = decodedToken({ aud: MCP_RS_AUD });
     expect(() => GatewayTokenPolicy.validate(decoded, stubConfig)).toThrow(GatewayTokenPolicyError);
   });
 
@@ -321,7 +321,7 @@ describe('McpTokenExchangeClient', () => {
     });
     const client = new McpTokenExchangeClient(stubConfig);
     const result = await client.exchange('inbound-token', 'get_investment_balance');
-    expect(result.targetAud).toBe(INVEST_AUD);
+    expect(result.targetAud).toBe(MCP_RS_AUD);
   });
 
   it('exchanges for OLB audience for tools/list (default backend)', async () => {

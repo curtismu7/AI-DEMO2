@@ -2,7 +2,7 @@
  * Phase266ArchitecturePage.jsx — /architecture/phase-266
  *
  * Live Mermaid render of the Phase 266 three-credential-path architecture:
- *   • Path A (api_key): Gateway calls banking_mortgage_service :8082 via X-API-Key (amber, Phase 267)
+ *   • Path A (api_key): Gateway calls banking_api_resource_server :8082 via X-API-Key (amber, Phase 267)
  *   • Path B (dual_token): Gateway POSTs to banking_resource_server /identity (teal)
  *   • Path C (oauth_bearer): Gateway GETs banking_resource_server /accounts + /transactions (blue)
  *
@@ -55,7 +55,7 @@ const MERMAID_SOURCE = `flowchart TB
 
     PingOne["PingOne AS<br/>━━━━━━━━━━<br/>RFC 8693 /token<br/>RFC 7662 /introspect<br/>RFC 7517 /jwks"]
 
-    MortgageService["banking_mortgage_service :8082<br/>━━━━━━━━━━━━━<br/>X-API-Key gate<br/>GET /mortgage<br/>━━━━━━━━━━━━━<br/>returns dummy mortgage record<br/>(no OAuth involved)"]:::mortgage
+    ApiResourceServer["banking_api_resource_server :8082<br/>━━━━━━━━━━━━━<br/>X-API-Key gate<br/>GET /mortgage<br/>━━━━━━━━━━━━━<br/>returns dummy mortgage record<br/>(no OAuth involved)"]:::mortgage
 
     User -- "1. OIDC login<br/>(OIDC Core)" --> SPA
     SPA -- "session cookie" --> Session
@@ -69,8 +69,8 @@ const MERMAID_SOURCE = `flowchart TB
     Gateway -- "fetches id_token<br/>(server-to-server,<br/>secret-gated)" --> InternalIdToken
     InternalIdToken --> Session
 
-    Gateway == "<b>Path A: api_key</b><br/>━━━━━━━━━━━━━<br/>GET /mortgage<br/>X-API-Key: SERVICE_KEY<br/>X-User-Sub: user<br/>(no OAuth bearer)" ==> MortgageService
-    MortgageService -- "mortgage record<br/>(JSON)" --> Gateway
+    Gateway == "<b>Path A: api_key</b><br/>━━━━━━━━━━━━━<br/>GET /mortgage<br/>X-API-Key: SERVICE_KEY<br/>X-User-Sub: user<br/>(no OAuth bearer)" ==> ApiResourceServer
+    ApiResourceServer -- "mortgage record<br/>(JSON)" --> Gateway
     Gateway -- "Path A response<br/>credentialPath: api_key<br/>+ masked last4" --> SPA
     SPA -- "navigate(/path/mortgage,<br/>state: mortgagePayload)" --> PathInfo
 
@@ -106,7 +106,7 @@ const MERMAID_SOURCE = `flowchart TB
 // tagPathNodes() checks whether a <g>'s text content *contains* one of these
 // strings. More specific strings first to avoid substring false-positives.
 const PATH_NODE_MAP = {
-  A: ["MortgageService", "PathInfo"],
+  A: ["ApiResourceServer", "PathInfo"],
   B: ["Identity", "InternalIdToken"],
   C: ["Accounts", "Transactions", "BankingDb"],
   shared: ["User", "SPA", "Gateway", "PingOne", "Session"],
@@ -223,7 +223,7 @@ export default function Phase266ArchitecturePage() {
         <p className="p266-arch-subtitle">
           Scope: this view is intentionally limited to the Phase 266
           credential-disposition paths. The investment MCP server
-          (banking_mcp_invest) and HITL consent service (banking_hitl_service)
+          (banking_mcp_resource_server) and HITL consent service (banking_hitl_service)
           are out of scope here — see the Flow and Token Flow pages for those.
         </p>
       </header>

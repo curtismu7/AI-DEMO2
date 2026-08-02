@@ -108,7 +108,7 @@ describe('buildOverviewGraph', () => {
         operationName: 'GET /api/rates', startTime: 5000, duration: 40000,
         references: [{ refType: 'CHILD_OF', traceID: 'abc123', spanID: 's1' }],
         tags: [
-          { key: 'http.url', value: 'http://mortgage-service:8082/api/rates' },
+          { key: 'http.url', value: 'http://api-resource-server:8082/api/rates' },
           { key: 'error', value: true },
         ],
       },

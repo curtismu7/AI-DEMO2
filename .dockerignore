@@ -10,7 +10,7 @@
 #
 # Only list things that are NEVER build inputs. The repo-root Dockerfiles need
 # demo_api_server/**, demo_authz_server/**, demo_mcp_gateway/**,
-# demo_mcp_server/openapi/**, demo_mcp_invest/openapi/**, scope-topology.json,
+# demo_mcp_server/openapi/**, demo_mcp_resource_server/openapi/**, scope-topology.json,
 # service-topology.json, and docs/** — none of which are excluded here.
 
 # Never copy host node_modules into an image; npm ci/npm install provides them.

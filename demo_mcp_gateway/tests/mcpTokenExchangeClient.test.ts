@@ -12,7 +12,7 @@ const config = {
   clientId: 'gw-client',
   clientSecret: 'gw-secret',
   mcpOlbResourceUri: 'mcpserver.ping.demo',
-  mcpInvestResourceUri: 'mcp-invest.ping.demo',
+  mcpResourceServerResourceUri: 'mcp-resource-server.ping.demo',
 } as unknown as GatewayConfig;
 
 // Subject token with scopes: read + invest:read + something foreign

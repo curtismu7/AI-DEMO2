@@ -2737,9 +2737,9 @@ const SCENARIOS = {
     {
       type: "note",
       participants: ["U", "CB"],
-      text: "API-KEY PATH: scope gate + credential swap\nGateway calls banking_mortgage_service",
+      text: "API-KEY PATH: scope gate + credential swap\nGateway calls banking_api_resource_server",
       description:
-        "Path A: the gateway verifies mortgage:read, swaps the OAuth bearer for a service API key, and calls banking_mortgage_service :8082.",
+        "Path A: the gateway verifies mortgage:read, swaps the OAuth bearer for a service API key, and calls banking_api_resource_server :8082.",
       why: "Demonstrates credential swap pattern: the user token never reaches the backend; only the API key + X-User-Sub are forwarded.",
     },
     {
@@ -2775,9 +2775,9 @@ const SCENARIOS = {
     {
       type: "note",
       participants: ["AG"],
-      text: "GET banking_mortgage_service :8082 /mortgage\nX-API-Key + X-User-Sub (no user token)",
+      text: "GET banking_api_resource_server :8082 /mortgage\nX-API-Key + X-User-Sub (no user token)",
       description:
-        "The gateway calls banking_mortgage_service with the service API key and X-User-Sub. The backend validates the API key (constant-time compare) and returns the mortgage record.",
+        "The gateway calls banking_api_resource_server with the service API key and X-User-Sub. The backend validates the API key (constant-time compare) and returns the mortgage record.",
       why: "The backend never sees the user's OAuth token — possession of the API key is the trust boundary (demo-grade).",
     },
     {

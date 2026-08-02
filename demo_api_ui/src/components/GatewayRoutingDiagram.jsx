@@ -84,8 +84,8 @@ export default function GatewayRoutingDiagram({ live, config, mock }) {
 			transport: "WebSocket",
 			tools: ["get_portfolio_summary", "get_investment_balance"],
 			fields: [
-				{ label: "Backend", value: val(l.mcpInvestWsUrl, c.mcpInvestWsUrl) },
-				{ label: "Exchange aud", value: val(l.mcpInvestResourceUri, c.mcpInvestResourceUri) },
+				{ label: "Backend", value: val(l.mcpResourceServerWsUrl, c.mcpResourceServerWsUrl) },
+				{ label: "Exchange aud", value: val(l.mcpResourceServerResourceUri, c.mcpResourceServerResourceUri) },
 			],
 		},
 		{
@@ -93,7 +93,7 @@ export default function GatewayRoutingDiagram({ live, config, mock }) {
 			transport: "HTTP",
 			tools: ["show_mortgage", "show_health_record", "show_permit"],
 			fields: [
-				{ label: "Backend", value: l.mortgageServiceBaseUrl ? `${l.mortgageServiceBaseUrl}/{route}` : null },
+				{ label: "Backend", value: l.apiResourceServerBaseUrl ? `${l.apiResourceServerBaseUrl}/{route}` : null },
 				{ label: "Credential", value: "X-API-Key (not exposed)" },
 			],
 		},

@@ -4,15 +4,15 @@
  * ensure-service-keys — auto-provision the apikey-dispatch demo secrets.
  *
  * The mortgage/invest "legacy backend" demo uses a static service API key the
- * gateway pulls from the encrypted vault (DEMO_MORTGAGE_SERVICE_KEY /
- * DEMO_INVEST_SERVICE_KEY) and injects as X-API-Key. demo_mortgage_service
+ * gateway pulls from the encrypted vault (DEMO_API_RESOURCE_SERVER_KEY /
+ * DEMO_MCP_RESOURCE_SERVER_KEY) and injects as X-API-Key. demo_api_resource_server
  * REFUSES to boot with a known committed default — so a fresh clone deadlocks
  * (vault holds the default, service rejects it) unless a real key is minted.
  *
  * This script makes that automatic and idempotent:
  *   - If the vault key is missing or a known committed default → mint a random
- *     key, write it to BOTH vault entries and to MORTGAGE_SERVICE_API_KEY in
- *     the repo-root .env (compose interpolates it into mortgage-service).
+ *     key, write it to BOTH vault entries and to API_RESOURCE_SERVER_API_KEY in
+ *     the repo-root .env (compose interpolates it into api-resource-server).
  *   - If a real key already exists and vault/.env agree → no-op.
  *   - If they disagree → re-align .env to the vault value.
  *   - ROTATE_SERVICE_KEYS=1 → force-mint a new key regardless.
@@ -34,8 +34,8 @@ const SCRIPTS_DIR = __dirname;
 const REPO_ROOT = path.resolve(SCRIPTS_DIR, '../..');
 const ROOT_ENV = path.join(REPO_ROOT, '.env');
 const VAULT_CLI = path.join(SCRIPTS_DIR, 'vault.js');
-const VAULT_ENTRIES = ['DEMO_MORTGAGE_SERVICE_KEY', 'DEMO_INVEST_SERVICE_KEY'];
-const ENV_KEY = 'MORTGAGE_SERVICE_API_KEY';
+const VAULT_ENTRIES = ['DEMO_API_RESOURCE_SERVER_KEY', 'DEMO_MCP_RESOURCE_SERVER_KEY'];
+const ENV_KEY = 'API_RESOURCE_SERVER_API_KEY';
 // Committed defaults the mortgage service hard-rejects (see its boot guard).
 const KNOWN_DEFAULTS = new Set(['', 'demo-mortgage-key-0000', 'mortgage-compose-dev-key']);
 
@@ -66,7 +66,7 @@ function upsertEnvValue(file, key, value) {
   if (new RegExp(`^${key}=`, 'm').test(s)) {
     s = s.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
   } else {
-    s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n# apikey-dispatch demo: auto-provisioned; must equal vault DEMO_MORTGAGE_SERVICE_KEY\n${key}=${value}\n`;
+    s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n# apikey-dispatch demo: auto-provisioned; must equal vault DEMO_API_RESOURCE_SERVER_KEY\n${key}=${value}\n`;
   }
   fs.writeFileSync(file, s);
 }

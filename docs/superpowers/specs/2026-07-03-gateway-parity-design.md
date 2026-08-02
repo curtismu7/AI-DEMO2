@@ -215,8 +215,8 @@ source; `X-Authz-Simulated: false` + a real token via the harness is the gate.
 | Authz server (P1AZ mock) | `ai-demo-authz-server` :9001 | 🟦 decisions — reuse |
 | HITL service | `ai-demo-hitl-service` :3009 | 🟩 HITL — reuse |
 | MCP OLB backend | `ai-demo-mcp-server` :8080 | backend (fronted) |
-| MCP invest backend | `ai-demo-mcp-invest` :8081 | backend (fronted) |
-| Mortgage (apikey) | `ai-demo-mortgage-service` :8082 | backend — SP-3 |
+| MCP invest backend | `ai-demo-mcp-resource-server` :8081 | backend (fronted) |
+| Mortgage (apikey) | `ai-demo-api-resource-server` :8082 | backend — SP-3 |
 | mcp-code-search | `ai-demo-mcp-code-search` :8095 | out of scope |
 | BFF / token custodian | `ai-demo-api-server` :3001 | client |
 | mcp-proxy | `ai-demo-mcp-proxy` :8895 | HTTP↔MCP transport |

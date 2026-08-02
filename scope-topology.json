@@ -67,7 +67,7 @@
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
     },
     "Super Banking MCP Invest": {
-      "uri": "mcp-invest.ping.demo",
+      "uri": "mcp-resource-server.ping.demo",
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["invest:read", "read"]
     },

@@ -127,7 +127,7 @@ audit's partial excerpts:
    inbound token's `aud` (already decoded and shown elsewhere in the token
    chain); the "after" value is the backend resource URI for whichever tool
    was routed, and that's already exposed today by the existing `GET
-   /admin/config` response (`mcpOlbResourceUri` / `mcpInvestResourceUri` /
+   /admin/config` response (`mcpOlbResourceUri` / `mcpResourceServerResourceUri` /
    `gatewayResourceUri` in `adminConfig.ts`'s `safeView()`) — the same data
    `GatewayRoutingDiagram.jsx` already fetches. The new tab is pure
    composition of two already-available data sources.

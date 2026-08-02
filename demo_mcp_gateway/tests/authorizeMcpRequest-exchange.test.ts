@@ -30,7 +30,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     expect(forwarded).toEqual(['exchanged-tok']);
   });
 
-  it('exchanges with the bearer token AND the tool name — per-tool routing picks the backend audience (invest tools need mcp-invest)', async () => {
+  it('exchanges with the bearer token AND the tool name — per-tool routing picks the backend audience (invest tools need mcp-resource-server)', async () => {
     const forwarded: string[] = [];
     const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcp-olb.ping.demo', cached: false }));
     const middleware = buildAuthorizeMcpRequest(stubConfig, {

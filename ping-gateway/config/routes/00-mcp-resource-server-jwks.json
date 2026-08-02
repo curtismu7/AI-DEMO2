@@ -1,5 +1,5 @@
 {
-  "name": "mcp-invest-jwks",
+  "name": "mcp-resource-server-jwks",
   "condition": "${find(request.uri.path, '^/mcp/invest') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
   "handler": {
     "type": "Chain",
@@ -38,7 +38,7 @@
           }
         },
         {
-          "comment": "Tool-argument validation must run on EVERY route, not just the introspection ones — a token accepted here otherwise reaches the backend with unvalidated arguments that the same token could not send via 02-mcp-invest. Mounted after McpValidationFilter (body buffered) and before P1AZDecision, matching 02-mcp-invest.json.",
+          "comment": "Tool-argument validation must run on EVERY route, not just the introspection ones — a token accepted here otherwise reaches the backend with unvalidated arguments that the same token could not send via 02-mcp-resource-server. Mounted after McpValidationFilter (body buffered) and before P1AZDecision, matching 02-mcp-resource-server.json.",
           "name": "McpRequestValidation",
           "type": "ScriptableFilter",
           "config": {
@@ -73,7 +73,7 @@
             "subjectTokenType": "urn:ietf:params:oauth:token-type:access_token",
             "requestedTokenType": "urn:ietf:params:oauth:token-type:access_token",
             "scopes": [ "${env['PG_INVEST_SCOPE']}" ],
-            "audience": "${env['PG_INVEST_RESOURCE_URI']}"
+            "audience": "${env['PG_MCP_RESOURCE_SERVER_URI']}"
           }
         },
         {

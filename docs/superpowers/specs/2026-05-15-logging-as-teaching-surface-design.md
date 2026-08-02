@@ -358,7 +358,7 @@ at these sites. ~`file:line` — verify exact lines at implementation time.
 - `banking_mcp_server/src/server/MCPMessageHandler.ts:315-351` — per-tool scope check (-32005 vs -32001)
 - `banking_mcp_gateway/src/auth/GatewayTokenPolicy.ts:25-76` — sub/act.sub invariants + D-05 anti-bypass
 - `banking_mcp_gateway/src/auth/authorizeMcpRequestCore.ts:70-114` — transport-agnostic introspection+policy pipeline
-- `banking_mcp_invest/src/server/tokenValidator.ts:20-42` — local decode-validate variant (no introspection)
+- `banking_mcp_resource_server/src/server/tokenValidator.ts:20-42` — local decode-validate variant (no introspection)
 
 ### Stage 6 — Gateway credential disposition
 - `banking_mcp_gateway/src/router.ts:24-112` — routeTool → target + disposition

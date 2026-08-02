@@ -10,7 +10,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { BankingToolRegistry } from '../../demo_mcp_server/src/tools/BankingToolRegistry';
-import { INVEST_TOOLS } from '../../demo_mcp_invest/src/tools/investTools';
+import { INVEST_TOOLS } from '../../demo_mcp_resource_server/src/tools/investTools';
 import { GATEWAY_TOOLS } from '../src/gatewayTools';
 
 export interface ToolSchemaEntry {

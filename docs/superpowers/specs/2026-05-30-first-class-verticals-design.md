@@ -242,7 +242,7 @@ migration is low-risk). `format` values reuse the existing `FormatEnum`
 | `pingone:bootstrap` | Provisions apps/resources/scopes. Scopes generic → likely no change. | Confirm no per-vertical featureScope (`largepurchase:read`, etc.) is assumed; fold into generic `read` if so. |
 | `npm run setup:fresh` | Chains `data:import` → bootstrap. New per-vertical `seed.json` must land for fresh install demo data. | Ensure fresh install seeds each vertical's own store. |
 | `data:import` / `data:export` | Today bundles one banking `runtimeData.json`. Per-vertical stores change what's bundled. | Decide: bundle per-vertical data, or regenerate from `seed.json` on import. |
-| `run.sh` | Handlers move into BFF → no new processes/ports. | Decide fate of `demo_mortgage_service` (serves feature pages today). |
+| `run.sh` | Handlers move into BFF → no new processes/ports. | Decide fate of `demo_api_resource_server` (serves feature pages today). |
 | `REGRESSION_PLAN.md` §1 | Banking files (`accounts.js`, store, OAuth) listed. Banking-last migration touches them. | State what won't break before editing; add §4 entries. |
 | `demo_mcp_server` | Banking tools live there today. Handlers move to BFF → MCP server role narrows. | Confirm token-exchange path intact; decide MCP server's remaining role. |
 

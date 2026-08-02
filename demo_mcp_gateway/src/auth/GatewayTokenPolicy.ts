@@ -130,7 +130,7 @@ export class GatewayTokenPolicy {
     const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
     const upstreamAuds = [
       config.mcpOlbResourceUri,
-      config.mcpInvestResourceUri,
+      config.mcpResourceServerResourceUri,
       config.bankingResourceServerResourceUri,
     ].filter((a) => a && a !== config.gatewayResourceUri);
     for (const ua of upstreamAuds) {

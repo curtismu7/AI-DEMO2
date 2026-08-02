@@ -23,7 +23,7 @@ PingAuthorize evaluation, HITL escalation, backend aggregation, and Phase 266
 credential disposition.
 
 Tools live in the **MCP servers**: `banking_mcp_server` (OLB, 8080) and
-`banking_mcp_invest` (8081). The gateway aggregates their `tools/list` and
+`banking_mcp_resource_server` (8081). The gateway aggregates their `tools/list` and
 forwards `tools/call`; it appends only two presentation-layer entries
 (`special_offers`, `user_profile_card`).
 
@@ -240,7 +240,7 @@ This is enforced in both directions:
   hop, including the gateway and each MCP server.
 - **Anti-bypass (D-05):** a token whose `aud` *already* contains a downstream
   resource URI the gateway exchanges toward — `mcpOlbResourceUri`,
-  `mcpInvestResourceUri`, **and `bankingResourceServerResourceUri`** (the
+  `mcpResourceServerResourceUri`, **and `bankingResourceServerResourceUri`** (the
   Phase 266 banking-resource-server audience; added 2026-05-15, GW review
   WR-01) — is rejected by the gateway with `bypass_attempt`. A caller must
   obtain a gateway-targeted token first; only the gateway may exchange it

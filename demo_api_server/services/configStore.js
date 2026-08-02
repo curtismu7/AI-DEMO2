@@ -672,10 +672,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   demo_apikey_backend_service_key:       { public: false, default: 'demo-api-key-0000' },
 
   // PingGateway vault bridge (/internal/vault/service-key) — shared secret the
-  // apikey-dispatch.groovy handler injects as X-API-Key to demo_mortgage_service.
-  // Must match MORTGAGE_SERVICE_API_KEY on that backend. Defaults keep the local
+  // apikey-dispatch.groovy handler injects as X-API-Key to demo_api_resource_server.
+  // Must match API_RESOURCE_SERVER_API_KEY on that backend. Defaults keep the local
   // demo runnable when vault-migrate has not seeded these entries yet.
-  demo_mortgage_service_key:             { public: false, default: 'demo-mortgage-key-0000' },
+  demo_api_resource_server_key:             { public: false, default: 'demo-mortgage-key-0000' },
   demo_invest_service_key:               { public: false, default: 'demo-mortgage-key-0000' },
 
   // PingOne Recognize — biometric / device intelligence
@@ -1374,8 +1374,8 @@ class ConfigStore {
 
       // Phase 266 — Path A demo API key
       demo_apikey_backend_service_key:      ['DEMO_APIKEY_SERVICE_KEY'],
-      demo_mortgage_service_key:            ['DEMO_MORTGAGE_SERVICE_KEY'],
-      demo_invest_service_key:              ['DEMO_INVEST_SERVICE_KEY'],
+      demo_api_resource_server_key:            ['DEMO_API_RESOURCE_SERVER_KEY'],
+      demo_invest_service_key:              ['DEMO_MCP_RESOURCE_SERVER_KEY'],
 
       // Agent mode (five-mode provider)
       agent_mode:                           ['AGENT_MODE'],
@@ -1387,7 +1387,7 @@ class ConfigStore {
 
       // MCP WebSocket URLs (consumed by demo_mcp_gateway via process.env)
       mcp_olb_ws_url:                       ['MCP_OLB_WS_URL'],
-      mcp_invest_ws_url:                    ['MCP_INVEST_WS_URL'],
+      mcp_resource_server_ws_url:                    ['MCP_RESOURCE_SERVER_WS_URL'],
       upstream_mcp_url:                     ['UPSTREAM_MCP_URL'],
 
       // PingAuthorize gateway policy endpoint (consumed by routes/authorize.js + verticalManifest.js)

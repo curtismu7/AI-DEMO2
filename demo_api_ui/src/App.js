@@ -24,6 +24,7 @@ import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram"
 import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
+import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -1243,6 +1244,14 @@ function AppWithAuth() {
                             <Route
                               path="/mcp-gateway-oauth-flow"
                               element={<McpGatewayOauthFlowPage />}
+                            />
+                            <Route
+                              path="/privilege-mcp-diagrams"
+                              element={<PrivilegeMcpDiagramPage />}
+                            />
+                            <Route
+                              path="/invest-dual-auth"
+                              element={<InvestDualAuthDiagramPage />}
                             />
                             <Route
                               path="/agent-studio-preview"

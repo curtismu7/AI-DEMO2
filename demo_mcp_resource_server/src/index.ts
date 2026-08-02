@@ -1,21 +1,22 @@
 'use strict';
 
 /**
- * banking-mcp-invest — entry point
+ * banking-mcp-resource-server — entry point
  *
  * MCP server for investment tools. Runs over WebSocket (same protocol as banking_mcp_server).
- * Validates inbound token aud === MCP_SERVER_RESOURCE_URI (mcp-invest.ping.demo).
+ * Validates inbound token aud === MCP_SERVER_RESOURCE_URI (mcp-resource-server.ping.demo).
  *
  * HTTP surfaces (same port):
  *   GET  /.well-known/oauth-protected-resource  — RFC 9728 metadata
  *   GET  /health
  *
- * Start: MCP_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo node dist/index.js
+ * Start: MCP_SERVER_RESOURCE_URI=https://mcp-resource-server.ping.demo node dist/index.js
  */
 
 import dotenv from 'dotenv';
 dotenv.config();
 
+import crypto from 'crypto';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import WebSocket from 'ws';
 import jwt from 'jsonwebtoken';
@@ -37,16 +38,16 @@ const HOST = process.env.HOST || '0.0.0.0';
 // MCP_SERVER_RESOURCE_URI may be a comma-separated accepted-audience list (RFC 8693
 // rollout). The FIRST entry is this server's canonical resource URI (RFC 9728
 // metadata, health, logs); the full list feeds aud validation.
-const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'https://mcp-invest.ping.demo')
+const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'https://mcp-resource-server.ping.demo')
   .split(',').map((s) => s.trim()).filter(Boolean);
 const RESOURCE_URI = RESOURCE_URI_LIST[0];
 const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
-const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-invest)';
+const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-resource-server)';
 
 // Startup env validation
 if (!process.env.MCP_SERVER_RESOURCE_URI) {
   console.warn(
-    '[demo-mcp-invest] WARNING: MCP_SERVER_RESOURCE_URI is not set — ' +
+    '[demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI is not set — ' +
     `using default '${RESOURCE_URI}'. Token audience validation may fail. ` +
     'Set MCP_SERVER_RESOURCE_URI in demo_api_server/.env'
   );
@@ -54,6 +55,24 @@ if (!process.env.MCP_SERVER_RESOURCE_URI) {
 
 const PINGONE_ENV_ID = process.env.PINGONE_ENVIRONMENT_ID || '';
 const PINGONE_REGION = process.env.PINGONE_REGION || 'com';
+
+// ---------------------------------------------------------------------------
+// API-key auth (backend-app pattern) — gateway fetches key from vault and sends
+// it in X-API-Key. This coexists with the Bearer/WebSocket path above.
+// ---------------------------------------------------------------------------
+const API_KEY_ENV = (process.env.MCP_RESOURCE_SERVER_API_KEY || '').trim();
+let API_KEY: string;
+if (API_KEY_ENV) {
+  API_KEY = API_KEY_ENV;
+} else {
+  API_KEY = crypto.randomBytes(24).toString('hex');
+  console.warn('[mcp-resource-server] MCP_RESOURCE_SERVER_API_KEY unset — ephemeral key generated. Set it so the gateway can call the /invest HTTP endpoint.');
+}
+const API_KEY_DIGEST = crypto.createHash('sha256').update(API_KEY, 'utf8').digest();
+function apiKeyMatches(presented: string): boolean {
+  const d = crypto.createHash('sha256').update(presented, 'utf8').digest();
+  return crypto.timingSafeEqual(d, API_KEY_DIGEST);
+}
 
 // Must match the requiredScopes the invest tools declare (investTools.ts), so a
 // client reading this RFC 9728 metadata requests a scope that actually unlocks
@@ -88,10 +107,51 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'ok',
-      service: 'banking-mcp-invest',
+      service: 'banking-mcp-resource-server',
       uptime: process.uptime(),
       resourceUri: RESOURCE_URI,
+      authMethods: ['bearer_token', 'api_key'],
     }));
+    return;
+  }
+
+  // HTTP + API-key path: backend-app pattern (gateway drops bearer, sends X-API-Key)
+  if (url === '/invest' && req.method === 'GET') {
+    const presented = req.headers['x-api-key'] as string | undefined;
+    if (!presented) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_missing', message: 'X-API-Key header required' }));
+      return;
+    }
+    if (!apiKeyMatches(presented)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_invalid' }));
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'X-Auth-Mechanism': 'api_key',
+    });
+    res.end(JSON.stringify({
+      invest: {
+        portfolioId: 'INV-8842',
+        holder: 'Jordan A. Rivera',
+        totalValue: 184320.55,
+        cashSweep: 12580.10,
+        ytdReturnPct: 11.4,
+        riskProfile: 'Growth',
+        holdings: [
+          { symbol: 'VTI', name: 'Vanguard Total Market ETF', quantity: 220, marketValue: 62480.00 },
+          { symbol: 'UST-10Y', name: 'US Treasury Note', quantity: null, marketValue: 60010.35 },
+          { symbol: 'AAPL', name: 'Apple Inc.', quantity: 90, marketValue: 19260.00 },
+          { symbol: 'VNQ', name: 'Vanguard Real Estate ETF', quantity: 340, marketValue: 29990.10 },
+        ],
+      },
+      source: 'banking_mcp_resource_server',
+      authMechanism: 'X-API-Key (shared secret)',
+      note: 'This portfolio was returned because the gateway presented a valid service API key. No OAuth bearer was involved on this hop — the gateway dropped the user token and attached a shared secret from its vault.',
+    }, null, 2));
     return;
   }
 
@@ -129,7 +189,7 @@ async function handleMessage(
     send(rpcResult(id, {
       protocolVersion: '2025-11-25',
       capabilities: { tools: {} },
-      serverInfo: { name: 'banking-mcp-invest', version: '1.0.0' },
+      serverInfo: { name: 'banking-mcp-resource-server', version: '1.0.0' },
     }));
     return;
   }
@@ -224,19 +284,19 @@ wss.on('connection', (ws, req) => {
     handleMessage(raw.toString(), token, (s) => {
       if (ws.readyState === WebSocket.OPEN) ws.send(s);
     }).catch((err) => {
-      console.error('[mcp-invest] Handler error:', err);
+      console.error('[mcp-resource-server] Handler error:', err);
       if (ws.readyState === WebSocket.OPEN) ws.send(rpcError(null, -32603, 'Internal error'));
     });
   });
 
-  ws.on('error', (err) => console.error('[mcp-invest] WS error:', err.message));
+  ws.on('error', (err) => console.error('[mcp-resource-server] WS error:', err.message));
 });
 
 httpServer.listen(PORT, HOST, () => {
-  console.log(`[mcp-invest] Running on ${HOST}:${PORT}`);
-  console.log(`[mcp-invest] Resource URI (aud): ${RESOURCE_URI}`);
-  console.log(`[mcp-invest] RFC 9728: http://localhost:${PORT}/.well-known/oauth-protected-resource`);
-  console.log(`[mcp-invest] Tools: ${INVEST_TOOLS.map((t) => t.name).join(', ')}`);
+  console.log(`[mcp-resource-server] Running on ${HOST}:${PORT}`);
+  console.log(`[mcp-resource-server] Resource URI (aud): ${RESOURCE_URI}`);
+  console.log(`[mcp-resource-server] RFC 9728: http://localhost:${PORT}/.well-known/oauth-protected-resource`);
+  console.log(`[mcp-resource-server] Tools: ${INVEST_TOOLS.map((t) => t.name).join(', ')}`);
 });
 
 process.on('SIGINT', () => { httpServer.close(); process.exit(0); });

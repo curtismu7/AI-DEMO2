@@ -8,7 +8,7 @@
  *   Tool Call         agent-service                / tool-execution     (custom tracer)
  *   Token Exchange    demo-api-server | mcp-gateway / HTTP POST …/as/token
  *   Authorization     authz-server                 / HTTP server spans
- *   MCP Backend       mcp-server|mcp-invest        / HTTP server spans
+ *   MCP Backend       mcp-server|mcp-resource-server        / HTTP server spans
  *   Human Approval    hitl-service                 / HTTP server spans
  * A builder whose anchor is absent from the trace is omitted.
  *
@@ -208,7 +208,7 @@ function projectServiceCards(traceData, { services, id, title, icon, protocolLab
 const projectAuthorization = (t) =>
   projectServiceCards(t, { services: ['authz-server'], id: 'authorization', title: 'Authorization', icon: 'shield', protocolLabel: 'HTTP' });
 const projectBackendApi = (t) =>
-  projectServiceCards(t, { services: ['mcp-server', 'mcp-invest'], id: 'backend_api', title: 'MCP Backend', icon: 'database', protocolLabel: 'HTTP' });
+  projectServiceCards(t, { services: ['mcp-server', 'mcp-resource-server'], id: 'backend_api', title: 'MCP Backend', icon: 'database', protocolLabel: 'HTTP' });
 const projectHitlApproval = (t) =>
   projectServiceCards(t, { services: ['hitl-service'], id: 'hitl_approval', title: 'Human Approval', icon: 'bell', protocolLabel: 'HTTP' });
 

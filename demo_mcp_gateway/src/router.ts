@@ -57,7 +57,7 @@ const JWT_VERIFIER_TOOLS = new Set([
 // Path A: api_key disposition.
 //   Phase 266 shipped this target as a Gateway-only marker (no backend call).
 //   Phase 267 makes `show_mortgage` the first apikey tool that actually
-//   dispatches to a backend (banking_mortgage_service) via X-API-Key.
+//   dispatches to a backend (banking_api_resource_server) via X-API-Key.
 //   Other apikey tools (if re-added) keep the Gateway-only marker behavior —
 //   the split is decided by backendHttpUrl() returning non-empty, not here.
 const APIKEY_TOOLS = new Set([
@@ -102,7 +102,7 @@ export function routeTool(toolName: string): BackendTarget {
 // to mcpOlbWsUrl (wrong backend).
 export function backendWsUrl(target: BackendTarget, config: GatewayConfig): string {
   if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata' || target === 'jwtverifier') return '';
-  return target === 'invest' ? config.mcpInvestWsUrl : config.mcpOlbWsUrl;
+  return target === 'invest' ? config.mcpResourceServerWsUrl : config.mcpOlbWsUrl;
 }
 
 // Resolve the concrete HTTP MCP base URL for a target that forwards via
@@ -115,11 +115,11 @@ export function backendHttpMcpUrl(target: BackendTarget, config: GatewayConfig):
 }
 
 // H4: Return empty string for Phase 266 targets — they use bankingResourceServerResourceUri,
-// not mcpOlbResourceUri / mcpInvestResourceUri / mcpJwtVerifierResourceUri.
+// not mcpOlbResourceUri / mcpResourceServerResourceUri / mcpJwtVerifierResourceUri.
 export function backendResourceUri(target: BackendTarget, config: GatewayConfig): string {
   if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata') return '';
   if (target === 'jwtverifier') return config.mcpJwtVerifierResourceUri;
-  return target === 'invest' ? config.mcpInvestResourceUri : config.mcpOlbResourceUri;
+  return target === 'invest' ? config.mcpResourceServerResourceUri : config.mcpOlbResourceUri;
 }
 
 // Resolve the concrete HTTP URL for a given (target, toolName).
@@ -140,8 +140,12 @@ export const APIKEY_BACKEND_ROUTES: Record<string, string> = {
 
 export function backendHttpUrl(target: BackendTarget, toolName: string, config: GatewayConfig): string {
   if (target === 'apikey') {
+    // show_investment routes to the invest service (dual-auth: same backend, API-key path)
+    if (toolName === 'show_investment') {
+      return `${config.mcpResourceServerHttpUrl}/invest`;
+    }
     const route = APIKEY_BACKEND_ROUTES[toolName];
-    return route ? `${config.mortgageServiceBaseUrl}/${route}` : '';
+    return route ? `${config.apiResourceServerBaseUrl}/${route}` : '';
   }
   if (target === 'olb' || target === 'invest') return '';
   if (target === 'dualtoken') {

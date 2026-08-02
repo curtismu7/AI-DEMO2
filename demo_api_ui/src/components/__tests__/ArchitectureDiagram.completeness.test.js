@@ -133,7 +133,7 @@ describe("Architecture diagram completeness", () => {
   // REQ-DIAGRAM-05: Phase 266 three-path multi-issuer story must be represented
   test.each([
     ["Path A", "Phase 266 Path A (banking_api_server resource)"],
-    ["Path B", "Phase 266 Path B (mortgage_service resource)"],
+    ["Path B", "Phase 266 Path B (api_resource_server resource)"],
     ["Path C", "Phase 266 Path C (HITL service resource)"],
   ])(
     'Phase 266 marker "%s" (%s) appears in at least one .mmd source',
@@ -241,7 +241,7 @@ describe("Architecture diagram completeness", () => {
     test.each([
       ["demo_mcp_gateway", "MCP Gateway node"],
       ["demo_mcp_server", "MCP OLB backend node"],
-      ["demo_mcp_invest", "MCP Invest backend node"],
+      ["demo_mcp_resource_server", "MCP Invest backend node"],
     ])('NODES references "%s" (%s)', (svc) => {
       if (!src.includes(svc)) {
         throw new Error(

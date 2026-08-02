@@ -11,7 +11,7 @@ Sits between AI agents and all downstream MCP servers. Every tool call from an a
 
 **Takes in:** Agent WebSocket connections with bearer tokens, JSON-RPC tool-call messages  
 **Gives back:** Tool results from downstream servers, HITL challenge status, auth errors  
-**Calls:** demo_authz_server (policy decision), demo_hitl_service (approval flow), demo_mcp_server, demo_mcp_invest, demo_mortgage_service
+**Calls:** demo_authz_server (policy decision), demo_hitl_service (approval flow), demo_mcp_server, demo_mcp_resource_server, demo_api_resource_server
 
 ---
 
@@ -31,10 +31,10 @@ Each call arrives with a token representing both the agent and the end user. The
 
 ---
 
-## demo_mcp_invest
+## demo_mcp_resource_server
 **Role: Investment vertical MCP server**
 
-Lightweight counterpart to demo_mcp_server covering investment accounts. Validates inbound tokens against the `mcp-invest.ping.demo` audience, then filters the available toolset based on the token's scopes before executing.
+Lightweight counterpart to demo_mcp_server covering investment accounts. Validates inbound tokens against the `mcp-resource-server.ping.demo` audience, then filters the available toolset based on the token's scopes before executing.
 
 **Tools available:** `get_investment_accounts`, `get_investment_balance`, `get_investment_portfolio`, `place_investment_order`
 
@@ -95,7 +95,7 @@ Manages the approval lifecycle for sensitive AI operations. The gateway creates 
 
 ---
 
-## demo_mortgage_service
+## demo_api_resource_server
 **Role: API-key-gated vertical record service**
 
 Minimal service that demonstrates the "gateway swaps bearer token for an API key" pattern. Instead of accepting OAuth tokens, it validates a per-service API key passed in `X-API-Key`. Each vertical path (`/mortgage`, `/retail`, `/healthcare`, `/gear`, `/expense`) returns a set of demo records. Uses timing-safe key comparison.
@@ -191,8 +191,8 @@ AI Agents (langchain / mastra / openai / pydantic)
             ├── demo_authz_server      ← PERMIT/DENY decisions
             ├── demo_hitl_service      ← human approval challenges
             ├── demo_mcp_server        ← banking tools  → demo_api_server
-            ├── demo_mcp_invest        ← investment tools → demo_api_server
-            └── demo_mortgage_service  ← API-key-gated vertical records
+            ├── demo_mcp_resource_server        ← investment tools → demo_api_server
+            └── demo_api_resource_server  ← API-key-gated vertical records
 
 jwt-verifier-mcp-server  ← standalone debug/teaching tool (connects separately)
 ping-gateway             ← production-grade equivalent of demo_mcp_gateway

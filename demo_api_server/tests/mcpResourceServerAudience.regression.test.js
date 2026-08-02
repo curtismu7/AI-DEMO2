@@ -1,7 +1,7 @@
 /**
- * Regression: MCP_INVEST_AUDIENCE must be accepted ONLY on the A2A investment
+ * Regression: MCP_RESOURCE_SERVER_AUDIENCE must be accepted ONLY on the A2A investment
  * portfolio callback. #819 pushed it into the shared gwAuds list used by every
- * isMcpCallback route, so an invest:read token (aud=mcp-invest.ping.demo) also
+ * isMcpCallback route, so an invest:read token (aud=mcp-resource-server.ping.demo) also
  * passed audience checks on POST /api/transactions — and the write-scope gate
  * there skips when scopes are neither read nor write, allowing transfers.
  */
@@ -10,7 +10,7 @@
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'false';
 process.env.ENDUSER_AUDIENCE = 'enduser.ping.demo';
 process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI = 'mcpgateway.ping.demo';
-process.env.PINGONE_RESOURCE_MCP_INVEST_URI = 'mcp-invest.ping.demo';
+process.env.PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI = 'mcp-resource-server.ping.demo';
 
 let mockPayload;
 jest.mock('../services/tokenValidationService', () => ({
@@ -61,9 +61,9 @@ const isAudience401 = (r) =>
   r.statusCode === 401 &&
   /does not match this service's audience/.test(JSON.stringify(r.body));
 
-describe('MCP_INVEST_AUDIENCE must stay portfolio-scoped', () => {
-  test('accepts mcp-invest audience on GET /api/investment/.../portfolio', async () => {
-    const r = await invoke('/accounts/acct-1/portfolio', 'mcp-invest.ping.demo', {
+describe('MCP_RESOURCE_SERVER_AUDIENCE must stay portfolio-scoped', () => {
+  test('accepts mcp-resource-server audience on GET /api/investment/.../portfolio', async () => {
+    const r = await invoke('/accounts/acct-1/portfolio', 'mcp-resource-server.ping.demo', {
       baseUrl: '/api/investment',
       method: 'GET',
     });
@@ -71,8 +71,8 @@ describe('MCP_INVEST_AUDIENCE must stay portfolio-scoped', () => {
     expect(r.outcome).toBe('next');
   });
 
-  test('rejects mcp-invest audience on POST /api/transactions (write callback)', async () => {
-    const r = await invoke('/', 'mcp-invest.ping.demo', {
+  test('rejects mcp-resource-server audience on POST /api/transactions (write callback)', async () => {
+    const r = await invoke('/', 'mcp-resource-server.ping.demo', {
       baseUrl: '/api/transactions',
       method: 'POST',
       scope: 'invest:read',
@@ -80,8 +80,8 @@ describe('MCP_INVEST_AUDIENCE must stay portfolio-scoped', () => {
     expect(isAudience401(r)).toBe(true);
   });
 
-  test('rejects mcp-invest audience on GET /api/accounts/my', async () => {
-    const r = await invoke('/my', 'mcp-invest.ping.demo', {
+  test('rejects mcp-resource-server audience on GET /api/accounts/my', async () => {
+    const r = await invoke('/my', 'mcp-resource-server.ping.demo', {
       baseUrl: '/api/accounts',
       method: 'GET',
     });

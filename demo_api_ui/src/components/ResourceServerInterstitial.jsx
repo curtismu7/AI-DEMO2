@@ -20,7 +20,7 @@ const SERVERS = {
     port: 8081,
     protocol: 'WebSocket',
     auth: 'JWT + RFC 8693 Token Exchange',
-    audience: 'mcp-invest.ping.demo',
+    audience: 'mcp-resource-server.ping.demo',
     color: '#047857',
     description: 'Dedicated MCP resource server — investment portfolios, balances, holdings, transactions',
   },
@@ -168,7 +168,7 @@ export default function ResourceServerInterstitial({ toolName, onDismiss, onNavi
             <p>
               <code>{toolName}</code> is an investment tool. The gateway recognizes this tool belongs
               to the investment domain and routes it to the MCP Resource Server on port 8081. A separate token
-              exchange narrows the audience to <code>mcp-invest.ping.demo</code>, isolating
+              exchange narrows the audience to <code>mcp-resource-server.ping.demo</code>, isolating
               investment data from core banking.
             </p>
           )}

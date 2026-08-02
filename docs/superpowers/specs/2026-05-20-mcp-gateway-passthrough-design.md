@@ -67,11 +67,11 @@ Passthrough does **not** reduce security at the gateway — all of these still r
 
 ### D-05 Anti-Bypass Invariant
 
-D-05 checks that the inbound token's `aud` does not contain `mcpOlbResourceUri`, `mcpInvestResourceUri`, or `bankingResourceServerResourceUri`. This is safe and unchanged: in passthrough mode the inbound token carries `aud=MCP_GW_RESOURCE_URI`, which is a different value from those backend URIs. D-05 passes cleanly.
+D-05 checks that the inbound token's `aud` does not contain `mcpOlbResourceUri`, `mcpResourceServerResourceUri`, or `bankingResourceServerResourceUri`. This is safe and unchanged: in passthrough mode the inbound token carries `aud=MCP_GW_RESOURCE_URI`, which is a different value from those backend URIs. D-05 passes cleanly.
 
 ### Phase 266 Paths Unaffected
 
-The `apikey`, `dualtoken`, and `bankingdata` targets route to `banking_resource_server` and `banking_mortgage_service` — separate backends with their own audiences. These still perform RFC 8693 re-exchange to get a token scoped to `bankingResourceServerResourceUri`. Passthrough only applies to the `olb` and `invest` WebSocket paths.
+The `apikey`, `dualtoken`, and `bankingdata` targets route to `banking_resource_server` and `banking_api_resource_server` — separate backends with their own audiences. These still perform RFC 8693 re-exchange to get a token scoped to `bankingResourceServerResourceUri`. Passthrough only applies to the `olb` and `invest` WebSocket paths.
 
 ---
 

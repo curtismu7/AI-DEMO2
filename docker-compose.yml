@@ -487,7 +487,7 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # ── MCP Gateway (TypeScript proxy — routes to mcp-server and mcp-invest) ──────
+  # ── MCP Gateway (TypeScript proxy — routes to mcp-server and mcp-resource-server) ──────
   # Demo Agent Gateway — profile demo-auth. OFF when ff_mcp_gateway_pinggateway uses
   # real PingGateway (IG). Start via `./run-docker.sh demo-sync` after flipping FF.
   mcp-gateway:
@@ -515,7 +515,7 @@ services:
       MCP_GW_OLB_WS_URL: "ws${MCP_MTLS_ON:+s}://mcp-server:8080"
       MCP_GW_UPSTREAM_CLIENT_CERT_PATH: "${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.crt}"
       MCP_GW_UPSTREAM_CLIENT_KEY_PATH: "${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.key}"
-      MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
+      MCP_GW_RESOURCE_SERVER_WS_URL: "ws://mcp-resource-server:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
@@ -575,9 +575,9 @@ services:
       # gateway to decode-only and it accepts forged tokens. "false" makes it
       # REFUSE instead. A loud failure beats a silent bypass.
       MCP_GW_ALLOW_UNVERIFIED_TOKENS: "false"
-      MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
-      # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
-      DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
+      API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"   # api-key dispatch backend (mortgage + invest routes)
+      # Must match api-resource-server API_RESOURCE_SERVER_API_KEY (no committed demo default).
+      DEMO_API_RESOURCE_SERVER_KEY: ${API_RESOURCE_SERVER_API_KEY:-mortgage-compose-dev-key}
       # TraT simulation: BFF forwards unsigned X-TraT-Context when PingOne does not
       # embed TraT claims. Opt-in for demo compose; leave unset in production-like envs.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
@@ -597,7 +597,7 @@ services:
     depends_on:
       mcp-server:
         condition: service_started
-      mcp-invest:
+      mcp-resource-server:
         condition: service_started
         required: false   # core service — routes invest when up
       mcp-jwt-verifier:
@@ -686,13 +686,13 @@ services:
     restart: unless-stopped
 
   # ── MCP Invest Server (TypeScript — investment tools) ───────────────────────
-  mcp-invest:
+  mcp-resource-server:
     build:
-      context: ./demo_mcp_invest
+      context: ./demo_mcp_resource_server
       dockerfile: Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
-    container_name: ai-demo-mcp-invest
+    container_name: ai-demo-mcp-resource-server
     ports:
       - "8081:8081"
     environment:
@@ -701,15 +701,15 @@ services:
       MCP_SERVER_PORT: "8081"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # RFC 8693 rollout: gateway exchanges to this backend's own resource URI before
-      # forwarding (aud=mcp-invest.ping.demo). mcpgateway.ping.demo kept as a transitional
+      # forwarding (aud=mcp-resource-server.ping.demo). mcpgateway.ping.demo kept as a transitional
       # second entry for callers still on the old forward-unchanged contract. Compose env
-      # wins over demo_mcp_invest/.env.
-      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcpgateway.ping.demo"
+      # wins over demo_mcp_resource_server/.env.
+      MCP_SERVER_RESOURCE_URI: "mcp-resource-server.ping.demo,mcpgateway.ping.demo"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
-      OTEL_SERVICE_NAME: "mcp-invest"
+      OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
     env_file:
-      - path: ./demo_mcp_invest/.env
+      - path: ./demo_mcp_resource_server/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
@@ -722,7 +722,7 @@ services:
   # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
   # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
   # scoped at the edge by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
-  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-invest.
+  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-resource-server.
   mcp-weather:
     build:
       context: ./demo_mcp_weather
@@ -793,25 +793,25 @@ services:
     restart: unless-stopped
 
   # ── Mortgage Service (plain JS) ───────────────────────────────────────────────
-  mortgage-service:
+  api-resource-server:
     build:
-      context: ./demo_mortgage_service
+      context: ./demo_api_resource_server
       dockerfile: Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
-    container_name: ai-demo-mortgage-service
+    container_name: ai-demo-api-resource-server
     ports:
       - "8082:8082"
     environment:
       NODE_ENV: production
-      MORTGAGE_SERVICE_PORT: "8082"      # server reads MORTGAGE_SERVICE_PORT, not PORT
-      MORTGAGE_SERVICE_HOST: "0.0.0.0"   # default 127.0.0.1 is unreachable cross-container
-      # Shared with mcp-gateway DEMO_MORTGAGE_SERVICE_KEY — never use demo-mortgage-key-0000
-      # (mortgage-service rejects that committed default).
-      MORTGAGE_SERVICE_API_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
+      API_RESOURCE_SERVER_PORT: "8082"      # server reads API_RESOURCE_SERVER_PORT, not PORT
+      API_RESOURCE_SERVER_HOST: "0.0.0.0"   # default 127.0.0.1 is unreachable cross-container
+      # Shared with mcp-gateway DEMO_API_RESOURCE_SERVER_KEY — never use demo-mortgage-key-0000
+      # (api-resource-server rejects that committed default).
+      API_RESOURCE_SERVER_API_KEY: ${API_RESOURCE_SERVER_API_KEY:-mortgage-compose-dev-key}
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
     env_file:
-      - path: ./demo_mortgage_service/.env
+      - path: ./demo_api_resource_server/.env
         required: false
     networks:
       - ai-demo
@@ -1071,7 +1071,7 @@ services:
       # /certs on this service. Empty => plaintext, unchanged behaviour.
       PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.p12}}"
       PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
-      PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
@@ -1080,7 +1080,7 @@ services:
       # Do NOT pin it here — the env block wins over env_file, and a placeholder
       # pin silently overrides the real id (the mock only uses it as a path param,
       # so the real value works for both backends).
-      PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
+      PG_API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
       BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
@@ -1123,13 +1123,13 @@ services:
     depends_on:
       mcp-server:
         condition: service_started
-      mcp-invest:
+      mcp-resource-server:
         condition: service_started
       mcp-weather:
         condition: service_started
       mcp-brave:
         condition: service_started
-      mortgage-service:
+      api-resource-server:
         condition: service_started
       authz-server:
         condition: service_started

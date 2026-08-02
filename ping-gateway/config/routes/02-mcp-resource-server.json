@@ -1,5 +1,5 @@
 {
-  "name": "mcp-invest-secondary",
+  "name": "mcp-resource-server-secondary",
   "condition": "${find(request.uri.path, '^/mcp/invest')}",
   "handler": {
     "type": "Chain",
@@ -73,7 +73,7 @@
             "subjectTokenType": "urn:ietf:params:oauth:token-type:access_token",
             "requestedTokenType": "urn:ietf:params:oauth:token-type:access_token",
             "scopes": [ "${env['PG_INVEST_SCOPE']}" ],
-            "audience": "${env['PG_INVEST_RESOURCE_URI']}"
+            "audience": "${env['PG_MCP_RESOURCE_SERVER_URI']}"
           }
         },
         {

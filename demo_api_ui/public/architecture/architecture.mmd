@@ -11,8 +11,8 @@ flowchart TB
         MCPPod["demo_mcp_server pod<br/>Service: ClusterIP"]
         AgentPod["demo_agent_service pod<br/>Service: ClusterIP"]
         HITLPod["demo_hitl_service pod<br/>Service: ClusterIP"]
-        InvestPod["demo_mcp_invest pod<br/>Service: ClusterIP"]
-        MortgagePod["demo_mortgage_service pod<br/>Service: ClusterIP"]
+        InvestPod["demo_mcp_resource_server pod<br/>Service: ClusterIP"]
+        MortgagePod["demo_api_resource_server pod<br/>Service: ClusterIP"]
     end
 
     %% ── External Users ────────────────────────────────────────────────────────
@@ -111,8 +111,8 @@ runtime switchable"]
     %% ── A2A agent-to-agent delegation ──────────────────────────────────
     A2AOrch["A2A Orchestrator<br/>CrewAI crew: decide / coordinate / authorize"]
     Specialist["Specialist Agent<br/>Investment Advisor / Records / Purchase"]
-    MCPInvestSvc["demo_mcp_invest<br/>Investment MCP server :8081"]
-    MortgageSvc["demo_mortgage_service<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
+    MCPInvestSvc["demo_mcp_resource_server<br/>Investment MCP server :8081"]
+    MortgageSvc["demo_api_resource_server<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
     HITLSvc["demo_hitl_service<br/>Out-of-band consent :3009"]
 
     %% ── PingGateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
@@ -234,7 +234,7 @@ RFC 7662 probe"| OIDC_AS
 POST /as/introspect RFC 7662"| OIDC_AS
 
     %% Phase 266 R2: banking_resource_server (live) — Paths B and C both terminate here.
-    %% Path A (api_key): RFC 6750 bearer dropped; X-API-Key + X-User-Sub injected at Gateway; calls demo_mortgage_service :8082 (Phase 267).
+    %% Path A (api_key): RFC 6750 bearer dropped; X-API-Key + X-User-Sub injected at Gateway; calls demo_api_resource_server :8082 (Phase 267).
     %% Path B (dual_token): Bearer + id_token forwarded to /identity — RFC 8693 + RFC 8707 + OIDC Core ss3.1.3.7.
     %% Path C (oauth_bearer): RFC 8693 exchange; Bearer (new aud) to /accounts /transactions — SQLite-backed.
     subgraph ResourceServer["banking_resource_server  (logical sub-routes on :3001)"]

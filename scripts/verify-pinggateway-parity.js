@@ -33,10 +33,10 @@ const topo = require(path.join(ROOT, 'demo_api_server/services/scopeTopology'));
 const AUDIENCE_CHECKS = [
   { file: 'ping-gateway/.env.example', key: 'PG_GATEWAY_RESOURCE_URI', resource: 'Super Banking MCP Gateway' },
   { file: 'ping-gateway/.env.example', key: 'PG_OLB_RESOURCE_URI', resource: 'Super Banking MCP Server' },
-  { file: 'ping-gateway/.env.example', key: 'PG_INVEST_RESOURCE_URI', resource: 'Super Banking MCP Invest' },
+  { file: 'ping-gateway/.env.example', key: 'PG_MCP_RESOURCE_SERVER_URI', resource: 'Super Banking MCP Invest' },
   { file: 'demo_mcp_gateway/.env.example', key: 'MCP_GW_RESOURCE_URI', resource: 'Super Banking MCP Gateway' },
   { file: 'demo_mcp_gateway/.env.example', key: 'MCP_OLB_RESOURCE_URI', resource: 'Super Banking MCP Server' },
-  { file: 'demo_mcp_gateway/.env.example', key: 'MCP_INVEST_RESOURCE_URI', resource: 'Super Banking MCP Invest' },
+  { file: 'demo_mcp_gateway/.env.example', key: 'MCP_RESOURCE_SERVER_RESOURCE_URI', resource: 'Super Banking MCP Invest' },
 ];
 
 // Scope env literals that MUST normalize (via aliases{}) to a declared scope.

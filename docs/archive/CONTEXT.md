@@ -6,7 +6,7 @@ Canonical terminology for the Super Banking demo. Use these terms exactly as def
 
 **Architectural decisions** live in [docs/adr/](docs/adr/). Read those when a piece of code looks surprising — there may already be a recorded reason. Current ADRs:
 - [ADR-0001](docs/adr/0001-banking-resource-server-colocated-in-bff.md) — banking_resource_server is co-located in the BFF, not a separate service
-- [ADR-0002](docs/adr/0002-mcp-invest-skips-token-introspection.md) — banking_mcp_invest skips token introspection (read-only acceptable risk)
+- [ADR-0002](docs/adr/0002-mcp-resource-server-skips-token-introspection.md) — banking_mcp_resource_server skips token introspection (read-only acceptable risk)
 - [ADR-0003](docs/adr/0003-pingauthorize-is-sole-bff-tool-gate.md) — PingAuthorize is the sole authoritative MCP tool gate in the BFF; no local scope-policy decision (R1)
 - [ADR-0004](docs/adr/0004-bff-mcp-tool-invocation-pipeline-seam.md) — the BFF [[MCP tool-invocation pipeline]] is one deep module returning an outcome; the route only renders
 
@@ -78,7 +78,7 @@ orchestrates the call. Seam rules and the do-not-break verification order:
 ### Phase 266
 
 The credential-disposition work in the MCP gateway. Three named dispositions:
-- **api_key** — gateway swaps user bearer for a shared X-API-Key (used by `banking_mortgage_service`)
+- **api_key** — gateway swaps user bearer for a shared X-API-Key (used by `banking_api_resource_server`)
 - **dual_token** — gateway exchanges + posts `id_token` as an assertion in the JSON-RPC body
 - **bankingdata** — gateway exchanges + bearer-calls `banking_resource_server`
 
@@ -100,7 +100,7 @@ Encrypted vault for secrets. `VAULT_PATH` + `VAULT_PASSWORD` env vars; password 
 
 **Online Banking**. The "OLB tools" are the customer-facing banking operations: `get_my_accounts`, `get_account_balance`, `create_transfer`, `create_deposit`, `create_withdrawal`, etc. Lives in `banking_mcp_server` on port 8080. The gateway routes to `mcp-olb` (alias for the OLB MCP server) at `MCP_OLB_WS_URL`.
 
-Investment tools (`get_investment_*`) are a **separate domain** in `banking_mcp_invest` on 8081 — not OLB.
+Investment tools (`get_investment_*`) are a **separate domain** in `banking_mcp_resource_server` on 8081 — not OLB.
 
 ### MCP
 
@@ -108,7 +108,7 @@ Model Context Protocol. JSON-RPC 2.0 over WebSocket (and optionally Streamable H
 
 MCP servers in this project:
 - **`banking_mcp_server`** — OLB tools (also known as **`mcp-olb`** in gateway env vars and routing tables)
-- **`banking_mcp_invest`** — investment tools
+- **`banking_mcp_resource_server`** — investment tools
 - **`user_management`** — in-process server inside `langchain_agent`
 - **PingOne MCP Server** — PingIdentity's **hosted HTTP MCP server** (`https://api.pingone.{region}/v1/environments/{envId}/mcp`) exposing PingOne + DaVinci admin tools. The BFF reaches it via `mcpPingOneHttpAdapter.js` with a worker `client_credentials` token; Claude Code reaches it directly (configured in `.mcp.json`). The old local `pingone-mcp-server` stdio binary was removed.
 
@@ -141,8 +141,8 @@ Loopback only:
 - **3006** — Node agent service (`banking_agent_service`)
 - **3009** — HITL service (`banking_hitl_service`)
 - **8080** — MCP OLB (`banking_mcp_server`)
-- **8081** — MCP Invest (`banking_mcp_invest`)
-- **8082** — Mortgage demo backend (`banking_mortgage_service`)
+- **8081** — MCP Invest (`banking_mcp_resource_server`)
+- **8082** — Mortgage demo backend (`banking_api_resource_server`)
 - **8888** — Stale port in CLAUDE.md; the LangChain agent actually uses 8889 + 8890
 - **8889** — LangChain agent chat WS (`langchain_agent`)
 - **8890** — LangChain agent health + inspector

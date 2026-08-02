@@ -171,9 +171,9 @@ const STORAGE_KEY = 'arch-canvas-v1';
 // ── Seed layout from service-topology.json ───────────────────────────────────
 // Arrange services in 3 columns based on role:
 //   col 0 (x=60):  frontend, bff, ping-gateway
-//   col 1 (x=280): mcp-gateway, mcp-server, mcp-invest, mcp-proxy, agent-service
+//   col 1 (x=280): mcp-gateway, mcp-server, mcp-resource-server, mcp-proxy, agent-service
 //   col 2 (x=500): langchain-agent, openai-agent, mastra-agent, pydantic-agent,
-//                  mortgage-service, hitl-service
+//                  api-resource-server, hitl-service
 const COL_X = [60, 280, 500];
 const ROW_H = 90;
 const NODE_COLORS = {
@@ -182,14 +182,14 @@ const NODE_COLORS = {
   'ping-gateway':   '#6366f1',
   'mcp-gateway':    '#f59e0b',
   'mcp-server':     '#10b981',
-  'mcp-invest':     '#06b6d4',
+  'mcp-resource-server':     '#06b6d4',
   'mcp-proxy':      '#84cc16',
   'agent-service':  '#f97316',
   'langchain-agent':'#ec4899',
   'openai-agent':   '#14b8a6',
   'mastra-agent':   '#a855f7',
   'pydantic-agent': '#64748b',
-  'mortgage-service':'#78716c',
+  'api-resource-server':'#78716c',
   'hitl-service':   '#ef4444',
 };
 
@@ -199,14 +199,14 @@ const COL_ASSIGN = {
   'ping-gateway':    0,
   'mcp-gateway':     1,
   'mcp-server':      1,
-  'mcp-invest':      1,
+  'mcp-resource-server':      1,
   'mcp-proxy':       1,
   'agent-service':   1,
   'langchain-agent': 2,
   'openai-agent':    2,
   'mastra-agent':    2,
   'pydantic-agent':  2,
-  'mortgage-service':2,
+  'api-resource-server':2,
   'hitl-service':    2,
 };
 
@@ -233,8 +233,8 @@ function buildSeedEdges(nodes) {
     ['bff',            'mcp-gateway'],
     ['bff',            'agent-service'],
     ['mcp-gateway',    'mcp-server'],
-    ['mcp-gateway',    'mcp-invest'],
-    ['mcp-gateway',    'mortgage-service'],
+    ['mcp-gateway',    'mcp-resource-server'],
+    ['mcp-gateway',    'api-resource-server'],
     ['agent-service',  'langchain-agent'],
     ['agent-service',  'openai-agent'],
     ['agent-service',  'mastra-agent'],

@@ -1066,7 +1066,7 @@ ships, so Plan 2 MUST resolve them as it brings healthcare online):**
 - Remove the legacy fallback branches added in Plan 1 (every vertical now has a plugin).
 - Run the bootstrap/setup/migration audit (separate tracked todo) and apply its outcomes:
   `data:import`/`export`, `setup:fresh` seeding from per-vertical `seed.json`, and the
-  fate of `demo_mortgage_service` feature-page backends.
+  fate of `demo_api_resource_server` feature-page backends.
 - State the REGRESSION_PLAN §1 do-not-break list before editing; add §4 bug-log entries.
 - Full regression: all banking suites green, `App.structure`, UI build clean.
 

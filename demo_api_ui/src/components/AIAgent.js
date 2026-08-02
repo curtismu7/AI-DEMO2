@@ -2878,7 +2878,7 @@ export default function BankingAgent({
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)
           //   2. Gateway enforces mortgage:read on the user bearer
           //   3. Gateway drops the OAuth bearer, attaches the service API key
-          //   4. Gateway calls demo_mortgage_service (X-API-Key + X-User-Sub)
+          //   4. Gateway calls demo_api_resource_server (X-API-Key + X-User-Sub)
           //   5. Navigate to /path/mortgage with the payload in location.state
           // Destination route is hard-coded (T-266-04-01: no open-redirect).
           toast.update(toastId, {

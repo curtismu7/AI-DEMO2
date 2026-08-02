@@ -51,14 +51,14 @@ const FRIENDLY_SERVICE_LABELS = {
   'mcp-gateway': 'MCP Gateway',
   'hitl-service': 'HITL',
   'authz-server': 'AuthZ Server',
-  'mcp-invest': 'Invest (MCP)',
+  'mcp-resource-server': 'Invest (MCP)',
 };
 
 /**
  * Known un-instrumented peers, detected from an outbound client span's URL
  * tags (http.url / url.full / net.peer.name). Returns { id, label } or null.
  * URL sources: compose wires PingOne SaaS (*.pingone.com), the host LLM proxy
- * (host.docker.internal:8090), and mortgage-service:8082.
+ * (host.docker.internal:8090), and api-resource-server:8082.
  */
 function peerOfSpan(span) {
   const tags = Array.isArray(span?.tags) ? span.tags : [];

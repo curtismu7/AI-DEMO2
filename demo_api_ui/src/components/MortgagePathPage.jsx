@@ -5,7 +5,7 @@
  * AFTER it has already invoked the gateway tool (api_key disposition) and
  * received the mortgage payload. The payload is passed via React Router
  * location.state so this page does NOT make a direct BFF call — the demo
- * narrative is that the gateway is the sole caller of banking_mortgage_service.
+ * narrative is that the gateway is the sole caller of banking_api_resource_server.
  *
  * If a user arrives at /path/mortgage without state (direct URL navigation,
  * bookmark, refresh), the page renders a "no data — go run the prompt"
@@ -38,7 +38,7 @@ export default function MortgagePathPage() {
             This page renders mortgage data returned by the MCP gateway's api_key
             disposition. To see the data, ask the agent: <code>show mortgage data</code>.
             The agent will call the gateway, which swaps your OAuth bearer for a
-            service API key, calls banking_mortgage_service, and routes you back here
+            service API key, calls banking_api_resource_server, and routes you back here
             with the result.
           </p>
         </header>
@@ -101,14 +101,14 @@ export default function MortgagePathPage() {
         <h2 className="mpp-card-title">Credential swap</h2>
         <p className="mpp-swap-line">
           <strong>Gateway swapped your OAuth bearer</strong> for a service API key before
-          calling the backend. The user's bearer never reached banking_mortgage_service.
+          calling the backend. The user's bearer never reached banking_api_resource_server.
         </p>
         <div className="mpp-swap-row">
           <span className="mpp-swap-label">Service API key (last 4 chars only):</span>
           <code className="mpp-swap-value">****{data.apiKeyMaskedLast4 || 'XXXX'}</code>
         </div>
         <ul className="mpp-swap-details">
-          <li><strong>Source:</strong> {data.backend?.source || 'banking_mortgage_service'}</li>
+          <li><strong>Source:</strong> {data.backend?.source || 'banking_api_resource_server'}</li>
           <li><strong>Auth mechanism:</strong> {data.backend?.authMechanism || 'X-API-Key (shared secret)'}</li>
           <li><strong>Note:</strong> {data.backend?.note}</li>
         </ul>

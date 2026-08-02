@@ -88,7 +88,7 @@ PingOne display names come from `provisioning.resourceNames`
 
 ### Super Banking MCP Invest (PingOne: "Demo MCP Invest")
 
-- **Audience URI:** `mcp-invest.ping.demo`
+- **Audience URI:** `mcp-resource-server.ping.demo`
 - **Native scopes:** `mcp:invoke`
 - **Mirrored scopes:** `invest:read`, `read`
 

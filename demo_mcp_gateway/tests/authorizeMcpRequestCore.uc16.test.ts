@@ -27,7 +27,7 @@ function makeConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
     authorizedActorClientId: '',
     gatewayResourceUri: 'https://mcpgateway.ping.demo',
     mcpOlbResourceUri: 'https://mcp.olb.ping.demo',
-    mcpInvestResourceUri: 'https://mcp.invest.ping.demo',
+    mcpResourceServerResourceUri: 'https://mcp.invest.ping.demo',
     bankingResourceServerResourceUri: 'https://banking-resource-server.ping.demo',
     ...overrides,
   } as GatewayConfig;

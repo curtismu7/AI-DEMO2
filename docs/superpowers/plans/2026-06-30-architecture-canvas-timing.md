@@ -60,7 +60,7 @@ The origin/main version (lines 29-37, after the `=======` marker) has better spa
 - authz-server: 855, 40
 - hitl-service: 855, 360
 - mcp-server: 1075, 40
-- mcp-invest: 1075, 200
+- mcp-resource-server: 1075, 200
 
 Replace lines 17-39 with the resolved version (remove conflict markers):
 
@@ -74,7 +74,7 @@ const SEED_POSITIONS = {
   'authz-server':    { x: 855,  y: 40  },
   'hitl-service':    { x: 855,  y: 360 },
   'mcp-server':      { x: 1075, y: 40  },
-  'mcp-invest':      { x: 1075, y: 200 },
+  'mcp-resource-server':      { x: 1075, y: 200 },
 };
 ```
 

@@ -21,9 +21,9 @@ RFC 8693 token exchange to the backend, and reverse-proxies to the MCP servers.
    `<BASE>/governance/pap/alpha/policy/<P1AZ_WORKER_ID>/decision`. PERMIT continues; DENY /
    INDETERMINATE / error -> `403` (fail closed).
 5. **RFC 8693 exchange** — `OAuth2TokenExchangeFilter` exchanges the inbound token for one
-   scoped to the backend audience (`mcpserver.ping.demo` / `mcp-invest.ping.demo`), then a
+   scoped to the backend audience (`mcpserver.ping.demo` / `mcp-resource-server.ping.demo`), then a
    `HeaderFilter` swaps it onto the `Authorization` header.
-6. **Reverse proxy** — to `mcp-server:8080` (`/mcp`) or `mcp-invest:8081` (`/mcp/invest`).
+6. **Reverse proxy** — to `mcp-server:8080` (`/mcp`) or `mcp-resource-server:8081` (`/mcp/invest`).
 
 ## Selecting PingGateway (runtime flag)
 
@@ -63,7 +63,7 @@ COMPOSE_PROJECT_NAME=ai-demo docker compose up -d ping-gateway
 
 Published on host **3036** (`http://localhost:3036`) for curl/testing — **not 3006**, which
 OrbStack reserves on macOS. In-stack the BFF reaches it by service DNS
-`http://ping-gateway:8080`. Depends on `mcp-server`, `mcp-invest`, `authz-server`.
+`http://ping-gateway:8080`. Depends on `mcp-server`, `mcp-resource-server`, `authz-server`.
 
 ### Standalone
 
@@ -76,7 +76,7 @@ docker compose up -d   # also publishes 3036:8080
 ## PingOne prerequisite for the exchange
 
 The RFC 8693 exchange targets backend audiences (`mcpserver.ping.demo`,
-`mcp-invest.ping.demo`). These must exist as **PingOne Resource Servers**, and the MCP
+`mcp-resource-server.ping.demo`). These must exist as **PingOne Resource Servers**, and the MCP
 exchanger client (`TE_CLIENT_ID`) must be permitted to request them — otherwise the
 exchange returns `invalid_target`. The MCP servers accept the exchanged audience over the
 HTTP transport; the gateway-audience token (`mcpgateway.ping.demo`) the Node gateway
@@ -107,8 +107,8 @@ failure returns 401 `{"error":"invalid_token","validation":"jwks","reason":...}`
 `OAuth2ResourceServerFilter`. Success stamps `X-Token-Validation-Mode: jwks` on the response.
 Any other header value (or none) falls through to the unchanged introspection
 route. Tradeoff (educational, by design): no revocation detection until expiry.
-The secondary `/mcp/invest` path has the same switch: `00-mcp-invest-jwks.json`
-is route `02-mcp-invest.json` with the shared `rsFilter` stage replaced by the
+The secondary `/mcp/invest` path has the same switch: `00-mcp-resource-server-jwks.json`
+is route `02-mcp-resource-server.json` with the shared `rsFilter` stage replaced by the
 same Groovy validator, selected by the same header.
 
 ## API Access Management route (`04-aam-api-access.json`)
@@ -123,7 +123,7 @@ routes keep using `p1az-decision.groovy` for that, and neither route touches the
 other.
 
 The route protects `GET /aam/health` and, on allow, proxies to
-`demo_mortgage_service`'s unauthenticated `/health`, so a permit is observable
+`demo_api_resource_server`'s unauthenticated `/health`, so a permit is observable
 without introducing another credential. Only the AAM verdict is being shown.
 
 **`ff_aam`** (default `true`) governs whether AAM runs at all. Off, the route's
@@ -176,7 +176,7 @@ absent or `false` calls real PingOne.
 **Verify** (works against either backend):
 
 ```bash
-# simulated, group present -> 200, mortgage-service health JSON, decision PERMIT
+# simulated, group present -> 200, api-resource-server health JSON, decision PERMIT
 curl -i -H "X-Authz-Simulated: true" -H "X-Demo-Groups: Full access" \
      http://api.ping.demo:3036/aam/health
 # simulated, no group -> 403, decision DENY, request never reaches the backend
@@ -226,10 +226,10 @@ capture-point string (`"all"`); `true` fails route build.
 
 - `config/admin.json` — IG admin (PRODUCTION mode, streaming on).
 - `config/routes/01-mcp-olb.json` — primary route (`/mcp`).
-- `config/routes/02-mcp-invest.json` — secondary route (`/mcp/invest`, strips prefix).
+- `config/routes/02-mcp-resource-server.json` — secondary route (`/mcp/invest`, strips prefix).
 - `config/routes/00-mcp-olb-jwks.json` — local (no-introspection) JWKS validation route, selected
   per request via the `X-Token-Validation: jwks` header (effective `ff_mcp_gateway_jwks`).
-- `config/routes/00-mcp-invest-jwks.json` — same JWKS switch for the `/mcp/invest` path
+- `config/routes/00-mcp-resource-server-jwks.json` — same JWKS switch for the `/mcp/invest` path
   (route 02 with the `rsFilter` stage replaced by the Groovy validator).
 - `config/routes/04-aam-api-access.json` — PingOne Authorize **API Access Management** route
   (`/aam`), stock `PingAuthorizeFilter` against the Sideband API, plus the `CaptureDecorator` and

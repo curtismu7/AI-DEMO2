@@ -32,7 +32,7 @@ IETF Transaction Tokens (TraT) solve the context-binding problem. mTLS between t
 
 **Single TX token, gateway as sole enforcement point, mTLS for bypass prevention.**
 
-The BFF performs one RFC 8693 exchange (user subject token + agent actor token) and receives a TX token with `aud: ping.demo`. This token is broad-scoped: it is valid at the gateway and at both downstream MCP servers (`mcp-olb`, `mcp-invest`). No re-exchange happens at the gateway.
+The BFF performs one RFC 8693 exchange (user subject token + agent actor token) and receives a TX token with `aud: ping.demo`. This token is broad-scoped: it is valid at the gateway and at both downstream MCP servers (`mcp-olb`, `mcp-resource-server`). No re-exchange happens at the gateway.
 
 The gateway is the sole PingAuthorize enforcement point. It validates the TX token, evaluates TraT claims against the Authorize policy, and — on PERMIT — proxies the request to the appropriate MCP server over a mTLS-authenticated WebSocket connection.
 
