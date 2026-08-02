@@ -245,29 +245,27 @@ const KNOWN_UNFIXED_COERCIONS = [
 ];
 
 /*
- * KNOWN-UNFIXED — readPrimaryToolFor() reads READ_PRIMARY_TOOL_BY_VERTICAL with
- * a bare `map[id]` lookup and no hasOwnProperty guard, so an id naming an
- * Object.prototype member resolves through the prototype chain. Both values are
- * TRUTHY, so the caller's `if (activityTool)` passes and executeTool() is handed
- * a function or an object as a tool name:
+ * FIXED — readPrimaryToolFor() now guards the lookup with hasOwnProperty,
+ * matching loadFallbackChips(). The list is emptied rather than deleted so the
+ * stale-pin check below stays wired: if the guard is ever reverted, re-adding
+ * the key here is the documented way to record it.
  *
- *   readPrimaryToolFor('constructor') -> function Object() { [native code] }
- *   readPrimaryToolFor('__proto__')   -> {}
+ * With the list empty, 'constructor' and 'toString' are no longer excluded from
+ * the bogus-id sweep above, so they are now asserted to select NO tool rather
+ * than merely reported — strictly stronger than the pin was.
  *
- * loadFallbackChips() guards the identical hazard with hasOwnProperty; this
- * lookup does not. Not a cross-vertical leak — neither value is another
- * vertical's tool — but the same missing-guard class, and 'constructor' is
- * REACHABLE: nlIntentParser's VALID_VERTICAL_RE is /^[a-z][a-z0-9-]*$/, which
- * accepts it, and resolveVerticalRouting prefers the explicit param, so
- * POST /api/demo-agent/nl with vertical:"constructor" and an activity-analysis
- * message reaches it. ('__proto__' is rejected by the leading underscore.)
+ * Correction to the pin's original note: the readPrimaryToolFor path is reached
+ * via POST /api/demo-agent/message, not /nl. /nl was hitting a SEPARATE instance
+ * of the same missing-guard class in FEATURE_TRIGGERS, where it was a hard 500.
  *
- * Reported rather than failed because it is pre-existing on main, not a
- * regression a PR should be blocked on. Listed because "unreachable" is what
- * site 8 was believed to be, and it was only unreachable for the vertical set
- * that happened to exist at the time.
+ * Three sibling lookups carried the same defect and were guarded at the same
+ * time: FEATURE_TRIGGERS (nlIntentParser, HTTP 500),
+ * INTENT_TO_PERMITTED_TOOLS (intentTokenService — minted an Intent Token whose
+ * permitted_tools claim was dropped entirely by JSON.stringify, and every
+ * consumer reads absent as unrestricted), and THEME_OVERRIDES (geminiNlIntent —
+ * native-code source concatenated into the LLM system prompt).
  */
-const KNOWN_UNFIXED_PROTOTYPE_LOOKUP = ['constructor', '__proto__'];
+const KNOWN_UNFIXED_PROTOTYPE_LOOKUP = [];
 
 /*
  * PINNED: fallback chips whose tool is declared in ANOTHER vertical's manifest
