@@ -93,6 +93,29 @@ function normalizeMcpFailure(status, text) {
   return `MCP request failed: ${status} ${snippet}`;
 }
 
+/**
+ * Error carrying the upstream HTTP status, so a relay handler can answer with
+ * the SAME class of failure instead of flattening everything to 500.
+ */
+function mcpRelayError(status, text) {
+  const err = new Error(normalizeMcpFailure(status, text));
+  err.upstreamStatus = status;
+  return err;
+}
+
+/**
+ * Status a relay handler should answer with. An upstream 4xx is the caller's
+ * problem and must survive the hop — Privilege Cloud replying "401 User is not
+ * authorized for privilege.pingone.com/api/mcp" as a 500 told the operator the
+ * demo was broken when the real answer was that their account lacks the
+ * entitlement. Anything else (5xx, network failure, a bug in here) stays 500:
+ * the caller's request was fine, this relay could not complete it.
+ */
+function relayFailureStatus(err) {
+  const status = err && err.upstreamStatus;
+  return Number.isInteger(status) && status >= 400 && status < 500 ? status : 500;
+}
+
 // Refresh a little before expiry so an in-flight relay never races the clock
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
@@ -203,7 +226,7 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     if (response.status === 401 && withAuth && allowRefreshRetry && await refreshAccessToken(session)) {
       return fetchMcp(session, pathname, body, withAuth, false);
     }
-    throw new Error(normalizeMcpFailure(response.status, text));
+    throw mcpRelayError(response.status, text);
   }
   if (parsed?.error) {
     throw new Error(`MCP RPC error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
@@ -431,7 +454,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
   } catch (err) {
     resetMcpState(session);
     emitEvent('error', { scope: 'tools_list', message: err.message });
-    res.status(500).json({ error: err.message });
+    res.status(relayFailureStatus(err)).json({ error: err.message });
   }
 });
 
@@ -447,7 +470,7 @@ router.post('/tools/call', express.json(), async (req, res) => {
     res.json(data);
   } catch (err) {
     emitEvent('error', { scope: 'tools_call', message: err.message });
-    res.status(500).json({ error: err.message });
+    res.status(relayFailureStatus(err)).json({ error: err.message });
   }
 });
 
@@ -466,7 +489,7 @@ router.post('/rpc', express.json(), async (req, res) => {
   } catch (err) {
     if (err.message.includes('401') || err.message.includes('502')) resetMcpState(session);
     emitEvent('error', { scope: 'raw_rpc', message: err.message });
-    res.status(500).json({ error: err.message });
+    res.status(relayFailureStatus(err)).json({ error: err.message });
   }
 });
 
