@@ -42,8 +42,15 @@ const ACTIVITY_ROWS_FOR_PROMPT = 25;
  * @returns {string|null} tool name, or null when the vertical declares none
  */
 function readPrimaryToolFor(activeId) {
-  return READ_PRIMARY_TOOL_BY_VERTICAL[activeId]
-    || (activeId === 'banking' ? 'get_my_transactions' : null);
+  // hasOwnProperty: activeId is request-supplied and VALID_VERTICAL_RE accepts
+  // `constructor`, so a bare lookup resolved the INHERITED Object constructor —
+  // truthy, so the caller's `if (activityTool)` passed and handed executeTool a
+  // FUNCTION where a tool name belongs. Same guard, same reason, as
+  // config/fallback-chips/loader.js.
+  if (Object.prototype.hasOwnProperty.call(READ_PRIMARY_TOOL_BY_VERTICAL, activeId)) {
+    return READ_PRIMARY_TOOL_BY_VERTICAL[activeId];
+  }
+  return activeId === 'banking' ? 'get_my_transactions' : null;
 }
 
 /**

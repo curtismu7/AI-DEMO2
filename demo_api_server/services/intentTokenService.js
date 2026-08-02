@@ -171,13 +171,22 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   ],
 };
 
+/** Own-key lookup. Both keys reach here from a request, and `constructor` passes
+ *  VALID_VERTICAL_RE — a bare lookup returned the INHERITED Object constructor,
+ *  which is truthy, so `permitted_tools` became a function. JSON.stringify then
+ *  DROPPED the claim, minting an Intent Token with no tool binding at all. */
+function ownEntry(map, key) {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
 function permittedToolsForIntent(intent, vertical) {
-  if (INTENT_TO_PERMITTED_TOOLS[intent]) return INTENT_TO_PERMITTED_TOOLS[intent];
+  const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
+  if (byIntent) return byIntent;
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
   // reads instead of every read tool across every vertical (which exposed
   // get_sensitive_account_details / query_user_by_email / other verticals' data to
   // an unrecognized prompt). Fall back to banking reads when the vertical is unknown.
-  return READ_ONLY_TOOLS_BY_VERTICAL[vertical] || READ_ONLY_TOOLS_BY_VERTICAL.banking;
+  return ownEntry(READ_ONLY_TOOLS_BY_VERTICAL, vertical) || READ_ONLY_TOOLS_BY_VERTICAL.banking;
 }
 
 function mintIntentToken({ userId, sessionId, prompt, intent, confidence, vertical }) {
