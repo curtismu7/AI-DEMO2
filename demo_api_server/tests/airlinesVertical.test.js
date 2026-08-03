@@ -14,7 +14,13 @@ const scopeTopology = require('../services/scopeTopology');
 const plugin = require('../config/verticals/airlines');
 const manifest = require('../config/verticals/airlines/manifest.json');
 
-const AIRLINES_TOOLS = ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'];
+const AIRLINES_TOOLS = [
+  'get_airline_bookings',      // plain read — ungated
+  'cancel_airline_reservation', // Phase 2 write — step-up (MFA)
+  'sensitive_airline_bookings', // Phase 2 sensitive read — HITL consent
+  'get_flight_status',
+  'check_seat_availability',
+];
 
 describe('airlines vertical', () => {
   test('satisfies the plugin contract', () => {
@@ -37,13 +43,17 @@ describe('airlines vertical', () => {
     expect(plugin.getDataStore().get('any-user')).toEqual({});
   });
 
-  test('every chip tool is declared in scope-topology with airlines:read', () => {
+  test('every chip tool is declared in scope-topology and routed at the gateway', () => {
     const chipTools = manifest.dashboard.chips10.map((c) => c.tool);
     expect(chipTools).toEqual(AIRLINES_TOOLS);
     for (const tool of chipTools) {
-      expect(scopeTopology.toolScopes(tool)).toEqual(['airlines:read']);
+      // The Phase-2 sensitive read carries sensitive:read ON TOP of airlines:read —
+      // that extra scope is what separates it from the ungated lookup, so assert
+      // airlines:read is present rather than that it is the only scope.
+      expect(scopeTopology.toolScopes(tool)).toContain('airlines:read');
       expect(scopeTopology.toolSurface(tool)).toBe('gateway');
     }
+    expect(scopeTopology.toolScopes('sensitive_airline_bookings')).toContain('sensitive:read');
   });
 
   // featureScope is the only scope config/oauthUser.js appends to the user's

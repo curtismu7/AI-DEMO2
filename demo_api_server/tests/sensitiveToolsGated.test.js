@@ -50,7 +50,7 @@ function collectManifestToolNames(node, out) {
 /**
  * [{ verticalId, tool }] for every authorization-visible `sensitive_*` tool.
  *
- * Union of two data sources, because neither alone covers all nine verticals:
+ * Union of two data sources, because neither alone covers all ten verticals:
  *  - the plugin tool catalog (`config/verticals/<id>/tools.js` via getTools()) —
  *    retail, sporting-goods and workforce ship a sensitive tool no chip dispatches;
  *  - manifest `tool` / `mcpTool` declarations — the only place banking's real MCP
@@ -86,9 +86,10 @@ describe('sensitive tools are group-gated in every vertical', () => {
 
   const sensitiveTools = enumerateSensitiveTools();
 
-  it('finds a sensitive tool in all nine data verticals', () => {
+  it('finds a sensitive tool in all ten data verticals', () => {
     const verticals = [...new Set(sensitiveTools.map((r) => r.verticalId))].sort();
     expect(verticals).toEqual([
+      'airlines',
       'banking',
       'government',
       'healthcare',

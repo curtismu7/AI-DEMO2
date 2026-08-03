@@ -147,3 +147,8 @@ demo_api_server/data/persistent/lmdb/data.mdb
 
 # Privilege proxy enrollment token (contains tenant secrets)
 ping-mcpgw/config/proxy-token
+
+# Regenerated per environment by snapshots/merge-mcp-amount-bands.js — a merge of
+# a LIVE policy export, so machine-specific and large. The merger is source;
+# its output is not.
+snapshots/mcp-amount-bands.merged.snapshot.json

@@ -304,6 +304,8 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_investment_transactions` | gateway | `invest:read` | — |
 | `get_portfolio_summary` | gateway | `invest:read` | — |
 | `get_airline_bookings` | gateway | `airlines:read` | — |
+| `sensitive_airline_bookings` | gateway | `airlines:read` `sensitive:read` | consent |
+| `cancel_airline_reservation` | gateway | `airlines:read` `airlines:write` | step_up |
 | `get_flight_status` | gateway | `airlines:read` | — |
 | `check_seat_availability` | gateway | `airlines:read` | — |
 | `show_mortgage` | gateway | `mortgage:read` | — |
@@ -317,6 +319,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `create_deposit` | gateway | `write` | step_up |
 | `create_withdrawal` | gateway | `write` | step_up |
 | `create_transfer` | gateway | `write` `transfer` | consent |
+| `create_wire_transfer` | gateway | `read` `transfer` | step_up |
 | `update_contact_email` | gateway | `write` | — |
 | `request_fee_waiver` | gateway | `write` | — |
 | `view_benefits` | gateway | `read` | — |
@@ -356,10 +359,10 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_customer_profile` | exchange-only | `admin:read` `users:read` | — |
 | `get_customer_accounts` | exchange-only | `admin:read` `users:read` | — |
 | `get_customer_transactions` | exchange-only | `admin:read` `users:read` | — |
-| `freeze_account` | exchange-only | `admin:write` `users:manage` | — |
-| `reset_customer_password` | exchange-only | `admin:write` `users:manage` | — |
-| `adjust_balance` | exchange-only | `admin:write` `users:manage` | — |
-| `delete_customer` | exchange-only | `admin:write` `admin:delete` `users:manage` | — |
+| `freeze_account` | exchange-only | `admin:write` `users:manage` | step_up |
+| `reset_customer_password` | exchange-only | `admin:write` `users:manage` | step_up |
+| `adjust_balance` | exchange-only | `admin:write` `users:manage` | step_up |
+| `delete_customer` | exchange-only | `admin:write` `admin:delete` `users:manage` | consent |
 | `list_accounts` | legacy-alias | `read` | — |
 | `list_transactions` | legacy-alias | `read` | — |
 | `transfer` | legacy-alias | `write` | — |

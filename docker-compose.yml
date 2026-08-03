@@ -1097,6 +1097,12 @@ services:
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
+      # HITL_SERVICE_URL / HITL_INTERNAL_SECRET are supplied by env_file
+      # (ping-gateway/.env, written by refresh-service-envs.js) — NOT here.
+      # environment: overrides env_file, so pinning them here would blank the
+      # real secret on any machine whose shell does not export it, and the HITL
+      # verify call would 401 into a permanent 503. Same rule as
+      # BFF_INTERNAL_SECRET and INTENT_TOKEN_SECRET above.
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
       # Do NOT pin it here — the env block wins over env_file, and a placeholder
       # pin silently overrides the real id (the mock only uses it as a path param,

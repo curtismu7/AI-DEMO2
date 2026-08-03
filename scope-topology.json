@@ -299,6 +299,16 @@
       "requiredScopes": ["airlines:read"],
       "surface": "gateway"
     },
+    "sensitive_airline_bookings": {
+      "requiredScopes": ["airlines:read", "sensitive:read"],
+      "surface": "gateway",
+      "challengeType": "consent"
+    },
+    "cancel_airline_reservation": {
+      "requiredScopes": ["airlines:read", "airlines:write"],
+      "surface": "gateway",
+      "challengeType": "step_up"
+    },
     "get_flight_status": {
       "requiredScopes": ["airlines:read"],
       "surface": "gateway"
@@ -356,6 +366,11 @@
       "surface": "gateway",
       "challengeType": "consent",
       "requiresAgentMediation": true
+    },
+    "create_wire_transfer": {
+      "requiredScopes": ["read", "transfer"],
+      "surface": "gateway",
+      "challengeType": "step_up"
     },
     "update_contact_email": {
       "requiredScopes": ["write"],
@@ -552,19 +567,23 @@
     },
     "freeze_account": {
       "requiredScopes": ["admin:write", "users:manage"],
-      "surface": "exchange-only"
+      "surface": "exchange-only",
+      "challengeType": "step_up"
     },
     "reset_customer_password": {
       "requiredScopes": ["admin:write", "users:manage"],
-      "surface": "exchange-only"
+      "surface": "exchange-only",
+      "challengeType": "step_up"
     },
     "adjust_balance": {
       "requiredScopes": ["admin:write", "users:manage"],
-      "surface": "exchange-only"
+      "surface": "exchange-only",
+      "challengeType": "step_up"
     },
     "delete_customer": {
       "requiredScopes": ["admin:write", "admin:delete", "users:manage"],
-      "surface": "exchange-only"
+      "surface": "exchange-only",
+      "challengeType": "consent"
     },
     "list_accounts": {
       "requiredScopes": ["read"],

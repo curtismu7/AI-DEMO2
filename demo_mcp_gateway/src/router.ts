@@ -50,6 +50,10 @@ const INVEST_TOOLS = new Set([
 // that server's own SQLite database rather than proxied back to the BFF.
 const AIRLINES_TOOLS = new Set([
   'get_airline_bookings',
+  // Phase 2 — consent-gated counterpart. Must route the same way as the plain
+  // lookup, or the gate would fire and then the call would 'Unknown tool'.
+  'sensitive_airline_bookings',
+  'cancel_airline_reservation',
   'get_flight_status',
   'check_seat_availability',
 ]);

@@ -14,6 +14,37 @@ import { McpToolDef } from './toolTypes';
 
 export const AIRLINES_TOOLS: McpToolDef[] = [
   {
+    // Phase 2. The high-value WRITE: cancelling a booked seat and triggering a
+    // refund is irreversible, so scope-topology marks it challengeType:step_up —
+    // the passenger must prove presence with MFA, which a HITL consent receipt
+    // deliberately cannot satisfy. The vertical's own manifest already named this
+    // as its highValueAction ("Cancel Reservation").
+    name: 'cancel_airline_reservation',
+    description: 'Cancel a United reservation and start the refund. Requires step-up authentication.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        confirmation_number: { type: 'string', description: 'Reservation confirmation number. Omit to cancel the next upcoming trip.' },
+      },
+      required: [],
+    },
+    requiredScopes: ['airlines:read', 'airlines:write'],
+    readOnly: false,
+  },
+  {
+    // Phase 2. The sensitive counterpart of get_airline_bookings: same trip data
+    // plus the passenger PII an agent should not surface without a human saying
+    // yes — document numbers, contact details, payment tail. Consent-gated in
+    // scope-topology (challengeType: consent) and carries sensitive:read, so the
+    // plain lookup stays ungated and only THIS one prompts. Mirrors the split
+    // healthcare already has (view_records vs sensitive_patient_records).
+    name: 'sensitive_airline_bookings',
+    description: "List the authenticated passenger's United reservations including sensitive passenger details (document number, contact details, payment card tail). Requires human consent.",
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiredScopes: ['airlines:read', 'sensitive:read'],
+    readOnly: true,
+  },
+  {
     name: 'get_airline_bookings',
     description: "List the authenticated passenger's upcoming United reservations, with flight, seat and status.",
     inputSchema: { type: 'object', properties: {}, required: [] },

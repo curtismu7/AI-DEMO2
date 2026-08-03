@@ -397,6 +397,105 @@ Do not "simplify" the merge back to `{ ...session.config, ...req.body }`.
 one-line merge restored, the new spec fails `Expected: "seeded-client-id"
 Received: ""`.
 
+### 2026-08-02 — The BFF still pre-empted the gateway, and PingGateway only gated on INDETERMINATE
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/mcpToolAuthorizationService.js`,
+`snapshots/gen-mcp-amount-bands-import.js` (new),
+`snapshots/mcp-amount-bands.import.snapshot.json` (new).
+
+**What was broken:** the previous entry moved HITL emission into PingGateway but
+left two holes. (1) The BFF's pre-flight still ran first on gateway-routed calls
+and returned before the gateway was ever reached, so the gateway's PDP call
+remained dead code for exactly the tools it was supposed to gate. (2) The Groovy
+branched only on `decision == 'INDETERMINATE'` — which is what the *mock* authz
+server returns. Live PingOne Authorize returns `decision: PERMIT` with the applied
+rule effects in `statements[]`, so against the cloud policy the gateway would have
+PERMITted and forwarded a call the PDP had attached a consent obligation to.
+Separately, the pipeline's `hitl_required` branch was nested inside an
+`err.code === 'gateway_policy_denied'` test while `mcpGatewayClient` throws HITL
+with `code: 'mcp_tool_error'` — that branch was unreachable, and the HITL body
+carried no `challengeId` for the agent to echo back.
+
+**What was fixed:** the BFF no longer pre-flights when the call is gateway-routed
+(`skipReason: 'gateway_authoritative'`, alongside the existing
+`a2a_supplied_token`); it forwards and relays. `_hitl_challenge_id` is
+deliberately left in `params` so the gateway — not the BFF — verifies and strips
+it. The Groovy now classifies `statements[]` with the same normalization and
+precedence as `authorizeObligations.js` (strip separators, uppercase,
+HITLCONSENT → consent, STEPUP → step-up, step-up outranks consent), so a live
+`PERMIT` + obligation gates exactly like the mock's `INDETERMINATE`, and a
+PERMIT carrying an unsatisfied obligation no longer forwards. Step-up gets its own
+428 (`step_up_required`), relayed by the BFF as the `mcp_step_up_required` +
+`step_up_method` envelope the agent's existing handler already understands —
+`step_up_method` stays BFF-resolved because the per-use-case method lives in a
+catalog the gateway cannot see. The 428 branches were hoisted above the
+`gateway_policy_denied` test so they are actually reachable, and the HITL body now
+carries `challengeId` / `challenge_type`.
+
+**Also added:** `snapshots/merge-mcp-amount-bands.js`, which merges MCP amount-band
+rules INTO an exported P1AZ snapshot. The gateway makes exactly one PDP call — to
+the MCP endpoint — but the amount bands live in the *Transaction* endpoint it never
+calls, and the MCP policy's own consent rule is keyed on "sensitive tools". Without
+these rules, every `create_transfer` prompts for consent regardless of amount. The
+merger reuses the environment's existing amount conditions rather than restating
+thresholds, and renames the containers Super Banking → AI Demo in place (same ids).
+
+**A PUBLISH REPLACES THE WHOLE TREE — never import a standalone root PolicySet.**
+Learned by doing it. A generated package with its own root set imported cleanly;
+publishing it made that lone set the entire authorization version, and every MCP
+audience / actor-chain / bypass / tier / group rule stopped being evaluated. A $50
+call with no token audience and no registered actor went from `DENY` +
+`mcp-invalid-audience` to `PERMIT`. Recovered by restoring the prior version
+(PingOne keeps version history — `GET /environments/{env}/authorizationVersions`
+lists them; the pre-incident one was tagged "Another A2A"). The standalone
+generator has been deleted so it cannot be run again; only the merger ships.
+
+Four importer rules, each found only by being rejected — the merger now validates
+all of them and refuses to write rather than emit a package that no-ops:
+1. References resolve against objects **in the package**, never the environment —
+   a snapshot cannot cite what is already live. Hence merge-into-export.
+2. Attributes resolve **by name** against the decision request's `parameters`.
+   A package defining `McpAmount` while the gateway sends `Amount` imports
+   cleanly and matches nothing: every condition reads its default, no rule fires.
+3. A Statement is a **private entity owned by one Rule** unless `shared: true`.
+   Citing one from two rules fails with "has multiple parents".
+4. Exactly one root PolicySet, or the publish replaces the tree (above).
+
+**Same bug, second transport:** the Node gateway read only the decision label
+too — there was no statement classification anywhere in `demo_mcp_gateway/src`.
+New `src/auth/authorizeObligations.ts` ports the BFF classifier;
+`PingOneAuthorizeClient` and `pingAuthorizeGuard` (WS) both use it, and a
+PERMIT carrying an obligation no longer resolves to PERMIT. `AuthzDecision` gained
+an `obligation` field so step-up and consent stay distinguishable, and the HTTP
+middleware emits `step_up_required` for the former (no challenge is minted — a
+receipt cannot satisfy MFA). The BFF needed no change: it already merges
+`raw.statements` (pingOneAuthorizeService `_classifyRawObligations`).
+
+**Do not break:** the skip is conditional on `useGateway` — a tool executed
+locally has no second PEP, and skipping there is fail-open. Statement
+classification must stay in sync across all three readers
+(`services/authorizeObligations.js`, `src/auth/authorizeObligations.ts`,
+`p1az-decision.groovy`); if the codes drift, a live obligation silently stops
+gating. Step-up must not be dischargeable by a HITL receipt, or vice versa —
+they are different mechanisms.
+
+**Known remaining divergence (mock vs live), deliberately NOT changed here:** the
+mock authz server returns `decision: INDETERMINATE` for an obligation; live P1AZ
+returns `decision: PERMIT` + `statements[]` and uses INDETERMINATE for
+"could not evaluate". Every reader now classifies statements, so both shapes gate
+correctly — but the labels still differ. Flipping the mock is a ~75-touch-point
+change (41 mock assertions plus BFF/gateway tests) and MUST come after the reader
+fixes, never before: flip first and any reader still branching on the label
+alone stops gating, which fails OPEN.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --forceExit --maxWorkers=2`.
+Groovy parsed against the running IG's own Groovy 4.0.28.
+`node snapshots/gen-mcp-amount-bands-import.js` regenerates the import (fresh
+UUIDs each run — do not re-run once imported, or you create duplicate objects).
+
 ### 2026-08-02 — HITL consent (UC8) was decided by BFF code, and no gateway could emit a 428
 
 **Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,

@@ -10,6 +10,10 @@ const { ACCOUNT_NICKNAME_HEURISTIC } = require('../shared/bankingChipHeuristics'
 // Banking heuristics: phrase → action map (mirrors parseBanking() from nlIntentParser.js)
 // Actions must match tool names in getToolsWithActionAliases()
 const HEURISTICS = [
+  // wire_transfer — banking's own high-value action, step-up gated. Must precede
+  // the generic transfer rule below or "wire $5000" resolves to the ungated
+  // create_transfer and the chip would run a different tool than it declares.
+  { re: /\bwire\b/, action: 'wire_transfer' },
   // mcp_tools (must be first to not interfere with other patterns)
   { re: /\b(list|show|get|what).*(mcp.*tools?|tools?.*available|available.*tools?)\b|\btools?\s*(list|available)\b/, action: 'mcp_tools' },
   // sensitive_account_details (must precede general accounts check)
@@ -125,6 +129,17 @@ function getToolsWithActionAliases() {
       inputSchema: { type: 'object', properties: {} },
       scopes: ['read'],
       authz: {},
+    },
+    {
+      // Banking's own high-value action. A distinct tool so the gate is keyed on
+      // the TOOL (step-up in scope-topology as create_wire_transfer) rather than
+      // on an amount band — banking's $300/$600 chips already cover the amount
+      // path via `transfer`. Normalizes onto the transfer dispatcher.
+      name: 'wire_transfer',
+      description: 'Send a high-value wire transfer. Requires step-up authentication.',
+      inputSchema: { type: 'object', properties: { fromId: { type: 'string' }, toId: { type: 'string' }, amount: { type: 'number' } } },
+      scopes: ['write'],
+      authz: { stepUp: true },
     },
     {
       name: 'transfer',
@@ -322,7 +337,7 @@ module.exports = {
     // These handle core banking operations that require MCP or store access.
     // account_nickname is dispatched by dispatchBankingAction (its read branch)
     // but was absent here, so the plugin rejected it before it could get there.
-    const coreActions = ['accounts', 'balance', 'transactions', 'transfer', 'deposit', 'withdraw', 'sensitive_account_details', 'account_nickname'];
+    const coreActions = ['accounts', 'balance', 'transactions', 'transfer', 'wire_transfer', 'deposit', 'withdraw', 'sensitive_account_details', 'account_nickname'];
 
     // getToolsWithActionAliases() advertises BOTH namespaces to the LLM: the
     // real MCP tool names (get_my_transactions) and the heuristic action
@@ -340,6 +355,7 @@ module.exports = {
       get_my_transactions: 'transactions',
       get_sensitive_account_details: 'sensitive_account_details',
       create_transfer: 'transfer',
+      create_wire_transfer: 'wire_transfer',
       create_deposit: 'deposit',
       create_withdrawal: 'withdraw',
     };

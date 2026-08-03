@@ -240,7 +240,7 @@ async function ensureAccountsForVertical(userId, verticalId) {
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
   const verticalId = ctx.vertical || 'banking';
-  if (action === 'transfer' || action === 'transfer_600_test' || action === 'deposit' || action === 'withdraw') {
+  if (action === 'transfer' || action === 'transfer_600_test' || action === 'wire_transfer' || action === 'deposit' || action === 'withdraw') {
     await ensureAccountsForVertical(userId, verticalId);
   }
 
@@ -248,6 +248,13 @@ async function dispatchBankingAction(action, params, userId, ctx) {
   // don't fall through to the LLM/catalog. The chip UI has dedicated handlers
   // for these; the NL path (nlResumeAfterAuth → processAgentMessage) needs them
   // dispatched as real transfers.
+  // wire_transfer is banking's own high-value action. It is a DISTINCT tool
+  // (create_wire_transfer, step-up gated in scope-topology) that normalizes onto
+  // the proven transfer machinery here, so it inherits the amount/limit handling
+  // instead of duplicating money movement. Same pattern as transfer_600_test.
+  if (action === 'wire_transfer') {
+    action = 'transfer';
+  }
   if (action === 'transfer_600_test') {
     action = 'transfer';
     params = { fromId: params.fromId || 'checking', toId: params.toId || 'savings', amount: params.amount || 600, ...params };

@@ -172,6 +172,9 @@ function getMcpFirstToolGateStatus() {
 /** Map MCP write tool names to transaction types for amount-based policy evaluation. */
 const WRITE_TOOL_TYPE_MAP = {
   create_transfer: 'transfer',
+  // Banking's own high-value action — amount-bearing, so it must reach the
+  // Transaction policy like any other transfer.
+  create_wire_transfer: 'transfer',
   create_deposit: 'deposit',
   create_withdrawal: 'withdrawal',
   // Vertical amount-gated writes (use-case launcher UC6/7/8 per vertical).
@@ -1377,4 +1380,8 @@ module.exports = {
   RESOURCE_OWNER_TOOLS,
   // Exported for direct unit testing of Transaction-policy precedence (UC6/7/8).
   _applyTransactionPolicy,
+  // Exported so the pipeline can attach step_up_method to a step-up 428 that the
+  // GATEWAY decided. The per-use-case method lives in the use-case catalog, which
+  // the gateway has no knowledge of, so the BFF resolves it on relay.
+  resolveStepUpMethod,
 };

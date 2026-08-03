@@ -19,6 +19,28 @@ const NOT_MY_TOOL = Symbol.for('verticalDispatch.NOT_MY_TOOL');
 
 const TOOLS = [
   {
+    // Phase 2 high-value write — step-up gated (scope-topology challengeType).
+    name: 'cancel_airline_reservation',
+    description: 'Cancel a United reservation and start the refund. Requires step-up authentication.',
+    inputSchema: {
+      type: 'object',
+      properties: { confirmation_number: { type: 'string', description: 'Reservation confirmation number' } },
+      required: [],
+    },
+    scopes: ['airlines:read', 'airlines:write'],
+    authz: {},
+  },
+  {
+    // Phase 2 — consent-gated counterpart of get_airline_bookings. Carries
+    // sensitive:read on top of airlines:read, and scope-topology marks it
+    // challengeType:consent, so only THIS lookup prompts for human approval.
+    name: 'sensitive_airline_bookings',
+    description: "List the passenger's United reservations including sensitive passenger details. Requires human consent.",
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    scopes: ['airlines:read', 'sensitive:read'],
+    authz: {},
+  },
+  {
     name: 'get_airline_bookings',
     description: "List the passenger's upcoming United reservations with flight, seat and status.",
     inputSchema: { type: 'object', properties: {}, required: [] },
@@ -62,6 +84,12 @@ const EDUCATION_STUBS = new Set(['api_key_demo', 'dual_token_demo']);
 // Most specific first: a seat question mentioning a flight must not fall into
 // the flight-status rule.
 const HEURISTICS = [
+  // Before the generic bookings rule below: "sensitive ... bookings" would
+  // otherwise match `bookings` and resolve to the UNGATED lookup, so the chip
+  // would declare the consent-gated tool and silently run the open one.
+  // "cancel my reservation" must not fall into the generic bookings rule below.
+  { re: /\b(cancel|refund)\b.*\b(reservation|booking|trip|flight)\b/i, action: 'cancel_airline_reservation' },
+  { re: /\bsensitive\b.*\b(booking|bookings|reservation|reservations)\b/i, action: 'sensitive_airline_bookings' },
   { re: /\b(seat|seats|seat\s*map|row)\b/i, action: 'check_seat_availability' },
   { re: /\b(status|gate|boarding|delayed|on\s*time)\b/i, action: 'get_flight_status' },
   { re: /\b(reservation|reservations|booking|bookings|itinerar\w*|my\s+trips?|my\s+flights?)\b/i, action: 'get_airline_bookings' },
