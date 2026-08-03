@@ -70,6 +70,22 @@ function _grantHitlCredit(req, ch) {
 }
 
 /**
+ * A challenge only ever reaches an OTP/MFA ceremony when the amount is at or
+ * above the step-up threshold (below it, confirmChallenge confirms consent-only
+ * with no ceremony) — so a verified ceremony here IS step-up MFA, and must
+ * discharge routes/transactions.js's step-up gate the same way routes/mfa.js
+ * and routes/ciba.js do. Without this stamp, the post-consent retry evaluated
+ * the transaction policy on the un-upgraded acr and answered RFC 9470 401
+ * step_up_required — a second MFA demand for the ceremony the user just
+ * completed. Same single-use consume pattern (transactions.js reads and
+ * zeroes it). Deliberately NOT in _grantHitlCredit: the consent-only and
+ * Recognize confirms grant HITL credit without proving MFA.
+ */
+function _grantStepUpCredit(req) {
+  req.session.stepUpVerified = Date.now() + HITL_CREDIT_TTL_MS;
+}
+
+/**
  * Classify a PingOne MFA-initiation failure into a route result.
  *
  * A PingOne auth rejection (HTTP 401 / code INVALID_TOKEN) only warrants a
@@ -632,6 +648,7 @@ function verifyOtp(req, challengeId, otpCode) {
   ch.confirmedAt     = now;
   ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
   _grantHitlCredit(req, ch);
+  _grantStepUpCredit(req);
   // Clear sensitive OTP fields
   delete ch.otpHash;
   delete ch.otpSalt;
@@ -725,6 +742,7 @@ async function verifyMfa(req, challengeId, params, origin) {
   ch.confirmedAt      = now;
   ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
   _grantHitlCredit(req, ch);
+  _grantStepUpCredit(req);
   delete ch.otpHash;
   delete ch.otpSalt;
   delete ch.otpExpiresAt;

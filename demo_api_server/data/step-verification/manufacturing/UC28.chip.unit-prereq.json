@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "view_work_orders",
-  "checkedAt": "2026-08-02",
+  "primaryTool": "request_spec_exception",
+  "checkedAt": "2026-08-03",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

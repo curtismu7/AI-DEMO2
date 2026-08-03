@@ -63,6 +63,7 @@
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request a price adjustment on my order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## government
 
@@ -152,6 +153,7 @@
 | UC24 | `What plant locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request a spec exception?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## investment
 
@@ -169,6 +171,7 @@
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request a fee tier review?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## airlines
 

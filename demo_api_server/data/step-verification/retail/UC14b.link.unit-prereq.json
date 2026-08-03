@@ -3,13 +3,16 @@
   "useCaseId": "UC14b",
   "triggerType": "link",
   "mode": "unit-prereq",
-  "status": "UNPROVEN",
-  "errorClass": null,
+  "status": "FAIL",
+  "errorClass": "missing_prereq",
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-08-02",
+  "checkedAt": "2026-08-03",
   "requiredFlags": [
     "ff_rar",
     "ff_mcp_gateway_pinggateway"
+  ],
+  "prereqErrors": [
+    "PAR config missing: pingone_par_endpoint, pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret, pingone_ai_agent_actor_redirect_uri"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,

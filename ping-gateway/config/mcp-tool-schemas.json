@@ -1766,9 +1766,20 @@
             "type": "string"
           }
         },
-        "required": [
-          "documentId"
-        ],
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "request_fee_tier_review": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "portfolioId": {
+            "type": "string"
+          }
+        },
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1801,9 +1812,20 @@
             "type": "string"
           }
         },
-        "required": [
-          "housingId"
-        ],
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "request_price_adjustment": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1829,9 +1851,20 @@
             "type": "string"
           }
         },
-        "required": [
-          "scheduleId"
-        ],
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "request_spec_exception": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workOrderId": {
+            "type": "string"
+          }
+        },
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -2246,9 +2279,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": [],
         "additionalProperties": false
       }
     },

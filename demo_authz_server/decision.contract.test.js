@@ -50,7 +50,7 @@ let userLookup;
 const CLOUD_CODES = new Set(
   JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
+      path.join(__dirname, '..', 'snapshots', 'AI_Demo_Transaction_Authorization_P1AZ.snapshot.json'),
       'utf8',
     ),
   )

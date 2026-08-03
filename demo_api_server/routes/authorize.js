@@ -314,7 +314,7 @@ router.get('/test-status', async (_req, res) => {
         pingone: {
           stepUp: 10000,
           deny: 50000,
-          note: 'As configured in the Super Banking Transaction Authorization policy in PingOne Authorize',
+          note: 'As configured in the AI Demo Transaction Authorization policy in PingOne Authorize',
           stepUpTypes: ['transfer', 'withdrawal'],
           depositsIncluded,
         },
@@ -702,7 +702,7 @@ router.get('/pingone-policies', authenticateToken, async (_req, res) => {
       policies: snapshotPolicies,
       environmentId,
       source: 'snapshot',
-      note: 'Rendered from the repo snapshot (snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) — the file these policies are imported from. PingOne’s policy-editor API rejects worker tokens, so a live read is not possible; if the policies were edited in the console after import, this view may lag the live tree.',
+      note: 'Rendered from the repo snapshot (snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json) — the file these policies are imported from. PingOne’s policy-editor API rejects worker tokens, so a live read is not possible; if the policies were edited in the console after import, this view may lag the live tree.',
     });
   }
 

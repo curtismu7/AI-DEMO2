@@ -89,6 +89,85 @@ router.get('/membership', requireSession, async (req, res) => {
 });
 
 /**
+ * POST /api/groups/membership/toggle
+ * Move the SIGNED-IN demo user in or out of the active vertical's group for a
+ * category (default `privileged`), live in PingOne.
+ *
+ * Body: { inGroup: boolean, category?: string }
+ *
+ * Why a real directory write: groupPolicy.groupsForUser() prefers a live lookup,
+ * so a simulated toggle would change the UI and not the decision. The demo's
+ * whole claim is that the policy decides — a toggle that only moves a local flag
+ * would prove nothing while looking identical.
+ *
+ * Deliberately NOT admin-gated: the point is that the person running the demo
+ * flips their own membership without leaving the app. The service allowlists the
+ * three seeded demo usernames, so this cannot reassign a real user.
+ */
+router.post('/membership/toggle', requireSession, async (req, res) => {
+  try {
+    await configStore.ensureInitialized();
+    verticalManifest.init();
+
+    const { inGroup, category = 'privileged' } = req.body || {};
+    if (typeof inGroup !== 'boolean') {
+      return res.status(400).json({ error: 'inGroup must be a boolean' });
+    }
+
+    const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+    const username = req.session?.user?.username || null;
+    const pingOneUserId = resolvePingOneUserId(req.session?.user);
+    const groupName = groupPolicy.groupNameForCategory(verticalId, category);
+
+    if (!groupName) {
+      return res.status(400).json({
+        error: 'unknown_group_category',
+        message: `vertical '${verticalId}' declares no '${category}' group`,
+      });
+    }
+    if (!pingOneGroupMembershipService.isReady()) {
+      return res.status(503).json({
+        error: 'live_lookup_unavailable',
+        message: 'PingOne worker credentials are not configured, so membership cannot be changed.',
+      });
+    }
+
+    const result = await pingOneGroupMembershipService.setUserGroupMembership({
+      username, pingOneUserId, groupName, inGroup,
+    });
+
+    // Read back from PingOne rather than echoing the request. A toggle that
+    // reports success from its own input would hide a write that silently did
+    // nothing — the failure mode this whole feature already hit once.
+    const groups = await pingOneGroupMembershipService.listUserGroupNamesForVertical(
+      pingOneUserId, verticalId,
+    );
+
+    return res.json({
+      verticalId,
+      username,
+      groupName,
+      category,
+      requested: inGroup,
+      changed: result.changed,
+      inGroup: Array.isArray(groups) ? groups.includes(groupName) : inGroup,
+      groups: groups || [],
+      userTier: groupPolicy.resolveUserTier(groups || [], verticalId),
+      verified: Array.isArray(groups),
+    });
+  } catch (err) {
+    const code = err.code === 'user_not_toggleable' ? 403
+      : err.code === 'group_not_found' ? 404
+        : 500;
+    console.error('[groupMembership] toggle failed:', err.message);
+    return res.status(code).json({
+      error: err.code || 'group_toggle_failed',
+      message: err.message,
+    });
+  }
+});
+
+/**
  * POST /api/groups/provision
  * Create vertical-scoped PingOne groups via Management API (no full bootstrap).
  * Body: { verticalId?: string } — omit to provision all verticals with groups config.

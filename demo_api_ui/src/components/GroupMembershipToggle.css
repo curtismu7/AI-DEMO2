@@ -1,0 +1,208 @@
+/* GroupMembershipToggle — demo control for live PingOne group membership.
+   Solid, high-contrast text only: REGRESSION_PLAN §0 bans muted hint text. */
+
+.gmt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #c8ccd4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a1f2b;
+  max-width: 420px;
+}
+
+.gmt-panel--loading,
+.gmt-panel--error {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.gmt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gmt-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.gmt-state {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.gmt-state--in {
+  background: #e2f4e8;
+  border-color: #2e7d4f;
+  color: #17512f;
+}
+
+.gmt-state--out {
+  background: #fdeaea;
+  border-color: #b3261e;
+  color: #7d1b15;
+}
+
+.gmt-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.gmt-facts > div {
+  display: contents;
+}
+
+.gmt-facts dt {
+  font-weight: 600;
+  color: #3a4152;
+}
+
+.gmt-facts dd {
+  margin: 0;
+  color: #1a1f2b;
+  overflow-wrap: anywhere;
+}
+
+/* No monospace font-family here on purpose — src/__tests__/uiRegression.test.js
+   asserts no CSS file declares one. Letter-spacing gives the group name the same
+   "this is an identifier" read without joining that violation list. */
+.gmt-mono {
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.gmt-toggle {
+  padding: 9px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: #1a4fa0;
+  color: #ffffff;
+}
+
+.gmt-toggle:hover:not(:disabled) { background: #16407f; }
+.gmt-toggle:disabled { opacity: 0.65; cursor: progress; }
+
+.gmt-toggle:focus-visible {
+  outline: 3px solid #1a4fa0;
+  outline-offset: 2px;
+}
+
+.gmt-toggle--remove { background: #b3261e; }
+.gmt-toggle--remove:hover:not(:disabled) { background: #8f1e17; }
+
+.gmt-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #3a4152;
+}
+
+.gmt-error-mark { font-size: 1.1rem; }
+.gmt-error-title { font-weight: 700; }
+.gmt-error-detail { font-size: 0.85rem; color: #3a4152; }
+
+.gmt-inline-error {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #7d1b15;
+}
+
+.gmt-retry {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #1a4fa0;
+  background: #ffffff;
+  color: #1a4fa0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Modal */
+
+.gmt-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #1a1f2b;
+}
+
+.gmt-modal-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.gmt-modal-state--in {
+  background: #e2f4e8;
+  border-color: #2e7d4f;
+  color: #17512f;
+}
+
+.gmt-modal-state--out {
+  background: #fdeaea;
+  border-color: #b3261e;
+  color: #7d1b15;
+}
+
+.gmt-modal-body,
+.gmt-modal-tier {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #1a1f2b;
+}
+
+.gmt-modal-warn {
+  margin: 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: #fff4e0;
+  border: 1px solid #a15c00;
+  color: #6b3d00;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gmt-panel {
+    background: #171b24;
+    border-color: #39404f;
+    color: #f0f2f6;
+  }
+  .gmt-facts dt,
+  .gmt-note,
+  .gmt-error-detail { color: #c3c9d6; }
+  .gmt-facts dd,
+  .gmt-modal,
+  .gmt-modal-body,
+  .gmt-modal-tier { color: #f0f2f6; }
+  .gmt-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
+  .gmt-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
+  .gmt-modal-state--in { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
+  .gmt-modal-state--out { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
+  .gmt-modal-warn { background: #4a3200; border-color: #d99b2b; color: #ffe6b8; }
+  .gmt-retry { background: #171b24; border-color: #6f9bec; color: #a9c6f7; }
+  .gmt-inline-error { color: #ffb3ae; }
+}

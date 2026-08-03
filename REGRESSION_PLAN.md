@@ -102,6 +102,166 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — IG stripped the HITL receipt before P1AZDecision could verify it, so approved retries re-challenged forever (UC14b)
+
+**Files changed:** `ping-gateway/scripts/groovy/mcp-request-validation.groovy`,
+`ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/services/attackSimulatorService.js`,
+`demo_api_server/src/__tests__/intentBindingDemo.test.js`.
+
+**What was broken:** in the `01-mcp-olb` chain, `McpRequestValidation` runs
+BEFORE `P1AZDecision`. It removes `_hitl_challenge_id` from its args copy (the
+tool schemas are `additionalProperties:false`) and — since the previous entry's
+fix for the MCP-server 502 — **rewrites the request entity with the cleaned
+args**. `p1az-decision.groovy`'s own receipt extraction therefore never saw the
+marker: the entire receipt-verification + anti-loop block was unreachable dead
+code on the IG path, and every retry carrying an approved receipt re-minted a
+fresh 428 challenge. Live-reproduced on UC14b ("PAR intent verified (PERMIT)"):
+the sim pre-created and approved challenge `917e3a1a…`, passed it on the $80
+within-cap transfer, and the gateway still answered 428 (minting `e5065cfc…`) —
+surfaced as `rar_unexpected_deny` / "Human approval required" and a Proof strip
+"Run failed before intent-binding-verified". Separately, the sim's pre-approved
+challenge was under-bound: no `agentId` and no `from_account_id`, so
+`verifyReceipt` would have rejected it ("belongs to a different agent" / "has
+no bound from_account_id") even once the marker survived.
+
+**What was fixed:** `mcp-request-validation.groovy` hands the stripped receipt
+over on the `X-Hitl-Challenge-Id` request HEADER; `p1az-decision.groovy` falls
+back to it when the body no longer carries the marker, and consumes (removes)
+the header so it never travels past the filter. `_runRarPermit` now creates the
+challenge with `agentId` = the AI Agent actor client id and binds
+`from_account_id` alongside `amount`/`to_account_id`.
+
+**UPDATE same day (live):** the first version of this fix used the
+AttributesContext (`attributes['hitlChallengeId']`) — and that map **leaked
+across requests** on this deployment: after one receipt-carrying call, every
+later call on the route (including plain `get_my_accounts`) presented the stale
+id, its verify failed, and the whole route 503'd until the gateway was
+restarted. Headers are per-request by construction; do not move this hand-over
+back to attributes. Second live finding: the gateway's verify answered **404**
+because the running `hitl-service` image had NO `/challenges/:id/verify` route
+at all — a Docker layer-cached `COPY` served 2026-08-01 source under a
+2026-08-03 image timestamp (`project-container-repo-drift`). A reachable
+hitl-service answers verify 200 even for unknown ids, so the groovy now logs
+404 as "image is stale — run `./run-docker.sh build hitl-service`" and keeps
+failing closed with 503.
+
+**Do not break:** the entity rewrite in `McpRequestValidation` must stay — the
+MCP server validates against the same `additionalProperties:false` schema and
+502s if the marker leaks downstream (previous entry). The attribute hand-over
+must never be readable from the outside (it is set only after the filter itself
+found the marker in the body, never from a client header). `verifyReceipt`'s
+binding rules (user + agent + tool + amount + every account id) are the
+contract — fix callers to bind fully, never loosen the verifier.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/intentBindingDemo.test.js src/__tests__/attackSimulator.test.js
+src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit` (42
+passed, 2 live-gated pending). Live: UC14b run → `sim-rar-armed`,
+`sim-rar-grant`, `intent-binding-verified` all present, strip verdict PERMIT;
+ping-gateway log shows receipt verify instead of "HITL challenge minted".
+ping-gateway's groovy dir is BIND-MOUNTED — `docker restart
+ai-demo-ping-gateway` applies it, no rebuild.
+
+### 2026-08-03 — Gateway-decided 428s carried no authorize evidence, and the consent MFA ceremony didn't discharge the step-up gate
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/transactionConsentChallenge.js`,
+`demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`,
+`demo_api_server/src/__tests__/transactionConsentChallenge.test.js`.
+
+**What was broken:** two follow-on holes from the 2026-08-02
+gateway-authoritative rework (below). (1) The BFF gate now skips on
+gateway-routed calls, so the gateway's PingOne Authorize call is the only
+decision a gateway 428 has — but the pipeline's `hitl_required` /
+`step_up_required` relay branches returned bodies with **no
+`mcpAuthorizeEvaluation` and no `gw-authorize` token event**, even though the
+full decision arrived on `err.gwAuditTrail`. Every UC7/UC8 run in every
+vertical ended with the Proof strip reading "Run failed before
+authorize-decision" and a Token Chain with no P1AZ card — on a gate that had
+actually fired (live-reproduced: banking $300 and $600, 2026-08-03). (2) A
+consent challenge at/above the step-up threshold escalates to a real PingOne
+MFA ceremony, but `verifyOtp`/`verifyMfa` granted only the HITL credit
+(`hitlVerified`) — never `stepUpVerified`. The post-consent retry
+(`POST /api/transactions`) then evaluated the transaction policy on the
+un-upgraded acr and answered RFC 9470 **401** `step_up_required` — which the
+agent's HITL resume handler doesn't parse (it expects the legacy 428) — so a
+$600 transfer died silently right after the user completed MFA.
+
+**What was fixed:** `gatewayBlockAuthEval()` builds the evidence from
+`err.gwAuditTrail.authorize` on both 428 relay branches — `decision:
+'INDETERMINATE'` (the enforced outcome, never PingOne's raw
+PERMIT-with-obligation), `outcome: 'STEP_UP' | 'HITL_REQUIRED'`, with the
+declared-step-up-method rule (`getUseCaseStepUpMethod`) mapping UC7/UC22's
+`hitl_required` wire code to STEP_UP exactly like `_applyTransactionPolicy`
+does on the local path. The same branches now push the `gw-authorize` token
+event. `_grantStepUpCredit(req)` stamps `req.session.stepUpVerified`
+(same `Date.now() + TTL` single-use pattern as `routes/mfa.js`/`ciba.js`) in
+the `verifyOtp` and `verifyMfa` promotes ONLY — consent-only and Recognize
+confirms prove no MFA and must not discharge the step-up gate.
+
+**Do not break:** no evidence without an audit trail — `gatewayBlockAuthEval`
+returns null and the body stays eval-free rather than fabricating a decision.
+`_grantStepUpCredit` must never move into `_grantHitlCredit` (consent-only
+would then silently satisfy step-up). `routes/transactions.js`'s
+read-and-zero consume of `stepUpVerified` and `hitlCredit`'s single-use
+semantics are unchanged and must stay so.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpToolPipeline.characterization.test.js
+src/__tests__/transactionConsentChallenge.test.js --forceExit` (90 passed);
+live: UC8 $300 → strip "Human approval required as expected — then permitted",
+UC7 $600 → consent+MFA then HTTP 201 (was 401) and strip STEP_UP verdict.
+Note: the gateway still answers HITL (not step-up) for $600 until the
+amount-bands snapshot from the 2026-08-02 entry is imported into the live
+P1AZ environment — the declared-method mapping keeps UC7's verdict correct
+either way.
+
+### 2026-08-03 — P1AZ policy artifacts were branded "Super Banking" although they govern every vertical
+
+**Files changed:** `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` →
+`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json` (`git mv`),
+`snapshots/gen-authorize-snapshot.js` (`SNAP`), and every reference site:
+`.husky/pre-commit`, `authz-parity-checklist.md`, `{demo_api_server,demo_authz_server}/Dockerfile`,
+`demo_api_server/{routes/authorize.js,scripts/verifyAuthorizeCloudParity.js,services/checks/a2aActorCheck.js,services/pingOneAuthorizeService.js}`,
+`demo_api_server/{src/__tests__/policyTestCaseSolverSnapshotIntegration,tests/pingOneAuthorizeTierParameters}.test.js`,
+`demo_authz_server/{decision.contract,importSnapshot.parity}.test.js`,
+`demo_authz_server/routes/{decision,generate-snapshot}.js`,
+`demo_mcp_gateway/tests/gatewayTokenPolicy.test.ts`,
+`demo_api_ui/src/utils/authorizeResultExplain.test.js`, `pac/policies/*.yaml`,
+`pingone|claudSkills|claude-skills-bundle /pingone/pingone-authorize-configure/SKILL.md`, and
+`docs/{LIVE-PINGONE-RUNBOOK,authorization-decision-split,per-vertical-entitlement-uc9-uc21,PINGONE_AUTHORIZE_PLAN}.md`.
+
+**What was broken:** the app is AI Demo, but the P1AZ snapshot file and its three container
+objects were named after one vertical — PolicySet `56789012-0003-…` "Super Banking Policies"
+and Policies `-0001-…`/`-0002-…` — while those policies gate airlines, healthcare,
+government, retail and every other vertical.
+
+**What was fixed:** file renamed, and the three objects renamed to `AI Demo Policies` /
+`AI Demo Transaction Authorization` / `AI Demo MCP Delegation Authorization`. Their `version`
+UUIDs were bumped from group `4321` to `4322` in the same edit — **PingOne SKIPS an object
+whose `version` is unchanged**, so a rename without the bump imports as a silent no-op (the
+same trap `TIER_VERSION_GROUP` guards for the reconciler-owned tier conditions). All object
+`id`s are unchanged, so the import updates in place instead of creating duplicates.
+
+**Do not break:** "Super Banking" is still correct in three places and must stay —
+(1) the **banking vertical** (`demo_api_server/config/verticals/banking/**`, UI/education
+copy); (2) **live PingOne resource and application names** resolved by
+`findResourceByName` (`Super Banking A2A MCP Gateway`, the 11 `Super Banking A2A
+Intermediate - …` specialists, `Super Banking API`, `Super Banking MCP Server`, … — renaming
+these in code makes the next provisioning run create duplicates rather than find the
+existing objects); (3) the `Super Banking Transaction Authorization Endpoint` decision
+endpoint name in `docs/PINGONE_AUTHORIZE_PLAN.md`. `snapshots/merge-mcp-amount-bands.js`
+already accepts both old and new policy names and reads its protected-name list from
+`scope-topology.json` — leave that dual lookup in place.
+
+**Verify:** `npm run snapshot:check` (exit 0) and `npm run snapshot:generate` twice produces
+an identical file; `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+`npm run topology:verify`; `npm run hygiene:check`;
+`git grep -c Super_Banking_Transaction_Authorization_P1AZ` returns only this file's §4 prose
+and `demo_api_ui/src/pages/SnapshotImport.jsx` (its `download=` attribute, left for the
+queued `demo_api_ui` branch).
+
 ### 2026-08-03 — MCP server 401'd the spec-mandatory `notifications/initialized`, making tokenless discovery impossible
 
 **Files changed:** `demo_mcp_server/src/server/HttpMCPTransport.ts` + byte-identical twin
@@ -160,6 +320,65 @@ Banking is excluded there for the same reason `scripts/gen-vertical-tools.js` ex
 (68 tests). Revert-to-RED: drop `view_fees`/`view_holdings` from the set → exactly
 `government/gv2 (view_fees) does not 428 on "what fees do I owe"` and
 `investment/inv3 (view_holdings) does not 428 on "show my holdings"` fail.
+
+### 2026-08-03 — Three A2A specialists (retail, sporting-goods, workforce) requested bare `read` on Exchange #2 — no least privilege at all
+
+**Files changed:** `scope-topology.json`, `docs/scope-topology.md`,
+`demo_mcp_server/src/tools/handlers/verticalTools.generated.ts`,
+`oauth-mcp/src/tools/handlers/verticalTools.generated.ts`,
+`demo_api_server/services/a2aDelegationService.js`,
+`demo_api_server/services/pingoneProvisionService.js`,
+`demo_api_server/tests/a2aSpecialistToolRegistry.test.js`.
+
+**What was broken:** `sensitive_order_history`, `sensitive_membership_details` and
+`sensitive_payroll_details` had no `a2aDelegatedScope` on their scope-topology entry, so
+`deriveSpecialistScopes()` fell through to `requiredScopes` and asked PingOne for bare
+`read` — the scope every ordinary user bearer already carries. Exchange #2 still produced a
+correct depth-2 `act` chain, so the demo looked right; but the specialist's token was no
+more constrained than the user's own, and the least-privilege claim the A2A story makes was
+false for three of nine verticals. This is the collapse the 2026-07-27 entry below forbids
+by name. Latent since those specialists were registered, user-facing since #1272 added the
+`rt-a2a`/`sg-a2a`/`wf-a2a` chips, which drive exactly these three chains. The guard added
+in #1275 did not catch it: it asserted only that a scope derives non-empty, and bare
+`["read"]` is non-empty.
+
+**What was fixed:** each got a dedicated Exchange #2 scope in the established `<appKey>:read`
+shape — `purchase:read`, `membership:read`, `payroll:read` — declared in `scopes{}`, offered
+by the `Super Banking API` and `Super Banking A2A MCP Gateway` resources, and granted to the
+owning specialist app. Both generated MCP registries were updated, including `oauth-mcp/`
+(the live `ai-demo-mcp-server` container), which `scripts/gen-vertical-tools.js` does not
+write. Separately, `pingoneProvisionService` Step 37a-A2A derived its A2A-gateway grant with
+`toolScopes()` — the coarse `read` for every `sensitive_*` tool — while the runtime requested
+the delegated scope; harmless only while both said `read`, so this change would have turned it
+into a fresh-bootstrap `invalid_scope`. Provisioning and runtime now call the one exported
+`deriveSpecialistScopes()`.
+
+**Do not break:** never let an A2A specialist's derived scope be `read` or `write` — that is
+the whole demo. `a2aDelegatedScope` must always be BOTH declared in `scopes{}` AND listed on
+the `Super Banking A2A MCP Gateway` resource, or Exchange #2 dies with `invalid_scope`. Keep
+`oauth-mcp`'s generated registry in step with `demo_mcp_server`'s by hand — the generator
+writes only the latter. Do not re-introduce a second scope derivation anywhere.
+
+**Latent trap noted while setting `riskLevel` (not a defect today, do not "fix" blindly):**
+`riskLevel: "high"|"critical"` is not display-only — `agentScopes.isWriteIsh()` gates such
+scopes behind the agent's write toggle, and `agentRestrictionsService.getRequiredTier()`
+classifies a tool as write-tier, which `isAgentRestricted()` DENIES for a user whose
+`agentRestrictions` is `read`. Both are inert for A2A delegated scopes only because they read
+`requiredScopes`/`toolScopes()`, and `a2aDelegatedScope` is a separate field neither consumer
+sees (verified: flipping `payroll:read` low→high leaves `getRequiredTier` and
+`resolveAgentScopes` byte-identical for workforce/retail/sporting-goods). If anyone ever
+feeds `a2aDelegatedScope` into either, every `"high"` delegated scope becomes write-tier at
+once — `payroll:read` and `holdings:read` today — and read-restricted users lose those tools.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --runTestsByPath tests/a2aSpecialistToolRegistry.test.js`
+(44 tests). Revert-to-RED: delete the three `a2aDelegatedScope` lines from
+`scope-topology.json` — exactly `retail`, `sporting-goods` and `workforce` fail
+"Exchange #2 requests a DEDICATED scope, never a coarse one", while the pre-fix guard passes
+38/38 on that same state. Also `npm run topology:verify`, `npm run hygiene:check`,
+`npm run intents:check`, and `tsc --noEmit` in `demo_mcp_server` and `oauth-mcp`.
+Live PingOne (NOT run): revoke each specialist's grant on `Demo API` and `Demo MCP Gateway`
+BEFORE granting `<appKey>:read` on `Super Banking A2A MCP Gateway` — PingOne enforces one
+scope-name per client across all grants, so a colliding grant is skipped silently.
 
 ### 2026-08-03 — Every PingGateway `/mcp` POST 500s after any pull that touches `mcp-tool-schemas.json` (second occurrence)
 

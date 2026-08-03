@@ -32,7 +32,7 @@ const SNAPSHOT_PATH = path.join(
   __dirname,
   '..',
   'snapshots',
-  'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json',
+  'AI_Demo_Transaction_Authorization_P1AZ.snapshot.json',
 );
 
 // Tools the .FIXED.json variant drops from the consent condition.

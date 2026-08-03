@@ -22,7 +22,7 @@ COPY scope-topology.json /repo/scope-topology.json
 # routes/generate-snapshot.js require()s the reconciler + the snapshot it
 # reads/writes at module load — missing this crash-loops the container.
 COPY snapshots/gen-authorize-snapshot.js /repo/snapshots/gen-authorize-snapshot.js
-COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /repo/snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+COPY snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json /repo/snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
 
 EXPOSE 9001
 

@@ -51,10 +51,11 @@
  */
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const REPO = path.resolve(__dirname, '..');
 const SOT = path.join(REPO, 'scope-topology.json');
-const SNAP = path.join(__dirname, 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
+const SNAP = path.join(__dirname, 'AI_Demo_Transaction_Authorization_P1AZ.snapshot.json');
 // Banking is the ONLY vertical with a `tiers` block, and this file is the
 // banking policy — so the tier SoT is read from that one manifest by path
 // rather than through the vertical resolver (which needs demo_api_server's
@@ -223,13 +224,43 @@ function toolOr(tools) {
   })) } };
 }
 
-/** Version uuid follows the house pattern: same digits as the id, prefixed group swapped. */
-const ver = (prefix, id) => prefix + id.slice(8);
+// ⚠️ Version UUIDs are CONTENT-DERIVED. This is load-bearing, not cosmetic.
+//
+// PingOne's snapshot import SKIPS an object whose version is unchanged. The old
+// `ver()` derived the version from the object's ID alone, so an object's content
+// could change forever while its version stayed frozen — and every regeneration
+// of it was a guaranteed no-op in the cloud. git looked correct, the file WAS
+// correct, and the live policy silently kept the old content with nothing to
+// indicate it.
+//
+// That is not hypothetical. AdminRoleOnWriteTool grew from 84 to 87 write tools
+// (the UC28 request-only chips) at a frozen version `…-0025-4321-…`. The live
+// environment had the 84-tool version, the repo had the 87-tool version, and
+// re-importing could never have closed the gap.
+//
+// A drift check cannot catch this class: the committed file and the regenerated
+// file AGREE. The drift is between the file and the cloud, which the generator
+// cannot see. Deriving the version group from a hash of the content is what makes
+// "the file is right" actually imply "the import lands" — any content change
+// moves the version automatically, so no one has to remember to bump anything.
+//
+// TIER_VERSION_GROUP above stays as-is: those conditions are reconciled in place
+// (step 10) against content already in the snapshot, and their guard warns
+// separately. The RAR quartet's hand-pinned versions (#615) also stay parked.
+const contentGroup = (content) => crypto.createHash('sha256')
+  .update(JSON.stringify(content)).digest('hex').slice(0, 4);
+
+/**
+ * Version uuid follows the house pattern — same digits as the id — with the
+ * group segment carrying a short hash of the object's content.
+ */
+const ver = (prefix, id, content) => `${prefix}-${id.slice(9, 13)}-${contentGroup(content)}-${id.slice(19)}`;
 
 /** A STRING/NUMBER/BOOLEAN attribute resolved from the decision request. */
 function requestAttr(id, name, valueType, defaultValue, description) {
   return {
-    objectType: 'AttributeDefinition', id, version: ver('aaaaaaaa', id), type: 'ATTRIBUTE',
+    objectType: 'AttributeDefinition', id,
+    version: ver('aaaaaaaa', id, { name, valueType, defaultValue, description }), type: 'ATTRIBUTE',
     name, fullName: name, description, parentId: null, numberOfChildren: null,
     valueProcessor: null, valueType,
     resolvers: [{ attributeResolverType: 'request', condition: { empty: {} }, valueProcessor: null, name: null }],
@@ -239,7 +270,8 @@ function requestAttr(id, name, valueType, defaultValue, description) {
 
 function conditionDef(id, name, description, condition) {
   return {
-    objectType: 'ConditionDefinition', id, version: ver('bbbbbbbb', id), type: 'CONDITION',
+    objectType: 'ConditionDefinition', id,
+    version: ver('bbbbbbbb', id, { name, description, condition }), type: 'CONDITION',
     name, fullName: name, description, parentId: null, numberOfChildren: null, condition,
   };
 }
@@ -252,7 +284,8 @@ function conditionDef(id, name, description, condition) {
  */
 function denyStatement(id, name, code, description, payload) {
   return {
-    id, version: ver('cccccccc', id), type: 'Statement', name, shared: false, description,
+    id, version: ver('cccccccc', id, { name, code, description, payload }),
+    type: 'Statement', name, shared: false, description,
     code, appliesTo: 'DENY', appliesIf: 'PATH_MATCHES', payload,
     obligatory: false, attributes: [], services: [],
   };
@@ -261,7 +294,8 @@ function denyStatement(id, name, code, description, payload) {
 /** A conditional-deny rule carrying [specific statement, shared mcp-authorization-denied]. */
 function denyRule(id, name, description, condId, stmtId) {
   return {
-    id, version: ver('dddddddd', id), type: 'Rule', targets: [], name, description,
+    id, version: ver('dddddddd', id, { name, description, condId, stmtId }),
+    type: 'Rule', targets: [], name, description,
     shared: false, disabled: false, statements: [stmtId, STMT.mcpSharedDeny],
     effectSettings: { type: 'conditionalDenyElsePermit', condition: { and: { conditions: [{ reference: { id: condId } }] } } },
     condition: { empty: {} },

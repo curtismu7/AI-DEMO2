@@ -17,14 +17,22 @@ describe('groupPolicy', () => {
   });
 
   describe('requiredGroupForTool', () => {
-    it('returns the banking privileged group for a restricted tool', () => {
+    it('returns the privileged group for a restricted tool', () => {
       expect(groupPolicy.requiredGroupForTool('get_sensitive_account_details', 'banking'))
-        .toBe('Banking_Privileged');
+        .toBe('AI_Demo_Privileged');
     });
 
-    it('returns the healthcare privileged group for sensitive_patient_records', () => {
+    it('returns the SAME group for another vertical — one group serves all', () => {
+      // The privileged group used to be per-vertical (Banking_Privileged,
+      // Healthcare_Privileged, … 11 names for one concept). They are now a single
+      // generic group so a demo does not have to manage 11 memberships. This is
+      // behaviour-preserving: demoUser/demoAdmin were already privileged in every
+      // vertical and demoDelegate in none. The per-vertical part that still
+      // matters is WHICH TOOL is gated, which restrictedTools still declares.
       expect(groupPolicy.requiredGroupForTool('sensitive_patient_records', 'healthcare'))
-        .toBe('Healthcare_Privileged');
+        .toBe('AI_Demo_Privileged');
+      expect(groupPolicy.requiredGroupForTool('sensitive_tax_record', 'government'))
+        .toBe('AI_Demo_Privileged');
     });
 
     it('returns null for an unrestricted tool', () => {
@@ -36,12 +44,15 @@ describe('groupPolicy', () => {
   describe('groupsForUserSync', () => {
     it('returns banking membership for demoUser', () => {
       const groups = groupPolicy.groupsForUserSync('demoUser', 'banking');
-      expect(groups).toContain('Banking_Privileged');
+      expect(groups).toContain('AI_Demo_Privileged');
+      // premiumTier is deliberately NOT collapsed into the generic group: banking's
+      // tiers.groupToTier maps it to PrivateBanking, so sharing it would make every
+      // privileged user PrivateBanking and delete UC21's Standard-denied case.
       expect(groups).toContain('Banking_PremiumTier');
     });
 
     it('returns delegates group for demoDelegate in banking', () => {
-      expect(groupPolicy.groupsForUserSync('demoDelegate', 'banking')).toContain('Banking_Delegates');
+      expect(groupPolicy.groupsForUserSync('demoDelegate', 'banking')).toContain('AI_Demo_Delegates');
     });
 
     it('returns empty for demoDelegate in healthcare (deny demo)', () => {

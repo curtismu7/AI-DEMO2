@@ -28,6 +28,15 @@ function buildRetailTools(store) {
     { name: 'view_wishlist', description: "List the items on the shopper's wishlist.", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_returns', description: "List the shopper's product returns and their status.", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     /* PACK:defs:end */
+    {
+      // The agent can only REQUEST this (logged for human review) — no tool
+      // can grant it. The tool set is the authorization boundary (UC28).
+      name: 'request_price_adjustment',
+      description: 'Submit a price-adjustment request for human review. Cannot grant an adjustment.',
+      inputSchema: { type: 'object', properties: { orderId: { type: 'string' } } },
+      scopes: ['write'],
+      authz: {},
+    },
     { name: 'list_orders', description: 'List the customer\'s orders.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'order_status', description: 'Show the status of an order. Defaults to the most recent order when no orderId is given.', inputSchema: { type: 'object', properties: { orderId: { type: 'string' } } }, scopes: ['read'], authz: {} },
     { name: 'rewards_balance', description: 'Show the customer\'s reward points and store credit.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -142,6 +151,24 @@ function buildRetailTools(store) {
       case 'view_returns':
         return { result: { returns: store.get(userId).returns }, render: 'view_returns' };
       /* PACK:cases:end */
+      case 'request_price_adjustment': {
+        // Request ONLY — deliberately changes nothing. The agent has no tool that
+        // can approve this, so it cannot promise one (UC28). The one-click chip
+        // carries no id, so default to the member's first record.
+        const _rows = store.get(userId).orders || [];
+        const _want = params && (params.orderId || params.recordId);
+        const _rec = _want ? _rows.find((r) => r.id === _want) : _rows[0];
+        if (!_rec) return { result: { error: 'order not found' }, render: 'text' };
+        return {
+          result: {
+            requestId: `REQ-${_rec.id}`,
+            orderId: _rec.id,
+            status: 'Submitted for human review',
+            note: 'This request does not grant a price adjustment.',
+          },
+          render: 'request_price_adjustment',
+        };
+      }
       case 'list_orders':
         return { result: { orders: store.get(userId).orders }, render: 'list_orders' };
       case 'order_status': {

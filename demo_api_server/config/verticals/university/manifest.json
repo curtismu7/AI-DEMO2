@@ -38,12 +38,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "University_Privileged",
-        "description": "Users permitted to access sensitive student finance records (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "University_Delegates",
-        "description": "Users authorized as delegated student-services agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {

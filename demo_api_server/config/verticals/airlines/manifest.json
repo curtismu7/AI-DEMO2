@@ -38,12 +38,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Airlines_Privileged",
-        "description": "Passengers permitted to access sensitive reservation details and the full passenger record (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Airlines_Delegates",
-        "description": "Users authorized as delegated travel agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {

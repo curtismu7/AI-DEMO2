@@ -206,7 +206,7 @@ DENY if TokenKidKnown == false   →  statement code: mcp-invalid-kid
 
 **Snapshot import is how policy gets authored here, and it works.** No
 Management API access is required: edit `snapshots/gen-authorize-snapshot.js`,
-regenerate `Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`, and
+regenerate `AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`, and
 import it. A rule is only ever "missing" cloud-side because it was never written
 into the generator in the first place — not because import is unreliable.
 

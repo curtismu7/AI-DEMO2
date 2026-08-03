@@ -127,7 +127,7 @@ engines (skill: `authz-server-parity`):
 
 - `demo_api_server/services/simulatedAuthorizeService.js` (`evaluateMcpToolCall`)
 - `demo_authz_server/routes/decision.js`
-- `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`
+- `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
   (MCP Delegation policy)
 
 ## Open items

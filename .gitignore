@@ -34,12 +34,17 @@ AI-Demo_Cloned
 # .gitignore after adding a test. Deny-by-default in a source directory hides
 # work; deny the specific things instead.
 #
-# p1authz-export.snapshot.json used to be excepted here because it carried 4
-# populated `clientSecret` values and 1 `password`. Those were redacted and the
-# sanitised export is now tracked, so snapshots/ has no exceptions at all.
-# ⚠️ If you re-export from PingOne, the raw file WILL contain live secrets again.
-# Redact `clientSecret` and `password` before committing — this repo has already
-# had live PingOne credentials in its history once.
+# p1authz-export.snapshot.json used to be excepted here because it carried live
+# `clientSecret`/`password`/`token` values. A redacted copy was tracked for a
+# while, then deleted outright: it was an ad-hoc export of a DIFFERENT PingOne
+# environment (legacy financial policies, not the AI Demo tree), nothing
+# referenced it, and it kept getting mistaken for the live-tree export that
+# snapshots/merge-mcp-amount-bands.js needs as input. snapshots/ still has no
+# ignore exceptions.
+# ⚠️ If you export from PingOne, the raw file WILL contain live secrets.
+# Redact `clientSecret`, `password`, and `authenticationAttributes.token` before
+# committing — this repo has already had live PingOne credentials in its history
+# once. Better: keep exports outside the repo entirely.
 certs/
 package-lock.json
 **/package-lock.json
@@ -61,6 +66,11 @@ demo_api_server/bin/pingcli
 .env
 .env.local
 .env.*.local
+# `npm run setup:fresh` / `pingone:bootstrap` output. Rewritten on every run and
+# carries worker client secrets and demo passwords — its own header says "Do not
+# commit it", but it was tracked from #370 until 2026-08-03, so anyone who ran
+# either script silently staged live credentials.
+setup-config.md
 # App-generated config/import backups (were committed by accident)
 *.bak
 demo_api_server/.env.pre-import-*

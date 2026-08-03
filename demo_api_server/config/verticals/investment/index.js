@@ -23,6 +23,8 @@ const HEURISTICS = [
   { re: /\bportfolio\s+value\b|\btotal\s+value\b/i, action: 'view_portfolio_value' },
   { re: /\bportfolios?\b/i, action: 'view_portfolios' },
   /* PACK:heuristics:end */
+  // UC28 request-only. Must precede the portfolio heuristics.
+  { re: /\bfee[\s-]?tier\b|\breview\b.{0,15}\bfees?\b|\bfees?\b.{0,15}\breview\b/i, action: 'request_fee_tier_review' },
 ];
 
 function systemPrompt(ctx) {

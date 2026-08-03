@@ -1,0 +1,116 @@
+/* Policy conformance panel — declared vs actual control, per use case. */
+
+.pcp {
+  border: 1px solid var(--app-border, #d4d7dd);
+  border-radius: 8px;
+  background: var(--app-surface, #fff);
+  padding: 16px;
+  margin: 0 0 16px;
+}
+
+.pcp__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pcp__title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--app-text, #1a1d21);
+}
+
+/* Solid body colour, never a low-contrast hint grey (REGRESSION_PLAN §0). */
+.pcp__sub {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--app-text, #1a1d21);
+}
+
+.pcp__run {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: 1px solid var(--app-primary-red-border, #dc2626);
+  border-radius: 6px;
+  background: var(--app-primary-red, #b91c1c);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pcp__run:hover:not(:disabled) { background: var(--app-primary-red-hover, #991b1b); }
+.pcp__run:disabled { opacity: 0.6; cursor: default; }
+
+.pcp__note,
+.pcp__error,
+.pcp__summary {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--app-text, #1a1d21);
+}
+
+.pcp__summary { font-weight: 600; }
+.pcp__summary--ok { color: var(--app-success, #0f7b3f); }
+.pcp__summary--bad { color: var(--app-primary-red, #b91c1c); }
+.pcp__collapsed { font-weight: 600; }
+
+/* Wide tables scroll inside their own box; the page must never scroll sideways. */
+.pcp__tablewrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.pcp__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.pcp__table th,
+.pcp__table td {
+  text-align: left;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--app-border, #e3e5e9);
+  vertical-align: top;
+}
+
+.pcp__table thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--app-text, #1a1d21);
+  border-bottom-width: 2px;
+}
+
+.pcp__table code {
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.pcp__uc {
+  display: inline-block;
+  min-width: 44px;
+  font-weight: 700;
+}
+
+.pcp__row--bad { background: var(--app-danger-surface, #fdf2f2); }
+
+.pcp__reply {
+  max-width: 34ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text, #1a1d21);
+}
+
+@media (prefers-color-scheme: dark) {
+  .pcp { background: var(--app-surface, #1b1e23); border-color: var(--app-border, #333941); }
+  .pcp__row--bad { background: rgba(185, 28, 28, 0.18); }
+}

@@ -16,7 +16,9 @@ running the gateway itself.
 
 > Status as of 2026-08-03: the client, the relay and the protocol handling all work, and
 > `/api/privilege-mcp-simple` performs a real token-to-MCP call end to end. The **gateway**
-> path is still blocked on a PingOne Privilege tenant trust setting. See
+> path is blocked on two Privilege-side problems that no change in this repo can reach: the
+> enrolled node never dispatches a discovery to the backend, and the cloud frontend accepts
+> no token this PingOne environment can mint. See
 > [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03).
 
 ---
@@ -285,13 +287,31 @@ the demo still shows nothing.
 
 ## Current state (verified 2026-08-02, re-verified 2026-08-03)
 
-The demo side is complete and proven. The gateway path is blocked on one tenant-side
-trust setting that cannot be changed from this repo.
+**The demo side is complete, proven, and deployed.** Two defects found on 2026-08-03 are
+fixed and live-verified against the running stack:
 
-Everything in this section was re-run against the live stack on 2026-08-03 and still
-holds, with one exception now fixed: the simple relay's default target URL had drifted
-out of sync with the mTLS switch — see
-[The simple relay's default URL vs the mTLS switch](#the-simple-relays-default-url-vs-the-mtls-switch-resolved-2026-08-03).
+| Fixed | Live evidence |
+|---|---|
+| The simple relay's target scheme now follows the mTLS switch (#1285) — it was dying on `EPROTO` before reaching MCP | `/api/privilege-mcp-simple/tools/list` returns **225 tools**; `tools/call get_my_accounts` returns `{"success":true,"count":0}` |
+| `notifications/initialized` no longer 401s (#1292), so the spec-mandatory handshake completes without a bearer | from inside the gateway container: `initialize` 200, `notifications/initialized` **202**, `tools/list` **241 tools** |
+
+**The gateway path is blocked on two Privilege-side problems, neither reachable from this
+repo:**
+
+1. [The enrolled node receives backend config but never dispatches a
+   discovery](#the-node-receives-config-but-never-dispatches-a-discovery-open-2026-08-03)
+   — fix this first; nothing downstream is testable while the gateway never contacts the
+   backend.
+2. [The cloud frontend accepts no token this PingOne environment can
+   mint](#the-one-blocker-privilege-does-not-trust-this-environments-issuer) — a
+   Privilege-issued console token authenticates; every `01d89b06` token does not.
+
+A third would-be blocker is gone: `AuthMode` was found set to **static-token** on the
+`mypingone` app (the doc's own trap warns mTLS must be off for the backend to work, and the
+static-token flip was never reverted). It is back on **OAuth** with the client secret
+populated. Read it yourself with the
+[console API recipe](#reading-privileges-real-config-use-the-console-api-not-cyctl) rather
+than trusting the console UI, which serves stale values once its session expires.
 
 ### How the frontend actually works
 
@@ -315,14 +335,21 @@ probing the FQDN gives a real HTTP challenge, while every local port gives no li
 | Step | Evidence |
 |---|---|
 | Gateway enrolled | `Node 570afb32-… established command stream`; console shows **Success** |
+| Mesh links up | `LinkStatus: Active` both directions; reachability heartbeats every 30s |
+| Config reaches the node | `Created backend node … BackendDomains:http://host.docker.internal:8080` in `cyonproxy.log` within seconds of every console save |
 | Cloud frontend reachable | `401 "Bearer Token not found."` — an auth challenge, not a connection error |
-| Backend wired | console lists the full tool catalogue (`get_my_accounts`, `create_transfer`, …) |
+| Backend answers correctly | from **inside** the proxy container: `initialize` 200 / `notifications/initialized` 202 / `tools/list` 241 tools |
 | Demo sign-in | `?auth=success`, `authenticated: true`, scope `mcp:invoke openid` |
 
 Re-verified 2026-08-03: enrolled node still `570afb32-…` (`/procyon/ssl/proxy-crt.pem`
 carries `OU=570afb32-…`, and the log shows a fresh `established command stream`); the
 frontend still answers `Bearer Token not found.` unauthenticated; the container still
 binds only `127.0.0.1:8090` (`0100007F:1F9A` in `/proc/net/tcp`).
+
+**The tool catalogue the console displays is not evidence of a working backend hop.** It is
+a cached `Status.McpServerStatus.McpTools` from an older successful discovery; the console
+re-renders it (and any stored error) indefinitely. Judge the backend by probing it from
+inside the proxy container, as the row above does.
 
 ### The simple relay's default URL vs the mTLS switch (resolved 2026-08-03)
 
@@ -365,6 +392,15 @@ The token is correctly signed — `kid: default` **is** published in the environ
 different issuer's keys. That fits the identity split visible in the console: the Privilege
 admin `cmuir+ssoAdmin@pingone.com` is a **Ping SSO User** and does not exist in environment
 `01d89b06`, while the demo's users (`demoUser`, `cmuir+ssoEndUser`) do.
+
+**Do not read that error string as evidence of anything specific.** It is a catch-all: the
+frontend returns byte-identical text for a valid RS256 PingOne token, for Privilege's own
+ES256 enrollment JWT, for the literal configured static token `STaticToken`, and for the
+bare string `not-a-jwt` — which has no signature to validate at all. The conclusion above
+rests on the *positive* result instead: a Privilege-issued console token (`iss
+https://auth.pingone.com/8d4d7a4c-…/as`, `aud: procyon`) clears authentication and reaches
+authorization, answering `User 4c746ea6-… doesn't have access to MCP app mypingone`. One
+issuer gets in, the other never does.
 
 So Privilege must be told to trust:
 
@@ -432,9 +468,54 @@ The app `6586d3de` holds three grants across three resources (`Demo MCP JWT Veri
 `Demo MCP Invest`, `Demo MCP Server`) — which is why a scopeless `client_credentials`
 request is refused with "May not request scopes for multiple resources".
 
-### `cyctl` — Privilege's admin CLI, and the credential that blocks it
+### Reading Privilege's real config — use the console API, not `cyctl`
 
-Privilege does not keep its real configuration in this repo. Inside the proxy container:
+Privilege does not keep its real configuration in this repo, and for a while this document
+claimed the only way to read it was `cyctl`, blocked on a credential nobody had. **That was
+wrong.** The console's own REST API answers with nothing more than the session cookie your
+browser already holds, and it is how every Privilege-side fact below was established on
+2026-08-03.
+
+Grab two values from devtools (Network → any XHR to `console.privilege.pingone.com` → Request
+Headers): the `auth_token` cookie and the `x-procyon-session-id` header. Then:
+
+```bash
+TENANT=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b     # the Privilege tenant / PingOne env
+TOK='eyJ...'                                     # auth_token cookie value
+SID='cb2db637-...'                               # x-procyon-session-id header
+
+curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -b "auth_token=$TOK" -H "x-procyon-session-id: $SID" -H 'accept: application/json' \
+  | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['Applications'][0]['Spec']['McpAppConfig'], indent=1))"
+```
+
+That prints the complete `McpAppConfig` — `FrontEndName`, `Backends`, `EntryPath`,
+`AuthMode`, `AuthToken`, and the whole `ResourceOAuth` block. Other useful collections
+follow the same shape: `/v1/pacpolicys` (access policies — an empty list is why tool calls
+answer *"User … doesn't have access to MCP app"*), `/v1/tenantprofiles`, `/v1/servers`.
+
+Two gotchas. The session token is short-lived — about **60 minutes** — and when it expires
+the console does not say so; it renders **"Gateway Unreachable — Showing Cached Data"** and
+replays stale values, which reads exactly like a live failure. And every request needs
+`x-procyon-session-id`: without it `privilege.pingone.com` answers `400 Procyon required
+header is missing` on every path, including `.well-known`.
+
+Sign-in note: `console.privilege.pingone.com` cannot mint its own session. Enter through
+`https://console.pingone.com/?env=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` (the bare
+`console.pingone.com` URL errors with *"Invalid Sign-on URL"*), authenticate as the Ping SSO
+admin, then launch PingOne Privilege from that environment.
+
+**Two environments, easily conflated:** `8d4d7a4c-…` is Privilege's own PingOne environment
+— the issuer of the console token, and the `tenant` in the gateway's enrollment JWT.
+`01d89b06-…` is AI-Demo, where the banking demo and its users live. Both are real PingOne
+environments and both answer `/.well-known/openid-configuration`.
+
+### `cyctl` — the admin CLI, and why you do not need it
+
+Kept for the record: the CLI exists in the container but is blocked, and the console API
+above supersedes it entirely.
+
+Inside the proxy container:
 
 ```
 /procyon/bin/cyonproxy      the proxy daemon
@@ -454,8 +535,8 @@ cyctl object accesspolicy ...
 cyctl authn challenge | cyctl admin | cyctl tenant | cyctl device
 ```
 
-`cyctl object application get` on `mypingone` would settle whether the signature failure is
-a fixable setting or a vendor gap. It is blocked on a credential nobody has here:
+It is blocked on a credential nobody has here — read the app object over the console API
+instead:
 
 ```
 cyctl --token <enrollment JWT> object application list
@@ -474,8 +555,9 @@ Its default `--apigw` is `http://localhost:8643`, which is the useful detail: **
 Privilege's API-gateway port convention**, not something specific to MCP. That is why the
 console-assigned frontend carries it.
 
-What would unblock it: a `cyctl` auth token (`--token` or `TOKEN`), a Privilege console
-session bearer, or whatever admin credential Privilege issues for CLI use.
+What would unblock it: a `cyctl` auth token (`--token` or `TOKEN`), or whatever admin
+credential Privilege issues for CLI use. Not worth chasing — the console API reads and
+writes the same objects.
 
 ### Traps that cost hours
 
@@ -504,6 +586,44 @@ session bearer, or whatever admin credential Privilege issues for CLI use.
   four services at once; with it on, the app's `http://host.docker.internal:8080/mcp`
   backend returns 403. Bearer enforcement is unchanged either way — only the transport
   cert requirement goes.
+
+### The node receives config but never dispatches a discovery (open, 2026-08-03)
+
+Separate from the inbound-token blocker, and the reason the console keeps showing
+*"Error discovering MCP server"*. The chain is broken at one hop:
+
+| Hop | State |
+|---|---|
+| Console -> control plane | works — app objects create and save |
+| Control plane -> node | works — `Created backend node … BackendDomains:http://host.docker.internal:8080` lands in `cyonproxy.log` within seconds of every save |
+| **Node -> backend** | **never attempted** — zero connections at the destination, zero errors in the proxy log |
+| Backend handshake | correct — see below |
+
+The backend is provably healthy from inside the proxy container itself
+(`docker exec ai-demo-ping-mcpgw python3 …`, or `curl`, against
+`http://host.docker.internal:8080/mcp`): `initialize` 200, `notifications/initialized` 202,
+`tools/list` 241 tools. So this is not connectivity, DNS, or the MCP server.
+
+Ruled out by experiment, so nobody repeats them:
+
+- **Not a stale status field.** A brand-new Agentic App with an empty
+  `Status.McpServerStatus` was created (`http-New`, same backend, same mesh cluster); its
+  config reached the node in seconds and it too produced no connection in the following
+  150s.
+- **Not the gateway node.** Mesh links report `LinkStatus: Active`, reachability heartbeats
+  run every 30s, and config propagation is immediate. Re-enrolling replaces a component
+  that is working — and costs the `ai-demo_mcpgw-ssl` identity.
+- **Not the handshake bug.** That was real and is fixed (see the §4 entry for
+  `notifications/initialized`), verified against the rebuilt image. Discovery has not
+  reached the server once since.
+
+**The question for Ping:** what triggers a discovery run on an enrolled private proxy, and
+why would it not fire when the app's backend config demonstrably arrives at the node?
+
+Note the console never surfaces this honestly. Once its ~60-minute session expires it shows
+**"Gateway Unreachable — Showing Cached Data"** and replays the last stored error string, so
+the same modal appears whether discovery just failed, or was never attempted at all. Read
+`Status.McpServerStatus` over the console API before believing the UI.
 
 ### Loose ends
 
@@ -534,24 +654,38 @@ session bearer, or whatever admin credential Privilege issues for CLI use.
   specific to machine tokens.
 - **Scope alignment, the app's OAuth endpoints, static token, metadata discovery** — all
   four disproved; see the blocker section above.
+- **Creating the Privilege admin's username in the demo environment does nothing.** On
+  2026-08-03 `cmuir+ssoAdmin@pingone.com` was created in `01d89b06` (id `34bedfef-…`) on the
+  theory that the identity split was the cause. Signature validation happens on the raw JWT
+  before any claim is parsed, so Privilege never reaches a user lookup. Two accounts sharing
+  an email are not the same identity — the Privilege admin is a Ping SSO user in `8d4d7a4c`.
+- **A second client in the same environment fails identically.** App `873cc9e4` (from
+  `postman/Privilege-MCP-Gateway.postman_environment.json`, `client_secret_basic`) mints a
+  token with a real `kid`, not `default` — and is rejected the same way. The issue is the
+  issuer, not key resolution.
+- **A brand-new Agentic App does not trigger a reachable discovery** — see the
+  discovery-dispatch section above.
 
 ### Order to fix
 
-1. Obtain a `cyctl` credential and run `cyctl object application get` on `mypingone` to
-   read its real inbound-auth config. That is the only remaining way to see, rather than
-   infer, what issuer Privilege validates against.
-2. If that config exposes an issuer / `jwks_uri`, set
-   `https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as` and `…/as/jwks`.
-3. If it does not, this is a vendor question, and the repro is clean: **a valid RS256
-   PingOne token whose `kid` is published in the issuer's JWKS, rejected as "signature
-   validation failed"** — by both the machine and the interactive flow.
+1. **Ask Ping why discovery never dispatches** (section above). Nothing downstream can be
+   tested while the gateway never contacts the backend, and the evidence is complete: config
+   arrives at the node, no connection follows, the backend answers correctly when probed
+   from inside that same container.
+2. **Ask Ping what token an MCP client should present to Frontend Name.** A Privilege-issued
+   console token authenticates; every token this PingOne environment can mint does not.
+   Whether an Agentic App can be told to trust an external issuer is the open question —
+   `McpAppConfig` exposes `ResourceOAuth` (backend-facing) and no inbound issuer field.
+3. **Author a policy** on the app once discovery works — `pacpolicys` is currently empty,
+   which is why an authenticated console token still gets *"doesn't have access to MCP app
+   mypingone"*. The console will not open the policy editor until a tool catalogue exists.
 4. Re-run sign-in then `tools/list`. Everything else in the chain is already verified.
 5. Independently, and not blocking: clear the stale `config/ssl/` node identity and the
    duplicate console registrations.
 
 If instead the demo should authenticate against Privilege's own IdP, point
-`PRIVILEGE_SSO_ENV_ID` (and the client id/secret) at that environment — but note the demo's
-users live in `01d89b06`, so option 1 keeps the rest of the demo intact.
+`PRIVILEGE_SSO_ENV_ID` (and the client id/secret) at `8d4d7a4c-…` — but the demo's users
+live in `01d89b06`, so that trades this blocker for a broken demo everywhere else.
 
 
 ## Troubleshooting
@@ -565,4 +699,8 @@ users live in `01d89b06`, so option 1 keeps the rest of the demo intact.
 | Tools load but a call is denied | Privilege policy DENY — the demo working as intended | inspect the decision in the console |
 | Page shows nothing and no error | policy/recording never authored in the console | `ping-mcpgw/README.md` setup steps |
 | `500 write EPROTO … wrong version number` from `/api/privilege-mcp-simple` | an explicit `PRIVILEGE_SIMPLE_MCP_URL` whose scheme disagrees with `MCP_MTLS_ON` — `mcp-server` speaks TLS on 8080 only when mTLS is on | match the scheme, or unset the var and let the default follow the switch |
+| Console: `Gateway Unreachable — Showing Cached Data` | the console session (~60 min) expired; every value on screen is stale, including error modals | sign in again via `console.pingone.com/?env=8d4d7a4c-…`, then launch Privilege |
+| Console: `Error discovering MCP server: sending "notifications/initialized": Unauthorized` | if `mcp-server` predates the handshake fix, real; otherwise a stored string from an old attempt | verify with the tokenless handshake from inside the proxy container; if that returns 202, no new discovery has run |
+| `400 Procyon required header is missing` from `privilege.pingone.com` | console API called without `x-procyon-session-id` | add the header, copied from any console XHR |
+| `Invalid Sign-on URL` at `console.pingone.com` | admin console needs an explicit environment | `https://console.pingone.com/?env=<env-id>` |
 | `401 Authorization header JWT parsing failed JWT signature validation failed` | Privilege does not trust this environment's issuer — the open blocker | [The one blocker](#the-one-blocker-privilege-does-not-trust-this-environments-issuer) |

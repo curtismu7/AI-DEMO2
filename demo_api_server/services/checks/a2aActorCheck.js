@@ -60,7 +60,7 @@ function repoRoot() {
   return candidates[0];
 }
 
-const SNAPSHOT = 'snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json';
+const SNAPSHOT = 'snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json';
 const ACTOR_CONDITION = 'HasValidActorChain';
 
 /** Every string constant under a condition tree. */
