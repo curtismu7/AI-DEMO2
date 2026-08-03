@@ -46,12 +46,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Admin_Privileged",
-        "description": "Administrators permitted to read a customer's identity-verification (KYC) record"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Admin_Delegates",
-        "description": "Users authorized as delegated administrators"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {

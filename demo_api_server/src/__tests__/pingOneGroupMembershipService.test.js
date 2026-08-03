@@ -38,8 +38,8 @@ describe('pingOneGroupMembershipService', () => {
       data: {
         _embedded: {
           groups: [
-            { name: 'Banking_Privileged' },
-            { name: 'Healthcare_Privileged' },
+            { name: 'AI_Demo_Privileged' },
+            { name: 'Banking_PremiumTier' },
             { name: 'SomeOtherGroup' },
           ],
         },
@@ -47,7 +47,7 @@ describe('pingOneGroupMembershipService', () => {
     });
 
     const names = await membershipService.listUserGroupNamesForVertical('user-1', 'banking');
-    expect(names).toEqual(['Banking_Privileged']);
+    expect(names).toEqual(['AI_Demo_Privileged', 'Banking_PremiumTier']);
     expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
       'GET',
       '/users/user-1/memberOfGroups',

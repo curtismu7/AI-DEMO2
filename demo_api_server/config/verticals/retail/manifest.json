@@ -53,12 +53,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Retail_Privileged",
-        "description": "Users permitted to access sensitive order history (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Retail_Delegates",
-        "description": "Users authorized as delegated shopping agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {
