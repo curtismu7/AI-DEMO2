@@ -2,6 +2,7 @@
 // Login RS / In-flow RS tabs + dual summary fetch.
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import bffAxios from '../../services/bffAxios';
@@ -56,7 +57,7 @@ beforeEach(() => {
 
 describe('ResourceServerPage dual view', () => {
   it('loads both summaries and shows Login RS by default', async () => {
-    render(<ResourceServerPage />);
+    render(<MemoryRouter><ResourceServerPage /></MemoryRouter>);
     expect(await screen.findByRole('tab', { name: /Login RS/i })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: /In-flow RS/i })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByText(/LOGIN OAUTH PATH/i)).toBeInTheDocument();
@@ -66,7 +67,7 @@ describe('ResourceServerPage dual view', () => {
   });
 
   it('switches to In-flow RS tab and shows gateway teaching copy', async () => {
-    render(<ResourceServerPage />);
+    render(<MemoryRouter><ResourceServerPage /></MemoryRouter>);
     await screen.findByRole('tab', { name: /Login RS/i });
     fireEvent.click(screen.getByRole('tab', { name: /In-flow RS/i }));
     expect(screen.getByRole('tab', { name: /In-flow RS/i })).toHaveAttribute('aria-selected', 'true');
@@ -77,7 +78,7 @@ describe('ResourceServerPage dual view', () => {
   });
 
   it('highlights only banking: scopes in the login scope badges', async () => {
-    render(<ResourceServerPage />);
+    render(<MemoryRouter><ResourceServerPage /></MemoryRouter>);
     await screen.findByText('banking:accounts');
     const banking = screen.getByText('banking:accounts');
     const openid = screen.getByText('openid');
@@ -87,7 +88,7 @@ describe('ResourceServerPage dual view', () => {
 
   it('shows auth gate when summary returns 401', async () => {
     bffAxios.get.mockRejectedValue({ response: { status: 401 } });
-    render(<ResourceServerPage />);
+    render(<MemoryRouter><ResourceServerPage /></MemoryRouter>);
     expect(await screen.findByText(/Authentication Required/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Log In/i })).toHaveAttribute(
       'href',

@@ -1,7 +1,10 @@
 // banking_api_ui/src/services/__tests__/spinnerService.test.js
 /**
+ * The full-screen spinner overlay was disabled on purpose in #1172 (too
+ * distracting): increment() and show() are no-ops, so the spinner must NEVER
+ * become visible. decrement()/hide() remain callable (interceptors still call
+ * them) and still notify subscribers with a hidden state.
  * spinnerService uses module-level state; reset modules each test.
- * Timers control debounce (200 ms) and minimum visible time (1500 ms).
  */
 
 describe('spinnerService', () => {
@@ -14,13 +17,12 @@ describe('spinnerService', () => {
     vi.useRealTimers();
   });
 
-  it('shows after debounce when increment is not cancelled by decrement', async () => {
+  it('increment never shows the spinner, even after the debounce window', async () => {
     const { spinner } = await import('../spinnerService');
     spinner.increment('GET', '/api/accounts');
     expect(spinner.getState().visible).toBe(false);
     vi.advanceTimersByTime(2500);
-    expect(spinner.getState().visible).toBe(true);
-    expect(spinner.getState().message).toMatch(/./);
+    expect(spinner.getState().visible).toBe(false);
   });
 
   it('does not show when decrement runs before debounce fires', async () => {
@@ -31,23 +33,21 @@ describe('spinnerService', () => {
     expect(spinner.getState().visible).toBe(false);
   });
 
-  it('show then hide clears visible state', async () => {
+  it('manual show is a no-op and hide stays safe to call', async () => {
     const { spinner } = await import('../spinnerService');
     spinner.show('Manual task');
-    expect(spinner.getState().visible).toBe(true);
+    expect(spinner.getState().visible).toBe(false);
     spinner.hide();
     vi.runAllTimers();
     expect(spinner.getState().visible).toBe(false);
   });
 
-  it('keeps spinner until the last outstanding increment is decremented', async () => {
+  it('stays hidden across overlapping increment/decrement cycles', async () => {
     const { spinner } = await import('../spinnerService');
     spinner.increment('GET', '/api/a');
     vi.advanceTimersByTime(2500);
-    expect(spinner.getState().visible).toBe(true);
     spinner.increment('GET', '/api/b');
     spinner.decrement(false);
-    expect(spinner.getState().visible).toBe(true);
     spinner.decrement(false);
     vi.advanceTimersByTime(2000);
     expect(spinner.getState().visible).toBe(false);
@@ -57,13 +57,15 @@ describe('spinnerService', () => {
     const { spinner } = await import('../spinnerService');
     const spy = vi.fn();
     const off = spinner.subscribe(spy);
-    spinner.show('x');
+    // show() is a no-op, but hide() still schedules a notify
+    spinner.hide();
+    vi.runAllTimers();
     expect(spy).toHaveBeenCalled();
-    const callsAfterShow = spy.mock.calls.length;
+    expect(spy.mock.calls.at(-1)[0].visible).toBe(false);
+    const callsAfterHide = spy.mock.calls.length;
     off();
     spinner.hide();
     vi.runAllTimers();
-    spinner.show('y');
-    expect(spy.mock.calls.length).toBe(callsAfterShow);
+    expect(spy.mock.calls.length).toBe(callsAfterHide);
   });
 });

@@ -296,7 +296,14 @@ describe("CSS/JS monospace regression", () => {
         f.includes("shared/JsonFormView.css") ||         // JSON display component (intentional)
         f.includes("FootprintMockGalleryPage.css") ||    // mock code-editor/terminal gallery display (intentional)
         f.includes("PrivilegeMcpClientPage.css") ||      // MCP client code/token display (intentional)
-        f.includes("TransactionTracePage.css")           // trace cid/phase/op code display (intentional)
+        f.includes("TransactionTracePage.css") ||        // trace cid/phase/op code display (intentional)
+        f.includes("DetailedStepsTabContent.css") ||     // step request/response code display (intentional)
+        f.includes("ProtocolPlayground/ProtocolPlayground.css") || // protocol frame/code display (intentional)
+        f.includes("ResourceServerInterstitial.css") ||  // RS token/scope code display (intentional)
+        f.includes("TokenFlowDetailModal.css") ||        // token claim/JSON code display (intentional)
+        f.includes("LiveUseCaseWorkbenchPage.css") ||    // workbench log/tool code display (intentional)
+        f.includes("ResourceServerJourneyPage.css") ||   // journey token/code display (intentional)
+        f.includes("agent-clinical/TokensPane.css")      // token claim/badge value display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");
