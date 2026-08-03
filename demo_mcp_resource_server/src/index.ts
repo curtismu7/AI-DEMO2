@@ -13,6 +13,8 @@
  * HTTP surfaces (same port):
  *   GET  /.well-known/oauth-protected-resource  — RFC 9728 metadata
  *   GET  /health
+ *   POST /mcp                                   — MCP JSON-RPC (for PingGateway,
+ *                                                 which has no WS listener)
  *
  * Start: MCP_SERVER_RESOURCE_URI=https://mcp-resource-server.ping.demo node dist/index.js
  */
@@ -83,8 +85,21 @@ function apiKeyMatches(presented: string): boolean {
 // unlocks tools — 'invest:read' for the invest namespace, 'airlines:read' for
 // the SQLite-backed airlines namespace.
 
+/** Cap on a single HTTP MCP request body — a tool call is a few hundred bytes. */
+const MAX_MCP_BODY_BYTES = 256 * 1024;
+
+/**
+ * Extract a bearer token from an Authorization header. Shared by both
+ * transports so the HTTP path can never diverge from the WebSocket one on
+ * something as easy to get subtly wrong as header parsing.
+ */
+function bearerFrom(header: string | string[] | undefined): string {
+  const parts = String(header || '').split(' ');
+  return parts.length === 2 && parts[0].toLowerCase() === 'bearer' ? parts[1] : '';
+}
+
 // ---------------------------------------------------------------------------
-// HTTP: RFC 9728 metadata + health
+// HTTP: RFC 9728 metadata + health + MCP (JSON-RPC over POST)
 // ---------------------------------------------------------------------------
 
 function handleHttp(req: IncomingMessage, res: ServerResponse): void {
@@ -116,6 +131,63 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       resourceUri: RESOURCE_URI,
       authMethods: ['bearer_token', 'api_key'],
     }));
+    return;
+  }
+
+  // HTTP MCP — JSON-RPC over POST.
+  //
+  // The WebSocket transport below is the original one, but PingGateway/IG has no
+  // WebSocket listener, so an IG-fronted deployment could not reach these tools
+  // at all (its /mcp/invest route proxied to an endpoint that 404'd). This runs
+  // the SAME handleMessage as the WS path, so audience validation and the
+  // per-tool scope gate are identical by construction, not by duplication.
+  if (url === '/mcp' && req.method === 'POST') {
+    const token = bearerFrom(req.headers['authorization']);
+    if (!token) {
+      res.writeHead(401, {
+        'Content-Type': 'application/json',
+        // RFC 9728: point an unauthenticated caller at the metadata document.
+        'WWW-Authenticate': `Bearer resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+      });
+      res.end(JSON.stringify({ error: 'invalid_token', error_description: 'Bearer token required' }));
+      return;
+    }
+
+    let body = '';
+    let tooLarge = false;
+    req.on('data', (chunk) => {
+      if (tooLarge) return;
+      body += chunk;
+      if (body.length > MAX_MCP_BODY_BYTES) {
+        tooLarge = true;
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'payload_too_large' }));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (tooLarge) return;
+      let replied = false;
+      const send = (s: string): void => {
+        if (replied) return;
+        replied = true;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(s);
+      };
+      handleMessage(body, token, send)
+        .then(() => {
+          // A notification (e.g. notifications/initialized) produces no response.
+          if (!replied) { res.writeHead(202); res.end(); }
+        })
+        .catch((err) => {
+          console.error('[mcp-resource-server] HTTP MCP handler error:', err);
+          if (!replied) {
+            replied = true;
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(rpcError(null, -32603, 'Internal error'));
+          }
+        });
+    });
     return;
   }
 
@@ -273,11 +345,7 @@ const httpServer = createServer(handleHttp);
 const wss = new WebSocket.Server({ server: httpServer });
 
 wss.on('connection', (ws, req) => {
-  const auth = req.headers['authorization'] || '';
-  const tokenParts = auth.split(' ');
-  const token = tokenParts.length === 2 && tokenParts[0].toLowerCase() === 'bearer'
-    ? tokenParts[1]
-    : '';
+  const token = bearerFrom(req.headers['authorization']);
 
   if (!token) {
     ws.close(4001, 'Bearer token required');
@@ -305,3 +373,7 @@ httpServer.listen(PORT, HOST, () => {
 
 process.on('SIGINT', () => { httpServer.close(); process.exit(0); });
 process.on('SIGTERM', () => { httpServer.close(); process.exit(0); });
+
+// Exported so the HTTP MCP transport can be exercised against a real socket
+// (PORT=0 for an ephemeral port) instead of a hand-rolled request/response fake.
+export { httpServer };
