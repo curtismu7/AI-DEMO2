@@ -61,6 +61,11 @@ async function runReasonLoop(p) {
   // toolsCalled: [] because this was never reported, which made every LLM-path
   // use case unable to satisfy 'tool-dispatched' evidence even when a tool ran.
   const toolsCalled = [];
+  // The payloads those tools returned, kept so the caller can prove each claim
+  // in the model's answer came from real data (services/groundedAnswer.js).
+  // Names alone cannot do that: "a tool ran" is not "this number came from it".
+  // SERVER-SIDE ONLY — raw tool output must never be forwarded to a client.
+  const toolResults = [];
   for (let i = 0; i < p.maxIterations; i++) {
     let resp;
     try {
@@ -95,7 +100,7 @@ async function runReasonLoop(p) {
         // Present only when a tool actually ran — same convention as `truncated`
         // directly above. agentReasoningLoop.regression.test.js asserts this
         // object with toEqual, so the no-tool shape must stay byte-identical.
-        ...(toolsCalled.length ? { toolsCalled } : {}),
+        ...(toolsCalled.length ? { toolsCalled, toolResults } : {}),
         inputTokens: data.inputTokens ?? 0,
         outputTokens: data.outputTokens ?? 0,
       };
@@ -119,6 +124,7 @@ async function runReasonLoop(p) {
         }
         seenCalls.set(sig, resultStr);
         toolsCalled.push(call.name);
+        toolResults.push({ name: call.name, result: resultStr });
         toolMessages.push({ role: 'tool', content: resultStr, tool_call_id: call.id });
       }
       messages = [...(data.messages || messages), ...toolMessages];
