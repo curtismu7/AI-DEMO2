@@ -564,12 +564,16 @@ describe('HttpMCPTransport', () => {
       expect(mock.statusCode).toBe(202);
     });
 
-    it('should return 401 for a notification with no bearer (auth runs before routing)', async () => {
+    it('should return 401 for a non-handshake notification with no bearer (auth runs before routing)', async () => {
+      // notifications/initialized is exempt — it is a REQUIRED step of the
+      // unauthenticated discovery handshake (initialize → notifications/initialized
+      // → tools/list); see tests/discovery-handshake-unauthenticated.test.ts.
+      // Every other notification still authenticates before routing.
       const handleSpy = jest.fn();
       mockHandler.handleMessage = handleSpy;
       const req = makeRequest({
         method: 'POST',
-        body: JSON.stringify({ method: 'notifications/initialized' }),
+        body: JSON.stringify({ method: 'notifications/cancelled', params: { requestId: 1 } }),
         headers: {},
       });
       const mock = makeResponse();
