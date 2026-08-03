@@ -107,8 +107,8 @@ async function fetchRetryable(url, opts = {}) {
 }
 
 /** Stable names — idempotent GET list + create if missing */
-const DEMO_TX_ENDPOINT_NAME = 'Super Banking Demo — Transactions';
-const DEMO_MCP_ENDPOINT_NAME = 'Super Banking Demo — MCP first tool';
+const DEMO_TX_ENDPOINT_NAME = 'AI Demo — Transactions';
+const DEMO_MCP_ENDPOINT_NAME = 'AI Demo — MCP first tool';
 
 const REGION_TLD_MAP = {
   com: 'com',
@@ -1314,7 +1314,7 @@ async function provisionDemoDecisionEndpoints(options = {}) {
     const r = await _createDecisionEndpointResource({
       name: DEMO_TX_ENDPOINT_NAME,
       description:
-        'Super Banking demo — transactions (Trust Framework: Amount, TransactionType, UserId, Acr, Timestamp). Created by Application Configuration bootstrap.',
+        'AI Demo — transactions (Trust Framework: Amount, TransactionType, UserId, Acr, Timestamp). Created by Application Configuration bootstrap.',
       policyId,
       authorizationVersionId,
     });
@@ -1326,7 +1326,7 @@ async function provisionDemoDecisionEndpoints(options = {}) {
     const r = await _createDecisionEndpointResource({
       name: DEMO_MCP_ENDPOINT_NAME,
       description:
-        'Super Banking demo — first MCP tool gate (DecisionContext=McpFirstTool). Trust Framework attributes: TokenAudience (aud), ActClientId (act.client_id|act.sub), NestedActClientId (act.act.client_id|act.act.sub). Created by Application Configuration bootstrap.',
+        'AI Demo — first MCP tool gate (DecisionContext=McpFirstTool). Trust Framework attributes: TokenAudience (aud), ActClientId (act.client_id|act.sub), NestedActClientId (act.act.client_id|act.act.sub). Created by Application Configuration bootstrap.',
       policyId,
       authorizationVersionId,
     });

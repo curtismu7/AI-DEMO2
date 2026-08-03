@@ -201,7 +201,7 @@ router.get('/evaluation-status', authenticateToken, async (req, res) => {
 /**
  * POST /api/authorize/bootstrap-demo-endpoints
  * Admin-only: uses worker token + PingOne Platform API to create (or reuse) two decision endpoints
- * named "Super Banking Demo — Transactions" and "Super Banking Demo — MCP first tool", then saves their IDs
+ * named "AI Demo — Transactions" and "AI Demo — MCP first tool", then saves their IDs
  * into config when persistence is available (KV / local SQLite).
  *
  * Body (optional): { policyId?, authorizationVersionId?, enableLiveAuthorize?, enableMcpFirstTool? }
