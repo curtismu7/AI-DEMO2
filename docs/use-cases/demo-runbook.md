@@ -35,6 +35,7 @@
 |---|---|---|---|
 | UC1 | `check my coverage` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive patient records` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my health records` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `pay my $2500 bill` | `DENY` | $2500 bill payment exceeds the policy ceiling — Authorize returns DENY. |
@@ -44,6 +45,7 @@
 | UC24 | `What clinics are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request a copy of my records?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## retail
 
@@ -51,6 +53,7 @@
 |---|---|---|---|
 | UC1 | `list my orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my large purchase` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `checkout headphones for $2500` | `DENY` | $2500 checkout exceeds the policy ceiling — Authorize returns DENY. |
@@ -67,6 +70,7 @@
 |---|---|---|---|
 | UC1 | `show my permits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive tax record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my permit status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `pay the $2500 fee` | `DENY` | $2500 fee payment exceeds the policy ceiling — Authorize returns DENY. |
@@ -76,6 +80,7 @@
 | UC24 | `What city offices are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you submit my permit filing?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## university
 
@@ -83,6 +88,7 @@
 |---|---|---|---|
 | UC1 | `show my enrolled courses` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `access my sensitive student finance` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my enrollment status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `pay $2500 tuition` | `DENY` | $2500 tuition payment exceeds the policy ceiling — Authorize returns DENY. |
@@ -92,6 +98,7 @@
 | UC24 | `What campus locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request campus housing for me?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## workforce
 
@@ -99,6 +106,7 @@
 |---|---|---|---|
 | UC1 | `my benefits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive payroll details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my expense report` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `submit a $2500 expense` | `DENY` | $2500 expense exceeds the policy ceiling — Authorize returns DENY. |
@@ -108,6 +116,7 @@
 | UC24 | `What office locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request a schedule change for me?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## sporting-goods
 
@@ -133,6 +142,7 @@
 |---|---|---|---|
 | UC1 | `show my work orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive supplier contract` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my work order status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `approve a $2500 purchase order` | `DENY` | $2500 purchase-order approval exceeds the policy ceiling — Authorize returns DENY. |
@@ -149,6 +159,7 @@
 |---|---|---|---|
 | UC1 | `show my portfolios` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive holdings` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my portfolio` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `execute a large trade of $2500` | `DENY` | $2500 exceeds the policy ceiling — Authorize returns DENY before the transfer runs. |
