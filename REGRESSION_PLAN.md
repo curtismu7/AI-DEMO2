@@ -171,14 +171,34 @@ catalog the gateway cannot see. The 428 branches were hoisted above the
 `gateway_policy_denied` test so they are actually reachable, and the HITL body now
 carries `challengeId` / `challenge_type`.
 
-**Also added (not applied):** `snapshots/mcp-amount-bands.import.snapshot.json`,
-a generated P1AZ snapshot adding amount bands to the **MCP** decision endpoint.
-The gateway makes exactly one PDP call — to the MCP endpoint — but the amount
-bands live in the *Transaction* endpoint it never calls, and the MCP policy's own
-consent rule is keyed on "sensitive tools". Without this, every `create_transfer`
-would prompt for consent regardless of amount. Thresholds are **250 / 500 / 2000**
-to match the constants already in the environment, not the 300/600/2500 the
-deleted BFF ladder used; the demo amounts still land in the intended bands.
+**Also added:** `snapshots/merge-mcp-amount-bands.js`, which merges MCP amount-band
+rules INTO an exported P1AZ snapshot. The gateway makes exactly one PDP call — to
+the MCP endpoint — but the amount bands live in the *Transaction* endpoint it never
+calls, and the MCP policy's own consent rule is keyed on "sensitive tools". Without
+these rules, every `create_transfer` prompts for consent regardless of amount. The
+merger reuses the environment's existing amount conditions rather than restating
+thresholds, and renames the containers Super Banking → AI Demo in place (same ids).
+
+**A PUBLISH REPLACES THE WHOLE TREE — never import a standalone root PolicySet.**
+Learned by doing it. A generated package with its own root set imported cleanly;
+publishing it made that lone set the entire authorization version, and every MCP
+audience / actor-chain / bypass / tier / group rule stopped being evaluated. A $50
+call with no token audience and no registered actor went from `DENY` +
+`mcp-invalid-audience` to `PERMIT`. Recovered by restoring the prior version
+(PingOne keeps version history — `GET /environments/{env}/authorizationVersions`
+lists them; the pre-incident one was tagged "Another A2A"). The standalone
+generator has been deleted so it cannot be run again; only the merger ships.
+
+Four importer rules, each found only by being rejected — the merger now validates
+all of them and refuses to write rather than emit a package that no-ops:
+1. References resolve against objects **in the package**, never the environment —
+   a snapshot cannot cite what is already live. Hence merge-into-export.
+2. Attributes resolve **by name** against the decision request's `parameters`.
+   A package defining `McpAmount` while the gateway sends `Amount` imports
+   cleanly and matches nothing: every condition reads its default, no rule fires.
+3. A Statement is a **private entity owned by one Rule** unless `shared: true`.
+   Citing one from two rules fails with "has multiple parents".
+4. Exactly one root PolicySet, or the publish replaces the tree (above).
 
 **Same bug, second transport:** the Node gateway read only the decision label
 too — there was no statement classification anywhere in `demo_mcp_gateway/src`.
