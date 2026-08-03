@@ -25,6 +25,13 @@ describe('demoTrackService', () => {
     expect(run.slots['fine-grained-authz:red']).toMatchObject({ verdict: 'DENY', decisionId: 'd-4f21c9' });
   });
 
+  test('observeToolCall stamps the authorize decisionId on PERMIT slots', () => {
+    svc.setActiveStep('fine-grained-authz');
+    svc.observeToolCall({ toolName: 'transfer_funds', success: true, timestamp: '2026-08-03T10:00:00Z', decisionId: 'd-permit-1' });
+    const { run } = svc.getState();
+    expect(run.slots['fine-grained-authz:green']).toMatchObject({ verdict: 'PERMIT', decisionId: 'd-permit-1' });
+  });
+
   test('wildcard slots only fill on the active step', () => {
     svc.setActiveStep('fine-grained-authz');
     svc.observeToolCall({ toolName: 'some_unknown_tool', success: true, timestamp: '2026-08-03T10:01:00Z' });

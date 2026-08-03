@@ -1042,7 +1042,7 @@ async function runMcpToolPipeline(ctx) {
             mcpAuthorizeEvaluations: _authEval?.plural || null,
         });
         // Also record in local audit store (covers BFF-proxied calls)
-        deps.recordMcpToolCall({ userId: resolveAuditUserId(req, userSub) || 'unknown', toolName: tool, success: !result?.isError, duration: _durationMs, requestJson, resultJson: result ?? null, summary: result?.isError ? `${tool} failed` : `${tool} completed`, isDelegated: !!mcpAccessToken });
+        deps.recordMcpToolCall({ userId: resolveAuditUserId(req, userSub) || 'unknown', toolName: tool, success: !result?.isError, duration: _durationMs, requestJson, resultJson: result ?? null, summary: result?.isError ? `${tool} failed` : `${tool} completed`, isDelegated: !!mcpAccessToken, decisionId: mcpAuthorizeEvaluationThisRequest?.decisionId || null });
 
         deps.emit({
             phase: 'mcp_remote_done'
@@ -1070,7 +1070,7 @@ async function runMcpToolPipeline(ctx) {
                         mcpAuthorizeEvaluation: _authEval?.singular || null,
                         mcpAuthorizeEvaluations: _authEval?.plural || null,
                     });
-                    deps.recordMcpToolCall({ userId: effectiveUserId || 'unknown', toolName: tool, success: !localResult?.error, duration: _acDuration, requestJson, resultJson: localResult ?? null, summary: localResult?.error ? `${tool} failed` : `${tool} completed` });
+                    deps.recordMcpToolCall({ userId: effectiveUserId || 'unknown', toolName: tool, success: !localResult?.error, duration: _acDuration, requestJson, resultJson: localResult ?? null, summary: localResult?.error ? `${tool} failed` : `${tool} completed`, decisionId: mcpAuthorizeEvaluationThisRequest?.decisionId || null });
                     return localResultOutcome(localResult, tokenEvents, { _localFallback: true });
                 } catch (localErr) {
                     logger.error(_CAT, `[MCP Local] ${tool} — auth-challenge fallback failed: ${localErr.message}`);
