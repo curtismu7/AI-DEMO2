@@ -10,6 +10,29 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-03-airlines-usecase-catalog-design.md`
 
+## Status (2026-08-03)
+
+Tasks 1–7 and 10 are **implemented and committed** on `worktree-airlines-usecase-catalog`.
+The per-task checkboxes below were never ticked during execution — read the git log,
+not the boxes.
+
+Two changes the plan did not anticipate, both forced by a gate:
+
+- `nlIntentParser.js`'s public-catalog rule had no `airport`/`terminal` noun, so
+  "What airports are near me?" routed to `null` and `useCases.primaryTool.test.js`
+  failed. Added in Task 6.
+- `scopeTopology.regression` asserts every `a2aDelegatedScope` is grantable on the
+  `Super Banking A2A MCP Gateway` resource, so `airlines:read` was added there in
+  Task 7. This is the check the plan deferred to Task 9 Step 6 — it is now settled
+  offline, and `sensitive_airline_bookings` keeps its original `requiredScopes`.
+
+One real defect surfaced, fixed in the same branch: `intentAuthService`'s
+hand-maintained `READ_ONLY_INTENTS` did not carry the airlines read tools, so both
+UC1 and UC2 chips would have 428'd.
+
+**Still open:** Task 8 (PingOne provisioning — needs the user to paste two secrets)
+and Task 9 Steps 2–10 (live verification against a running stack).
+
 ## Global Constraints
 
 - Work happens in worktree `airlines-usecase-catalog`, branch `worktree-airlines-usecase-catalog`. Every commit is staged explicitly by path. Never `git add -A` — a BFF jest run regenerates roughly 443 data files.
