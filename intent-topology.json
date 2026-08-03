@@ -3,7 +3,7 @@
   "counts": {
     "verticals": 13,
     "chips": 129,
-    "intents": 95,
+    "intents": 94,
     "byVertical": {
       "admin": 8,
       "airlines": 5,
@@ -70,6 +70,7 @@
     "a2a": {
       "aligned": true,
       "verticals": [
+        "airlines",
         "banking",
         "government",
         "healthcare",
@@ -81,6 +82,21 @@
         "workforce"
       ],
       "cells": {
+        "airlines": {
+          "vertical": "airlines",
+          "chipId": "ua-a2a",
+          "message": "access my sensitive airline bookings",
+          "mode": "both",
+          "declaredTool": "sensitive_airline_bookings",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "sensitive_airline_bookings",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "sensitive_airline_bookings",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        },
         "banking": {
           "vertical": "banking",
           "chipId": "bk-a2a",
@@ -465,29 +481,6 @@
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "check_seat_availability",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        }
-      }
-    },
-    "airlines:ua4": {
-      "aligned": false,
-      "verticals": [
-        "airlines"
-      ],
-      "cells": {
-        "airlines": {
-          "vertical": "airlines",
-          "chipId": "ua4",
-          "message": "access my sensitive airline bookings",
-          "mode": "both",
-          "declaredTool": "sensitive_airline_bookings",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "sensitive_airline_bookings",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "sensitive_airline_bookings",
           "clientDispatched": false,
           "offeredToLlm": true,
           "reachable": true

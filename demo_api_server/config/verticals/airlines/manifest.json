@@ -87,13 +87,13 @@
         "group": "advanced"
       },
       {
-        "id": "ua4",
+        "id": "ua-a2a",
         "label": "🔐 Sensitive reservations",
         "message": "access my sensitive airline bookings",
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_airline_bookings",
-        "useCaseId": "hitl-consent",
+        "useCaseId": "a2a-delegation",
         "group": "advanced"
       },
       {
