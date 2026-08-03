@@ -30,7 +30,7 @@
 const VERTICALS = [
   'banking', 'healthcare', 'retail', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
-  'investment',
+  'investment', 'airlines',
 ];
 
 
@@ -44,6 +44,7 @@ const READ_TRIGGER_BY_VERTICAL = {
   'sporting-goods': 'my gear',
   manufacturing: 'show my work orders',
   investment: 'show my portfolios',
+  airlines: 'show my reservations',
 };
 
 /** Amount-gated write phrases ($300 HITL / $600 step-up / $2500 deny). */
@@ -58,6 +59,7 @@ function amountTriggerByVertical(amount) {
     'sporting-goods': `extend my rental $${n}`,
     manufacturing: `approve a $${n} purchase order`,
     investment: `execute a large trade of $${n}`,
+    airlines: `pay a $${n} change fee`,
   };
 }
 
@@ -90,6 +92,7 @@ const READ_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods': 'list_gear',
   manufacturing: 'view_work_orders',
   investment: 'view_portfolios',
+  airlines: 'get_airline_bookings',
 };
 
 /** Amount-gated write tool per vertical (UC6/7/8 DENY / step-up / consent). */
@@ -102,6 +105,7 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods': 'extend_rental',
   manufacturing: 'approve_purchase_order',
   investment: 'large_trade',
+  airlines: 'pay_airline_fee',
 };
 
 /** Merge per-vertical primaryTool into chipOverrides extras. */
@@ -132,6 +136,7 @@ const A2A_TRIGGER_BY_VERTICAL = {
   'sporting-goods':  'show my sensitive membership details',
   manufacturing:     'show my sensitive supplier contract',
   investment:        'show my sensitive holdings',
+  airlines:          'show my sensitive reservations',
 };
 const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare:        'sensitive_patient_records',
@@ -142,6 +147,7 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods':  'sensitive_membership_details',
   manufacturing:     'sensitive_supplier_contract',
   investment:        'sensitive_holdings',
+  airlines:          'sensitive_airline_bookings',
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 
@@ -672,6 +678,7 @@ const RAW_USE_CASES = [
       'sporting-goods': 'What stores are near me?',
       manufacturing: 'What plant locations are near me?',
       investment: 'What branches are near me?',
+      airlines: 'What airports are near me?',
     }, withPrimaryTool({
       healthcare: 'get_branch_hours',
       retail: 'get_branch_hours',
@@ -681,6 +688,7 @@ const RAW_USE_CASES = [
       'sporting-goods': 'get_branch_hours',
       manufacturing: 'get_branch_hours',
       investment: 'get_branch_hours',
+      airlines: 'get_branch_hours',
     })),
   },
   {

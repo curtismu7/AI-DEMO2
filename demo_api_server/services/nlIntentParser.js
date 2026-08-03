@@ -950,7 +950,7 @@ function parseHeuristic(
   // before plugin heuristics so non-banking verticals still reach get_branch_hours
   // instead of falling through to the capability catalog.
   if (
-    /\b(branch|branches|atm|atms|clinic|clinics|store|stores|office|offices|campus|plant|plants|location|locations)\b/.test(
+    /\b(branch|branches|atm|atms|clinic|clinics|store|stores|office|offices|campus|plant|plants|airport|airports|terminal|terminals|location|locations)\b/.test(
       t,
     ) &&
     /\b(near|hours|location|locations|find|where|what|open)\b/.test(t)

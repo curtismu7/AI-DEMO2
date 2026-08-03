@@ -157,3 +157,19 @@
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
+## airlines
+
+| UC | Type this | Must happen | What to say |
+|---|---|---|---|
+| UC1 | `show my reservations` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive reservations` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
+| UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
+| UC6 | `pay a $2500 change fee` | `DENY` | $2500 exceeds the policy ceiling — Authorize returns DENY before the transfer runs. |
+| UC7 | `pay a $600 change fee` | `STEP_UP` | $600 >= $500 → MFA required, then it proceeds. |
+| UC8 | `pay a $300 change fee` | `HITL_REQUIRED` | The agent paused and waited — the transfer only ran after you approved it. |
+| UC22 | `pay a $150 change fee` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
+| UC24 | `What airports are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+
