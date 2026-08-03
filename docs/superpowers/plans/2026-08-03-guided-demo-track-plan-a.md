@@ -1110,3 +1110,10 @@ Report the three result lines (server / UI / topology) with ✅ or ❌ per repo 
 - Spec coverage (Plan A scope): track definition ✓ (Task 1), run ledger + matcher + persistence ✓ (Task 2), live observation ✓ (Task 3), API ✓ (Task 4), live tab with slots / gauntlet / proved cards ✓ (Tasks 5–6). Deliberately deferred to Plans B/C: standalone page + history UI, agent dropdown, chip injection, tab live-dot polish, per-step drill-down JSON.
 - Known simplifications (documented in code/comments): PERMIT slots carry `decisionId: null` in Plan A; wildcard matches only on the active step; one observation may match the earliest eligible step when several steps share a tool — the active-step rule is the disambiguator.
 - Type consistency: slot stamp `{ verdict, decisionId, via, at }` used identically in service, route response, and UI; `run.gauntlet[sim] = { blocked, status, errorCode, decisionId, at }` consistent between Task 2 and Task 5.
+
+## Post-merge residuals (final whole-branch review 2026-08-03 — approved, all can-ride; carry into Plan B)
+
+- Gauntlet sims that run the full pipeline can restamp `fine-grained-authz:red` via the fallback scan (overwrite semantics are by design; presenter's step-3 decision ID may change after the gauntlet). Consider scoping the fallback scan or freezing completed steps in Plan B.
+- UI "N slots filled" counter counts orphaned slot keys from LMDB-hydrated runs after a future config rename (cosmetic).
+- Spec surface-2 polish deferred: mini token-chain strips per run line, decision-ID link into token detail views, tab live-dot — Plan B/C.
+- Untested: overwrite-on-reobservation path (3-line unconditional assignment); genuine LMDB hydrate-from-disk restart path.
