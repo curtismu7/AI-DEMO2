@@ -25,7 +25,7 @@ Use this table as your single source of truth when filling in PingOne forms and 
 | Item | Field | Exact value |
 |------|-------|-------------|
 | Authorize Worker App | Name | `Super Banking Authorize Worker` |
-| Transaction Policy | Name | `Super Banking Transaction Authorization` |
+| Transaction Policy | Name | `AI Demo Transaction Authorization` |
 | MCP Delegation Policy | Name | `Super Banking MCP Delegation` |
 | Transaction Decision Endpoint | Name | `Super Banking Transaction Authorization Endpoint` |
 | MCP Decision Endpoint | Name | `Super Banking MCP Delegation Endpoint` |
@@ -119,7 +119,7 @@ These attributes are sent on the first MCP tool call per user session.
 
 | Field | Type in |
 |-------|---------|
-| **Policy name** | `Super Banking Transaction Authorization` |
+| **Policy name** | `AI Demo Transaction Authorization` |
 | **Description** | `Evaluates Super Banking banking transaction requests. Returns PERMIT for allowed transactions, DENY for rejected ones, and a step-up MFA obligation (HTTP 428) when stronger authentication is required before the transaction can proceed.` |
 
 **Reference policy rules** — implement these conditions in the PingOne Authorize policy editor using the Trust Framework attributes from Step 2a:
@@ -168,8 +168,8 @@ Only required if you are enabling the MCP first-tool gate (`ff_authorize_mcp_fir
 | Field | Type in |
 |-------|---------|
 | **Name** | `Super Banking Transaction Authorization Endpoint` |
-| **Description** | `Decision endpoint for Super Banking transaction authorization. Called by the BFF on every transfer and withdrawal request. Evaluates the Super Banking Transaction Authorization policy.` |
-| **Policy** | Select `Super Banking Transaction Authorization` |
+| **Description** | `Decision endpoint for Super Banking transaction authorization. Called by the BFF on every transfer and withdrawal request. Evaluates the AI Demo Transaction Authorization policy.` |
+| **Policy** | Select `AI Demo Transaction Authorization` |
 | **Record recent requests** | ✅ Enable *(allows admin monitoring and demo playback)* |
 
 Click **Save**, then copy the **Decision Endpoint ID** — this becomes `PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID`.

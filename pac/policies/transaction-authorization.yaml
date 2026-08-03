@@ -1,10 +1,10 @@
-# Super Banking Transaction Authorization — Policy as Code source of truth.
+# AI Demo Transaction Authorization — Policy as Code source of truth.
 #
 # Deployed by scripts/pac-deploy.sh to the "Super Banking Demo - Policy as Code"
 # decision endpoint alongside mcp-delegation.yaml. Both live on the same PaC
 # endpoint (ad5fc1d4-…); pac deploy replaces the whole package each run.
 #
-# Mirror of the "Super Banking Transaction Authorization" policy in the snapshot.
+# Mirror of the "AI Demo Transaction Authorization" policy in the snapshot.
 # The console-authored Transactions endpoint (c9e87348-…) is NOT touched here.
 #
 # Combining algorithm: deny-overrides — any DENY wins.

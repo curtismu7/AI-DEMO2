@@ -12,7 +12,7 @@
  *
  * authz-server is a faithful local implementation of an AUTHORED cloud policy.
  * `snapshots/gen-authorize-snapshot.js` generates
- * `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` from
+ * `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json` from
  * the same source of truth, and the mock deliberately emits the SAME
  * `statements[].code` values the snapshot defines (see DENY_CODE_BY_REASON_PREFIX
  * in demo_authz_server/routes/decision.js).
@@ -177,7 +177,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   console.log('[cloud-parity] does the LIVE PingOne Authorize policy enforce the authored rules?');
-  console.log('[cloud-parity] source of truth: snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json\n');
+  console.log('[cloud-parity] source of truth: snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json\n');
 
   const token = await workerToken();
 

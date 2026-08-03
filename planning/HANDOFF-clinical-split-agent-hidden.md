@@ -20,7 +20,7 @@ sessions. Written by the token-chain session (branch
   error branch; characterization test pins it, 51 pass).
 - **P1AZ policy actor-id drift FIXED and imported**: all 7 client ids in the
   live policy's `HasValidActorChain` were retired-env ids. Snapshot
-  `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`
+  `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
   corrected (Token Exchanger `f4dd707d`, AI Agent Actor `71e878ea`, 5
   specialists), user imported it — real P1AZ now PERMITs.
   `snapshots/The_AI-Demo_Transaction_Authorization_P1AZ.snapshot.json`

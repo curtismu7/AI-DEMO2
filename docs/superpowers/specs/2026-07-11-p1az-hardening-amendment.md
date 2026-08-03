@@ -57,7 +57,7 @@ beyond the two gates:
 
 ### Detection reachability — narrow the claim (Finding: premise unreachable)
 
-Against the committed snapshot `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`,
+Against the committed snapshot `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`,
 `NOT_APPLICABLE` is **not reachable for the "new tool, forgot to update P1AZ" case**:
 the snapshot uses `DenyOverrides`, partitions all traffic by `DecisionContext`, and
 ends each partition in an always-applicable `unconditionalPermit` catch-all

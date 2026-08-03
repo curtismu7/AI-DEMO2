@@ -67,7 +67,7 @@ describe('getAuthorizationPoliciesFromSnapshot testCases wiring', () => {
     // The service exposes only testCases on a rule, not its condition, so the
     // registered set is read from the snapshot — the same artifact the policy
     // is generated into.
-    const snap = require('../../../snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
+    const snap = require('../../../snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json');
     const actorCond = snap.find((o) => o.name === 'HasValidActorChain');
     const registered = [];
     const collect = (n) => {

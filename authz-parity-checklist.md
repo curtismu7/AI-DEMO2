@@ -4,7 +4,7 @@
 
 - [ ] Regenerate snapshot: `node snapshots/gen-authorize-snapshot.js`
 - [ ] Verify snapshot is up-to-date: `node snapshots/gen-authorize-snapshot.js --check`
-- [ ] Verify statement sharing: grep `"id":"34567890-0003".*"shared":true` snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+- [ ] Verify statement sharing: grep `"id":"34567890-0003".*"shared":true` snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
 - [ ] Run authz tests: `npm --prefix demo_mcp_gateway test -- mortgageDispatch.test.ts`
 - [ ] Verify parity: consent tools (9) and step-up tools (7) match both engines
 
@@ -14,7 +14,7 @@
 |------|---------|
 | `scope-topology.json` | Single source of truth for tool policies |
 | `snapshots/gen-authorize-snapshot.js` | Generator (reconciles snapshot with SoT) |
-| `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` | P1AZ import file |
+| `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json` | P1AZ import file |
 | `demo_authz_server/routes/decision.js` | Mock authz decision logic |
 | `demo_mcp_gateway/src/auth/toolScopes.ts` | Gateway scope validation |
 
@@ -40,7 +40,7 @@
 Run snapshot generator after updating scope-topology.json:
 ```bash
 node snapshots/gen-authorize-snapshot.js
-git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+git add snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
 git commit -m "chore(authz): regenerate P1AZ snapshot from scope-topology.json"
 ```
 

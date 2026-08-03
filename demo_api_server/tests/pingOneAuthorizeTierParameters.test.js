@@ -20,7 +20,7 @@
  *      ff_authorize_group_policy is off.
  *
  * Ties demo_api_server/services/{groupPolicy,pingOneAuthorizeService}.js to
- * snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json.
+ * snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json.
  */
 'use strict';
 
@@ -37,7 +37,7 @@ const { buildMcpDelegationParameters } = require('../services/pingOneAuthorizeSe
 
 const SNAP = path.join(
   __dirname, '..', '..', 'snapshots',
-  'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json',
+  'AI_Demo_Transaction_Authorization_P1AZ.snapshot.json',
 );
 const ATTR_USER_TIER = '12345678-0015-4321-abcd-000000000015';
 const ATTR_AMOUNT = '12345678-0001-4321-abcd-000000000001';
