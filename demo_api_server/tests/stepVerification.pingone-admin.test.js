@@ -19,7 +19,7 @@ const VERTICAL = 'pingone-admin';
 const ADMIN_PARSE_EXPECT = {
   ADMIN1: { action: 'call_pingone_tool', toolName: 'listApplications' },
   ADMIN2: { action: 'call_pingone_tool', toolName: 'listUsers' },
-  ADMIN3: { action: 'call_pingone_tool', toolName: 'listGroups' },
+  ADMIN3: { action: 'call_pingone_tool', toolName: 'listPopulations' },
   ADMIN4: { action: 'call_pingone_tool', toolName: 'getEnvironment' },
 };
 

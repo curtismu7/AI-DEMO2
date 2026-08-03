@@ -254,6 +254,56 @@ async function main() {
     process.exit(0);
   }
 
+  // ── Resolve resource ids ────────────────────────────────────────────────
+  // Audiences come from scope-topology.json so this cannot drift from the
+  // manifest. The ids are what pingoneProvisionService.findObject() prefers over
+  // audience and (last) display name — without them it can only ever reach step 2
+  // of its own precedence, which is why `Demo MCP Invest` was resolvable by a
+  // display name that had drifted. Audience is stable, but the id is exact.
+  const RESOURCE_TARGETS = {
+    ENDUSER:             topology.resources?.['Super Banking API']?.uri,
+    MCP_SERVER:          topology.resources?.['Super Banking MCP Server']?.uri,
+    MCP_GATEWAY:         topology.resources?.['Super Banking MCP Gateway']?.uri,
+    AGENT_GATEWAY:       topology.resources?.['Super Banking Agent Gateway']?.uri,
+    MCP_RESOURCE_SERVER: topology.resources?.['Super Banking MCP Invest']?.uri,
+    JWT_VERIFIER:        topology.resources?.['Super Banking MCP JWT Verifier']?.uri,
+  };
+  const resourceTargets = Object.fromEntries(
+    Object.entries(RESOURCE_TARGETS).filter(([, aud]) => !!aud),
+  );
+
+  let resources = {};
+  try {
+    resources = await resolveResourcesByAudience(token, region, envId, resourceTargets);
+    const missing = Object.keys(resourceTargets).filter((k) => !resources[k]);
+    console.log(
+      `[refresh-envs] Resolved ${Object.keys(resources).length}/${Object.keys(resourceTargets).length} resource ids from PingOne`
+      + (missing.length ? ` — no audience match for: ${missing.join(', ')}.` : '.'),
+    );
+  } catch (err) {
+    // Non-fatal: ids are an optimisation over the audience lookup that already
+    // works. Never block an env refresh on them.
+    console.warn(`[refresh-envs] WARNING: Could not resolve resource ids: ${err.message}`);
+  }
+
+  /** PINGONE_RESOURCE_<KEY>_ID, empty string when unresolved (keeps the key stable). */
+  const resourceIds = Object.fromEntries(
+    Object.keys(resourceTargets).map((k) => [`PINGONE_RESOURCE_${k}_ID`, resources[k]?.id || '']),
+  );
+
+  // The scalars above are for humans (greppable, matches the *_URI convention).
+  // This map is what code consumes: pingoneProvisionService looks an id up BY
+  // AUDIENCE, and audience is the only key both sides already agree on. Emitting
+  // it here rather than rebuilding a KEY->audience table in the service keeps a
+  // single source of truth — a second table is how these two drift apart.
+  resourceIds.PINGONE_RESOURCE_IDS = JSON.stringify(
+    Object.fromEntries(
+      Object.entries(resourceTargets)
+        .filter(([k]) => resources[k]?.id)
+        .map(([k, aud]) => [aud, resources[k].id]),
+    ),
+  );
+
   // Fetch secrets for apps that need them
   async function secret(key) {
     if (!apps[key]?.id) return apiVars[`PINGONE_${key.toUpperCase()}_CLIENT_SECRET`] || '';
@@ -317,6 +367,11 @@ async function main() {
     PINGONE_RESOURCE_MCP_GATEWAY_URI:   fb('PINGONE_RESOURCE_MCP_GATEWAY_URI') || 'mcpgateway.ping.demo',
     AI_AGENT_INTERMEDIATE_AUDIENCE:     fb('AI_AGENT_INTERMEDIATE_AUDIENCE') || 'agentgateway.ping.demo',
     PINGONE_RESOURCE_TWO_EXCHANGE_URI:  fb('PINGONE_RESOURCE_TWO_EXCHANGE_URI') || 'mcpgateway.ping.demo',
+    // Resource GUIDs alongside the audiences above. A display name is mutable
+    // config; an id is not. Resolved by audience from scope-topology.json, so a
+    // console rename cannot move them. Empty when a resource does not exist yet
+    // (fresh environment) — findObject() then falls back to audience as before.
+    ...resourceIds,
     TWO_EXCHANGE_INTERMEDIATE_SCOPE:    fb('TWO_EXCHANGE_INTERMEDIATE_SCOPE') || 'agent:invoke',
     BFF_INTERNAL_SECRET:      fb('BFF_INTERNAL_SECRET'),
     HITL_INTERNAL_SECRET:     fb('HITL_INTERNAL_SECRET'),

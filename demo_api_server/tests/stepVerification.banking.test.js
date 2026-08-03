@@ -103,7 +103,7 @@ describe('step verification — banking chip routing (check 2: parse/route + amo
   test.each(cases.map((c) => [c.id, c]))('%s: chip routes to primaryTool with expected amount', (_id, c) => {
     const ctx = resolveVerticalCtx('banking');
     const parsed = parseHeuristic(c.chipText, 'banking', ctx, {});
-    const n = normalizeParsedIntent(parsed);
+    const n = normalizeParsedIntent(parsed, 'banking');
 
     let status = 'PASS';
     let errorClass = null;

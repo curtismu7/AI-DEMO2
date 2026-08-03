@@ -27,6 +27,29 @@ function _provisioningResourceName(internalKey) {
   return (_PROVISIONING.resourceNames || {})[internalKey] || internalKey;
 }
 
+/**
+ * audience -> PingOne resource GUID, written by scripts/refresh-service-envs.js.
+ *
+ * Lets findObject() reach step 1 of its own precedence (id) instead of starting at
+ * step 2 (audience). Audience matching already works; the id is exact and survives
+ * anything, including an audience being corrected in the manifest.
+ *
+ * Keyed by audience because that is the only identifier both the manifest and the
+ * generator already agree on — rebuilding a key->audience table here is how the
+ * two sides drift apart.
+ */
+function _resourceIdsByAudience() {
+  const raw = process.env.PINGONE_RESOURCE_IDS;
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    console.warn('[PingOneProvision] PINGONE_RESOURCE_IDS is not valid JSON — ignoring');
+    return {};
+  }
+}
+
 const PING_EMAIL_DOMAIN = '@pingidentity.com';
 
 /** Return true when email is a Ping Identity address. */
@@ -527,10 +550,11 @@ class PingOneProvisionService {
    * Create resource server
    */
   async createResourceServer(name, description, audience) {
-    // Audience before name: the audience is what tokens are minted against, so it
-    // cannot drift without breaking those tokens, whereas the display name is
-    // free to change under us. Matching name-first is what creates duplicates.
-    const existing = await this.findObject('resource', { audience, name });
+    // id → audience → name. The id comes from PINGONE_RESOURCE_IDS (written by
+    // refresh-service-envs); audience is the fallback that already worked; name
+    // is last, because matching name-first is what creates duplicates.
+    const id = _resourceIdsByAudience()[audience];
+    const existing = await this.findObject('resource', { id, audience, name });
     if (existing) {
       // PingOne returns audience as a string on GET; wrap it so callers that
       // read resource.audience[0] (see pingoneProvisionService.js:1014/1017/1026

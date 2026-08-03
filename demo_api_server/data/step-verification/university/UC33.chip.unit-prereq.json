@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "view_courses",
-  "checkedAt": "2026-08-02",
+  "primaryTool": "show_enrollment",
+  "checkedAt": "2026-08-03",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

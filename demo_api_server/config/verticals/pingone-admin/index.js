@@ -12,7 +12,9 @@ const HEURISTICS = [
   { re: /\b(look\s*up|find|get|search)\b.*\buser\b|\buser\b.*\b(look\s*up|detail|info|profile)/i, action: 'call_pingone_tool', defaultParams: { name: 'getUser' } },
   { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b|\bnew\b.*\buser\b/i,                action: 'call_pingone_tool', defaultParams: { name: 'createUser' } },
   { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                                          action: 'call_pingone_tool', defaultParams: { name: 'listApplications' } },
-  { re: /\blist\b.*\bgroup|\bshow\b.*\bgroup/i,                                      action: 'call_pingone_tool', defaultParams: { name: 'listGroups' } },
+  // No group heuristic: the hosted PingOne MCP server exposes no group tool (see
+  // demo_api_ui/public/pingone-mcp-tools.html), so group phrasing falls through to
+  // the LLM, which reads the live tool list, rather than pinning a name that 404s.
   { re: /\blist\b.*\bpopulation|\bshow\b.*\bpopulation/i,                            action: 'call_pingone_tool', defaultParams: { name: 'listPopulations' } },
   { re: /\b(get|show|view)\b.*\benvironment\b/i,                                     action: 'call_pingone_tool', defaultParams: { name: 'getEnvironment' } },
   { re: /\b(discover|explore|show|list|what|which)\b.*\b(tools?|apis?|operat|capabilit|can you do)/i, action: 'list_pingone_tools' },

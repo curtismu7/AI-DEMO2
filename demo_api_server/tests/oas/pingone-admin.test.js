@@ -34,13 +34,13 @@ test('getTools returns list_pingone_tools and call_pingone_tool with read scope'
 test('list_pingone_tools returns live tool list with source: live', async () => {
   adapter.listTools.mockResolvedValue([
     { name: 'listUsers', description: 'List users in the environment' },
-    { name: 'createGroup', description: 'Create a group' },
+    { name: 'createPopulation', description: 'Create a population' },
   ]);
   const { result, render } = await plugin.executeTool('list_pingone_tools', {}, {});
   expect(render).toBe('list_pingone_tools');
   expect(result.tools).toEqual([
     { name: 'listUsers', description: 'List users in the environment' },
-    { name: 'createGroup', description: 'Create a group' },
+    { name: 'createPopulation', description: 'Create a population' },
   ]);
   expect(result.source).toBe('live — hosted PingOne MCP');
 });
@@ -60,7 +60,7 @@ test('list_pingone_tools falls back to labeled core list on adapter failure', as
   const { result, render } = await plugin.executeTool('list_pingone_tools', {}, {});
   expect(render).toBe('list_pingone_tools');
   expect(result.tools.map((t) => t.name)).toEqual(
-    ['listUsers', 'getUser', 'listGroups', 'listApplications', 'getEnvironment']
+    ['listUsers', 'getUser', 'listPopulations', 'listApplications', 'getEnvironment']
   );
   expect(result.source).toBe('mock — PingOne MCP unavailable: PingOne MCP HTTP 401');
 });
@@ -156,5 +156,18 @@ describe('heuristics resolve chip phrasing to live tools', () => {
     const h = resolve('Get the details of my PingOne environment');
     expect(h.action).toBe('call_pingone_tool');
     expect(h.defaultParams).toEqual({ name: 'getEnvironment' });
+  });
+
+  test('list populations maps to call_pingone_tool listPopulations', () => {
+    const h = resolve('List the populations in my PingOne environment');
+    expect(h.action).toBe('call_pingone_tool');
+    expect(h.defaultParams).toEqual({ name: 'listPopulations' });
+  });
+
+  // The hosted server exposes no group tool, so group phrasing must NOT pin a
+  // hosted tool name — it falls through to the LLM, which reads the live list.
+  test('group phrasing pins no hosted tool name', () => {
+    const h = resolve('List the groups in my PingOne environment');
+    expect(h?.defaultParams).toBeUndefined();
   });
 });

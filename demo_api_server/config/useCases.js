@@ -104,6 +104,69 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   investment: 'large_trade',
 };
 
+/**
+ * UC33 — SECOND product type per vertical. The point of UC33 is that delegated
+ * proof travels to a tool that is NOT the everyday read, so this MUST differ
+ * from READ_PRIMARY_TOOL_BY_VERTICAL. Every vertical already owns an api_key
+ * (Path A) feature tool via its manifest `featurePage.mcpTool`; these are those
+ * tools. Falling back to READ_PER_VERTICAL here — the old behaviour — silently
+ * made UC33 a duplicate of UC1 while every gate stayed green, which is exactly
+ * what useCases.scenarioDistinctness.test.js now blocks.
+ */
+const SECOND_PRODUCT_TRIGGER_BY_VERTICAL = {
+  healthcare: 'show my health records',
+  retail: 'show my large purchase',
+  government: 'show my permit status',
+  university: 'show my enrollment status',
+  workforce: 'show my expense report',
+  'sporting-goods': 'show my gear warranty',
+  manufacturing: 'show my work order status',
+  investment: 'show my portfolio',
+};
+const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
+  healthcare: 'show_health_record',
+  retail: 'show_large_purchase',
+  government: 'show_permit',
+  university: 'show_enrollment',
+  workforce: 'show_expense_report',
+  'sporting-goods': 'show_gear_warranty',
+  manufacturing: 'show_work_order',
+  investment: 'show_investment',
+};
+
+/**
+ * UC28 — REQUEST-ONLY tool per vertical (Air Canada pattern). The tool must be
+ * one the agent can call to FILE a request but that cannot GRANT the thing
+ * asked for; that asymmetry is the whole demo. Like UC33 this must differ from
+ * the vertical's read tool.
+ */
+const REQUEST_ONLY_TRIGGER_BY_VERTICAL = {
+  healthcare: 'can you request a copy of my records?',
+  government: 'can you submit my permit filing?',
+  university: 'can you request campus housing for me?',
+  workforce: 'can you request a schedule change for me?',
+  'sporting-goods': 'can you price-match my last order?',
+};
+const REQUEST_ONLY_TOOL_BY_VERTICAL = {
+  healthcare: 'request_document',
+  government: 'submit_filing',
+  university: 'request_housing_assignment',
+  workforce: 'request_schedule_change',
+  'sporting-goods': 'request_price_match',
+};
+
+/**
+ * Verticals with no request-only tool YET. Explicit and justified, never a
+ * silent fallback — the completeness gate requires every vertical to appear
+ * either in the map above or here, so adding a vertical fails the build until
+ * someone decides which it is.
+ */
+const REQUEST_ONLY_NOT_APPLICABLE = {
+  retail: 'No request-only tool yet — needs a "request a price adjustment" tool (wave 2).',
+  manufacturing: 'No request-only tool yet — needs a "request a spec exception" tool (wave 2).',
+  investment: 'No request-only tool yet — needs a "request a fee-tier review" tool (wave 2).',
+};
+
 /** Merge per-vertical primaryTool into chipOverrides extras. */
 const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
   const out = { ...extraByVertical };
@@ -114,6 +177,22 @@ const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
 };
 
 const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL, withPrimaryTool(READ_PRIMARY_TOOL_BY_VERTICAL));
+
+/** UC33 — every vertical's own second product. No READ fallback: see the map's comment. */
+const SECOND_PRODUCT_PER_VERTICAL = chipOverrides(
+  SECOND_PRODUCT_TRIGGER_BY_VERTICAL,
+  withPrimaryTool(SECOND_PRODUCT_TOOL_BY_VERTICAL),
+);
+
+/**
+ * UC28 — request-only chip for the verticals that own such a tool; the three
+ * listed in REQUEST_ONLY_NOT_APPLICABLE keep the READ fallback until wave 2
+ * gives them a real one, so their chip still routes and the coverage gate holds.
+ */
+const REQUEST_ONLY_PER_VERTICAL = {
+  ...Object.fromEntries(Object.keys(REQUEST_ONLY_NOT_APPLICABLE).map((v) => [v, READ_PER_VERTICAL[v]])),
+  ...chipOverrides(REQUEST_ONLY_TRIGGER_BY_VERTICAL, withPrimaryTool(REQUEST_ONLY_TOOL_BY_VERTICAL)),
+};
 
 /**
  * A2A-specific per-vertical triggers for UC2.
@@ -339,10 +418,9 @@ const RAW_USE_CASES = [
     // (gear warranty) on the SAME api_key disposition as show_mortgage, so it
     // demonstrates the point instead of repeating UC1's read.
     perVertical: {
-      ...READ_PER_VERTICAL,
+      ...SECOND_PRODUCT_PER_VERTICAL,
       'sporting-goods': {
-        trigger: { type: 'chip', text: 'show my gear warranty' },
-        primaryTool: 'show_gear_warranty',
+        ...SECOND_PRODUCT_PER_VERTICAL['sporting-goods'],
         whatToSay: 'Same delegated token, a different product — the act claim proves the agent all the way to a warranty lookup, not just the gear list.',
       },
     },
@@ -1447,10 +1525,9 @@ const RAW_USE_CASES = [
     // sporting-goods ships its own request-only tool (request_price_match, which
     // cannot grant a price match), so it demonstrates the boundary directly.
     perVertical: {
-      ...READ_PER_VERTICAL,
+      ...REQUEST_ONLY_PER_VERTICAL,
       'sporting-goods': {
-        trigger: { type: 'chip', text: 'can you price-match my last order?' },
-        primaryTool: 'request_price_match',
+        ...REQUEST_ONLY_PER_VERTICAL['sporting-goods'],
         whatToSay: 'The agent can only submit a price-match request for human review — it has no tool that actually approves one, so it cannot hallucinate a discount into existence.',
       },
     },
@@ -1574,4 +1651,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL, A2A_PRIMARY_TOOL_BY_VERTICAL };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL, A2A_PRIMARY_TOOL_BY_VERTICAL, AMOUNT_PRIMARY_TOOL_BY_VERTICAL, SECOND_PRODUCT_TOOL_BY_VERTICAL, REQUEST_ONLY_TOOL_BY_VERTICAL, REQUEST_ONLY_NOT_APPLICABLE };

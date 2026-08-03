@@ -18,6 +18,10 @@ const HEURISTICS = [
   { re: /\bpay\s*slip[s]?\b|\bpay\s*stub[s]?\b|\bpaycheck[s]?\b|\bmy\s+pay\s+history\b/i, action: 'view_payslips' },
   { re: /\btraining[s]?\b|\blearning\s+(courses?|catalog|modules?)\b|\bmy\s+courses?\b/i, action: 'view_trainings' },
   { re: /\bmy\s+tickets?\b|\bsupport\s+(tickets?|requests?)\b|\bhelp\s+desk\b|\bIT\s+tickets?\b/i, action: 'view_tickets' },
+  // UC28 request-only: request_schedule_change FILES a request for human review and
+  // cannot change the schedule itself. Must precede view_schedule, which owns the
+  // bare "schedule" phrase and would otherwise claim this.
+  { re: /\brequest\b.{0,20}\bschedule\s+change\b|\bschedule\s+change\s+request\b/i, action: 'request_schedule_change' },
   { re: /\b(my\s+)?schedule\b|\bwork\s+(shifts?|hours|calendar)\b|\bshift[s]?\b/i, action: 'view_schedule' },
   { re: /\bmy\s+goals?\b|\bperformance\s+goals?\b|\bobjectives?\b|\bOKR[s]?\b/i, action: 'view_goals' },
   { re: /\bteam\s+(members?|directory)\b|\bcolleagues?\b|\borg\s*chart\b|\bwho\s+(is\s+on\s+my\s+team|do\s+I\s+work\s+with)\b/i, action: 'view_colleagues' },

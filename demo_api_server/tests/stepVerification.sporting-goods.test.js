@@ -92,7 +92,7 @@ describe(`step verification — ${VERTICAL} chip routing (check 2: parse/route +
   test.each(cases.map((c) => [c.id, c]))('%s: chip routes to primaryTool with expected amount', (_id, c) => {
     const ctx = resolveVerticalCtx(VERTICAL);
     const parsed = parseHeuristic(c.chipText, VERTICAL, ctx, {});
-    const n = normalizeParsedIntent(parsed);
+    const n = normalizeParsedIntent(parsed, VERTICAL);
 
     let status = 'PASS';
     let errorClass = null;
