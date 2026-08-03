@@ -35,6 +35,26 @@
     "highValueAction": "Records Release",
     "highValueLabel": "Sensitive permit-record release to a third party"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Government_Privileged",
+        "description": "Users permitted to access sensitive tax records (UC9)"
+      },
+      "delegates": {
+        "name": "Government_Delegates",
+        "description": "Users authorized as delegated citizen-services agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_tax_record": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Liberty",
     "greeting": "Hi {name}! I'm Liberty. I can show your permits and licenses, check fees owed, review your filing history, and help you release permit records — I'll walk you through the consent steps. What do you need?",
