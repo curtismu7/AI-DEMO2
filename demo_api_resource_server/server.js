@@ -151,6 +151,21 @@ const VERTICALS = {
       },
     },
   },
+  gearWarranty: {
+    noun: 'gear warranty',
+    record: {
+      gearWarranty: {
+        warrantyId: 'SS-WTY-20260419-4471',
+        item: 'Garmin Fenix 8 GPS Watch',
+        coverageTier: 'Elite Protect (3 year)',
+        startDate: '2026-04-22',
+        expiresDate: '2029-04-22',
+        claimsUsed: 1,
+        claimLimit: 3,
+        status: 'Active',
+      },
+    },
+  },
   expense: {
     noun: 'expense report',
     record: {

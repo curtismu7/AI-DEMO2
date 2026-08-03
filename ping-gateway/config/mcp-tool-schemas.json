@@ -764,6 +764,15 @@
         "additionalProperties": false
       }
     },
+    "gear_warranty_demo": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "get_account_balance": {
       "source": "olb",
       "inputSchema": {
@@ -1777,6 +1786,19 @@
         "additionalProperties": false
       }
     },
+    "request_price_match": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "request_schedule_change": {
       "source": "olb",
       "inputSchema": {
@@ -2088,6 +2110,14 @@
       }
     },
     "show_gear_order": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_gear_warranty": {
       "source": "gateway",
       "inputSchema": {
         "type": "object",

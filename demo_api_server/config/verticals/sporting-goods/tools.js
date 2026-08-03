@@ -77,6 +77,24 @@ function buildSportingGoodsTools(store) {
       authz: { consent: true },
     },
     {
+      // Placeholder action (same shape as banking's mortgage_demo): the client
+      // dispatches the real api_key-disposition MCP tool show_gear_warranty.
+      name: 'gear_warranty_demo',
+      description: 'Show gear warranty information via the api_key path.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      // The agent can only REQUEST a price match (logged for human review) — no
+      // tool can grant one. The tool set is the authorization boundary (UC28).
+      name: 'request_price_match',
+      description: 'Submit a price-match request for human review. Cannot grant a price match.',
+      inputSchema: { type: 'object', properties: { orderId: { type: 'string' } } },
+      scopes: ['write'],
+      authz: {},
+    },
+    {
       name: 'transfer_membership',
       description: 'Transfer this membership to another person (requires step-up + consent).',
       inputSchema: { type: 'object', properties: { recipient: { type: 'string' } }, required: [] },
@@ -234,6 +252,24 @@ function buildSportingGoodsTools(store) {
           },
           render: 'text',
         };
+      case 'request_price_match': {
+        // Request ONLY — deliberately never changes the order price. The agent has
+        // no tool that can grant a price match, so it cannot promise one (UC28).
+        const orders = store.get(userId).orders || [];
+        const wantedId = params && params.orderId;
+        const order = wantedId ? orders.find((o) => o.id === wantedId) : orders[0];
+        if (!order) return { result: { error: 'order not found' }, render: 'text' };
+        return {
+          result: {
+            requestId: `PM-${order.id}`,
+            orderId: order.id,
+            product: order.product,
+            status: 'Submitted for human review',
+            note: 'This request does not grant a price match.',
+          },
+          render: 'request_price_match',
+        };
+      }
       case 'transfer_membership': {
         const _to = (params && params.recipient) || 'a family member';
         return { result: { transferredTo: _to, status: 'pending step-up' }, render: 'text' };

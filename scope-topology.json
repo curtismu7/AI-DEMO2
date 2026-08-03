@@ -337,6 +337,10 @@
       "requiredScopes": ["gear:read"],
       "surface": "gateway"
     },
+    "show_gear_warranty": {
+      "requiredScopes": ["gear:read"],
+      "surface": "gateway"
+    },
     "show_expense_report": {
       "requiredScopes": ["expense:read"],
       "surface": "gateway"
@@ -1264,6 +1268,14 @@
     },
     "list_pingone_tools": {
       "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "gear_warranty_demo": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "request_price_match": {
+      "requiredScopes": ["write"],
       "surface": "gateway"
     }
   },

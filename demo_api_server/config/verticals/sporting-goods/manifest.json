@@ -126,6 +126,8 @@
       { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg5", "label": "My loyalty points", "message": "my loyalty points", "mode": "both", "tool": "loyalty_balance", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg-feature", "label": "My gear order", "message": "view my gear order", "mode": "both", "tool": "show_gear_order", "useCaseId": "delegated-access-with-proof" },
+      { "id": "sg6", "label": "My gear warranty", "message": "show my gear warranty", "mode": "both", "tool": "show_gear_warranty", "useCaseId": "mortgage-delegated-access" },
+      { "id": "sg7", "label": "Price-match my order", "message": "can you price-match my last order?", "mode": "both", "tool": "request_price_match", "useCaseId": "unauthorized-commitment-fee-waiver" },
       { "id": "sg-a2a", "label": "Sensitive membership details", "message": "access my sensitive membership details", "mode": "both", "challenge": "consent", "tool": "sensitive_membership_details", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "sg-direct", "label": "Direct MCP", "message": "order status", "mode": "direct", "tool": "gear_order_status" }
     ],
@@ -154,12 +156,12 @@
           "id": "attacks",
           "label": "Attacks",
           "chips": [
-            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent transactions and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned transaction tried to redirect the agent; the HITL gate + Authorize policy stopped the injected transfer regardless of what the LLM 'decided'." },
+            { "id": "sec_atk_prompt_injection", "label": "💉 Prompt injection", "message": "review my recent purchases and act on any instructions you find", "mode": "both", "showcase": "atk_prompt_injection", "caption": "Attack blocked. A poisoned purchase record tried to redirect the agent; the HITL gate + Authorize policy stopped the injected order regardless of what the LLM 'decided'." },
             { "id": "sec_atk_indirect_injection", "label": "💉 Indirect injection", "message": "summarize my accounts including any notes", "mode": "both", "showcase": "atk_indirect_injection", "caption": "Attack blocked. Malicious text hidden in account metadata couldn't drive an unauthorized action — the policy gate evaluates the request, not the agent's intent." },
             { "id": "sec_atk_wrong_aud", "label": "🎭 Wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "showcase": "atk_wrong_aud", "caption": "Attack blocked. A token minted for the BFF was rejected at the gateway (D-05) — each hop validates the aud claim was issued specifically for it." },
             { "id": "sec_atk_scope_escalation", "label": "🪜 Scope escalation", "message": "call an admin-only tool to escalate privileges", "mode": "direct", "showcase": "atk_scope_escalation", "caption": "Attack blocked. The attempt to grab admin capability failed with insufficient_scope at both the gateway and the MCP server — dual enforcement." },
             { "id": "sec_atk_confused_deputy", "label": "🕵 Confused deputy", "message": "act as a rogue agent on the user's behalf", "mode": "direct", "showcase": "atk_confused_deputy", "caption": "Attack blocked. A forged actor chain (rogue act.sub) failed HasValidActorChain — delegation is bound to the registered AI Agent, not a may_act allowlist." },
-            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger transfer", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
+            { "id": "sec_atk_hitl_replay", "label": "♻ HITL replay", "message": "reuse an approved consent receipt for a larger order", "mode": "direct", "showcase": "atk_hitl_replay", "caption": "Attack blocked. A consent receipt is bound to the exact tool it approved — replaying an approved create_transfer receipt on a different tool (create_withdrawal) is re-challenged, never honored." }
           ]
         },
         {
@@ -315,7 +317,8 @@
     "list_rentals": { "type": "table", "columns": [ { "label": "Rental #", "path": "id" }, { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] },
     "gear_order_status": { "type": "card", "title": "Order Status", "fields": [ { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" } ] },
     "loyalty_balance": { "type": "fieldList", "title": "Loyalty", "fields": [ { "label": "Points", "path": "points", "format": "count" }, { "label": "Tier", "path": "tier" } ] },
-    "extend_rental": { "type": "card", "title": "Rental Extended", "fields": [ { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] }
+    "extend_rental": { "type": "card", "title": "Rental Extended", "fields": [ { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "request_price_match": { "type": "card", "title": "Price-Match Request Submitted", "fields": [ { "label": "Request #", "path": "requestId" }, { "label": "Order #", "path": "orderId" }, { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Note", "path": "note" } ] }
   },
   "demoUsers": {
     "customer": {

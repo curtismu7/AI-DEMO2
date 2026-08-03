@@ -24,6 +24,10 @@ const ACTION_TO_TOOL = {
   branch_hours: 'get_branch_hours',
   weather: 'get_weather',
   mortgage_demo: 'show_mortgage',
+  // Sporting-goods' own Path A feature tool (UC33) — same alias shape as
+  // mortgage_demo: the heuristic action is a placeholder, the MCP tool is the
+  // api_key-disposition show_gear_warranty.
+  gear_warranty_demo: 'show_gear_warranty',
 };
 
 module.exports = { ACTION_TO_TOOL };

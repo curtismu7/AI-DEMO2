@@ -3013,6 +3013,107 @@ export default function BankingAgent({
           navigate("/path/mortgage", { state: { mortgagePayload } });
           return;
         }
+        case "gear_warranty_demo": {
+          // UC33 for sporting-goods — Path A api_key disposition, same chain as
+          // mortgage_demo against a SECOND product type. The vertical's own
+          // featurePage tool is show_gear_order, so this passes an override
+          // rather than reusing vertical_feature_demo's manifest lookup.
+          toast.update(toastId, {
+            render:
+              " Routing to gear warranty (gateway swaps OAuth bearer for service API key)…",
+          });
+          let warrantyResp;
+          try {
+            warrantyResp = await callMcpTool("show_gear_warranty", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
+          } catch (e) {
+            console.error(
+              "[BankingAgent] gear_warranty_demo dispatch failed:",
+              e?.message,
+            );
+            toast.dismiss(toastId);
+            setLoading(false);
+            toolProgressIdRef.current = null;
+            addMessage(
+              "assistant",
+              `Could not load gear warranty: ${e?.message || "gateway call failed"}.`,
+              actionId,
+              resultExtra,
+            );
+            return;
+          }
+          const warrantyMcp = warrantyResp?.result;
+          const warrantyNorm = normalizeAgentToolResult(warrantyMcp);
+          if (isAgentToolErrorResult(warrantyNorm)) {
+            toast.dismiss(toastId);
+            setLoading(false);
+            toolProgressIdRef.current = null;
+            const insufficient =
+              warrantyNorm.error === "insufficient_scope" ||
+              /scope/i.test(warrantyNorm.message || "");
+            addMessage(
+              "assistant",
+              insufficient
+                ? `The agent's access token does not carry the gear:read scope, so the gateway refused to swap it for the service API key. Sign out and sign back in to consent to gear access, then try "show my gear warranty" again.`
+                : `Could not load gear warranty: ${warrantyNorm.message || "backend error"}.`,
+              actionId,
+              resultExtra,
+            );
+            return;
+          }
+          const warrantyMeta = warrantyMcp?._meta || {};
+          const warrantyPayload = {
+            ...(warrantyNorm || {}),
+            apiKeyMaskedLast4: warrantyMeta.apiKeyMaskedLast4,
+            apiCall: warrantyMeta.apiCall,
+            message: warrantyNorm.note || warrantyMeta.note,
+            backend: {
+              source: warrantyNorm.source,
+              authMechanism: warrantyNorm.authMechanism,
+              note: warrantyNorm.note,
+            },
+          };
+          if (tokenChain && Array.isArray(warrantyResp?.tokenEvents)) {
+            tokenChain.setTokenEvents(actionId, warrantyResp.tokenEvents);
+          }
+          toast.dismiss(toastId);
+          setLoading(false);
+          toolProgressIdRef.current = null;
+          navigate("/path/feature", {
+            state: {
+              featurePayload: warrantyPayload,
+              featurePageOverride: {
+                mcpTool: "show_gear_warranty",
+                pageTitle: "Gear Warranty",
+                badgeLabel: "API-KEY PATH",
+                accentColor: "#b91c1c",
+                dataKey: "gearWarranty",
+                fields: [
+                  { label: "Warranty ID", path: "warrantyId" },
+                  { label: "Item", path: "item" },
+                  { label: "Coverage", path: "coverageTier", accent: true },
+                  { label: "Start", path: "startDate", format: "date" },
+                  { label: "Expires", path: "expiresDate", format: "date" },
+                  { label: "Claims used", path: "claimsUsed", format: "count" },
+                  { label: "Claim limit", path: "claimLimit", format: "count" },
+                  { label: "Status", path: "status" },
+                ],
+                sectionTitle: "Warranty details",
+                emptyPrompt: "show my gear warranty",
+              },
+              chipContext: {
+                actionId,
+                featureTool: "show_gear_warranty",
+                verticalName: themeManifest?.identity?.displayName || "Super Sports",
+                tokenEvents: warrantyResp?.tokenEvents || [],
+              },
+            },
+          });
+          return;
+        }
         case "invest_demo": {
           // Path A — api_key disposition for show_investment (available on every customer vertical).
           // Always calls show_investment and renders with the investment featurePage schema,

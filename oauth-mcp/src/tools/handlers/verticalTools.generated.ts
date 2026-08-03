@@ -140,6 +140,7 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"loyalty_balance","scope":"read","vertical":"sporting-goods"},
   {"name":"redeem_points","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"loyaltyId":{"type":"string"}},"required":["loyaltyId"],"additionalProperties":false}},
   {"name":"remove_wishlist_item","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"wishlistItemId":{"type":"string"}},"required":["wishlistItemId"],"additionalProperties":false}},
+  {"name":"request_price_match","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"orderId":{"type":"string"}},"required":[],"additionalProperties":false}},
   {"name":"return_order","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"orderId":{"type":"string"}},"required":["orderId"],"additionalProperties":false}},
   {"name":"sensitive_membership_details","scope":"read","vertical":"sporting-goods"},
   {"name":"transfer_membership","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"recipient":{"type":"string"}},"required":[],"additionalProperties":false}},
