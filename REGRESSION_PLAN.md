@@ -102,6 +102,60 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — Gateway-decided 428s carried no authorize evidence, and the consent MFA ceremony didn't discharge the step-up gate
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/transactionConsentChallenge.js`,
+`demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`,
+`demo_api_server/src/__tests__/transactionConsentChallenge.test.js`.
+
+**What was broken:** two follow-on holes from the 2026-08-02
+gateway-authoritative rework (below). (1) The BFF gate now skips on
+gateway-routed calls, so the gateway's PingOne Authorize call is the only
+decision a gateway 428 has — but the pipeline's `hitl_required` /
+`step_up_required` relay branches returned bodies with **no
+`mcpAuthorizeEvaluation` and no `gw-authorize` token event**, even though the
+full decision arrived on `err.gwAuditTrail`. Every UC7/UC8 run in every
+vertical ended with the Proof strip reading "Run failed before
+authorize-decision" and a Token Chain with no P1AZ card — on a gate that had
+actually fired (live-reproduced: banking $300 and $600, 2026-08-03). (2) A
+consent challenge at/above the step-up threshold escalates to a real PingOne
+MFA ceremony, but `verifyOtp`/`verifyMfa` granted only the HITL credit
+(`hitlVerified`) — never `stepUpVerified`. The post-consent retry
+(`POST /api/transactions`) then evaluated the transaction policy on the
+un-upgraded acr and answered RFC 9470 **401** `step_up_required` — which the
+agent's HITL resume handler doesn't parse (it expects the legacy 428) — so a
+$600 transfer died silently right after the user completed MFA.
+
+**What was fixed:** `gatewayBlockAuthEval()` builds the evidence from
+`err.gwAuditTrail.authorize` on both 428 relay branches — `decision:
+'INDETERMINATE'` (the enforced outcome, never PingOne's raw
+PERMIT-with-obligation), `outcome: 'STEP_UP' | 'HITL_REQUIRED'`, with the
+declared-step-up-method rule (`getUseCaseStepUpMethod`) mapping UC7/UC22's
+`hitl_required` wire code to STEP_UP exactly like `_applyTransactionPolicy`
+does on the local path. The same branches now push the `gw-authorize` token
+event. `_grantStepUpCredit(req)` stamps `req.session.stepUpVerified`
+(same `Date.now() + TTL` single-use pattern as `routes/mfa.js`/`ciba.js`) in
+the `verifyOtp` and `verifyMfa` promotes ONLY — consent-only and Recognize
+confirms prove no MFA and must not discharge the step-up gate.
+
+**Do not break:** no evidence without an audit trail — `gatewayBlockAuthEval`
+returns null and the body stays eval-free rather than fabricating a decision.
+`_grantStepUpCredit` must never move into `_grantHitlCredit` (consent-only
+would then silently satisfy step-up). `routes/transactions.js`'s
+read-and-zero consume of `stepUpVerified` and `hitlCredit`'s single-use
+semantics are unchanged and must stay so.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpToolPipeline.characterization.test.js
+src/__tests__/transactionConsentChallenge.test.js --forceExit` (90 passed);
+live: UC8 $300 → strip "Human approval required as expected — then permitted",
+UC7 $600 → consent+MFA then HTTP 201 (was 401) and strip STEP_UP verdict.
+Note: the gateway still answers HITL (not step-up) for $600 until the
+amount-bands snapshot from the 2026-08-02 entry is imported into the live
+P1AZ environment — the declared-method mapping keeps UC7's verdict correct
+either way.
+
 ### 2026-08-03 — P1AZ policy artifacts were branded "Super Banking" although they govern every vertical
 
 **Files changed:** `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` →
