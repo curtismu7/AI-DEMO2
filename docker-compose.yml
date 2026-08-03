@@ -1097,6 +1097,15 @@ services:
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
+      # HITL enforcement at this gateway (p1az-decision.groovy): on a PingOne
+      # Authorize INDETERMINATE / consent obligation it mints a challenge at the
+      # HITL service and answers 428, then verifies the receipt on retry.
+      # The secret MUST equal demo_api_server's and demo_hitl_service's or every
+      # verify call 401s and the filter fails closed with 503 — which is what it
+      # did before these two lines existed. Interpolated from the root .env
+      # (this service has no env_file; everything here comes from ${...}).
+      HITL_SERVICE_URL: "http://hitl-service:3009"
+      HITL_INTERNAL_SECRET: "${HITL_INTERNAL_SECRET:-}"
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
       # Do NOT pin it here — the env block wins over env_file, and a placeholder
       # pin silently overrides the real id (the mock only uses it as a path param,
