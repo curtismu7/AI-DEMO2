@@ -25,7 +25,6 @@ const { URL } = require('url');
 
 const router = express.Router();
 
-const DEFAULT_MCP_URL = 'https://mcp-server:8080/mcp';
 const TOKEN_SKEW_MS = 60 * 1000;
 
 // One cached token per process. Nothing here is per-user by design.
@@ -33,12 +32,19 @@ let cachedToken = null; // { accessToken, expiresAt }
 let mcpSessionId = null;
 let negotiatedProtocol = null;
 
-function targetUrl() {
-  return process.env.PRIVILEGE_SIMPLE_MCP_URL || DEFAULT_MCP_URL;
-}
-
 function mtlsEnabled() {
   return process.env.MCP_MTLS_ENABLED === 'true';
+}
+
+/**
+ * mcp-server listens on one port, 8080, and only speaks TLS when mTLS is on —
+ * so the scheme has to follow the same switch the client cert does, exactly as
+ * docker-compose derives every other consumer's URL from MCP_MTLS_ON. A fixed
+ * https:// here fails with "wrong version number" whenever mTLS is off.
+ */
+function targetUrl() {
+  if (process.env.PRIVILEGE_SIMPLE_MCP_URL) return process.env.PRIVILEGE_SIMPLE_MCP_URL;
+  return `http${mtlsEnabled() ? 's' : ''}://mcp-server:8080/mcp`;
 }
 
 /**
