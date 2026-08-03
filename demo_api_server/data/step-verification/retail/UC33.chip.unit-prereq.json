@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "list_orders",
-  "checkedAt": "2026-08-02",
+  "primaryTool": "show_large_purchase",
+  "checkedAt": "2026-08-03",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

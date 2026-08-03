@@ -28,6 +28,29 @@ const ACTION_TO_TOOL = {
   // mortgage_demo: the heuristic action is a placeholder, the MCP tool is the
   // api_key-disposition show_gear_warranty.
   gear_warranty_demo: 'show_gear_warranty',
+  // Cross-vertical portfolio chip — always dispatches show_investment, whatever
+  // the active vertical's own featurePage tool is (AIAgent.js case "invest_demo").
+  invest_demo: 'show_investment',
 };
 
-module.exports = { ACTION_TO_TOOL };
+/**
+ * `vertical_feature_demo` is the ONE action whose tool depends on the vertical:
+ * AIAgent.js dispatches `themeManifest.featurePage.mcpTool`, so the same action
+ * means show_health_record in healthcare and show_permit in government. A flat
+ * map cannot express that, so callers that know the vertical use this instead.
+ *
+ * Keep SECOND_PRODUCT_TOOL_BY_VERTICAL as the single source: it IS the set of
+ * featurePage tools, and useCases.scenarioDistinctness.test.js asserts the two
+ * agree, so a manifest change that is not mirrored in the catalog fails loudly
+ * rather than making this helper quietly wrong.
+ */
+const { SECOND_PRODUCT_TOOL_BY_VERTICAL } = require('../../config/useCases.js');
+
+function toolForAction(action, vertical) {
+  if (action === 'vertical_feature_demo') {
+    return SECOND_PRODUCT_TOOL_BY_VERTICAL[vertical] || action;
+  }
+  return ACTION_TO_TOOL[action] || action;
+}
+
+module.exports = { ACTION_TO_TOOL, toolForAction };

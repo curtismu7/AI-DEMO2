@@ -9,7 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { USE_CASES, resolveUseCase } = require('../config/useCases.js');
+const { USE_CASES, resolveUseCase, SECOND_PRODUCT_TOOL_BY_VERTICAL } = require('../config/useCases.js');
 
 /** Heuristic ACTION → MCP tool (keep in sync with tests/helpers/actionToTool.js). */
 const ACTION_TO_TOOL = {
@@ -24,6 +24,10 @@ const ACTION_TO_TOOL = {
   weather: 'get_weather',
   mortgage_demo: 'show_mortgage',
   gear_warranty_demo: 'show_gear_warranty',
+  // Cross-vertical portfolio chip — always dispatches show_investment whatever the
+  // active vertical is, so unlike vertical_feature_demo it needs no per-vertical
+  // lookup. This is investment's UC33 chip.
+  invest_demo: 'show_investment',
 };
 
 /**
@@ -91,7 +95,7 @@ function amountFromChipText(text) {
  * Mirrors demoAgentLangGraphService: transfer_600_test → transfer @ 600.
  * @param {object|null} parsed
  */
-function normalizeParsedIntent(parsed) {
+function normalizeParsedIntent(parsed, vertical = null) {
   if (!parsed) return null;
   const banking = parsed.banking || null;
   let action = banking?.action ?? parsed.action ?? null;
@@ -107,7 +111,15 @@ function normalizeParsedIntent(parsed) {
     };
   }
 
-  const tool = ACTION_TO_TOOL[action] || action;
+  // `vertical_feature_demo` is the one action whose tool depends on the vertical:
+  // the client dispatches that vertical's manifest featurePage.mcpTool, so the same
+  // action is show_health_record in healthcare and show_permit in government. A flat
+  // map cannot express it — without the vertical the caller gets the action name back
+  // and every UC33 check outside banking fails comparing a tool to an action.
+  const tool =
+    action === 'vertical_feature_demo' && vertical && SECOND_PRODUCT_TOOL_BY_VERTICAL[vertical]
+      ? SECOND_PRODUCT_TOOL_BY_VERTICAL[vertical]
+      : ACTION_TO_TOOL[action] || action;
   const amount =
     params.amount != null && params.amount !== ''
       ? Number(params.amount)
