@@ -295,6 +295,10 @@
       "surface": "gateway",
       "a2aDelegated": true
     },
+    "pay_airline_fee": {
+      "requiredScopes": ["airlines:read", "airlines:write"],
+      "surface": "gateway"
+    },
     "get_airline_bookings": {
       "requiredScopes": ["airlines:read"],
       "surface": "gateway"

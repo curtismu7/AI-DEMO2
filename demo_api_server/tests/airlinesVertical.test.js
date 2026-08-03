@@ -70,6 +70,19 @@ describe('airlines vertical', () => {
     expect(resolveAgentScopes('airlines', false)).toContain('airlines:read');
   });
 
+  test('pay_airline_fee is gateway-surfaced and scoped like the cancel write', () => {
+    expect(scopeTopology.toolScopes('pay_airline_fee')).toEqual(['airlines:read', 'airlines:write']);
+    expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
+  });
+
+  // The amount ladder must decide the outcome, not a pinned challengeType.
+  // large_trade pins step_up unconditionally, which would render UC6's $2500
+  // DENY and UC8's $300 HITL both as step-up.
+  test('pay_airline_fee pins no challengeType', () => {
+    const topology = require('../../scope-topology.json');
+    expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();
+  });
+
   test('the resource server declares the same tools and scope', () => {
     const toolsPath = path.join(__dirname, '..', '..', 'demo_mcp_resource_server', 'src', 'tools', 'airlinesTools.ts');
     const src = require('fs').readFileSync(toolsPath, 'utf8');
