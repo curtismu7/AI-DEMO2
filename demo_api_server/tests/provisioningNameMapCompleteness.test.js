@@ -53,6 +53,6 @@ describe('provisioning name map is total', () => {
       .filter(([k, v]) => k === v)
       .map(([k]) => k);
     // Snapshotted as a count so adding one is a conscious edit.
-    expect(identity.length).toBe(10);
+    expect(identity.length).toBe(11);
   });
 });
