@@ -38,12 +38,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Manufacturing_Privileged",
-        "description": "Users permitted to access sensitive supplier contracts (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Manufacturing_Delegates",
-        "description": "Users authorized as delegated operations agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {

@@ -47,12 +47,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "SportingGoods_Privileged",
-        "description": "Users permitted to access sensitive membership details (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "SportingGoods_Delegates",
-        "description": "Users authorized as delegated sports retail agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {

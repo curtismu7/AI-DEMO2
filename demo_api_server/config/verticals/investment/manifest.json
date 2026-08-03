@@ -38,12 +38,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Investment_Privileged",
-        "description": "Users permitted to access sensitive portfolio holdings (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Investment_Delegates",
-        "description": "Users authorized as delegated advisory agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {
