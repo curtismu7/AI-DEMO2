@@ -4,6 +4,7 @@ const { HITL_CHALLENGE_ARG } = require('./hitlServiceClient');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
 const { resolveStepUpMethod } = require('./mcpToolAuthorizationService');
+const { getUseCaseStepUpMethod } = require('../config/useCases');
 const _CAT = LOG_CATEGORIES.MCP_TOOL_PIPELINE;
 
 /**
@@ -163,6 +164,33 @@ function hitlSignalInResultContent(result) {
     } catch { /* not JSON — ignore */ }
   }
   return null;
+}
+
+/**
+ * Authorize evidence for a gateway-decided 428. The BFF gate skips on
+ * gateway-routed calls (`gateway_authoritative`), so the gateway's own PingOne
+ * Authorize call — relayed in x-gw-audit-trail — is the only decision this
+ * request has; without surfacing it the run carries no authorize evidence and
+ * the Proof strip reports "Run failed before authorize-decision" on a gate
+ * that actually fired. Shape mirrors the local gate's `_blockAuthEval`:
+ * `decision` is the ENFORCED outcome (INDETERMINATE approval gate), never the
+ * raw PERMIT PingOne returns alongside an unfulfilled obligation — the raw
+ * response stays inspectable via `response`.
+ */
+function gatewayBlockAuthEval(gwAuditTrail, outcome, ctx) {
+  const authz = gwAuditTrail && gwAuditTrail.authorize;
+  if (!authz) return null;
+  return {
+    decision: 'INDETERMINATE',
+    outcome,
+    engine: authz.backend === 'simulated' ? 'simulated' : 'pingone',
+    decisionContext: 'McpToolCall',
+    decisionId: (authz.rawResponse && authz.rawResponse.correlationId) || null,
+    request: authz.parameters ? { parameters: authz.parameters } : null,
+    response: authz.rawResponse || null,
+    ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+    ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+  };
 }
 
 async function runMcpToolPipeline(ctx) {
@@ -1117,6 +1145,23 @@ async function runMcpToolPipeline(ctx) {
         // the use-case catalog, which the gateway has no knowledge of.
         if (err.gatewayErrorCode === 'step_up_required') {
             deps.emit({ phase: 'gateway_step_up_required' });
+            const gwEval = gatewayBlockAuthEval(err.gwAuditTrail, 'STEP_UP', ctx);
+            if (gwEval) {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    'indeterminate',
+                    null,
+                    'PingOne Authorize decision: INDETERMINATE',
+                    buildGwAuthorizeEventExtra({
+                        ...err.gwAuditTrail.authorize,
+                        decision: 'INDETERMINATE',
+                        denyingFilter: err.gwAuditTrail.denyingFilter,
+                        lastFilter: err.gwAuditTrail.lastFilter,
+                        filterChain: err.gwAuditTrail.filterChain,
+                    })
+                ));
+            }
             const stepUpBody = {
                 error: 'mcp_step_up_required',
                 error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
@@ -1124,6 +1169,7 @@ async function runMcpToolPipeline(ctx) {
                 step_up_method: resolveStepUpMethod(ctx.useCaseId),
                 tokenEvents,
                 requestJson,
+                ...(gwEval ? { mcpAuthorizeEvaluation: gwEval } : {}),
             };
             try {
                 const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
@@ -1134,7 +1180,7 @@ async function runMcpToolPipeline(ctx) {
                     isDelegated: !!mcpAccessToken,
                     requestJson,
                     denied: true,
-                    mcpAuthorizeEvaluation: _authEval?.singular || null,
+                    mcpAuthorizeEvaluation: gwEval || _authEval?.singular || null,
                     mcpAuthorizeEvaluations: _authEval?.plural || null,
                 });
             } catch (_) { /* SSE best-effort */ }
@@ -1144,6 +1190,32 @@ async function runMcpToolPipeline(ctx) {
         // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
         if (err.gatewayErrorCode === 'hitl_required') {
             deps.emit({ phase: 'gateway_hitl_required' });
+            // A use case that DECLARES a step-up method (UC7 'p1mfa', UC22
+            // 'ciba') presents STEP_UP even when the gateway's wire code was
+            // hitl_required — the live MCP policy answers HITL for every
+            // amount, and this is the same declared-method rule
+            // _applyTransactionPolicy uses on the local-gate path.
+            const gwEval = gatewayBlockAuthEval(
+                err.gwAuditTrail,
+                getUseCaseStepUpMethod(ctx.useCaseId) ? 'STEP_UP' : 'HITL_REQUIRED',
+                ctx
+            );
+            if (gwEval) {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    'indeterminate',
+                    null,
+                    'PingOne Authorize decision: INDETERMINATE',
+                    buildGwAuthorizeEventExtra({
+                        ...err.gwAuditTrail.authorize,
+                        decision: 'INDETERMINATE',
+                        denyingFilter: err.gwAuditTrail.denyingFilter,
+                        lastFilter: err.gwAuditTrail.lastFilter,
+                        filterChain: err.gwAuditTrail.filterChain,
+                    })
+                ));
+            }
             const hitlBody = {
                 error: 'hitl_required',
                 tool,
@@ -1156,6 +1228,7 @@ async function runMcpToolPipeline(ctx) {
                 challenge_type: err.rpcData?.challenge_type || 'consent',
                 tokenEvents,
                 requestJson,
+                ...(gwEval ? { mcpAuthorizeEvaluation: gwEval } : {}),
             };
             try {
                 const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
@@ -1166,7 +1239,7 @@ async function runMcpToolPipeline(ctx) {
                     isDelegated: !!mcpAccessToken,
                     requestJson,
                     denied: true,
-                    mcpAuthorizeEvaluation: _authEval?.singular || null,
+                    mcpAuthorizeEvaluation: gwEval || _authEval?.singular || null,
                     mcpAuthorizeEvaluations: _authEval?.plural || null,
                 });
             } catch (_) { /* SSE best-effort */ }
