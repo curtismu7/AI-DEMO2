@@ -14,10 +14,12 @@ This repo contains a **client** for that gateway (`/privilege-mcp-client`), a **
 that drives the OAuth and MCP protocol on the client's behalf, and Compose/K8s wiring for
 running the gateway itself.
 
-> Status as of 2026-08-02: the client, the relay and the protocol handling all work, and
-> `/api/privilege-mcp-simple` performs a real token-to-MCP call end to end today. The
-> **gateway** path is still blocked on two PingOne Privilege console steps. See
-> [Current state](#current-state-verified-2026-08-02).
+> Status as of 2026-08-03: the client, the relay and the protocol handling all work. The
+> **gateway** path is still blocked on a PingOne Privilege tenant trust setting, and
+> `/api/privilege-mcp-simple` — which did run a real token-to-MCP call end to end on
+> 2026-08-02 — currently fails with a TLS `EPROTO` because its default target URL is
+> `https://` while `MCP_MTLS_ON` is off. See
+> [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03).
 
 ---
 
@@ -57,7 +59,7 @@ The demo can run the client role two ways:
 | Route | MCP client | Identity it carries | Works today |
 |---|---|---|---|
 | `/api/privilege-mcp` | BFF, on behalf of a signed-in human | user token (OAuth code + PKCE) | needs the console steps |
-| `/api/privilege-mcp-simple` | BFF, as itself | machine token (`client_credentials`) | yes — verified end to end |
+| `/api/privilege-mcp-simple` | BFF, as itself | machine token (`client_credentials`) | the path is proven, but the default URL 500s while `MCP_MTLS_ON` is off — [see below](#the-simple-relays-default-url-is-broken-while-mtls-is-off) |
 
 ---
 
@@ -71,7 +73,7 @@ The demo can run the client role two ways:
 | Privilege MCP Gateway (MCPGW) | server **and** client | `ping-mcpgw` container (binds no public port; frontend is cloud-hosted) | enrollment JWT | image `public.ecr.aws/s7q1z8z4/privilege-proxy`, binary `/procyon/bin/cyonproxy`; Compose profile `mcpgw`; reads `pingone.env` from `/var/lib/procyon/config` |
 | PingOne authorization server | — | `auth.pingone.com/<envId>/as` | OAuth client | mints both the user and machine tokens |
 | PingOne Privilege control plane | — | `grpc.privilege.pingone.com:443` | enrollment JWT | the gateway dials **out**; no inbound firewall holes |
-| Privilege cloud API | — | `privilege.pingone.com/api/mcp` | Privilege session | tenant API — **not** the gateway frontend (see [Current state](#current-state-verified-2026-08-02)) |
+| Privilege cloud API | — | `privilege.pingone.com/api/mcp` | Privilege session | tenant API — **not** the gateway frontend (see [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03)) |
 | MCP server | **MCP server** | `mcp-server:8080/mcp` | audience `mcpserver.ping.demo` | the protected resource; Privilege-unaware |
 
 "Procyon" appears throughout the gateway's wire protocol and binary names — it is the
@@ -256,12 +258,16 @@ Two details that are easy to get wrong and are pinned by tests:
 A `client_credentials` token is a machine identity with no user, so `get_my_accounts`
 correctly returns `count: 0`. User-scoped data needs the interactive route.
 
+Before using this route, check its scheme: the built-in default is `https://` and the
+stack currently runs with mTLS off, which makes it fail on TLS — see
+[The simple relay's default URL is broken while mTLS is off](#the-simple-relays-default-url-is-broken-while-mtls-is-off).
+
 ## Configuration
 
 | Variable | Set in | Meaning |
 |---|---|---|
 | `PRIVILEGE_MCPGW_URL` | `docker-compose.yml` | MCP URL the client page defaults to — the console-assigned **cloud** frontend FQDN, never a local port |
-| `PRIVILEGE_SIMPLE_MCP_URL` | env, optional | target of the simple relay; defaults to `https://mcp-server:8080/mcp`. Point at the gateway to route the same code through Privilege |
+| `PRIVILEGE_SIMPLE_MCP_URL` | env, optional | target of the simple relay; defaults to `https://mcp-server:8080/mcp`. **That default only works with `MCP_MTLS_ON` set** — with mTLS off it 500s on TLS ([details](#the-simple-relays-default-url-is-broken-while-mtls-is-off)). Point at the gateway to route the same code through Privilege |
 | `PRIVILEGE_SIMPLE_SCOPE` | env, optional | scopes for the machine token; defaults to `read write mcp:invoke` |
 | `PRIVILEGE_SSO_CLIENT_ID` / `_SECRET` | `docker-compose.yml` | OAuth client for the user sign-in |
 | `PRIVILEGE_SSO_ENV_ID` | `docker-compose.yml` | env used for OIDC discovery fallback |
@@ -278,10 +284,14 @@ the demo still shows nothing.
 
 ---
 
-## Current state (verified 2026-08-02)
+## Current state (verified 2026-08-02, re-verified 2026-08-03)
 
 The demo side is complete and proven. The gateway path is blocked on one tenant-side
 trust setting that cannot be changed from this repo.
+
+Everything in this section was re-run against the live stack on 2026-08-03 and still
+holds, with one exception: the simple relay's default target URL now breaks — see
+[The simple relay's default URL is broken while mTLS is off](#the-simple-relays-default-url-is-broken-while-mtls-is-off).
 
 ### How the frontend actually works
 
@@ -309,6 +319,39 @@ probing the FQDN gives a real HTTP challenge, while every local port gives no li
 | Backend wired | console lists the full tool catalogue (`get_my_accounts`, `create_transfer`, …) |
 | Demo sign-in | `?auth=success`, `authenticated: true`, scope `mcp:invoke openid` |
 
+Re-verified 2026-08-03: enrolled node still `570afb32-…` (`/procyon/ssl/proxy-crt.pem`
+carries `OU=570afb32-…`, and the log shows a fresh `established command stream`); the
+frontend still answers `Bearer Token not found.` unauthenticated; the container still
+binds only `127.0.0.1:8090` (`0100007F:1F9A` in `/proc/net/tcp`).
+
+### The simple relay's default URL is broken while mTLS is off
+
+`POST /api/privilege-mcp-simple/tools/list` returns `500` with:
+
+```
+write EPROTO ...:error:0A00010B:SSL routines:tls_validate_record_header:wrong version number
+```
+
+`DEFAULT_MCP_URL` in
+[`routes/privilegeMcpSimple.js`](../demo_api_server/routes/privilegeMcpSimple.js) is a
+hardcoded `https://mcp-server:8080/mcp`, but `MCP_MTLS_ON` is empty in the root `.env`, so
+`mcp-server` serves **plain HTTP** on 8080. Every other consumer derives the scheme from
+that switch (`http${MCP_MTLS_ON:+s}://…` in `docker-compose.yml`); this route does not.
+
+The relay logic itself is fine — only the scheme is wrong. The same machine token over
+`http://` completes the handshake:
+
+```
+HTTP/1.1 200 OK
+mcp-session-id: 36e82e93-…
+{"result":{"protocolVersion":"2026-07-28","serverInfo":{"name":"Banking MCP Server",…}}}
+```
+
+Note the collision with the trap below: **mTLS must be off for the console-configured
+backend to work**, and mTLS being off is exactly what breaks this default. Set
+`PRIVILEGE_SIMPLE_MCP_URL=http://mcp-server:8080/mcp`, or make the default follow
+`MCP_MTLS_ON` the way the rest of the stack does.
+
 ### The one blocker: Privilege does not trust this environment's issuer
 
 With a valid PingOne token the frontend answers:
@@ -329,6 +372,25 @@ So Privilege must be told to trust:
 ```
 https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as
 ```
+
+Reproduce it in one paste — mint a machine token and hand it to the cloud frontend. Two
+seconds, and it saves re-deriving the whole chain:
+
+```bash
+CID=$(docker exec ai-demo-api-server printenv PRIVILEGE_SSO_CLIENT_ID)
+CS=$(docker exec ai-demo-api-server printenv PRIVILEGE_SSO_CLIENT_SECRET)
+EID=$(docker exec ai-demo-api-server printenv PRIVILEGE_SSO_ENV_ID)
+TOK=$(curl -s -X POST "https://auth.pingone.com/$EID/as/token" \
+  -d grant_type=client_credentials -d "client_id=$CID" -d "client_secret=$CS" \
+  -d "scope=read write mcp:invoke" | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+curl -sk -X POST "$(docker exec ai-demo-api-server printenv PRIVILEGE_MCPGW_URL)" \
+  -H "Authorization: Bearer $TOK" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}'
+```
+
+Still `JWT signature validation failed` on 2026-08-03, from a token whose `iss` is this
+environment and whose `aud` is `mcpserver.ping.demo`.
 
 Ruled out by experiment, so nobody repeats them:
 
@@ -426,7 +488,10 @@ session bearer, or whatever admin credential Privilege issues for CLI use.
   identity rides on the cert thereafter. Do not diagnose "expired token" from the file's
   `exp` alone — check whether the container is running and linked. It only matters on
   first boot or after `ai-demo_mcpgw-ssl` is deleted. **Get a fresh JWT from the console
-  before ever wiping that volume**, because the one on disk will be expired.
+  before ever wiping that volume**, because the one on disk will be expired. This is not
+  hypothetical: as of 2026-08-03 `ping-mcpgw/config/proxy-token` expired at
+  `2026-08-03T01:23Z` while the container kept running normally — so deleting
+  `ai-demo_mcpgw-ssl` today would be unrecoverable without a console visit first.
 - **`nc -z` reports 8623/8643 open even with nothing serving.** Docker publishes the port
   regardless. Use `curl` against `/mcp`, or check real listeners with
   `docker exec … cat /proc/net/tcp` — only `127.0.0.1:8090` ever binds.
@@ -443,17 +508,22 @@ session bearer, or whatever admin credential Privilege issues for CLI use.
 
 ### Loose ends
 
-- **A stale node identity sits in `ping-mcpgw/config/ssl/`** — `a7d08406-…`, expired
-  2026-07-31 — inside the directory bind-mounted to `/var/lib/procyon/config`. Two
-  identities visible to the proxy is a plausible source of the repeating
-  `has same NodeURL` error. Untouched; confirm before removing.
+- **A stale node identity sits in `ping-mcpgw/config/ssl/`** — inside the directory
+  bind-mounted to `/var/lib/procyon/config`. It is two artifacts, not one: `proxy-token.data`
+  is an **expired** enrollment JWT for node `a7d08406-…` (`exp` 2026-07-31), while the
+  `proxy-crt.pem` beside it is a still-valid cert (to 2036-01-26) carrying
+  `OU=a7d08406-…`. Neither is the live identity — the running node's cert, in the
+  `ai-demo_mcpgw-ssl` volume, carries `OU=570afb32-…`. Two identities visible to the proxy
+  is a plausible source of the repeating `has same NodeURL` error. Untouched; confirm
+  before removing.
 - **Duplicate node registrations.** The control plane still lists `a7d08406-…`,
   `9a8bddf5-…` and `e40f4540-…` alongside the live node. As of the 2026-08-02 re-enrolment
   the live node is **`570afb32-366a-48aa-9623-8e82341e3b52`** — earlier notes name
   `e40f4540-…` as live, which is now stale. **Never delete the row matching the running
   node:** that invalidates enrollment, and recovery needs a valid JWT from the console.
-- The `has same NodeURL` line is warning-level. Enrollment works. It is cleanup, not the
-  blocker.
+- The `has same NodeURL` line logs at **`level=error`**, not warning, and repeats every
+  ~15-30s (still doing so on 2026-08-03). Ignore the severity: enrollment works and the
+  command stream is up. It is cleanup, not the blocker.
 
 ### Already tested — do not repeat
 
@@ -468,6 +538,10 @@ session bearer, or whatever admin credential Privilege issues for CLI use.
 
 ### Order to fix
 
+0. Cheap and unrelated to the blocker: restore the simple relay by making its target
+   scheme follow `MCP_MTLS_ON` (or exporting `PRIVILEGE_SIMPLE_MCP_URL=http://mcp-server:8080/mcp`).
+   That is the demo's only working token-to-MCP proof; leaving it red hides regressions
+   in everything downstream of it.
 1. Obtain a `cyctl` credential and run `cyctl object application get` on `mypingone` to
    read its real inbound-auth config. That is the only remaining way to see, rather than
    infer, what issuer Privilege validates against.
@@ -495,3 +569,5 @@ users live in `01d89b06`, so option 1 keeps the rest of the demo intact.
 | `MCP gateway returned 502 Bad Gateway` | gateway up, upstream MCP server down or the user lacks tool entitlement | check `mcp-server`, then console policy |
 | Tools load but a call is denied | Privilege policy DENY — the demo working as intended | inspect the decision in the console |
 | Page shows nothing and no error | policy/recording never authored in the console | `ping-mcpgw/README.md` setup steps |
+| `500 write EPROTO … wrong version number` from `/api/privilege-mcp-simple` | relay targets `https://mcp-server:8080` while `MCP_MTLS_ON` is off, so the server speaks plain HTTP | set `PRIVILEGE_SIMPLE_MCP_URL=http://mcp-server:8080/mcp` |
+| `401 Authorization header JWT parsing failed JWT signature validation failed` | Privilege does not trust this environment's issuer — the open blocker | [The one blocker](#the-one-blocker-privilege-does-not-trust-this-environments-issuer) |
