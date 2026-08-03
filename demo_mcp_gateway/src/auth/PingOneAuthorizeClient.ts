@@ -201,11 +201,16 @@ export function buildAuthorizeParameters(
   // C1 rule 2 — Amount and TransactionAmount always move together. The cloud
   // Trust Framework only defines `Amount`, so the gateways' amount was being
   // silently dropped by the real policy; the mock only reads TransactionAmount.
-  // Send both, or neither.
-  if (toolArgs?.amount !== undefined) {
-    base.Amount = String(toolArgs.amount);
-    base.TransactionAmount = String(toolArgs.amount);
-  }
+  // Amount-less tools (reads) send '0', never omit: the cloud Amount attribute
+  // is a NUMBER, and an absent value makes the amount-band comparisons
+  // (Amount > 250/500/2000, merged 2026-08-03) evaluate INDETERMINATE, which
+  // bubbles past the MCP catch-all permit and fails every plain read closed
+  // (PDP-probed: absent=INDETERMINATE, '0'=PERMIT mcp-tool-authorized). '0'
+  // cannot weaken a transaction: amount-carrying tools REQUIRE amount in their
+  // schema, so a real transaction always overwrites it.
+  const amountValue = toolArgs?.amount !== undefined ? String(toolArgs.amount) : '0';
+  base.Amount = amountValue;
+  base.TransactionAmount = amountValue;
 
   // C1 parity — signing-key identity. The BFF's McpFirstTool gate sends this;
   // without it the two gates evaluate the SAME call on different inputs, the

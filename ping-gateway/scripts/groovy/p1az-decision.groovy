@@ -360,7 +360,15 @@ try {
             }
             toolArgs          = args instanceof Map ? args : [:]
             def amt           = args?.amount
-            transactionAmount = amt != null ? String.valueOf(amt) : ''
+            // Amount-less tools (reads) send '0', never ''. The cloud Amount
+            // attribute is a NUMBER: '' / absent makes the amount-band
+            // comparisons (Amount > 250/500/2000, merged 2026-08-03) evaluate
+            // INDETERMINATE, which bubbles past the MCP catch-all permit and
+            // fails every plain read closed (PDP-probed: ''=INDETERMINATE,
+            // '0'=PERMIT mcp-tool-authorized). '0' cannot weaken a transfer:
+            // amount-carrying tools REQUIRE amount in their schema, so a real
+            // transaction always overwrites it.
+            transactionAmount = amt != null ? String.valueOf(amt) : '0'
             transactionType   = args?.transaction_type ?: toolName
             toAccountId       = args?.to_account_id ?: ''
         }
