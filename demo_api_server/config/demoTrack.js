@@ -131,7 +131,10 @@ const TRACK_STEPS = [
     buyerStory: 'The AI that manages your identity platform is itself governed by it.',
     slots: {
       green: { source: 'tool', chipText: 'admin agent performs a real admin task', match: { tools: ['*'] }, expected: ['PERMIT'] },
-      red:   { source: 'tool', chipText: 'out-of-scope admin call denied', match: { tools: ['*'] }, expected: ['DENY'] },
+      // HITL counts as the deny-side proof here (same as the hitl-ciba step): a
+      // non-privileged caller on a privileged tool gets a gateway HITL challenge,
+      // not a flat DENY — that challenge IS the enforcement.
+      red:   { source: 'tool', chipText: 'out-of-scope admin call denied', match: { tools: ['*'] }, expected: ['HITL', 'DENY'] },
     },
     proved: {
       green: 'The admin agent did real platform work through Ping\'s own hosted MCP server.',

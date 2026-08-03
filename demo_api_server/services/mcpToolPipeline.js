@@ -1242,6 +1242,16 @@ async function runMcpToolPipeline(ctx) {
                 requestJson,
                 ...(gwEval ? { mcpAuthorizeEvaluation: gwEval } : {}),
             };
+            // Guided Demo Track — gateway-raised HITL challenge is an enforcement
+            // block too (the BFF-authorize block site at observeDecision above
+            // never sees it). Best-effort; never blocks the response.
+            try {
+                require('./demoTrackService').observeDecision({
+                    tool,
+                    decision: 'HITL',
+                    decisionId: err.rpcData?.challengeId || null,
+                });
+            } catch (_) { /* track observation is optional */ }
             try {
                 const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
                 deps.publishMcpResultToSse(flowTraceId, {
