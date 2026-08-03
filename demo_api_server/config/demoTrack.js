@@ -34,7 +34,19 @@ const TRACK_STEPS = [
     capability: 'Nested act chain', ucIds: ['UC2', 'UC2.5', 'UC13'],
     buyerStory: 'A specialist must carry proof of the original user\'s authorization through the entire chain.',
     slots: {
-      green: { source: 'tool', chipText: 'hand off to a specialist', match: { tools: ['get_portfolio_summary'] }, expected: ['PERMIT'] },
+      green: {
+        source: 'tool', chipText: 'hand off to a specialist',
+        // Every a2aDelegated specialist tool (scope-topology.json) — the UC2 chip
+        // dispatches a different one per vertical; banking is get_portfolio_summary.
+        match: { tools: [
+          'get_portfolio_summary',
+          'sensitive_customer_identity', 'sensitive_holdings', 'sensitive_membership_details',
+          'sensitive_order_history', 'sensitive_passenger_record', 'sensitive_patient_records',
+          'sensitive_payroll_details', 'sensitive_student_finance', 'sensitive_supplier_contract',
+          'sensitive_tax_record',
+        ] },
+        expected: ['PERMIT'],
+      },
       red:   { source: 'sim', label: 'confused-deputy actor injection blocked', match: { sims: ['rogue-actor'] }, expected: ['BLOCKED'] },
     },
     proved: {

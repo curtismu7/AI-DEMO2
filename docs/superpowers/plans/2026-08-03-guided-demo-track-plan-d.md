@@ -37,10 +37,15 @@ was written (UC16: #1075/#1077; UC2: #1029–#1034 + cd3e1e0a). Live evidence ga
 
 ## Still open after Plan D
 
-- Step 8 red path (out-of-scope admin call denied) — live verification.
-- Green-slot matcher for step 2 lists only `get_portfolio_summary` — banking-only; other
-  verticals' `sensitive_*` specialist tools do not fill the slot (data-only change in
-  `config/demoTrack.js` when needed).
+- Step 8 red path: the observation MECHANISM is live-verified (wildcard slot stamped
+  `PERMIT via get_account_balance` with the step active, 2026-08-03) and the red/wildcard
+  matching is unit-covered — but a REAL out-of-scope admin DENY needs a non-privileged
+  session (`demoDelegate` is outside `AI_Demo_Privileged`; no delegate credentials are
+  provisioned in `.env`, so the group-gate DENY on `sensitive_customer_identity` cannot be
+  driven headlessly). Provision delegate creds, or accept that any failed tool call while
+  step 8 is active fills the red slot (Plan A wildcard semantics).
+- ~~Green-slot matcher for step 2 banking-only~~ fixed in this branch: match list now carries
+  all 11 a2aDelegated specialist tools from scope-topology.
 - PERMIT slots carry `decisionId: null` (Plan A simplification); mini token-chain strips.
 - Full UC2 green live proof requires a signed-in browser run (headless e2e login helper
   currently loops on the PingOne signon page with its own env creds; server-side
