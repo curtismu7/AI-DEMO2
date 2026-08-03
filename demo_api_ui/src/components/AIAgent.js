@@ -82,6 +82,7 @@ import QuickLoginModal from "./QuickLoginModal";
 import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import DraggableModal from "./DraggableModal";
+import DemoTrackAgentControl from "./DemoTrackAgentControl";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -807,6 +808,13 @@ export default function BankingAgent({
   // Refs for stable thread ID and active run ID (needed by HITL resume)
   const aguiThreadIdRef = React.useRef(null);
   const aguiActiveRunIdRef = React.useRef(null);
+
+  // Guided Demo Track (Plan C): picked step drives a banner + swapped chip row.
+  const [trackStep, setTrackStep] = useState(null); // { step, index, total } | null
+  function handleTrackStepPick({ step, index, total }) {
+    setTrackStep({ step, index, total });
+    addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
+  }
 
   /** Render a single action button with optional emoji-only styling. */
   const renderChip = (action, groupName) => {
@@ -8315,6 +8323,7 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
+                <DemoTrackAgentControl onPickStep={handleTrackStepPick} />
                 <div
                   className={
                     splitChrome
@@ -9926,6 +9935,29 @@ export default function BankingAgent({
 
                 {isLoggedIn ? (
                   <>
+                    {trackStep && (
+                      <div className="ba-track-chips">
+                        {trackStep.step.slots.green?.chipText && (
+                          <button type="button" className="ba-track-chip ba-track-chip--g"
+                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-green`, label: trackStep.step.slots.green.chipText, message: trackStep.step.slots.green.chipText })}>
+                            ✓ {trackStep.step.slots.green.chipText}
+                          </button>
+                        )}
+                        {trackStep.step.slots.red?.chipText && (
+                          <button type="button" className="ba-track-chip ba-track-chip--r"
+                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-red`, label: trackStep.step.slots.red.chipText, message: trackStep.step.slots.red.chipText })}>
+                            ✕ {trackStep.step.slots.red.chipText}
+                          </button>
+                        )}
+                        <button type="button" className="ba-track-chip"
+                          onClick={() => handleChipActivate({ id: "track-why-blocked", label: "why was that blocked?", message: "why was that blocked?" })}>
+                          why was that blocked?
+                        </button>
+                        <button type="button" className="ba-track-chip ba-track-chip--exit" onClick={() => setTrackStep(null)}>
+                          exit track
+                        </button>
+                      </div>
+                    )}
                     {isLoggedIn && renderActionGroups()}
 
                     <div className="ba-left-divider" />
