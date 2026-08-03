@@ -5,7 +5,7 @@ description: Configure the cloud PingOne Authorize policy for AI-Demo. Use when 
 
 # PingOne Authorize Configuration Skill
 
-Covers all configuration of the cloud PingOne Authorize (P1AZ) trust framework for AI-Demo. The authoritative snapshot is at `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`.
+Covers all configuration of the cloud PingOne Authorize (P1AZ) trust framework for AI-Demo. The authoritative snapshot is at `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`.
 
 ---
 
@@ -36,9 +36,9 @@ curl -sf -X POST "https://auth.pingone.com/${ENV_ID}/as/token" \
 
 | Object | ID | Name |
 |--------|-----|------|
-| PolicySet | `56789012-0003-4321-abcd-000000000003` | Super Banking Policies |
-| Policy | `56789012-0001-4321-abcd-000000000001` | Super Banking Transaction Authorization |
-| Policy | `56789012-0002-4321-abcd-000000000002` | Super Banking MCP Delegation Authorization |
+| PolicySet | `56789012-0003-4321-abcd-000000000003` | AI Demo Policies |
+| Policy | `56789012-0001-4321-abcd-000000000001` | AI Demo Transaction Authorization |
+| Policy | `56789012-0002-4321-abcd-000000000002` | AI Demo MCP Delegation Authorization |
 
 Decision endpoints (look up via API — IDs change per environment):
 ```bash
@@ -53,7 +53,7 @@ DEV endpoint ID: `f6752166-f78b-44db-a064-ead8f6a83142` (may be stale — cannot
 
 The snapshot is the most reliable way to configure P1AZ. The cloud API condition POST does not support `COMPARISON` type inline (returns UNEXPECTED_ERROR); snapshot import handles the full condition DSL.
 
-**File:** `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`
+**File:** `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
 
 **To import:**
 1. PingOne Authorize console → your environment
@@ -149,7 +149,7 @@ These cannot be encoded in the snapshot:
 BFF actor client ID is from `demo_api_server/.env` → look for `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` (the BFF actor client whose `act.client_id` becomes `ActClientId`).
 
 ### 2. Wire decision endpoint to policy set
-The decision endpoint must point to the `Super Banking Policies` policy set (`56789012-0003-...`):
+The decision endpoint must point to the `AI Demo Policies` policy set (`56789012-0003-...`):
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
   "${API_BASE}/decisionEndpoints/f6752166-f78b-44db-a064-ead8f6a83142"

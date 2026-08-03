@@ -19,6 +19,6 @@ module.exports = function generateSnapshot(_req, res) {
   reconcile(snap, loadSot());
   const out = '[\n  ' + snap.map((o) => JSON.stringify(o)).join(',\n  ') + '\n]\n';
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', 'attachment; filename="Super_Banking_Transaction_Authorization_P1AZ.snapshot.json"');
+  res.setHeader('Content-Disposition', 'attachment; filename="AI_Demo_Transaction_Authorization_P1AZ.snapshot.json"');
   res.send(out);
 };

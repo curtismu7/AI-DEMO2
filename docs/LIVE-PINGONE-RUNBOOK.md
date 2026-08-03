@@ -79,7 +79,7 @@ npm run snapshot:generate
 git diff --stat            # must be empty
 ```
 
-PingOne console → **Authorize → Trust Framework → Import** → `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`
+PingOne console → **Authorize → Trust Framework → Import** → `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
 
 ⚠️ **PingOne skips an object whose `version` is unchanged.** A regenerated ceiling with a stale version imports as a silent no-op — the file is right, the cloud is stale, and nothing says so. Bump `TIER_VERSION_GROUP` in the same commit as any threshold change.
 

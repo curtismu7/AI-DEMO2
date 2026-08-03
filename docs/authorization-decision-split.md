@@ -108,7 +108,7 @@ PDP or (intent/TraT/DPoP/RAR) **enforced nowhere on this path** — see §6.1.
 
 ## 4. What P1AZ decides
 
-### 4.1 Real cloud policy (`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`)
+### 4.1 Real cloud policy (`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`)
 
 > **The cloud policy has no tracked source of truth.** `.gitignore:32` ignores
 > `snapshots/*`, so every file cited in this section is an untracked local
@@ -119,10 +119,10 @@ PDP or (intent/TraT/DPoP/RAR) **enforced nowhere on this path** — see §6.1.
 > present in the main checkout and silently drops three tools from the consent
 > list; importing it is now blocked (§6.3 item 7).
 
-PolicySet `Super Banking Policies`, `DenyOverrides`, `evaluateAll:true`, two
+PolicySet `AI Demo Policies`, `DenyOverrides`, `evaluateAll:true`, two
 children gated on `IsMcpFirstToolRequest` = `DecisionContext == "McpFirstTool" OR "McpToolCall"`.
 
-**Policy `Super Banking Transaction Authorization`** (guard: NOT MCP):
+**Policy `AI Demo Transaction Authorization`** (guard: NOT MCP):
 
 | Rule | Condition | Statement |
 |---|---|---|
@@ -131,7 +131,7 @@ children gated on `IsMcpFirstToolRequest` = `DecisionContext == "McpFirstTool" O
 | Require Consent | `Amount > 250` | `HITL_CONSENT` |
 | Permit Standard | always | `transaction-approved` |
 
-**Policy `Super Banking MCP Delegation Authorization`** (guard: MCP):
+**Policy `AI Demo MCP Delegation Authorization`** (guard: MCP):
 
 | Rule | Condition |
 |---|---|

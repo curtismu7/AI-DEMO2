@@ -54,7 +54,7 @@ const path = require('node:path');
 
 const REPO = path.resolve(__dirname, '..');
 const SOT = path.join(REPO, 'scope-topology.json');
-const SNAP = path.join(__dirname, 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
+const SNAP = path.join(__dirname, 'AI_Demo_Transaction_Authorization_P1AZ.snapshot.json');
 // Banking is the ONLY vertical with a `tiers` block, and this file is the
 // banking policy — so the tier SoT is read from that one manifest by path
 // rather than through the vertical resolver (which needs demo_api_server's

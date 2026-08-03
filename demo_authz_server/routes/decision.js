@@ -119,7 +119,7 @@ function _resolveUserTier(userGroupsParam) {
 // used to return only `reason`, so consumers merged six response shapes to cover
 // both (pingOneAuthorizeService._classifyRawObligations). The mock now emits the
 // SAME codes the cloud snapshot defines
-// (snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) while
+// (snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json) while
 // KEEPING `reason` for back-compat.
 //
 // Codes are looked up from the deny reason's prefix (the token before ':'), so a

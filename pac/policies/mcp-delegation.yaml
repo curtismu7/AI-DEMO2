@@ -1,9 +1,9 @@
-# Super Banking MCP Delegation Authorization — Policy as Code source of truth.
+# AI Demo MCP Delegation Authorization — Policy as Code source of truth.
 #
 # Deployed alongside transaction-authorization.yaml to the "Super Banking Demo -
 # Policy as Code" endpoint (ad5fc1d4-…). pac deploy replaces the full package.
 #
-# Mirror of the "Super Banking MCP Delegation Authorization" policy in the
+# Mirror of the "AI Demo MCP Delegation Authorization" policy in the
 # snapshot. The console-authored MCP first-tool endpoint (1f9e9c71-…) is NOT
 # touched here.
 #

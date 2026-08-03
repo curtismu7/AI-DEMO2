@@ -102,6 +102,51 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — P1AZ policy artifacts were branded "Super Banking" although they govern every vertical
+
+**Files changed:** `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` →
+`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json` (`git mv`),
+`snapshots/gen-authorize-snapshot.js` (`SNAP`), and every reference site:
+`.husky/pre-commit`, `authz-parity-checklist.md`, `{demo_api_server,demo_authz_server}/Dockerfile`,
+`demo_api_server/{routes/authorize.js,scripts/verifyAuthorizeCloudParity.js,services/checks/a2aActorCheck.js,services/pingOneAuthorizeService.js}`,
+`demo_api_server/{src/__tests__/policyTestCaseSolverSnapshotIntegration,tests/pingOneAuthorizeTierParameters}.test.js`,
+`demo_authz_server/{decision.contract,importSnapshot.parity}.test.js`,
+`demo_authz_server/routes/{decision,generate-snapshot}.js`,
+`demo_mcp_gateway/tests/gatewayTokenPolicy.test.ts`,
+`demo_api_ui/src/utils/authorizeResultExplain.test.js`, `pac/policies/*.yaml`,
+`pingone|claudSkills|claude-skills-bundle /pingone/pingone-authorize-configure/SKILL.md`, and
+`docs/{LIVE-PINGONE-RUNBOOK,authorization-decision-split,per-vertical-entitlement-uc9-uc21,PINGONE_AUTHORIZE_PLAN}.md`.
+
+**What was broken:** the app is AI Demo, but the P1AZ snapshot file and its three container
+objects were named after one vertical — PolicySet `56789012-0003-…` "Super Banking Policies"
+and Policies `-0001-…`/`-0002-…` — while those policies gate airlines, healthcare,
+government, retail and every other vertical.
+
+**What was fixed:** file renamed, and the three objects renamed to `AI Demo Policies` /
+`AI Demo Transaction Authorization` / `AI Demo MCP Delegation Authorization`. Their `version`
+UUIDs were bumped from group `4321` to `4322` in the same edit — **PingOne SKIPS an object
+whose `version` is unchanged**, so a rename without the bump imports as a silent no-op (the
+same trap `TIER_VERSION_GROUP` guards for the reconciler-owned tier conditions). All object
+`id`s are unchanged, so the import updates in place instead of creating duplicates.
+
+**Do not break:** "Super Banking" is still correct in three places and must stay —
+(1) the **banking vertical** (`demo_api_server/config/verticals/banking/**`, UI/education
+copy); (2) **live PingOne resource and application names** resolved by
+`findResourceByName` (`Super Banking A2A MCP Gateway`, the 11 `Super Banking A2A
+Intermediate - …` specialists, `Super Banking API`, `Super Banking MCP Server`, … — renaming
+these in code makes the next provisioning run create duplicates rather than find the
+existing objects); (3) the `Super Banking Transaction Authorization Endpoint` decision
+endpoint name in `docs/PINGONE_AUTHORIZE_PLAN.md`. `snapshots/merge-mcp-amount-bands.js`
+already accepts both old and new policy names and reads its protected-name list from
+`scope-topology.json` — leave that dual lookup in place.
+
+**Verify:** `npm run snapshot:check` (exit 0) and `npm run snapshot:generate` twice produces
+an identical file; `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+`npm run topology:verify`; `npm run hygiene:check`;
+`git grep -c Super_Banking_Transaction_Authorization_P1AZ` returns only this file's §4 prose
+and `demo_api_ui/src/pages/SnapshotImport.jsx` (its `download=` attribute, left for the
+queued `demo_api_ui` branch).
+
 ### 2026-08-03 — MCP server 401'd the spec-mandatory `notifications/initialized`, making tokenless discovery impossible
 
 **Files changed:** `demo_mcp_server/src/server/HttpMCPTransport.ts` + byte-identical twin

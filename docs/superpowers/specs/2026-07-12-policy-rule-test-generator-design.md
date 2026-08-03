@@ -22,7 +22,7 @@ behavior instead of requiring it to already be understood.
 The policy tree rendered by this console is sourced from
 `getAuthorizationPoliciesFromSnapshot()` in
 `demo_api_server/services/pingOneAuthorizeService.js`, which reads
-`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`. This is
+`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`. This is
 the **only** source in practice: the live `GET /authorizationPolicies` call
 (`getAuthorizationPolicies()`) 403s for worker (client_credentials) tokens on
 this deployment regardless of role/license (documented in an existing code
