@@ -22,7 +22,11 @@ const path = require('path');
 
 const GATEWAY_AUD = 'mcpgateway.ping.demo';
 const OLB_AUD = 'mcpserver.ping.demo';
-const MCP_RS_AUD = 'mcp-resource-server.ping.demo';
+// The invest backend's audience, per scope-topology.json "Super Banking MCP Invest".
+// It must track the manifest: TokenAudTargetsUpstream is GENERATED from that
+// resource list, so a stale literal here silently stops exercising the D-05 rule
+// (the token no longer looks like an upstream audience, so nothing denies it).
+const MCP_RS_AUD = 'mcp-invest.ping.demo';
 const BANKING_RS_AUD = 'https://banking-resource-server.ping.demo';
 const AI_AGENT_ACTOR = 'test-ai-agent';
 

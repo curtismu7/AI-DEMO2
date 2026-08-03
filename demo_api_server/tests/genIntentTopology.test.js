@@ -12,18 +12,22 @@
 
 const gen = require('../scripts/gen-intent-topology');
 
-/** Verified 2026-08-02 — chips live at manifest.dashboard.chips10, not top level. */
+/**
+ * Verified 2026-08-02 — chips live at manifest.dashboard.chips10, not top level.
+ * retail/sporting-goods/workforce each gained their `*-a2a` chip (A2A parity —
+ * see tests/a2aVerticalParity.test.js), taking the total from 123 to 126.
+ */
 const EXPECTED_CHIP_COUNTS = {
-  banking: 16,
-  retail: 15,
+      banking: 16,
+      retail: 16,
   'oauth-teaching': 12,
+  workforce: 11,
   healthcare: 10,
-  workforce: 10,
+  'sporting-goods': 10,
   government: 9,
   investment: 9,
   manufacturing: 9,
   university: 9,
-  'sporting-goods': 9,
   admin: 8,
   'pingone-admin': 5,
   airlines: 5,
@@ -56,8 +60,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 126 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(126);
+  it('covers 129 chips across 13 verticals', () => {
+    expect(rows).toHaveLength(129);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
   });
 
@@ -99,7 +103,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(126);
+    expect(topology.counts.chips).toBe(129);
     expect(topology.counts.verticals).toBe(13);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });

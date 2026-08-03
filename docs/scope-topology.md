@@ -66,7 +66,7 @@ Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `writ
 
 ### Super Banking MCP Invest
 
-Audience: `mcp-resource-server.ping.demo`
+Audience: `mcp-invest.ping.demo`
 
 Native scopes: `mcp:invoke`
 
