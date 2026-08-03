@@ -435,11 +435,18 @@ export class HttpMCPTransport {
 
     const isNotification = message.id === undefined;
     const isInitialize = message.method === 'initialize';
-    const isDiscovery = isInitialize || message.method === 'tools/list';
+    const isDiscovery = isInitialize
+      || message.method === 'tools/list'
+      || message.method === 'notifications/initialized';
 
     // 2. Bearer token — required on every request except discovery methods
-    // (initialize, tools/list). These are unauthenticated so MCP clients and
-    // gateways (e.g. PingOne Privilege) can discover capabilities before auth.
+    // (initialize, notifications/initialized, tools/list). These are
+    // unauthenticated so MCP clients and gateways (e.g. PingOne Privilege) can
+    // discover capabilities before auth. notifications/initialized is included
+    // because the spec REQUIRES it between initialize and tools/list — gating it
+    // made the mandatory handshake impossible for tokenless discovery
+    // ("Error discovering MCP server: sending "notifications/initialized": Unauthorized").
+    // Only this one notification is exempt; all others still authenticate.
     let bearerToken: string | undefined;
     let tokenInfo: Awaited<ReturnType<typeof this.authManager.validateAgentToken>> | undefined;
     if (!isDiscovery) {

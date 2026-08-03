@@ -53,12 +53,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Retail_Privileged",
-        "description": "Users permitted to access sensitive order history (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Retail_Delegates",
-        "description": "Users authorized as delegated shopping agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       }
     },
     "restrictedTools": {
@@ -310,6 +310,7 @@
     "scopeError": "The agent's access token does not carry the largepurchase:read scope. Sign out and sign back in to consent to large purchase access, then try \"Show Large Purchase\" again."
   },
   "render": {
+    "request_price_adjustment": { "type": "card", "title": "Price-Adjustment Request Submitted", "fields": [{ "label": "Request #", "path": "requestId" }, { "label": "Order #", "path": "orderId" }, { "label": "Status", "path": "status" }, { "label": "Note", "path": "note" } ] },
     "initiate_return": {"type":"card","title":"Return Initiated","fields":[{"label":"Return #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
     "add_to_wishlist": {"type":"card","title":"Added to Wishlist","fields":[{"label":"Item #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
     "reorder": {"type":"card","title":"Order Resubmitted","fields":[{"label":"Order #","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},

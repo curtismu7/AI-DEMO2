@@ -49,6 +49,15 @@ router.post('/run', authenticateToken, async (req, res) => {
 
   try {
     const result = await runAttackSim(sim, req);
+    // Guided Demo Track — best-effort observation; never blocks the sim response.
+    try {
+      require('../services/demoTrackService').observeAttackSim({
+        sim,
+        status: result?.status,
+        errorCode: result?.errorCode || null,
+        decisionId: result?.authorize?.decisionId || result?.decisionId || null,
+      });
+    } catch { /* track observation is optional */ }
     return res.status(200).json(result);
   } catch (err) {
     console.error('[attackSimulator] runAttackSim failed:', err.message);

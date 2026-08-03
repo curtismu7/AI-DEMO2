@@ -82,6 +82,7 @@ import QuickLoginModal from "./QuickLoginModal";
 import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import DraggableModal from "./DraggableModal";
+import DemoTrackAgentControl from "./DemoTrackAgentControl";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -807,6 +808,30 @@ export default function BankingAgent({
   // Refs for stable thread ID and active run ID (needed by HITL resume)
   const aguiThreadIdRef = React.useRef(null);
   const aguiActiveRunIdRef = React.useRef(null);
+
+  // Guided Demo Track (Plan C): picked step drives a banner + swapped chip row.
+  const [trackStep, setTrackStep] = useState(null); // { step, index, total, completed?, next? } | null
+  async function handleTrackStepPick({ step, index, total }) {
+    setTrackStep({ step, index, total, completed: false, next: null });
+    addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
+    // Arm the flags this step's backing use case needs (same contract as
+    // handleDemoStepSelect) — e.g. the A2A step is dead without ff_a2a_delegation.
+    const greenTool = step.slots?.green?.match?.tools?.[0] || null;
+    await ensureRequiredDemoFlags(
+      requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: greenTool }),
+      `demo track: ${step.stepId}`,
+    );
+  }
+  function handleTrackStepComplete({ step, index, total, next }) {
+    setTrackStep((cur) =>
+      cur && cur.step.stepId === step.stepId ? { ...cur, completed: true, next } : cur,
+    );
+    const lines = [`STEP ${index + 1} PROVED`];
+    if (step.proved?.green) lines.push(`✓ ${step.proved.green}`);
+    if (step.proved?.red) lines.push(`✕ ${step.proved.red}`);
+    if (step.proved?.sayThis) lines.push(`SAY THIS: ${step.proved.sayThis}`);
+    addMessage("assistant", lines.join("\n"));
+  }
 
   /** Render a single action button with optional emoji-only styling. */
   const renderChip = (action, groupName) => {
@@ -5443,7 +5468,7 @@ export default function BankingAgent({
         addMessage(
           "error",
           isConnErr
-            ? "AI Agent is unavailable.\n\nThe MCP server is not reachable.\n\nLocal: cd demo_mcp_server && npm run dev\nHosted: set MCP_SERVER_URL to your reachable MCP server URL (if your platform allows outbound WS)."
+            ? "AI Agent is unavailable.\n\nThe MCP server is not reachable.\n\nLocal: cd oauth-mcp && npm run dev\nHosted: set MCP_SERVER_URL to your reachable MCP server URL (if your platform allows outbound WS)."
             : `Error: ${err.message}${authHint}`,
           actionId,
         );
@@ -8315,6 +8340,7 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
+                <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
                 <div
                   className={
                     splitChrome
@@ -9926,6 +9952,40 @@ export default function BankingAgent({
 
                 {isLoggedIn ? (
                   <>
+                    {trackStep && (
+                      <div className="ba-track-chips">
+                        {trackStep.step.slots.green?.chipText && (
+                          <button type="button" className="ba-track-chip ba-track-chip--g"
+                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-green`, label: trackStep.step.slots.green.chipText, message: trackStep.step.slots.green.chipText })}>
+                            ✓ {trackStep.step.slots.green.chipText}
+                          </button>
+                        )}
+                        {trackStep.step.slots.red?.chipText && (
+                          <button type="button" className="ba-track-chip ba-track-chip--r"
+                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-red`, label: trackStep.step.slots.red.chipText, message: trackStep.step.slots.red.chipText })}>
+                            ✕ {trackStep.step.slots.red.chipText}
+                          </button>
+                        )}
+                        <button type="button" className="ba-track-chip"
+                          onClick={() => handleChipActivate({ id: "track-why-blocked", label: "why was that blocked?", message: "why was that blocked?" })}>
+                          why was that blocked?
+                        </button>
+                        {trackStep.completed && trackStep.next && (
+                          <button type="button" className="ba-track-chip ba-track-chip--next"
+                            onClick={async () => {
+                              try {
+                                await apiClient.post("/api/demo-track/active-step", { stepId: trackStep.next.step.stepId });
+                              } catch { /* pick still proceeds; control resyncs on next poll */ }
+                              handleTrackStepPick(trackStep.next);
+                            }}>
+                            Next: Step {trackStep.next.index + 1} — {trackStep.next.step.title}
+                          </button>
+                        )}
+                        <button type="button" className="ba-track-chip ba-track-chip--exit" onClick={() => setTrackStep(null)}>
+                          exit track
+                        </button>
+                      </div>
+                    )}
                     {isLoggedIn && renderActionGroups()}
 
                     <div className="ba-left-divider" />

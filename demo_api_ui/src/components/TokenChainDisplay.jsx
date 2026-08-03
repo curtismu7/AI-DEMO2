@@ -18,6 +18,7 @@ import {
 // Phase 266 R3 — spec-citation pills (educational/teaching demo). Runs offline.
 import { SPEC_GUIDE } from "./specGuide";
 import TokenCard from "./TokenCard";
+import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import JsonField from "./shared/JsonField";
 import { isEducationalPath } from "../utils/educationalPages";
 // A8 -- Ping product attribution
@@ -4895,6 +4896,14 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
           >
             Trust
           </button>
+          <button
+            type="button"
+            className={`tcd-tab ${tab === "demo-track" ? "active" : ""}`}
+            onClick={() => setTab("demo-track")}
+            title="Guided Demo Track — live step tracker"
+          >
+            Demo Track
+          </button>
         </div>
 
         {tab === "current" && (
@@ -5220,6 +5229,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
             </div>
           );
         })()}
+        {tab === "demo-track" && <TokenChainDemoTrackTab />}
       </div>
 
       {/* Inspector panel — portalled to document.body, draggable, resizable, collapsible */}

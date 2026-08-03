@@ -18,7 +18,7 @@ const DEFAULT_CODEBASE_NAME = 'This demo (AI-DEMO2)';
 const CODEBASE_PIECES = [
   { id: 'ai-demo2-ui', name: 'UI', roots: ['demo_api_ui/src'] },
   { id: 'ai-demo2-server', name: 'API Server', roots: ['demo_api_server'] },
-  { id: 'ai-demo2-mcp-server', name: 'MCP Server', roots: ['demo_mcp_server'] },
+  { id: 'ai-demo2-mcp-server', name: 'MCP Server', roots: ['oauth-mcp'] },
   { id: 'ai-demo2-mcp-gateway', name: 'MCP Gateway', roots: ['demo_mcp_gateway'] },
   { id: 'ai-demo2-authorize', name: 'Authorize', roots: ['demo_authz_server'] },
   { id: 'ai-demo2-ping-gateway', name: 'Ping Gateway', roots: ['ping-gateway'] },

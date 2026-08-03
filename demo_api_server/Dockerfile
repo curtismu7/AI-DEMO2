@@ -49,7 +49,7 @@ COPY graphify-out/*.kb.json /graphify-out/
 # llamacppModelsService.js resolves to /demo_llm_proxy/modelCatalog.js (../../ from /app/services)
 COPY demo_llm_proxy/modelCatalog.js /demo_llm_proxy/modelCatalog.js
 # pingOneAuthorizeService.getAuthorizationPoliciesFromSnapshot resolves to /snapshots/… (../../ from /app/services)
-COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+COPY snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json /snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
 
 # First-party sources for the default code-search piece indexer. Compose bind-
 # mounts ./:/repo:ro over this path; SE/K8 have no host checkout, so the image
@@ -57,7 +57,7 @@ COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /snaps
 ENV CODE_SEARCH_REPO_ROOT=/repo
 COPY demo_api_ui/src /repo/demo_api_ui/src
 COPY demo_api_server /repo/demo_api_server
-COPY demo_mcp_server /repo/demo_mcp_server
+COPY oauth-mcp /repo/oauth-mcp
 COPY demo_mcp_gateway /repo/demo_mcp_gateway
 COPY demo_authz_server /repo/demo_authz_server
 COPY ping-gateway /repo/ping-gateway

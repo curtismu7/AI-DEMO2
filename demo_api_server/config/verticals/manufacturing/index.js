@@ -32,6 +32,8 @@ const HEURISTICS = [
   { re: /\bscrap\s+(report|rate|log|summary)\b|\brework\s+(rate|report|log|summary)\b/i, action: 'view_scrap_report' },
   { re: /\bsupplier\s+(scorecard|rating|performance|score)\b|\bscorecard\b|\bperform\w*\b.*\bdeliver\w*\b|\bdeliver\w*\b.*\bperform\w*\b/i, action: 'view_supplier_scorecard' },
   /* PACK:heuristics:end */
+  // UC28 request-only. Must precede the work-order heuristics.
+  { re: /\bspec\w*\s+exception\b|\bexception\b.{0,15}\bspec\b/i, action: 'request_spec_exception' },
   // Most specific first. release_work_order must precede view_work_orders; schedule_run must precede view_production_history.
   { re: /\b(release|authorize|ship)\s+(my\s+)?(work\s+)?order/i, action: 'release_work_order', extractsOrderId: true, paramHint: 'e.g. "release work order WO-4001" — check your work orders list for the ID' },
   { re: /\bschedule\b.*\b(run|production|job)\b|\bstart\s+(a\s+)?(production\s+)?run\b/i, action: 'schedule_run' },

@@ -5,7 +5,7 @@
 # BLOCK the commit unless the full OFFLINE verification passes: running-code
 # consumers, P1AZ snapshot, PingGateway config, and the mock authz rule store.
 # The live PingOne diff stays opt-in (npm run topology:verify:live).
-TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|mcp-tool-schemas\.json|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/(\.env\.example|src/gatewayTools\.ts)|demo_mcp_server/src/tools/|demo_mcp_resource_server/src/tools/investTools\.ts|demo_api_server/services/(intentTokenService|configStore)\.js|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
+TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|mcp-tool-schemas\.json|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/(\.env\.example|src/gatewayTools\.ts)|oauth-mcp/src/tools/|demo_mcp_resource_server/src/tools/investTools\.ts|demo_api_server/services/(intentTokenService|configStore)\.js|snapshots/AI_Demo_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
 if [ -n "$TOPO_TOUCHED" ] && [ ! -x demo_mcp_gateway/node_modules/.bin/ts-node ] && ! command -v ts-node >/dev/null 2>&1; then
   # The regen + drift checks below need node_modules (ts-node, topology deps). A
   # git worktree does not get its own node_modules, so these are absent there.
@@ -20,7 +20,7 @@ elif [ -n "$TOPO_TOUCHED" ]; then
   # snapshots/ is gitignored (local-only artifact); only regenerate where present.
   if [ -f snapshots/gen-authorize-snapshot.js ]; then
     node snapshots/gen-authorize-snapshot.js
-    git add snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json 2>/dev/null || true
+    git add snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json 2>/dev/null || true
   fi
   # Keep PingGateway's tool schema (mcp-tool-schemas.json) in lock-step with the
   # tool registry (BankingToolRegistry + invest + gateway tools). Idempotent — a

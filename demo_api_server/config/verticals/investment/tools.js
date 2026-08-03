@@ -30,6 +30,15 @@ function buildInvestmentTools(store) {
     { name: 'large_trade', description: 'Execute a high-value trade or withdrawal from a managed portfolio (requires step-up + consent).', inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' }, symbol: { type: 'string' }, amount: { type: 'number' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
     { name: 'rebalance_portfolio', description: "Rebalance a portfolio to its target allocation.", inputSchema: { type: 'object', properties: { portfolioType: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'sensitive_holdings', description: 'Access sensitive holdings detail including cost basis and tax lots. Requires explicit user consent.', inputSchema: { type: 'object', properties: {}, required: [] }, scopes: ['read'], authz: { consent: true } },
+    {
+      // The agent can only REQUEST a fee-tier review (logged for human review) —
+      // no tool can change the tier. The tool set is the authorization boundary (UC28).
+      name: 'request_fee_tier_review',
+      description: 'Submit a fee-tier review request for human review. Cannot change the fee tier.',
+      inputSchema: { type: 'object', properties: { portfolioId: { type: 'string' } } },
+      scopes: ['write'],
+      authz: {},
+    },
     { name: 'api_key_demo', description: 'Demo API-key path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'dual_token_demo', description: 'Demo access and ID token path.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
   ];
@@ -37,6 +46,23 @@ function buildInvestmentTools(store) {
   async function execute(name, params, ctx) {
     const userId = ctx && ctx.userId ? ctx.userId : 'anon';
     switch (name) {
+      case 'request_fee_tier_review': {
+        // Request ONLY — deliberately changes no fee tier. The one-click chip carries
+        // no id, so default to the client's first portfolio.
+        const _rows = store.get(userId).portfolios || [];
+        const _want = params && (params.portfolioId || params.recordId);
+        const _rec = _want ? _rows.find((r) => r.id === _want) : _rows[0];
+        if (!_rec) return { result: { error: 'portfolio not found' }, render: 'text' };
+        return {
+          result: {
+            requestId: `REQ-${_rec.id}`,
+            portfolioId: _rec.id,
+            status: 'Submitted for human review',
+            note: 'This request does not change the fee tier.',
+          },
+          render: 'request_fee_tier_review',
+        };
+      }
       case 'view_portfolios':
         return { result: { portfolios: store.get(userId).portfolios }, render: 'portfolios' };
       case 'view_holdings':

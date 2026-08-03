@@ -18,6 +18,7 @@ const manifest = require('../config/verticals/airlines/manifest.json');
 const AIRLINES_TOOLS = [
   'get_airline_bookings',      // plain read — ungated
   'cancel_airline_reservation', // Phase 2 write — step-up (MFA)
+  'pay_airline_fee',            // Phase 2 amount-gated write — ladder decides
   'sensitive_airline_bookings', // Phase 2 sensitive read — HITL consent
   'get_flight_status',
   'check_seat_availability',
@@ -150,6 +151,54 @@ describe('airlines vertical', () => {
     expect(resolveAgentScopes('airlines', false)).toContain('airlines:read');
   });
 
+  test('the fee heuristic extracts the amount and outranks cancel', () => {
+    const fee = plugin.getHeuristics().find((h) => h.action === 'pay_airline_fee');
+    expect(fee).toBeDefined();
+    expect(fee.extractsAmount).toBe(true);
+
+    const feeIndex = plugin.getHeuristics().findIndex((h) => h.action === 'pay_airline_fee');
+    const cancelIndex = plugin.getHeuristics().findIndex((h) => h.action === 'cancel_airline_reservation');
+    expect(feeIndex).toBeLessThan(cancelIndex);
+  });
+
+  // The catalog's amount trigger for this vertical. If the regex stops matching
+  // it, UC6/7/8/22 fall through to the LLM and the demo silently loses its
+  // DENY / step-up / consent proof.
+  test.each([
+    'pay a $300 change fee',
+    'pay a $2500 change fee',
+    'pay the $60 bag fee',
+  ])('%s routes to pay_airline_fee', (phrase) => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test(phrase));
+    expect(hit && hit.action).toBe('pay_airline_fee');
+  });
+
+  // "refund fee" contains `refund`, which the cancel rule also matches.
+  test('a refund fee is a fee payment, not a cancellation', () => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test('pay the $75 refund fee'));
+    expect(hit.action).toBe('pay_airline_fee');
+  });
+
+  // Without this entry _applyTransactionPolicy returns early on a null
+  // transactionType, so $2500 PERMITs and UC6/7/8/22 all silently pass.
+  test('pay_airline_fee is on the transaction-policy path', () => {
+    const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService');
+    expect(WRITE_TOOL_TYPE_MAP.pay_airline_fee).toBe('transfer');
+  });
+
+  test('pay_airline_fee is gateway-surfaced and scoped like the cancel write', () => {
+    expect(scopeTopology.toolScopes('pay_airline_fee')).toEqual(['airlines:read', 'airlines:write']);
+    expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
+  });
+
+  // The amount ladder must decide the outcome, not a pinned challengeType.
+  // large_trade pins step_up unconditionally, which would render UC6's $2500
+  // DENY and UC8's $300 HITL both as step-up.
+  test('pay_airline_fee pins no challengeType', () => {
+    const topology = require('../../scope-topology.json');
+    expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();
+  });
+
   test('the resource server declares the same tools and scope', () => {
     const toolsPath = path.join(__dirname, '..', '..', 'demo_mcp_resource_server', 'src', 'tools', 'airlinesTools.ts');
     const src = require('fs').readFileSync(toolsPath, 'utf8');
@@ -162,18 +211,21 @@ describe('airlines vertical', () => {
 
   /**
    * oauth-mcp/ IS the live `mcp-server` container, and BankingToolProvider reads
-   * a2aDelegatedScope from its own copy of the generated catalog. Regenerating
-   * only demo_mcp_server's copy leaves the specialist's Exchange #2 bearer
-   * rejected for insufficient scope while every static check stays green — the
-   * copy was already three tools stale when this vertical landed.
+   * a2aDelegatedScope from its own copy of the generated catalog. A stale copy
+   * leaves the specialist's Exchange #2 bearer rejected for insufficient scope
+   * while every static check stays green.
+   *
+   * This used to loop over demo_mcp_server too — a duplicate tree the generator
+   * wrote INSTEAD of oauth-mcp, which is how the live copy went three tools
+   * stale when this vertical landed. That tree is gone and the generator now
+   * writes the live one, so there is a single catalog to assert on.
    */
-  test('both generated MCP catalogs carry the tool and its delegated scope', () => {
+  test('the generated MCP catalog carries the tool and its delegated scope', () => {
     const fs = require('fs');
-    for (const svc of ['demo_mcp_server', 'oauth-mcp']) {
-      const p = path.join(__dirname, '..', '..', svc, 'src', 'tools', 'handlers', 'verticalTools.generated.ts');
-      const src = fs.readFileSync(p, 'utf8');
-      for (const name of ALL_TOOLS) expect(`${svc}:${src.includes(`"name":"${name}"`)}`).toBe(`${svc}:true`);
-      expect(src).toContain('"name":"sensitive_passenger_record","scope":"read","vertical":"airlines","a2aDelegatedScope":"pnr:read"');
-    }
+    const svc = 'oauth-mcp';
+    const p = path.join(__dirname, '..', '..', svc, 'src', 'tools', 'handlers', 'verticalTools.generated.ts');
+    const src = fs.readFileSync(p, 'utf8');
+    for (const name of ALL_TOOLS) expect(`${svc}:${src.includes(`"name":"${name}"`)}`).toBe(`${svc}:true`);
+    expect(src).toContain('"name":"sensitive_passenger_record","scope":"read","vertical":"airlines","a2aDelegatedScope":"pnr:read"');
   });
 });

@@ -25,6 +25,7 @@ const {
   resolveActiveUseCaseId,
   resolveDemoUserGroupsForUseCase,
   shouldApplyEntitlementTierDemo,
+  shouldApplyGroupPolicyDemo,
 } = require('./useCaseDemoBehaviors');
 const { getUseCaseStepUpMethod } = require('../config/useCases');
 const { verticalManifest } = require('./verticalManifest');
@@ -189,6 +190,10 @@ const WRITE_TOOL_TYPE_MAP = {
   // here the chip routes but the amount policy never fires: no DENY, no step-up,
   // no consent, and the demo looks correct while authorizing everything.
   large_trade: 'transfer',
+  // airlines (United) UC6/7/8/22 — "pay a $N change fee". Absent here the chip
+  // routes but the amount policy never fires: no DENY, no step-up, no consent,
+  // and the demo looks correct while authorizing everything.
+  pay_airline_fee: 'transfer',
 };
 
 /**
@@ -736,7 +741,16 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     }
   }
 
-  if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
+  // Three ways group/tier attributes get resolved and sent to Authorize:
+  //   - the global flag, for a permanently-on deployment;
+  //   - UC21, which additionally force-injects the premium tier group;
+  //   - UC9, which uses REAL membership so the demo's in-group/out-of-group
+  //     toggle actually changes the decision.
+  // The per-use-case paths exist so a demo never has to flip a process-wide flag
+  // and remember to put it back.
+  if (groupPolicy.isEnabled(configStore)
+    || shouldApplyEntitlementTierDemo(useCaseId)
+    || shouldApplyGroupPolicyDemo(useCaseId)) {
     userGroups = await groupPolicy.groupsForUser(
       req.session?.user?.username,
       verticalId,

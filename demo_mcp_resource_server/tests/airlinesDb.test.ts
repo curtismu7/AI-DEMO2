@@ -8,7 +8,16 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'airlines-db-'));
 process.env.AIRLINES_DB_PATH = path.join(tmpDir, 'airlines.db');
 process.env.AIRLINES_SEED_PATH = path.join(__dirname, '..', 'seed', 'airlines.seed.json');
 
-import { getFlight, listBookings, listSeats, nextFlightFor, resolvePassenger, withDb } from '../src/db/airlinesDb';
+import {
+  getFlight,
+  listBookings,
+  listFeePayments,
+  listSeats,
+  nextFlightFor,
+  recordFeePayment,
+  resolvePassenger,
+  withDb,
+} from '../src/db/airlinesDb';
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -70,5 +79,35 @@ describe('airlinesDb', () => {
     const after = listBookings('UA-PAX-0001')[0];
     expect(after.status).toBe('Cancelled');
     expect(after.seat).toBe('31F');
+  });
+});
+
+describe('fee_payments', () => {
+  it('records a payment and reads it back', () => {
+    const saved = recordFeePayment({
+      confirmationNumber: 'K7XR2M',
+      feeType: 'change',
+      amountCents: 30000,
+    });
+    expect(saved.id).toBeGreaterThan(0);
+    expect(saved.amountCents).toBe(30000);
+    expect(saved.confirmationNumber).toBe('K7XR2M');
+    expect(saved.paidAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    const rows = listFeePayments('K7XR2M');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].feeType).toBe('change');
+  });
+
+  it('is append-only across calls, newest first', () => {
+    recordFeePayment({ confirmationNumber: 'L9QP4T', feeType: 'bag', amountCents: 6000 });
+    recordFeePayment({ confirmationNumber: 'L9QP4T', feeType: 'upgrade', amountCents: 15000 });
+    const rows = listFeePayments('L9QP4T');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].feeType).toBe('upgrade');
+  });
+
+  it('lists across all confirmations when none is named', () => {
+    expect(listFeePayments().length).toBeGreaterThanOrEqual(3);
   });
 });

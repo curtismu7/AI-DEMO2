@@ -3,11 +3,12 @@
  * Shared by UseCaseLauncherPage (/use-cases Demo section) and the agent
  * "Demo steps" dropdown so both lists stay identical.
  *
- * Primary = all 20 steps shown in the 5×4 visible grid.
+ * Primary = all 21 steps shown in the visible grid.
  * Advanced = empty (nothing hidden).
  * Attacks + Testing chips live in the Actions popout, not here.
  */
 export const DEMO_PRIMARY_USE_CASE_IDS = [
+  'UC24',  // Act 1 — public catalog, no token exchange (progressive trust)
   'UC1',   // Full flow — delegated access
   'UC8',   // Consent HITL
   'UC7',   // MFA step-up

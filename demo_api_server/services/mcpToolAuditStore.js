@@ -30,8 +30,9 @@ let _chainIndex = 0;
  * @param {string} [opts.summary]
  * @param {object} [opts.userToken]  decoded token payload (sub, scope)
  * @param {boolean} [opts.isDelegated]
+ * @param {string|null} [opts.decisionId]  authorize decision id for PERMIT calls (demo-track stamp)
  */
-function recordToolCall({ userId, toolName, success, duration, resultJson, requestJson, summary, userToken, isDelegated }) {
+function recordToolCall({ userId, toolName, success, duration, resultJson, requestJson, summary, userToken, isDelegated, decisionId }) {
 	const eventId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 	const event = {
 		eventId,
@@ -54,6 +55,10 @@ function recordToolCall({ userId, toolName, success, duration, resultJson, reque
 		},
 	};
 	_events.unshift(event);
+	// Guided Demo Track — best-effort observation; must never affect the audit.
+	try {
+		require('./demoTrackService').observeToolCall({ toolName, success, timestamp: event.timestamp, decisionId: decisionId || null });
+	} catch { /* track observation is optional */ }
 	if (_events.length > MAX_EVENTS) _events.length = MAX_EVENTS;
 }
 

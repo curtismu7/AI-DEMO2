@@ -433,13 +433,13 @@ async function main() {
     TOPOLOGY_GUARD: fb('TOPOLOGY_GUARD') || 'warn',
   };
 
-  // ── demo_mcp_server/.env ──────────────────────────────────────────────────
+  // ── oauth-mcp/.env ──────────────────────────────────────────────────
   // Validator requires: PINGONE_BASE_URL, PINGONE_CLIENT_ID, PINGONE_CLIENT_SECRET,
   // PINGONE_INTROSPECTION_ENDPOINT, PINGONE_AUTHORIZATION_ENDPOINT,
   // PINGONE_TOKEN_ENDPOINT, ENCRYPTION_KEY.
   // environments.ts uses GW_INTROSPECTION_CLIENT_ID (the exchanger) for introspection
   // in passthrough mode — this is the correct client (token aud=mcpgateway.ping.demo).
-  writeEnvFile(path.join(ROOT, 'demo_mcp_server', '.env'), {
+  writeEnvFile(path.join(ROOT, 'oauth-mcp', '.env'), {
     ...shared,
     PINGONE_BASE_URL:                `https://auth.pingone.${region}/${envId}`,
     PINGONE_CLIENT_ID:               creds.mcpExchangerClientId,
@@ -449,7 +449,7 @@ async function main() {
     PINGONE_TOKEN_ENDPOINT:          `${asBase}/token`,
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
-    // Step 9 backend exchange (demo_mcp_server/src/index.ts). Both halves must come
+    // Step 9 backend exchange (oauth-mcp/src/index.ts). Both halves must come
     // from the SAME app: the ID was never emitted before, so index.ts fell through to
     // PINGONE_TOKEN_EXCHANGER_CLIENT_ID -- a client with no grant on Demo API
     // (enduser.ping.demo), the very audience Step 9 requests. Hence "Step 9 had never
@@ -465,8 +465,29 @@ async function main() {
     // or purge the store before rotating it on a populated deployment.
     ENCRYPTION_KEY:                  fb('MCP_SERVER_ENCRYPTION_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
     DEMO_API_BASE_URL:               'http://api-server:3001',
+    // Both are fail-OPEN auth switches that were hand-added straight into this
+    // service's .env, which this generator rewrites wholesale — so every
+    // ./run.sh silently deleted them and flipped the running server's auth
+    // posture with no diff, no log line, and nothing to grep. Emitting them
+    // here makes the value survive AND makes it reviewable in one place.
+    //
+    // No `|| 'true'` default on purpose. Unset resolves to '' and both consumers
+    // test `=== 'true'`, so a fresh clone gets the SECURE behaviour and only an
+    // operator who deliberately sets these in demo_api_server/.env opts out.
+    // SKIP_TOKEN_SIGNATURE_VALIDATION additionally cannot leak past dev: it is a
+    // fatal boot guard outside development (oauth-mcp/src/config/validator.ts).
+    //
+    // The source key is MCP_SERVER_-prefixed for the same reason ENCRYPTION_KEY
+    // reads MCP_SERVER_ENCRYPTION_KEY above: demo_api_server/.env is this
+    // generator's input AND the BFF's own runtime env, and the BFF reads a
+    // SKIP_TOKEN_SIGNATURE_VALIDATION of its own (middleware/auth.js) as a real
+    // auth bypass. An unprefixed key would silently disable signature checking
+    // in the BFF too, just to keep one dev switch alive in the MCP server.
+    // ALLOW_JWKS_FAILOPEN has no BFF consumer, so it needs no prefix.
+    SKIP_TOKEN_SIGNATURE_VALIDATION: fb('MCP_SERVER_SKIP_TOKEN_SIGNATURE_VALIDATION'),
+    ALLOW_JWKS_FAILOPEN:             fb('ALLOW_JWKS_FAILOPEN'),
   });
-  console.log('[refresh-envs] Wrote demo_mcp_server/.env');
+  console.log('[refresh-envs] Wrote oauth-mcp/.env');
 
   // ── demo_mcp_gateway/.env ─────────────────────────────────────────────────
   writeEnvFile(path.join(ROOT, 'demo_mcp_gateway', '.env'), {

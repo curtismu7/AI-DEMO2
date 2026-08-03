@@ -1694,7 +1694,7 @@ class PingOneProvisionService {
   /**
    * Durably wire the MCP server's RFC 7662 introspection identity.
    *
-   * demo_mcp_server reads demo_mcp_server/.env.development (run-demo.sh
+   * demo_mcp_server reads oauth-mcp/.env.development (run-demo.sh
    * ensure_service_env copies it over .env each restart). It is NOT the BFF
    * .env writeEnvFile() generates, and it is gitignored/untracked — so a
    * fresh `setup:fresh` on a no-vault machine would otherwise leave the MCP
@@ -1718,7 +1718,7 @@ class PingOneProvisionService {
    */
   async writeMcpServerIntrospectionIdentity(provisioned) {
     const devEnvPath = path.resolve(
-      __dirname, '..', '..', 'demo_mcp_server', '.env.development',
+      __dirname, '..', '..', 'oauth-mcp', '.env.development',
     );
     let content;
     try {
@@ -3123,6 +3123,7 @@ class PingOneProvisionService {
       try {
         const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
         const _scopeTopology = require('./scopeTopology');
+        const { deriveSpecialistScopes } = require('./a2aDelegationService');
 
         // A2A's OWN final destination resource (Exchange #2 target) — deliberately
         // SEPARATE from mcpGwResourceResult, which the pre-existing non-A2A
@@ -3147,7 +3148,13 @@ class PingOneProvisionService {
         provisioned.a2aSpecialistApps = {};
         provisioned.a2aResourceServers = {};
         for (const spec of Object.values(A2A_SPECIALISTS)) {
-          const specScopes = [...new Set((spec.tools || []).flatMap((t) => _scopeTopology.toolScopes(t)))];
+          // MUST be the same derivation the runtime uses for Exchange #2
+          // (a2aDelegatedScope, falling back to requiredScopes) — not toolScopes()
+          // alone. toolScopes() returns the coarse `read` for every sensitive_*
+          // tool, so provisioning created and granted `read` on the A2A gateway
+          // resource while delegateToSpecialist() requested e.g. `payroll:read`.
+          // A fresh bootstrap then fails Exchange #2 with invalid_scope.
+          const specScopes = deriveSpecialistScopes(spec, _scopeTopology);
 
           // Agent 2 app first — its client id is needed to wire this vertical's
           // dedicated intermediate resource's may_act below.
@@ -3469,7 +3476,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
 
       // Step 33b: Durably wire the MCP server's introspection identity into
-      // demo_mcp_server/.env.development (the file run-demo.sh copies over
+      // oauth-mcp/.env.development (the file run-demo.sh copies over
       // its .env). Without this a fresh no-vault setup:fresh reintroduces the
       // gateway->MCP 401 (REGRESSION_PLAN §4 2026-05-18).
       {

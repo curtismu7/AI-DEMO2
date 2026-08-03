@@ -61,7 +61,7 @@ async function main(): Promise<void> {
         console.log(`[MCP vault] loaded ${vaultResult.entries} entries into process.env`);
       }
     } catch (err) {
-      // Fail closed, matching demo_mcp_server/src/index.ts. This used to warn
+      // Fail closed. This used to warn
       // and continue, so a wrong VAULT_PASSWORD booted the server anyway;
       // loadConfiguration() then walked its secret fallback chain and
       // introspected as a DIFFERENT PingOne client, making PingOne return

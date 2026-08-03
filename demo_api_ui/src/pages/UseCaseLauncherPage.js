@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
+import GroupMembershipToggle from '../components/GroupMembershipToggle';
 import OWASPBadge from '../components/OWASPBadge';
 import UseCaseExplainModal from '../components/UseCaseExplainModal';
 import apiClient from '../services/apiClient';
@@ -416,6 +417,13 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
           onToggle={setFlag}
         />
       )}
+
+      {/* UC9 is the one use case whose outcome is decided by DIRECTORY state
+          rather than by the prompt, so it gets a control for that state. The
+          toggle writes to PingOne and the decision reads the same directory,
+          which is what lets the presenter show PERMIT and DENY back to back
+          without opening the console. */}
+      {uc.useCaseId === 'group-entitlement-check' && <GroupMembershipToggle />}
 
       {uc.hint && <p className="uc-card__hint">{uc.hint}</p>}
 

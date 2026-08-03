@@ -21,8 +21,8 @@ const ADMIN_DEMO_STEPS = [
   },
   {
     id: 'ADMIN3',
-    title: 'List groups',
-    trigger: { type: 'chip', text: 'List the groups in my PingOne environment' },
+    title: 'List populations',
+    trigger: { type: 'chip', text: 'List the populations in my PingOne environment' },
   },
   {
     id: 'ADMIN4',

@@ -2,7 +2,7 @@ services:
   - type: web
     name: demo-mcp-server
     runtime: docker
-    rootDir: demo_mcp_server
+    rootDir: oauth-mcp
     dockerfilePath: ./Dockerfile
     startCommand: node dist/index.js
     region: oregon
@@ -22,7 +22,7 @@ services:
         value: 10000       # Render internal port (Render maps this to 443 externally)
 
       - key: MCP_SERVER_PORT
-        value: 10000       # demo_mcp_server reads MCP_SERVER_PORT
+        value: 10000       # oauth-mcp reads MCP_SERVER_PORT
 
       # ── Set these in the Render dashboard (sensitive values) ──
       - key: BANKING_API_URL

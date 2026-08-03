@@ -14,6 +14,9 @@ const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { requiredFlagsForUseCase, isFlagOn } = require('../services/demoStepPrerequisites');
+const {
+  conformanceSubjects, outcomeFromAgentResponse, outcomeConforms, summarize,
+} = require('../services/useCaseConformance');
 
 function pickVertical(req, res) {
   const vertical = req.query.vertical || 'banking';
@@ -103,6 +106,68 @@ router.post('/demo/run', authenticateToken, async (req, res) => {
     vertical,
     message: 'Use case queued for execution',
   });
+});
+
+/**
+ * POST /api/use-cases/conformance/run
+ *
+ * Run every chip use case whose `expectedOutcome` is comparable and report what
+ * the policy ACTUALLY did. This is the check UC26's verdict cannot make: that
+ * verdict compares the token-chain evidence, and DENY / STEP_UP / HITL all
+ * produce the same chain shape, so four different controls can all render green
+ * while three of them enforce the wrong one.
+ *
+ * Sequential on purpose — these run real agent turns against the live gateway,
+ * and firing them concurrently would interleave HITL challenges between chips.
+ *
+ * Body: { vertical?: string, only?: string[] }  (only = UC ids, for a fast re-check)
+ */
+router.post('/conformance/run', authenticateToken, async (req, res) => {
+  const vertical = req.body?.vertical || 'banking';
+  if (!VERTICALS.includes(vertical)) {
+    return res.status(400).json({ success: false, error: 'unknown_vertical', vertical });
+  }
+  const only = Array.isArray(req.body?.only) ? new Set(req.body.only) : null;
+  const subjects = conformanceSubjects(vertical).filter((s) => !only || only.has(s.id));
+  if (!subjects.length) {
+    return res.status(400).json({ success: false, error: 'no_comparable_use_cases', vertical });
+  }
+
+  const { processAgentMessage } = require('../services/demoAgentLangGraphService');
+  const userId = req.session?.user?.id;
+  const rows = [];
+
+  for (const s of subjects) {
+    let actual = 'UNKNOWN';
+    let reply = '';
+    let error = null;
+    try {
+      // Arm what the use case declares it needs, same as /demo/run — otherwise a
+      // flag-gated chip reports a false mismatch. Non-fatal.
+      for (const flag of requiredFlagsForUseCase(resolveUseCase(s.id, vertical) || {})) {
+        try {
+          if (!isFlagOn(configStore.getEffective(flag))) await configStore.setRaw({ [flag]: 'true' });
+        } catch (_e) { /* non-fatal */ }
+      }
+      const agentResponse = await processAgentMessage({
+        message: s.trigger,
+        userId,
+        userToken: req.session?.oauthTokens?.accessToken,
+        sessionId: req.session?.id,
+        tokenEvents: [],
+        langchainConfig: req.session?.langchain_config || {},
+        vertical,
+        req,
+      });
+      actual = outcomeFromAgentResponse(agentResponse);
+      reply = String(agentResponse?.reply || '').slice(0, 200);
+    } catch (e) {
+      error = e.message || 'run failed';
+    }
+    rows.push({ ...s, actual, ok: !error && outcomeConforms(s.expected, actual), reply, error });
+  }
+
+  return res.json({ success: true, vertical, rows, summary: summarize(rows) });
 });
 
 // POST /api/use-cases/uc20/audit  → UC20 audit trail (full trace reconstruction)

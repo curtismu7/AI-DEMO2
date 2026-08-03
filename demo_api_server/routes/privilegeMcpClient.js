@@ -646,24 +646,66 @@ function serializeDotenv(vars) {
   return Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
 }
 
-router.get('/env', (req, res) => {
+const PINGONE_ENV_ALLOWED_KEYS = [
+  'SERVER_URL',
+  'OIDC_CLIENT_ID',
+  'OIDC_CLIENT_SECRET',
+  'OIDC_AUTH_URL',
+  'OIDC_TOKEN_URL',
+  'OIDC_USER_URL',
+  'OIDC_SCOPES',
+];
+
+/**
+ * Gate for /env — returns OIDC_CLIENT_SECRET and can rewrite gateway OIDC
+ * credentials. Session-cookie admin only (the page uses credentials:include,
+ * not Bearer). Unauthenticated callers must not read or write this file.
+ */
+function requireAdminSession(req, res, next) {
+  const isAdmin = req.session?.user?.role === 'admin' || req.session?.isAdmin === true;
+  if (!isAdmin) {
+    return res.status(401).json({
+      error: 'admin_required',
+      message: 'Admin session required to read or write Privilege gateway env.',
+    });
+  }
+  return next();
+}
+
+function readExistingEnvVars() {
   try {
-    const text = fs.readFileSync(PINGONE_ENV_PATH, 'utf8');
-    res.json({ ok: true, vars: parseDotenv(text) });
+    return parseDotenv(fs.readFileSync(PINGONE_ENV_PATH, 'utf8'));
   } catch (err) {
-    if (err.code === 'ENOENT') return res.json({ ok: true, vars: {} });
+    if (err.code === 'ENOENT') return {};
+    throw err;
+  }
+}
+
+router.get('/env', requireAdminSession, (req, res) => {
+  try {
+    res.json({ ok: true, vars: readExistingEnvVars() });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/env', express.json(), (req, res) => {
+router.put('/env', express.json(), requireAdminSession, (req, res) => {
   try {
     const vars = req.body?.vars;
-    if (!vars || typeof vars !== 'object') return res.status(400).json({ error: 'vars object required' });
-    // Only allow known keys
-    const allowed = ['SERVER_URL', 'OIDC_CLIENT_ID', 'OIDC_CLIENT_SECRET', 'OIDC_AUTH_URL', 'OIDC_TOKEN_URL', 'OIDC_USER_URL', 'OIDC_SCOPES'];
+    if (!vars || typeof vars !== 'object' || Array.isArray(vars)) {
+      return res.status(400).json({ error: 'vars object required' });
+    }
+    // Merge onto the existing file so a partial body cannot wipe secrets.
+    const existing = readExistingEnvVars();
     const filtered = {};
-    for (const key of allowed) { if (vars[key] !== undefined) filtered[key] = String(vars[key]); }
+    for (const key of PINGONE_ENV_ALLOWED_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(existing, key)) {
+        filtered[key] = String(existing[key]);
+      }
+    }
+    for (const key of PINGONE_ENV_ALLOWED_KEYS) {
+      if (vars[key] !== undefined) filtered[key] = String(vars[key]);
+    }
     fs.mkdirSync(path.dirname(PINGONE_ENV_PATH), { recursive: true });
     fs.writeFileSync(PINGONE_ENV_PATH, serializeDotenv(filtered), 'utf8');
     res.json({ ok: true, vars: filtered });

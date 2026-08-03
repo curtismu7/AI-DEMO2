@@ -1614,10 +1614,17 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   try {
     const hitlClient = require('./hitlServiceClient');
     const userSub2 = req?.session?.user?.sub || req?.user?.sub || '';
+    // The gateway's receipt verification (p1az-decision.groovy → hitl-service
+    // verifyReceipt) binds user + agent + tool + amount + EVERY account id on
+    // the retry args. agentId must be the introspected act.sub (the AI Agent
+    // actor client), and from_account_id must be bound too — a receipt missing
+    // either is rejected ("belongs to a different agent" / "has no bound
+    // from_account_id") and the demo re-challenges instead of PERMITting.
     const challenge = await hitlClient.createChallenge({
       tool: 'create_transfer',
       userId: userSub2,
-      context: { amount, to_account_id: toAccountId, demo: 'rar-permit' },
+      agentId: actorClientId,
+      context: { amount, from_account_id: fromAccountId, to_account_id: toAccountId, demo: 'rar-permit' },
     });
     if (challenge?.challengeId) {
       await hitlClient.respondToChallenge(challenge.challengeId, 'approved');

@@ -42,7 +42,7 @@ const chips = require('../config/verticals/pingone-admin/manifest.json').dashboa
 const EXPECTED = {
   pa2: 'listUsers',
   pa3: 'listApplications',
-  pa4: 'listGroups',
+  pa4: 'listPopulations',
   pa5: 'getEnvironment',
 };
 

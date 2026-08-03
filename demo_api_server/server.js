@@ -1081,6 +1081,7 @@ app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
+app.use('/api/demo-track', authenticateToken, require('./routes/demoTrack'));
 app.use('/api/admin-tools', authenticateToken, require('./routes/adminTools'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes

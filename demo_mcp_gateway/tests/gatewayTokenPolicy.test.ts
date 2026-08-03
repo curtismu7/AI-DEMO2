@@ -285,7 +285,7 @@ describe('GatewayTokenPolicy — actor allow-list (ActClientId)', () => {
   //
   // The allow-list is documented as mirroring what the PDP enforces via
   // ActClientId. The authored policy (HasValidActorChain in
-  // snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) is a
+  // snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json) is a
   // disjunction over ELEVEN registered identities — "the MCP Token Exchanger,
   // the AI Agent, and each A2A specialist" — but the PEP compared against the
   // exchanger alone. So the PEP rejected an actor the PDP explicitly permits.

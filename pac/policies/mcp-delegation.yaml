@@ -1,9 +1,9 @@
-# Super Banking MCP Delegation Authorization — Policy as Code source of truth.
+# AI Demo MCP Delegation Authorization — Policy as Code source of truth.
 #
 # Deployed alongside transaction-authorization.yaml to the "Super Banking Demo -
 # Policy as Code" endpoint (ad5fc1d4-…). pac deploy replaces the full package.
 #
-# Mirror of the "Super Banking MCP Delegation Authorization" policy in the
+# Mirror of the "AI Demo MCP Delegation Authorization" policy in the
 # snapshot. The console-authored MCP first-tool endpoint (1f9e9c71-…) is NOT
 # touched here.
 #
@@ -225,10 +225,12 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
         payload: "A2A delegation is required for this tool. The generalist acting alone is denied."
       - Request.ToolName in ("get_investment_accounts", "get_investment_balance",
           "get_investment_transactions", "get_portfolio_summary",
+          "sensitive_customer_identity",
           "sensitive_holdings", "sensitive_membership_details",
-          "sensitive_order_history", "sensitive_patient_records",
-          "sensitive_payroll_details", "sensitive_student_finance",
-          "sensitive_supplier_contract", "sensitive_tax_record")
+          "sensitive_order_history", "sensitive_passenger_record",
+          "sensitive_patient_records", "sensitive_payroll_details",
+          "sensitive_student_finance", "sensitive_supplier_contract",
+          "sensitive_tax_record")
       - Request.ActChainDepth < 2
 
     # -----------------------------------------------------------------------
@@ -338,7 +340,7 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
         payload: '{"hitlRequired": true}'
       - Request.ToolName in ("book_appointment", "checkout", "create_transfer",
           "extend_rental", "get_sensitive_account_details", "request_time_off",
-          "sensitive_holdings",
+          "sensitive_customer_identity", "sensitive_holdings",
           "sensitive_membership_details", "sensitive_order_history",
           "sensitive_patient_records", "sensitive_payroll_details",
           "sensitive_student_finance", "sensitive_supplier_contract",

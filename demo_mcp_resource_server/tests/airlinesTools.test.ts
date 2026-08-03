@@ -121,3 +121,38 @@ describe('airlines dispatch', () => {
     expect(bookings).not.toContain('4417');
   });
 });
+
+describe('pay_airline_fee', () => {
+  it('is invisible to a read-only airlines token', () => {
+    const readOnly = filterByScopes(ALL_TOOLS, ['airlines:read']).map((t) => t.name);
+    expect(readOnly).not.toContain('pay_airline_fee');
+  });
+
+  it('appears once the token also carries airlines:write', () => {
+    const writer = filterByScopes(ALL_TOOLS, ['airlines:read', 'airlines:write']).map((t) => t.name);
+    expect(writer).toContain('pay_airline_fee');
+    expect(writer).toContain('cancel_airline_reservation');
+  });
+
+  it('records the payment and echoes the amount back in dollars', async () => {
+    const result: any = await dispatch('pay_airline_fee', { amount: 300, fee_type: 'change' }, '', 'unknown-sub');
+    expect(result.source).toBe('sqlite');
+    expect(result.paid).toBe(true);
+    expect(result.amount).toBe(300);
+    expect(result.feeType).toBe('change');
+    expect(result.receiptId).toBeGreaterThan(0);
+  });
+
+  it('defaults the fee type and attaches the next trip when none is named', async () => {
+    const result: any = await dispatch('pay_airline_fee', { amount: 42.5 }, '', 'unknown-sub');
+    expect(result.feeType).toBe('change');
+    expect(result.confirmationNumber).toBe('K7XR2M');
+    expect(result.amount).toBe(42.5);
+  });
+
+  it('rejects a non-positive amount instead of writing a row', async () => {
+    const result: any = await dispatch('pay_airline_fee', { amount: 0 }, '', 'unknown-sub');
+    expect(result.paid).toBe(false);
+    expect(result.note).toMatch(/amount/i);
+  });
+});

@@ -8,6 +8,10 @@
  *   - STALE (fail): a golden's trigger or expectedOutcome no longer matches the
  *     catalog's resolved entry for that (vertical, useCaseId).
  *   - MALFORMED (fail): missing required fields.
+ *   - POISONED (fail): the recorded reply is a FAILURE message. Capture filters
+ *     these on write, but nothing re-validated what was already committed, so two
+ *     survived from 2026-07-27 to 2026-08-03 (see scripts/golden-failure-prose.js).
+ *     Serving one on replay tells the audience the demo is broken.
  *   - MISSING (warn only): a catalog chip with no golden yet. Capturing needs a
  *     healthy live stack + login, so absence must not block unrelated pushes —
  *     but the count is printed so demo prep can see coverage.
@@ -31,6 +35,7 @@ function seedHashFor(vertical) {
   return crypto.createHash('sha256').update(fs.readFileSync(seed)).digest('hex').slice(0, 16);
 }
 const A2A_UNROUTABLE = /specialist/i;
+const { failurePatternFor } = require('./golden-failure-prose');
 
 function catalogChips() {
   const { USE_CASES, VERTICALS, resolveUseCase } = require(path.join(ROOT, 'demo_api_server', 'config', 'useCases.js'));
@@ -70,6 +75,18 @@ function checkGoldens() {
         }
         for (const field of REQUIRED) {
           if (g[field] == null || g[field] === '') failures.push(`[malformed] ${key}: missing "${field}"`);
+        }
+        // POISONED: a failure message recorded as a golden. Checked before the
+        // catalog lookup — a poisoned golden for a chip that still exists is the
+        // dangerous case, and it would otherwise pass every other rule here.
+        const poison = failurePatternFor(g.reply);
+        if (poison) {
+          failures.push(
+            `[poisoned] ${key}: reply is a FAILURE message (matched ${poison}) — ` +
+              `replay would tell the audience the demo is broken. Delete the file and ` +
+              `re-capture against a healthy stack, or record it as a skip if the chip ` +
+              `produces no agent reply at all.`,
+          );
         }
         const cat = chips.get(key);
         if (!cat) {

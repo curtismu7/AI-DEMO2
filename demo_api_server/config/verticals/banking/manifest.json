@@ -62,12 +62,12 @@
   "groups": {
     "categories": {
       "privileged": {
-        "name": "Banking_Privileged",
-        "description": "Users permitted to view sensitive banking data (UC9)"
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
       },
       "delegates": {
-        "name": "Banking_Delegates",
-        "description": "Users authorized as delegated banking agents"
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
       },
       "premiumTier": {
         "name": "Banking_PremiumTier",

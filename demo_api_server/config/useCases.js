@@ -30,7 +30,7 @@
 const VERTICALS = [
   'banking', 'healthcare', 'retail', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
-  'investment',
+  'investment', 'airlines',
 ];
 
 
@@ -44,6 +44,7 @@ const READ_TRIGGER_BY_VERTICAL = {
   'sporting-goods': 'my gear',
   manufacturing: 'show my work orders',
   investment: 'show my portfolios',
+  airlines: 'show my reservations',
 };
 
 /** Amount-gated write phrases ($300 HITL / $600 step-up / $2500 deny). */
@@ -58,6 +59,7 @@ function amountTriggerByVertical(amount) {
     'sporting-goods': `extend my rental $${n}`,
     manufacturing: `approve a $${n} purchase order`,
     investment: `execute a large trade of $${n}`,
+    airlines: `pay a $${n} change fee`,
   };
 }
 
@@ -90,6 +92,7 @@ const READ_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods': 'list_gear',
   manufacturing: 'view_work_orders',
   investment: 'view_portfolios',
+  airlines: 'get_airline_bookings',
 };
 
 /** Amount-gated write tool per vertical (UC6/7/8 DENY / step-up / consent). */
@@ -102,6 +105,7 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods': 'extend_rental',
   manufacturing: 'approve_purchase_order',
   investment: 'large_trade',
+  airlines: 'pay_airline_fee',
 };
 
 /**
@@ -122,6 +126,10 @@ const SECOND_PRODUCT_TRIGGER_BY_VERTICAL = {
   'sporting-goods': 'show my gear warranty',
   manufacturing: 'show my work order status',
   investment: 'show my portfolio',
+  // airlines has no featurePage/api_key tool yet, but it does own a genuine
+  // second product: a FLIGHT is not a RESERVATION. get_flight_status is a
+  // different tool against different rows, which is all UC33 needs to prove.
+  airlines: 'what is the status of flight UA328',
 };
 const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   healthcare: 'show_health_record',
@@ -132,6 +140,7 @@ const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   'sporting-goods': 'show_gear_warranty',
   manufacturing: 'show_work_order',
   investment: 'show_investment',
+  airlines: 'get_flight_status',
 };
 
 /**
@@ -146,6 +155,9 @@ const REQUEST_ONLY_TRIGGER_BY_VERTICAL = {
   university: 'can you request campus housing for me?',
   workforce: 'can you request a schedule change for me?',
   'sporting-goods': 'can you price-match my last order?',
+  retail: 'can you request a price adjustment on my order?',
+  manufacturing: 'can you request a spec exception?',
+  investment: 'can you request a fee tier review?',
 };
 const REQUEST_ONLY_TOOL_BY_VERTICAL = {
   healthcare: 'request_document',
@@ -153,6 +165,9 @@ const REQUEST_ONLY_TOOL_BY_VERTICAL = {
   university: 'request_housing_assignment',
   workforce: 'request_schedule_change',
   'sporting-goods': 'request_price_match',
+  retail: 'request_price_adjustment',
+  manufacturing: 'request_spec_exception',
+  investment: 'request_fee_tier_review',
 };
 
 /**
@@ -162,9 +177,7 @@ const REQUEST_ONLY_TOOL_BY_VERTICAL = {
  * someone decides which it is.
  */
 const REQUEST_ONLY_NOT_APPLICABLE = {
-  retail: 'No request-only tool yet — needs a "request a price adjustment" tool (wave 2).',
-  manufacturing: 'No request-only tool yet — needs a "request a spec exception" tool (wave 2).',
-  investment: 'No request-only tool yet — needs a "request a fee-tier review" tool (wave 2).',
+  airlines: 'No request-only tool yet — needs a "request a change-fee waiver" tool the agent can FILE but not GRANT (wave 2). pay_airline_fee is the opposite: it completes the transaction.',
 };
 
 /** Merge per-vertical primaryTool into chipOverrides extras. */
@@ -211,6 +224,7 @@ const A2A_TRIGGER_BY_VERTICAL = {
   'sporting-goods':  'show my sensitive membership details',
   manufacturing:     'show my sensitive supplier contract',
   investment:        'show my sensitive holdings',
+  airlines:          'show my sensitive passenger record',
 };
 const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare:        'sensitive_patient_records',
@@ -221,6 +235,7 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods':  'sensitive_membership_details',
   manufacturing:     'sensitive_supplier_contract',
   investment:        'sensitive_holdings',
+  airlines:          'sensitive_passenger_record',
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 
@@ -742,7 +757,7 @@ const RAW_USE_CASES = [
     hint: 'Works for Austin, Dallas, Houston, Miami, or Denver.',
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['mcp', 'authorize'] },
-    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'demo_mcp_server/src/tools/handlers/publicCatalogHandlers.ts'],
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'oauth-mcp/src/tools/handlers/publicCatalogHandlers.ts'],
     maturity: 'works',
     owasp: { threats: ['T3'], sections: ['§4.1.1'] },
     whatToSay: 'Low-friction first — no token exchange for public catalog data.',
@@ -767,6 +782,7 @@ const RAW_USE_CASES = [
       'sporting-goods': 'What stores are near me?',
       manufacturing: 'What plant locations are near me?',
       investment: 'What branches are near me?',
+      airlines: 'What airports are near me?',
     }, withPrimaryTool({
       healthcare: 'get_branch_hours',
       retail: 'get_branch_hours',
@@ -776,6 +792,7 @@ const RAW_USE_CASES = [
       'sporting-goods': 'get_branch_hours',
       manufacturing: 'get_branch_hours',
       investment: 'get_branch_hours',
+      airlines: 'get_branch_hours',
     })),
   },
   {
@@ -821,7 +838,7 @@ const RAW_USE_CASES = [
     // Gateway-level deny: the scope check runs BEFORE PingOne Authorize is consulted,
     // so no 'authorize-decision' evidence exists. Declare the events the sim emits.
     evidence: { tokenChain: ['sim-exchange-ok', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
-    codeRefs: ['demo_mcp_server/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    codeRefs: ['oauth-mcp/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T2', 'T3'], sections: ['§5.1'] },
     whatToSay: 'The token had read scope, the tool needed write — scope enforcement stopped it cold.',
@@ -1505,8 +1522,8 @@ const RAW_USE_CASES = [
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'token-exchange'], activity: ['mcp'] },
     codeRefs: [
-      'demo_mcp_server/src/tools/BankingToolRegistry.ts',
-      'demo_mcp_server/src/tools/handlers/commitmentHandlers.ts',
+      'oauth-mcp/src/tools/BankingToolRegistry.ts',
+      'oauth-mcp/src/tools/handlers/commitmentHandlers.ts',
       'demo_api_server/services/intentTokenService.js',
     ],
     maturity: 'works',

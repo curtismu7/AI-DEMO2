@@ -64,8 +64,8 @@ function chipEntries() {
 describe('primaryTool existence — no dangling tool premises, any vertical', () => {
   test('every resolved primaryTool exists in a tool registry', () => {
     const surfaces = [
-      read('demo_mcp_server/src/tools/BankingToolRegistry.ts'),
-      read('demo_mcp_server/src/tools/handlers/verticalTools.generated.ts'),
+      read('oauth-mcp/src/tools/BankingToolRegistry.ts'),
+      read('oauth-mcp/src/tools/handlers/verticalTools.generated.ts'),
       // weather-mcp showcase: a real MCP tool, but hosted by a third-party MCP
       // server (not demo_mcp_server) — registered here instead.
       read('demo_api_server/utils/mcpToolRegistry.js'),

@@ -20,6 +20,27 @@ import { McpToolDef } from './toolTypes';
 
 export const AIRLINES_TOOLS: McpToolDef[] = [
   {
+    // The amount-gated write. Every other vertical binds UC6/7/8/22 to a money
+    // tool (pay_bill, checkout, large_trade); airlines had none, so those steps
+    // had nothing to bind to. Scopes are byte-identical to
+    // cancel_airline_reservation — the amount ladder keys on the tool NAME via
+    // WRITE_TOOL_TYPE_MAP, never on scope, so adding a generic `write` here
+    // would buy nothing and reintroduce a scope-collision risk.
+    name: 'pay_airline_fee',
+    description: 'Pay a United fee — change fee, checked-bag fee, or seat-upgrade fee. The amount is evaluated against the transaction policy before the payment is taken.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Fee amount in dollars' },
+        fee_type: { type: 'string', description: "One of 'change', 'bag', 'upgrade' (default 'change')" },
+        confirmation_number: { type: 'string', description: 'Reservation the fee applies to. Omit for the next upcoming trip.' },
+      },
+      required: [],
+    },
+    requiredScopes: ['airlines:read', 'airlines:write'],
+    readOnly: false,
+  },
+  {
     // Phase 2. The high-value WRITE: cancelling a booked seat and triggering a
     // refund is irreversible, so scope-topology marks it challengeType:step_up —
     // the passenger must prove presence with MFA, which a HITL consent receipt

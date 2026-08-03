@@ -43,6 +43,26 @@
     "highValueAction": "Delete Customer",
     "highValueLabel": "Destructive admin action"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
+      },
+      "delegates": {
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
+      }
+    },
+    "restrictedTools": {
+      "sensitive_customer_identity": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Admin Agent",
     "greeting": "Hi {name}! I can look up customers, inspect their accounts and transactions, and perform administrative actions. What would you like to do?",
@@ -73,7 +93,8 @@
       { "id": "adm5", "label": "Freeze Account", "message": "freeze this account", "mode": "both", "tool": "freeze_account" },
       { "id": "adm6", "label": "Adjust Balance", "message": "adjust account balance", "mode": "both", "tool": "adjust_balance" },
       { "id": "adm7", "label": "Reset Password", "message": "reset password for this customer", "mode": "both", "tool": "reset_customer_password" },
-      { "id": "adm8", "label": "Delete Customer", "message": "delete this customer", "mode": "both", "tool": "delete_customer" }
+      { "id": "adm8", "label": "Delete Customer", "message": "delete this customer", "mode": "both", "tool": "delete_customer" },
+      { "id": "adm-a2a", "label": "Identity Verification Record", "message": "show the identity verification record for this customer", "mode": "both", "challenge": "consent", "tool": "sensitive_customer_identity", "useCaseId": "a2a-delegation", "group": "advanced" }
     ]
   },
   "scopes": {

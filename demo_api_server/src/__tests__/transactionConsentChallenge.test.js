@@ -157,6 +157,11 @@ describe('verifyMfa', () => {
     expect(mfaService.submitOtp).toHaveBeenCalledWith('da-test-001', 'dev-1', '654321', undefined);
     expect(result.ok).toBe(true);
     expect(req.session.txConsentChallenges[CHALLENGE_ID].status).toBe('confirmed');
+    // A challenge only reaches an MFA ceremony at/above the step-up threshold,
+    // so a verified ceremony must also discharge the transactions-route step-up
+    // gate — without this the post-consent retry answered RFC 9470 401
+    // step_up_required for the MFA the user just completed.
+    expect(req.session.stepUpVerified).toBeGreaterThan(Date.now());
   });
 
   test('demo bypass OTP 123123 promotes to confirmed without calling submitOtp', async () => {
@@ -271,6 +276,8 @@ describe('confirmChallenge — PingOne MFA branch', () => {
     expect(mfaServiceFresh.initiateDeviceAuth).not.toHaveBeenCalled();
     expect(result.ok).toBe(true);
     expect(result.mfaRequired).toBeUndefined();
+    // Consent-only proves no MFA — it must never discharge the step-up gate.
+    expect(req.session.stepUpVerified).toBeUndefined();
   });
 
   test('homegrown mode — homegrown OTP path taken regardless of amount', async () => {

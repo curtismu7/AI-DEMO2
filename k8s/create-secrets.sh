@@ -355,7 +355,7 @@ inject_helix_api_key                                                        # He
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
 mirror_groq_api_key                                                          # BFF → langchain for Groq provider
 mirror_anthropic_api_key                                                    # BFF → langchain for Anthropic/Claude provider
-secret_from_envfile mcp-secrets       "$ASSET_ROOT/demo_mcp_server/.env"    # MCP server
+secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env"    # MCP server
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service

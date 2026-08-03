@@ -592,6 +592,99 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.step_up_method.length).toBeGreaterThan(0);
   });
 
+  // The BFF gate skips on gateway-routed calls (gateway_authoritative), so the
+  // gateway's decision in x-gw-audit-trail is the ONLY authorize evidence a
+  // gateway 428 has. Dropping it left the Proof strip reporting "Run failed
+  // before authorize-decision" on UC7/UC8 runs whose gate had actually fired.
+  test('gateway 428 hitl_required with audit trail → body carries mcpAuthorizeEvaluation + gw-authorize event', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Human approval required'), {
+        code: 'mcp_tool_error',
+        httpStatus: 428,
+        gatewayErrorCode: 'hitl_required',
+        hitl: true,
+        rpcData: { hitl: true, challengeId: 'chal-88', challenge_type: 'consent' },
+        gwAuditTrail: {
+          authorize: {
+            decision: 'PERMIT',
+            backend: 'real',
+            tool: 'create_transfer',
+            parameters: { Amount: '300' },
+            rawResponse: { correlationId: 'p1az-corr-1', decision: 'PERMIT' },
+          },
+          filterChain: [{ filter: 'P1AZDecision', result: 'forwarded' }],
+        },
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, tool: 'create_transfer', useCaseId: 'hitl-consent', vertical: 'banking' }));
+    expect(outcome.httpStatus).toBe(428);
+    // Enforced outcome, not PingOne's raw PERMIT-with-obligation.
+    expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({
+      decision: 'INDETERMINATE',
+      outcome: 'HITL_REQUIRED',
+      engine: 'pingone',
+      decisionContext: 'McpToolCall',
+      decisionId: 'p1az-corr-1',
+      useCaseId: 'hitl-consent',
+      vertical: 'banking',
+    });
+    const gwAz = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAz.length).toBe(1);
+    expect(gwAz[0].status).toBe('indeterminate');
+  });
+
+  test('gateway 428 hitl_required + declared step-up method (UC7) → evaluation outcome STEP_UP', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Human approval required'), {
+        code: 'mcp_tool_error',
+        httpStatus: 428,
+        gatewayErrorCode: 'hitl_required',
+        gwAuditTrail: { authorize: { decision: 'PERMIT', backend: 'real', rawResponse: {} } },
+      });
+    });
+    // 'step-up-required' declares stepUpMethod 'p1mfa' in config/useCases.js —
+    // same declared-method rule _applyTransactionPolicy uses on the local path.
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, tool: 'create_transfer', useCaseId: 'step-up-required' }));
+    expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({ decision: 'INDETERMINATE', outcome: 'STEP_UP' });
+  });
+
+  test('gateway 428 step_up_required with audit trail → evaluation outcome STEP_UP on the body', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Step-up authentication required'), {
+        code: 'mcp_tool_error',
+        httpStatus: 428,
+        gatewayErrorCode: 'step_up_required',
+        stepUp: true,
+        gwAuditTrail: { authorize: { decision: 'PERMIT', backend: 'real', rawResponse: { correlationId: 'p1az-corr-2' } } },
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, tool: 'create_transfer' }));
+    expect(outcome.body.error).toBe('mcp_step_up_required');
+    expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({ decision: 'INDETERMINATE', outcome: 'STEP_UP', decisionId: 'p1az-corr-2' });
+    expect(outcome.body.tokenEvents.some((e) => e.id === 'gw-authorize')).toBe(true);
+  });
+
+  // No audit trail on the throw (older gateway) → no fabricated evidence.
+  test('gateway 428 hitl_required without audit trail → no mcpAuthorizeEvaluation on the body', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Human approval required'), {
+        code: 'mcp_tool_error',
+        httpStatus: 428,
+        gatewayErrorCode: 'hitl_required',
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, tool: 'create_transfer' }));
+    expect(outcome.body.mcpAuthorizeEvaluation).toBeUndefined();
+  });
+
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useHttp2: true, mcpUrl: 'http://localhost:8080' };

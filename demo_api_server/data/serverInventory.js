@@ -43,7 +43,7 @@ const SERVER_INVENTORY = [
   },
   {
     key: 'mcp-server', name: 'MCP Server (OLB)', container: 'ai-demo-mcp-server',
-    hostPort: 8080, internalPort: 8080, lang: 'Node (WebSocket)', category: 'mcp', sourceDir: 'demo_mcp_server', probe: true,
+    hostPort: 8080, internalPort: 8080, lang: 'Node (WebSocket)', category: 'mcp', sourceDir: 'oauth-mcp', probe: true,
     // Scheme FOLLOWS MCP_MTLS_ENABLED. Since mTLS became the default the server
     // serves HTTPS on 8080, so the old http:// candidates got ECONNREFUSED and
     // /check reported a healthy, working MCP server as DOWN on every run —

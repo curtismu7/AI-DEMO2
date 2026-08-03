@@ -302,7 +302,7 @@ for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configma
 //
 // Not hypothetical: PR #911 added PINGONE_MCP_EXCHANGER_CLIENT_ID/_SECRET under
 // mcp-server's `environment:` with :- defaults. The secret is defined in
-// demo_mcp_server/.env and had been reaching the container as len=64; afterwards
+// oauth-mcp/.env and had been reaching the container as len=64; afterwards
 // it arrived len=0, leaving the Step 9 gate unresolvable. Fixed in #914.
 //
 // The rule is deliberately independent of the env_file's CONTENTS. .env files are

@@ -102,6 +102,25 @@ describe('sensitive tools are group-gated in every vertical', () => {
     ]);
   });
 
+  /**
+   * `admin` ships sensitive_customer_identity but cannot appear above, and that is
+   * a property of the walk rather than of the vertical: enumerateSensitiveTools uses
+   * verticalManifest.list(), whose HIDDEN_IDS excludes admin, admin-console and
+   * oauth-teaching from the vertical switcher.
+   *
+   * Pinned so the exclusion stays a known fact. Without this, a reader comparing the
+   * list above to the manifests would reasonably conclude admin's tool is ungated —
+   * it is not; a2aVerticalParity.test.js walks the manifest directory instead and
+   * covers it, and the group-gate assertions below are driven directly here.
+   */
+  it('admin is gated too, even though the list() walk cannot see it', () => {
+    const listed = verticalManifest.list().map((v) => v.id);
+    expect(listed).not.toContain('admin');
+    expect(groupPolicy.requiredGroupForTool('sensitive_customer_identity', 'admin')).toBe('AI_Demo_Privileged');
+    expect(groupPolicy.groupsForUserSync('demoUser', 'admin')).toContain('AI_Demo_Privileged');
+    expect(groupPolicy.groupsForUserSync('demoDelegate', 'admin')).not.toContain('AI_Demo_Privileged');
+  });
+
   it.each(sensitiveTools)(
     '$verticalId/$tool resolves to a required PingOne group',
     ({ verticalId, tool }) => {

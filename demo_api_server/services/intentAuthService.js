@@ -100,6 +100,16 @@ async function evaluateIntentAuthorization(intentContext) {
     'sensitive_student_finance', 'sensitive_payroll_details',
     'sensitive_membership_details', 'sensitive_supplier_contract',
     'sensitive_holdings', 'sensitive_passenger_record',
+    // airlines (United) — the vertical joined the use-case catalog after this
+    // set was last extended, so both its UC1 read and its consent-gated
+    // reservation lookup would have taken the 428 fallback described above.
+    'get_airline_bookings', 'sensitive_airline_bookings',
+    'sensitive_customer_identity',
+    // Read chips that STILL 428'd — government "what fees do I owe" and
+    // investment "show my holdings". Both tools are scopes:['read'], authz:{}.
+    // Found by the manifest-derived drift guard in
+    // tests/intentAuthService.readOnly.test.js, not by hand.
+    'view_fees', 'view_holdings',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {
