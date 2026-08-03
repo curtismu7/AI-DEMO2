@@ -97,10 +97,15 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p.TransactionAmount).toBe('750');
   });
 
-  it('Amount and TransactionAmount move together — both omitted when there is no amount (rule 2)', () => {
+  it("Amount and TransactionAmount move together — both '0' when there is no amount (rule 2)", () => {
+    // Contract changed 2026-08-03: an ABSENT Amount makes the cloud policy's
+    // amount-band comparisons evaluate INDETERMINATE, failing every plain read
+    // closed past the MCP catch-all permit (PDP-probed). Amount-less tools send
+    // '0'; amount-carrying tools REQUIRE amount in their schema so a real
+    // transaction always overwrites it.
     const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts', {});
-    expect(p).not.toHaveProperty('Amount');
-    expect(p).not.toHaveProperty('TransactionAmount');
+    expect(p.Amount).toBe('0');
+    expect(p.TransactionAmount).toBe('0');
   });
 
   it('sends Acr from the token claim so a completed MFA can discharge step-up', () => {
