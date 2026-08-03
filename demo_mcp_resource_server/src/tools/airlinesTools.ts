@@ -8,6 +8,12 @@
  *
  * Read-only in Phase 1. The write tools (change_seat, add_checked_bag) require
  * `airlines:write` and land in Phase 2.
+ *
+ * `sensitive_passenger_record` is deliberately gated on `pnr:read`, NOT on
+ * `airlines:read`. Only the A2A Passenger Records Specialist's Exchange #2
+ * bearer carries that scope (scope-topology.json a2aDelegatedScope), so an
+ * ordinary consent read cannot reach the PII no matter how the prompt is
+ * worded — the delegation chain is the only way in.
  */
 
 import { McpToolDef } from './toolTypes';
@@ -76,6 +82,13 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
       required: [],
     },
     requiredScopes: ['airlines:read'],
+    readOnly: true,
+  },
+  {
+    name: 'sensitive_passenger_record',
+    description: "Retrieve the passenger's full record — passport, date of birth, payment card on file, and MileagePlus account number. Delegated to the Passenger Records Specialist agent; requires the pnr:read scope.",
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiredScopes: ['pnr:read'],
     readOnly: true,
   },
 ];
