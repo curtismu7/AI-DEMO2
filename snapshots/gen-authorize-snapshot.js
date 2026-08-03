@@ -20,6 +20,10 @@
  *   - RAR (RFC 9396) amount-cap deny (step 9, landed via #611/#612/#615):
  *     RarMaxAmount NUMBER attr + RarAmountExceeded -> rar_amount_exceeded DENY,
  *     mirroring simulatedAuthorizeService NNP-1 / mock Rule 3c (amount half)
+ *   - Banking tier ceilings, UC21 (step 10): IsStandardTier / IsTierRestrictedTool
+ *     / ExceedsTierAmountCap, generated from the banking vertical manifest's
+ *     `tiers` block — the same data groupPolicy.getTierDefinitions() feeds to the
+ *     simulator. These three were hand-authored and had already drifted.
  * plus the rules that reference them and their membership in the two policies.
  * Everything else in the snapshot is left untouched. Re-running is idempotent.
  *
@@ -36,6 +40,11 @@
  *     array; same missing set-membership operator.
  *   - D-05 multi-aud: TokenAudTargetsUpstream compares a SINGLE aud string; a
  *     space-joined multi-aud value is only caught at the PEP (gateway) and mock.
+ *   - tiers.groupToTier (step 10): mapping a PingOne group ARRAY to a tier needs
+ *     set membership. The BFF resolves it and sends the scalar UserTier, the same
+ *     flattening precedent as InRequiredGroup / TokenKidKnown. The tier
+ *     THRESHOLDS stay in the cloud policy — sending a pre-computed ceiling would
+ *     move the policy back out of the product this demo is about.
  *
  * Usage:  node snapshots/gen-authorize-snapshot.js          (writes in place)
  *         node snapshots/gen-authorize-snapshot.js --check  (fail if out of date)
@@ -46,6 +55,13 @@ const path = require('node:path');
 const REPO = path.resolve(__dirname, '..');
 const SOT = path.join(REPO, 'scope-topology.json');
 const SNAP = path.join(__dirname, 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
+// Banking is the ONLY vertical with a `tiers` block, and this file is the
+// banking policy — so the tier SoT is read from that one manifest by path
+// rather than through the vertical resolver (which needs demo_api_server's
+// node_modules; this generator must stay runnable from a bare checkout).
+// Verified equal to verticalManifest.resolver.resolve('banking').tiers, which
+// is what groupPolicy.getTierDefinitions() — and the simulator — reads.
+const BANKING_MANIFEST = path.join(REPO, 'demo_api_server', 'config', 'verticals', 'banking', 'manifest.json');
 
 const ATTR = {
   Amount: '12345678-0001-4321-abcd-000000000001',
@@ -63,6 +79,10 @@ const ATTR = {
   // suffix from the id suffix, and #615 parked the RAR quartet's VERSIONS at
   // suffix -0021 (ids stay -0020) — an object at id -0021 would collide with
   // those version UUIDs, and the snapshot keeps version UUIDs unique file-wide.
+  // UC21 entitlement tier, pre-resolved by the BFF from PingOne group membership
+  // (groupPolicy.resolveUserTier). STRING, defaultValue 'none' — the inert side,
+  // so the tier rules do nothing until ff_authorize_group_policy is on.
+  UserTier: '12345678-0015-4321-abcd-000000000015',
   TokenAudActual: '12345678-0018-4321-abcd-000000000018',
   ResourceOwnerId: '12345678-0019-4321-abcd-000000000019',
   RarMaxAmount: '12345678-0020-4321-abcd-000000000020',     // RFC 9396 granted amount ceiling (NUMBER, defaultValue 0 — see step 9)
@@ -121,6 +141,13 @@ const COND = {
   IsConsentTransaction: '23456789-0014-4321-abcd-000000000014',
   IsMcpFirstToolRequest: '23456789-0008-4321-abcd-000000000008',
   RarAmountExceeded: '23456789-0020-4321-abcd-000000000020', // RAR grant present AND Amount > RarMaxAmount (landed via #611)
+  // UC21 tier conditions (step 10). Already imported and live-verified; this
+  // reconciler now GENERATES their contents from the banking manifest instead of
+  // leaving them hand-authored. Rules 45678901-0012/-0013 reference them and are
+  // NOT regenerated — only the data inside the conditions moves.
+  IsStandardTier: '23456789-0015-4321-abcd-000000000015',
+  IsTierRestrictedTool: '23456789-0016-4321-abcd-000000000016',
+  ExceedsTierAmountCap: '23456789-0018-4321-abcd-000000000018',
   // New fine-grained deny conditions (cloud delta). -0020 is taken by
   // RarAmountExceeded above; -0021 is retired (its ver() version suffix
   // collides with #615's bumped RAR condition version — see the ATTR map note).
@@ -171,6 +198,24 @@ const RULE = {
 };
 const POLICY = { transaction: '56789012-0001-4321-abcd-000000000001', mcp: '56789012-0002-4321-abcd-000000000002' };
 const CONFIRM_USD = '250';
+
+// ⚠️ Version-UUID generation for the reconciler-owned tier conditions (step 10).
+//
+// PingOne's snapshot import SKIPS an object whose version is unchanged — the
+// exact trap #615 hit with the RAR quartet ("the live import would skip the
+// objects again"). So a regenerated condition whose VERSION did not move is a
+// no-op in the cloud: the console shows the old ceiling and the demo enforces a
+// stale limit while git looks correct.
+//
+// Every other version UUID in this file uses group `4321`. `4322` is generation
+// 2 and is therefore unique file-wide, and it sorts after `4321` under either an
+// identity or an ordering interpretation of "newer".
+//
+// BUMP THIS (4323, 4324, …) IN THE SAME COMMIT AS ANY CHANGE TO banking's
+// manifest `tiers` block. reconcile() prints a warning when it rewrites tier
+// content, because forgetting this is silent.
+const TIER_VERSION_GROUP = '4322';
+const tierVer = (id) => `bbbbbbbb-${id.slice(9, 13)}-${TIER_VERSION_GROUP}-abcd-${id.slice(24)}`;
 
 function toolOr(tools) {
   return { or: { conditions: tools.map((t) => ({
@@ -273,7 +318,69 @@ function loadSot() {
   return deriveSot(JSON.parse(fs.readFileSync(SOT, 'utf8')));
 }
 
-function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences }) {
+/**
+ * Pure derivation of the UC21 tier policy from a vertical manifest's `tiers`
+ * block (exported for tests — loadTiers() is the file-reading wrapper).
+ *
+ * Every guard below refuses to emit rather than emitting a rule that silently
+ * gates nothing — the same stance as requireUri() above. A tier ceiling that
+ * degrades to an unmatchable constant is indistinguishable from "no limit".
+ */
+function deriveTiers(manifest) {
+  const tiers = (manifest && manifest.tiers) || {};
+  const defs = tiers.definitions || {};
+  const defaultTier = tiers.default || 'Standard';
+  const names = Object.keys(defs);
+  if (!names.length || !defs[defaultTier]) {
+    throw new Error(
+      `banking manifest tiers.definitions is empty or does not define tiers.default ("${defaultTier}") — ` +
+      'cannot derive the UC21 tier ceilings; refusing to emit a partial rule.'
+    );
+  }
+  // A ceiling must be a positive number, and the check must be on the RAW value:
+  // Number(null) and Number('') are both 0, so a coercing guard would accept a
+  // null ceiling and emit the constant "0" — a cap that denies every amount.
+  // The opposite slip (undefined) emits "undefined", which no Amount exceeds, so
+  // the cap enforces nothing. Both look present in the P1AZ console.
+  const badCeiling = names.find((t) => {
+    const v = defs[t].maxAmountUsd;
+    return typeof v !== 'number' || !Number.isFinite(v) || v <= 0;
+  });
+  if (badCeiling) {
+    throw new Error(
+      `tiers.definitions.${badCeiling}.maxAmountUsd is not a positive number — the generated ceiling ` +
+      'constant would either match nothing (no cap) or match everything (deny all).'
+    );
+  }
+  // The cloud rule is `IsStandardTier AND IsTierRestrictedTool`, so a tool
+  // restriction can only ever apply to the DEFAULT tier. A non-default tier
+  // declaring restrictedTools would be silently dropped.
+  const unmodelled = names.filter((t) => t !== defaultTier && (defs[t].restrictedTools || []).length > 0);
+  if (unmodelled.length) {
+    throw new Error(
+      `tiers.definitions.${unmodelled[0]}.restrictedTools is non-empty, but the cloud rule ` +
+      '"MCP Deny — Tier Tool Not Allowed" gates the DEFAULT tier only — that restriction would be ' +
+      'silently dropped on import. Model the non-default tier explicitly before regenerating.'
+    );
+  }
+  // Default tier first, then the rest alphabetically. Deterministic (so --check
+  // is stable) and it preserves the branch order the committed snapshot carries.
+  const order = [defaultTier, ...names.filter((t) => t !== defaultTier).sort()];
+  return {
+    defaultTier,
+    // [tier, ceiling] pairs. Ceilings are STRING constants: this DSL's proven
+    // numeric form (see the ActChainDepth note in 1b) and what the committed
+    // snapshot already uses — `Amount GreaterThan "2000"` demonstrably denies.
+    ceilings: order.map((t) => [t, String(defs[t].maxAmountUsd)]),
+    restrictedTools: [...(defs[defaultTier].restrictedTools || [])].sort(),
+  };
+}
+
+function loadTiers() {
+  return deriveTiers(JSON.parse(fs.readFileSync(BANKING_MANIFEST, 'utf8')));
+}
+
+function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences }, tiers = loadTiers()) {
   const byId = new Map(snap.map((o) => [o.id, o]));
   const sepIdx = snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator');
 
@@ -804,6 +911,109 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // means placement is not strictly required, but keep it ahead of mcpPermitValid for clarity.
   addChild(POLICY.mcp, RULE.rarAmountExceeded, RULE.mcpPermitValid);
 
+  // 10) UC21 banking tier policy — "$2,000 Standard vs $50,000 PrivateBanking;
+  // group membership expands capability", the demo's most concrete authz story.
+  //
+  // The three conditions below were ALREADY in the cloud policy and already
+  // imported (live-probed: create_transfer $5,000 as Standard -> DENY
+  // mcp-tier-amount-exceeded). What they were NOT is generated — they sat
+  // outside this reconciler with their tool list and ceilings hand-typed, and
+  // they had drifted from the banking manifest's `tiers` block, which is what
+  // groupPolicy.getTierDefinitions() feeds to simulatedAuthorizeService. Two
+  // engines, two numbers, no gate. Generating them here is the fix.
+  //
+  // What stays at the PEP and why: tiers.groupToTier maps a PingOne group ARRAY
+  // to a tier name, and this DSL has no set/contains operator (same wall as
+  // TokenScopes and the RAR payee list). So the BFF resolves membership and
+  // sends the scalar UserTier — the InRequiredGroup / TokenKidKnown precedent.
+  // The CEILINGS deliberately stay here as policy constants: forwarding a
+  // pre-computed UserMaxAmountUsd would leave P1AZ evaluating
+  // `Amount > <whatever the BFF said>` and move the actual policy back into
+  // JavaScript, which is the thing this relocation exists to undo.
+  //
+  // The RULES that reference these conditions (45678901-0012 Tier Tool Not
+  // Allowed, -0013 Tier Amount Exceeded) and their statements are unchanged —
+  // only the data inside the conditions is now derived.
+  const tierChanged = [];
+  const putTierCond = (id, name, description, condition) => {
+    const existing = byId.get(id);
+    const next = {
+      objectType: 'ConditionDefinition', id, version: tierVer(id), type: 'CONDITION',
+      name, fullName: name, description, parentId: null, numberOfChildren: null, condition,
+    };
+    // Compare CONTENT, not version: a content change with a stale version is
+    // precisely the import-skip trap TIER_VERSION_GROUP guards.
+    if (existing && JSON.stringify(existing.condition) !== JSON.stringify(condition)) {
+      tierChanged.push(name);
+    }
+    snap[snap.indexOf(existing)] = next;
+  };
+
+  // 10a) IsStandardTier — the capped (default) tier, from tiers.default.
+  putTierCond(COND.IsStandardTier, 'IsStandardTier',
+    `UC21: UserTier equals '${tiers.defaultTier}' — the default, capped tier (manifest tiers.default). ` +
+    `The other tiers and the inert attribute default 'none' do not match, so every tier rule is dormant ` +
+    `until the BFF sends UserTier (ff_authorize_group_policy on). ` +
+    `Generated from the banking manifest tiers block — do not hand-edit.`,
+    { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.UserTier } }, op: 'Equals', right: { constant: { value: tiers.defaultTier } } } },
+    ] } });
+
+  // 10b) IsTierRestrictedTool — the default tier's restrictedTools.
+  //
+  // UNION with what the snapshot already carries, never replace — the same rule
+  // HasValidActorChain (1d) follows, and for the same reason: a generation pass
+  // must not be able to SHRINK an enforcement list. The committed snapshot gates
+  // create_withdrawal AND withdraw; the manifest lists only create_withdrawal.
+  // That drift is real and is reported by the drift test — but resolving it by
+  // dropping `withdraw` would quietly widen what a Standard user may do, so the
+  // union keeps the cloud where it is and lets a human close the gap in the
+  // manifest (the widening direction) deliberately.
+  const restrictedExisting = [];
+  {
+    const cur = byId.get(COND.IsTierRestrictedTool);
+    const collect = (n) => {
+      if (!n || typeof n !== 'object') return;
+      const v = n.comparison && n.comparison.right && n.comparison.right.constant;
+      if (v && typeof v.value === 'string') restrictedExisting.push(v.value);
+      Object.values(n).forEach(collect);
+    };
+    collect(cur.condition);
+  }
+  const restrictedTools = [...new Set([...restrictedExisting, ...tiers.restrictedTools])].sort();
+  putTierCond(COND.IsTierRestrictedTool, 'IsTierRestrictedTool',
+    `UC21: ToolName is one of the ${restrictedTools.length} tool(s) a '${tiers.defaultTier}' user may not call ` +
+    `(${restrictedTools.join(', ')}) — group membership EXPANDS capability. Union of the manifest's ` +
+    `tiers.definitions.${tiers.defaultTier}.restrictedTools and the ids already imported; never shrinks. ` +
+    `Generated — do not hand-edit the list.`,
+    toolOr(restrictedTools));
+
+  // 10c) ExceedsTierAmountCap — one branch per tier, ceiling from the manifest.
+  // The default tier's branch reuses the IsStandardTier reference (it is exactly
+  // that comparison) so the emitted shape matches what is already imported.
+  putTierCond(COND.ExceedsTierAmountCap, 'ExceedsTierAmountCap',
+    `UC21 deny (tier_amount_exceeded): Amount exceeds the caller's per-tier ceiling — ` +
+    `${tiers.ceilings.map(([t, max]) => `${t} $${Number(max).toLocaleString('en-US')}`).join(', ')}. ` +
+    `Applied to EVERY tier, not just the capped one. Ceilings are generated from the banking manifest ` +
+    `tiers.definitions[*].maxAmountUsd — the same numbers groupPolicy.getTierDefinitions() gives the ` +
+    `simulated engine — so the two engines cannot disagree. Do not hand-edit.`,
+    { or: { conditions: tiers.ceilings.map(([tier, max]) => ({
+      and: { conditions: [
+        tier === tiers.defaultTier
+          ? { reference: { id: COND.IsStandardTier } }
+          : { comparison: { left: { attribute: { id: ATTR.UserTier } }, op: 'Equals', right: { constant: { value: tier } } } },
+        { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { constant: { value: max } } } },
+      ] },
+    })) } });
+
+  if (tierChanged.length) {
+    console.warn(
+      `⚠️  tier condition content changed (${tierChanged.join(', ')}). PingOne SKIPS an object whose ` +
+      `version is unchanged, so bump TIER_VERSION_GROUP (currently ${TIER_VERSION_GROUP}) in this file ` +
+      'and regenerate, or the import is a no-op and the cloud keeps the OLD ceiling.'
+    );
+  }
+
   return snap;
 }
 
@@ -820,13 +1030,18 @@ function main() {
   }
   fs.writeFileSync(SNAP, out);
   const sot = loadSot();
+  const tiers = loadTiers();
   console.log(`Reconciled snapshot: ${sot.consent.length} consent tools, ${sot.stepUp.length} step-up tools.`);
   console.log('consent:', sot.consent.join(', '));
   console.log('step_up:', sot.stepUp.join(', '));
+  console.log('tier ceilings:', tiers.ceilings.map(([t, m]) => `${t} $${m}`).join(', '));
 }
 
 // Run only as a CLI, so the reconciler can be require()'d by its test without
 // rewriting the snapshot as an import side effect.
 if (require.main === module) main();
 
-module.exports = { reconcile, loadSot, deriveSot, MCP_DECISION_CONTEXTS, ATTR, COND, STMT, RULE, SNAP };
+module.exports = {
+  reconcile, loadSot, deriveSot, loadTiers, deriveTiers,
+  MCP_DECISION_CONTEXTS, TIER_VERSION_GROUP, ATTR, COND, STMT, RULE, SNAP, BANKING_MANIFEST,
+};

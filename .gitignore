@@ -41,6 +41,7 @@ snapshots/*
 # fails loudly if the glob ever matches nothing again.
 !snapshots/authorizeSnapshotDrift.test.js
 !snapshots/authorizeSnapshotCloudDelta.test.js
+!snapshots/authorizeSnapshotTierPolicy.test.js
 certs/
 package-lock.json
 **/package-lock.json
