@@ -6447,18 +6447,23 @@ export default function BankingAgent({
     // not), so the vertical and brand fall back to what this page already knows.
     // Fields the server did not supply stay undefined and the card omits them
     // rather than inventing a count or a suggestion.
+    //
+    // Its `message` is deliberately NOT reused: it reads "No <vertical> action
+    // matched that request", which is false here — an action DID match. Only
+    // the suggestions and identity are borrowed; the wording is our own.
     const noMatch = await fetchNoMatch(promptText);
     addMessage(
       "assistant",
-      noMatch?.message ||
-        "Nothing in that answer could be traced to a tool call in this vertical, so none of it is shown.",
+      "The agent answered that request, but none of the answer could be traced " +
+        "back to a tool call, so it is not shown.",
       null,
       {
         noMatch: true,
+        noMatchReason: "ungrounded",
+        noMatchDroppedCount: grounded.droppedCount,
         noMatchVerticalId: noMatch?.verticalId ?? effectiveVerticalId ?? null,
         noMatchBrandName:
           noMatch?.brandName ?? pageManifest?.identity?.displayName ?? null,
-        noMatchIntentsConsidered: noMatch?.intentsConsidered,
         noMatchSuggestions: noMatch?.suggestions,
       },
     );
@@ -10019,6 +10024,8 @@ export default function BankingAgent({
                               brandName={msg.noMatchBrandName}
                               intentsConsidered={msg.noMatchIntentsConsidered}
                               closestCandidate={msg.noMatchClosestCandidate}
+                              droppedCount={msg.noMatchDroppedCount}
+                              reason={msg.noMatchReason}
                               suggestions={msg.noMatchSuggestions}
                               onSelect={(s) => handleChipActivate(s)}
                             />

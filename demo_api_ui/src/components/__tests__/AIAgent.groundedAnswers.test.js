@@ -274,11 +274,15 @@ describe("grounded answer rendering", () => {
     await ask();
 
     await waitFor(() => {
-      expect(screen.getByText(/No matching action in/)).toBeInTheDocument();
+      expect(screen.getByText(/No verified answer in/)).toBeInTheDocument();
     });
     expect(document.querySelector(".ba-nomatch-head")).toHaveTextContent(
-      "No matching action in Super Banking (Banking)",
+      "No verified answer in Super Banking (Banking)",
     );
+    // Routing SUCCEEDED here — only grounding failed. Claiming otherwise would
+    // misdescribe the turn, which is the failure this feature removes.
+    expect(document.body.textContent).not.toContain("No matching action");
+    expect(screen.getByText("Statements dropped")).toBeInTheDocument();
     // The hedged paragraph is the thing Option C exists to prevent.
     expect(document.body.textContent).not.toContain("doing great financially");
     expect(document.querySelector(".ba-grounded-card")).toBeNull();
@@ -298,7 +302,7 @@ describe("grounded answer rendering", () => {
     await ask();
 
     await waitFor(() => {
-      expect(screen.getByText(/No matching action in/)).toBeInTheDocument();
+      expect(screen.getByText(/No verified answer in/)).toBeInTheDocument();
     });
     expect(screen.queryByText("Intents considered")).not.toBeInTheDocument();
     expect(document.body.textContent).not.toContain("doing great financially");
