@@ -287,13 +287,31 @@ the demo still shows nothing.
 
 ## Current state (verified 2026-08-02, re-verified 2026-08-03)
 
-The demo side is complete and proven. The gateway path is blocked on one tenant-side
-trust setting that cannot be changed from this repo.
+**The demo side is complete, proven, and deployed.** Two defects found on 2026-08-03 are
+fixed and live-verified against the running stack:
 
-Everything in this section was re-run against the live stack on 2026-08-03 and still
-holds, with one exception now fixed: the simple relay's default target URL had drifted
-out of sync with the mTLS switch — see
-[The simple relay's default URL vs the mTLS switch](#the-simple-relays-default-url-vs-the-mtls-switch-resolved-2026-08-03).
+| Fixed | Live evidence |
+|---|---|
+| The simple relay's target scheme now follows the mTLS switch (#1285) — it was dying on `EPROTO` before reaching MCP | `/api/privilege-mcp-simple/tools/list` returns **225 tools**; `tools/call get_my_accounts` returns `{"success":true,"count":0}` |
+| `notifications/initialized` no longer 401s (#1292), so the spec-mandatory handshake completes without a bearer | from inside the gateway container: `initialize` 200, `notifications/initialized` **202**, `tools/list` **241 tools** |
+
+**The gateway path is blocked on two Privilege-side problems, neither reachable from this
+repo:**
+
+1. [The enrolled node receives backend config but never dispatches a
+   discovery](#the-node-receives-config-but-never-dispatches-a-discovery-open-2026-08-03)
+   — fix this first; nothing downstream is testable while the gateway never contacts the
+   backend.
+2. [The cloud frontend accepts no token this PingOne environment can
+   mint](#the-one-blocker-privilege-does-not-trust-this-environments-issuer) — a
+   Privilege-issued console token authenticates; every `01d89b06` token does not.
+
+A third would-be blocker is gone: `AuthMode` was found set to **static-token** on the
+`mypingone` app (the doc's own trap warns mTLS must be off for the backend to work, and the
+static-token flip was never reverted). It is back on **OAuth** with the client secret
+populated. Read it yourself with the
+[console API recipe](#reading-privileges-real-config-use-the-console-api-not-cyctl) rather
+than trusting the console UI, which serves stale values once its session expires.
 
 ### How the frontend actually works
 
@@ -317,14 +335,21 @@ probing the FQDN gives a real HTTP challenge, while every local port gives no li
 | Step | Evidence |
 |---|---|
 | Gateway enrolled | `Node 570afb32-… established command stream`; console shows **Success** |
+| Mesh links up | `LinkStatus: Active` both directions; reachability heartbeats every 30s |
+| Config reaches the node | `Created backend node … BackendDomains:http://host.docker.internal:8080` in `cyonproxy.log` within seconds of every console save |
 | Cloud frontend reachable | `401 "Bearer Token not found."` — an auth challenge, not a connection error |
-| Backend wired | console lists the full tool catalogue (`get_my_accounts`, `create_transfer`, …) |
+| Backend answers correctly | from **inside** the proxy container: `initialize` 200 / `notifications/initialized` 202 / `tools/list` 241 tools |
 | Demo sign-in | `?auth=success`, `authenticated: true`, scope `mcp:invoke openid` |
 
 Re-verified 2026-08-03: enrolled node still `570afb32-…` (`/procyon/ssl/proxy-crt.pem`
 carries `OU=570afb32-…`, and the log shows a fresh `established command stream`); the
 frontend still answers `Bearer Token not found.` unauthenticated; the container still
 binds only `127.0.0.1:8090` (`0100007F:1F9A` in `/proc/net/tcp`).
+
+**The tool catalogue the console displays is not evidence of a working backend hop.** It is
+a cached `Status.McpServerStatus.McpTools` from an older successful discovery; the console
+re-renders it (and any stored error) indefinitely. Judge the backend by probing it from
+inside the proxy container, as the row above does.
 
 ### The simple relay's default URL vs the mTLS switch (resolved 2026-08-03)
 
