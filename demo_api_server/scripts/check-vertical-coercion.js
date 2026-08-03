@@ -222,9 +222,27 @@ const KNOWN_UNFIXED_COERCIONS = [];
  * Three sibling lookups carried the same defect and were guarded at the same
  * time: FEATURE_TRIGGERS (nlIntentParser, HTTP 500),
  * INTENT_TO_PERMITTED_TOOLS (intentTokenService — minted an Intent Token whose
- * permitted_tools claim was dropped entirely by JSON.stringify, and every
- * consumer reads absent as unrestricted), and THEME_OVERRIDES (geminiNlIntent —
- * native-code source concatenated into the LLM system prompt).
+ * permitted_tools claim was dropped entirely by JSON.stringify), and
+ * THEME_OVERRIDES (geminiNlIntent — native-code source concatenated into the
+ * LLM system prompt).
+ *
+ * CORRECTION — an earlier revision of this comment claimed "every consumer reads
+ * absent as unrestricted". That is FALSE, and the opposite of the truth: the
+ * dropped claim is FAIL-CLOSED. Both gateways test membership with a list check
+ * that an absent claim fails —
+ * `Array.isArray(payload.permitted_tools) && …includes(toolName)`
+ * (demo_mcp_gateway/src/intentTokenValidator.ts:99-100) and
+ * `(permitted instanceof List) && permitted.contains(toolName)`
+ * (ping-gateway/scripts/groovy/p1az-decision.groovy:434). Both yield false, so
+ * IntentMatchesTool='false' with IntentTokenValid='true', which is exactly the
+ * authz server's Rule 4b DENY (demo_authz_server/routes/decision.js:954). The
+ * BFF holds NO local permitted_tools enforcement; its `?? []` reads
+ * (routes/agentRun.js:288, routes/agentInvokeRoute.js:256,
+ * services/agentMcpTokenService.js:276) are Token Chain DISPLAY payloads only.
+ * The damage was a denied call plus an empty permitted-tools list in the rail —
+ * a fidelity bug on a fail-closed path, not an authz bypass. Do not restore the
+ * "unrestricted" reading: it overstates the severity and would justify a panic
+ * fix on a control that was holding.
  */
 const KNOWN_UNFIXED_PROTOTYPE_LOOKUP = [];
 
