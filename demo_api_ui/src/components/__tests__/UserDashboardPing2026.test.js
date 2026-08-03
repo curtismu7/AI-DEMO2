@@ -307,15 +307,13 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-07-27: the consent-decline toast copy changed — declining
-  // no longer disables the assistant until sign-out, it shows a dismissable
-  // notice. Previous baseline 2026-07-26 (three merged PRs: Sign In button +
-  // narrow checkout intent regex, drag-resize dashboard agent column width, and
-  // an SE ingress routing change).
+  // Re-baselined 2026-08-03: #1161 removed the dashboard loading spinner and
+  // added embedded-agent scroll. Previous baseline 2026-07-27 (consent-decline
+  // toast copy change).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "4d7c2dc5cdf2c94e32bdc3377375dc86447d114fca7a96b92dba74b0e31276a1";
+    "31ca45ccbfb0586e78676bb5ddc0f6153151b957e58b057b874e22dd22c96722";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

@@ -84,7 +84,7 @@ runtime switchable"]
     end
 
     %% ── MCP Server ────────────────────────────────────────────────────────────
-    subgraph MCP["demo_mcp_server  (TypeScript · WebSocket · port 8080)"]
+    subgraph MCP["oauth-mcp — MCP server  (TypeScript · WebSocket · port 8080)"]
         MCPProtocol["MCP + JSON-RPC 2.0\ninitialize · tools/list · tools/call"]
         MCPTools["Tools: get_my_accounts · get_account_balance\nget_my_transactions\ncreate_transfer · create_deposit\ncreate_withdrawal · query_user_by_email"]
         MCPAuth["Bearer + introspection RFC 7662\nscope per tool · optional RFC 8693 act"]
