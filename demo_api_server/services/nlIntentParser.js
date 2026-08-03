@@ -1095,15 +1095,28 @@ function parseHeuristic(
             };
           }
         }
+        // These id extractors run alongside extractsAmount on the SAME text, and
+        // norm() has already stripped "$" (it drops every non-word character), so
+        // the amount is indistinguishable from an id by the time we get here:
+        // "extend my rental $300" yielded {amount:300, rentalId:"300"}. Real
+        // rental ids are 3001-3006, so extend_rental answered "rental not found"
+        // every time the consent gate let the write through — UC7/UC8 never
+        // completed. A `(?<!\$)` guard cannot work post-norm(); comparing against
+        // the amount we just parsed is the reliable signal.
+        //
+        // Found by useCases.chipCompletes.test.js. The routing gates could not see
+        // it: routing was correct, only the PARAMS were wrong.
+        const amountToken = params.amount === undefined ? null : String(params.amount);
+        const notTheAmount = (m) => m && m[1] !== amountToken;
         if (h.extractsOrderId) {
           // Match numeric IDs (1003, 2001) or short alphanumeric codes (o1, o2)
           const orderIdMatch = t.match(/\b([a-z]?\d+)\b/i);
-          if (orderIdMatch) params = { ...params, orderId: orderIdMatch[1] };
+          if (notTheAmount(orderIdMatch)) params = { ...params, orderId: orderIdMatch[1] };
         }
         if (h.extractsRentalId) {
           // Match alphanumeric rental IDs (r1, r2) or plain numbers
           const rentalIdMatch = t.match(/\b([a-z]\d+|\d+)\b/i);
-          if (rentalIdMatch) params = { ...params, rentalId: rentalIdMatch[1] };
+          if (notTheAmount(rentalIdMatch)) params = { ...params, rentalId: rentalIdMatch[1] };
         }
         if (h.extractsExpenseParams) {
           // Extract amount: "$45", "45.50"
