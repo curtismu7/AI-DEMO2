@@ -69,7 +69,7 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"large_trade","scope":"write","vertical":"investment","inputSchema":{"type":"object","properties":{"portfolioType":{"type":"string"},"symbol":{"type":"string"},"amount":{"type":"number"}},"required":[],"additionalProperties":false}},
   {"name":"rebalance_portfolio","scope":"write","vertical":"investment","inputSchema":{"type":"object","properties":{"portfolioType":{"type":"string"}},"required":[],"additionalProperties":false}},
   {"name":"sell_security","scope":"write","vertical":"investment","inputSchema":{"type":"object","properties":{"symbol":{"type":"string"},"shares":{"type":"number"},"price":{"type":"number"}},"required":["symbol","shares"],"additionalProperties":false}},
-  {"name":"sensitive_holdings","scope":"read","vertical":"investment"},
+  {"name":"sensitive_holdings","scope":"read","vertical":"investment","a2aDelegatedScope":"holdings:read"},
   {"name":"view_dividends","scope":"read","vertical":"investment"},
   {"name":"view_holdings","scope":"read","vertical":"investment"},
   {"name":"view_portfolio_value","scope":"read","vertical":"investment"},
