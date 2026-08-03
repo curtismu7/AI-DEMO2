@@ -10,6 +10,15 @@ import "./AgentNoMatchCard.css";
  * only when the server actually sent them: `closestCandidate` is deliberately
  * absent from the server payload (the parser is an ordered regex cascade with
  * no score), so it stays hidden rather than being invented.
+ *
+ * Two DIFFERENT failures share this layout, and they must not share wording:
+ *
+ *  - `reason="no-match"` (default) — nothing matched the request at all.
+ *  - `reason="ungrounded"` — Option C. The request DID route and the agent DID
+ *    answer; none of that answer could be traced to a tool call, so it is not
+ *    shown. Saying "no matching action" here would misdescribe what happened —
+ *    the user asked something this vertical does handle — and shipping a
+ *    message that isn't true is precisely what this feature exists to prevent.
  */
 
 /** "sporting-goods" → "Sporting Goods". The server sends only the id. */
@@ -43,17 +52,33 @@ export default function AgentNoMatchCard({
   brandName = null,
   intentsConsidered,
   closestCandidate,
+  droppedCount,
+  reason = "no-match",
   suggestions = [],
   onSelect,
 }) {
   const name = verticalDisplayName(verticalId);
   const subject = noMatchSubject(verticalId, brandName);
-  const heading = subject
-    ? `No matching action in ${subject}`
-    : "No vertical is active";
-  const why = name
-    ? `${name} has no action for that request, and the agent will not answer it using another vertical's data.`
-    : "No vertical is active, so there was nothing to match that request against. Choose a vertical and ask again.";
+  const ungrounded = reason === "ungrounded";
+
+  // Deliberately says nothing about WHY a statement could not be traced — we
+  // know only that it could not be. A cause would have to be guessed, and a
+  // guessed explanation is the same class of error as a guessed answer.
+  const heading = ungrounded
+    ? subject
+      ? `No verified answer in ${subject}`
+      : "No verified answer"
+    : subject
+      ? `No matching action in ${subject}`
+      : "No vertical is active";
+
+  const why = ungrounded
+    ? `The agent answered that request, but none of the answer could be traced back to a tool call${
+        name ? ` in ${name}` : ""
+      }, so it is not shown. Only statements backed by a real tool result are displayed.`
+    : name
+      ? `${name} has no action for that request, and the agent will not answer it using another vertical's data.`
+      : "No vertical is active, so there was nothing to match that request against. Choose a vertical and ask again.";
 
   return (
     <div className="ba-nomatch-card">
@@ -69,10 +94,20 @@ export default function AgentNoMatchCard({
             <dd>{verticalId}</dd>
           </div>
         ) : null}
-        {typeof intentsConsidered === "number" ? (
+        {/* Counts what the ROUTER weighed. In the ungrounded case routing
+            succeeded, so showing it would point at the wrong failure. */}
+        {!ungrounded && typeof intentsConsidered === "number" ? (
           <div className="ba-nomatch-diag-row">
             <dt>Intents considered</dt>
             <dd>{intentsConsidered}</dd>
+          </div>
+        ) : null}
+        {/* The one specific thing we can state without guessing: how many
+            statements were dropped. Absent unless the server counted them. */}
+        {ungrounded && typeof droppedCount === "number" && droppedCount > 0 ? (
+          <div className="ba-nomatch-diag-row">
+            <dt>Statements dropped</dt>
+            <dd>{droppedCount}</dd>
           </div>
         ) : null}
         {closestCandidate ? (

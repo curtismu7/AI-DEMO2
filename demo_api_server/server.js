@@ -1983,6 +1983,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
           list_gear: 'list_gear', list_rentals: 'list_rentals',
           gear_order_status: 'gear_order', loyalty_balance: 'view_rewards',
           extend_rental: 'extend_rental', show_gear_order: 'list_gear',
+          show_gear_warranty: 'view_gear_warranty', request_price_match: 'request_price_match',
           // Workforce
           view_benefits: 'view_benefits', pto_balance: 'pto_balance',
           list_expenses: 'view_expenses', submit_expense: 'submit_expense',

@@ -53,9 +53,11 @@ describe('airlines use-case catalog', () => {
     expect(uc.trigger.text).toBe(`pay a $${amount} change fee`);
   });
 
-  test('UC2 routes to the sensitive tool, not the plain lookup', () => {
+  // The A2A-delegated record, not the consent-gated reservation lookup — the
+  // specialist's Exchange #2 scope is pnr:read, which no session token holds.
+  test('UC2 routes to the A2A passenger record, not the plain lookup', () => {
     const uc = resolveUseCase('UC2', 'airlines');
-    expect(uc.primaryTool).toBe('sensitive_airline_bookings');
+    expect(uc.primaryTool).toBe('sensitive_passenger_record');
   });
 
   test('UC24 asks about airports, not bank branches', () => {

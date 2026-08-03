@@ -326,7 +326,7 @@ export default function ResourceServerJourneyPage() {
               <div className="rsj-data-cards">
                 <div className="rsj-data-card"><div className="rsj-data-label">Portfolio</div><div className="rsj-data-value rsj-data-value--green">View returned</div></div>
                 <div className="rsj-data-card"><div className="rsj-data-label">Tool</div><div className="rsj-data-value">{toolName || 'get_portfolio_summary'}</div></div>
-                <div className="rsj-data-card"><div className="rsj-data-label">Audience</div><div className="rsj-data-value">mcp-resource-server.ping.demo</div></div>
+                <div className="rsj-data-card"><div className="rsj-data-label">Audience</div><div className="rsj-data-value">mcp-invest.ping.demo</div></div>
               </div>
             ) : (
               <div className="rsj-data-cards">

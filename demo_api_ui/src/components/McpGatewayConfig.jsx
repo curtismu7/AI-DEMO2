@@ -378,7 +378,7 @@ function McpGatewayConfigInner() {
 MCP_GW_DEV_BYPASS=true
 MCP_GW_RESOURCE_URI=https://mcpgateway.ping.demo
 MCP_OLB_RESOURCE_URI=https://mcp-olb.ping.demo
-MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-resource-server.ping.demo
+MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 # ... (stubs pre-filled in .env.example)`}</pre>
 						<p>
 							BFF routes through gateway when{" "}
@@ -413,7 +413,7 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-resource-server.ping.demo
 							{ key: "mcpOlbWsUrl", label: "OLB WebSocket URL", placeholder: "ws://localhost:8080", hint: "MCP_OLB_WS_URL — WebSocket address of the Online Banking MCP server the gateway proxies to" },
 							{ key: "mcpOlbResourceUri", label: "OLB Resource URI", placeholder: "https://mcp-olb.ping.demo", hint: "MCP_OLB_RESOURCE_URI — PingOne resource URI for the OLB MCP server (used to scope token exchange)" },
 							{ key: "mcpResourceServerWsUrl", label: "Invest WebSocket URL", placeholder: "ws://localhost:8081", hint: "MCP_RESOURCE_SERVER_WS_URL — WebSocket address of the Investments MCP server" },
-							{ key: "mcpResourceServerResourceUri", label: "Invest Resource URI", placeholder: "https://mcp-resource-server.ping.demo", hint: "MCP_RESOURCE_SERVER_RESOURCE_URI — PingOne resource URI for the Investments MCP server" },
+							{ key: "mcpResourceServerResourceUri", label: "Invest Resource URI", placeholder: "https://mcp-invest.ping.demo", hint: "MCP_RESOURCE_SERVER_RESOURCE_URI — PingOne resource URI for the Investments MCP server" },
 							{ key: "pingAuthorizeEndpoint", label: "PingOne Authorization Server Endpoint", placeholder: "(blank = permit-all)", hint: "PINGAUTHORIZE_ENDPOINT — PingOne Authorization Server policy URL; leave blank to skip per-call policy evaluation (permit-all)" },
 							{ key: "hitlServiceUrl", label: "HITL Service URL", placeholder: "(blank = disabled)", hint: "HITL_SERVICE_URL — optional Human-in-the-Loop approval service; leave blank to disable step-up consent flow" },
 						].map(({ key, label, placeholder, hint }) => (

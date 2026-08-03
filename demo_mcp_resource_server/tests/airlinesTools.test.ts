@@ -21,7 +21,7 @@ describe('resource server tool registry', () => {
   it('exposes both namespaces and advertises both scopes', () => {
     for (const name of AIRLINES) expect(findTool(name)).toBeDefined();
     expect(findTool('get_portfolio_summary')).toBeDefined();
-    expect(SUPPORTED_SCOPES).toEqual(expect.arrayContaining(['invest:read', 'airlines:read']));
+    expect(SUPPORTED_SCOPES).toEqual(expect.arrayContaining(['invest:read', 'airlines:read', 'pnr:read']));
   });
 
   it('every airlines tool requires airlines:read', () => {
@@ -36,6 +36,24 @@ describe('resource server tool registry', () => {
 
     const airlinesOnly = filterByScopes(ALL_TOOLS, ['airlines:read']).map((t) => t.name);
     expect(airlinesOnly).toEqual(AIRLINES);
+  });
+
+  /**
+   * The A2A claim, enforced structurally rather than by wording: the sensitive
+   * record is gated on `pnr:read`, which only the Passenger Records Specialist's
+   * Exchange #2 bearer carries. A session token holding every ordinary airlines
+   * scope still cannot see the tool, so the chip CANNOT be answered by an
+   * ordinary consent read — the delegation chain is the only path to it.
+   */
+  it('the sensitive record is reachable only with the A2A specialist scope', () => {
+    expect(findTool('sensitive_passenger_record')!.requiredScopes).toEqual(['pnr:read']);
+
+    const ordinary = filterByScopes(ALL_TOOLS, ['airlines:read', 'airlines:write', 'read'])
+      .map((t) => t.name);
+    expect(ordinary).not.toContain('sensitive_passenger_record');
+
+    const specialist = filterByScopes(ALL_TOOLS, ['pnr:read']).map((t) => t.name);
+    expect(specialist).toEqual(['sensitive_passenger_record']);
   });
 
   it('a zero-scope token sees nothing', () => {
@@ -84,6 +102,23 @@ describe('airlines dispatch', () => {
 
     const all: any = await dispatch('check_seat_availability', { flight_number: 'UA328', available_only: false }, '', '');
     expect(all.seatCount).toBeGreaterThan(result.seatCount);
+  });
+
+  it('returns the passenger PII the reservation tools never expose', async () => {
+    const result: any = await dispatch('sensitive_passenger_record', {}, '', 'unknown-sub');
+    expect(result.source).toBe('sqlite');
+    expect(result.found).toBe(true);
+    expect(result.passportNumber).toBe('X4820913');
+    expect(result.paymentCard.last4).toBe('4417');
+    expect(result.loyalty.accountNumber).toBe('MP-4453-8821');
+    expect(result.pnrs).toEqual(['K7XR2M', 'P4QW9B']);
+
+    // The claim this tool exists to make: the same passenger's ordinary
+    // reservation read carries none of it.
+    const bookings = JSON.stringify(await dispatch('get_airline_bookings', {}, '', 'unknown-sub'));
+    expect(bookings).not.toContain('X4820913');
+    expect(bookings).not.toContain('MP-4453-8821');
+    expect(bookings).not.toContain('4417');
   });
 });
 

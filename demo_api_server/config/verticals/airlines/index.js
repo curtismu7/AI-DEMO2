@@ -3,7 +3,7 @@
 /**
  * airlines (United) vertical plugin.
  *
- * Unlike every other vertical, this one owns NO local data store. Its three
+ * Unlike every other vertical, this one owns NO local data store. Its four
  * tools are answered by demo_mcp_resource_server out of a real SQLite database
  * (demo_mcp_resource_server/src/db/airlinesDb.ts), reached over the normal
  * chain: BFF -> mcp-gateway (RFC 8693 exchange) -> resource server -> SQLite.
@@ -90,6 +90,16 @@ const TOOLS = [
     scopes: ['airlines:read'],
     authz: {},
   },
+  {
+    name: 'sensitive_passenger_record',
+    description: "Access the passenger's full record — passport, date of birth, payment card on file and MileagePlus account number. Delegated to the Passenger Records Specialist agent; requires explicit user consent.",
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    // Coarse scope only. The specialist's Exchange #2 bearer carries
+    // scope-topology's a2aDelegatedScope (pnr:read) instead, which is what the
+    // resource server actually enforces — see airlinesTools.ts.
+    scopes: ['read'],
+    authz: { consent: true },
+  },
   // Shared education-path placeholders. createVerticalPlugin appends
   // EDUCATION_HEURISTICS, whose actions must be declared tool names — same
   // stubs every other vertical carries.
@@ -100,13 +110,18 @@ const TOOLS = [
 const EDUCATION_STUBS = new Set(['api_key_demo', 'dual_token_demo']);
 
 // Most specific first: a seat question mentioning a flight must not fall into
-// the flight-status rule.
+// the flight-status rule, and the sensitive-record phrase must not be claimed by
+// the reservation rule ("passenger record" carries no reservation keyword today,
+// but the ordering makes that independent of future wording).
 const HEURISTICS = [
-  // FIRST, ahead of the cancel rule: "pay the $75 refund fee" contains `refund`,
-  // which the cancel rule matches, and a fee payment routed to the cancel tool
-  // would demo an MFA step-up where the amount ladder is the point.
-  // extractsAmount is what puts the stated figure in front of the transaction
-  // policy — without it the ladder sees no amount and never fires.
+  // The A2A-delegated record is the narrowest phrase — matched first so it can
+  // never be claimed by the sensitive-bookings rule or the generic one below.
+  { re: /\bsensitive\b.*\bpassenger\b|\bpassenger\b.*\bsensitive\b/i, action: 'sensitive_passenger_record' },
+  // Ahead of the cancel rule: "pay the $75 refund fee" contains `refund`, which
+  // the cancel rule matches, and a fee payment routed to the cancel tool would
+  // demo an MFA step-up where the amount ladder is the point. extractsAmount is
+  // what puts the stated figure in front of the transaction policy — without it
+  // the ladder sees no amount and never fires.
   { re: /\b(pay|settle)\b.*\bfees?\b/i, action: 'pay_airline_fee', extractsAmount: true, paramHint: 'e.g. "pay a $300 change fee"' },
   // Before the generic bookings rule below: "sensitive ... bookings" would
   // otherwise match `bookings` and resolve to the UNGATED lookup, so the chip

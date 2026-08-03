@@ -323,6 +323,7 @@ router.get('/vertical-record', (req, res) => {
     show_health_record: 'healthRecord',
     show_investment: 'invest',
     show_gear_order: 'gearOrder',
+    show_gear_warranty: 'gearWarranty',
     show_expense_report: 'expenseReport',
     show_permit: 'permit',
     show_enrollment: 'enrollment',

@@ -112,14 +112,48 @@ async function pingoneGet(token, region, envId, path_) {
 
 // ── Resolve apps and resources from PingOne ────────────────────────────────
 
-async function resolveAppsByName(token, region, envId, targetNames) {
-  // targetNames: { logicalKey: 'Exact PingOne App Name', ... }
+/**
+ * Resolve apps by STABLE IDENTITY first, display name second.
+ *
+ * targetNames:   { logicalKey: 'Exact PingOne App Name', ... }
+ * knownClientIds:{ logicalKey: '<clientId already in .env>', ... }
+ *
+ * Matching on the display name alone means renaming an app in the console makes
+ * this miss. It does not write garbage — callers fall back to the existing .env
+ * value — but that is arguably worse: the app is never re-resolved, so a rotated
+ * secret or a recreated app silently keeps STALE credentials, and the only
+ * symptom is auth failing somewhere far away.
+ *
+ * The clientId is already in .env from the previous run, so after first bootstrap
+ * there is a stable key available. Name matching stays for the genuine first run
+ * and warns when it is what actually resolved the app.
+ */
+async function resolveApps(token, region, envId, targetNames, knownClientIds = {}) {
   const data = await pingoneGet(token, region, envId, '/applications?limit=100');
   const apps = data._embedded?.applications || [];
   const result = {};
   for (const [key, name] of Object.entries(targetNames)) {
-    const app = apps.find(a => a.name === name);
-    if (app) result[key] = { id: app.id, clientId: app.clientId, name: app.name };
+    const known = (knownClientIds[key] || '').trim();
+    let app = known ? apps.find(a => a.clientId === known || a.id === known) : null;
+    let via = 'clientId';
+
+    if (!app && name) {
+      app = apps.find(a => a.name === name);
+      via = 'name';
+      if (app && known) {
+        // Found by name, but the clientId we had no longer exists — the app was
+        // recreated. Say so: every secret for it is about to change.
+        console.warn(
+          `[refresh-envs] ${key}: clientId ${known} no longer exists; matched "${name}" by NAME `
+          + `(new clientId ${app.clientId}). Credentials for this app have changed.`,
+        );
+      } else if (app && !known) {
+        console.log(`[refresh-envs] ${key}: first-run bootstrap, matched "${name}" by name.`);
+      }
+    }
+
+    if (app) result[key] = { id: app.id, clientId: app.clientId, name: app.name, via };
+    else if (name) console.warn(`[refresh-envs] ${key}: no app matched clientId ${known || '(none)'} or name "${name}".`);
   }
   return result;
 }
@@ -195,10 +229,25 @@ async function main() {
     worker:       appNames['Super Banking Worker'],
   };
 
+  // The clientIds the previous run already wrote. These are the stable key —
+  // a console rename moves the display name but never the clientId.
+  const KNOWN_CLIENT_IDS = {
+    mcpGateway:     apiVars.PINGONE_MCP_GATEWAY_CLIENT_ID,
+    mcpExchanger:   apiVars.PINGONE_TOKEN_EXCHANGER_CLIENT_ID,
+    step9Exchanger: apiVars.PINGONE_MCP_EXCHANGER_CLIENT_ID,
+    aiAgent:        apiVars.PINGONE_AI_AGENT_ACTOR_CLIENT_ID,
+    agent:          apiVars.AGENT_CLIENT_ID,
+    worker:         apiVars.PINGONE_WORKER_CLIENT_ID,
+  };
+
   let apps;
   try {
-    apps = await resolveAppsByName(token, region, envId, APP_TARGETS);
-    console.log(`[refresh-envs] Resolved ${Object.keys(apps).length}/${Object.keys(APP_TARGETS).length} apps from PingOne.`);
+    apps = await resolveApps(token, region, envId, APP_TARGETS, KNOWN_CLIENT_IDS);
+    const byName = Object.values(apps).filter((a) => a.via === 'name').length;
+    console.log(
+      `[refresh-envs] Resolved ${Object.keys(apps).length}/${Object.keys(APP_TARGETS).length} apps from PingOne`
+      + (byName ? ` (${byName} by display name — see warnings above).` : ' (all by clientId).'),
+    );
   } catch (err) {
     console.warn(`[refresh-envs] WARNING: Could not resolve apps from PingOne: ${err.message}`);
     console.warn('[refresh-envs] Services will start with existing .env files.');

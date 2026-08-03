@@ -23,6 +23,7 @@ const ACTION_TO_TOOL = {
   branch_hours: 'get_branch_hours',
   weather: 'get_weather',
   mortgage_demo: 'show_mortgage',
+  gear_warranty_demo: 'show_gear_warranty',
 };
 
 /**

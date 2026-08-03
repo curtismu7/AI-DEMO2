@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "UNPROVEN",
   "errorClass": null,
-  "primaryTool": "list_gear",
-  "checkedAt": "2026-08-02",
+  "primaryTool": "request_price_match",
+  "checkedAt": "2026-08-03",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

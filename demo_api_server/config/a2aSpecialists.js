@@ -89,11 +89,11 @@ const A2A_SPECIALISTS = {
     subtaskHint: 'review the sensitive investment holdings',
   },
   airlines: {
-    appKey: 'reservations',
-    appName: 'Super Banking Reservations Specialist Agent',
-    specialistName: 'Reservations Specialist',
-    tools: ['sensitive_airline_bookings'],
-    subtaskHint: 'retrieve the sensitive reservation details',
+    appKey: 'passenger',
+    appName: 'Super Banking Passenger Records Specialist Agent',
+    specialistName: 'Passenger Records Specialist',
+    tools: ['sensitive_passenger_record'],
+    subtaskHint: 'retrieve the sensitive passenger record',
   },
 };
 

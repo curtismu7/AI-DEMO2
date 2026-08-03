@@ -13,7 +13,7 @@ const MERMAID_SOURCE = `sequenceDiagram
     end
 
     Agent->>GW: tools/call get_investment_balance<br/>(Bearer: user token)
-    GW->>P1: RFC 8693 Token Exchange<br/>(audience=mcp-resource-server.ping.demo)
+    GW->>P1: RFC 8693 Token Exchange<br/>(audience=mcp-invest.ping.demo)
     P1-->>GW: Scoped access_token (aud=RS)
     GW->>RS: WebSocket MCP message<br/>(Bearer: exchanged token)
     RS->>RS: Verify JWT signature (JWKS)<br/>Check aud + scope + exp

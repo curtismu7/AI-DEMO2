@@ -224,7 +224,7 @@ Three dedicated RS journey pages show tool results in a split-view UI (token/cre
 | RS Page | Route | Backend Service | Left Panel | Right Panel |
 |---------|-------|-----------------|------------|-------------|
 | **MCP Server (OLB)** | `/rs/olb` | `demo_mcp_server` | RFC 8693 exchanged token claims (sub, aud, scope, act) | Account list from banking DB |
-| **MCP Resource Server** | `/rs/invest` | `demo_mcp_resource_server` | RFC 8693 exchanged token claims (audience: mcp-resource-server.ping.demo) | Portfolio summary cards |
+| **MCP Resource Server** | `/rs/invest` | `demo_mcp_resource_server` | RFC 8693 exchanged token claims (audience: mcp-invest.ping.demo) | Portfolio summary cards |
 | **API Resource Server** | `/rs/api` | `demo_api_resource_server` | Credential swap proof (Bearer → X-API-Key) | Vertical-specific record (9 verticals) |
 
 ### Vertical → RS Page Mapping

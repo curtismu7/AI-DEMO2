@@ -22,7 +22,16 @@ describe('runReasonLoop', () => {
     // toolsCalled reports the tools the loop actually executed. It used to be
     // dropped, so the caller returned a hardcoded toolsCalled: [] and no
     // LLM-path use case could ever satisfy 'tool-dispatched' evidence.
-    expect(out).toEqual({ ok: true, answer: 'done', toolsCalled: ['get_x'], inputTokens: 0, outputTokens: 0 });
+    // toolResults carries the payloads alongside, so the caller can prove a
+    // claim came from real data instead of only that some tool ran.
+    expect(out).toEqual({
+      ok: true,
+      answer: 'done',
+      toolsCalled: ['get_x'],
+      toolResults: [{ name: 'get_x', result: 'r' }],
+      inputTokens: 0,
+      outputTokens: 0,
+    });
   });
 
   test('reasoningUnavailable:true → heuristic-fallback signal', async () => {

@@ -70,6 +70,26 @@ export interface FeePayment extends FeePaymentInput {
   paidAt: string;
 }
 
+/**
+ * The PII a passenger record carries that a reservation lookup deliberately does
+ * NOT: passport, date of birth, the card the ticket was bought on, and the
+ * loyalty account number. Kept in its own table so the read-only reservation
+ * queries physically cannot return it — the A2A specialist tool is the only
+ * caller that joins it.
+ */
+export interface PassengerRecord {
+  passenger_ref: string;
+  date_of_birth: string;
+  passport_number: string;
+  known_traveler_number: string | null;
+  redress_number: string | null;
+  loyalty_account_number: string;
+  payment_card_brand: string;
+  payment_card_last4: string;
+  payment_card_expiry: string;
+  billing_postal_code: string;
+}
+
 /** How a passenger row was located — surfaced in every tool result, never silent. */
 export type MatchedBy = 'subject' | 'demo-fallback';
 
@@ -116,6 +136,18 @@ CREATE TABLE IF NOT EXISTS fee_payments (
   amount_cents        INTEGER NOT NULL,
   paid_at             TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS passenger_records (
+  passenger_ref          TEXT PRIMARY KEY REFERENCES passengers(passenger_ref),
+  date_of_birth          TEXT NOT NULL,
+  passport_number        TEXT NOT NULL,
+  known_traveler_number  TEXT,
+  redress_number         TEXT,
+  loyalty_account_number TEXT NOT NULL,
+  payment_card_brand     TEXT NOT NULL,
+  payment_card_last4     TEXT NOT NULL,
+  payment_card_expiry    TEXT NOT NULL,
+  billing_postal_code    TEXT NOT NULL
+);
 `;
 
 function dbPath(): string {
@@ -149,6 +181,9 @@ function seedIfEmpty(conn: DatabaseSync): void {
   const insSeat = conn.prepare(
     'INSERT INTO seats (flight_number, seat, cabin, available) VALUES (?, ?, ?, ?)',
   );
+  const insRecord = conn.prepare(
+    'INSERT INTO passenger_records (passenger_ref, date_of_birth, passport_number, known_traveler_number, redress_number, loyalty_account_number, payment_card_brand, payment_card_last4, payment_card_expiry, billing_postal_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+  );
 
   conn.exec('BEGIN');
   try {
@@ -163,6 +198,14 @@ function seedIfEmpty(conn: DatabaseSync): void {
     }
     for (const s of seed.seats || []) {
       insSeat.run(s.flight_number, s.seat, s.cabin ?? null, s.available ? 1 : 0);
+    }
+    for (const r of seed.passenger_records || []) {
+      insRecord.run(
+        r.passenger_ref, r.date_of_birth, r.passport_number,
+        r.known_traveler_number ?? null, r.redress_number ?? null,
+        r.loyalty_account_number, r.payment_card_brand, r.payment_card_last4,
+        r.payment_card_expiry, r.billing_postal_code,
+      );
     }
     conn.exec('COMMIT');
   } catch (err) {
@@ -247,6 +290,18 @@ export function getFlight(flightNumber: string): Flight | null {
   const row = withDb((conn) => conn
     .prepare('SELECT * FROM flights WHERE flight_number = ?')
     .get(flightNumber) as Flight | undefined);
+  return row ?? null;
+}
+
+/**
+ * The passenger's PII row. Returns null rather than an empty shell when the
+ * record is absent, so the caller reports "no record" instead of rendering a
+ * blank passport number as if it were the real value.
+ */
+export function getPassengerRecord(passengerRef: string): PassengerRecord | null {
+  const row = withDb((conn) => conn
+    .prepare('SELECT * FROM passenger_records WHERE passenger_ref = ?')
+    .get(passengerRef) as PassengerRecord | undefined);
   return row ?? null;
 }
 

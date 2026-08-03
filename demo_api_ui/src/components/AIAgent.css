@@ -4876,7 +4876,63 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: contents;
 }
 
+/* ─── Jump-to-latest pill ──────────────────────────────────────────────
+   Shown only while the user has scrolled away from the bottom. The wrapper is
+   zero-height and overflow-visible so the pill floats over the last line of the
+   transcript instead of consuming layout height — the transcript is already the
+   scarcest space in the embedded dock. */
+.ba-jump-latest-wrap {
+  position: relative;
+  height: 0;
+  overflow: visible;
+  z-index: 3;
+  flex-shrink: 0;
+}
+
+.ba-jump-latest {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border: 1px solid var(--ba-border, #d1d5db);
+  border-radius: 999px;
+  background: var(--ba-surface, #ffffff);
+  color: var(--ba-text, #111827);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.ba-jump-latest:hover {
+  border-color: var(--brand-navy, #1d4ed8);
+  color: var(--brand-navy, #1d4ed8);
+}
+
+.ba-jump-latest__chev {
+  font-size: 13px;
+  line-height: 1;
+}
+
 .ba-hg--collapsed .ba-hg-body {
+  display: none;
+}
+
+/* A collapsible sub-group *inside* a .ba-hg row (Inspectors), so the collapse
+   scopes to it alone and its row-mates (Demo steps, Live Use Cases, Agent scope)
+   stay visible. `display: contents` keeps the label and buttons as direct flex
+   items of the row, exactly as before the wrapper existed. */
+.ba-hg-sub {
+  display: contents;
+}
+
+.ba-hg-sub--collapsed .ba-hg-body {
   display: none;
 }
 /* .ba-hg--demo no longer centers its own row — Demo Steps/Live Use Cases now

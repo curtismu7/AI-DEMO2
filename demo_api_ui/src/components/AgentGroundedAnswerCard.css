@@ -1,0 +1,109 @@
+/* Grounded-answer card — renders inside the assistant bubble, which is a solid
+   vertical-accent pill with white text. Like the no-match card it paints its own
+   opaque surface and dark text so contrast never depends on the active
+   vertical's accent colour (REGRESSION_PLAN §0: no muted/low-contrast text).
+
+   Every text node wraps at spaces first and breaks a single over-long token only
+   as a last resort; min-width:0 stops flex children claiming intrinsic width and
+   forcing the narrow agent panel wider. Nothing here may scroll horizontally. */
+
+.ba-grounded-card {
+  border: 2px solid var(--brand-success);
+  border-left-width: 5px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--brand-white);
+  color: var(--brand-dark-gray);
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ba-grounded-head {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}
+
+.ba-grounded-why {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}
+
+.ba-grounded-claims {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ba-grounded-claim {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--inner-card-radius);
+  background: var(--brand-light-gray);
+  border: 1px solid var(--ba-border);
+}
+
+.ba-grounded-claim-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}
+
+.ba-grounded-sources {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ba-grounded-source {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 8px;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--brand-navy);
+  background: var(--brand-white);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--brand-navy);
+  overflow-wrap: anywhere;
+}
+
+.ba-grounded-source-tool {
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  color: var(--brand-navy);
+}
+
+.ba-grounded-source-scope {
+  font-family: var(--font-family-mono);
+  color: var(--brand-dark-gray);
+}
+
+.ba-grounded-dropped {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--inner-card-radius);
+  background: var(--brand-light-gray);
+  border: 1px solid var(--brand-warning);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}

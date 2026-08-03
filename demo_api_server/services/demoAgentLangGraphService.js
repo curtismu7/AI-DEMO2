@@ -138,6 +138,21 @@ const verticalDispatch = require('./verticalDispatch');
 const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
 const conversationStore = require('./lmdb/conversationStore.lmdb');
+const { buildGroundedAnswer } = require('./groundedAnswer');
+
+/**
+ * Option C gate. Same configStore boolean convention as ff_knowledge_grounding
+ * (values persist as the strings 'true'/'false'), with an env fallback so the
+ * flag still resolves before configStore has initialized.
+ */
+function isGroundedAnswersEnabled() {
+  try {
+    const raw = configStore.getEffective('ff_grounded_answers');
+    return raw === true || raw === 'true' || raw === '1';
+  } catch (_) {
+    return process.env.FF_GROUNDED_ANSWERS === 'true' || process.env.FF_GROUNDED_ANSWERS === '1';
+  }
+}
 
 /**
  * IN-04: agent chat content is PII-equivalent in a banking context. The
@@ -673,7 +688,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     }
 
     // Unhandled actions that need LLM reasoning — return null to signal fallthrough
-    if (['mcp_tools', 'mortgage_demo', 'invest_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
+    if (['mcp_tools', 'mortgage_demo', 'gear_warranty_demo', 'invest_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
       return null; // Heuristic matched but requires client-side / LLM formatting
     }
 
@@ -1859,6 +1874,10 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // governed executor the loop would have used makes the claim true and emits
     // the evidence, instead of leaving the model to decide whether the demo works.
     const preToolsCalled = [];
+    // Pre-fetched payloads join the reason loop's own results as grounding
+    // evidence. Omitting them would drop every UC34 claim as unattributable —
+    // the data IS governed and real, it just arrived before the loop started.
+    const preToolResults = [];
     const activityTool = ACTIVITY_ANALYSIS_RE.test(String(message || ''))
       ? readPrimaryToolFor(activeId)
       : null;
@@ -1888,6 +1907,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
             content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\n${compact}`,
           };
           preToolsCalled.push(activityTool);
+          preToolResults.push({ name: activityTool, result: activity });
         }
       } catch (e) {
         // Non-fatal: the model still answers, just without grounded data.
@@ -1927,9 +1947,24 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       // same deterministic reply/card buildA2aReplyEnvelope gives the non-LLM
       // dispatch path, so UC2 renders identically to a chip-driven delegation.
       const a2aDisplay = a2aResultRef.current ? buildA2aReplyEnvelope(a2aResultRef.current, tokenEvents) : null;
+      // Option C. The model routed freely; now nothing reaches the screen
+      // without a tool call behind it. Every claim keeps its source tool and
+      // scope; a claim we cannot attribute is dropped here and never leaves the
+      // server. Zero grounded claims sets grounded:false and the SPA degrades to
+      // the Option A no-match card rather than showing a hedged paragraph.
+      //
+      // Skipped for the A2A display path: that reply is deterministic BFF-built
+      // copy (buildA2aReplyEnvelope), not model prose, so there is no fabrication
+      // to filter and re-deriving it as claims would only lose the card.
+      const groundedAnswer = (!a2aDisplay && isGroundedAnswersEnabled())
+        ? buildGroundedAnswer(loopResult.answer, [...preToolResults, ...(loopResult.toolResults || [])], {
+            verticalToolNames: toolSchemas.map((t) => t && t.name).filter(Boolean),
+          })
+        : null;
       return {
         reply: a2aDisplay ? a2aDisplay.reply : loopResult.answer,
         success: true,
+        ...(groundedAnswer ? { groundedAnswer } : {}),
         // Was hardcoded []. Tools DO run on this path (the loop executes
         // data.type === 'tool_calls' via executeTool), so reporting none made
         // 'tool-dispatched' evidence unmatchable for every LLM-path use case —

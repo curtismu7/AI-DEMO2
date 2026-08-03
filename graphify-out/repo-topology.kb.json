@@ -161,6 +161,28 @@
         { "ref": "MCP tool definitions" }
       ],
       "tags": ["mcp-tools", "coding-agents", "knowledge-grounding"]
+    },
+    {
+      "id": "K16",
+      "claim": "PingGateway (IG) re-parses /var/gateway/config/mcp-tool-schemas.json on EVERY tools/call, in mcp-request-validation.groovy. If that path is missing or unreadable, IG throws FileNotFoundException and every POST /mcp returns HTTP 500 while docker ps still reports the container healthy; the UI surfaces this only as 'MCP call failed for <tool> (tool_failed)', which looks like a token or policy failure but is not.",
+      "source": "ping-gateway/scripts/groovy/mcp-request-validation.groovy line 16 (SCHEMAS_PATH) and line 67 (per-request JsonSlurper parse)",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "ping-gateway/scripts/groovy/mcp-request-validation.groovy" },
+        { "ref": "REGRESSION_PLAN.md §4 2026-08-03" }
+      ],
+      "tags": ["ping-gateway", "mcp", "tool-schemas", "failure-mode"]
+    },
+    {
+      "id": "K17",
+      "claim": "Never bind-mount an individual FILE into the PingGateway container on macOS: VirtioFS pins the host inode and git replaces files by rename, so any pull touching it leaves a dangling mount until the container is recreated. mcp-tool-schemas.json is generated to BOTH the repo root (canonical) and ping-gateway/config/, which sits inside a DIRECTORY mount and resolves by name on every open. gen:tool-schemas writes both; toolSchemaDrift.test.ts asserts they stay byte-identical.",
+      "source": "docker-compose.yml ping-gateway volumes, demo_mcp_gateway/scripts/genToolSchemas.ts",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "docker-compose.yml (ping-gateway volumes)" },
+        { "ref": "REGRESSION_PLAN.md §4 2026-07-17 and 2026-08-03" }
+      ],
+      "tags": ["docker", "bind-mount", "ping-gateway", "macos-virtiofs", "failure-mode"]
     }
   ]
 }

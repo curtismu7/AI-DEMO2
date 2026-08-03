@@ -1112,6 +1112,20 @@ export class BankingToolRegistry {
       inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
     },
 
+    show_gear_warranty: {
+      name: 'show_gear_warranty',
+      title: 'Gear Warranty',
+      description: 'Retrieve the user\'s gear warranty record including covered item, coverage tier, start and expiry dates, claims used, and claim limit. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the sporting-goods backend with a service API key.',
+      requiresUserAuth: true,
+      requiredScopes: ['gear:read'],
+      handler: 'executeShowGearWarranty',
+      readOnly: true,
+      icons: [{ src: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%220055cc%22 d=%22M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z%22/%3E%3C/svg%3E', mimeType: 'image/svg+xml', sizes: ['16x16', '32x32'] }],
+      annotations: { userFacing: { readable: true, destructive: false, idempotent: true, openWorld: false } },
+      outputSchema: SHOW_VERTICAL_OUTPUT,
+      inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }
+    },
+
     show_expense_report: {
       name: 'show_expense_report',
       title: 'Expense Report',

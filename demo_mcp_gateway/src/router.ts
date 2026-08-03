@@ -48,6 +48,12 @@ const INVEST_TOOLS = new Set([
 // invest tools — demo_mcp_resource_server — so they route to the 'invest'
 // target. They differ in where the data comes from: these are answered from
 // that server's own SQLite database rather than proxied back to the BFF.
+// `sensitive_passenger_record` belongs here for the same reason as the other
+// three — the resource server answers it from SQLite. It is NOT an OLB tool: if
+// it fell through to the default 'olb' target it would be relayed to the BFF,
+// whose airlines plugin disowns every non-stub name, and the A2A specialist
+// would get "no handler for sensitive_passenger_record" after a fully valid
+// nested-act exchange.
 const AIRLINES_TOOLS = new Set([
   // Phase 2 amount-gated write. Routes to the same 'invest' target as the reads:
   // same physical backend, same audience. Omitting it here means the gate fires,
@@ -60,6 +66,7 @@ const AIRLINES_TOOLS = new Set([
   'cancel_airline_reservation',
   'get_flight_status',
   'check_seat_availability',
+  'sensitive_passenger_record',
 ]);
 
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
@@ -84,6 +91,7 @@ const APIKEY_TOOLS = new Set([
   'show_large_purchase', // retail — Great Buy large purchase
   'show_health_record',  // healthcare — CareConnect health record
   'show_gear_order',     // sporting-goods — Super Sports gear order
+  'show_gear_warranty',  // sporting-goods — Super Sports gear warranty (UC33)
   'show_expense_report', // workforce — WX Workforce expense report
   'show_permit',         // government — CivicPermit permit record
   'show_enrollment',     // university — Super University enrollment record
@@ -151,6 +159,7 @@ export const APIKEY_BACKEND_ROUTES: Record<string, string> = {
   show_large_purchase: 'retail',
   show_health_record:  'healthcare',
   show_gear_order:     'gear',
+  show_gear_warranty:  'gearWarranty',
   show_expense_report: 'expense',
   show_permit:         'permit',
   show_enrollment:     'enrollment',

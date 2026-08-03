@@ -103,6 +103,7 @@ const _SECRET_KEYS_RAW = [
   'PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET',
   'PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET',
   'PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET',
   'helix_api_key',
   'google_api_key',
   'pingone_introspection_client_secret',
@@ -281,6 +282,8 @@ const FIELD_DEFS = {
   PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET:   { public: false, default: '' },
   PINGONE_A2A_HOLDINGS_AGENT_CLIENT_ID:       { public: true,  default: '' },
   PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET:   { public: false, default: '' },
+  PINGONE_A2A_PASSENGER_AGENT_CLIENT_ID:      { public: true,  default: '' },
+  PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET:  { public: false, default: '' },
   PINGONE_RESOURCE_A2A_INTERMEDIATE_URI:      { public: true,  default: '' },
 
   // Feature flags — granular toggles for in-development features
@@ -311,6 +314,7 @@ const FIELD_DEFS = {
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   ff_knowledge_grounding:            { public: true, default: 'false' }, // knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations
+  ff_grounded_answers:               { public: true, default: 'false' }, // Option C — render only claims traceable to an in-vertical tool call; drop the rest, degrade to the no-match card
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
   lmstudio_model:              { public: true, default: '' }, // empty → LM Studio uses its currently loaded model
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
@@ -1195,6 +1199,8 @@ class ConfigStore {
       pingone_supplier_agent_client_secret:   ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET'],
       pingone_holdings_agent_client_id:       ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_ID'],
       pingone_holdings_agent_client_secret:   ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET'],
+      pingone_passenger_agent_client_id:      ['PINGONE_A2A_PASSENGER_AGENT_CLIENT_ID'],
+      pingone_passenger_agent_client_secret:  ['PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET'],
       // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
       // specialist, not one shared across all of them; see a2aSpecialists.js).
       a2a_intermediate_audience_investment:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_INVESTMENT_URI', 'A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
@@ -1206,6 +1212,7 @@ class ConfigStore {
       a2a_intermediate_audience_finaid:       ['PINGONE_RESOURCE_A2A_INTERMEDIATE_FINAID_URI', 'A2A_INTERMEDIATE_AUDIENCE_FINAID'],
       a2a_intermediate_audience_supplier:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_SUPPLIER_URI', 'A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
       a2a_intermediate_audience_holdings:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_HOLDINGS_URI', 'A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
+      a2a_intermediate_audience_passenger:    ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PASSENGER_URI', 'A2A_INTERMEDIATE_AUDIENCE_PASSENGER'],
       // A2A specialists' Exchange #2 (final) destination — separate from
       // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
       // touches the non-A2A two-exchange flow (see pingoneProvisionService.js
