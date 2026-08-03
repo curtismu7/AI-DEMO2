@@ -26,22 +26,21 @@ AI-Demo_Cloned
 .playwright-mcp/
 *.log
 **/*.log
-# Ignore snapshot CONTENTS (large ad-hoc exports) but keep descending so the two
-# tracked source files below can be re-included. `snapshots/` (dir form) would
-# stop git descending and defeat the negations.
-snapshots/*
-# Track the P1AZ policy generator AND its reconcile-base/import artifact: the
-# generator reconciles INTO the snapshot (does not rebuild it from scratch), so
-# both are source. Other large ad-hoc exports under snapshots/ stay ignored.
-!snapshots/gen-authorize-snapshot.js
-!snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
-# Track the snapshot regression tests too — otherwise `snapshots/*` hides them and
-# `test:snapshots` runs zero files (exit 0) on a clean CI checkout, i.e. the
-# drift/cloud-delta protection silently never runs. scripts/test-snapshots.sh
-# fails loudly if the glob ever matches nothing again.
-!snapshots/authorizeSnapshotDrift.test.js
-!snapshots/authorizeSnapshotCloudDelta.test.js
-!snapshots/authorizeSnapshotTierPolicy.test.js
+# snapshots/ is ALLOW-BY-DEFAULT. It used to be `snapshots/*` plus a growing list
+# of negations, which meant every NEW file added there vanished silently — three
+# snapshot regression tests each needed their own `!` line, and the third
+# (authorizeSnapshotTierPolicy.test.js) was written, looked committed, and would
+# have run zero files forever until someone noticed. Nobody thinks to check
+# .gitignore after adding a test. Deny-by-default in a source directory hides
+# work; deny the specific things instead.
+#
+# ⚠️ EXCEPTION — p1authz-export.snapshot.json CONTAINS LIVE CREDENTIALS.
+# Verified 2026-08-02: 4 populated `clientSecret` values and 1 `password`, all
+# 36 chars. It has never been committed, and the old blanket ignore is the only
+# reason. Do not remove this line. If a P1AZ export must be tracked, strip the
+# secrets first — this repo has already had live PingOne credentials in its
+# history once.
+snapshots/p1authz-export.snapshot.json
 certs/
 package-lock.json
 **/package-lock.json
