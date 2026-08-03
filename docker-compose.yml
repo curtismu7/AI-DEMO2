@@ -134,12 +134,14 @@ services:
       # .well-known/oauth-protected-resource and sends no WWW-Authenticate, so
       # discoverAuth() never learns the real authorization server and silently
       # falls back to the demo environment's PingOne.
-      # Port must match the ping-mcpgw service's `-listen` flag below. #1219 moved
-      # that listener from :8680 to :8623 (the product's MCP traffic port) without
-      # moving this default, so the BFF has been dialling a port the gateway does
-      # not serve.
       # Overridable so the SE cluster can point at https://ai-demo.ping-devops.com/mcpgw.
-      PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://local.ping-devops.com:8623/mcp}"
+      # The Privilege console ASSIGNS each MCP Server application a frontend FQDN
+      # (Agentic Apps -> mypingone -> Frontend Name) and hosts it in the cloud:
+      # requests land on privilege.pingone.com and are routed over the mesh to the
+      # enrolled private proxy, which forwards to Backend Name. Nothing binds
+      # locally, so pointing this at a local port can never work — verified by
+      # probing the FQDN (401 with a real challenge) vs local ports (no listener).
+      PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp}"
       PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
       PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
@@ -1160,17 +1162,17 @@ services:
     profiles: ["mcpgw"]
     image: public.ecr.aws/s7q1z8z4/privilege-proxy
     container_name: ai-demo-ping-mcpgw
-    # 8623 is the product's MCP traffic port (the gateway's own docs; k8s ingress
-    # maps 443 -> 8623). The previous `-listen :8680` opened no reachable MCP
-    # listener at all: inside the container only 8090 (loopback) was bound, so
-    # :8680 accepted a TCP connection from the host port-forward and immediately
-    # closed it — "UND_ERR_SOCKET" from the BFF, connection refused container to
-    # container.
-    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8623
+    # No -listen flag, matching the vendor's own docker run. This proxy binds no
+    # public MCP port at all: it holds an outbound gRPC command stream to the
+    # control plane, and each application's frontend is hosted in the cloud and
+    # routed back over that mesh. Inside the container only :8090 (loopback) is
+    # bound. Published ports below are the health endpoint and the mesh port —
+    # earlier attempts to publish an "MCP port" (8680, then 8623) were chasing a
+    # listener that never exists in this topology.
+    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com
     environment:
       ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     ports:
-      - "8623:8623"
       - "8620:8620"
       - "8690:8690"
     volumes:
