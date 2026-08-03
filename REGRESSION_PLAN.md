@@ -127,6 +127,39 @@ trees must stay in sync — the Docker image builds from `oauth-mcp/`, not `demo
 **Verify:** `cd demo_mcp_server && npx jest tests/discovery-handshake-unauthenticated.test.ts`
 (same in `oauth-mcp`); live: Privilege console → Agentic Apps → mypingone → Discover shows the
 tool catalogue instead of Unauthorized.
+### 2026-08-03 — Two read chips 428'd from `intentAuthService`; the airlines report was a false alarm
+
+**Files changed:** `demo_api_server/services/intentAuthService.js`,
+`demo_api_server/tests/intentAuthService.readOnly.test.js`.
+
+**What was broken:** `READ_ONLY_INTENTS` is keyed on the intent LABEL that
+`nlIntentParser.extractIntentAndConfidence` emits, not on the chip's tool name — the
+banking-centric parser rarely emits a vertical's own tool name. Six read intents it CAN emit
+(`view_holdings`, `view_fees`, `view_trades`, `view_filings`, `view_complaints`,
+`view_tax_assessments`) were never added, so `government/gv2` ("what fees do I owe" →
+`view_fees`@0.8) and `investment/inv3` ("show my holdings" → `view_holdings`@0.85) fell to the
+conservative-consent fallback and `/api/agent/invoke` answered 428. Both tools are
+`scopes:['read'], authz:{}`. Confidence is never `> 0.85` for a chip, so the three-dimension
+permit branch can never carry them — the allowlist is the only escape.
+
+The airlines read chips (`ua1`/`ua2`/`ua3`) were reported as the same bug. They are NOT: their
+messages parse to `intent: 'unknown'`@0.3, and `agentInvokeRoute.js` skips the whole gate for
+`unknown`. Adding their tool names would have been dead entries. Airlines' risk is LATENT and
+only arms if `nlIntentParser` learns airline phrasing.
+
+**What was fixed:** added `view_fees` and `view_holdings`. The remaining four emit-able read
+intents back no read chip in any vertical today, so they stay out until one does.
+
+**Do not break:** do not add TOOL names to `READ_ONLY_INTENTS` — only parser intent labels
+have any effect. The manifest-derived block in the test walks every vertical's read chips
+(plugin `getTools()` filtered to read-scoped, non-consent, non-step-up) and drives the real
+`parser → service` path, so vertical eleven is covered without anyone editing the test.
+Banking is excluded there for the same reason `scripts/gen-vertical-tools.js` excludes it.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/intentAuthService.readOnly.test.js`
+(68 tests). Revert-to-RED: drop `view_fees`/`view_holdings` from the set → exactly
+`government/gv2 (view_fees) does not 428 on "what fees do I owe"` and
+`investment/inv3 (view_holdings) does not 428 on "show my holdings"` fail.
 
 ### 2026-08-03 — Every PingGateway `/mcp` POST 500s after any pull that touches `mcp-tool-schemas.json` (second occurrence)
 
