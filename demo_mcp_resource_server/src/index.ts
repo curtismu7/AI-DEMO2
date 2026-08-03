@@ -5,7 +5,9 @@
  *
  * MCP server for investment and airlines tools. Runs over WebSocket (same
  * protocol as banking_mcp_server). Validates inbound token aud ===
- * MCP_SERVER_RESOURCE_URI (mcp-resource-server.ping.demo).
+ * MCP_SERVER_RESOURCE_URI (mcp-invest.ping.demo — the audience the PingOne
+ * "Demo MCP Invest" resource carries; the value is a comma-separated ACCEPTED
+ * list, so the gateway audience and the older URI stay valid too).
  *
  * The invest tools proxy back to the BFF; the airlines tools are served from
  * this server's own SQLite database (src/db/airlinesDb.ts).
@@ -16,7 +18,7 @@
  *   POST /mcp                                   — MCP JSON-RPC (for PingGateway,
  *                                                 which has no WS listener)
  *
- * Start: MCP_SERVER_RESOURCE_URI=https://mcp-resource-server.ping.demo node dist/index.js
+ * Start: MCP_SERVER_RESOURCE_URI=mcp-invest.ping.demo node dist/index.js
  */
 
 import dotenv from 'dotenv';
@@ -44,7 +46,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 // MCP_SERVER_RESOURCE_URI may be a comma-separated accepted-audience list (RFC 8693
 // rollout). The FIRST entry is this server's canonical resource URI (RFC 9728
 // metadata, health, logs); the full list feeds aud validation.
-const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'https://mcp-resource-server.ping.demo')
+const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'mcp-invest.ping.demo')
   .split(',').map((s) => s.trim()).filter(Boolean);
 const RESOURCE_URI = RESOURCE_URI_LIST[0];
 const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
