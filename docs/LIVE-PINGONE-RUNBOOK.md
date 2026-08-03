@@ -2,7 +2,9 @@
 
 Merged code that stays inert until these run. Nothing here was executed by an agent — all of it mutates a live environment.
 
-**Order matters.** Step 1 before step 5, or the demo denies every user.
+**Order matters.** Step 1 before step 5, or the demo denies every user — including demoUser.
+
+**Step 5 is not optional.** Both flags default to `false`; with them off, everything above is provisioned and unused.
 
 ---
 
@@ -91,14 +93,30 @@ pac deploy pac/policies/mcp-delegation.yaml
 
 ---
 
-## 5. Enable the group-policy flag — LAST
+## 5. Enable the two flags — LAST
 
-⚠️ **Only after step 1 reports clean.**
+Everything above is inert until these are on. Both default to `false`.
 
-`groupPolicy.groupsForUser()` prefers a live directory lookup and it **beats the manifest**. It returns `[]` on a *successful* call where the user is in none of the vertical's groups — and that empty array wins. Enable before the groups exist and demoUser is denied too: the demo goes from "no gate" to "a gate that denies everyone."
+### `ff_a2a_delegation`
+
+**Without this, every A2A chain is dormant** — the specialists, the dedicated scopes, the nested `act` chains, all of it. `a2aDelegationService.js:249` returns `a2a_delegation_disabled` immediately, and `verticalDispatch.js:20` gates `a2aActiveFor` on it, so `a2aDelegated` tools fall through to the standard BFF preflight.
+
+That fallthrough is the failure this work exists to remove: the tool still returns data, and demonstrates no delegation at all. A demo that looks correct and proves nothing.
+
+### `ff_authorize_group_policy`
+
+⚠️ **Only after step 1 reports clean.** `groupPolicy.groupsForUser()` prefers a live directory lookup and it **beats the manifest** — it returns `[]` on a *successful* call where the user is in none of the vertical's groups, and that empty array wins. Enable before the groups exist and demoUser is denied too: "no gate" becomes "a gate that denies everyone."
 
 ```
+PATCH /api/admin/feature-flags   { "ff_a2a_delegation": true }
 PATCH /api/admin/feature-flags   { "ff_authorize_group_policy": true }
+```
+
+Confirm both took:
+
+```bash
+curl -s https://api.ping.demo:3001/api/admin/feature-flags \
+  | python3 -c "import json,sys; print({f['id']: f['value'] for f in json.load(sys.stdin)['flags'] if f['id'] in ('ff_a2a_delegation','ff_authorize_group_policy')})"
 ```
 
 ---
