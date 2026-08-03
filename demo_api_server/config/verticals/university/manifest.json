@@ -103,7 +103,10 @@
       { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment", "useCaseId": "delegated-access-with-proof" },
       { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm", "tool": "view_degree_audit" },
-      { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" }
+      { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" },
+      { "id": "un-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "un-deny", "label": "Authz DENY", "message": "show my expense report", "mode": "direct", "denyTool": "show_expense_report", "useCaseId": "authz-denied" },
+      { "id": "un-bad-scope", "label": "Bad scope", "message": "run an enrollment call my token has no scope for", "mode": "direct", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope" }
     ],
     "securityShowcase": {
       "tabs": [

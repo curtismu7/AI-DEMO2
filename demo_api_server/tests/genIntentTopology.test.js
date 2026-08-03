@@ -19,18 +19,23 @@ const gen = require('../scripts/gen-intent-topology');
  * airlines' A2A chain (#1279) and sporting-goods' own UC33/UC28 (#1284) then took
  * it to 132, and admin's adm-a2a to 133. pingone-admin is a DECLARED A2A exemption
  * (manifest a2aExemption) and deliberately has no *-a2a chip.
+ *
+ * Stage 0 negative-chip parity (2026-08-03) — government, healthcare, investment,
+ * manufacturing, retail, sporting-goods, university and workforce each gained
+ * their `*-dpop` / `*-deny` / `*-bad-scope` trio (banking already had all three),
+ * taking the total from 134 to 158.
  */
 const EXPECTED_CHIP_COUNTS = {
       banking: 16,
-      retail: 16,
+      retail: 19,
   'oauth-teaching': 12,
-  workforce: 11,
-  healthcare: 10,
-  'sporting-goods': 12,
-  government: 9,
-  investment: 9,
-  manufacturing: 9,
-  university: 9,
+  workforce: 14,
+  healthcare: 13,
+  'sporting-goods': 15,
+  government: 12,
+  investment: 12,
+  manufacturing: 12,
+  university: 12,
   admin: 9,
   'pingone-admin': 5,
   airlines: 7,
@@ -63,8 +68,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 134 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(134);
+  it('covers 158 chips across 13 verticals', () => {
+    expect(rows).toHaveLength(158);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
   });
 
@@ -106,7 +111,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(134);
+    expect(topology.counts.chips).toBe(158);
     expect(topology.counts.verticals).toBe(13);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });
@@ -412,5 +417,25 @@ describe('the gate goes RED when a backfilled declaration is reverted', () => {
     const red = fails(gen.checkResolution([reverted]));
     expect(red.map((i) => i.code)).toEqual(['tool_mismatch']);
     expect(red[0].detail).toContain('get_sensitive_account_details');
+  });
+});
+
+describe('Stage 0 negative-chip parity', () => {
+  const CLASS_A = ['banking','government','healthcare','investment','manufacturing','retail','sporting-goods','university','workforce'];
+  const PX = { banking:'bk', government:'gv', healthcare:'hc', investment:'inv', manufacturing:'mf', retail:'rt', 'sporting-goods':'sg', university:'un', workforce:'wf' };
+  const DENY_TARGET = { banking:'show_health_record', government:'show_health_record', healthcare:'show_investment', investment:'show_work_order', manufacturing:'show_large_purchase', retail:'show_gear_order', 'sporting-goods':'show_enrollment', university:'show_expense_report', workforce:'show_mortgage' };
+
+  test.each(CLASS_A)('%s declares all three negative chips with correct tools', (v) => {
+    const manifest = require(`../config/verticals/${v}/manifest.json`);
+    const chips = manifest.dashboard.chips10;
+    const px = PX[v];
+    const dpop = chips.find((c) => c.id === `${px}-dpop`);
+    const deny = chips.find((c) => c.id === `${px}-deny`);
+    const bad = chips.find((c) => c.id === `${px}-bad-scope`);
+    expect(dpop).toMatchObject({ mode: 'direct', tool: 'test_wrong_audience' });
+    expect(deny.denyTool).toBe(DENY_TARGET[v]);
+    expect(deny.tool).toBeUndefined();
+    expect(bad).toMatchObject({ tool: 'test_wrong_scope' });
+    for (const c of [dpop, deny, bad]) expect(typeof c.message).toBe('string');
   });
 });

@@ -86,7 +86,10 @@
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order", "useCaseId": "delegated-access-with-proof" },
       { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm", "tool": "view_work_orders" },
-      { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
+      { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" },
+      { "id": "mf-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "mf-deny", "label": "Authz DENY", "message": "show my large retail purchase", "mode": "direct", "denyTool": "show_large_purchase", "useCaseId": "authz-denied" },
+      { "id": "mf-bad-scope", "label": "Bad scope", "message": "run a production call my token has no scope for", "mode": "direct", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope" }
     ],
     "securityShowcase": {
       "tabs": [
