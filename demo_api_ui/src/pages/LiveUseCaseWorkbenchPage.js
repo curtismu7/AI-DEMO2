@@ -11,6 +11,7 @@ import VerticalSwitcher from '../components/VerticalSwitcher';
 import UseCaseProofHeader from '../components/UseCaseProofHeader';
 import { findBeat } from '../components/demoScript';
 import VerdictPair from '../components/VerdictPair';
+import PolicyConformancePanel from '../components/PolicyConformancePanel';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
@@ -638,6 +639,10 @@ export default function LiveUseCaseWorkbenchPage() {
         <section className="luw-main" aria-label="Live run">
           <div className="luw-main__stage">
             <UseCaseProofHeader uc={selectedUc} beat={selectedBeat} />
+            {/* Cross-cutting check: the per-card VerdictPair below compares the
+                token-chain evidence for ONE selected use case; this compares the
+                declared vs actual CONTROL across all of them at once. */}
+            <PolicyConformancePanel vertical={vertical} />
             <p className="luw-sr-only" aria-live="polite">{announcement}</p>
             <div
               className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}
