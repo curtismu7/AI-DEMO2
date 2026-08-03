@@ -18,6 +18,24 @@ const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of t
 const ACTIVITY_ROWS_FOR_PROMPT = 25;
 
 /**
+ * Heuristic actions the SERVER deliberately does not answer: the client owns the
+ * dispatch. AIAgent.js calls the real MCP tool and then renders a page (or
+ * navigates), so there is no agent reply for these — the server returns null and
+ * the request falls through to the LLM.
+ *
+ * Exported because that fallthrough is invisible from the outside and bites any
+ * API-driven consumer. capture-goldens.real.spec.js POSTed /api/agent/invoke for
+ * every chip; for these it hit the LLM instead of the intended tool, hung past the
+ * 60s timeout, and on 2026-07-27 recorded the LLM's give-up text as the UC33
+ * "golden". Consumers must check this list rather than rediscover it.
+ */
+const CLIENT_DISPATCHED_ACTIONS = [
+  'mcp_tools', 'mortgage_demo', 'gear_warranty_demo', 'invest_demo', 'vertical_feature_demo',
+  'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout',
+  'api_key_demo', 'dual_token_demo', 'web_search',
+];
+
+/**
  * The vertical's OWN activity/read tool, or null when it declares none.
  *
  * Deliberately NOT `READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions'`.
@@ -688,7 +706,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     }
 
     // Unhandled actions that need LLM reasoning — return null to signal fallthrough
-    if (['mcp_tools', 'mortgage_demo', 'gear_warranty_demo', 'invest_demo', 'vertical_feature_demo', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'logout', 'api_key_demo', 'dual_token_demo', 'web_search'].includes(action)) {
+    if (CLIENT_DISPATCHED_ACTIONS.includes(action)) {
       return null; // Heuristic matched but requires client-side / LLM formatting
     }
 
@@ -2121,6 +2139,7 @@ function normalizeVerticalToolArgs(params, toolDef) {
 }
 
 module.exports = {
+  CLIENT_DISPATCHED_ACTIONS,
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,

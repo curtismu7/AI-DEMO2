@@ -36,6 +36,11 @@ const crypto = require('crypto');
 // construction. Every skip now records one of these.
 const SKIP = {
   UNROUTABLE: 'llm_analysis_unroutable',   // primaryTool null by design (UC34/35)
+  // The server never answers these — the client dispatches the tool and renders a
+  // page, so there IS no agent reply to record. POSTing them anyway falls through
+  // to the LLM, hangs, and captures the give-up text as a "golden" (UC33, UC28 on
+  // 2026-07-27). Skipping is the honest outcome, not a coverage gap to close.
+  CLIENT_DISPATCHED: 'client_dispatched_no_reply',
   UNHEALTHY: 'unhealthy_result',           // dispatched, reply was empty or an error
   AGENT_FAILED: 'agent_could_not_complete', // 200 + prose, but the agent gave up
 };
@@ -49,12 +54,43 @@ const SKIP = {
 // Deliberately narrow: these match an agent that could not EXECUTE. A policy
 // DENY ("that transfer requires approval") is a legitimate golden — the denial
 // is the demo — so nothing here may match a refusal-by-policy.
-const AGENT_FAILURE_PROSE = [
-  /unable to retrieve/i,
-  /could ?n[o']t complete that request/i,
-  /please try rephrasing/i,
-  /needs an LLM mode/i,
-];
+// Shared with scripts/check-goldens.js — capture refuses to WRITE a failure reply,
+// the gate refuses to KEEP one. Filtering on write alone let two through on
+// 2026-07-27 that nothing re-validated until 2026-08-03.
+const { failurePatternFor } = require('../../../scripts/golden-failure-prose');
+// Actions the server never answers — the client dispatches the real tool and
+// renders/navigates, so /api/agent/invoke falls through to the LLM for these.
+const { CLIENT_DISPATCHED_ACTIONS } = require('../../../demo_api_server/services/demoAgentLangGraphService.js');
+const { parseHeuristic, resolveVerticalCtx } = require('../../../demo_api_server/services/nlIntentParser.js');
+/**
+ * Actions AIAgent.js intercepts client-side that are NOT in the server's
+ * fallthrough list. Same consequence for capture (no reply over the API), but a
+ * different server path: these reach dispatchBankingAction, match nothing, and
+ * come back "I don't recognize that action (…)" — which is precisely the text
+ * that became banking's UC28 golden on 2026-07-27.
+ *
+ * Deliberately NOT merged into CLIENT_DISPATCHED_ACTIONS: that list controls a
+ * production branch (return null -> fall through to the LLM), so adding an entry
+ * would change what the server does at runtime, not just what capture records.
+ * This list is capture-only metadata.
+ */
+const UI_INTERCEPTED_ACTIONS = ['request_fee_waiver'];
+
+/**
+ * The heuristic action a chip routes to, or null when nothing matches.
+ * Resolved in-process (no HTTP) so a client-dispatched chip can be skipped
+ * BEFORE the request that would hang on it.
+ * @param {string} text
+ * @param {string} vertical
+ */
+function heuristicActionFor(text, vertical) {
+  try {
+    const r = parseHeuristic(text, vertical, resolveVerticalCtx(vertical), {});
+    return r ? (r.banking?.action ?? r.action ?? null) : null;
+  } catch (_e) {
+    return null; // routing is gated elsewhere; never block capture on it
+  }
+}
 
 /** Hash of the vertical's seed data — lets check-goldens detect VALUE drift
  * (catalog trigger unchanged, but the numbers a replay would show are stale).
@@ -183,6 +219,21 @@ test.describe('capture goldens from real runs', () => {
         // reach the LLM instead. Slower (~35s each) and the reply is a sample
         // rather than a contract, but a real recorded answer beats no fallback.
         const llmReasoning = LLM_ANALYSIS_UNROUTABLE.has(chip.id);
+        // Skip BEFORE the POST: for these the request would reach the LLM instead
+        // of the intended tool, blow the timeout, and abort the whole vertical.
+        //
+        // llmReasoning WINS. UC34's chip routes to `unusual_patterns`, which is in
+        // CLIENT_DISPATCHED_ACTIONS, but reaching the LLM is the intent for UC34/UC35
+        // — the analysis reply IS the artifact, not a fallthrough accident. Checking
+        // client-dispatch first skipped all 9 UC34 rows and would have let their
+        // existing goldens rot instead of refreshing them.
+        const action = llmReasoning ? null : heuristicActionFor(chip.text, vertical);
+        if (action && (CLIENT_DISPATCHED_ACTIONS.includes(action) || UI_INTERCEPTED_ACTIONS.includes(action))) {
+          skips.push({ vertical, useCaseId: chip.useCaseId, ucId: chip.id, reason: SKIP.CLIENT_DISPATCHED,
+            detail: `heuristic action "${action}" is client-dispatched — the UI calls the tool and renders; no agent reply exists to record` });
+          console.log(`  SKIP ${vertical}/${chip.useCaseId}: client-dispatched (${action}) — no agent reply to capture`);
+          continue;
+        }
         const r = await api.post('/api/agent/invoke', {
           data: {
             prompt: chip.text,
@@ -210,7 +261,7 @@ test.describe('capture goldens from real runs', () => {
         }
         // 200 + prose, but the agent gave up. Never record this: REPLAY would
         // reproduce the failure on demand.
-        if (AGENT_FAILURE_PROSE.some((re) => re.test(reply))) {
+        if (failurePatternFor(reply)) {
           skips.push({ vertical, useCaseId: chip.useCaseId, ucId: chip.id, reason: SKIP.AGENT_FAILED,
             detail: reply.slice(0, 160) });
           console.log(`  SKIP ${vertical}/${chip.useCaseId}: agent could not complete — not captured`);
