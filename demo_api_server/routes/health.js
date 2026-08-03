@@ -456,7 +456,7 @@ router.get('/demo-status', async (_req, res) => {
     name: 'Banking MCP Server',
     key: 'mcp_server',
     up: mcpProbe.up,
-    startCmd: 'cd demo_mcp_server && npm run dev',
+    startCmd: 'cd oauth-mcp && npm run dev',
     description: 'MCP tool server — provides AI agent banking tools over WebSocket',
     port: 8080,
     url: mcpProbe.url,

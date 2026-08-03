@@ -79,7 +79,7 @@ MCP_SERVER_URL=${mcpWsUrl}
 ${mcpAgentUrl ? `MCP_AGENT_URL=${mcpAgentUrl}` : '# MCP_AGENT_URL=http://localhost:8000'}
 `;
 
-  const startMcpServer = `cd demo_mcp_server
+  const startMcpServer = `cd oauth-mcp
 npm install
 npm run build
 npm start

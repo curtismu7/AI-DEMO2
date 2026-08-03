@@ -446,7 +446,7 @@ check_drift ai-demo-api-server   "/app/services/demoAgentLangGraphService.js,/re
 # Needle is checked against the .ts SOURCE (dist/ is gitignored build output,
 # not committed) — check_drift's plain grep doesn't care about extension.
 check_drift ai-demo-mcp-server    "/app/dist/tools/handlers/verticalTools.generated.js" \
-  demo_mcp_server/src/tools/handlers/verticalTools.generated.ts "a2aDelegatedScope"
+  oauth-mcp/src/tools/handlers/verticalTools.generated.ts "a2aDelegatedScope"
 check_drift ai-demo-mcp-gateway   "/repo/demo_mcp_gateway/dist/server/GatewayServer.js" \
   demo_mcp_gateway/src/server/GatewayServer.ts "upstreamHttpsAgent"
 if [[ ${#drift[@]} -eq 0 ]]; then

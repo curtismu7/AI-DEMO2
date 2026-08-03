@@ -14,7 +14,7 @@
 # SERVICE shortcuts → docker-compose service → GHCR image → k8s deployment:
 #   bff       demo_api_server     → ai-demo-demo-api-server → demo-api-server
 #   frontend  demo_api_ui         → ai-demo-frontend           → frontend
-#   mcp       demo_mcp_server     → ai-demo-mcp-server         → mcp-server
+#   mcp       oauth-mcp           → ai-demo-mcp-server         → mcp-server
 #   gateway   demo_mcp_gateway    → ai-demo-mcp-gateway        → mcp-gateway
 #   agent     langchain_agent     → ai-demo-langchain-agent    → langchain-agent
 #   agentsvc  demo_agent_service  → ai-demo-agent-service      → agent-service

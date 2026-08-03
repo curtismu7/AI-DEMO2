@@ -121,7 +121,7 @@ function collectIssues() {
 
   // JWKS endpoint invariant. Agent token signatures are verified against PingOne's
   // OIDC JWKS, which lives on the AUTH host (auth.pingone.com/<env>/as/jwks). The
-  // resolver (demo_mcp_server/src/auth/jwks.ts) falls back to PINGONE_BASE_URL +
+  // resolver (oauth-mcp/src/auth/jwks.ts) falls back to PINGONE_BASE_URL +
   // /jwks when PINGONE_JWKS_URI / PINGONE_ISSUER are unset — but PINGONE_BASE_URL is
   // the MANAGEMENT API host (api.pingone.com/v1/environments/<env>), whose /jwks
   // returns 403. That makes every agent token signature check fail → 401 → the user

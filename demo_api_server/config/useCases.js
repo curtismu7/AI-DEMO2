@@ -742,7 +742,7 @@ const RAW_USE_CASES = [
     hint: 'Works for Austin, Dallas, Houston, Miami, or Denver.',
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['mcp', 'authorize'] },
-    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'demo_mcp_server/src/tools/handlers/publicCatalogHandlers.ts'],
+    codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'oauth-mcp/src/tools/handlers/publicCatalogHandlers.ts'],
     maturity: 'works',
     owasp: { threats: ['T3'], sections: ['§4.1.1'] },
     whatToSay: 'Low-friction first — no token exchange for public catalog data.',
@@ -821,7 +821,7 @@ const RAW_USE_CASES = [
     // Gateway-level deny: the scope check runs BEFORE PingOne Authorize is consulted,
     // so no 'authorize-decision' evidence exists. Declare the events the sim emits.
     evidence: { tokenChain: ['sim-exchange-ok', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
-    codeRefs: ['demo_mcp_server/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    codeRefs: ['oauth-mcp/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T2', 'T3'], sections: ['§5.1'] },
     whatToSay: 'The token had read scope, the tool needed write — scope enforcement stopped it cold.',
@@ -1505,8 +1505,8 @@ const RAW_USE_CASES = [
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'token-exchange'], activity: ['mcp'] },
     codeRefs: [
-      'demo_mcp_server/src/tools/BankingToolRegistry.ts',
-      'demo_mcp_server/src/tools/handlers/commitmentHandlers.ts',
+      'oauth-mcp/src/tools/BankingToolRegistry.ts',
+      'oauth-mcp/src/tools/handlers/commitmentHandlers.ts',
       'demo_api_server/services/intentTokenService.js',
     ],
     maturity: 'works',

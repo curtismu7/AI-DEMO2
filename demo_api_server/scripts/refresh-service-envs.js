@@ -405,13 +405,13 @@ async function main() {
     TOPOLOGY_GUARD: fb('TOPOLOGY_GUARD') || 'warn',
   };
 
-  // ── demo_mcp_server/.env ──────────────────────────────────────────────────
+  // ── oauth-mcp/.env ──────────────────────────────────────────────────
   // Validator requires: PINGONE_BASE_URL, PINGONE_CLIENT_ID, PINGONE_CLIENT_SECRET,
   // PINGONE_INTROSPECTION_ENDPOINT, PINGONE_AUTHORIZATION_ENDPOINT,
   // PINGONE_TOKEN_ENDPOINT, ENCRYPTION_KEY.
   // environments.ts uses GW_INTROSPECTION_CLIENT_ID (the exchanger) for introspection
   // in passthrough mode — this is the correct client (token aud=mcpgateway.ping.demo).
-  writeEnvFile(path.join(ROOT, 'demo_mcp_server', '.env'), {
+  writeEnvFile(path.join(ROOT, 'oauth-mcp', '.env'), {
     ...shared,
     PINGONE_BASE_URL:                `https://auth.pingone.${region}/${envId}`,
     PINGONE_CLIENT_ID:               creds.mcpExchangerClientId,
@@ -421,7 +421,7 @@ async function main() {
     PINGONE_TOKEN_ENDPOINT:          `${asBase}/token`,
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
-    // Step 9 backend exchange (demo_mcp_server/src/index.ts). Both halves must come
+    // Step 9 backend exchange (oauth-mcp/src/index.ts). Both halves must come
     // from the SAME app: the ID was never emitted before, so index.ts fell through to
     // PINGONE_TOKEN_EXCHANGER_CLIENT_ID -- a client with no grant on Demo API
     // (enduser.ping.demo), the very audience Step 9 requests. Hence "Step 9 had never
@@ -438,7 +438,7 @@ async function main() {
     ENCRYPTION_KEY:                  fb('MCP_SERVER_ENCRYPTION_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
     DEMO_API_BASE_URL:               'http://api-server:3001',
   });
-  console.log('[refresh-envs] Wrote demo_mcp_server/.env');
+  console.log('[refresh-envs] Wrote oauth-mcp/.env');
 
   // ── demo_mcp_gateway/.env ─────────────────────────────────────────────────
   writeEnvFile(path.join(ROOT, 'demo_mcp_gateway', '.env'), {

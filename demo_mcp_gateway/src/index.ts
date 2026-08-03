@@ -221,7 +221,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
   if (openApiMatch && req.method === 'GET') {
     const server = openApiMatch[1];
     const specPaths: Record<string, string> = {
-      'mcp-olb':    join(__dirname, '../../demo_mcp_server/openapi/mcp-olb.openapi.json'),
+      'mcp-olb':    join(__dirname, '../../oauth-mcp/openapi/mcp-olb.openapi.json'),
       'mcp-resource-server': join(__dirname, '../../demo_mcp_resource_server/openapi/mcp-resource-server.openapi.json'),
     };
     const specPath = specPaths[server];

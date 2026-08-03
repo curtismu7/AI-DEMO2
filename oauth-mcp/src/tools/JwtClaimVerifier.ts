@@ -73,7 +73,7 @@ export class JwtClaimVerifier {
     //
     // docker-compose.yml's environment: block only sets MCP_SERVER_RESOURCE_URI for this
     // service, not MCP_RESOURCE_URI — so MCP_RESOURCE_URI comes solely from
-    // demo_mcp_server/.env, which still pins it to the old single value
+    // oauth-mcp/.env, which still pins it to the old single value
     // ("mcpgateway.ping.demo"). Without checking MCP_SERVER_RESOURCE_URI first this fell
     // through to that stale single value — which never matches this server's real aud
     // (mcpserver.ping.demo) — and every

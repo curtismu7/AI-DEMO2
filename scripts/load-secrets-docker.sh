@@ -13,7 +13,7 @@
 set -e
 
 DEMO_VAULT="Banking Demo"
-SERVICES=("demo_api_server" "demo_mcp_server" "langchain_agent" "demo_mcp_gateway" "ping_gateway")
+SERVICES=("demo_api_server" "oauth-mcp" "langchain_agent" "demo_mcp_gateway" "ping_gateway")
 
 if command -v op &>/dev/null && op account get &>/dev/null; then
   echo "[INFO] Loading secrets from 1Password vault: $DEMO_VAULT"

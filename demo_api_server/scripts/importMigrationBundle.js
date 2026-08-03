@@ -638,7 +638,7 @@ async function main() {
   // Check sibling packages — running app needs all three. CRA peerOptional quirk on UI.
   const SIBLINGS = [
     { dir: 'demo_api_ui', flags: ' --legacy-peer-deps' },
-    { dir: 'demo_mcp_server', flags: '' },
+    { dir: 'oauth-mcp', flags: '' },
   ];
   const siblingsMissingDeps = SIBLINGS.filter(({ dir }) =>
     !fs.existsSync(path.join(REPO_ROOT, dir, 'node_modules'))

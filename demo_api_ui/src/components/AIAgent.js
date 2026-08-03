@@ -5443,7 +5443,7 @@ export default function BankingAgent({
         addMessage(
           "error",
           isConnErr
-            ? "AI Agent is unavailable.\n\nThe MCP server is not reachable.\n\nLocal: cd demo_mcp_server && npm run dev\nHosted: set MCP_SERVER_URL to your reachable MCP server URL (if your platform allows outbound WS)."
+            ? "AI Agent is unavailable.\n\nThe MCP server is not reachable.\n\nLocal: cd oauth-mcp && npm run dev\nHosted: set MCP_SERVER_URL to your reachable MCP server URL (if your platform allows outbound WS)."
             : `Error: ${err.message}${authHint}`,
           actionId,
         );
