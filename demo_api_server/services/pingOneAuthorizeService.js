@@ -375,10 +375,33 @@ function _rawEffect(raw) {
   return typeof effect === 'string' ? effect.trim().toLowerCase() : '';
 }
 
+// 'INDETERMINATE' means two different things in this codebase and only one of
+// them is safe to let through.
+//
+//   OURS   — the simulated engine and the `hasObligation` branch below return
+//            INDETERMINATE for "PERMIT, pending a step-up/HITL/consent gate".
+//            mcpToolPipeline maps it to a 428 and the caller satisfies the gate.
+//   P1AZ's — the LIVE engine returns INDETERMINATE for "I could not evaluate":
+//            a condition referenced an attribute the request never sent, so the
+//            comparison has no answer. Nothing is pending. Nothing to satisfy.
+//
+// Conflating them is a fail-open. The block gates in mcpToolAuthorizationService
+// stop only on 'DENY', so a live INDETERMINATE that arrived alongside any
+// gate-shaped statement would be read as "permit once you do MFA" and the call
+// would proceed after the user completed a step-up that was never the obstacle.
+//
+// This is not hypothetical: probed live 2026-08-03, `create_withdrawal` as
+// PrivateBanking with no `Amount` returns exactly this — the tier cap comparison
+// has no operand, and P1AZ answers INDETERMINATE. A missing request attribute
+// must never widen access, so P1AZ's own INDETERMINATE collapses to DENY here
+// whether or not an obligation rode along with it.
+const _INDETERMINATE_EFFECTS = new Set(['indeterminate']);
+
 function _normalizeDecision(raw, { hasObligation = false } = {}) {
   const value = _rawEffect(raw);
   if (_PERMIT_EFFECTS.has(value)) return 'PERMIT';
   if (_DENY_EFFECTS.has(value)) return 'DENY';
+  if (_INDETERMINATE_EFFECTS.has(value)) return 'DENY';
   return hasObligation ? 'INDETERMINATE' : 'DENY';
 }
 
