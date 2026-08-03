@@ -6898,3 +6898,4 @@ button.ba-action-btn:hover {
 .ba-track-chip--g { border-color: #bfe3c8; background: #ecf7ef; color: #1e7b34; font-weight: 600; }
 .ba-track-chip--r { border-color: #f2c6c6; background: #fdeeee; color: #c62828; font-weight: 600; }
 .ba-track-chip--exit { color: #5f6b76; }
+.ba-track-chip--next { border-color: #16324f; background: #16324f; color: #fff; font-weight: 700; }

@@ -1,7 +1,7 @@
 // Demo Track header control — shared by the floating and embedded agent
 // (both are BankingAgent). Button shows the active step position; the picker
 // is a DraggableModal per the standing modal rule.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import DraggableModal from "./DraggableModal";
 import "./DemoTrackAgentControl.css";
@@ -18,14 +18,36 @@ function stepComplete(step, run, gauntletSims) {
   return Boolean(green && red);
 }
 
-export default function DemoTrackAgentControl({ onPickStep }) {
+export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
   const [state, setState] = useState(null);
   const [open, setOpen] = useState(false);
+  // Picked-step completion watch: fire onStepComplete once per (run, step) when
+  // the picked step's slots fill from real runs.
+  const pickedRef = useRef(null); // stepId | null
+  const firedRef = useRef(new Set()); // `${runId}:${stepId}`
+  const onStepCompleteRef = useRef(onStepComplete);
+  onStepCompleteRef.current = onStepComplete;
 
   const load = useCallback(async () => {
     try {
       const res = await apiClient.get("/api/demo-track");
       setState(res.data);
+      const { track, run } = res.data || {};
+      const pickedId = pickedRef.current;
+      if (track && run && pickedId) {
+        const steps = track.steps;
+        const i = steps.findIndex((s) => s.stepId === pickedId);
+        const step = steps[i];
+        const key = `${run.runId}:${pickedId}`;
+        if (step && !firedRef.current.has(key) && stepComplete(step, run, track.gauntletSims)) {
+          firedRef.current.add(key);
+          const nextStep = steps[i + 1] || null;
+          onStepCompleteRef.current?.({
+            step, index: i, total: steps.length,
+            next: nextStep ? { step: nextStep, index: i + 1, total: steps.length } : null,
+          });
+        }
+      }
     } catch { /* header control is best-effort; next poll retries */ }
   }, []);
 
@@ -37,6 +59,7 @@ export default function DemoTrackAgentControl({ onPickStep }) {
 
   const pick = useCallback(async (step, index, total) => {
     setOpen(false);
+    pickedRef.current = step.stepId;
     try {
       await apiClient.post("/api/demo-track/active-step", { stepId: step.stepId });
     } catch { /* still hand off — chips work without server ack */ }

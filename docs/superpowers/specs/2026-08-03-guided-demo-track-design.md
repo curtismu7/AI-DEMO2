@@ -82,9 +82,11 @@ Mock: `demo-track-agent-mock.html`. Both agent variants share the header compone
 
 ## Known gaps this commits us to fix
 
-- UC16 impersonation sim false pass — missing `from_account_id` 400s before policy; must actually reach policy to be an honest gauntlet tile.
-- UC2 A2A 502s in some verticals — step 2 green path must run clean.
-- Step 8 red path (out-of-scope admin call denied) needs live verification.
+Status update (Plan D, 2026-08-03 — live-verified against the running stack):
+
+- ~~UC16 impersonation sim false pass~~ **RESOLVED** earlier via PRs #1075/#1077 (frozen `IMPERSONATION_TRANSFER_ARGS` adds `from_account_id`; `omitActorBridge` makes the exchanged token carry no `act`). Live: `impersonation-no-act` returns `403 missing_act` from the real P1AZ trail; full gauntlet 6/6 BLOCKED at the security tier (`tests/real/shared/attack-sims-live.test.js` 10/10).
+- ~~UC2 A2A 502s in some verticals~~ **RESOLVED** earlier via PRs #1029–#1034 (gateway mTLS client half + both scope gates accepting `a2aDelegatedScope`) and cd3e1e0a (reply envelope + ProofStrip stamping on the LLM path). Residual demo-time trap fixed in Plan D: `ff_a2a_delegation` is default-OFF and only the use-case launcher / demo-steps dropdown armed it — the Demo Track step picker now arms required flags on pick (`ensureRequiredDemoFlags`, same contract as `handleDemoStepSelect`). Note: the live A2A jest suite soft-skips (passes with a warn) when the flag is off — a green run of it is NOT proof of delegation; check for `[a2a-live] ff_a2a_delegation is off` in its output.
+- Step 8 red path (out-of-scope admin call denied) still needs live verification.
 
 ## Non-goals
 
