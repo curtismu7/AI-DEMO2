@@ -732,6 +732,32 @@ In the UC24 `chipOverrides` block near line 666, add to both objects:
       airlines: 'get_branch_hours',
 ```
 
+- [ ] **Step 5b: Promote UC24 onto the presenter stepper**
+
+UC24 is wired for every vertical but absent from `DEMO_PRIMARY_USE_CASE_IDS`, so
+it appears on neither the Demo Steps dropdown nor the `/use-cases` Demo section —
+for any vertical, not just airlines. It is the natural Act 1 before UC1, which is
+why it already opens `SECURITY_DEMO_USE_CASE_IDS`.
+
+In `demo_api_ui/src/config/demoUseCaseSteps.js`, add as the **first** entry of
+`DEMO_PRIMARY_USE_CASE_IDS`:
+
+```js
+  'UC24',  // Act 1 — public catalog, no token exchange (progressive trust)
+```
+
+Update the block comment above the list: the grid is now 21 steps, not 20.
+
+This changes the presenter script for every vertical, not only airlines. Note it
+explicitly in the commit message.
+
+Also update the count assertion in `demo_api_ui/src/config/demoUseCaseSteps.test.js`
+if it pins a length — read the file first rather than assuming.
+
+**Do not run the live UC24 check until Task 10 lands.** The public catalog is
+banking-only today, so until then UC24 answers "What airports are near me?" with
+a Super Banking branch on Congress Ave.
+
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `cd demo_api_server && CI=true npx jest tests/useCasesAirlines.test.js --maxWorkers=4`
@@ -963,6 +989,7 @@ Pass is the ProofStrip verdict matching the catalog's `expectedOutcome`, never t
 
 | Step | Expected verdict |
 |---|---|
+| UC24 | PERMIT with NO token exchange, and the reply names airports, not bank branches |
 | UC1 | PERMIT, real reservation rows, `source: sqlite` |
 | UC6 | DENY at $2500 |
 | UC7 | step-up at $600 |
@@ -984,6 +1011,185 @@ Expected: rows for the amounts that were permitted, none for the amounts that we
 - [ ] **Step 10: Report**
 
 State ✅ or ❌ per gate with pasted evidence, and a 20-row pass/fail table for the live run. Name anything left unwired and why.
+
+---
+
+### Task 10: Vertical-aware public catalog
+
+**Files:**
+- Modify: `demo_api_server/data/publicBranchCatalog.js`
+- Modify: `demo_api_server/services/demoAgentLangGraphService.js:265-269`
+- Modify: `demo_api_server/services/mcpLocalTools.js:596-603`
+- Test: `demo_api_server/tests/publicBranchCatalog.test.js`
+
+**Interfaces:**
+- Consumes: nothing — independent of Tasks 1 through 9. Can run in parallel with any of them.
+- Produces: `searchPublicBranches({ city, vertical })` and `formatBranchCatalogReply(result)` where `result` carries the resolved vertical. Task 6 Step 5b's stepper promotion depends on this to not embarrass every non-banking vertical.
+
+`publicBranchCatalog.js` has no notion of a vertical — it is a frozen list of
+`Super Banking Main Branch` entries. Healthcare's "What clinics are near me?" and
+retail's "What stores are near me?" already answer with bank branches today. That
+is survivable while UC24 is buried in the security workbench; Task 6 Step 5b puts
+it on every presenter's stepper, so it gets fixed here.
+
+Ten verticals need entries: banking, healthcare, retail, government, university,
+workforce, sporting-goods, manufacturing, investment, airlines.
+
+- [ ] **Step 1: Read the existing test first**
+
+Read `demo_api_server/tests/publicBranchCatalog.test.js` in full before writing
+anything. It pins the current banking-only behavior; your change must keep those
+assertions passing for `banking` (and for a missing vertical, which falls back to
+banking) while adding per-vertical coverage.
+
+- [ ] **Step 2: Write the failing test**
+
+Append to `demo_api_server/tests/publicBranchCatalog.test.js`:
+
+```js
+describe('vertical-aware catalog', () => {
+  test('banking is unchanged and is the fallback', () => {
+    const without = searchPublicBranches({});
+    const explicit = searchPublicBranches({ vertical: 'banking' });
+    expect(without.branches).toEqual(explicit.branches);
+    expect(explicit.branches[0].name).toMatch(/Super Banking/);
+  });
+
+  test('an unknown vertical falls back to banking rather than returning nothing', () => {
+    const result = searchPublicBranches({ vertical: 'not-a-vertical' });
+    expect(result.branches.length).toBeGreaterThan(0);
+    expect(result.branches[0].name).toMatch(/Super Banking/);
+  });
+
+  test.each([
+    ['healthcare', /clinic|health|medical/i],
+    ['retail', /store/i],
+    ['government', /office|city|county/i],
+    ['university', /campus|hall|library/i],
+    ['workforce', /office/i],
+    ['sporting-goods', /store|outfitter/i],
+    ['manufacturing', /plant|facility/i],
+    ['investment', /branch|office/i],
+    ['airlines', /airport|terminal/i],
+  ])('%s returns its own locations', (vertical, namePattern) => {
+    const result = searchPublicBranches({ vertical });
+    expect(result.branches.length).toBeGreaterThan(0);
+    expect(result.branches[0].name).toMatch(namePattern);
+    expect(result.branches[0].name).not.toMatch(/Super Banking/);
+  });
+
+  test('the city filter still works inside a vertical', () => {
+    const result = searchPublicBranches({ vertical: 'airlines', city: 'Denver' });
+    expect(result.branches.length).toBeGreaterThan(0);
+    expect(result.branches.every((b) => b.city === 'Denver')).toBe(true);
+  });
+
+  test('the reply heading matches the vertical, not the bank', () => {
+    const reply = formatBranchCatalogReply(searchPublicBranches({ vertical: 'airlines' }));
+    expect(reply).not.toMatch(/Super Banking/);
+    expect(reply).toMatch(/airport/i);
+  });
+
+  test('a no-match reply names the vertical, not Super Banking branches', () => {
+    const reply = formatBranchCatalogReply(
+      searchPublicBranches({ vertical: 'healthcare', city: 'Nowhereville' }),
+    );
+    expect(reply).not.toMatch(/Super Banking/);
+  });
+});
+```
+
+- [ ] **Step 3: Run test to verify it fails**
+
+Run: `cd demo_api_server && CI=true npx jest tests/publicBranchCatalog.test.js --maxWorkers=4`
+Expected: FAIL — every per-vertical case returns Super Banking branches.
+
+- [ ] **Step 4: Restructure the catalog**
+
+Keep the existing seven banking entries exactly as they are — they are the
+fallback and the existing tests pin them. Wrap them in a per-vertical map and add
+nine sibling lists. Reuse the same five cities (Austin, Dallas, Houston, Miami,
+Denver) so the `hint` on UC24 ("Works for Austin, Dallas, Houston, Miami, or
+Denver") stays true for every vertical, and keep the same record shape
+(`id`, `name`, `city`, `state`, `address`, `hours`, `atm`).
+
+Airlines entries name airports and terminals, for example:
+
+```js
+  {
+    id: 'airport-austin',
+    name: 'Austin-Bergstrom International Airport — United Terminal',
+    city: 'Austin',
+    state: 'TX',
+    address: '3600 Presidential Blvd, Austin, TX 78719',
+    hours: 'Ticket counter daily 4:00–20:00',
+    atm: true,
+  },
+```
+
+Three or four entries per vertical is enough; banking keeps all seven. Do not
+invent a new field — `atm: true` reads fine as "ATM available" in an airport and
+a store alike.
+
+- [ ] **Step 5: Thread the vertical through the two functions**
+
+```js
+function searchPublicBranches(params = {}) {
+  const vertical = typeof params.vertical === 'string' ? params.vertical : 'banking';
+  // Unknown verticals fall back to banking rather than returning an empty list:
+  // an empty Act 1 reads as a broken demo, and the point of UC24 is that the
+  // anonymous call succeeded.
+  const list = CATALOG_BY_VERTICAL[vertical] || CATALOG_BY_VERTICAL.banking;
+  const raw = typeof params.city === 'string' ? params.city.trim() : '';
+  if (!raw) return { branches: [...list], query: null, vertical };
+  const needle = raw.toLowerCase();
+  const branches = list.filter(
+    (b) => b.city.toLowerCase().includes(needle) || b.name.toLowerCase().includes(needle),
+  );
+  return { branches, query: raw, vertical };
+}
+```
+
+`formatBranchCatalogReply` reads `result.vertical` and picks its heading and
+no-match sentence from a per-vertical label map (`'branch'`, `'clinic'`,
+`'store'`, `'airport'`, …) instead of hardcoding "Super Banking". Its signature
+does not change — the vertical rides on the result object, so no caller breaks.
+
+Keep `BRANCHES` exported as the banking list so any existing importer still works.
+
+- [ ] **Step 6: Pass the vertical at the two call sites**
+
+`demo_api_server/services/demoAgentLangGraphService.js` — `verticalId` is already
+in scope in `dispatchBankingAction`:
+
+```js
+      const result = searchPublicBranches({ ...(params || {}), vertical: verticalId });
+```
+
+`demo_api_server/services/mcpLocalTools.js` — `get_branch_hours(params)` receives
+whatever the MCP Inspector sends and has no vertical of its own. Pass `params`
+through unchanged; `searchPublicBranches` falls back to banking when the caller
+omits it. Add a one-line comment saying so, so the next reader does not think it
+was overlooked.
+
+- [ ] **Step 7: Run tests to verify they pass**
+
+Run: `cd demo_api_server && CI=true npx jest tests/publicBranchCatalog.test.js --maxWorkers=4`
+Expected: PASS, including every pre-existing banking assertion.
+
+- [ ] **Step 8: Run the wider agent suite**
+
+Run: `cd demo_api_server && CI=true npx jest tests/demoAgent --maxWorkers=4`
+Expected: PASS. Any UC24 snapshot that pins the old "Super Banking branch
+locations" heading for a non-banking vertical was asserting the defect — update
+it and say so in the commit message.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add demo_api_server/data/publicBranchCatalog.js demo_api_server/services/demoAgentLangGraphService.js demo_api_server/services/mcpLocalTools.js demo_api_server/tests/publicBranchCatalog.test.js
+git commit -m "fix(uc24): vertical-aware public catalog so Act 1 stops naming bank branches"
+```
 
 ---
 
