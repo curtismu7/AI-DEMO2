@@ -241,6 +241,7 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
         if (key === 'pingone_resource_mcp_gateway_uri') return 'https://gateway.example/mcp';
         // Gateway-local RAR enforcement is opt-in; default OFF → PingOne Authorize enforces.
         if (key === 'ff_rar_gateway_enforcement') return gatewayEnforce ? 'true' : 'false';
+        if (key === 'pingone_ai_agent_actor_client_id') return 'actor-1';
         return '';
       }),
       setRaw: jest.fn().mockResolvedValue(undefined),
@@ -267,6 +268,7 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
       run: require('../../services/attackSimulatorService').runIntentBindingDemo,
       callToolViaGateway: require('../../services/mcpGatewayClient').callToolViaGateway,
       pushGatewayAdminConfig: require('../../routes/mcpGatewayConfig').pushGatewayAdminConfig,
+      createChallenge: require('../../services/hitlServiceClient').createChallenge,
     };
   }
 
@@ -336,6 +338,31 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
     });
     expect(result.status).toBe(502);
     expect(result.errorCode).toBe('backend_execution_failed');
+  });
+
+  test('permit: HITL pre-approval binds agent + BOTH account ids, and the receipt rides the transfer args', async () => {
+    // The gateway's receipt verification (hitl-service verifyReceipt) rejects a
+    // challenge missing agentId ("belongs to a different agent") or missing an
+    // account id the retry args carry ("has no bound from_account_id") — an
+    // under-bound challenge re-challenges the demo instead of PERMITting.
+    const accountsPayload = { result: { structuredContent: { success: true, count: 2, accounts: [{ id: 'acc-real-1' }, { id: 'acc-real-2' }] } }, gwAuditTrail: null };
+    const callToolImpl = jest.fn()
+      .mockResolvedValueOnce(accountsPayload)
+      .mockResolvedValueOnce({ result: { content: [{ type: 'text', text: 'ok' }] }, gwAuditTrail: null });
+    const { run, callToolViaGateway, createChallenge } = mockPinnedDeps({ callToolImpl });
+
+    const result = await run('permit', req, 80);
+    expect(createChallenge).toHaveBeenCalledWith(expect.objectContaining({
+      tool: 'create_transfer',
+      agentId: 'actor-1',
+      context: expect.objectContaining({
+        amount: 80,
+        from_account_id: 'acc-real-1',
+        to_account_id: 'acc-real-2',
+      }),
+    }));
+    expect(callToolViaGateway.mock.calls[1][3]).toMatchObject({ _hitl_challenge_id: 'hitl-1' });
+    expect(result.status).toBe(200);
   });
 });
 

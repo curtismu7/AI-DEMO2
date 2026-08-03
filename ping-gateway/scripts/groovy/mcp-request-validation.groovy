@@ -62,6 +62,7 @@ if (method == 'tools/call') {
     }
     args = new LinkedHashMap(args)
     // gateway-internal HITL retry marker
+    def rawHitlMarker = args['_hitl_challenge_id']
     def hadHitlMarker = args.remove('_hitl_challenge_id') != null
 
     def artifact = new JsonSlurper().parse(new File(SCHEMAS_PATH))
@@ -97,6 +98,12 @@ if (method == 'tools/call') {
     if (hadHitlMarker) {
         params.arguments = args
         request.entity.setString(JsonOutput.toJson(body))
+        // This filter runs BEFORE P1AZDecision, and the rewrite above just
+        // removed the receipt from the body — without a hand-over the receipt
+        // verification in p1az-decision.groovy is unreachable and every
+        // approved retry re-mints a fresh 428 challenge forever. Same
+        // cross-filter channel the aam-* scripts use (AttributesContext).
+        attributes['hitlChallengeId'] = String.valueOf(rawHitlMarker)
     }
 }
 
