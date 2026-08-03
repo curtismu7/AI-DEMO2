@@ -59,6 +59,17 @@ export interface Passenger {
   is_demo_fallback: number;
 }
 
+export interface FeePaymentInput {
+  confirmationNumber: string | null;
+  feeType: string;
+  amountCents: number;
+}
+
+export interface FeePayment extends FeePaymentInput {
+  id: number;
+  paidAt: string;
+}
+
 /** How a passenger row was located — surfaced in every tool result, never silent. */
 export type MatchedBy = 'subject' | 'demo-fallback';
 
@@ -97,6 +108,13 @@ CREATE TABLE IF NOT EXISTS seats (
   cabin         TEXT,
   available     INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (flight_number, seat)
+);
+CREATE TABLE IF NOT EXISTS fee_payments (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  confirmation_number TEXT,
+  fee_type            TEXT NOT NULL,
+  amount_cents        INTEGER NOT NULL,
+  paid_at             TEXT NOT NULL
 );
 `;
 
@@ -237,4 +255,46 @@ export function listSeats(flightNumber: string, availableOnly: boolean): Seat[] 
     ? 'SELECT seat, cabin, available FROM seats WHERE flight_number = ? AND available = 1 ORDER BY seat'
     : 'SELECT seat, cabin, available FROM seats WHERE flight_number = ? ORDER BY seat';
   return withDb((conn) => conn.prepare(sql).all(flightNumber) as unknown as Seat[]);
+}
+
+/**
+ * Append a fee payment. The ledger is append-only and never seeded — unlike the
+ * reference tables, an empty fee_payments is the correct initial state, and
+ * seedIfEmpty would otherwise refill it on every restart.
+ */
+export function recordFeePayment(input: FeePaymentInput): FeePayment {
+  const paidAt = new Date().toISOString();
+  return withDb((conn) => {
+    conn.prepare(
+      'INSERT INTO fee_payments (confirmation_number, fee_type, amount_cents, paid_at) VALUES (?, ?, ?, ?)',
+    ).run(input.confirmationNumber, input.feeType, input.amountCents, paidAt);
+    const row = conn
+      .prepare('SELECT id FROM fee_payments ORDER BY id DESC LIMIT 1')
+      .get() as unknown as { id: number };
+    return { ...input, id: row.id, paidAt };
+  });
+}
+
+export function listFeePayments(confirmationNumber?: string): FeePayment[] {
+  const sql = confirmationNumber
+    ? 'SELECT * FROM fee_payments WHERE confirmation_number = ? ORDER BY id DESC'
+    : 'SELECT * FROM fee_payments ORDER BY id DESC';
+  const rows = withDb((conn) =>
+    (confirmationNumber
+      ? conn.prepare(sql).all(confirmationNumber)
+      : conn.prepare(sql).all()) as unknown as Array<{
+      id: number;
+      confirmation_number: string | null;
+      fee_type: string;
+      amount_cents: number;
+      paid_at: string;
+    }>,
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    confirmationNumber: r.confirmation_number,
+    feeType: r.fee_type,
+    amountCents: r.amount_cents,
+    paidAt: r.paid_at,
+  }));
 }
