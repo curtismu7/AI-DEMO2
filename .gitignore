@@ -61,6 +61,11 @@ demo_api_server/bin/pingcli
 .env
 .env.local
 .env.*.local
+# `npm run setup:fresh` / `pingone:bootstrap` output. Rewritten on every run and
+# carries worker client secrets and demo passwords — its own header says "Do not
+# commit it", but it was tracked from #370 until 2026-08-03, so anyone who ran
+# either script silently staged live credentials.
+setup-config.md
 # App-generated config/import backups (were committed by accident)
 *.bak
 demo_api_server/.env.pre-import-*
