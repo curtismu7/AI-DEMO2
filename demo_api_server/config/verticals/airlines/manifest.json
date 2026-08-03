@@ -35,6 +35,26 @@
     "highValueAction": "Cancel Reservation",
     "highValueLabel": "Cancel a reservation and process a refund"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Airlines_Privileged",
+        "description": "Passengers permitted to access sensitive reservation details (UC9)"
+      },
+      "delegates": {
+        "name": "Airlines_Delegates",
+        "description": "Users authorized as delegated travel agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_airline_bookings": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Skyline",
     "greeting": "Hi {name}! I'm Skyline, your United travel agent. I can pull up your reservations, check a flight's status and gate, and show you the seat map. What would you like to look at?",
@@ -42,7 +62,11 @@
   },
   "dashboard": {
     "kind": "airlines",
-    "chips": [],
+    "chips": [
+      { "key": "balance", "label": "MileagePlus Balance" },
+      { "key": "accounts", "label": "My Reservations" },
+      { "key": "transactions", "label": "My Flights" }
+    ],
     "chips10": [
       {
         "id": "ua1",
@@ -51,6 +75,26 @@
         "mode": "both",
         "tool": "get_airline_bookings",
         "useCaseId": "delegated-access-with-proof"
+      },
+      {
+        "id": "ua5",
+        "label": "🔑 Cancel a reservation",
+        "message": "cancel my reservation and refund it",
+        "mode": "both",
+        "challenge": "step_up",
+        "tool": "cancel_airline_reservation",
+        "useCaseId": "step-up-required",
+        "group": "advanced"
+      },
+      {
+        "id": "ua4",
+        "label": "🔐 Sensitive reservations",
+        "message": "access my sensitive airline bookings",
+        "mode": "both",
+        "challenge": "consent",
+        "tool": "sensitive_airline_bookings",
+        "useCaseId": "hitl-consent",
+        "group": "advanced"
       },
       {
         "id": "ua2",

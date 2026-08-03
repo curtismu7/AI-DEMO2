@@ -31,6 +31,71 @@ function resolveFlightNumber(args: Record<string, unknown>, subject: string): { 
   return { flightNumber: nextFlightFor(match.passenger.passenger_ref), defaulted: true };
 }
 
+/**
+ * Phase 2 — the consent-gated read. Returns the same trips as getBookings plus
+ * the passenger detail an agent must not surface unprompted. Deliberately a
+ * SEPARATE tool rather than a flag on getBookings: the gate lives on the tool
+ * name in scope-topology, so a parameter could not be gated without gating every
+ * plain lookup too.
+ */
+/**
+ * Phase 2 — the step-up-gated write. Reads the booking so the response names the
+ * real trip being cancelled, then reports the cancellation and refund.
+ *
+ * It does NOT mutate the SQLite row: the demo is replayed constantly and a
+ * destructive write would empty the passenger's trips after the first run, so
+ * every later demo would show an empty itinerary. What matters for the
+ * authorization story is that reaching this tool at all required MFA.
+ */
+function cancelReservation(args: Record<string, unknown>, subject: string): unknown {
+  const match = resolvePassenger(subject);
+  if (!match) {
+    return { source: SOURCE, cancelled: false, note: 'No passenger records in the airlines database.' };
+  }
+  const bookings = listBookings(match.passenger.passenger_ref);
+  const wanted = typeof args.confirmation_number === 'string' ? args.confirmation_number.trim().toUpperCase() : '';
+  const booking = wanted
+    ? bookings.find((b) => b.confirmation_number.toUpperCase() === wanted)
+    : bookings[0];
+  if (!booking) {
+    return { source: SOURCE, cancelled: false, note: wanted ? `No reservation ${wanted} for this passenger.` : 'No upcoming reservations to cancel.' };
+  }
+  return {
+    source: SOURCE,
+    matchedBy: match.matchedBy,
+    cancelled: true,
+    simulated: true,
+    confirmationNumber: booking.confirmation_number,
+    flightNumber: booking.flight_number,
+    route: `${booking.origin} to ${booking.destination}`,
+    departureTime: booking.departure_time,
+    refund: { status: 'initiated', method: 'original form of payment' },
+    note: 'Cancellation recorded for the demo; the reservation row is left intact so the demo can be replayed.',
+  };
+}
+
+function sensitiveBookings(subject: string): unknown {
+  const match = resolvePassenger(subject);
+  if (!match) {
+    return { source: SOURCE, bookings: [], note: 'No passenger records in the airlines database.' };
+  }
+  const base = getBookings(subject) as Record<string, unknown>;
+  const { passenger } = match;
+  return {
+    ...base,
+    sensitive: true,
+    passengerDetails: {
+      // Masked in the demo data set — the point is that reaching this at all
+      // required a human approval, not that the values are real.
+      documentNumber: `••••${String(passenger.passenger_ref).slice(-4)}`,
+      loyaltyTier: passenger.loyalty_tier,
+      loyaltyPoints: passenger.loyalty_points,
+      contactEmail: `${String(passenger.full_name).split(' ')[0].toLowerCase()}@example.com`,
+      paymentCardTail: '4242',
+    },
+  };
+}
+
 function getBookings(subject: string): unknown {
   const match = resolvePassenger(subject);
   if (!match) {
@@ -105,6 +170,8 @@ function seatAvailability(args: Record<string, unknown>, subject: string): unkno
 
 export const AIRLINES_TOOL_NAMES = new Set([
   'get_airline_bookings',
+  'sensitive_airline_bookings',
+  'cancel_airline_reservation',
   'get_flight_status',
   'check_seat_availability',
 ]);
@@ -117,6 +184,10 @@ export async function dispatchAirlinesTool(
   switch (toolName) {
     case 'get_airline_bookings':
       return getBookings(subject);
+    case 'sensitive_airline_bookings':
+      return sensitiveBookings(subject);
+    case 'cancel_airline_reservation':
+      return cancelReservation(args, subject);
     case 'get_flight_status':
       return flightStatus(args, subject);
     case 'check_seat_availability':
