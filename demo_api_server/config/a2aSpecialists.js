@@ -88,6 +88,13 @@ const A2A_SPECIALISTS = {
     tools: ['sensitive_holdings'],
     subtaskHint: 'review the sensitive investment holdings',
   },
+  airlines: {
+    appKey: 'reservations',
+    appName: 'Super Banking Reservations Specialist Agent',
+    specialistName: 'Reservations Specialist',
+    tools: ['sensitive_airline_bookings'],
+    subtaskHint: 'retrieve the sensitive reservation details',
+  },
 };
 
 /** All verticals that have an A2A specialist. */

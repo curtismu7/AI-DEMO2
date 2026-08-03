@@ -47,6 +47,7 @@
 | `agent:invoke:finaid` | medium | Super Banking A2A Intermediate - Financial Aid Specialist | Invoke the Financial Aid Specialist A2A intermediate (Exchange #1 actor) |
 | `agent:invoke:supplier` | medium | Super Banking A2A Intermediate - Supplier Contract Specialist | Invoke the Supplier Contract Specialist A2A intermediate (Exchange #1 actor) |
 | `agent:invoke:holdings` | medium | Super Banking A2A Intermediate - Holdings Specialist | Invoke the Holdings Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:reservations` | medium | Super Banking A2A Intermediate - Reservations Specialist | Invoke the Reservations Specialist A2A intermediate (Exchange #1 actor) |
 
 ## Resources
 
@@ -154,11 +155,17 @@ Audience: `a2a-intermediate-holdings.ping.demo`
 
 Native scopes: `agent:invoke:holdings`
 
+### Super Banking A2A Intermediate - Reservations Specialist
+
+Audience: `a2a-intermediate-reservations.ping.demo`
+
+Native scopes: `agent:invoke:reservations`
+
 ### Super Banking A2A MCP Gateway
 
 Audience: `mcpgateway-a2a.ping.demo`
 
-Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`
+Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`, `airlines:read`
 
 ### Super Banking PingGateway MCP
 
@@ -272,6 +279,12 @@ Granted scopes: `read`, `supplier:read`
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
 Granted scopes: `read`, `holdings:read`
+
+### Super Banking Reservations Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`, `airlines:read`
 
 ### Super Banking Agent
 

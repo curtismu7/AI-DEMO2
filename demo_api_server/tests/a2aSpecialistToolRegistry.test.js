@@ -89,3 +89,22 @@ describe('a2aSpecialists registry — declared tools must be real and delegable'
     expect(mismatches).toEqual([]);
   });
 });
+
+describe('airlines specialist', () => {
+  const { specialistForVertical } = require('../config/a2aSpecialists');
+
+  test('airlines has a specialist bound to the sensitive lookup', () => {
+    const spec = specialistForVertical('airlines');
+    expect(spec).toBeTruthy();
+    expect(spec.appKey).toBe('reservations');
+    expect(spec.tools).toEqual(['sensitive_airline_bookings']);
+  });
+
+  // Without a2aDelegated the UC2 chip routes to the standard read path and the
+  // token chain shows a single exchange instead of the nested-act chain.
+  test('the sensitive lookup is marked a2aDelegated', () => {
+    const topology = require('../../scope-topology.json');
+    expect(topology.tools.sensitive_airline_bookings.a2aDelegated).toBe(true);
+    expect(topology.tools.sensitive_airline_bookings.a2aDelegatedScope).toBe('airlines:read');
+  });
+});
