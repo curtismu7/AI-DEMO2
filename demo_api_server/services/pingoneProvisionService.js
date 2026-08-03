@@ -446,27 +446,91 @@ class PingOneProvisionService {
   }
 
   /**
-   * Check if resource exists by name
+   * Find an existing PingOne object by STABLE IDENTITY first, display name last.
+   *
+   * A display name is mutable config; matching on it means a rename in the console
+   * (or in provisioning.resourceNames) makes the lookup miss and the caller CREATE A
+   * DUPLICATE. That is not hypothetical — it is how `Demo MCP Invest` ended up with a
+   * manifest audience no PingOne resource carried, 400ing every BFF boot while the
+   * reconciler logged OK (2026-08-02).
+   *
+   * Order, most stable first:
+   *   1. `id`       — the GUID. Authoritative; a rename cannot move it.
+   *   2. `audience` — resources only. A contract value tokens are minted against,
+   *                   so it cannot change without breaking those tokens anyway.
+   *   3. `clientId` — applications only. Already stored as PINGONE_*_CLIENT_ID.
+   *   4. `name`     — last resort, for bootstrapping an empty environment. Warns,
+   *                   so "we matched by name" is never silent again.
+   *
+   * @param {'application'|'resource'} type
+   * @param {{id?:string, audience?:string, clientId?:string, name?:string}} identity
+   * @returns {Promise<object|null>}
+   */
+  async findObject(type, identity = {}) {
+    const { id, audience, clientId, name } = identity;
+    const isApp = type === 'application';
+    const endpoint = isApp ? '/applications' : '/resources';
+    const collection = isApp ? 'applications' : 'resources';
+
+    try {
+      // 1. By id — a direct GET, no listing, no ambiguity.
+      if (id) {
+        try {
+          const res = await this.makeRequest('GET', `${endpoint}/${id}`);
+          if (res.data && res.data.id) return res.data;
+        } catch (_) {
+          // Fall through: a stale id must not block the other strategies.
+          console.warn(`[PingOneProvision] ${type} id ${id} did not resolve — falling back`);
+        }
+      }
+
+      const response = await this.makeRequest('GET', `${endpoint}?limit=100`);
+      const all = response.data._embedded?.[collection] || [];
+
+      // 2/3. By a stable non-display key.
+      if (!isApp && audience) {
+        const byAudience = all.find((o) => o.audience === audience);
+        if (byAudience) return byAudience;
+      }
+      if (isApp && clientId) {
+        const byClientId = all.find((o) => o.id === clientId || o.clientId === clientId);
+        if (byClientId) return byClientId;
+      }
+
+      // 4. By display name — bootstrap only.
+      if (name) {
+        const byName = all.find((o) => o.name === name);
+        if (byName) {
+          const stable = isApp ? 'clientId' : 'audience';
+          console.warn(
+            `[PingOneProvision] resolved ${type} "${name}" BY NAME (no ${stable} match). `
+            + 'A rename here would create a duplicate — record its id: ' + byName.id,
+          );
+          return byName;
+        }
+      }
+      return undefined;
+    } catch (error) {
+      return null; // Doesn't exist or access denied
+    }
+  }
+
+  /**
+   * Check if resource exists by name.
+   * @deprecated Prefer findObject() with a stable identity — see its docblock.
    */
   async findResourceByName(type, name) {
-    try {
-      const endpoint = type === 'application' ? '/applications' : '/resources';
-      // PingOne defaults to 20 items per page — use limit=100 to avoid
-      // missing an existing resource and triggering a duplicate-name 400.
-      const response = await this.makeRequest('GET', `${endpoint}?limit=100`);
-
-      const resources = response.data._embedded?.[type === 'application' ? 'applications' : 'resources'] || [];
-      return resources.find(resource => resource.name === name);
-    } catch (error) {
-      return null; // Resource doesn't exist or access denied
-    }
+    return this.findObject(type, { name });
   }
 
   /**
    * Create resource server
    */
   async createResourceServer(name, description, audience) {
-    const existing = await this.findResourceByName('resource', name);
+    // Audience before name: the audience is what tokens are minted against, so it
+    // cannot drift without breaking those tokens, whereas the display name is
+    // free to change under us. Matching name-first is what creates duplicates.
+    const existing = await this.findObject('resource', { audience, name });
     if (existing) {
       // PingOne returns audience as a string on GET; wrap it so callers that
       // read resource.audience[0] (see pingoneProvisionService.js:1014/1017/1026
