@@ -102,6 +102,54 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — Three A2A specialists (retail, sporting-goods, workforce) requested bare `read` on Exchange #2 — no least privilege at all
+
+**Files changed:** `scope-topology.json`, `docs/scope-topology.md`,
+`demo_mcp_server/src/tools/handlers/verticalTools.generated.ts`,
+`oauth-mcp/src/tools/handlers/verticalTools.generated.ts`,
+`demo_api_server/services/a2aDelegationService.js`,
+`demo_api_server/services/pingoneProvisionService.js`,
+`demo_api_server/tests/a2aSpecialistToolRegistry.test.js`.
+
+**What was broken:** `sensitive_order_history`, `sensitive_membership_details` and
+`sensitive_payroll_details` had no `a2aDelegatedScope` on their scope-topology entry, so
+`deriveSpecialistScopes()` fell through to `requiredScopes` and asked PingOne for bare
+`read` — the scope every ordinary user bearer already carries. Exchange #2 still produced a
+correct depth-2 `act` chain, so the demo looked right; but the specialist's token was no
+more constrained than the user's own, and the least-privilege claim the A2A story makes was
+false for three of nine verticals. This is the collapse the 2026-07-27 entry below forbids
+by name. Latent since those specialists were registered, user-facing since #1272 added the
+`rt-a2a`/`sg-a2a`/`wf-a2a` chips, which drive exactly these three chains. The guard added
+in #1275 did not catch it: it asserted only that a scope derives non-empty, and bare
+`["read"]` is non-empty.
+
+**What was fixed:** each got a dedicated Exchange #2 scope in the established `<appKey>:read`
+shape — `purchase:read`, `membership:read`, `payroll:read` — declared in `scopes{}`, offered
+by the `Super Banking API` and `Super Banking A2A MCP Gateway` resources, and granted to the
+owning specialist app. Both generated MCP registries were updated, including `oauth-mcp/`
+(the live `ai-demo-mcp-server` container), which `scripts/gen-vertical-tools.js` does not
+write. Separately, `pingoneProvisionService` Step 37a-A2A derived its A2A-gateway grant with
+`toolScopes()` — the coarse `read` for every `sensitive_*` tool — while the runtime requested
+the delegated scope; harmless only while both said `read`, so this change would have turned it
+into a fresh-bootstrap `invalid_scope`. Provisioning and runtime now call the one exported
+`deriveSpecialistScopes()`.
+
+**Do not break:** never let an A2A specialist's derived scope be `read` or `write` — that is
+the whole demo. `a2aDelegatedScope` must always be BOTH declared in `scopes{}` AND listed on
+the `Super Banking A2A MCP Gateway` resource, or Exchange #2 dies with `invalid_scope`. Keep
+`oauth-mcp`'s generated registry in step with `demo_mcp_server`'s by hand — the generator
+writes only the latter. Do not re-introduce a second scope derivation anywhere.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --runTestsByPath tests/a2aSpecialistToolRegistry.test.js`
+(44 tests). Revert-to-RED: delete the three `a2aDelegatedScope` lines from
+`scope-topology.json` — exactly `retail`, `sporting-goods` and `workforce` fail
+"Exchange #2 requests a DEDICATED scope, never a coarse one", while the pre-fix guard passes
+38/38 on that same state. Also `npm run topology:verify`, `npm run hygiene:check`,
+`npm run intents:check`, and `tsc --noEmit` in `demo_mcp_server` and `oauth-mcp`.
+Live PingOne (NOT run): revoke each specialist's grant on `Demo API` and `Demo MCP Gateway`
+BEFORE granting `<appKey>:read` on `Super Banking A2A MCP Gateway` — PingOne enforces one
+scope-name per client across all grants, so a colliding grant is skipped silently.
+
 ### 2026-08-03 — Every PingGateway `/mcp` POST 500s after any pull that touches `mcp-tool-schemas.json` (second occurrence)
 
 **Files changed:** `docker-compose.yml`, `ping-gateway/docker-compose.yml`,
