@@ -109,7 +109,7 @@ function McpLayerTab() {
       <Section title="demo_mcp_resource_server" role="Investment vertical MCP server">
         <p style={{ marginTop: 4 }}>
           Lightweight counterpart to demo_mcp_server for investment accounts. Validates tokens
-          against the <code>mcp-resource-server.ping.demo</code> audience and filters the toolset by scope.
+          against the <code>mcp-invest.ping.demo</code> audience and filters the toolset by scope.
         </p>
         <Card>
           <Row label="Tools">get_investment_accounts, get_investment_balance, get_investment_portfolio, place_investment_order</Row>
