@@ -5,6 +5,9 @@ const { verticalManifest } = require('../../services/verticalManifest');
 const EXPECTED_TOOLS = [
   'lookup_customer', 'get_customer_transactions', 'get_customer_profile', 'get_customer_accounts',
   'freeze_account', 'adjust_balance', 'reset_customer_password', 'delete_customer',
+  // A2A-delegated sensitive read (Identity Verification Specialist) — see
+  // tests/a2aAdminVerticals.test.js.
+  'sensitive_customer_identity',
 ];
 
 describe('admin vertical plugin', () => {
@@ -12,7 +15,7 @@ describe('admin vertical plugin', () => {
     expect(validatePlugin('admin', plugin)).toEqual({ ok: true, errors: [] });
   });
 
-  it('declares exactly the eight admin tools', () => {
+  it('declares exactly the nine admin tools', () => {
     expect(plugin.getTools().map((t) => t.name).sort()).toEqual([...EXPECTED_TOOLS].sort());
   });
 
@@ -53,9 +56,9 @@ describe('admin vertical manifest', () => {
     expect(m.dashboard.kind).toBe('admin');
   });
 
-  it('chips10 are all tool-backed and reference the eight admin tools', () => {
+  it('chips10 are all tool-backed and reference the nine admin tools', () => {
     const chips = verticalManifest.resolver.resolve('admin').dashboard.chips10;
-    expect(chips).toHaveLength(8);
+    expect(chips).toHaveLength(9);
     expect(chips.every((c) => typeof c.tool === 'string')).toBe(true);
     expect(chips.map((c) => c.tool).sort()).toEqual([...EXPECTED_TOOLS].sort());
   });

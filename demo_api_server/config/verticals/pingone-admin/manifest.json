@@ -35,6 +35,11 @@
     "highValueAction": "MCP Tool Call",
     "highValueLabel":  "Live queries against PingOne via MCP"
   },
+  "a2aExemption": {
+    "exempt": true,
+    "declaredOn": "2026-08-03",
+    "reason": "Permanent, not a backlog item. This vertical is an MCP explorer, deliberately reframed away from user-admin in PR #1164: its whole subject is that an agent's capabilities are governed by the identity it runs as. Its tools are hosted PingOne MCP reads (listUsers, listApplications, listGroups, getEnvironment) whose visible surface is gated by the worker application's admin roles, so the tool set varies by tenant and is not the demo's to define. It owns no local data store and holds no sensitive per-user record of its own, so there is nothing for a specialist to be delegated ACCESS TO — delegation would add a token chain in front of listing tenant configuration and demonstrate nothing. Do not add an A2A specialist here for symmetry with the other verticals; if that ever changes, the trigger is this vertical acquiring a per-subject sensitive record, not the other verticals acquiring more chips."
+  },
   "agent": {
     "persona": "PingOne Admin Assistant",
     "greeting": "Hi {name}! I'm connected to the hosted PingOne MCP server. I can list the tools my worker identity is allowed to use and call them for real answers about your environment. Try: 'Show me the tools' or 'List users in my environment'.",

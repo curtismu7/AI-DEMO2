@@ -88,6 +88,25 @@ const GroupsSchema = z.object({
   userMemberships: z.record(z.string(), z.array(z.string())).optional(),
 }).optional();
 
+/**
+ * A DECLARED, permanent exemption from the A2A parity gate
+ * (tests/a2aVerticalParity.test.js).
+ *
+ * Absence is never an exemption — the gate reads this block, so a vertical in the
+ * switcher that neither ships an A2A specialist nor declares this FAILS. That is
+ * deliberate: an exception that is merely missing from a list is invisible, which
+ * is the same defect as a chip nobody noticed was absent.
+ *
+ * Shaped so it cannot be earned by accident. `exempt` must be the literal `true`
+ * (not any truthy value), and `reason` must be long enough that it has to say
+ * something — a new vertical cannot inherit the exemption, it must argue for one.
+ */
+const A2aExemptionSchema = z.object({
+  exempt: z.literal(true),
+  reason: z.string().min(120),
+  declaredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).optional();
+
 const ManifestSchema = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*$/),
   schemaVersion: z.literal(3),
@@ -157,6 +176,8 @@ const ManifestSchema = z.object({
   tiers: TiersSchema,
 
   groups: GroupsSchema,
+
+  a2aExemption: A2aExemptionSchema,
 
   scopes: z.object({
     read: z.string().default('read'),

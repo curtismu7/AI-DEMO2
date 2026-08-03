@@ -1,0 +1,53 @@
+{
+  "_comment": "Customer identity-verification (KYC) records, keyed by the demo store's user id. Deliberately held OUTSIDE data/store.js: get_customer_profile reads the store's user row (username, email, name, role, isActive) and physically cannot reach this file, so the sensitive tool returns a data class the ordinary admin profile read does not carry. A customer with no entry here has no record — never fall back to another customer's row.",
+  "records": {
+    "1": {
+      "dateOfBirth": "1979-06-04",
+      "governmentId": { "type": "SSN", "value": "412-88-7301", "issuingCountry": "US" },
+      "residentialAddress": "884 Kingsbury Court, Apt 3B, Evanston, IL 60201",
+      "kyc": {
+        "status": "Verified",
+        "verifiedOn": "2024-01-16",
+        "method": "Document + selfie liveness",
+        "documentType": "US Passport",
+        "documentNumber": "P4471902",
+        "documentExpiry": "2031-08-14"
+      },
+      "screening": { "sanctions": "Clear", "pep": "No match", "lastRunOn": "2026-05-02" },
+      "riskRating": "Low",
+      "lastIdentityReview": { "reviewedBy": "compliance.ops", "reviewedOn": "2026-05-02", "outcome": "No action" }
+    },
+    "2": {
+      "dateOfBirth": "1988-11-27",
+      "governmentId": { "type": "SSN", "value": "295-40-6612", "issuingCountry": "US" },
+      "residentialAddress": "17 Bayview Terrace, Unit 902, San Francisco, CA 94107",
+      "kyc": {
+        "status": "Re-verification due",
+        "verifiedOn": "2024-01-21",
+        "method": "Document only",
+        "documentType": "State Driver License",
+        "documentNumber": "D9930147",
+        "documentExpiry": "2026-11-30"
+      },
+      "screening": { "sanctions": "Clear", "pep": "Potential match — cleared on review", "lastRunOn": "2026-06-18" },
+      "riskRating": "Medium",
+      "lastIdentityReview": { "reviewedBy": "compliance.ops", "reviewedOn": "2026-06-18", "outcome": "Enhanced due diligence scheduled" }
+    },
+    "3": {
+      "dateOfBirth": "1995-02-09",
+      "governmentId": { "type": "ITIN", "value": "9NN-73-4820", "issuingCountry": "US" },
+      "residentialAddress": "2210 Rowan Street, Austin, TX 78702",
+      "kyc": {
+        "status": "Verified",
+        "verifiedOn": "2024-02-02",
+        "method": "Document + address proof",
+        "documentType": "Permanent Resident Card",
+        "documentNumber": "A208551640",
+        "documentExpiry": "2029-02-01"
+      },
+      "screening": { "sanctions": "Clear", "pep": "No match", "lastRunOn": "2026-04-11" },
+      "riskRating": "Low",
+      "lastIdentityReview": { "reviewedBy": "compliance.ops", "reviewedOn": "2026-04-11", "outcome": "No action" }
+    }
+  }
+}

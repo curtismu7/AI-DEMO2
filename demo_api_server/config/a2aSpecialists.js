@@ -95,6 +95,13 @@ const A2A_SPECIALISTS = {
     tools: ['sensitive_passenger_record'],
     subtaskHint: 'retrieve the sensitive passenger record',
   },
+  admin: {
+    appKey: 'identity',
+    appName: 'Super Banking Identity Verification Specialist Agent',
+    specialistName: 'Identity Verification Specialist',
+    tools: ['sensitive_customer_identity'],
+    subtaskHint: 'retrieve the customer’s identity-verification (KYC) record',
+  },
 };
 
 /** All verticals that have an A2A specialist. */

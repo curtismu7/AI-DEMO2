@@ -104,6 +104,7 @@ async function evaluateIntentAuthorization(intentContext) {
     // set was last extended, so both its UC1 read and its consent-gated
     // reservation lookup would have taken the 428 fallback described above.
     'get_airline_bookings', 'sensitive_airline_bookings',
+    'sensitive_customer_identity',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {
