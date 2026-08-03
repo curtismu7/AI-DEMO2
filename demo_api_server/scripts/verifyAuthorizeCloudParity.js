@@ -17,18 +17,28 @@
  * `statements[].code` values the snapshot defines (see DENY_CODE_BY_REASON_PREFIX
  * in demo_authz_server/routes/decision.js).
  *
- * That snapshot has never been imported into the live environment. So the live
- * decision endpoint runs an OLDER, PARTIAL policy. Probed 2026-07-27:
+ * STATUS — 2026-08-03: the snapshot IS imported and all 7 authored rules below
+ * are enforced live. This script exits 0. It stays as the standing gate: run it
+ * after any snapshot regeneration or import to prove the cloud still matches.
+ *
+ * History, because the shape of the last failure is worth keeping. Probed
+ * 2026-07-27, before the import, the live endpoint ran an OLDER PARTIAL policy:
  *
  *     amount ceiling ($5000 transfer)      -> DENY    (enforced)
  *     A2A delegation (act depth 1)         -> PERMIT  (NOT enforced)
  *     insufficient scope / unknown tool    -> PERMIT  (gateway's job, not policy)
  *
- * The gap is therefore NOT "someone is lying about the engine". It is one
- * pending operation: import the reconciled snapshot. Until then the mock is the
- * only place several authored rules actually run, and pointing the gateway at
- * the cloud would delete them while making the demo look MORE legitimate — the
- * worst possible trade.
+ * ⚠️ AN UNDER-SPECIFIED PROBE LOOKS EXACTLY LIKE A MISSING RULE. The UC21
+ * restricted-tool row reported MISSING across three separate imports. The rule
+ * was live and correct the whole time; the probe's PERMIT control omitted
+ * `Amount`, its allowed branch fell through to a cap comparison against a
+ * missing numeric, and P1AZ returned INDETERMINATE with NO statements. The
+ * script counts anything that is not PERMIT as "not discriminating", so a
+ * correct policy read as a broken one and sent someone into the console to
+ * author a condition that already existed. Before concluding a rule is not
+ * imported, send its permit case by hand and look at the raw body: an
+ * INDETERMINATE with no statements is an ATTRIBUTE problem in the probe, not a
+ * policy gap. A DENY carrying the wrong code is the real "missing rule" tell.
  *
  * WHAT THIS SCRIPT DOES
  *
@@ -118,9 +128,20 @@ const RULES = [
     // for Standard and allowed for PrivateBanking. Group membership expands
     // capability. PrivateBanking returns PERMIT with a step-up obligation, which
     // is still a PERMIT decision.
+    //
+    // Amount MUST be sent, on BOTH sides. Standard is denied by the tool
+    // restriction before any amount is considered, so the deny case passes
+    // without it — but PrivateBanking clears that restriction and falls through
+    // to the tier AMOUNT CAP, and a cap comparison against a missing numeric
+    // evaluates to INDETERMINATE with no statements at all. The probe read that
+    // as "denies its allowed case too" and reported a live, correct rule as
+    // MISSING for three imports running. Probed 2026-08-03: PrivateBanking with
+    // no Amount -> INDETERMINATE; with Amount -> PERMIT; Standard with Amount ->
+    // still DENY mcp-tier-tool-not-allowed. Tier stays the only discriminator.
+    // 100 is well under every tier ceiling, so it tests the restriction, not the cap.
     deny: {
       tool: 'create_withdrawal', vertical: 'banking', depth: 1,
-      extra: { UserTier: 'Standard' },
+      extra: { UserTier: 'Standard', Amount: 100, TransactionType: 'create_withdrawal' },
     },
     permit: { UserTier: 'PrivateBanking' },
   },
@@ -224,11 +245,14 @@ async function main() {
   console.log('  Gateway at the cloud now would remove exactly these while making the demo');
   console.log('  look more legitimate.');
   console.log('');
-  console.log('  The 2026-07-27 import DID land — resource ownership and the A2A nested-');
-  console.log('  generalist check went live, and the endpoint returns real statement codes.');
-  console.log('  What is missing was never authored cloud-side, so re-importing the same');
-  console.log('  snapshot will not fix it. Each rule above needs a condition in the console');
-  console.log('  (Authorization Admin role — the demo worker is 403 on the policy APIs).');
+  console.log('  CHECK THE PROBE BEFORE THE POLICY. A row marked "denies its ALLOWED case');
+  console.log('  too (INDETERMINATE)" is almost always a MISSING ATTRIBUTE in this file, not');
+  console.log('  an un-authored rule: the permit branch reached a comparison whose operand');
+  console.log('  was never sent, and P1AZ returns INDETERMINATE with no statements. Re-send');
+  console.log('  that permit case by hand and read the raw body first. Only a DENY that');
+  console.log('  carries the wrong statement code means the rule is genuinely not live —');
+  console.log('  and that one needs a condition authored in the console (Authorization');
+  console.log('  Admin role; the demo worker is 403 on the policy APIs).');
   console.log('');
   console.log('  Note: act-chain DEPTH and the nested-generalist check are two halves of mock');
   console.log('  Rule 1c. The second half is live; the first is not. A specialist token still');
