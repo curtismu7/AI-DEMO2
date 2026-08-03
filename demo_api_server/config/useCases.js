@@ -126,6 +126,10 @@ const SECOND_PRODUCT_TRIGGER_BY_VERTICAL = {
   'sporting-goods': 'show my gear warranty',
   manufacturing: 'show my work order status',
   investment: 'show my portfolio',
+  // airlines has no featurePage/api_key tool yet, but it does own a genuine
+  // second product: a FLIGHT is not a RESERVATION. get_flight_status is a
+  // different tool against different rows, which is all UC33 needs to prove.
+  airlines: 'what is the status of flight UA328',
 };
 const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   healthcare: 'show_health_record',
@@ -136,6 +140,7 @@ const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   'sporting-goods': 'show_gear_warranty',
   manufacturing: 'show_work_order',
   investment: 'show_investment',
+  airlines: 'get_flight_status',
 };
 
 /**
@@ -169,6 +174,7 @@ const REQUEST_ONLY_NOT_APPLICABLE = {
   retail: 'No request-only tool yet — needs a "request a price adjustment" tool (wave 2).',
   manufacturing: 'No request-only tool yet — needs a "request a spec exception" tool (wave 2).',
   investment: 'No request-only tool yet — needs a "request a fee-tier review" tool (wave 2).',
+  airlines: 'No request-only tool yet — needs a "request a change-fee waiver" tool the agent can FILE but not GRANT (wave 2). pay_airline_fee is the opposite: it completes the transaction.',
 };
 
 /** Merge per-vertical primaryTool into chipOverrides extras. */

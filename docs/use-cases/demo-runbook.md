@@ -176,6 +176,7 @@
 |---|---|---|---|
 | UC1 | `show my reservations` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive passenger record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `what is the status of flight UA328` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
 | UC6 | `pay a $2500 change fee` | `DENY` | $2500 exceeds the policy ceiling — Authorize returns DENY before the transfer runs. |
