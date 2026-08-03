@@ -102,6 +102,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-02 — Investment's A2A specialist pointed at a tool that does not exist; the chip silently ran with NO delegation
+
+**Files changed:** `demo_api_server/config/a2aSpecialists.js`, `scope-topology.json`,
+`pac/policies/mcp-delegation.yaml`, `demo_mcp_server/src/tools/handlers/verticalTools.generated.ts`,
+`oauth-mcp/src/tools/handlers/verticalTools.generated.ts`,
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` + `docs/scope-topology.md`
+(both regenerated); new `demo_api_server/tests/a2aSpecialistToolRegistry.test.js`.
+
+**What was broken:** the Holdings Specialist declared `tools: ['sensitive_investment_holdings']`
+— a name that existed ONLY as a `scope-topology.json` `tools{}` key. No vertical plugin, no entry
+in the 235-tool `mcp-tool-schemas.json` union, no gateway backend. It was the only one of the 12
+declared specialist tools with no implementation anywhere. Nothing failed loudly, because the
+*wrong* thing still resolved: `deriveSpecialistScopes()` happily derived `holdings:read` from the
+ghost entry. Two consequences, neither visible in the UI:
+
+1. The `inv-a2a` chip dispatches the REAL tool `sensitive_holdings`, which was NOT marked
+   `a2aDelegated` — so `isA2aDelegatedTool()` returned false, the A2A fast-path never fired, and
+   the chip ran as an ordinary HITL-consent read. No nested `act` chain, no Exchange #1/#2 — the
+   demo returned data and proved nothing.
+2. Anything that DID reach the specialist (LLM `delegate_to_specialist`, Agent Card / JSON-RPC)
+   executed `allowedTools[0]` = the ghost → gateway 502, and the local-serve fallback declined
+   because the plugin does not own that name. `delegateToSpecialist()` also hard-rejects the
+   chip's `sensitive_holdings` as "not authorized" if it is passed explicitly.
+
+**What was fixed:** consolidated onto the real tool. The A2A metadata (`a2aDelegatedScope:
+holdings:read`, `a2aDelegated`, `requiresAgentMediation`) MOVED onto `sensitive_holdings` and the
+ghost entry was deleted. A bare rename in `a2aSpecialists.js` alone would have been WRONG — it
+collapses the Exchange #1 scope to bare `read`, which the 2026-07-27 entry below forbids.
+`oauth-mcp` (the live `mcp-server` container) needed the regenerated `a2aDelegatedScope` too: it
+accepts that scope as the ALTERNATIVE to `requiredScopes`, so without it the specialist token
+carrying only `holdings:read` would be rejected. All 7 other verticals were already correct.
+
+**Do not break:** a specialist's declared `tools` must name a tool that actually exists AND is
+marked `a2aDelegated` — the new guard asserts both, plus that UC2's
+`A2A_PRIMARY_TOOL_BY_VERTICAL` entry is inside the specialist's allowlist. Never collapse
+`holdings:read` back to bare `read`.
+
+**Live step still required (not run):** the P1AZ policy conditions are generated from the SSOT and
+change with this fix (`RequiresA2aDelegation` now names `sensitive_holdings`; the ghost is gone
+from `RequiresHitlConsent`). Import
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` in the PingOne Authorize
+console, and `pac deploy` the updated `pac/policies/mcp-delegation.yaml`. No app, resource, or
+scope registration depends on the old name — it appeared exactly once in `scope-topology.json`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/a2aSpecialistToolRegistry.test.js` (38/38)
+· `npm run topology:verify` · `npm run snapshot:check` · `npm run hygiene:check` (all exit 0).
+Revert-to-RED: restore `tools: ['sensitive_investment_holdings']` + the ghost topology entry and
+`investment: sensitive_investment_holdings is a real, callable tool` and `UC2's per-vertical A2A
+primary tool is one the specialist is allowed to run` both fail.
+
 ### 2026-08-02 — Intent Token minted with NO `permitted_tools` claim when the request named a prototype key (#1258)
 
 **Files changed:** `demo_api_server/services/intentTokenService.js`,

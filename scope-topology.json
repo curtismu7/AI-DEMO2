@@ -1223,11 +1223,6 @@
     },
     "sensitive_holdings": {
       "requiredScopes": ["read"],
-      "surface": "gateway",
-      "challengeType": "consent"
-    },
-    "sensitive_investment_holdings": {
-      "requiredScopes": ["read"],
       "a2aDelegatedScope": "holdings:read",
       "surface": "gateway",
       "challengeType": "consent",
