@@ -30,7 +30,7 @@ The MCP server validates required scopes before dispatching; a token missing a r
 
 ## Code References
 
-- `demo_mcp_server/src/auth/validateTokenScopes.js`
+- `oauth-mcp/src/auth/validateTokenScopes.js`
 - `demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts`
 
 

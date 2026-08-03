@@ -10,6 +10,7 @@ import {
 describe('demoUseCaseSteps', () => {
   it('keeps the presenter Demo script order', () => {
     expect(DEMO_USE_CASE_IDS).toEqual([
+      'UC24',
       'UC1',
       'UC8',
       'UC7',
@@ -71,16 +72,19 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 20 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(20);
+  it('primary list has 21 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(21);
   });
 
   it('advanced list is empty (nothing hidden)', () => {
     expect(DEMO_ADVANCED_USE_CASE_IDS).toHaveLength(0);
   });
 
-  it('UC1 is always the first primary step', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS[0]).toBe('UC1');
+  // UC24 (Act 1 — public catalog, no token exchange) opens the script; UC1 is
+  // the delegated-access step that follows it.
+  it('UC24 opens the script and UC1 follows it', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS[0]).toBe('UC24');
+    expect(DEMO_PRIMARY_USE_CASE_IDS[1]).toBe('UC1');
   });
 
   it('ADMIN ids all start with ADMIN', () => {

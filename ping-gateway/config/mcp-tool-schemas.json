@@ -1366,6 +1366,27 @@
         "additionalProperties": false
       }
     },
+    "pay_airline_fee": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "Fee amount in dollars"
+          },
+          "fee_type": {
+            "type": "string",
+            "description": "One of 'change', 'bag', 'upgrade' (default 'change')"
+          },
+          "confirmation_number": {
+            "type": "string",
+            "description": "Reservation the fee applies to. Omit for the next upcoming trip."
+          }
+        },
+        "required": []
+      }
+    },
     "pay_bill": {
       "source": "olb",
       "inputSchema": {

@@ -18,6 +18,7 @@ const manifest = require('../config/verticals/airlines/manifest.json');
 const AIRLINES_TOOLS = [
   'get_airline_bookings',      // plain read — ungated
   'cancel_airline_reservation', // Phase 2 write — step-up (MFA)
+  'pay_airline_fee',            // Phase 2 amount-gated write — ladder decides
   'sensitive_airline_bookings', // Phase 2 sensitive read — HITL consent
   'get_flight_status',
   'check_seat_availability',
@@ -148,6 +149,54 @@ describe('airlines vertical', () => {
     verticalManifest.init();
     const { resolveAgentScopes } = require('../services/agentScopes');
     expect(resolveAgentScopes('airlines', false)).toContain('airlines:read');
+  });
+
+  test('the fee heuristic extracts the amount and outranks cancel', () => {
+    const fee = plugin.getHeuristics().find((h) => h.action === 'pay_airline_fee');
+    expect(fee).toBeDefined();
+    expect(fee.extractsAmount).toBe(true);
+
+    const feeIndex = plugin.getHeuristics().findIndex((h) => h.action === 'pay_airline_fee');
+    const cancelIndex = plugin.getHeuristics().findIndex((h) => h.action === 'cancel_airline_reservation');
+    expect(feeIndex).toBeLessThan(cancelIndex);
+  });
+
+  // The catalog's amount trigger for this vertical. If the regex stops matching
+  // it, UC6/7/8/22 fall through to the LLM and the demo silently loses its
+  // DENY / step-up / consent proof.
+  test.each([
+    'pay a $300 change fee',
+    'pay a $2500 change fee',
+    'pay the $60 bag fee',
+  ])('%s routes to pay_airline_fee', (phrase) => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test(phrase));
+    expect(hit && hit.action).toBe('pay_airline_fee');
+  });
+
+  // "refund fee" contains `refund`, which the cancel rule also matches.
+  test('a refund fee is a fee payment, not a cancellation', () => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test('pay the $75 refund fee'));
+    expect(hit.action).toBe('pay_airline_fee');
+  });
+
+  // Without this entry _applyTransactionPolicy returns early on a null
+  // transactionType, so $2500 PERMITs and UC6/7/8/22 all silently pass.
+  test('pay_airline_fee is on the transaction-policy path', () => {
+    const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService');
+    expect(WRITE_TOOL_TYPE_MAP.pay_airline_fee).toBe('transfer');
+  });
+
+  test('pay_airline_fee is gateway-surfaced and scoped like the cancel write', () => {
+    expect(scopeTopology.toolScopes('pay_airline_fee')).toEqual(['airlines:read', 'airlines:write']);
+    expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
+  });
+
+  // The amount ladder must decide the outcome, not a pinned challengeType.
+  // large_trade pins step_up unconditionally, which would render UC6's $2500
+  // DENY and UC8's $300 HITL both as step-up.
+  test('pay_airline_fee pins no challengeType', () => {
+    const topology = require('../../scope-topology.json');
+    expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();
   });
 
   test('the resource server declares the same tools and scope', () => {

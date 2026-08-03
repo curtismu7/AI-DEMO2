@@ -12,9 +12,55 @@
  * looking like a real subject match.
  */
 
-import { getFlight, getPassengerRecord, listBookings, listSeats, nextFlightFor, resolvePassenger } from '../db/airlinesDb';
+import { getFlight, getPassengerRecord, listBookings, listSeats, nextFlightFor, recordFeePayment, resolvePassenger } from '../db/airlinesDb';
 
 const SOURCE = 'sqlite';
+
+const FEE_TYPES = new Set(['change', 'bag', 'upgrade']);
+
+/**
+ * The amount-gated write. Unlike cancelReservation this one really does mutate,
+ * but only by APPENDING to fee_payments — nothing a replayed demo can exhaust,
+ * and the row is what UC20's audit view reads back.
+ *
+ * Reaching this function at all is the proof: at $2500 the transaction policy
+ * denies, at $600 it demands step-up, at $300 it demands consent. A row here
+ * means the ladder let the call through.
+ */
+function payFee(args: Record<string, unknown>, subject: string): unknown {
+  const amount = typeof args.amount === 'number' ? args.amount : Number(args.amount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { source: SOURCE, paid: false, note: 'A positive fee amount is required.' };
+  }
+  const rawType = typeof args.fee_type === 'string' ? args.fee_type.trim().toLowerCase() : '';
+  const feeType = FEE_TYPES.has(rawType) ? rawType : 'change';
+
+  let confirmationNumber: string | null =
+    typeof args.confirmation_number === 'string' && args.confirmation_number.trim()
+      ? args.confirmation_number.trim().toUpperCase()
+      : null;
+  if (!confirmationNumber) {
+    const match = resolvePassenger(subject);
+    const bookings = match ? listBookings(match.passenger.passenger_ref) : [];
+    confirmationNumber = bookings.length ? bookings[0].confirmation_number : null;
+  }
+
+  const receipt = recordFeePayment({
+    confirmationNumber,
+    feeType,
+    amountCents: Math.round(amount * 100),
+  });
+
+  return {
+    source: SOURCE,
+    paid: true,
+    receiptId: receipt.id,
+    confirmationNumber,
+    feeType,
+    amount,
+    paidAt: receipt.paidAt,
+  };
+}
 
 /**
  * Flight number from the arguments, or the passenger's next departing flight.
@@ -216,6 +262,7 @@ function sensitivePassengerRecord(subject: string): unknown {
 }
 
 export const AIRLINES_TOOL_NAMES = new Set([
+  'pay_airline_fee',
   'get_airline_bookings',
   'sensitive_airline_bookings',
   'cancel_airline_reservation',
@@ -230,6 +277,8 @@ export async function dispatchAirlinesTool(
   subject: string,
 ): Promise<unknown> {
   switch (toolName) {
+    case 'pay_airline_fee':
+      return payFee(args, subject);
     case 'get_airline_bookings':
       return getBookings(subject);
     case 'sensitive_airline_bookings':

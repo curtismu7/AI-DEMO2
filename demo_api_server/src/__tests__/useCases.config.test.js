@@ -72,7 +72,7 @@ describe('useCases catalog SoT', () => {
     expect(blob).not.toMatch(/banking:(read|write|admin)/);
   });
 
-  test('VERTICALS lists the 9 supported verticals', () => {
+  test('VERTICALS lists the 10 supported verticals', () => {
     // Adding a vertical here is not cosmetic: VERTICALS is what gives a vertical its
     // perVertical chip overrides AND is the list every audit loops over. Omitting one
     // makes it inherit banking phrases its own heuristics cannot route (kind:'none' ->
@@ -81,7 +81,7 @@ describe('useCases catalog SoT', () => {
     expect(VERTICALS).toEqual([
       'banking', 'healthcare', 'retail', 'government',
       'university', 'workforce', 'sporting-goods', 'manufacturing',
-      'investment',
+      'investment', 'airlines',
     ]);
   });
 
@@ -173,6 +173,15 @@ describe('useCases catalog SoT', () => {
         UC7: 'execute a large trade of $600',
         UC8: 'execute a large trade of $300',
         UC24: 'What branches are near me?',
+      },
+      airlines: {
+        // Verified against airlines' OWN heuristics: 'show my reservations' ->
+        // get_airline_bookings, 'pay a $N change fee' -> pay_airline_fee {amount:N}.
+        UC1: 'show my reservations',
+        UC6: 'pay a $2500 change fee',
+        UC7: 'pay a $600 change fee',
+        UC8: 'pay a $300 change fee',
+        UC24: 'What airports are near me?',
       },
     };
     for (const vertical of VERTICALS) {

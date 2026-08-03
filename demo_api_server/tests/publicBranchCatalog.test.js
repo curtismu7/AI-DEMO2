@@ -25,3 +25,54 @@ describe('publicBranchCatalog', () => {
     expect(reply).toContain('Hours:');
   });
 });
+
+describe('vertical-aware catalog', () => {
+  test('banking is unchanged and is the fallback', () => {
+    const without = searchPublicBranches({});
+    const explicit = searchPublicBranches({ vertical: 'banking' });
+    expect(without.branches).toEqual(explicit.branches);
+    expect(explicit.branches[0].name).toMatch(/Super Banking/);
+  });
+
+  test('an unknown vertical falls back to banking rather than returning nothing', () => {
+    const result = searchPublicBranches({ vertical: 'not-a-vertical' });
+    expect(result.branches.length).toBeGreaterThan(0);
+    expect(result.branches[0].name).toMatch(/Super Banking/);
+  });
+
+  test.each([
+    ['healthcare', /clinic|health|medical/i],
+    ['retail', /store/i],
+    ['government', /office|city|county/i],
+    ['university', /campus|hall|library/i],
+    ['workforce', /office/i],
+    ['sporting-goods', /store|outfitter/i],
+    ['manufacturing', /plant|facility/i],
+    ['investment', /branch|office/i],
+    ['airlines', /airport|terminal/i],
+  ])('%s returns its own locations', (vertical, namePattern) => {
+    const result = searchPublicBranches({ vertical });
+    expect(result.branches.length).toBeGreaterThan(0);
+    expect(result.branches[0].name).toMatch(namePattern);
+    expect(result.branches[0].name).not.toMatch(/Super Banking/);
+  });
+
+  test('the city filter still works inside a vertical', () => {
+    const result = searchPublicBranches({ vertical: 'airlines', city: 'Denver' });
+    expect(result.branches.length).toBeGreaterThan(0);
+    expect(result.branches.every((b) => b.city === 'Denver')).toBe(true);
+  });
+
+  test('the reply heading matches the vertical, not the bank', () => {
+    const reply = formatBranchCatalogReply(searchPublicBranches({ vertical: 'airlines' }));
+    expect(reply).not.toMatch(/Super Banking/);
+    expect(reply).toMatch(/airport/i);
+  });
+
+  test('a no-match reply names the vertical, not Super Banking branches', () => {
+    const reply = formatBranchCatalogReply(
+      searchPublicBranches({ vertical: 'healthcare', city: 'Nowhereville' }),
+    );
+    expect(reply).not.toMatch(/Super Banking/);
+  });
+});

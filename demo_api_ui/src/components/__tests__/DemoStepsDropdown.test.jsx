@@ -52,20 +52,21 @@ describe('DemoStepsDropdown', () => {
     );
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
-    // All 20 steps show at once — the primary/advanced split was flattened
+    // All 21 steps show at once — the primary/advanced split was flattened
     // to a single 5-column grid (#826); nothing is gated behind a toggle.
     const items = screen.getAllByTestId(/^demo-step-/);
     expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
       DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
     );
+    // UC24 (Act 1 — public catalog) opens the script, so UC1 is step 2.
     expect(screen.getByTestId('demo-explain-UC1')).toHaveAttribute(
       'aria-label',
-      'Explain step 1: UC1 — Title for UC1',
+      'Explain step 2: UC1 — Title for UC1',
     );
-    // UC2 is the 8th id in walkthrough order
+    // UC2 is the 9th id in walkthrough order
     expect(screen.getByTestId('demo-explain-UC2')).toHaveAttribute(
       'aria-label',
-      'Explain step 8: UC2 — Title for UC2',
+      'Explain step 9: UC2 — Title for UC2',
     );
   });
 
@@ -83,7 +84,7 @@ describe('DemoStepsDropdown', () => {
     fireEvent.click(screen.getByTestId('demo-step-UC1'));
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect.mock.calls[0][0].id).toBe('UC1');
-    expect(onSelect.mock.calls[0][1]).toBe(1);
+    expect(onSelect.mock.calls[0][1]).toBe(2);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
@@ -365,7 +366,7 @@ describe('DemoStepsDropdown — step rail numbering', () => {
     apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
   });
 
-  it('numbers the full list 1–20 in walkthrough order', async () => {
+  it('numbers the full list 1–21 in walkthrough order', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -379,21 +380,25 @@ describe('DemoStepsDropdown — step rail numbering', () => {
 
     // No rail badge on the card itself since #826's 5-column grid — the
     // stepNumber still flows through to the per-step explain button.
+    expect(screen.getByTestId('demo-explain-UC24')).toHaveAttribute(
+      'aria-label',
+      'Explain step 1: UC24 — Title for UC24',
+    );
     expect(screen.getByTestId('demo-explain-UC1')).toHaveAttribute(
       'aria-label',
-      'Explain step 1: UC1 — Title for UC1',
+      'Explain step 2: UC1 — Title for UC1',
     );
     expect(screen.getByTestId('demo-explain-UC6')).toHaveAttribute(
       'aria-label',
-      'Explain step 7: UC6 — Title for UC6',
+      'Explain step 8: UC6 — Title for UC6',
     );
     expect(screen.getByTestId('demo-explain-UC2')).toHaveAttribute(
       'aria-label',
-      'Explain step 8: UC2 — Title for UC2',
+      'Explain step 9: UC2 — Title for UC2',
     );
     expect(screen.getByTestId('demo-explain-UC32')).toHaveAttribute(
       'aria-label',
-      'Explain step 20: UC32 — Title for UC32',
+      'Explain step 21: UC32 — Title for UC32',
     );
   });
 });

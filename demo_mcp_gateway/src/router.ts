@@ -55,6 +55,10 @@ const INVEST_TOOLS = new Set([
 // would get "no handler for sensitive_passenger_record" after a fully valid
 // nested-act exchange.
 const AIRLINES_TOOLS = new Set([
+  // Phase 2 amount-gated write. Routes to the same 'invest' target as the reads:
+  // same physical backend, same audience. Omitting it here means the gate fires,
+  // the policy decides, and then the call dies on 'Unknown tool'.
+  'pay_airline_fee',
   'get_airline_bookings',
   // Phase 2 — consent-gated counterpart. Must route the same way as the plain
   // lookup, or the gate would fire and then the call would 'Unknown tool'.

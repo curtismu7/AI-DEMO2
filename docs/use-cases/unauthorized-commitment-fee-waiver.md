@@ -30,8 +30,8 @@ The tool catalog itself is the authorization boundary — no tool can GRANT a wa
 
 ## Code References
 
-- `demo_mcp_server/src/tools/BankingToolRegistry.ts`
-- `demo_mcp_server/src/tools/handlers/commitmentHandlers.ts`
+- `oauth-mcp/src/tools/BankingToolRegistry.ts`
+- `oauth-mcp/src/tools/handlers/commitmentHandlers.ts`
 - `demo_api_server/services/intentTokenService.js`
 
 

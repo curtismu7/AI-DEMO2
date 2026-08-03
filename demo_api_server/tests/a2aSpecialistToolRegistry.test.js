@@ -89,3 +89,4 @@ describe('a2aSpecialists registry — declared tools must be real and delegable'
     expect(mismatches).toEqual([]);
   });
 });
+

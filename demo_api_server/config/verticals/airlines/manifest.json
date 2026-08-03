@@ -88,6 +88,15 @@
         "group": "advanced"
       },
       {
+        "id": "ua6",
+        "label": "Pay a change fee",
+        "message": "pay a $300 change fee",
+        "mode": "both",
+        "tool": "pay_airline_fee",
+        "useCaseId": "consent-required",
+        "group": "advanced"
+      },
+      {
         "id": "ua4",
         "label": "🔐 Sensitive reservations",
         "message": "access my sensitive airline bookings",

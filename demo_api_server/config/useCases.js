@@ -30,7 +30,7 @@
 const VERTICALS = [
   'banking', 'healthcare', 'retail', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
-  'investment',
+  'investment', 'airlines',
 ];
 
 
@@ -44,6 +44,7 @@ const READ_TRIGGER_BY_VERTICAL = {
   'sporting-goods': 'my gear',
   manufacturing: 'show my work orders',
   investment: 'show my portfolios',
+  airlines: 'show my reservations',
 };
 
 /** Amount-gated write phrases ($300 HITL / $600 step-up / $2500 deny). */
@@ -58,6 +59,7 @@ function amountTriggerByVertical(amount) {
     'sporting-goods': `extend my rental $${n}`,
     manufacturing: `approve a $${n} purchase order`,
     investment: `execute a large trade of $${n}`,
+    airlines: `pay a $${n} change fee`,
   };
 }
 
@@ -90,6 +92,7 @@ const READ_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods': 'list_gear',
   manufacturing: 'view_work_orders',
   investment: 'view_portfolios',
+  airlines: 'get_airline_bookings',
 };
 
 /** Amount-gated write tool per vertical (UC6/7/8 DENY / step-up / consent). */
@@ -102,6 +105,7 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods': 'extend_rental',
   manufacturing: 'approve_purchase_order',
   investment: 'large_trade',
+  airlines: 'pay_airline_fee',
 };
 
 /**
@@ -122,6 +126,10 @@ const SECOND_PRODUCT_TRIGGER_BY_VERTICAL = {
   'sporting-goods': 'show my gear warranty',
   manufacturing: 'show my work order status',
   investment: 'show my portfolio',
+  // airlines has no featurePage/api_key tool yet, but it does own a genuine
+  // second product: a FLIGHT is not a RESERVATION. get_flight_status is a
+  // different tool against different rows, which is all UC33 needs to prove.
+  airlines: 'what is the status of flight UA328',
 };
 const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   healthcare: 'show_health_record',
@@ -132,6 +140,7 @@ const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   'sporting-goods': 'show_gear_warranty',
   manufacturing: 'show_work_order',
   investment: 'show_investment',
+  airlines: 'get_flight_status',
 };
 
 /**
@@ -165,6 +174,7 @@ const REQUEST_ONLY_NOT_APPLICABLE = {
   retail: 'No request-only tool yet — needs a "request a price adjustment" tool (wave 2).',
   manufacturing: 'No request-only tool yet — needs a "request a spec exception" tool (wave 2).',
   investment: 'No request-only tool yet — needs a "request a fee-tier review" tool (wave 2).',
+  airlines: 'No request-only tool yet — needs a "request a change-fee waiver" tool the agent can FILE but not GRANT (wave 2). pay_airline_fee is the opposite: it completes the transaction.',
 };
 
 /** Merge per-vertical primaryTool into chipOverrides extras. */
@@ -211,6 +221,7 @@ const A2A_TRIGGER_BY_VERTICAL = {
   'sporting-goods':  'show my sensitive membership details',
   manufacturing:     'show my sensitive supplier contract',
   investment:        'show my sensitive holdings',
+  airlines:          'show my sensitive passenger record',
 };
 const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare:        'sensitive_patient_records',
@@ -221,6 +232,7 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   'sporting-goods':  'sensitive_membership_details',
   manufacturing:     'sensitive_supplier_contract',
   investment:        'sensitive_holdings',
+  airlines:          'sensitive_passenger_record',
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 
@@ -767,6 +779,7 @@ const RAW_USE_CASES = [
       'sporting-goods': 'What stores are near me?',
       manufacturing: 'What plant locations are near me?',
       investment: 'What branches are near me?',
+      airlines: 'What airports are near me?',
     }, withPrimaryTool({
       healthcare: 'get_branch_hours',
       retail: 'get_branch_hours',
@@ -776,6 +789,7 @@ const RAW_USE_CASES = [
       'sporting-goods': 'get_branch_hours',
       manufacturing: 'get_branch_hours',
       investment: 'get_branch_hours',
+      airlines: 'get_branch_hours',
     })),
   },
   {

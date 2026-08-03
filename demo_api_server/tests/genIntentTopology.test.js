@@ -30,7 +30,7 @@ const EXPECTED_CHIP_COUNTS = {
   university: 9,
   admin: 8,
   'pingone-admin': 5,
-  airlines: 6,
+  airlines: 7,
 };
 
 /** Minimal well-formed row; override one field per negative case. */
@@ -60,8 +60,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 132 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(132);
+  it('covers 133 chips across 13 verticals', () => {
+    expect(rows).toHaveLength(133);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
   });
 
@@ -103,7 +103,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(132);
+    expect(topology.counts.chips).toBe(133);
     expect(topology.counts.verticals).toBe(13);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });
