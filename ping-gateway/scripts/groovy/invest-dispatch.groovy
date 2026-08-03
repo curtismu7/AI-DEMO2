@@ -25,6 +25,19 @@
  *
  * Inbound token validation, scope enforcement and the P1AZ decision all run in
  * earlier filters on this route, so by the time we run the caller is authorized.
+ * P1AZ in particular still sees the ORIGINAL inbound token, so the a2aDelegated
+ * tools keep being judged on their nested `act` chain — this filter only changes
+ * which backend receives the call, never whether it is allowed.
+ *
+ * CAVEAT for the four invest tools: their handlers in demo_mcp_resource_server
+ * call back into the BFF (`/api/investment/:id/portfolio`). That callback's
+ * audience exception in demo_api_server/middleware/auth.js reads
+ * PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI, which nothing sets — the deployment
+ * sets MCP_RESOURCE_SERVER_AUDIENCE — so the exception is currently dead and the
+ * callback is accepted on other grounds. Verify get_portfolio_summary still
+ * returns a portfolio before this leaves draft; if it 401s, that env-name
+ * mismatch is the reason, and it is a pre-existing bug this change surfaces
+ * rather than causes.
  */
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
@@ -33,22 +46,27 @@ import org.forgerock.http.protocol.Status
 import org.forgerock.util.promise.Promises
 
 // Tools served by demo_mcp_resource_server rather than the banking MCP server.
-// Mirrors AIRLINES_TOOLS in demo_mcp_gateway/src/router.ts. The four invest tools
-// (get_investment_*/get_portfolio_summary) are deliberately NOT here yet: they
-// reach the resource server through the A2A path today, and moving them is a
-// separate behaviour change from making the airlines chips work.
+// Mirrors AIRLINES_TOOLS + INVEST_TOOLS in demo_mcp_gateway/src/router.ts.
 def INVEST_BACKEND_TOOLS = [
     'get_airline_bookings',
     'get_flight_status',
     'check_seat_availability',
+    'get_investment_accounts',
+    'get_investment_balance',
+    'get_investment_transactions',
+    'get_portfolio_summary',
 ] as Set
 
 // Scope to request on the backend token, per tool. Must match the tool's
 // requiredScopes in scope-topology.json or the resource server answers -32005.
 def SCOPE_FOR_TOOL = [
-    get_airline_bookings   : 'airlines:read',
-    get_flight_status      : 'airlines:read',
-    check_seat_availability: 'airlines:read',
+    get_airline_bookings       : 'airlines:read',
+    get_flight_status          : 'airlines:read',
+    check_seat_availability    : 'airlines:read',
+    get_investment_accounts    : 'invest:read',
+    get_investment_balance     : 'invest:read',
+    get_investment_transactions: 'invest:read',
+    get_portfolio_summary      : 'invest:read',
 ]
 
 // ── Env ───────────────────────────────────────────────────────────────────────
