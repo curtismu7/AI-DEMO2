@@ -5,6 +5,28 @@ import "./TokenChainDemoTrackTab.css";
 
 const POLL_MS = 5000;
 
+/**
+ * Mini token-chain strip for a filled slot (spec surface-2 polish). Verdict-driven
+ * summary of the enforcement chain: a PERMIT reaches the tool; DENY/BLOCKED stops
+ * at P1AZ with the tool struck through; HITL/STEP_UP stops at the challenge.
+ */
+function ChainStrip({ stamp }) {
+  if (!stamp) return null;
+  const permit = stamp.verdict === "PERMIT";
+  const tool = stamp.via || "tool";
+  const p1azLabel = permit ? "P1AZ PERMIT" : `P1AZ ${stamp.verdict} ${stamp.verdict === "HITL" || stamp.verdict === "STEP_UP" ? "" : "✕"}`.trim();
+  return (
+    <div className="tct-chain">
+      <span className="tct-cn tct-cn--ok">user token ✓</span><span className="tct-ca">›</span>
+      <span className="tct-cn tct-cn--ok">RFC 8693 · act ✓</span><span className="tct-ca">›</span>
+      <span className={`tct-cn ${permit ? "tct-cn--ok" : "tct-cn--deny"}`}>{p1azLabel}</span><span className="tct-ca">›</span>
+      {permit
+        ? <span className="tct-cn tct-cn--ok">{tool} ✓</span>
+        : <span className="tct-cn tct-cn--skip">{tool} — never called</span>}
+    </div>
+  );
+}
+
 function slotBadge(stamp, slot) {
   if (!stamp) return <span className="tct-slot tct-slot--empty">{slot?.chipText || slot?.label || "pending"}</span>;
   const cls = stamp.verdict === "PERMIT" ? "tct-slot--green" : "tct-slot--red";
@@ -89,7 +111,9 @@ export default function TokenChainDemoTrackTab() {
         ) : (
           <div className="tct-slots">
             {step.slots.green && <div className="tct-slot-row"><span className="tct-tag tct-tag--g">GREEN</span>{slotBadge(green, step.slots.green)}</div>}
+            {green && <ChainStrip stamp={green} />}
             {step.slots.red && <div className="tct-slot-row"><span className="tct-tag tct-tag--r">RED</span>{slotBadge(red, step.slots.red)}</div>}
+            {red && <ChainStrip stamp={red} />}
           </div>
         )}
         {complete && (

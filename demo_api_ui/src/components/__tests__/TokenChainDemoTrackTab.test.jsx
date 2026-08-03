@@ -41,4 +41,23 @@ describe('TokenChainDemoTrackTab', () => {
     const link = await screen.findByText(/Open full track page/);
     expect(link.closest('a')).toHaveAttribute('href', '/demo-track');
   });
+
+  it('renders a mini token-chain strip for a filled PERMIT slot ending at the tool', async () => {
+    render(<TokenChainDemoTrackTab />);
+    await waitFor(() => expect(screen.getByText(/PERMIT ✓/)).toBeInTheDocument());
+    expect(screen.getByText('user token ✓')).toBeInTheDocument();
+    expect(screen.getByText('RFC 8693 · act ✓')).toBeInTheDocument();
+    expect(screen.getByText('P1AZ PERMIT')).toBeInTheDocument();
+    expect(screen.getByText('get_account_balance ✓')).toBeInTheDocument();
+  });
+
+  it('renders a deny strip that stops at P1AZ with the tool never called', async () => {
+    const denyState = JSON.parse(JSON.stringify(STATE));
+    denyState.run.slots['pingone-mcp-admin:red'] = { verdict: 'DENY', decisionId: 'd-9', via: 'denied_tool', at: '2026-08-03T10:44:00Z' };
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(denyState) })));
+    render(<TokenChainDemoTrackTab />);
+    await waitFor(() => expect(screen.getAllByText(/DENY ✕/).length).toBeGreaterThan(0));
+    expect(screen.getByText('P1AZ DENY ✕')).toBeInTheDocument();
+    expect(screen.getByText('denied_tool — never called')).toBeInTheDocument();
+  });
 });
