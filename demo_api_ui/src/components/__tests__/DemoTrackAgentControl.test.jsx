@@ -74,4 +74,46 @@ describe("DemoTrackAgentControl", () => {
     const { container } = render(<DemoTrackAgentControl onPickStep={() => {}} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("fires onStepComplete once with the next step when the picked step's slots fill", async () => {
+    const onStepComplete = vi.fn();
+    const completedRun = {
+      ...RUN,
+      slots: {
+        ...RUN.slots,
+        "fine-grained-authz:green": { verdict: "PERMIT", at: "2026-08-03T10:05:00Z" },
+        "fine-grained-authz:red": { verdict: "DENY", at: "2026-08-03T10:06:00Z" },
+      },
+    };
+    // First load: incomplete. After the pick's reload: completed.
+    let calls = 0;
+    apiClient.get.mockImplementation(() => {
+      calls += 1;
+      return Promise.resolve({ data: { track: TRACK, run: calls >= 2 ? completedRun : RUN } });
+    });
+    render(<DemoTrackAgentControl onPickStep={() => {}} onStepComplete={onStepComplete} />);
+    fireEvent.click(await screen.findByText(/Demo Track:/));
+    fireEvent.click(await screen.findByText("Fine-grained authz"));
+    await waitFor(() => expect(onStepComplete).toHaveBeenCalledTimes(1));
+    const arg = onStepComplete.mock.calls[0][0];
+    expect(arg.step.stepId).toBe("fine-grained-authz");
+    expect(arg.next.step.stepId).toBe("pingone-mcp-admin");
+    expect(arg.next.index).toBe(2);
+  });
+
+  it("does not fire onStepComplete for a step that was never picked", async () => {
+    const onStepComplete = vi.fn();
+    const completedRun = {
+      ...RUN,
+      slots: {
+        ...RUN.slots,
+        "fine-grained-authz:green": { verdict: "PERMIT", at: "2026-08-03T10:05:00Z" },
+        "fine-grained-authz:red": { verdict: "DENY", at: "2026-08-03T10:06:00Z" },
+      },
+    };
+    apiClient.get.mockResolvedValue({ data: { track: TRACK, run: completedRun } });
+    render(<DemoTrackAgentControl onPickStep={() => {}} onStepComplete={onStepComplete} />);
+    await screen.findByText(/Demo Track:/);
+    expect(onStepComplete).not.toHaveBeenCalled();
+  });
 });

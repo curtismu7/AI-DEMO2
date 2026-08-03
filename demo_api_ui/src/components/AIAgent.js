@@ -810,10 +810,27 @@ export default function BankingAgent({
   const aguiActiveRunIdRef = React.useRef(null);
 
   // Guided Demo Track (Plan C): picked step drives a banner + swapped chip row.
-  const [trackStep, setTrackStep] = useState(null); // { step, index, total } | null
-  function handleTrackStepPick({ step, index, total }) {
-    setTrackStep({ step, index, total });
+  const [trackStep, setTrackStep] = useState(null); // { step, index, total, completed?, next? } | null
+  async function handleTrackStepPick({ step, index, total }) {
+    setTrackStep({ step, index, total, completed: false, next: null });
     addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
+    // Arm the flags this step's backing use case needs (same contract as
+    // handleDemoStepSelect) — e.g. the A2A step is dead without ff_a2a_delegation.
+    const greenTool = step.slots?.green?.match?.tools?.[0] || null;
+    await ensureRequiredDemoFlags(
+      requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: greenTool }),
+      `demo track: ${step.stepId}`,
+    );
+  }
+  function handleTrackStepComplete({ step, index, total, next }) {
+    setTrackStep((cur) =>
+      cur && cur.step.stepId === step.stepId ? { ...cur, completed: true, next } : cur,
+    );
+    const lines = [`STEP ${index + 1} PROVED`];
+    if (step.proved?.green) lines.push(`✓ ${step.proved.green}`);
+    if (step.proved?.red) lines.push(`✕ ${step.proved.red}`);
+    if (step.proved?.sayThis) lines.push(`SAY THIS: ${step.proved.sayThis}`);
+    addMessage("assistant", lines.join("\n"));
   }
 
   /** Render a single action button with optional emoji-only styling. */
@@ -8323,7 +8340,7 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
-                <DemoTrackAgentControl onPickStep={handleTrackStepPick} />
+                <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
                 <div
                   className={
                     splitChrome
@@ -9953,6 +9970,17 @@ export default function BankingAgent({
                           onClick={() => handleChipActivate({ id: "track-why-blocked", label: "why was that blocked?", message: "why was that blocked?" })}>
                           why was that blocked?
                         </button>
+                        {trackStep.completed && trackStep.next && (
+                          <button type="button" className="ba-track-chip ba-track-chip--next"
+                            onClick={async () => {
+                              try {
+                                await apiClient.post("/api/demo-track/active-step", { stepId: trackStep.next.step.stepId });
+                              } catch { /* pick still proceeds; control resyncs on next poll */ }
+                              handleTrackStepPick(trackStep.next);
+                            }}>
+                            Next: Step {trackStep.next.index + 1} — {trackStep.next.step.title}
+                          </button>
+                        )}
                         <button type="button" className="ba-track-chip ba-track-chip--exit" onClick={() => setTrackStep(null)}>
                           exit track
                         </button>
