@@ -2025,6 +2025,14 @@
         "additionalProperties": false
       }
     },
+    "sensitive_passenger_record": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
     "sensitive_patient_records": {
       "source": "olb",
       "inputSchema": {
