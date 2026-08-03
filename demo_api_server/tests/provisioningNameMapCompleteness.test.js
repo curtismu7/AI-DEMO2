@@ -53,6 +53,10 @@ describe('provisioning name map is total', () => {
       .filter(([k, v]) => k === v)
       .map(([k]) => k);
     // Snapshotted as a count so adding one is a conscious edit.
-    expect(identity.length).toBe(11);
+    // 12th: "Super Banking A2A Intermediate - Identity Verification Specialist".
+    // Identity-mapped on purpose, like every other A2A intermediate resource — the
+    // live PingOne resource is named after the canonical key, so renaming the key
+    // renames it. That is the convention the other eleven already follow.
+    expect(identity.length).toBe(12);
   });
 });

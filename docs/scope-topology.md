@@ -49,6 +49,8 @@
 | `agent:invoke:supplier` | medium | Super Banking A2A Intermediate - Supplier Contract Specialist | Invoke the Supplier Contract Specialist A2A intermediate (Exchange #1 actor) |
 | `agent:invoke:holdings` | medium | Super Banking A2A Intermediate - Holdings Specialist | Invoke the Holdings Specialist A2A intermediate (Exchange #1 actor) |
 | `agent:invoke:passenger` | medium | Super Banking A2A Intermediate - Passenger Records Specialist | Invoke the Passenger Records Specialist A2A intermediate (Exchange #1 actor) |
+| `identity:read` | high | Super Banking API | Read a customer identity-verification (KYC) record (admin vertical A2A specialist scope) |
+| `agent:invoke:identity` | medium | Super Banking A2A Intermediate - Identity Verification Specialist | Invoke the Identity Verification Specialist A2A intermediate (Exchange #1 actor) |
 
 ## Resources
 
@@ -56,7 +58,7 @@
 
 Audience: `enduser.ping.demo`
 
-Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `holdings:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `holdings:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`, `identity:read`
 
 ### Super Banking MCP Server
 
@@ -166,13 +168,19 @@ Native scopes: `agent:invoke:passenger`
 
 Audience: `mcpgateway-a2a.ping.demo`
 
-Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`, `pnr:read`
+Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`, `pnr:read`, `identity:read`
 
 ### Super Banking PingGateway MCP
 
 Audience: `https://api.ping.demo:3036/mcp`
 
 Native scopes: `gateway:mcp:invoke`
+
+### Super Banking A2A Intermediate - Identity Verification Specialist
+
+Audience: `a2a-intermediate-identity.ping.demo`
+
+Native scopes: `agent:invoke:identity`
 
 ## Servers
 
@@ -298,6 +306,12 @@ Granted scopes: — (none; resource-server or worker app)
 Type: `WORKER`  ·  Grants: `client_credentials`
 
 Granted scopes: — (none; resource-server or worker app)
+
+### Super Banking Identity Verification Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`, `identity:read`
 
 ## Tool → Scope Dependencies
 
@@ -549,6 +563,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `list_pingone_tools` | gateway | `read` | — |
 | `gear_warranty_demo` | gateway | `read` | — |
 | `request_price_match` | gateway | `write` | — |
+| `sensitive_customer_identity` | gateway | `read` | consent |
 | `request_fee_tier_review` | gateway | `write` | — |
 | `request_spec_exception` | gateway | `write` | — |
 | `request_price_adjustment` | gateway | `write` | — |
