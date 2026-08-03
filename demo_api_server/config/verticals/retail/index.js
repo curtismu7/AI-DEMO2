@@ -25,6 +25,9 @@ const HEURISTICS = [
   { re: /\bwish\s*list\b|\bsaved\s+items?\b/i, action: 'view_wishlist' },
   { re: /\breturns?\b|\breturn\s+history\b|\breturn\s+an?\s+item\b/i, action: 'view_returns' },
   /* PACK:heuristics:end */
+  // UC28 request-only. Must precede the order/list heuristics, which own
+  // "order" and would otherwise claim the phrase.
+  { re: /\bprice[\s-]?adjust\w*\b|\badjust\b.{0,15}\bprice\b/i, action: 'request_price_adjustment' },
   { re: /\bsensitive\b.*\border\b|\border\b.*\bsensitive\b/i, action: 'sensitive_order_history' },
   // Points advice (chip rt8) before checkout so "buy with my points" ≠ checkout
   { re: /\b(buy|spend|redeem|use)\b.*\bpoints?\b|\bpoints?\b.*\b(buy|spend|redeem|use|what should)\b|\bwhat should i buy\b/i, action: 'rewards_balance' },

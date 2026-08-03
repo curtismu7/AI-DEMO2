@@ -155,6 +155,9 @@ const REQUEST_ONLY_TRIGGER_BY_VERTICAL = {
   university: 'can you request campus housing for me?',
   workforce: 'can you request a schedule change for me?',
   'sporting-goods': 'can you price-match my last order?',
+  retail: 'can you request a price adjustment on my order?',
+  manufacturing: 'can you request a spec exception?',
+  investment: 'can you request a fee tier review?',
 };
 const REQUEST_ONLY_TOOL_BY_VERTICAL = {
   healthcare: 'request_document',
@@ -162,6 +165,9 @@ const REQUEST_ONLY_TOOL_BY_VERTICAL = {
   university: 'request_housing_assignment',
   workforce: 'request_schedule_change',
   'sporting-goods': 'request_price_match',
+  retail: 'request_price_adjustment',
+  manufacturing: 'request_spec_exception',
+  investment: 'request_fee_tier_review',
 };
 
 /**
@@ -171,9 +177,6 @@ const REQUEST_ONLY_TOOL_BY_VERTICAL = {
  * someone decides which it is.
  */
 const REQUEST_ONLY_NOT_APPLICABLE = {
-  retail: 'No request-only tool yet — needs a "request a price adjustment" tool (wave 2).',
-  manufacturing: 'No request-only tool yet — needs a "request a spec exception" tool (wave 2).',
-  investment: 'No request-only tool yet — needs a "request a fee-tier review" tool (wave 2).',
   airlines: 'No request-only tool yet — needs a "request a change-fee waiver" tool the agent can FILE but not GRANT (wave 2). pay_airline_fee is the opposite: it completes the transaction.',
 };
 
