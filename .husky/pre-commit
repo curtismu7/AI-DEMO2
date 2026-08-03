@@ -30,7 +30,9 @@ elif [ -n "$TOPO_TOUCHED" ]; then
     echo "[pre-commit] ❌ gen:tool-schemas failed — cannot regenerate mcp-tool-schemas.json (fix the tool source, then re-commit)."
     exit 1
   fi
-  git add mcp-tool-schemas.json 2>/dev/null || true
+  # Both outputs: the root artifact and IG's copy inside the ping-gateway/config
+  # directory mount (see genToolSchemas.ts — they must stay byte-identical).
+  git add mcp-tool-schemas.json ping-gateway/config/mcp-tool-schemas.json 2>/dev/null || true
   if ! npm run --silent topology:verify; then
     echo "[pre-commit] ❌ topology:verify failed — scope-topology.json drifts from PingGateway / P1AZ / running code / mock authz (see above)."
     echo "[pre-commit]    Fix the drift, or regenerate the derived artifacts (npm run scopes:doc / npm --prefix demo_api_server run scopes:gen), then re-commit."

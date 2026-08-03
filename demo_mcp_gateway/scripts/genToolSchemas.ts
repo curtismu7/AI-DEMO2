@@ -51,7 +51,19 @@ export function buildToolSchemas(): ToolSchemaArtifact {
 }
 
 if (require.main === module) {
-  const outPath = path.resolve(__dirname, '../../mcp-tool-schemas.json');
-  fs.writeFileSync(outPath, JSON.stringify(buildToolSchemas(), null, 2) + '\n');
-  console.log(`Wrote ${outPath} (${Object.keys(buildToolSchemas().tools).length} tools)`);
+  // Two outputs, byte-identical (toolSchemaDrift.test.ts enforces it):
+  //   repo root            — the canonical artifact (Node gateway import, BFF tests, Dockerfile COPY)
+  //   ping-gateway/config/ — the copy IG's Groovy validator reads at /var/gateway/config/
+  // IG gets its own copy because compose mounts ping-gateway/config as a DIRECTORY.
+  // Bind-mounting the root file individually broke every /mcp POST whenever git
+  // replaced it (rename = new inode, mount pins the dead one) — see REGRESSION_PLAN §4.
+  const outPaths = [
+    path.resolve(__dirname, '../../mcp-tool-schemas.json'),
+    path.resolve(__dirname, '../../ping-gateway/config/mcp-tool-schemas.json'),
+  ];
+  const body = JSON.stringify(buildToolSchemas(), null, 2) + '\n';
+  for (const outPath of outPaths) {
+    fs.writeFileSync(outPath, body);
+    console.log(`Wrote ${outPath} (${Object.keys(buildToolSchemas().tools).length} tools)`);
+  }
 }
