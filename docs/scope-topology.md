@@ -21,6 +21,9 @@
 | `tax:read` | low | Super Banking API | Read sensitive tax assessment records (government vertical A2A specialist scope) |
 | `finaid:read` | low | Super Banking API | Read sensitive student financial aid records (university vertical A2A specialist scope) |
 | `supplier:read` | low | Super Banking API | Read sensitive supplier contract records (manufacturing vertical A2A specialist scope) |
+| `purchase:read` | low | Super Banking API | Read sensitive order/purchase history including payment details (retail vertical A2A specialist scope) |
+| `membership:read` | low | Super Banking API | Read sensitive membership details (sporting-goods vertical A2A specialist scope) |
+| `payroll:read` | low | Super Banking API | Read sensitive payroll details (workforce vertical A2A specialist scope) |
 | `invest:read` | low | Super Banking API | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) |
 | `holdings:read` | high | Super Banking API | Read sensitive investment holdings (investment vertical A2A specialist scope) |
 | `airlines:read` | low | Super Banking API | Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical) |
@@ -54,7 +57,7 @@
 
 Audience: `enduser.ping.demo`
 
-Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `holdings:read`, `airlines:read`, `airlines:write`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `purchase:read`, `membership:read`, `payroll:read`, `invest:read`, `holdings:read`, `airlines:read`, `airlines:write`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Server
 
@@ -158,7 +161,7 @@ Native scopes: `agent:invoke:holdings`
 
 Audience: `mcpgateway-a2a.ping.demo`
 
-Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`
+Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`, `purchase:read`, `membership:read`, `payroll:read`
 
 ### Super Banking PingGateway MCP
 
@@ -235,19 +238,19 @@ Granted scopes: `read`, `records:read`
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `purchase:read`
 
 ### Super Banking Membership Specialist Agent
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `membership:read`
 
 ### Super Banking Payroll Specialist Agent
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `payroll:read`
 
 ### Super Banking Tax Records Specialist Agent
 

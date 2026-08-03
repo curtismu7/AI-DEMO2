@@ -481,6 +481,11 @@ module.exports = {
   isA2aEnabled,
   resolveA2aConfig,
   delegateToSpecialist,
+  // Exchange #2's requested scope. Exported so pingoneProvisionService (Step
+  // 37a-A2A) grants the SAME scope the runtime asks for — a second, hand-rolled
+  // derivation there once granted bare `read` while the runtime requested the
+  // delegated scope, which a fresh bootstrap turns into invalid_scope.
+  deriveSpecialistScopes,
   // exported for unit tests
   buildA2aEvent,
   countActDepth,

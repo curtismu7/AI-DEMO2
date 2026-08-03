@@ -32,6 +32,12 @@ const ROOT = path.resolve(__dirname, '../../');
 const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
 const { A2A_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
 const scopeTopology = require('../services/scopeTopology');
+const { deriveSpecialistScopes } = require('../services/a2aDelegationService');
+
+// The scopes an ordinary user bearer already carries. A "delegated" scope that is
+// one of these has narrowed nothing.
+const COARSE_SCOPES = new Set(['read', 'write']);
+const topology = JSON.parse(fs.readFileSync(path.join(ROOT, 'scope-topology.json'), 'utf8'));
 
 // mcp-tool-schemas.json is the generated union of every callable tool across the
 // vertical plugins AND the gateway-served banking backend (235 today). It is
@@ -62,11 +68,38 @@ describe('a2aSpecialists registry — declared tools must be real and delegable'
     expect(scopeTopology.isA2aDelegatedTool(tool)).toBe(true);
   });
 
-  test.each(declaredPairs)('%s: %s derives a non-empty Exchange #1 scope', (vertical, tool) => {
-    const delegated = scopeTopology.a2aDelegatedScope(tool);
-    const scopes = delegated ? [delegated] : scopeTopology.toolScopes(tool) || [];
-    expect(scopes.length).toBeGreaterThan(0);
-  });
+  // Drives the REAL exported derivation, not a local replica of it. The replica this
+  // replaces asserted only `length > 0`, which a collapse to bare ["read"] passes —
+  // and retail/sporting-goods/workforce shipped exactly that, unnoticed, until the
+  // rt-a2a/sg-a2a/wf-a2a chips put three such chains in front of users.
+  test.each(Object.entries(A2A_SPECIALISTS))(
+    '%s: Exchange #2 requests a DEDICATED scope, never a coarse one',
+    (vertical, specialist) => {
+      const scopes = deriveSpecialistScopes(specialist, scopeTopology);
+      expect(scopes.length).toBeGreaterThan(0);
+      // `read`/`write` are what every ordinary bearer already carries. Requesting one
+      // of them proves no narrowing happened, so the delegated token is no more
+      // constrained than the user's own — the least-privilege claim the A2A demo
+      // makes is then false. REGRESSION_PLAN 2026-07-27 forbids it by name.
+      const coarse = scopes.filter((s) => COARSE_SCOPES.has(s));
+      expect(coarse).toEqual([]);
+    },
+  );
+
+  test.each(Object.entries(A2A_SPECIALISTS))(
+    '%s: its delegated scope is grantable — declared and on the A2A gateway resource',
+    (vertical, specialist) => {
+      // A scope the runtime requests but no resource offers fails Exchange #2 with
+      // PingOne invalid_scope, i.e. the collapse-avoidance above must not be won by
+      // inventing a scope name that was never provisioned.
+      const a2aGw = new Set(topology.resources['Super Banking A2A MCP Gateway'].scopes);
+      const problems = deriveSpecialistScopes(specialist, scopeTopology).flatMap((s) => [
+        ...(topology.scopes[s] ? [] : [`${s} is not declared in scopes{}`]),
+        ...(a2aGw.has(s) ? [] : [`${s} is missing from the Super Banking A2A MCP Gateway resource`]),
+      ]);
+      expect(problems).toEqual([]);
+    },
+  );
 
   test("UC2's per-vertical A2A primary tool is one the specialist is allowed to run", () => {
     // useCases.js documents this invariant in prose ("Each entry maps to a tool marked
