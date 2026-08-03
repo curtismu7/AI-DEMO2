@@ -102,6 +102,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — MCP server 401'd the spec-mandatory `notifications/initialized`, making tokenless discovery impossible
+
+**Files changed:** `demo_mcp_server/src/server/HttpMCPTransport.ts` + byte-identical twin
+`oauth-mcp/src/server/HttpMCPTransport.ts` (the tree the `mcp-server` image builds from),
+`{demo_mcp_server,oauth-mcp}/tests/discovery-handshake-unauthenticated.test.ts` (new),
+`{demo_mcp_server,oauth-mcp}/tests/server/HttpMCPTransport.test.ts` (401-notification case
+repointed at a non-handshake notification).
+
+**What was broken:** the unauthenticated-discovery allowlist was `initialize` + `tools/list`,
+but the MCP handshake is ordered and REQUIRES `notifications/initialized` between them. A
+spec-compliant client with no bearer (the PingOne Privilege gateway's Discover) completed
+`initialize`, then died: `Error discovering MCP server: sending "notifications/initialized":
+Unauthorized`.
+
+**What was fixed:** `notifications/initialized` joined the discovery allowlist — that one
+notification only. It is id-less, returns no body (202), and exposes no data.
+
+**Do not break:** every other notification still authenticates before routing
+(`notifications/cancelled` pinned in both test files); every id-bearing method except
+`initialize`/`tools/list` still requires a bearer (`tools/call` pinned). The two transport
+trees must stay in sync — the Docker image builds from `oauth-mcp/`, not `demo_mcp_server/`.
+
+**Verify:** `cd demo_mcp_server && npx jest tests/discovery-handshake-unauthenticated.test.ts`
+(same in `oauth-mcp`); live: Privilege console → Agentic Apps → mypingone → Discover shows the
+tool catalogue instead of Unauthorized.
+
 ### 2026-08-03 — Every PingGateway `/mcp` POST 500s after any pull that touches `mcp-tool-schemas.json` (second occurrence)
 
 **Files changed:** `docker-compose.yml`, `ping-gateway/docker-compose.yml`,
