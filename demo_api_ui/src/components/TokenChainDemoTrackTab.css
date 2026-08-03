@@ -33,3 +33,10 @@
 .tct-mark-r { color: #c62828; font-weight: 800; }
 .tct-say { margin-top: 5px; font-size: 11px; background: #fff8e6; border-radius: 5px; padding: 5px 8px; }
 .tct-error, .tct-loading { padding: 12px; color: #5f6b76; }
+/* Mini token-chain strip under a filled slot (mock: demo-track-tokenchain-tab-mock.html) */
+.tct-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 2px 0 6px 50px; }
+.tct-cn { font-size: 9px; letter-spacing: .02em; border: 1px solid #e3e7eb; border-radius: 4px; padding: 2px 6px; color: #5f6b76; }
+.tct-cn--ok { border-color: #bfe3c8; color: #1e7b34; }
+.tct-cn--deny { border-color: #f2c6c6; color: #c62828; font-weight: 700; }
+.tct-cn--skip { opacity: .45; text-decoration: line-through; }
+.tct-ca { color: #9aa7b4; font-size: 9px; }
