@@ -140,6 +140,17 @@ the `Super Banking A2A MCP Gateway` resource, or Exchange #2 dies with `invalid_
 `oauth-mcp`'s generated registry in step with `demo_mcp_server`'s by hand — the generator
 writes only the latter. Do not re-introduce a second scope derivation anywhere.
 
+**Latent trap noted while setting `riskLevel` (not a defect today, do not "fix" blindly):**
+`riskLevel: "high"|"critical"` is not display-only — `agentScopes.isWriteIsh()` gates such
+scopes behind the agent's write toggle, and `agentRestrictionsService.getRequiredTier()`
+classifies a tool as write-tier, which `isAgentRestricted()` DENIES for a user whose
+`agentRestrictions` is `read`. Both are inert for A2A delegated scopes only because they read
+`requiredScopes`/`toolScopes()`, and `a2aDelegatedScope` is a separate field neither consumer
+sees (verified: flipping `payroll:read` low→high leaves `getRequiredTier` and
+`resolveAgentScopes` byte-identical for workforce/retail/sporting-goods). If anyone ever
+feeds `a2aDelegatedScope` into either, every `"high"` delegated scope becomes write-tier at
+once — `payroll:read` and `holdings:read` today — and read-restricted users lose those tools.
+
 **Verify:** `cd demo_api_server && CI=true npx jest --runTestsByPath tests/a2aSpecialistToolRegistry.test.js`
 (44 tests). Revert-to-RED: delete the three `a2aDelegatedScope` lines from
 `scope-topology.json` — exactly `retail`, `sporting-goods` and `workforce` fail

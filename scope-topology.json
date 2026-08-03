@@ -33,7 +33,7 @@
     "supplier:read": { "description": "Read sensitive supplier contract records (manufacturing vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "purchase:read": { "description": "Read sensitive order/purchase history including payment details (retail vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "membership:read": { "description": "Read sensitive membership details (sporting-goods vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
-    "payroll:read": { "description": "Read sensitive payroll details (workforce vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "payroll:read": { "description": "Read sensitive payroll details (workforce vertical A2A specialist scope)", "riskLevel": "high", "resource": "Super Banking API", "category": "feature" },
     "invest:read": { "description": "Read investment accounts, balances, and portfolio summaries (A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "holdings:read": { "description": "Read sensitive investment holdings (investment vertical A2A specialist scope)", "riskLevel": "high", "resource": "Super Banking API", "category": "feature" },
     "airlines:read": { "description": "Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },

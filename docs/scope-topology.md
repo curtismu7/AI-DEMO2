@@ -23,7 +23,7 @@
 | `supplier:read` | low | Super Banking API | Read sensitive supplier contract records (manufacturing vertical A2A specialist scope) |
 | `purchase:read` | low | Super Banking API | Read sensitive order/purchase history including payment details (retail vertical A2A specialist scope) |
 | `membership:read` | low | Super Banking API | Read sensitive membership details (sporting-goods vertical A2A specialist scope) |
-| `payroll:read` | low | Super Banking API | Read sensitive payroll details (workforce vertical A2A specialist scope) |
+| `payroll:read` | high | Super Banking API | Read sensitive payroll details (workforce vertical A2A specialist scope) |
 | `invest:read` | low | Super Banking API | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) |
 | `holdings:read` | high | Super Banking API | Read sensitive investment holdings (investment vertical A2A specialist scope) |
 | `airlines:read` | low | Super Banking API | Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical) |
