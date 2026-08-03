@@ -29,6 +29,15 @@ function buildManufacturingTools(store) {
     { name: 'view_scrap_report', description: "View the scrap and rework report derived from logged defect records.", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_supplier_scorecard', description: "View supplier performance scorecard derived from purchase order delivery and quality data.", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     /* PACK:defs:end */
+    {
+      // The agent can only REQUEST this (logged for human review) — no tool
+      // can grant it. The tool set is the authorization boundary (UC28).
+      name: 'request_spec_exception',
+      description: 'Submit a spec-exception request for engineering review. Cannot grant an exception.',
+      inputSchema: { type: 'object', properties: { workOrderId: { type: 'string' } } },
+      scopes: ['write'],
+      authz: {},
+    },
     { name: 'view_work_orders', description: 'List the operator\'s work orders.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_inventory', description: 'Show on-hand inventory value and stock levels.', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_production_history', description: 'List production-run history (setups, runs, inspections, shipments).', inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -163,6 +172,24 @@ function buildManufacturingTools(store) {
       case 'view_supplier_scorecard':
         return { result: { purchaseOrders: store.get(userId).purchaseOrders }, render: 'view_supplier_scorecard' };
       /* PACK:cases:end */
+      case 'request_spec_exception': {
+        // Request ONLY — deliberately changes nothing. The agent has no tool that
+        // can approve this, so it cannot promise one (UC28). The one-click chip
+        // carries no id, so default to the member's first record.
+        const _rows = store.get(userId).workOrders || [];
+        const _want = params && (params.workOrderId || params.recordId);
+        const _rec = _want ? _rows.find((r) => r.id === _want) : _rows[0];
+        if (!_rec) return { result: { error: 'work order not found' }, render: 'text' };
+        return {
+          result: {
+            requestId: `REQ-${_rec.id}`,
+            workOrderId: _rec.id,
+            status: 'Submitted for human review',
+            note: 'This request does not grant a spec exception.',
+          },
+          render: 'request_spec_exception',
+        };
+      }
       case 'view_work_orders':
         return { result: { workOrders: store.get(userId).workOrders }, render: 'view_work_orders' };
       case 'view_inventory':

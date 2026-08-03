@@ -1300,6 +1300,18 @@
     "request_price_match": {
       "requiredScopes": ["write"],
       "surface": "gateway"
+    },
+    "request_fee_tier_review": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "request_spec_exception": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "request_price_adjustment": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
     }
   },
   "policy": {

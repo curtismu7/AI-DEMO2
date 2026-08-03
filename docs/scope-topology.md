@@ -549,3 +549,6 @@ Granted scopes: — (none; resource-server or worker app)
 | `list_pingone_tools` | gateway | `read` | — |
 | `gear_warranty_demo` | gateway | `read` | — |
 | `request_price_match` | gateway | `write` | — |
+| `request_fee_tier_review` | gateway | `write` | — |
+| `request_spec_exception` | gateway | `write` | — |
+| `request_price_adjustment` | gateway | `write` | — |
