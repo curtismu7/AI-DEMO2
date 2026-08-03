@@ -448,6 +448,7 @@ export default function AdminSideNav({ user }) {
         { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "Privilege MCP Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "Privilege MCP Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
+        { label: "Invest Dual-Auth Flow", path: "/invest-dual-auth", icon: "rte" },
       ],
     },
     {
