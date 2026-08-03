@@ -1,14 +1,41 @@
 # Renew Expired Privilege Proxy Token
 
-The enrollment token (`ping-mcpgw/config/proxy-token`) expired **2026-07-31T13:51:03 UTC**.
-The proxy won't connect until it's replaced.
+## Read this before running anything below
+
+**An expired enrollment token does not stop a proxy that is already enrolled.** The JWT is
+consumed **once**, to obtain an mTLS client cert; node identity rides on that cert
+afterwards. On 2026-08-03 `ping-mcpgw/config/proxy-token` had been expired since
+`01:23 UTC` and the proxy had been connected for nine hours, command stream up.
+
+So an expired `exp` is **not** a diagnosis. Check whether the proxy is actually down first:
+
+```bash
+docker ps --filter name=ai-demo-ping-mcpgw --format '{{.Status}}'
+docker run --rm -v ai-demo_mcpgw-logs:/logs alpine \
+  sh -c 'grep -c "established command stream" /logs/cyonproxy.log'
+```
+
+If it is running and the command stream is established, **stop here.** The most you should
+do is Step 1 + Step 2 — drop a fresh JWT on disk so a future rebuild can enrol. Steps 3-4
+destroy a working node.
+
+This procedure applies when: the container crash-loops, enrollment genuinely fails, or the
+`ai-demo_mcpgw-ssl` volume has been deleted.
+
+> **Never delete the `ai-demo_mcpgw-ssl` volume while holding only an expired token.** The
+> cert inside it is the only working identity; the token file cannot replace it. Get the
+> fresh JWT (Step 1) and confirm it is unexpired *before* touching the volume.
 
 ## Step 1 — Get a fresh token
 
 1. Go to **https://console.pingone.com** → sign in
 2. Navigate to **Cloud > Gateways**
 3. Find gateway **cmuir-mcpgw**
-4. Click **Add Node** (or refresh icon on the existing node row)
+4. Use the **refresh icon on the existing node row**. Prefer this over **Add Node**:
+   `Add Node` registers another node, and the control plane already lists several dead
+   ones (`a7d08406-…`, `9a8bddf5-…`, `e40f4540-…`) beside the live `570afb32-…`, which is
+   the source of the repeating `has same NodeURL` error. Use `Add Node` only when the
+   node the token references no longer exists — see the 500 "not found" section below.
 5. Copy the `ENV_PROXY_TOKEN=eyJ...` JWT from the wizard
 
 ## Step 2 — Save the token
@@ -20,6 +47,10 @@ printf '%s' 'eyJ...<paste full JWT>' > ping-mcpgw/config/proxy-token
 This file is gitignored — never commit it.
 
 ## Step 3 — Clear stale enrollment state
+
+**Only when re-enrolling.** This deletes the node's identity and is not reversible with an
+expired token. Confirm the JWT you just saved is unexpired (see
+[Check current token expiry](#check-current-token-expiry)) before running it.
 
 The Docker volume has old `proxy-config.data`. The proxy ignores the new token
 unless this is removed.
@@ -48,11 +79,17 @@ export PRIVILEGE_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)"
 
 ## Step 5 — Verify
 
+`docker logs ai-demo-ping-mcpgw` is nearly empty — the proxy writes to
+`/var/log/procyon/cyonproxy.log` inside the `mcpgw-logs` volume, so read it there:
+
 ```bash
-docker logs ai-demo-ping-mcpgw 2>&1 | grep -iE "enrolled|connected|ready|error"
+docker run --rm -v ai-demo_mcpgw-logs:/logs alpine \
+  sh -c 'tail -50 /logs/cyonproxy.log' | grep -iE "established command stream|enrolled|error"
 ```
 
-Should show "enrolled" or "connected".
+Success looks like `Node <id> established command stream to …`. A repeating
+`has same NodeURL` line alongside it logs at `level=error` but is harmless — it means
+duplicate registrations exist, not that enrollment failed.
 
 ## Step 6 — End-to-end test
 
@@ -69,6 +106,10 @@ AI Security → Agentic Apps → your MCP App → Policies.
 The `mcpgw-ssl` volume is the #1 reason re-enrollment silently fails.
 The proxy always prefers persisted state over the token file — **you must
 delete the volume before re-enrolling**.
+
+The same preference is why an expired token is survivable: persisted state wins, so a
+running proxy keeps working on its cert. Delete the volume and that safety net is gone, so
+never delete it speculatively — only as part of a re-enrollment you have a fresh JWT for.
 
 ## Error: 500 "not found" on enrollment
 
@@ -105,9 +146,23 @@ drops the connection as unauthorized.
 ```bash
 # Check:
 docker exec ai-demo-mcp-server env | grep MCP_MTLS
+```
 
-# Fix — disable mTLS for the Privilege path:
-MCP_MTLS_ENABLED=false docker compose up -d --no-deps mcp-server
+Fix by clearing **`MCP_MTLS_ON`** in the root `.env`, not by exporting `MCP_MTLS_ENABLED`:
+`docker-compose.yml` sets `MCP_MTLS_ENABLED: "${MCP_MTLS_ON:+true}"` for every consumer, so
+a shell value is overwritten at container creation. One switch drives four services.
+
+```bash
+# root .env: leave it empty for plaintext
+MCP_MTLS_ON=
+```
+
+Then recreate — `restart` alone will not re-read `.env`. Do not run `docker compose up`
+directly; a hook blocks it after repeated name-squatting collisions between parallel
+sessions:
+
+```bash
+./run-docker.sh restart mcp-server
 ```
 
 ### Cause B — MCP Server URL points at PingGateway instead of the MCP server
