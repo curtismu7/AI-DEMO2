@@ -102,6 +102,54 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — IG stripped the HITL receipt before P1AZDecision could verify it, so approved retries re-challenged forever (UC14b)
+
+**Files changed:** `ping-gateway/scripts/groovy/mcp-request-validation.groovy`,
+`ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/services/attackSimulatorService.js`,
+`demo_api_server/src/__tests__/intentBindingDemo.test.js`.
+
+**What was broken:** in the `01-mcp-olb` chain, `McpRequestValidation` runs
+BEFORE `P1AZDecision`. It removes `_hitl_challenge_id` from its args copy (the
+tool schemas are `additionalProperties:false`) and — since the previous entry's
+fix for the MCP-server 502 — **rewrites the request entity with the cleaned
+args**. `p1az-decision.groovy`'s own receipt extraction therefore never saw the
+marker: the entire receipt-verification + anti-loop block was unreachable dead
+code on the IG path, and every retry carrying an approved receipt re-minted a
+fresh 428 challenge. Live-reproduced on UC14b ("PAR intent verified (PERMIT)"):
+the sim pre-created and approved challenge `917e3a1a…`, passed it on the $80
+within-cap transfer, and the gateway still answered 428 (minting `e5065cfc…`) —
+surfaced as `rar_unexpected_deny` / "Human approval required" and a Proof strip
+"Run failed before intent-binding-verified". Separately, the sim's pre-approved
+challenge was under-bound: no `agentId` and no `from_account_id`, so
+`verifyReceipt` would have rejected it ("belongs to a different agent" / "has
+no bound from_account_id") even once the marker survived.
+
+**What was fixed:** `mcp-request-validation.groovy` hands the stripped receipt
+over on the shared AttributesContext (`attributes['hitlChallengeId']` — same
+channel the aam-* scripts use); `p1az-decision.groovy` falls back to that
+attribute when the body no longer carries the marker (its own strip-and-rewrite
+stays for the direct path). `_runRarPermit` now creates the challenge with
+`agentId` = the AI Agent actor client id and binds `from_account_id` alongside
+`amount`/`to_account_id`.
+
+**Do not break:** the entity rewrite in `McpRequestValidation` must stay — the
+MCP server validates against the same `additionalProperties:false` schema and
+502s if the marker leaks downstream (previous entry). The attribute hand-over
+must never be readable from the outside (it is set only after the filter itself
+found the marker in the body, never from a client header). `verifyReceipt`'s
+binding rules (user + agent + tool + amount + every account id) are the
+contract — fix callers to bind fully, never loosen the verifier.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/intentBindingDemo.test.js src/__tests__/attackSimulator.test.js
+src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit` (42
+passed, 2 live-gated pending). Live: UC14b run → `sim-rar-armed`,
+`sim-rar-grant`, `intent-binding-verified` all present, strip verdict PERMIT;
+ping-gateway log shows receipt verify instead of "HITL challenge minted".
+ping-gateway's groovy dir is BIND-MOUNTED — `docker restart
+ai-demo-ping-gateway` applies it, no rebuild.
+
 ### 2026-08-03 — Gateway-decided 428s carried no authorize evidence, and the consent MFA ceremony didn't discharge the step-up gate
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,

@@ -340,8 +340,14 @@ try {
             toolName          = parsed?.params?.name ?: ''
             def args          = parsed?.params?.arguments ?: [:]
             def rawChallenge  = args instanceof Map ? args['_hitl_challenge_id'] : null
+            // McpRequestValidation runs earlier in this chain and has ALREADY
+            // stripped the marker from the entity (its schema is
+            // additionalProperties:false) — it hands the receipt over on the
+            // shared AttributesContext instead. Without this fallback the
+            // verification below never ran on the IG path.
+            if (rawChallenge == null) rawChallenge = attributes['hitlChallengeId']
             hitlChallengeId   = rawChallenge != null ? String.valueOf(rawChallenge) : ''
-            if (hitlChallengeId && args instanceof Map) {
+            if (args instanceof Map && args.containsKey('_hitl_challenge_id')) {
                 args.remove('_hitl_challenge_id')
                 parsed.params.arguments = args
                 request.entity.setString(JsonOutput.toJson(parsed))
