@@ -52,9 +52,14 @@ export async function dispatchNegativeChip(chip, { vertical, callMcpTool, postSi
       await callMcpTool(chip.denyTool, {}, { vertical, useCaseId: chip.useCaseId || null });
       say('assistant', '⚠️ Expected a DENY but the call succeeded — this control is broken');
     } catch (err) {
-      const status = err?.response?.status;
-      const errorCode = err?.response?.data?.error;
-      const decisionId = err?.response?.data?.decisionId;
+      // callMcpTool (demo_api_ui/src/services/demoAgentService.js) is
+      // fetch-based and throws a FLAT error (err.statusCode/err.code/
+      // err.decisionId — see its mcp_authorization_denied/mcp_scope_denied
+      // throw sites). Fall back to the axios `err.response.*` shape for any
+      // other injected `callMcpTool` that follows that convention instead.
+      const status = err?.statusCode ?? err?.response?.status;
+      const errorCode = err?.code ?? err?.response?.data?.error;
+      const decisionId = err?.decisionId ?? err?.response?.data?.decisionId;
       const isDeniedAsDesigned =
         status === 403 &&
         (errorCode === 'mcp_authorization_denied' || errorCode === 'mcp_scope_denied');

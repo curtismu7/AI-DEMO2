@@ -25,7 +25,7 @@ describe('negative chip dispatch rail', () => {
     expect(postSim).toHaveBeenCalledWith('wrong-aud', expect.objectContaining({ vertical: 'government' }));
   });
 
-  it('denyTool chip calls the real tool and renders 403 as proof', async () => {
+  it('denyTool chip calls the real tool and renders 403 as proof (axios error shape)', async () => {
     const callMcpTool = vi.fn().mockRejectedValue({ response: { status: 403, data: { error: 'mcp_authorization_denied', decisionId: 'dec-42' } } });
     await dispatchNegativeChip(
       { mode: 'direct', denyTool: 'show_health_record', label: 'Authz DENY', message: 'show...' },
@@ -35,6 +35,22 @@ describe('negative chip dispatch rail', () => {
     const text = say.mock.calls.map((c) => c.join(' ')).join('\n');
     expect(text).toMatch(/Denied as designed/);
     expect(text).toMatch(/dec-42/);
+  });
+
+  it('denyTool chip renders 403 as proof from the real callMcpTool flat error shape', async () => {
+    // demo_api_ui/src/services/demoAgentService.js's callMcpTool is fetch-based
+    // and throws a FLAT error (statusCode/code/decisionId directly on the error
+    // object, no axios `.response` wrapper) — this is the shape production
+    // actually produces, so it must be covered independently of the axios-shaped
+    // mock above.
+    const callMcpTool = vi.fn().mockRejectedValue({ statusCode: 403, code: 'mcp_authorization_denied', decisionId: 'dec-flat' });
+    await dispatchNegativeChip(
+      { mode: 'direct', denyTool: 'show_health_record', label: 'Authz DENY', message: 'show...' },
+      { vertical: 'government', postSim: vi.fn(), callMcpTool, say },
+    );
+    const text = say.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(text).toMatch(/Denied as designed/);
+    expect(text).toMatch(/dec-flat/);
   });
 
   it('a 2xx on a denyTool chip is reported as a broken control', async () => {
