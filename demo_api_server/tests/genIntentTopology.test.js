@@ -30,7 +30,7 @@ const EXPECTED_CHIP_COUNTS = {
   university: 9,
   admin: 8,
   'pingone-admin': 5,
-  airlines: 8,
+  airlines: 7,
 };
 
 /** Minimal well-formed row; override one field per negative case. */

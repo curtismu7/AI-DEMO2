@@ -317,10 +317,7 @@
     "sensitive_airline_bookings": {
       "requiredScopes": ["airlines:read", "sensitive:read"],
       "surface": "gateway",
-      "challengeType": "consent",
-      "a2aDelegated": true,
-      "a2aDelegatedScope": "airlines:read",
-      "requiresAgentMediation": true
+      "challengeType": "consent"
     },
     "cancel_airline_reservation": {
       "requiredScopes": ["airlines:read", "airlines:write"],
