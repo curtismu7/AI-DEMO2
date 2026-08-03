@@ -17,6 +17,7 @@ const manifest = require('../config/verticals/airlines/manifest.json');
 const AIRLINES_TOOLS = [
   'get_airline_bookings',      // plain read — ungated
   'cancel_airline_reservation', // Phase 2 write — step-up (MFA)
+  'pay_airline_fee',            // Phase 2 amount-gated write — ladder decides
   'sensitive_airline_bookings', // Phase 2 sensitive read — HITL consent
   'get_flight_status',
   'check_seat_availability',
@@ -68,6 +69,34 @@ describe('airlines vertical', () => {
     verticalManifest.init();
     const { resolveAgentScopes } = require('../services/agentScopes');
     expect(resolveAgentScopes('airlines', false)).toContain('airlines:read');
+  });
+
+  test('the fee heuristic extracts the amount and outranks cancel', () => {
+    const fee = plugin.getHeuristics().find((h) => h.action === 'pay_airline_fee');
+    expect(fee).toBeDefined();
+    expect(fee.extractsAmount).toBe(true);
+
+    const feeIndex = plugin.getHeuristics().findIndex((h) => h.action === 'pay_airline_fee');
+    const cancelIndex = plugin.getHeuristics().findIndex((h) => h.action === 'cancel_airline_reservation');
+    expect(feeIndex).toBeLessThan(cancelIndex);
+  });
+
+  // The catalog's amount trigger for this vertical. If the regex stops matching
+  // it, UC6/7/8/22 fall through to the LLM and the demo silently loses its
+  // DENY / step-up / consent proof.
+  test.each([
+    'pay a $300 change fee',
+    'pay a $2500 change fee',
+    'pay the $60 bag fee',
+  ])('%s routes to pay_airline_fee', (phrase) => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test(phrase));
+    expect(hit && hit.action).toBe('pay_airline_fee');
+  });
+
+  // "refund fee" contains `refund`, which the cancel rule also matches.
+  test('a refund fee is a fee payment, not a cancellation', () => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test('pay the $75 refund fee'));
+    expect(hit.action).toBe('pay_airline_fee');
   });
 
   test('pay_airline_fee is gateway-surfaced and scoped like the cancel write', () => {

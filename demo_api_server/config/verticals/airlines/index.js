@@ -19,6 +19,24 @@ const NOT_MY_TOOL = Symbol.for('verticalDispatch.NOT_MY_TOOL');
 
 const TOOLS = [
   {
+    // Phase 2 amount-gated write. No challengeType in scope-topology — the
+    // transaction policy decides DENY ($2500) / step-up ($600) / consent ($300)
+    // from the amount, which is what UC6/7/8/22 demo.
+    name: 'pay_airline_fee',
+    description: 'Pay a United change, checked-bag, or seat-upgrade fee.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Fee amount in dollars' },
+        fee_type: { type: 'string', description: "'change', 'bag', or 'upgrade'" },
+        confirmation_number: { type: 'string', description: 'Reservation the fee applies to' },
+      },
+      required: [],
+    },
+    scopes: ['airlines:read', 'airlines:write'],
+    authz: {},
+  },
+  {
     // Phase 2 high-value write — step-up gated (scope-topology challengeType).
     name: 'cancel_airline_reservation',
     description: 'Cancel a United reservation and start the refund. Requires step-up authentication.',
@@ -84,6 +102,12 @@ const EDUCATION_STUBS = new Set(['api_key_demo', 'dual_token_demo']);
 // Most specific first: a seat question mentioning a flight must not fall into
 // the flight-status rule.
 const HEURISTICS = [
+  // FIRST, ahead of the cancel rule: "pay the $75 refund fee" contains `refund`,
+  // which the cancel rule matches, and a fee payment routed to the cancel tool
+  // would demo an MFA step-up where the amount ladder is the point.
+  // extractsAmount is what puts the stated figure in front of the transaction
+  // policy — without it the ladder sees no amount and never fires.
+  { re: /\b(pay|settle)\b.*\bfees?\b/i, action: 'pay_airline_fee', extractsAmount: true, paramHint: 'e.g. "pay a $300 change fee"' },
   // Before the generic bookings rule below: "sensitive ... bookings" would
   // otherwise match `bookings` and resolve to the UNGATED lookup, so the chip
   // would declare the consent-gated tool and silently run the open one.
