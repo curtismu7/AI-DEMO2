@@ -594,6 +594,9 @@ function listLocalInspectorTools() {
  * Mirrors the BankingToolProvider.executeSequentialThink output shape.
  */
 async function get_branch_hours(params = {}) {
+  // params passes through unchanged: the MCP Inspector supplies whatever it has
+  // and carries no vertical of its own, so searchPublicBranches falls back to
+  // banking. Not an oversight — there is no active vertical on this path.
   const result = searchPublicBranches(params);
   return JSON.stringify({
     branches: result.branches,

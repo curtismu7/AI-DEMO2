@@ -263,7 +263,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
   try {
     // Public catalog — no RFC 8693 exchange (progressive trust Act 1 / UC24).
     if (action === 'branch_hours') {
-      const result = searchPublicBranches(params || {});
+      const result = searchPublicBranches({ ...(params || {}), vertical: verticalId });
       const tokenEvents = buildPublicCatalogTokenEvents('get_branch_hours');
       return {
         reply: formatBranchCatalogReply(result),
