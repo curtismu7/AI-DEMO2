@@ -52,6 +52,9 @@ const INTENT_TO_PERMITTED_TOOLS = {
   request_waiver:           ['request_fee_waiver'],
   // Investment
   view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions'],
+  view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],
+  view_holdings:            ['view_holdings', 'view_portfolios', 'view_portfolio_value'],
+  view_trades:              ['view_trades', 'view_holdings', 'view_portfolios'],
   // Healthcare
   view_records:             ['view_records', 'view_coverage', 'show_health_record'],
   view_coverage:            ['view_coverage', 'view_records', 'show_health_record'],
@@ -75,6 +78,28 @@ const INTENT_TO_PERMITTED_TOOLS = {
   request_time_off:         ['request_time_off', 'pto_balance'],
   // Mortgage
   view_mortgage:            ['show_mortgage'],
+  // University
+  view_courses:             ['view_courses', 'view_standing', 'view_enrollment_history'],
+  view_standing:            ['view_standing', 'view_courses'],
+  view_enrollment_history:  ['view_enrollment_history', 'view_courses'],
+  register_course:          ['register_course', 'view_courses'],
+  release_transcript:       ['release_transcript', 'view_courses'],
+  view_financial_aid:       ['view_financial_aid', 'view_billing'],
+  view_billing:             ['view_billing', 'view_financial_aid'],
+  view_degree_audit:        ['view_degree_audit', 'view_courses'],
+  // Government
+  view_permits:             ['view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations'],
+  view_fees:                ['view_fees', 'view_permits', 'view_tax_assessments'],
+  view_filings:             ['view_filings', 'view_permits', 'view_complaints'],
+  view_complaints:          ['view_complaints', 'view_permits', 'view_filings'],
+  view_tax_assessments:     ['view_tax_assessments', 'view_fees', 'view_permits'],
+  pay_fee:                  ['pay_fee', 'view_fees', 'view_permits'],
+  sensitive_tax_record:     ['sensitive_tax_record', 'view_permits'],
+  release_record:           ['release_record', 'view_permits'],
+  // Airlines
+  get_airline_bookings:     ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'],
+  get_flight_status:        ['get_flight_status', 'get_airline_bookings', 'check_seat_availability'],
+  check_seat_availability:  ['check_seat_availability', 'get_flight_status', 'get_airline_bookings'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
@@ -97,6 +122,18 @@ const READ_ONLY_TOOLS = [
   'view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report',
   // Mortgage
   'show_mortgage',
+  // Government
+  'view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations',
+  'view_business_licenses', 'view_appointments', 'view_tax_assessments',
+  'view_records_requests', 'view_complaints', 'view_documents', 'view_payment_history',
+  'view_zoning_info', 'view_notifications',
+  // University
+  'view_courses', 'view_standing', 'view_enrollment_history',
+  'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
+  'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
+  'view_library', 'view_scholarships', 'view_advisors',
+  // Airlines
+  'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
   // Code search (cross-vertical, read-only)
   'code_search', 'get_code', 'list_codebases',
 ];
@@ -116,15 +153,50 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'sequential_think'],
   workforce: ['view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report', 'sequential_think'],
   mortgage: ['show_mortgage', 'sequential_think'],
+  government: [
+    'view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations',
+    'view_business_licenses', 'view_appointments', 'view_tax_assessments',
+    'view_records_requests', 'view_complaints', 'view_documents', 'view_payment_history',
+    'view_zoning_info', 'view_notifications', 'sequential_think',
+  ],
+  university: [
+    'view_courses', 'view_standing', 'view_enrollment_history',
+    'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
+    'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
+    'view_library', 'view_scholarships', 'view_advisors', 'sequential_think',
+  ],
+  investment: [
+    'view_portfolios', 'view_holdings', 'view_trades', 'view_dividends',
+    'view_portfolio_value', 'sequential_think',
+  ],
+  airlines: [
+    'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
+    'sequential_think',
+  ],
+  manufacturing: [
+    'view_work_orders', 'view_inventory', 'view_production_history',
+    'view_machines', 'view_machine_utilization', 'view_quality_inspections',
+    'view_shipments', 'view_purchase_orders', 'view_maintenance_tickets',
+    'view_defects', 'view_scrap_report', 'view_supplier_scorecard', 'sequential_think',
+  ],
 };
 
+/** Own-key lookup. Both keys reach here from a request, and `constructor` passes
+ *  VALID_VERTICAL_RE — a bare lookup returned the INHERITED Object constructor,
+ *  which is truthy, so `permitted_tools` became a function. JSON.stringify then
+ *  DROPPED the claim, minting an Intent Token with no tool binding at all. */
+function ownEntry(map, key) {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
 function permittedToolsForIntent(intent, vertical) {
-  if (INTENT_TO_PERMITTED_TOOLS[intent]) return INTENT_TO_PERMITTED_TOOLS[intent];
+  const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
+  if (byIntent) return byIntent;
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
   // reads instead of every read tool across every vertical (which exposed
   // get_sensitive_account_details / query_user_by_email / other verticals' data to
   // an unrecognized prompt). Fall back to banking reads when the vertical is unknown.
-  return READ_ONLY_TOOLS_BY_VERTICAL[vertical] || READ_ONLY_TOOLS_BY_VERTICAL.banking;
+  return ownEntry(READ_ONLY_TOOLS_BY_VERTICAL, vertical) || READ_ONLY_TOOLS_BY_VERTICAL.banking;
 }
 
 function mintIntentToken({ userId, sessionId, prompt, intent, confidence, vertical }) {

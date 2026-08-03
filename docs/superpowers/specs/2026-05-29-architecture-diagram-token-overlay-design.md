@@ -37,7 +37,7 @@ Grouped into 5 swim-lanes, left to right:
 | **BFF** | `demo_api_server :3001` — Express, token custodian (`agentMcpTokenService.js`). Two attached sub-boxes: `Session Store: LMDB` and `Banking Data: in-memory store.js`. |
 | **Agent runtimes** | `demo_agent_service :3006` (AG-UI runner) in front, with four sibling runtimes behind `resolveAgentTarget`: `langchain_agent :8888/:8889/:8890`, `openai_agent :8891`, `mastra_agent :8892`, `pydantic_agent :8893`. |
 | **Gateway + HITL** | `demo_mcp_gateway :3005` and `demo_hitl_service :3009`. |
-| **MCP servers** | `demo_mcp_server :8080` (banking), `demo_mcp_invest :8081`, `demo_mortgage_service :8082`. |
+| **MCP servers** | `demo_mcp_server :8080` (banking), `demo_mcp_resource_server :8081`, `demo_api_resource_server :8082`. |
 | **PingOne** | `PingOne OAuth/AS` (authorize, token, RFC 8693, introspect) and `PingOne AAM / Authorize` (policy decisions) anchored on the right. |
 
 ## Edges (transports)
@@ -121,7 +121,7 @@ A page-level `<svg class="issued-lines">` overlay draws four dashed Bezier curve
    - `scope: read write`
 
 4. **Per-MCP server token** (after RFC 8693 at Gateway)
-   - `aud: mcp_banking_resource_uri | mcp_invest_resource_uri | mortgage_api`
+   - `aud: mcp_banking_resource_uri | mcp_resource_server_resource_uri | mortgage_api`
    - `sub: <user_id>`
    - `act: { sub: <agent_client_id> }`
    - `scope: read write`

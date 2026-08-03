@@ -1,0 +1,310 @@
+.rsi-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  animation: rsi-fade-in 0.25s ease-out;
+}
+
+@keyframes rsi-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.rsi-container {
+  max-width: 900px;
+  width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: rsi-slide-up 0.3s ease-out;
+}
+
+@keyframes rsi-slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.rsi-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.rsi-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--rsi-accent, #2563eb);
+  color: #fff;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.rsi-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+  color: #0f172a;
+}
+
+.rsi-subtitle {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.rsi-subtitle code {
+  background: #f1f5f9;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+/* ── Architecture visual ─────────────────────────────────────── */
+
+.rsi-architecture {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.rsi-arch-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.rsi-arch-nodes {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.rsi-node {
+  position: relative;
+  width: 200px;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.rsi-node--active {
+  border-color: var(--rsi-accent, #2563eb);
+  background: color-mix(in srgb, var(--rsi-accent, #2563eb) 6%, white);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--rsi-accent, #2563eb) 15%, transparent),
+              0 4px 12px color-mix(in srgb, var(--rsi-accent, #2563eb) 20%, transparent);
+  transform: scale(1.05);
+}
+
+.rsi-node--idle {
+  opacity: 0.5;
+}
+
+.rsi-node-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.rsi-node-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.rsi-node--active .rsi-node-name {
+  color: var(--rsi-accent, #2563eb);
+}
+
+.rsi-node-port {
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #64748b;
+}
+
+.rsi-node-sub {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
+}
+
+.rsi-node-pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  border: 2px solid var(--rsi-accent, #2563eb);
+  animation: rsi-pulse 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes rsi-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 0; transform: scale(1.06); }
+}
+
+.rsi-arch-arrows {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+}
+
+.rsi-arrow {
+  width: 200px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  transition: background 0.3s;
+}
+
+.rsi-arrow--active {
+  background: var(--rsi-accent, #2563eb);
+  animation: rsi-arrow-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes rsi-arrow-glow {
+  0%, 100% { box-shadow: 0 0 4px var(--rsi-accent); }
+  50%      { box-shadow: 0 0 12px var(--rsi-accent); }
+}
+
+/* ── Detail card ──────────────────────────────────────────────── */
+
+.rsi-detail-card {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.rsi-detail-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: #334155;
+}
+
+.rsi-detail-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.rsi-detail-grid dt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rsi-detail-grid dd {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.rsi-detail-grid dd code {
+  background: #f1f5f9;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+/* ── Explanation ──────────────────────────────────────────────── */
+
+.rsi-explanation {
+  margin: 2rem 0;
+  padding: 1.25rem;
+  border-left: 4px solid var(--rsi-accent, #2563eb);
+  background: color-mix(in srgb, var(--rsi-accent, #2563eb) 4%, white);
+  border-radius: 0 6px 6px 0;
+}
+
+.rsi-explain-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #334155;
+}
+
+.rsi-explanation p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+  color: #475569;
+}
+
+.rsi-explanation code {
+  background: color-mix(in srgb, var(--rsi-accent, #2563eb) 10%, white);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
+/* ── Footer ───────────────────────────────────────────────────── */
+
+.rsi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.rsi-countdown {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.rsi-continue-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--rsi-accent, #2563eb);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.rsi-continue-btn:hover {
+  opacity: 0.85;
+}
+
+.rsi-skip-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.rsi-skip-btn:hover { color: #e2e8f0; border-color: #64748b; }

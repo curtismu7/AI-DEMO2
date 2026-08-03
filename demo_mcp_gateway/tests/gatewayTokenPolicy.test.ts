@@ -21,7 +21,7 @@ function makeConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
     requireActForAgentTools: false,
     gatewayResourceUri: 'https://mcpgateway.ping.demo',
     mcpOlbResourceUri: 'https://mcp.olb.ping.demo',
-    mcpInvestResourceUri: 'https://mcp.invest.ping.demo',
+    mcpResourceServerResourceUri: 'https://mcp.invest.ping.demo',
     bankingResourceServerResourceUri: 'https://banking-resource-server.ping.demo',
     // remaining required fields — dev-safe stubs
     port: 3005,
@@ -31,7 +31,7 @@ function makeConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
     tokenEndpointAuthMethod: 'basic',
     tokenEndpoint: 'https://auth.pingone.com/test/as/token',
     mcpOlbWsUrl: 'ws://localhost:8080',
-    mcpInvestWsUrl: 'ws://localhost:8081',
+    mcpResourceServerWsUrl: 'ws://localhost:8081',
     pingAuthorizeEndpoint: '',
     pingAuthorizeWorkerId: '',
     pingAuthorizeMockBase: undefined,
@@ -43,8 +43,8 @@ function makeConfig(overrides: Partial<GatewayConfig> = {}): GatewayConfig {
     devBypass: false,
     mcpServerPassthrough: false,
     demoApiKeyServiceKey: '',
-    mortgageServiceBaseUrl: '',
-    mortgageServiceApiKey: '',
+    apiResourceServerBaseUrl: '',
+    apiResourceServerApiKey: '',
     bffInternalIdTokenUrl: '',
     bffInternalSecret: 'test-secret-that-is-long-enough-to-pass',
     bankingResourceServerBaseUrl: '',
@@ -279,5 +279,65 @@ describe('GatewayTokenPolicy — actor allow-list (ActClientId)', () => {
       act: { sub: 'investment-specialist', act: { sub: 'generalist-agent' } },
     } as any);
     expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  // ── Registered actor CHAIN, not a single actor ────────────────────────────
+  //
+  // The allow-list is documented as mirroring what the PDP enforces via
+  // ActClientId. The authored policy (HasValidActorChain in
+  // snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) is a
+  // disjunction over ELEVEN registered identities — "the MCP Token Exchanger,
+  // the AI Agent, and each A2A specialist" — but the PEP compared against the
+  // exchanger alone. So the PEP rejected an actor the PDP explicitly permits.
+  //
+  // Live symptom: every /agent/init in every vertical logged
+  //   tool discovery failed ... Unauthorized delegation actor: act.sub
+  //   "<ai-agent-actor>" is not the authorized actor "<token-exchanger>"
+  // and degraded to the local catalog, losing Authorize-filtered chip
+  // affordance. It was unreachable until the discovery WebSocket URL was fixed
+  // (#1184) — before that the handshake 404'd before presenting a token.
+
+  const AI_AGENT_ACTOR = 'ai-agent-actor-client-id';
+
+  test('ACT-8: a second REGISTERED actor (the AI agent) is accepted at depth 1', () => {
+    const config = makeConfig({
+      authorizedActorClientId: AUTHORIZED,
+      authorizedActorClientIds: [AUTHORIZED, AI_AGENT_ACTOR],
+    });
+    const token = makeToken({ act: { sub: AI_AGENT_ACTOR } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('ACT-9: the exchanger still passes when a chain is configured', () => {
+    const config = makeConfig({
+      authorizedActorClientId: AUTHORIZED,
+      authorizedActorClientIds: [AUTHORIZED, AI_AGENT_ACTOR],
+    });
+    const token = makeToken({ act: { sub: AUTHORIZED } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('ACT-10: widening does NOT admit an unregistered actor', () => {
+    const config = makeConfig({
+      authorizedActorClientId: AUTHORIZED,
+      authorizedActorClientIds: [AUTHORIZED, AI_AGENT_ACTOR],
+    });
+    const token = makeToken({ act: { sub: 'some-other-client' } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).toThrow(
+      expect.objectContaining({ code: 'unauthorized_actor' }),
+    );
+  });
+
+  test("ACT-11: the confused-deputy sim's rogue actor is still denied", () => {
+    // Parity with attackSimulatorService.ROGUE_ACTOR_CLIENT_ID — the UC13
+    // confused-deputy showcase depends on this staying a DENY.
+    const config = makeConfig({
+      authorizedActorClientId: AUTHORIZED,
+      authorizedActorClientIds: [AUTHORIZED, AI_AGENT_ACTOR],
+    });
+    const token = makeToken({ act: { sub: 'rogue-agent-9f2a-not-allowlisted' } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).toThrow(
+      expect.objectContaining({ code: 'unauthorized_actor' }),
+    );
   });
 });

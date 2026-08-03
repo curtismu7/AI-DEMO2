@@ -146,7 +146,7 @@ export class DemoMCPServer extends EventEmitter {
             // no keystore — requiring a cert there marks a healthy server
             // unhealthy, which blocks depends_on and shows red on the demo board.
             const probePath = (req.url || '').split('?')[0];
-            if (probePath === '/health' || probePath === '/.well-known/mcp-server') {
+            if (probePath === '/health' || probePath.startsWith('/.well-known/')) {
               this.handleHttpRequest(req, res);
               return;
             }
@@ -154,9 +154,13 @@ export class DemoMCPServer extends EventEmitter {
             try {
               mtlsVerifier!(socket);
             } catch (err) {
-              res.writeHead(403, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'mtls_required', message: (err as Error).message }));
-              return;
+              // No valid client cert — allow if Bearer token present (validated downstream)
+              const authHeader = req.headers['authorization'] || '';
+              if (!authHeader.startsWith('Bearer ')) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'mtls_required', message: (err as Error).message }));
+                return;
+              }
             }
             this.handleHttpRequest(req, res);
           },

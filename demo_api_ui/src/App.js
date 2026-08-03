@@ -24,6 +24,8 @@ import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram"
 import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
+import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
+import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -75,6 +77,7 @@ import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
 import ResourceServerPage from "./components/ResourceServerPage";
+import ResourceServerJourneyPage from "./pages/ResourceServerJourneyPage";
 import RetailAdminOps from "./components/RetailAdminOps";
 import ScopeAuditPage from "./components/ScopeAuditPage";
 import ScopeReferencePage from "./components/ScopeReferencePage";
@@ -104,6 +107,7 @@ import {
   AgentUiModeProvider,
   useAgentUiMode,
 } from "./context/AgentUiModeContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { DemoTourProvider } from "./context/DemoTourContext";
 import { EducationUIProvider } from "./context/EducationUIContext";
 import { ExchangeModeProvider } from "./context/ExchangeModeContext";
@@ -151,6 +155,7 @@ import PublicRoutes, {
   LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
+  PrivilegeMcpLearningPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
   PrivilegeDemoPageRoute,
@@ -441,6 +446,7 @@ function AppWithAuth() {
     !user && isPublicMarketingAgentPath(pathname) ? 12000 : 4000;
 
   return (
+    <ThemeProvider>
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
@@ -511,6 +517,12 @@ function AppWithAuth() {
                   path="/intent-binding-learning"
                   element={
                     <IntentBindingLearningPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/privilege-mcp-learning"
+                  element={
+                    <PrivilegeMcpLearningPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
@@ -1237,6 +1249,14 @@ function AppWithAuth() {
                               element={<McpGatewayOauthFlowPage />}
                             />
                             <Route
+                              path="/privilege-mcp-diagrams"
+                              element={<PrivilegeMcpDiagramPage />}
+                            />
+                            <Route
+                              path="/invest-dual-auth"
+                              element={<InvestDualAuthDiagramPage />}
+                            />
+                            <Route
                               path="/agent-studio-preview"
                               element={<AgentStudioPreviewPage />}
                             />
@@ -1300,6 +1320,18 @@ function AppWithAuth() {
                             <Route
                               path="/resource-server"
                               element={<ResourceServerPage />}
+                            />
+                            <Route
+                              path="/rs/olb"
+                              element={<ResourceServerJourneyPage />}
+                            />
+                            <Route
+                              path="/rs/invest"
+                              element={<ResourceServerJourneyPage />}
+                            />
+                            <Route
+                              path="/rs/api"
+                              element={<ResourceServerJourneyPage />}
                             />
                             <Route
                               path="/resource-server-cc"
@@ -1509,6 +1541,7 @@ function AppWithAuth() {
         </TokenChainProvider>
       </EducationUIProvider>
     </DemoTourProvider>
+    </ThemeProvider>
   );
 }
 

@@ -12,9 +12,9 @@ doesn't — Vercel uses Encrypted Environment Variables instead), the
 threat model, and an FAQ for the corner cases that come up in practice.
 
 If you're looking for the code, start at
-[`banking_api_server/lib/vault/index.js`](../banking_api_server/lib/vault/index.js)
+[`demo_api_server/lib/vault/index.js`](../demo_api_server/lib/vault/index.js)
 (library) and
-[`banking_api_server/scripts/vault.js`](../banking_api_server/scripts/vault.js)
+[`demo_api_server/scripts/vault.js`](../demo_api_server/scripts/vault.js)
 (CLI).
 
 ---
@@ -44,10 +44,10 @@ keys, PingOne worker secrets, internal HMAC secrets — are not the same
 shape as the demo *data* (which is mocked). They are real keys to real
 external systems, and a leaked one can be expensive to rotate.
 
-For years, the demo kept these in `banking_api_server/.env`. That works
+For years, the demo kept these in `demo_api_server/.env`. That works
 on a single machine but creates three problems:
 
-1. **`.env` is plaintext.** A casual `cat banking_api_server/.env` while
+1. **`.env` is plaintext.** A casual `cat demo_api_server/.env` while
    sharing a screen leaks every value. There is no story for "show me
    the demo working without exposing my real Helix key."
 2. **`.env` is hard to move.** Migrating a demo to a new laptop today
@@ -85,10 +85,11 @@ library refuses to open files written with anything else.
 | **Per-entry DEK** | 32 random bytes from `crypto.randomBytes`, AES-256-GCM wrapped under the KEK | "Per-entry sealing" — adding entry C does not touch the bytes of A and B. Rotating the password re-wraps DEKs; entry value ciphertexts are unchanged. |
 | **File integrity** | HMAC-SHA256 over canonical JSON, with HKDF-derived sub-key from KEK + info=`'fileHmac/v1'` | Catches structural tampering between entries (swapped IVs, deleted entries) that per-entry GCM tags would miss. |
 | **File magic + version** | ASCII `BNKV` + integer `1` | Allows future format migrations to be detected and rejected with a clear "this vault was written by a newer CLI; upgrade" instead of an opaque AEAD failure. |
-| **Atomic writes** | `fs.writeFile(tmp, ...); fs.rename(tmp, final)` with `mode: 0o600` | Crash mid-write leaves the original vault untouched. Same pattern as `data/store.js` `_atomicWrite`. |
+| **Atomic writes** | per-writer tmp path (`<vault>.<pid>.<rand>.tmp`) opened `wx` with `mode: 0o600`, `fsync` on the file *and* its directory, then `rename` | Crash mid-write leaves the original vault untouched. The tmp name is per-writer because a shared `<vault>.tmp` let two concurrent savers splice their JSON together; `wx` refuses an existing path, so a symlink pre-planted at the tmp name cannot redirect the envelope. The directory `fsync` is what makes the rename itself survive a crash. |
+| **Anti-rollback** | monotonic `seq` in the envelope, witnessed in the audit log | The HMAC proves *contents*, never *freshness* — restoring an older vault restores its valid HMAC too. `openVault` refuses a file whose `seq` is below one already recorded in the log. |
 
 These are NOT configurable at runtime. The Argon2 params are
-`Object.freeze`'d in [`lib/vault/crypto.js`](../banking_api_server/lib/vault/crypto.js)
+`Object.freeze`'d in [`lib/vault/crypto.js`](../demo_api_server/lib/vault/crypto.js)
 specifically so they cannot drift via `process.env.FOO || 65536` patterns.
 
 ### Alternatives considered (and rejected)
@@ -112,6 +113,15 @@ specifically so they cannot drift via `process.env.FOO || 65536` patterns.
 `.gitignore` already covers `secrets.vault`, `secrets.vault.tmp`, and
 `secrets.vault.audit.log` — see lines 56+ of the root `.gitignore` (the
 patterns were added in Phase 269 Plan 01).
+
+**Audit log location:** by default `<vaultPath>.audit.log`, i.e. a sibling of
+the vault. `VAULT_AUDIT_LOG_PATH` overrides it, which is required in Docker:
+compose mounts the vault at `/secrets.vault:ro`, so the default sibling lands
+in container root (owned by root, mode 0755) while the BFF runs as `appuser`,
+and the fail-closed writability check refuses to open. The override moves
+*where* the trail lives, never *whether* it is enforced — an unwritable
+override still fails closed. If you relocate the log, add the new path to
+`.gitignore` yourself; the patterns above only cover the default.
 
 ### Why the repo root and not `~/.config/super-banking/`?
 
@@ -141,7 +151,7 @@ a defense-in-depth weakness. Fix with `chmod 600 secrets.vault`.
 
 ## CLI usage
 
-All commands run from `banking_api_server/`:
+All commands run from `demo_api_server/`:
 
 | Command | What it does | Reads stdin? | Writes value to stdout? |
 |---|---|---|---|
@@ -192,13 +202,28 @@ export HELIX_API_KEY="$(npm run --silent vault:get HELIX_API_KEY)"
 When the BFF or MCP Gateway needs a secret at startup, the resolution
 order is:
 
-1. **Vault** (`lib/vault.openVault` reads it at startup, copies into
-   in-memory configStore cache with `{persist: false}`) — wins when
-   `secrets.vault` exists AND `VAULT_PASSWORD` is set.
-2. **`process.env`** — used directly when the vault has no entry for
-   the requested key, or when no vault file exists.
+1. **`process.env`** — a deploy-time env var ALWAYS wins. This is deliberate:
+   `docker-compose`/k8s env must be able to override a stored value so a stale
+   LMDB entry from a past UI toggle cannot silently shadow a deployment-level
+   setting (see `REGRESSION_PLAN.md` §4 2026-07-26). See the consequence below.
+2. **Vault** (`lib/vault.openVault` reads it at startup, copies into the
+   in-memory configStore cache with `{persist: false}`) — used when
+   `secrets.vault` exists, `VAULT_PASSWORD` is set, and no env var supplies
+   the key.
 3. **`configStore` LMDB** — encrypted at rest with `SESSION_SECRET`;
    used as a fallback for values written via `/setup` or `/admin`.
+
+> **Consequence — a leftover `.env` value shadows its vault entry.** After
+> migrating a secret into the vault, remove it from `.env` or the old value keeps
+> winning. `getEffective()` (`services/configStore.js`) implements this order for
+> every key; the `BOOTSTRAP_ALLOWLIST` branch differs only in persistence
+> behavior, not precedence.
+>
+> **Exception —** the narrow `ENV_EXPORT_ALLOWLIST` in `services/vaultLoader.js`
+> (currently just `BFF_INTERNAL_SECRET`) is copied FROM the vault INTO
+> `process.env` at load, because its consumers read `process.env` directly and
+> never consult configStore. Those consumers must read it lazily: routes are
+> required long before the vault opens.
 
 The vault NEVER overrides values that are explicitly set in `process.env`
 *after* vault load — the loader writes to the in-memory cache, not back
@@ -216,7 +241,7 @@ existing dotenv chain) and copies them into the vault.
 ### Closed allowlist
 
 ONLY these names are migrated. Adding new entries requires a code
-change to `banking_api_server/scripts/vault-migrate.js` `ALLOWED_ENV_VARS`:
+change to `demo_api_server/scripts/vault-migrate.js` `ALLOWED_ENV_VARS`:
 
 ```
 HELIX_API_KEY
@@ -322,19 +347,28 @@ there.
     HELIX_API_KEY: ${{ secrets.HELIX_API_KEY }}
     PINGONE_ADMIN_CLIENT_SECRET: ${{ secrets.PINGONE_ADMIN_CLIENT_SECRET }}
   run: |
-    cd banking_api_server
+    cd demo_api_server
     npm run vault:create
     npm run vault:migrate-from-env
 ```
 
-### setupFresh.js fail-fast contract (Phase 269 Plan 05 Task 3)
+### setupFresh.js password contract (Phase 269 Plan 05 Task 3)
 
 `npm run setup:fresh` invokes the vault setup phase between bootstrap
-and Helix. It REFUSES to prompt for the vault password interactively —
-Node's built-in readline does not mask password input safely on
-`/dev/tty` across all terminals (see [`scripts/setupFresh.js`](../banking_api_server/scripts/setupFresh.js)
-`readlineFreeText` comment around line 905 for the historical
-rationale).
+and Helix. In interactive mode it prompts for the vault password using
+`@inquirer/password` (masked with `*`) — the same helper the vault CLI
+uses.
+
+> **History.** This section previously stated that `configureVault()`
+> REFUSES to prompt interactively, because Node's built-in readline does
+> not mask password input safely. The refusal was later replaced with a
+> plain `readlineFreeText` prompt that printed "input will be visible as
+> you type" — `readlineFreeText` accepts a `secret` option but ignores
+> it, so the vault master password was echoed to the terminal and into
+> any scrollback or screen recording, while this doc and threat-model row
+> T-269-26 still claimed the refusal was in place. The prompt is now
+> genuinely masked, which satisfies both the original intent and the
+> convenience the change was after.
 
 The operator MUST supply the password one of three ways:
 
@@ -405,9 +439,9 @@ detailed STRIDE register.
 | T-269-05 | Tampering | Structural change between entries (swapped IVs) | **mitigated** — whole-file HMAC over canonical JSON | 01 |
 | T-269-06 | Information disclosure | `VAULT_PASSWORD` leak via `/proc/<pid>/environ` | **mitigated** — `delete process.env.VAULT_PASSWORD` immediately after open | 01, 02, 03, 04 |
 | T-269-07 | Side-channel | Timing attack on tag compare | **mitigated** — `node:crypto` GCM tag verification is constant-time; file-HMAC uses `crypto.timingSafeEqual` | 01 |
-| T-269-08 | Information disclosure | KEK lifetime longer than needed | **mitigated** — `vault.close()` zeroes KEK and all DEK buffers; called in finally blocks at every consumer | 01, 03, 04 |
+| T-269-08 | Information disclosure | KEK lifetime longer than needed | **mitigated** — `vault.close()` zeroes KEK and all DEK buffers; called in finally blocks at every consumer. See T-269-33 for the orphaned-copy refinement | 01, 03, 04 |
 | T-269-09 | Information disclosure | Wrong-password vs tampered-file oracle | **mitigated** — opaque error message `vault: open failed (bad password or tampered file)`; loaders log only `err.message`, never `err.stack` | 01, 03 |
-| T-269-10 | Information disclosure | Audit log leaks values | **mitigated** — `audit.js` cannot see decrypted values (no require on `./crypto` or `./format`); strict 4-field schema; grep test asserts | 01 |
+| T-269-10 | Information disclosure | Audit log leaks values | **mitigated** — `audit.js` cannot see decrypted values (no require on `./crypto` or `./format`); strict 5-field schema (`op`, `key`, `result`, `caller`, `seq`); grep test asserts | 01 |
 | T-269-11 | Information disclosure | Banners or success messages on stdout pollute `vault:get` pipes | **mitigated** — stdout discipline: only `vault:get` and `vault:list` write to stdout; everything else stderr | 02 |
 | T-269-12 | Tampering | CLI accepts arbitrary entry names | **mitigated** — `NAME_RE = /^[A-Z_][A-Z0-9_]*$/` enforced in `vault.set` | 01, 02 |
 | T-269-13 | Information disclosure | Value typed interactively visible on screen | **mitigated** — `@inquirer/password` masks both password AND value prompts in `vault:set` | 02 |
@@ -416,18 +450,23 @@ detailed STRIDE register.
 | T-269-16 | Tampering | server.js / index.ts diff breaks session / OAuth / HITL | **mitigated** — minimal-diff (21-line whitespace-ignored diff); 38/38 critical regression suite green after wiring | 03, 04 |
 | T-269-17 | Tampering | Attacker writes vault entry with `LD_PRELOAD` or `NODE_OPTIONS` | **mitigated** — gateway allowlist regex `/^(MCP_GW_|PROVIDER_|HELIX_|BFF_INTERNAL_)[A-Z0-9_]+$/` blocks system env names | 04 |
 | T-269-18 | Information disclosure | Allowlist-prefix lowercase entry | **mitigated** — vault library NAME_RE is uppercase-only; gateway regex also requires uppercase | 04 |
-| T-269-19 | Tampering | Gateway depends on argon2 transitively but doesn't declare it | **mitigated** — argon2 resolves via parent-walk through `banking_api_server/node_modules`; verified at runtime + documented in Plan 04 SUMMARY | 04 |
+| T-269-19 | Tampering | Gateway depends on argon2 transitively but doesn't declare it | **mitigated** — argon2 resolves via parent-walk through `demo_api_server/node_modules`; verified at runtime + documented in Plan 04 SUMMARY | 04 |
 | T-269-20 | Information disclosure | Gateway error path leaks Argon2/KEK/DEK via stack trace | **mitigated** — only `err.message` logged, never `err.stack`; grep test asserts | 04 |
 | T-269-21 | Information disclosure | Migration logs the secret value | **mitigated** — migration logs ONLY name + length (`copied HELIX_API_KEY (length=64 chars)`); sentinel-grep test asserts | 05 |
 | T-269-22 | Tampering | Accidental overwrite of vault entry on re-run | **mitigated** — default behavior SKIPS when entry exists; `--force` flag required | 05 |
-| T-269-23 | Spoofing | Migration accepts arbitrary env var name | **mitigated** — closed `ALLOWED_ENV_VARS` allowlist of 9 specific names; arbitrary `MY_RANDOM` / `LD_PRELOAD` ignored | 05 |
+| T-269-23 | Spoofing | Migration accepts arbitrary env var name | **mitigated** — closed `ALLOWED_ENV_VARS` allowlist (see `scripts/vault-migrate.js` for the current list — it has grown past the original 9); arbitrary `MY_RANDOM` / `LD_PRELOAD` ignored | 05 |
 | T-269-24 | Information disclosure | Docs leak placeholders that look real | **mitigated** — all examples use obvious placeholders (`<your-strong-passphrase>`, `s3cret-place-holder`, `xxxx...xxxx`); no real-looking tokens | 05 |
 | T-269-25 | Tampering | REGRESSION_PLAN edit silently changes existing rows | **mitigated** — edit is APPEND-ONLY to §1 table; `git diff REGRESSION_PLAN.md \| grep "^-" \| wc -l` returns 0 | 05 |
-| T-269-26 | Information disclosure | setupFresh leaks vault password via interactive typing | **mitigated** — `configureVault()` REFUSES to prompt interactively; fail-fast with clear error if no `--vault-password` and no `VAULT_PASSWORD` env in interactive TTY mode | 05 |
+| T-269-26 | Information disclosure | setupFresh leaks vault password via interactive typing | **mitigated** — `configureVault()` prompts via `@inquirer/password` (masked, `mask: '*'`), the same helper the vault CLI uses. It previously used `readlineFreeText`, which accepts a `secret` option but IGNORES it, so the password was echoed to the terminal | 05 |
 | T-269-27 | Information disclosure | `--vault-password` argv visible in `/proc/<pid>/cmdline` | **accepted** — documented tradeoff; operators on shared machines should prefer `export VAULT_PASSWORD=...` (per-process, not visible to other PIDs); CLI `--help` warns | 05 |
 | T-269-28 | Tampering | Vault created but secrets NOT migrated → two sources of truth | **mitigated** — `vault:migrate-from-env` runs IMMEDIATELY after `vault:create` in setupFresh; migrate failure fails the whole phase with exit 1 (no half-state) | 05 |
 | T-269-29 | Denial of service | Re-run of setupFresh prompts again and overwrites existing vault | **mitigated** — `configureVault` detects existing vault file at the configured path and skips creation; logs `vault present at <path> — skipping creation` | 05 |
 | T-269-30 | Tampering | `vault:create` silently overwrites an existing vault | **mitigated** — `cmdCreate` checks `fs.existsSync` BEFORE prompting for password; refuses with exit 1 and an explicit error | 02 |
+| T-269-31 | Tampering | Rollback: an older `secrets.vault` is restored to undo a rotation or resurrect a deleted entry | **mitigated** — monotonic `seq` in the envelope (inside the HMAC), witnessed in the append-only audit log; `openVault` refuses a file whose `seq` is below one already recorded. Detects rollback of the vault; an attacker who rewinds the log in the same motion is NOT caught, and a log starting fresh detects nothing (deliberate — a rotated log must not brick a good vault) | 269.2 |
+| T-269-32 | Information disclosure | Salt oracle: a wrong-length `kdf.salt` reached argon2 and surfaced its bare Error, distinguishable from the deliberately generic open failure | **mitigated** — `parseEnvelope` enforces `SALT_BYTES` and reuses the existing `unsupported kdf parameters` message, so no new distinction is introduced | 269.2 |
+| T-269-33 | Information disclosure | KEK survives `close()` in an orphaned copy | **mitigated** — `deriveKek` zeroes argon2's own output buffer after copying, and callers no longer re-wrap the result in `Buffer.from()`; exactly one copy exists per derivation, and it is the one `close()` wipes. Refines T-269-08 | 269.2 |
+| T-269-34 | Misconfiguration | agent-service silently runs env-only: its image has no `demo_api_server`, so the vault require always fails and the branch returned quietly with reason `no_vault_file` | **mitigated** — the branch now logs (error level when a vault file or password says the vault was expected), reports `vault_lib_unavailable`, and honours `VAULT_REQUIRED=true` by refusing to start | 269.2 |
+| T-269-35 | Tampering | A broken argon2 build or a syntax error in the vault library was swallowed by a bare `catch {}` and reported as "no vault library" | **mitigated** — only `MODULE_NOT_FOUND` naming the vault path is tolerated; every other require failure rethrows | 269.2 |
 
 ---
 
@@ -444,8 +483,8 @@ Each Phase 269 requirement (REQ-VAULT-01..13) is satisfied as follows:
 | **REQ-VAULT-05** | CLI shape (create/get/set/list/delete/rotate) | `scripts/vault.js` 6 subcommands + this doc "CLI usage" |
 | **REQ-VAULT-06** | Forgotten-password recovery procedure | This doc "Recovery procedure" — re-provision; no backdoor |
 | **REQ-VAULT-07** | Audit trail format | `lib/vault/audit.js` NDJSON, plaintext metadata, never values |
-| **REQ-VAULT-08** | MCP Gateway integration | `banking_mcp_gateway/src/vault.ts` + `src/index.ts` IIFE wiring (Plan 04) |
-| **REQ-VAULT-09** | BFF integration | `banking_api_server/services/vaultLoader.js` + `server.js` IIFE wiring (Plan 03) |
+| **REQ-VAULT-08** | MCP Gateway integration | `demo_mcp_gateway/src/vault.ts` + `src/index.ts` IIFE wiring (Plan 04) |
+| **REQ-VAULT-09** | BFF integration | `demo_api_server/services/vaultLoader.js` + `server.js` IIFE wiring (Plan 03) |
 | **REQ-VAULT-10** | CI / non-interactive password handling | `VAULT_PASSWORD` env var; setupFresh fail-fast contract |
 | **REQ-VAULT-11** | Vercel / serverless treatment | `VERCEL=1` short-circuits load (Plans 03 + 04) |
 | **REQ-VAULT-12** | Test strategy + golden files | `tests/vault/` — 112+ tests, 2 golden fixtures (valid + corrupted-v1) |
@@ -494,7 +533,7 @@ setup:fresh — env vars are per-process and not exposed to other PIDs.
 
 A: Node's built-in `readline` does not mask password input on a fresh
 `/dev/tty` stream reliably — see
-[`scripts/setupFresh.js`](../banking_api_server/scripts/setupFresh.js)
+[`scripts/setupFresh.js`](../demo_api_server/scripts/setupFresh.js)
 `readlineFreeText` comment around line 905 for the historical
 tradeoff. Rather than risk a visible-typing leak (T-269-26), setupFresh
 requires the password explicitly via `--vault-password <pw>` or
@@ -596,7 +635,7 @@ downtime, or when the operator only has a browser handy.
 - Admin login session (PingOne-authenticated session OR a token bearing
   the `banking:admin` scope). The routes are mounted under
   `app.use('/api/admin/vault', authenticateToken, require('./routes/adminVault'))`
-  at `banking_api_server/server.js:899` and every handler runs the
+  at `demo_api_server/server.js:899` and every handler runs the
   `requireAdmin` middleware.
 - Vault file present at `VAULT_PATH || <repo-root>/secrets.vault`.
 - Not running on Vercel — see the "Vercel" section above. `/admin/vault`
@@ -635,13 +674,30 @@ downtime, or when the operator only has a browser handy.
 
 ### Audit trail
 
-Every unlock and rotate writes one NDJSON line to
-`<vaultPath>.audit.log` via `lib/vault/audit.js`'s 4-field allowlist
-(`op`, `key`, `result`, `caller`). The web routes set `caller:"adminVault"`;
-the CLI sets `caller:"vault.js"`. Both rotate-via-CLI and rotate-via-web
-therefore appear in the same audit log, distinguished by the `caller`
-field for forensic clarity. The audit allowlist physically cannot leak
-the password (T-269.1-03).
+Every unlock and rotate writes one NDJSON line to the audit log (default
+`<vaultPath>.audit.log`, relocatable via `VAULT_AUDIT_LOG_PATH` — see "File
+location") via `lib/vault/audit.js`'s 5-field allowlist (`op`, `key`,
+`result`, `caller`, `seq`).
+
+`caller` is supplied by whoever opens the vault, as the third argument to
+`openVault`/`createVault`:
+
+| caller | set by |
+|---|---|
+| `adminVault` | the web routes (`routes/adminVault.js`), unlock and rotate |
+| `vaultLoader` | BFF startup load (`services/vaultLoader.js`) |
+| `vault.js` | the CLI (`scripts/vault.js`) — also the default when unset |
+| `vault-migrate` | `scripts/vault-migrate.js` |
+| `helixKeyMigration` | `services/helixKeyMigration.js` |
+| `agent-service` | `demo_agent_service/src/vault.ts` |
+
+Rotate-via-CLI and rotate-via-web therefore appear in the same audit log,
+distinguished by `caller` for forensic clarity. This used to be aspirational:
+the library hardcoded `caller:"vault.js"` on every line it wrote, so only the
+route's own wrapper lines carried `adminVault` and the open/read/close lines
+underneath a web unlock were indistinguishable from a CLI run.
+
+The audit allowlist physically cannot leak the password (T-269.1-03).
 
 ### Rate limit on unlock
 
@@ -670,14 +726,14 @@ every handler + JSON content-type preflight (browsers refuse
 cross-origin POST with JSON body without a CORS preflight that fails
 without a proper `Origin`) + no CSRF token middleware. This is the
 existing project posture across all `/api/admin/*` routes (see
-`banking_api_server/server.js` session cookie config and the admin
+`demo_api_server/server.js` session cookie config and the admin
 route mount pattern at line 896). T-269.1-02 disposition: accept
 (existing posture); no new CSRF surface introduced.
 
 ### MCP Gateway desync caveat (T-269.1-07)
 
 Phase 269.1's runtime rotate ONLY changes the BFF's view of the vault.
-The MCP Gateway (`banking_mcp_gateway`) loads the vault at ITS OWN
+The MCP Gateway (`demo_mcp_gateway`) loads the vault at ITS OWN
 startup using ITS OWN `VAULT_PASSWORD` env. After a web-rotate, the
 gateway is still operating on the OLD password in its env; on the next
 gateway restart it WILL fail to open the vault with
@@ -721,7 +777,7 @@ warning, it is the failure mode you will hit if you ignore it.
 After a successful rotate, update `VAULT_PASSWORD` in every place that
 might run the BFF or MCP Gateway:
 
-1. **`banking_api_server/.env`** (or wherever your shell sources from
+1. **`demo_api_server/.env`** (or wherever your shell sources from
    when you run `./run-demo.sh`).
 2. **Your pm2 ecosystem file** (`ecosystem.config.js` env block) if
    you use pm2 for service management.
@@ -736,7 +792,7 @@ might run the BFF or MCP Gateway:
 
 ```bash
 VAULT_PASSWORD="<new-password>" npm run vault:list
-# From banking_api_server/
+# From demo_api_server/
 ```
 
 Should print the list of vault entry names. If it fails with

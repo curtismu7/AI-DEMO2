@@ -269,8 +269,10 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
 router.post('/active', requireSession, (req, res) => {
   const { id, global: wantGlobal } = req.body || {};
   if (!id) return res.status(400).json({ error: 'id required' });
-  if (verticalManifest.HIDDEN_IDS.has(id)) return res.status(403).json({ error: 'cannot activate hidden vertical' });
-  if (!verticalManifest.loader.get(id)) return res.status(404).json({ error: 'unknown id' });
+  // Shared with the demo-agent `vertical` param — see verticalManifest.activationRefusal.
+  const refusal = verticalManifest.activationRefusal(id);
+  if (refusal === 'hidden') return res.status(403).json({ error: 'cannot activate hidden vertical' });
+  if (refusal === 'unknown') return res.status(404).json({ error: 'unknown id' });
   // Session preference (takes precedence in resolver.activeIdFor / scope / data seeding).
   req.session.active_vertical = id;
   const isAdmin = req.user && req.user.role === 'admin';

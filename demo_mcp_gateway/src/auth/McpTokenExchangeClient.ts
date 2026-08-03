@@ -8,7 +8,7 @@
  * correct upstream MCP-server audience (olb or invest), per D-05.
  *
  * Token flow (D-04: no token to LLM):
- *   caller  →  gateway (aud=gateway)  →  exchange  →  upstream (aud=mcp-olb or mcp-invest)
+ *   caller  →  gateway (aud=gateway)  →  exchange  →  upstream (aud=mcp-olb or mcp-resource-server)
  *
  * The upstream token is ONLY used by the gateway to call the MCP server.
  * It is never returned to, logged for, or visible to the LLM.

@@ -8,10 +8,10 @@ jest.mock('@mastra/core/agent', () => {
     Agent: jest.fn().mockImplementation(() => ({
       stream: jest.fn().mockResolvedValue({
         fullStream: (async function* () {
-          yield { type: 'tool-call', payload: { toolCallId: 'tc1', toolName: 'get_accounts', args: {} } };
-          yield { type: 'tool-result', payload: { toolCallId: 'tc1', toolName: 'get_accounts', result: { accounts: [] } } };
-          yield { type: 'text-delta', payload: { id: 'm', text: 'Hello' } };
-          yield { type: 'text-delta', payload: { id: 'm', text: ' world' } };
+          yield { type: 'tool-call', toolCallId: 'tc1', toolName: 'get_accounts', args: {} };
+          yield { type: 'tool-result', toolCallId: 'tc1', toolName: 'get_accounts', result: { accounts: [] } };
+          yield { type: 'text-delta', textDelta: 'Hello' };
+          yield { type: 'text-delta', textDelta: ' world' };
         })(),
       }),
     })),
@@ -89,6 +89,7 @@ describe('POST /run (Mastra run handler)', () => {
   it('emits TEXT_MESSAGE_CONTENT events for streamed tokens', async () => {
     const res = await request(app).post('/run').send(RUN_PAYLOAD).buffer(true);
     const events = parseSse(res.text);
+    console.log("EVENTS: ", JSON.stringify(events));
     const content = events.filter((e) => e.type === 'TEXT_MESSAGE_CONTENT');
     expect(content.length).toBeGreaterThan(0);
     const joined = content.map((e) => e.delta).join('');

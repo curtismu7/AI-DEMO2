@@ -85,7 +85,7 @@ const A2A_SPECIALISTS = {
     appKey: 'holdings',
     appName: 'Super Banking Holdings Specialist Agent',
     specialistName: 'Holdings Specialist',
-    tools: ['sensitive_investment_holdings'],
+    tools: ['sensitive_holdings'],
     subtaskHint: 'review the sensitive investment holdings',
   },
 };

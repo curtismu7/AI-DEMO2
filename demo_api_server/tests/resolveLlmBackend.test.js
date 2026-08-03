@@ -9,7 +9,7 @@ const path = require('path');
 
 const RESOLVER = path.resolve(__dirname, '../../demo_llm_proxy/resolve-llm-backend.sh');
 
-function resolveBackend(env = {}) {
+function resolveBackend(env = {}, context = '') {
   const merged = { ...process.env, ...env };
   delete merged.LLM_BACKEND_RESOLVE_WARN;
   if (env.LLM_BACKEND === '') {
@@ -17,7 +17,7 @@ function resolveBackend(env = {}) {
   }
   const bashScript = [
     `source ${JSON.stringify(RESOLVER)}`,
-    'resolve_llm_backend',
+    `resolve_llm_backend ${context}`.trim(),
     'printf "|%s" "${LLM_BACKEND_RESOLVE_WARN:-}"',
   ].join(' && ');
   const result = spawnSync('bash', ['-c', bashScript], {
@@ -89,5 +89,57 @@ describe('resolve-llm-backend.sh platform detection', () => {
       LLM_BACKEND: 'omlx',
     });
     expect(backend).toBe('omlx');
+  });
+});
+
+// oMLX serves :8090 on the host — the same port the llm-proxy container binds
+// under Compose. Only ./run.sh has no container competing for it, so oMLX is
+// native-only and every other launcher resolves to llamacpp.
+describe('resolve-llm-backend.sh launcher context', () => {
+  const APPLE = { UNAME_S: 'Darwin', UNAME_M: 'arm64' };
+
+  test('native context keeps the Apple Silicon oMLX default', () => {
+    const { backend } = resolveBackend({ ...APPLE, LLM_BACKEND: '' }, 'native');
+    expect(backend).toBe('omlx');
+  });
+
+  test('omitting the context behaves as native', () => {
+    const { backend } = resolveBackend({ ...APPLE, LLM_BACKEND: '' });
+    expect(backend).toBe('omlx');
+  });
+
+  test('docker context uses llamacpp on Apple Silicon', () => {
+    const { backend, warn } = resolveBackend({ ...APPLE, LLM_BACKEND: '' }, 'docker');
+    expect(backend).toBe('llamacpp');
+    expect(warn).toBe('');
+  });
+
+  test('cluster context uses llamacpp on Apple Silicon', () => {
+    const { backend } = resolveBackend({ ...APPLE, LLM_BACKEND: '' }, 'cluster');
+    expect(backend).toBe('llamacpp');
+  });
+
+  test('downgrades an explicit omlx in docker context, with a warning', () => {
+    const { backend, warn } = resolveBackend({ ...APPLE, LLM_BACKEND: 'omlx' }, 'docker');
+    expect(backend).toBe('llamacpp');
+    expect(warn).toMatch(/native-only/i);
+    expect(warn).toMatch(/docker/i);
+  });
+
+  test('downgrades an explicit mlx in cluster context, with a warning', () => {
+    const { backend, warn } = resolveBackend({ ...APPLE, LLM_BACKEND: 'mlx' }, 'cluster');
+    expect(backend).toBe('llamacpp');
+    expect(warn).toMatch(/native-only/i);
+  });
+
+  test('explicit mlx still resolves in native context on macOS', () => {
+    const { backend, warn } = resolveBackend({ ...APPLE, LLM_BACKEND: 'mlx' }, 'native');
+    expect(backend).toBe('mlx');
+    expect(warn).toBe('');
+  });
+
+  test('explicit llamacpp is unaffected by context', () => {
+    expect(resolveBackend({ ...APPLE, LLM_BACKEND: 'llamacpp' }, 'docker').backend).toBe('llamacpp');
+    expect(resolveBackend({ ...APPLE, LLM_BACKEND: 'llamacpp' }, 'native').backend).toBe('llamacpp');
   });
 });

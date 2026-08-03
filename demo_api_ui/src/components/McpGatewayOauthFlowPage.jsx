@@ -93,7 +93,7 @@ const NOTES = [
         cite: "TokenIntrospector.ts:104-165",
       },
       {
-        text: "Step 18 serverInfo reports “Banking MCP Server” - the one backend drawn here; demo_mcp_invest and demo_mcp_jwt_verifier sit behind the same gateway in the real topology and are omitted per scope.",
+        text: "Step 18 serverInfo reports “Banking MCP Server” - the one backend drawn here; demo_mcp_resource_server and demo_mcp_jwt_verifier sit behind the same gateway in the real topology and are omitted per scope.",
         cite: "MCPMessageHandler.ts:41-55, 152-213",
       },
     ],

@@ -40,6 +40,16 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 source "${BASEDIR}/scripts/demo-terminal.sh"
 demo_init_terminal
 
+# Handled before anything else runs: `machine` reports what this box is and
+# which launcher suits it, so it has to stay read-only. Everything below this
+# point has side effects — vault lookup, cert generation, log file creation.
+case "${1:-}" in
+  machine|specs)
+    demo_machine_banner native
+    exit 0
+    ;;
+esac
+
 # ── Auto-load VAULT_PASSWORD from .env files ──────────────────────────────────
 # If VAULT_PASSWORD is not already set in the shell environment, try to source
 # it from the root .env or demo_api_server/.env (in that order). This lets
@@ -397,7 +407,12 @@ preflight_checks() {
   # shellcheck source=demo_llm_proxy/resolve-llm-backend.sh
   source "${BASEDIR}/demo_llm_proxy/resolve-llm-backend.sh"
   local llm_backend
-  llm_backend="$(resolve_llm_backend)"
+  # Called bare, not in $( ): a command substitution resolves in a subshell and
+  # LLM_BACKEND_RESOLVE_WARN dies with it, so every downgrade notice — an omlx
+  # or mlx request this platform cannot honor — was being swallowed.
+  # RESOLVED_LLM_BACKEND is exported by the resolver for exactly this.
+  resolve_llm_backend native >/dev/null
+  llm_backend="${RESOLVED_LLM_BACKEND}"
   if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
     warn "${LLM_BACKEND_RESOLVE_WARN}"
   elif [[ -z "${LLM_BACKEND:-}" && "$llm_backend" == "omlx" ]]; then
@@ -511,6 +526,26 @@ preflight_checks() {
     fi
     bash "${BASEDIR}/demo_llm_proxy/start-omlx.sh" start
   }
+
+  # Mirror of run-docker.sh's :8090 clearing, in the other direction. The Compose
+  # stack's llm-proxy publishes :8090, so if it is up, oMLX cannot bind — and the
+  # readiness probe below would answer yes for the *container* and report "oMLX
+  # already serving :8090" about a process that never started. A false success
+  # like that is far harder to spot than a failed bind, so clear the port first.
+  _release_8090_from_containers() {
+    command -v docker >/dev/null 2>&1 || return 0
+    local names
+    names=$(docker ps --filter "publish=${llamacpp_port}" --format '{{.Names}}' 2>/dev/null) || true
+    [[ -n "$names" ]] || return 0
+    warn "container(s) hold :${llamacpp_port} — stopping so the host backend can bind: $(echo "$names" | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    docker stop $names >/dev/null 2>&1 || true
+  }
+
+  if [[ ("$llm_backend" == "omlx" || "$llm_backend" == "mlx") \
+        && ("$llamacpp_host" == "localhost" || "$llamacpp_host" == "127.0.0.1") ]]; then
+    _release_8090_from_containers
+  fi
 
   if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
     # Remote LLM — just check reachability, never try to start locally
@@ -989,6 +1024,7 @@ cmd_help() {
   echo "    fresh      Run setup:fresh (initial install / PingOne bootstrap)"
   echo "    fresh <f>  Run setup:fresh with a migration bundle (.tar.gz)"
   echo "    test       Run full test suite (API, UI, MCP)"
+  echo "    machine    Show this machine's specs and which launcher fits it"
   echo "    help       Show this message"
   echo ""
   echo -e "${WHITE}${BOLD}  Port Layout:${RESET}"
@@ -1123,6 +1159,8 @@ esac
 # START SERVICES
 # ══════════════════════════════════════════════════════════════════════════════
 
+demo_machine_banner native
+
 preflight_checks
 
 # ── Auto-kill any existing Banking services before (re)starting ─────────────
@@ -1156,7 +1194,7 @@ fi
 # (tsc) when dist/index.js is missing. SVC_INSTALL_FLAGS handles services that
 # need extra `npm install` flags. Loud failure on any error — silent skips here
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
-SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mcp_weather demo_mortgage_service mastra_agent demo_authz_server)
+SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_mcp_weather demo_api_resource_server mastra_agent demo_authz_server)
 SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "ts"          "")
 SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    ""            "")
 
@@ -1537,13 +1575,13 @@ if [[ -d "$BASEDIR/demo_agent_service" ]]; then
 fi
 
 # ── MCP Invest Server on :8081 ──────────────────────────────────────────────
-if [[ -d "$BASEDIR/demo_mcp_invest" ]]; then
+if [[ -d "$BASEDIR/demo_mcp_resource_server" ]]; then
   echo "[INVEST] Starting MCP Invest Server on :8081..."
   (
-    cd "$BASEDIR/demo_mcp_invest"
+    cd "$BASEDIR/demo_mcp_resource_server"
     PORT=8081 \
     OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
-    OTEL_SERVICE_NAME="mcp-invest" \
+    OTEL_SERVICE_NAME="mcp-resource-server" \
     NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
     npm start > "${LOG_INVEST}" 2>&1
   ) &
@@ -1575,11 +1613,11 @@ fi
 # API-key-gated. Gateway swaps the user's OAuth bearer for X-API-Key and calls
 # this service on the api_key disposition. Single GET /mortgage route returns
 # a dummy mortgage record.
-if [[ -d "$BASEDIR/demo_mortgage_service" ]]; then
+if [[ -d "$BASEDIR/demo_api_resource_server" ]]; then
   echo "[MORTGAGE] Starting Mortgage Service on :8082..."
   (
-    cd "$BASEDIR/demo_mortgage_service"
-    MORTGAGE_SERVICE_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
+    cd "$BASEDIR/demo_api_resource_server"
+    API_RESOURCE_SERVER_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
   ) &
   echo $! > "$PID_MORTGAGE"
 fi

@@ -13,7 +13,7 @@ flowchart LR
     %%   2. There are TWO backends on the far right:
     %%        - OAuth backend (current demo_api_server): forward the
     %%          downscoped MCP token, backend introspects.
-    %%        - API-key backend (LIVE, Phase 267 — demo_mortgage_service
+    %%        - API-key backend (LIVE, Phase 267 — demo_api_resource_server
     %%          :8082): Gateway swaps in a service API key + X-User-Sub when
     %%          calling — backend never sees a user token. Drawn solid: this
     %%          path is wired end-to-end today.
@@ -49,14 +49,14 @@ flowchart LR
 
     %% ── Additional Node services (Phase 270 audit) ─────────────────────
     MCPServer["demo_mcp_server<br/>MCP protocol · WebSocket :8080<br/>tools/list · tools/call"]
-    MCPInvest["demo_mcp_invest<br/>Investment MCP server :8081<br/>(WebSocket + HTTP)"]
-    Mortgage["demo_mortgage_service<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
+    MCPInvest["demo_mcp_resource_server<br/>Investment MCP server :8081<br/>(WebSocket + HTTP)"]
+    Mortgage["demo_api_resource_server<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
     LangChain["langchain_agent<br/>Python uvicorn :8888<br/>chat WS :8889 - health :8890"]
     Vault[("secrets.vault<br/>AEAD + Argon2id<br/>startup-loaded - Phase 269")]
     MgmtAPI["PingOne Management API<br/>/v1/environments/{env}/users<br/>worker token (CC)"]
 
     %% Phase 266 R2: three credential paths from the Gateway.
-    %% Path A (api_key): RFC 6750 bearer dropped; X-API-Key + X-User-Sub injected; Gateway calls demo_mortgage_service :8082 (Phase 267, live).
+    %% Path A (api_key): RFC 6750 bearer dropped; X-API-Key + X-User-Sub injected; Gateway calls demo_api_resource_server :8082 (Phase 267, live).
     %% Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity. RFC 8693 + RFC 8707 audience binding.
     %% Path C (oauth_bearer): RFC 8693 exchange, Bearer (new aud) to banking_resource_server /accounts /transactions.
     %% Paths B and C both terminate at the same banking_resource_server node at different routes.
@@ -74,7 +74,7 @@ flowchart LR
     subgraph Backends["Backend resource servers"]
       direction TB
       OAuthRS["OAuth backend<br/>(demo_api_server REST + MCP)<br/><br/>Accepts: downscoped MCP token<br/>Verifies: RFC 7662 introspect<br/>Pattern: standard OAuth 2.0"]
-      APIKeyRS["API-key backend<br/>(demo_mortgage_service :8082 — LIVE)<br/><br/>Accepts: X-API-Key + X-User-Sub<br/>Verifies: constant-time shared-secret<br/>Pattern: legacy / 3rd-party APIs<br/>Key injected by Gateway (Phase 267)"]
+      APIKeyRS["API-key backend<br/>(demo_api_resource_server :8082 — LIVE)<br/><br/>Accepts: X-API-Key + X-User-Sub<br/>Verifies: constant-time shared-secret<br/>Pattern: legacy / 3rd-party APIs<br/>Key injected by Gateway (Phase 267)"]
       BankingRS["banking_resource_server<br/>/identity - /accounts - /transactions<br/><br/>Path B: Bearer + id_token (dual_token)<br/>Path C: Bearer OAuth (oauth_bearer)<br/>Validates: RFC 6750 authenticateToken"]
       SQLite["SQLite DB<br/>banking-resource-server.db<br/>(seeded from data/store.js)"]
     end

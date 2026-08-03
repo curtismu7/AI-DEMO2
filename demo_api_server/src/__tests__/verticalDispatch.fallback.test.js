@@ -79,10 +79,17 @@ describe('verticalDispatch — no plugin (legacy fallback)', () => {
     expect(legacy).toHaveBeenCalledWith({ role: 'user' });
   });
 
-  it('executeToolFor calls the legacy callback', async () => {
+  // Was: "executeToolFor calls the legacy callback" — that asserted the bug.
+  // On the agent path the legacy callback is executeBffTool (banking's tool
+  // registry), so a plugin-less vertical executed BANKING's tools. Now it fails
+  // explicitly instead. See tests/services/verticalDispatch.noPlugin.test.js.
+  it('executeToolFor does NOT call the legacy callback — it fails naming the vertical', async () => {
     const legacy = jest.fn(async () => 'LEGACY RESULT');
-    expect(await dispatch.executeToolFor('retail', 'create_transfer', { a: 1 }, {}, legacy)).toBe('LEGACY RESULT');
-    expect(legacy).toHaveBeenCalledWith('create_transfer', { a: 1 }, {});
+    const out = await dispatch.executeToolFor('retail', 'create_transfer', { a: 1 }, {}, legacy);
+    expect(legacy).not.toHaveBeenCalled();
+    expect(out.result.errorCode).toBe('vertical_no_plugin');
+    expect(out.result.verticalId).toBe('retail');
+    expect(out.result.tool).toBe('create_transfer');
   });
 });
 

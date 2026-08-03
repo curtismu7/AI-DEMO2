@@ -17,7 +17,7 @@ or any use-case chip. It is a gateway-level capability, verified via direct rout
 - No new PingOne resource, scope, or Authorize policy. No manual PingOne console
   provisioning is required for this to work.
 - No JWKS-variant route, no rate-limit filter, no P1AZDecision call — this route does not
-  match full parity with `01-mcp-olb.json` / `02-mcp-invest.json`. It reuses the gateway's
+  match full parity with `01-mcp-olb.json` / `02-mcp-resource-server.json`. It reuses the gateway's
   existing inbound introspection/scope only.
 - No support for the 11 tools outside the default preset (saved-location CRUD, air quality,
   marine, imagery, lightning, river, wildfire, historical). Only the weather-mcp default-6
@@ -89,7 +89,7 @@ its own token exchange or introspection variant.
 ### 3. `ping-gateway/scripts/groovy/tx-weather-scope.groovy` (new)
 
 Runs after `McpValidationFilter` has buffered the body (matching the existing comment in
-`00-mcp-invest-jwks.json` about validation needing to run on every route reaching the
+`00-mcp-resource-server-jwks.json` about validation needing to run on every route reaching the
 backend, not just some).
 
 Logic:
@@ -112,7 +112,7 @@ Logic:
 ### 4. Compose + env
 
 - New `mcp-weather` service in the root `docker-compose.yml` (same file that already defines
-  `mcp-invest`, `mcp-server`, `mcp-proxy`, and `ping-gateway`), mirroring the `mcp-invest`
+  `mcp-resource-server`, `mcp-server`, `mcp-proxy`, and `ping-gateway`), mirroring the `mcp-resource-server`
   service block shape.
 - `ping-gateway` service block: add `PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"` to its
   `environment:` (in-stack override, mirrors `PG_OLB_BACKEND_URL` / `PG_INVEST_BACKEND_URL`),

@@ -70,7 +70,7 @@ scopes are an Authorize/provisioning decision). See memory
   `enhancedTokenExchangeService.js` — `aud`/scope resolution.
 - PingOne Authorize decisioning (scope enforcement).
 - `banking_mcp_gateway/src/router.ts` — tool `requiredScopes`.
-- MCP tool registry (`banking_mcp_server`, `banking_mcp_invest`).
+- MCP tool registry (`banking_mcp_server`, `banking_mcp_resource_server`).
 - `.env` / `secrets.vault` — app client_ids/secrets if apps' ids change (Q7).
 - Demo user references (login hints, e2e fixtures, docs).
 

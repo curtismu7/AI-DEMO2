@@ -223,6 +223,15 @@ export default function DemoStepsDropdown({
           )}
           <span className="ba-demo-steps-popout__id">{uc.id}</span>
           <span className="banking-chips-dropdown__chip-name">{uc.title}</span>
+          {uc.resourceServer && (
+            <span
+              className="ba-demo-steps-popout__rs-badge"
+              data-rs={uc.resourceServer.id}
+              title={`${uc.resourceServer.name} :${uc.resourceServer.port}`}
+            >
+              :{uc.resourceServer.port}
+            </span>
+          )}
         </button>
         {uc.id === 'UC14b' && (
           <button

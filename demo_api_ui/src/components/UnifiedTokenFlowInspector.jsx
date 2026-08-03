@@ -961,7 +961,7 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
       ? UTFI_NO_EXCHANGE_NOTE
       : gwConfig
         ? (utfiRouteCategory === 'invest'
-            ? gwConfig.mcpInvestResourceUri
+            ? gwConfig.mcpResourceServerResourceUri
             : utfiRouteCategory === 'banking_resource'
               ? gwConfig.bankingResourceServerResourceUri
               : gwConfig.mcpOlbResourceUri) || 'Not configured — push a gateway config first'

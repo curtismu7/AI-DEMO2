@@ -1301,7 +1301,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   const ffTwoExchange = sessionExchangeMode !== 'single';
   if (ffTwoExchange) {
     return await _performTwoExchangeDelegation(
-      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, opts
+      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, { ...opts, tool }
     );
   }
   // ────────────────────────────────────────────────────────────────────
@@ -2462,11 +2462,11 @@ async function _performTwoExchangeDelegation(
     try {
       const _tratRaw = configStore.getEffective('ff_trat_mode');
       const ffTratMode = _tratRaw === true || _tratRaw === 'true';
-      const { ffDpop, ffRar, extras } = _buildAgenticExtras(req || {}, toolTrigger, userSub, tokenEvents);
+      const { ffDpop, ffRar, extras } = _buildAgenticExtras(req || {}, opts.tool || toolTrigger, userSub, tokenEvents);
       if ((ffTratMode || ffDpop || ffRar) && finalToken) {
         const agentClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || '';
         const gatewayClientId = configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID || '';
-        const tratCtx = buildTratContext(req || {}, toolTrigger, userSub, agentClientId, gatewayClientId, extras);
+        const tratCtx = buildTratContext(req || {}, opts.tool || toolTrigger, userSub, agentClientId, gatewayClientId, extras);
         const finalDecoded2 = decodeJwtClaims(finalToken);
         const hasNativeReqctx = !!(finalDecoded2?.claims?.reqctx);
         const isSim = !hasNativeReqctx;

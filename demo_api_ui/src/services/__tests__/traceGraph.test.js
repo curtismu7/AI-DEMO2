@@ -5,11 +5,11 @@ import agentFixture from "./fixtures/trace-agent-run.json";
 // Synthetic trace for the collapse-merge branch: neither committed fixture puts
 // two services in the same SERVICE_CLUSTERS bucket, so buildCollapsedGraph's
 // busiest-member-wins edge merge (traceGraph.js ~363-413) never runs against
-// them. mcp-server and mcp-invest both map to 'MCP Servers', so a gateway that
+// them. mcp-server and mcp-resource-server both map to 'MCP Servers', so a gateway that
 // calls each of them produces two full-graph edges
-// (mcp-gateway->mcp-server, mcp-gateway->mcp-invest) that must collapse into
+// (mcp-gateway->mcp-server, mcp-gateway->mcp-resource-server) that must collapse into
 // one Gateway->MCP Servers edge with summed callCount. mcp-server gets 3
-// calls and mcp-invest gets 2 so the merge is exercised with distinguishable,
+// calls and mcp-resource-server gets 2 so the merge is exercised with distinguishable,
 // non-symmetric counts (3 + 2 = 5), not a coincidental match.
 function makeClusterMergeTrace() {
   const traceID = "clustermerge0000000000000000001";
@@ -57,7 +57,7 @@ function makeClusterMergeTrace() {
         processes: {
           p1: { serviceName: "mcp-gateway" },
           p2: { serviceName: "mcp-server" },
-          p3: { serviceName: "mcp-invest" },
+          p3: { serviceName: "mcp-resource-server" },
         },
       },
     ],
@@ -122,7 +122,7 @@ describe("traceGraph model", () => {
     const collapsed = buildCollapsedGraph(trace, {});
 
     const serverEdge = full.edges.find((e) => e.source === "mcp-gateway" && e.target === "mcp-server");
-    const investEdge = full.edges.find((e) => e.source === "mcp-gateway" && e.target === "mcp-invest");
+    const investEdge = full.edges.find((e) => e.source === "mcp-gateway" && e.target === "mcp-resource-server");
     expect(serverEdge?.callCount).toBe(3);
     expect(investEdge?.callCount).toBe(2);
     expect(full.edges.length).toBe(2);

@@ -121,3 +121,4 @@ ping-mcpgw/
 | `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `config/proxy-token` |
 | `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend port 8680 |
 | `demo_api_server/routes/privilegeMcpClient.js` | seeds the client page's default MCP URL from `PRIVILEGE_MCPGW_URL` |
+| `docs/PRIVILEGE-MCP.md` | end-to-end explainer: protocols per hop, flow diagrams, BFF endpoint reference, current known gaps |

@@ -227,10 +227,16 @@ describe('step verification — banking chip prerequisites (flags + A2A + PAR)',
       const result = runChipPrerequisiteCheck(uc, 'banking', realConfigStore);
       assertSharedChipPrerequisites(uc, result);
 
-      // Banking is the primary demo vertical and its A2A/PAR credentials are
-      // expected to be present, so unlike the other verticals it holds the
-      // prerequisite verdict to a hard pass rather than filtering cred errors.
-      expect(result.prereq.ok).toBe(true);
+      // Banking used to hold this to a hard `prereq.ok === true`, on the
+      // premise that the primary demo vertical always has its A2A/PAR
+      // credentials loaded. That premise only holds on a developer machine:
+      // those values live only in the gitignored demo_api_server/.env, so on
+      // CI all of them resolve empty and UC2/UC2.5/UC14/UC14b failed for
+      // reasons that say nothing about the catalog. Same as the other
+      // verticals now — no credential assertion here; that the check NOTICES
+      // missing credentials is proven in
+      // src/__tests__/demoStepPrerequisites.test.js, and the gap is still
+      // recorded above as status FAIL / errorClass missing_prereq.
     },
   );
 });

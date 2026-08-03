@@ -25,6 +25,7 @@ import { GatewayConfig, isP1AZActive, usingRealPdpEndpoint } from './config';
 import { getCorrelationId } from './correlationContext';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarToolArgs } from './rarEnforce';
 import { DecodedGatewayToken } from './tokenValidator';
+import { classifyStatements, type ObligationKind } from './auth/authorizeObligations';
 
 // Forward the request's correlation id to the Authorization Server so its
 // decision logs line up with the gateway + BFF logs for the same request.
@@ -39,6 +40,14 @@ function authzHeaders(): Record<string, string> {
 export interface AuthzDecision {
   permitted: boolean;
   reason?: string;
+  /**
+   * Which gate the PDP attached, read from `statements[]` rather than from the
+   * decision label — live PingOne Authorize returns PERMIT + a statement for an
+   * obligation and never INDETERMINATE (that is its "could not evaluate"
+   * outcome). Lets the caller tell a step-up (needs MFA) from a consent hold
+   * (needs a human).
+   */
+  obligation?: ObligationKind;
   /**
    * AllowedVertical advice returned by the Authorization Server policy.
    * Restricts which vertical action tools are shown in tools/list.
@@ -368,9 +377,30 @@ export async function guardToolCall(
 
     const policySource = policySourceForEngine(engine);
     const decision: string = response.data?.decision || 'DENY';
-    if (decision === 'PERMIT') return { permitted: true, engine, policySource };
+    // Real-first: live P1AZ returns PERMIT + the gate in `statements[]`; only the
+    // mock says INDETERMINATE. Branching on the label alone let a live consent
+    // obligation through this transport (parity with PingOneAuthorizeClient).
+    const obligation = classifyStatements(response.data?.statements);
+    if (decision === 'PERMIT') {
+      if (obligation) {
+        return {
+          permitted: false,
+          reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
+          obligation,
+          engine,
+          policySource,
+        };
+      }
+      return { permitted: true, engine, policySource };
+    }
     if (decision === 'INDETERMINATE') {
-      return { permitted: false, reason: 'HITL_REQUIRED', engine, policySource };
+      return {
+        permitted: false,
+        reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
+        ...(obligation ? { obligation } : {}),
+        engine,
+        policySource,
+      };
     }
 
     // Preserve the policy engine's specific DENY reason (e.g. the mock's

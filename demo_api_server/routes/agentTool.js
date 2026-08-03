@@ -19,16 +19,24 @@
  */
 
 const express = require('express');
-const crypto = require('crypto');
+// Resolved per call — routes are required long before the vault opens, so a
+// module-scope snapshot could never see a vault-supplied BFF_INTERNAL_SECRET.
+const {
+  DEFAULT_INTERNAL_SECRET,
+  internalSecret,
+  isDefaultInternalSecret,
+  internalSecretMatches,
+} = require('../utils/internalSecret');
 const router = express.Router();
 
-const DEFAULT_INTERNAL_SECRET = 'dev-shared-secret-change-me';
-const INTERNAL_SECRET = process.env.BFF_INTERNAL_SECRET || DEFAULT_INTERNAL_SECRET;
-const INTERNAL_SECRET_BUF = Buffer.from(INTERNAL_SECRET);
 
-if (process.env.NODE_ENV === 'production' && INTERNAL_SECRET === DEFAULT_INTERNAL_SECRET) {
+// Keyed off VAULT_INTERNAL_STRICT, not NODE_ENV: k8s and docker-compose both pin
+// the BFF to NODE_ENV=development deliberately, so this assertion was dead code
+// in every real deployment.
+if (process.env.VAULT_INTERNAL_STRICT === 'true' && isDefaultInternalSecret()) {
   console.error(
-    '[BFF/agent-tool] FATAL: BFF_INTERNAL_SECRET is the dev default in production. Refusing to start.',
+    `[BFF/agent-tool] FATAL: BFF_INTERNAL_SECRET is the dev default ('${DEFAULT_INTERNAL_SECRET}') ` +
+    'under VAULT_INTERNAL_STRICT. Refusing to start.',
   );
   process.exit(1);
 }
@@ -46,13 +54,7 @@ function verticalForA2aTool(toolName) {
 }
 
 function checkSecret(req, res) {
-  const presented = req.headers['x-internal-gateway-secret'];
-  const buf = typeof presented === 'string' ? Buffer.from(presented) : null;
-  if (
-    !buf ||
-    buf.length !== INTERNAL_SECRET_BUF.length ||
-    !crypto.timingSafeEqual(buf, INTERNAL_SECRET_BUF)
-  ) {
+  if (!internalSecretMatches(req.headers['x-internal-gateway-secret'])) {
     res.status(403).json({ error: 'forbidden' });
     return false;
   }

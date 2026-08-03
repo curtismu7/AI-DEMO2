@@ -167,7 +167,7 @@ kill_all() {
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE '^ai-demo-'; then
       info "Stopping Docker Compose ai-demo containers that publish demo ports..."
       (cd "$BASEDIR" && docker compose -f docker-compose.yml stop \
-        demo-api-server ui mcp-server mcp-invest mortgage-service \
+        demo-api-server ui mcp-server mcp-resource-server api-resource-server \
         mcp-gateway agent-service hitl-service langchain-agent \
         openai-agent mastra-agent pydantic-agent mcp-proxy \
         2>/dev/null) || true
@@ -251,7 +251,7 @@ build() {
   # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
     demo-api-server ui mcp-server langchain-agent agent-service \
-    hitl-service mcp-invest mortgage-service mcp-proxy authz-server mcp-gateway
+    hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   tag_k8_images
   success "Images built and tagged for K8."
@@ -402,8 +402,8 @@ aws_build() {
     "ai-demo-k8-authz-server:ai-demo-authz-server"
     "ai-demo-k8-agent-service:ai-demo-agent-service"
     "ai-demo-k8-hitl-service:ai-demo-hitl-service"
-    "ai-demo-k8-mcp-invest:ai-demo-mcp-invest"
-    "ai-demo-k8-mortgage-service:ai-demo-mortgage-service"
+    "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
+    "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
     "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
     "ai-demo-k8-openai-agent:ai-demo-openai-agent"
     "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
@@ -615,6 +615,18 @@ sim() {
 show_help() {
   grep '^#' "$0" | grep -v '#!/' | sed 's/^# \?//'
 }
+
+# Machine panel ahead of any command that builds or deploys. Skipped when
+# run-pingaws.sh already printed it before exec'ing into this script.
+case "${1:-all}" in
+  machine|specs)
+    demo_machine_banner cluster
+    exit 0
+    ;;
+  all|build|deploy|restart|sim-deploy|se-build|se-deploy|se-all|aws-build|aws-deploy|aws-all)
+    demo_machine_banner cluster
+    ;;
+esac
 
 case "${1:-all}" in
   all)        check_prereqs; kill_all; build; deploy; forward ;;

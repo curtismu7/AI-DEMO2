@@ -295,10 +295,10 @@ override_redirect_uris_for_public_origin() {
 }
 
 # ── Demo service API key (apikey-dispatch path) ──────────────────────────────
-# The gateway pulls DEMO_MORTGAGE_SERVICE_KEY / DEMO_INVEST_SERVICE_KEY from the
-# BFF vault bridge and presents it to mortgage-service as X-API-Key. In-cluster
+# The gateway pulls DEMO_API_RESOURCE_SERVER_KEY / DEMO_MCP_RESOURCE_SERVER_KEY from the
+# BFF vault bridge and presents it to api-resource-server as X-API-Key. In-cluster
 # the BFF has no vault password and no LMDB entry, so the bridge falls back to
-# the committed default — while mortgage-service refuses to boot with that same
+# the committed default — while api-resource-server refuses to boot with that same
 # default. Nothing else provisions the pair in k8s (ensure-service-keys.js is
 # local-only), so a fresh deploy either crash-loops the backend or 401s every
 # invest/mortgage chip ("backend rejected the service API key"). Single-source
@@ -307,20 +307,43 @@ override_redirect_uris_for_public_origin() {
 # the BFF bridge, mortgage-secrets for the backend).
 align_service_api_keys() {
   local key
-  key=$(grep -E '^MORTGAGE_SERVICE_API_KEY=.+' "$ASSET_ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  key=$(grep -E '^API_RESOURCE_SERVER_API_KEY=.+' "$ASSET_ROOT/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
   case "$key" in
     ""|demo-mortgage-key-0000|mortgage-compose-dev-key)
       key="mortgage-$(openssl rand -hex 12)"
-      warn "  MORTGAGE_SERVICE_API_KEY missing/default in repo-root .env — minted a deploy-local service key"
+      warn "  API_RESOURCE_SERVER_API_KEY missing/default in repo-root .env — minted a deploy-local service key"
       ;;
   esac
-  printf '{"stringData":{"DEMO_MORTGAGE_SERVICE_KEY":"%s","DEMO_INVEST_SERVICE_KEY":"%s"}}' "$key" "$key" \
+  printf '{"stringData":{"DEMO_API_RESOURCE_SERVER_KEY":"%s","DEMO_MCP_RESOURCE_SERVER_KEY":"%s"}}' "$key" "$key" \
     | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
   kubectl create secret generic mortgage-secrets \
     --namespace="$NS" \
-    --from-literal="MORTGAGE_SERVICE_API_KEY=${key}" \
+    --from-literal="API_RESOURCE_SERVER_API_KEY=${key}" \
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   info "  Service API key aligned across ai-demo-secrets (bridge) + mortgage-secrets (backend)"
+}
+
+# BFF_INTERNAL_SECRET guards the internal-only endpoints (/internal/vault/service-key,
+# /internal/id-token). 03-secrets.yaml.template ships it empty and nothing minted
+# one, so both the BFF and the gateway fell back to the committed literal
+# 'dev-shared-secret-change-me' — public knowledge in this repo. Any workload with
+# pod-network reach to api-server:3001 could then read the backend service keys.
+# Mint once and ship the SAME value to every consumer that compares it.
+align_internal_secret() {
+  local secret
+  secret=$(grep -E '^BFF_INTERNAL_SECRET=.+' "$ASSET_ROOT/demo_api_server/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  case "$secret" in
+    ""|dev-shared-secret-change-me)
+      secret="$(openssl rand -hex 32)"
+      warn "  BFF_INTERNAL_SECRET missing/default in demo_api_server/.env — minted a deploy-local internal secret"
+      ;;
+  esac
+  local s
+  for s in ai-demo-secrets gateway-secrets agent-secrets ping-gateway-secrets; do
+    printf '{"stringData":{"BFF_INTERNAL_SECRET":"%s"}}' "$secret" \
+      | kubectl patch secret "$s" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null 2>&1 || true
+  done
+  info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + ping-gateway"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
@@ -337,6 +360,7 @@ secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # La
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
+align_internal_secret                                                       # one internal secret across every consumer (must run after all four exist)
 
 # Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
 # ping-mcpgw/config/proxy-token (one line, the raw JWT).
@@ -384,7 +408,7 @@ fi
 # consumes a secret/configmap this script manages, so "rotate" always means
 # rotate for the running pod too, not just for the next full deploy.
 info "Restarting deployments to pick up refreshed secrets/configmaps..."
-for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service mortgage-service ping-gateway; do
+for dep in demo-api-server mcp-gateway mcp-server langchain-agent agent-service api-resource-server ping-gateway; do
   if kubectl get deployment "$dep" --namespace="$NS" &>/dev/null; then
     kubectl rollout restart deployment "$dep" --namespace="$NS" >/dev/null
     info "  restarted $dep"

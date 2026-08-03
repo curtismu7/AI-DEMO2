@@ -30,8 +30,8 @@ import { GatewayConfig } from './config';
 
 export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'gatewayResourceUri',
-  'mcpOlbWsUrl', 'mcpInvestWsUrl',
-  'mcpOlbResourceUri', 'mcpInvestResourceUri',
+  'mcpOlbWsUrl', 'mcpResourceServerWsUrl',
+  'mcpOlbResourceUri', 'mcpResourceServerResourceUri',
   'pingAuthorizeEndpoint', 'pingAuthorizeWorkerId',
   'p1azEnabled',
   'hitlServiceUrl',
@@ -56,9 +56,9 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
   return {
     gatewayResourceUri:    config.gatewayResourceUri,
     mcpOlbWsUrl:           config.mcpOlbWsUrl,
-    mcpInvestWsUrl:        config.mcpInvestWsUrl,
+    mcpResourceServerWsUrl:        config.mcpResourceServerWsUrl,
     mcpOlbResourceUri:     config.mcpOlbResourceUri,
-    mcpInvestResourceUri:  config.mcpInvestResourceUri,
+    mcpResourceServerResourceUri:  config.mcpResourceServerResourceUri,
     pingAuthorizeEndpoint: config.pingAuthorizeEndpoint,
     pingAuthorizeWorkerId: config.pingAuthorizeWorkerId,
     p1azEnabled:           config.p1azEnabled,
@@ -75,7 +75,7 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
     // Phase 266/267 HTTP backend routes — non-secret addresses + logical
     // audiences only (the X-API-Key for the apikey path is NEVER exposed).
     // Lets the BFF's Agent Gateway page render the full 5-route topology.
-    mortgageServiceBaseUrl:           config.mortgageServiceBaseUrl,
+    apiResourceServerBaseUrl:           config.apiResourceServerBaseUrl,
     bankingResourceServerBaseUrl:     config.bankingResourceServerBaseUrl,
     bankingResourceServerResourceUri: config.bankingResourceServerResourceUri,
   };

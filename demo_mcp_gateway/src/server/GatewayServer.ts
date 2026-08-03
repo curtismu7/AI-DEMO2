@@ -620,7 +620,7 @@ export class GatewayServer {
     let jsonRpc: { method?: string; id?: unknown; params?: { name?: string } } = {};
     try { jsonRpc = JSON.parse(body.toString('utf-8')); } catch { /* malformed — forward as-is */ }
 
-    // Invest tools live on the mcp-invest WS backend — the HTTP upstream
+    // Invest tools live on the mcp-resource-server WS backend — the HTTP upstream
     // (mcp-server) does not serve them. Mirror the WS ingress routing here;
     // the middleware already exchanged upstreamToken for the invest audience.
     const rpcToolName = jsonRpc.method === 'tools/call' ? jsonRpc.params?.name : undefined;

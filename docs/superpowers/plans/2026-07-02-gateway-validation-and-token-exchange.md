@@ -112,7 +112,7 @@ git commit -m "refactor(gateway): extract GATEWAY_TOOLS descriptors into shared 
 - Test: `demo_mcp_gateway/tests/toolSchemaDrift.test.ts`
 
 **Interfaces:**
-- Consumes: `GATEWAY_TOOLS` (Task 1); `BankingToolRegistry.getAllTools()` from `demo_mcp_server/src/tools/BankingToolRegistry.ts` (each entry has `name` and `inputSchema`); `INVEST_TOOLS` from `demo_mcp_invest/src/tools/investTools.ts` (each entry has `name` and `inputSchema`); router sets from `demo_mcp_gateway/src/router.ts`.
+- Consumes: `GATEWAY_TOOLS` (Task 1); `BankingToolRegistry.getAllTools()` from `demo_mcp_server/src/tools/BankingToolRegistry.ts` (each entry has `name` and `inputSchema`); `INVEST_TOOLS` from `demo_mcp_resource_server/src/tools/investTools.ts` (each entry has `name` and `inputSchema`); router sets from `demo_mcp_gateway/src/router.ts`.
 - Produces: `mcp-tool-schemas.json` with shape `{ "version": 1, "tools": { "<name>": { "source": "olb"|"invest"|"gateway", "inputSchema": {...} } } }`; `buildToolSchemas()` exported from the generator (the drift test and generator share it).
 
 - [ ] **Step 1: Write the generator with an exported pure builder**
@@ -131,7 +131,7 @@ git commit -m "refactor(gateway): extract GATEWAY_TOOLS descriptors into shared 
 import * as fs from 'fs';
 import * as path from 'path';
 import { BankingToolRegistry } from '../../demo_mcp_server/src/tools/BankingToolRegistry';
-import { INVEST_TOOLS } from '../../demo_mcp_invest/src/tools/investTools';
+import { INVEST_TOOLS } from '../../demo_mcp_resource_server/src/tools/investTools';
 import { GATEWAY_TOOLS } from '../src/gatewayTools';
 
 export interface ToolSchemaEntry {
@@ -215,7 +215,7 @@ Expected: FAIL — ENOENT on `mcp-tool-schemas.json`
 - [ ] **Step 4: Generate the artifact, re-run test**
 
 Run: `cd demo_mcp_gateway && npm run gen:tool-schemas && npx jest tests/toolSchemaDrift.test.ts --forceExit && npm run typecheck`
-Expected: artifact written; both tests PASS; typecheck clean. If typecheck pulls `scripts/` or cross-package files into the build, add `"exclude": ["scripts", "../demo_mcp_server", "../demo_mcp_invest"]` entries to `demo_mcp_gateway/tsconfig.json` (the generator runs under `--transpile-only`, it does not need to compile in the main build).
+Expected: artifact written; both tests PASS; typecheck clean. If typecheck pulls `scripts/` or cross-package files into the build, add `"exclude": ["scripts", "../demo_mcp_server", "../demo_mcp_resource_server"]` entries to `demo_mcp_gateway/tsconfig.json` (the generator runs under `--transpile-only`, it does not need to compile in the main build).
 
 - [ ] **Step 5: Commit**
 
@@ -590,7 +590,7 @@ git commit -m "feat(gateway): enforce MCP validation on HTTP path before introsp
 **Files:**
 - Create: `ping-gateway/scripts/groovy/mcp-request-validation.groovy`
 - Modify: `ping-gateway/config/routes/01-mcp-olb.json` (filters array, after `McpProtocol`, before `P1AZDecision`)
-- Modify: `ping-gateway/config/routes/02-mcp-invest.json` (same position)
+- Modify: `ping-gateway/config/routes/02-mcp-resource-server.json` (same position)
 - Modify: `docker-compose.yml` (ping-gateway service: bind-mount `./mcp-tool-schemas.json:/var/gateway/config/mcp-tool-schemas.json:ro`) and `ping-gateway/docker-compose.yml` (same mount, path `../mcp-tool-schemas.json`)
 - Test: manual curl (IG has no unit-test harness; verification commands below and in Task 12)
 
@@ -707,7 +707,7 @@ In `ping-gateway/config/routes/01-mcp-olb.json`, insert between the `McpProtocol
         },
 ```
 
-Make the identical insertion in `ping-gateway/config/routes/02-mcp-invest.json` (between its `McpProtocol` and `P1AZDecision` entries).
+Make the identical insertion in `ping-gateway/config/routes/02-mcp-resource-server.json` (between its `McpProtocol` and `P1AZDecision` entries).
 
 - [ ] **Step 3: Add the artifact mount**
 
@@ -738,7 +738,7 @@ Expected: JSON-RPC error body with code -32601 (or 401 from the upstream auth fi
 - [ ] **Step 5: Commit**
 
 ```bash
-git add ping-gateway/scripts/groovy/mcp-request-validation.groovy ping-gateway/config/routes/01-mcp-olb.json ping-gateway/config/routes/02-mcp-invest.json docker-compose.yml ping-gateway/docker-compose.yml
+git add ping-gateway/scripts/groovy/mcp-request-validation.groovy ping-gateway/config/routes/01-mcp-olb.json ping-gateway/config/routes/02-mcp-resource-server.json docker-compose.yml ping-gateway/docker-compose.yml
 git commit -m "feat(ping-gateway): MCP request validation filter from schema artifact"
 ```
 
@@ -807,7 +807,7 @@ const config = {
   clientId: 'gw-client',
   clientSecret: 'gw-secret',
   mcpOlbResourceUri: 'mcpserver.ping.demo',
-  mcpInvestResourceUri: 'mcp-invest.ping.demo',
+  mcpResourceServerResourceUri: 'mcp-resource-server.ping.demo',
 } as unknown as GatewayConfig;
 
 // Subject token with scopes: read + invest:read + something foreign
@@ -981,7 +981,7 @@ git commit -m "fix(gateway): RFC 8707 resource+scope token exchange, per-backend
 
 **Interfaces:**
 - Consumes: reconciler helpers `_reconcileResourceScopes`, `PingOneClient`, `_getWorkerToken` (existing in the file); `scopeTopology.resourceScopes(name)` from `demo_api_server/services/scopeTopology.js`.
-- Produces: live PingOne state where the MCP Gateway app (`PINGONE_MCP_GATEWAY_CLIENT_ID`) can exchange to `mcpserver.ping.demo` and `mcp-invest.ping.demo` with scopes surviving.
+- Produces: live PingOne state where the MCP Gateway app (`PINGONE_MCP_GATEWAY_CLIENT_ID`) can exchange to `mcpserver.ping.demo` and `mcp-resource-server.ping.demo` with scopes surviving.
 
 - [ ] **Step 1: Add the invest resource to `scope-topology.json`**
 
@@ -989,7 +989,7 @@ In the `resources` object, after `"Super Banking MCP Server"`, add:
 
 ```json
     "Super Banking MCP Invest": {
-      "uri": "mcp-invest.ping.demo",
+      "uri": "mcp-resource-server.ping.demo",
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["invest:read", "read"]
     },
@@ -1013,7 +1013,7 @@ In `twoExchangeReconciler.js`, following the existing pattern for pre-conditions
 Implementation notes for the subagent (follow the file's existing helpers — read them first):
 
 - Resource lookup by name uses the provisioned display name (`resourceNames` mapping / `scopeTopology`) the same way pre-conditions 1-4 find `Super Banking Agent Gateway` / `Super Banking MCP Gateway`. Reuse that lookup.
-- Creating a missing resource: `await client.post('/resources', { name: '<display name>', audience: 'mcp-invest.ping.demo', approvalRequired: false })` then `_reconcileResourceScopes(client, resource.id, 'Super Banking MCP Invest', 'MCP Invest')`.
+- Creating a missing resource: `await client.post('/resources', { name: '<display name>', audience: 'mcp-resource-server.ping.demo', approvalRequired: false })` then `_reconcileResourceScopes(client, resource.id, 'Super Banking MCP Invest', 'MCP Invest')`.
 - Granting the gateway app: reuse the existing grant-healing helper that pre-condition 2/4 uses (AI Agent → Agent Gateway, MCP Exchanger → MCP Gateway), with the app resolved from `PINGONE_MCP_GATEWAY_CLIENT_ID` (configStore) and the two backend resources.
 - Log with the existing `TAG` (`[TwoExchangeReconciler]`) `OK` / `Healed [...]` convention so the memory-documented troubleshooting flow still works.
 
@@ -1328,9 +1328,9 @@ git commit -m "feat(gateway): RFC 8693 exchange on HTTP path, fail closed; drop 
 
 **Files:**
 - Modify: `demo_mcp_server/src/auth/TokenIntrospector.ts` (~lines 155-173)
-- Modify: `demo_mcp_invest/src/server/tokenValidator.ts` (`decodeAndValidate`, ~lines 79-85)
-- Modify: `docker-compose.yml` (mcp-server + mcp-invest env)
-- Test: `demo_mcp_invest/tests/tokenValidator-audience.test.ts` (create; check `demo_mcp_invest/package.json` for its jest setup first — if none exists, put the test in `demo_mcp_server`'s existing suite for the introspector and cover invest via Task 12 integration) and `demo_mcp_server/src/tools/__tests__/` conventions for the introspector test
+- Modify: `demo_mcp_resource_server/src/server/tokenValidator.ts` (`decodeAndValidate`, ~lines 79-85)
+- Modify: `docker-compose.yml` (mcp-server + mcp-resource-server env)
+- Test: `demo_mcp_resource_server/tests/tokenValidator-audience.test.ts` (create; check `demo_mcp_resource_server/package.json` for its jest setup first — if none exists, put the test in `demo_mcp_server`'s existing suite for the introspector and cover invest via Task 12 integration) and `demo_mcp_server/src/tools/__tests__/` conventions for the introspector test
 
 **Interfaces:**
 - Consumes: nothing new. Produces: both backends treat their audience env var as a comma-separated list.
@@ -1373,7 +1373,7 @@ export function audienceAccepted(tokenAud: string | string[], resourceUriEnv: st
 
 In the existing check replace `if (!audList.includes(resourceUri))` with `if (!audienceAccepted(tokenInfo.aud, resourceUri))` (keep the missing-aud fail-closed branch as-is; keep log lines, updating `expected` to the list).
 
-`demo_mcp_invest/src/server/tokenValidator.ts` — in `decodeAndValidate`, replace:
+`demo_mcp_resource_server/src/server/tokenValidator.ts` — in `decodeAndValidate`, replace:
 
 ```typescript
   const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
@@ -1394,19 +1394,19 @@ with:
 
 `docker-compose.yml`:
 - mcp-server service: change `MCP_SERVER_RESOURCE_URI: "mcpgateway.ping.demo"` to `MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"` and UPDATE the adjacent comment (it currently documents the passthrough workaround — rewrite it to: gateway now exchanges via RFC 8707 resource param; gateway audience kept as transitional second entry).
-- mcp-invest service: add to `environment:`: `MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcpgateway.ping.demo"` (compose env wins over the service's `.env` file).
+- mcp-resource-server service: add to `environment:`: `MCP_SERVER_RESOURCE_URI: "mcp-resource-server.ping.demo,mcpgateway.ping.demo"` (compose env wins over the service's `.env` file).
 
 Also check the startup config guard mentioned in `pingoneProvisionService.js generateEnvContent` (memory: it hard-fails when `MCP_SERVER_RESOURCE_URI` ≠ gateway aud — `grep -rn "MCP_SERVER_RESOURCE_URI" demo_api_server/services/configStore.js demo_mcp_server/src` and relax any equality assert to list-containment).
 
 - [ ] **Step 4: Run backend test suites**
 
-Run: `cd demo_mcp_server && npx jest --forceExit` (and the invest suite if one exists: `cd demo_mcp_invest && npx jest --forceExit 2>/dev/null || echo "no invest tests"`)
+Run: `cd demo_mcp_server && npx jest --forceExit` (and the invest suite if one exists: `cd demo_mcp_resource_server && npx jest --forceExit 2>/dev/null || echo "no invest tests"`)
 Expected: PASS including the new audience tests
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add demo_mcp_server/src/auth/TokenIntrospector.ts demo_mcp_invest/src/server/tokenValidator.ts docker-compose.yml
+git add demo_mcp_server/src/auth/TokenIntrospector.ts demo_mcp_resource_server/src/server/tokenValidator.ts docker-compose.yml
 git commit -m "feat(backends): accept comma-separated audience list for exchange rollout"
 ```
 
@@ -1419,7 +1419,7 @@ git commit -m "feat(backends): accept comma-separated audience list for exchange
 **Files:**
 - No code changes expected; fixes discovered here go in scoped follow-up commits.
 
-This task validates the full stack. **The running Docker stack serves the MAIN checkout, not this worktree** (memory: `project-docker-serves-main-checkout.md`). Integration therefore happens by merging the worktree branch to the main checkout's running state per that memory's landing procedure (UI=Vite HMR, BFF=node --watch; the gateway + backends + IG need container rebuild/restart: `COMPOSE_PROJECT_NAME=ai-demo docker compose up -d --build mcp-gateway mcp-server mcp-invest ping-gateway`). Coordinate with the user before touching the running stack if a demo may be live.
+This task validates the full stack. **The running Docker stack serves the MAIN checkout, not this worktree** (memory: `project-docker-serves-main-checkout.md`). Integration therefore happens by merging the worktree branch to the main checkout's running state per that memory's landing procedure (UI=Vite HMR, BFF=node --watch; the gateway + backends + IG need container rebuild/restart: `COMPOSE_PROJECT_NAME=ai-demo docker compose up -d --build mcp-gateway mcp-server mcp-resource-server ping-gateway`). Coordinate with the user before touching the running stack if a demo may be live.
 
 - [ ] **Step 1: Unit/typecheck sweep across touched packages**
 
@@ -1442,7 +1442,7 @@ Via the demo UI agent or `wscat`/curl against the gateway (port 3005):
 - [ ] **Step 3: Exchange behaviors (running stack)**
 
 - Token Chain UI for a banking chip shows the `gw-exchange` event with `aud=mcpserver.ping.demo` (not `gw-passthrough`).
-- Invest chip works and shows `aud=mcp-invest.ping.demo`.
+- Invest chip works and shows `aud=mcp-resource-server.ping.demo`.
 - BFF startup log shows `[TwoExchangeReconciler]` OK/Healed lines including the new exchange #3 checks.
 - Negative: temporarily set an invalid `PINGONE_MCP_GATEWAY_CLIENT_ID` override on the gateway container env → chip fails with `token_exchange_failed`, backend receives nothing; revert.
 

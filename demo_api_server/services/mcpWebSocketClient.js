@@ -80,8 +80,22 @@ function isMcpMtlsEnabled() {
  * plain MCP server (getMcpServerUrl) returns all tools unfiltered.
  */
 function getMcpGatewayWsUrl() {
-  const http = process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url');
+  let http = process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url');
   if (!http) return null;
+  // PingGateway (IG) is the HTTP transport only — it routes /health, /mcp* and
+  // /aam, and does not serve a WebSocket listener (see ping-gateway/README.md:
+  // "the gateway-audience token the Node gateway forwards is handled on the
+  // WebSocket path"). In PingGateway mode MCP_GATEWAY_HTTP_URL points at IG, so
+  // deriving the discovery WS URL from it dials IG's unrouted origin and the
+  // handshake dies with a 404 — every discovery then degrades to the local
+  // catalog and the UI stops showing Authorize-filtered chip affordance. Tool
+  // CALLS still go through IG over HTTP; only WS discovery moves.
+  const pg = process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url');
+  if (pg && http.trim().replace(/\/+$/, '') === pg.trim().replace(/\/+$/, '')) {
+    const nodeGw = process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url');
+    if (!nodeGw) return null;
+    http = nodeGw;
+  }
   return http.trim().replace(/^http(s?):\/\//i, (_m, s) => `ws${s}://`).replace(/\/+$/, '');
 }
 

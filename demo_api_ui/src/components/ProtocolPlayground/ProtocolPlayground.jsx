@@ -17,6 +17,7 @@ const ProtocolPlayground = () => {
 
   const [selectedProtocol, setSelectedProtocol] = useState(null);
   const [executionState, setExecutionState] = useState(EMPTY_EXECUTION_STATE);
+  const [dark, setDark] = useState(false);
 
   // Set first protocol as default on mount
   useEffect(() => {
@@ -44,8 +45,39 @@ const ProtocolPlayground = () => {
   };
 
   return (
-    <div className="protocol-playground">
+    <div className={`protocol-playground${dark ? ' dark' : ''}`}>
+      <header className="pp-intro">
+        <h1 className="pp-intro__title">Protocol Playground</h1>
+        <p className="pp-intro__lede">
+          Run the identity protocols this demo depends on, one request at a time, against
+          the live backend. Pick a protocol, step through its hops, and read the real
+          request and response for each — including the decoded token where one comes back.
+        </p>
+        <div className="pp-intro__cols">
+          <div>
+            <h2 className="pp-intro__h">Why use it</h2>
+            <p>
+              Specs describe these flows in prose. Here you watch one execute: which call
+              goes first, what it returns, what the next call needs from it, and what a
+              failure actually looks like on the wire.
+            </p>
+          </div>
+          <div>
+            <h2 className="pp-intro__h">Why it matters for AI</h2>
+            <p>
+              An agent acts on a person's behalf without a browser and without a human
+              watching each call. These four protocols are how that stays safe: approve a
+              specific action (CIBA), bind the token to its holder (DPoP), narrow it to one
+              call and record who delegated it (RFC 8693), and declare intent before acting
+              on it (PAR).
+            </p>
+          </div>
+        </div>
+      </header>
       <div className="protocol-playground__container">
+        <button className="pp-theme-toggle" onClick={() => setDark(d => !d)}>
+          {dark ? 'Light' : 'Dark'}
+        </button>
         <aside className="protocol-playground__sidebar">
           <ProtocolSidebar
             protocols={protocolArray.map(p => p.id)}
@@ -60,6 +92,7 @@ const ProtocolPlayground = () => {
               flowSpec={selectedProtocol}
               executionState={executionState}
               onExecutionStateChange={handleExecutionStateChange}
+              dark={dark}
             />
           ) : (
             <div className="protocol-playground__empty-state">

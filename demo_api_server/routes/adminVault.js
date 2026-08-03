@@ -118,7 +118,11 @@ router.post('/unlock', requireAdmin, unlockLimiter, async (req, res) => {
   }
   const vaultPath = resolveVaultPath();
   try {
-    const result = await unlockVaultAtRuntime({ password, vaultPath, configStore, vaultLib });
+    // caller flows down into lib/vault so the open/read/close lines this unlock
+    // produces are attributed to the web route, not to the generic 'vault.js'.
+    const result = await unlockVaultAtRuntime({
+      password, vaultPath, configStore, vaultLib, caller: 'adminVault',
+    });
     safeAudit({ op: 'unlock', key: null, caller: 'adminVault', result: 'ok' });
     return res.json({ ok: true, entriesLoaded: result.entries });
   } catch (err) {
@@ -169,7 +173,7 @@ router.post('/rotate', requireAdmin, async (req, res) => {
   try {
     let vault;
     try {
-      vault = await vaultLib.openVault(vaultPath, currentPassword);
+      vault = await vaultLib.openVault(vaultPath, currentPassword, { caller: 'adminVault' });
     } catch (err) {
       const isAuth = err && (err.name === 'VaultAuthError' || err.name === 'VaultIntegrityError');
       safeAudit({

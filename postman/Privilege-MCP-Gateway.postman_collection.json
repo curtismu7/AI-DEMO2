@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "Privilege MCP Gateway",
+    "_postman_id": "priv-mcpgw-001",
+    "description": "Test the PingOne Privilege MCP Gateway — OAuth token acquisition + MCP JSON-RPC calls.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "event": [],
+  "variable": [],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Access Token (Client Credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.environment.set('access_token', json.access_token);",
+                  "pm.environment.set('token_type', json.token_type);",
+                  "pm.test('Token acquired', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(json.access_token).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                { "key": "username", "value": "{{client_id}}", "type": "string" },
+                { "key": "password", "value": "{{client_secret}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "scope", "value": "{{scopes}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{token_endpoint}}",
+              "host": ["{{token_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "OAuth AS Metadata (Discovery)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/.well-known/oauth-authorization-server",
+              "host": ["{{gateway_url}}"],
+              "path": [".well-known", "oauth-authorization-server"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP Protocol",
+      "item": [
+        {
+          "name": "1. Initialize",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('MCP initialized', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(json.result).to.have.property('serverInfo');",
+                  "});",
+                  "// Capture MCP-Session-Id if returned",
+                  "const sessionId = pm.response.headers.get('MCP-Session-Id');",
+                  "if (sessionId) pm.environment.set('mcp_session_id', sessionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-11-25\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          }
+        },
+        {
+          "name": "2. List Tools",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Tools returned', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(json.result.tools).to.be.an('array');",
+                  "});",
+                  "// Log tool names",
+                  "if (json.result && json.result.tools) {",
+                  "  const names = json.result.tools.map(t => t.name);",
+                  "  console.log('Available tools:', names.join(', '));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          }
+        },
+        {
+          "name": "3. Call Tool — get_accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Tool call succeeded', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(json.result).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_accounts\",\n    \"arguments\": {}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          }
+        },
+        {
+          "name": "3. Call Tool — get_transactions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Tool call succeeded', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 4,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_transactions\",\n    \"arguments\": {\n      \"accountId\": \"checking-001\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          }
+        },
+        {
+          "name": "3. Call Tool — initiate_transfer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Transfer initiated or consent required', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 5,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"initiate_transfer\",\n    \"arguments\": {\n      \"fromAccountId\": \"checking-001\",\n      \"toAccountId\": \"savings-001\",\n      \"amount\": 50.00,\n      \"description\": \"Test transfer from Postman\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          }
+        },
+        {
+          "name": "Raw JSON-RPC (custom method)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 99,\n  \"method\": \"resources/list\",\n  \"params\": {}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway Health",
+      "item": [
+        {
+          "name": "Ping (no auth)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/ping",
+              "host": ["{{gateway_url}}"],
+              "path": ["ping"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

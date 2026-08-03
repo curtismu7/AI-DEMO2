@@ -55,7 +55,7 @@ const ENV_KEYS_TO_GUARD = [
   'VAULT_PATH',
   'VAULT_PASSWORD',
   'VERCEL',
-  'DEMO_MORTGAGE_SERVICE_KEY',
+  'DEMO_API_RESOURCE_SERVER_KEY',
 ];
 
 let savedEnv: Record<string, string | undefined> = {};
@@ -216,7 +216,7 @@ describe('loadVaultIntoEnv (demo_mcp_gateway)', () => {
     expect(ALLOW.test('LD_PRELOAD')).toBe(false);
     expect(ALLOW.test('NODE_OPTIONS')).toBe(false);
     expect(ALLOW.test('RANDOM_KEY')).toBe(false);
-    expect(ALLOW.test('DEMO_MORTGAGE_SERVICE_KEY')).toBe(true);
+    expect(ALLOW.test('DEMO_API_RESOURCE_SERVER_KEY')).toBe(true);
   });
 
   test('Non-allowlisted entry RANDOM_KEY is skipped at vault load time', async () => {
@@ -256,11 +256,11 @@ describe('loadVaultIntoEnv (demo_mcp_gateway)', () => {
     expect(existsSync(vaultPath)).toBe(true);
   });
 
-  test('DEMO_ prefixed entry (DEMO_MORTGAGE_SERVICE_KEY) is loaded into process.env', async () => {
+  test('DEMO_ prefixed entry (DEMO_API_RESOURCE_SERVER_KEY) is loaded into process.env', async () => {
     const logger = mockLogger();
     const vaultPath = await buildVaultWithEntries({
       MCP_GW_CLIENT_SECRET: 'gw-secret',
-      DEMO_MORTGAGE_SERVICE_KEY: 'vault-mortgage-key-xyz',
+      DEMO_API_RESOURCE_SERVER_KEY: 'vault-mortgage-key-xyz',
     });
 
     const result = await loadVaultIntoEnv({
@@ -271,9 +271,9 @@ describe('loadVaultIntoEnv (demo_mcp_gateway)', () => {
 
     expect(result.loaded).toBe(true);
     expect(result.entries).toBe(2);
-    expect(process.env.DEMO_MORTGAGE_SERVICE_KEY).toBe('vault-mortgage-key-xyz');
+    expect(process.env.DEMO_API_RESOURCE_SERVER_KEY).toBe('vault-mortgage-key-xyz');
     // No warn for DEMO_ — it IS allowlisted
     const warnArgs = logger.warn.mock.calls.map((c) => c.join(' ')).join(' ');
-    expect(warnArgs).not.toMatch(/DEMO_MORTGAGE_SERVICE_KEY/);
+    expect(warnArgs).not.toMatch(/DEMO_API_RESOURCE_SERVER_KEY/);
   });
 });

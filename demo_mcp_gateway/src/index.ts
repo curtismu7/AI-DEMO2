@@ -216,13 +216,13 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
 
   // Serve OpenAPI specs for PingAuthorize per-tool scope policy
   // GET /openapi/mcp-olb  → demo_mcp_server OpenAPI spec
-  // GET /openapi/mcp-invest → demo_mcp_invest OpenAPI spec
-  const openApiMatch = url.match(/^\/openapi\/(mcp-olb|mcp-invest)$/);
+  // GET /openapi/mcp-resource-server → demo_mcp_resource_server OpenAPI spec
+  const openApiMatch = url.match(/^\/openapi\/(mcp-olb|mcp-resource-server)$/);
   if (openApiMatch && req.method === 'GET') {
     const server = openApiMatch[1];
     const specPaths: Record<string, string> = {
       'mcp-olb':    join(__dirname, '../../demo_mcp_server/openapi/mcp-olb.openapi.json'),
-      'mcp-invest': join(__dirname, '../../demo_mcp_invest/openapi/mcp-invest.openapi.json'),
+      'mcp-resource-server': join(__dirname, '../../demo_mcp_resource_server/openapi/mcp-resource-server.openapi.json'),
     };
     const specPath = specPaths[server];
     if (specPath && existsSync(specPath)) {
@@ -802,7 +802,7 @@ async function handleMessage(
         // Shared with the HTTP path via apiKeyDispatch.buildApiKeyToolResult
         // (BL-02 transport parity — one source of the Phase 267 api_key
         // dispatch). Phase 267: real backend (show_mortgage →
-        // banking_mortgage_service via X-API-Key); else Phase 266 marker.
+        // banking_api_resource_server via X-API-Key); else Phase 266 marker.
         const outcome = await buildApiKeyToolResult(
           toolName,
           decoded.sub,
@@ -1094,7 +1094,7 @@ httpServer.listen(config.port, config.host, () => {
   console.log(`[GW] banking-mcp-gateway running on ${config.host}:${config.port}`);
   console.log(`[GW] Gateway resource URI: ${config.gatewayResourceUri}`);
   console.log(`[GW] mcp-olb backend: ${config.mcpOlbWsUrl} (aud: ${config.mcpOlbResourceUri})`);
-  console.log(`[GW] mcp-invest backend: ${config.mcpInvestWsUrl} (aud: ${config.mcpInvestResourceUri})`);
+  console.log(`[GW] mcp-resource-server backend: ${config.mcpResourceServerWsUrl} (aud: ${config.mcpResourceServerResourceUri})`);
   console.log(`[GW] RFC 9728 + HTTP MCP ingress — POST /mcp  http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}/.well-known/oauth-protected-resource`);
   // Best-effort: warm the Authorization Server connection so the first
   // tools/list decision after this (re)start doesn't pay the cold connect.

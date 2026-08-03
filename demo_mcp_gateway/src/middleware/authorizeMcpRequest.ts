@@ -51,7 +51,7 @@ import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from 
 import { verifyDpopProof } from '../dpopVerify';
 import { verifyWebBotAuth } from '../webBotAuthVerify';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolArgs } from '../rarEnforce';
-import type { TratClaims, PolicySource } from '../auth/PingOneAuthorizeClient';
+import type { TratClaims, PolicySource, AuthzDecision } from '../auth/PingOneAuthorizeClient';
 import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 
@@ -217,7 +217,7 @@ export function buildAuthorizeMcpRequest(
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
   const exchangeClient = new McpTokenExchangeClient(config);
-  // Exchange per tool: invest tools need the mcp-invest audience — a hardcoded
+  // Exchange per tool: invest tools need the mcp-resource-server audience — a hardcoded
   // 'olb' exchange minted an mcpserver-audience token that the invest backend
   // (and mcp-server, which does not serve invest tools) both reject.
   const doExchange = deps?.exchange ?? ((t: string, tool?: string) => exchangeClient.exchange(t, tool));
@@ -804,7 +804,10 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 3: PingOne Authorize evaluation (D-06) ───────────────────────────────
-    let authzDecision;
+    // Typed explicitly: inferring from the first assignment dropped `obligation`
+    // (only the fail-closed literal below was in the union), so the statement-based
+    // gate could not be read here.
+    let authzDecision: AuthzDecision | undefined;
     try {
       if (deps) {
         authzDecision = await deps.authorize(
@@ -889,10 +892,37 @@ export function buildAuthorizeMcpRequest(
       // Both non-PERMIT branches below render it, so the gate is computed once
       // here rather than only on the insufficient_scope branch.
       const deniedLocally = authzDecision.policySource === 'local-fallback';
-      res.writeHead(403, {
+      // An INDETERMINATE is not a refusal — the PDP is asking for a human. It
+      // answers 428 Precondition Required (the precondition being an approved
+      // consent receipt) so callers can branch on the status alone; a real DENY
+      // stays 403.
+      //
+      // `!hitlApproved` matters: an INDETERMINATE that survives an already-verified
+      // receipt is the anti-loop case below (policy misconfiguration), which is
+      // terminal — answering 428 there would invite the agent to retry forever.
+      const nonPermitStatus =
+        authzDecision.decision === 'INDETERMINATE' && !hitlApproved ? 428 : 403;
+      res.writeHead(nonPermitStatus, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
       });
+
+      // Step-up is a different precondition from consent: MFA, not a human. It
+      // gets its own code so the agent drives the right flow, and no HITL
+      // challenge is minted (a receipt cannot satisfy MFA). Parity with
+      // PingGateway's p1az-decision.groovy.
+      if (authzDecision.obligation === 'stepUp' && !hitlApproved) {
+        res.end(JSON.stringify({
+          error: 'step_up_required',
+          message: 'Step-up authentication required',
+          decision: authzDecision.decision,
+          tool: toolName ?? '',
+          policy_source: authzDecision.policySource,
+          ...(authzDecision.degraded ? { degraded: true } : {}),
+          login_required: false,
+        }));
+        return;
+      }
 
       if (authzDecision.decision === 'INDETERMINATE') {
         // HITL obligation. Anti-loop: a verified-approved receipt that still
@@ -971,7 +1001,7 @@ export function buildAuthorizeMcpRequest(
     // ── Step 3.5: Phase 266/267 disposition dispatch (BL-02 transport parity) ──────
     // tools/call for an api_key-disposition tool bypasses upstream forwarding —
     // the gateway calls the api-key backend directly (Phase 267: show_mortgage →
-    // banking_mortgage_service). The WS handler (index.ts) has always done this;
+    // banking_api_resource_server). The WS handler (index.ts) has always done this;
     // the HTTP path used to skip it and raw-proxy to OLB, producing "Unknown tool".
     // Shared logic lives in apiKeyDispatch (one source, both transports).
     // dual_token (Path B) and bankingdata (Path C) are HTTP-parity via their

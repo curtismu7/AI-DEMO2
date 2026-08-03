@@ -281,7 +281,7 @@ carries no scopes/auth/policy (Section 2 constraint).
 **Tool-returned data is NOT themed in Phase 1 (decided 2026-05-18):**
 LMDB-backed accounts/transactions (`data/store.js`:
 `Checking`/`Savings`/`Deposit`) and the hardcoded mortgage / api_key
-`show_mortgage` payload (`banking_mortgage_service`, `$425,000 / 6.125%`)
+`show_mortgage` payload (`banking_api_resource_server`, `$425,000 / 6.125%`)
 keep returning banking data under any theme. The retail experience is
 carried by `<RetailDashboard>` manifest mock data + chip labels + greeting.
 This is the deliberate presentation-vs-data line; relabeling returned data

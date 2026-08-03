@@ -22,23 +22,26 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 done
 
-# ─── local CI gate ────────────────────────────────────────────────────────────
-# GitHub Actions is billing-blocked (jobs die in ~3s with 0 steps; see issue
-# #524), so every PR is red regardless of the code and nothing verifies a merge.
-# Run the same checks ci.yml runs, here, until Actions is paying its bills again.
-# ~65s. Bypassable with --no-verify.
-if [ "$status" -eq 0 ]; then
-  gate="$(git rev-parse --show-toplevel)/scripts/ci-local.sh"
-  if [ ! -f "$gate" ]; then
-    # This checkout predates the gate (older worktree, or a clone that has not
-    # pulled yet). Skip loudly rather than blocking: a missing script is not a
-    # failed check, and blocking here would teach people to use --no-verify,
-    # which ALSO disables the secret guards in pre-commit.
-    echo "pre-push: local CI gate not present in this checkout — skipping." >&2
-    echo "          (expected at scripts/ci-local.sh; pull main to enable it)" >&2
-  elif ! bash "$gate"; then
-    status=1
-  fi
-fi
+# ─── local CI gate: REMOVED 2026-08-02 ────────────────────────────────────────
+# This used to run scripts/ci-local.sh on every push. It existed because GitHub
+# Actions was billing-blocked (issue #524) and nothing else verified a merge.
+# Actions has been running since 2026-07-28 and main is green, so ci.yml is the
+# gate now and this was costing more than it caught:
+#
+#   - It ran the full jest suite at --maxWorkers=50%, above the maxWorkers:2 that
+#     demo_api_server/jest.config.js sets under CI precisely because higher
+#     counts flake the supertest suites. It blocked pushes at random on suites
+#     that pass in isolation.
+#   - git sends deletions through pre-push too, so `git push --delete <merged
+#     branch>` ran a multi-minute test suite and then refused the delete.
+#   - Every random block is a nudge toward --no-verify, which ALSO disables the
+#     secret guards in pre-commit. A flaky gate makes the real guards weaker.
+#
+# scripts/ci-local.sh is kept and still works — run it by hand when you want the
+# CI checks before pushing (it is the only way to run the suite against real
+# credentials). It is just no longer automatic, and it is no longer the gate.
+#
+# The protected-branch guard above stays: it is fast, deterministic, and it is
+# the thing that once stopped a force-push from dropping 11 merged PRs.
 
 exit $status

@@ -74,14 +74,14 @@ AI-Demo is **not** a monorepo, but contains many services (Node.js + Python) acr
 ### CommonJS Services (Plain JavaScript)
 - **demo_api_server** — Express BFF, all routes and services use `require()`/`module.exports`
 - **demo_hitl_service** — HITL consent handler
-- **demo_mortgage_service** — Mortgage backend service
+- **demo_api_resource_server** — Mortgage backend service
 - No build step required; changes take effect on restart
 
 ### TypeScript Services (Compiled to `dist/`)
 - **demo_mcp_server** — Tool definitions and execution (`src/` → `dist/index.js`)
 - **demo_mcp_gateway** — MCP request routing and authorization
 - **demo_agent_service** — LangGraph agent orchestration
-- **demo_mcp_invest** — Investment tools and integration
+- **demo_mcp_resource_server** — Investment tools and integration
 - **Build requirement:** `npm run build` generates `dist/`, which is **launched unconditionally**
 
 ### React / CRA (No Build at Dev Time)
@@ -105,7 +105,7 @@ AI-Demo is **not** a monorepo, but contains many services (Node.js + Python) acr
 cd demo_mcp_server && npm run build
 cd demo_mcp_gateway && npm run build
 cd demo_agent_service && npm run build
-cd demo_mcp_invest && npm run build
+cd demo_mcp_resource_server && npm run build
 ```
 
 **Why:** TypeScript is compiled to `dist/index.js`. The launch script runs the compiled code unconditionally — if `dist/` is stale, the service will crash with `MODULE_NOT_FOUND` or stale function signatures.
@@ -131,7 +131,7 @@ cd demo_api_ui && npm run build
 ```bash
 # demo_api_server — no build required
 # demo_hitl_service — no build required
-# demo_mortgage_service — no build required
+# demo_api_resource_server — no build required
 ```
 
 These are plain Node.js; changes take effect on server restart.

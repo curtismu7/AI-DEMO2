@@ -18,11 +18,22 @@ router.get('/chips', async (req, res) => {
       verticalId: verticalId === 'undefined' ? undefined : verticalId,
     });
 
+    // Spreading the result keeps the no-match fields (noMatch, suggestions,
+    // intentsConsidered, message) intact; dropping them would leave the caller
+    // with an empty chip list and no reason for it.
     res.json({
       chips: result.chips,
       verticalId: result.verticalId,
       isFallback: result.isFallback,
       detectionMethod: result.detectionMethod,
+      ...(result.noMatch
+        ? {
+            noMatch: true,
+            intentsConsidered: result.intentsConsidered,
+            suggestions: result.suggestions,
+            message: result.message,
+          }
+        : {}),
     });
   } catch (error) {
     console.error('[fallback-route] Error resolving chips:', error);

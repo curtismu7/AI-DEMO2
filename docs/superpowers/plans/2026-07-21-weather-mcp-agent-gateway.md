@@ -359,7 +359,7 @@ git commit -m "feat(mcp-weather): implement stdio-to-HTTP bridge for weather-mcp
 
 - [ ] **Step 1: Add the `mcp-weather` service**
 
-Insert after the existing `mcp-invest` service block (the one ending `restart:
+Insert after the existing `mcp-resource-server` service block (the one ending `restart:
 unless-stopped` right before the `# ── MCP JWT Verifier` comment):
 
 ```yaml
@@ -388,23 +388,23 @@ unless-stopped` right before the `# ── MCP JWT Verifier` comment):
 In the `ping-gateway` service block, next to the existing `PG_INVEST_BACKEND_URL` line:
 
 ```yaml
-      PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
 ```
 
 - [ ] **Step 3: Add `mcp-weather` to the `ping-gateway` service's `depends_on:`**
 
-Next to the existing `mcp-invest: condition: service_started` entry:
+Next to the existing `mcp-resource-server: condition: service_started` entry:
 
 ```yaml
     depends_on:
       mcp-server:
         condition: service_started
-      mcp-invest:
+      mcp-resource-server:
         condition: service_started
       mcp-weather:
         condition: service_started
-      mortgage-service:
+      api-resource-server:
         condition: service_started
 ```
 

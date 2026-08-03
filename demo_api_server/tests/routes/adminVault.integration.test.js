@@ -122,13 +122,20 @@ describe('Integration: /api/admin/vault/* (real vault file, real configStore)', 
 
     expect(fs.existsSync(auditFile)).toBe(true);
     const newBytes = fs.readFileSync(auditFile, 'utf8').slice(sizeBefore);
-    const lines = newBytes.trim().split('\n').filter(Boolean);
-    // Find the line written by the route (caller=adminVault). Open ops by lib/vault
-    // use caller=vault.js, so filter.
-    const adminLine = lines.map((l) => JSON.parse(l)).find((j) => j.caller === 'adminVault');
+    const lines = newBytes.trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+    // The route's own line.
+    const adminLine = lines.find((j) => j.op === 'unlock');
     expect(adminLine).toBeDefined();
-    expect(adminLine.op).toBe('unlock');
+    expect(adminLine.caller).toBe('adminVault');
     expect(adminLine.result).toBe('ok');
+    // lib/vault's lines underneath now carry the same caller. They used to say
+    // 'vault.js' regardless of origin, which made a web unlock indistinguishable
+    // from a CLI one in the trail — the whole point of the field.
+    const openLine = lines.find((j) => j.op === 'open');
+    expect(openLine).toBeDefined();
+    expect(openLine.caller).toBe('adminVault');
+    // Nothing this request produced should still be attributed to the default.
+    expect(lines.every((j) => j.caller === 'adminVault')).toBe(true);
   });
 
   test('4. POST /rotate with wrong currentPassword returns 401 (re-verify catches stale unlock)', async () => {

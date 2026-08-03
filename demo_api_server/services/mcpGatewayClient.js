@@ -195,6 +195,16 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         headers['X-Active-Vertical'] = activeVertical;
       }
     } catch (_) { /* best-effort */ }
+    // Use case: the business context the call was initiated under. The gateway
+    // forwards it to PingOne Authorize as UseCaseId so policy can gate on intent
+    // rather than only on amount — UC22's CIBA approval is amount-INDEPENDENT by
+    // design ($150), so with the BFF no longer pre-flighting, this header is the
+    // only way the PDP can see that a decoupled approval was intended.
+    // Additive only: policy uses it to REQUIRE a gate, never to waive one, so a
+    // caller that omits it cannot weaken a decision.
+    if (opts && opts.useCaseId) {
+        headers['X-Use-Case-Id'] = String(opts.useCaseId);
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
@@ -481,6 +491,57 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                 gatewayMessage: body429.message || '',
                 retryAfterMs,
                 rateLimitLayer: body429.rateLimitLayer || (isIgBase ? 'ig' : 'gateway'),
+            },
+        );
+    }
+
+    // 428 Precondition Required — the PDP asked for a human, the gateway minted a
+    // challenge. Both gateways now answer 428 for this (PingGateway's
+    // p1az-decision.groovy and the Node gateway's authorizeMcpRequest); the 403
+    // branch below still recognises the same body for a gateway that has not been
+    // redeployed yet. A rejected receipt stays 403 there — it is terminal, and
+    // re-opening the consent modal on it would loop.
+    if (status === 428) {
+        const body428 = response.data || {};
+
+        // Two different preconditions arrive as 428 and they drive different UI:
+        // step-up needs MFA (no challenge, no human), consent needs a human at the
+        // dashboard. Distinguish by the gateway's error code, not by presence of a
+        // challengeId — a HITL service outage yields hitl_required with a null id,
+        // and treating that as step-up would prompt for the wrong thing.
+        if (body428.error === 'step_up_required') {
+            console.warn('[mcpGatewayClient] 428 step-up required: tool=%s', body428.tool || '(?)');
+            throw Object.assign(
+                new Error(body428.message || 'Step-up authentication required'),
+                {
+                    code: 'mcp_tool_error',
+                    httpStatus: 428,
+                    gatewayErrorCode: 'step_up_required',
+                    stepUp: true,
+                    gwAuditTrail: _parseGwAuditTrail(response),
+                },
+            );
+        }
+
+        console.warn(
+            '[mcpGatewayClient] 428 HITL required: tool=%s challengeId=%s',
+            body428.tool || '(?)',
+            body428.challengeId || '(none)',
+        );
+        throw Object.assign(
+            new Error(body428.message || 'Human approval required'),
+            {
+                code: 'mcp_tool_error',
+                httpStatus: 428,
+                gatewayErrorCode: body428.error || 'hitl_required',
+                hitl: true,
+                rpcData: {
+                    hitl: true,
+                    challengeId: body428.challengeId || null,
+                    challenge_type: body428.challenge_type || 'consent',
+                    instructions: body428.message || body428.instructions,
+                },
+                gwAuditTrail: _parseGwAuditTrail(response),
             },
         );
     }

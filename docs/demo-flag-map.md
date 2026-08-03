@@ -45,7 +45,7 @@ None of these are armed by running a step.
 | `ff_heuristic_enabled` | ON | The routing floor. Off, chips go to the LLM and answer non-deterministically. |
 | `NODE_ENV` | not `production` | Attack sims return 403 `not_available_in_production` — that is Act 3. |
 | Sign-in host | `local.ping-devops.com:4000` | Passkey rp.id. On `api.ping.demo` the session cookie lands elsewhere and every call 401s. |
-| `MCP_MTLS_ENABLED` | `true` (default) | Gateway→MCP mTLS. Needs `certs/gw-mtls/` present — `run-docker.sh` generates it. |
+| `MCP_MTLS_ON` | unset (OFF today) | The ONE switch for gateway→MCP mTLS: sets the mcp-server listener, both gateways' scheme (http/ws vs https/wss) and every client cert. `MCP_MTLS_ON=1` in the root `.env` turns it on — needs `certs/gw-mtls/` present, which `run-docker.sh` generates. Off while the Privilege MCP path needs a plaintext listener. |
 | `BANKING_API_RESOURCE_URI` | `enduser.ping.demo` to show Step 9 | The MCP-spec hop. Set in `demo_mcp_server/.env`; empty disables it silently. |
 
 > **Rebuild `mcp-server` after pulling.** The mTLS-aware healthcheck lives in

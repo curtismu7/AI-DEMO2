@@ -95,7 +95,7 @@ Renumber to N/8 (or keep N/5 label style; align with existing). Add:
 
 ### `.husky/pre-commit` — extend the trigger + auto-regen
 - Extend the `TOPO_TOUCHED` match to also fire when any of these are staged:
-  `demo_mcp_server/src/tools/**`, `demo_mcp_invest/src/tools/investTools.ts`,
+  `demo_mcp_server/src/tools/**`, `demo_mcp_resource_server/src/tools/investTools.ts`,
   `demo_mcp_gateway/src/gatewayTools.ts`,
   `demo_api_server/services/intentTokenService.js`,
   `demo_api_server/services/configStore.js`, `mcp-tool-schemas.json`.

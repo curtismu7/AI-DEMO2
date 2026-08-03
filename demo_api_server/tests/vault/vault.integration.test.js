@@ -74,7 +74,7 @@ describe('vault integration: atomic save', () => {
   let p;
   afterEach(() => p && cleanupVault(p));
 
-  test('save writes <vault>.tmp then renames to <vault> (spy on fsp.rename)', async () => {
+  test('save writes a per-writer tmp then renames to <vault> (spy on fsp.rename)', async () => {
     p = tmpVaultPath();
     const v = await createVault(p, 'pw');
     v.set('A', '1');
@@ -84,10 +84,16 @@ describe('vault integration: atomic save', () => {
     v.close();
 
     // Among the rename calls (create + save), every call must be tmp → final.
+    // The tmp name is deliberately NOT the fixed `<vault>.tmp`: that shared path
+    // let concurrent savers splice their JSON together and let a pre-planted
+    // symlink capture the envelope (§4 2026-08-02). It must still live beside
+    // the vault so the rename stays same-filesystem, hence atomic.
     expect(renameSpy.mock.calls.length).toBeGreaterThan(0);
     for (const call of renameSpy.mock.calls) {
       const [src, dst] = call;
-      expect(src).toBe(p + '.tmp');
+      expect(src).not.toBe(p + '.tmp');
+      expect(src.startsWith(p + '.')).toBe(true);
+      expect(src.endsWith('.tmp')).toBe(true);
       expect(dst).toBe(p);
     }
     renameSpy.mockRestore();

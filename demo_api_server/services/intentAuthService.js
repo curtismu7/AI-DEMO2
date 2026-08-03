@@ -87,6 +87,19 @@ async function evaluateIntentAuthorization(intentContext) {
     'view_balance', 'view_accounts', 'view_transactions', 'view_records',
     'view_coverage', 'list_appointments', 'list_orders', 'pto_balance',
     'view_benefits', 'list_gear',
+    // UC1 primary read per vertical — these four shipped after this set was
+    // written, so their read chips fell through to the conservative-consent
+    // fallback and returned 428.
+    'view_permits', 'view_courses', 'view_work_orders', 'view_portfolios',
+    // UC2 sensitive reads. Consent for these is owned downstream, by the tool's
+    // own `authz: { consent: true }` (see config/verticals/*/tools.js) and by
+    // the PingOne Authorize decision — both of which return a renderable
+    // hitl_required moment. This service's conservative fallback returned a
+    // bare 428 that pre-empted them and dead-ended the chip.
+    'sensitive_patient_records', 'sensitive_order_history', 'sensitive_tax_record',
+    'sensitive_student_finance', 'sensitive_payroll_details',
+    'sensitive_membership_details', 'sensitive_supplier_contract',
+    'sensitive_holdings',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {

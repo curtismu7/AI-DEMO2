@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    box rgb(240,240,255) Normal Flow (MCP RS)
+    participant Agent
+    participant GW as MCP Gateway
+    participant P1 as PingOne AS
+    participant RS as Invest Service<br/>:8081 WebSocket
+    end
+
+    Agent->>GW: tools/call get_investment_balance<br/>(Bearer: user token)
+    GW->>P1: RFC 8693 Token Exchange<br/>(audience=mcp-invest.ping.demo)
+    P1-->>GW: Scoped access_token (aud=RS)
+    GW->>RS: WebSocket MCP message<br/>(Bearer: exchanged token)
+    RS->>RS: Verify JWT signature (JWKS)<br/>Check aud + scope + exp
+    RS-->>GW: MCP result (portfolio data)
+    GW-->>Agent: tools/call result
+
+    Note over Agent,RS: Same service, different credential path
+
+    box rgb(255,245,235) API-Key Flow (Backend App)
+    participant Agent2 as Agent
+    participant GW2 as MCP Gateway
+    participant Vault as Vault
+    participant App as Invest Service<br/>:8081/invest HTTP
+    end
+
+    Agent2->>GW2: tools/call show_investment<br/>(Bearer: user token)
+    GW2->>GW2: Drop OAuth bearer
+    GW2->>Vault: Fetch DEMO_MCP_RESOURCE_SERVER_KEY
+    Vault-->>GW2: API key (shared secret)
+    GW2->>App: GET /invest<br/>(X-API-Key + X-User-Sub)
+    App->>App: Constant-time key compare
+    App-->>GW2: JSON {invest: {...},<br/>authMechanism: "X-API-Key"}
+    GW2-->>Agent2: tools/call result + _meta

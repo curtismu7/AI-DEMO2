@@ -862,7 +862,8 @@ router.get('/status', (req, res) => {
       lastName: req.session.user.lastName,
       role: req.session.user.role,
       phone: req.session.user.phone || null,
-      hideSuccessScreen: req.session.user.hideSuccessScreen || false
+      hideSuccessScreen: req.session.user.hideSuccessScreen || false,
+      notificationPrefs: req.session.user.notificationPrefs || null
     } : null,
     oauthProvider: isAuthenticated ? req.session.user.oauthProvider : null,
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
@@ -1271,7 +1272,8 @@ router.post('/verify-otp', async (req, res) => {
 /**
  * Update user preference to hide/show the success screen on login
  */
-router.post('/user/success-screen-preference', (req, res) => {
+// Router is mounted at /api/auth/oauth/user, so this path must not repeat "user".
+router.post('/success-screen-preference', (req, res) => {
   try {
     if (!req.session?.user?.id) {
       return res.status(401).json({ error: 'not_authenticated' });
@@ -1298,6 +1300,54 @@ router.post('/user/success-screen-preference', (req, res) => {
     });
   } catch (error) {
     console.error('[success-screen-preference] Error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+/**
+ * Update which categories of notification the user allows.
+ * Keys mirror NOTIFICATION_CATEGORIES in demo_api_ui/src/components/NotificationsPanel.js.
+ */
+const NOTIFICATION_PREF_KEYS = ['agentActivity', 'transfers', 'securityAlerts', 'lowBalance'];
+
+// Router is mounted at /api/auth/oauth/user, so this path must not repeat "user".
+router.post('/notification-preferences', (req, res) => {
+  try {
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ error: 'not_authenticated' });
+    }
+
+    const submitted = req.body?.notificationPrefs;
+    if (!submitted || typeof submitted !== 'object' || Array.isArray(submitted)) {
+      return res.status(400).json({ error: 'invalid_notificationPrefs' });
+    }
+
+    // Whitelist the keys so an arbitrary body cannot widen the stored user record.
+    const notificationPrefs = {};
+    for (const key of NOTIFICATION_PREF_KEYS) {
+      const value = submitted[key];
+      if (value !== undefined && typeof value !== 'boolean') {
+        return res.status(400).json({ error: `invalid_${key}` });
+      }
+      notificationPrefs[key] = value === undefined ? true : value;
+    }
+
+    const dataStore = require('../data/store');
+    dataStore.updateUser(req.session.user.id, { notificationPrefs }).then(() => {
+      req.session.user.notificationPrefs = notificationPrefs;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[notification-preferences] Session save error:', err);
+          return res.status(500).json({ error: 'session_error' });
+        }
+        res.json({ notificationPrefs, message: 'Preference updated' });
+      });
+    }).catch((err) => {
+      console.error('[notification-preferences] Update error:', err);
+      res.status(500).json({ error: 'update_failed' });
+    });
+  } catch (error) {
+    console.error('[notification-preferences] Error:', error);
     res.status(500).json({ error: 'server_error' });
   }
 });

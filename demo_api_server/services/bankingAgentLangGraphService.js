@@ -766,7 +766,10 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
           reply: withTruncationNotice(p1LoopResult.answer, p1LoopResult.truncated),
           truncated: p1LoopResult.truncated || undefined,
           success: true,
-          toolsCalled: [],
+          // runReasonLoop reports the tools it actually executed (present only
+          // when non-empty). Hardcoding [] here made ProofStrip and
+          // step-verification see zero tool calls after five real ones.
+          toolsCalled: p1LoopResult.toolsCalled || [],
           inputTokens: p1LoopResult.inputTokens ?? 0,
           outputTokens: p1LoopResult.outputTokens ?? 0,
           requiresConsent: false,

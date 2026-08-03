@@ -150,7 +150,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
-  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
+  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
@@ -440,7 +440,15 @@ export default function AdminSideNav({ user }) {
   const allNavItems = [
     { label: "Home", path: "/", icon: "~" },
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
-    { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
+    {
+      label: "Privilege MCP",
+      icon: "shld",
+      children: [
+        { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
+        { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
+        { label: "Privilege MCP Guide", path: "/privilege-mcp-learning", icon: "doc" },
+      ],
+    },
     {
       label: "Agent Lifecycle",
       path: "/agent-lifecycle",
@@ -523,7 +531,6 @@ export default function AdminSideNav({ user }) {
           icon: "dbg",
         },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
-        { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
       ],
     },
     {
@@ -843,6 +850,8 @@ export default function AdminSideNav({ user }) {
         { label: "Agent Onboarding Flow Subway (Node)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (MM)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "MCP Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
+        { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
+        { label: "Privilege MCP (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
       ],
     },
     {

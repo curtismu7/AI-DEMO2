@@ -217,7 +217,7 @@ The React UI reads `REACT_APP_*` vars from the **root** `.env` or from its own `
 | BFF API | 3001 | `https://api.ping.demo:3001` |
 | MCP server | 8080 | `ws://localhost:8080` |
 
-The full stack is ~13 services (UI, BFF, mcp-server 8080, mcp-gateway 3005, mcp-invest 8081, hitl 3009, mortgage 8082, agent-service 3016, langchain 8888/8889/8890, openai 8891, mastra 8892, pydantic 8893, authz-mock 9001).
+The full stack is ~13 services (UI, BFF, mcp-server 8080, mcp-gateway 3005, mcp-resource-server 8081, hitl 3009, mortgage 8082, agent-service 3016, langchain 8888/8889/8890, openai 8891, mastra 8892, pydantic 8893, authz-mock 9001).
 
 Commands: `./run.sh start`, `./run.sh stop`, `./run.sh status`, `./run.sh tail`
 

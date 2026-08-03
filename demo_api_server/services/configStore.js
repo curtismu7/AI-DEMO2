@@ -311,6 +311,7 @@ const FIELD_DEFS = {
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   ff_knowledge_grounding:            { public: true, default: 'false' }, // knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations
+  ff_grounded_answers:               { public: true, default: 'false' }, // Option C — render only claims traceable to an in-vertical tool call; drop the rest, degrade to the no-match card
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
   lmstudio_model:              { public: true, default: '' }, // empty → LM Studio uses its currently loaded model
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
@@ -672,10 +673,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   demo_apikey_backend_service_key:       { public: false, default: 'demo-api-key-0000' },
 
   // PingGateway vault bridge (/internal/vault/service-key) — shared secret the
-  // apikey-dispatch.groovy handler injects as X-API-Key to demo_mortgage_service.
-  // Must match MORTGAGE_SERVICE_API_KEY on that backend. Defaults keep the local
+  // apikey-dispatch.groovy handler injects as X-API-Key to demo_api_resource_server.
+  // Must match API_RESOURCE_SERVER_API_KEY on that backend. Defaults keep the local
   // demo runnable when vault-migrate has not seeded these entries yet.
-  demo_mortgage_service_key:             { public: false, default: 'demo-mortgage-key-0000' },
+  demo_api_resource_server_key:             { public: false, default: 'demo-mortgage-key-0000' },
   demo_invest_service_key:               { public: false, default: 'demo-mortgage-key-0000' },
 
   // PingOne Recognize — biometric / device intelligence
@@ -1374,8 +1375,8 @@ class ConfigStore {
 
       // Phase 266 — Path A demo API key
       demo_apikey_backend_service_key:      ['DEMO_APIKEY_SERVICE_KEY'],
-      demo_mortgage_service_key:            ['DEMO_MORTGAGE_SERVICE_KEY'],
-      demo_invest_service_key:              ['DEMO_INVEST_SERVICE_KEY'],
+      demo_api_resource_server_key:            ['DEMO_API_RESOURCE_SERVER_KEY'],
+      demo_invest_service_key:              ['DEMO_MCP_RESOURCE_SERVER_KEY'],
 
       // Agent mode (five-mode provider)
       agent_mode:                           ['AGENT_MODE'],
@@ -1387,7 +1388,7 @@ class ConfigStore {
 
       // MCP WebSocket URLs (consumed by demo_mcp_gateway via process.env)
       mcp_olb_ws_url:                       ['MCP_OLB_WS_URL'],
-      mcp_invest_ws_url:                    ['MCP_INVEST_WS_URL'],
+      mcp_resource_server_ws_url:                    ['MCP_RESOURCE_SERVER_WS_URL'],
       upstream_mcp_url:                     ['UPSTREAM_MCP_URL'],
 
       // PingAuthorize gateway policy endpoint (consumed by routes/authorize.js + verticalManifest.js)
@@ -1652,6 +1653,8 @@ function buildAllowedScopesByAudience() {
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
     'invest:read',        // investment — investment vertical tools
+    'airlines:read',      // airlines — SQLite-backed reservation/flight/seat tools
+    'airlines:write',     // airlines — reservation changes (Phase 2)
     'permits:read',       // government — permit vertical tools
     'transcript:read',    // university — enrollment/transcript vertical tools
     'workorders:read',    // field-service — work-order vertical tools
@@ -1679,6 +1682,8 @@ function buildAllowedScopesByAudience() {
     'gear:read',          // sporting-goods — show_gear_order
     'expense:read',       // workforce — show_expense_report
     'invest:read',        // investment — investment vertical tools
+    'airlines:read',      // airlines — SQLite-backed reservation/flight/seat tools
+    'airlines:write',     // airlines — reservation changes (Phase 2)
     'permits:read',       // government — permit vertical tools
     'transcript:read',    // university — enrollment/transcript vertical tools
     'workorders:read',    // field-service — work-order vertical tools

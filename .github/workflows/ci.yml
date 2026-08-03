@@ -40,14 +40,23 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: demo_api_server/package.json
+      # Deps install FIRST. hygiene:check used to run against a bare checkout,
+      # which worked only while every command in the chain was dependency-free.
+      # 04487cdf appended `gen-intent-topology.js check`, and that one loads
+      # nlIntentParser -> verticalDispatch -> verticalManifest/schema.js ->
+      # zod, so the step died with `Cannot find module 'zod'` in 12s. Nothing in
+      # hygiene:check asserts a bare checkout — check-fresh-clone-hygiene.js
+      # inspects committed files (home paths, .mcp.json, compose/k8s env), not
+      # node_modules — so installing first costs a cache-warm minute and
+      # removes a whole class of "gate is red for a reason unrelated to the PR".
+      - name: Install demo_api_server deps (hygiene + topology gates both need them)
+        run: npm install --prefix demo_api_server --no-audit --no-fund
+      - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
+        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Fresh-clone hygiene
         run: npm run hygiene:check
       - name: REGRESSION_PLAN §1 paths exist
         run: npm run regression:paths
-      - name: Install demo_api_server deps (topology gate runs its jest suite)
-        run: npm install --prefix demo_api_server --no-audit --no-fund
-      - name: Install demo_mcp_gateway deps (topology step 6 runs toolSchemaDrift jest)
-        run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Topology no-drift gate
         run: npm run topology:verify
 

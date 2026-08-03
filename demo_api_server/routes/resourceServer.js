@@ -310,5 +310,38 @@ router.get('/transactions', (req, res) => {
   }
 });
 
+/**
+ * GET /api/resource-server/vertical-record?tool=show_mortgage
+ * Returns the vertical-specific record from demo_api_resource_server's feature data.
+ */
+router.get('/vertical-record', (req, res) => {
+  const toolName = req.query.tool;
+  if (!toolName) return res.status(400).json({ error: 'missing_tool_param' });
+
+  const TOOL_TO_RECORD_KEY = {
+    show_mortgage: 'mortgage',
+    show_health_record: 'healthRecord',
+    show_investment: 'invest',
+    show_gear_order: 'gearOrder',
+    show_expense_report: 'expenseReport',
+    show_permit: 'permit',
+    show_enrollment: 'enrollment',
+    show_work_order: 'workOrder',
+    show_large_purchase: 'largePurchase',
+  };
+
+  const recordKey = TOOL_TO_RECORD_KEY[toolName];
+  if (!recordKey) return res.json({ tool: toolName, note: 'No vertical record mapping' });
+
+  try {
+    const featureData = require('../../demo_api_resource_server/feature-records.generated.json');
+    const entry = featureData[recordKey];
+    if (!entry) return res.json({ tool: toolName, note: `No record for key: ${recordKey}` });
+    return res.json({ vertical: recordKey, noun: entry.noun, ...entry.record });
+  } catch (err) {
+    return res.json({ tool: toolName, note: 'Feature data not available' });
+  }
+});
+
 module.exports = router;
 

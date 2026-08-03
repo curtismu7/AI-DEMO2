@@ -1,0 +1,35 @@
+{
+  "name": "banking-mcp-resource-server",
+  "version": "1.0.0",
+  "description": "mcp-resource-server — MCP server for investment account tools and the SQLite-backed airlines tools (aud: mcp-resource-server.bxf.com)",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:clean": "rm -rf dist && npm run build",
+    "dev": "nodemon --exec \"node --experimental-sqlite -r ts-node/register\" src/index.ts",
+    "start": "node --experimental-sqlite dist/index.js",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opentelemetry/auto-instrumentations-node": "^0.59.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
+    "@opentelemetry/sdk-node": "^0.200.0",
+    "axios": "^1.17.0",
+    "dotenv": "^17.2.2",
+    "jose": "^6.2.3",
+    "jsonwebtoken": "^9.0.0",
+    "ws": "^8.14.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

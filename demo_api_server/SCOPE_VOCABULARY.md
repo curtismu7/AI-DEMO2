@@ -31,6 +31,8 @@ Descriptions, risk levels, and categories are taken from that file.
 | `transcript:read` | feature | low | Read enrollment/transcript status data (university vertical) | Super Banking API |
 | `workorders:read` | feature | low | Read Work Order Status data (manufacturing vertical) | Super Banking API |
 | `invest:read` | feature | low | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) | Super Banking API |
+| `airlines:read` | feature | low | Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical) | Super Banking API |
+| `airlines:write` | feature | high | Modify reservations — change seat, add checked bag (airlines vertical, Phase 2) | Super Banking API |
 | `ai:agent:read` | agent | medium | Agent invocation permission | Super Banking API |
 | `ai_agent` | ai | medium | AI agent identity | Super Banking API |
 | `admin:read` | admin | medium | Read access to administrative data | Super Banking API |
@@ -75,7 +77,7 @@ PingOne display names come from `provisioning.resourceNames`
 ### Super Banking API (PingOne: "Demo API")
 
 - **Audience URI:** `enduser.ping.demo`
-- **Native scopes:** `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+- **Native scopes:** `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `airlines:read`, `airlines:write`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 - **Mirrored scopes:** _(none)_
 - **Enforcement:** BFF validates `aud === enduser.ping.demo`; `requireScopes()` middleware + row-level ownership checks
 
@@ -88,22 +90,23 @@ PingOne display names come from `provisioning.resourceNames`
 
 ### Super Banking MCP Invest (PingOne: "Demo MCP Invest")
 
-- **Audience URI:** `mcp-invest.ping.demo`
+- **Audience URI:** `mcp-resource-server.ping.demo`
 - **Native scopes:** `mcp:invoke`
-- **Mirrored scopes:** `invest:read`, `read`
+- **Mirrored scopes:** `invest:read`, `airlines:read`, `airlines:write`, `read`
+- **Note:** `airlines:*` is deliberately absent from the MCP Server resource above. `twoExchangeReconciler` grants the MCP Gateway app a scope name on only one backend resource (PingOne enforces per-app scope-name uniqueness); listing `airlines:read` on both would let the partition strip it from the MCP Invest grant, which is the grant the airlines tools actually need.
 
 ### Super Banking MCP Gateway (PingOne: "Demo MCP Gateway")
 
 - **Audience URI:** `mcpgateway.ping.demo`
 - **Native scopes:** `mcp:invoke`
-- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `airlines:read`, `airlines:write`, `workorders:read`, `sensitive:read`, `code:search`
 - **Enforcement:** Validates inbound `aud === mcpgateway.ping.demo` and enforces per-tool `requiredScopes` before credential swap
 
 ### Super Banking Agent Gateway (PingOne: "Demo Agent Gateway")
 
 - **Audience URI:** `agentgateway.ping.demo`
 - **Native scopes:** `agent:invoke`
-- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+- **Mirrored scopes:** `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `invest:read`, `airlines:read`, `airlines:write`, `workorders:read`, `sensitive:read`, `code:search`
 - **Purpose:** Two-Exchange Step 1 audience for the AI Agent client-credentials token
 
 ### Super Banking A2A Intermediate (PingOne: "Demo A2A Intermediate")

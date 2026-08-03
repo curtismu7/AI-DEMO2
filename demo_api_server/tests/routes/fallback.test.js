@@ -16,14 +16,29 @@ describe('GET /api/fallback/chips', () => {
     expect(response.body.chips[0]).toHaveProperty('useCaseId');
   });
 
-  it('should return banking chips by default', async () => {
+  it('should report an explicit no-match instead of defaulting to banking', async () => {
     const response = await request(app)
       .get('/api/fallback/chips')
       .query({ prompt: 'hello', verticalId: 'undefined' })
       .expect(200);
 
-    expect(response.body.verticalId).toBe('banking');
+    expect(response.body.verticalId).not.toBe('banking');
+    expect(response.body.noMatch).toBe(true);
+    expect(response.body.chips).toEqual([]);
     expect(response.body.isFallback).toBe(true);
+    expect(typeof response.body.message).toBe('string');
+  });
+
+  it('should not serve banking chips to a healthcare prompt it cannot match', async () => {
+    const response = await request(app)
+      .get('/api/fallback/chips')
+      .query({ prompt: 'hello', verticalId: 'healthcare' })
+      .expect(200);
+
+    expect(response.body.verticalId).toBe('healthcare');
+    const tools = (response.body.chips || []).map((c) => c.tool);
+    expect(tools).not.toContain('create_transfer');
+    expect(tools).not.toContain('get_my_accounts');
   });
 
   it('should return 400 if prompt is missing', async () => {

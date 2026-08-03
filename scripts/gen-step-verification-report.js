@@ -8,6 +8,9 @@ const ROOT = path.join(__dirname, '..');
 const OUT_PATH = path.join(ROOT, 'docs/use-cases/step-verification-report.md');
 const LEDGER_ROOT = path.join(ROOT, 'demo_api_server/data/step-verification');
 
+/** Allowlisted per REGRESSION_PLAN §0. */
+const GLYPH = { PASS: '✅', UNPROVEN: '⚠️', FAIL: '❌' };
+
 function loadLedger() {
   const rows = [];
   if (!fs.existsSync(LEDGER_ROOT)) return rows;
@@ -45,7 +48,7 @@ function buildReport() {
   ];
 
   for (const r of rows) {
-    const glyph = r.status === 'PASS' ? '✅' : '❌';
+    const glyph = GLYPH[r.status] || '❌';
     lines.push(
       `| ${r.vertical} | ${r.useCaseId} | ${r.triggerType} | ${r.mode} | ${glyph} ${r.status} | ${r.errorClass || ''} | ${r.checkedAt} |`,
     );
@@ -53,26 +56,43 @@ function buildReport() {
   lines.push('');
 
   const total = rows.length;
-  const passing = rows.filter((r) => r.status === 'PASS').length;
+  const proven = rows.filter((r) => r.status === 'PASS').length;
+  const unproven = rows.filter((r) => r.status === 'UNPROVEN').length;
   const failing = rows.filter((r) => r.status === 'FAIL').length;
   const live = rows.filter((r) => r.mode === 'heuristic' || r.mode === 'llamacpp');
   const livePass = live.filter((r) => r.status === 'PASS').length;
   lines.push(
     '## Summary',
     '',
-    `${passing}/${total} checks passing`
+    `${proven}/${total} checks proven`
       + (failing ? ` (${failing} FAIL — not demo-ready)` : '')
       + `.`,
-    `Live invoke/LLM rows: ${livePass}/${live.length} passing.`,
+    `${unproven} UNPROVEN — the check ran with the runtime conditions stubbed, so it`
+      + ` proves the catalog declares the right prerequisites and nothing more.`,
+    `Live invoke/LLM rows: ${livePass}/${live.length} proven.`,
     '',
+    '## Proven coverage by vertical',
+    '',
+    '| Vertical | Proven | Unproven | FAIL | Total |',
+    '|---|---:|---:|---:|---:|',
   );
+
+  const verticals = [...new Set(rows.map((r) => r.vertical))].sort();
+  for (const v of verticals) {
+    const vr = rows.filter((r) => r.vertical === v);
+    const count = (s) => vr.filter((r) => r.status === s).length;
+    lines.push(`| ${v} | ${count('PASS')} | ${count('UNPROVEN')} | ${count('FAIL')} | ${vr.length} |`);
+  }
+  lines.push('');
 
   return lines.join('\n');
 }
 
 const [, , mode] = process.argv;
 
-if (mode === 'generate') {
+if (require.main !== module) {
+  module.exports = { buildReport, OUT_PATH };
+} else if (mode === 'generate') {
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   fs.writeFileSync(OUT_PATH, buildReport(), 'utf8');
   console.log(`[gen-step-verification-report] written: ${OUT_PATH}`);

@@ -1,0 +1,19 @@
+{
+  "noun": "large purchase record",
+  "record": {
+    "largePurchase": {
+      "purchaseId": "RET-2026-55019",
+      "customer": "Jordan A. Rivera",
+      "item": "Samsung 85\" QN900D Neo QLED 8K TV",
+      "sku": "SAM-QN900D-85",
+      "purchaseDate": "2026-07-20",
+      "amount": 4299.99,
+      "tax": 352.15,
+      "total": 4652.14,
+      "currency": "USD",
+      "paymentMethod": "Visa ending 4421 (3 installments)",
+      "warrantyExpires": "2029-07-20",
+      "deliveryStatus": "Delivered — signed 2026-07-24"
+    }
+  }
+}

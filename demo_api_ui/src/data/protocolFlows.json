@@ -1,10 +1,18 @@
 {
   "ciba-hitl": {
     "id": "ciba-hitl",
-    "name": "Ciba Hitl",
-    "description": "Protocol flow: ciba-hitl",
+    "name": "CIBA Human-in-the-Loop",
+    "description": "Client-Initiated Backchannel Authentication with human approval",
+    "spec": {
+      "label": "OpenID CIBA Core 1.0",
+      "title": "Client-Initiated Backchannel Authentication",
+      "url": "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html",
+      "why": "Separates where a request starts from where a human approves it. No browser redirect and no popup — the app asks the authorization server, the user approves out of band on another device or inbox, and the app polls the token endpoint until that approval lands.",
+      "ai": "A server-side agent has no browser to redirect. CIBA is how a person approves one specific agent action before the token exists, and binding_message states exactly what is being approved — \"Approve $500 transfer\" — so consent is tied to the action rather than to a whole session."
+    },
     "actors": [
       "client-app",
+      "auth-server",
       "human-approver"
     ],
     "steps": [
@@ -12,24 +20,42 @@
         "id": "step-1",
         "actor": "client-app",
         "fromActor": "client-app",
-        "toActor": "human-approver",
+        "toActor": "auth-server",
         "action": "POST /api/auth/ciba/initiate",
         "label": "POST /api/auth/ciba/initiate",
         "method": "POST",
         "endpoint": "/api/auth/ciba/initiate",
+        "body": {
+          "binding_message": "Approve transfer"
+        },
         "step": 1,
+        "responseMap": {
+          "authReqId": "auth_req_id"
+        },
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "human-approver",
         "fromActor": "human-approver",
-        "toActor": "client-app",
+        "toActor": "auth-server",
         "action": "POST /api/auth/ciba/approve-now/:authReqId",
         "label": "POST /api/auth/ciba/approve-now/:authReqId",
         "method": "POST",
         "endpoint": "/api/auth/ciba/approve-now/:authReqId",
         "step": 2,
+        "expected": {}
+      },
+      {
+        "id": "step-3",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "GET /api/auth/ciba/poll/:authReqId",
+        "label": "GET /api/auth/ciba/poll/:authReqId",
+        "method": "GET",
+        "endpoint": "/api/auth/ciba/poll/:authReqId",
+        "step": 3,
         "expected": {}
       }
     ],
@@ -37,8 +63,15 @@
   },
   "dpop": {
     "id": "dpop",
-    "name": "Dpop",
-    "description": "Protocol flow: dpop",
+    "name": "DPoP Sender-Constrained Token",
+    "description": "RFC 9449 — a token bound to the client's key, then replayed at the gateway. The demo routes require the DPoP header to be present; they do not verify the proof signature.",
+    "spec": {
+      "label": "RFC 9449",
+      "title": "Demonstrating Proof of Possession (DPoP)",
+      "url": "https://www.rfc-editor.org/rfc/rfc9449",
+      "why": "Binds an access token to a key the client holds. A bearer token works for anyone who steals it; a DPoP-bound token does not, because every request must carry a fresh proof signed by that key.",
+      "ai": "Agent tokens pass through more hands than a browser session ever does — gateways, tool servers, traces, logs. Sender-constraining means a token that leaks out of any of those cannot be replayed by whoever picked it up."
+    },
     "actors": [
       "client-app",
       "gateway"
@@ -50,10 +83,22 @@
         "fromActor": "client-app",
         "toActor": "gateway",
         "action": "POST /api/auth/oauth/token",
-        "label": "POST /api/auth/oauth/token",
+        "label": "Request a DPoP-bound token",
         "method": "POST",
         "endpoint": "/api/auth/oauth/token",
+        "headers": {
+          "DPoP": "demo-proof-jwt-not-verified"
+        },
+        "body": {
+          "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+          "scope": "transfer:write",
+          "subject_token": "demo-subject-token",
+          "resource": "https://mcpgateway.ping.demo"
+        },
         "step": 1,
+        "responseMap": {
+          "accessToken": "access_token"
+        },
         "expected": {}
       },
       {
@@ -62,9 +107,15 @@
         "fromActor": "gateway",
         "toActor": "client-app",
         "action": "POST /api/auth/gateway/verify-dpop",
-        "label": "POST /api/auth/gateway/verify-dpop",
+        "label": "Gateway verifies the proof binding",
         "method": "POST",
         "endpoint": "/api/auth/gateway/verify-dpop",
+        "headers": {
+          "DPoP": "demo-proof-jwt-not-verified"
+        },
+        "body": {
+          "access_token": ":accessToken"
+        },
         "step": 2,
         "expected": {}
       }
@@ -73,8 +124,16 @@
   },
   "rfc8693-token-exchange": {
     "id": "rfc8693-token-exchange",
-    "name": "Rfc8693 Token Exchange",
-    "description": "Protocol flow: rfc8693-token-exchange",
+    "name": "RFC 8693 Token Exchange",
+    "description": "Real PingOne token exchange driven by the signed-in session token — Exchange #1 on its own, then the two-exchange agent chain.",
+    "spec": {
+      "label": "RFC 8693",
+      "title": "OAuth 2.0 Token Exchange",
+      "url": "https://www.rfc-editor.org/rfc/rfc8693",
+      "why": "Trades one token for another with a narrower audience and fewer scopes, and records the delegation in the act claim so the new token still says who the original subject was.",
+      "ai": "This is what stops an agent from acting as itself with its own standing privileges. The user's token is exchanged for one that names the user as subject and the agent as actor, downscoped to the single call being made, so every downstream service can see who asked and who is carrying it out."
+    },
+    "decisionDiagram": "flowchart LR\n    T[Delegated token arrives] --> V{Signature and audience valid}\n    V -- no --> R1[401 invalid_token]\n    V -- yes --> S{Scope covers this tool}\n    S -- no --> R2[403 insufficient_scope]\n    S -- yes --> C{act claim present}\n    C -- no --> R3[403 broken actor chain]\n    C -- yes --> AZ{PingOne Authorize}\n    AZ -- DENY --> R4[403 with reason]\n    AZ -- PERMIT --> OK[Tool executes]",
     "actors": [
       "client-app",
       "token-exchanger"
@@ -85,10 +144,18 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "token-exchanger",
-        "action": "POST /api/oauth/token/token",
-        "label": "POST /api/oauth/token/token",
+        "action": "POST /api/tokens/exchange-test (single)",
+        "label": "Exchange #1 — session token to mcpgateway.ping.demo",
         "method": "POST",
-        "endpoint": "/api/oauth/token/token",
+        "endpoint": "/api/tokens/exchange-test",
+        "body": {
+          "mode": "single",
+          "audience": "mcpgateway.ping.demo",
+          "scopes": [
+            "read",
+            "write"
+          ]
+        },
         "step": 1,
         "expected": {}
       },
@@ -97,10 +164,17 @@
         "actor": "token-exchanger",
         "fromActor": "token-exchanger",
         "toActor": "client-app",
-        "action": "POST /api/oauth/token/introspect",
-        "label": "POST /api/oauth/token/introspect",
+        "action": "POST /api/tokens/exchange-test (double)",
+        "label": "Two-exchange chain — user to agent to MCP resource",
         "method": "POST",
-        "endpoint": "/api/oauth/token/introspect",
+        "endpoint": "/api/tokens/exchange-test",
+        "body": {
+          "mode": "double",
+          "scopes": [
+            "read",
+            "write"
+          ]
+        },
         "step": 2,
         "expected": {}
       }
@@ -109,8 +183,16 @@
   },
   "par": {
     "id": "par",
-    "name": "Par",
-    "description": "Protocol flow: par",
+    "name": "PAR Intent Binding",
+    "description": "RFC 9126 — pushes authorization_details to the real PingOne as/par endpoint, then enforces the $100 declared-intent cap against the returned request_uri.",
+    "spec": {
+      "label": "RFC 9126",
+      "title": "Pushed Authorization Requests (PAR)",
+      "url": "https://www.rfc-editor.org/rfc/rfc9126",
+      "why": "The client pushes the authorization request to the server over a back channel first and gets back a short-lived request_uri to use instead. The parameters never ride in a browser URL, so they cannot be read or tampered with in transit.",
+      "ai": "Intent binding. The agent declares what it intends to do — the action, the amount, the payee, carried as RFC 9396 authorization_details — before it does anything, and the authorization server holds that declaration. Policy then judges the stated intent, not just whether a token is valid."
+    },
+    "decisionDiagram": "flowchart LR\n    I[Agent declares intent] --> P[Push authorization_details to as/par]\n    P --> U{request_uri returned}\n    U -- no --> E[Push failed - nothing authorised]\n    U -- yes --> CAP{Amount within declared cap}\n    CAP -- over cap --> D[DENY intent_exceeded]\n    CAP -- within cap --> OK[PERMIT - transfer proceeds]",
     "actors": [
       "client-app",
       "auth-server"
@@ -121,22 +203,35 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "auth-server",
-        "action": "POST /api/auth/par",
-        "label": "POST /api/auth/par",
+        "action": "POST /api/demo/intent-binding/run ($80)",
+        "label": "Push $80 intent — within the declared cap",
         "method": "POST",
-        "endpoint": "/api/auth/par",
+        "endpoint": "/api/demo/intent-binding/run",
+        "body": {
+          "action": "permit",
+          "requestedAmount": 80,
+          "live": true
+        },
         "step": 1,
+        "responseMap": {
+          "requestUri": "requestUri"
+        },
         "expected": {}
       },
       {
         "id": "step-2",
-        "actor": "auth-server",
-        "fromActor": "auth-server",
-        "toActor": "client-app",
-        "action": "GET /api/auth/authorize",
-        "label": "GET /api/auth/authorize",
-        "method": "GET",
-        "endpoint": "/api/auth/authorize",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "POST /api/demo/intent-binding/run ($500)",
+        "label": "Push $500 intent — exceeds the cap, expect DENY",
+        "method": "POST",
+        "endpoint": "/api/demo/intent-binding/run",
+        "body": {
+          "action": "permit",
+          "requestedAmount": 500,
+          "live": true
+        },
         "step": 2,
         "expected": {}
       }

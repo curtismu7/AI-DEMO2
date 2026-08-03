@@ -35,6 +35,26 @@
     "highValueAction": "Transcript Release",
     "highValueLabel": "Official transcript release to a third party"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "University_Privileged",
+        "description": "Users permitted to access sensitive student finance records (UC9)"
+      },
+      "delegates": {
+        "name": "University_Delegates",
+        "description": "Users authorized as delegated student-services agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_student_finance": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Scholar",
     "greeting": "Hi {name}! I'm Scholar. I can show your enrolled courses, check your credit standing and holds, review your enrollment history, and help you release an official transcript — I'll walk you through the consent steps. What do you need?",
@@ -82,7 +102,7 @@
       { "id": "un5", "label": "🔑 Release transcript", "message": "release my official transcript", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "release_transcript", "useCaseId": "step-up-required" },
       { "id": "un-feature", "label": "Enrollment status", "message": "show enrollment status", "mode": "both", "tool": "show_enrollment", "useCaseId": "delegated-access-with-proof" },
       { "id": "un-a2a", "label": "Sensitive student finance", "message": "access my sensitive student finance", "mode": "both", "challenge": "consent", "tool": "sensitive_student_finance", "useCaseId": "a2a-delegation", "group": "advanced" },
-      { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm" },
+      { "id": "un8", "label": "Am I on track to graduate?", "message": "am I on track to graduate", "mode": "llm", "tool": "view_degree_audit" },
       { "id": "un-direct", "label": "Direct MCP", "message": "get my courses", "mode": "direct", "tool": "view_courses" }
     ],
     "securityShowcase": {

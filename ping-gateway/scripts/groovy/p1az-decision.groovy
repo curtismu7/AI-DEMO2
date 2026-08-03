@@ -325,6 +325,12 @@ def toolName          = ''
 def transactionAmount = ''
 def transactionType   = ''
 def toAccountId       = ''
+// HITL retry receipt. `_hitl_challenge_id` is a gateway-internal control field the
+// agent echoes after a human approves; it must never reach the MCP tool, so the
+// forwarded entity is rewritten without it (parity with the Node gateway's
+// authorizeMcpRequest, which deletes the key before dispatch).
+def hitlChallengeId   = ''
+def toolArgs          = [:]
 try {
     def bodyStr = request.entity.string
     if (bodyStr) {
@@ -333,6 +339,14 @@ try {
         if (mcpMethod == 'tools/call') {
             toolName          = parsed?.params?.name ?: ''
             def args          = parsed?.params?.arguments ?: [:]
+            def rawChallenge  = args instanceof Map ? args['_hitl_challenge_id'] : null
+            hitlChallengeId   = rawChallenge != null ? String.valueOf(rawChallenge) : ''
+            if (hitlChallengeId && args instanceof Map) {
+                args.remove('_hitl_challenge_id')
+                parsed.params.arguments = args
+                request.entity.setString(JsonOutput.toJson(parsed))
+            }
+            toolArgs          = args instanceof Map ? args : [:]
             def amt           = args?.amount
             transactionAmount = amt != null ? String.valueOf(amt) : ''
             transactionType   = args?.transaction_type ?: toolName
@@ -355,6 +369,13 @@ def decisionContext = (mcpMethod == 'tools/call') ? 'McpToolCall'
 // log), so the PDP's per-vertical tools/list advice could never be computed.
 def vertical = request.headers.getFirst('X-Active-Vertical')
     ?: (request.headers.getFirst('X-Vertical') ?: '')
+// Use case: the business context the BFF initiated the call under, forwarded to
+// the PDP as UseCaseId so policy can gate on INTENT and not only on amount. The
+// CIBA demo is amount-independent by design (a $150 transfer), so with the BFF no
+// longer pre-flighting, this is the only signal that tells the PDP a decoupled
+// approval was intended. Policy uses it to REQUIRE a gate, never to waive one, so
+// an absent or forged value cannot weaken a decision — it can only fail to add one.
+def useCaseId = request.headers.getFirst('X-Use-Case-Id') ?: ''
 
 // CandidateTools (tools/list only): the per-tool list the PDP needs to return
 // DeniedTools advice — this is what drives chip greying. IG decides BEFORE proxying,
@@ -443,6 +464,87 @@ if (System.getenv('INTENT_TOKEN_REQUIRED') == 'true'
         mcp_method : mcpMethod,
     ]))
     return Promises.newResultPromise(intentDenied)
+}
+
+// ── HITL receipt verification ─────────────────────────────────────────────────
+// PingGateway is the PEP for human-in-the-loop consent too: PingOne Authorize
+// decides (INDETERMINATE = "a human must approve"), this script emits the 428 and
+// verifies the receipt on retry. Previously HITL was "not handled at this layer"
+// and every INDETERMINATE flattened to a 403, so the BFF had to pre-empt the
+// gateway to run consent at all.
+//
+// The receipt is NEVER trusted as a raw flag: the challenge must be approved, un-
+// expired, and bound to this user + agent + tool + amount + payee. Those rules
+// live in ONE place (the HITL service's POST /challenges/:id/verify) rather than
+// being hand-ported into Groovy where they would drift from the Node gateway's.
+def hitlServiceUrl = (System.getenv('HITL_SERVICE_URL') ?: '').replaceAll('/$', '')
+def hitlSecret     = System.getenv('HITL_INTERNAL_SECRET') ?: ''
+def hitlHeaders    = ['Content-Type': 'application/json'] +
+    (hitlSecret ? ['X-HITL-Internal-Secret': hitlSecret] : [:])
+def hitlApproved   = false
+
+if (hitlChallengeId) {
+    // Fail closed on every path that leaves the receipt unproven — an unreachable
+    // or unconfigured HITL service must not become an implicit approval.
+    if (!hitlServiceUrl) {
+        logger.error('[P1AZ] HITL_SERVICE_URL is not configured — cannot verify a HITL receipt')
+        def misconfigured = new Response(Status.SERVICE_UNAVAILABLE)
+        misconfigured.headers.put('Content-Type', 'application/json')
+        misconfigured.entity.setString(JsonOutput.toJson([
+            error  : 'hitl_service_unavailable',
+            message: 'HITL verification service is not configured at the gateway',
+            hitl   : true,
+            tool   : toolName,
+        ]))
+        return Promises.newResultPromise(misconfigured)
+    }
+    // The id is attacker-controlled text until proven otherwise — encode it so it
+    // cannot escape the /challenges/{id}/verify path segment.
+    def encodedId = java.net.URLEncoder.encode(hitlChallengeId, 'UTF-8')
+    def verifyBody = JsonOutput.toJson([
+        userId : sub,
+        agentId: actSub,
+        tool   : toolName,
+        params : toolArgs,
+    ])
+    def verifyRes = httpPost(hitlServiceUrl + '/challenges/' + encodedId + '/verify',
+        verifyBody, hitlHeaders)
+    def verdict = null
+    if (verifyRes.code == 200) {
+        try {
+            verdict = new JsonSlurper().parseText(verifyRes.body ?: '{}')
+        } catch (Exception e) {
+            logger.error('[P1AZ] HITL verify returned unparseable body: ' + e.message)
+        }
+    }
+    if (verdict == null) {
+        logger.error('[P1AZ] HITL verify unavailable (http ' + verifyRes.code + ') — failing closed')
+        def unavailable = new Response(Status.SERVICE_UNAVAILABLE)
+        unavailable.headers.put('Content-Type', 'application/json')
+        unavailable.entity.setString(JsonOutput.toJson([
+            error      : 'hitl_service_unavailable',
+            message    : 'HITL verification service unavailable — retry later',
+            hitl       : true,
+            challengeId: hitlChallengeId,
+            tool       : toolName,
+        ]))
+        return Promises.newResultPromise(unavailable)
+    }
+    if (verdict.ok != true) {
+        logger.warn('[P1AZ] HITL receipt rejected: ' + (verdict.message ?: 'no reason given'))
+        def rejected = new Response(Status.FORBIDDEN)
+        rejected.headers.put('Content-Type', 'application/json')
+        rejected.entity.setString(JsonOutput.toJson([
+            error      : 'hitl_receipt_rejected',
+            message    : verdict.message ?: 'HITL challenge invalid',
+            hitl       : true,
+            challengeId: hitlChallengeId,
+            tool       : toolName,
+            login_required: false,
+        ]))
+        return Promises.newResultPromise(rejected)
+    }
+    hitlApproved = true
 }
 
 // ── X-TraT-Context (F4) ───────────────────────────────────────────────────────
@@ -571,6 +673,7 @@ if (tokenAudience)   parameters.TokenAudience = tokenAudience
 def acr = (tokenInfo['acr'] ?: '') as String
 if (acr)             parameters.Acr = acr
 if (candidateTools)  parameters.CandidateTools = candidateTools
+if (useCaseId)       parameters.UseCaseId = useCaseId
 // Binding evidence — omitted when the transport did not verify it (C1).
 if (intentValid != null) {
     parameters.IntentTokenValid  = String.valueOf(intentValid)
@@ -582,6 +685,14 @@ if (rarMaxAmount)    parameters.RarMaxAmount = rarMaxAmount
 if (rarPermittedPayees) parameters.RarPermittedPayees = rarPermittedPayees
 if (tratPurp)        parameters.TratPurp = tratPurp
 if (cnfJkt)          parameters.Cnf = cnfJkt
+// Consent evidence — same attribute names the Node gateway sends
+// (PingOneAuthorizeClient), so one policy discharges the HITL obligation on both
+// transports. Set only after the receipt verified above; the challenge id travels
+// with it so bare HitlApproved=true cannot spoof a discharge.
+if (hitlApproved) {
+    parameters.HitlApproved = 'true'
+    parameters.HitlChallengeId = hitlChallengeId
+}
 def requestBody = JsonOutput.toJson([parameters: parameters])
 // Mock backend speaks the demo_authz_server policy path. REAL backend is the PingOne
 // Authorize Decision Endpoints API: POST .../v1/environments/{envId}/decisionEndpoints/{id}.
@@ -676,7 +787,39 @@ try {
 
 def backendLabel = failoverUsed ? 'mock-failover' : (simulated ? 'mock' : 'real')
 
-logger.info('[P1AZ] DECISION: ' + outcome + ' | backend=' + backendLabel + ' | sub=' + sub + ' | tool=' + toolName + ' | method=' + mcpMethod + ' | vertical=' + vertical)
+// ── Classify obligations carried on the decision ──────────────────────────────
+// A gate does not always arrive as INDETERMINATE. The mock authz server returns
+// INDETERMINATE for step-up/consent, but LIVE PingOne Authorize returns
+// `decision: PERMIT` with the applied rule effects in `statements[]` — so
+// branching on INDETERMINATE alone forwarded a gated call against the cloud
+// policy while gating correctly against the mock.
+//
+// Same vocabulary and precedence as the BFF's authorizeObligations.js: strip
+// separators, uppercase, then match most-specific first. Step-up outranks
+// consent when both bands fire (a $600 transfer is over BOTH the 500 step-up
+// and the 250 consent threshold, and must demo as step-up).
+def classifyStatements = { stmts ->
+    def kinds = [] as Set
+    (stmts instanceof List ? stmts : []).each { st ->
+        def raw = String.valueOf((st instanceof Map ? (st.code ?: st.name ?: st.id) : st) ?: '')
+        def key = raw.toUpperCase().replaceAll('[^A-Z0-9]', '')
+        if (!key) return
+        if (key.contains('HITLCONSENT'))                             kinds << 'consent'
+        else if (key.contains('STEPUP'))                             kinds << 'stepUp'
+        else if (key.contains('HITL') || key.contains('HUMANAPPROVAL')) kinds << 'hitl'
+    }
+    if (kinds.contains('stepUp')) return 'stepUp'
+    if (kinds.contains('consent')) return 'consent'
+    if (kinds.contains('hitl')) return 'hitl'
+    return null
+}
+// Obligations are only meaningful on a non-DENY decision — a DENY is terminal
+// and never negotiable by satisfying an obligation.
+def obligationKind = (outcome == 'DENY') ? null : classifyStatements(authorizeFullResponse?.statements)
+
+logger.info('[P1AZ] DECISION: ' + outcome + ' | backend=' + backendLabel + ' | sub=' + sub +
+    ' | tool=' + toolName + ' | method=' + mcpMethod + ' | vertical=' + vertical +
+    ' | obligation=' + (obligationKind ?: 'none'))
 
 // ── Build audit trail ─────────────────────────────────────────────────────────
 // mcpAudit mirrors what McpAuditFilter records to audit/mcp.audit.json
@@ -733,12 +876,35 @@ def auditTrail = [
         [filter: 'TokenIntrospection', result: (introspectionData?.active == true ? 'passed' : (introspectionData != null ? 'blocked' : 'skipped'))],
         [filter: 'P1AZDecision', result: (outcome == 'PERMIT' ? 'forwarded' : 'blocked'), decision: outcome],
     ],
-    denyingFilter: (outcome == 'PERMIT' ? null : 'P1AZDecision'),
-    lastFilter: (outcome == 'PERMIT' ? 'P1AZDecision' : null),
+    // A PERMIT carrying an unsatisfied obligation does not reach the backend, so
+    // it is not a "forwarded" outcome — P1AZDecision is where the call stopped.
+    denyingFilter: (outcome == 'PERMIT' && !obligationKind ? null : 'P1AZDecision'),
+    lastFilter: (outcome == 'PERMIT' && !obligationKind ? 'P1AZDecision' : null),
 ]
 def auditTrailJson = JsonOutput.toJson(auditTrail)
 
-if (outcome == 'PERMIT') {
+// Step-up obligation: the caller must complete MFA, not find a human. Answer 428
+// with a distinct error code so the agent drives the MFA modal and retries with a
+// stronger Acr, which stops matching the step-up condition and discharges it.
+// (A verified HITL receipt cannot satisfy this — different mechanism.)
+if (obligationKind == 'stepUp') {
+    logger.info('[P1AZ] step-up obligation on tool=' + toolName + ' — 428')
+    def stepUp = new Response(Status.valueOf(428))
+    stepUp.headers.put('Content-Type', 'application/json')
+    stepUp.headers.put('X-Gw-Audit-Trail', [auditTrailJson])
+    stepUp.entity.setString(JsonOutput.toJson([
+        error         : 'step_up_required',
+        message       : 'Step-up authentication required',
+        decision      : outcome,
+        tool          : toolName,
+        mcp_method    : mcpMethod,
+        backend       : backendLabel,
+        login_required: false,
+    ]))
+    return Promises.newResultPromise(stepUp)
+}
+
+if (outcome == 'PERMIT' && !obligationKind) {
     // thenOnResult takes ResultHandler (void side-effect) — returns the same Promise<Response,E>.
     // then() in IG 2026.x takes org.forgerock.util.Function (synchronous), not AsyncFunction;
     // the old as-AsyncFunction coercion threw MissingMethodException at runtime.
@@ -770,7 +936,101 @@ if (outcome == 'PERMIT') {
     return p
 }
 
-// DENY / INDETERMINATE / error — fail closed (HITL is not handled at this layer).
+// A human is required — PingOne Authorize is asking for approval, not refusing the
+// call. Two shapes mean the same thing and both must land here: the mock's bare
+// INDETERMINATE, and a live PERMIT carrying a consent/HITL obligation statement.
+// Mint a challenge and answer 428 Precondition Required so the agent can drive the
+// consent and retry with `_hitl_challenge_id`. A DENY still falls through to 403
+// below: only the PDP decides which of the two this is.
+if (outcome == 'INDETERMINATE' || obligationKind == 'consent' || obligationKind == 'hitl') {
+    // Anti-loop: a receipt that verified above and STILL yields INDETERMINATE means
+    // the policy never discharges consent (misconfiguration). Re-challenging would
+    // spin the agent forever, so fail distinctly (mirrors both Node gateway paths).
+    if (hitlApproved) {
+        logger.error('[P1AZ] HITL receipt accepted but policy still INDETERMINATE — not re-challenging')
+        def stuck = new Response(Status.FORBIDDEN)
+        stuck.headers.put('Content-Type', 'application/json')
+        stuck.headers.put('X-Gw-Audit-Trail', [auditTrailJson])
+        stuck.entity.setString(JsonOutput.toJson([
+            error         : 'hitl_receipt_rejected',
+            message       : 'HITL receipt accepted but policy still requires approval',
+            hitl          : true,
+            challengeId   : hitlChallengeId,
+            tool          : toolName,
+            login_required: false,
+        ]))
+        return Promises.newResultPromise(stuck)
+    }
+
+    def challengeId = ''
+    def challengeExpiresAt = ''
+    if (hitlServiceUrl) {
+        def createRes = httpPost(hitlServiceUrl + '/challenges', JsonOutput.toJson([
+            tool   : toolName,
+            userId : sub,
+            agentId: actSub,
+            // Bind the arguments the human is consenting to, so the verify call on
+            // retry can reject a same-amount payee swap or a raised amount.
+            context: toolArgs,
+        ]), hitlHeaders)
+        if (createRes.code == 200 || createRes.code == 201) {
+            try {
+                def created = new JsonSlurper().parseText(createRes.body ?: '{}')
+                challengeId = created?.challengeId ?: ''
+                challengeExpiresAt = created?.expiresAt ?: ''
+            } catch (Exception e) {
+                logger.error('[P1AZ] HITL challenge create returned unparseable body: ' + e.message)
+            }
+        } else {
+            logger.error('[P1AZ] HITL challenge create failed (http ' + createRes.code + ')')
+        }
+    } else {
+        logger.error('[P1AZ] HITL_SERVICE_URL is not configured — cannot mint a consent challenge')
+    }
+
+    // No challenge means no human can approve. Answering 428 anyway would strand the
+    // agent in a retry loop against a receipt that can never exist, so fail closed
+    // with the reason instead.
+    if (!challengeId) {
+        def noChallenge = new Response(Status.SERVICE_UNAVAILABLE)
+        noChallenge.headers.put('Content-Type', 'application/json')
+        noChallenge.headers.put('X-Gw-Audit-Trail', [auditTrailJson])
+        noChallenge.entity.setString(JsonOutput.toJson([
+            error  : 'hitl_service_unavailable',
+            message: 'Human approval is required but the HITL service could not create a challenge',
+            hitl   : true,
+            tool   : toolName,
+        ]))
+        return Promises.newResultPromise(noChallenge)
+    }
+
+    logger.info('[P1AZ] INDETERMINATE — HITL challenge ' + challengeId + ' minted for tool=' + toolName)
+    // Status.valueOf(428) — this IG build's chf-http-core has no
+    // PRECONDITION_REQUIRED constant (verified with javap; it stops at
+    // TOO_MANY_REQUESTS), and naming a missing constant throws at request time.
+    def hitlResponse = new Response(Status.valueOf(428))
+    hitlResponse.headers.put('Content-Type', 'application/json')
+    hitlResponse.headers.put('X-Gw-Audit-Trail', [auditTrailJson])
+    hitlResponse.entity.setString(JsonOutput.toJson([
+        error       : 'hitl_required',
+        message     : 'Human approval required',
+        decision    : outcome,
+        hitl        : true,
+        tool        : toolName,
+        mcp_method  : mcpMethod,
+        backend     : backendLabel,
+        challengeId : challengeId,
+        expiresAt   : challengeExpiresAt,
+        // challenge_type is deliberately omitted: the step-up-vs-consent table lives
+        // in the Node gateway's toolScopes.ts and copying it here would be a second
+        // source of truth. The BFF defaults an absent value to 'consent'.
+        instructions: 'Approve at dashboard, then retry with _hitl_challenge_id in arguments',
+        login_required: false,
+    ]))
+    return Promises.newResultPromise(hitlResponse)
+}
+
+// DENY / error — fail closed.
 try {
     def denied = new Response(Status.FORBIDDEN)
     denied.headers.put('Content-Type', 'application/json')

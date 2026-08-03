@@ -162,10 +162,10 @@ Existing `.env` files with `banking_api_enduser` continue to work until re-provi
 | `/tmp/bank-agent-service.pid` | `/tmp/demo-agent.pid` |
 | `/tmp/bank-hitl-service.log` | `/tmp/demo-hitl.log` |
 | `/tmp/bank-hitl-service.pid` | `/tmp/demo-hitl.pid` |
-| `/tmp/bank-mcp-invest.log` | `/tmp/demo-invest.log` |
-| `/tmp/bank-mcp-invest.pid` | `/tmp/demo-invest.pid` |
-| `/tmp/bank-mortgage-service.log` | `/tmp/demo-mortgage.log` |
-| `/tmp/bank-mortgage-service.pid` | `/tmp/demo-mortgage.pid` |
+| `/tmp/bank-mcp-resource-server.log` | `/tmp/demo-invest.log` |
+| `/tmp/bank-mcp-resource-server.pid` | `/tmp/demo-invest.pid` |
+| `/tmp/bank-api-resource-server.log` | `/tmp/demo-mortgage.log` |
+| `/tmp/bank-api-resource-server.pid` | `/tmp/demo-mortgage.pid` |
 | `/tmp/bank-langchain-agent.log` | `/tmp/demo-langchain.log` |
 | `/tmp/bank-langchain-agent.pid` | `/tmp/demo-langchain.pid` |
 | `/tmp/bank-mcp-traffic.log` | `/tmp/demo-mcp-traffic.log` |

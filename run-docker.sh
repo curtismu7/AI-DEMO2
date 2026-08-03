@@ -60,14 +60,48 @@ export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ai-demo}"
 # BFF) when it's present. Passing -f explicitly disables Compose's implicit
 # docker-compose.override.yml merge, so we add it back here. Set PROD_MODE=1 to
 # run the nginx production build instead (skips the override).
-COMPOSE_FILES=(-f "${COMPOSE_FILE}")
+# Compose resolves `env_file:` and relative bind mounts against the PROJECT
+# DIRECTORY, which defaults to the directory holding the compose file. A git
+# worktree carries no gitignored files, so every service's .env is absent there
+# — and because each `env_file:` entry is `required: false`, Compose skips it
+# silently and the service dies later on a missing variable instead of failing
+# at startup. Observed 2026-08-01 with the stack launched from a worktree:
+# agent-service logged `injected env (0) from .env` then
+# `Missing required env var: PINGONE_TOKEN_ENDPOINT`; mcp-jwt-verifier died on
+# `KeyError: 'PINGONE_JWKS_URI'`; langchain-agent hit `STARTUP BLOCKED`; and
+# ping-gateway came up "healthy" with none of its 22 vars, including
+# PG_OLB_SCOPE (the documented cause of write-path 502s).
+#
+# Pin the project directory to the main checkout so the real .env files always
+# resolve. This matches how the containers already behave — their bind mounts
+# serve the main checkout, not a worktree. Set ALLOW_WORKTREE_PROJECT_DIR=1 to
+# opt out (e.g. deliberately testing a worktree's own compose file).
+COMPOSE_PROJECT_DIR_ARGS=()
+_git_common_dir="$(git -C "${BASEDIR}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+if [[ -n "${_git_common_dir}" ]]; then
+  MAIN_CHECKOUT="$(cd "$(dirname "${_git_common_dir}")" && pwd)"
+  if [[ "${MAIN_CHECKOUT}" != "${BASEDIR}" && "${ALLOW_WORKTREE_PROJECT_DIR:-0}" != "1" ]]; then
+    echo "⚠️  Launched from a worktree — pinning the Compose project directory to the main checkout:"
+    echo "      worktree:       ${BASEDIR}"
+    echo "      project dir:    ${MAIN_CHECKOUT}"
+    echo "    A worktree has no gitignored .env files; without this every service"
+    echo "    would start env-starved. Set ALLOW_WORKTREE_PROJECT_DIR=1 to override."
+    COMPOSE_FILE="${MAIN_CHECKOUT}/docker-compose.yml"
+    OVERRIDE_FILE="${MAIN_CHECKOUT}/docker-compose.override.yml"
+    COMPOSE_PROJECT_DIR_ARGS=(--project-directory "${MAIN_CHECKOUT}")
+  fi
+fi
+
+# `${a[@]+"${a[@]}"}` — bash 3.2 (the macOS system bash) treats an empty array
+# splat as an unbound variable under `set -u`; this form expands to nothing.
+COMPOSE_FILES=(${COMPOSE_PROJECT_DIR_ARGS[@]+"${COMPOSE_PROJECT_DIR_ARGS[@]}"} -f "${COMPOSE_FILE}")
 if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
   COMPOSE_FILES+=(-f "${OVERRIDE_FILE}")
 fi
 
 # Core banking demo — always started by default.
 CORE_SERVICES=(
-  ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
+  ui mcp-server mcp-resource-server mcp-weather api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
 )
@@ -319,22 +353,25 @@ git_sync_check() {
 }
 
 # ── Local LLM (host) lifecycle ───────────────────────────────────────────────
-# LLM_BACKEND selects the host LLM backend (platform-aware default via resolve-llm-backend.sh):
-#   unset    — omlx on Apple Silicon Mac; llamacpp elsewhere (never omlx on Linux)
+# This launcher always uses llamacpp. oMLX would take :8090 on the host, which
+# is the port the llm-proxy container binds — running it here means the
+# container is skipped and tier routing never engages. oMLX is reserved for
+# ./run.sh, where nothing competes for the port.
+#
 #   llamacpp — 2-tier llama.cpp proxy; llm-proxy container on :8090 routes to
 #              host tiers :8091 (small) / :8096 (big) via tier-manager :8097
-#   omlx     — oMLX on host :8090; llm-proxy container is skipped (port clash);
-#              containers reach host via host.docker.internal:8090
-#   mlx      — Apple mlx-lm on host :8090 (fallback); same skip as omlx
+#   omlx/mlx — native-only; resolve_llm_backend downgrades them here with a warning
 #
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
 # shellcheck source=demo_llm_proxy/resolve-llm-backend.sh
 source "${BASEDIR}/demo_llm_proxy/resolve-llm-backend.sh"
-_LLM_BACKEND="$(resolve_llm_backend)"
+# Called bare, not in $( ): a command substitution resolves in a subshell and
+# LLM_BACKEND_RESOLVE_WARN dies with it, silently swallowing the downgrade
+# notice. RESOLVED_LLM_BACKEND is exported by the resolver for exactly this.
+resolve_llm_backend docker >/dev/null
+_LLM_BACKEND="${RESOLVED_LLM_BACKEND}"
 if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
   warn "${LLM_BACKEND_RESOLVE_WARN}"
-elif [[ -z "${LLM_BACKEND:-}" && "${_LLM_BACKEND}" == "omlx" ]]; then
-  ok "Apple Silicon Mac — defaulting to oMLX (override: LLM_BACKEND=llamacpp)"
 fi
 LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
@@ -378,6 +415,19 @@ _clear_8090_squatter() {
     warn "raw llama-server bound to :8090 shadows the LLM proxy — stopping it (PID ${pids})"
     kill $pids 2>/dev/null || true
     rm -f "$_LLAMACPP_PIDFILE"
+  fi
+
+  # oMLX is a Python process, so the llama-only match above walks straight past
+  # it. Left running it holds :8090 and the llm-proxy container fails to bind —
+  # the exact failure this launcher no longer opts into. A ./run.sh session
+  # earlier in the day is the usual way it ends up here.
+  if lsof -nP -iTCP:8090 -sTCP:LISTEN >/dev/null 2>&1; then
+    if [[ -f "$_OMLX_SCRIPT" ]]; then
+      warn "host oMLX holds :8090 — stopping it so the llm-proxy container can bind"
+      bash "$_OMLX_SCRIPT" stop 2>/dev/null || true
+    else
+      warn "something still holds :8090 — the llm-proxy container may fail to bind"
+    fi
   fi
 }
 
@@ -569,10 +619,10 @@ SERVICES=(
   "langchain-agent|LangChain Agent      |8888|http://localhost:8888"
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
-  "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-resource-server|MCP Invest            |8081|http://localhost:8081"
   "mcp-weather|MCP Weather           |8896|http://localhost:8896"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
-  "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
+  "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
@@ -729,6 +779,34 @@ _purge_leftover_stack() {
     sleep 0.1
     (( waited++ )) || true
   done
+}
+
+# A compose `container_name:` is daemon-global, not project-scoped. A container
+# created under ANY other project (a worktree cwd basename before the project
+# name was pinned, a second compose file, a manual `docker run`) squats the name
+# and every later `up` dies with "container name /ai-demo-... is already in use".
+# `down --remove-orphans` cannot clear it: Compose only removes containers
+# carrying its own project label. Only `_purge_leftover_stack` did, and that runs
+# on the down path alone — so the subset `up` paths (demo-sync, optional start,
+# restart/build one service) hit the conflict with nothing to clear it.
+#
+# This removes ONLY containers whose compose project label differs from ours, so
+# it is safe immediately before ANY `up` — a running ai-demo stack is untouched.
+_purge_foreign_container_names() {
+  local ours name proj removed=0
+  ours="$(docker compose "${COMPOSE_FILES[@]}" config --format json 2>/dev/null \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(" ".join(s.get("container_name","") for s in d.get("services",{}).values() if s.get("container_name")))' 2>/dev/null || true)"
+  [[ -n "${ours}" ]] || return 0
+  while IFS=$'\t' read -r name proj; do
+    [[ -n "${name}" ]] || continue
+    [[ " ${ours} " == *" ${name} "* ]] || continue
+    [[ "${proj}" == "${COMPOSE_PROJECT_NAME}" ]] && continue
+    docker rm -f "${name}" >/dev/null 2>&1 && removed=$(( removed + 1 ))
+  done < <(docker ps -a --format '{{.Names}}'$'\t''{{.Label "com.docker.compose.project"}}' 2>/dev/null || true)
+  if (( removed > 0 )); then
+    warn "Removed ${removed} container(s) squatting an ai-demo-* name under a foreign Compose project."
+  fi
+  return 0
 }
 
 # Post-start gate: every core service must actually be RUNNING before the script
@@ -905,6 +983,7 @@ cmd_restart_one() {
   git_sync_check; echo ""
   _needs_tls_bind_mounts "$@" && { ensure_bind_mounts; echo ""; }
   _includes_bff "$@" && { vault_preflight; echo ""; }
+  _purge_foreign_container_names
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
   if _includes_bff "$@"; then
@@ -932,6 +1011,7 @@ cmd_build_one() {
   git_sync_check; echo ""
   _needs_tls_bind_mounts "${services[@]}" && { ensure_bind_mounts; echo ""; }
   _includes_bff "${services[@]}" && { vault_preflight; echo ""; }
+  _purge_foreign_container_names
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
   echo ""
@@ -1050,6 +1130,11 @@ cmd_demo_sync() {
   [[ "${sim}" == "1" ]] && need_authz=1
   [[ "${pgw}" == "0" ]] && { need_demo_gw=1; need_authz=1; }
 
+  # Every `up` below is `>/dev/null 2>&1 || true`, so a squatted container_name
+  # fails SILENTLY here (jaeger especially — profiled, and only this path and
+  # `optional start tracing` create it). Clear foreign squatters first.
+  _purge_foreign_container_names
+
   ok "Ensuring demo-auth containers are up (RAR demo needs the Demo Agent Gateway; routing: simulated=${sim}, pingGateway=${pgw})"
   docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d authz-server mcp-gateway
 
@@ -1069,7 +1154,7 @@ cmd_demo_sync() {
   # compose default — ensure Jaeger is up.
   # The demo-auth-gated services are always up now (see the sync above), so
   # they are always part of the instrumented set.
-  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-invest authz-server mcp-gateway"
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway"
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
@@ -1102,12 +1187,22 @@ cmd_optional_start() {
   # Profile-gated services require `--profile`; `up -d` respects depends_on.
   # shellcheck disable=SC2206
   local _profiles=( ${profile_args} )
+  _purge_foreign_container_names
   docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" up -d
   ok "Started profile(s): ${groups[*]}"
 
   if [[ " ${groups[*]} " == *" rag "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
     warn "RAG embeddings warm up on first request — Code Search may 503 for ~30s."
     warn "Weaviate needs a healthy leader after first start; retry index/search if you see 500."
+  fi
+
+  if [[ " ${groups[*]} " == *" mcpgw "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
+    local token_file="${BASEDIR}/ping-mcpgw/config/proxy-token"
+    if [[ -z "${PRIVILEGE_PROXY_TOKEN:-}" && ! -f "${token_file}" ]]; then
+      warn "Privilege proxy has no enrollment token."
+      warn "  Set PRIVILEGE_PROXY_TOKEN env or create ${token_file}"
+      warn "  (Get the JWT from Privilege Cloud → Gateway wizard)"
+    fi
   fi
   echo ""
   print_status_table
@@ -1198,6 +1293,8 @@ cmd_start() {
     esac
   done
 
+  demo_machine_banner docker
+
   # Always stop first — clean slate
   cmd_stop
 
@@ -1207,6 +1304,9 @@ cmd_start() {
   # only removes containers it owns. Force-remove any container claiming an
   # `ai-demo-*` name so `up` can recreate it. Sourced from the compose config
   # so new services are picked up automatically.
+  # Unconditional here (not `_purge_foreign_container_names`): cmd_stop ran
+  # first, so nothing of ours should survive — and a same-project container
+  # Compose declines to reuse must go too.
   local stale_names
   stale_names="$(docker compose "${COMPOSE_FILES[@]}" config --format json 2>/dev/null \
     | python3 -c 'import json,sys; d=json.load(sys.stdin); print(" ".join(s.get("container_name","") for s in d.get("services",{}).values() if s.get("container_name")))' 2>/dev/null || true)"
@@ -1243,7 +1343,7 @@ cmd_start() {
   echo ""
 
   # Auto-provision the apikey-dispatch service key (vault + .env) BEFORE `up`
-  # so mortgage-service boots with a non-default key on fresh clones and any
+  # so api-resource-server boots with a non-default key on fresh clones and any
   # rotation is picked up by the recreated containers. Fails soft.
   # Force a fresh key with: ROTATE_SERVICE_KEYS=1 ./run-docker.sh start
   node demo_api_server/scripts/ensure-service-keys.js
@@ -1421,6 +1521,7 @@ cmd_promptfoo() {
     exit 1
   fi
   if ! docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'promptfoo-step-narration'; then
+    _purge_foreign_container_names
     docker compose "${COMPOSE_FILES[@]}" up -d --build promptfoo-step-narration
   fi
   docker compose "${COMPOSE_FILES[@]}" exec -T promptfoo-step-narration \
@@ -1508,6 +1609,10 @@ COMMAND="${1:-start}"
 shift || true
 
 case "${COMMAND}" in
+  machine|specs)
+    demo_machine_banner docker
+    exit 0
+    ;;
   start)
     cmd_start "$@"
     ;;

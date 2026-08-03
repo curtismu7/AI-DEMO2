@@ -19,10 +19,14 @@ export interface GatewayConfig {
   gatewayResourceUri: string;
   // Backend MCP servers
   mcpOlbWsUrl: string;
-  mcpInvestWsUrl: string;
+  mcpResourceServerWsUrl: string;
+  // HTTP base URL of the invest service (API-key path, coexists with WS bearer path)
+  mcpResourceServerHttpUrl: string;
+  // API key the gateway sends to the invest service on the HTTP path
+  mcpResourceServerApiKey: string;
   // Backend resource URIs (used as `audience` in the re-exchange)
   mcpOlbResourceUri: string;
-  mcpInvestResourceUri: string;
+  mcpResourceServerResourceUri: string;
   // demo_mcp_jwt_verifier (Python/FastMCP) — HTTP (Streamable HTTP) backend,
   // forwarded via GatewayServer.forwardToUpstream() like 'olb', not WebSocket.
   mcpJwtVerifierHttpUrl: string;
@@ -77,12 +81,12 @@ export interface GatewayConfig {
   mcpServerPassthrough: boolean;
   // Phase 266: Path A — service API key for the api_key credential disposition (demo only)
   demoApiKeyServiceKey: string;
-  // Phase 267: Path A backend — base URL of banking_mortgage_service (e.g. http://localhost:8082)
-  mortgageServiceBaseUrl: string;
-  // Phase 267: Path A backend — X-API-Key the gateway presents to banking_mortgage_service.
-  // MUST match MORTGAGE_SERVICE_API_KEY on the mortgage service side. Demo-grade shared
+  // Phase 267: Path A backend — base URL of banking_api_resource_server (e.g. http://localhost:8082)
+  apiResourceServerBaseUrl: string;
+  // Phase 267: Path A backend — X-API-Key the gateway presents to banking_api_resource_server.
+  // MUST match API_RESOURCE_SERVER_API_KEY on the mortgage service side. Demo-grade shared
   // secret; the full value never crosses the browser (only _meta.maskedApiKey last-4).
-  mortgageServiceApiKey: string;
+  apiResourceServerApiKey: string;
   // Phase 266: Path B — BFF-internal id_token retrieval endpoint (server-to-server)
   bffInternalIdTokenUrl: string;
   // Phase 266: shared secret for BFF /internal/id-token requests
@@ -104,6 +108,24 @@ export interface GatewayConfig {
    * Optional: when empty, act-claim validation is skipped (dev / no-actor mode).
    */
   authorizedActorClientId: string;
+  /**
+   * Every client id allowed to appear as the depth-1 actor — the registered
+   * delegation chain, not just the exchanger. The authored PDP policy
+   * (`HasValidActorChain` in the P1AZ snapshot) is a disjunction over the
+   * exchanger, the AI Agent actor and each A2A specialist; comparing against
+   * `authorizedActorClientId` alone made the PEP stricter than the PDP it is
+   * documented to mirror, and rejected the AI Agent actor that tool discovery
+   * legitimately presents.
+   *
+   * Sourced from PINGONE_TOKEN_EXCHANGER_CLIENT_ID + PINGONE_AI_AGENT_ACTOR_CLIENT_ID,
+   * plus an optional comma-separated GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS so a new
+   * chain identity can be registered without a code change. Empty ⇒ validation is
+   * skipped, exactly as before (dev / no-actor mode).
+   *
+   * Optional so the many hand-built GatewayConfig fixtures stay valid; when
+   * absent the policy falls back to `authorizedActorClientId` exactly as before.
+   */
+  authorizedActorClientIds?: string[];
   /**
    * UC16 — Impersonation block: when true, tool calls to agent-mediated operations
    * (tools flagged requiresAgentMediation in scope-topology.json) are DENIED if the
@@ -259,14 +281,19 @@ export function loadConfig(): GatewayConfig {
     // compose value (ws://mcp-server:8080) was silently ignored and WS proxying dialed
     // the gateway's own localhost — breaking tools/list discovery through the gateway.
     mcpOlbWsUrl: optional('MCP_GW_OLB_WS_URL', optional('MCP_OLB_WS_URL', 'ws://localhost:8080')),
-    mcpInvestWsUrl: optional('MCP_GW_INVEST_WS_URL', optional('MCP_INVEST_WS_URL', 'ws://localhost:8081')),
+    mcpResourceServerWsUrl: optional('MCP_GW_RESOURCE_SERVER_WS_URL', optional('MCP_RESOURCE_SERVER_WS_URL', 'ws://localhost:8081')),
+    mcpResourceServerHttpUrl: optional('MCP_RESOURCE_SERVER_HTTP_URL', 'http://localhost:8081'),
+    mcpResourceServerApiKey: optional('DEMO_MCP_RESOURCE_SERVER_KEY', ''),
     // Resource URIs default to the audiences bootstrap provisions. Setup
     // writes ENDUSER_AUDIENCE and PINGONE_RESOURCE_MCP_SERVER_URI; we accept either the
     // service-specific var or those fallbacks.
     mcpOlbResourceUri: optional('MCP_OLB_RESOURCE_URI',
       optional('PINGONE_RESOURCE_MCP_SERVER_URI', 'mcpserver.ping.demo')),
-    mcpInvestResourceUri: optional('PINGONE_RESOURCE_MCP_INVEST_URI',
-      optional('MCP_INVEST_AUDIENCE', 'mcp-invest.ping.demo')),
+    // mcp-invest.ping.demo is the audience the PingOne "Demo MCP Invest" resource
+    // actually carries. The old default (mcp-resource-server.ping.demo) matched no
+    // PingOne resource at all, so Exchange #3 to this backend could never land.
+    mcpResourceServerResourceUri: optional('PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI',
+      optional('MCP_RESOURCE_SERVER_AUDIENCE', 'mcp-invest.ping.demo')),
     mcpJwtVerifierHttpUrl: optional('MCP_GW_JWTVERIFIER_HTTP_URL', 'http://localhost:8083'),
     mcpJwtVerifierResourceUri: optional('PINGONE_RESOURCE_JWT_VERIFIER_URI',
       optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo')),
@@ -302,10 +329,10 @@ export function loadConfig(): GatewayConfig {
     demoApiKeyServiceKey: optional('DEMO_APIKEY_SERVICE_KEY', 'demo-api-key-0000'),
     // Phase 267 fields — dedicated mortgage backend (kept separate from the
     // Phase 266 marker key so the Gateway-only apikey tools are unaffected)
-    mortgageServiceBaseUrl: optional('MORTGAGE_SERVICE_URL', 'http://localhost:8082'),
-    // No committed demo default — must match mortgage-service MORTGAGE_SERVICE_API_KEY.
+    apiResourceServerBaseUrl: optional('API_RESOURCE_SERVER_URL', 'http://localhost:8082'),
+    // No committed demo default — must match api-resource-server API_RESOURCE_SERVER_API_KEY.
     // Empty when unset so Path A calls fail closed rather than using a rejected key.
-    mortgageServiceApiKey: optional('DEMO_MORTGAGE_SERVICE_KEY', ''),
+    apiResourceServerApiKey: optional('DEMO_API_RESOURCE_SERVER_KEY', ''),
     bffInternalIdTokenUrl: optional('BFF_INTERNAL_ID_TOKEN_URL', 'http://localhost:3001/internal/id-token'),
     bffInternalSecret: optional('BFF_INTERNAL_SECRET', DEFAULT_BFF_INTERNAL_SECRET),
     bankingResourceServerBaseUrl: optional('BANKING_RESOURCE_SERVER_BASE_URL', 'http://localhost:3001'),
@@ -318,6 +345,15 @@ export function loadConfig(): GatewayConfig {
     authorizedActorClientId: optional('PINGONE_TOKEN_EXCHANGER_CLIENT_ID',
       optional('PINGONE_MCP_EXCHANGER_CLIENT_ID',
         optional('AGENT_OAUTH_CLIENT_ID', ''))),
+    // The full registered chain (see the interface docs). Deduped, blanks dropped,
+    // so an unset env var never widens the list to "everything".
+    authorizedActorClientIds: Array.from(new Set([
+      optional('PINGONE_TOKEN_EXCHANGER_CLIENT_ID',
+        optional('PINGONE_MCP_EXCHANGER_CLIENT_ID',
+          optional('AGENT_OAUTH_CLIENT_ID', ''))),
+      optional('PINGONE_AI_AGENT_ACTOR_CLIENT_ID', ''),
+      ...optional('GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS', '').split(','),
+    ].map((s) => s.trim()).filter(Boolean))),
     requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true',
     intentTokenRequired: process.env.INTENT_TOKEN_REQUIRED === 'true',
     requireRarIntent: process.env.REQUIRE_RAR_INTENT === 'true',

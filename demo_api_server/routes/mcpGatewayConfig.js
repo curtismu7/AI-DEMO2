@@ -335,8 +335,8 @@ router.get('/config', async (req, res) => {
         gatewayResourceUri:    process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '',
         upstreamMcpUrl:        process.env.MCP_OLB_WS_URL           || configStore.getEffective('mcp_server_url') || 'http://localhost:8000',
         mcpOlbResourceUri:     process.env.MCP_OLB_RESOURCE_URI    || '',
-        mcpInvestWsUrl:        process.env.MCP_INVEST_WS_URL        || '',
-        mcpInvestResourceUri:  process.env.MCP_INVEST_RESOURCE_URI  || '',
+        mcpResourceServerWsUrl:        process.env.MCP_RESOURCE_SERVER_WS_URL        || '',
+        mcpResourceServerResourceUri:  process.env.MCP_RESOURCE_SERVER_RESOURCE_URI  || '',
         hitlServiceUrl:        process.env.HITL_SERVICE_URL         || '',
         pingAuthorizeEndpoint: process.env.PINGAUTHORIZE_ENDPOINT   || '',
         pingAuthorizeWorkerId: process.env.PINGAUTHORIZE_WORKER_ID  || '',
@@ -416,9 +416,9 @@ router.get('/config', async (req, res) => {
                     configStore.getEffective('mcp_resource_uri'),
                     configStore.getEffective('pingone_resource_mcp_server_uri'),
                 ),
-                MCP_INVEST_RESOURCE_URI: maskSet(
-                    process.env.MCP_INVEST_RESOURCE_URI,
-                    demoLive?.mcpInvestResourceUri,
+                MCP_RESOURCE_SERVER_RESOURCE_URI: maskSet(
+                    process.env.MCP_RESOURCE_SERVER_RESOURCE_URI,
+                    demoLive?.mcpResourceServerResourceUri,
                 ),
             },
             optional: {
@@ -448,8 +448,8 @@ router.post('/config', async (req, res) => {
     const gatewayUrl = process.env.MCP_GATEWAY_HTTP_URL || 'http://localhost:3005';
 
     const allowed = [
-        'gatewayResourceUri', 'mcpOlbWsUrl', 'mcpInvestWsUrl',
-        'mcpOlbResourceUri', 'mcpInvestResourceUri',
+        'gatewayResourceUri', 'mcpOlbWsUrl', 'mcpResourceServerWsUrl',
+        'mcpOlbResourceUri', 'mcpResourceServerResourceUri',
         'pingAuthorizeEndpoint', 'pingAuthorizeWorkerId',
         'hitlServiceUrl', 'devBypass',
         'rateLimitEnabled', 'rateLimitMaxRequests', 'rateLimitWindowMs',

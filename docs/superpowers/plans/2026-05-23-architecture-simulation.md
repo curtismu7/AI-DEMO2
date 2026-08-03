@@ -658,7 +658,7 @@ import { memo } from 'react';
  * Label font: 13px bold (name) + 10px (subtitle)
  *
  * Node IDs match architecture-sim-scenarios.js:
- *   n-browser, n-bff, n-mcp-gw, n-mcp-server, n-mcp-invest,
+ *   n-browser, n-bff, n-mcp-gw, n-mcp-server, n-mcp-resource-server,
  *   n-agent, n-pingone, n-pingauthorize, n-hitl, n-mortgage, n-resource-server
  *
  * Edge IDs: e-{source}-{dest} e.g. e-browser-bff, e-bff-mcpgw, …
@@ -906,7 +906,7 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
 
       {/* Row 2: parallel services */}
       <SimNode id="n-agent"      x={COL.mcpGw}    y={ROW.mid} label="Agent Service" sub=":3006 / :8888"         state={ns('n-agent')} />
-      <SimNode id="n-mcp-invest" x={COL.services} y={ROW.mid} label="MCP Invest"    sub=":8081"                 state={ns('n-mcp-invest')} />
+      <SimNode id="n-mcp-resource-server" x={COL.services} y={ROW.mid} label="MCP Invest"    sub=":8081"                 state={ns('n-mcp-resource-server')} />
       <SimNode id="n-mortgage"   x={COL.services} y={ROW.mid + NH + 10} label="Mortgage Svc" sub=":8082"        state={ns('n-mortgage')} />
       <SimNode id="n-pingone"    x={COL.external} y={ROW.mid} label="PingOne"        sub="OAuth AS"              state={ns('n-pingone')} />
 

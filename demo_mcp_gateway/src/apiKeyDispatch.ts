@@ -40,7 +40,7 @@ export type ApiKeyDispatchOutcome = ApiKeyDispatchOk | ApiKeyDispatchErr;
 
 /** Per-tool metadata for Token Chain events and error messages. */
 interface ToolMeta {
-  /** Short service name shown in Token Chain events (e.g. 'banking_mortgage_service'). */
+  /** Short service name shown in Token Chain events (e.g. 'banking_api_resource_server'). */
   serviceLabel: string;
   /** Route segment on the backend (e.g. 'mortgage'). */
   routeSegment: string;
@@ -65,9 +65,12 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 
 function getToolMeta(toolName: string): ToolMeta {
   const routeSegment = APIKEY_BACKEND_ROUTES[toolName] ?? toolName;
+  const serviceLabel = toolName === 'show_investment'
+    ? 'banking_mcp_resource_server'
+    : 'demo_data_service';
   const infoPageHint = routeSegment === 'mortgage' ? '/path/mortgage' : '/path/feature';
   return {
-    serviceLabel: 'demo_data_service',
+    serviceLabel,
     routeSegment,
     infoPageHint,
     displayName: TOOL_DISPLAY_NAMES[toolName] ?? toolName,
@@ -85,7 +88,7 @@ function getToolMeta(toolName: string): ToolMeta {
  * @param toolName             the tools/call tool name (already routed to 'apikey')
  * @param userSub              decoded.sub of the inbound user token
  * @param apiKeyMaskedLast4    last4 of the service key (Token Chain display only)
- * @param config               GatewayConfig (mortgageServiceBaseUrl / ApiKey)
+ * @param config               GatewayConfig (apiResourceServerBaseUrl / ApiKey)
  */
 export async function buildApiKeyToolResult(
   toolName: string,
@@ -93,7 +96,7 @@ export async function buildApiKeyToolResult(
   apiKeyMaskedLast4: string | undefined,
   config: GatewayConfig,
 ): Promise<ApiKeyDispatchOutcome> {
-  const injected = config.mortgageServiceApiKey || '';
+  const injected = config.apiResourceServerApiKey || '';
   const last4 = apiKeyMaskedLast4 || (injected.length >= 4 ? injected.slice(-4) : 'XXXX');
   const backendUrl = backendHttpUrl('apikey', toolName, config);
   const meta = getToolMeta(toolName);
@@ -132,16 +135,18 @@ export async function buildApiKeyToolResult(
   }
 
   // Phase 267 — real backend dispatch via X-API-Key (OAuth bearer dropped).
-  // The last4 shown here must reflect the key ACTUALLY sent to the backend
-  // (config.mortgageServiceApiKey), not the caller-passed apiKeyMaskedLast4 —
-  // the WS transport (index.ts) derives that argument from the Phase 266
-  // marker key, which would otherwise mislabel the real credential swap.
-  const backendLast4 = injected.length >= 4 ? injected.slice(-4) : last4;
+  // The last4 shown here must reflect the key ACTUALLY sent to the backend,
+  // not the caller-passed apiKeyMaskedLast4.
+  // show_investment uses the invest service's own key; all others use the data service key.
+  const effectiveKey = toolName === 'show_investment'
+    ? (config.mcpResourceServerApiKey || injected)
+    : injected;
+  const backendLast4 = effectiveKey.length >= 4 ? effectiveKey.slice(-4) : last4;
   let mResp;
   try {
     mResp = await axios.get(backendUrl, {
       headers: {
-        'X-API-Key': config.mortgageServiceApiKey,
+        'X-API-Key': effectiveKey,
         'X-User-Sub': userSub,
       },
       timeout: 5000,

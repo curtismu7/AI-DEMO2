@@ -117,7 +117,7 @@ The 5th chip (`show_permit` / `show_enrollment`) must return real data, not an e
 requires a multi-service rebuild + a PingOne bootstrap and touches REGRESSION_PLAN-protected files,
 so it is sequenced as its own step *after* Tier 1–2 land (the chip degrades gracefully in between):
 
-1. Backend endpoint on `demo_mortgage_service/server.js` (`GET /permit`, `GET /enrollment`),
+1. Backend endpoint on `demo_api_resource_server/server.js` (`GET /permit`, `GET /enrollment`),
    X-API-Key protected, returning `{ "<dataKey>": {…}, "source", "authMechanism" }`.
 2. `demo_mcp_gateway/src/router.ts` — add the tool to `APIKEY_TOOLS` + `APIKEY_BACKEND_ROUTES`.
 3. `demo_mcp_gateway/src/apiKeyDispatch.ts` — add to `TOOL_DISPLAY_NAMES`.

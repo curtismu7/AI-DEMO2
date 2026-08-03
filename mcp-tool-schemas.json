@@ -168,6 +168,19 @@
         "additionalProperties": false
       }
     },
+    "cancel_airline_reservation": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confirmation_number": {
+            "type": "string",
+            "description": "Reservation confirmation number. Omit to cancel the next upcoming trip."
+          }
+        },
+        "required": []
+      }
+    },
     "cancel_appointment": {
       "source": "olb",
       "inputSchema": {
@@ -314,6 +327,24 @@
         },
         "required": [],
         "additionalProperties": false
+      }
+    },
+    "check_seat_availability": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "flight_number": {
+            "type": "string",
+            "description": "United flight number, e.g. UA328. Omit for the next departing flight."
+          },
+          "available_only": {
+            "type": "boolean",
+            "description": "Only return unoccupied seats (default true)",
+            "default": true
+          }
+        },
+        "required": []
       }
     },
     "checkout": {
@@ -764,6 +795,14 @@
         "additionalProperties": false
       }
     },
+    "get_airline_bookings": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
     "get_branch_hours": {
       "source": "olb",
       "inputSchema": {
@@ -874,6 +913,19 @@
         },
         "required": [],
         "additionalProperties": false
+      }
+    },
+    "get_flight_status": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "flight_number": {
+            "type": "string",
+            "description": "United flight number, e.g. UA328. Omit for the next departing flight."
+          }
+        },
+        "required": []
       }
     },
     "get_investment_accounts": {
@@ -1914,6 +1966,14 @@
           "shares"
         ],
         "additionalProperties": false
+      }
+    },
+    "sensitive_airline_bookings": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
       }
     },
     "sensitive_holdings": {

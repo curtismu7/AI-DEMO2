@@ -102,6 +102,828 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — Every PingGateway `/mcp` POST 500s after any pull that touches `mcp-tool-schemas.json` (second occurrence)
+
+**Files changed:** `docker-compose.yml`, `ping-gateway/docker-compose.yml`,
+`demo_mcp_gateway/scripts/genToolSchemas.ts`, `demo_mcp_gateway/tests/toolSchemaDrift.test.ts`,
+`.husky/pre-commit`, `ping-gateway/config/mcp-tool-schemas.json` (placeholder replaced by the
+generated artifact).
+
+**What was broken:** compose bind-mounted the repo-root `mcp-tool-schemas.json` as an
+INDIVIDUAL FILE at `/var/gateway/config/mcp-tool-schemas.json`. macOS VirtioFS resolves a
+single-file bind mount to the host inode, and git replaces files by rename — so any pull
+touching that artifact left the container with a dangling mount (`ls` shows
+`-????????? ? ? ? ? ? mcp-tool-schemas.json`). `mcp-request-validation.groovy:67` re-parses
+that path on every `tools/call`, so it threw
+`java.io.FileNotFoundException: /var/gateway/config/mcp-tool-schemas.json` and every `/mcp`
+POST 500'd. `docker ps` stayed healthy and the UI showed only "MCP call failed for
+`get_my_accounts` (tool_failed)" — the token chain itself was fine. This is the same fault
+as the 2026-07-17 entry below, which was fixed live-only (container recreate) and therefore
+recurred. It is now automated: the launchd `sync-main-checkout.sh` job pulls every 15 min,
+so the gateway can break with no human git action at all (2026-08-03: container started
+02:42, sync pulled `b51fd03b` at 03:37, first failed tool call 09:05).
+
+**What was fixed:** the nested per-file mount is gone. `npm run gen:tool-schemas` now writes
+the artifact to BOTH the repo root (canonical — Node gateway import, Dockerfile COPY, BFF
+tests) and `ping-gateway/config/`, which is already mounted as a DIRECTORY. Directory mounts
+resolve by name on every open, so a rename-over is picked up immediately and no recreate is
+needed. `.husky/pre-commit` stages both paths; `toolSchemaDrift.test.ts` asserts the copy is
+byte-identical to the root artifact.
+
+**Do not break:** never re-add a per-file bind mount under `/var/gateway/config` (both compose
+files carry the warning). Keep the two artifacts byte-identical — the Groovy validator fails
+closed on an unknown tool, so a stale gateway copy rejects new tools with
+`-32602 Unknown tool` while the Node gateway accepts them.
+
+**Verify:** `npm --prefix demo_mcp_gateway run gen:tool-schemas` then
+`diff mcp-tool-schemas.json ping-gateway/config/mcp-tool-schemas.json` (identical);
+`cd demo_mcp_gateway && CI=true npm test` (62 suites, 488 tests); `npm run topology:verify`.
+Live: `./run-docker.sh restart ping-gateway`, replace the file by rename
+(`cp x t && mv t ping-gateway/config/mcp-tool-schemas.json`), then
+`curl -s -X POST http://localhost:3036/mcp -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"nope"}}'`
+→ HTTP 401/400 JSON-RPC, never a 500, and no `FileNotFoundException` in
+`docker logs ai-demo-ping-gateway`.
+
+### 2026-08-02 — Investment's A2A specialist pointed at a tool that does not exist; the chip silently ran with NO delegation
+
+**Files changed:** `demo_api_server/config/a2aSpecialists.js`, `scope-topology.json`,
+`pac/policies/mcp-delegation.yaml`, `demo_mcp_server/src/tools/handlers/verticalTools.generated.ts`,
+`oauth-mcp/src/tools/handlers/verticalTools.generated.ts`,
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` + `docs/scope-topology.md`
+(both regenerated); new `demo_api_server/tests/a2aSpecialistToolRegistry.test.js`.
+
+**What was broken:** the Holdings Specialist declared `tools: ['sensitive_investment_holdings']`
+— a name that existed ONLY as a `scope-topology.json` `tools{}` key. No vertical plugin, no entry
+in the 235-tool `mcp-tool-schemas.json` union, no gateway backend. It was the only one of the 12
+declared specialist tools with no implementation anywhere. Nothing failed loudly, because the
+*wrong* thing still resolved: `deriveSpecialistScopes()` happily derived `holdings:read` from the
+ghost entry. Two consequences, neither visible in the UI:
+
+1. The `inv-a2a` chip dispatches the REAL tool `sensitive_holdings`, which was NOT marked
+   `a2aDelegated` — so `isA2aDelegatedTool()` returned false, the A2A fast-path never fired, and
+   the chip ran as an ordinary HITL-consent read. No nested `act` chain, no Exchange #1/#2 — the
+   demo returned data and proved nothing.
+2. Anything that DID reach the specialist (LLM `delegate_to_specialist`, Agent Card / JSON-RPC)
+   executed `allowedTools[0]` = the ghost → gateway 502, and the local-serve fallback declined
+   because the plugin does not own that name. `delegateToSpecialist()` also hard-rejects the
+   chip's `sensitive_holdings` as "not authorized" if it is passed explicitly.
+
+**What was fixed:** consolidated onto the real tool. The A2A metadata (`a2aDelegatedScope:
+holdings:read`, `a2aDelegated`, `requiresAgentMediation`) MOVED onto `sensitive_holdings` and the
+ghost entry was deleted. A bare rename in `a2aSpecialists.js` alone would have been WRONG — it
+collapses the Exchange #1 scope to bare `read`, which the 2026-07-27 entry below forbids.
+`oauth-mcp` (the live `mcp-server` container) needed the regenerated `a2aDelegatedScope` too: it
+accepts that scope as the ALTERNATIVE to `requiredScopes`, so without it the specialist token
+carrying only `holdings:read` would be rejected. All 7 other verticals were already correct.
+
+**Do not break:** a specialist's declared `tools` must name a tool that actually exists AND is
+marked `a2aDelegated` — the new guard asserts both, plus that UC2's
+`A2A_PRIMARY_TOOL_BY_VERTICAL` entry is inside the specialist's allowlist. Never collapse
+`holdings:read` back to bare `read`.
+
+**Live step still required (not run):** the P1AZ policy conditions are generated from the SSOT and
+change with this fix (`RequiresA2aDelegation` now names `sensitive_holdings`; the ghost is gone
+from `RequiresHitlConsent`). Import
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` in the PingOne Authorize
+console, and `pac deploy` the updated `pac/policies/mcp-delegation.yaml`. No app, resource, or
+scope registration depends on the old name — it appeared exactly once in `scope-topology.json`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/a2aSpecialistToolRegistry.test.js` (38/38)
+· `npm run topology:verify` · `npm run snapshot:check` · `npm run hygiene:check` (all exit 0).
+Revert-to-RED: restore `tools: ['sensitive_investment_holdings']` + the ghost topology entry and
+`investment: sensitive_investment_holdings is a real, callable tool` and `UC2's per-vertical A2A
+primary tool is one the specialist is allowed to run` both fail.
+### 2026-08-02 — `/api/fallback/chips` answered with another vertical's chips for a prompt that vertical never matched (#1261, #1263)
+
+**Files changed:** `demo_api_server/services/nlIntentParser.js`,
+`demo_api_server/services/fallbackDataResolver.js`,
+`demo_api_server/scripts/check-vertical-coercion.js`,
+`demo_api_server/tests/services/fallbackDataResolver.test.js`.
+
+**What was broken:** `parseForFallback` (`services/nlIntentParser.js:1354`) ran an
+ordered cascade — `parseBanking`, `parseEducation`, then six literal-vertical
+keyword branches — and consulted the vertical the user was demonstrably already
+in LAST. Whichever branch matched first won regardless of context, so one
+vertical's pattern resolved inside another vertical's session: retail's
+`\borders?\b` claimed manufacturing's own "show my work orders", and a genuine
+banking action ("transfer $100 to savings") claimed banking from inside
+government. Measured over the manifest corpus, 30 of the 123 chip messages
+coerced even when typed in their OWN vertical. This is the root cause behind the
+eleven consumer-side coercion sites fixed in #1214, #1228, #1232, #1250 and
+#1257 — each of those fixed a consumer, none fixed the resolution.
+
+`fallbackDataResolver` then compounded it (`services/fallbackDataResolver.js:82`):
+`kind:'unknown'` is `parseForFallback`'s one "nothing matched, but a vertical is
+active" answer, and the resolver served that vertical's fallback chips for it —
+reporting a MATCH for a prompt nothing matched. Because the sole caller
+(`AIAgent.fetchNoMatch`) drops any result without `noMatch`, a government session
+asking to transfer money got the hard-coded, banking-phrased "I didn't catch
+that. Try show my accounts, balance, recent transactions…" instead of the
+structured no-match #1214 built.
+
+**What was fixed:** one change in two steps. **#1261** ranked the cascade by the
+active vertical instead of by branch order. Five genuinely cross-vertical
+`parseBanking` actions — `unusual_patterns`, `vertical_feature_demo`,
+`invest_demo`, `mcp_tools`, `web_search` — stopped carrying a banking claim and
+now return WITHOUT a vertical, so the active one stands; and the literal-vertical
+keyword branches were demoted below the active vertical, so a vertical's own
+branch is consulted BEFORE any other's and the remaining branches only GUESS when
+no vertical is active. Own-vertical coercions fell 30 → 10. **#1263** completed it
+symmetrically: a genuine banking action is BANKING'S OWN pattern, so it may only
+win where banking is active or where none is — the same rule #1261 applied to
+retail's `\borders?\b` inside manufacturing — and `fallbackDataResolver` now
+returns an explicit no-match naming the vertical rather than serving its chips.
+Cross-vertical switches across all pairs went 240 → 0, own-vertical coercions
+10 → 0, and a foreign prompt in banking is now reported honestly as a no-match in
+63 of 93 cases (was 0).
+
+The rule is now one sentence: **only the ACTIVE vertical's own patterns resolve;
+anything else is an explicit no-match naming the vertical.** Banking's own claim
+is untouched — "show my balance" inside banking still resolves to banking, and
+every banking action still claims banking when NO vertical is active.
+
+**Do not break — calibrate the severity first.** `parseForFallback` is reached
+ONLY to render the failure message. Its one production caller is
+`fallbackDataResolver.resolveFallbackChips` (`services/fallbackDataResolver.js:82`),
+whose one caller is `GET /api/fallback/chips` (`routes/api/fallback.js:17`) — a
+route that returns chips and a message and executes no tool. Tool dispatch runs
+through `parseHeuristic` (`nlIntentParser.js:889`), which is already plugin-first
+and was never involved; #1263 confirmed end to end that
+`POST /api/demo-agent/nl` answered `kind:'none'` before AND after, because the
+banking-action path was never reachable from a plugin vertical. So none of these
+coercions ever executed a wrong tool or read a wrong vertical's data — **the
+damage was a wrong error message.** Do not re-file this as a data-leak or authz
+fix, and do not restore the old cascade on the theory that it was load-bearing
+for routing. Equally, do not dismiss the class: the same misranking inside
+`parseHeuristic` WOULD be a routing bug, and that is the file to be careful in.
+
+Also do not break:
+
+- The **early return** in the cross-vertical branch is deliberate (#1228):
+  dropping it hands the prompt to the keyword sweep, which then coerces it to a
+  DIFFERENT wrong vertical instead. The banking-action branch deliberately does
+  NOT early-return — #1261 confined the sweep to `!activeVertical`, and that
+  branch falls through only when `activeVertical` is SET, so the sweep is
+  unreachable from it. The two branches differ on purpose; do not unify them.
+- `VERTICAL_KEYWORD_RE` (`nlIntentParser.js:1341`) is a `Map`, not an object
+  literal, because its key is a request-supplied vertical id and `Map.get` cannot
+  resolve `constructor`/`toString` through the prototype chain. Do not "simplify"
+  it to an object literal — that is the same defect class as #1258.
+- The gate's `PINNED_CASCADE_COERCIONS` was **emptied, not removed**, so the
+  stale-pin check stays wired and C6 now fails on ANY vertical switch.
+  `PINNED_BANKING_ACTION_WINS` was replaced by `SETTLED_ACTIVE_VERTICAL_WINS`
+  (`scripts/check-vertical-coercion.js:142`), which ASSERTS both halves — the
+  active id is kept AND the result is an explicit no-match. Re-adding a key to an
+  emptied list stays the documented way to record an accepted regression.
+
+**Verify:** `node demo_api_server/scripts/check-vertical-coercion.js` — PASSED, 0
+own-vertical coercions, 2 foreign-tool pins (`PINNED_FOREIGN_TOOLS`) remain. The
+corpus was 123 chip messages × 13 verticals when these PRs measured it; it is 126
+as of #1272 and the gate re-passes at that size, so quote the ratios above as
+PR-time measurements, not as a fixed corpus. `npm run intents:check` — every chip
+resolves to its declared tool. Root `npm run hygiene:check` exits 0.
+`demo_api_server/tests/services/fallbackDataResolver.test.js` carries the 18 new
+tests. Revert-to-RED, by name: reverting `nlIntentParser` alone reds
+`no-unearned-vertical-switch` + `active-vertical-wins` (244 violations);
+reverting `fallbackDataResolver` alone reds `active-vertical-wins` ×2, the
+no-match half only.
+
+### 2026-08-02 — Intent Token minted with NO `permitted_tools` claim when the request named a prototype key (#1258)
+
+**Files changed:** `demo_api_server/services/intentTokenService.js`,
+`demo_api_server/services/nlIntentParser.js`,
+`demo_api_server/services/geminiNlIntent.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/scripts/check-vertical-coercion.js`,
+`demo_api_server/tests/services/verticalLookup.prototypeKeys.test.js` (new).
+
+**What was broken:** `permittedToolsForIntent` looked up two plain-object maps
+with a bare subscript and no own-property guard —
+`INTENT_TO_PERMITTED_TOOLS[intent]` and `READ_ONLY_TOOLS_BY_VERTICAL[vertical]`
+(`services/intentTokenService.js:175` and `:180` before the fix). Both keys
+arrive from the request, and `parseVerticalParam`'s `VALID_VERTICAL_RE`
+(`/^[a-z][a-z0-9-]*$/`, `services/nlIntentParser.js:818`) accepts `constructor`,
+so the lookup resolved the INHERITED `Object` constructor instead of `undefined`
+and the `||` fallback written for a miss never fired. `permitted_tools` became a
+function, and `JSON.stringify` DROPS a function value — the minted token carried
+no `permitted_tools` claim at all (`intentTokenService.js:205` feeds `sign()`).
+Reached through the real route: `POST /api/agent/invoke`
+(`routes/agentInvokeRoute.js:125`, mounted at `server.js:1107`) with
+`vertical:"constructor"` and any prompt `extractIntentAndConfidence`
+(`nlIntentParser.js:212`) leaves at `intent:'unknown'` — the common case, not an
+exotic one.
+
+Three sibling lookups carried the same defect and were guarded in the same PR:
+`FEATURE_TRIGGERS` (`nlIntentParser.js` — `?.` guards only nullish, so
+`featureTrigger?.test(t)` was called on a function that has no `.test`;
+`POST /api/demo-agent/nl {vertical:"constructor"}` answered a hard HTTP 500
+`nl_parse_failed`), `THEME_OVERRIDES` (`geminiNlIntent.js` — the `Object`
+constructor's native-code source was string-concatenated into the LLM system
+prompt), and `READ_PRIMARY_TOOL_BY_VERTICAL` (`demoAgentLangGraphService.js` —
+truthy, so the caller's `if (activityTool)` passed and
+`verticalDispatch.executeToolFor` was handed a function where a tool name
+belongs).
+
+**Effect verified, not assumed:** the dropped claim did NOT silently disable the
+control. Both gateways test membership with a list check that an absent claim
+fails — `Array.isArray(payload.permitted_tools) && …includes(toolName)`
+(`demo_mcp_gateway/src/intentTokenValidator.ts:99-100`) and
+`(permitted instanceof List) && permitted.contains(toolName)`
+(`ping-gateway/scripts/groovy/p1az-decision.groovy:434`) — so `IntentMatchesTool`
+went to `'false'` with `IntentTokenValid` still `'true'`, which is precisely the
+mock authz server's Rule 4b DENY (`demo_authz_server/routes/decision.js:954`).
+The BFF holds no local `permitted_tools` enforcement; its `?? []` reads
+(`server.js:2031`, `routes/agentRun.js:288`, `routes/agentInvokeRoute.js:256`,
+`services/agentMcpTokenService.js:276`) are Token Chain display payloads only. So
+the observable damage was a denied tool call plus an empty permitted-tools list
+in the rail — a fidelity and evidence bug on a fail-closed path, not an authz
+bypass. The stale comment in `scripts/check-vertical-coercion.js` that asserted
+"every consumer reads absent as unrestricted" has since been corrected in place
+and now carries these citations; do not reintroduce the "unrestricted" reading.
+
+**What was fixed:** an `Object.prototype.hasOwnProperty.call(map, key)` guard on
+all four lookups — the same one-liner, for the same reason, as the precedent
+already in `config/fallback-chips/loader.js:24-26` (#1214).
+`intentTokenService` wraps it in a local `ownEntry(map, key)`. Own keys behave
+identically, so no real vertical's permitted-tools list, feature trigger, prompt
+theme or activity tool changes. The coercion gate's
+`KNOWN_UNFIXED_PROTOTYPE_LOOKUP` pin was emptied rather than deleted, so
+`constructor` and `toString` now flow into the bogus-id sweep instead of being
+excluded from it, and re-adding a key stays the documented way to record a
+revert.
+
+**Do not break:** the guard must stay on all four lookups, and any NEW
+`map[requestSuppliedKey]` lookup needs the same treatment — the maps are plain
+objects, so every one of them inherits `constructor`, `toString`, `valueOf` and
+`hasOwnProperty`. Do not "simplify" `ownEntry` back to a bare subscript.
+**Never assert this class with `JSON.stringify`:** it renders a function as
+`undefined` and drops the key, so an inherited-key hit reads as a clean pass —
+that false-safe made this exact bug look harmless to two separate
+investigations. Assertions must use `typeof` / `Array.isArray`.
+
+Two follow-ups are open, so the class is not fully closed. (1) An absent
+`permitted_tools` is fail-closed at both gateways today, but nothing *requires*
+that: the guard closed the mint path we found, and a fail-closed rule at mint
+time (refuse to sign a token whose `permitted_tools` is not an array) would close
+the ones we have not. Branch `intent-token-fail-closed` is reserved for it and
+carries no commits beyond `main` yet.
+
+(2) A "class-level fix" — `Object.assign(Object.create(null), {…})` at each map
+definition, or a shared `lookupByVertical(map, id)` helper, letting all four
+hand-written guards be deleted — was **examined on 2026-08-02 and declined.** It
+is not class-level: `Object.create(null)` at four map definitions is exactly as
+hand-written, and exactly as forgettable on a fifth map, as `hasOwnProperty` at
+four lookups. It relocates the same four hand-edits from the use site to the
+definition site; it does not automate anything. The genuinely class-level
+protection already exists and is implementation-agnostic — the coercion gate
+sweeps `BOGUS_VERTICAL_IDS` (`constructor`, `__proto__`, `toString`, …) through
+the real `readPrimaryToolFor` (`scripts/check-vertical-coercion.js:611`, wired
+into `npm run hygiene:check`), and
+`tests/services/verticalLookup.prototypeKeys.test.js` drives all four maps
+behaviourally, two of them through real HTTP routes with supertest. Both catch
+the defect however it is introduced, so neither mechanism is safer than the
+other under test — proven, not assumed: replacing the
+`demoAgentLangGraphService` guard with a bare `map[activeId]` truthiness check
+reds the gate (`readPrimaryToolFor("constructor") selected 'function Object() {
+[native code] }'`) AND the spec (6 failed / 26 passed, from 32 passing), so a
+silent revert of EITHER mechanism is caught by automation rather than by a
+reader noticing a missing guard. Against the swap: the four sites have four DIFFERENT
+miss-fallbacks, so a shared helper replaces only the subscript and each site
+still needs its own miss handling; `THEME_OVERRIDES` has no literal definition
+to convert (it is destructured from a `require`d JSON,
+`services/geminiNlIntent.js:19-20`), so it would need a wrapping copy at import
+and the "uniform" fix would not be uniform; and the use-site guard sits where the
+request-supplied key actually arrives, each with a comment naming the production
+symptom it prevents, which the definition-site form cannot carry. Revisit only if
+a fifth request-keyed map appears — at which point the right move is to extend
+the gate's sweep to all the maps, not to swap the guard style.
+
+**Verify:** `demo_api_server/tests/services/verticalLookup.prototypeKeys.test.js`
+— 32 tests (`5N + 7`, matrixed with `it.each` over
+`['constructor','__proto__','toString','valueOf','hasOwnProperty']`), plus
+controls asserting that real verticals still resolve their own tool, trigger,
+theme and read-tool list. `__proto__` is in the matrix but is rejected by
+`VALID_VERTICAL_RE`'s leading-character rule — the map, not the router, is where
+this has to be safe. Each guard was proven by individual revert-to-RED. The
+coercion gate (`node demo_api_server/scripts/check-vertical-coercion.js`, wired
+into root `npm run hygiene:check`) exits 0.
+
+### 2026-08-02 — Privilege MCP sign-in stuck on "Client ID is required before auth start."
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.config.test.js` (new).
+
+**What was broken:** `POST /api/privilege-mcp/config` merged the request body
+over the session config unconditionally, blank strings included. The client page
+posts its whole local config immediately before `/auth/start` (and before
+`/chat`), and that local config starts empty — it is only filled once the
+mount-time `/state` fetch resolves. One click made before that resolved sent
+`clientId: ""`, which overwrote the value seeded from `PRIVILEGE_SSO_CLIENT_ID`.
+The overwrite stuck for the life of the session (`clientSessions` is an in-memory
+Map keyed by session id), so `/state` then returned a blank clientId, the page
+re-rendered blank, and every later click re-posted blank —
+`400 {"error":"Client ID is required before auth start."}` forever, with a
+correctly configured environment. Only a BFF restart cleared it.
+
+**What was fixed:** `/config` now filters `undefined`/`null`/`""` out of the body
+before merging — blank means "unchanged", not "clear this". Non-blank values
+still overwrite, so the settings panel keeps working.
+
+**Do not break:** the OAuth PKCE flow, `redirect_uri` derivation from
+`x-forwarded-host`, `session.pendingAuth`, and the `/auth/start` clientId guard
+itself are unchanged — the guard is correct, it was being fed a blanked config.
+Do not "simplify" the merge back to `{ ...session.config, ...req.body }`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --testPathPattern='step-up-gate|authorize-gate|runtime-settings-api|transaction-flows|demo-scenario-api|privilegeMcpClient' --testPathIgnorePatterns="/node_modules/" "/tests/real/" --forceExit`
+→ 10 suites, 105 tests, 0 failed. Revert-to-RED confirmed: with the old
+one-line merge restored, the new spec fails `Expected: "seeded-client-id"
+Received: ""`.
+
+### 2026-08-02 — The BFF still pre-empted the gateway, and PingGateway only gated on INDETERMINATE
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/mcpToolAuthorizationService.js`,
+`snapshots/gen-mcp-amount-bands-import.js` (new),
+`snapshots/mcp-amount-bands.import.snapshot.json` (new).
+
+**What was broken:** the previous entry moved HITL emission into PingGateway but
+left two holes. (1) The BFF's pre-flight still ran first on gateway-routed calls
+and returned before the gateway was ever reached, so the gateway's PDP call
+remained dead code for exactly the tools it was supposed to gate. (2) The Groovy
+branched only on `decision == 'INDETERMINATE'` — which is what the *mock* authz
+server returns. Live PingOne Authorize returns `decision: PERMIT` with the applied
+rule effects in `statements[]`, so against the cloud policy the gateway would have
+PERMITted and forwarded a call the PDP had attached a consent obligation to.
+Separately, the pipeline's `hitl_required` branch was nested inside an
+`err.code === 'gateway_policy_denied'` test while `mcpGatewayClient` throws HITL
+with `code: 'mcp_tool_error'` — that branch was unreachable, and the HITL body
+carried no `challengeId` for the agent to echo back.
+
+**What was fixed:** the BFF no longer pre-flights when the call is gateway-routed
+(`skipReason: 'gateway_authoritative'`, alongside the existing
+`a2a_supplied_token`); it forwards and relays. `_hitl_challenge_id` is
+deliberately left in `params` so the gateway — not the BFF — verifies and strips
+it. The Groovy now classifies `statements[]` with the same normalization and
+precedence as `authorizeObligations.js` (strip separators, uppercase,
+HITLCONSENT → consent, STEPUP → step-up, step-up outranks consent), so a live
+`PERMIT` + obligation gates exactly like the mock's `INDETERMINATE`, and a
+PERMIT carrying an unsatisfied obligation no longer forwards. Step-up gets its own
+428 (`step_up_required`), relayed by the BFF as the `mcp_step_up_required` +
+`step_up_method` envelope the agent's existing handler already understands —
+`step_up_method` stays BFF-resolved because the per-use-case method lives in a
+catalog the gateway cannot see. The 428 branches were hoisted above the
+`gateway_policy_denied` test so they are actually reachable, and the HITL body now
+carries `challengeId` / `challenge_type`.
+
+**Also added:** `snapshots/merge-mcp-amount-bands.js`, which merges MCP amount-band
+rules INTO an exported P1AZ snapshot. The gateway makes exactly one PDP call — to
+the MCP endpoint — but the amount bands live in the *Transaction* endpoint it never
+calls, and the MCP policy's own consent rule is keyed on "sensitive tools". Without
+these rules, every `create_transfer` prompts for consent regardless of amount. The
+merger reuses the environment's existing amount conditions rather than restating
+thresholds, and renames the containers Super Banking → AI Demo in place (same ids).
+
+**A PUBLISH REPLACES THE WHOLE TREE — never import a standalone root PolicySet.**
+Learned by doing it. A generated package with its own root set imported cleanly;
+publishing it made that lone set the entire authorization version, and every MCP
+audience / actor-chain / bypass / tier / group rule stopped being evaluated. A $50
+call with no token audience and no registered actor went from `DENY` +
+`mcp-invalid-audience` to `PERMIT`. Recovered by restoring the prior version
+(PingOne keeps version history — `GET /environments/{env}/authorizationVersions`
+lists them; the pre-incident one was tagged "Another A2A"). The standalone
+generator has been deleted so it cannot be run again; only the merger ships.
+
+Four importer rules, each found only by being rejected — the merger now validates
+all of them and refuses to write rather than emit a package that no-ops:
+1. References resolve against objects **in the package**, never the environment —
+   a snapshot cannot cite what is already live. Hence merge-into-export.
+2. Attributes resolve **by name** against the decision request's `parameters`.
+   A package defining `McpAmount` while the gateway sends `Amount` imports
+   cleanly and matches nothing: every condition reads its default, no rule fires.
+3. A Statement is a **private entity owned by one Rule** unless `shared: true`.
+   Citing one from two rules fails with "has multiple parents".
+4. Exactly one root PolicySet, or the publish replaces the tree (above).
+
+**Same bug, second transport:** the Node gateway read only the decision label
+too — there was no statement classification anywhere in `demo_mcp_gateway/src`.
+New `src/auth/authorizeObligations.ts` ports the BFF classifier;
+`PingOneAuthorizeClient` and `pingAuthorizeGuard` (WS) both use it, and a
+PERMIT carrying an obligation no longer resolves to PERMIT. `AuthzDecision` gained
+an `obligation` field so step-up and consent stay distinguishable, and the HTTP
+middleware emits `step_up_required` for the former (no challenge is minted — a
+receipt cannot satisfy MFA). The BFF needed no change: it already merges
+`raw.statements` (pingOneAuthorizeService `_classifyRawObligations`).
+
+**Do not break:** the skip is conditional on `useGateway` — a tool executed
+locally has no second PEP, and skipping there is fail-open. Statement
+classification must stay in sync across all three readers
+(`services/authorizeObligations.js`, `src/auth/authorizeObligations.ts`,
+`p1az-decision.groovy`); if the codes drift, a live obligation silently stops
+gating. Step-up must not be dischargeable by a HITL receipt, or vice versa —
+they are different mechanisms.
+
+**Known remaining divergence (mock vs live), deliberately NOT changed here:** the
+mock authz server returns `decision: INDETERMINATE` for an obligation; live P1AZ
+returns `decision: PERMIT` + `statements[]` and uses INDETERMINATE for
+"could not evaluate". Every reader now classifies statements, so both shapes gate
+correctly — but the labels still differ. Flipping the mock is a ~75-touch-point
+change (41 mock assertions plus BFF/gateway tests) and MUST come after the reader
+fixes, never before: flip first and any reader still branching on the label
+alone stops gating, which fails OPEN.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --forceExit --maxWorkers=2`.
+Groovy parsed against the running IG's own Groovy 4.0.28.
+`node snapshots/gen-mcp-amount-bands-import.js` regenerates the import (fresh
+UUIDs each run — do not re-run once imported, or you create duplicate objects).
+
+### 2026-08-02 — HITL consent (UC8) was decided by BFF code, and no gateway could emit a 428
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_hitl_service/src/receiptVerification.js` (new),
+`demo_hitl_service/src/routes/challenges.js`,
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/mcpToolAuthorizationService.js`,
+`demo_api_server/scripts/refresh-service-envs.js`.
+
+**What was broken:** three things, all pointing the same way. (1) PingGateway —
+the gateway the BFF actually calls in Docker
+(`MCP_GATEWAY_HTTP_URL: http://ping-gateway:8080`) — flattened every PingOne
+Authorize `INDETERMINATE` to a 403 and said so in a comment: *"HITL is not
+handled at this layer."* There was no consent path through the production
+gateway at all. (2) The Node gateway did run HITL but answered **403** for it, so
+"a human must approve" and "you may not do this" were the same status on the
+wire. (3) `mcpToolAuthorizationService._localAmountLimitFallback` re-imposed a
+hardcoded $2500 DENY / $600 step-up / $300 HITL ladder in BFF JavaScript whenever
+the Transaction decision endpoint PERMITted without an obligation *or* errored —
+so a UC8 consent prompt could be produced entirely by BFF code and was
+indistinguishable, in the demo, from a PingOne Authorize decision.
+
+**What was fixed:** PingGateway is now a real HITL PEP: on `INDETERMINATE` it
+mints a challenge at the HITL service and returns **428** with the `challengeId`,
+and on retry it verifies the echoed `_hitl_challenge_id` before setting
+`HitlApproved`/`HitlChallengeId` on the P1AZ request (the same attribute names
+the Node gateway sends). The receipt rules are not hand-ported into Groovy —
+`POST /challenges/:id/verify` on the HITL service is the one implementation, and
+IG calls it. The Node gateway's INDETERMINATE now answers 428 as well (a rejected
+receipt stays 403 — it is terminal). `mcpGatewayClient` learned the 428 and keeps
+recognising the old 403 body for a gateway that has not been redeployed. The
+local amount ladder is deleted: a bare PERMIT stays PERMIT, and an unreachable
+Transaction endpoint blocks with `authorization_unavailable` (503) instead of
+substituting hardcoded thresholds.
+
+**Do not break:** no path may become fail-open. `_hitl_challenge_id` is never
+trusted as a raw flag — the challenge must be approved, unexpired, and bound to
+the same user + agent + tool + amount + payee, and every unproven path (HITL
+service unreachable, unconfigured, unparseable, challenge creation failed) fails
+closed with a 503. `Status.valueOf(428)` in the Groovy is deliberate: this IG
+build's `chf-http-core` has no `PRECONDITION_REQUIRED` constant (verified with
+`javap`) and naming a missing one throws at request time. The direct-transfer
+HITL path (`routes/transactions.js`, `transactionConsentChallenge.js`) is
+untouched, as are the gate's DENY / step-up / group-deny / UC16 branches.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --forceExit --maxWorkers=4`
+(654 suites, 7876 passed, 0 failed — the default worker count flakes on
+contention and fails a different disjoint set each run). `cd demo_mcp_gateway &&
+npm run build` (exit 0) + `CI=true npx jest --forceExit` (473 passed).
+`cd demo_hitl_service && CI=true npx jest` (44 passed; `hitl-teachlog-migration`
+fails identically on clean `main`). `npm run topology:verify` (437 passed).
+Groovy parsed against the running IG's own Groovy 4.0.28.
+
+### 2026-08-02 — Token Chain rail went dark on load with no control; text as small as 9px
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** PR #1212 added a 152-line dark palette to the Token Chain
+rail keyed to `@media (prefers-color-scheme: dark)` — the browser's setting, not
+the app's. Nothing else in the app is dark-capable and no toggle was ever added,
+so any browser reporting dark (OS setting, Chrome "Auto dark mode for web
+contents", or a sticky DevTools *Emulate prefers-color-scheme* override) rendered
+a dark, black-bordered rail inside light chrome, on load, with no way to turn it
+off. Separately, the rail's base type ran 9px–12.5px — unreadable in a demo.
+
+**What was fixed:** the palette is unchanged; only its trigger moved. All 31
+rules are now keyed to `:root[data-theme="dark"]`, set by a new "Dark mode"
+switch in the agent header (`Check variant="switch"`, beside "RFC info"),
+persisted to `ba_dark_mode`, defaulting to light. The attribute goes on the
+document root because the rail mounts on ~28 pages, none inside the agent's
+subtree. Font floor raised across the rail: 9→11, 9.5→11, 10→11.5, 10.5→12,
+11→12.5, 11.5→12.5, 12→13, 12.5→13.5, 13→14 (35 declarations).
+
+**Do not break:** the toggle must not seed from `prefers-color-scheme` — that is
+the defect. Do not re-add an OS-keyed dark block to a component while the rest of
+the app has no dark styling. Agent dock/FAB state, panel sizing and every
+auth/session path are untouched.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0) and `npm run test:unit`
+(2566 passed; the 9 failures — monospace regression, spinnerService ×4,
+ResourceServerPage.dualView ×3, UserDashboard sha256 canary — all reproduce on
+clean `origin/main`). `grep -c prefers-color-scheme TokenChainTraceRail.css` → 0.
+
+### 2026-08-02 — Vault subsystem failed open in six places; two hardening guards were dead code
+
+**Files changed:** `oauth-mcp/src/index.ts`, `demo_mcp_gateway/src/vault.ts`,
+`demo_api_server/services/vaultLoader.js`, `demo_api_server/lib/vault/audit.js`,
+`demo_api_server/lib/vault/index.js`, `demo_api_server/utils/internalSecret.js` (new),
+`demo_api_server/routes/{vaultServiceKey,agentIdToken,agentTool,mcpAuditIngest,weatherMcpFlag,braveMcpFlag}.js`,
+`demo_api_server/scripts/{ensure-service-keys,setupFresh}.js`,
+`k8s/20-api-server-deployment.yaml`, `k8s/create-secrets.sh`, `docs/vault.md`,
+`demo_api_server/tests/vault/vault.failClosed.test.js` (new),
+`demo_api_server/tests/vaultServiceKey.test.js`.
+
+**What was broken:** the high-severity findings from the same vault review that
+produced the entry below.
+
+1. **Twin MCP servers disagreed.** `oauth-mcp/src/index.ts` warned and booted on
+   a vault load failure; its byte-identical twin `demo_mcp_server` exits 1.
+   `docker-compose.yml` builds the `mcp-server` service from `./oauth-mcp`, so
+   the Docker path ran the fail-open copy — a wrong `VAULT_PASSWORD` booted
+   anyway, `loadConfiguration()` walked its secret fallback chain, and the server
+   introspected as a different PingOne client (`active:false` on every token).
+2. **Gateway allowlist dropped `PINGONE_`.** `config.ts` PREFERS
+   `PINGONE_MCP_GATEWAY_CLIENT_ID/SECRET`, but `vault.ts` skipped that prefix, so
+   a vault-stored gateway credential silently fell back to a stale `.env` value —
+   RFC 8693 exchange client ≠ RFC 7662 introspection client, every tool call
+   401'd, both sides logged "vault loaded".
+3. **Missing vault file failed OPEN.** `vaultLoader`'s `existsSync` check ran
+   BEFORE the missing-password guard, so deleting the file (or a bind mount that
+   did not materialize) booted the BFF with every vault secret absent and only an
+   info-level log — `server.js` logs only when `result.loaded` is true.
+4. **Two hardening guards were unreachable.** `vaultServiceKey.js`,
+   `agentIdToken.js`, and `agentTool.js` all keyed their insecure-default kill
+   switch off `NODE_ENV === 'production'`, but `k8s/20-api-server-deployment.yaml`
+   and `docker-compose.yml` both pin the BFF to `development` deliberately (the
+   simulated Authorize service requires it). The guards could never fire, and
+   `k8s/03-secrets.yaml.template` ships `BFF_INTERNAL_SECRET: ""` which
+   `create-secrets.sh` never populated — so the committed literal
+   `dev-shared-secret-change-me` was live in-cluster and any workload with
+   pod-network reach to `api-server:3001` could read the backend service keys.
+5. **Audit failures were swallowed.** `chmod 0444 secrets.vault.audit.log`
+   silenced the entire trail while every vault operation kept succeeding, and the
+   log was created at the process umask (0644) while the vault itself is 0600.
+6. **The vault could not actually replace `.env`.** Vault entries reached
+   configStore only, but six routes read `process.env.BFF_INTERNAL_SECRET` at
+   require-time — and routes mount at `server.js:302` while the vault loads
+   around line 2500. Following `vault-migrate.js`'s own instruction to strip
+   migrated entries from `.env` therefore dropped every one of them to the public
+   default.
+
+Plus: `ensure-service-keys.js` swallowed EVERY `.env` read error (not just
+ENOENT), so a transient EACCES/EISDIR replaced a populated `.env` with a 3-line
+file and still exited 0; `setupFresh.js` prompted for the vault master password
+UNMASKED (`readlineFreeText` accepts a `secret` option and ignores it) while
+`docs/vault.md` T-269-26 claimed it refused to prompt at all.
+
+**What was fixed:** oauth-mcp fails closed like its twin; `PINGONE_` added to the
+gateway allowlist; `VAULT_REQUIRED=true` opts a deployment into fail-closed on a
+missing vault file (default stays a no-op so a fresh clone runs); the kill
+switches key off `VAULT_INTERNAL_STRICT`, which `20-api-server-deployment.yaml`
+now sets and which `create-secrets.sh` backs by minting a real
+`BFF_INTERNAL_SECRET` and fanning the same value to BFF + gateway + agent +
+ping-gateway; `recordAudit` fails closed on `set`/`delete`/`rotate` (recorded
+before anything persists) and `assertAuditWritable()` runs at open/create to
+cover `save`, which audits after its rename; the audit log is created 0600; a new
+`utils/internalSecret.js` resolves the shared secret per call and the six
+consumers use it, with `vaultLoader` exporting a narrow
+`ENV_EXPORT_ALLOWLIST` (currently just `BFF_INTERNAL_SECRET`) into `process.env`;
+`upsertEnvValue` rethrows any non-ENOENT read error and writes 0600;
+`setupFresh` prompts via `@inquirer/password`.
+
+**Do not break:** the kill switches must NOT be re-keyed to `NODE_ENV` — it is
+pinned to `development` on purpose. `ENV_EXPORT_ALLOWLIST` must stay an explicit
+name list, never a prefix (a vault entry named `LD_PRELOAD` must never reach
+`process.env` — T-269-17). `assertAuditWritable` must stay ordered AFTER the
+not-found and already-exists guards so it cannot mask their more specific errors.
+`internalSecret()` must not be cached at module scope.
+
+**Verify:** `CI=true npx jest tests/vault/ tests/vaultServiceKey.test.js
+tests/routes/adminVault.*.test.js src/__tests__/vaultLoader.*.test.js` (235/235);
+`CI=true npx jest --testPathPattern='step-up-gate|authorize-gate|runtime-settings-api|transaction-flows|demo-scenario-api|agentTool|mcpAudit|weatherMcp|braveMcp|agentIdToken|ensure-service-keys'`
+(132/132); `npx tsc --noEmit` clean in both `demo_mcp_gateway` and `oauth-mcp`.
+Revert-to-RED confirmed: reverting `audit.js`, `lib/vault/index.js`,
+`vaultLoader.js`, and `utils/internalSecret.js` gives 7 failed / 2 passed.
+
+**Precedence note (docs corrected, code unchanged):** `docs/vault.md` claimed the
+vault outranks `process.env`. `configStore.getEffective` does the opposite and
+that is deliberate — see the 2026-07-26 entry. The doc now states the real order
+(`.env` > vault > LMDB) and its consequence: a leftover `.env` value shadows its
+vault entry.
+### 2026-08-02 — Vault master password was readable from an unauthenticated endpoint; `save()` was not atomic
+
+**Files changed:** `demo_api_server/services/apiCallTrackerService.js`,
+`demo_api_server/server.js`, `demo_api_server/lib/vault/index.js`,
+`demo_api_server/tests/vaultPasswordNotTracked.test.js`,
+`demo_api_server/tests/vault/vault.atomicSave.test.js`, `.gitignore`,
+`docs/incident-response/vault-history-exposure.md`.
+
+**What was broken:** two independent critical defects found in a full vault review.
+
+1. **Master password disclosure.** The global `/api` tracker
+   (`server.js:652`) captured `req.body` unredacted; `TRACKING_SKIP_PREFIXES`
+   did not cover the vault paths, so `POST /api/admin/vault/unlock` was
+   tracked. `apiCallTrackerService` sanitized **headers only** — `formatBody`
+   just `JSON.stringify`d the body — and dual-wrote every entry into the shared
+   `__global__` bucket. `routes/apiCallTracker.js:27-31` serves that bucket by
+   default, and `server.js` mounted `/api/api-calls` with **no
+   `authenticateToken`**, unlike every neighbouring mount. Net: after any admin
+   unlock, an unauthenticated `GET /api/api-calls?limit=100` returned the vault
+   master password in cleartext; `/rotate` returned both old and new. The
+   client-side ring buffer (`apiTrafficStore.js`) already redacted these keys —
+   only the server twin was missed. The `Cookie` header was truncated rather
+   than removed, exposing both ends of the admin session cookie on the same
+   open endpoint. Directly falsified `adminVault.js:24-25` ("physically cannot
+   leak a password value") and `AdminVaultPage.jsx:162-164` ("never persisted
+   server-side").
+2. **Non-atomic vault save.** `save()` and `createVault()` wrote to a fixed
+   `filePath + '.tmp'` with no lock, no `O_EXCL`, and no fsync. Two concurrent
+   savers interleaved their JSON into that one path; the surviving `rename`
+   published the splice and the vault reopened as
+   `VaultIntegrityError: envelope is not valid JSON` — total loss, no backup.
+   `{ mode: 0o600 }` was silently ignored when the tmp file already existed
+   (yielding an 0644 vault), and `writeFile` followed a symlink pre-planted at
+   the predictable tmp path, writing the full envelope plus `kdf.salt` to an
+   attacker-chosen target. Non-corrupting interleavings silently discarded the
+   other handle's `set()`s.
+
+**What was fixed:** `formatBody` now redacts a `REDACT_BODY_KEYS` set mirroring
+the UI's, recursively (bodies nest); `cookie`/`set-cookie` are redacted in full
+while bearer-token truncation is kept deliberately (this demo teaches token
+shape); `/api/api-calls` is mounted behind `authenticateToken`, matching its
+Telemetry/Tracing siblings. Vault writes go through a new `writeFileAtomic()` —
+per-writer tmp name, `wx` (O_EXCL), explicit `0600`, fsync of file and parent
+directory, tmp cleanup on failure — and `save()` compares an
+mtime/size/inode generation against the one captured at open, turning a silent
+lost update into a loud `VaultIntegrityError`.
+
+**Do not break:** `/api/api-calls` must stay behind `authenticateToken`;
+`formatBody` is the single choke point every tracked request AND response body
+passes through — do not add a body path that bypasses it. Vault writes must not
+return to a shared `.tmp` name; the generation check must run before the rename.
+`/secrets.vault*.tmp` must stay gitignored — that file is complete ciphertext.
+
+**Verify:**
+`CI=true npx jest tests/vaultPasswordNotTracked.test.js tests/vault/vault.atomicSave.test.js`
+(10/10). Revert-to-RED confirmed: reverting `apiCallTrackerService.js` +
+`server.js` gives 5 failed / 0 passed; reverting `lib/vault/index.js` gives 4
+failed / 1 passed (the concurrency case is timing-dependent, the symlink, mode,
+and lost-update proofs are deterministic). Grep `server.js` for
+`'/api/api-calls', authenticateToken`.
+
+**Not fixed here — operator action required:** the vault ciphertext and the
+password that opens it are both still reachable from `origin/main` in a public
+repo. See `docs/incident-response/vault-history-exposure.md`. No secret was
+rotated by this change.
+
+### 2026-08-02 — Embedded agent auto-scroll yanked the user back mid-read
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`.
+
+**What was broken:** PR #1194 made `.banking-agent-messages` a real scroll
+container for the first time. That exposed the auto-scroll effect, which
+unconditionally set `el.scrollTop = el.scrollHeight` on every `messages` /
+`loading` / `nlLoading` change with no check for where the user was. With AG-UI
+streaming `messages` changes per token, and the container sets
+`scroll-behavior: smooth`, so scrolling up to re-read anything produced a
+continuous animated yank back to the bottom for the whole reply. No
+jump-to-latest affordance existed. Separately, the `nlLoading` typing indicator
+rendered as a **user** bubble with a `You` avatar — dots on the user's side while
+the *agent* worked — which also left the already-written
+`.banking-agent-msg.assistant.typing` rule dead.
+
+**What was fixed:** the effect now returns early unless `pinnedToBottom`, which
+an `onScroll` handler maintains with a 40px tolerance (exact equality is
+unreliable under sub-pixel heights and zoom). Programmatic scrolls use
+`behavior: 'auto'` so per-token updates do not animate. A `.ba-jump-latest` pill
+appears while unpinned, labelled with the unread count, and re-pins on click; its
+wrapper is zero-height so it floats over the transcript without consuming layout.
+Unread counts come from the `messages.length` delta via `seenMessageCountRef` —
+counting effect firings over-reported, since the effect also runs on
+loading-state transitions. The typing indicator moved to the assistant side.
+The Inspectors sub-group became collapsible via a new `.ba-hg-sub`
+(`display: contents`) so the collapse scopes to it and its row-mates (Demo steps,
+Live Use Cases, Agent scope, Clear progress) stay visible.
+
+**Do not break:** the early return on `!pinnedToBottom` is the whole fix —
+restoring an unconditional scroll re-creates the jail. Keep `behavior: 'auto'` on
+the programmatic scroll; the container's `scroll-behavior: smooth` is for the
+pill's own click, not for streaming. `.ba-hg-body` / `.ba-hg-sub` must stay
+`display: contents`: `.ctl-check` carries `display: inline-flex !important`
+(`components/common/Check.css`), so hiding children directly does not work —
+only hiding an ancestor does. Do not count unread by incrementing per effect run.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` (build exits 0;
+6 failures — `uiRegression` monospace, `UserDashboardPing2026` sha256 canary, and
+4 `spinnerService` — identical to the baseline on `main` by name). Note a local
+`demo_api_ui/.env` setting `REACT_APP_API_URL` adds a spurious 7th failure in
+`executionEngine` (that test asserts the base URL defaults to empty). End-to-end
+on `/dashboard` in the Embedded layout, driving **real** agent messages — DOM
+injected filler does not change `messages`, so it cannot exercise this effect:
+sending follows the bottom (`fromBottom: 0`), scrolling up shows the pill and
+holds position when a reply lands (`positionHeld: true`), and clicking the pill
+returns to the bottom and hides it. Float layout must still follow
+(`fromBottom: 0`, no pill).
+
+### 2026-08-01 — Gateway actor allow-list was narrower than the policy it mirrors
+
+**Files changed:** `demo_mcp_gateway/src/auth/toolScopes.ts`,
+`demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts`,
+`demo_mcp_gateway/src/config.ts`,
+`demo_mcp_gateway/tests/gatewayTokenPolicy.test.ts`.
+
+**What was broken:** `validateActClaim` compared `act.sub` for equality against a
+single id (`PINGONE_TOKEN_EXCHANGER_CLIENT_ID`), while its own doc comment says it
+"mirrors the check a live PingOne Authorize policy would perform via the
+`ActClientId` parameter". The authored policy — `HasValidActorChain` in
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` — is a
+disjunction over ELEVEN registered identities: "the MCP Token Exchanger, the AI
+Agent, and each A2A specialist". So the PEP rejected an actor the PDP explicitly
+permits. Every `/agent/init` in every vertical logged
+
+```
+[agentToolsResolver] tool discovery failed after 3 attempts (vertical=...)
+  — degrading to local catalog: Unauthorized delegation actor: act.sub
+  "71e878ea-…" is not the authorized actor "f4dd707d-…"
+```
+
+and fell back to a local catalog with every tool marked permitted, so
+Authorize-filtered chip affordance silently stopped rendering. Fidelity, not
+security: each `tools/call` still went through the per-call decision, which fails
+closed. The bug was unreachable until #1184 fixed the discovery WebSocket URL —
+before that the handshake 404'd against PingGateway before any token was presented.
+The depth >= 2 A2A exemption already in this function is evidence the allow-list
+was known to be too narrow; depth 1 never got the same treatment.
+
+**What was fixed:** `validateActClaim` accepts a registered chain
+(`string | readonly string[]`, a bare string still works). `config.authorizedActorClientIds`
+is built from `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` + `PINGONE_AI_AGENT_ACTOR_CLIENT_ID`
+plus an optional comma-separated `GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS`, deduped with
+blanks dropped so an unset var never widens the list to "everything". The field is
+optional so the hand-built `GatewayConfig` fixtures stay valid and absent ⇒ previous
+single-id behaviour.
+
+**Do not break:** the widening must never admit an unregistered actor — UC13's
+confused-deputy showcase depends on `attackSimulatorService.ROGUE_ACTOR_CLIENT_ID`
+(`rogue-agent-9f2a-not-allowlisted`) staying a DENY; ACT-11 pins it. Keep the
+empty-allow-list skip (dev / no-actor mode) and the empty-`act.sub` skip (simple
+exchange). Native-over-header actor precedence and the `X-Demo-Force-Actor` trust
+gate are untouched by this change.
+
+**Verify:** `cd demo_mcp_gateway && npm run build` (tsc, exit 0) and
+`CI=true npx jest --testPathIgnorePatterns="/node_modules/"` (60 suites, 473 passed);
+`cd demo_api_server && CI=true npx jest src/__tests__/attackSimulator.authorizeEvidence.test.js src/__tests__/mcpToolPipeline.confusedDeputy.test.js src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js --testPathIgnorePatterns="/node_modules/"` (12 passed);
+`cd demo_authz_server && node --test decision.confused-deputy.test.js decision.mockCloudParity.test.js` (20 passed).
+**mcp-gateway has no src mount — rebuild it (`docker compose build mcp-gateway && docker compose up -d mcp-gateway`) or the running stack keeps the old image.**
+### 2026-08-01 — Embedded agent transcript did not scroll; page scrolled instead
+
+**Files changed:** `demo_api_ui/src/components/UserDashboard.css`
+(`.ud-body--dashboard-split3` row track + grid-child `min-height`,
+`.user-dashboard--split3` sizing), `demo_api_ui/src/theme/refinedDashboardV2.css`
+(`min-height: 100vh !important` split out and excluded from split3),
+`demo_api_ui/src/App.css` (`:has(.user-dashboard--split3)` viewport lock). CSS only.
+
+**What was broken:** two defects on the Embedded (middle) dashboard layout.
+(1) The split3 grid used `grid-template-rows: 1fr`, which is `minmax(auto, 1fr)`,
+so the row's automatic minimum grew to the agent transcript's content height, and
+grid items default to `min-height: auto`. Nothing in the chain above
+`.banking-agent-messages` ever had a definite height, so the transcript grew
+instead of scrolling and its overflow was clipped by `.ud-agent-column`
+(`overflow: clip`) — measured: injecting 40 rows took `clientHeight` 571 → 2906
+with `scrollHeight === clientHeight`, i.e. no scrollbar, content unreachable.
+(2) `.user-dashboard--split3` sized itself `calc(100vh - var(--topnav-height, 60px))`
+while `refinedDashboardV2.css` forced `min-height: 100vh !important` over its
+`min-height: unset`. The dashboard starts ~88px down the page, so at a 900px
+viewport it ran to y=988 and the document scrolled 177px with the agent's
+composer 15px below the fold.
+
+**What was fixed:** row track is `minmax(0, 1fr)` and split3 grid children get
+`min-height: 0`, so the columns can shrink and the transcript becomes the
+scroller. The 100vh floor is now scoped `:not(.user-dashboard--split3)`, and the
+shell is viewport-tall via `.App:has(.user-dashboard--split3)` + a flex
+`main.main-content`, so split3 fills the remainder with no vh arithmetic.
+
+**Do not break:** the `:has()` scoping is load-bearing — it is what keeps the
+viewport lock off every other route. Bottom dock, Float, and the clinical split
+(`.user-dashboard--clinical-split`) never carry `--split3` and must keep the
+default scrolling shell. Do not restore `grid-template-rows: 1fr` or drop the
+`> * { min-height: 0 }` rule; either one alone re-breaks the transcript. Do not
+reintroduce `100vh`/`--topnav-height` math on the split3 root — the 60px default
+does not match the real 88px offset. No JS changed: `middleAgentOpen` init,
+bottom-dock route gating, and `banking-agent-fab` classes are untouched.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` (build exits 0;
+22 pre-existing failures in `uiRegression`, `UserDashboardPing2026`,
+`executionEngine`, `spinnerService`, `tokenInspector` are identical before and
+after this change). End-to-end on `/dashboard` in the Embedded layout at
+1600x900: appending 40 rows to `.banking-agent-messages` must leave
+`document.scrollHeight === clientHeight` (no page scroll) while the transcript
+reports `scrollHeight > clientHeight` (measured 2906 > 328), and the composer
+must stay inside the viewport (measured bottom 738). `/use-cases` and `/` must
+keep `.App { overflow-y: visible }`.
+
 ### 2026-07-30 — AG-UI agent tool calls 400'd after JSON-RPC wire mismatch (#1108)
 
 **Files changed:** `demo_agent_service/src/agentRunHandler.ts`,
@@ -514,7 +1336,7 @@ through the decision-endpoint path regardless of `ff_aam`.
 **Verify:** Live against real PingOne (env `01d89b06`), isolated container,
 running stack never repointed: DENY (`decision=DENY backend=real`,
 `response_code "401"`) and, via the mock, both PERMIT (`200`,
-`{"service":"banking_mortgage_service"}`) and DENY (`403`) with the
+`{"service":"banking_api_resource_server"}`) and DENY (`403`) with the
 Sideband JSON captured and `Authorization: <redacted>`; 11/11 routes load,
 0 build errors, 0 `Thread blocked`; `/health` 200 and `/mcp` no-token 401
 unchanged. `demo_authz_server` sideband 9/9 (211/217 full suite — the 6
@@ -1126,31 +1948,31 @@ is what makes a stale cached secret recoverable by editing `.env`.
 **Verify:** `CI=true npx jest src/__tests__/workerCredsBootstrap.test.js` (6 pass);
 revert `configStore.js` alone and 4 of the 6 fail.
 
-### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
+### 2026-07-26 — MCP_RESOURCE_SERVER_AUDIENCE was accepted on every MCP callback, not just the portfolio read
 
 **Files changed:** `demo_api_server/middleware/auth.js`,
-`demo_api_server/tests/mcpInvestAudience.regression.test.js` (new).
+`demo_api_server/tests/mcpResourceServerAudience.regression.test.js` (new).
 
-**What was broken:** `validatePingOneCoreToken` pushed `MCP_INVEST_AUDIENCE` into the
+**What was broken:** `validatePingOneCoreToken` pushed `MCP_RESOURCE_SERVER_AUDIENCE` into the
 shared `gwAuds` list and folded the `/api/investment/.../portfolio` route into the same
 `isMcpCallback` predicate as the banking read/write callbacks. The audience check is
 `isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a))`, so an A2A investment
-token (`aud=mcp-invest.ping.demo`, scopes `invest:read`) satisfied the audience gate on
+token (`aud=mcp-resource-server.ping.demo`, scopes `invest:read`) satisfied the audience gate on
 `POST /api/transactions`, `GET /api/accounts/my`, and the other write callbacks —
 routes it should never reach. Confirmed by reverting the fix: the regression suite's
 two rejection tests both fail against the old code.
 
 **What was fixed:** Split the predicate. `isMcpBankingCallback` keeps the banking /
 Path-B routes and matches against `gwAuds`; `isInvestPortfolioCallback` is separate and
-accepts **only** `MCP_INVEST_AUDIENCE`, on the portfolio path only. `MCP_INVEST_AUDIENCE`
+accepts **only** `MCP_RESOURCE_SERVER_AUDIENCE`, on the portfolio path only. `MCP_RESOURCE_SERVER_AUDIENCE`
 is no longer added to `gwAuds` at all.
 
-**Do not break:** Never re-add `MCP_INVEST_AUDIENCE` to `gwAuds` — that single line is
+**Do not break:** Never re-add `MCP_RESOURCE_SERVER_AUDIENCE` to `gwAuds` — that single line is
 the whole bug. The gateway/PingGateway/MCP-server audiences must keep working on the
 banking callbacks, and an enduser-audience token must keep working on the portfolio
 route; both are covered by regression tests.
 
-**Verify:** `CI=true npx jest tests/mcpInvestAudience.regression.test.js` (5 pass).
+**Verify:** `CI=true npx jest tests/mcpResourceServerAudience.regression.test.js` (5 pass).
 Revert `auth.js` alone and 2 of the 5 must fail — that is the proof the gate is real.
 
 ### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
@@ -1357,26 +2179,26 @@ those two got the gateway chain to a full PERMIT, but the live UI test still
 failed with two more stacked causes, live-diagnosed via temporary debug
 logging in the running containers (reverted after diagnosis):
 
-1. `demo_mcp_invest`'s running Docker image predated commit `64dbb43b7`
+1. `demo_mcp_resource_server`'s running Docker image predated commit `64dbb43b7`
    ("disable TLS cert verification for internal BFF calls") by two days —
    same "stale image" class of bug as `demo_mcp_gateway`. The compiled
    `investToolHandler.js` only read `BANKING_API_BASE_URL` (unset) with a
    `http://localhost:3001` fallback — never the correct
    `DEMO_API_BASE_URL=https://demo-api-server:3001` — so `get_portfolio_summary`
-   tried to call the BFF on `localhost` *inside the mcp-invest container*
+   tried to call the BFF on `localhost` *inside the mcp-resource-server container*
    (ECONNREFUSED, surfaced as an empty-message `AggregateError`, which is why
    the earlier symptom was a blank `{"error":""}` instead of a real message).
 2. Fixing #1 reached the real BFF and got a real `401`: `middleware/auth.js`
    already has the exact accommodation for this ("A2A investment specialist
-   callback: mcp-invest calls the BFF with a gateway-exchanged token
-   (aud=mcp-invest.ping.demo)") gated on `MCP_INVEST_AUDIENCE` — but that env
+   callback: mcp-resource-server calls the BFF with a gateway-exchanged token
+   (aud=mcp-resource-server.ping.demo)") gated on `MCP_RESOURCE_SERVER_AUDIENCE` — but that env
    var was never set in `demo_api_server/.env`, so the accommodation never
-   activated and the audience check rejected the token mcp-invest legitimately
+   activated and the audience check rejected the token mcp-resource-server legitimately
    received from Exchange #3.
 
-**What was fixed:** Rebuilt the `demo_mcp_invest` image (no source change
+**What was fixed:** Rebuilt the `demo_mcp_resource_server` image (no source change
 needed, same as `demo_mcp_gateway`). Added
-`MCP_INVEST_AUDIENCE=mcp-invest.ping.demo` (documented here in
+`MCP_RESOURCE_SERVER_AUDIENCE=mcp-resource-server.ping.demo` (documented here in
 `.env.example`; also added directly to the local `demo_api_server/.env`,
 which is gitignored).
 
@@ -1384,7 +2206,7 @@ which is gitignored).
 `{"prompt":"hand off to a specialist","vertical":"banking","forceHeuristic":true}`
 to `/api/agent/invoke` now returns `"Delegation complete — Investment Advisor
 retrieved get portfolio summary on your behalf (act-chain depth 2)."` —
-confirmed on two consecutive calls. If `MCP_INVEST_AUDIENCE` or either image
+confirmed on two consecutive calls. If `MCP_RESOURCE_SERVER_AUDIENCE` or either image
 goes stale again, the symptom returns as `mcp_error` / `tool_error` on this
 same prompt, not this specific message.
 
@@ -1462,7 +2284,7 @@ specialist") failed end-to-end. Live-diagnosed via a real browser session
    engine turns into a fail-closed DENY.
 3. Fixing #1 and #2 gets the full chain to PERMIT
    (`P1AZDecision: forwarded`, `BackendExchange: forwarded` to the real
-   `mcp-invest` backend) — `get_portfolio_summary` itself then returns an
+   `mcp-resource-server` backend) — `get_portfolio_summary` itself then returns an
    empty-error envelope (`{"error":""}`). This is a separate, narrower,
    tool-specific data issue (not an auth/infra bug) and is NOT fixed by this
    entry — noted here so it isn't mistaken for a regression of #1/#2.
@@ -2118,7 +2940,7 @@ accidentally widen the policy.
   from nested inside `config` to a sibling of `type` (on the `Chain`'s inner `handler` object);
   `StripWeatherPrefix`'s `mappings` changed from regex form (`"^/mcp/weather(.*)$": "/mcp$1"`)
   to literal-prefix form (`"/mcp/weather": "/mcp"`).
-- `ping-gateway/config/routes/02-mcp-invest.json` — identical fix to `StripInvestPrefix`'s
+- `ping-gateway/config/routes/02-mcp-resource-server.json` — identical fix to `StripInvestPrefix`'s
   mapping and `ReverseProxyHandler`'s `baseURI` placement (same bug, same shape, copy-pasted
   into this route originally; not yet user-visible because invest's separate, pre-existing
   `token_exchange_failed` issue fails earlier in the chain and had never let a request reach
@@ -2170,7 +2992,7 @@ without the same live-token verification done here.
 tool-execution layer (blocked only by mcp-weather's own unrelated `ENABLED_TOOLS` config —
 confirmed identical to curling mcp-weather directly, not a gateway defect); `New York`
 (non-Texas) returns the correct `403` Texas-scope denial from `tx-weather-scope.groovy`. No
-`BadGatewayFilter`/`Connection refused` in gateway logs for either call. `02-mcp-invest.json`
+`BadGatewayFilter`/`Connection refused` in gateway logs for either call. `02-mcp-resource-server.json`
 verified to hot-reload cleanly with the same fix (its own separate `token_exchange_failed` issue
 still blocks full end-to-end verification of its reverse-proxy stage — out of scope here).
 
@@ -2196,7 +3018,7 @@ The GLOBAL `rsFilter` heap's
 on every single call, and `OAuth2ResourceServerFilter` reports that as a generic `401
 invalid_token` to the caller (indistinguishable from an actually-invalid token, and not
 logged to stdout at INFO level — silent). Every route that references the bare `"rsFilter"`
-heap object by name (`02-mcp-invest.json`, `00-mcp-invest-jwks.json`,
+heap object by name (`02-mcp-resource-server.json`, `00-mcp-resource-server-jwks.json`,
 `00-mcp-weather.json`) has been rejecting every real, valid, correctly-scoped bearer token
 since introspection was wired up — this is not new, and not specific to weather-mcp. It was
 never caught before because no route using bare `rsFilter` had ever been exercised with a
@@ -3598,7 +4420,7 @@ route selects introspection credentials by the token's `client_id` claim
 (matching `*CLIENT_ID`/`*CLIENT_SECRET` env pair, fallback to configured
 default); the HTTP-ingress middleware exchanges per tool
 (`exchangeClient.exchange(token, toolName)`), and `forwardToUpstream` proxies
-invest-routed tools over WS to mcp-invest exactly like the WS ingress.
+invest-routed tools over WS to mcp-resource-server exactly like the WS ingress.
 
 **Do not break:** non-invest HTTP-ingress traffic still exchanges to OLB and
 forwards to mcp-server unchanged; default-client tokens still introspect with
@@ -4043,7 +4865,7 @@ per test (loadFresh) to keep the lazy-require mock identity aligned.
 Live-env only (no commit): ping-gateway container recreate (stale single-file
 bind mount of `mcp-tool-schemas.json` — macOS VirtioFS loses the mount when
 the host file is replaced, PingGateway then 500s every `/mcp` POST),
-`MORTGAGE_SERVICE_API_KEY` re-mint + vault sync, and
+`API_RESOURCE_SERVER_API_KEY` re-mint + vault sync, and
 `SIMULATED_AUTHORIZE_CONSENT_TYPES=` (explicit empty) in `demo_api_server/.env`.
 
 **What was broken:** three stacked faults surfaced once the PingGateway `/mcp`

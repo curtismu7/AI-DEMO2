@@ -6,22 +6,28 @@ const FALLBACK_CHIPS = {
   workforce: require('./workforce'),
   university: require('./university'),
   manufacturing: require('./manufacturing'),
+  healthcare: require('./healthcare'),
+  investment: require('./investment'),
 };
 
 /**
- * Load fallback chip definitions for a vertical
+ * Load fallback chip definitions for a vertical.
+ *
+ * Returns null when the vertical has no chips of its own. Callers MUST NOT
+ * substitute another vertical's chips: defaulting to banking here surfaced
+ * bank account actions inside healthcare.
+ *
  * @param {string} verticalId - Vertical identifier (banking, retail, etc.)
- * @returns {Array} Chip array with useCaseId fields populated
+ * @returns {Array|null} That vertical's chip array, or null if it has none
  */
-async function loadFallbackChips(verticalId = 'banking') {
-  const chips = FALLBACK_CHIPS[verticalId];
-
-  if (!chips) {
-    console.warn(`[fallback-loader] Unknown vertical "${verticalId}", using banking`);
-    return FALLBACK_CHIPS.banking;
+async function loadFallbackChips(verticalId) {
+  // hasOwnProperty: verticalId is request-supplied, so a bare lookup would
+  // resolve inherited keys like "constructor".
+  if (!Object.prototype.hasOwnProperty.call(FALLBACK_CHIPS, verticalId)) {
+    return null;
   }
 
-  return chips;
+  return FALLBACK_CHIPS[verticalId];
 }
 
 module.exports = {

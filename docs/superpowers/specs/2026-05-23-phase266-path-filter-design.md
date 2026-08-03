@@ -49,7 +49,7 @@ Walks all `<g>` elements in the SVG. For each element, checks whether its text c
 
 | `data-path` | Mermaid node IDs matched |
 |---|---|
-| `A` | `MortgageService`, `PathInfo` |
+| `A` | `ApiResourceServer`, `PathInfo` |
 | `B` | `Identity`, `InternalIdToken` |
 | `C` | `Accounts`, `Transactions`, `BankingDb` |
 | `shared` | `User`, `SPA`, `Gateway`, `PingOne`, `Session` |

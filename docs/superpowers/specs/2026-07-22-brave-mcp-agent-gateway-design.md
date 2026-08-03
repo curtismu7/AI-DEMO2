@@ -153,7 +153,7 @@ New `mcp-brave` service (mirrors `mcp-weather`'s service block), plus
 `PG_WEATHER_BACKEND_URL`). `mcp-brave` itself reads `BRAVE_SEARCH_API_KEY`
 via an `env_file:` pointing at a new, gitignored `demo_mcp_brave/.env` —
 **no dev-fallback default** in the compose file (unlike the
-`MORTGAGE_SERVICE_API_KEY` pattern, which is a shared demo key safe to
+`API_RESOURCE_SERVER_API_KEY` pattern, which is a shared demo key safe to
 default; Brave's key is a real third-party secret with no safe default
 value).
 

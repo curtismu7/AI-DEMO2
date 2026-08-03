@@ -114,8 +114,18 @@ an agent that pushes with `--no-verify`.
 - A real test failure blocks the push; flake does not — met (retry confirms).
 - Existing force-push guard unchanged — met.
 
-## Removal
+## Removal — DONE 2026-08-02
 
 When Actions runs again, delete the `local CI gate` block from `.husky/pre-push`.
 Keep `npm run ci:local` (useful for pre-PR checks) and both bug fixes — the quote
 fix and the worktree jest override are correct regardless of CI's state.
+
+Carried out as written. Actions resumed 2026-07-28 and main went green on
+2026-08-02 (run 30757733337); the gate block is gone from `.husky/pre-push`, the
+force-push guard and `npm run ci:local` both stay. Do not re-add it — one of the
+two premises above ("a real test failure blocks the push; flake does not") did
+not survive contact: the gate invoked jest at `--maxWorkers=50%`, above the
+`maxWorkers: 2` that `demo_api_server/jest.config.js` sets under CI *because*
+higher counts flake the supertest suites, so it blocked pushes on suites that
+pass in isolation. It also ran on `git push --delete`, so deleting a merged
+branch meant sitting through the full suite and then being refused.

@@ -225,12 +225,12 @@ const claimsBlock = (title, claims) =>
 
 // Resolve a human-readable backend service label from tool name + _meta.
 const TOOL_BACKEND_MAP = {
-  show_mortgage: { label: "Mortgage Service", lane: "MORTGAGE" },
-  show_investment: { label: "Invest Service", lane: "INVEST" },
-  get_investment_balance: { label: "Invest MCP Server", lane: "INVEST" },
-  get_investment_accounts: { label: "Invest MCP Server", lane: "INVEST" },
-  get_investment_transactions: { label: "Invest MCP Server", lane: "INVEST" },
-  get_portfolio_summary: { label: "Invest MCP Server", lane: "INVEST" },
+  show_mortgage: { label: "API Resource Server", lane: "MORTGAGE" },
+  show_investment: { label: "API Resource Server", lane: "INVEST" },
+  get_investment_balance: { label: "MCP Resource Server", lane: "INVEST" },
+  get_investment_accounts: { label: "MCP Resource Server", lane: "INVEST" },
+  get_investment_transactions: { label: "MCP Resource Server", lane: "INVEST" },
+  get_portfolio_summary: { label: "MCP Resource Server", lane: "INVEST" },
 };
 function resolveBackendLabel(toolName, meta) {
   const mapped = toolName && TOOL_BACKEND_MAP[toolName];

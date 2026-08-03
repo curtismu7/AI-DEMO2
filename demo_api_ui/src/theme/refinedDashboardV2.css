@@ -54,6 +54,12 @@
   font-family: var(--rd2-font-body) !important;
   display: flex !important;
   flex-direction: column !important;
+}
+
+/* Split3 is excluded from the 100vh floor: it fills the .App/.main-content
+   flex remainder instead, and this `!important` would beat its `min-height: 0`
+   and push the embedded agent's composer below the fold. */
+.user-dashboard[data-rd-v2]:not(.user-dashboard--split3) {
   min-height: 100vh !important;
 }
 

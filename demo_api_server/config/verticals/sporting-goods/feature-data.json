@@ -1,0 +1,20 @@
+{
+  "noun": "gear order",
+  "record": {
+    "gearOrder": {
+      "orderId": "SGO-2026-11204",
+      "customer": "Jordan A. Rivera",
+      "items": [
+        { "sku": "NKE-PEGASUS-41", "name": "Nike Pegasus 41 Running Shoe", "size": "10.5", "qty": 1, "price": 139.99 },
+        { "sku": "PTG-RAIN-JKT", "name": "Patagonia Torrentshell 3L Jacket", "size": "M", "qty": 1, "price": 179.00 }
+      ],
+      "subtotal": 318.99,
+      "tax": 26.11,
+      "total": 345.10,
+      "currency": "USD",
+      "shippingMethod": "Standard (5-7 business days)",
+      "estimatedDelivery": "2026-08-10",
+      "status": "Shipped — in transit"
+    }
+  }
+}

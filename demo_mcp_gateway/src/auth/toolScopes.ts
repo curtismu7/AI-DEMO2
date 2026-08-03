@@ -73,22 +73,33 @@ export function evaluateScopeDecisionLocally(
  * `ActClientId` parameter: the actor identified in `act.sub` must be the
  * known, authorized service that performed the final RFC 8693 exchange.
  *
+ * Accepts the registered delegation CHAIN, not a single identity. The authored
+ * policy (`HasValidActorChain` in the P1AZ snapshot) is a disjunction over the
+ * exchanger, the AI Agent actor and each A2A specialist; comparing against the
+ * exchanger alone made this PEP stricter than the PDP it exists to mirror, and
+ * rejected the AI Agent actor that tool discovery legitimately presents.
+ *
  * Rules:
- *   - authorizedActorClientId is empty → skip (dev / no-actor mode) → valid
+ *   - allow-list empty → skip (dev / no-actor mode) → valid
  *   - actSub is empty/undefined → no delegation chain → valid (simple exchange)
- *   - actSub === authorizedActorClientId → authorized actor → valid
- *   - actSub !== authorizedActorClientId → unauthorized actor → invalid
+ *   - actSub is in the allow-list → authorized actor → valid
+ *   - otherwise → unauthorized actor → invalid
  */
 export function validateActClaim(
   actSub: string | undefined,
-  authorizedActorClientId: string,
+  authorizedActorClientId: string | readonly string[],
 ): { valid: boolean; reason?: string } {
-  if (!authorizedActorClientId) return { valid: true };
+  // A bare string is still accepted so existing callers and fixtures keep working.
+  const allowed = (Array.isArray(authorizedActorClientId)
+    ? authorizedActorClientId
+    : [authorizedActorClientId as string]
+  ).filter(Boolean);
+  if (!allowed.length) return { valid: true };
   if (!actSub) return { valid: true };
-  if (actSub === authorizedActorClientId) return { valid: true };
+  if (allowed.includes(actSub)) return { valid: true };
   return {
     valid: false,
-    reason: `act.sub "${actSub}" is not the authorized actor "${authorizedActorClientId}"`,
+    reason: `act.sub "${actSub}" is not an authorized actor (${allowed.join(', ')})`,
   };
 }
 

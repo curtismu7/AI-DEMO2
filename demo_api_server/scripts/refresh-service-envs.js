@@ -112,14 +112,48 @@ async function pingoneGet(token, region, envId, path_) {
 
 // ── Resolve apps and resources from PingOne ────────────────────────────────
 
-async function resolveAppsByName(token, region, envId, targetNames) {
-  // targetNames: { logicalKey: 'Exact PingOne App Name', ... }
+/**
+ * Resolve apps by STABLE IDENTITY first, display name second.
+ *
+ * targetNames:   { logicalKey: 'Exact PingOne App Name', ... }
+ * knownClientIds:{ logicalKey: '<clientId already in .env>', ... }
+ *
+ * Matching on the display name alone means renaming an app in the console makes
+ * this miss. It does not write garbage — callers fall back to the existing .env
+ * value — but that is arguably worse: the app is never re-resolved, so a rotated
+ * secret or a recreated app silently keeps STALE credentials, and the only
+ * symptom is auth failing somewhere far away.
+ *
+ * The clientId is already in .env from the previous run, so after first bootstrap
+ * there is a stable key available. Name matching stays for the genuine first run
+ * and warns when it is what actually resolved the app.
+ */
+async function resolveApps(token, region, envId, targetNames, knownClientIds = {}) {
   const data = await pingoneGet(token, region, envId, '/applications?limit=100');
   const apps = data._embedded?.applications || [];
   const result = {};
   for (const [key, name] of Object.entries(targetNames)) {
-    const app = apps.find(a => a.name === name);
-    if (app) result[key] = { id: app.id, clientId: app.clientId, name: app.name };
+    const known = (knownClientIds[key] || '').trim();
+    let app = known ? apps.find(a => a.clientId === known || a.id === known) : null;
+    let via = 'clientId';
+
+    if (!app && name) {
+      app = apps.find(a => a.name === name);
+      via = 'name';
+      if (app && known) {
+        // Found by name, but the clientId we had no longer exists — the app was
+        // recreated. Say so: every secret for it is about to change.
+        console.warn(
+          `[refresh-envs] ${key}: clientId ${known} no longer exists; matched "${name}" by NAME `
+          + `(new clientId ${app.clientId}). Credentials for this app have changed.`,
+        );
+      } else if (app && !known) {
+        console.log(`[refresh-envs] ${key}: first-run bootstrap, matched "${name}" by name.`);
+      }
+    }
+
+    if (app) result[key] = { id: app.id, clientId: app.clientId, name: app.name, via };
+    else if (name) console.warn(`[refresh-envs] ${key}: no app matched clientId ${known || '(none)'} or name "${name}".`);
   }
   return result;
 }
@@ -195,10 +229,25 @@ async function main() {
     worker:       appNames['Super Banking Worker'],
   };
 
+  // The clientIds the previous run already wrote. These are the stable key —
+  // a console rename moves the display name but never the clientId.
+  const KNOWN_CLIENT_IDS = {
+    mcpGateway:     apiVars.PINGONE_MCP_GATEWAY_CLIENT_ID,
+    mcpExchanger:   apiVars.PINGONE_TOKEN_EXCHANGER_CLIENT_ID,
+    step9Exchanger: apiVars.PINGONE_MCP_EXCHANGER_CLIENT_ID,
+    aiAgent:        apiVars.PINGONE_AI_AGENT_ACTOR_CLIENT_ID,
+    agent:          apiVars.AGENT_CLIENT_ID,
+    worker:         apiVars.PINGONE_WORKER_CLIENT_ID,
+  };
+
   let apps;
   try {
-    apps = await resolveAppsByName(token, region, envId, APP_TARGETS);
-    console.log(`[refresh-envs] Resolved ${Object.keys(apps).length}/${Object.keys(APP_TARGETS).length} apps from PingOne.`);
+    apps = await resolveApps(token, region, envId, APP_TARGETS, KNOWN_CLIENT_IDS);
+    const byName = Object.values(apps).filter((a) => a.via === 'name').length;
+    console.log(
+      `[refresh-envs] Resolved ${Object.keys(apps).length}/${Object.keys(APP_TARGETS).length} apps from PingOne`
+      + (byName ? ` (${byName} by display name — see warnings above).` : ' (all by clientId).'),
+    );
   } catch (err) {
     console.warn(`[refresh-envs] WARNING: Could not resolve apps from PingOne: ${err.message}`);
     console.warn('[refresh-envs] Services will start with existing .env files.');
@@ -409,15 +458,15 @@ async function main() {
   });
   console.log('[refresh-envs] Wrote openai_agent/.env');
 
-  // ── demo_mcp_invest/.env ──────────────────────────────────────────────────
-  writeEnvFile(path.join(ROOT, 'demo_mcp_invest', '.env'), {
+  // ── demo_mcp_resource_server/.env ──────────────────────────────────────────────────
+  writeEnvFile(path.join(ROOT, 'demo_mcp_resource_server', '.env'), {
     ...shared,
     PINGONE_TOKEN_ENDPOINT:      `${asBase}/token`,
     PINGONE_AUTHORIZATION_ENDPOINT: `${asBase}/authorize`,
     MCP_SERVER_RESOURCE_URI:     fb('PINGONE_RESOURCE_MCP_SERVER_URI') || fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo',
-    MCP_INVEST_AUDIENCE:         fb('MCP_INVEST_AUDIENCE') || 'mcp-invest.ping.demo',
+    MCP_RESOURCE_SERVER_AUDIENCE:         fb('MCP_RESOURCE_SERVER_AUDIENCE') || 'mcp-resource-server.ping.demo',
   });
-  console.log('[refresh-envs] Wrote demo_mcp_invest/.env');
+  console.log('[refresh-envs] Wrote demo_mcp_resource_server/.env');
 
   // ── demo_hitl_service/.env ────────────────────────────────────────────────
   const hitlAllowedOrigins = [
@@ -469,9 +518,9 @@ async function main() {
   const mcpServerAud = topology.resources?.['Super Banking MCP Server']?.uri
     || fb('MCP_SERVER_RESOURCE_URI')
     || 'mcpserver.ping.demo';
-  const mcpInvestAud = topology.resources?.['Super Banking MCP Invest']?.uri
-    || fb('MCP_INVEST_RESOURCE_URI')
-    || 'mcp-invest.ping.demo';
+  const mcpResourceServerAud = topology.resources?.['Super Banking MCP Invest']?.uri
+    || fb('MCP_RESOURCE_SERVER_RESOURCE_URI')
+    || 'mcp-resource-server.ping.demo';
   const mcpGatewayAud = topology.resources?.['Super Banking MCP Gateway']?.uri
     || fb('MCP_GW_RESOURCE_URI')
     || 'mcpgateway.ping.demo';
@@ -504,11 +553,11 @@ async function main() {
     // (or a 200 with the wrong aud). Must include `write` or write tools
     // 502 with "Insufficient scope".
     PG_OLB_SCOPE:                   'read write',
-    PG_INVEST_RESOURCE_URI:         mcpInvestAud,
+    PG_MCP_RESOURCE_SERVER_URI:         mcpResourceServerAud,
     // Same single-resource rule: invest resource mirrored/native scopes only.
     PG_INVEST_SCOPE:                'invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
-    PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
+    PG_INVEST_BACKEND_URL:          'http://mcp-resource-server:8081',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     // Intent Token verification in scripts/groovy/p1az-decision.groovy resolves
     // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the
@@ -519,7 +568,16 @@ async function main() {
     // whichever one is actually configured.
     INTENT_TOKEN_SECRET:            fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
-    PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
+    PG_API_RESOURCE_SERVER_URL:        'http://api-resource-server:8082',
+    // HITL is enforced at this gateway now: p1az-decision.groovy turns a PingOne
+    // Authorize INDETERMINATE into a minted challenge + 428, and verifies the
+    // receipt on retry. Both must come from here rather than compose, for the
+    // same reason BFF_INTERNAL_SECRET does — the secret has to be the SAME value
+    // the HITL service and the BFF hold, and a compose `environment:` default
+    // would override env_file with a wrong one. Without them the filter fails
+    // closed (503), never open.
+    HITL_INTERNAL_SECRET:           fb('HITL_INTERNAL_SECRET'),
+    HITL_SERVICE_URL:               'http://hitl-service:3009',
     // PingGateway Groovy P1AZ filter — mirrors BFF PingOne Authorize (real backend).
     // P1AZ_DECISION_ENDPOINT_ID is the MCP decision endpoint (same as
     // authorize_mcp_decision_endpoint_id). It is NOT a worker — the worker is
@@ -550,12 +608,12 @@ async function main() {
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
-  // ── demo_mortgage_service/.env ────────────────────────────────────────────
-  const mortgageKey = fb('DEMO_MORTGAGE_SERVICE_KEY') || 'demo-mortgage-key-0000';
-  writeEnvFile(path.join(ROOT, 'demo_mortgage_service', '.env'), {
-    MORTGAGE_SERVICE_API_KEY: mortgageKey,
+  // ── demo_api_resource_server/.env ────────────────────────────────────────────
+  const mortgageKey = fb('DEMO_API_RESOURCE_SERVER_KEY') || 'demo-mortgage-key-0000';
+  writeEnvFile(path.join(ROOT, 'demo_api_resource_server', '.env'), {
+    API_RESOURCE_SERVER_API_KEY: mortgageKey,
   });
-  console.log('[refresh-envs] Wrote demo_mortgage_service/.env');
+  console.log('[refresh-envs] Wrote demo_api_resource_server/.env');
 
   console.log('[refresh-envs] All service .env files refreshed from PingOne.');
 }

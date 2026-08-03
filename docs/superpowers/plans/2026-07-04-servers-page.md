@@ -111,9 +111,9 @@ const SERVER_INVENTORY = [
     purpose: 'The demo web app, served over HTTPS.',
   },
   {
-    key: 'mortgage-service', name: 'Mortgage Service', container: 'ai-demo-mortgage-service',
+    key: 'api-resource-server', name: 'Mortgage Service', container: 'ai-demo-api-resource-server',
     hostPort: 8082, internalPort: 8082, lang: 'Node', category: 'core', probe: true,
-    candidates: candidates(env('MORTGAGE_SERVICE_URL'), 'http://mortgage-service:8082', 'http://localhost:8082'),
+    candidates: candidates(env('API_RESOURCE_SERVER_URL'), 'http://api-resource-server:8082', 'http://localhost:8082'),
     purpose: 'Mock mortgage backend/business API.',
   },
   {
@@ -123,16 +123,16 @@ const SERVER_INVENTORY = [
     purpose: 'Primary MCP server — online-banking tools over WebSocket.',
   },
   {
-    key: 'mcp-invest', name: 'MCP Invest', container: 'ai-demo-mcp-invest',
+    key: 'mcp-resource-server', name: 'MCP Invest', container: 'ai-demo-mcp-resource-server',
     hostPort: 8081, internalPort: 8081, lang: 'Node/TS', category: 'mcp', probe: true,
-    candidates: candidates(normalizeWs(env('MCP_INVEST_WS_URL')), 'http://mcp-invest:8081', 'http://localhost:8081'),
+    candidates: candidates(normalizeWs(env('MCP_RESOURCE_SERVER_WS_URL')), 'http://mcp-resource-server:8081', 'http://localhost:8081'),
     purpose: 'Second MCP server exposing investment tools.',
   },
   {
     key: 'mcp-gateway', name: 'MCP Gateway (custom)', container: 'ai-demo-mcp-gateway',
     hostPort: 3005, internalPort: 3005, lang: 'Node/TS', category: 'mcp', probe: true,
     candidates: candidates(env('MCP_GATEWAY_HTTP_URL'), 'http://mcp-gateway:3005', 'http://localhost:3005'),
-    purpose: 'Auth-enforcing MCP gateway — routes to mcp-server/mcp-invest, PingAuthorize introspection.',
+    purpose: 'Auth-enforcing MCP gateway — routes to mcp-server/mcp-resource-server, PingAuthorize introspection.',
   },
   {
     key: 'ping-gateway', name: 'PingGateway (IG)', container: 'ai-demo-ping-gateway',

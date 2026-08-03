@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
+import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
@@ -102,6 +103,14 @@ export function IntentBindingLearningPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <IntentBindingLearningPage />
+    </AppShell>
+  );
+}
+
+export function PrivilegeMcpLearningPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PrivilegeMcpLearningPage />
     </AppShell>
   );
 }

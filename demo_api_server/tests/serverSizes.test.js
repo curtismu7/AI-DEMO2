@@ -44,7 +44,7 @@ describe('serverSizes', () => {
 
   test('entries whose container is unknown to docker get null image/memory but real code size', async () => {
     const { sizes } = await getServerSizes();
-    const mortgage = sizes['mortgage-service']; // not in the mocked container list
+    const mortgage = sizes['api-resource-server']; // not in the mocked container list
     expect(mortgage.imageBytes).toBeNull();
     expect(mortgage.memBytes).toBeNull();
     expect(mortgage.codeBytes).toBe(1234);

@@ -64,8 +64,8 @@ TIER 2 — Core backend
 
 TIER 3 — Dependent services (+ UI launched in parallel)
   ├── demo_agent_service    :3006
-  ├── demo_mcp_invest       :8081
-  ├── demo_mortgage_service :8082
+  ├── demo_mcp_resource_server       :8081
+  ├── demo_api_resource_server :8082
   └── demo_api_ui           :4000  (launched at Tier 2 gate; CRA is slow)
       wait_for_health :3006 /health  timeout=15s
       wait_for_health :8081 /health  timeout=15s
@@ -146,7 +146,7 @@ Move all `ensure_service_env` calls into a single pass after the dependency/buil
 ```bash
 # Pre-launch: ensure all service .envs are in place before any process starts
 for svc in demo_mcp_server demo_mcp_gateway demo_hitl_service \
-           demo_agent_service demo_mcp_invest; do
+           demo_agent_service demo_mcp_resource_server; do
   [[ -d "$BASEDIR/$svc" ]] && ensure_service_env "$svc"
 done
 ```
@@ -162,8 +162,8 @@ Every service must implement all four. Current gaps and required changes:
 | Service | Gap | Fix |
 |---------|-----|-----|
 | `demo_hitl_service` | No validation; CORS wildcard if `HITL_ALLOWED_ORIGINS` empty | Add startup check: warn if origins empty, validate PORT is numeric |
-| `demo_mcp_invest` | No validation; silently uses defaults for `RESOURCE_URI` | Add check: warn if `PINGONE_RESOURCE_MCP_SERVER_URI` unset |
-| `demo_mortgage_service` | Uses `demo-mortgage-key-0000` hardcoded default | Add warn if `MORTGAGE_SERVICE_API_KEY` equals the default |
+| `demo_mcp_resource_server` | No validation; silently uses defaults for `RESOURCE_URI` | Add check: warn if `PINGONE_RESOURCE_MCP_SERVER_URI` unset |
+| `demo_api_resource_server` | Uses `demo-mortgage-key-0000` hardcoded default | Add warn if `API_RESOURCE_SERVER_API_KEY` equals the default |
 
 Services already compliant: `demo_api_server`, `demo_mcp_server`, `demo_mcp_gateway`, `demo_agent_service`, `langchain_agent`.
 
@@ -192,9 +192,9 @@ process.on('SIGINT',  () => shutdown('SIGINT'));
 |---------|-----|-----|
 | `demo_agent_service` | `process.exit(0)` — no drain | Add `server.close()` + 5s timeout drain |
 | `demo_hitl_service` | `process.exit(0)` — no drain | Add `server.close()` + 5s timeout drain |
-| `demo_mortgage_service` | No shutdown handler at all | Add SIGTERM/SIGINT + `server.close()` + 5s drain |
+| `demo_api_resource_server` | No shutdown handler at all | Add SIGTERM/SIGINT + `server.close()` + 5s drain |
 
-Services already compliant: `demo_api_server`, `demo_mcp_server`, `demo_mcp_gateway`, `demo_mcp_invest`, `langchain_agent`.
+Services already compliant: `demo_api_server`, `demo_mcp_server`, `demo_mcp_gateway`, `demo_mcp_resource_server`, `langchain_agent`.
 
 ### Standard 3: Health Endpoint Quality
 
@@ -215,9 +215,9 @@ Standard response shape:
 | `demo_mcp_server` | No `/health` HTTP endpoint | Add `GET /health` on HTTP server |
 | `demo_hitl_service` | Returns `{status:'ok'}` only | Add `uptime`, `checks.env` |
 | `demo_agent_service` | Returns `{status:'ok'}` only | Add `uptime`, `checks.env` |
-| `demo_mcp_invest` | Returns `{status:'ok', resourceUri}` | Add `uptime` |
+| `demo_mcp_resource_server` | Returns `{status:'ok', resourceUri}` | Add `uptime` |
 
-Services already sufficient: `demo_api_server`, `demo_mcp_gateway`, `demo_mortgage_service`, `langchain_agent`.
+Services already sufficient: `demo_api_server`, `demo_mcp_gateway`, `demo_api_resource_server`, `langchain_agent`.
 
 ### Standard 4: Startup-Ready Log Signal
 
@@ -225,13 +225,13 @@ Each service emits a single clear line after full initialization (after port bin
 
 ```
 [demo-hitl-service] Ready on :3009
-[demo-mortgage-service] Ready on :8082
+[demo-api-resource-server] Ready on :8082
 ```
 
 | Service | Gap | Fix |
 |---------|-----|-----|
 | `demo_hitl_service` | Node default `Listening` only | Replace with structured ready log |
-| `demo_mortgage_service` | Node default `Listening` only | Replace with structured ready log |
+| `demo_api_resource_server` | Node default `Listening` only | Replace with structured ready log |
 
 ---
 
@@ -251,7 +251,7 @@ After implementation, verify by:
 1. `./run.sh` — all services start, status table shows all healthy
 2. Kill `demo_api_server` mid-startup (SIGKILL after port opens, before `/api/healthz` 200) — should see log tail printed, Tier 2 still attempts startup
 3. Start with `HITL_ALLOWED_ORIGINS` unset — should see startup warning in HITL log, not a silent CORS wildcard
-4. Start with `MORTGAGE_SERVICE_API_KEY` unset — should see warning about default key
+4. Start with `API_RESOURCE_SERVER_API_KEY` unset — should see warning about default key
 5. `./run.sh stop` then `./run.sh start` — no PID or port conflicts, clean restart
 6. `./run.sh status` — health column shows correct state for each service
 
@@ -263,8 +263,8 @@ After implementation, verify by:
 |------|--------|
 | `run.sh` | Add `wait_for_health`, `_health_timeout_report`; tiered launch sequence; pre-launch env pass; updated `print_status_table` with health column |
 | `demo_hitl_service/src/index.js` | Env validation, graceful shutdown drain, richer `/health`, structured ready log |
-| `demo_mortgage_service/server.js` | Env validation (API key default warn), graceful shutdown, structured ready log |
-| `demo_mcp_invest/src/index.ts` | Env validation (`RESOURCE_URI` warn), add `uptime` to `/health` |
+| `demo_api_resource_server/server.js` | Env validation (API key default warn), graceful shutdown, structured ready log |
+| `demo_mcp_resource_server/src/index.ts` | Env validation (`RESOURCE_URI` warn), add `uptime` to `/health` |
 | `demo_agent_service/src/index.ts` | Graceful shutdown drain (server.close + 5s), add `uptime`/`checks` to `/health` |
 | `demo_mcp_server/src/index.ts` | Add HTTP `/health` endpoint alongside WebSocket server |
 

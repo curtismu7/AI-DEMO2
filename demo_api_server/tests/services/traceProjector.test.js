@@ -96,7 +96,7 @@ describe('traceProjector.project', () => {
     expect(card.icon).toBe('shield');
   });
 
-  test('backend api: anchors on mcp-server / mcp-invest server spans', () => {
+  test('backend api: anchors on mcp-server / mcp-resource-server server spans', () => {
     const out = project(makeTrace([
       { service: 'mcp-server', op: 'POST /mcp', tags: { 'http.status_code': 200, 'span.kind': 'server' } },
     ]));

@@ -25,9 +25,9 @@ Evaluates EVERY tool call:
 ↓
 PERMIT · DENY · INDETERMINATE" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="880" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="MCPServer" value="demo_mcp_server
 MCP protocol · WebSocket :8080
-tools/list · tools/call" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1160" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="MCPInvest" value="demo_mcp_invest
+tools/list · tools/call" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1160" y="180" width="220" height="90" as="geometry"/></mxCell><mxCell id="MCPInvest" value="demo_mcp_resource_server
 Investment MCP server :8081
-(WebSocket + HTTP)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="Mortgage" value="demo_mortgage_service
+(WebSocket + HTTP)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="40" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="Mortgage" value="demo_api_resource_server
 Phase 266 Path A backend :8082
 X-API-Key gated" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="320" y="320" width="220" height="90" as="geometry"/></mxCell><mxCell id="LangChain" value="langchain_agent
 Python uvicorn :8888
@@ -56,7 +56,7 @@ POST /token  GET /healthz" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fil
 Accepts: downscoped MCP token
 Verifies: RFC 7662 introspect
 Pattern: standard OAuth 2.0" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a5f;fontSize=11;" vertex="1" parent="1"><mxGeometry x="80" y="690" width="220" height="90" as="geometry"/></mxCell><mxCell id="APIKeyRS" value="API-key backend
-(demo_mortgage_service :8082 — LIVE)
+(demo_api_resource_server :8082 — LIVE)
 
 Accepts: X-API-Key + X-User-Sub
 Verifies: constant-time shared-secret

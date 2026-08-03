@@ -35,6 +35,26 @@
     "highValueAction": "Work Order Release",
     "highValueLabel": "Release a work order to the production floor"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Manufacturing_Privileged",
+        "description": "Users permitted to access sensitive supplier contracts (UC9)"
+      },
+      "delegates": {
+        "name": "Manufacturing_Delegates",
+        "description": "Users authorized as delegated operations agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_supplier_contract": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Gauge",
     "greeting": "Hi {name}! I'm Gauge. I can show your work orders and on-hand inventory, review production history, schedule a run, and release a work order to the floor — I'll walk you through the approval steps. What do you need?",
@@ -65,7 +85,7 @@
       { "id": "mf5", "label": "🔑 Release order", "message": "release my work order", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "release_work_order", "useCaseId": "step-up-required" },
       { "id": "mf-feature", "label": "Work order status", "message": "show work order status", "mode": "both", "tool": "show_work_order", "useCaseId": "delegated-access-with-proof" },
       { "id": "mf-a2a", "label": "Sensitive supplier contract", "message": "access my sensitive supplier contract", "mode": "both", "challenge": "consent", "tool": "sensitive_supplier_contract", "useCaseId": "a2a-delegation", "group": "advanced" },
-      { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm" },
+      { "id": "mf6", "label": "Overdue orders", "message": "which work orders are overdue", "mode": "llm", "tool": "view_work_orders" },
       { "id": "mf-direct", "label": "Direct MCP", "message": "get my work orders", "mode": "direct", "tool": "view_work_orders" }
     ],
     "securityShowcase": {

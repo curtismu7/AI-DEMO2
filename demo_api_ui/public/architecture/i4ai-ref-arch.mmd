@@ -1,5 +1,5 @@
 %% Phase 266 R2 (2026-05-11): Three credential dispositions at the Agent Gateway.
-%% Path A (api_key): scope gate (banking:mortgage:read), OAuth bearer dropped; X-API-Key + X-User-Sub injected; calls demo_mortgage_service :8082 (Phase 267).
+%% Path A (api_key): scope gate (banking:mortgage:read), OAuth bearer dropped; X-API-Key + X-User-Sub injected; calls demo_api_resource_server :8082 (Phase 267).
 %% Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity — RFC 8693 + RFC 8707 + OIDC Core ss3.1.3.7.
 %% Path C (oauth_bearer): RFC 8693 exchange; Bearer (new aud) forwarded to banking_resource_server /accounts /transactions (SQLite-backed).
 %% banking_resource_server serves both Path B and Path C at different routes with the same authenticateToken middleware.
@@ -16,7 +16,7 @@ sequenceDiagram
     participant PA as Ping Authorize
     participant HITL as HITL Service (demo_hitl_service)
     participant MCP as MCP OLB (demo_mcp_server)
-    participant INV as MCP Invest (demo_mcp_invest)
+    participant INV as MCP Invest (demo_mcp_resource_server)
     participant RS as Resource Server (OAuth 2.1)
 
     Note over A: Agent = BFF in-process LangGraph agent, default, /api/banking-agent.<br/>demo_agent_service port 3006 and langchain_agent port 8888 are optional alternatives.
@@ -93,7 +93,7 @@ sequenceDiagram
     end
     Note over AG,PID: Phase 266 R2 — Gateway credential disposition branches
     Note over AG: Three paths diverge here based on tool disposition:
-    Note over AG: Path A (api_key): Bearer dropped, X-API-Key and X-User-Sub injected — Gateway calls demo_mortgage_service port 8082
+    Note over AG: Path A (api_key): Bearer dropped, X-API-Key and X-User-Sub injected — Gateway calls demo_api_resource_server port 8082
     Note over AG: Path B (dual_token): Bearer + id_token forwarded to banking_resource_server /identity
     Note over AG: Path C (oauth_bearer): RFC 8693 exchange — Bearer (new aud) to banking_resource_server /accounts /transactions
 
@@ -107,8 +107,8 @@ sequenceDiagram
         AG->>RS: "GET /api/resource-server/accounts (exchanged Bearer)"
         Note over RS: banking_resource_server: bearer validated, SQLite query via bankingDb.getAccountsByUserId
         RS-->>AG: "200 OK: accounts (banking-resource-server.db)"
-    else Path A: api_key — API-KEY PATH (demo_mortgage_service)
-        Note over AG: banking-mortgage-read scope enforced, OAuth bearer dropped, X-API-Key and X-User-Sub injected, Gateway calls demo_mortgage_service port 8082 — Phase 267, no user token
+    else Path A: api_key — API-KEY PATH (demo_api_resource_server)
+        Note over AG: banking-mortgage-read scope enforced, OAuth bearer dropped, X-API-Key and X-User-Sub injected, Gateway calls demo_api_resource_server port 8082 — Phase 267, no user token
     end
 
     Note over AG,PID: Exchange token for MCP (standard path continues below)

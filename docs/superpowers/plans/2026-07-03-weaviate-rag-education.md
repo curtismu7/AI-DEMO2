@@ -517,7 +517,11 @@ WEAVIATE_LOG_LEVEL=warning
 The `weaviate-data` volume may hold a Raft state dir under the *old* auto-generated node name. If, after Step 5, the container logs a Raft node-id mismatch or fails to become leader, the volume must be reset (it only holds re-indexable code-search vectors — nothing authoritative):
 
 ```bash
-docker compose stop weaviate && docker volume rm ai-demo2_weaviate-data 2>/dev/null || true
+# ai-demo_ prefix, NOT ai-demo2_ — docker-compose.yml sets `name: ai-demo`, so
+# Compose does not use the directory name. BOTH volumes exist on this machine
+# (ai-demo2_weaviate-data is a pre-`name:` leftover), so the old command deleted
+# the stale one, left the live data untouched, and looked like it had worked.
+docker compose stop weaviate && docker volume rm ai-demo_weaviate-data
 ```
 
 Do NOT run this unless the restart in Step 5 fails to converge. Call it out to the user before doing it.

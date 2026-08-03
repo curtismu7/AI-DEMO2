@@ -77,7 +77,12 @@ export class GatewayTokenPolicy {
       // validates NestedActClientId + depth; the exchanger-only allow-list would
       // otherwise reject every specialist actor and kill UC2 / UC2.5.
       if (actChainDepth(decoded.act) < 2) {
-        const actorCheck = validateActClaim(actSub, config.authorizedActorClientId ?? '');
+        // Prefer the full registered chain; fall back to the single exchanger id
+        // for configs (and fixtures) that predate authorizedActorClientIds.
+        const authorizedActors = config.authorizedActorClientIds?.length
+          ? config.authorizedActorClientIds
+          : (config.authorizedActorClientId ?? '');
+        const actorCheck = validateActClaim(actSub, authorizedActors);
         if (!actorCheck.valid) {
           throw new GatewayTokenPolicyError(
             `Unauthorized delegation actor: ${actorCheck.reason}`,
@@ -125,7 +130,7 @@ export class GatewayTokenPolicy {
     const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
     const upstreamAuds = [
       config.mcpOlbResourceUri,
-      config.mcpInvestResourceUri,
+      config.mcpResourceServerResourceUri,
       config.bankingResourceServerResourceUri,
     ].filter((a) => a && a !== config.gatewayResourceUri);
     for (const ua of upstreamAuds) {

@@ -1088,8 +1088,8 @@ app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecu
 app.use('/api/demo-agent', demoAgentNlRoutes);
 // Authenticated agent routes: /init, /message, /consent — require OAuth session.
 app.use('/api/demo-agent', transactionTurnMiddleware, demoAgentRoutes);
-// Admin agent: isolated stack for administrative operations
-app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
+// Admin agent: PingOne MCP explorer — any authenticated user
+app.use('/api/admin-agent', authenticateToken, adminAgentRoutes);
 app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
@@ -1135,6 +1135,9 @@ app.use('/api/mcp/inspector', mcpInspectorRoutes);
 app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
+// Minimal machine-to-machine sibling of the above: client_credentials token in,
+// MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
+app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));
 // MCP Gateway Config — status + generated PingGateway mcp.json (open to any authenticated session)
 app.use('/api/admin/mcp-gateway', mcpGatewayConfigRouter);
 // User-accessible alias — mirrors /api/admin/mcp-gateway/* for enduser sessions
@@ -1335,7 +1338,11 @@ app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // accessibility of its Telemetry sibling (the Tracing page).
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
-app.use('/api/api-calls', apiCallTrackerRoutes);
+// The tracker dual-writes every /api/* call into a shared __global__ bucket that
+// this router serves by default, so an unguarded mount published one user's
+// request bodies to anyone who could reach the port. Any logged-in user, matching
+// its Telemetry/Tracing siblings above.
+app.use('/api/api-calls', authenticateToken, apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
 app.use('/api/verticals', authenticateToken, verticalManifestRoutes);
 app.use('/api/groups', authenticateToken, groupMembershipRoutes);

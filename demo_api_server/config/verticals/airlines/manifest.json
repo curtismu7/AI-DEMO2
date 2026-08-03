@@ -1,0 +1,133 @@
+{
+  "id": "airlines",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "United Airlines",
+    "headerTitle": "United Airlines",
+    "documentTitle": "United Airlines · PingOne AI IAM Core",
+    "logoAlt": "United Airlines logo",
+    "tagline": "Good Leads The Way"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#002244",
+      "--app-primary-red-hover": "#001731",
+      "--app-primary-red-mid": "#1414D2",
+      "--app-primary-red-border": "#001731",
+      "--brand-dashboard-header-start": "#002244",
+      "--brand-dashboard-header-end": "#1414D2",
+      "--brand-app-shell-hero-start": "#002244",
+      "--brand-app-shell-hero-end": "#1414D2",
+      "--theme-accent": "#1414D2",
+      "--brand-dashboard-header-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "Reservation",
+    "accounts": "Reservations",
+    "accountTypes": ["Economy", "Economy Plus", "United First", "United Polaris"],
+    "transaction": "Flight",
+    "transactions": "Flights",
+    "transactionTypes": ["Booking", "Seat Change", "Bag Added", "Cancellation"],
+    "balance": "MileagePlus Balance",
+    "agent": "Travel Agent",
+    "dashboard": "My Trips",
+    "highValueAction": "Cancel Reservation",
+    "highValueLabel": "Cancel a reservation and process a refund"
+  },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Airlines_Privileged",
+        "description": "Passengers permitted to access sensitive reservation details (UC9)"
+      },
+      "delegates": {
+        "name": "Airlines_Delegates",
+        "description": "Users authorized as delegated travel agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_airline_bookings": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
+  "agent": {
+    "persona": "Skyline",
+    "greeting": "Hi {name}! I'm Skyline, your United travel agent. I can pull up your reservations, check a flight's status and gate, and show you the seat map. What would you like to look at?",
+    "systemPromptFlavor": "You are Skyline, a United Airlines travel agent. Help passengers view their reservations, check flight status and gate information, and see seat availability. Use airline language: accounts are reservations, transactions are flights, balance is the MileagePlus balance. Be concise and factual — every answer comes from the airline's reservation system, so never invent a flight, seat, or confirmation number."
+  },
+  "dashboard": {
+    "kind": "airlines",
+    "chips": [
+      { "key": "balance", "label": "MileagePlus Balance" },
+      { "key": "accounts", "label": "My Reservations" },
+      { "key": "transactions", "label": "My Flights" }
+    ],
+    "chips10": [
+      {
+        "id": "ua1",
+        "label": "My reservations",
+        "message": "show my reservations",
+        "mode": "both",
+        "tool": "get_airline_bookings",
+        "useCaseId": "delegated-access-with-proof"
+      },
+      {
+        "id": "ua5",
+        "label": "🔑 Cancel a reservation",
+        "message": "cancel my reservation and refund it",
+        "mode": "both",
+        "challenge": "step_up",
+        "tool": "cancel_airline_reservation",
+        "useCaseId": "step-up-required",
+        "group": "advanced"
+      },
+      {
+        "id": "ua-a2a",
+        "label": "🔐 Sensitive reservations",
+        "message": "access my sensitive airline bookings",
+        "mode": "both",
+        "challenge": "consent",
+        "tool": "sensitive_airline_bookings",
+        "useCaseId": "a2a-delegation",
+        "group": "advanced"
+      },
+      {
+        "id": "ua2",
+        "label": "Flight status",
+        "message": "what is the status of flight UA328",
+        "mode": "both",
+        "tool": "get_flight_status",
+        "useCaseId": "delegated-access-with-proof"
+      },
+      {
+        "id": "ua3",
+        "label": "Available seats",
+        "message": "show available seats on flight UA328",
+        "mode": "both",
+        "tool": "check_seat_availability",
+        "useCaseId": "delegated-access-with-proof"
+      }
+    ]
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer",
+    "featureScope": "airlines:read"
+  },
+  "demoUsers": {
+    "customer": {
+      "hint": "demoUser",
+      "passwordHint": "Tigers7&"
+    },
+    "admin": {
+      "hint": "demoAdmin",
+      "passwordHint": "Tigers7&"
+    }
+  }
+}

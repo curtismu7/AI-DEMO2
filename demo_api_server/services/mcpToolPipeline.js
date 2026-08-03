@@ -3,6 +3,7 @@
 const { HITL_CHALLENGE_ARG } = require('./hitlServiceClient');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
+const { resolveStepUpMethod } = require('./mcpToolAuthorizationService');
 const _CAT = LOG_CATEGORIES.MCP_TOOL_PIPELINE;
 
 /**
@@ -15,13 +16,12 @@ function resolveAuditUserId(req, userSub) {
 }
 
 /**
- * The Transaction/Amount secondary decision is either a real live PingOne
- * Transaction-endpoint decision (`source: 'transaction-policy'`) or a LOCAL
- * amount-ladder decision synthesized by mcpToolAuthorizationService.js's
- * `_localAmountLimitFallback` when that endpoint errored/was unreachable
- * (`source: 'transaction-policy-fallback'`) — never a PingOne decision.
- * Label the card's engine accordingly so it never claims PingOne decided
- * something it never saw.
+ * The Transaction/Amount secondary decision is a real live PingOne
+ * Transaction-endpoint decision (`source: 'transaction-policy'`). The local
+ * amount-ladder that used to synthesize one when that endpoint was unreachable
+ * (`source: 'transaction-policy-fallback'`) is gone — that path now fails closed.
+ * The fallback label is still recognised here so a Token Chain card replayed
+ * from an older audit record is not relabelled as a PingOne decision.
  */
 function secondaryEvaluationEngine(secondaryEvaluation) {
   return secondaryEvaluation && secondaryEvaluation.source === 'transaction-policy-fallback'
@@ -363,11 +363,28 @@ async function runMcpToolPipeline(ctx) {
     // PingOne Authorize (or simulated) on every MCP tool call — docs/PINGONE_AUTHORIZE_PLAN.md §7
     /** @type {object|undefined} */
     let mcpAuthorizeEvaluationThisRequest;
-    // A2A specialist calls (suppliedToken + skipBffAuthorize): the gateway runs
-    // its own PingOne Authorize on the nested-act token. Skip the BFF pre-flight
-    // to avoid redundant denials from a policy that doesn't cover specialist tools.
-    if (ctx.skipBffAuthorize) {
-        deps.emit({ phase: 'authorize_gate_skipped', reason: 'a2a_supplied_token' });
+    // Two reasons the BFF does not pre-flight the decision itself:
+    //
+    //   a2a_supplied_token   — A2A specialist calls (suppliedToken + skipBffAuthorize):
+    //                          the gateway runs its own PingOne Authorize on the
+    //                          nested-act token, and the BFF's policy doesn't cover
+    //                          specialist tools.
+    //   gateway_authoritative — the call is routed through the agent gateway, which
+    //                          calls PingOne Authorize itself and returns 403 / 428
+    //                          (step-up or HITL) on its own. The BFF forwards the
+    //                          request and relays the answer. Pre-flighting here as
+    //                          well made the BFF the de-facto decision point: its
+    //                          block returned before the gateway was ever called, so
+    //                          the gateway's PDP call was dead code for gated tools.
+    //
+    // This deliberately does NOT skip when the tool executes locally (no gateway) —
+    // there is no other PEP on that path, and skipping would be fail-open.
+    // `_hitl_challenge_id` is likewise left in `params` here on purpose: the gateway
+    // verifies and strips it, so the BFF must not consume it first.
+    const gatewayAuthoritative = !!useGateway;
+    if (ctx.skipBffAuthorize || gatewayAuthoritative) {
+        const skipReason = ctx.skipBffAuthorize ? 'a2a_supplied_token' : 'gateway_authoritative';
+        deps.emit({ phase: 'authorize_gate_skipped', reason: skipReason });
         // Contract C4 — omission is not permission. The SSE phase alone left the
         // RESPONSE BODY byte-identical to a run where the gate PERMITted, so a
         // caller reading the response could not tell the two apart. The other
@@ -375,7 +392,7 @@ async function runMcpToolPipeline(ctx) {
         mcpAuthorizeEvaluationThisRequest = {
             ran: false,
             skipped: true,
-            skipReason: 'a2a_supplied_token',
+            skipReason,
             decisionContext: 'McpFirstTool',
             ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
             ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
@@ -803,7 +820,7 @@ async function runMcpToolPipeline(ctx) {
             // switched the global vertical. Still server-resolved: activeIdFor only
             // returns a vertical this session legitimately selected, falling back to
             // the global otherwise.
-            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
+            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
@@ -1092,6 +1109,70 @@ async function runMcpToolPipeline(ctx) {
         }
         return { kind: 'result', httpStatus: 200, tokenEvents, body: out };
     } catch (err) {
+        // HTTP 428 Precondition Required: the gateway's PDP asked for step-up
+        // MFA. Relayed in the SAME envelope the BFF's own gate used to emit
+        // (`mcp_step_up_required` + `step_up_method`) so the agent's existing
+        // single step-up handler works regardless of which layer decided.
+        // `step_up_method` stays a BFF concern: the per-use-case method lives in
+        // the use-case catalog, which the gateway has no knowledge of.
+        if (err.gatewayErrorCode === 'step_up_required') {
+            deps.emit({ phase: 'gateway_step_up_required' });
+            const stepUpBody = {
+                error: 'mcp_step_up_required',
+                error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
+                tool,
+                step_up_method: resolveStepUpMethod(ctx.useCaseId),
+                tokenEvents,
+                requestJson,
+            };
+            try {
+                const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: { error: 'mcp_step_up_required', message: stepUpBody.error_description },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                    mcpAuthorizeEvaluation: _authEval?.singular || null,
+                    mcpAuthorizeEvaluations: _authEval?.plural || null,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 428, tokenEvents, body: stepUpBody };
+        }
+
+        // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
+        if (err.gatewayErrorCode === 'hitl_required') {
+            deps.emit({ phase: 'gateway_hitl_required' });
+            const hitlBody = {
+                error: 'hitl_required',
+                tool,
+                message: 'Transaction requires human approval (HITL consent)',
+                // The agent retries by echoing this id back as
+                // `_hitl_challenge_id`; without it on the body the consent modal
+                // has nothing to send and the approval can never be spent.
+                hitl: true,
+                challengeId: err.rpcData?.challengeId || null,
+                challenge_type: err.rpcData?.challenge_type || 'consent',
+                tokenEvents,
+                requestJson,
+            };
+            try {
+                const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: { error: 'hitl_required', message: hitlBody.message },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                    mcpAuthorizeEvaluation: _authEval?.singular || null,
+                    mcpAuthorizeEvaluations: _authEval?.plural || null,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 428, tokenEvents, body: hitlBody };
+        }
+
         // Scope denial: MCP server returned -32005 (valid token, wrong scope).
         // Return 403 — do NOT fall back to the local tool handler.
         if (err.code === 'mcp_insufficient_scope') {
@@ -1196,32 +1277,6 @@ async function runMcpToolPipeline(ctx) {
                         route: denyTrail.policy?.route || '/mcp/weather',
                     }
                 ));
-            }
-
-            // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
-            if (err.gatewayErrorCode === 'hitl_required') {
-                deps.emit({ phase: 'gateway_hitl_required' });
-                const hitlBody = {
-                    error: 'hitl_required',
-                    tool,
-                    message: 'Transaction requires human approval (HITL consent)',
-                    tokenEvents,
-                    requestJson,
-                };
-                try {
-                    const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
-                    deps.publishMcpResultToSse(flowTraceId, {
-                        tool,
-                        result: { error: 'hitl_required', message: hitlBody.message },
-                        durationMs: Date.now() - startTime,
-                        isDelegated: !!mcpAccessToken,
-                        requestJson,
-                        denied: true,
-                        mcpAuthorizeEvaluation: _authEval?.singular || null,
-                        mcpAuthorizeEvaluations: _authEval?.plural || null,
-                    });
-                } catch (_) { /* SSE best-effort */ }
-                return { kind: 'block', httpStatus: 428, tokenEvents, body: hitlBody };
             }
 
             const denyBody = {

@@ -194,7 +194,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // deployment topology URLs
   'mcp_server_url', 'mcp_gateway_http_url', 'mcp_pinggateway_url', 'mcp_step9_resource_uri',
   'frontend_url', 'frontend_admin_url', 'react_app_client_url', 'public_app_url', 'frontend_dashboard_url',
-  'mcp_olb_ws_url', 'mcp_invest_ws_url', 'upstream_mcp_url',
+  'mcp_olb_ws_url', 'mcp_resource_server_ws_url', 'upstream_mcp_url',
   // internal shared secrets + session
   'session_secret', 'bff_internal_secret', 'hitl_internal_secret',
   // behavioral / provider config

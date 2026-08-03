@@ -88,7 +88,7 @@ describe('buildOverviewGraph', () => {
     expect(g.edges[0]).toEqual({ source: 'chat-ui', target: 'demo-api-server', label: 'HTTPS' });
   });
 
-  it('derives synthetic peer nodes (PingOne, LLM, Mortgage App) from client-span URLs', () => {
+  it('derives synthetic peer nodes (PingOne, LLM, API Resource Server) from client-span URLs', () => {
     const t = fixtureTrace();
     t.spans.push(
       {
@@ -108,7 +108,7 @@ describe('buildOverviewGraph', () => {
         operationName: 'GET /api/rates', startTime: 5000, duration: 40000,
         references: [{ refType: 'CHILD_OF', traceID: 'abc123', spanID: 's1' }],
         tags: [
-          { key: 'http.url', value: 'http://mortgage-service:8082/api/rates' },
+          { key: 'http.url', value: 'http://api-resource-server:8082/api/rates' },
           { key: 'error', value: true },
         ],
       },
@@ -118,14 +118,14 @@ describe('buildOverviewGraph', () => {
       expect.arrayContaining([
         { id: 'pingone', label: 'PingOne', latency: '320ms', status: 'ok' },
         { id: 'llm', label: 'LLM', latency: '900ms', status: 'ok' },
-        { id: 'mortgage-app', label: 'Mortgage App', latency: '40ms', status: 'error' },
+        { id: 'api-resource-server', label: 'API Resource Server', latency: '40ms', status: 'error' },
       ]),
     );
     expect(g.edges).toEqual(
       expect.arrayContaining([
         { source: 'demo-api-server', target: 'pingone', label: 'POST /as/token' },
         { source: 'mcp-gateway', target: 'llm', label: 'POST /v1/chat/completions' },
-        { source: 'demo-api-server', target: 'mortgage-app', label: 'GET /api/rates' },
+        { source: 'demo-api-server', target: 'api-resource-server', label: 'GET /api/rates' },
       ]),
     );
   });
@@ -135,7 +135,7 @@ describe('buildOverviewGraph', () => {
     const ids = g.nodes.map((n) => n.id);
     expect(ids).not.toContain('pingone');
     expect(ids).not.toContain('llm');
-    expect(ids).not.toContain('mortgage-app');
+    expect(ids).not.toContain('api-resource-server');
   });
 
   it('dedupes repeated cross-service edges and keeps first label', () => {

@@ -24,7 +24,7 @@
 #   1. every deployment's rollout is complete
 #   2. no pod predates DEPLOY_START_EPOCH (when provided)
 #   3. GET $APP_URL/api/health returns "healthy"
-#   4. BFF vault-bridge service key == mortgage-service key (apikey-dispatch)
+#   4. BFF vault-bridge service key == api-resource-server key (apikey-dispatch)
 #   5. llm-proxy answers /v1/models (LLM modes usable)
 #   6. authz sidecar canary: a McpToolsList decision with the gateway's own
 #      comma-joined resource URI as TokenAudience is not DENYed invalid_aud
@@ -119,15 +119,15 @@ done
 if [ -n "$HEALTH_OK" ]; then pass "api health is healthy"; else fail "$APP_URL/api/health not healthy"; fi
 
 # ── 4. apikey-dispatch key alignment (bridge vs backend) ──────────────────────
-# The BFF vault bridge serves DEMO_MORTGAGE_SERVICE_KEY; mortgage-service
-# validates X-API-Key against MORTGAGE_SERVICE_API_KEY. If they differ, every
+# The BFF vault bridge serves DEMO_API_RESOURCE_SERVER_KEY; api-resource-server
+# validates X-API-Key against API_RESOURCE_SERVER_API_KEY. If they differ, every
 # invest/mortgage chip fails "backend rejected the service API key".
-info "4/7 service API key alignment (BFF bridge vs mortgage-service)..."
-BRIDGE_HASH=$(kexec deploy/demo-api-server -- sh -c 'printenv DEMO_MORTGAGE_SERVICE_KEY | tr -d "\n" | sha256sum' | cut -c1-16)
-BACKEND_HASH=$(kexec deploy/mortgage-service -- sh -c 'printenv MORTGAGE_SERVICE_API_KEY | tr -d "\n" | sha256sum' | cut -c1-16)
+info "4/7 service API key alignment (BFF bridge vs api-resource-server)..."
+BRIDGE_HASH=$(kexec deploy/demo-api-server -- sh -c 'printenv DEMO_API_RESOURCE_SERVER_KEY | tr -d "\n" | sha256sum' | cut -c1-16)
+BACKEND_HASH=$(kexec deploy/api-resource-server -- sh -c 'printenv API_RESOURCE_SERVER_API_KEY | tr -d "\n" | sha256sum' | cut -c1-16)
 EMPTY_HASH="e3b0c44298fc1c14" # sha256("")
 if [ -z "$BRIDGE_HASH" ] || [ "$BRIDGE_HASH" = "$EMPTY_HASH" ]; then
-  fail "BFF has no DEMO_MORTGAGE_SERVICE_KEY env — bridge will serve the committed default (create-secrets.sh align_service_api_keys should provision it)"
+  fail "BFF has no DEMO_API_RESOURCE_SERVER_KEY env — bridge will serve the committed default (create-secrets.sh align_service_api_keys should provision it)"
 elif [ "$BRIDGE_HASH" != "$BACKEND_HASH" ]; then
   fail "service key mismatch: bridge=$BRIDGE_HASH backend=$BACKEND_HASH — invest/mortgage chips will 401"
 else

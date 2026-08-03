@@ -80,13 +80,13 @@ const NODES = {
   },
   invest: {
     icon: "INV",
-    label: "MCP Invest",
-    sub: "demo_mcp_invest :8081",
+    label: "MCP Resource Server",
+    sub: "demo_mcp_resource_server :8081",
     type: "mcp",
   },
   mortgage: {
-    icon: "MTG",
-    label: "Mortgage Svc",
+    icon: "API",
+    label: "API Resource Server",
     sub: "api_key disposition :8082",
     type: "api",
   },

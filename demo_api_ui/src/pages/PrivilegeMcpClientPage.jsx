@@ -1,7 +1,7 @@
 // demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx
-// Chat-first MCP client for PingOne Privilege MCP Gateway — integrated version.
+// Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -26,13 +26,26 @@ function truncate(v, max = 240) {
   return v.length <= max ? v : `${v.slice(0, max)}... (+${v.length - max} chars)`;
 }
 
+function scopeColor(scope) {
+  if (scope.startsWith('mcp:')) return 'scope-mcp';
+  if (scope.startsWith('p1:')) return 'scope-p1';
+  if (scope === 'openid' || scope === 'profile' || scope === 'email') return 'scope-oidc';
+  if (scope.includes('read')) return 'scope-read';
+  if (scope.includes('write') || scope.includes('admin') || scope.includes('manage')) return 'scope-write';
+  return 'scope-default';
+}
+
 export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [authenticated, setAuthenticated] = useState(false);
+  const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('List available tools from the connected MCP server.');
+  const [chatInput, setChatInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [events, setEvents] = useState([]);
   const [selectedTool, setSelectedTool] = useState('');
@@ -40,13 +53,17 @@ export default function PrivilegeMcpClientPage() {
   const [toolResult, setToolResult] = useState('');
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showFlowModal, setShowFlowModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState('chat');
+  const [terminalTab, setTerminalTab] = useState('events');
+  const [envVars, setEnvVars] = useState(null);
+  const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
-  const eventsRef = useRef(null);
 
-  // scroll chat to bottom
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
-  // append helpers
   const appendChat = useCallback((role, content, extra = null) => {
     setChatMessages((prev) => [...prev, { role, content, extra, ts: Date.now() }]);
   }, []);
@@ -55,17 +72,22 @@ export default function PrivilegeMcpClientPage() {
     setEvents((prev) => [entry, ...prev].slice(0, 200));
   }, []);
 
-  // Load initial state
   useEffect(() => {
     api('/state').then((s) => {
       setConfig(s.config || config);
       setAuthenticated(Boolean(s.oauth?.authenticated));
+      setMainAppAuthenticated(Boolean(s.mainAppAuthenticated));
+      setUser(s.user || null);
+      if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
+      // Auto-discover tools only after Privilege auth completes
+      if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
+        refreshTools(true);
+      }
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // SSE events
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/events`, { withCredentials: true });
     const handler = (type) => (e) => {
@@ -79,12 +101,15 @@ export default function PrivilegeMcpClientPage() {
     return () => es.close();
   }, [appendEvent]);
 
-  // Check auth callback result from URL
   useEffect(() => {
     const authResult = searchParams.get('auth');
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
       appendChat('system', 'OAuth completed. Refreshing tools...');
+      api('/state').then((s) => {
+        if (s.oauth?.authenticated) setAuthenticated(true);
+        if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
+      }).catch(() => {});
       refreshTools();
     }
     if (authResult === 'error') {
@@ -93,20 +118,30 @@ export default function PrivilegeMcpClientPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-refresh tools every 5s when authenticated
-  useEffect(() => {
-    if (!authenticated) return;
-    const interval = setInterval(() => { refreshTools(true); }, 5000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]);
-
   const saveConfig = async () => {
     try {
       await api('/config', { method: 'POST', body: config });
-      appendChat('system', 'Config saved.');
+      appendChat('system', 'Configuration saved.');
     } catch (err) {
       appendChat('system', `Save failed: ${err.message}`);
+    }
+  };
+
+  const loadEnv = async () => {
+    try {
+      const data = await api('/env');
+      setEnvVars(data.vars || {});
+      setEnvDirty(false);
+    } catch { setEnvVars({}); }
+  };
+
+  const saveEnv = async () => {
+    try {
+      await api('/env', { method: 'PUT', body: { vars: envVars } });
+      setEnvDirty(false);
+      appendChat('system', 'Gateway .env saved. Restart mcpgw container to apply.');
+    } catch (err) {
+      appendChat('system', `Env save failed: ${err.message}`);
     }
   };
 
@@ -114,8 +149,7 @@ export default function PrivilegeMcpClientPage() {
     try {
       await api('/config', { method: 'POST', body: config });
       const data = await api('/auth/start', { method: 'POST' });
-      window.open(data.authUrl, '_blank', 'noopener,noreferrer');
-      appendChat('system', 'OAuth started. Complete login in the opened tab.');
+      window.location.href = data.authUrl;
     } catch (err) {
       appendChat('system', `OAuth start failed: ${err.message}`);
     }
@@ -127,10 +161,14 @@ export default function PrivilegeMcpClientPage() {
       const nextTools = data.tools || [];
       setTools(nextTools);
       setAuthenticated(true);
-      if (!silent) appendChat('system', `Tools refreshed (${nextTools.length} found).`);
+      if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
-      setAuthenticated(false);
       setTools([]);
+      if (err.message?.toLowerCase().includes('not authenticated')) {
+        setAuthenticated(false);
+      } else if (err.message?.toLowerCase().includes('not authorized')) {
+        setShowBlockedModal(true);
+      }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
     }
   };
@@ -139,6 +177,7 @@ export default function PrivilegeMcpClientPage() {
     const prompt = chatInput.trim();
     if (!prompt) return;
     appendChat('user', prompt);
+    setChatInput('');
     setThinking(true);
     try {
       await api('/config', { method: 'POST', body: config });
@@ -185,107 +224,479 @@ export default function PrivilegeMcpClientPage() {
   };
 
   return (
-    <div className="pmc-page">
-      <header className="pmc-topbar">
-        <div>
-          <h1>PingOne Privilege MCP Client</h1>
-          <p>Chat-first MCP demo with real-time protected tool visibility via PingOne Privilege Gateway.</p>
+    <div className="cur-ide">
+      {showBlockedModal && (
+        <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
+          <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Access Denied</h2>
+            <p>User blocked — please request access from your Privilege Cloud administrator.</p>
+            <div className="cur-btn-row">
+              <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
+              <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
+            </div>
+          </div>
         </div>
-        <div className={`pmc-pill ${authenticated ? 'pmc-pill--connected' : ''}`}>
-          {authenticated ? 'Connected' : 'Not Authenticated'}
+      )}
+
+      {/* Flow Topology Modal */}
+      {showFlowModal && (
+        <div className="cur-modal-overlay" onClick={() => setShowFlowModal(false)}>
+          <div className="cur-flow-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cur-flow-header">
+              <span className="cur-flow-title">Privilege MCP — Request Flow</span>
+              <button className="cur-flow-close" onClick={() => setShowFlowModal(false)}>&#x2715;</button>
+            </div>
+            <div className="cur-flow-body">
+              <div className="cur-flow-label">END-TO-END DELEGATION CHAIN</div>
+              <div className="cur-flow-row">
+                {/* Node 1: Browser / Cursor IDE */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--browser">
+                    <span className="cur-flow-icon">&#x1F5A5;</span>
+                    <span className="cur-flow-name">Browser</span>
+                    <span className="cur-flow-sub">Cursor IDE Client</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">action</span><span className="cur-flow-cv">OIDC login (PKCE)</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">scopes</span><span className="cur-flow-cv cur-flow-cv--hi">openid profile email</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">grant</span><span className="cur-flow-cv">authorization_code</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">PingOne token</span>
+                </div>
+
+                {/* Node 2: BFF */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--bff">
+                    <span className="cur-flow-icon">&#x2699;</span>
+                    <span className="cur-flow-name">BFF Relay</span>
+                    <span className="cur-flow-sub">privilegeMcpClient.js</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">stores</span><span className="cur-flow-cv">access_token (session)</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">adds</span><span className="cur-flow-cv cur-flow-cv--ok">x-procyon-session-id</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">relay</span><span className="cur-flow-cv">JSON-RPC → MCP GW</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">Bearer + headers</span>
+                </div>
+
+                {/* Node 3: Privilege Proxy */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--privilege">
+                    <span className="cur-flow-icon">&#x1F6E1;</span>
+                    <span className="cur-flow-name">Privilege Proxy</span>
+                    <span className="cur-flow-sub">PingOne Privilege Cloud</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">validates</span><span className="cur-flow-cv">JWT signature (JWKS)</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">enforces</span><span className="cur-flow-cv cur-flow-cv--ok">tool-level policy</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">upstream</span><span className="cur-flow-cv">OAuth or Static Token</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">frontend</span><span className="cur-flow-cv cur-flow-cv--aud">{config.mcpUrl?.split('/')[2]?.split(':')[0]?.slice(0, 24) || 'privilege.pingone.com'}</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">forward RPC</span>
+                </div>
+
+                {/* Node 4: Demo MCP Server */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--mcp">
+                    <span className="cur-flow-icon">&#x1F527;</span>
+                    <span className="cur-flow-name">Demo MCP Server</span>
+                    <span className="cur-flow-sub">:8080/mcp</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">discovery</span><span className="cur-flow-cv">unauthenticated</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">tools/call</span><span className="cur-flow-cv cur-flow-cv--hi">bearer required</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">scopes</span><span className="cur-flow-cv cur-flow-cv--ok">accounts:read txn:read txn:write sensitive:read</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">exchange</span><span className="cur-flow-cv">RFC 8693 per tool</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Auth flow section */}
+              <div className="cur-flow-label" style={{ marginTop: 20 }}>OAUTH AUTHENTICATION</div>
+              <div className="cur-flow-row">
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--auth">
+                    <span className="cur-flow-icon">&#x1F511;</span>
+                    <span className="cur-flow-name">PingOne AS</span>
+                    <span className="cur-flow-sub">auth.pingone.com</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">env</span><span className="cur-flow-cv cur-flow-cv--aud">{config.clientId?.slice(0, 8) || '...'}</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">PKCE</span><span className="cur-flow-cv cur-flow-cv--ok">S256 required</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">method</span><span className="cur-flow-cv">client_secret_post</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">callback</span><span className="cur-flow-cv">/api/privilege-mcp/auth/callback</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">issues JWT</span>
+                </div>
+
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--token">
+                    <span className="cur-flow-icon">&#x1F4DC;</span>
+                    <span className="cur-flow-name">Access Token</span>
+                    <span className="cur-flow-sub">RS256 / kid: default</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">iss</span><span className="cur-flow-cv">auth.pingone.com/{'{env}'}</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">aud</span><span className="cur-flow-cv cur-flow-cv--aud">{config.clientId?.slice(0, 12) || 'client_id'}...</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">scope</span><span className="cur-flow-cv cur-flow-cv--hi">{grantedScopes.join(' ') || 'openid profile email'}</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">Bearer</span>
+                </div>
+
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--privilege">
+                    <span className="cur-flow-icon">&#x1F6E1;</span>
+                    <span className="cur-flow-name">Privilege Proxy</span>
+                    <span className="cur-flow-sub">validates via JWKS</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">jwks</span><span className="cur-flow-cv">auth.pingone.com/{'{env}'}/as/jwks</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">kid</span><span className="cur-flow-cv cur-flow-cv--ok">matched from JWKS</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">policy</span><span className="cur-flow-cv">tool access per user</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="cur-modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="cur-settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cur-flow-header">
+              <span className="cur-flow-title">&#x2699; Settings</span>
+              <button className="cur-flow-close" onClick={() => setShowSettings(false)}>&#x2715;</button>
+            </div>
+            <div className="cur-settings-body">
+              <div className="cur-settings-section">
+                <h4 className="cur-settings-section-title">MCP Connection</h4>
+                <label className="cur-field">
+                  <span className="cur-field-label">MCP Gateway URL</span>
+                  <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">OAuth Client ID</span>
+                  <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Requested Scopes</span>
+                  <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
+                </label>
+              </div>
+              <div className="cur-settings-section">
+                <h4 className="cur-settings-section-title">Local LLM</h4>
+                <label className="cur-field">
+                  <span className="cur-field-label">Ollama URL</span>
+                  <input className="cur-input" value={config.llmUrl} onChange={(e) => setConfig({ ...config, llmUrl: e.target.value })} />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Model</span>
+                  <input className="cur-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
+                </label>
+              </div>
+              <div className="cur-settings-section">
+                <h4 className="cur-settings-section-title">Privilege Gateway .env</h4>
+                {envVars === null ? (
+                  <button className="cur-btn" onClick={loadEnv}>Load pingone.env</button>
+                ) : (
+                  <>
+                    {['SERVER_URL', 'OIDC_CLIENT_ID', 'OIDC_CLIENT_SECRET', 'OIDC_AUTH_URL', 'OIDC_TOKEN_URL', 'OIDC_USER_URL', 'OIDC_SCOPES'].map((key) => (
+                      <label className="cur-field" key={key}>
+                        <span className="cur-field-label">{key}</span>
+                        <input className="cur-input" value={envVars[key] || ''} onChange={(e) => { setEnvVars({ ...envVars, [key]: e.target.value }); setEnvDirty(true); }} />
+                      </label>
+                    ))}
+                    <div className="cur-btn-row" style={{ marginTop: 8 }}>
+                      <button className="cur-btn cur-btn--primary" onClick={saveEnv} disabled={!envDirty}>Save .env</button>
+                      <button className="cur-btn" onClick={loadEnv}>Reload</button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="cur-btn-row" style={{ marginTop: 16 }}>
+                <button className="cur-btn cur-btn--primary" onClick={() => { saveConfig(); setShowSettings(false); }}>Save</button>
+                <button className="cur-btn" onClick={() => setShowSettings(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Title bar */}
+      <header className="cur-titlebar">
+        <div className="cur-titlebar-left">
+          <div className="cur-traffic-lights">
+            <span className="cur-dot cur-dot--red" />
+            <span className="cur-dot cur-dot--yellow" />
+            <span className="cur-dot cur-dot--green" />
+          </div>
+          <span className="cur-titlebar-title">Privilege MCP Client — PingOne</span>
+        </div>
+        <div className="cur-titlebar-center">
+          <div className={`cur-status ${(authenticated || mainAppAuthenticated) ? 'cur-status--ok' : ''}`}>
+            <span className="cur-status-dot" />
+            {(authenticated || mainAppAuthenticated) ? 'Connected' : 'Disconnected'}
+          </div>
+        </div>
+        <div className="cur-titlebar-right">
+          <button className="cur-flow-trigger" onClick={() => navigate('/privilege-mcp-learning')} title="Learning Guide">Guide</button>
+          <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
+          <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
+          {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
       </header>
 
-      <main className="pmc-layout">
-        {/* LEFT — Config sidebar */}
-        <aside className="pmc-panel pmc-sidebar">
-          <h2>Connection</h2>
-          <label className="pmc-label">
-            MCP URL
-            <input className="pmc-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
-          </label>
-          <label className="pmc-label">
-            OAuth Client ID
-            <input className="pmc-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
-          </label>
-          <label className="pmc-label">
-            Scopes
-            <input className="pmc-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
-          </label>
-          <label className="pmc-label">
-            LLM URL (optional)
-            <input className="pmc-input" value={config.llmUrl} onChange={(e) => setConfig({ ...config, llmUrl: e.target.value })} />
-          </label>
-          <label className="pmc-label">
-            LLM Model (optional)
-            <input className="pmc-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
-          </label>
-          <div className="pmc-buttons">
-            <button className="pmc-btn" onClick={saveConfig}>Save</button>
-            <button className="pmc-btn pmc-btn--primary" onClick={startAuth}>Sign In</button>
-          </div>
+      <div className="cur-body">
+        {/* Activity bar */}
+        <nav className="cur-activity-bar">
+          <button className={`cur-act-btn ${activeTab === 'chat' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('chat')} title="Agent Chat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button className={`cur-act-btn ${activeTab === 'tools' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('tools')} title="MCP Tools">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </button>
+          <button className={`cur-act-btn ${activeTab === 'rpc' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('rpc')} title="Raw RPC">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </button>
+        </nav>
 
-          <h2>Available Tools ({tools.length})</h2>
-          <pre className="pmc-pre pmc-tools-summary">
-            {tools.length > 0 ? JSON.stringify(tools.map((t) => t.name), null, 2) : 'No tools discovered yet.'}
-          </pre>
-          <button className="pmc-btn" onClick={() => refreshTools(false)}>Refresh Now</button>
+        {/* Sidebar */}
+        <aside className="cur-sidebar">
+          <div className="cur-sidebar-header">
+            <span className="cur-sidebar-title">CONNECTION</span>
+          </div>
+          <div className="cur-sidebar-content">
+            {authenticated ? (
+              <div className="cur-auth-status">
+                <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
+                {user?.email && <span className="cur-auth-user">{user.email}</span>}
+                <button className="cur-btn" onClick={() => refreshTools()} style={{ marginTop: 8 }}>Retry Tools</button>
+              </div>
+            ) : (
+              <div className="cur-btn-row">
+                <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+              </div>
+            )}
+
+            {grantedScopes.length > 0 && (
+              <div className="cur-scopes-section">
+                <div className="cur-sidebar-header">
+                  <span className="cur-sidebar-title">GRANTED SCOPES</span>
+                  <span className="cur-scope-count">{grantedScopes.length}</span>
+                </div>
+                <div className="cur-scopes-grid">
+                  {grantedScopes.map((s) => (
+                    <span key={s} className={`cur-scope-pill ${scopeColor(s)}`}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="cur-sidebar-header" style={{ marginTop: 12 }}>
+              <span className="cur-sidebar-title">MCP TOOLS</span>
+              <span className="cur-scope-count">{tools.length}</span>
+            </div>
+            {tools.length > 0 ? (
+              <div className="cur-tools-list">
+                {tools.map((t) => (
+                  <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
+                    <span className="cur-tool-icon">fn</span>
+                    <div className="cur-tool-info">
+                      <span className="cur-tool-name">{t.name}</span>
+                      {t.description && <span className="cur-tool-desc">{truncate(t.description, 60)}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="cur-empty-state">No tools discovered yet</div>
+            )}
+            <button className="cur-btn cur-btn--primary cur-btn--refresh" onClick={() => refreshTools(false)}>Refresh Tools</button>
+          </div>
         </aside>
 
-        {/* CENTER — Chat */}
-        <section className="pmc-panel pmc-chat-panel">
-          <div className="pmc-chat-messages">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`pmc-bubble pmc-bubble--${msg.role}`}>
-                <span className="pmc-bubble-text">{msg.content}</span>
-                {msg.extra && (
-                  <pre className="pmc-bubble-meta">{typeof msg.extra === 'string' ? msg.extra : JSON.stringify(msg.extra, null, 2)}</pre>
+        {/* Main editor area */}
+        <main className="cur-main">
+          <div className="cur-tabs">
+            <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
+            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tool Caller</button>
+            <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
+          </div>
+
+          <div className="cur-editor-area">
+            {activeTab === 'chat' && (
+              <div className="cur-chat-panel">
+                <div className="cur-chat-messages">
+                  {chatMessages.length === 0 && (
+                    <div className="cur-chat-empty">
+                      <div className="cur-chat-empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                      </div>
+                      <p>Ask the agent to interact with MCP tools</p>
+                      <span className="cur-chat-hint">Try: "List available tools" or "What can you do?"</span>
+                    </div>
+                  )}
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className={`cur-msg cur-msg--${msg.role}`}>
+                      <div className="cur-msg-header">
+                        <span className="cur-msg-role">{msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Agent' : 'System'}</span>
+                      </div>
+                      <div className="cur-msg-body">{msg.content}</div>
+                      {msg.extra && (
+                        <pre className="cur-msg-meta">{typeof msg.extra === 'string' ? msg.extra : JSON.stringify(msg.extra, null, 2)}</pre>
+                      )}
+                    </div>
+                  ))}
+                  {thinking && (
+                    <div className="cur-msg cur-msg--thinking">
+                      <div className="cur-thinking-dots"><span /><span /><span /></div>
+                      <span>Thinking...</span>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="cur-composer">
+                  <textarea
+                    className="cur-composer-input"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendChat(); } }}
+                    placeholder="Ask the agent... (Cmd+Enter to send)"
+                    rows={2}
+                  />
+                  <button className="cur-composer-send" onClick={sendChat} disabled={thinking}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'tools' && (
+              <div className="cur-tools-panel">
+                <div className="cur-tools-header"><h3>Direct Tool Call</h3></div>
+                <label className="cur-field">
+                  <span className="cur-field-label">Tool</span>
+                  <select className="cur-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
+                    <option value="">Select a tool...</option>
+                    {tools.map((t) => <option key={t.name} value={t.name}>{t.name} — {truncate(t.description || '', 60)}</option>)}
+                  </select>
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Arguments (JSON)</span>
+                  <textarea className="cur-input cur-input--code" rows={5} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
+                </label>
+                <button className="cur-btn cur-btn--primary" onClick={callTool} disabled={!selectedTool}>Execute Tool</button>
+                {toolResult && (
+                  <div className="cur-result-block">
+                    <span className="cur-result-label">Result</span>
+                    <pre className="cur-code-output">{toolResult}</pre>
+                  </div>
                 )}
               </div>
-            ))}
-            {thinking && <div className="pmc-thinking">Thinking and checking tools...</div>}
-            <div ref={chatEndRef} />
+            )}
+
+            {activeTab === 'rpc' && (
+              <div className="cur-rpc-panel">
+                <div className="cur-tools-header"><h3>Raw MCP JSON-RPC</h3></div>
+                <label className="cur-field">
+                  <span className="cur-field-label">Request Body</span>
+                  <textarea className="cur-input cur-input--code" rows={8} value={rawRpc} onChange={(e) => setRawRpc(e.target.value)} />
+                </label>
+                <button className="cur-btn cur-btn--primary" onClick={sendRawRpcCall}>Send RPC</button>
+                {rawRpcResult && (
+                  <div className="cur-result-block">
+                    <span className="cur-result-label">Response</span>
+                    <pre className="cur-code-output">{rawRpcResult}</pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="pmc-composer">
-            <textarea
-              className="pmc-input"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendChat(); } }}
-              rows={3}
-            />
-            <button className="pmc-btn pmc-btn--primary" onClick={sendChat}>Send</button>
+
+          {/* Terminal panel */}
+          <div className="cur-terminal">
+            <div className="cur-terminal-tabs">
+              <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
+              <button className={`cur-terminal-tab ${terminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>
+            </div>
+            <div className="cur-terminal-content">
+              {terminalTab === 'events' && (
+                <div className="cur-terminal-log">
+                  {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
+                  {events.slice(0, 50).map((e, i) => (
+                    <div key={i} className={`cur-terminal-line cur-terminal-line--${e.type}`}>
+                      <span className="cur-terminal-ts">{e.ts?.slice(11, 19) || ''}</span>
+                      <span className={`cur-terminal-badge cur-terminal-badge--${e.type}`}>{e.type}</span>
+                      <span className="cur-terminal-msg">{JSON.stringify({ ...e, ts: undefined, type: undefined }, null, 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {terminalTab === 'scopes' && (
+                <div className="cur-terminal-scopes">
+                  {grantedScopes.length === 0 ? (
+                    <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
+                  ) : (
+                    <div className="cur-scopes-detail">
+                      <div className="cur-scopes-summary">
+                        <span className="cur-scopes-count-large">{grantedScopes.length}</span>
+                        <span className="cur-scopes-count-label">scopes granted</span>
+                      </div>
+                      <table className="cur-scopes-table">
+                        <thead><tr><th>Scope</th><th>Category</th></tr></thead>
+                        <tbody>
+                          {grantedScopes.map((s) => (
+                            <tr key={s}>
+                              <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
+                              <td className="cur-scope-cat">
+                                {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </section>
+        </main>
+      </div>
 
-        {/* RIGHT — Inspector */}
-        <aside className="pmc-panel pmc-inspector">
-          <h2>Live Relay</h2>
-          <pre className="pmc-pre pmc-event-log" ref={eventsRef}>
-            {events.slice(0, 50).map((e, i) => (
-              <div key={i}>[{e.ts}] {JSON.stringify({ ...e, ts: undefined }, null, 0)}</div>
-            ))}
-          </pre>
-
-          <details className="pmc-details">
-            <summary>Advanced: Raw MCP + Tool Call</summary>
-
-            <h3>Raw MCP RPC</h3>
-            <textarea className="pmc-input" rows={5} value={rawRpc} onChange={(e) => setRawRpc(e.target.value)} />
-            <button className="pmc-btn" onClick={sendRawRpcCall}>Send RPC</button>
-            <pre className="pmc-pre">{rawRpcResult}</pre>
-
-            <h3>Direct Tool Call</h3>
-            <select className="pmc-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-              <option value="">Select a tool...</option>
-              {tools.map((t) => <option key={t.name} value={t.name}>{t.name} - {truncate(t.description || '', 60)}</option>)}
-            </select>
-            <textarea className="pmc-input" rows={3} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
-            <button className="pmc-btn" onClick={callTool}>Call Tool</button>
-            <pre className="pmc-pre">{toolResult}</pre>
-          </details>
-        </aside>
-      </main>
+      {/* Status bar */}
+      <footer className="cur-statusbar">
+        <div className="cur-statusbar-left">
+          <span className="cur-statusbar-item">MCP Protocol 2025-11-25</span>
+          <span className="cur-statusbar-item">{tools.length} tools</span>
+        </div>
+        <div className="cur-statusbar-right">
+          <span className="cur-statusbar-item">{config.llmModel || 'No LLM'}</span>
+          <span className="cur-statusbar-item">{(authenticated || mainAppAuthenticated) ? 'Authenticated' : 'Not signed in'}</span>
+        </div>
+      </footer>
     </div>
   );
 }

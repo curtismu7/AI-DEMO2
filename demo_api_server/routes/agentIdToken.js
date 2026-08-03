@@ -19,7 +19,6 @@
  *   503  session_store_unavailable    — memory-store fallback or store not registered
  */
 const express = require('express');
-const crypto = require('crypto');
 const router = express.Router();
 
 // HI-03: audit-log every id_token retrieval so a compromised gateway
@@ -47,19 +46,27 @@ const ID_TOKEN_MAX_SESSION_STALE_MS = Number(
 );
 
 // BL-03: must match banking_mcp_gateway/src/config.ts DEFAULT_BFF_INTERNAL_SECRET.
-// Production startup refuses this literal so the dev fallback can't ship.
-const DEFAULT_INTERNAL_SECRET = 'dev-shared-secret-change-me';
-const INTERNAL_SECRET = process.env.BFF_INTERNAL_SECRET || DEFAULT_INTERNAL_SECRET;
-const INTERNAL_SECRET_BUF = Buffer.from(INTERNAL_SECRET);
+// Strict startup refuses this literal so the dev fallback can't ship.
+// Resolved per call — this route is required long before the vault opens, so a
+// module-scope snapshot could never see a vault-supplied BFF_INTERNAL_SECRET.
+const {
+  DEFAULT_INTERNAL_SECRET,
+  isDefaultInternalSecret,
+  internalSecretMatches,
+} = require('../utils/internalSecret');
 
-if (process.env.NODE_ENV === 'production' && INTERNAL_SECRET === DEFAULT_INTERNAL_SECRET) {
+// Keyed off an explicit opt-in, NOT NODE_ENV: k8s/20-api-server-deployment.yaml
+// and docker-compose.yml both pin the BFF to NODE_ENV=development deliberately,
+// so the old `NODE_ENV === 'production'` condition never fired in any real
+// deployment and this assertion was dead code exactly where it was needed.
+if (process.env.VAULT_INTERNAL_STRICT === 'true' && isDefaultInternalSecret()) {
   // Fail-hard at module load: /internal/id-token would otherwise be open to
   // anyone who knows the public default secret. Symmetric with the gateway
   // assertion in banking_mcp_gateway/src/config.ts::assertProductionSecrets.
   // eslint-disable-next-line no-console
   console.error(
     '[BFF] FATAL: BFF_INTERNAL_SECRET is set to the committed dev default ' +
-    `('${DEFAULT_INTERNAL_SECRET}') and NODE_ENV=production. ` +
+    `('${DEFAULT_INTERNAL_SECRET}') and VAULT_INTERNAL_STRICT=true. ` +
     'Refusing to start. Set BFF_INTERNAL_SECRET to a unique 32+ byte secret.',
   );
   process.exit(1);
@@ -67,14 +74,9 @@ if (process.env.NODE_ENV === 'production' && INTERNAL_SECRET === DEFAULT_INTERNA
 
 router.get('/id-token', (req, res) => {
   const presented = req.headers['x-internal-gateway-secret'];
-  // Constant-time comparison — short-circuit equality leaks per-byte timing to an
-  // attacker with network or SSRF access to the bound 0.0.0.0 interface.
-  const presentedBuf = typeof presented === 'string' ? Buffer.from(presented) : null;
-  if (
-    !presentedBuf ||
-    presentedBuf.length !== INTERNAL_SECRET_BUF.length ||
-    !crypto.timingSafeEqual(presentedBuf, INTERNAL_SECRET_BUF)
-  ) {
+  // internalSecretMatches is constant-time — a short-circuit equality leaks
+  // per-byte timing to an attacker with network or SSRF access to 0.0.0.0.
+  if (!internalSecretMatches(presented)) {
     _logIdTokenRetrieval('warn', 'id_token request rejected — bad internal secret', {
       remoteIp: req.ip,
       hasSubHeader: !!req.headers['x-subject-sub'],

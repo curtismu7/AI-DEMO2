@@ -9,9 +9,14 @@
  *     version: 1,
  *     kdf: { alg, salt, memCost, timeCost, parallelism, hashLen },
  *     createdAt, rotatedAt,
+ *     seq: <int>,          // rollback counter; absent in pre-269.2 vaults
  *     entries: { NAME: { wrappedDek, valueIv, valueTag, value, updatedAt, note? } },
  *     fileHmac: "<base64>"
  *   }
+ *
+ * `seq` is inside the HMAC like every other field, so it cannot be raised
+ * without the password. It is optional on read: a vault written before the
+ * counter existed still parses, and index.js treats its absence as 0.
  *
  * Canonical JSON: keys sorted alphabetically at every level, arrays preserve order.
  * Determinism is required so the whole-file HMAC is reproducible.
@@ -46,6 +51,9 @@ const FROZEN_ENVELOPE_KDF = Object.freeze({
   parallelism: 4,
   hashLen: 32,
 });
+
+/** Salt width written by createVault(). Enforced on parse — see parseEnvelope. */
+const SALT_BYTES = 16;
 
 /**
  * Canonical JSON: object keys sorted alphabetically at every level; arrays
@@ -120,6 +128,27 @@ function parseEnvelope(buf) {
   if (typeof obj.kdf.salt !== 'string' || obj.kdf.salt.length === 0) {
     throw new VaultIntegrityError('vault: missing kdf salt');
   }
+  // Salt WIDTH, not just presence. "non-empty string" let a tampered salt of the
+  // wrong length through to deriveKek, where argon2 rejects it with its own bare
+  // Error ("Salt should have at least 8 bytes"). That error escaped openVault
+  // unwrapped — a distinguishable outcome from the deliberately identical
+  // wrong-password / tampered-file error, i.e. a salt oracle, and a leak of
+  // argon2 internals this module is explicitly meant not to expose.
+  //
+  // Reuses the existing 'unsupported kdf parameters' message on purpose: a new
+  // message would restore the very distinction being closed.
+  if (Buffer.from(obj.kdf.salt, 'base64').length !== SALT_BYTES) {
+    throw new VaultIntegrityError('vault: unsupported kdf parameters');
+  }
+  // Rollback counter (see index.js `seq`). Optional so a pre-seq vault still
+  // opens; when present it must be a non-negative safe integer, because a
+  // string or float would silently defeat the `<` comparison that detects a
+  // rollback.
+  if (obj.seq !== undefined) {
+    if (!Number.isSafeInteger(obj.seq) || obj.seq < 0) {
+      throw new VaultIntegrityError('vault: invalid sequence number');
+    }
+  }
   return obj;
 }
 
@@ -170,6 +199,7 @@ function verifyFileHmac(envelope, hmacKey) {
 module.exports = {
   MAGIC,
   VERSION,
+  SALT_BYTES,
   canonicalJson,
   serializeEnvelope,
   parseEnvelope,

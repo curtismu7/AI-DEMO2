@@ -1,3 +1,4 @@
+const scopeTopology = require('../../../demo_authz_server/scopeTopology');
 const { getAuthorizationPoliciesFromSnapshot } = require('../../services/pingOneAuthorizeService');
 
 function findRule(nodes, name) {
@@ -123,7 +124,11 @@ describe('getAuthorizationPoliciesFromSnapshot testCases wiring', () => {
   test('MCP Require Step-Up for sensitive tools: trigger uses a gated tool with no MFA', () => {
     const tc = findRule(policies, 'MCP Require Step-Up for sensitive tools').testCases;
     expect(tc.trigger.preset).toBe('custom');
-    expect(tc.trigger.parameters).toMatchObject({ ToolName: 'cash_out_store_credit', Acr: '' });
+    // The solver picks the first step-up tool in the generated list, so pinning a
+    // specific NAME breaks whenever a vertical gains a step-up tool. What the test
+    // is actually about is the SHAPE: a genuinely step-up-gated tool with no MFA.
+    expect(tc.trigger.parameters.Acr).toBe('');
+    expect(scopeTopology.isStepUpTool(tc.trigger.parameters.ToolName)).toBe(true);
   });
 
   test('MCP Deny — Tier Tool Not Allowed: trigger is a Standard-tier user on a restricted tool', () => {
