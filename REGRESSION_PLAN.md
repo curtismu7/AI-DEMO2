@@ -126,12 +126,25 @@ challenge was under-bound: no `agentId` and no `from_account_id`, so
 no bound from_account_id") even once the marker survived.
 
 **What was fixed:** `mcp-request-validation.groovy` hands the stripped receipt
-over on the shared AttributesContext (`attributes['hitlChallengeId']` — same
-channel the aam-* scripts use); `p1az-decision.groovy` falls back to that
-attribute when the body no longer carries the marker (its own strip-and-rewrite
-stays for the direct path). `_runRarPermit` now creates the challenge with
-`agentId` = the AI Agent actor client id and binds `from_account_id` alongside
-`amount`/`to_account_id`.
+over on the `X-Hitl-Challenge-Id` request HEADER; `p1az-decision.groovy` falls
+back to it when the body no longer carries the marker, and consumes (removes)
+the header so it never travels past the filter. `_runRarPermit` now creates the
+challenge with `agentId` = the AI Agent actor client id and binds
+`from_account_id` alongside `amount`/`to_account_id`.
+
+**UPDATE same day (live):** the first version of this fix used the
+AttributesContext (`attributes['hitlChallengeId']`) — and that map **leaked
+across requests** on this deployment: after one receipt-carrying call, every
+later call on the route (including plain `get_my_accounts`) presented the stale
+id, its verify failed, and the whole route 503'd until the gateway was
+restarted. Headers are per-request by construction; do not move this hand-over
+back to attributes. Second live finding: the gateway's verify answered **404**
+because the running `hitl-service` image had NO `/challenges/:id/verify` route
+at all — a Docker layer-cached `COPY` served 2026-08-01 source under a
+2026-08-03 image timestamp (`project-container-repo-drift`). A reachable
+hitl-service answers verify 200 even for unknown ids, so the groovy now logs
+404 as "image is stale — run `./run-docker.sh build hitl-service`" and keeps
+failing closed with 503.
 
 **Do not break:** the entity rewrite in `McpRequestValidation` must stay — the
 MCP server validates against the same `additionalProperties:false` schema and
