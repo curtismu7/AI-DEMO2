@@ -99,7 +99,7 @@ async function evaluateIntentAuthorization(intentContext) {
     'sensitive_patient_records', 'sensitive_order_history', 'sensitive_tax_record',
     'sensitive_student_finance', 'sensitive_payroll_details',
     'sensitive_membership_details', 'sensitive_supplier_contract',
-    'sensitive_holdings',
+    'sensitive_holdings', 'sensitive_passenger_record',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {

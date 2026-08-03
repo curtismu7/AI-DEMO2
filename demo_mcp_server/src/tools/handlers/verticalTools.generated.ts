@@ -17,6 +17,7 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"get_airline_bookings","scope":"read","vertical":"airlines"},
   {"name":"get_flight_status","scope":"read","vertical":"airlines","inputSchema":{"type":"object","properties":{"flight_number":{"type":"string","description":"United flight number, e.g. UA328"}},"required":[],"additionalProperties":false}},
   {"name":"sensitive_airline_bookings","scope":"read","vertical":"airlines"},
+  {"name":"sensitive_passenger_record","scope":"read","vertical":"airlines","a2aDelegatedScope":"pnr:read"},
   {"name":"approve_inspection","scope":"write","vertical":"government","inputSchema":{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false}},
   {"name":"cancel_permit","scope":"write","vertical":"government","inputSchema":{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false}},
   {"name":"close_violation","scope":"write","vertical":"government","inputSchema":{"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false}},
