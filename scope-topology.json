@@ -367,6 +367,11 @@
       "challengeType": "consent",
       "requiresAgentMediation": true
     },
+    "create_wire_transfer": {
+      "requiredScopes": ["read", "transfer"],
+      "surface": "gateway",
+      "challengeType": "step_up"
+    },
     "update_contact_email": {
       "requiredScopes": ["write"],
       "surface": "gateway"

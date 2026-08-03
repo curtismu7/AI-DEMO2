@@ -14,7 +14,7 @@ const gen = require('../scripts/gen-intent-topology');
 
 /** Verified 2026-08-02 — chips live at manifest.dashboard.chips10, not top level. */
 const EXPECTED_CHIP_COUNTS = {
-  banking: 15,
+  banking: 16,
   retail: 15,
   'oauth-teaching': 12,
   healthcare: 10,
@@ -56,8 +56,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 125 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(125);
+  it('covers 126 chips across 13 verticals', () => {
+    expect(rows).toHaveLength(126);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
   });
 
@@ -99,7 +99,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(125);
+    expect(topology.counts.chips).toBe(126);
     expect(topology.counts.verticals).toBe(13);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });

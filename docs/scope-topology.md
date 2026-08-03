@@ -319,6 +319,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `create_deposit` | gateway | `write` | step_up |
 | `create_withdrawal` | gateway | `write` | step_up |
 | `create_transfer` | gateway | `write` `transfer` | consent |
+| `create_wire_transfer` | gateway | `read` `transfer` | step_up |
 | `update_contact_email` | gateway | `write` | — |
 | `request_fee_waiver` | gateway | `write` | — |
 | `view_benefits` | gateway | `read` | — |

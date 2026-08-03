@@ -172,6 +172,9 @@ function getMcpFirstToolGateStatus() {
 /** Map MCP write tool names to transaction types for amount-based policy evaluation. */
 const WRITE_TOOL_TYPE_MAP = {
   create_transfer: 'transfer',
+  // Banking's own high-value action — amount-bearing, so it must reach the
+  // Transaction policy like any other transfer.
+  create_wire_transfer: 'transfer',
   create_deposit: 'deposit',
   create_withdrawal: 'withdrawal',
   // Vertical amount-gated writes (use-case launcher UC6/7/8 per vertical).

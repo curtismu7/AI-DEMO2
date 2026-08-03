@@ -7,6 +7,9 @@
  */
 const ACTION_TO_TOOL = {
   transfer: 'create_transfer',
+  // Banking's own high-value action — step-up gated on the TOOL, so it must map
+  // to its own tool name rather than collapsing onto create_transfer.
+  wire_transfer: 'create_wire_transfer',
   transfer_600_test: 'create_transfer',
   deposit: 'create_deposit',
   withdraw: 'create_withdrawal',

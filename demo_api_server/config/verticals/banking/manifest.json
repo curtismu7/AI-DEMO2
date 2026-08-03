@@ -116,6 +116,16 @@
       { "id": "bk-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-flow", "label": "Check balance", "message": "what is my balance", "mode": "both", "tool": "get_account_balance", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-consent", "label": "👤 Transfer $300", "message": "transfer $300 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "create_transfer", "useCaseId": "hitl-consent" },
+      {
+        "id": "bk-wire",
+        "label": "🔑 Wire transfer",
+        "message": "wire $100 to my savings",
+        "mode": "both",
+        "challenge": "step_up",
+        "tool": "create_wire_transfer",
+        "useCaseId": "step-up-required",
+        "group": "advanced"
+      },
       { "id": "bk-mfa", "label": "🔑 Transfer $600", "message": "transfer $600 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "create_transfer", "useCaseId": "step-up-required" },
       { "id": "bk7", "label": "My mortgage", "message": "show my mortgage", "mode": "both", "tool": "show_mortgage", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-intent", "label": "Intent-bound transfer", "message": "run an intent-bound transfer within my RAR grant", "mode": "both", "tool": "create_transfer", "useCaseId": "rar-intent-verified" },
