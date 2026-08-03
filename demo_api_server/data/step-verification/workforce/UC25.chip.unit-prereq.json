@@ -3,7 +3,7 @@
   "useCaseId": "UC25",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "PASS",
+  "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "view_benefits",
   "checkedAt": "2026-08-02",

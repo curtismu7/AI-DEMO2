@@ -116,7 +116,7 @@ async function migrate({ dryRun = false, force = false, vaultPathArg } = {}) {
   const password = await getPassword();
   let vault;
   try {
-    vault = await vaultLib.openVault(vaultPath, password);
+    vault = await vaultLib.openVault(vaultPath, password, { caller: 'vault-migrate' });
   } catch (err) {
     // Opaque error — never leak which axis (password / file / format) failed.
     console.error('vault: open failed: ' + err.message);

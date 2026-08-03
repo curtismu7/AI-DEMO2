@@ -32,9 +32,16 @@ const KDF_PARAMS = Object.freeze({
 /**
  * Derive a 32-byte KEK from a password + salt using Argon2id.
  *
+ * Returns a FRESH Buffer that the caller owns and is expected to zero (the
+ * vault handle does this in close()). `argon2.hash(..., {raw: true})` allocates
+ * its own output Buffer, so copying it left a second live copy of the KEK on
+ * the heap that nothing ever wiped — close() zeroed one copy while an identical
+ * one waited for the GC. Zero the argon2 buffer here so exactly one copy of the
+ * KEK exists per derivation.
+ *
  * @param {string} password
  * @param {Buffer} saltBuf
- * @returns {Promise<Buffer>} 32-byte Buffer
+ * @returns {Promise<Buffer>} 32-byte Buffer, owned by the caller
  */
 async function deriveKek(password, saltBuf) {
   const raw = await argon2.hash(password, {
@@ -42,7 +49,9 @@ async function deriveKek(password, saltBuf) {
     salt: saltBuf,
     raw: true,
   });
-  return Buffer.from(raw);
+  const kek = Buffer.from(raw);
+  if (Buffer.isBuffer(raw)) raw.fill(0);
+  return kek;
 }
 
 /**

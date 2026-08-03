@@ -134,8 +134,12 @@ services:
       # .well-known/oauth-protected-resource and sends no WWW-Authenticate, so
       # discoverAuth() never learns the real authorization server and silently
       # falls back to the demo environment's PingOne.
+      # Port must match the ping-mcpgw service's `-listen` flag below. #1219 moved
+      # that listener from :8680 to :8623 (the product's MCP traffic port) without
+      # moving this default, so the BFF has been dialling a port the gateway does
+      # not serve.
       # Overridable so the SE cluster can point at https://ai-demo.ping-devops.com/mcpgw.
-      PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://local.ping-devops.com:8680/mcp}"
+      PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://local.ping-devops.com:8623/mcp}"
       PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
       PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
@@ -720,6 +724,10 @@ services:
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      # Airlines SQLite database. Bind (not named volume) on purpose: the DB proof
+      # is "edit airlines.db from the host with sqlite3 and the next chip click
+      # shows the new value". Seeded on first open from the image's seed/ dir.
+      - ./demo_mcp_resource_server/data:/app/data
     networks:
       - ai-demo
     depends_on:

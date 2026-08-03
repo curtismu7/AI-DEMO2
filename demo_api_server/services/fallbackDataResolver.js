@@ -85,6 +85,17 @@ async function resolveFallbackChips(userPrompt, verticalCtx = {}) {
 
     if (!verticalToUse) return buildNoMatch(null);
 
+    // kind:'unknown' is parseForFallback's one "nothing matched, but a vertical
+    // is active" answer — no banking action, no education topic, and not the
+    // active vertical's own keywords either. Serving that vertical's fallback
+    // chips would report a MATCH for a prompt nothing matched, and the sole
+    // caller (AIAgent.fetchNoMatch) drops any result without `noMatch`, so the
+    // user saw a hard-coded banking-phrased sentence instead of the no-match
+    // that names their vertical. Now every foreign prompt — a banking transfer
+    // typed in government, a retail order typed in banking — lands on the
+    // explicit no-match #1214 built, with that vertical's own suggestions.
+    if (intent.kind === 'unknown') return buildNoMatch(verticalToUse);
+
     const chips = await fallbackChipsLoader.loadFallbackChips(verticalToUse);
     if (!chips || chips.length === 0) return buildNoMatch(verticalToUse);
 

@@ -62,6 +62,7 @@
     "vertical-tools:check": "node ../scripts/gen-vertical-tools.js check",
     "intents:gen": "node scripts/gen-intent-topology.js generate",
     "intents:check": "node scripts/gen-intent-topology.js check",
+    "coercion:check": "node scripts/check-vertical-coercion.js",
     "verticals:gen": "node ../scripts/gen-scope-topology.js generate && node ../scripts/gen-feature-data.js generate && node ../scripts/gen-vertical-tools.js generate",
     "verticals:check": "node ../scripts/gen-scope-topology.js check && node ../scripts/gen-feature-data.js check && node ../scripts/check-feature-tools.js && node ../scripts/gen-vertical-tools.js check && node scripts/gen-intent-topology.js check",
     "use-cases:audit:gen": "node ../scripts/gen-use-cases-audit.js generate",

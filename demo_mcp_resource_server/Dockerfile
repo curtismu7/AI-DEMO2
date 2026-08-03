@@ -24,10 +24,14 @@ RUN npm install --legacy-peer-deps --omit=dev --no-audit --no-fund
 
 COPY --from=builder /app/dist ./dist
 COPY openapi/ ./openapi/
+# Seed for the airlines SQLite database. Applied only when the tables are empty
+# (src/db/airlinesDb.ts), so a restart never clobbers out-of-band edits to
+# /app/data/airlines.db.
+COPY seed/ ./seed/
 
 EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8081/health || exit 1
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "--experimental-sqlite", "dist/index.js"]

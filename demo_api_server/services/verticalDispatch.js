@@ -28,10 +28,16 @@ function a2aActiveFor(activeId) {
  *
  * Each helper takes the active vertical id and a `legacy` callback. When the
  * active vertical has a plugin, the helper returns the plugin's value and the
- * legacy callback is NOT invoked. When there is no plugin, the helper invokes
- * `legacy` and returns its result. This module never produces banking/default
- * content itself — the only fallback is the caller's own legacy path, used
- * solely while a vertical has not yet shipped its index.js.
+ * legacy callback is NOT invoked. When there is no plugin, the presentation
+ * helpers (heuristicsFor / systemPromptFor / toolSchemasFor) invoke `legacy`
+ * and return its result.
+ *
+ * `executeToolFor` and `authzFor` do NOT: on the agent path the caller's legacy
+ * is executeBffTool, which resolves names against BANKING's tool registry, so a
+ * plugin-less vertical silently executed banking's tools (live: active vertical
+ * admin-console ran get_my_transactions). Executing another vertical's tools —
+ * or inheriting its authz — is never a valid substitute, so both fail explicitly
+ * instead. See noPluginResult below.
  */
 
 function resolvePlugin(activeId) {
@@ -149,9 +155,32 @@ function toolSchemasFor(activeId, ctx, legacy) {
  */
 const NOT_MY_TOOL = Symbol.for('verticalDispatch.NOT_MY_TOOL');
 
+/**
+ * Explicit "this vertical cannot run tools" result, in the shape of the
+ * structured no-match introduced in PR #1214: it names the vertical that failed
+ * and carries no other vertical's data. Returned instead of substituting the
+ * caller's legacy executor, which on the agent path is banking's.
+ */
+function noPluginResult(activeId, name) {
+  return {
+    result: {
+      error: `Vertical "${activeId || 'none'}" has no plugin, so tool "${name}" was not executed. No other vertical's tools are substituted.`,
+      errorCode: 'vertical_no_plugin',
+      verticalId: activeId || null,
+      tool: name,
+      noMatch: true,
+    },
+    render: 'text',
+  };
+}
+
 async function executeToolFor(activeId, name, params, ctx, legacy) {
   const p = resolvePlugin(activeId);
-  if (!p) return legacy(name, params, ctx);
+  // No plugin: fail, do NOT fall through to `legacy`. Distinct from the
+  // NOT_MY_TOOL fallthrough below — that is a plugin deliberately disowning a
+  // tool name it advertises so the MCP executor can run it; this is a vertical
+  // with no executor of its own, where legacy means "run banking's".
+  if (!p) return noPluginResult(activeId, name);
 
   // First try the vertical's tools
   try {
@@ -188,7 +217,11 @@ async function executeToolFor(activeId, name, params, ctx, legacy) {
 
 function authzFor(activeId, ctx, legacy) {
   const p = resolvePlugin(activeId);
-  let authz = p ? p.getAuthz() : legacy();
+  // `legacy` is deliberately NOT called for a plugin-less vertical: authz rules
+  // gate tool execution, and inheriting another vertical's rules is worse than
+  // the data leak. A vertical with no plugin publishes no rules — and
+  // executeToolFor refuses to run its tools anyway.
+  let authz = p ? p.getAuthz() : {};
 
   // Merge admin overlay authz rules if user is admin
   if (ctx && ctx.isAdmin) {

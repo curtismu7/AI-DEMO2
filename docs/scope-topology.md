@@ -23,6 +23,8 @@
 | `supplier:read` | low | Super Banking API | Read sensitive supplier contract records (manufacturing vertical A2A specialist scope) |
 | `invest:read` | low | Super Banking API | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) |
 | `holdings:read` | high | Super Banking API | Read sensitive investment holdings (investment vertical A2A specialist scope) |
+| `airlines:read` | low | Super Banking API | Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical) |
+| `airlines:write` | high | Super Banking API | Modify reservations — change seat, add checked bag (airlines vertical, Phase 2) |
 | `ai:agent:read` | medium | Super Banking API | Agent invocation permission |
 | `mcp:invoke` | medium | Super Banking MCP Server | Invoke MCP tools via the gateway (RFC 8693 exchange) |
 | `code:search` | low | Super Banking MCP Server | Search and read the indexed source code (read-only) |
@@ -52,7 +54,7 @@
 
 Audience: `enduser.ping.demo`
 
-Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `holdings:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `holdings:read`, `airlines:read`, `airlines:write`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Server
 
@@ -68,7 +70,7 @@ Audience: `mcp-resource-server.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `invest:read`, `read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `invest:read`, `airlines:read`, `airlines:write`, `read`
 
 ### Super Banking MCP JWT Verifier
 
@@ -82,7 +84,7 @@ Audience: `mcpgateway.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `workorders:read`, `sensitive:read`, `code:search`
 
 ### Super Banking Agent Gateway
 
@@ -90,7 +92,7 @@ Audience: `agentgateway.ping.demo`
 
 Native scopes: `agent:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `workorders:read`, `sensitive:read`, `code:search`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `workorders:read`, `sensitive:read`, `code:search`
 
 ### Super Banking A2A Intermediate
 
@@ -181,7 +183,7 @@ Native scopes: `gateway:mcp:invoke`
 
 Type: `WEB_APP`  ·  Grants: `authorization_code`, `refresh_token`, `token_exchange`
 
-Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `workorders:read`, `invest:read`
+Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `workorders:read`, `invest:read`, `airlines:read`, `airlines:write`
 
 ### Super Banking Admin App
 
@@ -301,6 +303,9 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_investment_accounts` | gateway | `invest:read` | — |
 | `get_investment_transactions` | gateway | `invest:read` | — |
 | `get_portfolio_summary` | gateway | `invest:read` | — |
+| `get_airline_bookings` | gateway | `airlines:read` | — |
+| `get_flight_status` | gateway | `airlines:read` | — |
+| `check_seat_availability` | gateway | `airlines:read` | — |
 | `show_mortgage` | gateway | `mortgage:read` | — |
 | `show_investment` | gateway | `invest:read` | — |
 | `show_large_purchase` | gateway | `largepurchase:read` | — |

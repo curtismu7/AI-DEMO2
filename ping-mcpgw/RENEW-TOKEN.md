@@ -24,9 +24,19 @@ This file is gitignored — never commit it.
 The Docker volume has old `proxy-config.data`. The proxy ignores the new token
 unless this is removed.
 
+The volume is `ai-demo_mcpgw-ssl`, NOT `ai-demo2_mcpgw-ssl`. `docker-compose.yml`
+sets `name: ai-demo`, so Compose prefixes volumes with that and not with the
+directory name. The old value named a volume that does not exist, and with
+`2>/dev/null || true` swallowing the error the step looked like it worked while
+the stale enrollment state survived — after which the proxy ignores the new
+token and enrollment fails for a reason this step was meant to rule out.
+
 ```bash
 docker compose --profile mcpgw stop ping-mcpgw
-docker volume rm ai-demo2_mcpgw-ssl 2>/dev/null || true
+docker volume rm ai-demo_mcpgw-ssl
+
+# Confirm it is gone — this must print nothing:
+docker volume ls --format '{{.Name}}' | grep '^ai-demo_mcpgw-ssl$'
 ```
 
 ## Step 4 — Restart

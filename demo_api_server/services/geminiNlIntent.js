@@ -23,7 +23,14 @@ function buildSystem(vertical) {
   // HELIX_AGENT_DIRECTIVES themes include the JSON-format rules from SYSTEM_BASE and
   // are authoritative for LLM intent routing. Check them first.
   // Plugin getSystemPrompt() is for UI labeling only — it lacks the JSON router rules.
-  if (THEME_OVERRIDES[vertical]) return SYSTEM_BASE + THEME_OVERRIDES[vertical];
+  // hasOwnProperty: `vertical` is the request-resolved id and VALID_VERTICAL_RE
+  // accepts `constructor`, so a bare lookup on this JSON-parsed map returned the
+  // INHERITED Object constructor — truthy, and its native-code SOURCE was then
+  // concatenated into the LLM system prompt.
+  const theme = Object.prototype.hasOwnProperty.call(THEME_OVERRIDES, vertical)
+    ? THEME_OVERRIDES[vertical]
+    : null;
+  if (theme) return SYSTEM_BASE + theme;
   if (verticalDispatch.hasPlugin(vertical)) {
     // Plugin with no directive theme yet: prepend JSON rules so Helix still outputs JSON.
     return SYSTEM_BASE + '\n\n' + verticalDispatch.systemPromptFor(vertical, {}, () => '');

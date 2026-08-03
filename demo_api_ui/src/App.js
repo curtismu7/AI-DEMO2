@@ -107,6 +107,7 @@ import {
   AgentUiModeProvider,
   useAgentUiMode,
 } from "./context/AgentUiModeContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { DemoTourProvider } from "./context/DemoTourContext";
 import { EducationUIProvider } from "./context/EducationUIContext";
 import { ExchangeModeProvider } from "./context/ExchangeModeContext";
@@ -445,6 +446,7 @@ function AppWithAuth() {
     !user && isPublicMarketingAgentPath(pathname) ? 12000 : 4000;
 
   return (
+    <ThemeProvider>
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
@@ -1539,6 +1541,7 @@ function AppWithAuth() {
         </TokenChainProvider>
       </EducationUIProvider>
     </DemoTourProvider>
+    </ThemeProvider>
   );
 }
 

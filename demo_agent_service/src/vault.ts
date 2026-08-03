@@ -39,13 +39,25 @@ import { resolve, join } from 'node:path';
 // eslint disable + cast keeps the diff small and avoids a .d.ts file.
 // demo_agent_service is a sibling of demo_api_server under the repo
 // root, identical to the gateway, so the relative path is the same.
+const VAULT_LIB_PATH = '../../demo_api_server/lib/vault';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let vaultLib: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any
-  vaultLib = require('../../demo_api_server/lib/vault');
-} catch {
-  // Not co-located with demo_api_server (e.g. standalone container deploy).
+  vaultLib = require(VAULT_LIB_PATH);
+} catch (err) {
+  // ONLY "the module isn't here" is expected — the agent image genuinely ships
+  // without demo_api_server. A bare `catch {}` also swallowed every other
+  // require-time failure: a broken argon2 native build, a syntax error in the
+  // vault library, a partially-installed dependency. Each of those left
+  // vaultLib null and the service reporting reason 'no_vault_file' — a wrong
+  // answer that reads as normal. Anything that is not this exact module going
+  // missing is a real defect and must surface.
+  const e = err as NodeJS.ErrnoException & { message: string };
+  const isMissingVaultLib =
+    e.code === 'MODULE_NOT_FOUND' && e.message.includes(VAULT_LIB_PATH);
+  if (!isMissingVaultLib) throw err;
 }
 
 // REPO_ROOT resolves up from this file:
@@ -60,7 +72,7 @@ const DEFAULT_ALLOWED = /^(AGENT_|MCP_GW_|PROVIDER_|HELIX_|BFF_INTERNAL_)[A-Z0-9
 export interface VaultLoadResult {
   loaded: boolean;
   entries: number;
-  reason?: 'vercel' | 'no_vault_file';
+  reason?: 'vercel' | 'no_vault_file' | 'vault_lib_unavailable';
 }
 
 export interface VaultLoadOpts {
@@ -84,15 +96,43 @@ export async function loadVaultIntoEnv(opts: VaultLoadOpts = {}): Promise<VaultL
   const allowed = opts.allowedPrefixes ?? DEFAULT_ALLOWED;
   const isVercel = opts.isVercel ?? (process.env.VERCEL === '1');
 
-  if (vaultLib === null) {
-    return { loaded: false, entries: 0, reason: 'no_vault_file' };
-  }
-
   if (isVercel) {
     logger.log(
       '[Agent vault] Vercel detected — skipping vault load (use Encrypted Environment Variables)',
     );
     return { loaded: false, entries: 0, reason: 'vercel' };
+  }
+
+  // The vault library is absent whenever the agent runs from its own image:
+  // docker-compose builds agent-service with `context: ./demo_agent_service`,
+  // so demo_api_server is not in the build context and the require above always
+  // fails. This branch is therefore the ONLY branch that runs under Compose.
+  //
+  // It used to return silently, and with reason 'no_vault_file' — claiming a
+  // missing file when the file may be mounted and readable. Result: every
+  // AGENT_/MCP_GW_/BFF_INTERNAL_ secret quietly came from .env instead of the
+  // vault, the `!password` fail-fast below was unreachable, and nothing in the
+  // logs said so. Say it out loud, and honour VAULT_REQUIRED the way the BFF's
+  // loader does so a deployment that depends on the vault fails instead of
+  // degrading.
+  if (vaultLib === null) {
+    const vaultIntended = existsSync(vaultPath) || Boolean(password);
+    const msg =
+      '[Agent vault] vault library not available in this image (' +
+      VAULT_LIB_PATH +
+      ') — vault entries will NOT be loaded';
+    if (String(process.env.VAULT_REQUIRED).toLowerCase() === 'true') {
+      logger.error(msg + ' and VAULT_REQUIRED=true — refusing to start');
+      throw new Error(msg + ' and VAULT_REQUIRED=true — refusing to start');
+    }
+    if (vaultIntended) {
+      // A vault file or a password is present, so somebody expected this to
+      // work. Loudest non-fatal signal available.
+      logger.error(msg + ' — falling back to process.env (set VAULT_REQUIRED=true to make this fatal)');
+    } else {
+      logger.warn(msg + ' — no vault file and no VAULT_PASSWORD, using process.env only');
+    }
+    return { loaded: false, entries: 0, reason: 'vault_lib_unavailable' };
   }
 
   if (!existsSync(vaultPath)) {
@@ -108,7 +148,7 @@ export async function loadVaultIntoEnv(opts: VaultLoadOpts = {}): Promise<VaultL
 
   let vault;
   try {
-    vault = await vaultLib.openVault(vaultPath, password);
+    vault = await vaultLib.openVault(vaultPath, password, { caller: 'agent-service' });
   } catch (err) {
     // Log error message ONLY — never the stack trace (T-269-20: stack-traces
     // leak argon2 / kek / dek internal symbol names from the vault library).

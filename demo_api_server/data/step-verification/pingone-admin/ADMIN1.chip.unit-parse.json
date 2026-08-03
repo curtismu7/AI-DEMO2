@@ -7,5 +7,5 @@
   "errorClass": null,
   "primaryTool": "call_pingone_tool",
   "checkedAt": "2026-08-02",
-  "verifiedBy": "nlIntentParser pingone-admin heuristics → call_pingone_tool"
+  "verifiedBy": "nlIntentParser pingone-admin heuristics → listApplications"
 }
