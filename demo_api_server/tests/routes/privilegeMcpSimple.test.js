@@ -84,6 +84,21 @@ describe('privilege MCP simple relay', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  // Regression: the default target was a hardcoded https://, but mcp-server only
+  // serves TLS when the mTLS switch is on. With it off the relay died on
+  // "wrong version number" — a TLS error for talking https to a plaintext port.
+  test('the default target scheme follows the mTLS switch', async () => {
+    delete process.env.PRIVILEGE_SIMPLE_MCP_URL;
+
+    process.env.MCP_MTLS_ENABLED = 'false';
+    let res = await request(buildApp()).get('/api/privilege-mcp-simple/status').expect(200);
+    expect(res.body.mcpUrl).toBe('http://mcp-server:8080/mcp');
+
+    process.env.MCP_MTLS_ENABLED = 'true';
+    res = await request(buildApp()).get('/api/privilege-mcp-simple/status').expect(200);
+    expect(res.body.mcpUrl).toBe('https://mcp-server:8080/mcp');
+  });
+
   test('tools/list names its scopes and sends mcp-protocol-version', async () => {
     const app = buildApp();
     global.fetch = jest.fn(async () => tokenOk());

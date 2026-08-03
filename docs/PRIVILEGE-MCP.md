@@ -14,11 +14,9 @@ This repo contains a **client** for that gateway (`/privilege-mcp-client`), a **
 that drives the OAuth and MCP protocol on the client's behalf, and Compose/K8s wiring for
 running the gateway itself.
 
-> Status as of 2026-08-03: the client, the relay and the protocol handling all work. The
-> **gateway** path is still blocked on a PingOne Privilege tenant trust setting, and
-> `/api/privilege-mcp-simple` — which did run a real token-to-MCP call end to end on
-> 2026-08-02 — currently fails with a TLS `EPROTO` because its default target URL is
-> `https://` while `MCP_MTLS_ON` is off. See
+> Status as of 2026-08-03: the client, the relay and the protocol handling all work, and
+> `/api/privilege-mcp-simple` performs a real token-to-MCP call end to end. The **gateway**
+> path is still blocked on a PingOne Privilege tenant trust setting. See
 > [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03).
 
 ---
@@ -59,7 +57,7 @@ The demo can run the client role two ways:
 | Route | MCP client | Identity it carries | Works today |
 |---|---|---|---|
 | `/api/privilege-mcp` | BFF, on behalf of a signed-in human | user token (OAuth code + PKCE) | needs the console steps |
-| `/api/privilege-mcp-simple` | BFF, as itself | machine token (`client_credentials`) | the path is proven, but the default URL 500s while `MCP_MTLS_ON` is off — [see below](#the-simple-relays-default-url-is-broken-while-mtls-is-off) |
+| `/api/privilege-mcp-simple` | BFF, as itself | machine token (`client_credentials`) | yes — verified end to end |
 
 ---
 
@@ -258,16 +256,17 @@ Two details that are easy to get wrong and are pinned by tests:
 A `client_credentials` token is a machine identity with no user, so `get_my_accounts`
 correctly returns `count: 0`. User-scoped data needs the interactive route.
 
-Before using this route, check its scheme: the built-in default is `https://` and the
-stack currently runs with mTLS off, which makes it fail on TLS — see
-[The simple relay's default URL is broken while mTLS is off](#the-simple-relays-default-url-is-broken-while-mtls-is-off).
+The default target's scheme follows `MCP_MTLS_ENABLED`, because `mcp-server` serves TLS
+on 8080 only when mTLS is on. Overriding `PRIVILEGE_SIMPLE_MCP_URL` opts out of that — get
+the scheme wrong and the relay fails with a TLS `EPROTO`, not a 4xx. See
+[The simple relay's default URL vs the mTLS switch](#the-simple-relays-default-url-vs-the-mtls-switch-resolved-2026-08-03).
 
 ## Configuration
 
 | Variable | Set in | Meaning |
 |---|---|---|
 | `PRIVILEGE_MCPGW_URL` | `docker-compose.yml` | MCP URL the client page defaults to — the console-assigned **cloud** frontend FQDN, never a local port |
-| `PRIVILEGE_SIMPLE_MCP_URL` | env, optional | target of the simple relay; defaults to `https://mcp-server:8080/mcp`. **That default only works with `MCP_MTLS_ON` set** — with mTLS off it 500s on TLS ([details](#the-simple-relays-default-url-is-broken-while-mtls-is-off)). Point at the gateway to route the same code through Privilege |
+| `PRIVILEGE_SIMPLE_MCP_URL` | env, optional | target of the simple relay; defaults to `http${MCP_MTLS_ON:+s}://mcp-server:8080/mcp`, i.e. the scheme follows the mTLS switch ([why](#the-simple-relays-default-url-vs-the-mtls-switch-resolved-2026-08-03)). Point at the gateway to route the same code through Privilege |
 | `PRIVILEGE_SIMPLE_SCOPE` | env, optional | scopes for the machine token; defaults to `read write mcp:invoke` |
 | `PRIVILEGE_SSO_CLIENT_ID` / `_SECRET` | `docker-compose.yml` | OAuth client for the user sign-in |
 | `PRIVILEGE_SSO_ENV_ID` | `docker-compose.yml` | env used for OIDC discovery fallback |
@@ -290,8 +289,9 @@ The demo side is complete and proven. The gateway path is blocked on one tenant-
 trust setting that cannot be changed from this repo.
 
 Everything in this section was re-run against the live stack on 2026-08-03 and still
-holds, with one exception: the simple relay's default target URL now breaks — see
-[The simple relay's default URL is broken while mTLS is off](#the-simple-relays-default-url-is-broken-while-mtls-is-off).
+holds, with one exception now fixed: the simple relay's default target URL had drifted
+out of sync with the mTLS switch — see
+[The simple relay's default URL vs the mTLS switch](#the-simple-relays-default-url-vs-the-mtls-switch-resolved-2026-08-03).
 
 ### How the frontend actually works
 
@@ -324,33 +324,32 @@ carries `OU=570afb32-…`, and the log shows a fresh `established command stream
 frontend still answers `Bearer Token not found.` unauthenticated; the container still
 binds only `127.0.0.1:8090` (`0100007F:1F9A` in `/proc/net/tcp`).
 
-### The simple relay's default URL is broken while mTLS is off
+### The simple relay's default URL vs the mTLS switch (resolved 2026-08-03)
 
-`POST /api/privilege-mcp-simple/tools/list` returns `500` with:
+For one day the relay returned `500` on every call:
 
 ```
 write EPROTO ...:error:0A00010B:SSL routines:tls_validate_record_header:wrong version number
 ```
 
-`DEFAULT_MCP_URL` in
-[`routes/privilegeMcpSimple.js`](../demo_api_server/routes/privilegeMcpSimple.js) is a
-hardcoded `https://mcp-server:8080/mcp`, but `MCP_MTLS_ON` is empty in the root `.env`, so
-`mcp-server` serves **plain HTTP** on 8080. Every other consumer derives the scheme from
-that switch (`http${MCP_MTLS_ON:+s}://…` in `docker-compose.yml`); this route does not.
+`mcp-server` listens on one port, 8080, and only speaks TLS when mTLS is on. The relay's
+default target was a hardcoded `https://mcp-server:8080/mcp`, while `MCP_MTLS_ON` is empty
+in the root `.env` — so it was speaking TLS at a plaintext port. Every other consumer
+derives its scheme from that switch (`http${MCP_MTLS_ON:+s}://…` in `docker-compose.yml`);
+this route did not.
 
-The relay logic itself is fine — only the scheme is wrong. The same machine token over
-`http://` completes the handshake:
+The collision is worth remembering, because both halves are load-bearing: **mTLS must be
+off for the console-configured backend to work** (see the trap below), and mTLS being off
+is exactly what broke this default. A fixed scheme could not be right in both states.
 
-```
-HTTP/1.1 200 OK
-mcp-session-id: 36e82e93-…
-{"result":{"protocolVersion":"2026-07-28","serverInfo":{"name":"Banking MCP Server",…}}}
-```
+Fixed in [`routes/privilegeMcpSimple.js`](../demo_api_server/routes/privilegeMcpSimple.js):
+`targetUrl()` now derives the scheme from the same `MCP_MTLS_ENABLED` flag that decides
+whether to attach a client cert, so the two can never drift apart again. An explicit
+`PRIVILEGE_SIMPLE_MCP_URL` still wins, which is how you point the route at the gateway.
 
-Note the collision with the trap below: **mTLS must be off for the console-configured
-backend to work**, and mTLS being off is exactly what breaks this default. Set
-`PRIVILEGE_SIMPLE_MCP_URL=http://mcp-server:8080/mcp`, or make the default follow
-`MCP_MTLS_ON` the way the rest of the stack does.
+The escape was that the test always set `PRIVILEGE_SIMPLE_MCP_URL`, so it never exercised
+the default — the suite stayed green while the route was dead. `tests/routes/privilegeMcpSimple.test.js`
+now asserts the default in both switch positions.
 
 ### The one blocker: Privilege does not trust this environment's issuer
 
@@ -538,10 +537,6 @@ session bearer, or whatever admin credential Privilege issues for CLI use.
 
 ### Order to fix
 
-0. Cheap and unrelated to the blocker: restore the simple relay by making its target
-   scheme follow `MCP_MTLS_ON` (or exporting `PRIVILEGE_SIMPLE_MCP_URL=http://mcp-server:8080/mcp`).
-   That is the demo's only working token-to-MCP proof; leaving it red hides regressions
-   in everything downstream of it.
 1. Obtain a `cyctl` credential and run `cyctl object application get` on `mypingone` to
    read its real inbound-auth config. That is the only remaining way to see, rather than
    infer, what issuer Privilege validates against.
@@ -569,5 +564,5 @@ users live in `01d89b06`, so option 1 keeps the rest of the demo intact.
 | `MCP gateway returned 502 Bad Gateway` | gateway up, upstream MCP server down or the user lacks tool entitlement | check `mcp-server`, then console policy |
 | Tools load but a call is denied | Privilege policy DENY — the demo working as intended | inspect the decision in the console |
 | Page shows nothing and no error | policy/recording never authored in the console | `ping-mcpgw/README.md` setup steps |
-| `500 write EPROTO … wrong version number` from `/api/privilege-mcp-simple` | relay targets `https://mcp-server:8080` while `MCP_MTLS_ON` is off, so the server speaks plain HTTP | set `PRIVILEGE_SIMPLE_MCP_URL=http://mcp-server:8080/mcp` |
+| `500 write EPROTO … wrong version number` from `/api/privilege-mcp-simple` | an explicit `PRIVILEGE_SIMPLE_MCP_URL` whose scheme disagrees with `MCP_MTLS_ON` — `mcp-server` speaks TLS on 8080 only when mTLS is on | match the scheme, or unset the var and let the default follow the switch |
 | `401 Authorization header JWT parsing failed JWT signature validation failed` | Privilege does not trust this environment's issuer — the open blocker | [The one blocker](#the-one-blocker-privilege-does-not-trust-this-environments-issuer) |
