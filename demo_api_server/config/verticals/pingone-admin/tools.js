@@ -3,8 +3,10 @@ const adapter = require('../../../services/mcpPingOneHttpAdapter');
 const { getMockResponse } = require('../../../services/oasDiscovery');
 
 // Hosted-MCP tool names that have offline mock payloads in oasDiscovery.
-// The labeled mock fallback only has data for these five.
-const CORE_TOOLS = ['listUsers', 'getUser', 'listGroups', 'listApplications', 'getEnvironment'];
+// The labeled mock fallback only has data for these five. Every name here must
+// also exist on the hosted server — a name that is real in neither place is a
+// ghost the chip can never resolve (see tests/oas/pingone-admin.ghostTools.test.js).
+const CORE_TOOLS = ['listUsers', 'getUser', 'listPopulations', 'listApplications', 'getEnvironment'];
 
 const LIVE_SOURCE = 'live — hosted PingOne MCP';
 const mockSource = (reason) => `mock — PingOne MCP unavailable: ${reason}`;
@@ -60,8 +62,8 @@ function summaryForResponse(tool, data) {
       case 'listApplications':
         if (Array.isArray(data?._embedded?.applications)) return `${data._embedded.applications.length} applications found`;
         break;
-      case 'listGroups':
-        if (Array.isArray(data?._embedded?.groups)) return `${data._embedded.groups.length} groups found`;
+      case 'listPopulations':
+        if (Array.isArray(data?._embedded?.populations)) return `${data._embedded.populations.length} populations found`;
         break;
       case 'getUser':
         if (data?.username) return `User: ${data.username}${data.email ? ` (${data.email})` : ''}`;

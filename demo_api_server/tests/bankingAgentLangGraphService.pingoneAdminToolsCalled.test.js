@@ -30,7 +30,7 @@ jest.mock('../services/nlIntentParser', () => {
 jest.mock('../services/mcpPingOneHttpAdapter', () => ({
   listTools: jest.fn(async () => [
     { name: 'listUsers', description: 'List users', inputSchema: { type: 'object', properties: {} } },
-    { name: 'listGroups', description: 'List groups', inputSchema: { type: 'object', properties: {} } },
+    { name: 'listPopulations', description: 'List populations', inputSchema: { type: 'object', properties: {} } },
   ]),
   callTool: jest.fn(async () => ({ ok: true })),
 }));
@@ -47,7 +47,7 @@ jest.mock('../services/appEventService', () => ({ logEvent: jest.fn() }));
 
 const { processAgentMessage } = require('../services/bankingAgentLangGraphService');
 
-const FIVE_TOOLS = ['listUsers', 'listGroups', 'listApplications', 'getEnvironment', 'getUser'];
+const FIVE_TOOLS = ['listUsers', 'listPopulations', 'listApplications', 'getEnvironment', 'getUser'];
 
 function resetCfg(next = {}) {
   for (const k of Object.keys(_cfg)) delete _cfg[k];
