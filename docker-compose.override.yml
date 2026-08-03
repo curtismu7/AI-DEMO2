@@ -8,11 +8,17 @@
 #                      Edits to demo_api_ui/src/** reflect in the browser instantly,
 #                      no rebuild. Served HTTPS on :4000 via the same mkcert certs,
 #                      proxying /api, /ws and /health to the BFF (see vite.config.js).
-#   - demo-api-server: `node --watch` restarts the BFF process when any source file
-#                      under the bind-mounted /app changes (source is already mounted
-#                      in docker-compose.yml). No nodemon needed — Node 20's built-in
-#                      watcher. CLEAR_SESSIONS_ON_BOOT=false keeps users logged in
-#                      across restarts.
+#   - demo-api-server: NO auto-restart. It runs the image default (`npm start` →
+#                      `node server.js`). It used to run `node --watch`, which was
+#                      demo-hostile: docker-compose.yml bind-mounts the MAIN
+#                      checkout, so any pull into it — a merge, a sync — changed
+#                      files under /app and bounced the BFF. The process is down
+#                      ~35s, and for that whole window the Vite dev server below
+#                      has nothing to proxy to and answers /api with 502.
+#                      Restart deliberately instead:
+#                        ./run-docker.sh restart demo-api-server
+#                      For live reload while developing the BFF, add back locally
+#                      (do not commit):  command: node --watch server.js
 #
 # First run after pulling this file (rebuilds the UI dev stage):
 #   docker compose up --build ui demo-api-server
@@ -30,9 +36,8 @@
 
 services:
 
-  # BFF — restart on source change (source already bind-mounted in base compose).
-  demo-api-server:
-    command: node --watch server.js
+  # BFF — deliberately NOT overridden here. See the header note: watching the
+  # bind-mounted main checkout made every merge restart the BFF mid-demo.
 
   # UI — Vite dev server with HMR (Dockerfile `dev` stage) instead of nginx.
   ui:
