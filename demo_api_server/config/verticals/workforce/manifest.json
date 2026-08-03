@@ -103,6 +103,7 @@
       { "id": "wf5", "label": "🔐 Request time off", "message": "request time off", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "request_time_off", "useCaseId": "hitl-consent" },
       { "id": "wf-ciba", "label": "🔑 Submit expense (manager approval)", "message": "submit a $600 expense with manager approval", "mode": "both", "challenge": "both", "hitlTrigger": true, "tool": "submit_expense", "useCaseId": "ciba-out-of-band-approval", "group": "advanced" },
       { "id": "wf-feature", "label": "My expense report", "message": "view my expense report", "mode": "both", "tool": "show_expense_report", "useCaseId": "delegated-access-with-proof" },
+      { "id": "wf-a2a", "label": "Sensitive payroll details", "message": "access my sensitive payroll details", "mode": "both", "challenge": "consent", "tool": "sensitive_payroll_details", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "wf10", "label": "Which expenses are pending?", "message": "What's still waiting on my manager's sign-off?", "mode": "llm", "tool": "list_expenses" },
       { "id": "wf-direct", "label": "Direct MCP", "message": "my expenses", "mode": "direct", "tool": "list_expenses" }
     ],

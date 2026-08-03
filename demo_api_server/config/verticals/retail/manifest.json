@@ -108,6 +108,7 @@
       { "id": "rt-mfa", "label": "Cash out store credit", "message": "cash out my store credit", "mode": "both", "challenge": "step_up", "tool": "cash_out_store_credit", "useCaseId": "step-up-required" },
       { "id": "rt-feature", "label": "My large purchase", "message": "show my large purchase", "mode": "both", "tool": "show_large_purchase", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt-invest", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment", "useCaseId": "delegated-access-with-proof" },
+      { "id": "rt-a2a", "label": "Sensitive order history", "message": "access my sensitive order history", "mode": "both", "challenge": "consent", "tool": "sensitive_order_history", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "rt5", "label": "Order history", "message": "order history", "mode": "both", "tool": "list_orders", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt6", "label": "Track my order", "message": "track my order", "mode": "both", "tool": "order_status", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt7", "label": "Store credit balance", "message": "store credit balance", "mode": "both", "tool": "rewards_balance", "useCaseId": "delegated-access-with-proof" },
