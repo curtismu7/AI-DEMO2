@@ -266,7 +266,7 @@ export default function ElicitationPanel({ isOpen, onClose, initialTabId }) {
         <>
           <h3 style={{ marginTop: 0 }}>Elicitation in the banking demo</h3>
           <p>
-            The demo MCP server (<code>demo_mcp_server/</code>) does not currently implement
+            The demo MCP server (<code>oauth-mcp/</code>) does not currently implement
             elicitation — all tool calls resolve without requesting additional user input. This tab
             describes where the wiring would live if elicitation were added.
           </p>
@@ -282,7 +282,7 @@ export default function ElicitationPanel({ isOpen, onClose, initialTabId }) {
             </thead>
             <tbody>
               {[
-                ['MCP Server', 'demo_mcp_server/src/tools/BankingToolProvider.ts', 'Emits InputRequiredResult from a tool handler when it needs more info'],
+                ['MCP Server', 'oauth-mcp/src/tools/BankingToolProvider.ts', 'Emits InputRequiredResult from a tool handler when it needs more info'],
                 ['BFF WebSocket client', 'demo_api_server/services/mcpWebSocketClient.js', 'Intercepts InputRequiredResult mid-stream, surfaces elicitation/create to the UI layer'],
                 ['BFF route', 'demo_api_server/routes/mcp.js', 'Could relay elicitation requests to the browser via SSE'],
                 ['React UI', 'demo_api_ui/src/components/BankingAgent.js', 'Would render the elicitation form or URL consent dialog inline in the agent sidebar'],

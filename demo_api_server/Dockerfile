@@ -57,7 +57,7 @@ COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /snaps
 ENV CODE_SEARCH_REPO_ROOT=/repo
 COPY demo_api_ui/src /repo/demo_api_ui/src
 COPY demo_api_server /repo/demo_api_server
-COPY demo_mcp_server /repo/demo_mcp_server
+COPY oauth-mcp /repo/oauth-mcp
 COPY demo_mcp_gateway /repo/demo_mcp_gateway
 COPY demo_authz_server /repo/demo_authz_server
 COPY ping-gateway /repo/ping-gateway

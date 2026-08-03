@@ -9,7 +9,7 @@
  * transport code (e.g. ECONNREFUSED), the HTTP status, and the server's error
  * response body (a PingOne / OAuth error JSON, which holds no secrets).
  *
- * Mirrors demo_mcp_server/src/utils/sanitizeAxiosCause.ts (separate package,
+ * Mirrors oauth-mcp/src/utils/sanitizeAxiosCause.ts (separate package,
  * cannot be shared as code).
  */
 function sanitizeAxiosCause(error) {

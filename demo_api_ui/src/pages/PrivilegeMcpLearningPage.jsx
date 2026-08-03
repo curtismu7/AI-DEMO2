@@ -346,7 +346,7 @@ OIDC_SCOPES=openid profile email`}
     MCP_MTLS_ENABLED: "false"
     MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
   env_file:
-    - path: ./demo_mcp_server/.env
+    - path: ./oauth-mcp/.env
       required: false
   tmpfs:
     - /app/dev-data:uid=1001,gid=1001`}
@@ -533,7 +533,7 @@ OIDC_SCOPES=openid profile email`}
               rows={[
                 ["ping-mcpgw/config/pingone.env", "OIDC config mounted into proxy container"],
                 ["ping-mcpgw/config/proxy-token", "Enrollment JWT (gitignored, expires ~24h)"],
-                ["demo_mcp_server/.env", "MCP server env overrides (SKIP_TOKEN_SIGNATURE_VALIDATION, etc.)"],
+                ["oauth-mcp/.env", "MCP server env overrides (SKIP_TOKEN_SIGNATURE_VALIDATION, etc.)"],
                 ["demo_api_server/routes/privilegeMcpClient.js", "BFF relay route for Privilege MCP Client page"],
                 ["docker-compose.yml", "PRIVILEGE_MCPGW_URL, MCP_MTLS_ENABLED, NODE_ENV settings"],
                 ["k8s/75-ping-mcpgw-deployment.yaml", "Kubernetes deployment manifest"],

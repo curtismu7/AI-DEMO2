@@ -1670,7 +1670,7 @@ class PingOneProvisionService {
   /**
    * Durably wire the MCP server's RFC 7662 introspection identity.
    *
-   * demo_mcp_server reads demo_mcp_server/.env.development (run-demo.sh
+   * demo_mcp_server reads oauth-mcp/.env.development (run-demo.sh
    * ensure_service_env copies it over .env each restart). It is NOT the BFF
    * .env writeEnvFile() generates, and it is gitignored/untracked — so a
    * fresh `setup:fresh` on a no-vault machine would otherwise leave the MCP
@@ -1694,7 +1694,7 @@ class PingOneProvisionService {
    */
   async writeMcpServerIntrospectionIdentity(provisioned) {
     const devEnvPath = path.resolve(
-      __dirname, '..', '..', 'demo_mcp_server', '.env.development',
+      __dirname, '..', '..', 'oauth-mcp', '.env.development',
     );
     let content;
     try {
@@ -3445,7 +3445,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
 
       // Step 33b: Durably wire the MCP server's introspection identity into
-      // demo_mcp_server/.env.development (the file run-demo.sh copies over
+      // oauth-mcp/.env.development (the file run-demo.sh copies over
       // its .env). Without this a fresh no-vault setup:fresh reintroduces the
       // gateway->MCP 401 (REGRESSION_PLAN §4 2026-05-18).
       {

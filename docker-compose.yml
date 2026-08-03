@@ -389,11 +389,11 @@ services:
       #
       # Its three settings are NOT declared here on purpose:
       #   PINGONE_MCP_EXCHANGER_CLIENT_ID / _SECRET / BANKING_API_RESOURCE_URI
-      # They come from this service's env_file (demo_mcp_server/.env). A compose
+      # They come from this service's env_file (oauth-mcp/.env). A compose
       # `environment:` entry OVERRIDES env_file, so declaring them here with a
       # "${VAR:-}" default blanked the real secret that env_file already supplied
       # — the gate then silently fell back to agent-passthrough. Set or comment
-      # BANKING_API_RESOURCE_URI in demo_mcp_server/.env to switch Step 9 on/off.
+      # BANKING_API_RESOURCE_URI in oauth-mcp/.env to switch Step 9 on/off.
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
@@ -405,8 +405,8 @@ services:
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
       NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
-      - path: ./demo_mcp_server/.env
-        required: false   # copy demo_mcp_server/.env.example if you need overrides
+      - path: ./oauth-mcp/.env
+        required: false   # copy oauth-mcp/.env.example if you need overrides
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       # Gateway client cert for the mTLS pin. certs/ is gitignored; generate via

@@ -983,13 +983,13 @@ cmd_test() {
     fi
   fi
 
-  if [[ -d "${BASEDIR}/demo_mcp_server" ]]; then
-    if grep -q '"test"' "${BASEDIR}/demo_mcp_server/package.json" 2>/dev/null; then
-      echo -e "  ${CYAN}→${RESET}  Running demo_mcp_server tests..."
-      if (cd "${BASEDIR}/demo_mcp_server" && npm test -- --passWithNoTests 2>&1); then
-        ok "demo_mcp_server tests passed"
+  if [[ -d "${BASEDIR}/oauth-mcp" ]]; then
+    if grep -q '"test"' "${BASEDIR}/oauth-mcp/package.json" 2>/dev/null; then
+      echo -e "  ${CYAN}→${RESET}  Running oauth-mcp tests..."
+      if (cd "${BASEDIR}/oauth-mcp" && npm test -- --passWithNoTests 2>&1); then
+        ok "oauth-mcp tests passed"
       else
-        err "demo_mcp_server tests FAILED"
+        err "oauth-mcp tests FAILED"
         failed=$((failed + 1))
       fi
     fi
@@ -1194,7 +1194,7 @@ fi
 # (tsc) when dist/index.js is missing. SVC_INSTALL_FLAGS handles services that
 # need extra `npm install` flags. Loud failure on any error — silent skips here
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
-SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_mcp_weather demo_api_resource_server mastra_agent demo_authz_server)
+SVC_LIST=(demo_api_server oauth-mcp       demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_mcp_weather demo_api_resource_server mastra_agent demo_authz_server)
 SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "ts"          "")
 SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    ""            "")
 
@@ -1471,10 +1471,10 @@ unset _listener_pid
 # ── Tier 2: MCP Server, Gateway, HITL ────────────────────────────────────────
 
 # ── Demo MCP Server on :8080 ──────────────────────────────────────────────
-if [[ -d "$BASEDIR/demo_mcp_server" ]]; then
+if [[ -d "$BASEDIR/oauth-mcp" ]]; then
   echo "[BOT] Starting Demo MCP Server on :8080..."
   (
-    cd "$BASEDIR/demo_mcp_server"
+    cd "$BASEDIR/oauth-mcp"
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
     NODE_EXTRA_CA_CERTS="${NODE_EXTRA_CA_CERTS:-}" \

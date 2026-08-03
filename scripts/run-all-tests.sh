@@ -22,8 +22,8 @@ step() {
 step "demo_api_server — Jest (unit + integration under src/__tests__)"
 ( cd "$ROOT/demo_api_server" && npm test -- --forceExit ) || FAILED=1
 
-step "demo_mcp_server — Jest (unit; integration: npm run test:integration in that package)"
-( cd "$ROOT/demo_mcp_server" && npm run test:unit ) || FAILED=1
+step "oauth-mcp — Jest (unit; integration: npm run test:integration in that package)"
+( cd "$ROOT/oauth-mcp" && npm run test:unit ) || FAILED=1
 
 # demo_authz_server and demo_mcp_gateway were in NO runner and NO CI job, so ~90
 # test cases — including decision.contract, importSnapshot.parity, and five
