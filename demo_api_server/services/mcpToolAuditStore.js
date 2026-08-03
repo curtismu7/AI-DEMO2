@@ -54,6 +54,10 @@ function recordToolCall({ userId, toolName, success, duration, resultJson, reque
 		},
 	};
 	_events.unshift(event);
+	// Guided Demo Track — best-effort observation; must never affect the audit.
+	try {
+		require('./demoTrackService').observeToolCall({ toolName, success, timestamp: event.timestamp });
+	} catch { /* track observation is optional */ }
 	if (_events.length > MAX_EVENTS) _events.length = MAX_EVENTS;
 }
 

@@ -423,6 +423,18 @@ async function runMcpToolPipeline(ctx) {
                 phase: 'authorize_denied',
                 status: mcpAuthz.block.status
             });
+            // Guided Demo Track — best-effort observation; never blocks the response.
+            try {
+                const _b = mcpAuthz.block.body || {};
+                const _trackDecision = _b.error === 'mcp_step_up_required' ? 'STEP_UP'
+                    : _b.error === 'mcp_hitl_required' ? 'HITL'
+                        : 'DENY';
+                require('./demoTrackService').observeDecision({
+                    tool,
+                    decision: _trackDecision,
+                    decisionId: _b.decisionId || null,
+                });
+            } catch { /* track observation is optional */ }
             // Scenario 5 — record the preflight authorize decision to the durable
             // compliance trail. These BFF-side blocks (deny / step-up / HITL,
             // including the Scenario 1 group-deny) never reach the gateway, so
