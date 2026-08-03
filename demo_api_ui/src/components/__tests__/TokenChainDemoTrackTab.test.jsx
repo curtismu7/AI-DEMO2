@@ -35,4 +35,10 @@ describe('TokenChainDemoTrackTab', () => {
     render(<TokenChainDemoTrackTab />);
     await waitFor(() => expect(screen.getByText(/1 \/ 1 blocked/)).toBeInTheDocument());
   });
+
+  it('links to the full track page', async () => {
+    render(<TokenChainDemoTrackTab />);
+    const link = await screen.findByText(/Open full track page/);
+    expect(link.closest('a')).toHaveAttribute('href', '/demo-track');
+  });
 });

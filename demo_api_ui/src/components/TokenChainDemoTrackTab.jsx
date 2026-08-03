@@ -109,6 +109,7 @@ export default function TokenChainDemoTrackTab() {
       <div className="tct-toolbar">
         <span className="tct-score">{filled} slots filled · gauntlet {gauntletBlocked}/{gauntletTotal}</span>
         <button type="button" className="tct-newrun" onClick={startRun}>Start new run</button>
+        <a className="tct-open-page" href="/demo-track">Open full track page ↗</a>
       </div>
       <div className="tct-act">ACT 1 · THE CUSTOMER AGENT</div>
       {track.steps.filter(s => s.act === 1).map(renderStep)}
