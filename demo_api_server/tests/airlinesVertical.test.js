@@ -99,6 +99,13 @@ describe('airlines vertical', () => {
     expect(hit.action).toBe('pay_airline_fee');
   });
 
+  // Without this entry _applyTransactionPolicy returns early on a null
+  // transactionType, so $2500 PERMITs and UC6/7/8/22 all silently pass.
+  test('pay_airline_fee is on the transaction-policy path', () => {
+    const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService');
+    expect(WRITE_TOOL_TYPE_MAP.pay_airline_fee).toBe('transfer');
+  });
+
   test('pay_airline_fee is gateway-surfaced and scoped like the cancel write', () => {
     expect(scopeTopology.toolScopes('pay_airline_fee')).toEqual(['airlines:read', 'airlines:write']);
     expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');

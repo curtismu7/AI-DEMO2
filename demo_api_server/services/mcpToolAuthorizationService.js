@@ -189,6 +189,10 @@ const WRITE_TOOL_TYPE_MAP = {
   // here the chip routes but the amount policy never fires: no DENY, no step-up,
   // no consent, and the demo looks correct while authorizing everything.
   large_trade: 'transfer',
+  // airlines (United) UC6/7/8/22 — "pay a $N change fee". Absent here the chip
+  // routes but the amount policy never fires: no DENY, no step-up, no consent,
+  // and the demo looks correct while authorizing everything.
+  pay_airline_fee: 'transfer',
 };
 
 /**
