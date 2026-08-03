@@ -68,6 +68,82 @@ display-name changes. Audiences (`enduser.ping.demo`, `a2a-intermediate-*.ping.d
 `mcp-invest.ping.demo`) contain no brand string and **must not change** — changing an
 audience invalidates every token minted for it.
 
+## Prerequisite workstream — resolve PingOne objects by id, not by name
+
+The name-resolution hazard is **not specific to this rename**. It is a standing
+property of the provisioning layer, and the rename only makes it likely to fire. It
+should be fixed first, on its own, so the rename becomes boring.
+
+### Every name-based resolution site
+
+| # | Site | Resolves | Failure if the name moves |
+|---|---|---|---|
+| 1 | `pingoneProvisionService.js:459` `findResourceByName` | resources **and** applications | creates a duplicate |
+| 2 | `:512` | `audience === a \|\| name === n` | audience-first, so mostly safe |
+| 3 | `:785` | attributes | duplicate attribute |
+| 4 | `:815` | attributes | duplicate attribute |
+| 5 | `:856` | policies | duplicate policy |
+| 6 | `:887` | agreements (`AGREEMENT_NAME`) | duplicate agreement |
+| 7 | `:965` | sign-on policies (`POLICY_NAME`) | duplicate policy |
+| 8 | `bootstrapPingOne.js:958` | applications | duplicate app |
+| 9 | `bootstrapPingOne.js:972` | resources | duplicate resource |
+| 10 | **`refresh-service-envs.js:121`** | applications → **writes client IDs into every service `.env`** | silently wrong or missing credentials |
+| 11 | **`scripts/rebuild-pingone.sh`** | **DELETES** apps matching `Demo AI App - *` | renamed app survives a rebuild; a differently-named app gets deleted |
+
+`twoExchangeReconciler.js:174,193` resolves by **audience**, which is why it is the one
+place that behaved correctly through the 2026-08-02 incident — the audience was wrong in
+the manifest, so it failed loudly rather than silently matching the wrong object.
+
+10 and 11 are worse than 1. #10 turns a console rename into wrong credentials in `.env`
+with no error; #11 is a **destructive** name match.
+
+### What is already id-addressed
+
+The codebase is half-way there already:
+
+- **Applications at runtime** — 9 `PINGONE_*_CLIENT_ID` values in `.env`. Runtime never
+  looks an app up by name; only *provisioning* does.
+- **Decision endpoints** — `PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID`,
+  `PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID`.
+- **Resources — the gap.** Only `PINGONE_RESOURCE_*_URI` (audience) is stored. No ids.
+
+### Design constraint: ids are per-environment
+
+A literal GUID cannot live in `scope-topology.json` next to the canonical key. The
+manifest is environment-agnostic and shared across local, the SE AWS cluster and any
+future tenant; PingOne ids differ per environment. Hard-coding one would break every
+environment but the one it came from.
+
+Options, in preference order:
+
+1. **`.env`, populated by `refresh-service-envs.js`** — exactly the existing pattern for
+   the 9 client IDs, extended to resources (`PINGONE_RESOURCE_*_ID` alongside the
+   existing `*_URI`). Zero new mechanism, per-environment by construction.
+2. **Per-environment block in the manifest** — `deployment` already carries per-env
+   values, so `deployment.<env>.pingoneIds{}` is structurally available. Keeps everything
+   in one file but puts environment-specific data in a shared artifact.
+3. **Resolve-once and cache in LMDB `configStore`** — no config surface at all, but the
+   cache is invisible and hard to audit, and a stale entry is a new failure mode.
+
+### Resolution order to implement
+
+```text
+1. id from config        →  GET /resources/{id}   (authoritative)
+2. audience match        →  stable; audiences are contract, not display
+3. name match            →  first-run bootstrap ONLY, and log loudly when it is used
+4. not found             →  create, then persist the returned id
+```
+
+Name matching stays for genuine first-run bootstrap of an empty environment, but a
+warning when step 3 fires makes "we resolved by name" visible instead of silent.
+
+### Guard
+
+A test asserting every `resources{}` / `apps{}` key has an explicit
+`provisioning.*Names` entry — today all 18 resources and 17 apps do, so the
+`|| internalKey` fallback at `pingoneProvisionService.js:27` is never exercised. That
+fallback is what turns a missed map entry into a live duplicate rather than an error.
+
 ## Tiers
 
 ### Tier 0 — do not touch
@@ -145,6 +221,10 @@ it silently stops exercising the rule. Prefer deriving from the manifest over ha
 
 Each step is its own PR; each must be green before the next starts.
 
+0. **Resolve by id, not by name** (the prerequisite workstream above). Do this first and
+   the rename stops being able to create duplicates at all — it turns Tier 2 from the
+   risky step into a cosmetic one. It is also worth doing even if the rename never
+   happens.
 1. **Tier 4 generators** — make every generated artifact reproducible from the manifest
    first, so later steps are `regenerate`, not `hand-edit`. (Fold in the
    `gen-authorize-snapshot.js` package-grouping bug found 2026-08-03: it splices objects
