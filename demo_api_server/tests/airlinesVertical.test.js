@@ -211,18 +211,21 @@ describe('airlines vertical', () => {
 
   /**
    * oauth-mcp/ IS the live `mcp-server` container, and BankingToolProvider reads
-   * a2aDelegatedScope from its own copy of the generated catalog. Regenerating
-   * only demo_mcp_server's copy leaves the specialist's Exchange #2 bearer
-   * rejected for insufficient scope while every static check stays green — the
-   * copy was already three tools stale when this vertical landed.
+   * a2aDelegatedScope from its own copy of the generated catalog. A stale copy
+   * leaves the specialist's Exchange #2 bearer rejected for insufficient scope
+   * while every static check stays green.
+   *
+   * This used to loop over demo_mcp_server too — a duplicate tree the generator
+   * wrote INSTEAD of oauth-mcp, which is how the live copy went three tools
+   * stale when this vertical landed. That tree is gone and the generator now
+   * writes the live one, so there is a single catalog to assert on.
    */
-  test('both generated MCP catalogs carry the tool and its delegated scope', () => {
+  test('the generated MCP catalog carries the tool and its delegated scope', () => {
     const fs = require('fs');
-    for (const svc of ['demo_mcp_server', 'oauth-mcp']) {
-      const p = path.join(__dirname, '..', '..', svc, 'src', 'tools', 'handlers', 'verticalTools.generated.ts');
-      const src = fs.readFileSync(p, 'utf8');
-      for (const name of ALL_TOOLS) expect(`${svc}:${src.includes(`"name":"${name}"`)}`).toBe(`${svc}:true`);
-      expect(src).toContain('"name":"sensitive_passenger_record","scope":"read","vertical":"airlines","a2aDelegatedScope":"pnr:read"');
-    }
+    const svc = 'oauth-mcp';
+    const p = path.join(__dirname, '..', '..', svc, 'src', 'tools', 'handlers', 'verticalTools.generated.ts');
+    const src = fs.readFileSync(p, 'utf8');
+    for (const name of ALL_TOOLS) expect(`${svc}:${src.includes(`"name":"${name}"`)}`).toBe(`${svc}:true`);
+    expect(src).toContain('"name":"sensitive_passenger_record","scope":"read","vertical":"airlines","a2aDelegatedScope":"pnr:read"');
   });
 });

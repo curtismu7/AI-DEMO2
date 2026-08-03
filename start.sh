@@ -8,7 +8,7 @@ echo "🏦 Starting Banking Digital Assistant..."
 echo "   Using PingOne environment: ${PINGONE_ENVIRONMENT_ID:-see .env files}"
 
 # Check for node_modules
-for svc in demo_api_server demo_mcp_server langchain_agent demo_api_ui; do
+for svc in demo_api_server oauth-mcp langchain_agent demo_api_ui; do
   if [ ! -d "$BASEDIR/$svc/node_modules" ]; then
     echo "📦 Installing dependencies for $svc..."
     (cd "$BASEDIR/$svc" && npm install)
@@ -22,10 +22,10 @@ echo $! > /tmp/demo-api-server.pid
 
 sleep 1
 
-# Start demo_mcp_server (port 8080)
-if [ -d "$BASEDIR/demo_mcp_server" ]; then
+# Start oauth-mcp (port 8080)
+if [ -d "$BASEDIR/oauth-mcp" ]; then
   echo "🤖 Starting Banking MCP Server on :8080..."
-  (cd "$BASEDIR/demo_mcp_server" && cp .env.development .env 2>/dev/null; npm start > /tmp/demo-mcp-server.log 2>&1) &
+  (cd "$BASEDIR/oauth-mcp" && cp .env.development .env 2>/dev/null; npm start > /tmp/demo-mcp-server.log 2>&1) &
   echo $! > /tmp/demo-mcp-server.pid
 fi
 

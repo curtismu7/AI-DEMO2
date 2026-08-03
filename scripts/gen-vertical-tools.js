@@ -11,12 +11,8 @@
  * sync entirely.
  *
  * It writes two outputs from the plugins:
- *   1. <tree>/src/tools/handlers/verticalTools.generated.ts, for EVERY MCP server
- *      tree in GENERATED_TS_PATHS — the typed VERTICAL_TOOLS array the MCP server
- *      exposes + relays to the BFF. oauth-mcp and demo_mcp_server are duplicate
- *      trees; docker-compose builds oauth-mcp, `npm run test:mcp-server` runs
- *      demo_mcp_server, and writing only one let them drift 6 tools apart with no
- *      gate able to see it. Until the duplicate is retired, write both.
+ *   1. oauth-mcp/src/tools/handlers/verticalTools.generated.ts
+ *      — the typed VERTICAL_TOOLS array the MCP server exposes + relays to the BFF.
  *   2. scope-topology.json  tools{}  entries (ADD-ONLY)
  *      — { requiredScopes, surface:"gateway", challengeType? } so the gateway can
  *        authorize each tool. Never removes/reorders existing content.
@@ -40,9 +36,12 @@ const { stringifyTopology } = require('./lib/stringify-topology');
 
 const ROOT = path.join(__dirname, '..');
 const TOPOLOGY_PATH = path.join(ROOT, 'scope-topology.json');
-// Duplicate MCP server trees — see the header note. Every entry gets the same
-// rendered file; `check` fails if ANY of them drifts.
-const GENERATED_TS_PATHS = ['oauth-mcp', 'demo_mcp_server'].map((tree) =>
+// A list, not a single path: oauth-mcp used to have a duplicate tree
+// (demo_mcp_server) that this generator skipped, and they drifted 6 tools apart
+// with no gate able to see it. The duplicate is gone, but keeping the shape
+// plural means a second tree can only ever be added by writing BOTH.
+// `check` fails if ANY entry drifts.
+const GENERATED_TS_PATHS = ['oauth-mcp'].map((tree) =>
   path.join(ROOT, tree, 'src', 'tools', 'handlers', 'verticalTools.generated.ts'),
 );
 

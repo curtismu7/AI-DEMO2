@@ -98,7 +98,7 @@ function pass(probe) {
   if (uc12 && uc12.maturity === 'works') {
     const hits = rg(
       "^(?!\\s*(?:\\/\\/|\\*)).*REQUIRE_DPOP_PROOF\\s*=\\s*['\"]?true['\"]?",
-      ['demo_mcp_gateway/src', 'demo_mcp_server/src'],
+      ['demo_mcp_gateway/src', 'oauth-mcp/src'],
       '--pcre2'
     );
     if (hits === 0) {

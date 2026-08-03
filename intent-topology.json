@@ -2177,7 +2177,7 @@
         "pingone-admin": {
           "vertical": "pingone-admin",
           "chipId": "pa4",
-          "message": "List the groups in my PingOne environment",
+          "message": "List the populations in my PingOne environment",
           "mode": "both",
           "declaredTool": "call_pingone_tool",
           "declaredToolSource": "chips10[].tool",

@@ -12,7 +12,7 @@
  * Checks each feature tool name appears in:
  *   - demo_mcp_gateway/src/router.ts           (APIKEY_TOOLS + APIKEY_BACKEND_ROUTES)
  *   - demo_mcp_gateway/src/apiKeyDispatch.ts   (TOOL_DISPLAY_NAMES)
- *   - demo_mcp_server/src/tools/BankingToolRegistry.ts  (TOOLS registry)
+ *   - oauth-mcp/src/tools/BankingToolRegistry.ts  (TOOLS registry)
  *   - demo_api_resource_server/server.js          (VERTICALS backend record, via the route-segment)
  *
  * Text-based (greps the source) so it needs no build. check-only — it reports
@@ -40,7 +40,7 @@ const TARGETS = [
     requires: (t) => [`${t}:`],
   },
   {
-    file: 'demo_mcp_server/src/tools/BankingToolRegistry.ts',
+    file: 'oauth-mcp/src/tools/BankingToolRegistry.ts',
     label: 'MCP server TOOLS registry',
     requires: (t) => [`${t}:`],
   },

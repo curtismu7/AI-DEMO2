@@ -113,7 +113,7 @@ const REPO_ROOT = path.resolve(SERVER_ROOT, '..');
 // Mirror setupFresh's seven Node services list — keep in sync if a service is added.
 const SERVICES = [
   'demo_api_server',
-  'demo_mcp_server',
+  'oauth-mcp',
   'demo_api_ui',
   'demo_mcp_gateway',
   'demo_hitl_service',

@@ -1,4 +1,4 @@
-# demo_mcp_server — banking MCP tool server
+# oauth-mcp — banking MCP tool server
 
 Inherits the root [CLAUDE.md](../CLAUDE.md) and `REGRESSION_PLAN.md` §0–§1.
 Everything below is additive and mcp-server-only.

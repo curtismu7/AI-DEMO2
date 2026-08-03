@@ -456,7 +456,7 @@ Last-Event-ID: <last-seen-event-id>`}</pre>
                 ['BFF MCP tool proxy entry point', 'demo_api_server/server.js (POST /api/mcp/tool)'],
                 ['Authorization gate (PingOne Authorize)', 'demo_api_server/services/mcpToolAuthorizationService.js'],
                 ['Token resolution & exchange', 'demo_api_server/services/agentMcpTokenService.js'],
-                ['MCP server tool handler', 'demo_mcp_server/src/tools/BankingToolProvider.ts'],
+                ['MCP server tool handler', 'oauth-mcp/src/tools/BankingToolProvider.ts'],
                 ['UI inline auth challenge', 'demo_api_ui/src/components/BankingAgent.js'],
                 ['SSE flow milestones', 'demo_api_server/services/mcpFlowSseHub.js'],
               ].map(([what, file], i) => (

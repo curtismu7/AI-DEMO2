@@ -22,8 +22,8 @@ FROM node:22-alpine
 ENV GIT_SHA=$GIT_SHA
 
 # Recreate the sibling layout so runtime path resolution works:
-#   dist/index.js → ../../demo_mcp_server/openapi/...
-#               → /repo/demo_mcp_server/openapi/...
+#   dist/index.js → ../../oauth-mcp/openapi/...
+#               → /repo/oauth-mcp/openapi/...
 WORKDIR /repo/demo_mcp_gateway
 
 COPY demo_mcp_gateway/package*.json ./
@@ -39,7 +39,7 @@ COPY scope-topology.json /repo/scope-topology.json
 COPY mcp-tool-schemas.json /repo/mcp-tool-schemas.json
 
 # Sibling openapi specs (served via GET /openapi/mcp-olb and /openapi/mcp-resource-server)
-COPY demo_mcp_server/openapi/ /repo/demo_mcp_server/openapi/
+COPY oauth-mcp/openapi/ /repo/oauth-mcp/openapi/
 COPY demo_mcp_resource_server/openapi/ /repo/demo_mcp_resource_server/openapi/
 
 EXPOSE 3005

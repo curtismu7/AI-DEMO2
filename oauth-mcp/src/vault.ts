@@ -59,8 +59,8 @@ try {
 }
 
 // REPO_ROOT resolves up from this file:
-//   compiled: demo_mcp_server/dist/vault.js  → ../.. → repo root
-//   source:   demo_mcp_server/src/vault.ts   → ../.. → repo root
+//   compiled: oauth-mcp/dist/vault.js  → ../.. → repo root
+//   source:   oauth-mcp/src/vault.ts   → ../.. → repo root
 // Both layouts land on the same repo root.
 const REPO_ROOT = resolve(__dirname, '..', '..');
 const DEFAULT_VAULT_PATH = join(REPO_ROOT, 'secrets.vault');
@@ -83,7 +83,7 @@ export interface VaultLoadOpts {
 /**
  * Load allowlisted vault entries into process.env. See module docstring above
  * for the allowlist, Vercel bypass, and VAULT_PASSWORD lifecycle rules.
- * Callers (demo_mcp_server/src/index.ts) MUST await loadVaultIntoEnv
+ * Callers (oauth-mcp/src/index.ts) MUST await loadVaultIntoEnv
  * before invoking loadConfiguration().
  */
 export async function loadVaultIntoEnv(opts: VaultLoadOpts = {}): Promise<VaultLoadResult> {
