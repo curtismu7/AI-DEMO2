@@ -349,7 +349,7 @@ For `NestedActClientId` (agent check):
 
 ## Part 11 — Transaction Limit Policy Examples
 
-The BFF sends these attributes to the **Transaction endpoint** (`Super Banking Demo — Transactions`):
+The BFF sends these attributes to the **Transaction endpoint** (`AI Demo — Transactions`):
 
 | Attribute | Type | Example | Description |
 |-----------|------|---------|-------------|

@@ -13,8 +13,8 @@ those endpoints.
 | Endpoint | ID | Authored by |
 |---|---|---|
 | Super Banking Demo - Policy as Code | `ad5fc1d4-0227-45c6-8612-bd982bb6593e` | `pac deploy` from `pac/policies/*.yaml` |
-| Super Banking Demo — Transactions | `c9e87348…` | snapshot import (console) |
-| Super Banking Demo — MCP first tool | `1f9e9c71…` | snapshot import (console) |
+| AI Demo — Transactions | `c9e87348…` | snapshot import (console) |
+| AI Demo — MCP first tool | `1f9e9c71…` | snapshot import (console) |
 
 All three are in environment `01d89b06`.
 
