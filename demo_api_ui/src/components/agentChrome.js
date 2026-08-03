@@ -108,6 +108,11 @@ export function verticalSuggestionChips(pageManifest) {
     hitlTrigger: !!c.hitlTrigger,
     // Challenge marker: consent | both | step_up (drives HitlChipMark glyphs).
     challenge: c.challenge || null,
+    // Negative-chip rail: mode 'direct' + tool/denyTool drive client dispatch
+    // (attack-sim for synthetic tools, real foreign-tool call for denyTool).
+    mode: c.mode || null,
+    tool: c.tool || null,
+    denyTool: c.denyTool || null,
   }));
 }
 
