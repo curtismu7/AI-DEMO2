@@ -30,4 +30,18 @@ describe('demoTrack config', () => {
     expect(def.steps).toHaveLength(9);
     expect(def.gauntletSims).toHaveLength(6);
   });
+
+  test('a2a-delegation green slot matches every a2aDelegated specialist tool, not just banking', () => {
+    const step = TRACK_STEPS.find((s) => s.stepId === 'a2a-delegation');
+    const tools = step.slots.green.match.tools;
+    expect(tools).toContain('get_portfolio_summary');
+    for (const t of [
+      'sensitive_customer_identity', 'sensitive_holdings', 'sensitive_membership_details',
+      'sensitive_order_history', 'sensitive_passenger_record', 'sensitive_patient_records',
+      'sensitive_payroll_details', 'sensitive_student_finance', 'sensitive_supplier_contract',
+      'sensitive_tax_record',
+    ]) {
+      expect(tools).toContain(t);
+    }
+  });
 });
