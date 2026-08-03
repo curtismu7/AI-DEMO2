@@ -48,6 +48,12 @@ const INVEST_TOOLS = new Set([
 // invest tools — demo_mcp_resource_server — so they route to the 'invest'
 // target. They differ in where the data comes from: these are answered from
 // that server's own SQLite database rather than proxied back to the BFF.
+// `sensitive_passenger_record` belongs here for the same reason as the other
+// three — the resource server answers it from SQLite. It is NOT an OLB tool: if
+// it fell through to the default 'olb' target it would be relayed to the BFF,
+// whose airlines plugin disowns every non-stub name, and the A2A specialist
+// would get "no handler for sensitive_passenger_record" after a fully valid
+// nested-act exchange.
 const AIRLINES_TOOLS = new Set([
   'get_airline_bookings',
   // Phase 2 — consent-gated counterpart. Must route the same way as the plain
@@ -56,6 +62,7 @@ const AIRLINES_TOOLS = new Set([
   'cancel_airline_reservation',
   'get_flight_status',
   'check_seat_availability',
+  'sensitive_passenger_record',
 ]);
 
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
