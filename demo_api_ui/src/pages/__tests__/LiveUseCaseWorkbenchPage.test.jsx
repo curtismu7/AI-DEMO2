@@ -261,8 +261,10 @@ describe('LiveUseCaseWorkbenchPage — teleprompter select broadcast', () => {
 
     render(<LiveUseCaseWorkbenchPage />);
 
-    const card = await screen.findByText(/Branches near me/);
-    fireEvent.click(card);
+    // UC24 is now on the presenter Demo script as well as the security script,
+    // so the page renders its card in both groups. Either card must broadcast.
+    const cards = await screen.findAllByText(/Branches near me/);
+    fireEvent.click(cards[0]);
 
     await waitFor(() => {
       expect(TestBroadcastChannel.posted).toContainEqual({ type: 'select', ucId: 'UC24' });

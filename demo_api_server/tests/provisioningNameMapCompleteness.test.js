@@ -52,7 +52,8 @@ describe('provisioning name map is total', () => {
     const identity = Object.entries(resourceNames)
       .filter(([k, v]) => k === v)
       .map(([k]) => k);
-    // Snapshotted as a count so adding one is a conscious edit.
-    expect(identity.length).toBe(10);
+    // Snapshotted as a count so adding one is a conscious edit. 11 since the
+    // Reservations Specialist A2A intermediate joined (airlines UC2).
+    expect(identity.length).toBe(11);
   });
 });

@@ -604,10 +604,11 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
-    // UC1, UC2, UC11 are DEMO_USE_CASE_IDS[0], [7], [13] → Step 1, Step 8, Step 14.
-    expect(within(demoSection).getByText('Step 1')).toBeInTheDocument();
-    expect(within(demoSection).getByText('Step 8')).toBeInTheDocument();
-    expect(within(demoSection).getByText('Step 14')).toBeInTheDocument();
+    // UC24 opens the script, so UC1, UC2, UC11 are DEMO_USE_CASE_IDS[1], [8],
+    // [14] → Step 2, Step 9, Step 15.
+    expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 9')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 15')).toBeInTheDocument();
   });
 
   it('a use case in both Demo and Happy Path renders once per section, not deduped', async () => {
@@ -720,11 +721,11 @@ describe('UseCaseLauncherPage', () => {
     fireEvent.change(search, { target: { value: 'a2a-delegation' } });
 
     // Only UC2 (useCaseId 'a2a-delegation') matches — Demo narrows to just its
-    // Step 8 card; UC1's Step 1 and UC11's Step 14 cards disappear from Demo.
+    // Step 9 card; UC1's Step 2 and UC11's Step 15 cards disappear from Demo.
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
-    expect(within(demoSection).getByText('Step 8')).toBeInTheDocument();
-    expect(within(demoSection).queryByText('Step 1')).not.toBeInTheDocument();
-    expect(within(demoSection).queryByText('Step 14')).not.toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 9')).toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 2')).not.toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 15')).not.toBeInTheDocument();
   });
 
   it('hides the Progressive Trust Demo strip while searching, restores it when cleared', async () => {

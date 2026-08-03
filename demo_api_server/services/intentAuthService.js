@@ -100,6 +100,10 @@ async function evaluateIntentAuthorization(intentContext) {
     'sensitive_student_finance', 'sensitive_payroll_details',
     'sensitive_membership_details', 'sensitive_supplier_contract',
     'sensitive_holdings',
+    // airlines (United) — the vertical joined the use-case catalog after this
+    // set was last extended, so both its UC1 and UC2 chips would have taken the
+    // 428 fallback described above.
+    'get_airline_bookings', 'sensitive_airline_bookings',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {

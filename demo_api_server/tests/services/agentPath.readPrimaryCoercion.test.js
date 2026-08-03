@@ -99,7 +99,7 @@ describe('activity pre-fetch — no vertical borrows another vertical\'s read to
   // the class impossible rather than fixing today's instances.
   it('a vertical absent from READ_PRIMARY_TOOL_BY_VERTICAL selects NO tool', () => {
     const { service, READ_PRIMARY_TOOL_BY_VERTICAL } = load();
-    for (const id of ['airlines', 'oauth-teaching', 'pingone-admin', 'admin-console', 'pizza']) {
+    for (const id of ['oauth-teaching', 'pingone-admin', 'admin-console', 'pizza']) {
       expect(READ_PRIMARY_TOOL_BY_VERTICAL[id]).toBeUndefined();
       expect(service.__test.readPrimaryToolFor(id)).toBeNull();
     }
@@ -113,14 +113,16 @@ describe('activity pre-fetch — no vertical borrows another vertical\'s read to
   });
 
   // Guards the exact shape that made airlines live: plugin present, returns
-  // NOT_MY_TOOL, absent from the map. A future vertical of this shape is the
-  // only way this class can come back.
+  // NOT_MY_TOOL for names it does not own. airlines now carries its OWN map
+  // entry (it joined the use-case catalog), so the claim it proves is the same
+  // one stated differently — it selects its own read tool, never banking's.
   it('airlines is the live case — MCP-backed plugin that disowns unknown names', async () => {
-    const { verticalDispatch, READ_PRIMARY_TOOL_BY_VERTICAL } = load();
+    const { verticalDispatch, READ_PRIMARY_TOOL_BY_VERTICAL, service } = load();
     expect(verticalDispatch.hasPlugin('airlines')).toBe(true);
     const p = verticalDispatch.resolvePlugin('airlines');
     expect(await p.executeTool('get_my_transactions', {}, {})).toBe(NOT_MY_TOOL);
-    expect(READ_PRIMARY_TOOL_BY_VERTICAL.airlines).toBeUndefined();
+    expect(READ_PRIMARY_TOOL_BY_VERTICAL.airlines).toBe('get_airline_bookings');
+    expect(service.__test.readPrimaryToolFor('airlines')).toBe('get_airline_bookings');
   });
 
   // End-to-end through the REAL processAgentMessage: only the LLM and the BFF
