@@ -714,10 +714,14 @@ services:
       MCP_SERVER_PORT: "8081"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # RFC 8693 rollout: gateway exchanges to this backend's own resource URI before
-      # forwarding (aud=mcp-resource-server.ping.demo). mcpgateway.ping.demo kept as a transitional
-      # second entry for callers still on the old forward-unchanged contract. Compose env
-      # wins over demo_mcp_resource_server/.env.
-      MCP_SERVER_RESOURCE_URI: "mcp-resource-server.ping.demo,mcpgateway.ping.demo"
+      # forwarding (aud=mcp-invest.ping.demo — the audience the PingOne resource
+      # actually carries; scope-topology.json used to claim mcp-resource-server.ping.demo,
+      # which exists nowhere in PingOne, so Exchange #3 never landed and the inbound
+      # gateway token was forwarded instead). All three are ACCEPTED, not swapped:
+      # mcpgateway.ping.demo is still what the forward-unchanged fallback sends, and
+      # mcp-resource-server.ping.demo keeps any pinned older caller working.
+      # Compose env wins over demo_mcp_resource_server/.env.
+      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"

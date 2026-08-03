@@ -289,8 +289,11 @@ export function loadConfig(): GatewayConfig {
     // service-specific var or those fallbacks.
     mcpOlbResourceUri: optional('MCP_OLB_RESOURCE_URI',
       optional('PINGONE_RESOURCE_MCP_SERVER_URI', 'mcpserver.ping.demo')),
+    // mcp-invest.ping.demo is the audience the PingOne "Demo MCP Invest" resource
+    // actually carries. The old default (mcp-resource-server.ping.demo) matched no
+    // PingOne resource at all, so Exchange #3 to this backend could never land.
     mcpResourceServerResourceUri: optional('PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI',
-      optional('MCP_RESOURCE_SERVER_AUDIENCE', 'mcp-resource-server.ping.demo')),
+      optional('MCP_RESOURCE_SERVER_AUDIENCE', 'mcp-invest.ping.demo')),
     mcpJwtVerifierHttpUrl: optional('MCP_GW_JWTVERIFIER_HTTP_URL', 'http://localhost:8083'),
     mcpJwtVerifierResourceUri: optional('PINGONE_RESOURCE_JWT_VERIFIER_URI',
       optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo')),
