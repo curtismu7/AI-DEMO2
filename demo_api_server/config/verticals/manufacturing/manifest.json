@@ -35,6 +35,26 @@
     "highValueAction": "Work Order Release",
     "highValueLabel": "Release a work order to the production floor"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Manufacturing_Privileged",
+        "description": "Users permitted to access sensitive supplier contracts (UC9)"
+      },
+      "delegates": {
+        "name": "Manufacturing_Delegates",
+        "description": "Users authorized as delegated operations agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_supplier_contract": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Gauge",
     "greeting": "Hi {name}! I'm Gauge. I can show your work orders and on-hand inventory, review production history, schedule a run, and release a work order to the floor — I'll walk you through the approval steps. What do you need?",

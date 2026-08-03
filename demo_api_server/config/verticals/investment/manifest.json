@@ -35,6 +35,26 @@
     "highValueAction": "Large Trade",
     "highValueLabel": "High-value trade or withdrawal from a managed portfolio"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Investment_Privileged",
+        "description": "Users permitted to access sensitive portfolio holdings (UC9)"
+      },
+      "delegates": {
+        "name": "Investment_Delegates",
+        "description": "Users authorized as delegated advisory agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_holdings": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Meridian",
     "greeting": "Hi {name}! I'm Meridian, your wealth assistant. I can show your portfolio value, holdings, and recent trade activity. What would you like to see?",
