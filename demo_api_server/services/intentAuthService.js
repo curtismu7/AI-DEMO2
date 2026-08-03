@@ -105,6 +105,11 @@ async function evaluateIntentAuthorization(intentContext) {
     // reservation lookup would have taken the 428 fallback described above.
     'get_airline_bookings', 'sensitive_airline_bookings',
     'sensitive_customer_identity',
+    // Read chips that STILL 428'd — government "what fees do I owe" and
+    // investment "show my holdings". Both tools are scopes:['read'], authz:{}.
+    // Found by the manifest-derived drift guard in
+    // tests/intentAuthService.readOnly.test.js, not by hand.
+    'view_fees', 'view_holdings',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {
