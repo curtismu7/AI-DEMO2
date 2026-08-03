@@ -10,6 +10,10 @@ const { tools, execute } = buildHealthcareTools(store);
 
 const HEURISTICS = [
   // Most specific first. release_records must precede view_records. sensitive_patient_records must precede view_records.
+  // UC28 request-only: request_document FILES a records request for human review and
+  // cannot release anything itself. Must precede release_records/view_documents/view_records,
+  // all of which would otherwise claim the phrase.
+  { re: /\brequest\b.{0,25}\b(copy|document|records?\s+request)\b|\brequest\s+(a\s+)?copy\b/i, action: 'request_document' },
   { re: /\bsensitive\b.*\b(record|patient|data)\b|\b(patient|record)\b.*\bsensitive\b/i, action: 'sensitive_patient_records' },
   { re: /\b(release|share|send)\s+(my\s+)?(records?|medical\s+records?)\b/, action: 'release_records', extractsRecordId: true, paramHint: 'e.g. "release record 102" — check your records list for the ID' },
   // cancel/reschedule precede book + list so "cancel my appointment" and

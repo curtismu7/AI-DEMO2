@@ -43,7 +43,7 @@ const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
  * showcase alias: its AIAgent case POSTs /api/transactions with
  * DEMO_HITL_TRANSFER (600) and the HITL gate fires — it IS create_transfer.
  */
-const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
+const { toolForAction } = require('./helpers/actionToTool');
 
 /** Every (vertical, useCase) chip entry with a real resolved primaryTool. */
 function chipEntries() {
@@ -172,7 +172,7 @@ describe('every vertical chip routes to its OWN stored primaryTool', () => {
       const ctx = resolveVerticalCtx(vertical);
       const r = parseHeuristic(text, vertical, ctx, {});
       const action = r ? (r.banking?.action ?? r.action ?? null) : null;
-      const tool = ACTION_TO_TOOL[action] || action;
+      const tool = toolForAction(action, vertical);
       if (tool !== primaryTool) {
         throw new Error(
           `${vertical}/${id}: chip "${text}" routes to action "${action}" -> tool "${tool}", but this ` +

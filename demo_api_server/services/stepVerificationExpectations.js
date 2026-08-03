@@ -9,22 +9,57 @@
 
 const fs = require('fs');
 const path = require('path');
-const { USE_CASES, resolveUseCase } = require('../config/useCases.js');
+const { USE_CASES, resolveUseCase, SECOND_PRODUCT_TOOL_BY_VERTICAL } = require('../config/useCases.js');
 
-/** Heuristic ACTION → MCP tool (keep in sync with tests/helpers/actionToTool.js). */
+/**
+ * Heuristic ACTION → MCP tool. THE single source; tests/helpers/actionToTool.js
+ * re-exports this rather than keeping a parallel copy.
+ *
+ * It was two copies with a "keep in sync" comment as the only enforcement, and
+ * they had already drifted: the service copy was missing `wire_transfer` and
+ * `sensitive_account_details`, so normalizeParsedIntent() returned the ACTION name
+ * where a tool name was expected for both. A comment is not a gate.
+ */
 const ACTION_TO_TOOL = {
   transfer: 'create_transfer',
+  // Banking's own high-value action — step-up is gated on the TOOL, so it must map
+  // to its own tool name rather than collapsing onto create_transfer.
+  wire_transfer: 'create_wire_transfer',
   transfer_600_test: 'create_transfer',
   deposit: 'create_deposit',
   withdraw: 'create_withdrawal',
   balance: 'get_account_balance',
   accounts: 'get_my_accounts',
   transactions: 'get_my_transactions',
+  // Inverse of banking's own TOOL_NAME_TO_ACTION map. The heuristic action is the
+  // alias — tagged heuristicOnly so it is never LLM-callable — and
+  // get_sensitive_account_details is the real MCP tool.
+  sensitive_account_details: 'get_sensitive_account_details',
   branch_hours: 'get_branch_hours',
   weather: 'get_weather',
   mortgage_demo: 'show_mortgage',
   gear_warranty_demo: 'show_gear_warranty',
+  // Cross-vertical portfolio chip — always dispatches show_investment whatever the
+  // active vertical is, so unlike vertical_feature_demo it needs no per-vertical
+  // lookup. This is investment's UC33 chip.
+  invest_demo: 'show_investment',
 };
+
+/**
+ * Resolve a heuristic action to the tool actually dispatched.
+ *
+ * `vertical_feature_demo` is the ONE action whose tool depends on the vertical:
+ * AIAgent.js dispatches that vertical's manifest featurePage.mcpTool, so the same
+ * action means show_health_record in healthcare and show_permit in government.
+ * Everything else is a flat lookup with an identity fallback (vertical plugin
+ * actions ARE their tool names).
+ */
+function toolForAction(action, vertical = null) {
+  if (action === 'vertical_feature_demo' && vertical && SECOND_PRODUCT_TOOL_BY_VERTICAL[vertical]) {
+    return SECOND_PRODUCT_TOOL_BY_VERTICAL[vertical];
+  }
+  return ACTION_TO_TOOL[action] || action;
+}
 
 /**
  * Catalog expectedOutcome → agentPreflight decision string (or null if N/A).
@@ -91,7 +126,7 @@ function amountFromChipText(text) {
  * Mirrors demoAgentLangGraphService: transfer_600_test → transfer @ 600.
  * @param {object|null} parsed
  */
-function normalizeParsedIntent(parsed) {
+function normalizeParsedIntent(parsed, vertical = null) {
   if (!parsed) return null;
   const banking = parsed.banking || null;
   let action = banking?.action ?? parsed.action ?? null;
@@ -107,7 +142,7 @@ function normalizeParsedIntent(parsed) {
     };
   }
 
-  const tool = ACTION_TO_TOOL[action] || action;
+  const tool = toolForAction(action, vertical);
   const amount =
     params.amount != null && params.amount !== ''
       ? Number(params.amount)
@@ -536,6 +571,8 @@ function scoreAgentReply({ reply, style, expectedReply, liveAccounts }) {
 }
 
 module.exports = {
+  ACTION_TO_TOOL,
+  toolForAction,
   OUTCOME_TO_GATE,
   DENIED_LIKE_OUTCOMES,
   EXPECTED_OUTCOME_FAMILY,
