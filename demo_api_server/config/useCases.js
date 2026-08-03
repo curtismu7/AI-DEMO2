@@ -230,6 +230,13 @@ const RAW_USE_CASES = [
       llm:   'Orchestrates multi-agent workflows — detects delegation cues, selects specialists, and drives coordinated sub-tasks.',
     },
     primaryTool: 'get_portfolio_summary',
+    // The trigger phrase is vertical-neutral, but the specialist tool is not:
+    // without this every vertical inherited banking's get_portfolio_summary and
+    // the orchestrator entry advertised a banking tool inside a sports/health
+    // demo. Same per-vertical values UC2 uses; trigger stays inherited.
+    perVertical: Object.fromEntries(
+      Object.entries(A2A_PRIMARY_TOOL_BY_VERTICAL).map(([v, primaryTool]) => [v, { primaryTool }]),
+    ),
   },
   {
     id: 'UC3',
@@ -326,9 +333,19 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the same act-claim policy for every tool in scope.',
     },
     primaryTool: 'show_mortgage',
-    // Mortgage is a banking-only product — other verticals fall back to their own
-    // read chip/tool (same convention as UC28) so the routing gate holds everywhere.
-    perVertical: READ_PER_VERTICAL,
+    // Mortgage is a banking-only product — verticals without a second product
+    // type fall back to their own read chip/tool (same convention as UC28) so the
+    // routing gate holds everywhere. sporting-goods ships its own second product
+    // (gear warranty) on the SAME api_key disposition as show_mortgage, so it
+    // demonstrates the point instead of repeating UC1's read.
+    perVertical: {
+      ...READ_PER_VERTICAL,
+      'sporting-goods': {
+        trigger: { type: 'chip', text: 'show my gear warranty' },
+        primaryTool: 'show_gear_warranty',
+        whatToSay: 'Same delegated token, a different product — the act claim proves the agent all the way to a warranty lookup, not just the gear list.',
+      },
+    },
   },
   {
     id: 'UC34',
@@ -1424,10 +1441,19 @@ const RAW_USE_CASES = [
       gw: 'Routes the tool call; the tool itself (not a policy check) is what bounds the action.',
     },
     primaryTool: 'request_fee_waiver',
-    // Policy-story convention (same as UC2): non-banking verticals surface their
-    // own read chip + own tool, so every vertical stores its own prompt/response
-    // and the coverage/routing gates hold everywhere.
-    perVertical: READ_PER_VERTICAL,
+    // Policy-story convention (same as UC2): verticals with no request-only tool
+    // surface their own read chip + own tool, so every vertical stores its own
+    // prompt/response and the coverage/routing gates hold everywhere.
+    // sporting-goods ships its own request-only tool (request_price_match, which
+    // cannot grant a price match), so it demonstrates the boundary directly.
+    perVertical: {
+      ...READ_PER_VERTICAL,
+      'sporting-goods': {
+        trigger: { type: 'chip', text: 'can you price-match my last order?' },
+        primaryTool: 'request_price_match',
+        whatToSay: 'The agent can only submit a price-match request for human review — it has no tool that actually approves one, so it cannot hallucinate a discount into existence.',
+      },
+    },
   },
 ];
 
@@ -1448,7 +1474,7 @@ const INVEST_TOOLS = new Set([
 ]);
 const APIKEY_TOOLS = new Set([
   'show_mortgage', 'show_investment', 'show_large_purchase', 'show_health_record',
-  'show_gear_order', 'show_expense_report', 'show_permit', 'show_enrollment', 'show_work_order',
+  'show_gear_order', 'show_gear_warranty', 'show_expense_report', 'show_permit', 'show_enrollment', 'show_work_order',
 ]);
 function resolveResourceServer(tool) {
   if (!tool) return null;

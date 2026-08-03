@@ -23,7 +23,7 @@ const EXPECTED_CHIP_COUNTS = {
   'oauth-teaching': 12,
   workforce: 11,
   healthcare: 10,
-  'sporting-goods': 10,
+  'sporting-goods': 12,
   government: 9,
   investment: 9,
   manufacturing: 9,
@@ -60,8 +60,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 129 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(129);
+  it('covers 131 chips across 13 verticals', () => {
+    expect(rows).toHaveLength(131);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
   });
 
@@ -103,7 +103,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(129);
+    expect(topology.counts.chips).toBe(131);
     expect(topology.counts.verticals).toBe(13);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });

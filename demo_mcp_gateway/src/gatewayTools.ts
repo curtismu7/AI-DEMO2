@@ -42,6 +42,12 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
     credentialPath: 'api_key',
   },
   {
+    name: 'show_gear_warranty',
+    description: 'Demo: API-key path — fetch the gear warranty record from the Super Sports backend via service API key.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    credentialPath: 'api_key',
+  },
+  {
     name: 'show_enrollment',
     description: 'Demo: API-key path — fetch the student enrollment record from the Super University backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },

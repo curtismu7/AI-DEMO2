@@ -80,6 +80,7 @@ const APIKEY_TOOLS = new Set([
   'show_large_purchase', // retail — Great Buy large purchase
   'show_health_record',  // healthcare — CareConnect health record
   'show_gear_order',     // sporting-goods — Super Sports gear order
+  'show_gear_warranty',  // sporting-goods — Super Sports gear warranty (UC33)
   'show_expense_report', // workforce — WX Workforce expense report
   'show_permit',         // government — CivicPermit permit record
   'show_enrollment',     // university — Super University enrollment record
@@ -147,6 +148,7 @@ export const APIKEY_BACKEND_ROUTES: Record<string, string> = {
   show_large_purchase: 'retail',
   show_health_record:  'healthcare',
   show_gear_order:     'gear',
+  show_gear_warranty:  'gearWarranty',
   show_expense_report: 'expense',
   show_permit:         'permit',
   show_enrollment:     'enrollment',

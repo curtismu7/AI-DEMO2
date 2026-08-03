@@ -25,6 +25,12 @@ const HEURISTICS = [
   { re: /\bpromotions?\b|\bcoupons?\b|\bdeals?\b|\boffers?\b|\bdiscount\s+codes?\b|\bpromo\s+codes?\b|\bdiscounts?\b/i, action: 'list_promotions' },
   { re: /\bcoaching\b|\blessons?\b|\bclinics?\b|\btraining\s+sessions?\b/i, action: 'list_coaching_sessions' },
   /* PACK:heuristics:end */
+  // UC28 — request-only price match. Must precede list_gear/gear_order_status so
+  // "price-match my last order" is not swallowed by an order-lookup heuristic.
+  { re: /\bprice[\s-]?match\b|\bmatch\b.{0,15}\bprice\b/i, action: 'request_price_match' },
+  // UC33 — Path A api_key feature tool (show_gear_warranty). Must precede the
+  // generic `my gear` heuristic below, which would otherwise claim the phrase.
+  { re: /\bwarrant(?:y|ies)\b/i, action: 'gear_warranty_demo' },
   { re: /\bsensitive\b.*\bmembership\b|\bmembership\b.*\bsensitive\b/i, action: 'sensitive_membership_details' },
   { re: /\btransfer\b.*\bmembership\b|\bmembership\b.*\btransfer\b/i, action: 'transfer_membership' },
   { re: /\bextend\b.*\brental\b|\brenew\b.*\brental\b/, action: 'extend_rental', extractsAmount: true, extractsRentalId: true, paramHint: 'e.g. "extend rental r1" — find your rental ID in the rentals list' },

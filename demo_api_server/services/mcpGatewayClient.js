@@ -57,6 +57,7 @@ const APIKEY_TOOLS = new Set([
     'show_large_purchase',
     'show_health_record',
     'show_gear_order',
+    'show_gear_warranty',
     'show_expense_report',
     'show_permit',
     'show_enrollment',

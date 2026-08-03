@@ -313,6 +313,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `show_large_purchase` | gateway | `largepurchase:read` | — |
 | `show_health_record` | gateway | `records:read` | — |
 | `show_gear_order` | gateway | `gear:read` | — |
+| `show_gear_warranty` | gateway | `gear:read` | — |
 | `show_expense_report` | gateway | `expense:read` | — |
 | `show_permit` | gateway | `permits:read` | — |
 | `show_enrollment` | gateway | `transcript:read` | — |
@@ -530,3 +531,5 @@ Granted scopes: — (none; resource-server or worker app)
 | `transfer_membership` | gateway | `write` | step_up |
 | `call_pingone_tool` | gateway | `read` | — |
 | `list_pingone_tools` | gateway | `read` | — |
+| `gear_warranty_demo` | gateway | `read` | — |
+| `request_price_match` | gateway | `write` | — |
