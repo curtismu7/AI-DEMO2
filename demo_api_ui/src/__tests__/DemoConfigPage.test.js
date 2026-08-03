@@ -6,7 +6,12 @@ import DemoConfigPage from "../components/DemoConfigPage";
 
 vi.mock("../styles/appShellPages.css", () => ({}), { virtual: true });
 vi.mock("../components/DemoConfigPage.css", () => ({}), { virtual: true });
-vi.mock("../config/navItemsCatalog", () => ({
+vi.mock("../config/navStructureCatalog", () => ({
+  NAV_STRUCTURE_CATALOG: [
+    { label: "Themes" },
+    { label: "Monitoring", children: ["Audit Trail", "Activity Log"] },
+    { label: "Authorize" },
+  ],
   NAV_ITEM_CATALOG: ["Themes", "Monitoring", "Authorize"],
 }));
 
