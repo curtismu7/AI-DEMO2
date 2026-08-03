@@ -8,7 +8,7 @@ function buildWorkforceTools(store) {
     { name: 'enroll_training', description: "Enroll the employee in a training course by trainingId.", inputSchema: { type: 'object', properties: { trainingId: { type: 'string' } }, required: ['trainingId'] }, scopes: ['write'], authz: {} },
     { name: 'close_ticket', description: "Close an open support ticket by ticketId.", inputSchema: { type: 'object', properties: { ticketId: { type: 'string' } }, required: ['ticketId'] }, scopes: ['write'], authz: {} },
     { name: 'complete_goal', description: "Mark a performance goal as completed by goalId.", inputSchema: { type: 'object', properties: { goalId: { type: 'string' } }, required: ['goalId'] }, scopes: ['write'], authz: {} },
-    { name: 'request_schedule_change', description: "Request a change to a specific scheduled shift by scheduleId.", inputSchema: { type: 'object', properties: { scheduleId: { type: 'string' } }, required: ['scheduleId'] }, scopes: ['write'], authz: {} },
+    { name: 'request_schedule_change', description: "Request a change to a specific scheduled shift by scheduleId.", inputSchema: { type: 'object', properties: { scheduleId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'update_goal_progress', description: "Update the progress status of a performance goal by goalId.", inputSchema: { type: 'object', properties: { goalId: { type: 'string' } }, required: ['goalId'] }, scopes: ['write'], authz: {} },
     { name: 'withdraw_training_enrollment', description: "Withdraw the employee from an enrolled training course by trainingId.", inputSchema: { type: 'object', properties: { trainingId: { type: 'string' } }, required: ['trainingId'] }, scopes: ['write'], authz: {} },
     { name: 'view_payslips', description: "List the employee's recent payslips.", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
@@ -157,6 +157,10 @@ function buildWorkforceTools(store) {
         const _arr = store.get(userId).schedules || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
+        // UC28's one-click chip carries no id — default to the member's first
+        // record so the request-only boundary is demonstrated instead of
+        // dead-ending on "I need: Id". Explicit-id callers are unaffected.
+        if (!_item && !_id) _item = _arr[0];
         if (!_item) return { result: { error: 'schedule not found' }, render: 'text' };
         Object.assign(_item, { status: 'Change Requested' });
         return { result: _item, render: 'request_schedule_change' };

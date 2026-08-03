@@ -564,3 +564,6 @@ Granted scopes: `read`, `identity:read`
 | `gear_warranty_demo` | gateway | `read` | — |
 | `request_price_match` | gateway | `write` | — |
 | `sensitive_customer_identity` | gateway | `read` | consent |
+| `request_fee_tier_review` | gateway | `write` | — |
+| `request_spec_exception` | gateway | `write` | — |
+| `request_price_adjustment` | gateway | `write` | — |

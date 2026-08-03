@@ -12,7 +12,7 @@ function buildGovernmentTools(store) {
     { name: 'dispute_violation', description: "Dispute or appeal a code violation by ID, setting its status to Disputed.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
     { name: 'reschedule_gov_appointment', description: "Request to reschedule a city appointment by ID.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
     { name: 'cancel_permit', description: "Cancel an active permit by ID, setting its status to Cancelled.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
-    { name: 'submit_filing', description: "Submit a pending filing by ID, updating its status to Submitted.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
+    { name: 'submit_filing', description: "Submit a pending filing by ID, updating its status to Submitted.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'approve_inspection', description: "Approve/pass an inspection record by ID, setting its status to Passed.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
     { name: 'close_violation', description: "Close an open code violation by ID, setting its status to Closed.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
     { name: 'schedule_inspection', description: "Schedule a pending inspection by ID, setting its status to Scheduled.", inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, scopes: ['write'], authz: {} },
@@ -76,6 +76,10 @@ function buildGovernmentTools(store) {
         const _arr = store.get(userId).filings || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
+        // UC28's one-click chip carries no id — default to the member's first
+        // record so the request-only boundary is demonstrated instead of
+        // dead-ending on "I need: Id". Explicit-id callers are unaffected.
+        if (!_item && !_id) _item = _arr[0];
         if (!_item) return { result: { error: 'filing not found' }, render: 'text' };
         Object.assign(_item, { status: 'Submitted' });
         return { result: _item, render: 'submit_filing' };

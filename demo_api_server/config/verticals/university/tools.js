@@ -14,7 +14,7 @@ function buildUniversityTools(store) {
     { name: 'accept_financial_aid', description: "Accept a pending financial aid award or loan offer by aidId.", inputSchema: { type: 'object', properties: { aidId: { type: 'string' } }, required: ['aidId'] }, scopes: ['write'], authz: {} },
     { name: 'pay_tuition_balance', description: "Mark a tuition bill as paid by billId.", inputSchema: { type: 'object', properties: { billId: { type: 'string' }, amount: { type: 'number' } }, required: ['amount'] }, scopes: ['write'], authz: {} },
     { name: 'release_hold', description: "Request release of an account hold by holdId.", inputSchema: { type: 'object', properties: { holdId: { type: 'string' } }, required: ['holdId'] }, scopes: ['write'], authz: {} },
-    { name: 'request_housing_assignment', description: "Submit or change a housing assignment request by housingId.", inputSchema: { type: 'object', properties: { housingId: { type: 'string' } }, required: ['housingId'] }, scopes: ['write'], authz: {} },
+    { name: 'request_housing_assignment', description: "Submit or change a housing assignment request by housingId.", inputSchema: { type: 'object', properties: { housingId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'renew_parking_permit', description: "Renew a campus parking permit by permitId.", inputSchema: { type: 'object', properties: { permitId: { type: 'string' } }, required: ['permitId'] }, scopes: ['write'], authz: {} },
     { name: 'checkout_library_item', description: "Check out or reserve a library item by itemId.", inputSchema: { type: 'object', properties: { itemId: { type: 'string' } }, required: ['itemId'] }, scopes: ['write'], authz: {} },
     { name: 'apply_scholarship', description: "Submit an application for a scholarship by scholarshipId.", inputSchema: { type: 'object', properties: { scholarshipId: { type: 'string' } }, required: ['scholarshipId'] }, scopes: ['write'], authz: {} },
@@ -96,6 +96,10 @@ function buildUniversityTools(store) {
         const _arr = store.get(userId).housing || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
+        // UC28's one-click chip carries no id — default to the member's first
+        // record so the request-only boundary is demonstrated instead of
+        // dead-ending on "I need: Id". Explicit-id callers are unaffected.
+        if (!_item && !_id) _item = _arr[0];
         if (!_item) return { result: { error: 'housing assignment not found' }, render: 'text' };
         Object.assign(_item, { status: 'Requested' });
         return { result: _item, render: 'request_housing_assignment' };

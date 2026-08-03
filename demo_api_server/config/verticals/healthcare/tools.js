@@ -29,7 +29,7 @@ function buildHealthcareTools(store) {
     { name: 'view_dependents', description: "List all covered dependents and family members on the patient's health plan", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'view_care_plan', description: "Fetch the patient's active care plan goals including targets, due dates, and status", inputSchema: { type: 'object', properties: {} }, scopes: ['read'], authz: {} },
     { name: 'mark_message_read', description: "Mark a secure portal message as read by messageId", inputSchema: { type: 'object', properties: { messageId: { type: 'string' } }, required: ['messageId'] }, scopes: ['write'], authz: {} },
-    { name: 'request_document', description: "Request or download a health document by id, setting its status to Requested", inputSchema: { type: 'object', properties: { documentId: { type: 'string' } }, required: ['documentId'] }, scopes: ['write'], authz: {} },
+    { name: 'request_document', description: "Request or download a health document by id, setting its status to Requested", inputSchema: { type: 'object', properties: { documentId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'cancel_referral', description: "Cancel a pending or scheduled specialist referral by referralId, setting its status to Cancelled", inputSchema: { type: 'object', properties: { referralId: { type: 'string' } }, required: ['referralId'] }, scopes: ['write'], authz: {} },
     { name: 'book_appointment', description: 'Book a new appointment with a provider.', inputSchema: { type: 'object', properties: { provider: { type: 'string' }, clinic: { type: 'string' }, when: { type: 'string' }, reason: { type: 'string' } }, required: [] }, scopes: ['write'], authz: {} },
     { name: 'release_records', description: 'Release medical records to a third party (requires step-up + consent).', inputSchema: { type: 'object', properties: { recordId: { type: 'string' } }, required: [] }, scopes: ['write'], authz: { stepUp: true, consent: true } },
@@ -53,7 +53,10 @@ function buildHealthcareTools(store) {
   const WRITE_TOOLS = {
     refill_prescription: { method: 'refillPrescription', idParam: 'medicationId', noun: 'medication' },
     mark_message_read: { method: 'markMessageRead', idParam: 'messageId', noun: 'message' },
-    request_document: { method: 'requestDocument', idParam: 'documentId', noun: 'document' },
+    // defaultFrom: UC28's one-click chip carries no id. Falling back to the first
+    // record in that collection demonstrates the request-only boundary instead of
+    // dead-ending on "I need: Document ID". Explicit-id callers are unaffected.
+    request_document: { method: 'requestDocument', idParam: 'documentId', noun: 'document', defaultFrom: 'documents' },
     cancel_referral: { method: 'cancelReferral', idParam: 'referralId', noun: 'referral' },
   };
 
@@ -64,8 +67,10 @@ function buildHealthcareTools(store) {
       return { result: { [key]: store.get(userId)[key] }, render: name };
     }
     if (WRITE_TOOLS[name]) {
-      const { method, idParam, noun } = WRITE_TOOLS[name];
-      const item = store[method](userId, params && (params[idParam] || params.recordId));
+      const { method, idParam, noun, defaultFrom } = WRITE_TOOLS[name];
+      let id = params && (params[idParam] || params.recordId);
+      if (!id && defaultFrom) id = ((store.get(userId)[defaultFrom] || [])[0] || {}).id;
+      const item = store[method](userId, id);
       if (!item) return { result: { error: `${noun} not found` }, render: 'text' };
       return { result: item, render: name };
     }
