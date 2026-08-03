@@ -63,15 +63,26 @@ binding. They resolve the moment `airlines` enters `VERTICALS`.
 
 Seven files carry logic. The rest is generated.
 
+A tool name is registered in seven places. The authoritative list was derived by
+grepping for the existing `cancel_airline_reservation`; missing any one of them
+produces a tool that half-exists.
+
 | Layer | File | Change |
 |---|---|---|
-| Resource server | `demo_mcp_resource_server/src/db/airlinesDb.ts` | `fee_payments` table, seed, reset |
-| Resource server | `demo_mcp_resource_server/src/tools/` | `pay_airline_fee` handler |
-| Vertical plugin | `demo_api_server/config/verticals/airlines/index.js` | tool declaration + heuristic |
+| Resource server | `demo_mcp_resource_server/src/db/airlinesDb.ts` | `fee_payments` table + `recordFeePayment` / `listFeePayments` |
+| Resource server | `demo_mcp_resource_server/src/tools/airlinesTools.ts` | `pay_airline_fee` definition |
+| Resource server | `demo_mcp_resource_server/src/tools/airlinesToolHandler.ts` | handler + `AIRLINES_TOOL_NAMES` |
+| Gateway | `demo_mcp_gateway/src/router.ts` | `pay_airline_fee` in the `AIRLINES_TOOLS` routing set |
+| Vertical plugin | `demo_api_server/config/verticals/airlines/index.js` | tool declaration + heuristic with `extractsAmount: true` |
+| Vertical manifest | `demo_api_server/config/verticals/airlines/manifest.json` | a `chips10` entry — `airlinesVertical.test.js` asserts chip tools equal the tool list exactly |
 | Scope topology | `scope-topology.json` | `pay_airline_fee`; A2A flags on `sensitive_airline_bookings`; specialist app/resource/scope |
 | Amount policy | `demo_api_server/services/mcpToolAuthorizationService.js` | `pay_airline_fee: 'transfer'` in `WRITE_TOOL_TYPE_MAP` |
 | A2A | `demo_api_server/config/a2aSpecialists.js` | `airlines` block |
 | Catalog | `demo_api_server/config/useCases.js` | `'airlines'` in `VERTICALS` + five per-vertical maps |
+
+`demo_mcp_server/src/tools/handlers/verticalTools.generated.ts` and
+`docs/scope-topology.md` also carry the name but are generated — regenerate, never
+hand-edit.
 
 The `WRITE_TOOL_TYPE_MAP` entry is the highest-risk omission. Its own comment
 records the identical failure for `large_trade`: without it "the chip routes but
@@ -85,9 +96,8 @@ Modeled on `pay_bill`, not on `large_trade`.
 ```
 name:   pay_airline_fee
 input:  { amount: number, fee_type?: 'change'|'bag'|'upgrade', confirmation_number?: string }
-scopes (plugin):            ['airlines:read', 'airlines:write']
-requiredScopes (topology):  ['write', 'airlines:write']
-challengeType:              none
+requiredScopes: ['airlines:read', 'airlines:write']   — identical everywhere
+challengeType:  none
 ```
 
 `challengeType` is deliberately unset. `large_trade` pins `step_up`
@@ -95,10 +105,26 @@ unconditionally, which would render UC6's $2500 DENY and UC8's $300 HITL both as
 step-up. `pay_bill` leaves it unset and lets the Transaction policy decide. That
 is what seven of eight verticals demo and what the ladder requires.
 
-`requiredScopes` carries both `write` (so the amount policy path matches the other
-verticals) and `airlines:write` (so the resource server authorizes the write).
-This pair must be re-checked against the gateway `mirroredScopes` list after the
-change — scope-name collisions during dedup caused #1046 and the UC18 502.
+**Correction to the approved design.** An earlier draft gave this tool
+`requiredScopes: ['write', 'airlines:write']`, reasoning that the generic `write`
+scope was what put it on the amount-policy path. It is not.
+`_applyTransactionPolicy` gates on `transactionType` — the value from
+`WRITE_TOOL_TYPE_MAP`, keyed by tool *name* — and on a finite positive `amount`:
+
+```js
+if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
+```
+
+Scope plays no part. Adding `write` would therefore buy nothing and reintroduce
+exactly the scope-name collision risk that caused #1046 and the UC18 502. The
+tool instead carries `['airlines:read', 'airlines:write']` — byte-identical to
+`cancel_airline_reservation` — in the plugin, in `airlinesTools.ts`, and in
+`scope-topology.json`. The corresponding risk row is dropped.
+
+The amount itself reaches the policy from the chip text. The heuristic entry
+carries `extractsAmount: true`, the same mechanism healthcare's `pay_bill` rule
+uses. `resolveAmountForPolicy` special-cases only `pay_bill`, so for
+`pay_airline_fee` the stated amount stands.
 
 ### 3. Persistence
 
@@ -254,7 +280,7 @@ missed. This is the single highest-probability failure and it presents as succes
 | Risk | Mitigation |
 |---|---|
 | `WRITE_TOOL_TYPE_MAP` omitted — amount ladder inert, demo looks correct | Live UC6 check at $2500 is a required gate |
-| Scope-name collision on `write` + `airlines:write` (#1046, UC18) | Re-check gateway `mirroredScopes` after the topology change |
+| Tool registered in some of the seven places but not all | Grep for `pay_airline_fee` and match the count against `cancel_airline_reservation` |
 | A2A scope shape wrong — Exchange #2 fails | Live token-chain read; rollback is leaving UC2 unwired |
 | Bootstrap mutates live environment `01d89b06` | Read the script before running; only the new specialist app is created |
 | Stale Docker image serves old resource-server code | Rebuild, do not restart; verify with `docker exec` grep |
