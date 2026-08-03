@@ -343,9 +343,15 @@ try {
             // McpRequestValidation runs earlier in this chain and has ALREADY
             // stripped the marker from the entity (its schema is
             // additionalProperties:false) — it hands the receipt over on the
-            // shared AttributesContext instead. Without this fallback the
-            // verification below never ran on the IG path.
-            if (rawChallenge == null) rawChallenge = attributes['hitlChallengeId']
+            // X-Hitl-Challenge-Id request header. Without this fallback the
+            // verification below never ran on the IG path. (An
+            // AttributesContext hand-over leaked across requests on this
+            // deployment — headers are per-request by construction.)
+            def hdrChallenge  = request.headers.getFirst('X-Hitl-Challenge-Id')
+            if (rawChallenge == null && hdrChallenge) rawChallenge = hdrChallenge
+            // Consume the hand-over: the header must never travel past this
+            // filter (backends do not know it, and it must not echo).
+            request.headers.remove('X-Hitl-Challenge-Id')
             hitlChallengeId   = rawChallenge != null ? String.valueOf(rawChallenge) : ''
             if (args instanceof Map && args.containsKey('_hitl_challenge_id')) {
                 args.remove('_hitl_challenge_id')
@@ -524,7 +530,14 @@ if (hitlChallengeId) {
         }
     }
     if (verdict == null) {
-        logger.error('[P1AZ] HITL verify unavailable (http ' + verifyRes.code + ') — failing closed')
+        // A REACHABLE hitl-service answers verify with 200 even for unknown
+        // ids ({ok:false}) — so 404 here means the route itself is absent:
+        // the container is running an image that predates /verify. Baked
+        // image, no src mount — rebuild, don't restart (live-hit 2026-08-03).
+        def hint = verifyRes.code == 404
+            ? ' — /challenges/:id/verify absent: hitl-service image is stale, run ./run-docker.sh build hitl-service'
+            : ''
+        logger.error('[P1AZ] HITL verify unavailable (http ' + verifyRes.code + ')' + hint + ' — failing closed')
         def unavailable = new Response(Status.SERVICE_UNAVAILABLE)
         unavailable.headers.put('Content-Type', 'application/json')
         unavailable.entity.setString(JsonOutput.toJson([

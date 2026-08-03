@@ -101,9 +101,14 @@ if (method == 'tools/call') {
         // This filter runs BEFORE P1AZDecision, and the rewrite above just
         // removed the receipt from the body — without a hand-over the receipt
         // verification in p1az-decision.groovy is unreachable and every
-        // approved retry re-mints a fresh 428 challenge forever. Same
-        // cross-filter channel the aam-* scripts use (AttributesContext).
-        attributes['hitlChallengeId'] = String.valueOf(rawHitlMarker)
+        // approved retry re-mints a fresh 428 challenge forever. Hand it over
+        // on a request HEADER: headers are per-request by construction. The
+        // AttributesContext was tried first and leaked across requests on this
+        // deployment — a stale id then 503'd every later call on the route
+        // (verify → 404 → fail closed). P1AZDecision strips the header before
+        // the request goes anywhere further; trust comes from the HITL
+        // service's verify call, not from the channel.
+        request.headers.put('X-Hitl-Challenge-Id', String.valueOf(rawHitlMarker))
     }
 }
 
