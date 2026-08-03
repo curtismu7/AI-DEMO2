@@ -85,6 +85,45 @@ describe('airlines vertical', () => {
   });
 
   /**
+   * configStore's env allowlist + alias map are hand-maintained per specialist,
+   * so a new specialist resolves NO credentials until three entries are added —
+   * and the failure is silent: resolveA2aConfig reports the app "not configured"
+   * exactly as it does when the PingOne app genuinely does not exist, so a real
+   * wiring gap is indistinguishable from an unprovisioned environment.
+   *
+   * Enumerated from the registry, not listed, so specialist eleven fails here
+   * the day it lands rather than at a demo.
+   */
+  test('every A2A specialist can resolve its credentials and audience from env', () => {
+    const configStore = require('../services/configStore');
+    const {
+      A2A_SPECIALISTS, clientIdKey, clientSecretKey, intermediateAudienceKey,
+    } = require('../config/a2aSpecialists');
+
+    const missing = [];
+    for (const spec of Object.values(A2A_SPECIALISTS)) {
+      const KEY = spec.appKey.toUpperCase();
+      const cases = [
+        [`PINGONE_A2A_${KEY}_AGENT_CLIENT_ID`, clientIdKey(spec.appKey)],
+        [`PINGONE_A2A_${KEY}_AGENT_CLIENT_SECRET`, clientSecretKey(spec.appKey)],
+        [`A2A_INTERMEDIATE_AUDIENCE_${KEY}`, intermediateAudienceKey(spec.appKey)],
+      ];
+      for (const [envVar, storeKey] of cases) {
+        const sentinel = `sentinel-${spec.appKey}-${envVar}`;
+        const had = Object.prototype.hasOwnProperty.call(process.env, envVar);
+        const prev = process.env[envVar];
+        process.env[envVar] = sentinel;
+        try {
+          if (configStore.getEffective(storeKey) !== sentinel) missing.push(`${envVar} -> ${storeKey}`);
+        } finally {
+          if (had) process.env[envVar] = prev; else delete process.env[envVar];
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  /**
    * The gateway routes by tool NAME. Left out of AIRLINES_TOOLS there, the
    * sensitive tool falls through to the default 'olb' target, is relayed to the
    * BFF, and the airlines plugin disowns it — so a fully valid nested-act
