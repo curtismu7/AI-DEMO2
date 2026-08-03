@@ -14,6 +14,7 @@ const AGENT_IDENTITY_LIFECYCLE = 'agent-identity-lifecycle';
 const AUDIT_TRAIL = 'audit-trail';
 const ENTITLEMENT_TIERED = 'entitlement-tiered-capability';
 const JIT_EPHEMERAL = 'jit-ephemeral-credentials';
+const GROUP_ENTITLEMENT = 'group-entitlement-check';
 
 /** Short delegated-token TTL for UC17 (5 minutes). */
 const JIT_TOKEN_LIFETIME_SEC = 300;
@@ -65,6 +66,30 @@ function shouldApplyEntitlementTierDemo(useCaseId) {
 }
 
 /**
+ * UC9 — resolve REAL PingOne group membership for the group-entitlement chip
+ * without turning on ff_authorize_group_policy globally.
+ *
+ * The flag is process-wide: flipping it for a demo changes behaviour for anyone
+ * else using the app, survives a crashed or abandoned run, and can be turned OFF
+ * mid-run by the 400-on-UserGroups self-heal in mcpToolAuthorizationService —
+ * which also silently disables every banking tier ceiling. Scoping to the
+ * request avoids all of that and needs no restore step.
+ *
+ * ⚠️ Unlike UC21, this must NOT inject any group. UC21 force-adds the premium
+ * group so its PERMIT branch always renders; doing that here would make the
+ * demo's in-group/out-of-group toggle decorative — the user would read as
+ * privileged no matter which way it was set, and the DENY half of UC9 would be
+ * unreachable. See resolveDemoUserGroupsForUseCase, which injects for
+ * ENTITLEMENT_TIERED only.
+ *
+ * @param {string|null} useCaseId
+ * @returns {boolean}
+ */
+function shouldApplyGroupPolicyDemo(useCaseId) {
+  return useCaseId === GROUP_ENTITLEMENT;
+}
+
+/**
  * UC21 — override user groups so the simulated/live Authorize path sees PrivateBanking.
  * @param {string|null} useCaseId
  * @param {string[]|null} userGroups
@@ -109,6 +134,7 @@ module.exports = {
   shouldSimulateRetiredAgentExchange,
   buildJitExchangeOptions,
   shouldApplyEntitlementTierDemo,
+  shouldApplyGroupPolicyDemo,
   resolveDemoUserGroupsForUseCase,
   stampTokenEventsForUseCase,
   buildEventMetadata,
