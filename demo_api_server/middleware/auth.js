@@ -49,9 +49,14 @@ const AI_AGENT_AUDIENCE = process.env.AI_AGENT_AUDIENCE || null;
 const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || null;
 const BANKING_API_RESOURCE_URI = process.env.BANKING_API_RESOURCE_URI || null;
 const MCP_GATEWAY_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || null;
-// mcp-resource-server backend resource URI — tokens minted for this audience arrive on the
-// investment BFF callback route (A2A nested-act chain, gateway Exchange #3 target).
-const MCP_RESOURCE_SERVER_AUDIENCE = process.env.PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI || null;
+// mcp-resource-server backend resource URI(s) — tokens minted for these audiences arrive on
+// the investment BFF callback route (A2A nested-act chain, gateway Exchange #3 target).
+// Comma-separated accepted list (same shape as MCP_SERVER_RESOURCE_URI): after #1269 the
+// PingOne resource carries mcp-invest.ping.demo; mcp-resource-server.ping.demo stays valid
+// for any caller still pinned to the old name. Never hardcode a default here (§1).
+const MCP_RESOURCE_SERVER_AUDIENCES = String(
+  process.env.PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI || '',
+).split(',').map((s) => s.trim()).filter(Boolean);
 const AI_AGENT_SCOPE = process.env.AI_AGENT_SCOPE || 'ai_agent';
 const DEFAULT_USER_TYPE = process.env.DEFAULT_USER_TYPE || 'customer';
 
@@ -608,13 +613,14 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       if (MCP_RESOURCE_URI && !gwAuds.includes(MCP_RESOURCE_URI)) {
         gwAuds.push(MCP_RESOURCE_URI);
       }
-      // mcp-resource-server's audience is intentionally absent from gwAuds — Exchange #3 for
-      // the A2A investment specialist narrows the nested-act token to that audience,
+      // mcp-resource-server's audiences are intentionally absent from gwAuds — Exchange #3
+      // for the A2A investment specialist narrows the nested-act token to that audience,
       // and it is accepted ONLY on the portfolio callback below, never on a banking
       // read or write callback.
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
         (isMcpBankingCallback && tokenAuds.some((a) => gwAuds.includes(a))) ||
-        (isInvestPortfolioCallback && MCP_RESOURCE_SERVER_AUDIENCE && tokenAuds.includes(MCP_RESOURCE_SERVER_AUDIENCE));
+        (isInvestPortfolioCallback && MCP_RESOURCE_SERVER_AUDIENCES.length > 0
+          && tokenAuds.some((a) => MCP_RESOURCE_SERVER_AUDIENCES.includes(a)));
       if (!hasMatch) {
         logger.warn(LOG_CATEGORIES.OAUTH_VALIDATION, 'Token audience mismatch — rejecting', {
           method, path,

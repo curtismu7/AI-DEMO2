@@ -102,6 +102,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — Exchange #3 invest tokens 401 on the portfolio callback (stale audience env)
+
+**Files changed:** `demo_api_server/middleware/auth.js`,
+`demo_api_server/.env.example`, `demo_api_server/scripts/refresh-service-envs.js`,
+`demo_api_server/tests/mcpResourceServerAudience.regression.test.js`,
+`ping-gateway/scripts/groovy/invest-dispatch.groovy` (caveat only).
+
+**What was broken:** #1269 pointed Super Banking MCP Invest at `mcp-invest.ping.demo`, so
+Exchange #3 (#1273 invest-dispatch / Node gateway) now lands that audience. The BFF
+portfolio gate still read `PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI`, which `.env.example`
+and typical checkouts left as the stale `mcp-resource-server.ping.demo` alone — and
+`refresh-service-envs.js` never wrote the key into the BFF `.env` at all. Result:
+`get_portfolio_summary` accepted the token on the resource server, then 401'd on
+`GET /api/investment/.../portfolio`. Separately, native (non-compose) resource-server
+`.env` generation wrote the *banking* MCP `MCP_SERVER_RESOURCE_URI`, so invest tokens
+were rejected before they reached a tool.
+
+**What was fixed:** Portfolio gate parses the env as a comma-list (ADD, never swap —
+`mcp-invest` + legacy `mcp-resource-server`). refresh upserts the topology-derived list
+into `demo_api_server/.env`, emits it on `shared`, and writes the resource server's
+accepted-audience list from the same source. `.env.example` updated to match.
+
+**Do not break:** Never re-add invest audiences to `gwAuds` (#888 / 2026-07-26). Do not
+hardcode an `aud` default in `auth.js` (§1). Banking callback audiences and enduser-on-
+portfolio must keep working — covered by the regression suite.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --testPathPattern=mcpResourceServerAudience.regression` (6 pass).
+
 ### 2026-08-03 — IG stripped the HITL receipt before P1AZDecision could verify it, so approved retries re-challenged forever (UC14b)
 
 **Files changed:** `ping-gateway/scripts/groovy/mcp-request-validation.groovy`,

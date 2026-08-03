@@ -29,15 +29,11 @@
  * tools keep being judged on their nested `act` chain — this filter only changes
  * which backend receives the call, never whether it is allowed.
  *
- * CAVEAT for the four invest tools: their handlers in demo_mcp_resource_server
- * call back into the BFF (`/api/investment/:id/portfolio`). That callback's
- * audience exception in demo_api_server/middleware/auth.js reads
- * PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI, which nothing sets — the deployment
- * sets MCP_RESOURCE_SERVER_AUDIENCE — so the exception is currently dead and the
- * callback is accepted on other grounds. Verify get_portfolio_summary still
- * returns a portfolio before this leaves draft; if it 401s, that env-name
- * mismatch is the reason, and it is a pre-existing bug this change surfaces
- * rather than causes.
+ * The four invest tools call back into the BFF (`/api/investment/.../portfolio`).
+ * That route accepts PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI (comma-list; must
+ * include mcp-invest.ping.demo after #1269). refresh-service-envs upserts it from
+ * scope-topology.json so Exchange #3 tokens are not 401'd against a stale
+ * mcp-resource-server-only value.
  */
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput

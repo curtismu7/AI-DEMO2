@@ -58,6 +58,18 @@ function writeEnvFile(filePath, vars) {
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
 }
 
+/** Upsert a single key in an existing .env without rewriting the whole file. */
+function upsertEnvKey(filePath, key, value) {
+  if (!fs.existsSync(filePath)) return;
+  let s = fs.readFileSync(filePath, 'utf8');
+  if (new RegExp(`^${key}=`, 'm').test(s)) {
+    s = s.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
+  } else {
+    s += `${s.endsWith('\n') || s === '' ? '' : '\n'}${key}=${value}\n`;
+  }
+  fs.writeFileSync(filePath, s, 'utf8');
+}
+
 function httpRequest(opts, postData) {
   return new Promise((resolve, reject) => {
     const lib = opts.protocol === 'http:' ? http : https;
@@ -342,6 +354,19 @@ async function main() {
     step9ExchangerSecret:   step9ExchangerSecret          || fb('PINGONE_MCP_EXCHANGER_CLIENT_SECRET'),
   };
 
+  // Invest backend audience(s). Topology is canonical (mcp-invest.ping.demo after #1269);
+  // keep the pre-#1269 name so a pinned older .env / caller still matches. Same ADD-not-
+  // swap contract as docker-compose MCP_SERVER_RESOURCE_URI for mcp-resource-server.
+  const investAudCanonical = topology.resources?.['Super Banking MCP Invest']?.uri
+    || 'mcp-invest.ping.demo';
+  const investAudList = [investAudCanonical, 'mcp-resource-server.ping.demo']
+    .filter((v, i, a) => v && a.indexOf(v) === i)
+    .join(',');
+  // BFF reads this at boot for the portfolio callback gate — refresh does not rewrite
+  // demo_api_server/.env wholesale, so upsert the key or Exchange #3 tokens (aud=
+  // mcp-invest.ping.demo) keep 401ing against a stale mcp-resource-server-only value.
+  upsertEnvKey(API_ENV, 'PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI', investAudList);
+
   // Shared vars that every service gets (read from api_server .env — bootstrap writes these)
   const shared = {
     PINGONE_ENVIRONMENT_ID:   envId,
@@ -365,6 +390,9 @@ async function main() {
     MCP_GW_PASSTHROUGH_TO_MCP_SERVER: fb('MCP_GW_PASSTHROUGH_TO_MCP_SERVER') || 'true',
     PINGONE_RESOURCE_AGENT_GATEWAY_URI: fb('PINGONE_RESOURCE_AGENT_GATEWAY_URI') || 'agentgateway.ping.demo',
     PINGONE_RESOURCE_MCP_GATEWAY_URI:   fb('PINGONE_RESOURCE_MCP_GATEWAY_URI') || 'mcpgateway.ping.demo',
+    // BFF portfolio callback + Node gateway Exchange #3 target. From topology, not a
+    // stale fb() — fb would keep mcp-resource-server.ping.demo forever after #1269.
+    PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI: investAudList,
     AI_AGENT_INTERMEDIATE_AUDIENCE:     fb('AI_AGENT_INTERMEDIATE_AUDIENCE') || 'agentgateway.ping.demo',
     PINGONE_RESOURCE_TWO_EXCHANGE_URI:  fb('PINGONE_RESOURCE_TWO_EXCHANGE_URI') || 'mcpgateway.ping.demo',
     // Resource GUIDs alongside the audiences above. A display name is mutable
@@ -539,8 +567,10 @@ async function main() {
     ...shared,
     PINGONE_TOKEN_ENDPOINT:      `${asBase}/token`,
     PINGONE_AUTHORIZATION_ENDPOINT: `${asBase}/authorize`,
-    MCP_SERVER_RESOURCE_URI:     fb('PINGONE_RESOURCE_MCP_SERVER_URI') || fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo',
-    MCP_RESOURCE_SERVER_AUDIENCE:         fb('MCP_RESOURCE_SERVER_AUDIENCE') || 'mcp-resource-server.ping.demo',
+    // This server's accepted audiences — NOT the banking MCP server URI. Compose
+    // overrides the same list; without this, native mode rejects mcp-invest tokens.
+    MCP_SERVER_RESOURCE_URI:     investAudList + ',mcpgateway.ping.demo',
+    MCP_RESOURCE_SERVER_AUDIENCE: investAudList,
   });
   console.log('[refresh-envs] Wrote demo_mcp_resource_server/.env');
 
@@ -596,7 +626,7 @@ async function main() {
     || 'mcpserver.ping.demo';
   const mcpResourceServerAud = topology.resources?.['Super Banking MCP Invest']?.uri
     || fb('MCP_RESOURCE_SERVER_RESOURCE_URI')
-    || 'mcp-resource-server.ping.demo';
+    || investAudCanonical;
   const mcpGatewayAud = topology.resources?.['Super Banking MCP Gateway']?.uri
     || fb('MCP_GW_RESOURCE_URI')
     || 'mcpgateway.ping.demo';
