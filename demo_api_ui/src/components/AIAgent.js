@@ -172,6 +172,7 @@ import {
   verticalSuggestionChips,
   HitlChipMark,
 } from "./agentChrome";
+import { isNegativeChip, dispatchNegativeChip } from "./negativeChipDispatch";
 import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
 import AgentNoMatchCard from "./AgentNoMatchCard";
 import AgentGroundedAnswerCard from "./AgentGroundedAnswerCard";
@@ -5808,10 +5809,59 @@ export default function BankingAgent({
     }
   }
 
+  // Thin wrapper around the attack-sim POST + verdict render, supplied as the
+  // `postSim` dependency to dispatchNegativeChip (negativeChipDispatch.js) for
+  // negative chips whose `tool` is a synthetic sim id rather than a real MCP
+  // tool (test_wrong_audience/test_wrong_scope — see NEGATIVE_SIM_BY_TOOL).
+  // Same call/render idiom as the existing apiClient.post('/api/demo/attack-sim/run')
+  // pattern used elsewhere in this file — generic (no hardcoded RFC/audience
+  // text), so it stays correct for any vertical's synthetic-tool chip; the
+  // banking-specific test_wrong_audience/test_wrong_scope runAction cases are
+  // untouched.
+  async function postSim(sim, { vertical, useCaseId, sourceLabel: label } = {}) {
+    try {
+      const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
+      const status = data?.status;
+      const isDeny = typeof status !== "number" || status >= 400;
+      const verdict = isDeny ? "DENY" : "PERMIT";
+      const reason = data?.reason || data?.errorCode || "";
+      addMessage(
+        "assistant",
+        [
+          label ? `${label}` : null,
+          `Attack sim \`${sim}\` → ${status ?? "?"} ${verdict}`,
+          reason ? reason : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        null,
+        { source: "attack-sim", vertical, useCaseId },
+      );
+      return data;
+    } catch (err) {
+      addMessage(
+        "assistant",
+        `Attack simulation failed: ${formatAxiosError(err, err.message || "failed")}`,
+      );
+      return null;
+    }
+  }
+
   // Activate a discovery/rail chip: manifest-derived vertical chips carry a
   // `message` → NL pipeline (vertical service); banking ACTION_GROUPS chips
-  // dispatch by action ID.
-  function handleChipActivate(action) {
+  // dispatch by action ID. Negative chips (mode 'direct' + a synthetic `tool`
+  // or a `denyTool` — see Task 1's verticalSuggestionChips) skip both and
+  // dispatch through the negative-chip rail instead.
+  async function handleChipActivate(action) {
+    if (isNegativeChip(action)) {
+      await dispatchNegativeChip(action, {
+        vertical: effectiveVerticalId,
+        postSim,
+        callMcpTool,
+        say: addMessage,
+      });
+      return;
+    }
     if (action.message) sendAsNl(action.message);
     else handleActionClick(action.id);
   }
