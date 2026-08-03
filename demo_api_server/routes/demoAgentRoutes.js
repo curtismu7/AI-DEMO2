@@ -445,6 +445,11 @@ router.post('/message', async (req, res) => {
       agentConfigured: response.agentConfigured,
       degradedDelegation: response.degradedDelegation,
       error: response.error,
+      // Option C (ff_grounded_answers). Per-claim attribution: only claims the
+      // in-vertical tool payloads actually support, each with its source tool
+      // and scope. Carries no dropped-claim text and no raw tool output by
+      // construction — see services/groundedAnswer.js.
+      groundedAnswer: response.groundedAnswer,
       // Prepend a 'token-refresh' card if the AT was silently refreshed this request
       // (guarded: no-op when no refresh, and skips if already present).
       tokenEvents: prependRefreshEvent(req, resolvedTokenEvents),

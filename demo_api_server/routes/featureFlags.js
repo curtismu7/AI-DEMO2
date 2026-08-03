@@ -525,6 +525,21 @@ const FLAG_REGISTRY = [
     type:         'boolean',
     defaultValue: false,
   },
+  {
+    id:           'ff_grounded_answers',
+    name:         'Grounded Answers',
+    category:     'Agent',
+    description:
+      'When **ON**, the agent may route freely but nothing reaches the screen without a tool call behind it. ' +
+      'Each rendered claim is checked against the payloads the in-vertical tools actually returned and is shown with its source tool and authorizing scope. ' +
+      'A claim that cannot be attributed is dropped; if nothing grounds, the reply degrades to the no-match card. ' +
+      'When **OFF** (default), the model\'s prose is rendered as-is.',
+    impact:
+      'OFF (default) = the model\'s answer is shown verbatim; a fabricated figure is indistinguishable from a real one. ' +
+      'ON = only attributable claims render, each labelled with the tool and scope that produced it; unattributable text is dropped rather than hedged.',
+    type:         'boolean',
+    defaultValue: false,
+  },
 
   // ── UI / Dashboard ─────────────────────────────────────────────────────────
   {

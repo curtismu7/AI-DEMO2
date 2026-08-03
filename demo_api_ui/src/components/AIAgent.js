@@ -173,6 +173,7 @@ import {
 } from "./agentChrome";
 import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
 import AgentNoMatchCard from "./AgentNoMatchCard";
+import AgentGroundedAnswerCard from "./AgentGroundedAnswerCard";
 
 // Phase 266 H2 audit: TokenChain credentialPath stamping origins per setTokenEvents call:
 //   line 3433 (scopeTestRes.tokenEvents)  — origin: scope-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
@@ -6411,6 +6412,64 @@ export default function BankingAgent({
   }
 
   /**
+   * Option C. Add the assistant turn, honouring the BFF's per-claim attribution
+   * when it is present (ff_grounded_answers ON).
+   *
+   * Three cases, in order:
+   *  1. No `groundedAnswer` — the flag is off or this path was not attributed.
+   *     Behave exactly as before; nothing about the existing turn changes.
+   *  2. Grounded — render the claim card. The model's prose is neither stored
+   *     nor shown: `content` becomes the attributed claim text only, so a
+   *     transcript export or history replay cannot resurrect a dropped claim.
+   *  3. Nothing grounded — degrade to the Option A card. A is C's floor. We do
+   *     not emit a hedged paragraph, because "here's roughly what I think"
+   *     is the exact failure this feature exists to prevent.
+   */
+  async function addReplyRespectingGrounding(response, replyWithAgentBadge, promptText) {
+    const grounded = response?.groundedAnswer;
+    if (!grounded) {
+      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      return;
+    }
+
+    if (grounded.grounded && Array.isArray(grounded.claims) && grounded.claims.length > 0) {
+      addMessage("assistant", grounded.claims.map((c) => c.text).join(" "), null, {
+        ...verticalResultExtra(response),
+        groundedClaims: grounded.claims,
+        groundedDroppedCount: grounded.droppedCount || 0,
+      });
+      return;
+    }
+
+    // Ask the BFF for the structured no-match so the offered next steps are the
+    // active vertical's own. It answers null when the prompt DID route to an
+    // intent (which is the usual case here — routing succeeded, grounding did
+    // not), so the vertical and brand fall back to what this page already knows.
+    // Fields the server did not supply stay undefined and the card omits them
+    // rather than inventing a count or a suggestion.
+    //
+    // Its `message` is deliberately NOT reused: it reads "No <vertical> action
+    // matched that request", which is false here — an action DID match. Only
+    // the suggestions and identity are borrowed; the wording is our own.
+    const noMatch = await fetchNoMatch(promptText);
+    addMessage(
+      "assistant",
+      "The agent answered that request, but none of the answer could be traced " +
+        "back to a tool call, so it is not shown.",
+      null,
+      {
+        noMatch: true,
+        noMatchReason: "ungrounded",
+        noMatchDroppedCount: grounded.droppedCount,
+        noMatchVerticalId: noMatch?.verticalId ?? effectiveVerticalId ?? null,
+        noMatchBrandName:
+          noMatch?.brandName ?? pageManifest?.identity?.displayName ?? null,
+        noMatchSuggestions: noMatch?.suggestions,
+      },
+    );
+  }
+
+  /**
    * Admin-token-on-customer-agent guard. The BFF refuses to run the customer
    * agent with an admin-client token (it cannot read customer data) and returns
    * { requiresCustomerLogin: true }. Render an action card: "Log in as customer"
@@ -7759,7 +7818,10 @@ export default function BankingAgent({
       try {
         const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
         const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
-        addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+        // Option C (ff_grounded_answers). When the BFF attributed this reply,
+        // the model's prose is NOT what gets stored or shown — only the claims
+        // it could trace to an in-vertical tool call, or the Option A card.
+        await addReplyRespectingGrounding(response, replyWithAgentBadge, text);
         // A2A teaching popup: auto-open after a successful A2A delegation,
         // mirroring how RAR auto-explains. The response's own token events
         // feed the modal's live values.
@@ -9941,6 +10003,18 @@ export default function BankingAgent({
                         </div>
                       );
                     }
+                    if (msg.role === "assistant" && msg.groundedClaims?.length) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <AgentGroundedAnswerCard
+                              claims={msg.groundedClaims}
+                              droppedCount={msg.groundedDroppedCount}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
                     if (msg.role === "assistant" && msg.noMatch) {
                       return (
                         <div key={msg.id} className="banking-agent-msg assistant">
@@ -9950,6 +10024,8 @@ export default function BankingAgent({
                               brandName={msg.noMatchBrandName}
                               intentsConsidered={msg.noMatchIntentsConsidered}
                               closestCandidate={msg.noMatchClosestCandidate}
+                              droppedCount={msg.noMatchDroppedCount}
+                              reason={msg.noMatchReason}
                               suggestions={msg.noMatchSuggestions}
                               onSelect={(s) => handleChipActivate(s)}
                             />
