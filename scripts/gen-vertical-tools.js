@@ -11,8 +11,12 @@
  * sync entirely.
  *
  * It writes two outputs from the plugins:
- *   1. demo_mcp_server/src/tools/handlers/verticalTools.generated.ts
- *      — the typed VERTICAL_TOOLS array the MCP server exposes + relays to the BFF.
+ *   1. <tree>/src/tools/handlers/verticalTools.generated.ts, for EVERY MCP server
+ *      tree in GENERATED_TS_PATHS — the typed VERTICAL_TOOLS array the MCP server
+ *      exposes + relays to the BFF. oauth-mcp and demo_mcp_server are duplicate
+ *      trees; docker-compose builds oauth-mcp, `npm run test:mcp-server` runs
+ *      demo_mcp_server, and writing only one let them drift 6 tools apart with no
+ *      gate able to see it. Until the duplicate is retired, write both.
  *   2. scope-topology.json  tools{}  entries (ADD-ONLY)
  *      — { requiredScopes, surface:"gateway", challengeType? } so the gateway can
  *        authorize each tool. Never removes/reorders existing content.
@@ -36,8 +40,10 @@ const { stringifyTopology } = require('./lib/stringify-topology');
 
 const ROOT = path.join(__dirname, '..');
 const TOPOLOGY_PATH = path.join(ROOT, 'scope-topology.json');
-const GENERATED_TS_PATH = path.join(
-  ROOT, 'demo_mcp_server', 'src', 'tools', 'handlers', 'verticalTools.generated.ts',
+// Duplicate MCP server trees — see the header note. Every entry gets the same
+// rendered file; `check` fails if ANY of them drifts.
+const GENERATED_TS_PATHS = ['oauth-mcp', 'demo_mcp_server'].map((tree) =>
+  path.join(ROOT, tree, 'src', 'tools', 'handlers', 'verticalTools.generated.ts'),
 );
 
 const EXCLUDE_VERTICALS = new Set(['banking']);
@@ -213,16 +219,20 @@ function main() {
   const topo = JSON.parse(fs.readFileSync(TOPOLOGY_PATH, 'utf8'));
 
   const wantTs = renderGeneratedTs(entries, topo);
-  const haveTs = fs.existsSync(GENERATED_TS_PATH) ? fs.readFileSync(GENERATED_TS_PATH, 'utf8') : '';
+  const staleTsPaths = GENERATED_TS_PATHS.filter((p) => {
+    const haveTs = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+    return wantTs !== haveTs;
+  });
   const { missing, scopeDrift, challengeDrift } = planTopologyChanges(topo, entries);
 
   if (mode === 'check') {
-    const tsDrift = wantTs !== haveTs;
-    if (!tsDrift && missing.length === 0 && scopeDrift.length === 0 && challengeDrift.length === 0) {
-      console.log(`[OK] ${entries.length} generic vertical tools registered + scope-equal in verticalTools.generated.ts + scope-topology.json.`);
+    if (!staleTsPaths.length && missing.length === 0 && scopeDrift.length === 0 && challengeDrift.length === 0) {
+      console.log(`[OK] ${entries.length} generic vertical tools registered + scope-equal in ${GENERATED_TS_PATHS.length} verticalTools.generated.ts + scope-topology.json.`);
       return;
     }
-    if (tsDrift) console.error('[FAIL] verticalTools.generated.ts is stale (plugins changed).');
+    for (const p of staleTsPaths) {
+      console.error(`[FAIL] ${path.relative(ROOT, p)} is stale (plugins changed, or the duplicate MCP server trees drifted).`);
+    }
     if (missing.length) console.error(`[FAIL] scope-topology.json missing ${missing.length} vertical tool(s): ${missing.join(', ')}`);
     if (scopeDrift.length) console.error(`[FAIL] scope-topology.json requiredScopes drift (${scopeDrift.length}):\n  - ${scopeDrift.join('\n  - ')}`);
     if (challengeDrift.length) console.error(`[FAIL] scope-topology.json challengeType drift (${challengeDrift.length}):\n  - ${challengeDrift.join('\n  - ')}`);
@@ -231,12 +241,12 @@ function main() {
   }
 
   if (mode === 'generate') {
-    fs.writeFileSync(GENERATED_TS_PATH, wantTs);
+    for (const p of GENERATED_TS_PATHS) fs.writeFileSync(p, wantTs);
     if (missing.length || scopeDrift.length || challengeDrift.length) {
       applyTopologyChanges(topo, entries);
       fs.writeFileSync(TOPOLOGY_PATH, `${stringifyTopology(topo)}\n`);
     }
-    console.log(`[OK] Wrote ${entries.length} tools to verticalTools.generated.ts; added ${missing.length}, reconciled ${scopeDrift.length} scope(s) + ${challengeDrift.length} challengeType(s) in scope-topology.json.`);
+    console.log(`[OK] Wrote ${entries.length} tools to ${GENERATED_TS_PATHS.length} verticalTools.generated.ts; added ${missing.length}, reconciled ${scopeDrift.length} scope(s) + ${challengeDrift.length} challengeType(s) in scope-topology.json.`);
     return;
   }
 
