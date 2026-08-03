@@ -94,7 +94,7 @@ function _fill(run, stepId, color, stamp) {
   _persist();
 }
 
-function observeToolCall({ toolName, success, timestamp }) {
+function observeToolCall({ toolName, success, timestamp, decisionId }) {
   try {
     const run = _ensureRun();
     const at = timestamp || new Date().toISOString();
@@ -102,12 +102,12 @@ function observeToolCall({ toolName, success, timestamp }) {
       if (success) {
         const g = step.slots.green;
         if (g && g.source === 'tool' && _toolMatches(g, toolName, wildcardOk)) {
-          return _fill(run, step.stepId, 'green', { verdict: 'PERMIT', decisionId: null, via: toolName, at });
+          return _fill(run, step.stepId, 'green', { verdict: 'PERMIT', decisionId: decisionId || null, via: toolName, at });
         }
       } else {
         const r = step.slots.red;
         if (r && r.source === 'tool' && r.expected.includes('DENY') && _toolMatches(r, toolName, wildcardOk)) {
-          return _fill(run, step.stepId, 'red', { verdict: 'DENY', decisionId: null, via: toolName, at });
+          return _fill(run, step.stepId, 'red', { verdict: 'DENY', decisionId: decisionId || null, via: toolName, at });
         }
       }
     }
