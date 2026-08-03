@@ -16,6 +16,9 @@ const gen = require('../scripts/gen-intent-topology');
  * Verified 2026-08-02 — chips live at manifest.dashboard.chips10, not top level.
  * retail/sporting-goods/workforce each gained their `*-a2a` chip (A2A parity —
  * see tests/a2aVerticalParity.test.js), taking the total from 123 to 126.
+ * airlines' A2A chain (#1279) and sporting-goods' own UC33/UC28 (#1284) then took
+ * it to 132, and admin's adm-a2a to 133. pingone-admin is a DECLARED A2A exemption
+ * (manifest a2aExemption) and deliberately has no *-a2a chip.
  */
 const EXPECTED_CHIP_COUNTS = {
       banking: 16,
@@ -28,7 +31,7 @@ const EXPECTED_CHIP_COUNTS = {
   investment: 9,
   manufacturing: 9,
   university: 9,
-  admin: 8,
+  admin: 9,
   'pingone-admin': 5,
   airlines: 7,
 };
