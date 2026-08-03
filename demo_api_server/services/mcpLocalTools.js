@@ -593,11 +593,13 @@ function listLocalInspectorTools() {
  * Local implementation of sequential_think — pure reasoning, no auth or DB needed.
  * Mirrors the BankingToolProvider.executeSequentialThink output shape.
  */
-async function get_branch_hours(params = {}) {
-  // params passes through unchanged: the MCP Inspector supplies whatever it has
-  // and carries no vertical of its own, so searchPublicBranches falls back to
-  // banking. Not an oversight — there is no active vertical on this path.
-  const result = searchPublicBranches(params);
+async function get_branch_hours(params = {}, _userId, req) {
+  // The dashboard chip path sends the active vertical in the request body
+  // (/api/mcp/tool { vertical }); without it every vertical rendered Super
+  // Banking branches. The MCP Inspector carries no vertical at all — that path
+  // still falls back to banking inside searchPublicBranches.
+  const vertical = params.vertical || req?.body?.vertical || null;
+  const result = searchPublicBranches({ ...params, ...(vertical ? { vertical } : {}) });
   return JSON.stringify({
     branches: result.branches,
     query: result.query,
