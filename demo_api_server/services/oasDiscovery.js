@@ -67,6 +67,10 @@ const MOCK_APPS = [
   { id: 'app-002', name: 'Demo AI App - MCP Gateway',     type: 'WORKER',  enabled: true },
   { id: 'app-003', name: 'Demo AI App - Token Exchanger', type: 'WORKER',  enabled: true },
 ];
+const MOCK_POPULATIONS = [
+  { id: 'pop-001', name: 'Demo Users',     description: 'Default demo population', userCount: 3 },
+  { id: 'pop-002', name: 'Demo Admins',    description: 'Administrative users',    userCount: 1 },
+];
 
 function getMockResponse(operationId, params) {
   switch (operationId) {
@@ -87,6 +91,8 @@ function getMockResponse(operationId, params) {
     }
     case 'listApplications':
       return { _embedded: { applications: MOCK_APPS }, count: MOCK_APPS.length };
+    case 'listPopulations':
+      return { _embedded: { populations: MOCK_POPULATIONS }, count: MOCK_POPULATIONS.length };
     case 'getEnvironment':
       return { id: MOCK_ENV_ID, name: 'Demo Environment', type: 'SANDBOX', region: 'NA' };
     default:
