@@ -151,6 +151,100 @@ scope registration depends on the old name — it appeared exactly once in `scop
 Revert-to-RED: restore `tools: ['sensitive_investment_holdings']` + the ghost topology entry and
 `investment: sensitive_investment_holdings is a real, callable tool` and `UC2's per-vertical A2A
 primary tool is one the specialist is allowed to run` both fail.
+### 2026-08-02 — `/api/fallback/chips` answered with another vertical's chips for a prompt that vertical never matched (#1261, #1263)
+
+**Files changed:** `demo_api_server/services/nlIntentParser.js`,
+`demo_api_server/services/fallbackDataResolver.js`,
+`demo_api_server/scripts/check-vertical-coercion.js`,
+`demo_api_server/tests/services/fallbackDataResolver.test.js`.
+
+**What was broken:** `parseForFallback` (`services/nlIntentParser.js:1354`) ran an
+ordered cascade — `parseBanking`, `parseEducation`, then six literal-vertical
+keyword branches — and consulted the vertical the user was demonstrably already
+in LAST. Whichever branch matched first won regardless of context, so one
+vertical's pattern resolved inside another vertical's session: retail's
+`\borders?\b` claimed manufacturing's own "show my work orders", and a genuine
+banking action ("transfer $100 to savings") claimed banking from inside
+government. Measured over the manifest corpus, 30 of the 123 chip messages
+coerced even when typed in their OWN vertical. This is the root cause behind the
+eleven consumer-side coercion sites fixed in #1214, #1228, #1232, #1250 and
+#1257 — each of those fixed a consumer, none fixed the resolution.
+
+`fallbackDataResolver` then compounded it (`services/fallbackDataResolver.js:82`):
+`kind:'unknown'` is `parseForFallback`'s one "nothing matched, but a vertical is
+active" answer, and the resolver served that vertical's fallback chips for it —
+reporting a MATCH for a prompt nothing matched. Because the sole caller
+(`AIAgent.fetchNoMatch`) drops any result without `noMatch`, a government session
+asking to transfer money got the hard-coded, banking-phrased "I didn't catch
+that. Try show my accounts, balance, recent transactions…" instead of the
+structured no-match #1214 built.
+
+**What was fixed:** one change in two steps. **#1261** ranked the cascade by the
+active vertical instead of by branch order. Five genuinely cross-vertical
+`parseBanking` actions — `unusual_patterns`, `vertical_feature_demo`,
+`invest_demo`, `mcp_tools`, `web_search` — stopped carrying a banking claim and
+now return WITHOUT a vertical, so the active one stands; and the literal-vertical
+keyword branches were demoted below the active vertical, so a vertical's own
+branch is consulted BEFORE any other's and the remaining branches only GUESS when
+no vertical is active. Own-vertical coercions fell 30 → 10. **#1263** completed it
+symmetrically: a genuine banking action is BANKING'S OWN pattern, so it may only
+win where banking is active or where none is — the same rule #1261 applied to
+retail's `\borders?\b` inside manufacturing — and `fallbackDataResolver` now
+returns an explicit no-match naming the vertical rather than serving its chips.
+Cross-vertical switches across all pairs went 240 → 0, own-vertical coercions
+10 → 0, and a foreign prompt in banking is now reported honestly as a no-match in
+63 of 93 cases (was 0).
+
+The rule is now one sentence: **only the ACTIVE vertical's own patterns resolve;
+anything else is an explicit no-match naming the vertical.** Banking's own claim
+is untouched — "show my balance" inside banking still resolves to banking, and
+every banking action still claims banking when NO vertical is active.
+
+**Do not break — calibrate the severity first.** `parseForFallback` is reached
+ONLY to render the failure message. Its one production caller is
+`fallbackDataResolver.resolveFallbackChips` (`services/fallbackDataResolver.js:82`),
+whose one caller is `GET /api/fallback/chips` (`routes/api/fallback.js:17`) — a
+route that returns chips and a message and executes no tool. Tool dispatch runs
+through `parseHeuristic` (`nlIntentParser.js:889`), which is already plugin-first
+and was never involved; #1263 confirmed end to end that
+`POST /api/demo-agent/nl` answered `kind:'none'` before AND after, because the
+banking-action path was never reachable from a plugin vertical. So none of these
+coercions ever executed a wrong tool or read a wrong vertical's data — **the
+damage was a wrong error message.** Do not re-file this as a data-leak or authz
+fix, and do not restore the old cascade on the theory that it was load-bearing
+for routing. Equally, do not dismiss the class: the same misranking inside
+`parseHeuristic` WOULD be a routing bug, and that is the file to be careful in.
+
+Also do not break:
+
+- The **early return** in the cross-vertical branch is deliberate (#1228):
+  dropping it hands the prompt to the keyword sweep, which then coerces it to a
+  DIFFERENT wrong vertical instead. The banking-action branch deliberately does
+  NOT early-return — #1261 confined the sweep to `!activeVertical`, and that
+  branch falls through only when `activeVertical` is SET, so the sweep is
+  unreachable from it. The two branches differ on purpose; do not unify them.
+- `VERTICAL_KEYWORD_RE` (`nlIntentParser.js:1341`) is a `Map`, not an object
+  literal, because its key is a request-supplied vertical id and `Map.get` cannot
+  resolve `constructor`/`toString` through the prototype chain. Do not "simplify"
+  it to an object literal — that is the same defect class as #1258.
+- The gate's `PINNED_CASCADE_COERCIONS` was **emptied, not removed**, so the
+  stale-pin check stays wired and C6 now fails on ANY vertical switch.
+  `PINNED_BANKING_ACTION_WINS` was replaced by `SETTLED_ACTIVE_VERTICAL_WINS`
+  (`scripts/check-vertical-coercion.js:142`), which ASSERTS both halves — the
+  active id is kept AND the result is an explicit no-match. Re-adding a key to an
+  emptied list stays the documented way to record an accepted regression.
+
+**Verify:** `node demo_api_server/scripts/check-vertical-coercion.js` — PASSED, 0
+own-vertical coercions, 2 foreign-tool pins (`PINNED_FOREIGN_TOOLS`) remain. The
+corpus was 123 chip messages × 13 verticals when these PRs measured it; it is 126
+as of #1272 and the gate re-passes at that size, so quote the ratios above as
+PR-time measurements, not as a fixed corpus. `npm run intents:check` — every chip
+resolves to its declared tool. Root `npm run hygiene:check` exits 0.
+`demo_api_server/tests/services/fallbackDataResolver.test.js` carries the 18 new
+tests. Revert-to-RED, by name: reverting `nlIntentParser` alone reds
+`no-unearned-vertical-switch` + `active-vertical-wins` (244 violations);
+reverting `fallbackDataResolver` alone reds `active-vertical-wins` ×2, the
+no-match half only.
 
 ### 2026-08-02 — Intent Token minted with NO `permitted_tools` claim when the request named a prototype key (#1258)
 
@@ -201,9 +295,9 @@ The BFF holds no local `permitted_tools` enforcement; its `?? []` reads
 `services/agentMcpTokenService.js:276`) are Token Chain display payloads only. So
 the observable damage was a denied tool call plus an empty permitted-tools list
 in the rail — a fidelity and evidence bug on a fail-closed path, not an authz
-bypass. The comment at `scripts/check-vertical-coercion.js:264` still asserts
-"every consumer reads absent as unrestricted"; that reading is wrong for the
-enforcement path and should be treated as stale.
+bypass. The stale comment in `scripts/check-vertical-coercion.js` that asserted
+"every consumer reads absent as unrestricted" has since been corrected in place
+and now carries these citations; do not reintroduce the "unrestricted" reading.
 
 **What was fixed:** an `Object.prototype.hasOwnProperty.call(map, key)` guard on
 all four lookups — the same one-liner, for the same reason, as the precedent
@@ -230,10 +324,37 @@ Two follow-ups are open, so the class is not fully closed. (1) An absent
 that: the guard closed the mint path we found, and a fail-closed rule at mint
 time (refuse to sign a token whose `permitted_tools` is not an array) would close
 the ones we have not. Branch `intent-token-fail-closed` is reserved for it and
-carries no commits beyond `main` yet. (2) A class-level fix —
-`Object.assign(Object.create(null), {…})` at each map definition, or a shared
-`lookupByVertical(map, id)` helper — would let all four hand-written guards be
-deleted. Not yet done.
+carries no commits beyond `main` yet.
+
+(2) A "class-level fix" — `Object.assign(Object.create(null), {…})` at each map
+definition, or a shared `lookupByVertical(map, id)` helper, letting all four
+hand-written guards be deleted — was **examined on 2026-08-02 and declined.** It
+is not class-level: `Object.create(null)` at four map definitions is exactly as
+hand-written, and exactly as forgettable on a fifth map, as `hasOwnProperty` at
+four lookups. It relocates the same four hand-edits from the use site to the
+definition site; it does not automate anything. The genuinely class-level
+protection already exists and is implementation-agnostic — the coercion gate
+sweeps `BOGUS_VERTICAL_IDS` (`constructor`, `__proto__`, `toString`, …) through
+the real `readPrimaryToolFor` (`scripts/check-vertical-coercion.js:611`, wired
+into `npm run hygiene:check`), and
+`tests/services/verticalLookup.prototypeKeys.test.js` drives all four maps
+behaviourally, two of them through real HTTP routes with supertest. Both catch
+the defect however it is introduced, so neither mechanism is safer than the
+other under test — proven, not assumed: replacing the
+`demoAgentLangGraphService` guard with a bare `map[activeId]` truthiness check
+reds the gate (`readPrimaryToolFor("constructor") selected 'function Object() {
+[native code] }'`) AND the spec (6 failed / 26 passed, from 32 passing), so a
+silent revert of EITHER mechanism is caught by automation rather than by a
+reader noticing a missing guard. Against the swap: the four sites have four DIFFERENT
+miss-fallbacks, so a shared helper replaces only the subscript and each site
+still needs its own miss handling; `THEME_OVERRIDES` has no literal definition
+to convert (it is destructured from a `require`d JSON,
+`services/geminiNlIntent.js:19-20`), so it would need a wrapping copy at import
+and the "uniform" fix would not be uniform; and the use-site guard sits where the
+request-supplied key actually arrives, each with a comment naming the production
+symptom it prevents, which the definition-site form cannot carry. Revisit only if
+a fifth request-keyed map appears — at which point the right move is to extend
+the gate's sweep to all the maps, not to swap the guard style.
 
 **Verify:** `demo_api_server/tests/services/verticalLookup.prototypeKeys.test.js`
 — 32 tests (`5N + 7`, matrixed with `it.each` over
