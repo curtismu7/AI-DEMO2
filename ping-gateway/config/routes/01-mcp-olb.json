@@ -133,6 +133,14 @@
           }
         },
         {
+          "name": "InvestBackendDispatch",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "invest-dispatch.groovy"
+          }
+        },
+        {
           "name": "GatewayToOlbTokenExchange",
           "type": "ScriptableFilter",
           "config": {
