@@ -298,6 +298,65 @@ describe('HttpMCPTransport', () => {
 
       expect(mock.statusCode).toBe(400);
     });
+
+    it('binds request bearer into context after unauthenticated initialize (Privilege discovery)', async () => {
+      // #1166 allows initialize without a bearer. tools/call must still receive the
+      // validated request bearer — not the empty agentToken stored at initialize.
+      mockHandler.handleMessage = jest.fn().mockResolvedValue({
+        id: 'init-priv',
+        result: { protocolVersion: '2025-11-25', capabilities: {}, serverInfo: { name: 'test', version: '1.0.0' } },
+      });
+
+      const initReq = makeRequest({
+        method: 'POST',
+        body: JSON.stringify({
+          id: 'init-priv',
+          method: 'initialize',
+          params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'privilege', version: '1.0.0' } },
+        }),
+        headers: { 'content-type': 'application/json' },
+      });
+      const initMock = makeResponse();
+      await transport.handleRequest(initReq, initMock.res, '/mcp');
+
+      expect(initMock.statusCode).toBe(200);
+      const sessionId = initMock.headers['mcp-session-id'];
+      expect(sessionId).toBeDefined();
+      expect(mockSessionManager.createSession).toHaveBeenCalledWith('');
+
+      const callToken = 'privilege-delegated-token';
+      mockAuthManager.validateAgentToken.mockResolvedValue({
+        isValid: true,
+        signatureVerified: true,
+        verifiedClaims: {},
+      } as any);
+      mockHandler.handleMessage = jest.fn().mockResolvedValue({
+        id: 'call-priv',
+        result: { content: [{ type: 'text', text: 'ok' }] },
+      });
+
+      const callReq = makeRequest({
+        method: 'POST',
+        body: JSON.stringify({
+          id: 'call-priv',
+          method: 'tools/call',
+          params: { name: 'get_balance', arguments: {} },
+        }),
+        headers: {
+          authorization: `Bearer ${callToken}`,
+          'mcp-session-id': sessionId,
+          'mcp-protocol-version': '2025-11-25',
+          'content-type': 'application/json',
+        },
+      });
+      const callMock = makeResponse();
+      await transport.handleRequest(callReq, callMock.res, '/mcp');
+
+      expect(callMock.statusCode).toBe(200);
+      expect(mockHandler.handleMessage).toHaveBeenCalled();
+      const ctx = mockHandler.handleMessage.mock.calls[0][1];
+      expect(ctx.agentToken).toBe(callToken);
+    });
   });
 
   // -------------------------------------------------------------------------
