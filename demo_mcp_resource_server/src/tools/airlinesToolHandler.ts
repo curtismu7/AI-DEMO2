@@ -12,7 +12,7 @@
  * looking like a real subject match.
  */
 
-import { getFlight, listBookings, listSeats, nextFlightFor, resolvePassenger } from '../db/airlinesDb';
+import { getFlight, getPassengerRecord, listBookings, listSeats, nextFlightFor, resolvePassenger } from '../db/airlinesDb';
 
 const SOURCE = 'sqlite';
 
@@ -168,12 +168,60 @@ function seatAvailability(args: Record<string, unknown>, subject: string): unkno
   };
 }
 
+/**
+ * The passenger's PII, joined to the PNRs it belongs to. Reached only by the
+ * A2A Passenger Records Specialist — the tool requires `pnr:read`, a scope no
+ * ordinary airlines session token carries.
+ */
+function sensitivePassengerRecord(subject: string): unknown {
+  const match = resolvePassenger(subject);
+  if (!match) {
+    return { source: SOURCE, found: false, note: 'No passenger records in the airlines database.' };
+  }
+  const { passenger, matchedBy } = match;
+  const record = getPassengerRecord(passenger.passenger_ref);
+  if (!record) {
+    return {
+      source: SOURCE,
+      matchedBy,
+      found: false,
+      passengerRef: passenger.passenger_ref,
+      note: `No passenger record on file for ${passenger.passenger_ref}.`,
+    };
+  }
+  return {
+    source: SOURCE,
+    matchedBy,
+    found: true,
+    sensitivity: 'pii',
+    passengerRef: passenger.passenger_ref,
+    name: passenger.full_name,
+    dateOfBirth: record.date_of_birth,
+    passportNumber: record.passport_number,
+    knownTravelerNumber: record.known_traveler_number,
+    redressNumber: record.redress_number,
+    loyalty: {
+      tier: passenger.loyalty_tier,
+      points: passenger.loyalty_points,
+      accountNumber: record.loyalty_account_number,
+    },
+    paymentCard: {
+      brand: record.payment_card_brand,
+      last4: record.payment_card_last4,
+      expiry: record.payment_card_expiry,
+      billingPostalCode: record.billing_postal_code,
+    },
+    pnrs: listBookings(passenger.passenger_ref).map((b) => b.confirmation_number),
+  };
+}
+
 export const AIRLINES_TOOL_NAMES = new Set([
   'get_airline_bookings',
   'sensitive_airline_bookings',
   'cancel_airline_reservation',
   'get_flight_status',
   'check_seat_availability',
+  'sensitive_passenger_record',
 ]);
 
 export async function dispatchAirlinesTool(
@@ -192,6 +240,8 @@ export async function dispatchAirlinesTool(
       return flightStatus(args, subject);
     case 'check_seat_availability':
       return seatAvailability(args, subject);
+    case 'sensitive_passenger_record':
+      return sensitivePassengerRecord(subject);
     default:
       throw new Error(`Unknown airlines tool: ${toolName}`);
   }

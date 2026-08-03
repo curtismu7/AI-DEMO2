@@ -39,7 +39,7 @@
     "categories": {
       "privileged": {
         "name": "Airlines_Privileged",
-        "description": "Passengers permitted to access sensitive reservation details (UC9)"
+        "description": "Passengers permitted to access sensitive reservation details and the full passenger record (UC9)"
       },
       "delegates": {
         "name": "Airlines_Delegates",
@@ -47,7 +47,8 @@
       }
     },
     "restrictedTools": {
-      "sensitive_airline_bookings": "privileged"
+      "sensitive_airline_bookings": "privileged",
+      "sensitive_passenger_record": "privileged"
     },
     "userMemberships": {
       "demoUser": ["privileged"],
@@ -87,13 +88,13 @@
         "group": "advanced"
       },
       {
-        "id": "ua-a2a",
+        "id": "ua4",
         "label": "🔐 Sensitive reservations",
         "message": "access my sensitive airline bookings",
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_airline_bookings",
-        "useCaseId": "a2a-delegation",
+        "useCaseId": "hitl-consent",
         "group": "advanced"
       },
       {
@@ -111,6 +112,16 @@
         "mode": "both",
         "tool": "check_seat_availability",
         "useCaseId": "delegated-access-with-proof"
+      },
+      {
+        "id": "ua-a2a",
+        "label": "Sensitive passenger record",
+        "message": "show my sensitive passenger record",
+        "mode": "both",
+        "challenge": "consent",
+        "tool": "sensitive_passenger_record",
+        "useCaseId": "a2a-delegation",
+        "group": "advanced"
       }
     ]
   },

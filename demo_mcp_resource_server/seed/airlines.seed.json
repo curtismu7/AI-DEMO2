@@ -95,5 +95,31 @@
     { "flight_number": "UA502", "seat": "22F", "cabin": "Economy", "available": 0 },
     { "flight_number": "UA502", "seat": "22E", "cabin": "Economy", "available": 1 },
     { "flight_number": "UA502", "seat": "2A", "cabin": "United Polaris", "available": 1 }
+  ],
+  "passenger_records": [
+    {
+      "passenger_ref": "UA-PAX-0001",
+      "date_of_birth": "1984-03-19",
+      "passport_number": "X4820913",
+      "known_traveler_number": "TT1094778",
+      "redress_number": null,
+      "loyalty_account_number": "MP-4453-8821",
+      "payment_card_brand": "Visa",
+      "payment_card_last4": "4417",
+      "payment_card_expiry": "2029-04",
+      "billing_postal_code": "60611"
+    },
+    {
+      "passenger_ref": "UA-PAX-0002",
+      "date_of_birth": "1991-11-02",
+      "passport_number": "N7713408",
+      "known_traveler_number": null,
+      "redress_number": "RD9920155",
+      "loyalty_account_number": "MP-7719-3306",
+      "payment_card_brand": "Mastercard",
+      "payment_card_last4": "8802",
+      "payment_card_expiry": "2028-09",
+      "billing_postal_code": "94107"
+    }
   ]
 }
