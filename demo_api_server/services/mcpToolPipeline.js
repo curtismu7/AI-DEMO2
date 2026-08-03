@@ -1042,7 +1042,10 @@ async function runMcpToolPipeline(ctx) {
             mcpAuthorizeEvaluations: _authEval?.plural || null,
         });
         // Also record in local audit store (covers BFF-proxied calls)
-        deps.recordMcpToolCall({ userId: resolveAuditUserId(req, userSub) || 'unknown', toolName: tool, success: !result?.isError, duration: _durationMs, requestJson, resultJson: result ?? null, summary: result?.isError ? `${tool} failed` : `${tool} completed`, isDelegated: !!mcpAccessToken, decisionId: mcpAuthorizeEvaluationThisRequest?.decisionId || null });
+        // decisionId: BFF-gate eval when it ran; on the gateway-authoritative path
+        // the BFF eval is the skip object, so fall back to the gateway's own
+        // authorize correlationId from the audit trail (same id contract).
+        deps.recordMcpToolCall({ userId: resolveAuditUserId(req, userSub) || 'unknown', toolName: tool, success: !result?.isError, duration: _durationMs, requestJson, resultJson: result ?? null, summary: result?.isError ? `${tool} failed` : `${tool} completed`, isDelegated: !!mcpAccessToken, decisionId: mcpAuthorizeEvaluationThisRequest?.decisionId || gwAuditTrail?.authorize?.rawResponse?.correlationId || null });
 
         deps.emit({
             phase: 'mcp_remote_done'
