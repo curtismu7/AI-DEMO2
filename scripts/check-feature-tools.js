@@ -13,7 +13,7 @@
  *   - demo_mcp_gateway/src/router.ts           (APIKEY_TOOLS + APIKEY_BACKEND_ROUTES)
  *   - demo_mcp_gateway/src/apiKeyDispatch.ts   (TOOL_DISPLAY_NAMES)
  *   - demo_mcp_server/src/tools/BankingToolRegistry.ts  (TOOLS registry)
- *   - demo_mortgage_service/server.js          (VERTICALS backend record, via the route-segment)
+ *   - demo_api_resource_server/server.js          (VERTICALS backend record, via the route-segment)
  *
  * Text-based (greps the source) so it needs no build. check-only — it reports
  * drift and exits 1; it never rewrites another service's source.
@@ -67,12 +67,12 @@ function readFileSafe(rel) {
 function main() {
   const entries = featureToolsFromManifests();
   const sources = TARGETS.map((t) => ({ ...t, text: readFileSafe(t.file) }));
-  const backendText = readFileSafe('demo_mortgage_service/server.js');
+  const backendText = readFileSafe('demo_api_resource_server/server.js');
   // A backend record can live in server.js's inline VERTICALS map OR in the
   // generated file (records migrated to config/verticals/<id>/feature-data.json).
   let generatedRoutes = [];
   try {
-    const gen = JSON.parse(readFileSafe('demo_mortgage_service/feature-records.generated.json') || '{}');
+    const gen = JSON.parse(readFileSafe('demo_api_resource_server/feature-records.generated.json') || '{}');
     generatedRoutes = Object.keys(gen).filter((k) => k !== '_generated');
   } catch (_e) { /* no generated file */ }
 
@@ -98,7 +98,7 @@ function main() {
         const inInline = backendText && new RegExp(`\\b${seg}:\\s*{`).test(backendText);
         const inGenerated = generatedRoutes.includes(seg);
         if (!inInline && !inGenerated) {
-          issues.push(`vertical "${vertical}": gateway routes "${tool}" -> backend segment "${seg}" but there is no matching record in demo_mortgage_service/server.js (inline) nor feature-records.generated.json (run: node scripts/gen-feature-data.js generate)`);
+          issues.push(`vertical "${vertical}": gateway routes "${tool}" -> backend segment "${seg}" but there is no matching record in demo_api_resource_server/server.js (inline) nor feature-records.generated.json (run: node scripts/gen-feature-data.js generate)`);
         }
       }
     }

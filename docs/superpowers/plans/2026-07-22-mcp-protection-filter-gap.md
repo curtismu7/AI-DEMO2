@@ -13,7 +13,7 @@ user redirected: don't implement the fix yet — just want this investigation
 written up as a doc, committed, and pushed, with a link back.
 
 **This plan's deliverable was originally the investigation doc.** The mechanical
-fix in §3 is now applied on `00-mcp-apikey.json`, `02-mcp-invest.json`, and
+fix in §3 is now applied on `00-mcp-apikey.json`, `02-mcp-resource-server.json`, and
 `00-mcp-weather.json`. JWKS routes remain out of scope (§3).
 
 ## 1. Current filter status (verbatim findings)
@@ -24,8 +24,8 @@ fix in §3 is now applied on `00-mcp-apikey.json`, `02-mcp-invest.json`, and
 | `00-mcp-olb-jwks.json` | mcp-olb-jwks | yes | no | yes | `jwks-token-validation.groovy` (custom script) |
 | `00-mcp-apikey.json` | mcp-apikey-primary | yes | **yes** (`McpGatewayProtection` → `ApikeyResourceServerFilter`) | yes | introspection via local `ApikeyResourceServerFilter` |
 | `00-mcp-apikey-jwks.json` | mcp-apikey-jwks | yes | no | yes | `jwks-token-validation.groovy` |
-| `02-mcp-invest.json` | mcp-invest-secondary | yes | **yes** (`McpGatewayProtection` → `rsFilter`) | yes | introspection via global `rsFilter` (config.json) |
-| `00-mcp-invest-jwks.json` | mcp-invest-jwks | yes | no | yes | `jwks-token-validation.groovy` |
+| `02-mcp-resource-server.json` | mcp-resource-server-secondary | yes | **yes** (`McpGatewayProtection` → `rsFilter`) | yes | introspection via global `rsFilter` (config.json) |
+| `00-mcp-resource-server-jwks.json` | mcp-resource-server-jwks | yes | no | yes | `jwks-token-validation.groovy` |
 | `00-mcp-weather.json` | mcp-weather-primary | yes | **yes** (`McpGatewayProtection` → `rsFilter`) | yes | introspection via global `rsFilter` |
 
 `McpAuditFilter` writes to `audit/mcp.audit.json` (topics `access`+`mcp`) via
@@ -47,12 +47,12 @@ protected-resource-metadata behavior (a `WWW-Authenticate` header carrying a
 `resource_metadata` link on 401s), it doesn't replace the validation logic.
 
 - **3 routes have a compatible object today** and just aren't wrapping it:
-  `mcp-apikey-primary` (`ApikeyResourceServerFilter`), `mcp-invest-secondary`
+  `mcp-apikey-primary` (`ApikeyResourceServerFilter`), `mcp-resource-server-secondary`
   and `mcp-weather-primary` (both use the shared global `rsFilter` from
   `config/config.json:36`). These call the resource-server filter as a bare
   chain entry instead of through `McpProtectionFilter` — mechanical gap.
 - **3 routes have no compatible object at all**: the JWKS-variant routes
-  (`mcp-olb-jwks`, `mcp-apikey-jwks`, `mcp-invest-jwks`) validate tokens with
+  (`mcp-olb-jwks`, `mcp-apikey-jwks`, `mcp-resource-server-jwks`) validate tokens with
   `jwks-token-validation.groovy`, a custom script, not an
   `OAuth2ResourceServerFilter` heap object. `.env.example:20-23` documents
   this as an intentional "educational tradeoff" (local JWKS validation can't
@@ -89,7 +89,7 @@ in place of the bare RS filter entry (after path-strip when present, before
 | File | Bare filter entry removed | `resourceServerFilter` value |
 |---|---|---|
 | `00-mcp-apikey.json` (~line 52) | `"ApikeyResourceServerFilter"` | `ApikeyResourceServerFilter` |
-| `02-mcp-invest.json` (~line 24) | `"rsFilter"` | `rsFilter` |
+| `02-mcp-resource-server.json` (~line 24) | `"rsFilter"` | `rsFilter` |
 | `00-mcp-weather.json` (~line 20) | `"rsFilter"` | `rsFilter` |
 
 Reuses the same `PG_GATEWAY_RESOURCE_ID`/`PINGONE_ISSUER_URI` env vars already
@@ -103,7 +103,7 @@ bare-vs-URL open item live per `.env.example:38-44` before calling any route
 done.
 
 **Explicitly not touched by the mechanical ProtectionFilter wrap:** `mcp-olb-jwks`,
-`mcp-apikey-jwks`, `mcp-invest-jwks` — those keep `jwks-token-validation.groovy`.
+`mcp-apikey-jwks`, `mcp-resource-server-jwks` — those keep `jwks-token-validation.groovy`.
 **Option B (applied separately):** that Groovy now adds RFC 9728 `resource_metadata`
 on 401 `WWW-Authenticate` without introducing an `OAuth2ResourceServerFilter`.
 A JWKS-capable native RS filter remains a future design pass if full

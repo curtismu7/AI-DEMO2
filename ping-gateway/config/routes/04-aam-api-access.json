@@ -1,5 +1,5 @@
 {
-  "comment": "PingOne Authorize API Access Management (AAM) route — the stock PingGateway integration from https://docs.pingidentity.com/pinggateway/2026/pingone/aam.html, which this repo did not use anywhere. Distinct from the /mcp routes: those call the P1AZ *Decision Endpoints* API from p1az-decision.groovy with MCP-aware inputs (tool name, buffered arguments, DecisionContext, aud sets, RAR amount). AAM is coarse-grained by contrast — the built-in PingAuthorizeFilter posts only method/path/headers/client-IP to the PingOne Authorize Sideband API, which matches them against an API Service's operations and returns allow/deny. Both capabilities therefore run side by side rather than one replacing the other. The route proxies to demo_mortgage_service's unauthenticated /health so a PERMIT is observable without introducing another credential; only the AAM verdict is being demonstrated. Condition is gated on PG_AAM_SERVICE_URL: with the console side unprovisioned no route matches and /aam 404s, instead of the filter erroring on every request.",
+  "comment": "PingOne Authorize API Access Management (AAM) route — the stock PingGateway integration from https://docs.pingidentity.com/pinggateway/2026/pingone/aam.html, which this repo did not use anywhere. Distinct from the /mcp routes: those call the P1AZ *Decision Endpoints* API from p1az-decision.groovy with MCP-aware inputs (tool name, buffered arguments, DecisionContext, aud sets, RAR amount). AAM is coarse-grained by contrast — the built-in PingAuthorizeFilter posts only method/path/headers/client-IP to the PingOne Authorize Sideband API, which matches them against an API Service's operations and returns allow/deny. Both capabilities therefore run side by side rather than one replacing the other. The route proxies to demo_api_resource_server's unauthenticated /health so a PERMIT is observable without introducing another credential; only the AAM verdict is being demonstrated. Condition is gated on PG_AAM_SERVICE_URL: with the console side unprovisioned no route matches and /aam 404s, instead of the filter erroring on every request.",
   "name": "aam-api-access",
   "heap": [
     {
@@ -66,7 +66,7 @@
       ],
       "handler": {
         "type": "ReverseProxyHandler",
-        "baseURI": "${empty env['PG_MORTGAGE_BACKEND_URL'] ? 'http://mortgage-service:8082' : env['PG_MORTGAGE_BACKEND_URL']}",
+        "baseURI": "${empty env['PG_API_RESOURCE_SERVER_URL'] ? 'http://api-resource-server:8082' : env['PG_API_RESOURCE_SERVER_URL']}",
         "config": {}
       }
     }

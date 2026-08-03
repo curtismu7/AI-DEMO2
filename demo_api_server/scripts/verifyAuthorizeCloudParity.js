@@ -106,6 +106,42 @@ const RULES = [
     permit: { RequiredGroup: 'Premium', UserGroups: '["Premium"]', InRequiredGroup: true },
   },
   {
+    code: 'mcp-tier-tool-not-allowed',
+    label: 'entitlement tier — restricted tool (UC21)',
+    mockRule: 'Rule 3d(a)',
+    // UserTier is the BFF-resolved scalar (tiers.groupToTier maps a group ARRAY
+    // to a tier and the snapshot DSL has no array-contains, same wall as
+    // InRequiredGroup above). It DEFAULTS TO 'none', so omitting it leaves every
+    // tier rule dormant and this row would report a live rule as MISSING.
+    //
+    // The permit control is the whole point of the story: the SAME tool, denied
+    // for Standard and allowed for PrivateBanking. Group membership expands
+    // capability. PrivateBanking returns PERMIT with a step-up obligation, which
+    // is still a PERMIT decision.
+    deny: {
+      tool: 'create_withdrawal', vertical: 'banking', depth: 1,
+      extra: { UserTier: 'Standard' },
+    },
+    permit: { UserTier: 'PrivateBanking' },
+  },
+  {
+    code: 'mcp-tier-amount-exceeded',
+    label: 'entitlement tier — amount ceiling (UC21)',
+    mockRule: 'Rule 3d(b)',
+    // $5,000 is over Standard's $2,000 ceiling and under PrivateBanking's
+    // $50,000 one, so the SAME amount flips on tier alone. That is what makes
+    // this a real test of ExceedsTierAmountCap's per-tier branches rather than a
+    // restatement of the Transaction policy's flat "Deny Large Transactions".
+    // Both ceilings are generated from the banking manifest tiers block by
+    // snapshots/gen-authorize-snapshot.js — if you changed them there, this row
+    // is what proves the import actually landed.
+    deny: {
+      tool: 'create_transfer', vertical: 'banking', depth: 1,
+      extra: { UserTier: 'Standard', Amount: 5000, TransactionType: 'create_transfer' },
+    },
+    permit: { UserTier: 'PrivateBanking' },
+  },
+  {
     code: 'mcp-resource-owner-mismatch',
     label: 'resource ownership (UC10)',
     mockRule: 'Rule 3.5a',

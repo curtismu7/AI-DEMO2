@@ -3,10 +3,10 @@
   "useCaseId": "UC9",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "PASS",
+  "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "checkout",
-  "checkedAt": "2026-07-31",
+  "checkedAt": "2026-08-02",
   "requiredFlags": [
     "ff_authorize_group_policy",
     "ff_mcp_gateway_pinggateway"

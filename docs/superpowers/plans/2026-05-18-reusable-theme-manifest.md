@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node/Express (CommonJS) BFF, React 18 (CRA, ES modules in `.js`), Jest + React Testing Library, Playwright (chip pipeline e2e).
 
-**Data-scope note (decided 2026-05-18):** Phase 1 is presentation-only. Real tool data is **intentionally NOT themed**: `banking_api_server/data/store.js` LMDB-backed accounts/transactions still return `"Checking"/"Savings"/"Deposit"`, and `banking_mortgage_service/mortgageServer.js` (api_key disposition via `show_mortgage`) still returns the hardcoded `$425,000 / 6.125%` mortgage payload. Under Best Buy the agent's tool calls return banking data; the retail experience is carried by `<RetailDashboard>`'s manifest mock data + chip labels + greeting. Relabeling returned data / real retail responses is the **Phase 2 boundary** — do not touch `store.js`, the mortgage service, the gateway, or MCP in this plan.
+**Data-scope note (decided 2026-05-18):** Phase 1 is presentation-only. Real tool data is **intentionally NOT themed**: `banking_api_server/data/store.js` LMDB-backed accounts/transactions still return `"Checking"/"Savings"/"Deposit"`, and `banking_api_resource_server/mortgageServer.js` (api_key disposition via `show_mortgage`) still returns the hardcoded `$425,000 / 6.125%` mortgage payload. Under Best Buy the agent's tool calls return banking data; the retail experience is carried by `<RetailDashboard>`'s manifest mock data + chip labels + greeting. Relabeling returned data / real retail responses is the **Phase 2 boundary** — do not touch `store.js`, the mortgage service, the gateway, or MCP in this plan.
 
 **TASK 17 DESCOPED (decided 2026-05-19, user-approved):** The original
 Task 17 (delete `IndustryBrandingContext`/`VerticalContext` shims +

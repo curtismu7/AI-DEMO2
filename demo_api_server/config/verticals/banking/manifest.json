@@ -116,18 +116,28 @@
       { "id": "bk-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-flow", "label": "Check balance", "message": "what is my balance", "mode": "both", "tool": "get_account_balance", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-consent", "label": "👤 Transfer $300", "message": "transfer $300 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "create_transfer", "useCaseId": "hitl-consent" },
+      {
+        "id": "bk-wire",
+        "label": "🔑 Wire transfer",
+        "message": "wire $100 to my savings",
+        "mode": "both",
+        "challenge": "step_up",
+        "tool": "create_wire_transfer",
+        "useCaseId": "step-up-required",
+        "group": "advanced"
+      },
       { "id": "bk-mfa", "label": "🔑 Transfer $600", "message": "transfer $600 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "create_transfer", "useCaseId": "step-up-required" },
       { "id": "bk7", "label": "My mortgage", "message": "show my mortgage", "mode": "both", "tool": "show_mortgage", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-intent", "label": "Intent-bound transfer", "message": "run an intent-bound transfer within my RAR grant", "mode": "both", "tool": "create_transfer", "useCaseId": "rar-intent-verified" },
-      { "id": "bk-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "useCaseId": "token-theft-replay" },
-      { "id": "bk8", "label": "Biggest spending categories", "message": "What are my biggest categories", "mode": "llm" },
+      { "id": "bk-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "bk8", "label": "Biggest spending categories", "message": "What are my biggest categories", "mode": "llm", "tool": "get_my_transactions" },
       { "id": "bk-direct", "label": "Direct MCP", "message": "get my accounts", "mode": "direct", "tool": "get_my_accounts" },
       { "id": "bk-deny", "label": "Authz DENY", "message": "show my health record", "mode": "direct", "denyTool": "show_health_record", "useCaseId": "authz-denied" },
       { "id": "bk1", "label": "My accounts", "message": "show my accounts", "mode": "both", "tool": "get_my_accounts", "useCaseId": "delegated-access-with-proof", "group": "advanced" },
       { "id": "bk3", "label": "Recent transactions", "message": "recent transactions", "mode": "both", "tool": "get_my_transactions", "useCaseId": "delegated-access-with-proof", "group": "advanced" },
       { "id": "bk-a2a", "label": "A2A sensitive details", "message": "show my sensitive account details", "mode": "both", "challenge": "consent", "hitlTrigger": true, "tool": "get_sensitive_account_details", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "bk-ciba", "label": "CIBA out-of-band", "message": "transfer $600 from checking to savings with CIBA approval", "mode": "both", "challenge": "both", "hitlTrigger": true, "tool": "create_transfer", "useCaseId": "ciba-out-of-band-approval", "group": "advanced" },
-      { "id": "bk-bad-scope", "label": "Bad scope", "message": "look up all customers", "mode": "both", "useCaseId": "insufficient-scope", "group": "advanced" }
+      { "id": "bk-bad-scope", "label": "Bad scope", "message": "look up all customers", "mode": "both", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope", "group": "advanced" }
     ],
     "hero": {
       "cards": [

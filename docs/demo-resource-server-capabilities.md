@@ -8,8 +8,8 @@
 | `demo_mcp_server` | (embedded in BFF) | RFC 8693 token + scope topology | Main tool registry (40+ banking, 199 vertical) |
 | `demo_mcp_gateway` | 7474 | Token introspection + audience binding | Enforces auth, rate limits, dispositions |
 | `demo_mcp_weather` | 8896 | None (internal bridge) | HTTP-to-stdio wrapper for weather MCP |
-| `demo_mcp_invest` | 8081 | `invest:read` scope + RFC 8693 | **MCP Resource Server** — investment portfolio tools |
-| `demo_mortgage_service` | 8082 | X-API-Key (SHA256 constant-time) | **API Resource Server** — gateway swaps OAuth bearer for API key |
+| `demo_mcp_resource_server` | 8081 | `invest:read` scope + RFC 8693 | **MCP Resource Server** — investment portfolio tools |
+| `demo_api_resource_server` | 8082 | X-API-Key (SHA256 constant-time) | **API Resource Server** — gateway swaps OAuth bearer for API key |
 | `demo_authz_server` | 8081 | (simulated) | PingOne Authorize decision simulator |
 
 ---
@@ -92,21 +92,21 @@ RFC 8693 nested-act token exchange with scope narrowing at each hop. Generalist 
 
 | Tool | Disposition | Backend |
 |------|-------------|---------|
-| `show_mortgage` | api_key | demo_mortgage_service |
-| `show_health_record` | api_key | demo_mortgage_service |
-| `show_investment` | api_key | demo_mortgage_service |
-| `show_gear_order` | api_key | demo_mortgage_service |
-| `show_expense_report` | api_key | demo_mortgage_service |
-| `show_permit` | api_key | demo_mortgage_service |
-| `show_enrollment` | api_key | demo_mortgage_service |
-| `show_work_order` | api_key | demo_mortgage_service |
-| `show_large_purchase` | api_key | demo_mortgage_service |
+| `show_mortgage` | api_key | demo_api_resource_server |
+| `show_health_record` | api_key | demo_api_resource_server |
+| `show_investment` | api_key | demo_api_resource_server |
+| `show_gear_order` | api_key | demo_api_resource_server |
+| `show_expense_report` | api_key | demo_api_resource_server |
+| `show_permit` | api_key | demo_api_resource_server |
+| `show_enrollment` | api_key | demo_api_resource_server |
+| `show_work_order` | api_key | demo_api_resource_server |
+| `show_large_purchase` | api_key | demo_api_resource_server |
 
 Gateway intercepts the OAuth bearer token, validates the tool scope, then substitutes an X-API-Key for the downstream service call.
 
 ---
 
-## Investment Tools (MCP Resource Server — demo_mcp_invest)
+## Investment Tools (MCP Resource Server — demo_mcp_resource_server)
 
 | Tool | Description |
 |------|-------------|
@@ -182,7 +182,7 @@ UC30 (weather permit), UC31 (weather deny), UC32 (live policy flip)
 |------|------|
 | Banking tool definitions | `demo_mcp_server/src/tools/BankingToolRegistry.ts` |
 | Vertical tools (generated) | `demo_mcp_server/src/tools/handlers/verticalTools.generated.ts` |
-| Investment tools | `demo_mcp_invest/src/tools/investTools.ts` |
+| Investment tools | `demo_mcp_resource_server/src/tools/investTools.ts` |
 | Use cases (SoT) | `demo_api_server/config/useCases.js` |
 | Scopes | `demo_api_server/config/scopes.js` |
 | Scope topology | `scope-topology.json` |
@@ -195,7 +195,7 @@ UC30 (weather permit), UC31 (weather deny), UC32 (live policy flip)
 | RS journey routes | `/rs/olb`, `/rs/invest`, `/rs/api` in `demo_api_ui/src/App.js` |
 | BFF vertical-record endpoint | `demo_api_server/routes/resourceServer.js` (`GET /vertical-record`) |
 | Feature data generator | `scripts/gen-feature-data.js` |
-| Generated feature records | `demo_mortgage_service/feature-records.generated.json` |
+| Generated feature records | `demo_api_resource_server/feature-records.generated.json` |
 
 ---
 
@@ -224,8 +224,8 @@ Three dedicated RS journey pages show tool results in a split-view UI (token/cre
 | RS Page | Route | Backend Service | Left Panel | Right Panel |
 |---------|-------|-----------------|------------|-------------|
 | **MCP Server (OLB)** | `/rs/olb` | `demo_mcp_server` | RFC 8693 exchanged token claims (sub, aud, scope, act) | Account list from banking DB |
-| **MCP Resource Server** | `/rs/invest` | `demo_mcp_invest` | RFC 8693 exchanged token claims (audience: mcp-invest.ping.demo) | Portfolio summary cards |
-| **API Resource Server** | `/rs/api` | `demo_mortgage_service` | Credential swap proof (Bearer → X-API-Key) | Vertical-specific record (9 verticals) |
+| **MCP Resource Server** | `/rs/invest` | `demo_mcp_resource_server` | RFC 8693 exchanged token claims (audience: mcp-invest.ping.demo) | Portfolio summary cards |
+| **API Resource Server** | `/rs/api` | `demo_api_resource_server` | Credential swap proof (Bearer → X-API-Key) | Vertical-specific record (9 verticals) |
 
 ### Vertical → RS Page Mapping
 
@@ -249,7 +249,7 @@ All 9 API RS verticals have `feature-data.json` in `demo_api_server/config/verti
 
 `banking`, `healthcare`, `sporting-goods`, `retail`, `workforce`, `government`, `university`, `manufacturing`, `investment`
 
-Generated into `demo_mortgage_service/feature-records.generated.json` via `node scripts/gen-feature-data.js generate`.
+Generated into `demo_api_resource_server/feature-records.generated.json` via `node scripts/gen-feature-data.js generate`.
 
 ### Design
 
@@ -267,7 +267,7 @@ Agentic tool calls **navigate the user to a dedicated RS page** — not just ret
 
 - [x] Wire `ResourceServerInterstitial` to navigate to `/rs/*` pages after countdown (`buildRsRoute` + `useNavigate`)
 - [x] Add all 9 vertical `feature-data.json` files (was 4, now 9)
-- [ ] Docker service renames: `demo_mcp_invest` → `demo_mcp_resource_server`, `demo_mortgage_service` → `demo_api_resource_server`
+- [ ] Docker service renames: `demo_mcp_resource_server` → `demo_mcp_resource_server`, `demo_api_resource_server` → `demo_api_resource_server`
 - [ ] Add per-vertical custom card layouts in RS page right panel (currently generic k/v renderer for all API RS verticals)
 - [ ] Add RS page links to the existing `/resource-server` page (cross-navigation)
 - [ ] E2E tests for RS page routing (navigate to `/rs/api?tool=show_mortgage`, verify data renders)

@@ -582,8 +582,8 @@ In `demo_mcp_gateway/src/adminConfig.ts`, add `'introspectionSimDown'` to `ADMIN
 ```ts
 export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'gatewayResourceUri',
-  'mcpOlbWsUrl', 'mcpInvestWsUrl',
-  'mcpOlbResourceUri', 'mcpInvestResourceUri',
+  'mcpOlbWsUrl', 'mcpResourceServerWsUrl',
+  'mcpOlbResourceUri', 'mcpResourceServerResourceUri',
   'pingAuthorizeEndpoint', 'pingAuthorizeWorkerId',
   'p1azEnabled',
   'hitlServiceUrl',
@@ -1245,7 +1245,7 @@ git commit -m "feat(agent-gateway): route and nav entry for the capability tour"
 - Test: `demo_api_ui/src/components/UnifiedTokenFlowInspector.test.jsx` (check if this file already exists first — if so, add to it; otherwise create it minimally scoped to this new tab only, since the rest of the component already has its own coverage or none, per repo convention)
 
 **Interfaces:**
-- Consumes: `GET /api/admin/mcp-gateway/config` (BFF proxy to the gateway's `GET /admin/config` safe view) — specifically `gatewayResourceUri`, `mcpOlbResourceUri`, `mcpInvestResourceUri`. Confirmed: this fetch is currently inline in `McpGatewayConfig.jsx`'s `McpGatewayConfigInner` (`fetchConfig`, lines 101-113 — a plain `fetch()` + `useState`, not a shared hook), and its result is passed down as `mock`/`live` props to `GatewayRoutingDiagram` (`McpGatewayConfig.jsx:383`, `<GatewayRoutingDiagram live={mock.liveConfig} config={config} mock={mock} />`). `UnifiedTokenFlowInspector.jsx` has no access to this today.
+- Consumes: `GET /api/admin/mcp-gateway/config` (BFF proxy to the gateway's `GET /admin/config` safe view) — specifically `gatewayResourceUri`, `mcpOlbResourceUri`, `mcpResourceServerResourceUri`. Confirmed: this fetch is currently inline in `McpGatewayConfig.jsx`'s `McpGatewayConfigInner` (`fetchConfig`, lines 101-113 — a plain `fetch()` + `useState`, not a shared hook), and its result is passed down as `mock`/`live` props to `GatewayRoutingDiagram` (`McpGatewayConfig.jsx:383`, `<GatewayRoutingDiagram live={mock.liveConfig} config={config} mock={mock} />`). `UnifiedTokenFlowInspector.jsx` has no access to this today.
 
 - [ ] **Step 1: Extract the fetch into a shared hook**
 
@@ -1335,7 +1335,7 @@ Extend the tab-content ternary (lines 1010-1014) to a 3-way branch, adding a new
   )}
 ```
 
-`lastInboundAud` and `lastRoutedBackendUri` are two small derived values: the former from the existing token-chain event stream this component already has in scope (find the variable already holding the most recent token's decoded claims — search this file for where `ClaimRow` is already used for `aud` elsewhere and reuse that same source), the latter from the config hook confirmed in Step 1 (`gatewayResourceUri` is the "in" side's audience; `mcpOlbResourceUri`/`mcpInvestResourceUri` is the "out" side, selected by whichever tool the last call routed to — reuse the existing `routeTool`-equivalent logic already present in `GatewayRoutingDiagram.jsx` if there is one, otherwise a simple lookup is fine since this is a teaching display, not enforcement).
+`lastInboundAud` and `lastRoutedBackendUri` are two small derived values: the former from the existing token-chain event stream this component already has in scope (find the variable already holding the most recent token's decoded claims — search this file for where `ClaimRow` is already used for `aud` elsewhere and reuse that same source), the latter from the config hook confirmed in Step 1 (`gatewayResourceUri` is the "in" side's audience; `mcpOlbResourceUri`/`mcpResourceServerResourceUri` is the "out" side, selected by whichever tool the last call routed to — reuse the existing `routeTool`-equivalent logic already present in `GatewayRoutingDiagram.jsx` if there is one, otherwise a simple lookup is fine since this is a teaching display, not enforcement).
 
 - [ ] **Step 5: Run test to verify it passes**
 

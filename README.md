@@ -53,8 +53,8 @@ and open **`https://api.ping.demo:4000`**. Full details for each mode are in [Ho
 | `demo_api_ui` | 4000 | React frontend (admin + end-user dashboards) |
 | `demo_api_server` | 3001 | Express REST API — **Backend-for-Frontend (BFF)** with PingOne OAuth; tokens stay server-side |
 | `demo_mcp_server` | 8080 | TypeScript MCP tool server for banking tools |
-| `demo_mcp_invest` | 8081 | TypeScript MCP server for investment tools |
-| `demo_mortgage_service` | 8082 | Mortgage REST resource server (Path A — X-API-Key conversion at gateway) |
+| `demo_mcp_resource_server` | 8081 | TypeScript MCP server for investment tools |
+| `demo_api_resource_server` | 8082 | Mortgage REST resource server (Path A — X-API-Key conversion at gateway) |
 | `demo_mcp_gateway` | 3005 | **Demo Agent Gateway** (Node) — optional `demo-auth` profile; real stack uses PingGateway (IG) on :3036 |
 | `ping-gateway` | 3036 | **PingOne Agent Gateway (IG)** — default MCP enforcement point when Quick Flag **Agent Gateway → PingOne GW** is ON |
 | `demo_agent_service` | 3006 | AG-UI runner; streams `STATE_DELTA` events back to the BFF over SSE |
@@ -96,8 +96,8 @@ flowchart LR
   GATE["demo_mcp_gateway :3005<br/>Ping Agent Gateway"]:::gw
   HITL["demo_hitl_service :3009"]:::hitl
   MBANK["demo_mcp_server :8080<br/>Banking MCP"]:::mcp
-  MINV["demo_mcp_invest :8081"]:::mcp
-  MMORT["demo_mortgage_service :8082"]:::mcp
+  MINV["demo_mcp_resource_server :8081"]:::mcp
+  MMORT["demo_api_resource_server :8082"]:::mcp
   POAUTH["PingOne OAuth / AS<br/>RFC 8693 · introspect · JWKS"]:::ping
   PAAM["PingOne Authorization Server<br/>Authorize policy · :9001 (mock)"]:::ping
 
@@ -112,7 +112,7 @@ flowchart LR
   SRV -->|"WS · JSON-RPC + delegated token (aud=mcp-gw)"| GATE
   SRV -->|"RFC 8693 · introspect (RFC 7662)"| POAUTH
   GATE -->|"WS · aud:mcp_banking"| MBANK
-  GATE -->|"WS · aud:mcp_invest"| MINV
+  GATE -->|"WS · aud:mcp_resource_server"| MINV
   GATE -.->|"REST · X-API-Key"| MMORT
   GATE -->|"authorize · introspect"| PAAM
   GATE -.->|"/challenges · poll"| HITL
@@ -698,8 +698,8 @@ See **[README (mermaid).md](README%20(mermaid).md)** for detailed token operatio
 | `demo_mcp_gateway` | 3005 | **Ping Agent Gateway** — RFC 7662 introspection + PingOne Authorize policy per tool call; token forwarded unchanged |
 | `demo_agent_service` | 3006 | LangGraph reasoning service for the canonical agent |
 | `demo_hitl_service` | 3009 | Human-in-the-Loop consent challenge service |
-| `demo_mcp_invest` | 8081 | Specialized MCP server for investment tools |
-| `demo_mortgage_service` | 8082 | Mortgage service backend |
+| `demo_mcp_resource_server` | 8081 | Specialized MCP server for investment tools |
+| `demo_api_resource_server` | 8082 | Mortgage service backend |
 | `langchain_agent` | 8888 | Python LangChain + OpenAI demo agent (cross-stack exhibit) |
 
 ## Token Exchange Flow (RFC 8693)

@@ -43,7 +43,7 @@ async function migrateHelixKey(opts = {}) {
   if (vaultPassword && vaultPath) {
     let vault;
     try {
-      vault = await vaultLib.openVault(vaultPath, vaultPassword);
+      vault = await vaultLib.openVault(vaultPath, vaultPassword, { caller: 'helixKeyMigration' });
       vault.set(VAULT_KEY_NAME, key);
       await vault.save();
       vaultWritten = true;

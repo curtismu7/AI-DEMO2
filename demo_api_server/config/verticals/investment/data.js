@@ -10,7 +10,7 @@
  *
  * Seed values (portfolioId INV-8842, holder Jordan A. Rivera, totalValue
  * 184320.55, VTI/UST-10Y/AAPL/VNQ holdings) match the `/invest` feature-page
- * mock in demo_mortgage_service/server.js so the API-key path and the agent
+ * mock in demo_api_resource_server/server.js so the API-key path and the agent
  * tool path show the same demo portfolio.
  */
 

@@ -5,7 +5,7 @@
 # BLOCK the commit unless the full OFFLINE verification passes: running-code
 # consumers, P1AZ snapshot, PingGateway config, and the mock authz rule store.
 # The live PingOne diff stays opt-in (npm run topology:verify:live).
-TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|mcp-tool-schemas\.json|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/(\.env\.example|src/gatewayTools\.ts)|demo_mcp_server/src/tools/|demo_mcp_invest/src/tools/investTools\.ts|demo_api_server/services/(intentTokenService|configStore)\.js|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
+TOPO_TOUCHED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(scope-topology\.json|scope-topology\.schema\.json|docs/scope-topology\.md|mcp-tool-schemas\.json|ping-gateway/(\.env\.example|config/)|demo_mcp_gateway/(\.env\.example|src/gatewayTools\.ts)|demo_mcp_server/src/tools/|demo_mcp_resource_server/src/tools/investTools\.ts|demo_api_server/services/(intentTokenService|configStore)\.js|snapshots/Super_Banking_Transaction_Authorization_P1AZ\.snapshot\.json)' || true)
 if [ -n "$TOPO_TOUCHED" ] && [ ! -x demo_mcp_gateway/node_modules/.bin/ts-node ] && ! command -v ts-node >/dev/null 2>&1; then
   # The regen + drift checks below need node_modules (ts-node, topology deps). A
   # git worktree does not get its own node_modules, so these are absent there.
@@ -30,7 +30,9 @@ elif [ -n "$TOPO_TOUCHED" ]; then
     echo "[pre-commit] ❌ gen:tool-schemas failed — cannot regenerate mcp-tool-schemas.json (fix the tool source, then re-commit)."
     exit 1
   fi
-  git add mcp-tool-schemas.json 2>/dev/null || true
+  # Both outputs: the root artifact and IG's copy inside the ping-gateway/config
+  # directory mount (see genToolSchemas.ts — they must stay byte-identical).
+  git add mcp-tool-schemas.json ping-gateway/config/mcp-tool-schemas.json 2>/dev/null || true
   if ! npm run --silent topology:verify; then
     echo "[pre-commit] ❌ topology:verify failed — scope-topology.json drifts from PingGateway / P1AZ / running code / mock authz (see above)."
     echo "[pre-commit]    Fix the drift, or regenerate the derived artifacts (npm run scopes:doc / npm --prefix demo_api_server run scopes:gen), then re-commit."

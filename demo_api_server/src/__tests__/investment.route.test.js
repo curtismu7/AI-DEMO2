@@ -2,7 +2,7 @@
  * @file investment.route.test.js
  * HTTP-level test for GET /api/investment/accounts/:accountId/portfolio — the
  * route the A2A Investment Advisor specialist's get_portfolio_summary tool
- * calls (demo_mcp_invest/src/tools/investToolHandler.ts). Previously missing
+ * calls (demo_mcp_resource_server/src/tools/investToolHandler.ts). Previously missing
  * entirely, so every A2A portfolio-summary delegation 404'd silently.
  */
 

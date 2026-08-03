@@ -44,6 +44,15 @@ spec:
         # Decision logic: demo_api_server/utils/crashGuard.js.
         - name: CRASH_GUARD
           value: "1"
+        # The internal-endpoint hardening in routes/vaultServiceKey.js and
+        # routes/agentIdToken.js used to key off NODE_ENV=production, which the
+        # line above deliberately prevents — so it never fired in-cluster and any
+        # workload with pod-network reach to api-server:3001 could retrieve the
+        # backend service keys using the committed default secret. This opt-in
+        # arms it independently of NODE_ENV. create-secrets.sh guarantees
+        # BFF_INTERNAL_SECRET is a real value, so this cannot 503 the demo.
+        - name: VAULT_INTERNAL_STRICT
+          value: "true"
         # Persist structured logs + the unified token-chain trace to the PVC
         # mounted at /var/log/aidemo (survives pod restarts; queryable while the
         # pod runs). Set here (not the shared configmap) so only the BFF — which

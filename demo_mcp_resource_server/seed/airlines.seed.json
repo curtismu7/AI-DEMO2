@@ -1,0 +1,99 @@
+{
+  "_comment": "Seed for the airlines vertical's SQLite database. Loaded ONLY when the tables are empty, so an out-of-band edit to data/airlines.db is never overwritten on restart. Synthetic data — not real United Airlines data.",
+  "passengers": [
+    {
+      "passenger_ref": "UA-PAX-0001",
+      "subject": null,
+      "full_name": "Jordan A. Rivera",
+      "loyalty_tier": "Premier Gold",
+      "loyalty_points": 45320,
+      "is_demo_fallback": 1
+    },
+    {
+      "passenger_ref": "UA-PAX-0002",
+      "subject": null,
+      "full_name": "Alex Chen",
+      "loyalty_tier": "Premier Silver",
+      "loyalty_points": 12980,
+      "is_demo_fallback": 0
+    }
+  ],
+  "flights": [
+    {
+      "flight_number": "UA328",
+      "origin": "ORD",
+      "destination": "SFO",
+      "departure_time": "2026-08-15T08:40:00-05:00",
+      "arrival_time": "2026-08-15T11:25:00-07:00",
+      "gate": "C12",
+      "aircraft": "Boeing 737 MAX 9",
+      "status": "On Time"
+    },
+    {
+      "flight_number": "UA1147",
+      "origin": "SFO",
+      "destination": "EWR",
+      "departure_time": "2026-09-03T14:10:00-07:00",
+      "arrival_time": "2026-09-03T22:45:00-04:00",
+      "gate": "F7",
+      "aircraft": "Boeing 757-200",
+      "status": "On Time"
+    },
+    {
+      "flight_number": "UA502",
+      "origin": "ORD",
+      "destination": "LHR",
+      "departure_time": "2026-10-11T19:55:00-05:00",
+      "arrival_time": "2026-10-12T09:40:00+01:00",
+      "gate": "C18",
+      "aircraft": "Boeing 787-9",
+      "status": "Scheduled"
+    }
+  ],
+  "bookings": [
+    {
+      "confirmation_number": "K7XR2M",
+      "passenger_ref": "UA-PAX-0001",
+      "flight_number": "UA328",
+      "seat": "14A",
+      "cabin": "Economy Plus",
+      "checked_bags": 1,
+      "status": "Confirmed",
+      "booked_at": "2026-06-21T16:02:00Z"
+    },
+    {
+      "confirmation_number": "P4QW9B",
+      "passenger_ref": "UA-PAX-0001",
+      "flight_number": "UA1147",
+      "seat": "7C",
+      "cabin": "United First",
+      "checked_bags": 2,
+      "status": "Confirmed",
+      "booked_at": "2026-07-04T11:48:00Z"
+    },
+    {
+      "confirmation_number": "T2LN8D",
+      "passenger_ref": "UA-PAX-0002",
+      "flight_number": "UA502",
+      "seat": "22F",
+      "cabin": "Economy",
+      "checked_bags": 0,
+      "status": "Confirmed",
+      "booked_at": "2026-07-19T09:15:00Z"
+    }
+  ],
+  "seats": [
+    { "flight_number": "UA328", "seat": "14A", "cabin": "Economy Plus", "available": 0 },
+    { "flight_number": "UA328", "seat": "14B", "cabin": "Economy Plus", "available": 1 },
+    { "flight_number": "UA328", "seat": "14C", "cabin": "Economy Plus", "available": 1 },
+    { "flight_number": "UA328", "seat": "21D", "cabin": "Economy", "available": 1 },
+    { "flight_number": "UA328", "seat": "21E", "cabin": "Economy", "available": 0 },
+    { "flight_number": "UA328", "seat": "31F", "cabin": "Economy", "available": 1 },
+    { "flight_number": "UA1147", "seat": "7C", "cabin": "United First", "available": 0 },
+    { "flight_number": "UA1147", "seat": "7D", "cabin": "United First", "available": 1 },
+    { "flight_number": "UA1147", "seat": "18A", "cabin": "Economy Plus", "available": 1 },
+    { "flight_number": "UA502", "seat": "22F", "cabin": "Economy", "available": 0 },
+    { "flight_number": "UA502", "seat": "22E", "cabin": "Economy", "available": 1 },
+    { "flight_number": "UA502", "seat": "2A", "cabin": "United Polaris", "available": 1 }
+  ]
+}

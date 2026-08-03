@@ -24,6 +24,8 @@ import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram"
 import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
+import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
+import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -105,6 +107,7 @@ import {
   AgentUiModeProvider,
   useAgentUiMode,
 } from "./context/AgentUiModeContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { DemoTourProvider } from "./context/DemoTourContext";
 import { EducationUIProvider } from "./context/EducationUIContext";
 import { ExchangeModeProvider } from "./context/ExchangeModeContext";
@@ -443,6 +446,7 @@ function AppWithAuth() {
     !user && isPublicMarketingAgentPath(pathname) ? 12000 : 4000;
 
   return (
+    <ThemeProvider>
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
@@ -1245,6 +1249,14 @@ function AppWithAuth() {
                               element={<McpGatewayOauthFlowPage />}
                             />
                             <Route
+                              path="/privilege-mcp-diagrams"
+                              element={<PrivilegeMcpDiagramPage />}
+                            />
+                            <Route
+                              path="/invest-dual-auth"
+                              element={<InvestDualAuthDiagramPage />}
+                            />
+                            <Route
                               path="/agent-studio-preview"
                               element={<AgentStudioPreviewPage />}
                             />
@@ -1529,6 +1541,7 @@ function AppWithAuth() {
         </TokenChainProvider>
       </EducationUIProvider>
     </DemoTourProvider>
+    </ThemeProvider>
   );
 }
 

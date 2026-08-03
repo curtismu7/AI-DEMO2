@@ -49,9 +49,9 @@ const AI_AGENT_AUDIENCE = process.env.AI_AGENT_AUDIENCE || null;
 const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || null;
 const BANKING_API_RESOURCE_URI = process.env.BANKING_API_RESOURCE_URI || null;
 const MCP_GATEWAY_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || null;
-// mcp-invest backend resource URI — tokens minted for this audience arrive on the
+// mcp-resource-server backend resource URI — tokens minted for this audience arrive on the
 // investment BFF callback route (A2A nested-act chain, gateway Exchange #3 target).
-const MCP_INVEST_AUDIENCE = process.env.PINGONE_RESOURCE_MCP_INVEST_URI || null;
+const MCP_RESOURCE_SERVER_AUDIENCE = process.env.PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI || null;
 const AI_AGENT_SCOPE = process.env.AI_AGENT_SCOPE || 'ai_agent';
 const DEFAULT_USER_TYPE = process.env.DEFAULT_USER_TYPE || 'customer';
 
@@ -590,7 +590,7 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
         || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path));
       // A2A investment specialist callback — deliberately NOT folded into the
       // banking callback list above, and its audience is NOT added to gwAuds.
-      // Doing so let an invest:read token (aud=mcp-invest.ping.demo) satisfy the
+      // Doing so let an invest:read token (aud=mcp-resource-server.ping.demo) satisfy the
       // audience check on POST /api/transactions and the other write callbacks;
       // those routes then failed open past the banking write-scope gate, because
       // the token's scopes are invest:read rather than read/write.
@@ -608,13 +608,13 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       if (MCP_RESOURCE_URI && !gwAuds.includes(MCP_RESOURCE_URI)) {
         gwAuds.push(MCP_RESOURCE_URI);
       }
-      // mcp-invest's audience is intentionally absent from gwAuds — Exchange #3 for
+      // mcp-resource-server's audience is intentionally absent from gwAuds — Exchange #3 for
       // the A2A investment specialist narrows the nested-act token to that audience,
       // and it is accepted ONLY on the portfolio callback below, never on a banking
       // read or write callback.
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
         (isMcpBankingCallback && tokenAuds.some((a) => gwAuds.includes(a))) ||
-        (isInvestPortfolioCallback && MCP_INVEST_AUDIENCE && tokenAuds.includes(MCP_INVEST_AUDIENCE));
+        (isInvestPortfolioCallback && MCP_RESOURCE_SERVER_AUDIENCE && tokenAuds.includes(MCP_RESOURCE_SERVER_AUDIENCE));
       if (!hasMatch) {
         logger.warn(LOG_CATEGORIES.OAUTH_VALIDATION, 'Token audience mismatch — rejecting', {
           method, path,

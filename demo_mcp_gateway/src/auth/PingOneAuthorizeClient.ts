@@ -21,6 +21,7 @@ import { type GatewayConfig, isP1AZActive, usingRealPdpEndpoint } from '../confi
 import type { IntentValidationResult } from '../intentTokenValidator';
 import { type DecodedGatewayToken, isJwksVerificationEnabled } from '../tokenValidator';
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
+import { classifyStatements, type ObligationKind } from './authorizeObligations';
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
 
@@ -52,6 +53,12 @@ export function policySourceForEngine(engine: AuthzDecision['engine']): PolicySo
 export interface AuthzDecision {
   decision: AuthzDecisionOutcome;
   reason?: string;
+  // Which gate the PDP attached, when it attached one. Read from `statements[]`,
+  // NOT from the decision label: live PingOne Authorize returns PERMIT + a
+  // statement for an obligation, and only the mock says INDETERMINATE. Callers
+  // must branch on this to tell a step-up (needs MFA) from a consent hold (needs
+  // a human) — the two drive completely different flows.
+  obligation?: ObligationKind;
   // HI-09: surface decision metadata for the audit trail. PingAuthorize
   // returns a unique decision_id / policy_version per evaluation — without
   // these, a stale or replayed PERMIT cannot be distinguished from a
@@ -396,8 +403,31 @@ export class PingOneAuthorizeClient {
         engine,
         policySource: policySourceForEngine(engine),
       };
-      if (outcome === 'PERMIT') return { decision: 'PERMIT', ...meta };
-      if (outcome === 'INDETERMINATE') return { decision: 'INDETERMINATE', reason: 'HITL_REQUIRED', ...meta };
+      // Real-first: a live PERMIT can still carry a gate in `statements[]`.
+      // Reading only the label forwarded exactly the calls the PDP held.
+      const obligation = classifyStatements(data?.statements);
+      if (outcome === 'PERMIT') {
+        if (obligation) {
+          return {
+            decision: 'INDETERMINATE',
+            reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
+            obligation,
+            ...meta,
+          };
+        }
+        return { decision: 'PERMIT', ...meta };
+      }
+      if (outcome === 'INDETERMINATE') {
+        // The mock's shape. Trust its statements when present so step-up and
+        // consent stay distinguishable on this path too; fall back to HITL,
+        // which is what this branch has always meant.
+        return {
+          decision: 'INDETERMINATE',
+          reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
+          ...(obligation ? { obligation } : {}),
+          ...meta,
+        };
+      }
       // Preserve the engine's specific DENY reason (e.g. the mock's
       // 'unknown_tool: no policy defined' = policy drift) instead of flattening
       // every DENY to a generic string, so callers can distinguish drift from a

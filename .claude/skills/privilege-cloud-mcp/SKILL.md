@@ -24,14 +24,43 @@ SSO client — the main banking app token has the wrong audience for Privilege C
 
 | Path | Endpoint | Status |
 |------|----------|--------|
-| **Cloud API** (recommended) | `https://privilege.pingone.com/api/mcp` | Working — requires `x-procyon-session-id` header + Bearer token |
-| **Local proxy** | `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` | BLOCKED — `IssuerPublicKey:[]` means proxy can't validate ANY JWT locally |
+| **Gateway frontend** (use this) | `https://local.ping-devops.com:8623/mcp` — SE cluster: `https://ai-demo.ping-devops.com/mcpgw` | The only path that can work. Requires an MCP Server application in the console (see below) |
+| **Cloud API** | `https://privilege.pingone.com/api/mcp` | DEAD END — 401s every request including its own `.well-known/oauth-protected-resource`, sends no `WWW-Authenticate` |
 
-The Cloud API path routes through Privilege's cloud infrastructure — the local
-proxy's OIDC validation is bypassed. Use Cloud API until Privilege pushes JWKS
-keys to the local proxy controller.
+**Do not repoint `PRIVILEGE_MCPGW_URL` at the Cloud API.** That was tried and
+reverted; `docs/PRIVILEGE-MCP.md` §"4. The client pointed at the Privilege cloud
+API, not a gateway — RESOLVED 2026-08-02" is the record. No token from PingOne
+env `01d89b06` satisfies `privilege.pingone.com` — not the `6586d3de` app, not the
+dedicated `873cc9e4` "Privilege Cloud MCP Gateway" app (which mints
+`aud: mcpserver.ping.demo`, the demo's own audience). The 401 arrives before any
+policy runs, so it looks like an authorization problem and is not one.
 
-### Headers required by Cloud API
+**Port `8623`, not `8680`.** `-listen :8680` opened no reachable MCP listener:
+inside the container only `127.0.0.1:8090` was bound, so `:8680` accepted the host
+port-forward's TCP connection and immediately closed it (`UND_ERR_SOCKET` at the
+BFF). #1219 moved the listener to `:8623`, the product's MCP traffic port, which
+is also what the k8s ingress maps 443 to. `PRIVILEGE_MCPGW_URL` and the service's
+`-listen` flag must always name the same port.
+
+### Current state (verified 2026-08-02)
+
+The proxy runs and is healthy; the demo is blocked entirely on console-side setup.
+
+- Container `ai-demo-ping-mcpgw` up, node `e40f4540-…` `Active`, control-plane link
+  established, `ProxyURL local.ping-devops.com:8623`.
+- **No MCP frontend exists.** The log creates only the vendor defaults
+  (`console.tun.procyon.ai`, `login.procyon.ai`, `agent.procyon.ai`,
+  `local.procyon.ai:8643`, `*.privilege.pingone.com`) and inside the container only
+  `127.0.0.1:8090` is bound. Nothing serves 8623, so `tools/list` cannot work no
+  matter what the BFF sends. Fixed only by creating the MCP Server application in
+  the console (checklist step 5).
+- **Duplicate node registration.** `has same NodeURL - this happens because of
+  misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`
+  as the live node. Delete the stale one in the console.
+- `Error sending update to mesh controller: … not found` is the same symptom, not a
+  separate fault.
+
+### Headers (Cloud API path only — kept for reference, that path is dead)
 
 | Header | When | Value |
 |--------|------|-------|
@@ -80,18 +109,24 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | Proxy Binary | `/procyon/bin/cyonproxy` |
 | Cluster ID | `ai-demo-se` |
 | Cluster Name | `cmuir-mcpgw` |
-| MCP endpoint (Cloud API) | `https://privilege.pingone.com/api/mcp` |
-| MCP endpoint (Local proxy) | `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` (BLOCKED — IssuerPublicKey:[]) |
+| MCP endpoint (gateway frontend) | `https://local.ping-devops.com:8623/mcp` — what `PRIVILEGE_MCPGW_URL` must be |
+| MCP endpoint (Cloud API) | `https://privilege.pingone.com/api/mcp` — DEAD END, do not use |
+| Node ID (current) | `e40f4540-ac21-47f4-bfc0-47a41adb8022`, `ProxyURL local.ping-devops.com:8623` |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
 | End user | `cmuir+ssoEndUser@pingone.com` / `Demo1234!` |
 | Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
-| Guest agent env | `ping-mcpgw/config/guest-agent.env` (committed — non-secret config) |
+| Gateway OIDC config | `ping-mcpgw/config/pingone.env` (gitignored; `.example` is committed) |
 
 ### Current token status
 
-The enrollment token in `ping-mcpgw/config/proxy-token` **expired 2026-07-31**.
-A fresh token was obtained 2026-08-01 and enrollment succeeded. Node ID:
-`271b827f-b6ea-4bef-80fc-604ca1121ce7`, cluster: `ai-demo-se`.
+The enrollment token in `ping-mcpgw/config/proxy-token` (and `PRIVILEGE_PROXY_TOKEN`
+in the root `.env`) **expired 2026-08-02T12:22:37Z**. That does **not** stop the
+proxy: verified 2026-08-02, the container starts, enrolls, and holds an active
+control-plane link with the expired wizard JWT still in place, because cyonproxy
+already swapped it for a long-lived token inside the `mcpgw-ssl` volume. An expired
+token only matters on **first** boot or after that volume is deleted — do not
+diagnose "expired token" from the file's `exp` alone; check whether the container
+is running and linked first.
 
 See **[ping-mcpgw/RENEW-TOKEN.md](../../ping-mcpgw/RENEW-TOKEN.md)** for the
 full step-by-step renewal procedure.
@@ -110,7 +145,7 @@ gateway. Key settings in `docker-compose.yml`:
 | `tmpfs: /app/dev-data` | (volume config) | Dev mode needs writable session dir; container runs as uid 1001 |
 
 The `PRIVILEGE_MCPGW_URL` env var on the BFF (`demo-api-server`) points to the
-gateway: `https://privilege.pingone.com/api/mcp`
+gateway frontend: `https://local.ping-devops.com:8623/mcp`
 
 ## Proxy enrollment
 
@@ -132,10 +167,17 @@ docker-compose.yml passes it via `ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"`
 
 **Option B — token file:**
 ```bash
-echo "eyJ..." > ping-mcpgw/config/proxy-token
+printf '%s' 'eyJ...' > ping-mcpgw/config/proxy-token
+export PRIVILEGE_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)"
 ./run-docker.sh optional start mcpgw
 ```
-The compose service bind-mounts this file read-only into `/procyon/ssl/proxy-token.data`.
+The file is **not** bind-mounted — it is a place to keep the JWT, and the value
+still reaches the container through `ENV_PROXY_TOKEN`. Do not add a single-file
+bind of it: cyonproxy rewrites `/procyon/ssl/proxy-token.data` at startup (it swaps
+the short-lived wizard JWT for a long-lived one), so a `:ro` bind makes the
+container exit 1 with *"ProxyToken write to /procyon/ssl/proxy-token.data failed …
+read-only file system"*, and a `:rw` single-file bind breaks as soon as the proxy
+replaces rather than truncates the file.
 
 ### After enrollment
 The proxy writes `proxy-config.data` into the `mcpgw-ssl` Docker volume.
@@ -148,7 +190,7 @@ lost (Docker crash, prune), re-enroll with a fresh token.
 # 2. Save it:
 echo "eyJ..." > ping-mcpgw/config/proxy-token
 # 3. Clear stale volume state:
-docker volume rm ai-demo2_mcpgw-ssl 2>/dev/null || true
+docker volume rm ai-demo_mcpgw-ssl 2>/dev/null || true
 # 4. Start fresh:
 export PRIVILEGE_PROXY_TOKEN="eyJ..."
 ./run-docker.sh optional start mcpgw
@@ -160,9 +202,14 @@ docker logs ai-demo-ping-mcpgw 2>&1 | grep -i "enrolled\|connected\|ready"
 
 | Port | Purpose |
 |------|---------|
-| 8680 | mTLS listener (MCP relay / RDP/SSH sessions) |
+| 8623 | MCP traffic — the frontend the BFF calls, and what k8s maps 443 to |
 | 8620 | Agentless API |
-| 8690 | Medusa gRPC tunnel |
+| 8690 | Medusa gRPC tunnel (also the node's `NodeURL`) |
+
+The container publishes 8623 whether or not anything serves it. A successful TCP
+connect to 8623 proves the port-forward, not the gateway — `curl` the `/mcp` path
+and check for a listener inside the container (`docker exec … cat /proc/net/tcp`)
+before concluding the gateway is up.
 
 ## BFF MCP client (privilegeMcpClient.js)
 
@@ -199,7 +246,7 @@ issues tokens for custom resources. The ONLY working path is authorization_code.
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | Privilege Gateway MCP endpoint: `https://privilege.pingone.com/api/mcp` |
+| `PRIVILEGE_MCPGW_URL` | Gateway frontend: `https://local.ping-devops.com:8623/mcp` — must match the `ping-mcpgw` service's `-listen` port |
 | `PRIVILEGE_SSO_CLIENT_ID` | PingOne OIDC client for Privilege auth |
 | `PRIVILEGE_SSO_CLIENT_SECRET` | Client secret (client_secret_post for code exchange) |
 | `PRIVILEGE_SSO_ENV_ID` | PingOne env ID (for OIDC discovery fallback) |
@@ -242,8 +289,12 @@ docker run -d --name ai-demo-ping-mcpgw \
   --net=host \
   -e ENV_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)" \
   public.ecr.aws/s7q1z8z4/privilege-proxy \
-  /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8680
+  /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8623
 ```
+
+Never drive `docker compose up` directly — a hook blocks it. Parallel sessions
+converging the same project produce `container name /ai-demo-... is already in use`
+conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 
 ## Troubleshooting
 
@@ -259,7 +310,10 @@ docker run -d --name ai-demo-ping-mcpgw \
 | Session not persisting between requests | Session cookie not sent / saveUninitialized | Use browser (cookies auto-sent), or pass `Cookie` header in curl |
 | curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
 | gRPC `UNAVAILABLE` / proxy silent hang | Firewall blocking outbound to `grpc.privilege.pingone.com:443` | Allow outbound 443; no inbound holes needed |
-| `IssuerPublicKey:[]` in proxy logs | Controller never pushes JWKS keys to the local proxy | Use Cloud API path (`privilege.pingone.com/api/mcp`) instead of local proxy endpoint |
+| `IssuerPublicKey:[]` in proxy logs | Controller never pushes JWKS keys to the local proxy | Known gap. The Cloud API is **not** the workaround — it 401s everything (see "Two deployment paths") |
+| Container up, 8623 accepts TCP, but `curl https://…:8623/mcp` fails to connect | No MCP frontend exists — the proxy binds only `127.0.0.1:8090`. The log shows the vendor default frontends (`console.tun.procyon.ai`, `login.procyon.ai`, `agent.procyon.ai`, `*.privilege.pingone.com`) and none for our MCP server | Create the MCP Server application in the console against cluster `ai-demo-se` (checklist step 5). No code change will open that port |
+| `has same NodeURL - this happens because of misconfigured Node` | Two node registrations claim the same `NodeURL local.ping-devops.com:8690` — the live node is linking to a stale twin of itself | Console → Gateways → delete the stale node row, keep the one whose ID matches the running container's log |
+| BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | `PRIVILEGE_MCPGW_URL` port does not match the service's `-listen` port | Both must be `8623` (see "Port 8623, not 8680") |
 | Server crash: `EACCES: permission denied, mkdir './dev-data'` | Dev mode needs writable dir but container runs as non-root (uid 1001) | Add `tmpfs: /app/dev-data:uid=1001,gid=1001` to docker-compose.yml |
 | Server crash: `Configuration validation failed` | `SKIP_TOKEN_SIGNATURE_VALIDATION=true` forbidden outside development | Set `NODE_ENV: development` in docker-compose.yml for the mcp-server service |
 | Cloud API 400: "mcp-protocol-version header is required" | Non-initialize requests need protocol version header | BFF's fetchMcp adds `mcp-protocol-version: 2024-11-05` for non-initialize requests |
@@ -294,7 +348,7 @@ print(f'{status} — expires {exp.isoformat()} ({"%.1f" % ((exp-now).total_secon
    ```
 5. Clear stale enrollment state and restart:
    ```bash
-   docker volume rm ai-demo2_mcpgw-ssl 2>/dev/null || true
+   docker volume rm ai-demo_mcpgw-ssl 2>/dev/null || true
    export PRIVILEGE_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)"
    ./run-docker.sh optional start mcpgw
    ```
@@ -313,11 +367,15 @@ token — the volume state is sufficient. Only clear the volume if re-enrolling.
 1. **Get the enrollment token** from Privilege console (Gateway wizard → Add Node)
 2. **Save it**: `printf '%s' 'eyJ...' > ping-mcpgw/config/proxy-token`
 3. **Start**: `./run-docker.sh optional start mcpgw`
-4. **Verify enrollment**: `docker logs ai-demo-ping-mcpgw 2>&1 | tail -10`
+4. **Verify enrollment**: the container writes to a volume, not stdout —
+   `docker exec ai-demo-ping-mcpgw tail -50 /var/log/procyon/cyonproxy.log`
+   (`docker logs` is empty). Look for `established command stream` / `Created
+   frontend node`.
 5. **Register MCP App** in console: AI Security → Agentic Apps → Add Application → MCP Server
-   - Frontend URL: `https://local.ping-devops.com:8680`
-   - MCP Server URL: `https://host.docker.internal:8080/mcp`
-   - Mesh Cluster: select your gateway
+   - Frontend URL: `https://local.ping-devops.com:8623`
+   - MCP Server URL: `http://mcp-server:8080/mcp` (compose-internal DNS — the
+     gateway resolves it inside the network; it is not browser-reachable)
+   - Mesh Cluster: `ai-demo-se`
 6. **Discover tools**: wait ~30s after MCP app creation, check console for discovered tools
 7. **Create policy**: assign user `cmuir+ssoEndUser@pingone.com` a policy granting tool access
 8. **Test from UI**: navigate to `/privilege-mcp-client`, sign in, call a tool
@@ -343,31 +401,34 @@ but for simplicity the demo disables mTLS when using Privilege.
 The compose service uses three named volumes:
 - `mcpgw-ssl` — persists enrollment state (`proxy-config.data`). **If this volume
   contains stale state from a previous enrollment, re-enrollment with a new token
-  will silently fail.** Always `docker volume rm ai-demo2_mcpgw-ssl` before
+  will silently fail.** Always `docker volume rm ai-demo_mcpgw-ssl` before
   re-enrolling.
 - `mcpgw-logs` — proxy diagnostic logs
 - `mcpgw-recordings` — session recordings (if enabled in console)
 
-The `proxy-token` file is bind-mounted read-only at `/procyon/ssl/proxy-token.data`.
-If both the bind-mount file AND the volume's `proxy-config.data` exist, the proxy
-prefers the persisted config (ignores the token file). This is by design — the
-token is only consumed on first boot.
+- `mcpgw-logs` also holds `cyonproxy.log` — the only place the proxy writes. `docker
+  logs ai-demo-ping-mcpgw` is empty, so read
+  `docker exec ai-demo-ping-mcpgw tail -50 /var/log/procyon/cyonproxy.log` instead.
 
-## guest-agent.env reference
+If the volume's `proxy-config.data` exists, the proxy uses it and ignores
+`ENV_PROXY_TOKEN` entirely — by design, the token is only consumed on first boot.
 
-`ping-mcpgw/config/guest-agent.env` is the committed (non-secret) config used by
-the proxy's guest-agent mode. Key fields:
+## pingone.env reference
+
+`ping-mcpgw/config/pingone.env` (gitignored; `pingone.env.example` is the committed
+template) holds the OIDC config the gateway uses to authenticate MCP clients. The
+whole `ping-mcpgw/config` **directory** is mounted at `/var/lib/procyon/config` —
+a single-file bind goes stale when the host file is replaced. The BFF writes this
+file via `PUT /api/privilege-mcp/env`.
+
+There is no `guest-agent.env` — earlier revisions of this skill described one.
 
 | Field | Purpose |
 |-------|---------|
-| `Tenant` | Privilege tenant ID |
-| `APIKey` / `APISecret` | Guest agent API credentials (non-OIDC path) |
-| `CNTRLUrl` | Privilege control plane URL |
-| `ClusterName` | Must match the gateway name registered in console |
-| `HostIP` | FQDN the proxy advertises |
-| `NodeType` | `MCPGw` for MCP gateway mode |
-| `MCPGwServer` | Public URL of this proxy (`https://local.ping-devops.com:8680`) |
-| `MCPGwCertPath` | Path to TLS certs inside the container |
-| `OidcClientID/Secret` | PingOne OIDC app for user auth |
-| `OidcAuthURL/TokenURL/UserURL` | PingOne AS endpoints |
-| `OidcUserIDClaim` | Claim used to identify the user (`sub`) |
+| `SERVER_URL` | Public URL of this MCPGW; `https://local.ping-devops.com:8623` locally, `https://ai-demo.ping-devops.com/mcpgw` on the SE cluster. The PingOne redirect URI must be `${SERVER_URL}/callback` |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | The MCPGW application in PingOne (AI Security → Agentic Apps) |
+| PingOne AS endpoints | Authorize / token / userinfo for the environment |
+
+A missing `SERVER_URL` is a documented cause of "gateway does not behave as
+expected" — which looks exactly like a proxy that enrolls fine and then serves
+nothing.

@@ -934,7 +934,14 @@ function parseHeuristic(
   if (INVEST_FEATURE_RE.test(t)) {
     return { kind: "banking", banking: { action: "invest_demo" } };
   }
-  const featureTrigger = FEATURE_TRIGGERS[vertical];
+  // hasOwnProperty: `vertical` is request-supplied and VALID_VERTICAL_RE accepts
+  // `constructor`, so a bare lookup returned the INHERITED Object constructor.
+  // `?.` only guards nullish, so `.test(t)` was then called on a function that has
+  // none — POST /api/demo-agent/nl {vertical:"constructor"} 500'd with
+  // "featureTrigger?.test is not a function".
+  const featureTrigger = Object.prototype.hasOwnProperty.call(FEATURE_TRIGGERS, vertical)
+    ? FEATURE_TRIGGERS[vertical]
+    : null;
   if (featureTrigger?.test(t) || /\bshow\s+vertical\s+feature\b/.test(t)) {
     return { kind: "banking", banking: { action: "vertical_feature_demo" } };
   }
@@ -1287,6 +1294,59 @@ function parseHeuristic(
   return { kind: "none", message: buildCatalogMessage(verticalCtx) };
 }
 
+/*
+ * Actions parseBanking recognises that belong to NO vertical. Every one is
+ * cross-vertical by its own definition at the point it is declared, not by
+ * accident:
+ *   web_search             the trailing catch-all — dispatches brave_search and
+ *                          appears in no manifest (#1232).
+ *   unusual_patterns       UNUSUAL_PATTERNS_RE's own comment: the sec_llm_analyze
+ *                          chip "ships this exact text in EVERY vertical
+ *                          manifest" (9 of them) and must resolve the same way
+ *                          "regardless of vertical".
+ *   vertical_feature_demo  VERTICAL_FEATURE_RE exists precisely so "NL phrases
+ *                          for non-banking verticals also map to
+ *                          vertical_feature_demo so the client can dispatch the
+ *                          right tool" — the right tool being the ACTIVE
+ *                          vertical's, never banking's.
+ *   invest_demo            INVEST_FEATURE_RE is labelled "Cross-vertical invest /
+ *                          portfolio chip" at its declaration.
+ *   mcp_tools              lists whichever MCP tools the active vertical exposes;
+ *                          the phrasing ships in 10 manifests.
+ * None of them reads banking data. Returning one WITHOUT a vertical lets the
+ * caller keep the active one, or reach buildNoMatch when there is none.
+ *
+ * The early return still matters, and #1228 is the reason: deleting it does not
+ * make the prompt neutral, it hands the prompt to the keyword sweep below, which
+ * claims "equipment" / "schedule" / "inventory" / "orders" for a different wrong
+ * vertical instead. Dropping the tag and returning are one change, not two.
+ */
+const VERTICAL_AGNOSTIC_BANKING_ACTIONS = new Set([
+  'web_search',
+  'unusual_patterns',
+  'vertical_feature_demo',
+  'invest_demo',
+  'mcp_tools',
+]);
+
+/*
+ * Literal-vertical keyword branches, in their original cascade order. A Map, not
+ * an object literal: the key is a request-supplied vertical id, and a bare
+ * `obj[id]` lookup would resolve 'constructor' / 'toString' through the
+ * prototype chain and hand back a non-regex — the same missing-guard shape
+ * already found in FEATURE_TRIGGERS and INTENT_TO_PERMITTED_TOOLS. Map.get
+ * returns undefined for those by construction. Order is preserved, so the
+ * no-active-vertical sweep below still resolves exactly as it always did.
+ */
+const VERTICAL_KEYWORD_RE = new Map([
+  ['retail', /\b(order|orders?|purchase|return|refund|cart|checkout)\b/],
+  ['sporting-goods', /\b(points?|redeem|rewards?|gear|equipment|membership)\b/],
+  ['government', /\b(permit|benefit|document|application|claim)\b/],
+  ['workforce', /\b(schedule|time\s*off|timeoff|paycheck|coworker|directory|timesheet|expense|leave|payroll|attendance)\b/],
+  ['university', /\b(grades?|courses?|transcript|enrollment|semester|schedule|tuition)\b/],
+  ['manufacturing', /\b(manufacturing|factory|production|machine|inventory|equipment)\b/],
+]);
+
 /**
  * Parse intent from text specifically for fallback resolution
  * Returns minimal intent object with vertical hint
@@ -1294,50 +1354,80 @@ function parseHeuristic(
 function parseForFallback(text, verticalCtx = {}) {
   const t = norm(text);
 
+  // The vertical the user is demonstrably already in. Read once, up front,
+  // because every branch below is now ranked against it rather than against its
+  // own position in the cascade. Same normalisation the trailing context branch
+  // has always used — the literal string 'undefined' arrives from query params.
+  const activeVertical =
+    verticalCtx.verticalId && verticalCtx.verticalId !== 'undefined'
+      ? verticalCtx.verticalId
+      : null;
+
   // Use existing parseEducation and parseBanking for quick vertical detection
   const bankingIntent = parseBanking(t);
   if (bankingIntent && bankingIntent.kind !== 'none') {
-    return { ...bankingIntent, vertical: 'banking' };
+    if (
+      bankingIntent.banking &&
+      VERTICAL_AGNOSTIC_BANKING_ACTIONS.has(bankingIntent.banking.action)
+    ) {
+      return { ...bankingIntent };
+    }
+    // A genuine banking action (transfer, balance, transactions, accounts …) is
+    // BANKING'S OWN pattern, so it may only win where banking is the active
+    // vertical — or where none is, the context-free case the cascade exists
+    // for. Typed inside another vertical it is a FOREIGN vertical's pattern and
+    // must not resolve, exactly as retail's \borders?\b must not resolve inside
+    // manufacturing: only the active vertical's own patterns may.
+    //
+    // This one deliberately does NOT early-return. #1228 established the early
+    // return because falling through handed the prompt to the keyword sweep,
+    // which coerced it to a DIFFERENT wrong vertical. #1261 then confined that
+    // sweep to `!activeVertical`, and this branch falls through only when
+    // activeVertical is set — so the sweep is unreachable from here. Every
+    // branch still below keeps the active vertical: parseEducation returns
+    // without a vertical, the own-keyword branch returns the active one, and
+    // the trailing branch returns kind:'unknown' on it, which the resolver
+    // renders as the no-match naming that vertical.
+    if (!activeVertical || activeVertical === 'banking') {
+      return { ...bankingIntent, vertical: 'banking' };
+    }
   }
 
+  // Protocol/AI teaching intents ("what is PAR", "explain step-up") open an
+  // education panel; they carry no tool and belong to no vertical. Returning
+  // one WITHOUT a vertical lets the caller keep the active vertical — tagging
+  // them 'banking' pulled account and transfer chips into healthcare and every
+  // other vertical. The early return still matters: falling through would let
+  // the keyword cascade below claim them ("equipment", "schedule", "inventory")
+  // and coerce them to a different wrong vertical instead.
   const educationIntent = parseEducation(t);
   if (educationIntent && educationIntent.kind !== 'none') {
-    return { ...educationIntent, vertical: 'banking' }; // Education uses banking vertical
+    return { ...educationIntent };
   }
 
-  // Detect retail vertical keywords
-  if (/\b(order|orders?|purchase|return|refund|cart|checkout)\b/.test(t)) {
-    return { kind: 'retail', vertical: 'retail' };
+  // The ACTIVE vertical's own keywords are consulted before any other
+  // vertical's, so cascade position can no longer decide the outcome. This is
+  // the whole fix: retail's \borders?\b sat above manufacturing and took
+  // manufacturing's own "show my work orders" while manufacturing was active.
+  const ownRe = activeVertical ? VERTICAL_KEYWORD_RE.get(activeVertical) : undefined;
+  if (ownRe && ownRe.test(t)) {
+    return { kind: activeVertical, vertical: activeVertical };
   }
 
-  // Detect sporting-goods vertical keywords
-  if (/\b(points?|redeem|rewards?|gear|equipment|membership)\b/.test(t)) {
-    return { kind: 'sporting-goods', vertical: 'sporting-goods' };
-  }
-
-  // Detect government vertical keywords
-  if (/\b(permit|benefit|document|application|claim)\b/.test(t)) {
-    return { kind: 'government', vertical: 'government' };
-  }
-
-  // Detect workforce vertical keywords
-  if (/\b(schedule|time\s*off|timeoff|paycheck|coworker|directory|timesheet|expense|leave|payroll|attendance)\b/.test(t)) {
-    return { kind: 'workforce', vertical: 'workforce' };
-  }
-
-  // Detect university vertical keywords
-  if (/\b(grades?|courses?|transcript|enrollment|semester|schedule|tuition)\b/.test(t)) {
-    return { kind: 'university', vertical: 'university' };
-  }
-
-  // Detect manufacturing vertical keywords
-  if (/\b(manufacturing|factory|production|machine|inventory|equipment)\b/.test(t)) {
-    return { kind: 'manufacturing', vertical: 'manufacturing' };
+  // With a vertical already active, another vertical's keywords are only ever a
+  // GUESS, and a guess must not overrule the vertical the user is actually in.
+  // So the sweep runs only when nothing is active — which is the case it exists
+  // for. When something IS active and its own branch did not match above,
+  // control falls to the context branch below and the active vertical stands.
+  if (!activeVertical) {
+    for (const [vertical, re] of VERTICAL_KEYWORD_RE) {
+      if (re.test(t)) return { kind: vertical, vertical };
+    }
   }
 
   // For other verticals, check if verticalCtx hints at a specific one
-  if (verticalCtx.verticalId && verticalCtx.verticalId !== 'undefined') {
-    return { kind: 'unknown', vertical: verticalCtx.verticalId };
+  if (activeVertical) {
+    return { kind: 'unknown', vertical: activeVertical };
   }
 
   // Default: unknown, no vertical hint

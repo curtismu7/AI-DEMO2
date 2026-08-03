@@ -271,12 +271,12 @@ const INITIAL_NODES = [
     },
   },
   {
-    id: "mcp-invest",
+    id: "mcp-resource-server",
     type: "arch",
     position: { x: 780, y: 560 },
     data: {
       label: "MCP Resource Server",
-      label2: "banking_mcp_invest :8081",
+      label2: "banking_mcp_resource_server :8081",
       icon: "🛠️",
       colorClass: "",
     },
@@ -292,7 +292,7 @@ const INITIAL_NODES = [
       colorClass: "",
     },
   },
-  // Phase 267 (LIVE): banking_mortgage_service — a legacy/3rd-party-style
+  // Phase 267 (LIVE): banking_api_resource_server — a legacy/3rd-party-style
   // backend that takes an API key instead of an OAuth bearer. The Gateway
   // drops the user bearer and injects X-API-Key + X-User-Sub when forwarding;
   // the backend never sees a user token. Drawn solid (aspirational:false):
@@ -302,7 +302,7 @@ const INITIAL_NODES = [
     type: "arch",
     position: { x: 970, y: 290 },
     data: {
-      label: "banking_mortgage_service",
+      label: "banking_api_resource_server",
       label2: "X-API-Key + X-User-Sub",
       colorClass: "",
       aspirational: false,
@@ -449,7 +449,7 @@ const INITIAL_EDGES = [
   {
     id: "mcp-gw-invest",
     source: "mcp-gw",
-    target: "mcp-invest",
+    target: "mcp-resource-server",
     style: { stroke: "#cbd5e1", strokeWidth: 1, strokeDasharray: "5 3" },
     label: "Proxy (investment tools)",
   },
@@ -467,7 +467,7 @@ const INITIAL_EDGES = [
     style: B,
     label: "Introspect",
   },
-  // Phase 267 (LIVE): Gateway forwards show_mortgage to banking_mortgage_service
+  // Phase 267 (LIVE): Gateway forwards show_mortgage to banking_api_resource_server
   // by dropping the user bearer and injecting a service API key + X-User-Sub.
   {
     id: "gw-apikey",
@@ -1649,9 +1649,9 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "api-key-backend"],
       colorClass: "active-permit",
       stepLabel:
-        "Gateway enforces mortgage:read, then swaps the OAuth bearer for the service API key and calls banking_mortgage_service",
+        "Gateway enforces mortgage:read, then swaps the OAuth bearer for the service API key and calls banking_api_resource_server",
       description:
-        "API-KEY PATH: the gateway first verifies the user bearer carries mortgage:read (local scope gate — consent before the swap). It then drops the OAuth bearer and attaches the service API key + X-User-Sub, and calls banking_mortgage_service :8082 GET /mortgage. The backend never sees a user token.",
+        "API-KEY PATH: the gateway first verifies the user bearer carries mortgage:read (local scope gate — consent before the swap). It then drops the OAuth bearer and attaches the service API key + X-User-Sub, and calls banking_api_resource_server :8082 GET /mortgage. The backend never sees a user token.",
       activeEdgeIds: ["gw-apikey"],
       edgeStyle: { stroke: "#ca8a04", strokeWidth: 2.5 },
       nodeBadges: {
@@ -1663,7 +1663,7 @@ const SCENARIO_STEPS_FLOW = {
       token: {
         type: "API Key (X-API-Key + X-User-Sub)",
         credentialPath: "api_key",
-        note: "banking_mortgage_service returns the mortgage record",
+        note: "banking_api_resource_server returns the mortgage record",
       },
     },
     {

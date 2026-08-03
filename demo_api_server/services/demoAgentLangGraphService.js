@@ -18,6 +18,42 @@ const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of t
 const ACTIVITY_ROWS_FOR_PROMPT = 25;
 
 /**
+ * The vertical's OWN activity/read tool, or null when it declares none.
+ *
+ * Deliberately NOT `READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions'`.
+ * That default SELECTED banking's tool for every vertical missing from the map,
+ * bypassing the vertical's tool surface entirely. PR #1250 stopped a PLUGIN-LESS
+ * vertical executing it, but a vertical whose plugin returns NOT_MY_TOOL for
+ * names it does not own still falls through to the `legacy` executor — which on
+ * the agent path is banking's. `airlines` is exactly that shape (MCP-backed, so
+ * config/verticals/airlines/index.js disowns every non-stub name), and it landed
+ * on main already leaking: "spot any unusual activity" in an airlines session ran
+ * banking's get_my_transactions and injected a real banking row into the prompt.
+ *
+ * A miss must therefore yield NO tool rather than a fallback, so a vertical added
+ * later cannot inherit banking's by omission — the pre-fetch is simply skipped and
+ * the model answers without grounded rows, which is visible rather than silent.
+ *
+ * `banking` is named here rather than added to the map because READ_PRIMARY_TOOL_BY_VERTICAL
+ * also drives per-vertical use-case chip OVERRIDES (config/useCases.js
+ * READ_PER_VERTICAL), where banking is the baseline being overridden, not an entry.
+ *
+ * @param {string} activeId resolved active vertical id
+ * @returns {string|null} tool name, or null when the vertical declares none
+ */
+function readPrimaryToolFor(activeId) {
+  // hasOwnProperty: activeId is request-supplied and VALID_VERTICAL_RE accepts
+  // `constructor`, so a bare lookup resolved the INHERITED Object constructor —
+  // truthy, so the caller's `if (activityTool)` passed and handed executeTool a
+  // FUNCTION where a tool name belongs. Same guard, same reason, as
+  // config/fallback-chips/loader.js.
+  if (Object.prototype.hasOwnProperty.call(READ_PRIMARY_TOOL_BY_VERTICAL, activeId)) {
+    return READ_PRIMARY_TOOL_BY_VERTICAL[activeId];
+  }
+  return activeId === 'banking' ? 'get_my_transactions' : null;
+}
+
+/**
  * Render a tool's activity payload as a compact table.
  *
  * Raw output is ~141 rows of verbose JSON (uuids, null account ids, ISO stamps,
@@ -102,6 +138,21 @@ const verticalDispatch = require('./verticalDispatch');
 const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
 const conversationStore = require('./lmdb/conversationStore.lmdb');
+const { buildGroundedAnswer } = require('./groundedAnswer');
+
+/**
+ * Option C gate. Same configStore boolean convention as ff_knowledge_grounding
+ * (values persist as the strings 'true'/'false'), with an env fallback so the
+ * flag still resolves before configStore has initialized.
+ */
+function isGroundedAnswersEnabled() {
+  try {
+    const raw = configStore.getEffective('ff_grounded_answers');
+    return raw === true || raw === 'true' || raw === '1';
+  } catch (_) {
+    return process.env.FF_GROUNDED_ANSWERS === 'true' || process.env.FF_GROUNDED_ANSWERS === '1';
+  }
+}
 
 /**
  * IN-04: agent chat content is PII-equivalent in a banking context. The
@@ -204,7 +255,7 @@ async function ensureAccountsForVertical(userId, verticalId) {
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
   const verticalId = ctx.vertical || 'banking';
-  if (action === 'transfer' || action === 'transfer_600_test' || action === 'deposit' || action === 'withdraw') {
+  if (action === 'transfer' || action === 'transfer_600_test' || action === 'wire_transfer' || action === 'deposit' || action === 'withdraw') {
     await ensureAccountsForVertical(userId, verticalId);
   }
 
@@ -212,6 +263,13 @@ async function dispatchBankingAction(action, params, userId, ctx) {
   // don't fall through to the LLM/catalog. The chip UI has dedicated handlers
   // for these; the NL path (nlResumeAfterAuth → processAgentMessage) needs them
   // dispatched as real transfers.
+  // wire_transfer is banking's own high-value action. It is a DISTINCT tool
+  // (create_wire_transfer, step-up gated in scope-topology) that normalizes onto
+  // the proven transfer machinery here, so it inherits the amount/limit handling
+  // instead of duplicating money movement. Same pattern as transfer_600_test.
+  if (action === 'wire_transfer') {
+    action = 'transfer';
+  }
   if (action === 'transfer_600_test') {
     action = 'transfer';
     params = { fromId: params.fromId || 'checking', toId: params.toId || 'savings', amount: params.amount || 600, ...params };
@@ -1791,8 +1849,12 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // here either). Do NOT assume the LLM path yields a 428; do NOT remove the
     // heuristic floor believing it does.
 
-    // Load conversation history for continuity (per-user, per-vertical thread)
-    const verticalForHistory = vertical || 'banking';
+    // Load conversation history for continuity (per-user, per-vertical thread).
+    // The RESOLVED id, not the raw request param: `vertical || 'banking'` ignored
+    // the session's pin, so a healthcare session that sent no `vertical` param
+    // loaded the user's BANKING thread and replayed it into a healthcare prompt.
+    // activeId is the same value toolSchemas / systemPrompt / executeTool use.
+    const verticalForHistory = activeId;
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
@@ -1812,8 +1874,14 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // governed executor the loop would have used makes the claim true and emits
     // the evidence, instead of leaving the model to decide whether the demo works.
     const preToolsCalled = [];
-    if (ACTIVITY_ANALYSIS_RE.test(String(message || ''))) {
-      const activityTool = READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions';
+    // Pre-fetched payloads join the reason loop's own results as grounding
+    // evidence. Omitting them would drop every UC34 claim as unattributable —
+    // the data IS governed and real, it just arrived before the loop started.
+    const preToolResults = [];
+    const activityTool = ACTIVITY_ANALYSIS_RE.test(String(message || ''))
+      ? readPrimaryToolFor(activeId)
+      : null;
+    if (activityTool) {
       try {
         const activity = await executeTool(activityTool, {});
         const compact = compactActivityForPrompt(activity);
@@ -1839,6 +1907,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
             content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\n${compact}`,
           };
           preToolsCalled.push(activityTool);
+          preToolResults.push({ name: activityTool, result: activity });
         }
       } catch (e) {
         // Non-fatal: the model still answers, just without grounded data.
@@ -1878,9 +1947,24 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       // same deterministic reply/card buildA2aReplyEnvelope gives the non-LLM
       // dispatch path, so UC2 renders identically to a chip-driven delegation.
       const a2aDisplay = a2aResultRef.current ? buildA2aReplyEnvelope(a2aResultRef.current, tokenEvents) : null;
+      // Option C. The model routed freely; now nothing reaches the screen
+      // without a tool call behind it. Every claim keeps its source tool and
+      // scope; a claim we cannot attribute is dropped here and never leaves the
+      // server. Zero grounded claims sets grounded:false and the SPA degrades to
+      // the Option A no-match card rather than showing a hedged paragraph.
+      //
+      // Skipped for the A2A display path: that reply is deterministic BFF-built
+      // copy (buildA2aReplyEnvelope), not model prose, so there is no fabrication
+      // to filter and re-deriving it as claims would only lose the card.
+      const groundedAnswer = (!a2aDisplay && isGroundedAnswersEnabled())
+        ? buildGroundedAnswer(loopResult.answer, [...preToolResults, ...(loopResult.toolResults || [])], {
+            verticalToolNames: toolSchemas.map((t) => t && t.name).filter(Boolean),
+          })
+        : null;
       return {
         reply: a2aDisplay ? a2aDisplay.reply : loopResult.answer,
         success: true,
+        ...(groundedAnswer ? { groundedAnswer } : {}),
         // Was hardcoded []. Tools DO run on this path (the loop executes
         // data.type === 'tool_calls' via executeTool), so reporting none made
         // 'tool-dispatched' evidence unmatchable for every LLM-path use case —
@@ -2043,5 +2127,5 @@ module.exports = {
   // Public for routes/agentTool.js — external LLM agents' tool callback runs
   // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
   executeA2aDelegation,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor },
 };

@@ -24,7 +24,7 @@ describe('GET /internal/vault/service-key', () => {
   test('403 when the internal secret is missing', async () => {
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
-      .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+      .query({ name: 'DEMO_API_RESOURCE_SERVER_KEY' });
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('forbidden');
   });
@@ -33,7 +33,7 @@ describe('GET /internal/vault/service-key', () => {
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
       .set('x-internal-gateway-secret', 'nope')
-      .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+      .query({ name: 'DEMO_API_RESOURCE_SERVER_KEY' });
     expect(res.status).toBe(403);
   });
 
@@ -53,10 +53,10 @@ describe('GET /internal/vault/service-key', () => {
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
       .set('x-internal-gateway-secret', SECRET)
-      .query({ name: 'DEMO_INVEST_SERVICE_KEY' });
+      .query({ name: 'DEMO_MCP_RESOURCE_SERVER_KEY' });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('key_unset');
-    expect(configStore.getEffective).toHaveBeenCalledWith('demo_invest_service_key');
+    expect(configStore.getEffective).toHaveBeenCalledWith('demo_mcp_resource_server_key');
   });
 
   test('200 returns the value for an allow-listed name', async () => {
@@ -64,37 +64,44 @@ describe('GET /internal/vault/service-key', () => {
     const res = await request(buildApp())
       .get('/internal/vault/service-key')
       .set('x-internal-gateway-secret', SECRET)
-      .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+      .query({ name: 'DEMO_API_RESOURCE_SERVER_KEY' });
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ name: 'DEMO_MORTGAGE_SERVICE_KEY', value: 'demo-mortgage-key-0000' });
-    expect(configStore.getEffective).toHaveBeenCalledWith('demo_mortgage_service_key');
+    expect(res.body).toEqual({ name: 'DEMO_API_RESOURCE_SERVER_KEY', value: 'demo-mortgage-key-0000' });
+    expect(configStore.getEffective).toHaveBeenCalledWith('demo_api_resource_server_key');
   });
 
   // The mortgage backend hard-rejects the committed defaults at boot, so a
   // bridge serving one in production can only yield a confusing downstream
   // 401 ("backend rejected the service API key"). Fail HERE instead.
-  describe('committed-default guard (NODE_ENV=production)', () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-    afterEach(() => { process.env.NODE_ENV = prevNodeEnv; });
+  // The guard keys off VAULT_INTERNAL_STRICT, NOT NODE_ENV: k8s and
+  // docker-compose both pin the BFF to NODE_ENV=development deliberately (the
+  // simulated Authorize service requires it), so the old NODE_ENV==='production'
+  // condition was dead code in every real deployment.
+  describe('committed-default guard (VAULT_INTERNAL_STRICT=true)', () => {
+    const prevStrict = process.env.VAULT_INTERNAL_STRICT;
+    afterEach(() => {
+      if (prevStrict === undefined) delete process.env.VAULT_INTERNAL_STRICT;
+      else process.env.VAULT_INTERNAL_STRICT = prevStrict;
+    });
 
     test('503 key_not_provisioned when the resolved value is a committed default', async () => {
-      process.env.NODE_ENV = 'production';
+      process.env.VAULT_INTERNAL_STRICT = 'true';
       configStore.getEffective.mockReturnValue('demo-mortgage-key-0000');
       const res = await request(buildApp())
         .get('/internal/vault/service-key')
         .set('x-internal-gateway-secret', SECRET)
-        .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+        .query({ name: 'DEMO_API_RESOURCE_SERVER_KEY' });
       expect(res.status).toBe(503);
       expect(res.body.error).toBe('key_not_provisioned');
     });
 
-    test('200 in production for a real (non-default) key', async () => {
-      process.env.NODE_ENV = 'production';
+    test('200 under strict mode for a real (non-default) key', async () => {
+      process.env.VAULT_INTERNAL_STRICT = 'true';
       configStore.getEffective.mockReturnValue('mortgage-abc123def456');
       const res = await request(buildApp())
         .get('/internal/vault/service-key')
         .set('x-internal-gateway-secret', SECRET)
-        .query({ name: 'DEMO_MORTGAGE_SERVICE_KEY' });
+        .query({ name: 'DEMO_API_RESOURCE_SERVER_KEY' });
       expect(res.status).toBe(200);
       expect(res.body.value).toBe('mortgage-abc123def456');
     });

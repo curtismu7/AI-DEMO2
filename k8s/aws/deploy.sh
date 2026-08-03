@@ -64,8 +64,8 @@ IMAGE_MAP=(
   "ai-demo-k8-authz-server:ai-demo-authz-server"
   "ai-demo-k8-agent-service:ai-demo-agent-service"
   "ai-demo-k8-hitl-service:ai-demo-hitl-service"
-  "ai-demo-k8-mcp-invest:ai-demo-mcp-invest"
-  "ai-demo-k8-mortgage-service:ai-demo-mortgage-service"
+  "ai-demo-k8-mcp-resource-server:ai-demo-mcp-resource-server"
+  "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
   "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
   "ai-demo-k8-openai-agent:ai-demo-openai-agent"
   "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
@@ -198,8 +198,8 @@ apply_patched "$K8S_DIR/21-api-server-logs-pvc.yaml"
 for manifest in \
   73-jaeger-deployment.yaml \
   30-mcp-server-deployment.yaml \
-  63-mcp-invest-deployment.yaml \
-  64-mortgage-service-deployment.yaml \
+  63-mcp-resource-server-deployment.yaml \
+  64-api-resource-server-deployment.yaml \
   62-hitl-service-deployment.yaml \
   56-llm-stack.yaml \
   20-api-server-deployment.yaml \
@@ -233,7 +233,7 @@ else
 fi
 
 info "Waiting for rollouts (timeout 3m each)..."
-for dep in jaeger mcp-server mcp-invest mortgage-service hitl-service \
+for dep in jaeger mcp-server mcp-resource-server api-resource-server hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
            mastra-agent openai-agent pydantic-agent frontend; do
   kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s

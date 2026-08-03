@@ -6,7 +6,7 @@
 
 **Architecture:** `run.sh` gains `wait_for_health` (port + HTTP 200 check with log-tail on timeout), a pre-launch env pass, and a tiered startup sequence. The three weakest services (HITL, mortgage, agent service) gain graceful shutdown drains; HITL, mortgage, and MCP Invest gain env validation startup warnings; HITL and agent service health endpoints gain `uptime`/`checks`; MCP Invest health endpoint gains `uptime`. The MCP server already has `/health` (returns HTTP 200) — no change needed there.
 
-**Tech Stack:** bash (run.sh), Node.js CommonJS (hitl, mortgage), TypeScript (mcp_invest, agent_service)
+**Tech Stack:** bash (run.sh), Node.js CommonJS (hitl, mortgage), TypeScript (mcp_resource_server, agent_service)
 
 ---
 
@@ -16,8 +16,8 @@
 |------|--------|
 | `run.sh` | Add `wait_for_health` + `_health_timeout_report`; pre-launch env pass; tiered launch sequence; updated `print_status_table` with health column; updated `service_status_line` |
 | `demo_hitl_service/src/index.js` | Env startup warn, graceful shutdown drain, richer `/health` (uptime + checks.env), structured ready log |
-| `demo_mortgage_service/server.js` | Env startup warn (default API key), graceful shutdown, structured ready log |
-| `demo_mcp_invest/src/index.ts` | Env startup warn (`RESOURCE_URI`), add `uptime` to `/health` |
+| `demo_api_resource_server/server.js` | Env startup warn (default API key), graceful shutdown, structured ready log |
+| `demo_mcp_resource_server/src/index.ts` | Env startup warn (`RESOURCE_URI`), add `uptime` to `/health` |
 | `demo_agent_service/src/index.ts` | Replace `process.exit(0)` handlers with `server.close()` + 5s drain; add `uptime`/`checks` to `/health` |
 
 **Not changed:** `demo_mcp_server` (already has `/health` at HTTP 200), `demo_mcp_gateway` (already compliant), `demo_api_server` (already compliant), `langchain_agent` (already compliant).
@@ -193,21 +193,21 @@
 
 ---
 
-## Task 2: demo_mortgage_service — env validation + graceful shutdown + ready log
+## Task 2: demo_api_resource_server — env validation + graceful shutdown + ready log
 
 **Files:**
-- Modify: `demo_mortgage_service/server.js`
+- Modify: `demo_api_resource_server/server.js`
 
 - [ ] **Step 1: Read and understand the current file**
 
-  Open `demo_mortgage_service/server.js`. Note:
+  Open `demo_api_resource_server/server.js`. Note:
   - Line 23: `API_KEY` defaults to `'demo-mortgage-key-0000'` with no warning
   - Lines 166-171: `app.listen(...)` with bare `console.log` — needs structured ready log
   - No shutdown handlers anywhere
 
 - [ ] **Step 2: Add env validation, graceful shutdown, and ready log**
 
-  Make these three targeted edits to `demo_mortgage_service/server.js`:
+  Make these three targeted edits to `demo_api_resource_server/server.js`:
 
   **Edit 1** — Add API key warning after the `API_KEY` declaration (after line 23, before `const app`):
 
@@ -216,8 +216,8 @@
   const DEFAULT_MORTGAGE_KEY = 'demo-mortgage-key-0000';
   if (API_KEY === DEFAULT_MORTGAGE_KEY) {
     console.warn(
-      '[demo-mortgage-service] WARNING: MORTGAGE_SERVICE_API_KEY is not set — ' +
-      'using the insecure default key. Set MORTGAGE_SERVICE_API_KEY in ' +
+      '[demo-api-resource-server] WARNING: API_RESOURCE_SERVER_API_KEY is not set — ' +
+      'using the insecure default key. Set API_RESOURCE_SERVER_API_KEY in ' +
       'demo_api_server/.env for a real deployment.'
     );
   }
@@ -228,19 +228,19 @@
   ```javascript
   if (require.main === module) {
     const server = app.listen(PORT, HOST, () => {
-      console.log(`[demo-mortgage-service] Ready on :${PORT}`);
-      console.log(`[demo-mortgage-service] API key (last 4): ...${API_KEY.length >= 4 ? API_KEY.slice(-4) : 'XXXX'}`);
+      console.log(`[demo-api-resource-server] Ready on :${PORT}`);
+      console.log(`[demo-api-resource-server] API key (last 4): ...${API_KEY.length >= 4 ? API_KEY.slice(-4) : 'XXXX'}`);
     });
 
     // Graceful shutdown — drain in-flight requests before exit
     const shutdown = (signal) => {
-      console.log(`[demo-mortgage-service] ${signal} received — shutting down`);
+      console.log(`[demo-api-resource-server] ${signal} received — shutting down`);
       server.close(() => {
-        console.log('[demo-mortgage-service] HTTP server closed');
+        console.log('[demo-api-resource-server] HTTP server closed');
         process.exit(0);
       });
       setTimeout(() => {
-        console.error('[demo-mortgage-service] Drain timeout — forcing exit');
+        console.error('[demo-api-resource-server] Drain timeout — forcing exit');
         process.exit(1);
       }, 5000);
     };
@@ -252,14 +252,14 @@
 - [ ] **Step 3: Verify the service starts cleanly**
 
   ```bash
-  cd /path/to/repo/demo_mortgage_service
+  cd /path/to/repo/demo_api_resource_server
   node server.js
   ```
   Expected:
   ```
-  [demo-mortgage-service] WARNING: MORTGAGE_SERVICE_API_KEY is not set...
-  [demo-mortgage-service] Ready on :8082
-  [demo-mortgage-service] API key (last 4): ...0000
+  [demo-api-resource-server] WARNING: API_RESOURCE_SERVER_API_KEY is not set...
+  [demo-api-resource-server] Ready on :8082
+  [demo-api-resource-server] API key (last 4): ...0000
   ```
   Then:
   ```bash
@@ -267,28 +267,28 @@
   ```
   Expected:
   ```json
-  { "status": "ok", "service": "banking_mortgage_service", "port": 8082, "apiKeyLast4": "0000" }
+  { "status": "ok", "service": "banking_api_resource_server", "port": 8082, "apiKeyLast4": "0000" }
   ```
   Kill with Ctrl+C — should see `SIGINT received — shutting down` then `HTTP server closed`.
 
 - [ ] **Step 4: Commit**
 
   ```bash
-  git add demo_mortgage_service/server.js
+  git add demo_api_resource_server/server.js
   git commit -m "feat(mortgage): env validation warn, graceful shutdown drain, structured ready log"
   ```
 
 ---
 
-## Task 3: demo_mcp_invest — env validation + uptime in /health
+## Task 3: demo_mcp_resource_server — env validation + uptime in /health
 
 **Files:**
-- Modify: `demo_mcp_invest/src/index.ts`
+- Modify: `demo_mcp_resource_server/src/index.ts`
 
 - [ ] **Step 1: Read and understand the current file**
 
-  Open `demo_mcp_invest/src/index.ts`. Note:
-  - Line 28: `RESOURCE_URI` defaults silently to `'https://mcp-invest.ping.demo'` — needs warn
+  Open `demo_mcp_resource_server/src/index.ts`. Note:
+  - Line 28: `RESOURCE_URI` defaults silently to `'https://mcp-resource-server.ping.demo'` — needs warn
   - Lines 60-64: `/health` returns `{ status, service, resourceUri }` — needs `uptime`
   - This is a TypeScript file compiled to `dist/` — changes require `npm run build`
 
@@ -300,7 +300,7 @@
   // Startup env validation
   if (!process.env.MCP_SERVER_RESOURCE_URI) {
     console.warn(
-      '[demo-mcp-invest] WARNING: MCP_SERVER_RESOURCE_URI is not set — ' +
+      '[demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI is not set — ' +
       `using default '${RESOURCE_URI}'. Token audience validation may fail. ` +
       'Set MCP_SERVER_RESOURCE_URI in demo_api_server/.env'
     );
@@ -313,7 +313,7 @@
   ```typescript
   if (url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', service: 'banking-mcp-invest', resourceUri: RESOURCE_URI }));
+    res.end(JSON.stringify({ status: 'ok', service: 'banking-mcp-resource-server', resourceUri: RESOURCE_URI }));
     return;
   }
   ```
@@ -324,7 +324,7 @@
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'ok',
-      service: 'banking-mcp-invest',
+      service: 'banking-mcp-resource-server',
       uptime: process.uptime(),
       resourceUri: RESOURCE_URI,
     }));
@@ -335,7 +335,7 @@
 - [ ] **Step 4: Build and verify**
 
   ```bash
-  cd /path/to/repo/demo_mcp_invest
+  cd /path/to/repo/demo_mcp_resource_server
   npm run build
   ```
   Expected: exit 0, `dist/index.js` updated.
@@ -345,7 +345,7 @@
   ```
   Expected:
   ```
-  [demo-mcp-invest] WARNING: MCP_SERVER_RESOURCE_URI is not set...
+  [demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI is not set...
   ```
   (or no warning if `MCP_SERVER_RESOURCE_URI` is set in your `.env`)
 
@@ -354,14 +354,14 @@
   ```
   Expected:
   ```json
-  { "status": "ok", "service": "banking-mcp-invest", "uptime": <number>, "resourceUri": "https://mcp-invest.ping.demo" }
+  { "status": "ok", "service": "banking-mcp-resource-server", "uptime": <number>, "resourceUri": "https://mcp-resource-server.ping.demo" }
   ```
 
 - [ ] **Step 5: Commit**
 
   ```bash
-  git add demo_mcp_invest/src/index.ts demo_mcp_invest/dist/index.js
-  git commit -m "feat(mcp-invest): env validation warn, add uptime to /health"
+  git add demo_mcp_resource_server/src/index.ts demo_mcp_resource_server/dist/index.js
+  git commit -m "feat(mcp-resource-server): env validation warn, add uptime to /health"
   ```
 
 ---
@@ -581,7 +581,7 @@
   # (Previously each ensure_service_env was called inline just before that service's
   # launch block, creating a race on the first service.)
   for _svc in demo_mcp_server demo_mcp_gateway demo_hitl_service \
-              demo_agent_service demo_mcp_invest; do
+              demo_agent_service demo_mcp_resource_server; do
     [[ -d "$BASEDIR/$_svc" ]] && ensure_service_env "$_svc"
   done
   unset _svc
@@ -592,7 +592,7 @@
   - `demo_mcp_gateway` launch
   - `demo_hitl_service` launch
   - `demo_agent_service` launch
-  - `demo_mcp_invest` launch
+  - `demo_mcp_resource_server` launch
 
 - [ ] **Step 2: Replace the flat health-check block with the tiered sequence**
 
@@ -686,20 +686,20 @@
     echo $! > "$PID_AGENT_SVC"
   fi
 
-  if [[ -d "$BASEDIR/demo_mcp_invest" ]]; then
+  if [[ -d "$BASEDIR/demo_mcp_resource_server" ]]; then
     echo "[INVEST] Starting MCP Invest Server on :8081..."
     (
-      cd "$BASEDIR/demo_mcp_invest"
+      cd "$BASEDIR/demo_mcp_resource_server"
       PORT=8081 npm start > "${LOG_INVEST}" 2>&1
     ) &
     echo $! > "$PID_INVEST"
   fi
 
-  if [[ -d "$BASEDIR/demo_mortgage_service" ]]; then
+  if [[ -d "$BASEDIR/demo_api_resource_server" ]]; then
     echo "[MORTGAGE] Starting Mortgage Service on :8082..."
     (
-      cd "$BASEDIR/demo_mortgage_service"
-      MORTGAGE_SERVICE_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
+      cd "$BASEDIR/demo_api_resource_server"
+      API_RESOURCE_SERVER_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
     ) &
     echo $! > "$PID_MORTGAGE"
   fi
@@ -895,7 +895,7 @@
   Open `REGRESSION_PLAN.md` and add to §4 (Bug Fix Log):
 
   ```markdown
-  | 2026-05-24 | Startup hardening | run.sh: port-only health checks; flat launch order; ensure_service_env race; HITL/mortgage/invest had no env validation or graceful shutdown | Added wait_for_health + tiered startup (run.sh); env warn + graceful shutdown drain + richer /health in hitl, mortgage, agent_service, mcp_invest | run.sh, demo_hitl_service/src/index.js, demo_mortgage_service/server.js, demo_mcp_invest/src/index.ts, demo_agent_service/src/index.ts |
+  | 2026-05-24 | Startup hardening | run.sh: port-only health checks; flat launch order; ensure_service_env race; HITL/mortgage/invest had no env validation or graceful shutdown | Added wait_for_health + tiered startup (run.sh); env warn + graceful shutdown drain + richer /health in hitl, mortgage, agent_service, mcp_resource_server | run.sh, demo_hitl_service/src/index.js, demo_api_resource_server/server.js, demo_mcp_resource_server/src/index.ts, demo_agent_service/src/index.ts |
   ```
 
 - [ ] **Step 6: Final commit**

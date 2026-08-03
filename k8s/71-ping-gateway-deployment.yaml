@@ -61,15 +61,15 @@ spec:
         - name: PG_OLB_BACKEND_URL
           value: "http://mcp-server:8080"
         - name: PG_INVEST_BACKEND_URL
-          value: "http://mcp-invest:8081"
+          value: "http://mcp-resource-server:8081"
         # In-cluster BFF vault bridge. Host URL from refresh-service-envs
         # (api.ping.demo) resolves to 127.0.0.1 inside the pod → bridge 0.
         # demo-api-server is ClusterIP DNS; HostnameVerifier in apikey-dispatch
         # accepts it against the mkcert cert (SAN=api.ping.demo).
         - name: BFF_VAULT_KEY_URL
           value: "https://demo-api-server:3001/internal/vault/service-key"
-        - name: PG_MORTGAGE_BACKEND_URL
-          value: "http://mortgage-service:8082"
+        - name: PG_API_RESOURCE_SERVER_URL
+          value: "http://api-resource-server:8082"
         # Point JVM at the mkcert-augmented truststore built in command: above.
         - name: JAVA_OPTS
           value: "-Djavax.net.ssl.trustStore=/var/gateway/mkcert-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit"

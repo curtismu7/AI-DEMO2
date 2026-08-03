@@ -73,7 +73,13 @@ if [ "$SERVICE" = "authz-server" ]; then
     exit 1
   fi
   echo "  running ${#files[@]} node --test files (root + tests/)"
-  node --test "${files[@]}" >"$log" 2>&1
+  # --test-reporter=spec is REQUIRED, not cosmetic. node --test only defaults to
+  # the spec reporter when stdout is a TTY; redirected to "$log" it is not, so it
+  # emitted TAP (`# tests 221`) and the `^ℹ tests ` guard below never matched.
+  # The suite passed 221/221 and the harness still exited 1 with "the runner did
+  # not start" — this job could never go green in CI, only when a human watched
+  # it. Pin the reporter so the parsing below matches what is actually produced.
+  node --test --test-reporter=spec "${files[@]}" >"$log" 2>&1
   rc=$?
   # A completed `node --test` run always prints an "ℹ tests N" summary. No
   # summary means the runner never started — a harness failure, not a red test.

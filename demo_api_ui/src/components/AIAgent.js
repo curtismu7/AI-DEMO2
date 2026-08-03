@@ -12,6 +12,7 @@ import { useIndustryBranding } from "../context/IndustryBrandingContext";
 import { useVertical } from "../vertical/useVertical";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
+import { useThemeOptional } from "../context/ThemeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
@@ -171,6 +172,8 @@ import {
   HitlChipMark,
 } from "./agentChrome";
 import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
+import AgentNoMatchCard from "./AgentNoMatchCard";
+import AgentGroundedAnswerCard from "./AgentGroundedAnswerCard";
 
 // Phase 266 H2 audit: TokenChain credentialPath stamping origins per setTokenEvents call:
 //   line 3433 (scopeTestRes.tokenEvents)  — origin: scope-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
@@ -599,6 +602,15 @@ export default function BankingAgent({
       return false;
     }
   });
+  // Inspectors sub-group — same reasoning as the Configuration group above, but
+  // scoped so Demo steps / Live Use Cases / Agent scope stay visible beside it.
+  const [inspectorsOpen, setInspectorsOpen] = useState(() => {
+    try {
+      return localStorage.getItem("ba_inspectors_group_open") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   // MCP Elicitation (form mode + URL mode input requests)
   const {
@@ -662,6 +674,15 @@ export default function BankingAgent({
       console.warn("Failed to save ba_config_group_open to localStorage:", e);
     }
   }, [configGroupOpen]);
+
+  /** Persist the Inspectors sub-group's open/closed state to localStorage. */
+  useEffect(() => {
+    try {
+      localStorage.setItem("ba_inspectors_group_open", inspectorsOpen ? "1" : "0");
+    } catch (e) {
+      console.warn("Failed to save ba_inspectors_group_open to localStorage:", e);
+    }
+  }, [inspectorsOpen]);
 
   /** Persist chipGroupsState changes to localStorage. */
   useEffect(() => {
@@ -755,6 +776,12 @@ export default function BankingAgent({
       localStorage.setItem("ba_show_rfc_info", String(showRfcInfo));
     } catch {}
   }, [showRfcInfo]);
+
+  /** Dark mode for the dark-capable panels (Token Chain rail). The state, its
+      persistence and the data-theme attribute now live in ThemeProvider so the
+      choice holds on pages where this agent is not mounted — the rail renders on
+      ~28 of them. This switch is one control over that shared state, not its owner. */
+  const { darkMode, setDarkMode } = useThemeOptional();
 
   /** Whether the heuristic fast-path is enabled (ff_heuristic_enabled). false = LLM-only mode. */
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
@@ -937,6 +964,15 @@ export default function BankingAgent({
 
   const bottomRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  // Follow the transcript only while the user is already at the bottom. Without
+  // this the auto-scroll below fires on every streamed token and yanks the view
+  // back down, making it impossible to read earlier messages mid-reply.
+  const [pinnedToBottom, setPinnedToBottom] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+  // Last message count the user actually saw. The scroll effect below also runs
+  // on loading/nlLoading transitions, so counting effect firings over-reports
+  // ("2 new" for a single new message); count the real delta instead.
+  const seenMessageCountRef = useRef(0);
   const nlInputRef = useRef(null);
   // Bridge for external (window-event) attack triggers — e.g. the AI Attacks
   // learning drawer's "Run this attack" buttons. Assigned each render (see the
@@ -2003,13 +2039,41 @@ export default function BankingAgent({
     if (!isOpen && !isInline) return;
     const el = messagesContainerRef.current;
     if (!el) return;
+    // Only follow when the user is parked at the bottom. Scrolled up = they are
+    // reading something, so leave the viewport alone and surface the jump pill.
+    if (!pinnedToBottom) {
+      const added = messages.length - seenMessageCountRef.current;
+      if (added > 0) setUnreadCount((n) => n + added);
+      seenMessageCountRef.current = messages.length;
+      return;
+    }
+    seenMessageCountRef.current = messages.length;
     // requestAnimationFrame ensures scrollHeight is measured after the browser paints new content
     const raf = requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
+      // behavior:'auto', not the container's `scroll-behavior: smooth` — AG-UI
+      // streaming changes `messages` per token, and animating each one turns a
+      // reply into a continuous slide.
+      el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
     });
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isOpen, isInline, loading, nlLoading]);
+
+  /** Track whether the transcript is parked at the bottom (40px tolerance — exact
+   *  equality is unreliable with sub-pixel heights and browser zoom). */
+  const handleTranscriptScroll = useCallback((e) => {
+    const el = e.currentTarget;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
+    setPinnedToBottom(atBottom);
+    if (atBottom) setUnreadCount(0);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    const el = messagesContainerRef.current;
+    setPinnedToBottom(true);
+    setUnreadCount(0);
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, []);
 
   useEffect(() => {
     if (!isOpen && !isInline) return;
@@ -2878,7 +2942,7 @@ export default function BankingAgent({
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)
           //   2. Gateway enforces mortgage:read on the user bearer
           //   3. Gateway drops the OAuth bearer, attaches the service API key
-          //   4. Gateway calls demo_mortgage_service (X-API-Key + X-User-Sub)
+          //   4. Gateway calls demo_api_resource_server (X-API-Key + X-User-Sub)
           //   5. Navigate to /path/mortgage with the payload in location.state
           // Destination route is hard-coded (T-266-04-01: no open-redirect).
           toast.update(toastId, {
@@ -6334,6 +6398,25 @@ export default function BankingAgent({
         return;
       }
     }
+    // kind:'none' is the server's explicit "routed nowhere" signal. Ask the BFF
+    // for the structured no-match result so the failure is visible and the
+    // offered next steps come from the ACTIVE vertical only — a bare sentence
+    // here used to leave the user guessing which vertical refused them.
+    if (result.kind === "none") {
+      const noMatch = await fetchNoMatch(nlUserText);
+      if (noMatch) {
+        addMessage("assistant", noMatch.message, null, {
+          source: _source,
+          noMatch: true,
+          noMatchVerticalId: noMatch.verticalId,
+          noMatchBrandName: noMatch.brandName,
+          noMatchIntentsConsidered: noMatch.intentsConsidered,
+          noMatchClosestCandidate: noMatch.closestCandidate,
+          noMatchSuggestions: noMatch.suggestions,
+        });
+        return;
+      }
+    }
     // Prefer the server's message (heuristic / LLM produces a useful one).
     // The hard-coded fallback is only for the rare case where result.message
     // is missing — e.g. server crashed before populating it.
@@ -6343,6 +6426,101 @@ export default function BankingAgent({
         `I didn't catch that. Try "show my accounts", "balance", "recent transactions", or "explain token exchange".`,
       null,
       { source: _source },
+    );
+  }
+
+  /**
+   * Fetch the BFF's structured no-match result for a prompt that routed nowhere.
+   * Returns null when the endpoint is unreachable or answers with anything other
+   * than a no-match, so the caller keeps its existing plain-text behaviour
+   * instead of rendering an empty card.
+   */
+  async function fetchNoMatch(prompt) {
+    const text = (prompt || "").trim();
+    if (!text) return null;
+    try {
+      const { data } = await bffAxios.get("/api/fallback/chips", {
+        params: { prompt: text, verticalId: effectiveVerticalId || "" },
+      });
+      if (!data?.noMatch || !data.message) return null;
+      const verticalId = data.verticalId || null;
+      return {
+        message: data.message,
+        verticalId,
+        // The server sends only the id; the brand lives in the manifest the
+        // VerticalProvider already loaded. That manifest describes the ACTIVE
+        // vertical, so if the server resolved a different one we have no brand
+        // for it — send none and let the card name the vertical alone rather
+        // than labelling it with the wrong brand.
+        brandName:
+          verticalId && verticalId === effectiveVerticalId
+            ? pageManifest?.identity?.displayName || null
+            : null,
+        intentsConsidered: data.intentsConsidered,
+        closestCandidate: data.closestCandidate,
+        suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+      };
+    } catch (e) {
+      console.warn("[agent] no-match lookup failed:", e?.message);
+      return null;
+    }
+  }
+
+  /**
+   * Option C. Add the assistant turn, honouring the BFF's per-claim attribution
+   * when it is present (ff_grounded_answers ON).
+   *
+   * Three cases, in order:
+   *  1. No `groundedAnswer` — the flag is off or this path was not attributed.
+   *     Behave exactly as before; nothing about the existing turn changes.
+   *  2. Grounded — render the claim card. The model's prose is neither stored
+   *     nor shown: `content` becomes the attributed claim text only, so a
+   *     transcript export or history replay cannot resurrect a dropped claim.
+   *  3. Nothing grounded — degrade to the Option A card. A is C's floor. We do
+   *     not emit a hedged paragraph, because "here's roughly what I think"
+   *     is the exact failure this feature exists to prevent.
+   */
+  async function addReplyRespectingGrounding(response, replyWithAgentBadge, promptText) {
+    const grounded = response?.groundedAnswer;
+    if (!grounded) {
+      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      return;
+    }
+
+    if (grounded.grounded && Array.isArray(grounded.claims) && grounded.claims.length > 0) {
+      addMessage("assistant", grounded.claims.map((c) => c.text).join(" "), null, {
+        ...verticalResultExtra(response),
+        groundedClaims: grounded.claims,
+        groundedDroppedCount: grounded.droppedCount || 0,
+      });
+      return;
+    }
+
+    // Ask the BFF for the structured no-match so the offered next steps are the
+    // active vertical's own. It answers null when the prompt DID route to an
+    // intent (which is the usual case here — routing succeeded, grounding did
+    // not), so the vertical and brand fall back to what this page already knows.
+    // Fields the server did not supply stay undefined and the card omits them
+    // rather than inventing a count or a suggestion.
+    //
+    // Its `message` is deliberately NOT reused: it reads "No <vertical> action
+    // matched that request", which is false here — an action DID match. Only
+    // the suggestions and identity are borrowed; the wording is our own.
+    const noMatch = await fetchNoMatch(promptText);
+    addMessage(
+      "assistant",
+      "The agent answered that request, but none of the answer could be traced " +
+        "back to a tool call, so it is not shown.",
+      null,
+      {
+        noMatch: true,
+        noMatchReason: "ungrounded",
+        noMatchDroppedCount: grounded.droppedCount,
+        noMatchVerticalId: noMatch?.verticalId ?? effectiveVerticalId ?? null,
+        noMatchBrandName:
+          noMatch?.brandName ?? pageManifest?.identity?.displayName ?? null,
+        noMatchSuggestions: noMatch?.suggestions,
+      },
     );
   }
 
@@ -7695,7 +7873,10 @@ export default function BankingAgent({
       try {
         const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
         const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
-        addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+        // Option C (ff_grounded_answers). When the BFF attributed this reply,
+        // the model's prose is NOT what gets stored or shown — only the claims
+        // it could trace to an in-vertical tool call, or the Option A card.
+        await addReplyRespectingGrounding(response, replyWithAgentBadge, text);
         // A2A teaching popup: auto-open after a successful A2A delegation,
         // mirroring how RAR auto-explains. The response's own token events
         // feed the modal's live values.
@@ -8074,6 +8255,17 @@ export default function BankingAgent({
                 >
                   RFC info
                 </Check>
+                {/* Dark mode switch — drives data-theme on the document root, which the
+                    dark-capable panels (Token Chain rail) key off. */}
+                <Check
+                  variant="switch"
+                  className="ba-header-toggle-label"
+                  checked={darkMode}
+                  onChange={(e) => setDarkMode(e.target.checked)}
+                  title="Switch the Token Chain panel between light and dark"
+                >
+                  Dark mode
+                </Check>
                 {modelAdvisory && (
                   <span
                     className="ams-degraded-chip ba-model-advisory-chip"
@@ -8213,8 +8405,22 @@ export default function BankingAgent({
                 )}
                 {splitChrome && <span className="ba-hg-divider" />}
                 {splitChrome && (
-                  <>
-                    <span className="ba-hg-label">Inspectors</span>
+                  <span
+                    className={`ba-hg-sub${inspectorsOpen ? "" : " ba-hg-sub--collapsed"}`}
+                  >
+                    <button
+                      type="button"
+                      className="ba-hg-label ba-hg-label--toggle"
+                      aria-expanded={inspectorsOpen}
+                      title={inspectorsOpen ? "Hide inspectors" : "Show inspectors"}
+                      onClick={() => setInspectorsOpen((open) => !open)}
+                    >
+                      <span className="ba-hg-label__chev" aria-hidden>
+                        {inspectorsOpen ? "▾" : "▸"}
+                      </span>
+                      Inspectors
+                    </button>
+                    <div className="ba-hg-body">
                     <button
                       type="button"
                       className="ba-insp-btn ba-insp-btn--mcp"
@@ -8245,8 +8451,9 @@ export default function BankingAgent({
                     >
                       Agent Gateway Inspector
                     </button>
+                    </div>
                     <span className="ba-hg-divider" />
-                  </>
+                  </span>
                 )}
                 {/* Admin Tools — customer CRUD + PingOne platform ops, admin-only */}
                 {effectiveUser?.role === "admin" && (
@@ -9786,6 +9993,7 @@ export default function BankingAgent({
               <div
                 className="banking-agent-messages"
                 ref={messagesContainerRef}
+                onScroll={handleTranscriptScroll}
               >
                 {messages.length === 0 && (
                   <div className="ba-welcome">
@@ -9862,6 +10070,36 @@ export default function BankingAgent({
                           </span>
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--toolsteps">
                             <ToolProgressChips steps={msg.steps} />
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.groundedClaims?.length) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <AgentGroundedAnswerCard
+                              claims={msg.groundedClaims}
+                              droppedCount={msg.groundedDroppedCount}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.noMatch) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <AgentNoMatchCard
+                              verticalId={msg.noMatchVerticalId}
+                              brandName={msg.noMatchBrandName}
+                              intentsConsidered={msg.noMatchIntentsConsidered}
+                              closestCandidate={msg.noMatchClosestCandidate}
+                              droppedCount={msg.noMatchDroppedCount}
+                              reason={msg.noMatchReason}
+                              suggestions={msg.noMatchSuggestions}
+                              onSelect={(s) => handleChipActivate(s)}
+                            />
                           </div>
                         </div>
                       );
@@ -10081,15 +10319,17 @@ export default function BankingAgent({
                     );
                   })}
                 {nlLoading && (
-                  <div className="banking-agent-msg user">
-                    <span
-                      className="banking-agent-msg-avatar banking-agent-msg-avatar--user"
-                      aria-hidden
-                    >
-                      You
-                    </span>
+                  // Assistant side, not the user's: these dots mean "the agent is
+                  // working". They were rendered as a user bubble with a "You"
+                  // avatar, which reads as "you are typing" and left the existing
+                  // `.banking-agent-msg.assistant.typing` rule dead.
+                  <div className="banking-agent-msg assistant typing">
                     <div>
-                      <div className="banking-agent-msg-bubble ba-typing-indicator">
+                      <div
+                        className="banking-agent-msg-bubble ba-typing-indicator"
+                        role="status"
+                        aria-label="Assistant is working"
+                      >
                         <span className="ba-typing-dot" />
                         <span className="ba-typing-dot" />
                         <span className="ba-typing-dot" />
@@ -10099,6 +10339,19 @@ export default function BankingAgent({
                 )}
                 <div ref={bottomRef} />
               </div>
+              {!pinnedToBottom && (
+                <div className="ba-jump-latest-wrap">
+                  <button
+                    type="button"
+                    className="ba-jump-latest"
+                    onClick={jumpToLatest}
+                    title="Scroll to the newest message"
+                  >
+                    <span className="ba-jump-latest__chev" aria-hidden>▾</span>
+                    {unreadCount > 0 ? `${unreadCount} new` : "Jump to latest"}
+                  </button>
+                </div>
+              )}
 
               {/* Compliance 12-step panel — draggable, resizable modal */}
               <ComplianceModal

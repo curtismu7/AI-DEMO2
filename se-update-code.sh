@@ -17,13 +17,14 @@
 #   mcp       demo_mcp_server     → ai-demo-mcp-server         → mcp-server
 #   gateway   demo_mcp_gateway    → ai-demo-mcp-gateway        → mcp-gateway
 #   agent     langchain_agent     → ai-demo-langchain-agent    → langchain-agent
+#   agentsvc  demo_agent_service  → ai-demo-agent-service      → agent-service
 #   authz     demo_authz_server   → ai-demo-authz-server       → mcp-gateway (sidecar)
 #   mastra    mastra_agent        → ai-demo-mastra-agent       → mastra-agent
 #   openai    openai_agent        → ai-demo-openai-agent       → openai-agent
 #   pydantic  pydantic_agent      → ai-demo-pydantic-agent     → pydantic-agent
 #   hitl      demo_hitl_service   → ai-demo-hitl-service       → hitl-service
-#   invest    demo_mcp_invest     → ai-demo-mcp-invest         → mcp-invest
-#   mortgage  demo_mortgage_service → ai-demo-mortgage-service → mortgage-service
+#   invest    demo_mcp_resource_server     → ai-demo-mcp-resource-server         → mcp-resource-server
+#   mortgage  demo_api_resource_server → ai-demo-api-resource-server → api-resource-server
 
 set -euo pipefail
 
@@ -44,13 +45,14 @@ compose_svc() {
     mcp)      echo "mcp-server" ;;
     gateway)  echo "mcp-gateway" ;;
     agent)    echo "langchain-agent" ;;
+    agentsvc) echo "agent-service" ;;
     authz)    echo "authz-server" ;;
     mastra)   echo "mastra-agent" ;;
     openai)   echo "openai-agent" ;;
     pydantic) echo "pydantic-agent" ;;
     hitl)     echo "hitl-service" ;;
-    invest)   echo "mcp-invest" ;;
-    mortgage) echo "mortgage-service" ;;
+    invest)   echo "mcp-resource-server" ;;
+    mortgage) echo "api-resource-server" ;;
     *)        echo "" ;;
   esac
 }
@@ -62,13 +64,14 @@ ghcr_img() {
     mcp)      echo "ai-demo-mcp-server" ;;
     gateway)  echo "ai-demo-mcp-gateway" ;;
     agent)    echo "ai-demo-langchain-agent" ;;
+    agentsvc) echo "ai-demo-agent-service" ;;
     authz)    echo "ai-demo-authz-server" ;;
     mastra)   echo "ai-demo-mastra-agent" ;;
     openai)   echo "ai-demo-openai-agent" ;;
     pydantic) echo "ai-demo-pydantic-agent" ;;
     hitl)     echo "ai-demo-hitl-service" ;;
-    invest)   echo "ai-demo-mcp-invest" ;;
-    mortgage) echo "ai-demo-mortgage-service" ;;
+    invest)   echo "ai-demo-mcp-resource-server" ;;
+    mortgage) echo "ai-demo-api-resource-server" ;;
     *)        echo "" ;;
   esac
 }
@@ -94,18 +97,23 @@ k8s_dep() {
     mcp)      echo "mcp-server" ;;
     gateway)  echo "mcp-gateway" ;;
     agent)    echo "langchain-agent" ;;
+    agentsvc) echo "agent-service" ;;
     authz)    echo "mcp-gateway" ;;
     mastra)   echo "mastra-agent" ;;
     openai)   echo "openai-agent" ;;
     pydantic) echo "pydantic-agent" ;;
     hitl)     echo "hitl-service" ;;
-    invest)   echo "mcp-invest" ;;
-    mortgage) echo "mortgage-service" ;;
+    invest)   echo "mcp-resource-server" ;;
+    mortgage) echo "api-resource-server" ;;
     *)        echo "" ;;
   esac
 }
 
-ALL_KEYS="bff frontend mcp gateway agent authz mastra openai pydantic hitl invest mortgage"
+# Every key here must exist in local_img/ghcr_img/k8s_dep/compose_svc — the "build
+# and push ALL" loop and the "roll every deployment" loop both iterate this list,
+# so a key missing here is silently skipped by a full deploy while still working
+# when named explicitly. agent-service was in all four maps but not this list.
+ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage"
 
 GITHUB_OWNER="${GITHUB_OWNER:-}"
 if [[ -z "$GITHUB_OWNER" ]]; then

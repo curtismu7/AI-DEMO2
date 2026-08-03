@@ -61,10 +61,18 @@ async function main(): Promise<void> {
         console.log(`[MCP vault] loaded ${vaultResult.entries} entries into process.env`);
       }
     } catch (err) {
-      console.warn(
-        '[MCP vault] startup load skipped:',
+      // Fail closed, matching demo_mcp_server/src/index.ts. This used to warn
+      // and continue, so a wrong VAULT_PASSWORD booted the server anyway;
+      // loadConfiguration() then walked its secret fallback chain and
+      // introspected as a DIFFERENT PingOne client, making PingOne return
+      // active:false for every token (REGRESSION_PLAN.md §4 2026-05-18).
+      // docker-compose builds the `mcp-server` service from this directory, so
+      // the Docker path was the one running the fail-open copy.
+      console.error(
+        '[MCP vault] startup load failed; refusing to start.',
         err instanceof Error ? err.message : err,
       );
+      process.exit(1);
     }
 
     // Load and validate configuration

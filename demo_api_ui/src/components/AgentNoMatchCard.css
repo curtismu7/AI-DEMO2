@@ -1,0 +1,123 @@
+/* No-match card — renders inside the assistant bubble, which is a solid
+   vertical-accent pill with white text. The card therefore paints its own
+   opaque surface and dark text so contrast never depends on the active
+   vertical's accent colour (REGRESSION_PLAN §0: no muted/low-contrast text). */
+
+/* The agent panel is narrow and the heading carries brand + vertical
+   ("CareConnect (Healthcare)"), so every text node here wraps at spaces first
+   and breaks a single over-long token only as a last resort. Nothing in the
+   card may establish a horizontal scroll — min-width:0 stops the flex children
+   from claiming their intrinsic width and forcing the panel body wider. */
+
+.ba-nomatch-card {
+  border: 2px solid var(--brand-warning);
+  border-left-width: 5px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--brand-white);
+  color: var(--brand-dark-gray);
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ba-nomatch-head {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}
+
+.ba-nomatch-why {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}
+
+.ba-nomatch-diag {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  border-radius: var(--inner-card-radius);
+  background: var(--brand-light-gray);
+  border: 1px solid var(--ba-border);
+}
+
+.ba-nomatch-diag:empty {
+  display: none;
+}
+
+.ba-nomatch-diag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ba-nomatch-diag-row dt {
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+}
+
+.ba-nomatch-diag-row dd {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-family-mono);
+  color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
+}
+
+.ba-nomatch-suggest {
+  margin-top: 12px;
+}
+
+.ba-nomatch-suggest-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand-dark-gray);
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+
+.ba-nomatch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ba-nomatch-chip {
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+  padding: var(--btn-padding-sm);
+  min-height: var(--btn-height-sm);
+  font-family: inherit;
+  font-size: var(--btn-font-size-sm);
+  font-weight: var(--btn-weight);
+  line-height: 1.3;
+  border-radius: var(--btn-radius);
+  border: 1px solid var(--brand-navy);
+  background: var(--brand-white);
+  color: var(--brand-navy);
+  cursor: pointer;
+  transition: var(--btn-transition);
+}
+
+.ba-nomatch-chip:hover {
+  background: var(--brand-navy);
+  color: var(--brand-white);
+}
+
+.ba-nomatch-chip:focus-visible {
+  outline: 2px solid var(--brand-navy);
+  outline-offset: 2px;
+}

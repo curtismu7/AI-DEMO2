@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { parseNaturalLanguage } = require('../services/geminiNlIntent');
 const { guardPromptInput } = require('../services/promptGuard');
-const { parseVerticalParam } = require('../services/nlIntentParser');
+const { parseVerticalParam, resolveVerticalRouting } = require('../services/nlIntentParser');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { verticalManifest } = require('../services/verticalManifest');
@@ -59,9 +59,15 @@ function recordRunFromNl(req, message, result, vertical) {
       req.session?.oauthTokens?.subjectSub ||
       su.id || null;
     if (!userId) return;
-    let activeVertical = null;
-    try { activeVertical = verticalManifest?.resolver?.activeIdFor?.(req) || null; } catch (_e) { /* noop */ }
-    const reportVertical = result.vertical || vertical || activeVertical || 'banking';
+    // File the run under the vertical it ACTUALLY executed in. This used to be
+    // `vertical || resolver.activeIdFor(req) || 'banking'`, and activeIdFor falls
+    // back to the PROCESS-GLOBAL — which resolveVerticalRouting deliberately does
+    // not, because any other session's POST /verticals/active mutates that global.
+    // So an unpinned session's run (and its conversation history, keyed on the
+    // same id) was filed under whatever vertical another session last selected,
+    // or under 'banking' outright. resolveVerticalRouting is the one precedence
+    // rule the turn itself routed by: explicit param -> this session's pin -> banking.
+    const reportVertical = result.vertical || resolveVerticalRouting(vertical, req).verticalId;
     const nowIso = new Date().toISOString();
     const runId = crypto.randomUUID();
     reportStore.saveRun({
@@ -112,7 +118,26 @@ router.post('/nl', async (req, res) => {
     return res.status(400).json({ error: 'invalid_vertical', message: 'vertical must match [a-z][a-z0-9-]*' });
   }
   const vertical = parseVerticalParam(verticalRaw);
-  if (vertical && req.session && req.session.active_vertical !== vertical) {
+  // Pin only what the vertical switcher itself would activate. parseVerticalParam
+  // is shape-only ([a-z][a-z0-9-]*), so this pinned `pizza`, and the hidden,
+  // deprecated `admin-console`, straight past the 403/404 that
+  // POST /api/vertical-manifest/active enforces — which is how a hidden vertical
+  // became a session's active one in the first place.
+  //
+  // The REQUEST is not rejected, only the pin: resolveVerticalRouting already
+  // prefers the explicit param over the session, so this turn routes exactly as
+  // before and only the persistence to later param-less requests is refused.
+  // A 400 would instead break the two callers that legitimately pass a hidden id
+  // per-request — OAuth Academy pins `oauth-teaching` on every message precisely
+  // to avoid switching the session-wide active vertical — and would turn /nl's
+  // anonymous marketing path into a hard failure.
+  // Activatable ids (banking, healthcare, retail, …) still pin exactly as before,
+  // preserving REGRESSION_PLAN §4 2026-07-22 "explicit request vertical pins
+  // req.session.active_vertical so banking pages re-align a session left on
+  // healthcare/retail".
+  if (vertical && req.session
+      && req.session.active_vertical !== vertical
+      && !verticalManifest.activationRefusal(vertical)) {
     req.session.active_vertical = vertical;
     if (typeof req.session.save === 'function') req.session.save(() => {});
   }

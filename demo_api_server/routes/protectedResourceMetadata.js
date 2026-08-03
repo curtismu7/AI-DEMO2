@@ -88,7 +88,7 @@ router.get('/all', async (req, res) => {
   const services = [
     { key: 'mcp_olb',    url: `http://localhost:${process.env.MCP_SERVER_PORT   || 8080}/.well-known/oauth-protected-resource` },
     { key: 'mcp_gw',     url: `http://localhost:${process.env.MCP_GW_PORT       || 3005}/.well-known/oauth-protected-resource` },
-    { key: 'mcp_invest', url: `http://localhost:${process.env.MCP_INVEST_PORT   || 8081}/.well-known/oauth-protected-resource` },
+    { key: 'mcp_resource_server', url: `http://localhost:${process.env.MCP_RESOURCE_SERVER_PORT   || 8081}/.well-known/oauth-protected-resource` },
   ];
 
   async function fetchWithTimeout(url) {

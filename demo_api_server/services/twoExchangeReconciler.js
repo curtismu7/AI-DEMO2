@@ -336,13 +336,13 @@ async function reconcileTwoExchangeGrants() {
   let ex3InvestResourceCreated = false;
 
   const mcpServerAud       = scopeTopology.resourceUri('Super Banking MCP Server');
-  const mcpInvestAud       = scopeTopology.resourceUri('Super Banking MCP Invest');
-  const mcpInvestName      = scopeTopology.provisionedResourceName('Super Banking MCP Invest');
+  const mcpResourceServerAud       = scopeTopology.resourceUri('Super Banking MCP Invest');
+  const mcpResourceServerName      = scopeTopology.provisionedResourceName('Super Banking MCP Invest');
   const mcpJwtVerifierAud  = scopeTopology.resourceUri('Super Banking MCP JWT Verifier');
   const mcpJwtVerifierName = scopeTopology.provisionedResourceName('Super Banking MCP JWT Verifier');
 
   let mcpServerResourceId = null;
-  let mcpInvestResourceId = null;
+  let mcpResourceServerResourceId = null;
   let mcpJwtVerifierResourceId = null;
 
   try {
@@ -352,8 +352,8 @@ async function reconcileTwoExchangeGrants() {
   }
 
   try {
-    const investRes = await _resolveOrCreateResourceId(client, mcpInvestAud, mcpInvestName, 'MCP Invest');
-    mcpInvestResourceId = investRes.id;
+    const investRes = await _resolveOrCreateResourceId(client, mcpResourceServerAud, mcpResourceServerName, 'MCP Invest');
+    mcpResourceServerResourceId = investRes.id;
     ex3InvestResourceCreated = investRes.created;
   } catch (err) {
     console.warn(`${TAG} Could not resolve/create MCP Invest resource: ${err.message}`);
@@ -378,9 +378,9 @@ async function reconcileTwoExchangeGrants() {
   }
 
   // Pre-condition 6: MCP Invest resource scopes (native + mirrored).
-  if (mcpInvestResourceId) {
+  if (mcpResourceServerResourceId) {
     try {
-      ex3InvestScopeResult = await _reconcileResourceScopes(client, mcpInvestResourceId, 'Super Banking MCP Invest', 'MCP Invest');
+      ex3InvestScopeResult = await _reconcileResourceScopes(client, mcpResourceServerResourceId, 'Super Banking MCP Invest', 'MCP Invest');
     } catch (err) {
       console.warn(`${TAG} Exchange #3 MCP Invest scope reconcile failed: ${err.message}`);
     }
@@ -443,9 +443,9 @@ async function reconcileTwoExchangeGrants() {
         console.warn(`${TAG} Exchange #3 MCP Gateway→MCP Server grant reconcile failed: ${err.message}`);
       }
     }
-    if (mcpGatewayAppId && mcpInvestResourceId) {
+    if (mcpGatewayAppId && mcpResourceServerResourceId) {
       try {
-        ex3InvestGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpInvestResourceId, 'Super Banking MCP Invest', 'MCP Gateway on MCP Invest', investExclude);
+        ex3InvestGrantResult = await _reconcileAppGrants(client, mcpGatewayAppId, mcpResourceServerResourceId, 'Super Banking MCP Invest', 'MCP Gateway on MCP Invest', investExclude);
       } catch (err) {
         console.warn(`${TAG} Exchange #3 MCP Gateway→MCP Invest grant reconcile failed: ${err.message}`);
       }
@@ -482,7 +482,7 @@ async function reconcileTwoExchangeGrants() {
     if (ex3InvestScopeResult.created.length) parts.push(`MCP Invest scopes created: [${ex3InvestScopeResult.created.join(', ')}]`);
     if (ex3JwtVerifierScopeResult.created.length) parts.push(`MCP JWT Verifier scopes created: [${ex3JwtVerifierScopeResult.created.join(', ')}]`);
     if (ex3ServerGrantResult.added.length)   parts.push(`MCP Gateway→McpServer grants added: [${ex3ServerGrantResult.added.join(', ')}]`);
-    if (ex3InvestGrantResult.added.length)   parts.push(`MCP Gateway→McpInvest grants added: [${ex3InvestGrantResult.added.join(', ')}]`);
+    if (ex3InvestGrantResult.added.length)   parts.push(`MCP Gateway→McpResourceServer grants added: [${ex3InvestGrantResult.added.join(', ')}]`);
     if (ex3JwtVerifierGrantResult.added.length) parts.push(`MCP Gateway→McpJwtVerifier grants added: [${ex3JwtVerifierGrantResult.added.join(', ')}]`);
     console.log(`${TAG} Healed — ${parts.join('; ')}`);
   }

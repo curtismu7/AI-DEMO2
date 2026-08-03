@@ -10,7 +10,7 @@
  * (PROVIDER_OPENAI_KEY, HELIX_API_KEY, ...) in the vault instead of .env.
  *
  * Allowlist: only entries whose NAME matches
- *   /^(MCP_GW_|PROVIDER_|HELIX_|BFF_INTERNAL_|DEMO_)[A-Z0-9_]+$/
+ *   /^(MCP_GW_|PINGONE_|PROVIDER_|HELIX_|BFF_INTERNAL_|DEMO_)[A-Z0-9_]+$/
  * are copied. Non-matching entries are logged via logger.warn and skipped.
  * This is critical: a stolen vault file with an entry like
  *   LD_PRELOAD=/evil.so
@@ -55,7 +55,14 @@ try {
 // Both layouts land on the same repo root.
 const REPO_ROOT = resolve(__dirname, '..', '..');
 const DEFAULT_VAULT_PATH = join(REPO_ROOT, 'secrets.vault');
-const DEFAULT_ALLOWED = /^(MCP_GW_|PROVIDER_|HELIX_|BFF_INTERNAL_|DEMO_)[A-Z0-9_]+$/;
+// PINGONE_ is required, not optional: config.ts PREFERS
+// PINGONE_MCP_GATEWAY_CLIENT_ID/SECRET over MCP_GW_CLIENT_ID/SECRET. Without it
+// a vault-stored gateway credential was silently skipped, the gateway fell back
+// to a stale .env MCP_GW_CLIENT_SECRET, and the RFC 8693 exchange client no
+// longer matched the RFC 7662 introspection client the MCP server uses — every
+// tool call 401'd while both sides logged "vault loaded". demo_mcp_server and
+// oauth-mcp already allow this prefix.
+const DEFAULT_ALLOWED = /^(MCP_GW_|PINGONE_|PROVIDER_|HELIX_|BFF_INTERNAL_|DEMO_)[A-Z0-9_]+$/;
 
 export interface VaultLoadResult {
   loaded: boolean;

@@ -25,7 +25,7 @@ const MORTGAGE_PAYLOAD = {
     nextPaymentDate: '2026-08-01',
     currency: 'USD',
   },
-  source: 'banking_mortgage_service',
+  source: 'banking_api_resource_server',
   authMechanism: 'X-API-Key (shared secret)',
   note: 'Gateway swapped OAuth bearer for service API key before calling the mortgage backend.',
 };

@@ -65,6 +65,13 @@ const DEFAULT_VAULT_PATH = path.join(REPO_ROOT, 'secrets.vault');
 let _unlocked = false;
 let _entriesLoaded = 0;
 
+// Vault entries that must also land in process.env, because their consumers read
+// process.env directly and never consult configStore. Keep this list minimal and
+// explicit — a prefix match would let a hostile vault entry set LD_PRELOAD
+// (T-269-17). Add a name here only when a consumer genuinely cannot use
+// configStore.
+const ENV_EXPORT_ALLOWLIST = Object.freeze(['BFF_INTERNAL_SECRET']);
+
 async function loadVaultIntoConfigStore(opts = {}) {
   // run-demo.sh exports VAULT_PATH="" (empty string) when the operator did not
   // set it. `??` only falls through on null/undefined, so an empty string was
@@ -87,8 +94,24 @@ async function loadVaultIntoConfigStore(opts = {}) {
     return { loaded: false, entries: 0, reason: 'vercel' };
   }
 
-  // 2. No vault file → silent no-op (env-var + configStore values still resolve).
+  // 2. No vault file → no-op by default (env-var + configStore values still
+  //    resolve), because a fresh clone with no vault must still run.
+  //
+  //    This check runs BEFORE the missing-password fail-fast below, so deleting
+  //    or failing to mount the file bypassed that guard entirely: the BFF booted
+  //    with every vault secret absent and only an info-level log to show for it
+  //    (server.js logs only when result.loaded is true). VAULT_REQUIRED=true is
+  //    the opt-in for deployments where a vault is always expected — it turns
+  //    the one condition an attacker or a broken bind-mount can arrange into a
+  //    hard failure, without breaking env-only development.
   if (!fs.existsSync(vaultPath)) {
+    if (String(process.env.VAULT_REQUIRED).toLowerCase() === 'true') {
+      const msg = '[vault] VAULT_REQUIRED=true but no vault file at ' + vaultPath + ' — refusing to start';
+      logger.error(msg);
+      const err = new Error(msg);
+      err.code = 'VAULT_FILE_MISSING';
+      throw err;
+    }
     logger.log('[vault] no vault file at ' + vaultPath + ' — skipping (env-var + configStore values will be used)');
     return { loaded: false, entries: 0, reason: 'no_vault_file' };
   }
@@ -112,7 +135,9 @@ async function loadVaultIntoConfigStore(opts = {}) {
   //    and tampered-file — we log only err.message (no err.stack — no argon2 names).
   let vault;
   try {
-    vault = await vaultLib.openVault(vaultPath, password);
+    // Name ourselves in the audit trail. Without this every line said 'vault.js'
+    // and a boot-time load was indistinguishable from a CLI or web unlock.
+    vault = await vaultLib.openVault(vaultPath, password, { caller: 'vaultLoader' });
   } catch (err) {
     logger.error('[vault] open failed:', err.message);
     throw err;
@@ -129,6 +154,24 @@ async function loadVaultIntoConfigStore(opts = {}) {
     const droppedForReconcile = filterVaultForReconcile(data, configStore);
     if (Object.keys(data).length > 0) {
       await configStore.setRaw(data, { persist: false });
+    }
+    // 5a. Bridge a NARROW allowlist into process.env as well.
+    //
+    // vault-migrate.js tells operators to delete migrated entries from .env, but
+    // these names are read straight off process.env by internal-auth routes — so
+    // following that instruction made them fall back to the committed public
+    // default 'dev-shared-secret-change-me'. configStore alone cannot serve them
+    // because those routes never consult it.
+    //
+    // Deliberately tiny: an entry named LD_PRELOAD must never reach process.env
+    // (T-269-17), which is why this is an explicit name list and not a prefix.
+    // Consumers must also read process.env lazily — routes mount long before this
+    // runs, so a require-time capture would still miss it.
+    for (const name of ENV_EXPORT_ALLOWLIST) {
+      const value = data[name.toLowerCase()];
+      if (typeof value === 'string' && value !== '') {
+        process.env[name] = value;
+      }
     }
     if (droppedForReconcile.length && typeof configStore.recordVaultDropped === 'function') {
       configStore.recordVaultDropped(droppedForReconcile);
@@ -175,6 +218,9 @@ async function unlockVaultAtRuntime(opts = {}) {
   const configStore = opts.configStore ?? require('./configStore');
   const vaultLib    = opts.vaultLib    ?? require('../lib/vault');
   const logger      = opts.logger      ?? console;
+  // Audit attribution flows in from the route so a web unlock is distinguishable
+  // from a CLI one; 'vaultLoader' is the fallback for a direct programmatic call.
+  const caller      = opts.caller      ?? 'vaultLoader';
 
   if (typeof password !== 'string' || password.length === 0) {
     const err = new Error('vault: password required');
@@ -189,7 +235,7 @@ async function unlockVaultAtRuntime(opts = {}) {
 
   let vault;
   try {
-    vault = await vaultLib.openVault(vaultPath, password);
+    vault = await vaultLib.openVault(vaultPath, password, { caller });
   } catch (err) {
     // Generic log — never err.stack (no argon/kek/dek leak). Mirrors loadVaultIntoConfigStore.
     logger.error('[vault] runtime open failed:', err.message);

@@ -52,7 +52,7 @@ const COMPOUND_SCOPES = {
   TRANSACTIONS_READ: 'transactions:read',
   TRANSACTIONS_WRITE: 'transactions:write',
   // Phase 267 — domain-specific scope for the mortgage path.
-  // Required for the api_key disposition that calls banking_mortgage_service.
+  // Required for the api_key disposition that calls banking_api_resource_server.
   // The gateway verifies the user's token includes this scope before performing
   // the bearer→X-API-Key swap; the mortgage service itself does NOT check scope
   // (it gates on X-API-Key only — service-to-service trust).

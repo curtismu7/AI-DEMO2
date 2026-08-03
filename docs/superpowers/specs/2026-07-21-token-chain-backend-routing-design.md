@@ -7,7 +7,7 @@
 
 The demo Agent Gateway routes MCP tool calls to different backend servers by
 tool name (`demo_mcp_gateway/src/router.ts`'s `routeTool()`): most tools go to
-`demo_mcp_server` ("olb"), investment tools go to `demo_mcp_invest`, and the
+`demo_mcp_server` ("olb"), investment tools go to `demo_mcp_resource_server`, and the
 5 JWT-diagnostic tools (added earlier this session, PR #654/#657/#674) go to
 `demo_mcp_jwt_verifier`. This routing, and the RFC 8693 token exchange that
 gates access to each backend's audience, both already happen correctly — but

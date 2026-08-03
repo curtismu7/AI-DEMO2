@@ -34,8 +34,8 @@ DEPLOYMENTS=(
   mcp-gateway
   agent-service
   hitl-service
-  mcp-invest
-  mortgage-service
+  mcp-resource-server
+  api-resource-server
   mastra-agent
   openai-agent
   pydantic-agent

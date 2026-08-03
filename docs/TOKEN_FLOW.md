@@ -278,7 +278,7 @@ Final MCP Token                      Gateway-Issued Upstream Token
 | `PINGAUTHORIZE_ENDPOINT` | PingOne Authorize base URL |
 | `PINGAUTHORIZE_WORKER_ID` | Policy worker ID for per-call decisions |
 | `MCP_OLB_RESOURCE_URI` | Upstream audience for OLB banking tools |
-| `MCP_INVEST_RESOURCE_URI` | Upstream audience for invest tools |
+| `MCP_RESOURCE_SERVER_RESOURCE_URI` | Upstream audience for invest tools |
 | `MCP_ACCEPTED_ORIGINS` | Regex for CORS origin validation |
 
 ### BFF Env Vars (banking-mcp-gateway cutover)

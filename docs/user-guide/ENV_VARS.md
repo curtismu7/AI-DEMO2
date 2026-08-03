@@ -329,8 +329,8 @@ These aliases exist in `configStore.js` envFallbackMap so that older `.env` file
 
 Each service performs its own startup validation:
 - `demo_hitl_service`: warns if `HITL_ALLOWED_ORIGINS` is empty
-- `demo_mortgage_service`: warns if `MORTGAGE_SERVICE_API_KEY` equals the default placeholder
-- `demo_mcp_invest`: warns if `MCP_SERVER_RESOURCE_URI` is unset
+- `demo_api_resource_server`: warns if `API_RESOURCE_SERVER_API_KEY` equals the default placeholder
+- `demo_mcp_resource_server`: warns if `MCP_SERVER_RESOURCE_URI` is unset
 
 See `docs/superpowers/specs/2026-05-24-startup-hardening-design.md` for the full startup sequence and health check design.
 

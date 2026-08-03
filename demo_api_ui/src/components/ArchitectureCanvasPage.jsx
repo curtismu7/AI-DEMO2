@@ -30,8 +30,8 @@ const NODE_ICON = {
   'pingone-sso':     '🔑',
   'hitl-service':    '✋',
   'mcp-server':      '🏦',
-  'mcp-invest':      '📈',
-  'mortgage-service':'🏠',
+  'mcp-resource-server':      '📈',
+  'api-resource-server':'🏠',
 };
 
 const LAYER_ICON = {
@@ -62,7 +62,7 @@ const COL_DEFS = [
   { ids: ['langchain-agent', 'agent-service'],       label: 'Agent Layer' },
   { ids: ['mcp-gateway'],                            label: 'Agent Gateway' },
   { ids: ['authz-server', 'pingone-sso', 'hitl-service'], label: 'Auth / Policy' },
-  { ids: ['mcp-server', 'mcp-invest', 'mortgage-service'], label: 'MCP Backends' },
+  { ids: ['mcp-server', 'mcp-resource-server', 'api-resource-server'], label: 'MCP Backends' },
 ];
 
 function colLabelX(colDef, nodeMap) {

@@ -1,0 +1,145 @@
+{
+  "info": {
+    "name": "Privilege MCP Simple (BFF relay)",
+    "description": "Exercises /api/privilege-mcp-simple — the minimal Privilege-style path: client_credentials token in, MCP JSON-RPC out.\n\nThe BFF does the hard parts for you: it mints the token, attaches the mTLS client certificate when MCP_MTLS_ON is set, runs the initialize / notifications-initialized handshake, and adds mcp-protocol-version to every later call. So these requests are plain JSON over HTTPS with no auth header of your own.\n\nSETUP: Postman must trust the demo's local certificates. Settings > General > 'SSL certificate verification' OFF, or add the mkcert root CA.\n\nThe 'Direct token (what the BFF does)' folder is educational — it mints the same token yourself so you can decode it and see aud=mcpserver.ping.demo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp-simple/status",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp-simple", "status"]
+        },
+        "description": "What this relay is pointed at, without calling anything.\n\nExpect: {\"mcpUrl\":\"https://mcp-server:8080/mcp\",\"mtls\":true,\"tokenCached\":false,\"initialized\":false}\n\nmcpUrl is the MCP SERVER (or the Privilege gateway, once PRIVILEGE_SIMPLE_MCP_URL points there)."
+      }
+    },
+    {
+      "name": "2. tools/list",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('returns a tool catalogue', () => pm.expect(body.tools).to.be.an('array').that.is.not.empty);",
+              "if (body.tools && body.tools.length) {",
+              "  pm.environment.set('first_tool', body.tools[0].name);",
+              "  console.log('tools:', body.tools.map(t => t.name).join(', '));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp-simple/tools/list",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp-simple", "tools", "list"]
+        },
+        "description": "Mints the token if needed, runs the MCP handshake, returns the real tool catalogue from the MCP server.\n\nSaves the first tool name to {{first_tool}} for the next request."
+      }
+    },
+    {
+      "name": "3. tools/call — get_my_accounts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('MCP result, not an error', () => {",
+              "  pm.expect(body.result, JSON.stringify(body).slice(0, 200)).to.exist;",
+              "  pm.expect(body.result.isError).to.not.equal(true);",
+              "});",
+              "// count:0 is CORRECT here: a client_credentials token is a machine",
+              "// identity with no user, so it owns no accounts. Non-empty data needs",
+              "// the interactive route (/api/privilege-mcp), which carries a user."
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"get_my_accounts\",\n  \"arguments\": {}\n}" },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp-simple/tools/call",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp-simple", "tools", "call"]
+        },
+        "description": "Invoke one tool by name.\n\nExpect result.content with isError:false. count:0 is correct — the machine token has no user, so it owns no accounts."
+      }
+    },
+    {
+      "name": "Direct token (what the BFF does)",
+      "item": [
+        {
+          "name": "Mint client_credentials token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('got an access token', () => pm.expect(body.access_token).to.be.a('string'));",
+                  "if (body.access_token) {",
+                  "  pm.environment.set('access_token', body.access_token);",
+                  "  const claims = JSON.parse(atob(body.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));",
+                  "  console.log('aud:', JSON.stringify(claims.aud), 'scope:', claims.scope);",
+                  "  pm.test('audience is the MCP server', () => pm.expect(JSON.stringify(claims.aud)).to.include('mcpserver.ping.demo'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "client_secret", "value": "{{client_secret}}" },
+                { "key": "scope", "value": "{{scopes}}" }
+              ]
+            },
+            "url": { "raw": "{{token_endpoint}}", "host": ["{{token_endpoint}}"] },
+            "description": "The exact token request the relay makes.\n\nTWO THINGS MATTER:\n\n1. scope MUST be named. A bare client_credentials on this app is rejected: 'May not request scopes for multiple resources' — the app holds grants on three resources and PingOne will not guess.\n\n2. 'mcp:invoke' alone is not enough. It opens the transport but every tool then fails with 'Insufficient scope for tool ...' — the per-tool check wants the data scopes too. Hence 'read write mcp:invoke', all on the mcpserver.ping.demo resource."
+          }
+        },
+        {
+          "name": "MCP initialize (direct, needs client cert)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": { \"name\": \"Postman\", \"version\": \"1.0.0\" }\n  }\n}"
+            },
+            "url": { "raw": "{{mcp_server_url}}", "host": ["{{mcp_server_url}}"] },
+            "description": "Straight at the MCP server, bypassing the BFF.\n\nEXPECT THIS TO FAIL FROM POSTMAN when mTLS is on: the server requires a client certificate whose SHA-256 matches the gateway's, and it is reachable only on the Docker network (mcp-server:8080). Add certs/gw-mtls/gw-client.crt + .key in Postman Settings > Certificates if you want to try it, and run Postman where that host resolves.\n\nThe point of this request is to show what the BFF relay absorbs for you."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": []
+}

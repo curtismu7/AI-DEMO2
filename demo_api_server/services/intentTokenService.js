@@ -96,6 +96,10 @@ const INTENT_TO_PERMITTED_TOOLS = {
   pay_fee:                  ['pay_fee', 'view_fees', 'view_permits'],
   sensitive_tax_record:     ['sensitive_tax_record', 'view_permits'],
   release_record:           ['release_record', 'view_permits'],
+  // Airlines
+  get_airline_bookings:     ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'],
+  get_flight_status:        ['get_flight_status', 'get_airline_bookings', 'check_seat_availability'],
+  check_seat_availability:  ['check_seat_availability', 'get_flight_status', 'get_airline_bookings'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
@@ -128,6 +132,8 @@ const READ_ONLY_TOOLS = [
   'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
   'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
   'view_library', 'view_scholarships', 'view_advisors',
+  // Airlines
+  'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
   // Code search (cross-vertical, read-only)
   'code_search', 'get_code', 'list_codebases',
 ];
@@ -163,6 +169,10 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
     'view_portfolios', 'view_holdings', 'view_trades', 'view_dividends',
     'view_portfolio_value', 'sequential_think',
   ],
+  airlines: [
+    'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
+    'sequential_think',
+  ],
   manufacturing: [
     'view_work_orders', 'view_inventory', 'view_production_history',
     'view_machines', 'view_machine_utilization', 'view_quality_inspections',
@@ -171,13 +181,22 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   ],
 };
 
+/** Own-key lookup. Both keys reach here from a request, and `constructor` passes
+ *  VALID_VERTICAL_RE — a bare lookup returned the INHERITED Object constructor,
+ *  which is truthy, so `permitted_tools` became a function. JSON.stringify then
+ *  DROPPED the claim, minting an Intent Token with no tool binding at all. */
+function ownEntry(map, key) {
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+}
+
 function permittedToolsForIntent(intent, vertical) {
-  if (INTENT_TO_PERMITTED_TOOLS[intent]) return INTENT_TO_PERMITTED_TOOLS[intent];
+  const byIntent = ownEntry(INTENT_TO_PERMITTED_TOOLS, intent);
+  if (byIntent) return byIntent;
   // Unknown/unclassified intent: restrict to the current vertical's non-sensitive
   // reads instead of every read tool across every vertical (which exposed
   // get_sensitive_account_details / query_user_by_email / other verticals' data to
   // an unrecognized prompt). Fall back to banking reads when the vertical is unknown.
-  return READ_ONLY_TOOLS_BY_VERTICAL[vertical] || READ_ONLY_TOOLS_BY_VERTICAL.banking;
+  return ownEntry(READ_ONLY_TOOLS_BY_VERTICAL, vertical) || READ_ONLY_TOOLS_BY_VERTICAL.banking;
 }
 
 function mintIntentToken({ userId, sessionId, prompt, intent, confidence, vertical }) {

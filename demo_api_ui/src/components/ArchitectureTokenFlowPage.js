@@ -318,7 +318,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
     },
   },
   {
-    regionIds: ["mcp-invest", "oauth-rs"],
+    regionIds: ["mcp-resource-server", "oauth-rs"],
     colorClass: "active",
     label: "Investments API called (same token)",
     // MCP → RS  (i89, y=4271)
@@ -803,13 +803,13 @@ const SCENARIO_STEPS_TF = {
       regionIds: ["mcp-gateway-tf"],
       colorClass: "active-permit",
       label:
-        "API-KEY PATH: scope gate, then swap + call banking_mortgage_service",
+        "API-KEY PATH: scope gate, then swap + call banking_api_resource_server",
       token: {
         type: "API Key Swap",
         _type: "mcp",
         credentialPath: "api_key",
         swap: "mortgage:read verified; OAuth bearer dropped; X-API-Key + X-User-Sub attached",
-        backend: "banking_mortgage_service :8082 GET /mortgage (Phase 267)",
+        backend: "banking_api_resource_server :8082 GET /mortgage (Phase 267)",
         note: "The service API key (last4: ****) is injected. The user bearer is NOT forwarded — the mortgage service only sees X-API-Key + X-User-Sub.",
       },
     },

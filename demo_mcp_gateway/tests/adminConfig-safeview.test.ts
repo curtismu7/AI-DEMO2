@@ -16,7 +16,7 @@ const SECRET_KEYS = [
   'clientSecret',
   'bffInternalSecret',
   'demoApiKeyServiceKey',
-  'mortgageServiceApiKey',
+  'apiResourceServerApiKey',
 ] as const;
 
 function freshConfig(): GatewayConfig {
@@ -29,9 +29,9 @@ function freshConfig(): GatewayConfig {
     tokenEndpoint: 'https://auth.example.com/token',
     gatewayResourceUri: 'https://mcp-gateway.example.com',
     mcpOlbWsUrl: 'ws://localhost:8080',
-    mcpInvestWsUrl: 'ws://localhost:8081',
+    mcpResourceServerWsUrl: 'ws://localhost:8081',
     mcpOlbResourceUri: 'https://mcp-olb.example.com',
-    mcpInvestResourceUri: 'https://mcp-invest.example.com',
+    mcpResourceServerResourceUri: 'https://mcp-resource-server.example.com',
     pingAuthorizeEndpoint: '',
     pingAuthorizeWorkerId: '',
     p1azEnabled: false,
@@ -39,8 +39,8 @@ function freshConfig(): GatewayConfig {
     introspectionEndpoint: '',
     devBypass: false,
     demoApiKeyServiceKey: 'SUPER-SECRET-demo-key',
-    mortgageServiceBaseUrl: 'http://localhost:8082',
-    mortgageServiceApiKey: 'SUPER-SECRET-mortgage-key',
+    apiResourceServerBaseUrl: 'http://localhost:8082',
+    apiResourceServerApiKey: 'SUPER-SECRET-mortgage-key',
     bffInternalIdTokenUrl: 'http://localhost:3001/internal/id-token',
     bffInternalSecret: 'SUPER-SECRET-bff',
     bankingResourceServerBaseUrl: 'http://localhost:3001',
@@ -71,7 +71,7 @@ describe('adminConfigSafeView — IN-01 secret-leak guard', () => {
 
   it('exposes the non-secret Phase 266/267 HTTP backend routes for the topology view', () => {
     const safe = adminConfigSafeView(freshConfig());
-    expect(safe.mortgageServiceBaseUrl).toBe('http://localhost:8082');
+    expect(safe.apiResourceServerBaseUrl).toBe('http://localhost:8082');
     expect(safe.bankingResourceServerBaseUrl).toBe('http://localhost:3001');
     expect(safe.bankingResourceServerResourceUri).toBe('https://banking-resource-server.ping.demo');
   });

@@ -54,8 +54,8 @@ flowchart LR
   subgraph MCP["MCP servers · resource APIs"]
     direction TB
     MBANK["demo_mcp_server :8080<br/>Banking MCP (WS)<br/>aud: mcp_banking"]:::mcp
-    MINV["demo_mcp_invest :8081<br/>Invest MCP (WS)<br/>aud: mcp_invest"]:::mcp
-    MMORT["demo_mortgage_service :8082<br/>REST · X-API-Key"]:::mcp
+    MINV["demo_mcp_resource_server :8081<br/>Invest MCP (WS)<br/>aud: mcp_resource_server"]:::mcp
+    MMORT["demo_api_resource_server :8082<br/>REST · X-API-Key"]:::mcp
   end
 
   subgraph Ping["PingOne"]
@@ -90,7 +90,7 @@ flowchart LR
 
   %% Gateway → MCP servers
   GATE -->|"WS · aud:mcp_banking"| MBANK
-  GATE -->|"WS · aud:mcp_invest"| MINV
+  GATE -->|"WS · aud:mcp_resource_server"| MINV
   GATE -.->|"REST · X-API-Key"| MMORT
 
   %% Gateway → PingOne Authorization Server (introspect first, then policy decision)

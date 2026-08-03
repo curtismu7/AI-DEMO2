@@ -34,8 +34,8 @@ explicitly; the base page ships without them.
 
 New optional field, from the compose build contexts: `demo_api_server`,
 `demo_api_ui`, `demo_mcp_server`, `langchain_agent`, `demo_mcp_gateway`,
-`demo_agent_service`, `demo_hitl_service`, `demo_mcp_invest`,
-`demo_mortgage_service`, `demo_authz_server`, `mastra_agent`, `openai_agent`,
+`demo_agent_service`, `demo_hitl_service`, `demo_mcp_resource_server`,
+`demo_api_resource_server`, `demo_authz_server`, `mastra_agent`, `openai_agent`,
 `pydantic_agent`, `demo_mcp_proxy`, `ping-gateway` (config/scripts — image is
 vendor), `demo_mcp_code_search`, `demo_llm_proxy`, `demo_ungoverned_agent`.
 `null` for vendor images with no repo dir (weaviate, embeddings) and the host

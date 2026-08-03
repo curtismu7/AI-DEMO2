@@ -20,7 +20,7 @@ data:
   # from service-topology.json — the master SoT. To change a host/port/scheme,
   # edit that file and run `node scripts/gen-service-topology.js generate`.
   # Rationale that used to live here now lives in service-topology.json:
-  #   - gateway upstreams (MCP_OLB_WS_URL/MCP_INVEST_WS_URL/UPSTREAM_MCP_URL) must
+  #   - gateway upstreams (MCP_OLB_WS_URL/MCP_RESOURCE_SERVER_WS_URL/UPSTREAM_MCP_URL) must
   #     use in-cluster service names, else the gateway dials localhost → 502;
   #   - MCP_GATEWAY_HTTP_URL must be the gateway (mcp-gateway:3005), not the MCP
   #     server, or the BFF bypasses Authorize/exchange;
@@ -36,7 +36,7 @@ data:
   CORS_ORIGIN: "https://local.ping-devops.com:4000,https://api.ping.demo:4000"
   MCP_SERVER_URL: "ws://mcp-server:8080"
   MCP_OLB_WS_URL: "ws://mcp-server:8080"
-  MCP_INVEST_WS_URL: "ws://mcp-invest:8081"
+  MCP_RESOURCE_SERVER_WS_URL: "ws://mcp-resource-server:8081"
   UPSTREAM_MCP_URL: "http://mcp-server:8080"
   MCP_RESOURCE_URL: "http://mcp-server:8080"
   MCP_GATEWAY_HTTP_URL: "http://mcp-gateway:3005"

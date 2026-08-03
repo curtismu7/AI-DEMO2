@@ -32,7 +32,7 @@ Constraints discovered during scoping:
   envelope validation (`McpValidationFilter`) and RFC 8693 exchange natively.
 - The backend MCP servers currently accept only `aud=mcpgateway.ping.demo`
   (`demo_mcp_server/src/auth/TokenIntrospector.ts`,
-  `demo_mcp_invest/src/server/tokenValidator.ts`). Exchanged backend-audience
+  `demo_mcp_resource_server/src/server/tokenValidator.ts`). Exchanged backend-audience
   tokens would be rejected with 401 until their accepted-audience config changes.
 - Tool `inputSchema`s exist only in the backends' live `tools/list` responses;
   the gateway caches nothing, and `ajv` is not a gateway dependency.
@@ -53,7 +53,7 @@ to its `inputSchema` and owning backend (`olb` / `invest` / `gateway`).
 
 - **Generated, not hand-written.** `npm run gen:tool-schemas` (script in
   `demo_mcp_gateway`) imports tool definitions from
-  `demo_mcp_server/src/tools/`, `demo_mcp_invest/src/tools/investTools.ts`,
+  `demo_mcp_server/src/tools/`, `demo_mcp_resource_server/src/tools/investTools.ts`,
   and the gateway-owned tool descriptors, then writes the artifact.
 - **Drift test = regenerate and diff.** A test in the gateway suite regenerates
   the artifact and fails on any difference, so a backend tool change cannot
@@ -82,7 +82,7 @@ wired into the WS handler (`index.ts handleMessage`) and the HTTP middleware
 ### 3. IG gateway validation parity
 
 New `ping-gateway/scripts/groovy/mcp-request-validation.groovy`, added to both
-routes (`01-mcp-olb.json`, `02-mcp-invest.json`) after the native
+routes (`01-mcp-olb.json`, `02-mcp-resource-server.json`) after the native
 `McpValidationFilter` and before `P1AZDecision`.
 
 - The artifact is bind-mounted into the container alongside existing config.
@@ -99,7 +99,7 @@ assumed the Node HTTP path already exchanged; it does not. Scope is now the
 full fix, gated on a live PingOne verification.
 
 - **PingOne provisioning (prerequisite, self-healing):** the two backend
-  resource servers (`mcpserver.ping.demo`, `mcp-invest.ping.demo`) get
+  resource servers (`mcpserver.ping.demo`, `mcp-resource-server.ping.demo`) get
   `mirroredScopes` in `scope-topology.json`, and the exchanging client gets
   grants on them — the exact pattern used for the Agent Gateway resource in
   the June two-exchange hardening. The startup `twoExchangeReconciler` in
@@ -130,7 +130,7 @@ full fix, gated on a live PingOne verification.
   `gw-exchange` event (target audience + cache hit/miss);
   `tokenExchangeCached` gets a real value instead of `null`.
 - **Backends:** accepted audience becomes a comma-separated list
-  (`demo_mcp_server` TokenIntrospector, `demo_mcp_invest` tokenValidator).
+  (`demo_mcp_server` TokenIntrospector, `demo_mcp_resource_server` tokenValidator).
   docker-compose sets each backend to `[own backend URI, gateway URI]` during
   rollout so the stack cannot break mid-transition (mTLS already prevents
   direct backend access, so the transitional second audience is low-risk).

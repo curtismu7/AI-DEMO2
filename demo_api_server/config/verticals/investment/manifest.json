@@ -35,6 +35,26 @@
     "highValueAction": "Large Trade",
     "highValueLabel": "High-value trade or withdrawal from a managed portfolio"
   },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "Investment_Privileged",
+        "description": "Users permitted to access sensitive portfolio holdings (UC9)"
+      },
+      "delegates": {
+        "name": "Investment_Delegates",
+        "description": "Users authorized as delegated advisory agents"
+      }
+    },
+    "restrictedTools": {
+      "sensitive_holdings": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
   "agent": {
     "persona": "Meridian",
     "greeting": "Hi {name}! I'm Meridian, your wealth assistant. I can show your portfolio value, holdings, and recent trade activity. What would you like to see?",
@@ -56,7 +76,7 @@
       { "id": "inv3", "label": "My holdings", "message": "show my holdings", "mode": "both", "tool": "view_holdings" },
       { "id": "inv-hitl", "label": "🔐 Large trade", "message": "execute a large trade of $50000 in VTI", "mode": "both", "hitlTrigger": true, "challenge": "both", "tool": "large_trade" },
       { "id": "inv-a2a", "label": "Sensitive holdings", "message": "access my sensitive holdings", "mode": "both", "challenge": "consent", "tool": "sensitive_holdings", "group": "advanced" },
-      { "id": "inv-llm", "label": "YTD performance", "message": "How is my portfolio performing year to date?", "mode": "llm" },
+      { "id": "inv-llm", "label": "YTD performance", "message": "How is my portfolio performing year to date?", "mode": "both", "tool": "show_investment" },
       { "id": "inv-direct", "label": "Direct MCP", "message": "show my portfolios", "mode": "direct", "tool": "view_portfolios" }
     ],
     "securityShowcase": {

@@ -38,9 +38,9 @@ COPY --from=builder /repo/demo_mcp_gateway/dist ./dist
 COPY scope-topology.json /repo/scope-topology.json
 COPY mcp-tool-schemas.json /repo/mcp-tool-schemas.json
 
-# Sibling openapi specs (served via GET /openapi/mcp-olb and /openapi/mcp-invest)
+# Sibling openapi specs (served via GET /openapi/mcp-olb and /openapi/mcp-resource-server)
 COPY demo_mcp_server/openapi/ /repo/demo_mcp_server/openapi/
-COPY demo_mcp_invest/openapi/ /repo/demo_mcp_invest/openapi/
+COPY demo_mcp_resource_server/openapi/ /repo/demo_mcp_resource_server/openapi/
 
 EXPOSE 3005
 

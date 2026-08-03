@@ -92,6 +92,13 @@ services:
       # api-server boot logs out all users (server.js defaults this ON when unset),
       # so a redeploy silently blanks logged-in pages like /themes until re-auth.
       CLEAR_SESSIONS_ON_BOOT: "false"
+      # The vault's audit trail defaults to a sibling of the vault file, which
+      # here is /secrets.vault (a :ro mount at container root, owned by root).
+      # appuser cannot create /secrets.vault.audit.log, so the fail-closed
+      # writability check at open threw EACCES and the BFF refused to start
+      # entirely. Point the trail at the persistent volume instead — same
+      # enforcement, writable location.
+      VAULT_AUDIT_LOG_PATH: "/app/data/persistent/secrets.vault.audit.log"
       # TLS cert paths — BFF auto-detects these and serves HTTPS when they exist
       SSL_CRT_FILE: "/certs/api.ping.demo+2.pem"
       SSL_KEY_FILE:  "/certs/api.ping.demo+2-key.pem"
@@ -118,7 +125,23 @@ services:
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
       # Default MCP endpoint offered by the /privilege-mcp-client page.
       # host.docker.internal resolves to the host machine's local MCP server (self-signed TLS).
-      PRIVILEGE_MCPGW_URL: "https://privilege.pingone.com/api/mcp"
+      # MCP endpoint the Privilege client page defaults to. This must be the
+      # GATEWAY FRONTEND (ping-mcpgw, profile mcpgw), not the Privilege tenant
+      # cloud API: https://privilege.pingone.com/api/mcp answers 401 "User is
+      # not authorized" to every token this environment can mint, including one
+      # from the env's own "Privilege Cloud MCP Gateway" app, because that aud
+      # belongs to the demo tenant. It also 401s its own
+      # .well-known/oauth-protected-resource and sends no WWW-Authenticate, so
+      # discoverAuth() never learns the real authorization server and silently
+      # falls back to the demo environment's PingOne.
+      # Overridable so the SE cluster can point at https://ai-demo.ping-devops.com/mcpgw.
+      # The Privilege console ASSIGNS each MCP Server application a frontend FQDN
+      # (Agentic Apps -> mypingone -> Frontend Name) and hosts it in the cloud:
+      # requests land on privilege.pingone.com and are routed over the mesh to the
+      # enrolled private proxy, which forwards to Backend Name. Nothing binds
+      # locally, so pointing this at a local port can never work — verified by
+      # probing the FQDN (401 with a real challenge) vs local ports (no listener).
+      PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp}"
       PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
       PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
@@ -477,7 +500,7 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # ── MCP Gateway (TypeScript proxy — routes to mcp-server and mcp-invest) ──────
+  # ── MCP Gateway (TypeScript proxy — routes to mcp-server and mcp-resource-server) ──────
   # Demo Agent Gateway — profile demo-auth. OFF when ff_mcp_gateway_pinggateway uses
   # real PingGateway (IG). Start via `./run-docker.sh demo-sync` after flipping FF.
   mcp-gateway:
@@ -505,7 +528,7 @@ services:
       MCP_GW_OLB_WS_URL: "ws${MCP_MTLS_ON:+s}://mcp-server:8080"
       MCP_GW_UPSTREAM_CLIENT_CERT_PATH: "${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.crt}"
       MCP_GW_UPSTREAM_CLIENT_KEY_PATH: "${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.key}"
-      MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
+      MCP_GW_RESOURCE_SERVER_WS_URL: "ws://mcp-resource-server:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
@@ -565,9 +588,9 @@ services:
       # gateway to decode-only and it accepts forged tokens. "false" makes it
       # REFUSE instead. A loud failure beats a silent bypass.
       MCP_GW_ALLOW_UNVERIFIED_TOKENS: "false"
-      MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
-      # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
-      DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
+      API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"   # api-key dispatch backend (mortgage + invest routes)
+      # Must match api-resource-server API_RESOURCE_SERVER_API_KEY (no committed demo default).
+      DEMO_API_RESOURCE_SERVER_KEY: ${API_RESOURCE_SERVER_API_KEY:-mortgage-compose-dev-key}
       # TraT simulation: BFF forwards unsigned X-TraT-Context when PingOne does not
       # embed TraT claims. Opt-in for demo compose; leave unset in production-like envs.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
@@ -587,7 +610,7 @@ services:
     depends_on:
       mcp-server:
         condition: service_started
-      mcp-invest:
+      mcp-resource-server:
         condition: service_started
         required: false   # core service — routes invest when up
       mcp-jwt-verifier:
@@ -676,13 +699,13 @@ services:
     restart: unless-stopped
 
   # ── MCP Invest Server (TypeScript — investment tools) ───────────────────────
-  mcp-invest:
+  mcp-resource-server:
     build:
-      context: ./demo_mcp_invest
+      context: ./demo_mcp_resource_server
       dockerfile: Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
-    container_name: ai-demo-mcp-invest
+    container_name: ai-demo-mcp-resource-server
     ports:
       - "8081:8081"
     environment:
@@ -691,18 +714,26 @@ services:
       MCP_SERVER_PORT: "8081"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # RFC 8693 rollout: gateway exchanges to this backend's own resource URI before
-      # forwarding (aud=mcp-invest.ping.demo). mcpgateway.ping.demo kept as a transitional
-      # second entry for callers still on the old forward-unchanged contract. Compose env
-      # wins over demo_mcp_invest/.env.
-      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcpgateway.ping.demo"
+      # forwarding (aud=mcp-invest.ping.demo — the audience the PingOne resource
+      # actually carries; scope-topology.json used to claim mcp-resource-server.ping.demo,
+      # which exists nowhere in PingOne, so Exchange #3 never landed and the inbound
+      # gateway token was forwarded instead). All three are ACCEPTED, not swapped:
+      # mcpgateway.ping.demo is still what the forward-unchanged fallback sends, and
+      # mcp-resource-server.ping.demo keeps any pinned older caller working.
+      # Compose env wins over demo_mcp_resource_server/.env.
+      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
-      OTEL_SERVICE_NAME: "mcp-invest"
+      OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
     env_file:
-      - path: ./demo_mcp_invest/.env
+      - path: ./demo_mcp_resource_server/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      # Airlines SQLite database. Bind (not named volume) on purpose: the DB proof
+      # is "edit airlines.db from the host with sqlite3 and the next chip click
+      # shows the new value". Seeded on first open from the image's seed/ dir.
+      - ./demo_mcp_resource_server/data:/app/data
     networks:
       - ai-demo
     depends_on:
@@ -712,7 +743,7 @@ services:
   # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
   # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
   # scoped at the edge by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
-  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-invest.
+  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-resource-server.
   mcp-weather:
     build:
       context: ./demo_mcp_weather
@@ -783,25 +814,25 @@ services:
     restart: unless-stopped
 
   # ── Mortgage Service (plain JS) ───────────────────────────────────────────────
-  mortgage-service:
+  api-resource-server:
     build:
-      context: ./demo_mortgage_service
+      context: ./demo_api_resource_server
       dockerfile: Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
-    container_name: ai-demo-mortgage-service
+    container_name: ai-demo-api-resource-server
     ports:
       - "8082:8082"
     environment:
       NODE_ENV: production
-      MORTGAGE_SERVICE_PORT: "8082"      # server reads MORTGAGE_SERVICE_PORT, not PORT
-      MORTGAGE_SERVICE_HOST: "0.0.0.0"   # default 127.0.0.1 is unreachable cross-container
-      # Shared with mcp-gateway DEMO_MORTGAGE_SERVICE_KEY — never use demo-mortgage-key-0000
-      # (mortgage-service rejects that committed default).
-      MORTGAGE_SERVICE_API_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
+      API_RESOURCE_SERVER_PORT: "8082"      # server reads API_RESOURCE_SERVER_PORT, not PORT
+      API_RESOURCE_SERVER_HOST: "0.0.0.0"   # default 127.0.0.1 is unreachable cross-container
+      # Shared with mcp-gateway DEMO_API_RESOURCE_SERVER_KEY — never use demo-mortgage-key-0000
+      # (api-resource-server rejects that committed default).
+      API_RESOURCE_SERVER_API_KEY: ${API_RESOURCE_SERVER_API_KEY:-mortgage-compose-dev-key}
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
     env_file:
-      - path: ./demo_mortgage_service/.env
+      - path: ./demo_api_resource_server/.env
         required: false
     networks:
       - ai-demo
@@ -1041,13 +1072,16 @@ services:
       # watches the routes dir every ~10s; with per-file bind mounts the watcher
       # mis-detects changes and UNLOADS the routes at runtime (then /mcp 404s). A stable
       # read-only directory mount has consistent mtimes, so routes load once and stay.
-      # runc/OCI can't create a new mountpoint node under an already-read-only bind
-      # mount, so the nested mcp-tool-schemas.json bind mount below needs a real file
-      # already present at that path in ./ping-gateway/config (a committed placeholder)
-      # to bind over — that lets this directory mount stay :ro.
+      # NEVER re-add a nested per-file mount of mcp-tool-schemas.json here. macOS
+      # VirtioFS resolves a single-file bind mount to the host INODE, and git replaces
+      # files by rename — so any pull touching that artifact left the container with a
+      # dangling mount ("-????????? mcp-tool-schemas.json") and every /mcp POST 500'd
+      # until a container recreate. Twice: 2026-07-17 and 2026-08-03 (REGRESSION_PLAN §4).
+      # ping-gateway/config/mcp-tool-schemas.json is now a real generated copy inside
+      # this directory mount (npm run gen:tool-schemas writes both, drift-tested), which
+      # resolves by NAME on every open and therefore survives replacement.
       - ./ping-gateway/config:/var/gateway/config:ro
       - ./ping-gateway/scripts/groovy:/var/gateway/scripts/groovy:ro
-      - ./mcp-tool-schemas.json:/var/gateway/config/mcp-tool-schemas.json:ro
       - ./certs:/certs:ro   # mkcert CA imported into the JVM truststore at start (IG→BFF TLS)
     environment:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
@@ -1061,16 +1095,22 @@ services:
       # /certs on this service. Empty => plaintext, unchanged behaviour.
       PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.p12}}"
       PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
-      PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
+      # HITL_SERVICE_URL / HITL_INTERNAL_SECRET are supplied by env_file
+      # (ping-gateway/.env, written by refresh-service-envs.js) — NOT here.
+      # environment: overrides env_file, so pinning them here would blank the
+      # real secret on any machine whose shell does not export it, and the HITL
+      # verify call would 401 into a permanent 503. Same rule as
+      # BFF_INTERNAL_SECRET and INTENT_TOKEN_SECRET above.
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
       # Do NOT pin it here — the env block wins over env_file, and a placeholder
       # pin silently overrides the real id (the mock only uses it as a path param,
       # so the real value works for both backends).
-      PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
+      PG_API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
       BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
@@ -1113,13 +1153,13 @@ services:
     depends_on:
       mcp-server:
         condition: service_started
-      mcp-invest:
+      mcp-resource-server:
         condition: service_started
       mcp-weather:
         condition: service_started
       mcp-brave:
         condition: service_started
-      mortgage-service:
+      api-resource-server:
         condition: service_started
       authz-server:
         condition: service_started
@@ -1135,11 +1175,17 @@ services:
     profiles: ["mcpgw"]
     image: public.ecr.aws/s7q1z8z4/privilege-proxy
     container_name: ai-demo-ping-mcpgw
-    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8680
+    # No -listen flag, matching the vendor's own docker run. This proxy binds no
+    # public MCP port at all: it holds an outbound gRPC command stream to the
+    # control plane, and each application's frontend is hosted in the cloud and
+    # routed back over that mesh. Inside the container only :8090 (loopback) is
+    # bound. Published ports below are the health endpoint and the mesh port —
+    # earlier attempts to publish an "MCP port" (8680, then 8623) were chasing a
+    # listener that never exists in this topology.
+    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com
     environment:
       ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     ports:
-      - "8680:8680"
       - "8620:8620"
       - "8690:8690"
     volumes:
@@ -1155,6 +1201,14 @@ services:
       - mcpgw-ssl:/procyon/ssl
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
+      # pingone.env — SERVER_URL + the OIDC endpoints the gateway uses to
+      # authenticate MCP clients. It was authored into ping-mcpgw/config (the BFF
+      # writes it via PUT /api/privilege-mcp/env) but NEVER mounted here, so the
+      # proxy never saw it. Its own docs call a missing SERVER_URL a cause of
+      # "gateway does not behave as expected", which matches a proxy that enrolls
+      # fine and then serves nothing. Directory mount, not a single file: a
+      # single-file bind goes stale when the host file is replaced.
+      - ./ping-mcpgw/config:/var/lib/procyon/config
     networks:
       ai-demo:
         aliases:

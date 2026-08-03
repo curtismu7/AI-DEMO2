@@ -99,24 +99,31 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
 
     // Consume fullStream (not textStream) so tool-call lifecycle reaches the UI
     // alongside text. It's a ReadableStream<ChunkType>; Node 18+ async-iterates it.
-    type StreamPart = { type: string; payload?: Record<string, unknown>; error?: unknown };
+    type StreamPart = {
+      type: string;
+      textDelta?: string;
+      toolCallId?: string;
+      toolName?: string;
+      args?: unknown;
+      result?: unknown;
+      error?: unknown;
+    };
     for await (const part of stream.fullStream as unknown as AsyncIterable<StreamPart>) {
       if (abortController.signal.aborted) break;
-      const payload = part.payload ?? {};
       if (part.type === 'text-delta') {
         if (!streaming) {
           await emitter.onLlmStart();
           streaming = true;
         }
-        await emitter.onLlmToken((payload.text as string | undefined) ?? '');
+        await emitter.onLlmToken(part.textDelta ?? '');
       } else if (part.type === 'tool-call') {
         await emitter.onToolStart(
-          payload.toolCallId as string,
-          payload.toolName as string,
-          payload.args,
+          part.toolCallId as string,
+          part.toolName as string,
+          part.args,
         );
       } else if (part.type === 'tool-result') {
-        await emitter.onToolEnd(payload.toolCallId as string, payload.result);
+        await emitter.onToolEnd(part.toolCallId as string, part.result);
       } else if (part.type === 'error') {
         // A mid-stream provider error must not masquerade as a successful empty
         // run. Close any open message, surface RUN_ERROR, and stop.
@@ -124,7 +131,7 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
           await emitter.onLlmEnd();
           streaming = false;
         }
-        const errVal = payload.error ?? part.error;
+        const errVal = part.error;
         await emitter.onError(
           errVal instanceof Error
             ? errVal

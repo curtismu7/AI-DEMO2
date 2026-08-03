@@ -172,6 +172,9 @@ function getMcpFirstToolGateStatus() {
 /** Map MCP write tool names to transaction types for amount-based policy evaluation. */
 const WRITE_TOOL_TYPE_MAP = {
   create_transfer: 'transfer',
+  // Banking's own high-value action — amount-bearing, so it must reach the
+  // Transaction policy like any other transfer.
+  create_wire_transfer: 'transfer',
   create_deposit: 'deposit',
   create_withdrawal: 'withdrawal',
   // Vertical amount-gated writes (use-case launcher UC6/7/8 per vertical).
@@ -314,69 +317,6 @@ function withGateAndSecondaryEvaluation(overridden, gateR, secondary) {
 }
 
 /**
- * Local amount-limit overlay used when the live Transaction decision endpoint
- * is unreachable (e.g. PingOne 429 REQUEST_LIMITED). Mirrors the MCP simulated
- * amount ladder (deny / step-up / confirm) so UC6–UC8 still fire when the MCP
- * first-tool gate alone returns bare PERMIT (live P1AZ MCP policy does not
- * encode amount limits).
- *
- * @param {object} r - gate result
- * @param {{amount: number, acr?: string}} opts
- * @returns {object} r, possibly upgraded
- */
-function _localAmountLimitFallback(r, { amount, acr, hitlSatisfied = false }) {
-  const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
-  const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
-  const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
-  const acrStrong = typeof acr === 'string'
-    && /multi.?factor|mfa|aal2|Multi_Factor/i.test(acr);
-
-  if (amount > denyAmount) {
-    return withGateAndSecondaryEvaluation({
-      ...r,
-      decision: 'DENY',
-      transactionPolicyDenied: true,
-      transactionPolicyFallback: true,
-      raw: {
-        ...(r.raw || {}),
-        decision: 'DENY',
-        reason: `Local amount fallback DENY: $${amount} exceeds deny limit $${denyAmount} (Transaction endpoint unavailable).`,
-        engine: 'local-amount-fallback',
-      },
-    }, r, {
-      source: 'transaction-policy-fallback', decision: 'DENY', decisionId: null,
-      raw: { engine: 'local-amount-fallback', reason: `$${amount} exceeds deny limit $${denyAmount}` },
-    });
-  }
-  if (amount >= stepUpAmount && !acrStrong) {
-    return withGateAndSecondaryEvaluation({
-      ...r,
-      stepUpRequired: true,
-      transactionPolicyStepUp: true,
-      transactionPolicyFallback: true,
-    }, r, {
-      source: 'transaction-policy-fallback', decision: 'STEP_UP', decisionId: null,
-      raw: { engine: 'local-amount-fallback', reason: `$${amount} at/above step-up limit $${stepUpAmount}` },
-    });
-  }
-  // The confirm band is a HITL gate — do not re-raise it on a call the human has
-  // already approved. DENY and step-up above are unconditional: DENY always wins,
-  // and a discharged step-up is cleared downstream by stepUpAlreadyVerified.
-  if (amount >= confirmAmount && !acrStrong && !hitlSatisfied) {
-    return withGateAndSecondaryEvaluation({
-      ...r,
-      hitlRequired: true,
-      transactionPolicyHitl: true,
-      transactionPolicyFallback: true,
-    }, r, {
-      source: 'transaction-policy-fallback', decision: 'HITL_REQUIRED', decisionId: null,
-      raw: { engine: 'local-amount-fallback', reason: `$${amount} at/above confirm limit $${confirmAmount}` },
-    });
-  }
-  return r;
-}
-
-/**
  * Consult the Transaction decision endpoint for amount-bearing tool calls.
  *
  * The MCP first-tool gate answers "may this agent invoke this tool" — it does not
@@ -480,27 +420,28 @@ async function _applyTransactionPolicy(
         { source: 'transaction-policy', decision: 'STEP_UP', decisionId: null, raw: null },
       );
     }
-    // Live MCP first-tool policy often PERMITs without amount obligations. The
-    // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
-    // HITL. When it 429s (REQUEST_LIMITED) or errors, failing open to the gate
-    // made UC6 pay the bill and Proof show "Authz denied — Mismatch". Apply
-    // the same amount ladder locally so demos stay correct under P1AZ pressure.
+    // The amount ladder ($2500 DENY / $600 step-up / $300 HITL) lives in the
+    // Transaction policy. When the consult fails there is no PDP answer, so
+    // there is no decision to enforce — block instead of substituting a local
+    // one. Re-deriving the thresholds here made the BFF, not PingOne Authorize,
+    // the thing that decided, and a demo could not tell the two apart.
     console.warn(
-      '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
+      '[mcpAuthz] transaction policy consult failed — failing closed:',
       err.message,
     );
-    return _localAmountLimitFallback(r, { amount, acr, hitlSatisfied });
+    return withGateAndSecondaryEvaluation({
+      ...r,
+      transactionPolicyUnavailable: true,
+    }, r, {
+      source: 'transaction-policy',
+      decision: 'UNAVAILABLE',
+      decisionId: null,
+      raw: { reason: `Transaction policy endpoint unavailable: ${err.message}` },
+    });
   }
-  // Local amount-band fallback when Transaction consult returned bare PERMIT (no
-  // DENY/step-up/HITL). Live P1AZ Transaction endpoint may PERMIT without any
-  // gate for agent vertical writes; the amount ladder still applies so UC6/7/8
-  // fire correctly even when the Transaction endpoint does not enforce them.
-  // _localAmountLimitFallback now attaches gateEvaluation/secondaryEvaluation on
-  // its own override branches, so bare PERMIT results with no amount-ladder trigger
-  // will still have those fields undefined (no override happened).
-  if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
-    return _localAmountLimitFallback(r, { amount, acr, hitlSatisfied });
-  }
+  // A PERMIT with no obligation is a PERMIT. This used to fall through to a local
+  // amount ladder that re-imposed DENY/step-up/HITL on top of the PDP's answer —
+  // whatever PingOne Authorize said, a $300 transfer was gated by BFF code.
   return r;
 }
 
@@ -1012,6 +953,30 @@ async function evaluateMcpFirstToolGate(opts) {
       };
     }
 
+    // No PDP answer on an amount-bearing call — the Transaction policy consult
+    // failed and nothing local stands in for it any more. Distinct from a policy
+    // DENY: this is infrastructure, and the operator needs to see that rather
+    // than a denial the policy never issued.
+    if (r.transactionPolicyUnavailable) {
+      return {
+        ran: true,
+        block: {
+          status: 503,
+          body: {
+            error: 'authorization_unavailable',
+            error_description:
+              'The transaction authorization policy could not be reached, so this call cannot be authorized. Retry once PingOne Authorize is reachable.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            gateEvaluation: r.gateEvaluation || null,
+            secondaryEvaluation: r.secondaryEvaluation || null,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
     // DENY takes absolute precedence — a hard deny means "no, period" regardless
     // of any HITL/step-up obligations that may also be present on the response.
     if (r.decision === 'DENY') {
@@ -1415,4 +1380,8 @@ module.exports = {
   RESOURCE_OWNER_TOOLS,
   // Exported for direct unit testing of Transaction-policy precedence (UC6/7/8).
   _applyTransactionPolicy,
+  // Exported so the pipeline can attach step_up_method to a step-up 428 that the
+  // GATEWAY decided. The per-use-case method lives in the use-case catalog, which
+  // the gateway has no knowledge of, so the BFF resolves it on relay.
+  resolveStepUpMethod,
 };

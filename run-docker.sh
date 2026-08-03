@@ -101,7 +101,7 @@ fi
 
 # Core banking demo — always started by default.
 CORE_SERVICES=(
-  ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
+  ui mcp-server mcp-resource-server mcp-weather api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
 )
@@ -619,10 +619,10 @@ SERVICES=(
   "langchain-agent|LangChain Agent      |8888|http://localhost:8888"
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
-  "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-resource-server|MCP Invest            |8081|http://localhost:8081"
   "mcp-weather|MCP Weather           |8896|http://localhost:8896"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
-  "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
+  "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
@@ -779,6 +779,34 @@ _purge_leftover_stack() {
     sleep 0.1
     (( waited++ )) || true
   done
+}
+
+# A compose `container_name:` is daemon-global, not project-scoped. A container
+# created under ANY other project (a worktree cwd basename before the project
+# name was pinned, a second compose file, a manual `docker run`) squats the name
+# and every later `up` dies with "container name /ai-demo-... is already in use".
+# `down --remove-orphans` cannot clear it: Compose only removes containers
+# carrying its own project label. Only `_purge_leftover_stack` did, and that runs
+# on the down path alone — so the subset `up` paths (demo-sync, optional start,
+# restart/build one service) hit the conflict with nothing to clear it.
+#
+# This removes ONLY containers whose compose project label differs from ours, so
+# it is safe immediately before ANY `up` — a running ai-demo stack is untouched.
+_purge_foreign_container_names() {
+  local ours name proj removed=0
+  ours="$(docker compose "${COMPOSE_FILES[@]}" config --format json 2>/dev/null \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); print(" ".join(s.get("container_name","") for s in d.get("services",{}).values() if s.get("container_name")))' 2>/dev/null || true)"
+  [[ -n "${ours}" ]] || return 0
+  while IFS=$'\t' read -r name proj; do
+    [[ -n "${name}" ]] || continue
+    [[ " ${ours} " == *" ${name} "* ]] || continue
+    [[ "${proj}" == "${COMPOSE_PROJECT_NAME}" ]] && continue
+    docker rm -f "${name}" >/dev/null 2>&1 && removed=$(( removed + 1 ))
+  done < <(docker ps -a --format '{{.Names}}'$'\t''{{.Label "com.docker.compose.project"}}' 2>/dev/null || true)
+  if (( removed > 0 )); then
+    warn "Removed ${removed} container(s) squatting an ai-demo-* name under a foreign Compose project."
+  fi
+  return 0
 }
 
 # Post-start gate: every core service must actually be RUNNING before the script
@@ -955,6 +983,7 @@ cmd_restart_one() {
   git_sync_check; echo ""
   _needs_tls_bind_mounts "$@" && { ensure_bind_mounts; echo ""; }
   _includes_bff "$@" && { vault_preflight; echo ""; }
+  _purge_foreign_container_names
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
   if _includes_bff "$@"; then
@@ -982,6 +1011,7 @@ cmd_build_one() {
   git_sync_check; echo ""
   _needs_tls_bind_mounts "${services[@]}" && { ensure_bind_mounts; echo ""; }
   _includes_bff "${services[@]}" && { vault_preflight; echo ""; }
+  _purge_foreign_container_names
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
   echo ""
@@ -1100,6 +1130,11 @@ cmd_demo_sync() {
   [[ "${sim}" == "1" ]] && need_authz=1
   [[ "${pgw}" == "0" ]] && { need_demo_gw=1; need_authz=1; }
 
+  # Every `up` below is `>/dev/null 2>&1 || true`, so a squatted container_name
+  # fails SILENTLY here (jaeger especially — profiled, and only this path and
+  # `optional start tracing` create it). Clear foreign squatters first.
+  _purge_foreign_container_names
+
   ok "Ensuring demo-auth containers are up (RAR demo needs the Demo Agent Gateway; routing: simulated=${sim}, pingGateway=${pgw})"
   docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d authz-server mcp-gateway
 
@@ -1119,7 +1154,7 @@ cmd_demo_sync() {
   # compose default — ensure Jaeger is up.
   # The demo-auth-gated services are always up now (see the sync above), so
   # they are always part of the instrumented set.
-  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-invest authz-server mcp-gateway"
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway"
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
@@ -1152,6 +1187,7 @@ cmd_optional_start() {
   # Profile-gated services require `--profile`; `up -d` respects depends_on.
   # shellcheck disable=SC2206
   local _profiles=( ${profile_args} )
+  _purge_foreign_container_names
   docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" up -d
   ok "Started profile(s): ${groups[*]}"
 
@@ -1268,6 +1304,9 @@ cmd_start() {
   # only removes containers it owns. Force-remove any container claiming an
   # `ai-demo-*` name so `up` can recreate it. Sourced from the compose config
   # so new services are picked up automatically.
+  # Unconditional here (not `_purge_foreign_container_names`): cmd_stop ran
+  # first, so nothing of ours should survive — and a same-project container
+  # Compose declines to reuse must go too.
   local stale_names
   stale_names="$(docker compose "${COMPOSE_FILES[@]}" config --format json 2>/dev/null \
     | python3 -c 'import json,sys; d=json.load(sys.stdin); print(" ".join(s.get("container_name","") for s in d.get("services",{}).values() if s.get("container_name")))' 2>/dev/null || true)"
@@ -1304,7 +1343,7 @@ cmd_start() {
   echo ""
 
   # Auto-provision the apikey-dispatch service key (vault + .env) BEFORE `up`
-  # so mortgage-service boots with a non-default key on fresh clones and any
+  # so api-resource-server boots with a non-default key on fresh clones and any
   # rotation is picked up by the recreated containers. Fails soft.
   # Force a fresh key with: ROTATE_SERVICE_KEYS=1 ./run-docker.sh start
   node demo_api_server/scripts/ensure-service-keys.js
@@ -1482,6 +1521,7 @@ cmd_promptfoo() {
     exit 1
   fi
   if ! docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'promptfoo-step-narration'; then
+    _purge_foreign_container_names
     docker compose "${COMPOSE_FILES[@]}" up -d --build promptfoo-step-narration
   fi
   docker compose "${COMPOSE_FILES[@]}" exec -T promptfoo-step-narration \

@@ -12,11 +12,11 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). This document is the concrete m
 |---|---|---|---|---|---|
 | BFF | `demo_api_server` | Node / Express | 3001 → 3001 (HTTPS) | mcp-server | SPA, all agents, MCP gateway, PingOne, HITL |
 | Frontend | `demo_api_ui` | React/Vite → nginx | 4000 → 3000 (HTTPS) | BFF | BFF only (cookies) |
-| MCP Gateway | `demo_mcp_gateway` | TypeScript | 3005 → 3005 | mcp-server, mcp-invest | MCP server, MCP invest, mortgage, HITL, Authorize |
+| MCP Gateway | `demo_mcp_gateway` | TypeScript | 3005 → 3005 | mcp-server, mcp-resource-server | MCP server, MCP invest, mortgage, HITL, Authorize |
 | MCP Server | `demo_mcp_server` | TypeScript | 8080 → 8080 (WS+HTTP) | — | BFF (vertical tools) |
-| MCP Invest | `demo_mcp_invest` | TypeScript | 8081 → 8081 (WS) | BFF | — |
+| MCP Invest | `demo_mcp_resource_server` | TypeScript | 8081 → 8081 (WS) | BFF | — |
 | HITL Service | `demo_hitl_service` | Node | 3009 → 3009 | — | (called by gateway/BFF) |
-| Mortgage Service | `demo_mortgage_service` | Node | 8082 → 8082 | BFF | (called via API key) |
+| Mortgage Service | `demo_api_resource_server` | Node | 8082 → 8082 | BFF | (called via API key) |
 | Mock Authz | `demo_authz_server` | Node | 9001 → 9001 | — | optionally PingOne |
 | Agent Service | `demo_agent_service` | TypeScript | 3016 → 3006¹ | BFF, MCP gateway | BFF |
 | LangChain Agent | `langchain_agent` | Python / uvicorn | 8888 / 8889 / 8890 | BFF, mcp-server | MCP servers (WS), BFF |
@@ -44,7 +44,7 @@ External: **PingOne** (OAuth/OIDC token endpoint, introspection, JWKS, and Autho
                           │     │                                     │    │
                           │     │ ws/http                  internal calls   │
                           │     ▼                                     │    │
-                          │  mcp-server :8080   mcp-invest :8081      │    │
+                          │  mcp-server :8080   mcp-resource-server :8081      │    │
                           │     ▲                    ▲                │    │
                           │     │   ┌────────────────┘                │    │
                           │  mcp-gateway :3005 ──► mortgage :8082      │    │
@@ -72,7 +72,7 @@ From [docker-compose.yml](../docker-compose.yml):
 | BFF → MCP server (HTTP) | `http://mcp-server:8080` |
 | BFF → Banking resource | `https://banking-api-server:3001` |
 | Gateway → MCP server | `ws://mcp-server:8080` |
-| Gateway → MCP invest | `ws://mcp-invest:8081` |
+| Gateway → MCP invest | `ws://mcp-resource-server:8081` |
 | Agent service → BFF | `https://banking-api-server:3001` |
 | LangChain → BFF / MCP | `https://banking-api-server:3001` / `ws://mcp-server:8080` |
 | Mastra/OpenAI/Pydantic → BFF / MCP | `https://banking-api-server:3001` / `ws://mcp-server:8080` |
@@ -172,8 +172,8 @@ Token custody for this flow is platform-side: the Copilot agent holds the short-
 | Route target | Backend | Transport | Example tools |
 |---|---|---|---|
 | `olb` (default) | `demo_mcp_server` | WS | `get_my_accounts`, `create_transfer`, `create_deposit` |
-| `invest` | `demo_mcp_invest` | WS | `get_portfolio_summary`, `get_investment_balance` |
-| `apikey` | `demo_mortgage_service` | HTTP + `X-API-Key` | `show_mortgage`, large-purchase |
+| `invest` | `demo_mcp_resource_server` | WS | `get_portfolio_summary`, `get_investment_balance` |
+| `apikey` | `demo_api_resource_server` | HTTP + `X-API-Key` | `show_mortgage`, large-purchase |
 | `dualtoken` | resource `/identity` | HTTP + Bearer | `user_profile_card` |
 | `bankingdata` | resource `/accounts`/`/transactions` | HTTP + Bearer | `demo_show_accounts` |
 

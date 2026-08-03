@@ -551,7 +551,7 @@ npm test                  # All tests with --forceExit
 
 ### 5.5 Invest service (no tests)
 
-**Status:** `banking_mcp_invest/` has no test suite defined in `package.json`  
+**Status:** `banking_mcp_resource_server/` has no test suite defined in `package.json`  
 **Reason:** Pure MCP tool server; testing delegated to integration tests via MCP gateway
 
 ---
@@ -574,7 +574,7 @@ reporters: [
 - `banking_mcp_server` (via `jest.config.js`)
 - `banking_mcp_gateway` (via `package.json` jest field)
 - `banking_agent_service` (via `package.json` jest field)
-- `banking_mortgage_service` (via `package.json` jest field)
+- `banking_api_resource_server` (via `package.json` jest field)
 - `banking_hitl_service` (via `package.json` jest field)
 
 **What it validates:**
@@ -594,7 +594,7 @@ reporters: [
 | `banking_mcp_server` | `^30.4.2` |
 | `banking_mcp_gateway` | `^30.4.2` |
 | `banking_agent_service` | `^30.4.2` |
-| `banking_mortgage_service` | `^30.4.2` |
+| `banking_api_resource_server` | `^30.4.2` |
 | `banking_hitl_service` | `^30.4.2` |
 | `langchain_agent` | N/A (Python pytest) |
 
