@@ -63,8 +63,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 133 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(133);
+  it('covers 134 chips across 13 verticals', () => {
+    expect(rows).toHaveLength(134);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
   });
 
@@ -106,7 +106,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(133);
+    expect(topology.counts.chips).toBe(134);
     expect(topology.counts.verticals).toBe(13);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });

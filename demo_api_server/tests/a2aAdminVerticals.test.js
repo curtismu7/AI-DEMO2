@@ -266,8 +266,17 @@ describe('delivery — where the tool is actually answered', () => {
    */
   it('admin is hidden from the generator walk, so its tool is BFF-served by design', () => {
     expect(verticalManifest.list().map((v) => v.id)).not.toContain('admin');
+    // Derived, not hardcoded: gen-vertical-tools.js owns which trees it writes.
+    // It was briefly two ('demo_mcp_server' + 'oauth-mcp'); hardcoding that list
+    // made this test read a path that no longer exists. Read the generator's own
+    // source of truth so a future tree add/remove cannot silently skip the check.
     const fs = require('node:fs');
-    for (const svc of ['demo_mcp_server', 'oauth-mcp']) {
+    const genSrc = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'scripts', 'gen-vertical-tools.js'), 'utf8');
+    const trees = [...genSrc.matchAll(/^const GENERATED_TS_PATHS = \[([^\]]*)\]/gm)]
+      .flatMap((m) => [...m[1].matchAll(/'([^']+)'/g)].map((t) => t[1]));
+    expect(trees.length).toBeGreaterThan(0);
+    for (const svc of trees) {
       const p = path.join(__dirname, '..', '..', svc, 'src', 'tools', 'handlers', 'verticalTools.generated.ts');
       expect(fs.readFileSync(p, 'utf8')).not.toContain('sensitive_customer_identity');
     }
