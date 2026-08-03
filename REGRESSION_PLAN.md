@@ -102,6 +102,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — Every PingGateway `/mcp` POST 500s after any pull that touches `mcp-tool-schemas.json` (second occurrence)
+
+**Files changed:** `docker-compose.yml`, `ping-gateway/docker-compose.yml`,
+`demo_mcp_gateway/scripts/genToolSchemas.ts`, `demo_mcp_gateway/tests/toolSchemaDrift.test.ts`,
+`.husky/pre-commit`, `ping-gateway/config/mcp-tool-schemas.json` (placeholder replaced by the
+generated artifact).
+
+**What was broken:** compose bind-mounted the repo-root `mcp-tool-schemas.json` as an
+INDIVIDUAL FILE at `/var/gateway/config/mcp-tool-schemas.json`. macOS VirtioFS resolves a
+single-file bind mount to the host inode, and git replaces files by rename — so any pull
+touching that artifact left the container with a dangling mount (`ls` shows
+`-????????? ? ? ? ? ? mcp-tool-schemas.json`). `mcp-request-validation.groovy:67` re-parses
+that path on every `tools/call`, so it threw
+`java.io.FileNotFoundException: /var/gateway/config/mcp-tool-schemas.json` and every `/mcp`
+POST 500'd. `docker ps` stayed healthy and the UI showed only "MCP call failed for
+`get_my_accounts` (tool_failed)" — the token chain itself was fine. This is the same fault
+as the 2026-07-17 entry below, which was fixed live-only (container recreate) and therefore
+recurred. It is now automated: the launchd `sync-main-checkout.sh` job pulls every 15 min,
+so the gateway can break with no human git action at all (2026-08-03: container started
+02:42, sync pulled `b51fd03b` at 03:37, first failed tool call 09:05).
+
+**What was fixed:** the nested per-file mount is gone. `npm run gen:tool-schemas` now writes
+the artifact to BOTH the repo root (canonical — Node gateway import, Dockerfile COPY, BFF
+tests) and `ping-gateway/config/`, which is already mounted as a DIRECTORY. Directory mounts
+resolve by name on every open, so a rename-over is picked up immediately and no recreate is
+needed. `.husky/pre-commit` stages both paths; `toolSchemaDrift.test.ts` asserts the copy is
+byte-identical to the root artifact.
+
+**Do not break:** never re-add a per-file bind mount under `/var/gateway/config` (both compose
+files carry the warning). Keep the two artifacts byte-identical — the Groovy validator fails
+closed on an unknown tool, so a stale gateway copy rejects new tools with
+`-32602 Unknown tool` while the Node gateway accepts them.
+
+**Verify:** `npm --prefix demo_mcp_gateway run gen:tool-schemas` then
+`diff mcp-tool-schemas.json ping-gateway/config/mcp-tool-schemas.json` (identical);
+`cd demo_mcp_gateway && CI=true npm test` (62 suites, 488 tests); `npm run topology:verify`.
+Live: `./run-docker.sh restart ping-gateway`, replace the file by rename
+(`cp x t && mv t ping-gateway/config/mcp-tool-schemas.json`), then
+`curl -s -X POST http://localhost:3036/mcp -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"nope"}}'`
+→ HTTP 401/400 JSON-RPC, never a 500, and no `FileNotFoundException` in
+`docker logs ai-demo-ping-gateway`.
+
 ### 2026-08-02 — Investment's A2A specialist pointed at a tool that does not exist; the chip silently ran with NO delegation
 
 **Files changed:** `demo_api_server/config/a2aSpecialists.js`, `scope-topology.json`,
@@ -734,6 +776,56 @@ and lost-update proofs are deterministic). Grep `server.js` for
 password that opens it are both still reachable from `origin/main` in a public
 repo. See `docs/incident-response/vault-history-exposure.md`. No secret was
 rotated by this change.
+
+### 2026-08-02 — Embedded agent auto-scroll yanked the user back mid-read
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`.
+
+**What was broken:** PR #1194 made `.banking-agent-messages` a real scroll
+container for the first time. That exposed the auto-scroll effect, which
+unconditionally set `el.scrollTop = el.scrollHeight` on every `messages` /
+`loading` / `nlLoading` change with no check for where the user was. With AG-UI
+streaming `messages` changes per token, and the container sets
+`scroll-behavior: smooth`, so scrolling up to re-read anything produced a
+continuous animated yank back to the bottom for the whole reply. No
+jump-to-latest affordance existed. Separately, the `nlLoading` typing indicator
+rendered as a **user** bubble with a `You` avatar — dots on the user's side while
+the *agent* worked — which also left the already-written
+`.banking-agent-msg.assistant.typing` rule dead.
+
+**What was fixed:** the effect now returns early unless `pinnedToBottom`, which
+an `onScroll` handler maintains with a 40px tolerance (exact equality is
+unreliable under sub-pixel heights and zoom). Programmatic scrolls use
+`behavior: 'auto'` so per-token updates do not animate. A `.ba-jump-latest` pill
+appears while unpinned, labelled with the unread count, and re-pins on click; its
+wrapper is zero-height so it floats over the transcript without consuming layout.
+Unread counts come from the `messages.length` delta via `seenMessageCountRef` —
+counting effect firings over-reported, since the effect also runs on
+loading-state transitions. The typing indicator moved to the assistant side.
+The Inspectors sub-group became collapsible via a new `.ba-hg-sub`
+(`display: contents`) so the collapse scopes to it and its row-mates (Demo steps,
+Live Use Cases, Agent scope, Clear progress) stay visible.
+
+**Do not break:** the early return on `!pinnedToBottom` is the whole fix —
+restoring an unconditional scroll re-creates the jail. Keep `behavior: 'auto'` on
+the programmatic scroll; the container's `scroll-behavior: smooth` is for the
+pill's own click, not for streaming. `.ba-hg-body` / `.ba-hg-sub` must stay
+`display: contents`: `.ctl-check` carries `display: inline-flex !important`
+(`components/common/Check.css`), so hiding children directly does not work —
+only hiding an ancestor does. Do not count unread by incrementing per effect run.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` (build exits 0;
+6 failures — `uiRegression` monospace, `UserDashboardPing2026` sha256 canary, and
+4 `spinnerService` — identical to the baseline on `main` by name). Note a local
+`demo_api_ui/.env` setting `REACT_APP_API_URL` adds a spurious 7th failure in
+`executionEngine` (that test asserts the base URL defaults to empty). End-to-end
+on `/dashboard` in the Embedded layout, driving **real** agent messages — DOM
+injected filler does not change `messages`, so it cannot exercise this effect:
+sending follows the bottom (`fromBottom: 0`), scrolling up shows the pill and
+holds position when a reply lands (`positionHeld: true`), and clicking the pill
+returns to the bottom and hides it. Float layout must still follow
+(`fromBottom: 0`, no pill).
 
 ### 2026-08-01 — Gateway actor allow-list was narrower than the policy it mirrors
 

@@ -21,7 +21,7 @@ RFC 8693 token exchange to the backend, and reverse-proxies to the MCP servers.
    `<BASE>/governance/pap/alpha/policy/<P1AZ_WORKER_ID>/decision`. PERMIT continues; DENY /
    INDETERMINATE / error -> `403` (fail closed).
 5. **RFC 8693 exchange** — `OAuth2TokenExchangeFilter` exchanges the inbound token for one
-   scoped to the backend audience (`mcpserver.ping.demo` / `mcp-resource-server.ping.demo`), then a
+   scoped to the backend audience (`mcpserver.ping.demo` / `mcp-invest.ping.demo`), then a
    `HeaderFilter` swaps it onto the `Authorization` header.
 6. **Reverse proxy** — to `mcp-server:8080` (`/mcp`) or `mcp-resource-server:8081` (`/mcp/invest`).
 
@@ -76,7 +76,7 @@ docker compose up -d   # also publishes 3036:8080
 ## PingOne prerequisite for the exchange
 
 The RFC 8693 exchange targets backend audiences (`mcpserver.ping.demo`,
-`mcp-resource-server.ping.demo`). These must exist as **PingOne Resource Servers**, and the MCP
+`mcp-invest.ping.demo`). These must exist as **PingOne Resource Servers**, and the MCP
 exchanger client (`TE_CLIENT_ID`) must be permitted to request them — otherwise the
 exchange returns `invalid_target`. The MCP servers accept the exchanged audience over the
 HTTP transport; the gateway-audience token (`mcpgateway.ping.demo`) the Node gateway

@@ -144,3 +144,72 @@ describe("AgentNoMatchCard", () => {
     expect(noMatchSubject(null, "CareConnect")).toBeNull();
   });
 });
+
+/**
+ * Option C reuses this card's layout for a DIFFERENT failure: the request
+ * routed fine and the agent answered, but nothing in the answer could be traced
+ * to a tool call. The layout is shared; the wording must not be. A refactor that
+ * collapses the two back into one message has to fail here.
+ */
+describe("AgentNoMatchCard — ungrounded variant", () => {
+  function headAndWhy(props) {
+    const { container, unmount } = render(<AgentNoMatchCard {...props} />);
+    const out = {
+      head: container.querySelector(".ba-nomatch-head").textContent,
+      why: container.querySelector(".ba-nomatch-why").textContent,
+    };
+    unmount();
+    return out;
+  }
+
+  const identity = { verticalId: "banking", brandName: "Super Banking" };
+
+  it("renders copy distinguishable from the no-match case", () => {
+    const noMatch = headAndWhy({ ...identity });
+    const ungrounded = headAndWhy({ ...identity, reason: "ungrounded" });
+
+    expect(ungrounded.head).not.toBe(noMatch.head);
+    expect(ungrounded.why).not.toBe(noMatch.why);
+  });
+
+  it("does not claim the request failed to match — an action DID match", () => {
+    const { head, why } = headAndWhy({ ...identity, reason: "ungrounded" });
+
+    expect(head).not.toMatch(/No matching action/);
+    expect(why).not.toMatch(/has no action for that request/);
+    expect(why).not.toMatch(/another vertical's data/);
+  });
+
+  it("names the failure as verification and still names the subject", () => {
+    const { head, why } = headAndWhy({ ...identity, reason: "ungrounded" });
+
+    expect(head).toContain("No verified answer in Super Banking (Banking)");
+    expect(why).toMatch(/none of the answer could be traced back to a tool call in Banking/);
+    expect(why).toMatch(/it is not shown/);
+  });
+
+  it("states the dropped count when the server counted it", () => {
+    const { container } = render(
+      <AgentNoMatchCard {...identity} reason="ungrounded" droppedCount={3} />,
+    );
+    expect(screen.getByText("Statements dropped")).toBeInTheDocument();
+    expect(container.querySelector(".ba-nomatch-diag")).toHaveTextContent("3");
+  });
+
+  it("omits the dropped count rather than guessing when the server sent none", () => {
+    render(<AgentNoMatchCard {...identity} reason="ungrounded" />);
+    expect(screen.queryByText("Statements dropped")).not.toBeInTheDocument();
+  });
+
+  it("hides 'Intents considered' — routing succeeded, so it points at the wrong failure", () => {
+    render(<AgentNoMatchCard {...identity} reason="ungrounded" intentsConsidered={8} />);
+    expect(screen.queryByText("Intents considered")).not.toBeInTheDocument();
+  });
+
+  it("still offers the active vertical's own suggestions", () => {
+    render(
+      <AgentNoMatchCard {...identity} reason="ungrounded" suggestions={suggestions} />,
+    );
+    expect(screen.getByRole("button", { name: "Book an appointment" })).toBeInTheDocument();
+  });
+});

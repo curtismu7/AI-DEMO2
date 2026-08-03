@@ -120,9 +120,18 @@ ping_delete() {
 
 log "Wiping applications"
 
-# Name prefixes to delete (matches "Demo AI App - *", legacy "Demo *", and the
-# A2A specialist app provisioned before the Demo rename)
-APP_PREFIXES=("Demo AI App -" "Demo Admin App" "Demo User App" "Demo MCP" "Demo Agent" "Demo Worker" "Demo " "Super Banking Holdings Specialist Agent")
+# Name prefixes to delete (matches "Demo AI App - *", the legacy "Demo *" app
+# names, and the A2A specialist app provisioned before the Demo rename).
+#
+# The bare "Demo " catch-all was REMOVED. It subsumed every specific prefix below
+# and matched any application in the environment whose name merely starts with
+# "Demo " — including apps this demo never created. For a script that DELETES,
+# matching too broadly is the failure that cannot be undone; failing to match a
+# renamed app only leaves it behind, which the operator can see and remove.
+#
+# Note the asymmetry with resource deletion further down, which uses EXACT names
+# (`res_name == target`). Prefixes here exist only to catch legacy app names.
+APP_PREFIXES=("Demo AI App -" "Demo Admin App" "Demo User App" "Demo MCP" "Demo Agent" "Demo Worker" "Super Banking Holdings Specialist Agent")
 
 APPS_JSON=$(ping_get "/applications?limit=100") || {
   err "Failed to list applications"

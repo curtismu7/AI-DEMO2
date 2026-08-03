@@ -34,7 +34,7 @@ Each call arrives with a token representing both the agent and the end user. The
 ## demo_mcp_resource_server
 **Role: Investment vertical MCP server**
 
-Lightweight counterpart to demo_mcp_server covering investment accounts. Validates inbound tokens against the `mcp-resource-server.ping.demo` audience, then filters the available toolset based on the token's scopes before executing.
+Lightweight counterpart to demo_mcp_server covering investment accounts. Validates inbound tokens against the `mcp-invest.ping.demo` audience, then filters the available toolset based on the token's scopes before executing.
 
 **Tools available:** `get_investment_accounts`, `get_investment_balance`, `get_investment_portfolio`, `place_investment_order`
 

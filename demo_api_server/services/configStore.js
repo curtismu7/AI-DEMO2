@@ -311,6 +311,7 @@ const FIELD_DEFS = {
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   ff_knowledge_grounding:            { public: true, default: 'false' }, // knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations
+  ff_grounded_answers:               { public: true, default: 'false' }, // Option C — render only claims traceable to an in-vertical tool call; drop the rest, degrade to the no-match card
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
   lmstudio_model:              { public: true, default: '' }, // empty → LM Studio uses its currently loaded model
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
