@@ -25,12 +25,45 @@ async function compactSign(_payload, _key, _options) {
   throw new Error('[jose-cjs shim] compactSign() called in test — mock the caller');
 }
 
-// SignJWT / EncryptJWT builder classes are not currently used by source.
-// Add stubs if a future import surfaces.
+/**
+ * REAL implementation, not a stub. SigningKeyManager.initialize() calls this on
+ * the DemoMCPServer.startServer() path, so every server-lifecycle test reaches
+ * it — a throwing stub fails 21 tests with "jose.exportJWK is not a function"
+ * rather than surfacing anything about the test's actual subject.
+ *
+ * Node's KeyObject has exported JWK natively since v15 (this repo is >= 22), so
+ * the shim delegates instead of faking. That keeps the derived `kid` a real
+ * sha256 over a real JWK, which is what the lifecycle assertions depend on.
+ */
+async function exportJWK(key) {
+  return key.export({ format: 'jwk' });
+}
+
+/**
+ * Builder stub. Used only by TokenIssuer, which no test currently exercises.
+ * The chainable setters return `this` so the failure lands on .sign() with the
+ * shim's standard message — without the class, the call site would instead die
+ * on "jose.SignJWT is not a constructor", which points at the shim rather than
+ * at the missing mock.
+ */
+class SignJWT {
+  constructor(_payload) {
+    for (const m of ['setProtectedHeader', 'setIssuer', 'setSubject', 'setAudience',
+      'setIssuedAt', 'setExpirationTime', 'setJti', 'setNotBefore']) {
+      this[m] = () => this;
+    }
+  }
+
+  async sign(_key) {
+    throw new Error('[jose-cjs shim] SignJWT.sign() called in test — mock the caller');
+  }
+}
 
 module.exports = {
   createRemoteJWKSet,
   jwtVerify,
   compactDecrypt,
   compactSign,
+  exportJWK,
+  SignJWT,
 };
