@@ -599,6 +599,13 @@ async function get_branch_hours(params = {}, _userId, req) {
   // Banking branches. The MCP Inspector carries no vertical at all — that path
   // still falls back to banking inside searchPublicBranches.
   const vertical = params.vertical || req?.body?.vertical || null;
+  // Loud fallback: an HTTP-dispatched call (req present) with no resolvable
+  // vertical means a caller dropped it — banking data would silently pass for
+  // a correct answer in any vertical. The MCP Inspector path has no req and
+  // legitimately carries no vertical; it stays quiet.
+  if (!vertical && req) {
+    console.warn('[get_branch_hours] dispatched without a vertical — serving banking fallback');
+  }
   const result = searchPublicBranches({ ...params, ...(vertical ? { vertical } : {}) });
   return JSON.stringify({
     branches: result.branches,

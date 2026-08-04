@@ -192,7 +192,12 @@ function searchPublicBranches(params = {}) {
   const vertical = typeof params.vertical === 'string' ? params.vertical : 'banking';
   // Unknown verticals fall back to banking rather than returning an empty list:
   // an empty Act 1 reads as a broken demo, and the point of UC24 is that the
-  // anonymous call succeeded.
+  // anonymous call succeeded. But fall back LOUDLY — silent banking data
+  // masquerades as a correct answer (2026-08-04: a month of banking branches
+  // in every vertical passed every status-level check).
+  if (vertical !== 'banking' && !CATALOG_BY_VERTICAL[vertical]) {
+    console.warn(`[publicBranchCatalog] unknown vertical '${vertical}' — serving banking fallback`);
+  }
   const list = CATALOG_BY_VERTICAL[vertical] || CATALOG_BY_VERTICAL.banking;
   const raw = typeof params.city === 'string' ? params.city.trim() : '';
   if (!raw) return { branches: [...list], query: null, vertical };

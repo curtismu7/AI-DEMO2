@@ -98,7 +98,7 @@ const AIRLINES: CatalogEntry[] = [
   { id: 'airport-miami', name: 'Miami International Airport — United Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: true },
 ];
 
-const CATALOG_BY_VERTICAL: Record<string, CatalogEntry[]> = {
+export const CATALOG_BY_VERTICAL: Record<string, CatalogEntry[]> = {
   banking: BANKING,
   healthcare: HEALTHCARE,
   retail: RETAIL,
@@ -171,11 +171,17 @@ function formatReply(result: ReturnType<typeof searchBranches>, vertical: string
 }
 
 /** Return static location catalog with hours (progressive trust Act 1). */
-export const executeGetBranchHours: HandlerFn = async (_deps, _token, params) => {
+export const executeGetBranchHours: HandlerFn = async (deps, _token, params) => {
   const city = typeof params?.city === 'string' ? params.city : undefined;
   const vertical = typeof params?.vertical === 'string' && CATALOG_BY_VERTICAL[params.vertical]
     ? params.vertical
     : 'banking';
+  // Loud fallback: an UNKNOWN vertical id means a caller drifted (renamed or
+  // new vertical not added here). Silent banking data masqueraded as a correct
+  // answer for a month — warn so drift is visible in logs, not just on screen.
+  if (typeof params?.vertical === 'string' && !CATALOG_BY_VERTICAL[params.vertical]) {
+    deps?.logger?.warn?.(`[publicCatalog] unknown vertical '${params.vertical}' — serving banking fallback`);
+  }
   const result = searchBranches(city, vertical);
   const data = {
     branches: result.branches,
