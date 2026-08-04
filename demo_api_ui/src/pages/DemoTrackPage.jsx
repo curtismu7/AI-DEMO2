@@ -3,6 +3,7 @@
 // run from /api/demo-track/runs as a static snapshot (no polling, no mutation).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
+import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import "./DemoTrackPage.css";
 
 const POLL_MS = 5000;
@@ -24,20 +25,32 @@ function stepComplete(step, run, gauntletSims) {
   return Boolean(green && red);
 }
 
-function SlotRow({ tag, slot, stamp }) {
+function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
   const verdictCls =
     stamp && (stamp.verdict === "PERMIT" ? "dtp-verdict--permit" : stamp.verdict === "STEP_UP" ? "dtp-verdict--stepup" : "dtp-verdict--deny");
   return (
     <div className="dtp-run-row">
       <span className={`dtp-run-tag dtp-run-tag--${tag === "GREEN" ? "g" : "r"}`}>{tag}</span>
-      <span className="dtp-chip">{slot.chipText || slot.label}</span>
+      <span className="dtp-chip">{prompt || slot.chipText || slot.label}</span>
       {stamp ? (
         <span className={`dtp-verdict ${verdictCls}`}>
           {stamp.verdict} {stamp.verdict === "PERMIT" ? "✓" : "✕"} {fmtTime(stamp.at)}
           {stamp.decisionId ? ` · ${stamp.decisionId}` : ""}
         </span>
+      ) : runStatus === "error" ? (
+        <span className="dtp-run-note dtp-run-note--error">✕ run failed — check the agent</span>
       ) : (
         <span className="dtp-run-note">waiting for a matching run</span>
+      )}
+      {canRun && (
+        <button
+          type="button"
+          className="dtp-run-btn"
+          onClick={onRun}
+          disabled={runStatus === "running"}
+        >
+          {runStatus === "running" ? "Running…" : stamp ? "Run again" : "Run"}
+        </button>
       )}
     </div>
   );
@@ -105,6 +118,75 @@ export default function DemoTrackPage() {
     } catch { /* next poll recovers */ }
   }, [isLive, load]);
 
+  // ── In-page runner: dispatch chips through the REAL agent, honoring the
+  // active vertical. Chip text resolves from the per-vertical use-case catalog
+  // (e.g. UC2 is "hand off to a specialist" in banking but "show my sensitive
+  // patient records" in healthcare); sim-sourced red slots run attack sims.
+  const [vertical, setVertical] = useState(null);
+  const [catalog, setCatalog] = useState([]);
+  const [slotRuns, setSlotRuns] = useState({}); // `${stepId}:${color}` -> "running" | "error"
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await apiClient.get("/api/verticals/me");
+        const activeId = me.data?.activeId || "banking";
+        if (cancelled) return;
+        setVertical(activeId);
+        const cat = await apiClient.get(`/api/use-cases?vertical=${encodeURIComponent(activeId)}`);
+        if (!cancelled) setCatalog(cat.data?.useCases || []);
+      } catch { /* runner degrades to config chip text */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Vertical-resolved prompt for a step's green chip: the catalog trigger of the
+  // step's primary backing UC wins; config chipText is the fallback.
+  const promptFor = useCallback((step, color, slot) => {
+    if (color === "green") {
+      const primary = step.ucIds?.[0];
+      const uc = catalog.find((u) => u && (u.id === primary || u.useCaseId === step.stepId));
+      if (uc?.trigger?.type === "chip" && uc.trigger.text) return uc.trigger.text;
+    }
+    return slot.chipText || null;
+  }, [catalog]);
+
+  const setSlotRun = useCallback((key, value) =>
+    setSlotRuns((cur) => {
+      const next = { ...cur };
+      if (value) next[key] = value; else delete next[key];
+      return next;
+    }), []);
+
+  const runSlot = useCallback(async (step, color, slot) => {
+    const key = `${step.stepId}:${color}`;
+    setSlotRun(key, "running");
+    try {
+      if (slot.source === "sim") {
+        for (const sim of slot.match?.sims || []) {
+          // Sequential on purpose: rapid-fire but ordered, like the launcher.
+          // eslint-disable-next-line no-await-in-loop
+          await apiClient.post("/api/demo/attack-sim/run", { sim });
+        }
+      } else {
+        // Arm the flags this step needs (same contract as the launcher/dropdown).
+        const flags = requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: slot.match?.tools?.[0] || null });
+        if (flags.length) {
+          const updates = Object.fromEntries(flags.map((f) => [f, true]));
+          await apiClient.patch("/api/admin/feature-flags", { updates }).catch(() => {});
+        }
+        const prompt = promptFor(step, color, slot);
+        if (!prompt) throw new Error("no dispatchable chip for this slot");
+        await apiClient.post("/api/agent/invoke", { prompt, forceHeuristic: true, vertical: vertical || "banking" });
+      }
+      setSlotRun(key, null);
+    } catch {
+      setSlotRun(key, "error");
+    }
+    load();
+  }, [promptFor, vertical, load, setSlotRun]);
+
   if (error) return <div className="dtp-error">Demo Track unavailable — {error}</div>;
   if (!state || !run) return <div className="dtp-loading">Loading demo track…</div>;
 
@@ -144,7 +226,20 @@ export default function DemoTrackPage() {
             {isGauntlet ? (
               <>
                 <div className="dtp-gauntlet-bar">
+                  {isLive && step.slots.red && (
+                    <button
+                      type="button"
+                      className="dtp-run-btn dtp-run-btn--gauntlet"
+                      onClick={() => runSlot(step, "red", step.slots.red)}
+                      disabled={slotRuns[`${step.stepId}:red`] === "running"}
+                    >
+                      {slotRuns[`${step.stepId}:red`] === "running" ? "Running attacks…" : "Run all 6 attacks"}
+                    </button>
+                  )}
                   <span className="dtp-gauntlet-score">{gauntletBlocked} / {gauntletSims.length} blocked</span>
+                  {slotRuns[`${step.stepId}:red`] === "error" && (
+                    <span className="dtp-run-note dtp-run-note--error">✕ a sim call failed</span>
+                  )}
                 </div>
                 <div className="dtp-gauntlet">
                   {gauntletSims.map((g) => {
@@ -163,8 +258,24 @@ export default function DemoTrackPage() {
               </>
             ) : (
               <>
-                {step.slots.green && <SlotRow tag="GREEN" slot={step.slots.green} stamp={green} />}
-                {step.slots.red && <SlotRow tag="RED" slot={step.slots.red} stamp={red} />}
+                {step.slots.green && (
+                  <SlotRow
+                    tag="GREEN" slot={step.slots.green} stamp={green}
+                    prompt={promptFor(step, "green", step.slots.green)}
+                    canRun={isLive && Boolean(promptFor(step, "green", step.slots.green))}
+                    runStatus={slotRuns[`${step.stepId}:green`]}
+                    onRun={() => runSlot(step, "green", step.slots.green)}
+                  />
+                )}
+                {step.slots.red && (
+                  <SlotRow
+                    tag="RED" slot={step.slots.red} stamp={red}
+                    prompt={step.slots.red.source === "sim" ? null : promptFor(step, "red", step.slots.red)}
+                    canRun={isLive && (step.slots.red.source === "sim" || Boolean(step.slots.red.chipText))}
+                    runStatus={slotRuns[`${step.stepId}:red`]}
+                    onRun={() => runSlot(step, "red", step.slots.red)}
+                  />
+                )}
               </>
             )}
             {complete && (
@@ -190,7 +301,10 @@ export default function DemoTrackPage() {
       <div className="dtp-topbar">
         <div>
           <div className="dtp-brand">🔐 Guided Demo Track</div>
-          <div className="dtp-subtitle">Two acts · {steps.length} steps · every step ends with a permit AND a deny</div>
+          <div className="dtp-subtitle">
+            Two acts · {steps.length} steps · every step ends with a permit AND a deny
+            {vertical && <span className="dtp-vertical-badge">Vertical: {vertical}</span>}
+          </div>
         </div>
         <div className="dtp-progress">
           {steps.map((s, i) => {
