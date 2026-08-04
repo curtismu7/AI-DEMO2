@@ -141,13 +141,25 @@ describe('UC21 tier attributes reach PingOne Authorize', () => {
     // Same numbers, one source. This is the assertion that fails if someone
     // edits the manifest and does not regenerate the snapshot.
     const defs = groupPolicy.getTierDefinitions('banking');
+    const defsDefaultTier = require('../config/verticals/banking/manifest.json').tiers.default;
     const cond = findById(COND_EXCEEDS_TIER_CAP);
     const emitted = {};
     for (const branch of cond.condition.or.conditions) {
       const [tierNode, amountNode] = branch.and.conditions;
-      const tier = tierNode.reference
-        ? constantsOf(findById(COND_IS_STANDARD_TIER))[0]
-        : tierNode.comparison.right.constant.value;
+      // Three shapes, one per way the default tier has been expressed:
+      //   not        — the CURRENT default branch: "none of the named tiers".
+      //                An absent/unknown UserTier must fall to the capped tier,
+      //                or an over-cap amount is denied by nothing at all.
+      //   reference  — the older default branch (IsStandardTier).
+      //   comparison — a named non-default tier.
+      let tier;
+      if (tierNode.not) {
+        tier = defsDefaultTier;
+      } else if (tierNode.reference) {
+        [tier] = constantsOf(findById(COND_IS_STANDARD_TIER));
+      } else {
+        tier = tierNode.comparison.right.constant.value;
+      }
       expect(amountNode.comparison.left.attribute.id).toBe(ATTR_AMOUNT);
       emitted[tier] = amountNode.comparison.right.constant.value;
     }

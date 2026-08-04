@@ -137,9 +137,18 @@ describe('getAuthorizationPoliciesFromSnapshot testCases wiring', () => {
     expect(tc.avoid.parameters.UserTier).toBe('PrivateBanking');
   });
 
-  test('MCP Deny — Tier Amount Exceeded: trigger is a Standard-tier user over the $2000 cap', () => {
+  test('MCP Deny — Tier Amount Exceeded: trigger is a non-privileged user over the $2000 cap', () => {
     const tc = findRule(policies, 'MCP Deny — Tier Amount Exceeded').testCases;
-    expect(tc.trigger.parameters).toMatchObject({ UserTier: 'Standard', Amount: 2001 });
+    // The default-tier branch is now NOT(UserTier == PrivateBanking) rather than
+    // UserTier == 'Standard', so that an absent or unknown tier still hits the
+    // capped ceiling instead of matching no branch and being denied by nothing.
+    // A negation has no single satisfying value, so the solver emits its generic
+    // sentinel — which is FAITHFUL here: any tier that is not PrivateBanking is
+    // capped at $2,000, and the sentinel is exactly such a value. What still
+    // matters, and is asserted, is that the trigger is over the cap and that the
+    // avoid case names the tier with the higher ceiling.
+    expect(tc.trigger.parameters).toMatchObject({ Amount: 2001 });
+    expect(tc.trigger.parameters.UserTier).not.toBe('PrivateBanking');
     expect(tc.avoid.parameters.UserTier).toBe('PrivateBanking');
   });
 
