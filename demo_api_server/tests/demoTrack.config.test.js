@@ -31,6 +31,18 @@ describe('demoTrack config', () => {
     expect(def.gauntletSims).toHaveLength(6);
   });
 
+  test('tool-source slots on steps 1-6 carry the active-step wildcard for vertical page-runs', () => {
+    for (const stepId of ['delegated-access', 'a2a-delegation', 'fine-grained-authz', 'step-up', 'hitl-ciba', 'mcp-gateway']) {
+      const step = TRACK_STEPS.find((s) => s.stepId === stepId);
+      for (const color of ['green', 'red']) {
+        const slot = step.slots[color];
+        if (slot && slot.source === 'tool') {
+          expect(slot.match.tools).toContain('*');
+        }
+      }
+    }
+  });
+
   test('a2a-delegation green slot matches every a2aDelegated specialist tool, not just banking', () => {
     const step = TRACK_STEPS.find((s) => s.stepId === 'a2a-delegation');
     const tools = step.slots.green.match.tools;

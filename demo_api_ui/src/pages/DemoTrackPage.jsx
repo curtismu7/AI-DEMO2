@@ -163,6 +163,9 @@ export default function DemoTrackPage() {
     const key = `${step.stepId}:${color}`;
     setSlotRun(key, "running");
     try {
+      // Make this the ACTIVE step first: the matcher's wildcard (which lets any
+      // vertical's tool stamp the step) only fires on the active step.
+      await apiClient.post("/api/demo-track/active-step", { stepId: step.stepId }).catch(() => {});
       if (slot.source === "sim") {
         for (const sim of slot.match?.sims || []) {
           // Sequential on purpose: rapid-fire but ordered, like the launcher.
