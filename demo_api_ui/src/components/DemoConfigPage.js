@@ -90,11 +90,26 @@ export default function DemoConfigPage() {
     setActiveConfigId(null);
   };
 
-  const onDragStart = (index) => { dragIndexRef.current = index; };
-  const onDragOver = (e, index) => {
+  // Safari/WebKit refuses to start an HTML5 drag unless dragstart writes to
+  // dataTransfer, so both drag kinds set a payload (the label is decorative —
+  // state lives in the refs).
+  const onDragStart = (e, index) => {
+    dragIndexRef.current = index;
+    if (e.dataTransfer) {
+      e.dataTransfer.setData("text/plain", groups[index]?.label || "");
+      e.dataTransfer.effectAllowed = "move";
+    }
+  };
+  const onGroupRowDragOver = (e, group, index) => {
     e.preventDefault();
-    // A child drag over a group row targets "append to this group", not reorder.
-    if (!childDragRef.current) setDragOverIndex(index);
+    if (childDragRef.current) {
+      // A child drag over a group row targets "append to this group".
+      const droppable = Array.isArray(group.children);
+      if (e.dataTransfer) e.dataTransfer.dropEffect = droppable ? "move" : "none";
+      setChildDropTarget(droppable ? { group: group.label, index: -1 } : null);
+    } else {
+      setDragOverIndex(index);
+    }
   };
   const onDrop = (e, dropIndex) => {
     e.preventDefault();
@@ -116,11 +131,16 @@ export default function DemoConfigPage() {
   const onChildDragStart = (e, fromGroup, label) => {
     e.stopPropagation();
     childDragRef.current = { fromGroup, label };
+    if (e.dataTransfer) {
+      e.dataTransfer.setData("text/plain", label);
+      e.dataTransfer.effectAllowed = "move";
+    }
   };
   const onChildDragOver = (e, group, index) => {
     if (!childDragRef.current) return;
     e.preventDefault();
     e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
     setChildDropTarget({ group, index });
   };
   // Drop a dragged child: before childOrder[toIndex] of toGroup, or appended
@@ -337,15 +357,19 @@ export default function DemoConfigPage() {
               {groups.map((group, index) => {
                 const isHidden = hiddenLabels.includes(group.label);
                 const isExpanded = !!expandedGroups[group.label];
-                const isDragTarget = dragOverIndex === index;
+                const isDragTarget =
+                  dragOverIndex === index ||
+                  (childDropTarget &&
+                    childDropTarget.group === group.label &&
+                    childDropTarget.index === -1);
 
                 return (
                   <div
                     key={group.label}
                     className={`dc-group-row${isHidden ? " dc-group-row--hidden" : ""}${isDragTarget ? " dc-group-row--drag-over" : ""}`}
                     draggable
-                    onDragStart={() => onDragStart(index)}
-                    onDragOver={(e) => onDragOver(e, index)}
+                    onDragStart={(e) => onDragStart(e, index)}
+                    onDragOver={(e) => onGroupRowDragOver(e, group, index)}
                     onDrop={(e) => onGroupRowDrop(e, group, index)}
                     onDragEnd={onDragEnd}
                   >
