@@ -252,6 +252,27 @@ function extractIntentAndConfidence(message) {
   if (checkoutMatch)
     return { intent: "checkout", toolName: "checkout", confidence: 0.9 };
 
+  // Per-vertical write intents (UC6 "$2500" chips). Same defect class as
+  // checkout above: without these, the write prompt collapses into a read
+  // intent (or unknown), the intent token's permitted_tools excludes the
+  // write tool, and PingGateway P1AZ denies on intent_mismatch instead of
+  // the amount rule the demo is proving. Writes must precede every read
+  // branch — "execute a large trade" would otherwise hit the trades read.
+  if (/\bpay\b.*\bfees?\b/.test(t))
+    return { intent: "pay_fee", toolName: "pay_fee", confidence: 0.9 };
+  if (/\bpay\b.*\bbills?\b/.test(t))
+    return { intent: "pay_bill", toolName: "pay_bill", confidence: 0.9 };
+  if (/\bpay\b.*\btuition\b/.test(t))
+    return { intent: "pay_tuition_balance", toolName: "pay_tuition_balance", confidence: 0.9 };
+  if (/\b(execute|place|make)\b.*\btrade\b|\blarge\s+trade\b/.test(t))
+    return { intent: "large_trade", toolName: "large_trade", confidence: 0.9 };
+  if (/\bapprove\b.*\bpurchase\s+order\b/.test(t))
+    return { intent: "approve_purchase_order", toolName: "approve_purchase_order", confidence: 0.9 };
+  if (/\bextend\b.*\brental\b/.test(t))
+    return { intent: "extend_rental", toolName: "extend_rental", confidence: 0.9 };
+  if (/\bsubmit\b.*\bexpenses?\b/.test(t))
+    return { intent: "submit_expense", toolName: "submit_expense", confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)
