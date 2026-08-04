@@ -160,6 +160,7 @@ import PublicRoutes, {
   OAuthAcademyPageRoute,
   OnboardingRoute,
   PrivilegeDemoPageRoute,
+  GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
   PingOneTestPageRoute,
@@ -772,6 +773,19 @@ function AppWithAuth() {
                 <Route
                   path="/onboarding"
                   element={<OnboardingRoute user={user} />}
+                />
+                {/* Group policy board — live decision per vertical; the page the
+                    group demo is for. Signed-in users only (it reads their own
+                    directory membership). */}
+                <Route
+                  path="/group-policy"
+                  element={
+                    loading ? null : user ? (
+                      <GroupPolicyBoardPageRoute user={user} logout={logout} />
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
                 />
                 <Route
                   path="/privilege-demo"

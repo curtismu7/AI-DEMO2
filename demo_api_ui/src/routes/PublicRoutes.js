@@ -31,6 +31,7 @@ import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
+import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 
 export default function PublicRoutes({ user, logout }) {
@@ -176,6 +177,15 @@ export function PrivilegeDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeDemoPage />
+    </AppShell>
+  );
+}
+
+/** Group policy board — live per-vertical decisions against real directory membership. */
+export function GroupPolicyBoardPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <GroupPolicyBoardPage />
     </AppShell>
   );
 }

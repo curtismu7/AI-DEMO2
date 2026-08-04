@@ -1,0 +1,180 @@
+/* GroupPolicyBoardPage — live per-vertical authorization decisions.
+   Solid high-contrast text only: REGRESSION_PLAN §0 bans muted hint text. */
+
+.gpb-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: #1a1f2b;
+}
+
+.gpb-head h1 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.gpb-sub {
+  margin: 0 0 20px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #3a4152;
+  max-width: 68ch;
+}
+
+.gpb-control { margin-bottom: 24px; }
+
+.gpb-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.gpb-board-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.gpb-tally {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gpb-pill {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.gpb-pill--permit  { background: #e2f4e8; border-color: #2e7d4f; color: #17512f; }
+.gpb-pill--deny    { background: #fdeaea; border-color: #b3261e; color: #7d1b15; }
+.gpb-pill--unknown { background: #fff4e0; border-color: #a15c00; color: #6b3d00; }
+
+.gpb-refresh {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #1a4fa0;
+  background: #ffffff;
+  color: #1a4fa0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.gpb-refresh:hover:not(:disabled) { background: #eef3fc; }
+.gpb-refresh:disabled { opacity: 0.6; cursor: progress; }
+.gpb-refresh:focus-visible { outline: 3px solid #1a4fa0; outline-offset: 2px; }
+
+/* Wide content scrolls in its own container so the page never scrolls sideways. */
+.gpb-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #c8ccd4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.gpb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.gpb-table th,
+.gpb-table td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid #e3e6ec;
+  white-space: nowrap;
+}
+
+.gpb-table thead th {
+  font-weight: 700;
+  background: #f4f6fa;
+  color: #1a1f2b;
+  border-bottom: 2px solid #c8ccd4;
+}
+
+.gpb-table tbody tr:last-child th,
+.gpb-table tbody tr:last-child td { border-bottom: none; }
+
+.gpb-table tbody th { font-weight: 600; }
+
+.gpb-tool,
+.gpb-codes {
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.gpb-decision {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.gpb-decision--permit        { background: #e2f4e8; border-color: #2e7d4f; color: #17512f; }
+.gpb-decision--deny          { background: #fdeaea; border-color: #b3261e; color: #7d1b15; }
+.gpb-decision--unknown,
+.gpb-decision--indeterminate { background: #fff4e0; border-color: #a15c00; color: #6b3d00; }
+
+.gpb-loading { font-size: 0.9rem; color: #3a4152; }
+
+.gpb-error {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid #b3261e;
+  border-radius: 8px;
+  background: #fdeaea;
+  margin-bottom: 12px;
+}
+
+.gpb-error-title { font-weight: 700; color: #7d1b15; }
+.gpb-error-detail { font-size: 0.85rem; color: #7d1b15; }
+
+.gpb-note {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #1a1f2b;
+}
+
+.gpb-note--warn {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fff4e0;
+  border: 1px solid #a15c00;
+  color: #6b3d00;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .gpb-page { color: #f0f2f6; }
+  .gpb-sub, .gpb-loading, .gpb-error-detail { color: #c3c9d6; }
+  .gpb-table-wrap { background: #171b24; border-color: #39404f; }
+  .gpb-table th, .gpb-table td { border-bottom-color: #2b313d; }
+  .gpb-table thead th { background: #1f2531; color: #f0f2f6; border-bottom-color: #39404f; }
+  .gpb-note { color: #f0f2f6; }
+  .gpb-refresh { background: #171b24; border-color: #6f9bec; color: #a9c6f7; }
+  .gpb-refresh:hover:not(:disabled) { background: #1f2531; }
+  .gpb-pill--permit, .gpb-decision--permit { background: #17512f; border-color: #4caf7d; color: #d6f2e1; }
+  .gpb-pill--deny, .gpb-decision--deny { background: #5c1611; border-color: #e5716a; color: #ffd9d6; }
+  .gpb-pill--unknown,
+  .gpb-decision--unknown,
+  .gpb-decision--indeterminate { background: #4a3200; border-color: #d99b2b; color: #ffe6b8; }
+  .gpb-error { background: #5c1611; border-color: #e5716a; }
+  .gpb-error-title, .gpb-error-detail { color: #ffd9d6; }
+  .gpb-note--warn { background: #4a3200; border-color: #d99b2b; color: #ffe6b8; }
+}
