@@ -718,12 +718,18 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* Live costume shell — one route per catalog entry (mockSelection.MOCK_CATALOG[*].route) */}
+                {/* Live costume shell — one route per catalog entry (mockSelection.MOCK_CATALOG[*].route).
+                    Keeps the app's TopNav + side nav: the costume is the demo surface, not a takeover. */}
                 <Route
                   path="/demo/:shellSlug"
                   element={
                     loading ? null : user ? (
-                      <FootprintLiveShellPage />
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <FootprintLiveShellPage />
+                        </main>
+                      </>
                     ) : (
                       <Navigate to="/" replace />
                     )

@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
 import { MOCK_CATALOG, readMockSelection } from "../components/aiFootprintMocks/mockSelection";
 import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
+import { FootprintSkinPicker } from "../components/aiFootprintMocks/FootprintSkinPicker";
 import { PrivilegeShellPanel } from "../components/aiFootprintMocks/PrivilegeShellPanel";
 import { useFootprintTheme } from "../hooks/useFootprintTheme";
 import "./FootprintMockGalleryPage.css";
@@ -34,7 +35,14 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
 
   return (
     <div className="afm-live-shell" data-testid={`footprint-live-${category}`} data-theme={theme}>
-      <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
+      <div className="afm-shell-controls">
+        <FootprintSkinPicker
+          category={category}
+          variant={variant}
+          className="afm-skin-picker"
+        />
+        <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
+      </div>
       <FootprintChrome
         category={category}
         variant={variant}
