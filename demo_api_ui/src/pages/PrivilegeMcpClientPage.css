@@ -1,7 +1,11 @@
 /* Cursor IDE theme for Privilege MCP Client */
 
+/* Fit the space left by the app chrome (top nav + main-content padding +
+   footer). A flat 100vh made the document taller than the viewport, so the
+   page loaded already scrolled and the terminal/logs pane fell below the fold. */
 .cur-ide {
-  height: 100vh;
+  height: calc(100vh - 176px);
+  min-height: 520px;
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
@@ -527,8 +531,10 @@ select.cur-input { cursor: pointer; }
 }
 
 /* Terminal panel */
+/* Logs deserve the room: the chat pane above is flex:1, so growing this
+   shrinks the agent-response area rather than overflowing the page. */
 .cur-terminal {
-  height: 180px;
+  height: 260px;
   border-top: 1px solid #2b2b2b;
   display: flex;
   flex-direction: column;
