@@ -15,19 +15,23 @@
 export const MCP_LATEST_PROTOCOL_VERSION = '2026-07-28';
 
 /** Earlier supported protocol versions (for dual-stack compatibility during migration). */
-export const MCP_SUPPORTED_VERSIONS = ['2026-07-28', '2025-11-25', '2024-11-05'];
+export const MCP_SUPPORTED_VERSIONS = ['2026-07-28', '2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
 
 /**
  * Does this server speak protocol version V? Matches negotiation acceptance:
- * the latest 2026-07-28 family plus earlier 2025-11-25 and 2024-* revisions.
+ * the latest 2026-07-28 family plus the earlier 2025-* and 2024-* revisions.
  * The HTTP transport reuses this to validate the MCP-Protocol-Version header
  * instead of restating the set (which would drift).
+ *
+ * 2025-06-18 and 2025-03-26 are what most third-party clients still send —
+ * omitting them made `initialize` succeed and every later call 400, which reads
+ * as a working handshake with an empty tool catalog.
  */
 export function isSupportedProtocolVersion(version: string): boolean {
   const v = version.trim();
   // Support the full range of versions during dual-stack period
   return v.startsWith('2026-07-28') ||
-         v.startsWith('2025-11-25') ||
+         v.startsWith('2025-') ||
          v.startsWith('2024-');
 }
 
