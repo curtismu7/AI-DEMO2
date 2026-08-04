@@ -283,6 +283,45 @@ for (const o of pkg) {
   }
 }
 
+// Consent-gated tool lists — declared here rather than beside the per-vertical
+// rules below because McpAmountRequiresHitlConsent needs them: the amount band
+// must NOT re-assert consent for a tool the tool-based gate already covers.
+const CONSENT_BY_VERTICAL = {
+  healthcare: ['book_appointment', 'sensitive_patient_records'],
+  retail: ['checkout', 'sensitive_order_history'],
+  'sporting-goods': ['extend_rental', 'sensitive_membership_details'],
+  banking: ['get_sensitive_account_details'],
+  workforce: ['request_time_off', 'sensitive_payroll_details'],
+  investment: ['sensitive_holdings'],
+  university: ['sensitive_student_finance'],
+  manufacturing: ['sensitive_supplier_contract'],
+  government: ['sensitive_tax_record'],
+  // Deleting a customer is irreversible, so it needs a second human — not just
+  // proof the operator is present. The other three admin writes are recoverable
+  // and take step-up instead.
+  admin: ['delete_customer'],
+  // United Airlines, Phase 2. Deliberately NOT get_airline_bookings: gating the
+  // only reservations lookup would prompt on every "show my reservations".
+  // sensitive_airline_bookings is the separate consent-gated read, mirroring the
+  // split healthcare already has (view_records plain, sensitive_patient_records
+  // gated). get_flight_status and check_seat_availability stay open.
+  airlines: ['sensitive_airline_bookings'],
+};
+// sensitive_investment_holdings is in the policy's consent list but no vertical
+// config defines it — keep it on the shared rule rather than guessing an owner.
+const CONSENT_SHARED = ['create_transfer', 'sensitive_investment_holdings'];
+
+const anyTool = (tools) => (tools.length === 1
+  ? cmp(A.ToolName, 'Equals', tools[0])
+  : { or: { conditions: tools.map((t) => cmp(A.ToolName, 'Equals', t)) } });
+
+// Every tool the per-vertical consent rules gate, in one list. Used ONLY to
+// negate the amount band so the two consent rules stop overlapping.
+const ALL_CONSENT_TOOLS = [...new Set([
+  ...Object.values(CONSENT_BY_VERTICAL).flat(),
+  ...CONSENT_SHARED,
+])].sort();
+
 // ── New objects ──────────────────────────────────────────────────────────────
 const NEW = {
   attrUseCase: randomUUID(),
@@ -290,6 +329,7 @@ const NEW = {
   condDeny: randomUUID(),
   condStepUp: randomUUID(),
   condConsent: randomUUID(),
+  condConsentGatedTool: randomUUID(),
   condDecoupled: randomUUID(),
   stmtConsent: randomUUID(),
   stmtDeny: randomUUID(),
@@ -393,12 +433,37 @@ const additions = {
       + 'additionally scoped to transfer/withdrawal TransactionType and so never fires on the MCP path.',
       { and: { conditions: [ref(C.IsMcp), ref(C.IsHighValue), not(ref(C.HasMfa))] } }),
 
+    condition(NEW.condConsentGatedTool, 'McpToolIsConsentGated',
+      'ToolName is one of the tools the per-vertical consent rules already gate. Exists ONLY to be '
+      + 'negated by McpAmountRequiresHitlConsent below, so the amount band does not re-assert a '
+      + 'consent obligation the tool-based gate has already asserted. Generated from the same '
+      + 'CONSENT_BY_VERTICAL / CONSENT_SHARED lists that build those rules — one source, so the two '
+      + 'cannot drift apart.',
+      anyTool(ALL_CONSENT_TOOLS)),
+
     condition(NEW.condConsent, 'McpAmountRequiresHitlConsent',
       'MCP request over the existing IsConsentTransaction band (> $250) with no verified HITL '
-      + 'receipt. A retry carrying HitlApproved=true — set by PingGateway only after verifying the '
-      + 'receipt against the HITL service — stops matching, which discharges the gate. Compared '
-      + 'against the string "true", matching how the existing RequiresHitlConsent reads it.',
-      { and: { conditions: [ref(C.IsMcp), ref(C.IsConsent), cmp(A.HitlApproved, 'NotEquals', 'true')] } }),
+      + 'receipt, AND for a tool the per-vertical consent rules do NOT already gate. A retry '
+      + 'carrying HitlApproved=true — set by PingGateway only after verifying the receipt against '
+      + 'the HITL service — stops matching, which discharges the gate. Compared against the string '
+      + '"true", matching how the existing RequiresHitlConsent reads it.',
+      // ⚠️ The NOT term is why a call does not come back with TWO HITL_CONSENT
+      // statements. create_transfer at $1,900 is both over the band AND a
+      // consent-gated tool, so before this it matched the amount rule and the
+      // shared tool rule, and the decision carried "MCP Consent Required — Amount
+      // Band" and "MCP Consent Required — Sensitive Tool" together. The gate fired
+      // once either way, but a trace showing the same code twice reads as a bug
+      // and makes it impossible to tell WHICH rule demanded consent.
+      //
+      // Keeping the band for NON-gated tools is deliberate: a plain write over
+      // $250 that no vertical lists still needs consent. This narrows the overlap,
+      // it does not drop the band.
+      { and: { conditions: [
+        ref(C.IsMcp),
+        ref(C.IsConsent),
+        not(ref(NEW.condConsentGatedTool)),
+        cmp(A.HitlApproved, 'NotEquals', 'true'),
+      ] } }),
 
     condition(NEW.condDecoupled, 'McpRequiresDecoupledApproval',
       'MCP request initiated under the decoupled-approval (CIBA) use case. Deliberately has NO '
@@ -532,35 +597,9 @@ const STEP_UP_BY_VERTICAL = {
 };
 const STEP_UP_SHARED = ['create_deposit', 'create_withdrawal'];
 
-const CONSENT_BY_VERTICAL = {
-  healthcare: ['book_appointment', 'sensitive_patient_records'],
-  retail: ['checkout', 'sensitive_order_history'],
-  'sporting-goods': ['extend_rental', 'sensitive_membership_details'],
-  banking: ['get_sensitive_account_details'],
-  workforce: ['request_time_off', 'sensitive_payroll_details'],
-  investment: ['sensitive_holdings'],
-  university: ['sensitive_student_finance'],
-  manufacturing: ['sensitive_supplier_contract'],
-  government: ['sensitive_tax_record'],
-  // Deleting a customer is irreversible, so it needs a second human — not just
-  // proof the operator is present. The other three admin writes are recoverable
-  // and take step-up instead.
-  admin: ['delete_customer'],
-  // United Airlines, Phase 2. Deliberately NOT get_airline_bookings: gating the
-  // only reservations lookup would prompt on every "show my reservations".
-  // sensitive_airline_bookings is the separate consent-gated read, mirroring the
-  // split healthcare already has (view_records plain, sensitive_patient_records
-  // gated). get_flight_status and check_seat_availability stay open.
-  airlines: ['sensitive_airline_bookings'],
-};
-// sensitive_investment_holdings is in the policy's consent list but no vertical
-// config defines it — keep it on the shared rule rather than guessing an owner.
-const CONSENT_SHARED = ['create_transfer', 'sensitive_investment_holdings'];
+
 
 const label = (v) => v.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
-const anyTool = (tools) => (tools.length === 1
-  ? cmp(A.ToolName, 'Equals', tools[0])
-  : { or: { conditions: tools.map((t) => cmp(A.ToolName, 'Equals', t)) } });
 
 const verticalRules = [];
 const verticalConditions = [];
