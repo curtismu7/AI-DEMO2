@@ -15,15 +15,21 @@ export const NAV_STRUCTURE_CATALOG = [
       "Privilege MCP Diagrams",
     ],
   },
-  { label: "Agent Lifecycle" },
   { label: "Themes" },
-  { label: "Use Cases" },
-  { label: "Use Cases (Live)" },
-  { label: "Guided Demo Track" },
+  {
+    label: "Demos",
+    children: [
+      "Agent Lifecycle",
+      "Use Cases",
+      "Use Cases (Live)",
+      "Guided Demo Track",
+      "Demo Script",
+      "Demo Config",
+      "Family Delegation",
+    ],
+  },
   { label: "AI Footprint" },
   { label: "Footprint Gallery" },
-  { label: "Demo Script" },
-  { label: "Family Delegation" },
   {
     label: "AI Agents",
     children: [

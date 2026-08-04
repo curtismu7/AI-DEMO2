@@ -149,6 +149,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
+  { id: "demos", paths: ["/agent-lifecycle", "/use-cases", "/use-cases/live", "/demo-track", "/demo-config", "/delegation"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
@@ -454,24 +455,31 @@ export default function AdminSideNav({ user }) {
         { label: "Privilege MCP Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
       ],
     },
-    {
-      label: "Agent Lifecycle",
-      path: "/agent-lifecycle",
-      icon: "agt",
-      customerOnly: true,
-    },
     { label: "Themes", path: "/themes", icon: "cfg" },
-    { label: "Use Cases", path: "/use-cases", icon: "demo" },
-    { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
-    { label: "Guided Demo Track", path: "/demo-track", icon: "demo" },
+    {
+      label: "Demos",
+      icon: "demo",
+      children: [
+        {
+          label: "Agent Lifecycle",
+          path: "/agent-lifecycle",
+          icon: "agt",
+          customerOnly: true,
+        },
+        { label: "Use Cases", path: "/use-cases", icon: "demo" },
+        { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
+        { label: "Guided Demo Track", path: "/demo-track", icon: "demo" },
+        {
+          label: "Demo Script",
+          icon: "demo",
+          action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
+        },
+        { label: "Demo Config", path: "/demo-config", icon: "cfg" },
+        { label: "Family Delegation", path: "/delegation", icon: "usr" },
+      ],
+    },
     { label: "AI Footprint", path: "/demo/footprint-picks", icon: "demo" },
     { label: "Footprint Gallery", path: "/demo/footprint-mocks", icon: "demo" },
-    {
-      label: "Demo Script",
-      icon: "demo",
-      action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
-    },
-    { label: "Demo Config", path: "/demo-config", icon: "cfg" },
     // Latest report — shown when agent run completes
     ...(latestRunId
       ? [
@@ -483,11 +491,6 @@ export default function AdminSideNav({ user }) {
           },
         ]
       : []),
-    {
-      label: "Family Delegation",
-      path: "/delegation",
-      icon: "usr",
-    },
     {
       label: "AI Agents",
       icon: "agt",
@@ -938,7 +941,26 @@ export default function AdminSideNav({ user }) {
   // Finally, apply the user's saved navOrder (from Demo Config reorder) when present.
   const filteredItems = allNavItems
     .filter((item) => !item.customerOnly || !isAdmin)
-    .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label));
+    .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label))
+    // Same rules one level down, so labels that moved into a group (e.g. the
+    // Demos children) keep honoring customerOnly and Demo Config hides.
+    .map((item) =>
+      Array.isArray(item.children)
+        ? {
+            ...item,
+            children: item.children.filter(
+              (child) =>
+                (!child.customerOnly || !isAdmin) &&
+                (child.label === "Demo Config" || !hiddenNavLabels.includes(child.label)),
+            ),
+          }
+        : item,
+    );
+  // Escape hatch: hiding the whole Demos group must never take the Demo Config
+  // page's own link with it (the user could not undo the hide from the sidebar).
+  if (hiddenNavLabels.includes("Demos")) {
+    filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg" });
+  }
 
   const navItems = (() => {
     if (!Array.isArray(navOrder) || navOrder.length === 0) return filteredItems;

@@ -135,11 +135,13 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
     renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
     expect(screen.getByText("Demo Config")).toBeInTheDocument();
   });
 
-  it("shows a Use Cases (Live) link right under Use Cases, linking to /use-cases/live", () => {
+  it("shows a Use Cases (Live) link inside the Demos group, linking to /use-cases/live", () => {
     renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
     const liveLink = screen.getByText("Use Cases (Live)").closest("a");
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
