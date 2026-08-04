@@ -394,10 +394,11 @@
   letter-spacing: 0.04em;
 }
 
+/* In-flow, not a fixed overlay: an inset:0 overlay painted over the app's own
+   top nav and side nav, so the demo lost its navigation once a costume opened. */
 .afm-live-shell {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
+  position: relative;
+  min-height: calc(100vh - 140px);
   background: #000;
   display: flex;
   flex-direction: column;
