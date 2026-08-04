@@ -1,3 +1,4 @@
+import { buildRunStory } from "../buildTraceSteps";
 import { tokenChainTraceStore } from "../tokenChainTraceStore";
 
 beforeEach(() => tokenChainTraceStore.reset());
@@ -212,4 +213,85 @@ test("a DENY is never carried forward as a gate", () => {
   tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $2500" });
   tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
   expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBeUndefined();
+});
+
+// ── Cross-run evidence leak (flowTraceId run-identity guard) ─────────────────
+// UC24 "What branches are near me?" runs a LOCAL/public tool (get_branch_hours)
+// that emits no gateway/MCP evidence of its own. A prior step-up transfer run
+// (create_transfer → step_up_required) publishes its mcp-result and gw-authorize
+// asynchronously; when that late evidence lands on the singleton store AFTER the
+// public run's beginTrace, the rail narrates a false "MCP call failed for
+// create_transfer (step_up_required)" on a run that actually succeeded. Each run
+// now binds a flowTraceId; ingest drops any payload tagged for a different run.
+
+test("a late mcp-result from a prior run does not poison a public/local run", () => {
+  // Run A — a step-up transfer that ends in a create_transfer step-up.
+  tokenChainTraceStore.beginTrace({ prompt: "transfer $6,000", flowTraceId: "flow-A" });
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: {
+      flowTraceId: "flow-A", type: "mcp-result", tool: "create_transfer",
+      status: "error", error: "step_up_required",
+    },
+  }));
+  tokenChainTraceStore.completeTrace(false);
+
+  // Run B — UC24 public catalog read; a local tool, so no MCP evidence of its own.
+  tokenChainTraceStore.beginTrace({ prompt: "What branches are near me?", flowTraceId: "flow-B" });
+  tokenChainTraceStore.ingestRoutingMode("heuristic", { action: "get_branch_hours" });
+  tokenChainTraceStore.completeTrace(true);
+
+  // Late, out-of-order arrival of Run A's create_transfer result.
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: {
+      flowTraceId: "flow-A", type: "mcp-result", tool: "create_transfer",
+      status: "error", error: "step_up_required",
+    },
+  }));
+
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace.mcpResult).toBeNull();
+  expect(steps.find((s) => s.id === "mcp").status).not.toBe("error");
+  expect(buildRunStory(trace, steps).outcome).not.toBe("error");
+});
+
+test("a late gw-authorize token event from a prior run does not reach the gateway step", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "transfer $6,000", flowTraceId: "flow-A" });
+  tokenChainTraceStore.beginTrace({ prompt: "What branches are near me?", flowTraceId: "flow-B" });
+  // Prior run's gateway authorize, delivered late onto the public run's trace.
+  tokenChainTraceStore.ingestTokenEvent({
+    id: "gw-authorize", flowTraceId: "flow-A", tool: "create_transfer", decision: "INDETERMINATE",
+  });
+  tokenChainTraceStore.completeTrace(true);
+  const gateway = tokenChainTraceStore.getState().steps.find((s) => s.id === "gateway");
+  expect(gateway.detail.why || "").not.toContain("create_transfer");
+});
+
+test("evidence tagged for the CURRENT run is still ingested (guard is not over-broad)", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "transfer $250", flowTraceId: "flow-B" });
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: { flowTraceId: "flow-B", type: "mcp-result", tool: "create_transfer", result: { ok: 1 } },
+  }));
+  expect(tokenChainTraceStore.getState().trace.mcpResult.tool).toBe("create_transfer");
+});
+
+test("untagged mcp-result payloads stay accepted (backward compatible)", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "my accounts", flowTraceId: "flow-B" });
+  tokenChainTraceStore.ingestMcpResult({ tool: "get_my_accounts", result: { ok: 1 } });
+  expect(tokenChainTraceStore.getState().trace.mcpResult.tool).toBe("get_my_accounts");
+});
+
+test("bindFlowTrace binds a run whose id is generated after beginTrace (AG-UI path)", () => {
+  // sendAsNlInner calls beginTrace with no id; useAgentRun binds it moments later.
+  tokenChainTraceStore.beginTrace({ prompt: "What branches are near me?" });
+  tokenChainTraceStore.bindFlowTrace("flow-B");
+  // Prior run's late result must be dropped once this run has bound its id.
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: { flowTraceId: "flow-A", type: "mcp-result", tool: "create_transfer", status: "error" },
+  }));
+  expect(tokenChainTraceStore.getState().trace.mcpResult).toBeNull();
+  // This run's own result is still accepted.
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: { flowTraceId: "flow-B", type: "mcp-result", tool: "get_branch_hours", result: { ok: 1 } },
+  }));
+  expect(tokenChainTraceStore.getState().trace.mcpResult.tool).toBe("get_branch_hours");
 });

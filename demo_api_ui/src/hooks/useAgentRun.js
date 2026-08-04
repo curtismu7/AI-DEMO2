@@ -143,13 +143,16 @@ export function useAgentRun({
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    // sendAsNlInner began the trace before this run existed; bind this run's id
+    // now so a prior run's late SSE evidence is dropped instead of repainting it.
+    try { tokenChainTraceStore.bindFlowTrace(flowTraceId); } catch (_) { /* display-only */ }
     const closeSse = openMcpFlowSse(flowTraceId, (data) => {
       // Token events from the BFF pipeline (exchange, gateway, authorize, MCP).
       // Without this the AG-UI path drops pipeline evidence and the Token Flow
       // Detail modal stays on "waiting…" with no exchange/gateway/MCP steps.
       if (data && data.type === 'token-event') {
         try {
-          const tokenEvent = { ...data };
+          const tokenEvent = { ...data, flowTraceId };
           delete tokenEvent.type;
           tokenChainTraceStore.ingestTokenEvent(tokenEvent);
         } catch (_) { /* display-only */ }
@@ -158,7 +161,7 @@ export function useAgentRun({
       // path; tokenChainTraceStore listens for it to fill the MCP/API steps.
       if (data && data.type === 'mcp-result') {
         try {
-          window.dispatchEvent(new CustomEvent('mcp-tool-result-sse', { detail: data }));
+          window.dispatchEvent(new CustomEvent('mcp-tool-result-sse', { detail: { ...data, flowTraceId } }));
         } catch (_) { /* display-only */ }
       }
       try {

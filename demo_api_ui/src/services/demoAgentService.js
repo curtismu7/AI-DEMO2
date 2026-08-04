@@ -213,6 +213,9 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   log.debug("flowTraceId:", flowTraceId);
+  // Bind this run's id to the trace so a prior run's late SSE evidence is
+  // dropped rather than repainting this run's rail.
+  try { tokenChainTraceStore.bindFlowTrace(flowTraceId); } catch { /* display-only */ }
 
   // ── Phase 194: exchange done, tool call begins ──────────────────────────────
   updateMilestoneStatus(_exchangeId, "done");
@@ -242,7 +245,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
     if (data && data.type === "mcp-result") {
       window.dispatchEvent(
         new CustomEvent("mcp-tool-result-sse", {
-          detail: { ...data, requestJson: data.requestJson ?? params },
+          detail: { ...data, flowTraceId, requestJson: data.requestJson ?? params },
         }),
       );
     }
@@ -555,6 +558,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
         try {
           tokenChainTraceStore.ingestMcpResult({
             tool: err.tool || tool,
+            flowTraceId,
             denied: true,
             gatewayErrorCode: err.gatewayErrorCode || err.code || "forbidden",
             requestJson: err.requestJson || { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: err.tool || tool, arguments: params || {} } },
@@ -735,6 +739,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       tokenChainTraceStore.ingestTokenEvents(pathTaggedEvents);
       tokenChainTraceStore.ingestMcpResult({
         tool,
+        flowTraceId,
         result: data.result,
         _meta: data.result?._meta || null,
         requestJson: { name: tool, arguments: params || {} },
@@ -1024,7 +1029,7 @@ export function createWithdrawalWithConsent(
  * JSON path has no such event, so chip runs / non-streaming typed prompts left
  * the agent + LLM steps permanently pending.
  */
-export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
+export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId = null } = {}) {
   try {
     const heuristicRun = forceHeuristic || data.agentPath === "heuristic";
     if (heuristicRun) {
@@ -1083,6 +1088,7 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
         const specificCode = data.gatewayErrorCode || errCode;
         tokenChainTraceStore.ingestMcpResult({
           tool: data.toolsCalled[0],
+          flowTraceId,
           toolsCalled: data.toolsCalled,
           status: "error",
           error: specificCode,
@@ -1097,6 +1103,7 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
       } else {
         tokenChainTraceStore.ingestMcpResult({
           tool: data.toolsCalled[0],
+          flowTraceId,
           toolsCalled: data.toolsCalled,
           status: "success",
         });
@@ -1192,7 +1199,7 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   // When forceHeuristic is set (vertical chips after /nl), mark HEURISTICS
   // immediately so Token Chain steps 4/11 check before /agent/invoke returns.
   try {
-    tokenChainTraceStore.beginTrace({ prompt: message });
+    tokenChainTraceStore.beginTrace({ prompt: message, flowTraceId });
     if (forceHeuristic) {
       tokenChainTraceStore.ingestRoutingMode("heuristic", { action: null });
     }
@@ -1272,7 +1279,7 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
     if (isAuthRequiredApiError(res.status, data)) {
       const normalized = normalizeAuthFailure(401, data);
       notifySessionExpiredIfNeeded({ status: 401, body: data });
-      ingestLegacyRunTrace(normalized, { forceHeuristic });
+      ingestLegacyRunTrace(normalized, { forceHeuristic, flowTraceId });
       return normalized;
     }
 
@@ -1285,7 +1292,7 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       );
     }
 
-    ingestLegacyRunTrace(data, { forceHeuristic });
+    ingestLegacyRunTrace(data, { forceHeuristic, flowTraceId });
 
     // Attach HTTP status for caller to inspect (428 = HITL required)
     return { ...data, _status: res.status };
