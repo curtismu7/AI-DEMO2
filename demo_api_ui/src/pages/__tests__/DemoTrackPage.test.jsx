@@ -67,7 +67,13 @@ function mockApi() {
     }
     return Promise.reject(new Error(`unexpected ${url}`));
   });
-  apiClient.post.mockResolvedValue({ data: {} });
+  apiClient.post.mockImplementation((url) => {
+    if (url === "/api/agent/invoke") {
+      return Promise.resolve({ data: { reply: "Your balances:\n• CHECKING — $3,032.43", toolsCalled: ["get_my_accounts"] } });
+    }
+    if (url === "/api/demo/attack-sim/run") return Promise.resolve({ data: { status: 401, errorCode: "invalid_aud" } });
+    return Promise.resolve({ data: {} });
+  });
   apiClient.patch.mockResolvedValue({ data: {} });
 }
 
@@ -176,6 +182,9 @@ describe("DemoTrackPage", () => {
     }));
     // a permit must not look dead: the Run button flashes a visible success ack
     await waitFor(() => expect(within(row).getByRole("button", { name: /ran/ })).toBeInTheDocument());
+    // and the agent's actual reply is shown so the presenter sees WHAT happened
+    await waitFor(() => expect(screen.getByText(/Your balances/)).toBeInTheDocument());
+    expect(screen.getByText(/get_my_accounts/)).toBeInTheDocument();
   });
 
   it("runs sim-sourced red slots through the attack-sim API", async () => {
