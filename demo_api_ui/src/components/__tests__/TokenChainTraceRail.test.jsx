@@ -159,3 +159,32 @@ test("Trust tab appears from live DPoP evidence without flags", async () => {
   fireEvent.click(screen.getByRole("tab", { name: /^Trust$/ }));
   expect(screen.getByText("BOUND")).toBeInTheDocument();
 });
+
+test("Demo Track tab renders the guided track content", async () => {
+  global.fetch = vi.fn(async (url) => {
+    if (String(url).includes("/api/demo-track")) {
+      return {
+        ok: true,
+        json: async () => ({
+          track: {
+            steps: [{
+              stepId: "delegated-access", act: 1, title: "Delegated access", ucIds: ["UC1"],
+              buyerStory: "story",
+              slots: { green: { chipText: "show my balance", expected: ["PERMIT"] }, red: { label: "replayed", expected: ["BLOCKED"] } },
+              proved: { green: "g", red: "r", sayThis: "s" },
+            }],
+            gauntletSims: [],
+          },
+          run: { runId: "run-1", activeStepId: "delegated-access", slots: {}, gauntlet: {} },
+        }),
+      };
+    }
+    return { ok: false, json: async () => ({}) };
+  });
+  render(<TokenChainTraceRail />);
+  fireEvent.click(screen.getByRole("tab", { name: /^Demo Track$/ }));
+  await waitFor(() => {
+    expect(screen.getByText(/Delegated access/)).toBeInTheDocument();
+  });
+  expect(screen.getByText(/ACT 1/)).toBeInTheDocument();
+});
