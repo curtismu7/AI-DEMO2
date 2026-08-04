@@ -10,6 +10,11 @@ const EMPTY_TRACE = () => ({
   // ProofOfEnforcementContext) key on it so a later run cannot repaint an older
   // one's result. A counter, not startedAt — two runs can share a millisecond.
   runId: null,
+  // The BFF flowTraceId this run's pipeline events are keyed to. Producers tag
+  // every SSE-delivered mcpResult / token event with it; ingest drops payloads
+  // whose flowTraceId belongs to a DIFFERENT run (a prior run's late, out-of-
+  // order SSE result landing on this run's fresh trace).
+  flowTraceId: null,
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
@@ -26,7 +31,23 @@ const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-to
 
 let trace = EMPTY_TRACE();
 let runSeq = 0;
+// The flowTraceId of the run currently owning the trace. Set when a run binds
+// its id (beginTrace / bindFlowTrace). Used to reject late evidence from a run
+// that is no longer current.
+let activeFlowTraceId = null;
 const listeners = new Set();
+
+// True when `flowTraceId` identifies a DIFFERENT run than the one that owns the
+// trace right now. Untagged evidence (no flowTraceId) and the brief window
+// before a run binds its id are accepted — this only drops evidence that a
+// prior run positively stamped with its own id, which is the cross-run leak.
+function isForeignRun(flowTraceId) {
+  return (
+    flowTraceId != null &&
+    activeFlowTraceId != null &&
+    flowTraceId !== activeFlowTraceId
+  );
+}
 
 const GATE_OUTCOMES = new Set(["STEP_UP", "HITL_REQUIRED"]);
 
@@ -73,7 +94,7 @@ function ensureTrace() {
 export const tokenChainTraceStore = {
   subscribe(fn) { listeners.add(fn); fn(getState()); return () => listeners.delete(fn); },
   getState,
-  beginTrace({ prompt } = {}) {
+  beginTrace({ prompt, flowTraceId } = {}) {
     // Session-scoped evidence (the sign-in token) outlives any single tool
     // call — carry it into the new trace so the sign-in step doesn't regress
     // to "pending" on every chip click. Per-call events are dropped.
@@ -94,10 +115,25 @@ export const tokenChainTraceStore = {
     trace.prompt = prompt ? { message: String(prompt) } : null;
     trace.tokenEvents = sessionEvents;
     if (carried) trace.authorize = { outcome: carried, priorGate: carried };
+    // Bind this run's flowTraceId (may be null here on paths that mint the id
+    // after beginTrace — those call bindFlowTrace once it exists).
+    activeFlowTraceId = flowTraceId ?? null;
+    trace.flowTraceId = activeFlowTraceId;
     try {
       agentFlowDiagram.clearServerEvents();
     } catch { /* display-only */ }
     emit();
+  },
+  /**
+   * Bind (or re-bind) the flowTraceId of the current run when it is minted
+   * after beginTrace — the AG-UI path calls beginTrace in sendAsNlInner but
+   * generates the flowTraceId inside useAgentRun a moment later. Once bound,
+   * any late evidence from a prior run is dropped by isForeignRun.
+   */
+  bindFlowTrace(flowTraceId) {
+    if (!flowTraceId) return;
+    activeFlowTraceId = flowTraceId;
+    trace.flowTraceId = flowTraceId;
   },
   ingestPhases(serverEvents) {
     if (!Array.isArray(serverEvents) || !serverEvents.length) return;
@@ -124,6 +160,9 @@ export const tokenChainTraceStore = {
   },
   ingestTokenEvent(event) {
     if (!event || !event.id) return;
+    // Same run-identity guard as ingestMcpResult: a late gw-authorize / gateway
+    // token event from a prior run must not land on this run's trace.
+    if (isForeignRun(event.flowTraceId)) return;
     ensureTrace();
     const idx = trace.tokenEvents.findIndex((e) => e.id === event.id);
     if (idx >= 0) {
@@ -180,6 +219,10 @@ export const tokenChainTraceStore = {
   },
   ingestMcpResult(payload) {
     if (!payload) return;
+    // Drop a result a PRIOR run produced that arrived after this run began —
+    // otherwise a public/local-tool run (no MCP evidence of its own) repaints
+    // the rail with the previous run's create_transfer error.
+    if (isForeignRun(payload.flowTraceId)) return;
     ensureTrace();
     // Normalize SSE shape (toolName/resultJson) to the rail's mcpResult model.
     const next = {
@@ -202,6 +245,7 @@ export const tokenChainTraceStore = {
   /** Full demo reset — empty pipeline (nothing done) ready for the next run. */
   reset() {
     trace = EMPTY_TRACE();
+    activeFlowTraceId = null;
     try {
       agentFlowDiagram.clearServerEvents();
     } catch { /* display-only */ }
@@ -219,6 +263,10 @@ agentFlowDiagram.subscribe((snap) => {
 if (typeof window !== "undefined") {
   window.addEventListener("mcp-tool-result-sse", (e) => {
     if (!e || !e.detail) return;
+    // A late result from a prior run carries that run's flowTraceId — drop the
+    // whole event (mcpResult AND its authorize evaluations) so it cannot repaint
+    // the run that is current now.
+    if (isForeignRun(e.detail.flowTraceId)) return;
     tokenChainTraceStore.ingestMcpResult(e.detail);
     if (e.detail.mcpAuthorizeEvaluation) {
       tokenChainTraceStore.ingestAuthorize(e.detail.mcpAuthorizeEvaluation);

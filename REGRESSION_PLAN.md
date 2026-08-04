@@ -102,6 +102,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-04 — Token Chain rail showed a prior run's `create_transfer` step-up error on a successful public-catalog read (UC24)
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`,
+`demo_api_ui/src/hooks/useAgentRun.js`,
+`demo_api_ui/src/services/demoAgentService.js`,
+`demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+**What was broken:** `tokenChainTraceStore` is a singleton with one mutable
+`trace`; every ingest (`ingestMcpResult`, `ingestTokenEvent`, the global
+`mcp-tool-result-sse` window listener) wrote to whatever trace was current with
+no check of which run produced the evidence. After a step-up transfer
+(`create_transfer` → `step_up_required`), running UC24 "What branches are near
+me?" — a LOCAL tool (`get_branch_hours`) that emits no gateway/MCP evidence of
+its own — called `beginTrace` (clearing `mcpResult`), but the prior run's
+mcp-result / gw-authorize arriving late (out-of-order SSE / a prior-run promise
+continuation) landed on UC24's fresh trace. With no competing evidence, the rail
+narrated a false "This run stopped with an error at MCP server — MCP call failed
+for create_transfer (step_up_required)".
+**What was fixed:** each run now binds a `flowTraceId` in the store
+(`beginTrace({flowTraceId})` or `bindFlowTrace` for the AG-UI path, whose id is
+minted inside `useAgentRun` after `beginTrace`). Producers tag their
+SSE-delivered mcpResult/token-event evidence with that `flowTraceId`; ingest
+drops any payload whose `flowTraceId` belongs to a different run (`isForeignRun`).
+Untagged payloads stay accepted, so nothing else changes.
+**Do not break:** the guard must accept untagged evidence and evidence tagged
+with the CURRENT run's id — over-dropping blanks the rail on real runs. Every
+path that mints a `flowTraceId` must bind it (beginTrace param or `bindFlowTrace`)
+so the guard has a current id to compare against.
+**Verify:** `demo_api_ui`: `npx vitest run src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+(the 5 cross-run tests), then `npm run test:unit && npm run build`.
+
 ### 2026-08-04 — Footprint live shells rendered an empty agent pane; repurposed to host the Privilege MCP client
 
 **Files changed:** `demo_api_ui/src/pages/FootprintLiveShellPage.jsx`,
