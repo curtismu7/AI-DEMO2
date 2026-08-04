@@ -430,7 +430,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     `TokenAudience (the token's real aud) is one of the accepted gateway identities ` +
     `(${acceptedGatewayAudiences.join(', ')}). A token minted for any other resource fails this ` +
     `and is denied by "MCP Deny — Invalid Token Audience". Generated from scope-topology.json ` +
-    `resources (${GATEWAY_RESOURCE_NAMES.join(' / ')}) — do not hand-edit.`;
+    `gateway resource URIs for the AI Demo environment — do not hand-edit.`;
   audCond.condition = { or: { conditions: acceptedGatewayAudiences.map((uri) => ({
     comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
   })) } };
@@ -815,7 +815,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     ] } }), beforeSepIdx);
   upsert(denyStatement(STMT.adminRole, 'MCP Denied — Admin Role Not Permitted', 'mcp-admin-role-not-permitted',
     'Rule 2.95 (admin_role_not_permitted): an admin session may not drive customer write tools through the agent. Parity with requireNotAdmin; admin is a restriction, never a bypass.',
-    `{"denied": true, "reason": "admin_role_not_permitted", "message": "Tool '{{${ATTR.ToolName}}}' mutates customer banking state and is not available to an admin role. Switch to a customer session.", "toolName": "{{${ATTR.ToolName}}}", "userRole": "{{${ATTR.UserRole}}}"}`), beforeFirstPolicyIdx);
+    `{"denied": true, "reason": "admin_role_not_permitted", "message": "Tool '{{${ATTR.ToolName}}}' mutates customer account state and is not available to an admin role. Switch to a customer session.", "toolName": "{{${ATTR.ToolName}}}", "userRole": "{{${ATTR.UserRole}}}"}`), beforeFirstPolicyIdx);
   upsert(denyRule(RULE.mcpDenyAdminRole, 'MCP Deny — Admin Role Not Permitted',
     'DENY when UserRole=admin invokes a customer write tool (AdminRoleOnWriteTool, generated from scope-topology.json). Mirrors mock Rule 2.95 / requireNotAdmin. Restriction only — no admin permit branch exists.',
     COND.AdminRoleOnWriteTool, STMT.adminRole), beforeFirstPolicyIdx);
@@ -933,7 +933,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     version: 'aaaaaaaa-0021-4321-abcd-000000000021', type: 'ATTRIBUTE',
     name: 'RarMaxAmount', fullName: 'RarMaxAmount',
     description: 'RFC 9396 RAR granted amount ceiling (azd.authorization_details[0].amount). ' +
-      'Sent by the Super Banking BFF/gateway on delegated tool calls that carry a RAR grant; absent otherwise. ' +
+      'Sent by the AI Demo BFF/gateway on delegated tool calls that carry a RAR grant; absent otherwise. ' +
       'defaultValue 0 (like HitlApproved=false) so an ABSENT grant resolves to 0 instead of leaving the ' +
       'comparison unresolved — an unresolved NUMBER makes the rule (and the whole MCP decision) INDETERMINATE.',
     parentId: null, numberOfChildren: null, valueProcessor: null,
