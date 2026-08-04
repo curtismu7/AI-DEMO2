@@ -102,6 +102,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-03 — Stage 0 negative-chip parity: 24 missing deny/wrong-aud/bad-scope chips across 8 verticals, no client dispatch rail
+
+**Files changed:** `demo_api_ui/src/components/agentChrome.js`,
+`demo_api_ui/src/components/negativeChipDispatch.js` (new),
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_server/config/verticals/{government,healthcare,investment,manufacturing,retail,sporting-goods,university,workforce}/manifest.json`
+(8 manifests), `demo_api_server/tests/genIntentTopology.test.js`.
+
+**What was broken:** only banking's manifest declared the three Stage 0
+negative-intent chips (wrong-aud sim, cross-vertical deny, bad-scope sim);
+the other 8 Class A verticals had zero, leaving 24 negative cells missing
+from the intent topology. Cloning banking's chips as-is would have
+dead-ended: the generic suggestion-chip renderer (`verticalSuggestionChips`
+in `agentChrome.js`) dropped the `mode`/`tool`/`denyTool` fields when
+building chips for any non-banking vertical, and two of banking's three
+negative chips (`test_wrong_audience`, `test_wrong_scope`) had no live
+manifest-render path outside banking's hardcoded `runAction` switch cases —
+there was no generic dispatch that could fire a sim or a real deny-probe
+from a vertical-agnostic manifest chip.
+
+**What was fixed:** `agentChrome.js` now carries `mode`/`tool`/`denyTool`
+through additively (null when absent, existing fields untouched). A new
+pure `negativeChipDispatch.js` module (`NEGATIVE_SIM_BY_TOOL`,
+`isNegativeChip`, `dispatchNegativeChip`) plus a `postSim` helper and a
+guard clause in `AIAgent.js`'s single `handleChipActivate` entry point give
+every chip a generic dispatch path: sim-backed chips (wrong-aud,
+insufficient-scope) POST to `/api/demo/attack-sim/run` and render a
+generic verdict; `denyTool` chips call the real MCP tool and render the
+resulting 403 (flat `err.statusCode`/`err.code`/`err.decisionId` shape) as
+"Denied as designed" proof. All 8 non-banking Class A manifests gained 3
+entries each (`<px>-dpop`, `<px>-deny`, `<px>-bad-scope`) in
+`dashboard.chips10`, and `genIntentTopology.test.js` gained a Stage 0
+parity `describe` block plus updated `EXPECTED_CHIP_COUNTS`/total-chip
+literals (134 to 158).
+
+**Do not break:** `verticalSuggestionChips`'s existing chip fields/shape —
+only additive `mode`/`tool`/`denyTool`, null when absent; other consumers
+must keep working unchanged. `negativeChipDispatch`'s deny-probe catch must
+keep reading the FLAT fetch error shape (`err.statusCode`/`err.code`/
+`err.decisionId`, not axios `err.response.*`) as control-success ("Denied
+as designed") — that is what `demoAgentService.js` actually throws in
+production; regressing to axios-shape-only silently defeats the whole
+`denyTool` half of the rail. Banking's `ACTION_GROUPS`/`test_wrong_audience`/
+`test_wrong_scope` `runAction` cases are untouched and must stay that way.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/AIAgent.negativeChipDispatch.test.jsx
+src/components/__tests__/agentChrome.negativeChips.test.jsx` (8/8 pass);
+`cd demo_api_server && CI=true npx jest tests/genIntentTopology.test.js
+--forceExit` (Stage 0 parity block, 57/57 pass).
 ### 2026-08-03 — The agent only recognized a step-up block at 428, but the default config sends 401 (RFC 9470)
 
 **Files changed:** `demo_api_ui/src/utils/stepUpError.js` (new),

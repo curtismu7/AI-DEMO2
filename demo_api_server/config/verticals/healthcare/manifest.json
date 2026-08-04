@@ -128,7 +128,10 @@
       { "id": "hc-a2a", "label": "Sensitive records", "message": "access my sensitive patient records", "mode": "both", "challenge": "consent", "tool": "sensitive_patient_records", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "hc-feature", "label": "My health record", "message": "show my health record", "mode": "both", "tool": "show_health_record", "useCaseId": "delegated-access-with-proof" },
       { "id": "hc9", "label": "Summarize my recent visits", "message": "Summarize my recent visits", "mode": "llm", "tool": "view_records" },
-      { "id": "hc-direct", "label": "Direct MCP", "message": "list my records", "mode": "direct", "tool": "view_records" }
+      { "id": "hc-direct", "label": "Direct MCP", "message": "list my records", "mode": "direct", "tool": "view_records" },
+      { "id": "hc-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "hc-deny", "label": "Authz DENY", "message": "show my investment portfolio", "mode": "direct", "denyTool": "show_investment", "useCaseId": "authz-denied" },
+      { "id": "hc-bad-scope", "label": "Bad scope", "message": "run a claims call my token has no scope for", "mode": "direct", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope" }
     ],
     "securityShowcase": {
       "tabs": [

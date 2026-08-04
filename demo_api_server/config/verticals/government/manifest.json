@@ -103,7 +103,10 @@
       { "id": "gv-feature", "label": "Permit status", "message": "show permit status", "mode": "both", "tool": "show_permit", "useCaseId": "delegated-access-with-proof" },
       { "id": "gv-a2a", "label": "Sensitive tax record", "message": "access my sensitive tax record", "mode": "both", "challenge": "consent", "tool": "sensitive_tax_record", "useCaseId": "a2a-delegation", "group": "advanced" },
       { "id": "gv6", "label": "Expiring permits", "message": "which permits expire soon", "mode": "llm", "tool": "view_permits" },
-      { "id": "gv-direct", "label": "Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" }
+      { "id": "gv-direct", "label": "Direct MCP", "message": "get my permits", "mode": "direct", "tool": "view_permits" },
+      { "id": "gv-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "gv-deny", "label": "Authz DENY", "message": "show a patient's health record", "mode": "direct", "denyTool": "show_health_record", "useCaseId": "authz-denied" },
+      { "id": "gv-bad-scope", "label": "Bad scope", "message": "run a call my token has no scope for", "mode": "direct", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope" }
     ],
     "securityShowcase": {
       "tabs": [
