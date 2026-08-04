@@ -112,7 +112,15 @@ const A = {
 };
 const C = {
   IsMcp: byName('CONDITION', 'IsMcpFirstToolRequest').id,
-  IsLarge: byName('CONDITION', 'IsLargeTransaction').id,       // Amount > 2000
+  IsLarge: byName('CONDITION', 'IsLargeTransaction').id,       // Amount > 2000 (flat, tier-blind)
+  // The per-tier ceiling. The MCP deny band uses THIS, not IsLargeTransaction:
+  // a flat $2,000 deny ignores tier, so it denied a PrivateBanking caller at
+  // $2,500 exactly like a Standard one and UC21's whole "same amount, different
+  // tier" story died in the cloud. Probed live 2026-08-03 — both tiers DENY at
+  // $2,500. ExceedsTierAmountCap now treats an unknown/absent UserTier as the
+  // capped default tier, so swapping to it does not open a hole for requests
+  // that send no tier.
+  ExceedsTierCap: byName('CONDITION', 'ExceedsTierAmountCap').id,
   IsHighValue: byName('CONDITION', 'IsHighValueTransaction').id, // Amount > 500
   IsConsent: byName('CONDITION', 'IsConsentTransaction').id,   // Amount > 250
   HasMfa: byName('CONDITION', 'HasMFAAuthentication').id,
@@ -191,7 +199,11 @@ for (const o of pkg) {
     const before = o[field];
     if (typeof before !== 'string') continue;
     const { text, changed } = debrand(before);
-    if (changed) { o[field] = text; debranded += 1; }
+    // De-branding EDITS the exported object, so it needs a fresh version like
+    // every other in-place mutation here — otherwise the rename imports as a
+    // no-op and the console keeps showing the old wording. Caught by the
+    // version/content guard below rather than by anyone noticing.
+    if (changed) { o[field] = text; debranded += 1; touch(o); }
     if (text.includes('Super Banking')) protectedHits += 1;
   }
 }
@@ -294,9 +306,10 @@ const additions = {
 
   conditions: [
     condition(NEW.condDeny, 'McpAmountExceedsDenyLimit',
-      'MCP request whose Amount trips the existing IsLargeTransaction band (> $2,000). Reuses that '
-      + 'condition rather than restating the threshold, so the ceiling stays defined in one place.',
-      { and: { conditions: [ref(C.IsMcp), ref(C.IsLarge)] } }),
+      'MCP request whose Amount exceeds the CALLER\'S TIER ceiling (ExceedsTierAmountCap: '
+      + 'Standard $2,000, PrivateBanking $50,000). Reuses that condition rather than restating any '
+      + 'threshold, so the ceilings stay defined in one place — the banking manifest.',
+      { and: { conditions: [ref(C.IsMcp), ref(C.ExceedsTierCap)] } }),
 
     condition(NEW.condStepUp, 'McpAmountRequiresStepUp',
       'MCP request over the existing IsHighValueTransaction band (> $500) where the user has NOT '

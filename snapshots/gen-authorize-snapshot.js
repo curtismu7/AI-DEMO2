@@ -215,7 +215,7 @@ const CONFIRM_USD = '250';
 // BUMP THIS (4323, 4324, …) IN THE SAME COMMIT AS ANY CHANGE TO banking's
 // manifest `tiers` block. reconcile() prints a warning when it rewrites tier
 // content, because forgetting this is silent.
-const TIER_VERSION_GROUP = '4322';
+const TIER_VERSION_GROUP = '4323';
 const tierVer = (id) => `bbbbbbbb-${id.slice(9, 13)}-${TIER_VERSION_GROUP}-abcd-${id.slice(24)}`;
 
 function toolOr(tools) {
@@ -1066,8 +1066,25 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     toolOr(restrictedTools));
 
   // 10c) ExceedsTierAmountCap — one branch per tier, ceiling from the manifest.
-  // The default tier's branch reuses the IsStandardTier reference (it is exactly
-  // that comparison) so the emitted shape matches what is already imported.
+  //
+  // ⚠️ The DEFAULT tier's branch must match "any tier we do not recognise",
+  // not literally UserTier == 'Standard'. UserTier defaults to 'none' and the
+  // BFF only sends it when ff_authorize_group_policy is on or the use case asks
+  // for it — so with an IsStandardTier reference here, an ordinary request
+  // matched NO branch, this condition was false, and an over-cap amount was not
+  // denied by tier at all. That is a fail-open, and it is why the flat
+  // IsLargeTransaction band had to exist to catch anything.
+  //
+  // Negating the known non-default tiers makes the capped tier the fallback:
+  // unknown/absent tier is treated as the least privileged, which is the only
+  // safe default. PrivateBanking still gets its own branch and its own ceiling.
+  const nonDefaultTiers = tiers.ceilings.filter(([t]) => t !== tiers.defaultTier);
+  const isDefaultTierBranch = nonDefaultTiers.length === 0
+    // Only one tier declared — nothing to negate; the original reference is exact.
+    ? { reference: { id: COND.IsStandardTier } }
+    : { not: { condition: { or: { conditions: nonDefaultTiers.map(([t]) => ({
+      comparison: { left: { attribute: { id: ATTR.UserTier } }, op: 'Equals', right: { constant: { value: t } } },
+    })) } } } };
   putTierCond(COND.ExceedsTierAmountCap, 'ExceedsTierAmountCap',
     `UC21 deny (tier_amount_exceeded): Amount exceeds the caller's per-tier ceiling — ` +
     `${tiers.ceilings.map(([t, max]) => `${t} $${Number(max).toLocaleString('en-US')}`).join(', ')}. ` +
@@ -1077,7 +1094,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     { or: { conditions: tiers.ceilings.map(([tier, max]) => ({
       and: { conditions: [
         tier === tiers.defaultTier
-          ? { reference: { id: COND.IsStandardTier } }
+          ? isDefaultTierBranch
           : { comparison: { left: { attribute: { id: ATTR.UserTier } }, op: 'Equals', right: { constant: { value: tier } } } },
         { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { constant: { value: max } } } },
       ] },
