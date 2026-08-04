@@ -9,6 +9,7 @@ const express = require('express');
 const configStore = require('../services/configStore');
 const groupPolicy = require('../services/groupPolicy');
 const pingOneGroupMembershipService = require('../services/pingOneGroupMembershipService');
+const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
 const { verticalManifest } = require('../services/verticalManifest');
 const { requireSession } = require('../middleware/auth');
 const { provisionVerticalGroups } = require('../services/pingOneGroupProvisionService');
@@ -85,6 +86,95 @@ router.get('/membership', requireSession, async (req, res) => {
       error: 'group_membership_failed',
       message: err.message,
     });
+  }
+});
+
+/**
+ * GET /api/groups/decision-board
+ *
+ * One live PingOne Authorize decision per vertical, for that vertical's
+ * group-gated tool, using the signed-in user's REAL directory membership.
+ *
+ * This is the page the group demo is for: flipping one membership and watching
+ * every vertical move together is something no single chip can show. Each row is
+ * a real decision from the same endpoint the PEP calls — not a simulation and not
+ * a re-statement of the manifest, because the point being demonstrated is that
+ * the POLICY decides.
+ *
+ * ⚠️ Costs one decision call per gated vertical (11 today). Fine for a demo page
+ * a human loads; do not put it behind anything that polls.
+ */
+router.get('/decision-board', requireSession, async (req, res) => {
+  try {
+    await configStore.ensureInitialized();
+    verticalManifest.init();
+
+    const username = req.session?.user?.username || null;
+    const pingOneUserId = resolvePingOneUserId(req.session?.user);
+
+    // Every vertical that declares a group-gated tool, straight from the
+    // manifests — so a vertical added later appears here with no code change.
+    const targets = [];
+    for (const def of groupPolicy.listAllVerticalGroupDefinitions()) {
+      for (const [tool, category] of Object.entries(def.restrictedTools || {})) {
+        const manifest = verticalManifest.resolver.resolve(def.verticalId);
+        targets.push({
+          verticalId: def.verticalId,
+          displayName: manifest?.identity?.displayName || def.verticalId,
+          tool,
+          requiredGroup: groupPolicy.groupNameForCategory(def.verticalId, category),
+        });
+      }
+    }
+
+    const rows = await Promise.all(targets.map(async (t) => {
+      // Membership is per-vertical because listGroupNamesForVertical filters to
+      // that vertical's declared groups — even though one generic group now
+      // serves them all, this keeps working if that is ever split again.
+      let groups = groupPolicy.groupsForUserSync(username, t.verticalId);
+      let source = 'manifest';
+      if (pingOneUserId && pingOneGroupMembershipService.isReady()) {
+        const live = await pingOneGroupMembershipService
+          .listUserGroupNamesForVertical(pingOneUserId, t.verticalId);
+        if (Array.isArray(live)) { groups = live; source = 'pingone'; }
+      }
+      const inRequiredGroup = Boolean(t.requiredGroup && groups.includes(t.requiredGroup));
+
+      try {
+        const r = await pingOneAuthorizeService.evaluateMcpToolDelegation({
+          userId: pingOneUserId,
+          clientId: pingOneUserId,
+          toolName: t.tool,
+          verticalId: t.verticalId,
+          requiredGroup: t.requiredGroup,
+          userGroups: groups,
+          inRequiredGroup,
+          userTier: groupPolicy.resolveUserTier(groups, t.verticalId),
+        });
+        const codes = ((r.raw && r.raw.statements) || []).map((s) => s.code).filter(Boolean);
+        return {
+          ...t, inRequiredGroup, source, decision: r.decision, codes,
+        };
+      } catch (err) {
+        // A failed probe must read as UNKNOWN, never as PERMIT. A board that
+        // shows green when it could not ask is worse than one that shows nothing.
+        return {
+          ...t, inRequiredGroup, source, decision: 'UNKNOWN', codes: [], error: err.message,
+        };
+      }
+    }));
+
+    rows.sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return res.json({
+      username,
+      pingOneUserId,
+      liveLookupReady: pingOneGroupMembershipService.isReady(),
+      policyEnabled: groupPolicy.isEnabled(configStore),
+      rows,
+    });
+  } catch (err) {
+    console.error('[groupMembership] decision board failed:', err.message);
+    return res.status(500).json({ error: 'decision_board_failed', message: err.message });
   }
 });
 
