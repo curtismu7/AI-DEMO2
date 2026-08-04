@@ -65,6 +65,90 @@ const exportObjects = new Map(
   pkg.filter((o) => o && o.id).map((o) => [o.id, JSON.parse(JSON.stringify(o))]),
 );
 
+const touched = new Set();
+const touch = (o) => {
+  if (o && typeof o === 'object') {
+    o.version = randomUUID();
+    if (o.id) touched.add(o.id);
+  }
+  return o;
+};
+
+// ── Generator-owned objects win over the export ──────────────────────────────
+// This script merges INTO a live export, so every object it does not create is
+// whatever the cloud already had. For most objects that is exactly right. For
+// the handful that `gen-authorize-snapshot.js` OWNS — derived from the banking
+// manifest, not hand-edited in the console — inheriting the cloud's copy silently
+// discards whatever the generator just fixed.
+//
+// That is not hypothetical. On 2026-08-03 the deny band was repointed at
+// ExceedsTierAmountCap and the tier condition itself was given a NOT-fallback so
+// an absent UserTier resolves to the capped tier. The merger inherited the live
+// ExceedsTierAmountCap (no fallback), so the produced package would have fixed
+// UC21 while OPENING a fail-open: with no UserTier sent, neither tier branch
+// matched, the condition was false, and an over-cap amount was denied by nothing.
+// It had to be hand-patched onto the export to ship.
+//
+// Overlaying them here makes the package reproducible from the repo instead of
+// depending on someone remembering to splice a condition in by hand.
+const GENERATED_SNAPSHOT = path.join(__dirname, 'AI_Demo_Transaction_Authorization_P1AZ.snapshot.json');
+
+// Name -> the fields the generator owns. Only these are copied, so console-side
+// edits to anything else on the object survive.
+const GENERATOR_OWNED = {
+  // Tier ceilings + the default-tier fallback, generated from the banking
+  // manifest tiers block. The whole point of generating them is that the cloud
+  // cannot disagree with the manifest.
+  ExceedsTierAmountCap: ['condition', 'description'],
+  IsStandardTier: ['condition', 'description'],
+  IsTierRestrictedTool: ['condition', 'description'],
+  // defaultValue 0 — an unresolved NUMBER makes the WHOLE decision INDETERMINATE,
+  // and READ tools never send Amount. Inheriting a null default from an older
+  // export would silently re-break every read.
+  //
+  // `description` deliberately NOT owned here: the generated copy still says
+  // "Super Banking BFF", so overlaying it would fight the de-brand pass below —
+  // overlay pulls the old wording in, de-brand converts it back, content nets to
+  // zero and the version moves twice. The validation pass catches that as
+  // pointless churn. The three tier conditions above carry no "Super Banking"
+  // wording, so owning their descriptions is safe (checked).
+  Amount: ['defaultValue'],
+};
+
+let overlaid = 0;
+{
+  if (!fs.existsSync(GENERATED_SNAPSHOT)) {
+    throw new Error(`generated snapshot not found at ${GENERATED_SNAPSHOT} — run npm run snapshot:generate first`);
+  }
+  const generated = JSON.parse(fs.readFileSync(GENERATED_SNAPSHOT, 'utf8'));
+  for (const [name, fields] of Object.entries(GENERATOR_OWNED)) {
+    const gen = generated.find((o) => o && o.name === name);
+    const cur = pkg.find((o) => o && o.name === name);
+    // Fail loudly rather than skip: a missing object here means the export or the
+    // generated file is not the shape this script was written against, and a
+    // quiet skip is how the tier fix went missing in the first place.
+    if (!gen) throw new Error(`generated snapshot has no "${name}" — cannot overlay`);
+    if (!cur) throw new Error(`export has no "${name}" — cannot overlay`);
+    if (gen.id !== cur.id) {
+      throw new Error(`"${name}" id differs (generated ${gen.id} vs export ${cur.id}) — refusing to overlay across trees`);
+    }
+    // PingOne normalises scalars on import — `defaultValue: 0` comes back as the
+    // STRING '0'. Comparing raw would mark Amount changed on every single run and
+    // re-version it forever, which is the churn the validation pass below warns
+    // about. Compare primitives by their string form; objects/arrays deeply.
+    const differs = (a, b) => (
+      (a !== null && typeof a === 'object') || (b !== null && typeof b === 'object')
+        ? JSON.stringify(a) !== JSON.stringify(b)
+        : String(a) !== String(b)
+    );
+    const changed = fields.filter((f) => differs(cur[f], gen[f]));
+    if (changed.length === 0) continue;
+    for (const f of changed) cur[f] = JSON.parse(JSON.stringify(gen[f]));
+    touch(cur);            // version must move or PingOne skips the overlay
+    overlaid += 1;
+  }
+}
+
 // ── Locate what we depend on, by NAME, and fail loudly if absent ─────────────
 // Ids differ between environments and have drifted before; names are what the
 // policy authors maintain. A missing dependency must stop the build, never
@@ -95,15 +179,6 @@ const byName = (type, ...names) => {
 // already mints for new objects — a content hash would buy nothing here, since
 // the script is deliberately non-deterministic (see the idempotency note: every
 // run mints fresh UUIDs and strips the previous run by NAME).
-const touched = new Set();
-const touch = (o) => {
-  if (o && typeof o === 'object') {
-    o.version = randomUUID();
-    if (o.id) touched.add(o.id);
-  }
-  return o;
-};
-
 const A = {
   Amount: byName('ATTRIBUTE', 'Amount').id,
   ToolName: byName('ATTRIBUTE', 'ToolName').id,
@@ -658,9 +733,25 @@ for (const r of refs) if (!ids.has(r)) problems.push(`dangling reference: ${r}`)
 //
 // This is the check that would have caught the 2026-08-03 half-import, where all
 // 61 new objects landed and none of the edits did.
+// ⚠️ Stable, DEEP serialisation. The first version of this used
+// `JSON.stringify(rest, Object.keys(rest).sort())` — but an array as the second
+// argument to JSON.stringify is a key ALLOWLIST applied at EVERY level, not a
+// sort order. Nested keys (`or`, `and`, `not`, `comparison` inside `condition`)
+// were therefore stripped from both sides, so the two always matched and the
+// guard was blind to exactly the changes that matter most: condition logic.
+// It could only ever see top-level scalars like `description` and `disabled`.
+// Caught when the generator overlay legitimately rewrote a condition and this
+// reported the object as unedited.
+const stable = (v) => {
+  if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
+  if (v && typeof v === 'object') {
+    return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(v);
+};
 const bodyOf = (o) => {
   const { version, ...rest } = o;
-  return JSON.stringify(rest, Object.keys(rest).sort());
+  return stable(rest);
 };
 for (const o of merged) {
   if (!o || !o.id) continue;
@@ -712,5 +803,7 @@ console.log(`  entries      ${merged.length} (was ${pkg.length}, +${merged.lengt
 console.log(`  policy sets  ${roots.length} — "${roots[0].name}" (same root id, no new root)`);
 for (const r of renamed) console.log(`  renamed      ${r}`);
 console.log(`  de-branded   ${debranded} field(s); ${protectedHits} kept (real PingOne resource names)`);
+console.log(`  overlaid     ${overlaid} generator-owned object(s) from the repo snapshot`
+  + `${overlaid === 0 ? ' — export already matches the generator' : ''}`);
 console.log(`  added to     "${policy.name}" → ${policy.children.length} rules`);
 console.log('  validated    no dangling refs, no multi-parent private statements, no duplicate attribute names');
