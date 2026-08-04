@@ -25,6 +25,39 @@ function stepComplete(step, run, gauntletSims) {
   return Boolean(green && red);
 }
 
+// Light markdown flattening for the agent reply — the heuristic/LLM replies use
+// **bold** and • bullets; strip the markers and keep line breaks (repo bans raw
+// markdown markers in UI text). No HTML injection — plain text, pre-wrapped.
+function plainText(s) {
+  return String(s || "").replace(/\*\*/g, "").replace(/`/g, "").trim();
+}
+
+function SlotResponse({ resp }) {
+  if (!resp) return null;
+  if (resp.sims) {
+    return (
+      <div className="dtp-response">
+        <div className="dtp-response-head">What happened</div>
+        {resp.sims.map((s) => (
+          <div key={s.sim} className="dtp-response-sim">
+            <span className="dtp-response-sim-name">{s.sim}</span>
+            <span className="dtp-response-sim-out">HTTP {s.status}{s.errorCode ? ` · ${s.errorCode}` : ""}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (!resp.reply) return null;
+  return (
+    <div className="dtp-response">
+      <div className="dtp-response-head">
+        Agent response{resp.tools?.length ? <span className="dtp-response-tool"> · {resp.tools.join(", ")}</span> : null}
+      </div>
+      <div className="dtp-response-body">{plainText(resp.reply)}</div>
+    </div>
+  );
+}
+
 function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
   const verdictCls =
     stamp && (stamp.verdict === "PERMIT" ? "dtp-verdict--permit" : stamp.verdict === "STEP_UP" ? "dtp-verdict--stepup" : "dtp-verdict--deny");
@@ -129,6 +162,7 @@ export default function DemoTrackPage() {
   const [vertical, setVertical] = useState(null);
   const [catalog, setCatalog] = useState([]);
   const [slotRuns, setSlotRuns] = useState({}); // `${stepId}:${color}` -> "running" | "done" | "error"
+  const [slotResponses, setSlotResponses] = useState({}); // key -> { reply, tools, sims }
   const slotFlashRef = useRef(null);
   useEffect(() => () => { if (slotFlashRef.current) clearTimeout(slotFlashRef.current); }, []);
 
@@ -173,11 +207,14 @@ export default function DemoTrackPage() {
       // vertical's tool stamp the step) only fires on the active step.
       await apiClient.post("/api/demo-track/active-step", { stepId: step.stepId }).catch(() => {});
       if (slot.source === "sim") {
+        const results = [];
         for (const sim of slot.match?.sims || []) {
           // Sequential on purpose: rapid-fire but ordered, like the launcher.
           // eslint-disable-next-line no-await-in-loop
-          await apiClient.post("/api/demo/attack-sim/run", { sim });
+          const r = await apiClient.post("/api/demo/attack-sim/run", { sim });
+          results.push({ sim, status: r.data?.status, errorCode: r.data?.errorCode });
         }
+        setSlotResponses((cur) => ({ ...cur, [key]: { sims: results } }));
       } else {
         // Arm the flags this step needs (same contract as the launcher/dropdown).
         const flags = requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: slot.match?.tools?.[0] || null });
@@ -187,7 +224,10 @@ export default function DemoTrackPage() {
         }
         const prompt = promptFor(step, color, slot);
         if (!prompt) throw new Error("no dispatchable chip for this slot");
-        await apiClient.post("/api/agent/invoke", { prompt, forceHeuristic: true, vertical: vertical || "banking" });
+        const res = await apiClient.post("/api/agent/invoke", { prompt, forceHeuristic: true, vertical: vertical || "banking" });
+        // Keep what the agent actually said + which tool ran, so the presenter
+        // sees WHAT happened, not just that a slot stamped.
+        setSlotResponses((cur) => ({ ...cur, [key]: { reply: res.data?.reply || "", tools: res.data?.toolsCalled || [] } }));
       }
       // Success: reload (the stamp usually lands here) and flash a "✓ ran"
       // acknowledgement, so a permit doesn't look dead before/instead of the
@@ -271,6 +311,7 @@ export default function DemoTrackPage() {
                     );
                   })}
                 </div>
+                <SlotResponse resp={slotResponses[`${step.stepId}:red`]} />
               </>
             ) : (
               <>
@@ -284,6 +325,7 @@ export default function DemoTrackPage() {
                       onRun={() => runSlot(step, "green", step.slots.green)}
                     />
                     {green?.reason && <div className="dtp-reason dtp-reason--g">{green.reason}</div>}
+                    <SlotResponse resp={slotResponses[`${step.stepId}:green`]} />
                   </>
                 )}
                 {step.slots.red && (
@@ -301,6 +343,7 @@ export default function DemoTrackPage() {
                         {red.reason}
                       </div>
                     )}
+                    <SlotResponse resp={slotResponses[`${step.stepId}:red`]} />
                   </>
                 )}
               </>
