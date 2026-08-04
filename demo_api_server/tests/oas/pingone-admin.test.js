@@ -4,7 +4,12 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
   listTools: jest.fn(),
   callTool: jest.fn(),
 }));
+jest.mock('../../services/pingOneUserService', () => ({
+  initialize: jest.fn(),
+  makeRequest: jest.fn(),
+}));
 const adapter = require('../../services/mcpPingOneHttpAdapter');
+const pingOneUserService = require('../../services/pingOneUserService');
 const plugin = require('../../config/verticals/pingone-admin/index');
 
 const mcpJson = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj) }] });
@@ -82,11 +87,21 @@ test('call_pingone_tool tolerates non-JSON text content', async () => {
   expect(result.source).toBe('live — hosted PingOne MCP');
 });
 
-test('call_pingone_tool falls back to labeled mock for known tool on transport failure', async () => {
+test('call_pingone_tool falls back to the direct Management API for a core tool on transport failure', async () => {
   adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
+  pingOneUserService.makeRequest.mockResolvedValue({ _embedded: { users: [{ id: 'u1' }] } });
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'listUsers' }, {});
+  expect(pingOneUserService.makeRequest).toHaveBeenCalledWith('GET', '/users');
+  expect(result.responseSummary).toBe('1 users found');
+  expect(result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: connect ECONNREFUSED');
+});
+
+test('call_pingone_tool falls back to labeled mock for known tool when the Management API also fails', async () => {
+  adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
+  pingOneUserService.makeRequest.mockRejectedValue(new Error('worker creds not configured'));
   const { result } = await plugin.executeTool('call_pingone_tool', { name: 'listUsers' }, {});
   expect(result.responseSummary).toBe('3 users found'); // oasDiscovery mock has 3 users
-  expect(result.source).toBe('mock — PingOne MCP unavailable: connect ECONNREFUSED');
+  expect(result.source).toBe('mock — PingOne MCP and Management API both unavailable: connect ECONNREFUSED');
 });
 
 test('call_pingone_tool returns labeled unavailable for unknown tool on transport failure', async () => {

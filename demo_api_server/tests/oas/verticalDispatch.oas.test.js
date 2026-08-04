@@ -7,7 +7,12 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
   listTools: jest.fn(),
   callTool: jest.fn(),
 }));
+jest.mock('../../services/pingOneUserService', () => ({
+  initialize: jest.fn(),
+  makeRequest: jest.fn(),
+}));
 const adapter = require('../../services/mcpPingOneHttpAdapter');
+const pingOneUserService = require('../../services/pingOneUserService');
 const { verticalManifest } = require('../../services/verticalManifest');
 const verticalDispatch = require('../../services/verticalDispatch');
 
@@ -38,14 +43,26 @@ describe('pingone-admin vertical dispatch', () => {
     expect(result.result.source).toBe('live — hosted PingOne MCP');
   });
 
-  test('adapter failure surfaces labeled mock fallback through dispatch', async () => {
+  test('adapter failure falls back to the direct Management API through dispatch', async () => {
     adapter.callTool.mockRejectedValue(
       Object.assign(new Error('PingOne MCP HTTP 401'), { code: 'pingone_mcp_http_error' })
     );
+    pingOneUserService.makeRequest.mockResolvedValue({ _embedded: { users: [{ id: 'u1' }] } });
     const result = await verticalDispatch.executeToolFor(
       'pingone-admin', 'call_pingone_tool', { name: 'listUsers' }, { userId: 'test-user' }
     );
-    expect(result.result.source).toBe('mock — PingOne MCP unavailable: PingOne MCP HTTP 401');
+    expect(result.result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: PingOne MCP HTTP 401');
+  });
+
+  test('adapter and Management API both failing surfaces labeled mock fallback through dispatch', async () => {
+    adapter.callTool.mockRejectedValue(
+      Object.assign(new Error('PingOne MCP HTTP 401'), { code: 'pingone_mcp_http_error' })
+    );
+    pingOneUserService.makeRequest.mockRejectedValue(new Error('worker creds not configured'));
+    const result = await verticalDispatch.executeToolFor(
+      'pingone-admin', 'call_pingone_tool', { name: 'listUsers' }, { userId: 'test-user' }
+    );
+    expect(result.result.source).toBe('mock — PingOne MCP and Management API both unavailable: PingOne MCP HTTP 401');
   });
 
   test('new tool names are recognized as plugin tools', () => {
