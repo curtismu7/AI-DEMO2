@@ -1,7 +1,7 @@
 // Guided Demo Track — standalone presenter page (spec surface 1).
 // Live view polls /api/demo-track; the run picker swaps in an archived
 // run from /api/demo-track/runs as a static snapshot (no polling, no mutation).
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import "./DemoTrackPage.css";
 
@@ -77,11 +77,23 @@ export default function DemoTrackPage() {
     return history.find((r) => r.runId === viewRunId) || state.run;
   }, [state, history, viewRunId, isLive]);
 
+  // "idle" | "busy" | "done" | "failed" — visible feedback for Start new run
+  // (a fresh empty run renders identically, so the click needs its own signal).
+  const [runState, setRunState] = useState("idle");
+  const runFlashRef = useRef(null);
+  useEffect(() => () => { if (runFlashRef.current) clearTimeout(runFlashRef.current); }, []);
+
   const startRun = useCallback(async () => {
+    setRunState("busy");
     try {
       await apiClient.post("/api/demo-track/runs");
-      load();
-    } catch { /* next poll recovers */ }
+      await load();
+      setRunState("done");
+    } catch {
+      setRunState("failed");
+    }
+    if (runFlashRef.current) clearTimeout(runFlashRef.current);
+    runFlashRef.current = setTimeout(() => setRunState("idle"), 1800);
   }, [load]);
 
   const onStepClick = useCallback(async (stepId) => {
@@ -204,7 +216,17 @@ export default function DemoTrackPage() {
             </select>
           </label>
           {isLive && (
-            <button type="button" className="dtp-newrun" onClick={startRun}>Start new run</button>
+            <button
+              type="button"
+              className={`dtp-newrun${runState === "failed" ? " dtp-newrun--failed" : ""}`}
+              onClick={startRun}
+              disabled={runState === "busy"}
+            >
+              {runState === "busy" ? "Starting…"
+                : runState === "done" ? "✓ New run started"
+                : runState === "failed" ? "✕ Failed — retry"
+                : "Start new run"}
+            </button>
           )}
           {!isLive && <span className="dtp-history-badge">Viewing history — read-only</span>}
         </div>

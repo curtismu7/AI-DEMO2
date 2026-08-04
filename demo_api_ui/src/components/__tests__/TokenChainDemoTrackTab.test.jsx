@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TokenChainDemoTrackTab from '../TokenChainDemoTrackTab';
+import apiClient from '../../services/apiClient';
+
+vi.mock('../../services/apiClient', () => ({
+  default: { get: vi.fn(), post: vi.fn() },
+}));
 
 const STATE = {
   track: {
@@ -19,7 +24,9 @@ const STATE = {
 };
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(STATE) })));
+  vi.clearAllMocks();
+  apiClient.get.mockResolvedValue({ data: STATE });
+  apiClient.post.mockResolvedValue({ data: {} });
 });
 
 describe('TokenChainDemoTrackTab', () => {
@@ -54,10 +61,26 @@ describe('TokenChainDemoTrackTab', () => {
   it('renders a deny strip that stops at P1AZ with the tool never called', async () => {
     const denyState = JSON.parse(JSON.stringify(STATE));
     denyState.run.slots['pingone-mcp-admin:red'] = { verdict: 'DENY', decisionId: 'd-9', via: 'denied_tool', at: '2026-08-03T10:44:00Z' };
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(denyState) })));
+    apiClient.get.mockResolvedValue({ data: denyState });
     render(<TokenChainDemoTrackTab />);
     await waitFor(() => expect(screen.getAllByText(/DENY ✕/).length).toBeGreaterThan(0));
     expect(screen.getByText('P1AZ DENY ✕')).toBeInTheDocument();
     expect(screen.getByText('denied_tool — never called')).toBeInTheDocument();
+  });
+
+  it('Start new run posts and flashes confirmation', async () => {
+    render(<TokenChainDemoTrackTab />);
+    await waitFor(() => expect(screen.getByText(/Delegated access/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Start new run'));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/demo-track/runs'));
+    await waitFor(() => expect(screen.getByText('✓ New run started')).toBeInTheDocument());
+  });
+
+  it('Start new run surfaces a failure instead of doing nothing', async () => {
+    apiClient.post.mockRejectedValue(new Error('boom'));
+    render(<TokenChainDemoTrackTab />);
+    await waitFor(() => expect(screen.getByText(/Delegated access/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Start new run'));
+    await waitFor(() => expect(screen.getByText('✕ Failed — retry')).toBeInTheDocument());
   });
 });
