@@ -403,12 +403,51 @@
   flex-direction: column;
 }
 
-.afm-live-shell .afm-theme-toggle {
+/* Skin switcher + light/dark, floated over the costume's own title bar. */
+.afm-shell-controls {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 1201;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.afm-live-shell .afm-theme-toggle {
   background: var(--card);
+}
+
+.afm-skin-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px 3px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.afm-skin-picker select {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  max-width: 180px;
+}
+
+/* The controls sit on top of each costume's title bar — reserve room so the
+   "Simulated shell" badge is never hidden underneath them. */
+.afm-live-shell .afm-vcs-title,
+.afm-live-shell .afm-cgpt-title,
+.afm-live-shell .afm-saas-top,
+.afm-live-shell .afm-code-bar {
+  padding-right: 330px;
 }
 
 .afm-live-shell > .afm-vcs,

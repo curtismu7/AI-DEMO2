@@ -719,7 +719,7 @@ select.cur-input { cursor: pointer; }
   gap: 5px;
 }
 
-.cur-skin-label {
+.cur-skin-picker > span {
   font-size: 11px;
   color: #888;
 }

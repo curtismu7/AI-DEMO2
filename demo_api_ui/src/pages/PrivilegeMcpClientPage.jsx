@@ -2,7 +2,7 @@
 // Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { MOCK_CATALOG, writeMockSelection } from '../components/aiFootprintMocks/mockSelection';
+import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -462,28 +462,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
         <div className="cur-titlebar-right">
-          <label className="cur-skin-picker">
-            <span className="cur-skin-label">Skin</span>
-            <select
-              value=""
-              onChange={(e) => {
-                const [category, variant] = e.target.value.split(':');
-                if (!category || !variant) return;
-                writeMockSelection(category, variant);
-                navigate(MOCK_CATALOG[category].route);
-              }}
-              title="Open this client inside a costume shell"
-            >
-              <option value="">Cursor IDE (this page)</option>
-              {Object.entries(MOCK_CATALOG).map(([category, cat]) => (
-                <optgroup key={category} label={cat.label}>
-                  {cat.variants.map((v) => (
-                    <option key={v.id} value={`${category}:${v.id}`}>{v.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+          <FootprintSkinPicker className="cur-skin-picker" />
           <button className="cur-flow-trigger" onClick={() => navigate('/privilege-mcp-learning')} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
