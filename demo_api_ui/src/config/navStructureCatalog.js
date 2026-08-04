@@ -195,3 +195,37 @@ export const NAV_STRUCTURE_CATALOG = [
 
 // Ordered list of all hideable top-level labels (for backward compat).
 export const NAV_ITEM_CATALOG = NAV_STRUCTURE_CATALOG.map((g) => g.label);
+
+// Apply a saved childOrder ({ [groupLabel]: [childLabel, ...] }) to a list of
+// groups. A group's array in childOrder replaces that group's child membership
+// AND order; a child label claimed by any group's array is removed from every
+// other group (moves are by label — a label duplicated across groups, e.g.
+// "MCP Inspector", consolidates into the claiming group). Children not claimed
+// anywhere stay in their original group, appended after the ordered ones, so
+// items added to the sidebar later still show up.
+// Works on catalog groups (children are strings) and AdminSideNav items
+// (children are objects with .label).
+export function applyChildOrder(groups, childOrder) {
+  if (!childOrder || typeof childOrder !== "object" || Array.isArray(childOrder)) return groups;
+  const labelOf = (c) => (typeof c === "string" ? c : c.label);
+  const pool = new Map();
+  groups.forEach((g) => {
+    (g.children || []).forEach((c) => {
+      if (!pool.has(labelOf(c))) pool.set(labelOf(c), c);
+    });
+  });
+  const claimed = new Set(
+    Object.values(childOrder).flat().filter((l) => pool.has(l)),
+  );
+  return groups.map((g) => {
+    if (!Array.isArray(g.children)) return g;
+    const override = Array.isArray(childOrder[g.label]) ? childOrder[g.label] : null;
+    const kept = g.children.filter((c) => !claimed.has(labelOf(c)));
+    if (!override) {
+      return kept.length === g.children.length ? g : { ...g, children: kept };
+    }
+    const ordered = override.filter((l) => pool.has(l)).map((l) => pool.get(l));
+    const rest = kept.filter((c) => !override.includes(labelOf(c)));
+    return { ...g, children: [...ordered, ...rest] };
+  });
+}

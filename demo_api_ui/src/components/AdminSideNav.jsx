@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { applyChildOrder } from "../config/navStructureCatalog";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
 import apiClient from "../services/apiClient";
@@ -210,6 +211,7 @@ export default function AdminSideNav({ user }) {
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
   const [custLoading, setCustLoading] = useState(false);
   const [navOrder, setNavOrder] = useState(null);
+  const [childOrder, setChildOrder] = useState(null);
   const isResizing = useRef(false);
   const showPacEditorLink = isLocalHost();
 
@@ -222,8 +224,9 @@ export default function AdminSideNav({ user }) {
       .then((data) => {
         setHiddenNavLabels(data.hiddenLabels || []);
         setNavOrder(data.navOrder || null);
+        setChildOrder(data.childOrder || null);
       })
-      .catch(() => { setHiddenNavLabels([]); setNavOrder(null); });
+      .catch(() => { setHiddenNavLabels([]); setNavOrder(null); setChildOrder(null); });
   }, [user]);
   // Refetch on 'nav-config-changed' (Demo Config save/apply) so the sidebar
   // updates without a full page reload; also callable via the refresh button.
@@ -962,11 +965,21 @@ export default function AdminSideNav({ user }) {
     filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg" });
   }
 
+  // Apply the user's saved child moves/reorder (Demo Config drag of the items
+  // under a group) AFTER the role/hide filters, so a hidden or role-filtered
+  // child can't be smuggled back in via childOrder. A group whose children all
+  // moved away (and that has no path/action of its own) is dropped — rendering
+  // it would produce a dead <Link to={undefined}>.
+  const childOrderedItems = applyChildOrder(filteredItems, childOrder).filter(
+    (item) =>
+      !(Array.isArray(item.children) && item.children.length === 0 && !item.path && !item.action),
+  );
+
   const navItems = (() => {
-    if (!Array.isArray(navOrder) || navOrder.length === 0) return filteredItems;
-    const byLabel = Object.fromEntries(filteredItems.map((i) => [i.label, i]));
+    if (!Array.isArray(navOrder) || navOrder.length === 0) return childOrderedItems;
+    const byLabel = Object.fromEntries(childOrderedItems.map((i) => [i.label, i]));
     const ordered = navOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
-    const rest = filteredItems.filter((i) => !navOrder.includes(i.label));
+    const rest = childOrderedItems.filter((i) => !navOrder.includes(i.label));
     return [...ordered, ...rest];
   })();
 

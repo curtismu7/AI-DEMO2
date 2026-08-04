@@ -102,23 +102,34 @@ const DEFAULT_HIDDEN_LABELS = ['Use Cases'];
 
 function getUserPrefs(userId) {
   const v = _db().get(`userPrefs:${userId}`);
-  return v || { hiddenLabels: DEFAULT_HIDDEN_LABELS, activeConfigId: null, navOrder: null, updatedAt: null };
+  return v || { hiddenLabels: DEFAULT_HIDDEN_LABELS, activeConfigId: null, navOrder: null, childOrder: null, updatedAt: null };
 }
 
-function setUserPrefs(userId, hiddenLabels, activeConfigId, navOrder) {
+// navOrder / childOrder: explicit null clears the stored value (Reset order),
+// undefined leaves it untouched (callers that only update hiddenLabels).
+function setUserPrefs(userId, hiddenLabels, activeConfigId, navOrder, childOrder) {
   const existing = getUserPrefs(userId);
   const prefs = {
     hiddenLabels,
     activeConfigId: activeConfigId || null,
-    navOrder: Array.isArray(navOrder) ? navOrder : (existing.navOrder || null),
+    navOrder: navOrder === null ? null : (Array.isArray(navOrder) ? navOrder : (existing.navOrder || null)),
+    childOrder: childOrder === null ? null : (isChildOrder(childOrder) ? childOrder : (existing.childOrder || null)),
     updatedAt: Date.now(),
   };
   _db().putSync(`userPrefs:${userId}`, prefs);
   return prefs;
 }
 
+// { [groupLabel]: [childLabel, ...] } — plain object of string arrays.
+function isChildOrder(v) {
+  return (
+    !!v && typeof v === 'object' && !Array.isArray(v) &&
+    Object.values(v).every((arr) => Array.isArray(arr) && arr.every((l) => typeof l === 'string'))
+  );
+}
+
 module.exports = {
   listConfigs, getConfig, createConfig, deleteConfig,
-  getUserPrefs, setUserPrefs,
+  getUserPrefs, setUserPrefs, isChildOrder,
   seedBuiltins, BUILTIN_CONFIGS, DEFAULT_HIDDEN_LABELS, DB_NAME,
 };

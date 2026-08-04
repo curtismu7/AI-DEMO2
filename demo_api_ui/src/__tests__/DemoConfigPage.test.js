@@ -6,14 +6,18 @@ import DemoConfigPage from "../components/DemoConfigPage";
 
 vi.mock("../styles/appShellPages.css", () => ({}), { virtual: true });
 vi.mock("../components/DemoConfigPage.css", () => ({}), { virtual: true });
-vi.mock("../config/navStructureCatalog", () => ({
-  NAV_STRUCTURE_CATALOG: [
-    { label: "Themes" },
-    { label: "Monitoring", children: ["Audit Trail", "Activity Log"] },
-    { label: "Authorize" },
-  ],
-  NAV_ITEM_CATALOG: ["Themes", "Monitoring", "Authorize"],
-}));
+vi.mock("../config/navStructureCatalog", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    NAV_STRUCTURE_CATALOG: [
+      { label: "Themes" },
+      { label: "Monitoring", children: ["Audit Trail", "Activity Log"] },
+      { label: "Authorize", children: ["Scope Audit"] },
+    ],
+    NAV_ITEM_CATALOG: ["Themes", "Monitoring", "Authorize"],
+  };
+});
 
 const PREFS_RESPONSE = { hiddenLabels: ["Themes"], activeConfigId: null, flagOn: true };
 const CONFIGS_RESPONSE = {
@@ -66,6 +70,35 @@ describe("DemoConfigPage", () => {
     await waitFor(() => expect(screen.getByText(/of 3 visible/)).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Monitoring"));
     expect(await screen.findByText(/1 of 3 visible/)).toBeInTheDocument();
+  });
+
+  it("drags a child item from one group to another and saves it as childOrder", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+
+    // Expand both groups (Monitoring and Authorize have children).
+    const expandButtons = screen.getAllByLabelText("Expand");
+    expect(expandButtons).toHaveLength(2);
+    fireEvent.click(expandButtons[0]);
+    fireEvent.click(expandButtons[1]);
+
+    // Drag "Audit Trail" (Monitoring) onto "Scope Audit" (Authorize) — inserts before it.
+    fireEvent.dragStart(screen.getByText("Audit Trail"));
+    fireEvent.drop(screen.getByText("Scope Audit"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save & refresh sidebar" }));
+
+    await waitFor(() => {
+      const put = global.fetch.mock.calls.find(
+        (call) => call[1]?.method === "PUT" && String(call[0]).includes("/api/user/nav-config"),
+      );
+      expect(put).toBeTruthy();
+      expect(JSON.parse(put[1].body).childOrder).toEqual({
+        Monitoring: ["Activity Log"],
+        Authorize: ["Audit Trail", "Scope Audit"],
+      });
+    });
   });
 
   it("shows an error banner when the prefs fetch fails", async () => {
