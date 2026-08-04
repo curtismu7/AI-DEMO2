@@ -1,11 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 import DemoTrackPage from "../DemoTrackPage";
 import apiClient from "../../services/apiClient";
 
 vi.mock("../../services/apiClient", () => ({
-  default: { get: vi.fn(), post: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
 }));
 
 const STEP = (stepId, act, title, extra = {}) => ({
@@ -55,9 +55,20 @@ function mockApi() {
   apiClient.get.mockImplementation((url) => {
     if (url === "/api/demo-track") return Promise.resolve({ data: { track: TRACK, run: ACTIVE_RUN } });
     if (url === "/api/demo-track/runs") return Promise.resolve({ data: { runs: [OLD_RUN] } });
+    if (url === "/api/verticals/me") return Promise.resolve({ data: { activeId: "healthcare" } });
+    if (String(url).startsWith("/api/use-cases")) {
+      return Promise.resolve({
+        data: {
+          useCases: [
+            { id: "UC1", useCaseId: "delegated-access", trigger: { type: "chip", text: "show my healthcare balance" } },
+          ],
+        },
+      });
+    }
     return Promise.reject(new Error(`unexpected ${url}`));
   });
   apiClient.post.mockResolvedValue({ data: {} });
+  apiClient.patch.mockResolvedValue({ data: {} });
 }
 
 describe("DemoTrackPage", () => {
@@ -139,5 +150,35 @@ describe("DemoTrackPage", () => {
     expect(screen.queryByText(/Track complete/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Run"), { target: { value: "run-done" } });
     await waitFor(() => expect(screen.getByText(/Track complete/)).toBeInTheDocument());
+  });
+
+  it("shows the active vertical and dispatches the catalog-resolved chip through the agent", async () => {
+    render(<DemoTrackPage />);
+    await screen.findByText("Delegated access");
+    await waitFor(() => expect(screen.getByText("Vertical: healthcare")).toBeInTheDocument());
+    // catalog trigger text (per-vertical) replaces the config chip text
+    await waitFor(() => expect(screen.getByText("show my healthcare balance")).toBeInTheDocument());
+    const row = screen.getByText("show my healthcare balance").closest(".dtp-run-row");
+    fireEvent.click(within(row).getByRole("button", { name: /^Run/ }));
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith("/api/agent/invoke", {
+        prompt: "show my healthcare balance",
+        forceHeuristic: true,
+        vertical: "healthcare",
+      })
+    );
+    // gateway runtime flag armed before dispatch (launcher contract)
+    expect(apiClient.patch).toHaveBeenCalledWith("/api/admin/feature-flags", expect.objectContaining({
+      updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }),
+    }));
+  });
+
+  it("runs sim-sourced red slots through the attack-sim API", async () => {
+    render(<DemoTrackPage />);
+    await screen.findByText("Attack gauntlet");
+    fireEvent.click(screen.getByText("Attack gauntlet"));
+    fireEvent.click(await screen.findByText("Run all 6 attacks"));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/demo/attack-sim/run", { sim: "s1" }));
+    expect(apiClient.post).toHaveBeenCalledWith("/api/demo/attack-sim/run", { sim: "s2" });
   });
 });
