@@ -28,7 +28,7 @@ export default function FootprintPicksPage() {
           <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
         <p>
-          Pick which shell to focus, then open it live (Ping banking agent — sign-in required).
+          Pick which shell to focus, then open it live (Privilege MCP client — sign-in required).
         </p>
         <div className="afm-gallery-note">
           <Link to="/demo/footprint-mocks">Change picks (full gallery)</Link>

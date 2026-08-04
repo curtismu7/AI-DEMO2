@@ -12,15 +12,21 @@ const SAMPLE_TS = `export async function createTransfer(req) {
 export function SimulatedBadge({ pill = false }) {
   return (
     <span className={`afm-badge${pill ? " afm-badge--pill" : ""}`}>
-      Simulated shell · Ping demo agent
+      Simulated shell · Ping Privilege MCP client
     </span>
   );
+}
+
+/** Host-slot content shared by all costume shells: live children, else preview placeholder. */
+function hostContent(children, preview) {
+  if (children) return children;
+  return preview ? "Privilege client host (live on demo route)" : null;
 }
 
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onExit }) {
+export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onExit, children }) {
   const light = variant === "light";
   const studio = variant === "copilot-studio";
   const cls = [
@@ -75,14 +81,14 @@ export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = fals
               ref={hostRef}
               className={`afm-host${preview ? " afm-host--preview" : ""}`}
             >
-              {preview ? "Agent host (live on demo route)" : null}
+              {hostContent(children, preview)}
             </div>
           </aside>
         </div>
       </div>
       <div className="afm-vcs-status">
         <span>main*</span>
-        <span>Ping demo agent</span>
+        <span>Ping Privilege MCP</span>
       </div>
     </div>
   );
@@ -91,7 +97,7 @@ export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = fals
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onExit }) {
+export function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onExit, children }) {
   const light = variant === "desktop-light";
   const web = variant === "web";
   const cls = [
@@ -134,10 +140,10 @@ export function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = fal
             ref={hostRef}
             className={`afm-host${preview ? " afm-host--preview" : ""}`}
           >
-            {preview ? "Agent host (live on demo route)" : null}
+            {hostContent(children, preview)}
           </div>
           <div className="afm-cgpt-foot">
-            Simulated chrome. Messages use the Ping demo banking agent.
+            Simulated chrome. Calls go to the Ping Privilege MCP gateway.
           </div>
         </section>
       </div>
@@ -178,7 +184,7 @@ const SAAS_COPY = {
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit }) {
+export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit, children }) {
   const copy = SAAS_COPY[variant] || SAAS_COPY.zendesk;
   return (
     <div className={`afm-saas afm-saas--${variant}`} data-variant={variant}>
@@ -214,7 +220,7 @@ export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onEx
             ref={hostRef}
             className={`afm-host${preview ? " afm-host--preview" : ""}`}
           >
-            {preview ? "Agent host (live on demo route)" : null}
+            {hostContent(children, preview)}
           </div>
         </aside>
       </div>
@@ -225,7 +231,7 @@ export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onEx
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExit }) {
+export function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExit, children }) {
   if (variant === "claude-code") {
     return (
       <div className="afm-code afm-code--claude" data-variant={variant}>
@@ -258,7 +264,7 @@ export function CodingChrome({ variant = "claude-code", hostRef, preview = false
               ref={hostRef}
               className={`afm-host${preview ? " afm-host--preview" : ""}`}
             >
-              {preview ? "Agent host (live on demo route)" : null}
+              {hostContent(children, preview)}
             </div>
           </aside>
         </div>
@@ -294,7 +300,7 @@ export function CodingChrome({ variant = "claude-code", hostRef, preview = false
               ref={hostRef}
               className={`afm-host${preview ? " afm-host--preview" : ""}`}
             >
-              {preview ? "Agent host (live on demo route)" : null}
+              {hostContent(children, preview)}
             </div>
           </aside>
         </div>
@@ -327,7 +333,7 @@ export function CodingChrome({ variant = "claude-code", hostRef, preview = false
             ref={hostRef}
             className={`afm-host${preview ? " afm-host--preview" : ""}`}
           >
-            {preview ? "Agent host (live on demo route)" : null}
+            {hostContent(children, preview)}
           </div>
         </aside>
       </div>
@@ -338,18 +344,18 @@ export function CodingChrome({ variant = "claude-code", hostRef, preview = false
 /**
  * Render chrome for a catalog category + variant id.
  */
-export function FootprintChrome({ category, variant, hostRef, preview, onExit }) {
+export function FootprintChrome({ category, variant, hostRef, preview, onExit, children }) {
   if (category === "vscode") {
-    return <VsCodeChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit} />;
+    return <VsCodeChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</VsCodeChrome>;
   }
   if (category === "chatgpt") {
-    return <ChatGptChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit} />;
+    return <ChatGptChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</ChatGptChrome>;
   }
   if (category === "saas") {
-    return <SaasChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit} />;
+    return <SaasChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</SaasChrome>;
   }
   if (category === "coding") {
-    return <CodingChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit} />;
+    return <CodingChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</CodingChrome>;
   }
   return null;
 }

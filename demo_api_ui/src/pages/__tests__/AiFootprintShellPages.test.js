@@ -4,8 +4,13 @@ import { MemoryRouter } from "react-router-dom";
 import FootprintMockGalleryPage from "../FootprintMockGalleryPage";
 import FootprintLiveShellPage from "../FootprintLiveShellPage";
 
-jest.mock("../../hooks/useAgentSurfaceHost", () => ({
-  useAgentSurfaceHost: () => jest.fn(),
+// Live shells mount the Privilege MCP client panel, which probes the BFF on
+// mount — keep the probe pending so these layout tests stay synchronous.
+vi.mock("../../services/apiClient", () => ({
+  default: {
+    get: vi.fn(() => new Promise(() => {})),
+    post: vi.fn(() => new Promise(() => {})),
+  },
 }));
 
 describe("AI footprint mock gallery", () => {
@@ -76,6 +81,7 @@ describe("AI footprint live shell", () => {
     expect(screen.getByTestId("footprint-live-vscode")).toBeInTheDocument();
     expect(screen.getByText(/Simulated shell/)).toBeInTheDocument();
     expect(screen.getByText("Copilot Chat")).toBeInTheDocument();
+    expect(screen.getByTestId("privilege-shell-panel")).toBeInTheDocument();
   });
 
   it("has a light/dark toggle scoped to this page", () => {
