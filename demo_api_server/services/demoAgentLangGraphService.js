@@ -742,7 +742,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
  * Thin wrapper around dispatchBankingAction.
  * @returns {{ reply: string, success: boolean, toolsCalled: string[], tokensUsed: number, requiresConsent: boolean, agentConfigured: boolean, tokenEvents: any[] } | null}
  */
-async function executeHeuristicBanking(parsed, userId, userToken, req = null, subjectToken = null, verticalCtx = null) {
+async function executeHeuristicBanking(parsed, userId, userToken, req = null, subjectToken = null, verticalCtx = null, activeVerticalId = null) {
   const action = parsed?.banking?.action;
   const params = parsed?.banking?.params || {};
   if (!action) return null;
@@ -753,7 +753,11 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
     subjectToken,
     isAdmin: req?.session?.user?.role === 'admin',
     terminology: (verticalCtx && verticalCtx.terminology) || null,
-    vertical: 'banking',
+    // branch_hours (UC24 public catalog) is the one kind:'banking' action whose
+    // DATA is vertical-scoped — a hardcoded 'banking' here served Super Banking
+    // branches to every vertical. All other banking aliases keep 'banking' so
+    // account seeding and MCP routing stay on the shared banking rails.
+    vertical: action === 'branch_hours' ? (activeVerticalId || 'banking') : 'banking',
   };
 
   return dispatchBankingAction(action, params, userId, ctx);
@@ -1741,7 +1745,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         return verticalResult;
       }
       if (heuristic && heuristic.kind === 'banking') {
-        const heuristicResult = await executeHeuristicBanking(heuristic, userId, userToken, req, subjectToken, _verticalCtx);
+        const heuristicResult = await executeHeuristicBanking(heuristic, userId, userToken, req, subjectToken, _verticalCtx, _activeVerticalId);
         if (heuristicResult) {
           // Best-effort agent-path attribution for the delegation audit log
           // (see delegationAuditLogger.buildAuditEvent agentPath). req may be
