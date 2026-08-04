@@ -112,17 +112,28 @@ export default function TokenChainDemoTrackTab() {
         {isGauntlet ? (
           <div className="tct-gauntlet">
             <span className="tct-gauntlet-score">{gauntletBlocked} / {gauntletTotal} blocked</span>
-            {track.gauntletSims.map(g => (
-              <span key={g.sim} className={`tct-tile${run.gauntlet[g.sim]?.blocked ? " tct-tile--blocked" : ""}`}>
-                {g.label}{run.gauntlet[g.sim]?.blocked ? " ✓" : ""}
-              </span>
-            ))}
+            {track.gauntletSims.map(g => {
+              const tile = run.gauntlet[g.sim];
+              return (
+                <span key={g.sim} className={`tct-tile${tile?.blocked ? " tct-tile--blocked" : ""}`} title={tile?.reason || ""}>
+                  {g.label}{tile?.blocked ? " ✓" : ""}
+                  {tile?.errorCode ? <span className="tct-tile-code">{tile.errorCode}</span> : null}
+                </span>
+              );
+            })}
           </div>
         ) : (
           <div className="tct-slots">
             {step.slots.green && <div className="tct-slot-row"><span className="tct-tag tct-tag--g">GREEN</span>{slotBadge(green, step.slots.green)}</div>}
+            {green?.reason && <div className="tct-reason tct-reason--g">{green.reason}</div>}
             {green && <ChainStrip stamp={green} />}
             {step.slots.red && <div className="tct-slot-row"><span className="tct-tag tct-tag--r">RED</span>{slotBadge(red, step.slots.red)}</div>}
+            {red?.reason && (
+              <div className="tct-reason tct-reason--r">
+                {red.errorCode ? <span className="tct-reason-code">{red.errorCode}</span> : null}
+                {red.reason}
+              </div>
+            )}
             {red && <ChainStrip stamp={red} />}
           </div>
         )}

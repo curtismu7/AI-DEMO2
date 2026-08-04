@@ -33,7 +33,7 @@ function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
       <span className={`dtp-run-tag dtp-run-tag--${tag === "GREEN" ? "g" : "r"}`}>{tag}</span>
       <span className="dtp-chip">{prompt || slot.chipText || slot.label}</span>
       {stamp ? (
-        <span className={`dtp-verdict ${verdictCls}`}>
+        <span className={`dtp-verdict ${verdictCls}`} title={stamp.reason || ""}>
           {stamp.verdict} {stamp.verdict === "PERMIT" ? "✓" : "✕"} {fmtTime(stamp.at)}
           {stamp.decisionId ? ` · ${stamp.decisionId}` : ""}
         </span>
@@ -253,7 +253,9 @@ export default function DemoTrackPage() {
                         <div className="dtp-g-uc">{g.ucId}</div>
                         <span className={`dtp-g-verdict${tile?.blocked ? " dtp-g-verdict--blocked" : ""}`}>
                           {tile?.blocked ? "BLOCKED ✓" : "pending"}
+                          {tile?.errorCode ? <span className="dtp-g-code">{tile.errorCode}</span> : null}
                         </span>
+                        {tile?.reason && <div className="dtp-g-reason">{tile.reason}</div>}
                       </div>
                     );
                   })}
@@ -262,22 +264,33 @@ export default function DemoTrackPage() {
             ) : (
               <>
                 {step.slots.green && (
-                  <SlotRow
-                    tag="GREEN" slot={step.slots.green} stamp={green}
-                    prompt={promptFor(step, "green", step.slots.green)}
-                    canRun={isLive && Boolean(promptFor(step, "green", step.slots.green))}
-                    runStatus={slotRuns[`${step.stepId}:green`]}
-                    onRun={() => runSlot(step, "green", step.slots.green)}
-                  />
+                  <>
+                    <SlotRow
+                      tag="GREEN" slot={step.slots.green} stamp={green}
+                      prompt={promptFor(step, "green", step.slots.green)}
+                      canRun={isLive && Boolean(promptFor(step, "green", step.slots.green))}
+                      runStatus={slotRuns[`${step.stepId}:green`]}
+                      onRun={() => runSlot(step, "green", step.slots.green)}
+                    />
+                    {green?.reason && <div className="dtp-reason dtp-reason--g">{green.reason}</div>}
+                  </>
                 )}
                 {step.slots.red && (
-                  <SlotRow
-                    tag="RED" slot={step.slots.red} stamp={red}
-                    prompt={step.slots.red.source === "sim" ? null : promptFor(step, "red", step.slots.red)}
-                    canRun={isLive && (step.slots.red.source === "sim" || Boolean(step.slots.red.chipText))}
-                    runStatus={slotRuns[`${step.stepId}:red`]}
-                    onRun={() => runSlot(step, "red", step.slots.red)}
-                  />
+                  <>
+                    <SlotRow
+                      tag="RED" slot={step.slots.red} stamp={red}
+                      prompt={step.slots.red.source === "sim" ? null : promptFor(step, "red", step.slots.red)}
+                      canRun={isLive && (step.slots.red.source === "sim" || Boolean(step.slots.red.chipText))}
+                      runStatus={slotRuns[`${step.stepId}:red`]}
+                      onRun={() => runSlot(step, "red", step.slots.red)}
+                    />
+                    {red?.reason && (
+                      <div className="dtp-reason dtp-reason--r">
+                        {red.errorCode ? <span className="dtp-reason-code">{red.errorCode}</span> : null}
+                        {red.reason}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}

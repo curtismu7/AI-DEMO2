@@ -11,6 +11,30 @@ const { TRACK_STEPS, GAUNTLET_SIMS, getTrackDefinition } = require('../config/de
 let lmdb = null;
 try { lmdb = require('./lmdb/demoTrackStore.lmdb'); } catch { /* tests without LMDB env */ }
 
+/**
+ * Human-readable "why" per enforcement error code — the demo teaches nothing
+ * from a bare BLOCKED. Keys are the error codes the sims/pipeline actually
+ * emit (see tests/real/shared/attack-sims-live.test.js taxonomy).
+ */
+const REASONS = {
+  invalid_aud: 'Audience check failed at gateway introspection — the token was minted for a different resource (aud mismatch), so a replayed/stolen token is useless here.',
+  missing_act: 'PingOne Authorize denied: no act claim — the call carried no delegated-actor chain, so direct impersonation of the user was refused.',
+  mcp_invalid_actor: 'PingOne Authorize denied: invalid actor chain — an injected (rogue) actor failed the delegation check.',
+  insufficient_scope: 'Scope check failed — the token\'s scopes do not cover this tool (read token used for a write, or an ungranted tool).',
+  resource_owner_mismatch: 'Resource-ownership check — the target account belongs to a different user; cross-owner access is denied at the data plane.',
+  invalid_signature: 'Intent-token signature check failed — the stated intent was tampered with after it was minted, so the gateway refused the call.',
+  rar_amount_exceeded: 'RAR authorization_details — the amount exceeds the ceiling granted at authorization time.',
+  gateway_policy_denied: 'PingGateway policy denied the request in the filter chain (rate limit, fail-closed introspection outage, or an explicit gateway rule).',
+  mcp_authorize_denied: 'PingOne Authorize policy decision: DENY — the externalized policy refused this action; the tool was never invoked.',
+  mcp_authorization_denied: 'PingOne Authorize policy decision: DENY — the externalized policy refused this action; the tool was never invoked.',
+  mcp_step_up_required: 'Step-up required — PingOne Authorize demands fresh MFA before this action proceeds (HTTP 428 challenge).',
+  mcp_hitl_required: 'Human-in-the-loop — a human must approve this action out-of-band; the agent cannot proceed on its own.',
+  hitl_required: 'Human-in-the-loop — a human must approve this action out-of-band; the agent cannot proceed on its own.',
+};
+function _reasonFor(errorCode, fallback) {
+  return (errorCode && REASONS[errorCode]) || fallback || (errorCode ? `denied with ${errorCode}` : null);
+}
+
 const ACTIVE_KEY = 'demo-track:active';
 const HISTORY_KEY = 'demo-track:history';
 const HISTORY_CAP = 20;
@@ -94,7 +118,7 @@ function _fill(run, stepId, color, stamp) {
   _persist();
 }
 
-function observeToolCall({ toolName, success, timestamp, decisionId }) {
+function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }) {
   try {
     const run = _ensureRun();
     const at = timestamp || new Date().toISOString();
@@ -102,26 +126,37 @@ function observeToolCall({ toolName, success, timestamp, decisionId }) {
       if (success) {
         const g = step.slots.green;
         if (g && g.source === 'tool' && _toolMatches(g, toolName, wildcardOk)) {
-          return _fill(run, step.stepId, 'green', { verdict: 'PERMIT', decisionId: decisionId || null, via: toolName, at });
+          return _fill(run, step.stepId, 'green', {
+            verdict: 'PERMIT', decisionId: decisionId || null, via: toolName, at,
+            reason: `PingOne Authorize permitted ${toolName} — the delegated call satisfied policy and ran.`,
+          });
         }
       } else {
         const r = step.slots.red;
         if (r && r.source === 'tool' && r.expected.includes('DENY') && _toolMatches(r, toolName, wildcardOk)) {
-          return _fill(run, step.stepId, 'red', { verdict: 'DENY', decisionId: decisionId || null, via: toolName, at });
+          return _fill(run, step.stepId, 'red', {
+            verdict: 'DENY', decisionId: decisionId || null, via: toolName, at,
+            errorCode: errorCode || null,
+            reason: _reasonFor(errorCode, `${toolName} was denied — the tool was never invoked.`),
+          });
         }
       }
     }
   } catch { /* never throw into the audit path */ }
 }
 
-function observeDecision({ tool, decision, decisionId }) {
+function observeDecision({ tool, decision, decisionId, errorCode }) {
   try {
     const run = _ensureRun();
     const at = new Date().toISOString();
     for (const { step, wildcardOk } of _candidates(run)) {
       const r = step.slots.red;
       if (r && r.source === 'tool' && r.expected.includes(decision) && _toolMatches(r, tool, wildcardOk)) {
-        return _fill(run, step.stepId, 'red', { verdict: decision, decisionId: decisionId || null, via: tool, at });
+        return _fill(run, step.stepId, 'red', {
+          verdict: decision, decisionId: decisionId || null, via: tool, at,
+          errorCode: errorCode || null,
+          reason: _reasonFor(errorCode, `${tool} → ${decision}: the externalized policy stopped the call before the tool ran.`),
+        });
       }
     }
   } catch { /* never throw into the pipeline */ }
@@ -132,8 +167,9 @@ function observeAttackSim({ sim, status, errorCode, decisionId }) {
     const run = _ensureRun();
     const at = new Date().toISOString();
     const blocked = Number(status) >= 400;
+    const reason = _reasonFor(errorCode, blocked ? `attack blocked (HTTP ${status})` : null);
     if (GAUNTLET_SET.has(sim)) {
-      run.gauntlet[sim] = { blocked, status, errorCode: errorCode || null, decisionId: decisionId || null, at };
+      run.gauntlet[sim] = { blocked, status, errorCode: errorCode || null, decisionId: decisionId || null, at, reason };
       _maybeAdvance(run);
       _persist();
     }
@@ -141,7 +177,10 @@ function observeAttackSim({ sim, status, errorCode, decisionId }) {
     for (const { step } of _candidates(run)) {
       const r = step.slots.red;
       if (r && r.source === 'sim' && r.match.sims.includes(sim)) {
-        return _fill(run, step.stepId, 'red', { verdict: 'BLOCKED', decisionId: decisionId || null, via: sim, at });
+        return _fill(run, step.stepId, 'red', {
+          verdict: 'BLOCKED', decisionId: decisionId || null, via: sim, at,
+          errorCode: errorCode || null, reason,
+        });
       }
     }
   } catch { /* never throw into the sim route */ }

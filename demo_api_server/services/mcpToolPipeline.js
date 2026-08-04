@@ -461,6 +461,7 @@ async function runMcpToolPipeline(ctx) {
                     tool,
                     decision: _trackDecision,
                     decisionId: _b.decisionId || null,
+                    errorCode: _b.error || null,
                 });
             } catch { /* track observation is optional */ }
             // Scenario 5 — record the preflight authorize decision to the durable
@@ -1274,6 +1275,7 @@ async function runMcpToolPipeline(ctx) {
                     tool,
                     decision: 'HITL',
                     decisionId: err.rpcData?.challengeId || null,
+                    errorCode: 'mcp_hitl_required',
                 });
             } catch (_) { /* track observation is optional */ }
             try {
