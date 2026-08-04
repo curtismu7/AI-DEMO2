@@ -15,6 +15,7 @@ import TraceTrustPanel from "./TraceTrustPanel";
 import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
+import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import "./TokenChainTraceRail.css";
 
 const ZOOM_KEY = "tctr:zoom";
@@ -235,6 +236,12 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           onClick={() => setTab("detailed")}>
           Detailed
         </button>
+        <button type="button" role="tab" aria-selected={tab === "demo-track"}
+          className={`tctr-tab${tab === "demo-track" ? " tctr-tab--active" : ""}`}
+          onClick={() => setTab("demo-track")}
+          title="Guided Demo Track — live step tracker">
+          Demo Track
+        </button>
       </div>
 
       {tab === "chain" ? (
@@ -287,6 +294,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
         <SimpleStepper events={tokenChain?.events ?? []} />
       ) : tab === "detailed" ? (
         <DetailedStepper events={tokenChain?.events ?? []} />
+      ) : tab === "demo-track" ? (
+        <TokenChainDemoTrackTab />
       ) : (
         <TraceMcpPanel steps={steps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
