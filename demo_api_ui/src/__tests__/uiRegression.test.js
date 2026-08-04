@@ -291,6 +291,7 @@ describe("CSS/JS monospace regression", () => {
         f.includes("TokenTopologyPanel.css") ||          // lane identifier display (intentional)
         f.includes("UnifiedTokenFlowInspector.css") ||   // token inspector code/JSON display (intentional)
         f.includes("aiFootprintMocks/chrome.css") ||     // mock code-editor/terminal chrome display (intentional)
+        f.includes("aiFootprintMocks/PrivilegeShellPanel.css") || // Privilege MCP tool/args/JSON display (intentional)
         f.includes("shared/InspectorShell.css") ||       // shared inspector template code display (intentional)
         f.includes("shared/JsonColumnsView.css") ||      // JSON display component (intentional)
         f.includes("shared/JsonFormView.css") ||         // JSON display component (intentional)

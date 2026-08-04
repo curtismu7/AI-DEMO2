@@ -1,11 +1,11 @@
 // demo_api_ui/src/pages/FootprintLiveShellPage.jsx
-// Live costume shell: selected chrome + real BankingAgent via surfaceHostEl.
+// Live costume shell: selected chrome hosting the Privilege MCP client panel.
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
 import { MOCK_CATALOG, readMockSelection } from "../components/aiFootprintMocks/mockSelection";
 import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
-import { useAgentSurfaceHost } from "../hooks/useAgentSurfaceHost";
+import { PrivilegeShellPanel } from "../components/aiFootprintMocks/PrivilegeShellPanel";
 import { useFootprintTheme } from "../hooks/useFootprintTheme";
 import "./FootprintMockGalleryPage.css";
 
@@ -24,7 +24,6 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
   const navigate = useNavigate();
   const [theme, toggleTheme] = useFootprintTheme();
   const category = categoryProp || PATH_TO_CATEGORY[shellSlug] || "vscode";
-  const hostRef = useAgentSurfaceHost();
 
   const variant = useMemo(() => {
     const sel = readMockSelection();
@@ -39,9 +38,10 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
       <FootprintChrome
         category={category}
         variant={variant}
-        hostRef={hostRef}
         onExit={() => navigate("/demo/footprint-picks")}
-      />
+      >
+        <PrivilegeShellPanel skin={category} />
+      </FootprintChrome>
     </div>
   );
 }

@@ -34,6 +34,19 @@ function getClientSession(req) {
   return session;
 }
 
+/**
+ * Only accept a site-relative path ("/x", never "//host", a full URL, or a
+ * path with query/fragment) so the OAuth callback can never redirect off-site.
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+function sanitizeReturnTo(value) {
+  if (typeof value !== 'string' || value.length > 200) return null;
+  if (!value.startsWith('/') || value.startsWith('//')) return null;
+  if (value.includes('\\') || value.includes('?') || value.includes('#')) return null;
+  return value;
+}
+
 
 
 // ---------------------------------------------------------------------------
@@ -418,7 +431,8 @@ router.post('/auth/start', express.json(), async (req, res) => {
     const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
     if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
-    session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri };
+    const returnTo = sanitizeReturnTo(req.body?.returnTo);
+    session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri, returnTo };
     // Force express-session to persist so connect.sid cookie survives the redirect
     req.session.privilegeOAuthStarted = true;
     emitEvent(session, 'oauth', { phase: 'start', authorizationUri, tokenUri, authUrl: authUrl.toString() });
@@ -432,9 +446,11 @@ router.post('/auth/start', express.json(), async (req, res) => {
 // GET /auth/callback — OAuth code exchange
 router.get('/auth/callback', async (req, res) => {
   const session = getClientSession(req);
+  // returnTo was sanitized at /auth/start time (site-relative path only).
+  const returnBase = sanitizeReturnTo(session.pendingAuth?.returnTo) || '/privilege-mcp-client';
   const redirectWithError = (reason) => {
     const safeReason = encodeURIComponent((reason || 'OAuth callback failed').slice(0, 300));
-    res.redirect(`/privilege-mcp-client?auth=error&reason=${safeReason}`);
+    res.redirect(`${returnBase}?auth=error&reason=${safeReason}`);
   };
 
   try {
@@ -480,7 +496,7 @@ router.get('/auth/callback', async (req, res) => {
     resetMcpState(session);
 
     emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
-    res.redirect('/privilege-mcp-client?auth=success');
+    res.redirect(`${returnBase}?auth=success`);
   } catch (err) {
     emitEvent(session, 'error', { scope: 'oauth_callback', message: err.message });
     redirectWithError(err.message);

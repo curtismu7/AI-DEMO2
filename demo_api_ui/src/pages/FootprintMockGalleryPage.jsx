@@ -65,7 +65,7 @@ export default function FootprintMockGalleryPage() {
         <p>
           {picksOnly
             ? "Only the four picks you locked. Open live to rehearse, or switch to all variants to change a pick."
-            : "Choose a visual costume for each demo shell. Live routes host the real Ping banking agent inside the selected chrome."}
+            : "Choose a visual costume for each demo shell. Live routes host the Ping Privilege MCP client inside the selected chrome."}
         </p>
         <div className="afm-gallery-note">
           {picksOnly ? (

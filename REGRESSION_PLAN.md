@@ -102,6 +102,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-04 — Footprint live shells rendered an empty agent pane; repurposed to host the Privilege MCP client
+
+**Files changed:** `demo_api_ui/src/pages/FootprintLiveShellPage.jsx`,
+`demo_api_ui/src/components/aiFootprintMocks/{ChromeFrames.jsx,PrivilegeShellPanel.jsx (new),PrivilegeShellPanel.css (new)}`,
+`demo_api_ui/src/hooks/useAgentSurfaceHost.js` (deleted),
+`demo_api_server/routes/privilegeMcpClient.js`
+**What was broken:** `/demo/:shellSlug` costume shells registered a
+`surfaceHostEl` portal and fired `banking-agent-open`, but `shouldMountSingleAgent`
+(App.js) has no clause for those routes, so no `<AIAgent>` ever mounted — the
+agent pane stayed empty with zero console errors.
+**What was fixed:** the shells no longer depend on the single-agent portal at
+all. Each costume chrome now accepts `children` in its host slot, and
+`FootprintLiveShellPage` renders `PrivilegeShellPanel` (Privilege MCP client:
+state probe, PKCE sign-in, tools/list, tools/call via `/api/privilege-mcp`).
+The BFF's `/auth/start` accepts a `returnTo` (site-relative path only —
+sanitized against open redirects) so the OAuth callback lands back in the shell.
+**Do not break:** `sanitizeReturnTo` must keep rejecting absolute/`//`/query
+paths; `shouldMountSingleAgent` in App.js was intentionally NOT extended to
+`/demo/:shellSlug` — the shells own their panel now, adding the route there
+would double-render an agent surface.
+**Verify:** `demo_api_ui`: `npm run test:unit && npm run build`;
+`demo_api_server`: `CI=true npx jest tests/routes/privilegeMcpClient.returnTo.test.js --forceExit`.
+
 ### 2026-08-03 — Stage 0 negative-chip parity: 24 missing deny/wrong-aud/bad-scope chips across 8 verticals, no client dispatch rail
 
 **Files changed:** `demo_api_ui/src/components/agentChrome.js`,
