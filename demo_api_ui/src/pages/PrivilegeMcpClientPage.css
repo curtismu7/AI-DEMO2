@@ -711,6 +711,35 @@ select.cur-input { cursor: pointer; }
   .cur-sidebar { display: none; }
 }
 
+/* ── Costume skin picker ────────────────────────────────────────────────── */
+
+.cur-skin-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cur-skin-label {
+  font-size: 11px;
+  color: #888;
+}
+
+.cur-skin-picker select {
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid #3c3c3c;
+  background: #2a2a2a;
+  color: #ccc;
+  cursor: pointer;
+  max-width: 190px;
+}
+
+.cur-skin-picker select:hover {
+  border-color: #007acc;
+  color: #fff;
+}
+
 /* ── Flow Topology Modal ────────────────────────────────────────────────── */
 
 .cur-flow-trigger {
