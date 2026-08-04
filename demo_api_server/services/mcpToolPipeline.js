@@ -177,11 +177,11 @@ function hitlSignalInResultContent(result) {
  * raw PERMIT PingOne returns alongside an unfulfilled obligation — the raw
  * response stays inspectable via `response`.
  */
-function gatewayBlockAuthEval(gwAuditTrail, outcome, ctx) {
+function gatewayBlockAuthEval(gwAuditTrail, outcome, ctx, decision = 'INDETERMINATE') {
   const authz = gwAuditTrail && gwAuditTrail.authorize;
   if (!authz) return null;
   return {
-    decision: 'INDETERMINATE',
+    decision,
     outcome,
     engine: authz.backend === 'simulated' ? 'simulated' : 'pingone',
     decisionContext: 'McpToolCall',
@@ -1126,11 +1126,32 @@ async function runMcpToolPipeline(ctx) {
             }
             logger.warn(_CAT, `[/api/mcp/tool] Gateway denied tool '${tool}' via PingOne Authorize.`);
             deps.emit({ phase: 'gateway_policy_denied' });
+            // The gateway's Authorize call is the only decision this request has —
+            // without surfacing it the Proof strip reports "Run failed before
+            // authorize-decision" on a DENY that actually fired (#1313 did this
+            // for the 428 branches; this is the 403 counterpart).
+            const gwDenyEval = gatewayBlockAuthEval(gwAuditTrail, 'DENY', ctx, 'DENY');
+            if (!tokenEvents.some((e) => e && e.id === 'gw-authorize')) {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    'deny',
+                    null,
+                    `PingOne Authorize decision: DENY${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: gwAuditTrail.denyingFilter,
+                        lastFilter: gwAuditTrail.lastFilter,
+                        filterChain: gwAuditTrail.filterChain,
+                    })
+                ));
+            }
             return { kind: 'block', httpStatus: 403, tokenEvents, body: {
                 error: 'gateway_policy_denied',
                 tool,
                 message: authzRes.reason || 'PingOne Authorize declined this request.',
                 tokenEvents,
+                ...(gwDenyEval ? { mcpAuthorizeEvaluation: gwDenyEval } : {}),
             } };
         }
 
@@ -1377,6 +1398,11 @@ async function runMcpToolPipeline(ctx) {
                 ));
             }
 
+            // 403 counterpart of #1313's 428 evidence hand-over: the gateway's
+            // P1AZ decision is the run's only authorize evidence.
+            const gwDenyEval = err.gwAuditTrail
+                ? gatewayBlockAuthEval(err.gwAuditTrail, 'DENY', ctx, (err.gwAuditTrail.authorize && err.gwAuditTrail.authorize.decision) || 'DENY')
+                : null;
             const denyBody = {
                 error: 'gateway_policy_denied',
                 tool,
@@ -1384,6 +1410,7 @@ async function runMcpToolPipeline(ctx) {
                 message: err.message,
                 tokenEvents,
                 requestJson,
+                ...(gwDenyEval ? { mcpAuthorizeEvaluation: gwDenyEval } : {}),
                 ...(req.body?._testActClientId
                     ? { allowedActor: require('./configStore').getEffective('pingone_ai_agent_client_id') || null }
                     : {}),
@@ -1403,7 +1430,7 @@ async function runMcpToolPipeline(ctx) {
                     isDelegated: !!mcpAccessToken,
                     requestJson,
                     denied: true,
-                    mcpAuthorizeEvaluation: _authEval?.singular || null,
+                    mcpAuthorizeEvaluation: gwDenyEval || _authEval?.singular || null,
                     mcpAuthorizeEvaluations: _authEval?.plural || null,
                 });
             } catch (_) { /* SSE best-effort */ }
