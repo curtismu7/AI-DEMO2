@@ -704,3 +704,136 @@ live in `01d89b06`, so that trades this blocker for a broken demo everywhere els
 | `400 Procyon required header is missing` from `privilege.pingone.com` | console API called without `x-procyon-session-id` | add the header, copied from any console XHR |
 | `Invalid Sign-on URL` at `console.pingone.com` | admin console needs an explicit environment | `https://console.pingone.com/?env=<env-id>` |
 | `401 Authorization header JWT parsing failed JWT signature validation failed` | Privilege does not trust this environment's issuer — the open blocker | [The one blocker](#the-one-blocker-privilege-does-not-trust-this-environments-issuer) |
+
+## 2026-08-04: Fresh rebuild against Privilege's own tenant (8d4d7a4c) — still blocked, same symptom
+
+Everything above this section was written against PingOne env `01d89b06` (AI-Demo, where the
+banking demo's users live). On 2026-08-04 the user asked to tear down and rebuild clean,
+then partway through explicitly pivoted the target to `8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b`
+— Privilege's *own* PingOne environment (previously called "Privilege Tenant" in the
+`privilege-cloud-mcp` skill's identifier table). The hypothesis: since the doc above found a
+Privilege-issued *console* token from `8d4d7a4c` clears authentication, maybe a customer OIDC
+app registered in that same environment would too. **It does not.** Same `IssuerPublicKey:[]`
+symptom, same 401, on a brand-new cluster/app/policy. This section is the state to resume
+from — read it before repeating any of the diagnostic steps above, they were re-run here too.
+
+### What's different now vs. the state documented above
+
+- **Local Docker teardown done fresh**: all prior `mcpgw` containers (`ai-demo-ping-mcpgw`,
+  `privilege-mcpgw`, `mcpgw-gw2`) and volumes (`ai-demo_mcpgw-*`, `mcpgw2-*`, `mcpgw-*`)
+  removed. `ping-mcpgw/config/` reset to template (`pingone.env` regenerated from
+  `.example`, `ssl/` cleared).
+- **`docker-compose.yml` fixed** (PR #1374, merged to main as `43d81259`): the
+  `demo-api-server` service used to bake `01d89b06` + the dead cloud-API URL + a stale
+  client id/secret in as `${VAR:-default}` fallbacks under `environment:` — which, per the
+  compose-env-shadow hygiene gate, **always overrides `env_file`** regardless of what's in
+  `demo_api_server/.env`. Those four `environment:` entries (`PRIVILEGE_MCPGW_URL`,
+  `PRIVILEGE_SSO_ENV_ID`, `PRIVILEGE_SSO_CLIENT_ID`, `PRIVILEGE_SSO_CLIENT_SECRET`) are now
+  removed entirely from `docker-compose.yml`. They live **only** in
+  `demo_api_server/.env` now (gitignored, main checkout only — not in this worktree).
+- **New PingOne app in `8d4d7a4c`**: reused an existing app `deff60f5-5a67-4a6e-b283-47252856c89c`
+  (was already sitting in the old broken `.env` config, turned out to already live in this
+  tenant — not the `6586d3de` app the identifier table above documents, that one's in
+  `01d89b06`). Confirmed redirect URI `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`
+  is registered on it.
+- **New Privilege gateway cluster**: `ai-demo-fresh` (not `ai-demo-se`), created via the
+  Privilege console's "Setup Gateways" modal — Private Proxy mode, `Get Docker Command`
+  button, **not** the elaborate native-installer wizard (that one only offers RHEL/Debian/Ubuntu
+  packages, no macOS — a dead end on this dev machine, don't try it again). Live node:
+  `1cf90baf-2a83-45db-830f-581ea98110d1`. Enrollment JWT **expired 2026-08-04T18:44:28Z** —
+  per the "traps that cost hours" section above, that's fine, the container has been running
+  continuously since before expiry and doesn't need it again unless `ai-demo_mcpgw-ssl` gets
+  deleted. **Get a fresh token from the console before ever wiping that volume.**
+- **New MCP Server app**: `mcp-pingone-admin`, backend `http://mcp-server:8080/mcp`
+  (compose-internal DNS, confirmed correct against the actual `mcp-server` service —
+  `MCP_TLS_ENABLED=false`, plain HTTP, port 8080), Auth Mode Static Token with an empty
+  value (mirrors `MCP_MTLS_ENABLED=false` already documented above — Privilege enforces
+  policy at its own layer). Console-assigned Frontend Name:
+  `mcp-pingone-admin-app-default.applications.privilege.pingone.com:8643` — confirms the
+  per-app cloud-FQDN model this doc's earlier sections describe is still how it works; the
+  `docker-compose.yml` comments describing "nothing binds locally" were correct.
+- **Policy**: `FirstPolicy`, attached to both `Curtis MuirAdmin` (`cmuir+ssoAdmin@pingone.com`)
+  and `Curtis MuirEndUser` (`cmuir+ssoEndUser@pingone.com`). **Time-bound, was "ends in an
+  hour" as of ~16:52 UTC — almost certainly expired by the time anyone reads this.** Re-author
+  it before testing further.
+- **Discovery now dispatches** (new — this is actual progress over the state documented
+  above, on a completely fresh app/cluster): the proxy log shows
+  `Created backend node: ... BackendDomains:http://mcp-server:8080 ... MeshCluster:ai-demo-fresh`
+  and `Created frontend node: ... Name:http-mcp-pingone-admin`, both timestamped
+  `2026-08-04T21:08:3x` — several hours after the app was created at `16:52`, so this fired
+  on some kind of delay or retry, not immediately. Worth another data point before concluding
+  discovery dispatch is reliably fixed; it may just be timing.
+
+### Current wiring (all confirmed set, as of 2026-08-04 ~21:10 UTC)
+
+```ini
+demo_api_server/.env (gitignored, main checkout):
+  PRIVILEGE_MCPGW_URL=https://mcp-pingone-admin-app-default.applications.privilege.pingone.com:8643/mcp
+  PRIVILEGE_SSO_ENV_ID=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b
+  PRIVILEGE_SSO_CLIENT_ID=deff60f5-5a67-4a6e-b283-47252856c89c
+  PRIVILEGE_SSO_CLIENT_SECRET=p_IYLrsDaRXv_W3W-zI~yk9799fQICYfdb16uJ1hausw__b01R9Ddc6h-uDQtXcz
+
+root .env (gitignored, main checkout) — only PRIVILEGE_PROXY_TOKEN lives here now:
+  PRIVILEGE_PROXY_TOKEN=<expired JWT, see above — fine, do not renew unless re-enrolling>
+
+ping-mcpgw/config/pingone.env (gitignored, main checkout — NOTE: proxy never reads this,
+see below):
+  SERVER_URL=https://local.ping-devops.com:8623
+  OIDC_CLIENT_ID=deff60f5-5a67-4a6e-b283-47252856c89c
+  OIDC_CLIENT_SECRET=p_IYLrsDaRXv_W3W-zI~yk9799fQICYfdb16uJ1hausw__b01R9Ddc6h-uDQtXcz
+  OIDC_AUTH_URL=https://auth.pingone.com/8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b/as/authorize
+  OIDC_TOKEN_URL=https://auth.pingone.com/8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b/as/token
+  OIDC_USER_URL=https://auth.pingone.com/8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b/as/userinfo
+```
+
+`docker exec ai-demo-api-server env | grep PRIVILEGE` and
+`curl -sk https://api.ping.demo:3001/api/privilege-mcp/state` both confirmed these values
+landed correctly in the running container.
+
+### New evidence on the same blocker: `pingone.env` is dead code
+
+Grepped the full proxy log (`docker exec ai-demo-ping-mcpgw tail -2000
+/var/log/procyon/cyonproxy.log`) for any reference to `auth.pingone.com`, `/jwks`,
+`openid-configuration`, or even our own `pingone.env` / `OIDC_AUTH_URL` / `SERVER_URL`
+strings: **zero hits, all of them.** The proxy never reads the config file this doc's
+"Required host configuration" section and the Privilege console's own setup wizard both
+describe writing. Whatever governs `IssuerPublicKey` for the per-app `AuthzMiddleware`
+(`AuthzServer:mcp-pingone-admin`, confirmed still `IssuerPublicKey:[]` on this fresh tenant)
+is a control-plane-side mechanism this repo cannot influence by editing that file. This
+strengthens rather than contradicts the "ask Ping" conclusion above — it rules out one more
+theory (that the OIDC endpoints we configure are simply not being *discovered correctly*)
+in favor of the simpler one (they are never consulted for this purpose at all).
+
+### Untested lead: "PingOne Privilege Administrator" role
+
+Not yet tried. The user found a PingOne environment role called (their words) "PingOne
+Privilege Administrator." Working theory: the one token that ever authenticated in the
+original investigation (`aud: procyon`) may have gotten that audience via a **role-based
+connected-service entitlement**, not a manually created PingOne Resource — which would
+explain why searching env `8d4d7a4c`'s Resources list for anything named `procyon` found
+nothing (confirmed empty, 2026-08-04). **Next step**: assign this role to
+`cmuir+ssoEndUser@pingone.com`, sign in again via `/privilege-mcp-client`, and inspect the
+resulting token's `aud` claim (decode the JWT — no signature verification needed, just
+`base64 -d` the payload segment) to see if it changed. If the role grants a Privilege-aware
+audience, this could be the actual fix. Nobody has confirmed or ruled this out yet — this is
+the most promising untested angle as of this handoff.
+
+### Two known-harmless noise sources — do not chase these
+
+- **`has same NodeURL` duplicate-node error**, repeating every ~15-30s at `level=error` for
+  node `1cf90baf-2a83-45db-830f-581ea98110d1` / `local.ping-devops.com:8690`. Same as the
+  "Loose ends" entry above — a stale node from an earlier attempt still claims the same
+  NodeURL tenant-wide. The user could not delete old gateway/node rows from the console (no
+  permission or option found). Confirmed cosmetic: command stream stays established, backend
+  discovery still dispatched despite it firing continuously throughout this session.
+- **`grpc.privilege.pingone.com on 127.0.0.11:53: server misbehaving`** — transient Docker
+  DNS resolution hiccups, self-recovers within seconds every time observed. Not a config
+  problem.
+
+### Order to fix — unchanged from above, still the right order
+
+The "Order to fix" section above still applies verbatim; nothing in this session's work
+changes it, except that step 1 (discovery dispatch) now has a positive data point (see
+above) while step 2 (issuer trust) is still the open blocker. Try the role lead first since
+it's untested and cheap; if it doesn't pan out, this is still fundamentally "ask Ping" —
+see that section's two concrete questions.
