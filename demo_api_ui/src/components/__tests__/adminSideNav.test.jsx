@@ -39,6 +39,7 @@ vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 
 import AdminSideNav from "../AdminSideNav";
 import { NAV_ITEM_CATALOG } from "../../config/navItemsCatalog";
+import { NAV_STRUCTURE_CATALOG } from "../../config/navStructureCatalog";
 
 const adminUser = { id: "4", username: "admin", role: "admin" };
 const customerUser = { id: "1", username: "customer", role: "customer" };
@@ -177,6 +178,13 @@ describe("AdminSideNav — best-of-breed pass", () => {
     renderNavAsUser(customerUser);
     NAV_ITEM_CATALOG.forEach((label) => {
       expect(screen.getByText(label)).toBeInTheDocument();
+    });
+  });
+
+  it("NAV_STRUCTURE_CATALOG top-level labels stay in sync with AdminSideNav", () => {
+    renderNavAsUser(customerUser);
+    NAV_STRUCTURE_CATALOG.forEach((group) => {
+      expect(screen.getByText(group.label)).toBeInTheDocument();
     });
   });
 });

@@ -884,6 +884,49 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     else snap.splice(snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator'), 0, obj);
   };
 
+  // 9-pre) Amount defaultValue 0 — the SAME fix RarMaxAmount got below, applied to
+  // the attribute that actually needed it first.
+  //
+  // Amount is a NUMBER with defaultValue null. An unresolved NUMBER makes every
+  // comparison against it unresolvable, and P1AZ answers INDETERMINATE for the
+  // WHOLE decision with no statements — see 9a's note, which describes this exact
+  // mechanism for RarMaxAmount.
+  //
+  // ⚠️ READ TOOLS NEVER SEND Amount. mcpToolAuthorizationService only computes
+  // toolAmount for tools in WRITE_TOOL_TYPE_MAP; for a read it is null and Amount
+  // is omitted from the decision request entirely. So every read produced
+  // INDETERMINATE. Probed live 2026-08-03 against env 01d89b06:
+  //
+  //     get_my_accounts, no Amount   -> INDETERMINATE (no statements)
+  //     get_my_accounts, Amount 100  -> PERMIT [mcp-tool-authorized]
+  //
+  // and it aborted the control probe of BOTH verify:authorize-parity and
+  // verifyA2aDelegationPolicy. Combined with the fail-closed normalisation in
+  // #1310 (P1AZ INDETERMINATE -> DENY), pointing the Agent Gateway at the cloud
+  // would have denied EVERY read.
+  //
+  // 0 is safe, not a loosening: the amount rules are all `Amount > ceiling`, and
+  // 0 is greater than no ceiling, so no cap is bypassed. Writes are unaffected —
+  // the PEP builds the request and always sends a real Amount for write tools, so
+  // a caller cannot omit it to dodge a limit. The trade is "deny everything" for
+  // "permit reads, still deny over-cap writes".
+  //
+  // Deliberately routed through requestAttr(): since #1311 its version is derived
+  // from the object's CONTENT, so changing defaultValue moves the version and the
+  // import actually lands. The RAR quartet below keeps its hand-pinned versions
+  // for the reason stated at 877-880.
+  rarUpsert(requestAttr(
+    ATTR.Amount,
+    'Amount',
+    'NUMBER',
+    0,
+    'Transaction amount in US dollars. Sent by the Super Banking BFF on every '
+    + 'transaction authorization request. defaultValue 0 (like RarMaxAmount) so an '
+    + 'ABSENT amount — every READ tool call — resolves to 0 instead of leaving the '
+    + 'comparison unresolved; an unresolved NUMBER makes the whole decision '
+    + 'INDETERMINATE. 0 trips no ceiling, so reads PERMIT and caps still deny.',
+  ), true);
+
   // 9a) RarMaxAmount request attribute (NUMBER) — same resolver shape as Amount.
   rarUpsert({
     objectType: 'AttributeDefinition', id: ATTR.RarMaxAmount,

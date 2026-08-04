@@ -152,6 +152,37 @@ src/components/__tests__/AIAgent.negativeChipDispatch.test.jsx
 src/components/__tests__/agentChrome.negativeChips.test.jsx` (8/8 pass);
 `cd demo_api_server && CI=true npx jest tests/genIntentTopology.test.js
 --forceExit` (Stage 0 parity block, 57/57 pass).
+### 2026-08-03 — The agent only recognized a step-up block at 428, but the default config sends 401 (RFC 9470)
+
+**Files changed:** `demo_api_ui/src/utils/stepUpError.js` (new),
+`demo_api_ui/src/utils/__tests__/stepUpError.test.js` (new),
+`demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** `transactionAuthorizationService.buildStepUpBlock()` answers
+`401` + `WWW-Authenticate: insufficient_user_authentication` whenever
+`ff_rfc9470_challenge` is ON — its default. The legacy `428` only appears with the
+flag explicitly OFF. Two agent paths assumed 428 and so misread the default:
+(1) the post-consent resume gated on `err.statusCode === 428`, so a step-up demanded
+after HITL consent matched no branch and the agent dead-ended silently;
+(2) `hydrationAuthFailure` treated any cookie-only `401` as a dead session, so the
+same block could instead force a full PingOne re-login — the 401 twin of the
+428-misread-as-session-expiry loop already guarded further down in that catch chain.
+
+**What was fixed:** both sites now call `utils/stepUpError.js`.
+`isStepUpBlockError(err)` requires a step-up **code** (`step_up_required` /
+`mcp_step_up_required`) **and** a 401/428 status; `isApprovalBlockError(err)` covers
+all four consent/step-up codes and excludes them from the hydration branch.
+
+**Do not break:** a plain `401` with no approval code must keep falling through to
+re-authentication — do not widen `isStepUpBlockError` to status alone, and do not
+drop the status check either (an unrelated error carrying the code would then be
+treated as a live challenge). The server side is untouched: 428 consent enforcement
+in `routes/transactions.js`, `_grantStepUpCredit`, and the read-and-zero consume of
+`stepUpVerified` are all unchanged.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/stepUpError.test.js
+src/components/__tests__/AIAgent.cibaStepUp.test.js` (11 passed); full
+`npm run test:unit` 301 files / 2632 passed, exit 0; `npm run build` exit 0.
 
 ### 2026-08-03 — Exchange #3 invest tokens 401 on the portfolio callback (stale audience env)
 

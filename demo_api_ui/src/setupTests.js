@@ -14,6 +14,11 @@ global.jest = vi;
 // jsdom does not implement scrollIntoView — mock it globally
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 
+// jsdom does not implement scrollTo either — without this stub, rAF-driven
+// chat autoscroll (AIAgent) throws 29 unhandled "el.scrollTo is not a
+// function" errors and vitest exits 1 even when every test passes.
+window.HTMLElement.prototype.scrollTo = vi.fn();
+
 // jsdom does not implement matchMedia — components that read a responsive
 // breakpoint on mount (e.g. AdminSideNav's collapse-below-768px check) throw
 // "window.matchMedia is not a function" without this stub.

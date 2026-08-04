@@ -1,10 +1,23 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import "../styles/appShellPages.css";
 import "./DemoConfigPage.css";
-import { NAV_ITEM_CATALOG } from "../config/navItemsCatalog";
+import { NAV_STRUCTURE_CATALOG } from "../config/navStructureCatalog";
+
+// Apply a saved navOrder (array of labels) to the catalog, appending any new
+// labels not yet in the saved order at the end.
+function applyOrder(catalog, navOrder) {
+  if (!Array.isArray(navOrder) || navOrder.length === 0) return catalog;
+  const byLabel = Object.fromEntries(catalog.map((g) => [g.label, g]));
+  const ordered = navOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
+  const rest = catalog.filter((g) => !navOrder.includes(g.label));
+  return [...ordered, ...rest];
+}
 
 export default function DemoConfigPage() {
   const [hiddenLabels, setHiddenLabels] = useState([]);
+  const [navOrder, setNavOrder] = useState(null);
+  const [groups, setGroups] = useState(() => NAV_STRUCTURE_CATALOG);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [activeConfigId, setActiveConfigId] = useState(null);
   const [configs, setConfigs] = useState([]);
   const [flagOn, setFlagOn] = useState(false);
@@ -13,6 +26,8 @@ export default function DemoConfigPage() {
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
   const [busy, setBusy] = useState(false);
+  const dragIndexRef = useRef(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -26,10 +41,13 @@ export default function DemoConfigPage() {
       const configsData = await configsRes.json();
       if (!prefsRes.ok) throw new Error(prefs.error || `HTTP ${prefsRes.status}`);
       if (!configsRes.ok) throw new Error(configsData.error || `HTTP ${configsRes.status}`);
+      const savedOrder = prefs.navOrder || null;
       setHiddenLabels(prefs.hiddenLabels || []);
       setActiveConfigId(prefs.activeConfigId || null);
       setFlagOn(!!prefs.flagOn);
       setConfigs(configsData.configs || []);
+      setNavOrder(savedOrder);
+      setGroups(applyOrder(NAV_STRUCTURE_CATALOG, savedOrder));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -54,19 +72,61 @@ export default function DemoConfigPage() {
     setActiveConfigId(null);
   };
 
+  const toggleExpand = (label) => {
+    setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const moveGroup = (index, dir) => {
+    const next = index + dir;
+    if (next < 0 || next >= groups.length) return;
+    setGroups((prev) => {
+      const arr = [...prev];
+      [arr[index], arr[next]] = [arr[next], arr[index]];
+      return arr;
+    });
+    setActiveConfigId(null);
+  };
+
+  const onDragStart = (index) => { dragIndexRef.current = index; };
+  const onDragOver = (e, index) => { e.preventDefault(); setDragOverIndex(index); };
+  const onDrop = (e, dropIndex) => {
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex === null || fromIndex === dropIndex) { setDragOverIndex(null); return; }
+    setGroups((prev) => {
+      const arr = [...prev];
+      const [removed] = arr.splice(fromIndex, 1);
+      arr.splice(dropIndex, 0, removed);
+      return arr;
+    });
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+    setActiveConfigId(null);
+  };
+  const onDragEnd = () => { dragIndexRef.current = null; setDragOverIndex(null); };
+
+  const currentOrder = groups.map((g) => g.label);
+  const isDefaultOrder =
+    JSON.stringify(currentOrder) ===
+    JSON.stringify(NAV_STRUCTURE_CATALOG.map((g) => g.label));
+
+  const resetOrder = () => { setGroups(NAV_STRUCTURE_CATALOG); setActiveConfigId(null); };
+
   const saveSelection = async () => {
     setBusy(true);
     setError(null);
     try {
+      const orderToSave = isDefaultOrder ? null : currentOrder;
       const res = await fetch("/api/user/nav-config", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hiddenLabels, activeConfigId: null }),
+        body: JSON.stringify({ hiddenLabels, activeConfigId: null, navOrder: orderToSave }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setToast("Selection saved");
+      setNavOrder(orderToSave);
+      setToast("Saved — sidebar updated");
       window.dispatchEvent(new CustomEvent("nav-config-changed"));
     } catch (err) {
       setError(`Failed to save: ${err.message}`);
@@ -123,7 +183,7 @@ export default function DemoConfigPage() {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hiddenLabels: config.hiddenLabels, activeConfigId: config.id }),
+        body: JSON.stringify({ hiddenLabels: config.hiddenLabels, activeConfigId: config.id, navOrder }),
       });
       const putData = await putRes.json();
       if (!putRes.ok) throw new Error(putData.error || `HTTP ${putRes.status}`);
@@ -159,7 +219,7 @@ export default function DemoConfigPage() {
     }
   };
 
-  const visibleCount = NAV_ITEM_CATALOG.length - hiddenLabels.length;
+  const visibleCount = groups.filter((g) => !hiddenLabels.includes(g.label)).length;
 
   return (
     <div className="app-page dc-page">
@@ -167,7 +227,7 @@ export default function DemoConfigPage() {
         <div className="app-page-header__left">
           <h1 className="app-page-title">Demo Config</h1>
           <p className="app-page-subtitle">
-            Choose which sidebar items show for you, then save the selection as a reusable config.
+            Toggle groups on/off, drag to reorder, then save to update the sidebar.
           </p>
         </div>
         <span className={`dc-flag-pill${flagOn ? " dc-flag-pill--on" : ""}`}>
@@ -191,28 +251,100 @@ export default function DemoConfigPage() {
         <div className="dc-layout">
           <section className="dc-panel">
             <div className="dc-panel__head">
-              <h2>Sidebar items</h2>
+              <h2>Sidebar groups</h2>
               <span className="dc-count">
-                {visibleCount} of {NAV_ITEM_CATALOG.length} visible
+                {visibleCount} of {groups.length} visible
               </span>
             </div>
-            <div className="dc-item-grid">
-              {NAV_ITEM_CATALOG.map((label) => (
-                <label key={label} className="dc-nav-check">
-                  <input
-                    type="checkbox"
-                    checked={!hiddenLabels.includes(label)}
-                    onChange={() => toggleLabel(label)}
-                    disabled={busy}
-                    aria-label={label}
-                  />
-                  {label}
-                </label>
-              ))}
+
+            <div className="dc-group-list">
+              {groups.map((group, index) => {
+                const isHidden = hiddenLabels.includes(group.label);
+                const isExpanded = !!expandedGroups[group.label];
+                const isDragTarget = dragOverIndex === index;
+
+                return (
+                  <div
+                    key={group.label}
+                    className={`dc-group-row${isHidden ? " dc-group-row--hidden" : ""}${isDragTarget ? " dc-group-row--drag-over" : ""}`}
+                    draggable
+                    onDragStart={() => onDragStart(index)}
+                    onDragOver={(e) => onDragOver(e, index)}
+                    onDrop={(e) => onDrop(e, index)}
+                    onDragEnd={onDragEnd}
+                  >
+                    <div className="dc-group-row__main">
+                      <span className="dc-drag-handle" aria-hidden="true">⠿</span>
+                      <label className="dc-group-toggle">
+                        <input
+                          type="checkbox"
+                          checked={!isHidden}
+                          onChange={() => toggleLabel(group.label)}
+                          disabled={busy}
+                          aria-label={`Show ${group.label}`}
+                        />
+                        <span className="dc-group-label">{group.label}</span>
+                      </label>
+                      {group.children && group.children.length > 0 && (
+                        <button
+                          type="button"
+                          className="dc-expand-btn"
+                          onClick={() => toggleExpand(group.label)}
+                          aria-label={isExpanded ? "Collapse" : "Expand"}
+                        >
+                          {isExpanded ? "▲" : "▼"}
+                          <span className="dc-child-count">{group.children.length}</span>
+                        </button>
+                      )}
+                      <div className="dc-reorder-btns">
+                        <button
+                          type="button"
+                          className="dc-reorder-btn"
+                          onClick={() => moveGroup(index, -1)}
+                          disabled={busy || index === 0}
+                          aria-label="Move up"
+                          title="Move up"
+                        >↑</button>
+                        <button
+                          type="button"
+                          className="dc-reorder-btn"
+                          onClick={() => moveGroup(index, 1)}
+                          disabled={busy || index === groups.length - 1}
+                          aria-label="Move down"
+                          title="Move down"
+                        >↓</button>
+                      </div>
+                    </div>
+                    {isExpanded && group.children && (
+                      <ul className="dc-child-list">
+                        {group.children.map((child) => (
+                          <li key={child} className="dc-child-item">{child}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+
             <div className="dc-panel__actions">
-              <button type="button" className="dc-btn-primary" onClick={saveSelection} disabled={busy}>
-                Save current selection
+              {!isDefaultOrder && (
+                <button
+                  type="button"
+                  className="dc-btn-secondary"
+                  onClick={resetOrder}
+                  disabled={busy}
+                >
+                  Reset order
+                </button>
+              )}
+              <button
+                type="button"
+                className="dc-btn-primary"
+                onClick={saveSelection}
+                disabled={busy}
+              >
+                Save &amp; refresh sidebar
               </button>
             </div>
           </section>
@@ -232,7 +364,7 @@ export default function DemoConfigPage() {
                   {activeConfigId === config.id && <span className="dc-badge">Active</span>}
                 </div>
                 <p className="dc-config-card__meta">
-                  {NAV_ITEM_CATALOG.length - (config.hiddenLabels || []).length} items &middot;{" "}
+                  {NAV_STRUCTURE_CATALOG.length - (config.hiddenLabels || []).length} items &middot;{" "}
                   {Object.keys(config.flagSnapshot || {}).length} flags
                 </p>
                 <div className="dc-config-card__actions">
@@ -260,7 +392,11 @@ export default function DemoConfigPage() {
                 onChange={(e) => setNewConfigName(e.target.value)}
                 disabled={busy}
               />
-              <button type="button" onClick={saveAsNewConfig} disabled={busy || !newConfigName.trim()}>
+              <button
+                type="button"
+                onClick={saveAsNewConfig}
+                disabled={busy || !newConfigName.trim()}
+              >
                 Save as new config
               </button>
             </div>

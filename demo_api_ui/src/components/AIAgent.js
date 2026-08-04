@@ -68,6 +68,7 @@ import DemoStepsDropdown from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
+import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -4898,15 +4899,20 @@ export default function BankingAgent({
         actionId === "mcp_tools" &&
         /MCP tools fetch failed:\s*401/i.test(String(err?.message || ""));
 
+      // An approval block is never a hydration failure. With
+      // ff_rfc9470_challenge ON a step-up arrives as 401, which without this
+      // guard matched the cookie-only branch below and forced a full PingOne
+      // re-login — the 401 twin of the 428 misread guarded against further down.
       const hydrationAuthFailure =
-        err?.code === "session_not_hydrated" ||
-        (cookieOnlyBffSession &&
-          (err?.statusCode === 401 ||
-            err?.code === "authentication_required" ||
-            mcpToolsUnauthorized ||
-            /sign in to use the banking agent/i.test(
-              String(err?.message || ""),
-            )));
+        !isApprovalBlockError(err) &&
+        (err?.code === "session_not_hydrated" ||
+          (cookieOnlyBffSession &&
+            (err?.statusCode === 401 ||
+              err?.code === "authentication_required" ||
+              mcpToolsUnauthorized ||
+              /sign in to use the banking agent/i.test(
+                String(err?.message || ""),
+              ))));
 
       const killSwitchActivated = (() => {
         try {
@@ -9639,11 +9645,11 @@ export default function BankingAgent({
                         actionId,
                       );
                     } catch (err) {
-                      // callRestTransaction throws on non-2xx status codes, so we handle 428 (step_up_required or mcp_step_up_required) here
-                      if (
-                        err.statusCode === 428 &&
-                        (err.code === "step_up_required" || err.code === "mcp_step_up_required")
-                      ) {
+                      // callRestTransaction throws on non-2xx, so the step-up block
+                      // arrives here as an Error. Its status is 401 (RFC 9470, the
+                      // ff_rfc9470_challenge default) or 428 (flag OFF) — gating on
+                      // 428 alone dead-ended every default-config resume.
+                      if (isStepUpBlockError(err)) {
                         console.log(
                           "[HITL Consent] Step-up required, triggering MFA",
                         );

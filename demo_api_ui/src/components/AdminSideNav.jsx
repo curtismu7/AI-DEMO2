@@ -208,6 +208,7 @@ export default function AdminSideNav({ user }) {
   const [navFilter, setNavFilter] = useState("");
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
   const [custLoading, setCustLoading] = useState(false);
+  const [navOrder, setNavOrder] = useState(null);
   const isResizing = useRef(false);
   const showPacEditorLink = isLocalHost();
 
@@ -217,8 +218,11 @@ export default function AdminSideNav({ user }) {
     if (!user) return;
     fetch("/api/user/nav-config", { credentials: "include" })
       .then((res) => res.json())
-      .then((data) => setHiddenNavLabels(data.hiddenLabels || []))
-      .catch(() => setHiddenNavLabels([]));
+      .then((data) => {
+        setHiddenNavLabels(data.hiddenLabels || []);
+        setNavOrder(data.navOrder || null);
+      })
+      .catch(() => { setHiddenNavLabels([]); setNavOrder(null); });
   }, [user]);
   // Refetch on 'nav-config-changed' (Demo Config save/apply) so the sidebar
   // updates without a full page reload; also callable via the refresh button.
@@ -931,9 +935,18 @@ export default function AdminSideNav({ user }) {
   // "admin" badge and non-admin clicks prompt an admin re-login instead.
   // Then filter by the user's Demo Config hidden-item selection — "Demo
   // Config" itself is never hideable (would lock the user out of undoing it).
-  const navItems = allNavItems
+  // Finally, apply the user's saved navOrder (from Demo Config reorder) when present.
+  const filteredItems = allNavItems
     .filter((item) => !item.customerOnly || !isAdmin)
     .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label));
+
+  const navItems = (() => {
+    if (!Array.isArray(navOrder) || navOrder.length === 0) return filteredItems;
+    const byLabel = Object.fromEntries(filteredItems.map((i) => [i.label, i]));
+    const ordered = navOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
+    const rest = filteredItems.filter((i) => !navOrder.includes(i.label));
+    return [...ordered, ...rest];
+  })();
 
   // Live filter: match by label (or an item's optional search alias, for
   // renamed items whose old/product name should still surface them — e.g.

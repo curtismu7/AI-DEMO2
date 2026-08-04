@@ -1459,7 +1459,7 @@ export default function DemoDataPage({ user, onLogout }) {
                     <p className="demo-data-hint" style={{ margin: '0.35rem 0 0.5rem' }}>
                       Uses your <strong>Authorize worker</strong> app (client credentials) to call PingOne{' '}
                       <code>POST …/decisionEndpoints</code> and create two endpoints:{' '}
-                      <em>Super Banking Demo — Transactions</em> and <em>Super Banking Demo — MCP first tool</em>. If they
+                      <em>AI Demo — Transactions</em> and <em>AI Demo — MCP first tool</em>. If they
                       already exist, their IDs are reused. Optionally pass a <strong>policy ID</strong> or{' '}
                       <strong>authorization version ID</strong> from PingOne Authorize (published policy); otherwise
                       PingOne attaches the latest policy version at runtime per PingOne docs.
