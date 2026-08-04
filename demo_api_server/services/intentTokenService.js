@@ -55,12 +55,14 @@ const INTENT_TO_PERMITTED_TOOLS = {
   view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],
   view_holdings:            ['view_holdings', 'view_portfolios', 'view_portfolio_value'],
   view_trades:              ['view_trades', 'view_holdings', 'view_portfolios'],
+  large_trade:              ['large_trade', 'view_trades', 'view_portfolios'],
   // Healthcare
   view_records:             ['view_records', 'view_coverage', 'show_health_record'],
   view_coverage:            ['view_coverage', 'view_records', 'show_health_record'],
   list_appointments:        ['list_appointments', 'view_records', 'show_health_record'],
   book_appointment:         ['book_appointment', 'list_appointments', 'view_records'],
   release_records:          ['release_records', 'view_records'],
+  pay_bill:                 ['pay_bill', 'view_coverage', 'view_records'],
   // Retail
   list_orders:              ['list_orders', 'order_status', 'show_large_purchase'],
   view_rewards:             ['rewards_balance', 'loyalty_balance'],
@@ -89,6 +91,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   view_financial_aid:       ['view_financial_aid', 'view_billing'],
   view_billing:             ['view_billing', 'view_financial_aid'],
   view_degree_audit:        ['view_degree_audit', 'view_courses'],
+  pay_tuition_balance:      ['pay_tuition_balance', 'view_billing'],
   // Government
   view_permits:             ['view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations'],
   view_fees:                ['view_fees', 'view_permits', 'view_tax_assessments'],
@@ -102,6 +105,8 @@ const INTENT_TO_PERMITTED_TOOLS = {
   get_airline_bookings:     ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'],
   get_flight_status:        ['get_flight_status', 'get_airline_bookings', 'check_seat_availability'],
   check_seat_availability:  ['check_seat_availability', 'get_flight_status', 'get_airline_bookings'],
+  // Manufacturing
+  approve_purchase_order:   ['approve_purchase_order', 'view_purchase_orders'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
