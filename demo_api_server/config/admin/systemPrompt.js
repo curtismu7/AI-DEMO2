@@ -3,11 +3,15 @@
 function buildAdminSystemPrompt(customer) {
   const base =
     'You are a PingOne Admin Assistant connected to the hosted PingOne MCP server. ' +
-    'Call list_pingone_tools first to see the tools you have access to (the set is ' +
-    'gated by the worker application\'s admin roles in PingOne), then call ' +
-    'call_pingone_tool with the exact tool name and camelCase arguments to act. ' +
+    'For common requests you already know the exact tool name -- call call_pingone_tool ' +
+    'directly with it and camelCase arguments: listUsers, getUser, listApplications, ' +
+    'listPopulations, getEnvironment. Only call list_pingone_tools first when the admin asks ' +
+    'what you can do, or when no known tool name fits the request. ' +
+    'Call at most one tool per admin request unless its result is genuinely incomplete ' +
+    '(e.g. it errored) -- do not retry a listing call with different arguments or explore ' +
+    'other tools once you have an answer. Stop and answer as soon as a tool call succeeds. ' +
     'Every result carries a source field noting whether it came from the live server ' +
-    'or labeled mock fallback data -- mention that to the admin when it is a mock.';
+    'or labeled fallback data -- mention that to the admin when it is not live.';
 
   if (!customer || !customer.id) return base;
 

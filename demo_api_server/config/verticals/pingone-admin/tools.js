@@ -1,5 +1,6 @@
 'use strict';
 const adapter = require('../../../services/mcpPingOneHttpAdapter');
+const pingOneUserService = require('../../../services/pingOneUserService');
 const { getMockResponse } = require('../../../services/oasDiscovery');
 
 // Hosted-MCP tool names that have offline mock payloads in oasDiscovery.
@@ -8,8 +9,33 @@ const { getMockResponse } = require('../../../services/oasDiscovery');
 // ghost the chip can never resolve (see tests/oas/pingone-admin.ghostTools.test.js).
 const CORE_TOOLS = ['listUsers', 'getUser', 'listPopulations', 'listApplications', 'getEnvironment'];
 
+// Same tools, reachable via the direct Management API with the same worker
+// credentials the hosted MCP server itself authenticates with. Tried before
+// the mock fallback on a transport/auth failure so "MCP unavailable" degrades
+// to a real (if unlabeled-as-MCP) answer instead of canned data. Returns null
+// when the call can't be resolved to a REST request (e.g. getUser with no id).
+// PingOneUserService.baseUrl already ends in /environments/{envId}, so
+// getEnvironment's path is the empty string.
+const REST_FALLBACK = {
+  listUsers:        () => ({ method: 'GET', path: '/users' }),
+  listApplications: () => ({ method: 'GET', path: '/applications' }),
+  listPopulations:  () => ({ method: 'GET', path: '/populations' }),
+  getEnvironment:   () => ({ method: 'GET', path: '' }),
+  getUser: (args) => {
+    const id = args?.id || args?.userId;
+    if (id) return { method: 'GET', path: `/users/${encodeURIComponent(id)}` };
+    if (args?.username) {
+      const filter = encodeURIComponent('username eq "' + args.username + '"');
+      return { method: 'GET', path: `/users?filter=${filter}` };
+    }
+    return null;
+  },
+};
+
 const LIVE_SOURCE = 'live — hosted PingOne MCP';
+const apiSource = (reason) => `api — hosted PingOne MCP unavailable, used direct Management API: ${reason}`;
 const mockSource = (reason) => `mock — PingOne MCP unavailable: ${reason}`;
+const mockAfterApiSource = (reason) => `mock — PingOne MCP and Management API both unavailable: ${reason}`;
 
 const tools = [
   {
@@ -121,14 +147,31 @@ async function callPingOneTool(params) {
         render: 'call_pingone_tool',
       };
     }
-    console.warn('[pingone-admin] call_pingone_tool mock fallback for %s: %s', name, err.message);
-    const summary = CORE_TOOLS.includes(name)
-      ? summaryForResponse(name, getMockResponse(name, args))
-      : `Tool unavailable: ${err.message}`;
-    return {
-      result: { tool: name, responseSummary: summary, source: mockSource(err.message) },
-      render: 'call_pingone_tool',
+    const mockFallback = (source) => {
+      console.warn('[pingone-admin] call_pingone_tool mock fallback for %s: %s', name, err.message);
+      const summary = CORE_TOOLS.includes(name)
+        ? summaryForResponse(name, getMockResponse(name, args))
+        : `Tool unavailable: ${err.message}`;
+      return { result: { tool: name, responseSummary: summary, source }, render: 'call_pingone_tool' };
     };
+
+    const restReq = REST_FALLBACK[name]?.(args);
+    if (restReq) {
+      try {
+        pingOneUserService.initialize();
+        const data = await pingOneUserService.makeRequest(restReq.method, restReq.path);
+        console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
+        return {
+          result: { tool: name, responseSummary: summaryForResponse(name, data), source: apiSource(err.message) },
+          render: 'call_pingone_tool',
+        };
+      } catch (restErr) {
+        console.warn('[pingone-admin] API fallback also failed for %s: %s', name, restErr.message);
+        return mockFallback(mockAfterApiSource(err.message));
+      }
+    }
+
+    return mockFallback(mockSource(err.message));
   }
 }
 
