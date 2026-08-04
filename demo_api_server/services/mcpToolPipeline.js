@@ -848,6 +848,15 @@ async function runMcpToolPipeline(ctx) {
                 _dpopKey = req.session.dpopKey;
             }
         } catch (_) { /* best-effort */ }
+        // get_branch_hours (UC24 public catalog) selects its catalog by a
+        // `vertical` tool param — MCP handlers never see the X-Active-Vertical
+        // header, so without this every non-banking vertical got Super Banking
+        // branches from the real MCP server (the local fallback in
+        // mcpLocalTools.js already resolves it from req.body.vertical).
+        if (tool === 'get_branch_hours' && !params.vertical) {
+            const catalogVertical = ctx.vertical || sessionVertical;
+            if (catalogVertical) params.vertical = catalogVertical;
+        }
         if (useGateway) {
             // testActClientId is a SHOWCASE-ONLY demo affordance (confused-deputy chip):
             // it overrides the bridged actor with a rogue id so Authorize denies it.

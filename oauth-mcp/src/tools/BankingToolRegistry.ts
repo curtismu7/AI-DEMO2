@@ -863,6 +863,11 @@ export class BankingToolRegistry {
             description: 'Optional city name to filter branches (e.g. Austin, Dallas)',
             maxLength: 80,
           },
+          vertical: {
+            type: 'string',
+            description: 'Active vertical id selecting the location catalog (e.g. government, healthcare); defaults to banking',
+            maxLength: 40,
+          },
         },
         required: [],
         additionalProperties: false,
