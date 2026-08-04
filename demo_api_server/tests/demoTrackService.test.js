@@ -25,6 +25,24 @@ describe('demoTrackService', () => {
     expect(run.slots['fine-grained-authz:red']).toMatchObject({ verdict: 'DENY', decisionId: 'd-4f21c9' });
   });
 
+  test('stamps carry a plain-language reason mapped from the error code', () => {
+    svc.setActiveStep('delegated-access');
+    // replayed-token is step 1's red sim (not a gauntlet tile) — fills the red slot
+    svc.observeAttackSim({ sim: 'replayed-token', status: 401, errorCode: 'invalid_aud', decisionId: null });
+    const { run } = svc.getState();
+    expect(run.slots['delegated-access:red'].errorCode).toBe('invalid_aud');
+    expect(run.slots['delegated-access:red'].reason).toMatch(/aud/i);
+    // a gauntlet sim records the mapped reason on its tile
+    svc.observeAttackSim({ sim: 'insufficient-scope', status: 403, errorCode: 'insufficient_scope', decisionId: null });
+    expect(svc.getState().run.gauntlet['insufficient-scope'].reason).toMatch(/scope/i);
+  });
+
+  test('a green PERMIT stamp explains what was permitted', () => {
+    svc.setActiveStep('delegated-access');
+    svc.observeToolCall({ toolName: 'get_account_balance', success: true, timestamp: '2026-08-04T10:00:00Z', decisionId: 'd-ok' });
+    expect(svc.getState().run.slots['delegated-access:green'].reason).toMatch(/permitted/i);
+  });
+
   test('observeToolCall stamps the authorize decisionId on PERMIT slots', () => {
     svc.setActiveStep('fine-grained-authz');
     svc.observeToolCall({ toolName: 'transfer_funds', success: true, timestamp: '2026-08-03T10:00:00Z', decisionId: 'd-permit-1' });

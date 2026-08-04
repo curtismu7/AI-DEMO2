@@ -57,7 +57,13 @@ function recordToolCall({ userId, toolName, success, duration, resultJson, reque
 	_events.unshift(event);
 	// Guided Demo Track — best-effort observation; must never affect the audit.
 	try {
-		require('./demoTrackService').observeToolCall({ toolName, success, timestamp: event.timestamp, decisionId: decisionId || null });
+		// On a failure, surface the tool's own error code so the track can explain
+		// the "why" (the pipeline's authorize blocks carry richer codes via
+		// observeDecision; this covers tool-level failures the pipeline permitted).
+		const errorCode = !success && resultJson && typeof resultJson === 'object'
+			? (resultJson.error || resultJson.code || null)
+			: null;
+		require('./demoTrackService').observeToolCall({ toolName, success, timestamp: event.timestamp, decisionId: decisionId || null, errorCode });
 	} catch { /* track observation is optional */ }
 	if (_events.length > MAX_EVENTS) _events.length = MAX_EVENTS;
 }

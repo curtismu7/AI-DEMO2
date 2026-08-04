@@ -68,6 +68,17 @@ describe('TokenChainDemoTrackTab', () => {
     expect(screen.getByText('denied_tool — never called')).toBeInTheDocument();
   });
 
+  it('shows the plain-language reason and error code on a filled slot', async () => {
+    const withReason = JSON.parse(JSON.stringify(STATE));
+    withReason.run.slots['delegated-access:green'].reason = 'PingOne Authorize permitted get_account_balance — the delegated call satisfied policy and ran.';
+    withReason.run.slots['delegated-access:red'] = { verdict: 'DENY', decisionId: null, via: 'x', at: '2026-08-03T10:44:00Z', errorCode: 'invalid_aud', reason: 'Audience check failed at gateway introspection — aud mismatch.' };
+    apiClient.get.mockResolvedValue({ data: withReason });
+    render(<TokenChainDemoTrackTab />);
+    await waitFor(() => expect(screen.getByText(/permitted get_account_balance/)).toBeInTheDocument());
+    expect(screen.getByText(/Audience check failed/)).toBeInTheDocument();
+    expect(screen.getByText('invalid_aud')).toBeInTheDocument();
+  });
+
   it('Start new run posts and flashes confirmation', async () => {
     render(<TokenChainDemoTrackTab />);
     await waitFor(() => expect(screen.getByText(/Delegated access/)).toBeInTheDocument());
