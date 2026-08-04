@@ -40,7 +40,7 @@
 .tct-say { margin-top: 5px; font-size: 11px; background: #fff8e6; border-radius: 5px; padding: 5px 8px; }
 .tct-error, .tct-loading { padding: 12px; color: #5f6b76; }
 /* Plain-language "why" under a filled slot (what happened, why blocked) */
-.tct-reason { font-size: 11px; line-height: 1.4; padding: 4px 0 2px 50px; color: #5f6b76; }
+.tct-reason { font-size: 12px; line-height: 1.4; padding: 4px 0 2px 50px; color: #5f6b76; }
 .tct-reason--g { color: #1e7b34; }
 .tct-reason--r { color: #c62828; }
 .tct-reason-code {

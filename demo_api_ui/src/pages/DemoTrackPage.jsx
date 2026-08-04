@@ -39,17 +39,21 @@ function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
         </span>
       ) : runStatus === "error" ? (
         <span className="dtp-run-note dtp-run-note--error">✕ run failed — check the agent</span>
+      ) : runStatus === "running" ? (
+        <span className="dtp-run-note dtp-run-note--running">running through the agent…</span>
+      ) : runStatus === "done" ? (
+        <span className="dtp-run-note dtp-run-note--done">✓ ran — recording verdict…</span>
       ) : (
         <span className="dtp-run-note">waiting for a matching run</span>
       )}
       {canRun && (
         <button
           type="button"
-          className="dtp-run-btn"
+          className={`dtp-run-btn${runStatus === "done" ? " dtp-run-btn--done" : ""}`}
           onClick={onRun}
           disabled={runStatus === "running"}
         >
-          {runStatus === "running" ? "Running…" : stamp ? "Run again" : "Run"}
+          {runStatus === "running" ? "Running…" : runStatus === "done" ? "✓ ran" : stamp ? "Run again" : "Run"}
         </button>
       )}
     </div>
@@ -124,7 +128,9 @@ export default function DemoTrackPage() {
   // patient records" in healthcare); sim-sourced red slots run attack sims.
   const [vertical, setVertical] = useState(null);
   const [catalog, setCatalog] = useState([]);
-  const [slotRuns, setSlotRuns] = useState({}); // `${stepId}:${color}` -> "running" | "error"
+  const [slotRuns, setSlotRuns] = useState({}); // `${stepId}:${color}` -> "running" | "done" | "error"
+  const slotFlashRef = useRef(null);
+  useEffect(() => () => { if (slotFlashRef.current) clearTimeout(slotFlashRef.current); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -183,11 +189,16 @@ export default function DemoTrackPage() {
         if (!prompt) throw new Error("no dispatchable chip for this slot");
         await apiClient.post("/api/agent/invoke", { prompt, forceHeuristic: true, vertical: vertical || "banking" });
       }
-      setSlotRun(key, null);
+      // Success: reload (the stamp usually lands here) and flash a "✓ ran"
+      // acknowledgement, so a permit doesn't look dead before/instead of the
+      // stamp landing. The stamp itself takes over once present.
+      await load();
+      setSlotRun(key, "done");
+      if (slotFlashRef.current) clearTimeout(slotFlashRef.current);
+      slotFlashRef.current = setTimeout(() => setSlotRun(key, null), 2500);
     } catch {
       setSlotRun(key, "error");
     }
-    load();
   }, [promptFor, vertical, load, setSlotRun]);
 
   if (error) return <div className="dtp-error">Demo Track unavailable — {error}</div>;
