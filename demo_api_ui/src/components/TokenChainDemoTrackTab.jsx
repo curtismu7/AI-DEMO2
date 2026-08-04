@@ -1,6 +1,7 @@
-// Guided Demo Track — live tab content for TokenChainDisplay.
+// Guided Demo Track — live tab content (mounted via TokenChainTraceRail).
 // Polls /api/demo-track while mounted; slots fill themselves from real runs.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import apiClient from "../services/apiClient";
 import "./TokenChainDemoTrackTab.css";
 
 const POLL_MS = 5000;
@@ -43,12 +44,16 @@ function slotBadge(stamp, slot) {
 export default function TokenChainDemoTrackTab() {
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
+  // "idle" | "busy" | "done" | "failed" — drives the Start-new-run button's
+  // visible feedback (a fresh empty run looks identical to the previous one,
+  // so without this the click appears to do nothing).
+  const [runState, setRunState] = useState("idle");
+  const runFlashRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/demo-track", { credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setState(await res.json());
+      const res = await apiClient.get("/api/demo-track");
+      setState(res.data);
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -58,25 +63,30 @@ export default function TokenChainDemoTrackTab() {
   useEffect(() => {
     load();
     const t = setInterval(load, POLL_MS);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      if (runFlashRef.current) clearTimeout(runFlashRef.current);
+    };
   }, [load]);
 
   const setActiveStep = useCallback(async (stepId) => {
     try {
-      await fetch("/api/demo-track/active-step", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepId }),
-      });
+      await apiClient.post("/api/demo-track/active-step", { stepId });
       load();
     } catch { /* next poll recovers */ }
   }, [load]);
 
   const startRun = useCallback(async () => {
+    setRunState("busy");
     try {
-      await fetch("/api/demo-track/runs", { method: "POST", credentials: "include" });
-      load();
-    } catch { /* next poll recovers */ }
+      await apiClient.post("/api/demo-track/runs");
+      await load();
+      setRunState("done");
+    } catch {
+      setRunState("failed");
+    }
+    if (runFlashRef.current) clearTimeout(runFlashRef.current);
+    runFlashRef.current = setTimeout(() => setRunState("idle"), 1800);
   }, [load]);
 
   if (error) return <div className="tct-error">Demo Track unavailable — {error}</div>;
@@ -132,7 +142,17 @@ export default function TokenChainDemoTrackTab() {
     <div className="tct-root">
       <div className="tct-toolbar">
         <span className="tct-score">{filled} slots filled · gauntlet {gauntletBlocked}/{gauntletTotal}</span>
-        <button type="button" className="tct-newrun" onClick={startRun}>Start new run</button>
+        <button
+          type="button"
+          className={`tct-newrun${runState === "failed" ? " tct-newrun--failed" : ""}`}
+          onClick={startRun}
+          disabled={runState === "busy"}
+        >
+          {runState === "busy" ? "Starting…"
+            : runState === "done" ? "✓ New run started"
+            : runState === "failed" ? "✕ Failed — retry"
+            : "Start new run"}
+        </button>
         <a className="tct-open-page" href="/demo-track">Open full track page ↗</a>
       </div>
       <div className="tct-act">ACT 1 · THE CUSTOMER AGENT</div>
