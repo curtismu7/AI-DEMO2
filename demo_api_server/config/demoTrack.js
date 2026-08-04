@@ -14,13 +14,17 @@ const GAUNTLET_SIMS = [
   { sim: 'introspection-down',    ucId: 'UC29', label: 'Introspection outage — fail closed' },
 ];
 
+// Tool matchers: exact names cover passive observation from any surface; the
+// trailing '*' only fires for the ACTIVE step (demoTrackService wildcardOk),
+// so a page-run in any vertical (view_permits, view_coverage, list_orders, …)
+// stamps the step being run without loosening the other steps.
 const TRACK_STEPS = [
   {
     stepId: 'delegated-access', act: 1, title: 'Delegated access — token exchange',
     capability: 'RFC 8693 · act claim', ucIds: ['UC1', 'UC3', 'UC12'],
     buyerStory: 'Every agent action must trace back to a real human — no anonymous agent access.',
     slots: {
-      green: { source: 'tool', chipText: 'show my balance', match: { tools: ['get_account_balance', 'get_balance'] }, expected: ['PERMIT'] },
+      green: { source: 'tool', chipText: 'show my balance', match: { tools: ['get_account_balance', 'get_balance', '*'] }, expected: ['PERMIT'] },
       red:   { source: 'sim', label: 'stolen token / wrong aud rejected', match: { sims: ['replayed-token'] }, expected: ['BLOCKED'] },
     },
     proved: {
@@ -44,6 +48,7 @@ const TRACK_STEPS = [
           'sensitive_order_history', 'sensitive_passenger_record', 'sensitive_patient_records',
           'sensitive_payroll_details', 'sensitive_student_finance', 'sensitive_supplier_contract',
           'sensitive_tax_record',
+          '*',
         ] },
         expected: ['PERMIT'],
       },
@@ -60,8 +65,8 @@ const TRACK_STEPS = [
     capability: 'P1AZ · policy externalized', ucIds: ['UC6', 'UC35'],
     buyerStory: 'Policy lives outside the agent — and every decision is explainable.',
     slots: {
-      green: { source: 'tool', chipText: 'transfer $200 to savings', match: { tools: ['transfer_funds', 'transfer_money'] }, expected: ['PERMIT'] },
-      red:   { source: 'tool', chipText: 'transfer $6,000 to savings', match: { tools: ['transfer_funds', 'transfer_money'] }, expected: ['DENY'] },
+      green: { source: 'tool', chipText: 'transfer $200 to savings', match: { tools: ['transfer_funds', 'transfer_money', '*'] }, expected: ['PERMIT'] },
+      red:   { source: 'tool', chipText: 'transfer $6,000 to savings', match: { tools: ['transfer_funds', 'transfer_money', '*'] }, expected: ['DENY'] },
     },
     proved: {
       green: 'A normal transfer was permitted — the decision was evaluated live in PingOne Authorize, not hard-coded in the agent.',
@@ -74,8 +79,8 @@ const TRACK_STEPS = [
     capability: 'MFA · 428 challenge', ucIds: ['UC7'],
     buyerStory: 'A risk threshold mid-conversation forces re-authentication before money moves.',
     slots: {
-      green: { source: 'tool', chipText: 'transfer after completing MFA', match: { tools: ['transfer_funds', 'transfer_money'] }, expected: ['PERMIT'] },
-      red:   { source: 'tool', chipText: 'transfer above the step-up threshold', match: { tools: ['transfer_funds', 'transfer_money'] }, expected: ['STEP_UP'] },
+      green: { source: 'tool', chipText: 'transfer after completing MFA', match: { tools: ['transfer_funds', 'transfer_money', '*'] }, expected: ['PERMIT'] },
+      red:   { source: 'tool', chipText: 'transfer above the step-up threshold', match: { tools: ['transfer_funds', 'transfer_money', '*'] }, expected: ['STEP_UP'] },
     },
     proved: {
       green: 'After MFA, the same transfer completed — trust was re-established, not assumed.',
@@ -88,8 +93,8 @@ const TRACK_STEPS = [
     capability: 'HITL · CIBA', ucIds: ['UC8', 'UC22', 'UC27'],
     buyerStory: 'High-risk actions pause for a human decision on a second device — and the agent cannot skip it.',
     slots: {
-      green: { source: 'tool', chipText: 'transfer approved by human on second device', match: { tools: ['transfer_funds', 'transfer_money'] }, expected: ['PERMIT'] },
-      red:   { source: 'tool', chipText: 'agent attempts to bypass consent', match: { tools: ['transfer_funds', 'transfer_money'] }, expected: ['HITL', 'DENY'] },
+      green: { source: 'tool', chipText: 'transfer approved by human on second device', match: { tools: ['transfer_funds', 'transfer_money', '*'] }, expected: ['PERMIT'] },
+      red:   { source: 'tool', chipText: 'agent attempts to bypass consent', match: { tools: ['transfer_funds', 'transfer_money', '*'] }, expected: ['HITL', 'DENY'] },
     },
     proved: {
       green: 'A human approved out-of-band and only then did the transfer proceed.',
@@ -102,8 +107,8 @@ const TRACK_STEPS = [
     capability: 'Gateway scoping', ucIds: ['UC30', 'UC31', 'UC32'],
     buyerStory: 'An external MCP server your bank did not write is still governed centrally at the gateway.',
     slots: {
-      green: { source: 'tool', chipText: 'get the weather (scoped, permitted)', match: { tools: ['get_weather', 'get_forecast'] }, expected: ['PERMIT'] },
-      red:   { source: 'tool', chipText: 'out-of-scope third-party call', match: { tools: ['get_weather', 'get_forecast'] }, expected: ['DENY'] },
+      green: { source: 'tool', chipText: 'get the weather (scoped, permitted)', match: { tools: ['get_weather', 'get_forecast', '*'] }, expected: ['PERMIT'] },
+      red:   { source: 'tool', chipText: 'out-of-scope third-party call', match: { tools: ['get_weather', 'get_forecast', '*'] }, expected: ['DENY'] },
     },
     proved: {
       green: 'The third-party MCP call was permitted only for the scope the gateway granted.',
