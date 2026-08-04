@@ -26,24 +26,29 @@ router.get('/', (req, res) => {
     hiddenLabels: flagOn ? prefs.hiddenLabels : [],
     activeConfigId: prefs.activeConfigId,
     navOrder: prefs.navOrder || null,
+    childOrder: prefs.childOrder || null,
     flagOn,
   });
 });
 
 router.put('/', (req, res) => {
-  const { hiddenLabels, activeConfigId, navOrder } = req.body || {};
+  const { hiddenLabels, activeConfigId, navOrder, childOrder } = req.body || {};
   if (!Array.isArray(hiddenLabels)) {
     return res.status(400).json({ error: 'hiddenLabels must be an array' });
   }
   if (navOrder !== undefined && navOrder !== null && !Array.isArray(navOrder)) {
     return res.status(400).json({ error: 'navOrder must be an array or null' });
   }
-  const prefs = navConfigStore.setUserPrefs(req.user.id, hiddenLabels, activeConfigId || null, navOrder);
+  if (childOrder !== undefined && childOrder !== null && !navConfigStore.isChildOrder(childOrder)) {
+    return res.status(400).json({ error: 'childOrder must be an object of string arrays, or null' });
+  }
+  const prefs = navConfigStore.setUserPrefs(req.user.id, hiddenLabels, activeConfigId || null, navOrder, childOrder);
   const flagOn = isFlagOn();
   res.json({
     hiddenLabels: flagOn ? prefs.hiddenLabels : [],
     activeConfigId: prefs.activeConfigId,
     navOrder: prefs.navOrder || null,
+    childOrder: prefs.childOrder || null,
     flagOn,
   });
 });

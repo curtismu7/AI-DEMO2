@@ -362,6 +362,23 @@
   border-radius: 5px;
   padding: 2px 7px;
 }
+.dc-child-item--draggable {
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dc-child-item--draggable:active {
+  cursor: grabbing;
+}
+.dc-child-item--draggable .dc-drag-handle {
+  font-size: 10px;
+  color: #94a3b8;
+}
+.dc-child-item--drag-over {
+  border-color: #2563eb;
+  box-shadow: inset 2px 0 0 #2563eb;
+}
 
 .dc-btn-secondary {
   font-family: inherit;

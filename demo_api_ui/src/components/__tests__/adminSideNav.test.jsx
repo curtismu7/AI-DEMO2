@@ -183,6 +183,49 @@ describe("AdminSideNav — best-of-breed pass", () => {
     });
   });
 
+  it("applies a saved childOrder — a child moved to another group renders there, not in its origin", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (String(url).includes("/api/user/nav-config")) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                hiddenLabels: [],
+                activeConfigId: null,
+                navOrder: null,
+                childOrder: {
+                  Inspectors: [
+                    "PingOne MCP Setup",
+                    "MCP Inspector",
+                    "Agent Gateway Inspector",
+                    "P1AZ Inspector",
+                  ],
+                },
+                flagOn: true,
+              }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }),
+    );
+    renderNav();
+    expect(await screen.findByText("Inspectors")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Inspectors"));
+    const inspectors = screen.getByRole("region", { name: "Inspectors" });
+    expect(within(inspectors).getByText("PingOne MCP Setup")).toBeInTheDocument();
+
+    // The claiming override consolidates "MCP Inspector" into Inspectors too, so
+    // "PingOne MCP" is left with no children and is dropped from the nav
+    // entirely (a childless group has no path to link to) — and the moved
+    // child appears exactly once, in Inspectors.
+    expect(screen.getAllByText("PingOne MCP Setup")).toHaveLength(1);
+    expect(screen.queryByText("PingOne MCP")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it("NAV_STRUCTURE_CATALOG top-level labels stay in sync with AdminSideNav", () => {
     renderNavAsUser(customerUser);
     NAV_STRUCTURE_CATALOG.forEach((group) => {

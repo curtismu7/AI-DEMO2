@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import "../styles/appShellPages.css";
 import "./DemoConfigPage.css";
-import { NAV_STRUCTURE_CATALOG } from "../config/navStructureCatalog";
+import { NAV_STRUCTURE_CATALOG, applyChildOrder } from "../config/navStructureCatalog";
 
 // Apply a saved navOrder (array of labels) to the catalog, appending any new
 // labels not yet in the saved order at the end.
@@ -28,6 +28,8 @@ export default function DemoConfigPage() {
   const [busy, setBusy] = useState(false);
   const dragIndexRef = useRef(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const childDragRef = useRef(null);
+  const [childDropTarget, setChildDropTarget] = useState(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -42,12 +44,13 @@ export default function DemoConfigPage() {
       if (!prefsRes.ok) throw new Error(prefs.error || `HTTP ${prefsRes.status}`);
       if (!configsRes.ok) throw new Error(configsData.error || `HTTP ${configsRes.status}`);
       const savedOrder = prefs.navOrder || null;
+      const savedChildOrder = prefs.childOrder || null;
       setHiddenLabels(prefs.hiddenLabels || []);
       setActiveConfigId(prefs.activeConfigId || null);
       setFlagOn(!!prefs.flagOn);
       setConfigs(configsData.configs || []);
       setNavOrder(savedOrder);
-      setGroups(applyOrder(NAV_STRUCTURE_CATALOG, savedOrder));
+      setGroups(applyChildOrder(applyOrder(NAV_STRUCTURE_CATALOG, savedOrder), savedChildOrder));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -88,7 +91,11 @@ export default function DemoConfigPage() {
   };
 
   const onDragStart = (index) => { dragIndexRef.current = index; };
-  const onDragOver = (e, index) => { e.preventDefault(); setDragOverIndex(index); };
+  const onDragOver = (e, index) => {
+    e.preventDefault();
+    // A child drag over a group row targets "append to this group", not reorder.
+    if (!childDragRef.current) setDragOverIndex(index);
+  };
   const onDrop = (e, dropIndex) => {
     e.preventDefault();
     const fromIndex = dragIndexRef.current;
@@ -105,10 +112,73 @@ export default function DemoConfigPage() {
   };
   const onDragEnd = () => { dragIndexRef.current = null; setDragOverIndex(null); };
 
+  // --- child items: drag to reorder within a group or move to another group ---
+  const onChildDragStart = (e, fromGroup, label) => {
+    e.stopPropagation();
+    childDragRef.current = { fromGroup, label };
+  };
+  const onChildDragOver = (e, group, index) => {
+    if (!childDragRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setChildDropTarget({ group, index });
+  };
+  // Drop a dragged child: before childOrder[toIndex] of toGroup, or appended
+  // when toIndex is null (drop on the group row / list tail).
+  const onChildDrop = (e, toGroup, toIndex) => {
+    const drag = childDragRef.current;
+    if (!drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (!Array.isArray(g.children)) return g;
+        let children = g.children;
+        if (g.label === drag.fromGroup) children = children.filter((c) => c !== drag.label);
+        if (g.label === toGroup) {
+          const arr = [...children];
+          const at = toIndex === null ? arr.length : Math.min(toIndex, arr.length);
+          arr.splice(at, 0, drag.label);
+          children = arr;
+        }
+        return children === g.children ? g : { ...g, children };
+      }),
+    );
+    childDragRef.current = null;
+    setChildDropTarget(null);
+    setActiveConfigId(null);
+  };
+  const onChildDragEnd = () => { childDragRef.current = null; setChildDropTarget(null); };
+
+  // Group-row drop doubles as "append here" for a dragged child (works on
+  // collapsed groups too); group reorder keeps its own path.
+  const onGroupRowDrop = (e, group, dropIndex) => {
+    if (childDragRef.current) {
+      if (Array.isArray(group.children)) onChildDrop(e, group.label, null);
+      else onChildDragEnd();
+      return;
+    }
+    onDrop(e, dropIndex);
+  };
+
   const currentOrder = groups.map((g) => g.label);
+  const defaultChildrenByLabel = Object.fromEntries(
+    NAV_STRUCTURE_CATALOG.map((g) => [g.label, g.children || null]),
+  );
+  // Sparse override: only groups whose child list differs from the catalog.
+  const childOrderEntries = groups
+    .filter((g) => Array.isArray(g.children))
+    .filter(
+      (g) => JSON.stringify(g.children) !== JSON.stringify(defaultChildrenByLabel[g.label] || []),
+    )
+    .map((g) => [g.label, g.children]);
+  const currentChildOrder = childOrderEntries.length
+    ? Object.fromEntries(childOrderEntries)
+    : null;
   const isDefaultOrder =
+    currentChildOrder === null &&
     JSON.stringify(currentOrder) ===
-    JSON.stringify(NAV_STRUCTURE_CATALOG.map((g) => g.label));
+      JSON.stringify(NAV_STRUCTURE_CATALOG.map((g) => g.label));
 
   const resetOrder = () => { setGroups(NAV_STRUCTURE_CATALOG); setActiveConfigId(null); };
 
@@ -121,7 +191,12 @@ export default function DemoConfigPage() {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hiddenLabels, activeConfigId: null, navOrder: orderToSave }),
+        body: JSON.stringify({
+          hiddenLabels,
+          activeConfigId: null,
+          navOrder: orderToSave,
+          childOrder: currentChildOrder,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -227,7 +302,8 @@ export default function DemoConfigPage() {
         <div className="app-page-header__left">
           <h1 className="app-page-title">Demo Config</h1>
           <p className="app-page-subtitle">
-            Toggle groups on/off, drag to reorder, then save to update the sidebar.
+            Toggle groups on/off, drag groups to reorder, drag the items under a group to
+            reorder or move them to another group, then save to update the sidebar.
           </p>
         </div>
         <span className={`dc-flag-pill${flagOn ? " dc-flag-pill--on" : ""}`}>
@@ -270,7 +346,7 @@ export default function DemoConfigPage() {
                     draggable
                     onDragStart={() => onDragStart(index)}
                     onDragOver={(e) => onDragOver(e, index)}
-                    onDrop={(e) => onDrop(e, index)}
+                    onDrop={(e) => onGroupRowDrop(e, group, index)}
                     onDragEnd={onDragEnd}
                   >
                     <div className="dc-group-row__main">
@@ -316,9 +392,30 @@ export default function DemoConfigPage() {
                       </div>
                     </div>
                     {isExpanded && group.children && (
-                      <ul className="dc-child-list">
-                        {group.children.map((child) => (
-                          <li key={child} className="dc-child-item">{child}</li>
+                      <ul
+                        className="dc-child-list"
+                        onDragOver={(e) => onChildDragOver(e, group.label, group.children.length)}
+                        onDrop={(e) => onChildDrop(e, group.label, null)}
+                      >
+                        {group.children.map((child, childIndex) => (
+                          <li
+                            key={child}
+                            className={`dc-child-item dc-child-item--draggable${
+                              childDropTarget &&
+                              childDropTarget.group === group.label &&
+                              childDropTarget.index === childIndex
+                                ? " dc-child-item--drag-over"
+                                : ""
+                            }`}
+                            draggable
+                            onDragStart={(e) => onChildDragStart(e, group.label, child)}
+                            onDragOver={(e) => onChildDragOver(e, group.label, childIndex)}
+                            onDrop={(e) => onChildDrop(e, group.label, childIndex)}
+                            onDragEnd={onChildDragEnd}
+                          >
+                            <span className="dc-drag-handle" aria-hidden="true">⠿</span>
+                            {child}
+                          </li>
                         ))}
                       </ul>
                     )}

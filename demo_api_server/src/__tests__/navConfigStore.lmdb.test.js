@@ -58,7 +58,7 @@ describe('navConfigStore.lmdb', () => {
 
   test('getUserPrefs defaults to Use Cases hidden for a first-time user', () => {
     const prefs = store.getUserPrefs('user-never-seen-before');
-    expect(prefs).toEqual({ hiddenLabels: ['Use Cases'], activeConfigId: null, navOrder: null, updatedAt: null });
+    expect(prefs).toEqual({ hiddenLabels: ['Use Cases'], activeConfigId: null, navOrder: null, childOrder: null, updatedAt: null });
     expect(prefs.hiddenLabels).toEqual(store.DEFAULT_HIDDEN_LABELS);
   });
 
@@ -70,6 +70,27 @@ describe('navConfigStore.lmdb', () => {
 
     const fetched = store.getUserPrefs('user-42');
     expect(fetched).toEqual(saved);
+  });
+
+  test('childOrder round-trips, survives an update that omits it, and clears on explicit null', () => {
+    const childOrder = { 'PingOne MCP': ['MCP Inspector', 'Guided Demo Track'], Demos: ['Use Cases'] };
+    const saved = store.setUserPrefs('user-child', [], null, null, childOrder);
+    expect(saved.childOrder).toEqual(childOrder);
+
+    const kept = store.setUserPrefs('user-child', ['Themes'], null, undefined, undefined);
+    expect(kept.childOrder).toEqual(childOrder);
+
+    const cleared = store.setUserPrefs('user-child', ['Themes'], null, undefined, null);
+    expect(cleared.childOrder).toBeNull();
+  });
+
+  test('isChildOrder accepts an object of string arrays and rejects everything else', () => {
+    expect(store.isChildOrder({ Demos: ['Use Cases'] })).toBe(true);
+    expect(store.isChildOrder({})).toBe(true);
+    expect(store.isChildOrder(['Use Cases'])).toBe(false);
+    expect(store.isChildOrder({ Demos: 'Use Cases' })).toBe(false);
+    expect(store.isChildOrder({ Demos: [1] })).toBe(false);
+    expect(store.isChildOrder(null)).toBe(false);
   });
 
   test('every BUILTIN_CONFIGS hiddenLabels entry is a real, known nav label', () => {

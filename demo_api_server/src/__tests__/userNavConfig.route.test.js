@@ -65,6 +65,31 @@ describe('PUT /api/user/nav-config', () => {
     expect(res.status).toBe(400);
   });
 
+  test('saves childOrder, round-trips it, and clears it on explicit null', async () => {
+    const app = makeApp('user-child-order');
+    const childOrder = { 'PingOne MCP': ['Guided Demo Track', 'MCP Inspector'] };
+    const resPut = await request(app)
+      .put('/api/user/nav-config')
+      .send({ hiddenLabels: [], activeConfigId: null, childOrder });
+    expect(resPut.status).toBe(200);
+    expect(resPut.body.childOrder).toEqual(childOrder);
+
+    const resGet = await request(app).get('/api/user/nav-config');
+    expect(resGet.body.childOrder).toEqual(childOrder);
+
+    const resClear = await request(app)
+      .put('/api/user/nav-config')
+      .send({ hiddenLabels: [], activeConfigId: null, childOrder: null });
+    expect(resClear.body.childOrder).toBeNull();
+  });
+
+  test('rejects a malformed childOrder with 400', async () => {
+    const res = await request(makeApp())
+      .put('/api/user/nav-config')
+      .send({ hiddenLabels: [], childOrder: { Demos: 'not-an-array' } });
+    expect(res.status).toBe(400);
+  });
+
   test("does not leak one user's prefs to another", async () => {
     await configStore.setRaw({ ff_sidebar_customization: 'true' });
     const appA = makeApp('user-a');
