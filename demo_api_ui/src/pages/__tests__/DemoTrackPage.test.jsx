@@ -174,6 +174,8 @@ describe("DemoTrackPage", () => {
     expect(apiClient.patch).toHaveBeenCalledWith("/api/admin/feature-flags", expect.objectContaining({
       updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }),
     }));
+    // a permit must not look dead: the Run button flashes a visible success ack
+    await waitFor(() => expect(within(row).getByRole("button", { name: /ran/ })).toBeInTheDocument());
   });
 
   it("runs sim-sourced red slots through the attack-sim API", async () => {

@@ -89,6 +89,9 @@
 }
 .dtp-run-note { color: var(--dtp-muted); font-size: 12px; }
 .dtp-run-note--error { color: var(--dtp-deny); font-weight: 600; }
+.dtp-run-note--running { color: var(--dtp-navy); font-weight: 600; }
+.dtp-run-note--done { color: var(--dtp-green); font-weight: 700; }
+.dtp-run-btn--done { background: var(--dtp-green); }
 /* Plain-language "why" under a filled slot / gauntlet tile */
 .dtp-reason { font-size: 12px; line-height: 1.45; margin: -2px 0 8px 76px; }
 .dtp-reason--g { color: var(--dtp-green); }
@@ -101,7 +104,7 @@
   display: inline-block; font-size: 9px; font-weight: 800; margin-left: 6px;
   background: var(--dtp-green-bg); color: var(--dtp-green); border-radius: 3px; padding: 0 5px;
 }
-.dtp-g-reason { font-size: 11px; line-height: 1.4; color: var(--dtp-muted); margin-top: 6px; }
+.dtp-g-reason { font-size: 12px; line-height: 1.4; color: var(--dtp-muted); margin-top: 6px; }
 .dtp-run-btn {
   margin-left: auto; font-size: 12.5px; font-weight: 600; color: #fff;
   background: var(--dtp-navy); border: none; border-radius: 6px; padding: 7px 16px; cursor: pointer;
