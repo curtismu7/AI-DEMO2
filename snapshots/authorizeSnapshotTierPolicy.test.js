@@ -66,11 +66,20 @@ function constantsOf(cond) {
 function ceilingsOf(cond, defaultTier) {
   return (cond.condition.or.conditions || []).map((branch) => {
     const [tierNode, amountNode] = branch.and.conditions;
-    // The default tier's branch reuses the IsStandardTier reference; the others
-    // inline a UserTier equality.
-    const tier = tierNode.reference
-      ? defaultTier
-      : tierNode.comparison.right.constant.value;
+    // Three shapes the default tier's branch has taken:
+    //   not        — CURRENT: "none of the named non-default tiers". UserTier
+    //                defaults to 'none' and is often not sent at all, so an
+    //                equality against 'Standard' matched no branch and left an
+    //                over-cap amount denied by nothing. The negation makes the
+    //                capped tier the fallback.
+    //   reference  — the older IsStandardTier reference.
+    //   comparison — a named non-default tier.
+    let tier;
+    if (tierNode.not || tierNode.reference) {
+      tier = defaultTier;
+    } else {
+      tier = tierNode.comparison.right.constant.value;
+    }
     assert.strictEqual(amountNode.comparison.left.attribute.id, ATTR.Amount);
     assert.strictEqual(amountNode.comparison.op, 'GreaterThan');
     return [tier, amountNode.comparison.right.constant.value];
