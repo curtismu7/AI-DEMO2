@@ -142,9 +142,14 @@ services:
       # locally, so pointing this at a local port can never work — verified by
       # probing the FQDN (401 with a real challenge) vs local ports (no listener).
       PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp}"
-      PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
-      PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
-      PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
+      # The gateway front door validates client tokens against PRIVILEGE's own
+      # PingOne environment, not AI-Demo's — a token minted here in 01d89b06 is
+      # rejected with "JWT signature validation failed" no matter its scopes.
+      # Override these three in the gitignored root .env to point the client page
+      # at that environment; the defaults keep the pre-existing behaviour.
+      PRIVILEGE_SSO_ENV_ID: "${PRIVILEGE_SSO_ENV_ID:-01d89b06-66d5-430e-9f28-65636843788b}"
+      PRIVILEGE_SSO_CLIENT_ID: "${PRIVILEGE_SSO_CLIENT_ID:-6586d3de-b916-454c-84e5-6d21b572a534}"
+      PRIVILEGE_SSO_CLIENT_SECRET: "${PRIVILEGE_SSO_CLIENT_SECRET:-jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ}"
       PRIVILEGE_LOGIN_HINT: "cmuir+ssoEndUser@pingone.com"
       MCPGW_CONFIG_PATH: "/app/mcpgw-config"
       PINGONE_MCP_GATEWAY_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
