@@ -63,7 +63,13 @@ export default function PrivilegeMcpClientPage() {
   const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+  // Scroll the message list itself, never the window: scrollIntoView() walked up
+  // to the document and pushed the title bar (and its Skin picker) off-screen on
+  // first paint.
+  useEffect(() => {
+    const list = chatEndRef.current?.parentElement;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [chatMessages]);
 
   const appendChat = useCallback((role, content, extra = null) => {
     setChatMessages((prev) => [...prev, { role, content, extra, ts: Date.now() }]);
