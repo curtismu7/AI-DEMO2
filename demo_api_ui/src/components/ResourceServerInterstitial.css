@@ -274,12 +274,6 @@
   border-top: 1px solid #e2e8f0;
 }
 
-.rsi-countdown {
-  font-size: 0.85rem;
-  color: #94a3b8;
-  font-variant-numeric: tabular-nums;
-}
-
 .rsi-continue-btn {
   padding: 0.5rem 1.25rem;
   font-size: 0.85rem;

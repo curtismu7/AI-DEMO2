@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import './ResourceServerInterstitial.css';
@@ -89,21 +89,11 @@ function ServerNode({ server, isActive }) {
 
 /**
  * Modal overlay that shows which resource server a tool call is routed to.
- * Auto-dismisses after a countdown (default 4s) or on click.
+ * Remains open until the user chooses whether to continue or dismiss it.
  */
 export default function ResourceServerInterstitial({ toolName, onDismiss, onNavigate }) {
-  const [countdown, setCountdown] = useState(4);
   const targetId = resolveTargetServer(toolName);
   const target = SERVERS[targetId];
-
-  useEffect(() => {
-    if (countdown <= 0) {
-      onNavigate?.();
-      return;
-    }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [countdown, onNavigate]);
 
   return createPortal(
     <div className="rsi-overlay" onClick={onDismiss}>
@@ -183,7 +173,6 @@ export default function ResourceServerInterstitial({ toolName, onDismiss, onNavi
         </section>
 
         <footer className="rsi-footer">
-          <span className="rsi-countdown">Continuing in {countdown}s...</span>
           <button className="rsi-continue-btn" onClick={onNavigate}>
             View Resource Server
           </button>
