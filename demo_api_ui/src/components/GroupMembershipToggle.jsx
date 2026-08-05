@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import DraggableModal from "./DraggableModal";
+import apiClient from "../services/apiClient";
 import "./GroupMembershipToggle.css";
 
 /**
@@ -15,7 +16,7 @@ import "./GroupMembershipToggle.css";
  * found. A write that silently no-ops therefore shows as unchanged here rather
  * than as success.
  */
-export default function GroupMembershipToggle({ onChange = null }) {
+export default function GroupMembershipToggle({ onChange = null, verticalId = null }) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -26,17 +27,18 @@ export default function GroupMembershipToggle({ onChange = null }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/groups/membership", { credentials: "include" });
-      if (!res.ok) throw new Error(`membership lookup failed (${res.status})`);
-      const data = await res.json();
-      setState(data);
+      const res = await apiClient.get("/api/groups/membership", {
+        params: verticalId ? { verticalId } : {},
+        _silent: true,
+      });
+      setState(res.data);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
       setState(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [verticalId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -48,14 +50,14 @@ export default function GroupMembershipToggle({ onChange = null }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/groups/membership/toggle", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inGroup: !inGroup, category: "privileged" }),
+      const res = await apiClient.post("/api/groups/membership/toggle", {
+        inGroup: !inGroup,
+        category: "privileged",
+        ...(verticalId ? { verticalId } : {}),
+      }, {
+        _silent: true,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || `toggle failed (${res.status})`);
+      const data = res.data;
 
       await load();
       setModal({
@@ -71,11 +73,11 @@ export default function GroupMembershipToggle({ onChange = null }) {
       });
       if (onChange) onChange(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setBusy(false);
     }
-  }, [privilegedGroup, inGroup, busy, load, onChange]);
+  }, [privilegedGroup, inGroup, busy, load, onChange, verticalId]);
 
   if (loading) {
     return <div className="gmt-panel gmt-panel--loading">Checking group membership…</div>;
@@ -144,7 +146,7 @@ export default function GroupMembershipToggle({ onChange = null }) {
           disabled={busy}
           aria-pressed={inGroup}
         >
-          {busy ? "Applying…" : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
+          {busy ? <><span className="gmt-spinner" aria-hidden="true" /> Applying…</> : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
         </button>
 
         {error ? <div className="gmt-inline-error">⚠️ {error}</div> : null}

@@ -113,7 +113,18 @@ export function verticalSuggestionChips(pageManifest) {
     mode: c.mode || null,
     tool: c.tool || null,
     denyTool: c.denyTool || null,
+    queryPrompt: c.queryPrompt || null,
   }));
+}
+
+export function buildPingOneUserListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'List all users in my PingOne environment. Call listUsers with no filter.';
+  }
+  if (!/^[A-Za-z0-9._@+-]+\*$/.test(input)) return null;
+  const prefix = input.slice(0, -1);
+  return `List PingOne users whose username starts with "${prefix}". Call listUsers with arguments.filter exactly username sw "${prefix}".`;
 }
 
 // Chip challenge marker (REGRESSION_PLAN §0 allows 👤 and 🔑), so a demo
