@@ -76,7 +76,8 @@
       "fields": [
         { "label": "Tool",     "path": "tool" },
         { "label": "Response", "path": "responseSummary" },
-        { "label": "Source",   "path": "source" }
+        { "label": "Source",   "path": "source" },
+        { "label": "Debug",    "path": "debug.summary" }
       ]
     }
   },
