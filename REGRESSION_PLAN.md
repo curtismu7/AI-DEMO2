@@ -119,6 +119,23 @@ outage path and fixtures that explicitly require it now use `false`.
 send `true`.
 **Verify:** Authorize configuration unit test, focused polarity search, UI build.
 
+### 2026-08-05 — Token Chain rendered nested policy statements as escaped text
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TraceStepCard.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/__tests__/TraceStepCard.teaching.test.jsx`,
+`demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+**What was broken:** the Agent Gateway step stringified its policy statements
+before rendering, so nested JSON in each statement's `payload` appeared as a
+dense block of escaped quotes.
+**What was fixed:** the trace model now preserves statements as structured data,
+and the inline and pop-out views deep-format nested JSON with indentation and
+syntax highlighting.
+**Do not break:** preserve the statement objects through the trace model; do not
+pre-stringify them before the deep JSON renderer.
+**Verify:** `cd demo_api_ui && npm run test:unit`; `cd demo_api_ui && npm run build`.
+
 ### 2026-08-05 — UC14b PAR-permit `create_transfer` self-rejected with a false "aud mismatch" whenever Step 9 resource narrowing was enabled
 
 **Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`,

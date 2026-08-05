@@ -196,6 +196,10 @@
 .tctr-kv { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 12.5px; margin: 4px 0; }
 .tctr-kv-k { color: #64748b; font-weight: 600; }
 .tctr-kv-v { font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+.tctr-kv-v--json {
+  margin: 0; padding: 8px; overflow-x: auto; border: 1px solid #cbd5e1;
+  border-radius: 6px; background: #f8fafc; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+}
 .tctr-rfc {
   display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px;
   font-size: 11px; font-weight: 700; padding: 1px 5px; margin: 4px 3px 0 0;

@@ -760,7 +760,7 @@ export function buildTraceSteps(trace) {
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
-        gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
+        gwAz && gwAz.statements ? ["statements", gwAz.statements] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
         // invalid_aud teaching: show both sides of the mismatch (token vs gateway).

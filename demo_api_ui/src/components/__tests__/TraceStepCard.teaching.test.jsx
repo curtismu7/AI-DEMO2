@@ -70,6 +70,29 @@ test("large evidence hints to prefer Pop out without hiding the JSON", () => {
   expect(screen.getByRole("button", { name: /Pop out full detail/i })).toBeInTheDocument();
 });
 
+test("renders nested policy statement payloads as readable JSON", () => {
+  const step = {
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      kv: [[
+        "statements",
+        [{
+          name: "MCP Tool Authorization Denied",
+          payload: '{"denied":true,"message":"Audience validation failed."}',
+        }],
+      ]],
+    },
+  };
+  const { container } = render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
+  const statements = container.querySelector(".tctr-kv-v--json");
+
+  expect(statements).not.toBeNull();
+  expect(statements.textContent).toContain('"payload": {');
+  expect(statements.textContent).toContain('"denied": true');
+  expect(statements.textContent).not.toContain('\\"denied\\"');
+});
+
 test("Learn more opens the education drawer when moreDetail.edu is set", () => {
   const step = {
     ...STEP_WITH_EVIDENCE,
@@ -198,6 +221,23 @@ test("pop-out shows which scopes this hop dropped", () => {
   expect(html).toContain("Scope narrowing");
   expect(html).toContain("banking:write (dropped)");
   expect(html).toContain("Scope after this hop: banking:read");
+});
+
+test("pop-out deep-formats nested policy statement payloads", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      kv: [[
+        "statements",
+        [{ name: "Denied", payload: '{"denied":true,"reason":"invalid_aud"}' }],
+      ]],
+    },
+  });
+
+  expect(html).toContain('"payload":');
+  expect(html).toContain('"denied":');
+  expect(html).not.toContain('\\"denied\\"');
 });
 
 test("pop-out renders the replay payload read-only and never stages a live re-issue", () => {
