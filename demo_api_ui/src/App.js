@@ -49,6 +49,7 @@ import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
 import DelegationPage from "./components/DelegationPage";
 import AgentLifecyclePage from "./pages/AgentLifecyclePage";
+import DelegatedCommercePage from "./pages/DelegatedCommercePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
@@ -1449,6 +1450,16 @@ function AppWithAuth() {
                               element={
                                 user ? (
                                   <AgentLifecyclePage />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/delegated-commerce"
+                              element={
+                                user ? (
+                                  <DelegatedCommercePage user={user} />
                                 ) : (
                                   <Navigate to="/" replace />
                                 )

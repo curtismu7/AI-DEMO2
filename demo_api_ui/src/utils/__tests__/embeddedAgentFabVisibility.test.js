@@ -176,9 +176,11 @@ describe('isLiveWorkbenchRoute', () => {
 });
 
 describe('isAgentLifecycleRoute', () => {
-  it('is true only for /agent-lifecycle', () => {
+  it('is true for the guided lifecycle surfaces', () => {
     expect(isAgentLifecycleRoute('/agent-lifecycle')).toBe(true);
     expect(isAgentLifecycleRoute('/agent-lifecycle/')).toBe(true);
+    expect(isAgentLifecycleRoute('/delegated-commerce')).toBe(true);
+    expect(isAgentLifecycleRoute('/delegated-commerce/')).toBe(true);
   });
 
   it('is false for unrelated routes', () => {

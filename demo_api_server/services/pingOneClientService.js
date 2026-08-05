@@ -122,6 +122,7 @@ function mapGrantTypes(grantTypes) {
     client_credentials: 'CLIENT_CREDENTIALS',
     refresh_token:      'REFRESH_TOKEN',
     'urn:openid:params:grant-type:ciba': 'CIBA',
+    'urn:ietf:params:oauth:grant-type:token-exchange': 'TOKEN_EXCHANGE',
   };
   return (grantTypes || ['authorization_code']).map(g => map[g] || g.toUpperCase().replace(/-/g, '_'));
 }
@@ -234,4 +235,45 @@ async function listApplications() {
   }));
 }
 
-module.exports = { createApplication, listApplications, listOidcApplicationsRaw, getManagementToken, resolveWorkerCredentials };
+async function cloneApplicationGrants(sourceApplicationId, targetApplicationId) {
+  const envId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const region = configStore.getEffective('PINGONE_REGION') || 'com';
+  const token = await getManagementToken();
+  const baseUrl = `https://api.pingone.${region}/v1/environments/${envId}/applications`;
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const response = await axios.get(`${baseUrl}/${sourceApplicationId}/grants`, {
+    headers,
+    timeout: 20000,
+  });
+  const grants = response.data?._embedded?.grants || [];
+  if (grants.length === 0) {
+    throw new Error('The configured AI agent application has no resource grants to clone.');
+  }
+  for (const grant of grants) {
+    await axios.post(`${baseUrl}/${targetApplicationId}/grants`, {
+      resource: { id: grant.resource.id },
+      scopes: (grant.scopes || []).map(({ id }) => ({ id })),
+    }, { headers, timeout: 20000 });
+  }
+  return grants.length;
+}
+
+async function deleteApplication(applicationId) {
+  const envId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const region = configStore.getEffective('PINGONE_REGION') || 'com';
+  const token = await getManagementToken();
+  await axios.delete(
+    `https://api.pingone.${region}/v1/environments/${envId}/applications/${applicationId}`,
+    { headers: { Authorization: `Bearer ${token}` }, timeout: 20000 },
+  );
+}
+
+module.exports = {
+  createApplication,
+  listApplications,
+  listOidcApplicationsRaw,
+  cloneApplicationGrants,
+  deleteApplication,
+  getManagementToken,
+  resolveWorkerCredentials,
+};

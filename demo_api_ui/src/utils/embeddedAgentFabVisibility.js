@@ -138,5 +138,5 @@ export function isLiveWorkbenchRoute(pathname) {
 export function isAgentLifecycleRoute(pathname) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
-  return p === '/agent-lifecycle';
+  return p === '/agent-lifecycle' || p === '/delegated-commerce';
 }

@@ -29,6 +29,7 @@ const {
 } = require('./useCaseDemoBehaviors');
 const { getUseCaseStepUpMethod } = require('../config/useCases');
 const { verticalManifest } = require('./verticalManifest');
+const { resolveConsentContext } = require('./delegatedCommerceRuntime');
 
 /**
  * Extract nested actor id from MCP JWT (RFC 8693 multi-hop) when PingOne issues act.act.
@@ -919,6 +920,28 @@ async function evaluateMcpFirstToolGate(opts) {
     return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
   }
 
+  const delegatedConsent = resolveConsentContext(req, tool);
+  if (delegatedConsent && !delegatedConsent.sufficient) {
+    return {
+      ran: true,
+      block: {
+        status: 403,
+        body: {
+          error: delegatedConsent.status === 'revoked'
+            ? 'delegated_agent_revoked'
+            : 'delegated_consent_scope_denied',
+          error_description: delegatedConsent.status === 'revoked'
+            ? 'The customer revoked this delegated agent.'
+            : 'The customer did not grant every scope required by this tool.',
+          decisionContext: 'DelegatedConsent',
+          agentId: delegatedConsent.agentId,
+          consentScopes: delegatedConsent.consentScopes,
+          requiredScopes: delegatedConsent.requiredScopes,
+        },
+      },
+    };
+  }
+
   const inputs = await buildMcpFirstToolGateInputs(opts);
   if (inputs.earlyExit) {
     return inputs.earlyExit;
@@ -939,6 +962,14 @@ async function evaluateMcpFirstToolGate(opts) {
     hitlApproved,
     hitlAlreadyVerified,
   } = inputs;
+  if (delegatedConsent) {
+    liveDelegationArgs.delegatedAgentId = delegatedConsent.agentId;
+    liveDelegationArgs.consentScopes = delegatedConsent.consentScopes;
+    liveDelegationArgs.requiredConsentScopes = delegatedConsent.requiredScopes;
+    simParams.delegatedAgentId = delegatedConsent.agentId;
+    simParams.consentScopes = delegatedConsent.consentScopes;
+    simParams.requiredConsentScopes = delegatedConsent.requiredScopes;
+  }
   const userAcr = opts.userAcr;
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {
