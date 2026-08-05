@@ -61,6 +61,8 @@ describe("MessageContent", () => {
   });
 
   test("formats an embedded United bookings payload as reservation cards", () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/Chicago";
     const onRefresh = vi.fn();
     const text = `[CUSTOMER AGENT]
 Here are your airline bookings:
@@ -121,6 +123,11 @@ ${JSON.stringify({
     fireEvent.click(screen.getByRole("button", { name: "Refresh from United DB" }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain('"confirmationNumber"');
+    if (originalTimezone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimezone;
+    }
   });
 
   test("shows a United-specific live database query pulse", () => {
