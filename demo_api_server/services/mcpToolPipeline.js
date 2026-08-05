@@ -246,6 +246,19 @@ async function runMcpToolPipeline(ctx) {
         tokenEvents = resolved.tokenEvents;
         userSub = resolved.userSub || null;
         tratContextHeader = resolved.tratContextHeader || null;
+        if (resolved.blocked) {
+            deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+            return {
+                kind: 'block',
+                httpStatus: resolved.blockHttpStatus || 403,
+                tokenEvents,
+                body: {
+                    error: resolved.blockCode || 'user_token_forwarding_disabled',
+                    message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+                    tokenEvents,
+                },
+            };
+        }
         // Publish token events to SSE hub for real-time Token Chain display
         deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
         const evs = tokenEvents || [];
