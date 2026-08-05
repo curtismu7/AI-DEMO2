@@ -7,6 +7,8 @@ function buildAdminSystemPrompt(customer) {
     'directly with it and camelCase arguments: listUsers, getUser, listApplications, ' +
     'listPopulations, getEnvironment. Only call list_pingone_tools first when the admin asks ' +
     'what you can do, or when no known tool name fits the request. ' +
+    'When listing users, pass a SCIM filter and limit through listUsers -- for prefix searches, ' +
+    'use username sw "prefix" (for example, usernames starting with curtis use filter username sw "curtis"). ' +
     'Call at most one tool per admin request unless its result is genuinely incomplete ' +
     '(e.g. it errored) -- do not retry a listing call with different arguments or explore ' +
     'other tools once you have an answer. Stop and answer as soon as a tool call succeeds. ' +
