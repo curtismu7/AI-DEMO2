@@ -150,6 +150,7 @@ run_api_tests() {
 echo "local full CI (manual; GitHub Actions is the authoritative PR gate)"
 ensure_deps demo_api_server
 ensure_deps demo_mcp_gateway
+ensure_deps oauth-mcp
 
 echo "job: Hygiene + topology gates"
 run "hygiene:check"     hygiene:check
@@ -172,6 +173,7 @@ run_api_tests
 echo "job: Authz decision-point suites"
 run "test:authz-server"  test:authz-server
 run "test:mcp-gateway"   test:mcp-gateway
+run "test:mcp-server"    test:mcp-server
 run "test:snapshots"     test:snapshots
 
 if [ -n "$FAILED" ]; then
