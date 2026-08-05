@@ -565,11 +565,19 @@ router.post('/test', express.json(), async (req, res) => {
     }
 
     const t0 = Date.now();
-    let token, tokenEvents = [];
+    let token, tokenEvents = [], resolved;
     try {
-        ({ token, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool));
+        resolved = await resolveMcpAccessTokenWithEvents(req, tool);
+        ({ token, tokenEvents = [] } = resolved);
     } catch (e) {
         return res.status(401).json({ gateway, error: 'token_resolution_failed', message: e.message });
+    }
+    if (resolved.blocked) {
+        return res.status(resolved.blockHttpStatus || 403).json({
+            gateway, error: resolved.blockCode || 'user_token_forwarding_disabled',
+            message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+            tokenEvents,
+        });
     }
     if (!token) {
         return res.status(401).json({
@@ -867,11 +875,19 @@ router.post('/test/burst', express.json(), async (req, res) => {
         return res.status(500).json({ gateway, error: 'gateway_not_configured', message: e.message });
     }
 
-    let token;
+    let token, resolved;
     try {
-        ({ token } = await resolveMcpAccessTokenWithEvents(req, tool));
+        resolved = await resolveMcpAccessTokenWithEvents(req, tool);
+        ({ token } = resolved);
     } catch (e) {
         return res.status(401).json({ gateway, error: 'token_resolution_failed', message: e.message });
+    }
+    if (resolved.blocked) {
+        return res.status(resolved.blockHttpStatus || 403).json({
+            gateway,
+            error: resolved.blockCode || 'user_token_forwarding_disabled',
+            message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+        });
     }
     if (!token) {
         return res.status(401).json({
