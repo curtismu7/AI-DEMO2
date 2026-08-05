@@ -6952,7 +6952,7 @@ export default function BankingAgent({
           const { data } = await apiClient.post("/api/demo/intent-binding/run", {
             action: "permit",
             requestedAmount: 80,
-          });
+          }, { timeout: 30000 });
           const status = data?.status;
           const isDeny = typeof status !== "number" || status >= 400;
           const verdict = isDeny ? "DENY" : "PERMIT";

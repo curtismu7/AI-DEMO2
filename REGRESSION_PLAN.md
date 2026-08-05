@@ -102,6 +102,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — UC14b PAR permit rendered a false client timeout before the successful response arrived
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.intentBindingTimeout.test.js`
+**What was broken:** UC14b's quick-result path used the shared Axios default timeout
+of 10 seconds for a multi-hop request that performs token exchange, account
+discovery, HITL pre-approval, gateway authorization, and transfer execution. A
+successful live run completed in 10.667 seconds with HTTP 200, but the UI had
+already rendered `Intent binding check failed: timeout of 10000ms exceeded`.
+**What was fixed:** only the UC14b intent-binding request now allows 30 seconds;
+the global API timeout and all other calls remain unchanged.
+**Do not break:** keep the longer timeout scoped to
+`/api/demo/intent-binding/run`; do not increase the shared `apiClient` timeout.
+**Verify:** `cd demo_api_ui && npm run test:unit -- AIAgent.intentBindingTimeout.test.js`;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-08-05 — UC14b PAR-permit `create_transfer` self-rejected with a false "aud mismatch" whenever Step 9 resource narrowing was enabled
 
 **Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`,
@@ -140,6 +156,24 @@ explicitly proving that path is blocked).
 **Verify:** `oauth-mcp`: `NODE_ENV=test npx jest tests/tools/BankingToolProvider.test.ts`
 (31/31, including the new "Step 9 resource exchange" regression test), then
 `npx tsc --noEmit`.
+
+### 2026-08-04 — Token Chain and Topology obscured A2A handoff progress and token exchanges
+
+**Files changed:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
+`demo_api_ui/src/components/TokenChainDisplay.css`,
+`demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/TokenTopologyPanel.css`,
+`demo_api_ui/src/components/DraggableModal.jsx`
+**What was broken:** Token Chain exposed A2A evidence only through individual
+event inspection, so it was not obvious that the main agent called a specialist.
+Topology hid unreached steps and represented token exchange as one generic node.
+**What was fixed:** Added a visible chain-progress control, an A2A handoff chip
+with a details modal, a complete always-visible standard topology, and separate
+A2A identity and wire-protocol paths. Exchange #1, nested-act Exchange #2, and
+the separate PingOne A2A wire bearer are now distinct.
+**Do not break:** A2A UI remains evidence-driven and absent from ordinary runs.
+Never conflate the A2A wire bearer with the nested-act MCP token.
+**Verify:** `cd demo_api_ui && npm run test:unit`; `cd demo_api_ui && npm run build`.
 
 ### 2026-08-04 — Token Chain rail showed a prior run's `create_transfer` step-up error on a successful public-catalog read (UC24)
 
