@@ -2,6 +2,7 @@
 
 jest.mock('../services/lmdb/delegatedCommerceStore.lmdb', () => ({
   get: jest.fn(),
+  decryptClientSecret: jest.fn(),
 }));
 jest.mock('../services/scopeTopology', () => ({
   toolScopes: jest.fn((tool) => (tool === 'checkout' ? ['write'] : ['read'])),
@@ -50,6 +51,36 @@ it('fails closed after customer revocation', () => {
   );
 });
 
+it('restores the encrypted registration secret after a process restart', () => {
+  store.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'active',
+    scopes: ['read'],
+    expiresAt: Date.now() + 60000,
+    encryptedClientSecret: 'encrypted',
+  });
+  runtime.removeCredentials('reg-1');
+  store.decryptClientSecret.mockReturnValue('restored-server-secret');
+
+  expect(runtime.resolveAgentRuntime(req())).toEqual(
+    expect.objectContaining({ clientSecret: 'restored-server-secret' }),
+  );
+});
+
+it('uses the configured agent until claimed registration receives consent', () => {
+  store.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'claimed',
+    expiresAt: Date.now() + 60000,
+  });
+
+  expect(runtime.resolveAgentRuntime(req(), { fallbackToDefault: true })).toBeNull();
+});
+
 it('reports read-only consent as insufficient for checkout', () => {
   store.get.mockReturnValue({
     id: 'reg-1',
@@ -65,5 +96,20 @@ it('reports read-only consent as insufficient for checkout', () => {
       requiredScopes: ['write'],
       sufficient: false,
     }),
+  );
+});
+
+it('reports expired registrations as insufficient consent', () => {
+  store.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'active',
+    scopes: ['read'],
+    expiresAt: Date.now() - 1,
+  });
+
+  expect(runtime.resolveConsentContext(req(), 'list_orders')).toEqual(
+    expect.objectContaining({ status: 'expired', sufficient: false }),
   );
 });

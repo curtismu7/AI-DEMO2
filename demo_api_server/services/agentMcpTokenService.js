@@ -1426,7 +1426,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       // only the actor_token identity is fixed to the AI Agent so PingOne's
       // resource SPEL (act ← subject's may_act) has a consistent actor to
       // compare against when may_act is present.
-      const agentRuntime = resolveAgentRuntime(req);
+      const agentRuntime = resolveAgentRuntime(req, { fallbackToDefault: true });
       actorToken = await oauthService.getAiAgentClientCredentialsToken(agentRuntime);
       const a0Decoded = decodeJwtClaims(actorToken);
       const actorClientId = agentRuntime?.clientId ||
@@ -2068,7 +2068,7 @@ async function _performTwoExchangeDelegation(
   }
 
   // Extract validated configuration - no hard-coded defaults
-  const agentRuntime = resolveAgentRuntime(req);
+  const agentRuntime = resolveAgentRuntime(req, { fallbackToDefault: true });
   const aiAgentClientId       = agentRuntime?.clientId || configResult.credentials.aiAgentClientId;
   const mcpExchangerClient    = configResult.credentials.mcpClientId;
   const agentGatewayAud       = configResult.audiences.agentGatewayAud;
