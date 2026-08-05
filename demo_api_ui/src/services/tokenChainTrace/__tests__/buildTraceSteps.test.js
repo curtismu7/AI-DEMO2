@@ -298,14 +298,19 @@ describe("buildTraceSteps — statuses from evidence", () => {
   });
 
   test("gw-authorize token event fills gateway step checks", () => {
+    const statements = [{
+      name: "MCP Tool Authorization Denied",
+      payload: '{"denied":true,"reason":"invalid_aud"}',
+    }];
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       tokenEvents: [{ id: "gw-authorize", status: "active",
-        decision: "PERMIT", url: "https://gw/authz", statements: [] }],
+        decision: "PERMIT", url: "https://gw/authz", statements }],
     });
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.status).toBe("done");
     expect(gw.detail.kv.some(([k]) => k === "authorize")).toBe(true);
+    expect(gw.detail.kv.find(([k]) => k === "statements")[1]).toBe(statements);
   });
 
   test("gw-authorize parameters + rawResponse render full request/response and moreDetail link", () => {

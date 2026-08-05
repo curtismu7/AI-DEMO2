@@ -1,7 +1,7 @@
 // One pipeline step — a native <details> card. Dumb renderer over the neutral
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
 import React from "react";
-import { tokenize, formatJson } from "./shared/JsonHighlight";
+import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { stageReplay } from "../services/inspectorReplay";
 import "./shared/JsonHighlight.css";
@@ -167,7 +167,7 @@ export function openStepTeachingWindow(step, useCase) {
     : "";
   const kvHtml = Array.isArray(d.kv) && d.kv.length
     ? `<h2>Proof</h2><table>${d.kv.map(([k, v]) =>
-      `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v) || String(v))}</pre></td></tr>`).join("")}</table>`
+      `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v, true) || String(v))}</pre></td></tr>`).join("")}</table>`
     : "";
 
   const html = `<!DOCTYPE html>
@@ -305,7 +305,9 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
             {d.kv.map(([k, v]) => (
               <React.Fragment key={k}>
                 <span className="tctr-kv-k">{k}</span>
-                <span className="tctr-kv-v">{v}</span>
+                {v && typeof v === "object"
+                  ? <pre className="tctr-kv-v tctr-kv-v--json"><JsonHighlight value={v} deep /></pre>
+                  : <span className="tctr-kv-v">{v}</span>}
               </React.Fragment>
             ))}
           </div>
