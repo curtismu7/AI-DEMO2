@@ -172,6 +172,24 @@ test("openStepTeachingWindow includes before/after evidence and more detail link
   openSpy.mockRestore();
 });
 
+test("pop-out highlights changed audience and scope claims", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      beforeAfter: {
+        before: { title: "Before exchange", text: '{"aud":"enduser.ping.demo","scope":"read write","sub":"user-1"}' },
+        after: { title: "After exchange", text: '{"aud":"gateway","scope":"gateway:mcp:invoke","sub":"user-1"}' },
+      },
+    },
+  });
+
+  expect(html).toContain('claim-diff--before');
+  expect(html).toContain('claim-diff--after');
+  expect(html).toContain('.claim-diff--before');
+  expect(html).toContain('.claim-diff--after');
+});
+
 /** Captures the single HTML string openStepTeachingWindow writes to the popup. */
 function popoutHtml(step, useCase) {
   const write = vi.fn();
