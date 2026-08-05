@@ -170,6 +170,7 @@ import {
 import {
   SessionExpiryTimer,
   ParamHintCopy,
+  buildPingOneUserListMessage,
   verticalSuggestionChips,
   HitlChipMark,
 } from "./agentChrome";
@@ -508,6 +509,9 @@ export default function BankingAgent({
   // MCP tools list modal state
   const [showMcpToolsModal, setShowMcpToolsModal] = useState(false);
   const [mcpToolsList, setMcpToolsList] = useState([]);
+  const [showUserFilterModal, setShowUserFilterModal] = useState(false);
+  const [userFilter, setUserFilter] = useState("");
+  const [userFilterError, setUserFilterError] = useState("");
   // Demo guide modal state
   const [showDemoGuide, setShowDemoGuide] = useState(false);
   // Account details panel state
@@ -5868,6 +5872,12 @@ export default function BankingAgent({
       });
       return;
     }
+    if (action.queryPrompt === "userFilter") {
+      setUserFilter("");
+      setUserFilterError("");
+      setShowUserFilterModal(true);
+      return;
+    }
     if (action.message) sendAsNl(action.message);
     else handleActionClick(action.id);
   }
@@ -10806,6 +10816,69 @@ export default function BankingAgent({
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
       />
+      <DraggableModal
+        isOpen={showUserFilterModal}
+        onClose={() => setShowUserFilterModal(false)}
+        title="List PingOne users"
+        defaultWidth={460}
+        defaultHeight={330}
+        storageKey="pingone-admin-user-filter"
+        footer={
+          <div className="ba-user-filter-actions">
+            <button
+              type="button"
+              className="ba-user-filter-btn ba-user-filter-btn--secondary"
+              onClick={() => setShowUserFilterModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="ba-user-filter-btn ba-user-filter-btn--secondary"
+              onClick={() => {
+                setShowUserFilterModal(false);
+                sendAsNl(buildPingOneUserListMessage("all"));
+              }}
+            >
+              All users
+            </button>
+            <button
+              type="button"
+              className="ba-user-filter-btn"
+              onClick={() => {
+                const message = buildPingOneUserListMessage(userFilter);
+                if (!message || !userFilter.trim() || userFilter.trim().toLowerCase() === "all") {
+                  setUserFilterError("Enter a username prefix ending in *, for example curtis*.");
+                  return;
+                }
+                setShowUserFilterModal(false);
+                sendAsNl(message);
+              }}
+            >
+              Run filter
+            </button>
+          </div>
+        }
+      >
+        <div className="ba-user-filter">
+          <p>Choose all users, or enter a username prefix filter.</p>
+          <label htmlFor="pingone-user-filter">Username filter</label>
+          <input
+            id="pingone-user-filter"
+            type="text"
+            value={userFilter}
+            onChange={(event) => {
+              setUserFilter(event.target.value);
+              setUserFilterError("");
+            }}
+            placeholder="curtis*"
+            autoComplete="off"
+          />
+          {userFilterError ? (
+            <div className="ba-user-filter-error" role="alert">⚠️ {userFilterError}</div>
+          ) : null}
+        </div>
+      </DraggableModal>
       {showLoginModal && (
         <QuickLoginModal pathname={window.location.pathname} onClose={() => setShowLoginModal(false)} />
       )}

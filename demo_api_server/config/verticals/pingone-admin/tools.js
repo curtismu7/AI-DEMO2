@@ -18,7 +18,13 @@ const CORE_TOOLS = ['listUsers', 'getUser', 'listPopulations', 'listApplications
 // PingOneUserService.baseUrl already ends in /environments/{envId}, so
 // getEnvironment's path is the empty string.
 const REST_FALLBACK = {
-  listUsers:        () => ({ method: 'GET', path: '/users' }),
+  listUsers: (args) => {
+    const query = new URLSearchParams();
+    if (args?.filter) query.set('filter', String(args.filter));
+    if (args?.limit) query.set('limit', String(args.limit));
+    const suffix = query.toString();
+    return { method: 'GET', path: `/users${suffix ? `?${suffix}` : ''}` };
+  },
   listApplications: () => ({ method: 'GET', path: '/applications' }),
   listPopulations:  () => ({ method: 'GET', path: '/populations' }),
   getEnvironment:   () => ({ method: 'GET', path: '' }),

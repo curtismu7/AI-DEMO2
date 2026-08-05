@@ -121,6 +121,21 @@ test('call_pingone_tool falls back to the direct Management API for a core tool 
   expect(result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: connect ECONNREFUSED');
 });
 
+test('listUsers REST fallback preserves a PingOne SCIM filter', async () => {
+  adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
+  pingOneUserService.makeRequest.mockResolvedValue({ _embedded: { users: [{ id: 'u1' }] } });
+
+  await plugin.executeTool('call_pingone_tool', {
+    name: 'listUsers',
+    arguments: { filter: 'username sw "curtis"' },
+  }, {});
+
+  expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
+    'GET',
+    '/users?filter=username+sw+%22curtis%22',
+  );
+});
+
 test('call_pingone_tool falls back to labeled mock for known tool when the Management API also fails', async () => {
   adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
   pingOneUserService.makeRequest.mockRejectedValue(new Error('worker creds not configured'));

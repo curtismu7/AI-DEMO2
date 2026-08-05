@@ -12,6 +12,9 @@ function buildAdminSystemPrompt(customer) {
     'Call at most one tool per admin request unless its result is genuinely incomplete ' +
     '(e.g. it errored) -- do not retry a listing call with different arguments or explore ' +
     'other tools once you have an answer. Stop and answer as soon as a tool call succeeds. ' +
+    'For listUsers, "all" means call it with an empty arguments object. A username prefix ' +
+    'such as curtis* means call listUsers once with arguments.filter set to ' +
+    '\'username sw "curtis"\'. Never pass the asterisk to PingOne. ' +
     'Every result carries a source field noting whether it came from the live server ' +
     'or labeled fallback data -- mention that to the admin when it is not live.';
 

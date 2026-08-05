@@ -104,6 +104,22 @@
   outline-offset: 2px;
 }
 
+.gmt-spinner {
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.4rem;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  vertical-align: -0.12rem;
+  animation: gmt-spin 0.7s linear infinite;
+}
+
+@keyframes gmt-spin {
+  to { transform: rotate(360deg); }
+}
+
 .gmt-toggle--remove { background: #b3261e; }
 .gmt-toggle--remove:hover:not(:disabled) { background: #8f1e17; }
 

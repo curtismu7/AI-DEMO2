@@ -30,6 +30,12 @@ function resolvePingOneUserId(sessionUser) {
   return sessionUser.oauthId || sessionUser.sub || null;
 }
 
+function resolveVerticalId(req) {
+  const requested = req.query?.verticalId || req.body?.verticalId;
+  if (typeof requested === 'string' && requested.trim()) return requested.trim();
+  return verticalManifest.resolver.activeIdFor(req) || 'banking';
+}
+
 /**
  * GET /api/groups/membership
  * Returns the active vertical's group categories, the user's resolved membership,
@@ -40,10 +46,13 @@ router.get('/membership', requireSession, async (req, res) => {
     await configStore.ensureInitialized();
     verticalManifest.init();
 
-    const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+    const verticalId = resolveVerticalId(req);
     const username = req.session?.user?.username || null;
     const pingOneUserId = resolvePingOneUserId(req.session?.user);
     const manifest = verticalManifest.resolver.resolve(verticalId);
+    if (!manifest) {
+      return res.status(404).json({ error: 'unknown_vertical', verticalId });
+    }
     const groupsConfig = manifest?.groups || null;
 
     let source = 'manifest';
@@ -204,9 +213,12 @@ router.post('/membership/toggle', requireSession, async (req, res) => {
       return res.status(400).json({ error: 'inGroup must be a boolean' });
     }
 
-    const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+    const verticalId = resolveVerticalId(req);
     const username = req.session?.user?.username || null;
     const pingOneUserId = resolvePingOneUserId(req.session?.user);
+    if (!verticalManifest.resolver.resolve(verticalId)) {
+      return res.status(404).json({ error: 'unknown_vertical', verticalId });
+    }
     const groupName = groupPolicy.groupNameForCategory(verticalId, category);
 
     if (!groupName) {
