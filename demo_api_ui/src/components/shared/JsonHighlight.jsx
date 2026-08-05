@@ -66,6 +66,7 @@ export function formatJson(value, deep) {
 const TOKEN_RE = /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\b(?:true|false|null)\b)|([{}[\],:])/g;
 
 const CRITICAL_FIELDS = new Set(['decision', 'outcome', 'error', 'status', 'errorCode', 'error_code', 'result']);
+const FOCUS_FIELDS = new Set(['aud', 'scope', 'payload', 'rarauthorizationdetails', 'authorization_details']);
 
 function extractFieldName(keyText) {
   const m = keyText.match(/"([^"]+)"\s*:/);
@@ -82,7 +83,8 @@ export function tokenize(text) {
     if (m[1]) {
       const fieldName = extractFieldName(m[1]);
       const isCritical = fieldName && CRITICAL_FIELDS.has(fieldName);
-      tokens.push({ type: "key", text: m[1], critical: isCritical });
+      const isFocused = fieldName && FOCUS_FIELDS.has(fieldName.toLowerCase());
+      tokens.push({ type: "key", text: m[1], critical: isCritical, focused: isFocused });
       lastKeyWasCritical = isCritical;
     } else if (m[2]) {
       tokens.push({ type: "string", text: m[2], critical: lastKeyWasCritical });
@@ -129,7 +131,11 @@ function Line({ line }) {
         <span key={d} className="jh-guide" />
       ))}
       {tokenize(rest).map((t, i) => {
-        const className = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
+        const className = [
+          `jh-${t.type}`,
+          t.critical ? 'jh-critical' : null,
+          t.focused ? 'jh-focus' : null,
+        ].filter(Boolean).join(' ');
         return <span key={i} className={className}>{t.text}</span>;
       })}
     </span>

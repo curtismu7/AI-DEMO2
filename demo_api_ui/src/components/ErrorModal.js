@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import DraggableModal from './DraggableModal';
+import JsonHighlight from './shared/JsonHighlight';
 import './ErrorModal.css';
 
 export default function ErrorModal({ error, isOpen, onClose }) {
@@ -69,7 +70,7 @@ export default function ErrorModal({ error, isOpen, onClose }) {
             </button>
             {showTokenDetails && (
               <pre className="error-modal__code">
-                {JSON.stringify(details.tokens_involved, null, 2)}
+                <JsonHighlight value={details.tokens_involved} />
               </pre>
             )}
           </section>
