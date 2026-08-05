@@ -133,7 +133,7 @@ _(authz gate short-circuits before MCP token exchange — no exchange events exp
 | `confirm_threshold_usd` | `N/A` | `250` |
 
 **Authz gate triggered:** ✅ YES — `step_up_required: true` returned (HTTP 200 with authz body)
-> When `ff_authorize_real=false` (dev default), the BFF's local authz gate returns 200 + `step_up_required`. In production with live PingOne Authorize, the gateway returns HTTP 428.
+> When `ff_authorize_real=false` (mock outage fallback), the BFF's local authz gate returns 200 + `step_up_required`. With live PingOne Authorize (`true`), the gateway returns HTTP 428.
 
 **Healthcare `release_records` authz config:** `{ stepUp: true, consent: true }`
 This tool requires BOTH:

@@ -818,13 +818,13 @@ The `may_act` SpEL value must be exactly `#{'sub': 'd21c5124-8ac5-43d1-81f2-31a7
 
 ### "No decision endpoint found" or policy returns nothing
 
-The policy set has not been published to the Dev endpoint, or `ff_authorize_real` is still on (which bypasses PingOne Authorize and uses local rules instead).
+The policy set has not been published to the Dev endpoint, or `ff_authorize_real` is off (which bypasses PingOne Authorize and uses local rules instead).
 
 **Check feature flags:**
 1. Sign in as demoAdmin.
 2. Go to `/admin` → **Feature Flags**.
-3. Make sure `ff_authorize_real` is **off** if you want to use real PingOne Authorize.
-4. Make sure it is **on** if you are using the local simulated mode (useful when PingOne Authorize is not yet configured).
+3. Make sure `ff_authorize_real` is **on** if you want to use real PingOne Authorize.
+4. Make sure it is **off** only for the local mock outage fallback.
 
 ### Transfers don't trigger HITL even with the policy set to Permit + CONSENT_REQUIRED
 

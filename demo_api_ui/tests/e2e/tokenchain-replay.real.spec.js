@@ -271,9 +271,9 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
     restoreFlags.ff_authorize_real = flag.value === true || flag.value === 'true';
 
     const patch = await ctx.request.patch('/api/admin/feature-flags', {
-      data: { updates: { ff_authorize_real: true } },
+      data: { updates: { ff_authorize_real: false } },
     });
-    expect(patch.ok(), 'simulated authorize pinned on').toBe(true);
+    expect(patch.ok(), 'mock authorize pinned').toBe(true);
 
     await page.goto('/use-cases/live');
     await page.waitForSelector('.luw-topbar__agent-tools', { timeout: 30_000 });
