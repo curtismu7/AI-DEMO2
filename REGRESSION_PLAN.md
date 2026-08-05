@@ -102,6 +102,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — UC14b PAR-permit `create_transfer` self-rejected with a false "aud mismatch" whenever Step 9 resource narrowing was enabled
+
+**Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`,
+`oauth-mcp/tests/tools/BankingToolProvider.test.ts`
+**What was broken:** `BankingToolProvider.executeSpecificTool` resolves a token via
+`TokenResolver` for every tool call. For sensitive-write tools (`create_transfer`,
+`create_withdrawal`, `create_deposit`, `get_sensitive_account_details`) when
+`BANKING_API_RESOURCE_URI` is configured, `TokenResolver`'s "Step 9" logic
+deliberately performs a *second* RFC 8693 exchange that re-audiences the token to
+`BANKING_API_RESOURCE_URI` (`enduser.ping.demo` in this env) before calling the
+downstream Banking API — this is intentional resource narrowing, not a bug. But
+the code then ran the MCP-server-audience pre-flight check
+(`JwtClaimVerifier.assertClaims`, "Item 8") against that SAME re-audienced
+`token`, instead of the `agentToken` that actually arrived at this MCP server.
+`enduser.ping.demo` was never in the MCP server's own expected-audience list
+(`MCP_SERVER_RESOURCE_URI` = `mcpserver.ping.demo, mcpgateway.ping.demo,
+https://api.pingone.com`), so every sensitive write self-rejected with
+`AuthenticationError: Token aud [enduser.ping.demo] does not match MCP server
+audience...` — reproduced live via UC14b ("PAR intent verified — PERMIT"),
+which calls `create_transfer` through `attackSimulatorService.js`'s
+`_runRarPermit()`. This was a self-inflicted bug entirely inside `oauth-mcp`
+(the MCP server container), unrelated to and unaffected by the BFF-side fixes
+in #1385/#1387.
+**What was fixed:** the aud pre-flight now checks `agentToken ?? token` —
+the token that arrived at the MCP server, which always carries the correct
+MCP-facing audience — instead of the post-Step9 `token`, which is only used
+(unchecked by this pre-flight) for the actual downstream Banking API call.
+**Do not break:** this pre-flight must keep validating the arriving
+MCP-server-audienced token, not any resource-narrowed token minted for a
+downstream call — do not "fix" a future variant of this by widening
+`JwtClaimVerifier`'s accepted-audience list to include banking-resource
+audiences like `enduser.ping.demo`; that would silently let a raw/narrow
+user-scoped token satisfy the MCP-server check and reopen the class of bug
+already fixed in #1385 (never accept the raw user token unless the demo is
+explicitly proving that path is blocked).
+**Verify:** `oauth-mcp`: `NODE_ENV=test npx jest tests/tools/BankingToolProvider.test.ts`
+(31/31, including the new "Step 9 resource exchange" regression test), then
+`npx tsc --noEmit`.
+
 ### 2026-08-04 — Token Chain and Topology obscured A2A handoff progress and token exchanges
 
 **Files changed:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,

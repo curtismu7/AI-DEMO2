@@ -6,9 +6,18 @@ import { BankingToolProvider } from '../../src/tools/BankingToolProvider';
 import { BankingAPIClient } from '../../src/banking/BankingAPIClient';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
+import { TokenExchangeService } from '../../src/auth/TokenExchangeService';
 import { Session, UserTokens, AuthErrorCodes, AuthenticationError } from '../../src/interfaces/auth';
 import { Account, Transaction, TransactionResponse, BankingAPIError } from '../../src/interfaces/banking';
 import { tokenCache } from '../../src/services/tokenCacheService';
+
+jest.mock('../../src/auth/TokenExchangeService');
+
+function makeJwt(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${header}.${body}.`;
+}
 
 // Mock dependencies
 jest.mock('../../src/banking/BankingAPIClient');
@@ -492,6 +501,54 @@ describe('BankingToolProvider', () => {
         expect(data.amount).toBe(300.00);
         expect(data.fromAccountId).toBe('acc_123');
         expect(data.toAccountId).toBe('acc_456');
+      });
+
+      // Regression: UC14b PAR-permit path — the MCP server's own Step 9 resource
+      // exchange (TokenResolver) deliberately re-audiences the agent token to
+      // BANKING_API_RESOURCE_URI before calling a banking data/write tool. The
+      // sensitive-handler aud check (JwtClaimVerifier) must validate the token that
+      // *arrived* at this MCP server (agentToken), not that re-audienced token, or
+      // every sensitive write (create_transfer/withdrawal/deposit,
+      // get_sensitive_account_details) fails with a false aud-mismatch whenever
+      // Step 9 is enabled.
+      it('succeeds when Step 9 resource exchange narrows the token to BANKING_API_RESOURCE_URI', async () => {
+        const originalEnv = { ...process.env };
+        process.env.MCP_SERVER_RESOURCE_URI = 'mcpserver.ping.demo,mcpgateway.ping.demo';
+        process.env.BANKING_API_RESOURCE_URI = 'enduser.ping.demo';
+        delete process.env.PINGONE_JWKS_URI;
+
+        try {
+          const mockTokenExchangeService = new TokenExchangeService({} as any) as jest.Mocked<TokenExchangeService>;
+          mockTokenExchangeService.exchangeToken = jest.fn().mockResolvedValue({
+            access_token: makeJwt({ aud: 'enduser.ping.demo', scope: 'write', exp: Math.floor(Date.now() / 1000) + 3600 }),
+            token_type: 'Bearer',
+            expires_in: 3600,
+          });
+          const step9Provider = new BankingToolProvider(mockApiClient, mockAuthManager, mockSessionManager);
+          step9Provider.setTokenExchangeService(mockTokenExchangeService);
+
+          const agentToken = makeJwt({ aud: 'mcpserver.ping.demo', scope: 'gateway:mcp:invoke', exp: Math.floor(Date.now() / 1000) + 3600 });
+
+          mockSuccessfulAuthorization();
+          mockApiClient.createTransfer.mockResolvedValue({
+            message: 'Transfer completed successfully',
+            withdrawalTransaction: { id: 'txn_901', fromAccountId: 'acc_123', amount: 80, type: 'withdrawal', userId: 'user_123', createdAt: '2023-01-01T17:00:00Z' },
+            depositTransaction: { id: 'txn_902', toAccountId: 'acc_456', amount: 80, type: 'deposit', userId: 'user_123', createdAt: '2023-01-01T17:00:00Z' },
+          });
+
+          const result = await step9Provider.executeTool('create_transfer', {
+            from_account_id: 'acc_123',
+            to_account_id: 'acc_456',
+            amount: 80,
+            description: 'UC14b PAR-permit'
+          }, mockSession, agentToken);
+
+          expect(mockTokenExchangeService.exchangeToken).toHaveBeenCalled();
+          expect(result.success).toBe(true);
+          expect(result.error).toBeUndefined();
+        } finally {
+          process.env = originalEnv;
+        }
       });
     });
 
