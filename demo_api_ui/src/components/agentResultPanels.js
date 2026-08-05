@@ -308,7 +308,9 @@ function AirlineBookingsMessage({
             <div className="ba-airline-booking-header">
               <div>
                 <strong>{booking.flightNumber || "United flight"}</strong>
-                <span className="ba-airline-source-badge">LIVE · UNITED DB</span>
+                {provenance && (
+                  <span className="ba-airline-source-badge">LIVE · UNITED DB</span>
+                )}
               </div>
               {booking.route && <span>{booking.route}</span>}
             </div>

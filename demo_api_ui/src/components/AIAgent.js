@@ -399,6 +399,8 @@ export default function BankingAgent({
   const [inputHistory, setInputHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [nlLoading, setNlLoading] = useState(false);
+  const [unitedDatabaseQueryLoading, setUnitedDatabaseQueryLoading] = useState(false);
+  const [refreshingAirlineMessageId, setRefreshingAirlineMessageId] = useState(null);
   const [nlMeta, setNlMeta] = useState(null);
   // Map agentProviderMode (updated immediately on mode switch via useLangchainProvider)
   // to the provider string the BFF expects, using the shared SSOT (config/agentModes.js).
@@ -5820,6 +5822,41 @@ export default function BankingAgent({
     }
   }
 
+  function refreshAirlineBookings(messageId) {
+    if (!nlSendGuardRef.current.tryAcquire()) {
+      notifyInfo("Wait for the current request to finish before refreshing.");
+      return;
+    }
+
+    const text = "show my reservations";
+    try {
+      tokenChainTraceStore.beginTrace({ prompt: text });
+    } catch (_) { /* display-only */ }
+    prepNlCompliance(text);
+    addMessage("user", text);
+    setRefreshingAirlineMessageId(messageId);
+    setNlLoading(true);
+
+    // The button promises a database refresh, so bypass provider routing and
+    // dispatch the known read action directly in every agent mode.
+    dispatchNlResult(
+      {
+        kind: "vertical",
+        vertical: "airlines",
+        action: "get_airline_bookings",
+        params: {},
+      },
+      "heuristic",
+      text,
+    )
+      .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
+      .finally(() => {
+        setRefreshingAirlineMessageId(null);
+        setNlLoading(false);
+        nlSendGuardRef.current.release();
+      });
+  }
+
   // Thin wrapper around the attack-sim POST + verdict render, supplied as the
   // `postSim` dependency to dispatchNegativeChip (negativeChipDispatch.js) for
   // negative chips whose `tool` is a synthetic sim id rather than a real MCP
@@ -6412,6 +6449,9 @@ export default function BankingAgent({
       // re-dispatch must run that vertical's service (canned response) regardless of
       // agent_mode — otherwise "Helix only" mode re-routes it to the LLM and the chip
       // returns an empty reply. Applies to every vertical.
+      const isUnitedDatabaseQuery =
+        verticalId === "airlines" && result.action === "get_airline_bookings";
+      if (isUnitedDatabaseQuery) setUnitedDatabaseQueryLoading(true);
       try {
         // When clarification already filled the missing params, reconstruct a
         // message the heuristic can re-parse with the complete params intact
@@ -6589,6 +6629,8 @@ export default function BankingAgent({
           },
         );
         return;
+      } finally {
+        if (isUnitedDatabaseQuery) setUnitedDatabaseQueryLoading(false);
       }
     }
     // kind:'none' is the server's explicit "routed nowhere" signal. Ask the BFF
@@ -10510,10 +10552,10 @@ export default function BankingAgent({
                               proofRunId={msg.proofRunId}
                               onAirlineRefresh={
                                 effectiveVerticalId === "airlines"
-                                  ? () => sendAsNl("show my reservations")
+                                  ? () => refreshAirlineBookings(msg.id)
                                   : undefined
                               }
-                              refreshing={nlLoading}
+                              refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
                             />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
                             {msg.verticalResult && (
@@ -10563,7 +10605,7 @@ export default function BankingAgent({
                   // `.banking-agent-msg.assistant.typing` rule dead.
                   <div className="banking-agent-msg assistant typing">
                     <div>
-                      {effectiveVerticalId === "airlines" ? (
+                      {unitedDatabaseQueryLoading ? (
                         <UnitedDatabasePulse />
                       ) : (
                         <div

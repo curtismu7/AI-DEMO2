@@ -129,6 +129,19 @@ ${JSON.stringify({
       screen.getByRole("status", { name: "Querying United Reservations Database" }),
     ).toHaveTextContent("Querying United Reservations DB...");
   });
+
+  test("does not claim legacy booking payloads came from the live database", () => {
+    const legacyPayload = {
+      passenger: { name: "Jordan A. Rivera" },
+      bookings: [{ flightNumber: "UA328", confirmationNumber: "K7XR2M" }],
+    };
+
+    render(<MessageContent text={JSON.stringify(legacyPayload)} />);
+
+    expect(screen.getByText("UA328")).toBeInTheDocument();
+    expect(screen.queryByText("LIVE · UNITED DB")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("United data provenance")).not.toBeInTheDocument();
+  });
 });
 
 describe("buildClarificationQuestions", () => {
