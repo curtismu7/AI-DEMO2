@@ -382,7 +382,7 @@ describe('simulatedAuthorizeService', () => {
   });
 
   describe('isSimulatedModeEnabled', () => {
-    it('returns true when configStore.get has ff_authorize_real true (no getEffective)', () => {
+    it('returns true when configStore.get has ff_authorize_real false (no getEffective)', () => {
       expect(isSimulatedModeEnabled({ get: (k) => (k === 'ff_authorize_real' ? 'false' : null) })).toBe(true);
     });
     it('returns false on a get-only stub when the flag is absent (fallback path)', () => {

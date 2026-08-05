@@ -445,12 +445,12 @@ test.describe('evidence screenshots — agent modes (real)', () => {
     //  - ff_agui_enabled=false: with AG-UI on, typed messages stream via
     //    POST /api/agent/run (SSE) and never hit the /nl + /api/mcp/tool
     //    contract this spec asserts.
-    //  - ff_authorize_real=true: this deployment has no
+    //  - ff_authorize_real=false: this deployment has no
     //    PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID and failover=deny, so
     //    every real-P1AZ MCP tool call fails closed with 503. The simulated
     //    engine is the designed education-mode fallback and still evaluates
     //    a real policy (403 paths stay reachable).
-    const PIN_FLAGS = { ff_agui_enabled: false, ff_authorize_real: true };
+    const PIN_FLAGS = { ff_agui_enabled: false, ff_authorize_real: false };
     const flagsResp = await ctx.request.get('/api/admin/feature-flags');
     if (flagsResp.ok()) {
       const flags = (await flagsResp.json())?.flags || [];

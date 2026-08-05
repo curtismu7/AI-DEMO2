@@ -130,6 +130,7 @@ describe("AuthorizeConfigPage — loaded state", () => {
     render(<AuthorizeConfigPage />);
     await screen.findByText("Authorize Configuration");
     expect(screen.getByText(/simulated authorize rules/i)).toBeInTheDocument();
+    expect(screen.getByText(/ff_authorize_real=false/i)).toBeInTheDocument();
   });
 
   it("clicking PingOne Authorize tab switches to that panel", async () => {

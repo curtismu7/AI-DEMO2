@@ -19,7 +19,7 @@
  * are failures.
  *
  * Flags pinned for the run (restored in afterAll):
- *   - ff_authorize_real=true  (no PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID
+ *   - ff_authorize_real=false (no PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID
  *     on this deployment; simulated engine is the designed fallback)
  *   - ff_a2a_delegation=true       (UC2.5 delegate-to-specialist is flag-gated)
  *
@@ -70,7 +70,7 @@ test.describe('use-case → agent audit (real)', () => {
     await loginAsCustomer(page);
     await page.close();
 
-    const PIN_FLAGS = { ff_authorize_real: true, ff_a2a_delegation: true };
+    const PIN_FLAGS = { ff_authorize_real: false, ff_a2a_delegation: true };
     const flagsResp = await ctx.request.get('/api/admin/feature-flags');
     if (flagsResp.ok()) {
       const flags = (await flagsResp.json())?.flags || [];

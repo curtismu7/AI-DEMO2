@@ -102,6 +102,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — Positive Authorize flag migration left mock-mode guidance and E2E fixtures inverted
+
+**Files changed:** `demo_api_ui/src/components/AuthorizeConfigPage.jsx`,
+`demo_api_ui/src/__tests__/AuthorizeConfigPage.test.js`,
+`demo_api_ui/tests/e2e/*.real.spec.js`, `docs/PINGONE_AUTHORIZE_SETUP_GUIDE.md`,
+`docs/PINGONE_AUTHORIZE_PLAN.md`, `ping-gateway/README.md`,
+`ping-gateway/.env.example`
+**What was broken:** mock-mode UI copy and several real-stack fixtures still used
+`ff_authorize_real=true`, while setup and gateway guidance described `ON` as
+selecting the mock backend.
+**What was fixed:** real PingOne Authorize is consistently `true`; the mock
+outage path and fixtures that explicitly require it now use `false`.
+**Do not break:** `X-Authz-Simulated` remains the inverse wire header:
+`ff_authorize_real=true` must send `false`, and `ff_authorize_real=false` must
+send `true`.
+**Verify:** Authorize configuration unit test, focused polarity search, UI build.
+
 ### 2026-08-05 — UC14b PAR-permit `create_transfer` self-rejected with a false "aud mismatch" whenever Step 9 resource narrowing was enabled
 
 **Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`,
