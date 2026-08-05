@@ -102,6 +102,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — UC14b PAR permit rendered a false client timeout before the successful response arrived
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.intentBindingTimeout.test.js`
+**What was broken:** UC14b's quick-result path used the shared Axios default timeout
+of 10 seconds for a multi-hop request that performs token exchange, account
+discovery, HITL pre-approval, gateway authorization, and transfer execution. A
+successful live run completed in 10.667 seconds with HTTP 200, but the UI had
+already rendered `Intent binding check failed: timeout of 10000ms exceeded`.
+**What was fixed:** only the UC14b intent-binding request now allows 30 seconds;
+the global API timeout and all other calls remain unchanged.
+**Do not break:** keep the longer timeout scoped to
+`/api/demo/intent-binding/run`; do not increase the shared `apiClient` timeout.
+**Verify:** `cd demo_api_ui && npm run test:unit -- AIAgent.intentBindingTimeout.test.js`;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-08-05 — UC14b PAR-permit `create_transfer` self-rejected with a false "aud mismatch" whenever Step 9 resource narrowing was enabled
 
 **Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`,
