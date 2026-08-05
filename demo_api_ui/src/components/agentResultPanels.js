@@ -2,7 +2,7 @@
 // All are stateless w.r.t. the BankingAgent component — they render from props only.
 // (ResultsPanel keeps its own local resize state, but takes its content via props.)
 import React, { useState, useRef, useCallback } from "react";
-import { formatCurrency } from "../utils/formatters";
+import { formatCurrency, formatDateTime } from "../utils/formatters";
 import { InlineMd, MarkdownContent } from "./shared/MarkdownText";
 import VerticalResult from "./VerticalResult";
 
@@ -217,7 +217,87 @@ export function ToolProgressChips({ steps }) {
   );
 }
 
+function parseAirlineBookingsMessage(text) {
+  const jsonStart = text.indexOf("{");
+  if (jsonStart < 0) return null;
+
+  try {
+    const payload = JSON.parse(text.slice(jsonStart).trim());
+    const passenger = payload?.passenger;
+    if (!passenger || !Array.isArray(passenger.bookings)) return null;
+    return {
+      intro: text.slice(0, jsonStart).trim(),
+      passenger,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function formatAirlineDeparture(value) {
+  const localTime = String(value).match(
+    /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)/,
+  )?.[1];
+  return formatDateTime(localTime ? `${localTime}Z` : value);
+}
+
+function AirlineBookingsMessage({ intro, passenger }) {
+  const summary = [
+    passenger.loyaltyTier,
+    passenger.loyaltyPoints != null
+      ? `${Number(passenger.loyaltyPoints).toLocaleString()} miles`
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="ba-airline-bookings">
+      {intro && <MarkdownContent text={intro} className="ba-msg-body" />}
+      <div className="ba-airline-passenger">
+        <strong>{passenger.name || "Passenger"}</strong>
+        {summary.length > 0 && <span>{summary.join(" · ")}</span>}
+      </div>
+      <div className="ba-airline-booking-list">
+        {passenger.bookings.map((booking, index) => (
+          <section
+            className="ba-airline-booking"
+            key={booking.confirmationNumber || `${booking.flightNumber}-${index}`}
+          >
+            <div className="ba-airline-booking-header">
+              <strong>{booking.flightNumber || "United flight"}</strong>
+              {booking.route && <span>{booking.route}</span>}
+            </div>
+            <dl className="ba-airline-booking-details">
+              {[
+                ["Confirmation", booking.confirmationNumber],
+                ["Departure", booking.departureTime, formatAirlineDeparture],
+                ["Gate", booking.gate],
+                ["Seat", booking.seat],
+                ["Cabin", booking.cabin],
+                ["Checked bags", booking.checkedBags],
+                ["Booking", booking.status],
+                ["Flight", booking.flightStatus],
+              ]
+                .filter(([, value]) => value !== null && value !== undefined && value !== "")
+                .map(([label, value, formatter]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{formatter ? formatter(value) : String(value)}</dd>
+                  </div>
+                ))}
+            </dl>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function MessageContent({ text, isTokenEvent, terminology }) {
+  const airlineBookings = parseAirlineBookingsMessage(text);
+  if (airlineBookings) {
+    return <AirlineBookingsMessage {...airlineBookings} />;
+  }
+
   // Detect and format account data as tables (remove emojis)
   // Matches lines emitted by formatResult: "Type (****NNNN) — $X.XX USD"
   const accountPattern = /^(.+?)\s*\(([^)]+)\)\s*—\s*(\$[\d,]+\.\d{2}(?:\s+\w+)?)\s*$/gm;

@@ -102,6 +102,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — United booking replies displayed compact raw JSON
+
+**Files changed:** `demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** United booking responses could include the reservation
+payload as one unformatted JSON line in the assistant bubble.
+
+**What was fixed:** Recognized United booking payloads now render as compact,
+readable passenger and reservation cards. Other and malformed JSON keeps the
+existing message renderer.
+
+**Do not break:** Keep this formatter gated to the United
+`passenger.bookings` response shape; do not reinterpret arbitrary chat prose as
+JSON.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`
+
 ### 2026-08-05 — Positive Authorize flag migration left mock-mode guidance and E2E fixtures inverted
 
 **Files changed:** `demo_api_ui/src/components/AuthorizeConfigPage.jsx`,
