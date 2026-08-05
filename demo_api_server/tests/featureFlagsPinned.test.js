@@ -21,7 +21,7 @@ describe('serializeFlag pinned/pinnedBy', () => {
   const ENV_KEYS = [
     'FF_MCP_GATEWAY_PINGGATEWAY',
     'FF_MCP_GATEWAY_JWKS',
-    'FF_AUTHORIZE_SIMULATED',
+    'FF_AUTHORIZE_REAL',
     'FF_HEURISTIC_ENABLED',
     'CIBA_ENABLED',
   ];

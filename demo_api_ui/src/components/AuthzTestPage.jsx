@@ -12,6 +12,7 @@ import { AUTHZ_SECTIONS, buildDemoInput } from "./authz/authzSections";
 import { useDemoRunner } from "./authz/useDemoRunner";
 import LivePolicyScenarios from "./authz/LivePolicyScenarios";
 import McpDelegationScenarios from "./authz/McpDelegationScenarios";
+import JsonHighlight from "./shared/JsonHighlight";
 
 // ---------------------------------------------------------------------------
 // Preset scenarios — cover all three decision branches
@@ -145,7 +146,7 @@ function RawJson({ data, label }) {
 							{data.contentType && <span> — <code>{data.contentType}</code></span>}
 						</div>
 					)}
-					<pre className="authz-raw-body">{JSON.stringify(isRequest ? data.body : data, null, 2)}</pre>
+					<pre className="authz-raw-body"><JsonHighlight value={isRequest ? data.body : data} deep /></pre>
 				</>
 			)}
 		</div>
@@ -317,7 +318,7 @@ export default function AuthzTestPage() {
 			const flagRes = await apiClient.patch("/api/admin/feature-flags", {
 				updates: {
 					authorize_enabled: "true",
-					ff_authorize_simulated: engineMode === "simulated" ? "true" : "false",
+					ff_authorize_real: engineMode === "simulated" ? "false" : "true",
 				},
 			});
 			if (!flagRes.data?.updated) throw new Error("Feature flag save failed");
@@ -378,7 +379,7 @@ export default function AuthzTestPage() {
 		setQuickEnabling(true);
 		try {
 			const res = await apiClient.patch("/api/admin/feature-flags", {
-				updates: { authorize_enabled: "true", ff_authorize_simulated: "true" },
+				updates: { authorize_enabled: "true", ff_authorize_real: "false" },
 			});
 			if (!res.data?.updated) throw new Error("Flag update failed");
 			notifySuccess("Simulated authorization enabled");
@@ -404,7 +405,7 @@ export default function AuthzTestPage() {
 				if (!status?.authorizeEnabled) {
 					try {
 						const res = await apiClient.patch("/api/admin/feature-flags", {
-							updates: { authorize_enabled: "true", ff_authorize_simulated: "true" },
+							updates: { authorize_enabled: "true", ff_authorize_real: "false" },
 						});
 						if (!res.data?.updated) throw new Error("not updated");
 						notifySuccess("Simulated mode enabled — running scenario…");
@@ -529,15 +530,15 @@ export default function AuthzTestPage() {
 						<div className="authz-api-cols">
 							<div className="authz-api-col">
 								<div className="authz-api-col-title">Headers</div>
-								<pre className="authz-api-pre">{JSON.stringify(req?.headers || { "Content-Type": "application/json" }, null, 2)}</pre>
+								<pre className="authz-api-pre"><JsonHighlight value={req?.headers || { "Content-Type": "application/json" }} deep /></pre>
 							</div>
 							<div className="authz-api-col">
 								<div className="authz-api-col-title">Request body</div>
-								<pre className="authz-api-pre">{JSON.stringify(req?.body, null, 2)}</pre>
+								<pre className="authz-api-pre"><JsonHighlight value={req?.body} deep /></pre>
 							</div>
 							<div className="authz-api-col">
 								<div className="authz-api-col-title">Response <span className="authz-api-status">200 OK</span></div>
-								<pre className="authz-api-pre">{JSON.stringify(responseBody, null, 2)}</pre>
+								<pre className="authz-api-pre"><JsonHighlight value={responseBody} deep /></pre>
 							</div>
 						</div>
 					</div>
@@ -555,11 +556,11 @@ export default function AuthzTestPage() {
 							<div className="authz-api-cols">
 								<div className="authz-api-col">
 									<div className="authz-api-col-title">Request body</div>
-									<pre className="authz-api-pre">{JSON.stringify(result.pingoneRequest.body, null, 2)}</pre>
+									<pre className="authz-api-pre"><JsonHighlight value={result.pingoneRequest.body} deep /></pre>
 								</div>
 								<div className="authz-api-col">
 									<div className="authz-api-col-title">Response</div>
-									<pre className="authz-api-pre">{JSON.stringify(result.raw, null, 2)}</pre>
+									<pre className="authz-api-pre"><JsonHighlight value={result.raw} deep /></pre>
 								</div>
 							</div>
 						</div>

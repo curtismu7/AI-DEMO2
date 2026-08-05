@@ -1337,6 +1337,10 @@
     "request_price_adjustment": {
       "requiredScopes": ["write"],
       "surface": "gateway"
+    },
+    "list_anf_orders": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
     }
   },
   "policy": {

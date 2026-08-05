@@ -13,8 +13,8 @@ The Super Banking demo enforces **entitlement tiers** (UC21) in two parallel imp
 
 | Implementation | Active | Tier logic |
 |---|---|---|
-| `simulatedAuthorizeService` | `ff_authorize_simulated=true` | In-process JS: maxAmount ceiling, restrictedTools list |
-| `PingOne Authorize` | `ff_authorize_simulated=false` | Trust Framework policy rules (cloud) |
+| `simulatedAuthorizeService` | `ff_authorize_real=false` | In-process JS: maxAmount ceiling, restrictedTools list |
+| `PingOne Authorize` | `ff_authorize_real=true` | Trust Framework policy rules (cloud) |
 
 Both must produce **identical decisions** for tier-gated requests (amount ceiling, tool restrictions).
 
@@ -92,7 +92,7 @@ PingOne Authorize policy must:
 
 After adding tier rules to PingAuthorize policy:
 
-1. Set `ff_authorize_simulated=false` in `.env`
+1. Set `ff_authorize_real=true` in `.env`
 2. Restart BFF
 3. Test high-value transfer ($10,000) as Standard tier user → should DENY with `tier_amount_exceeded`
 4. Test create_withdrawal as Standard tier user → should DENY with `tier_tool_not_allowed`

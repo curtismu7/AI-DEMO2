@@ -39,7 +39,7 @@
 jest.mock('../../services/configStore', () => ({
   get: jest.fn(() => null),
   getEffective: jest.fn((key) => {
-    if (key === 'ff_authorize_simulated') return 'true';
+    if (key === 'ff_authorize_real') return 'true';
     return null;
   }),
   isReadOnly: jest.fn(() => true),

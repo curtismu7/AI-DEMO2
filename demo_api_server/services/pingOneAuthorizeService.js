@@ -736,6 +736,9 @@ function buildMcpDelegationParameters({
   // precedent as InRequiredGroup / UserTier. null → key OMITTED (C1 rule 3).
   tokenKid = null,
   tokenKidKnown = null,
+  delegatedAgentId = null,
+  consentScopes = null,
+  requiredConsentScopes = null,
 }) {
   // Depth of the RFC 8693 actor chain, derived from the actor ids above so it
   // can never disagree with them: no act ⇒ 0, act ⇒ 1, act.act (A2A) ⇒ 2.
@@ -782,6 +785,11 @@ function buildMcpDelegationParameters({
     ...(tokenIss ? { TokenIss: tokenIss } : {}),
     ...(tokenKid ? { TokenKid: tokenKid } : {}),
     ...(tokenKidKnown != null ? { TokenKidKnown: tokenKidKnown } : {}),
+    ...(delegatedAgentId ? { DelegatedAgentId: delegatedAgentId } : {}),
+    ...(Array.isArray(consentScopes) ? { ConsentScopes: consentScopes.join(' ') } : {}),
+    ...(Array.isArray(requiredConsentScopes)
+      ? { RequiredConsentScopes: requiredConsentScopes.join(' ') }
+      : {}),
     ...(userRole ? { UserRole: userRole } : {}),
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
@@ -1204,7 +1212,7 @@ const WARMUP_THROTTLE_MS = 60_000;
  */
 async function warmup({ force = false } = {}) {
   // The simulated engine runs in-process — nothing live to warm.
-  if (configStore.getEffective('ff_authorize_simulated') === 'true') {
+  if (configStore.getEffective('ff_authorize_real') !== 'true') {
     return { ok: false, skipped: 'simulated' };
   }
   if (!isWorkerCredentialReady()) {

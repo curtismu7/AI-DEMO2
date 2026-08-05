@@ -70,6 +70,61 @@ test("large evidence hints to prefer Pop out without hiding the JSON", () => {
   expect(screen.getByRole("button", { name: /Pop out full detail/i })).toBeInTheDocument();
 });
 
+test("highlights changed audience and scope claims in the before/after comparison", () => {
+  const step = {
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      beforeAfter: {
+        before: {
+          title: "Before exchange",
+          text: '{"aud":["enduser.ping.demo"],"scope":"read write","sub":"user-1"}',
+        },
+        after: {
+          title: "After exchange",
+          text: '{"aud":["https://api.ping.demo:3036/mcp"],"scope":"gateway:mcp:invoke","sub":"user-1"}',
+        },
+      },
+    },
+  };
+  const { container } = render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
+
+  const beforeHighlighted = [...container.querySelectorAll(".tctr-claim-diff--before")]
+    .map((element) => element.textContent).join("");
+  const afterHighlighted = [...container.querySelectorAll(".tctr-claim-diff--after")]
+    .map((element) => element.textContent).join("");
+
+  expect(beforeHighlighted).toContain('"aud":["enduser.ping.demo"]');
+  expect(beforeHighlighted).toContain('"scope":"read write"');
+  expect(afterHighlighted).toContain('"aud":["https://api.ping.demo:3036/mcp"]');
+  expect(afterHighlighted).toContain('"scope":"gateway:mcp:invoke"');
+  expect(beforeHighlighted).not.toContain('"sub"');
+  expect(afterHighlighted).not.toContain('"sub"');
+});
+
+test("renders nested policy statement payloads as readable JSON", () => {
+  const step = {
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      kv: [[
+        "statements",
+        [{
+          name: "MCP Tool Authorization Denied",
+          payload: '{"denied":true,"message":"Audience validation failed."}',
+        }],
+      ]],
+    },
+  };
+  const { container } = render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
+  const statements = container.querySelector(".tctr-kv-v--json");
+
+  expect(statements).not.toBeNull();
+  expect(statements.textContent).toContain('"payload": {');
+  expect(statements.textContent).toContain('"denied": true');
+  expect(statements.textContent).not.toContain('\\"denied\\"');
+});
+
 test("Learn more opens the education drawer when moreDetail.edu is set", () => {
   const step = {
     ...STEP_WITH_EVIDENCE,
@@ -115,6 +170,24 @@ test("openStepTeachingWindow includes before/after evidence and more detail link
   expect(write).toHaveBeenCalledWith(expect.stringContaining("Show more detail"));
 
   openSpy.mockRestore();
+});
+
+test("pop-out highlights changed audience and scope claims", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      beforeAfter: {
+        before: { title: "Before exchange", text: '{"aud":"enduser.ping.demo","scope":"read write","sub":"user-1"}' },
+        after: { title: "After exchange", text: '{"aud":"gateway","scope":"gateway:mcp:invoke","sub":"user-1"}' },
+      },
+    },
+  });
+
+  expect(html).toContain('claim-diff--before');
+  expect(html).toContain('claim-diff--after');
+  expect(html).toContain('.claim-diff--before');
+  expect(html).toContain('.claim-diff--after');
 });
 
 /** Captures the single HTML string openStepTeachingWindow writes to the popup. */
@@ -198,6 +271,23 @@ test("pop-out shows which scopes this hop dropped", () => {
   expect(html).toContain("Scope narrowing");
   expect(html).toContain("banking:write (dropped)");
   expect(html).toContain("Scope after this hop: banking:read");
+});
+
+test("pop-out deep-formats nested policy statement payloads", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      kv: [[
+        "statements",
+        [{ name: "Denied", payload: '{"denied":true,"reason":"invalid_aud"}' }],
+      ]],
+    },
+  });
+
+  expect(html).toContain('"payload":');
+  expect(html).toContain('"denied":');
+  expect(html).not.toContain('\\"denied\\"');
 });
 
 test("pop-out renders the replay payload read-only and never stages a live re-issue", () => {

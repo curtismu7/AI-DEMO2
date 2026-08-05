@@ -12,7 +12,17 @@
  * looking like a real subject match.
  */
 
-import { getFlight, getPassengerRecord, listBookings, listSeats, nextFlightFor, recordFeePayment, resolvePassenger } from '../db/airlinesDb';
+import { randomUUID } from 'node:crypto';
+import {
+  airlinesDatabaseName,
+  getFlight,
+  getPassengerRecord,
+  listBookings,
+  listSeats,
+  nextFlightFor,
+  recordFeePayment,
+  resolvePassenger,
+} from '../db/airlinesDb';
 
 const SOURCE = 'sqlite';
 
@@ -121,11 +131,11 @@ function cancelReservation(args: Record<string, unknown>, subject: string): unkn
 }
 
 function sensitiveBookings(subject: string): unknown {
+  const base = getBookings(subject, 'sensitive_airline_bookings') as Record<string, unknown>;
   const match = resolvePassenger(subject);
   if (!match) {
-    return { source: SOURCE, bookings: [], note: 'No passenger records in the airlines database.' };
+    return base;
   }
-  const base = getBookings(subject) as Record<string, unknown>;
   const { passenger } = match;
   return {
     ...base,
@@ -142,10 +152,20 @@ function sensitiveBookings(subject: string): unknown {
   };
 }
 
-function getBookings(subject: string): unknown {
+function getBookings(
+  subject: string,
+  toolName: 'get_airline_bookings' | 'sensitive_airline_bookings' = 'get_airline_bookings',
+): unknown {
+  const startedAt = performance.now();
+  const queriedAt = new Date().toISOString();
   const match = resolvePassenger(subject);
   if (!match) {
-    return { source: SOURCE, bookings: [], note: 'No passenger records in the airlines database.' };
+    return {
+      source: SOURCE,
+      bookings: [],
+      note: 'No passenger records in the airlines database.',
+      provenance: bookingProvenance(toolName, queriedAt, startedAt, 0),
+    };
   }
   const { passenger, matchedBy } = match;
   const bookings = listBookings(passenger.passenger_ref);
@@ -171,6 +191,26 @@ function getBookings(subject: string): unknown {
       status: b.status,
       flightStatus: b.flight_status,
     })),
+    provenance: bookingProvenance(toolName, queriedAt, startedAt, bookings.length),
+  };
+}
+
+function bookingProvenance(
+  tool: 'get_airline_bookings' | 'sensitive_airline_bookings',
+  queriedAt: string,
+  startedAt: number,
+  recordCount: number,
+) {
+  return {
+    backend: 'United Reservations DB',
+    engine: 'SQLite',
+    database: airlinesDatabaseName(),
+    tool,
+    queryId: randomUUID(),
+    queriedAt,
+    durationMs: Number((performance.now() - startedAt).toFixed(2)),
+    recordCount,
+    tables: ['passengers', 'bookings', 'flights'],
   };
 }
 

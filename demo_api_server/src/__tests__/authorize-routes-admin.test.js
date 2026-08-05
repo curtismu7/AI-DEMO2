@@ -76,7 +76,7 @@ describe('authorize routes (admin)', () => {
   it('GET evaluation-status returns summary for admin', async () => {
     configStore.get.mockImplementation((k) => {
       if (k === 'authorize_enabled') return 'true';
-      if (k === 'ff_authorize_simulated') return 'true';
+      if (k === 'ff_authorize_real') return 'false';
       return null;
     });
     pingOneAuthorizeService.isConfigured.mockReturnValue(false);
@@ -156,7 +156,7 @@ describe('authorize routes (admin)', () => {
       expect(configStore.setConfig).toHaveBeenCalledWith({
         authorize_decision_endpoint_id: 'tx-endpoint-uuid',
         authorize_mcp_decision_endpoint_id: 'mcp-endpoint-uuid',
-        ff_authorize_simulated: 'false',
+        ff_authorize_real: 'true',
         ff_authorize_mcp_first_tool: 'true',
       });
     });

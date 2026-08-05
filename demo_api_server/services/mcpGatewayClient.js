@@ -275,7 +275,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     // When routing through PingGateway (IG), tell it which authorize backend to use,
-    // mirroring the BFF's ff_authorize_simulated (live-switchable mock demo_authz_server
+    // mirroring the inverse of the BFF's ff_authorize_real (live-switchable mock demo_authz_server
     // vs real PingOne Authorize). PingGateway's Groovy decision filter reads this header
     // per-request; the Node gateway never sees it (header added only on the PG path), so
     // the Node-gateway request shape is unchanged.
@@ -288,7 +288,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // secret + header the Node gateway checks (checkInternalSecret).
         const gwSecret = configStore.getEffective('bff_internal_secret') || process.env.BFF_INTERNAL_SECRET || '';
         if (gwSecret) headers['x-internal-gateway-secret'] = gwSecret;
-        const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+        const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
         if (shouldStampIgRateLimitHeader()) {
             headers['X-UC18-Rate-Limit'] = 'true';

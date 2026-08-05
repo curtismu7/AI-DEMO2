@@ -12,7 +12,7 @@ Users should explore low-risk information before signing in — auth only when v
 
 ## PingOne Solution
 
-PingOne Authorize PERMITs a read-only public tool with no token exchange.
+The public catalog path skips PingOne Authorize, the Agent Gateway, and token exchange.
 
 ## How to Run
 

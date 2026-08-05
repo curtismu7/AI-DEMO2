@@ -8,15 +8,15 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 13 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 14 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
       "website", "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "authorize", "gateway", "api-key-swap", "mcp", "api", "database", "reply",
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
     expect(steps.slice(1).every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14]);
   });
 });
 
@@ -212,6 +212,27 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.detail.request.text).toContain("transfer_funds");
   });
 
+  test("public catalog marks P1AZ not in path instead of claiming simulation", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "authorize-decision",
+        status: "skipped",
+        authorizeDecision: "SKIPPED",
+        authorizeEngine: "not-called",
+        publicCatalog: true,
+      }],
+      outcome: "ok",
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("notinpath");
+    expect(az.detail.decision).toEqual({
+      outcome: "SKIPPED",
+      label: "SKIPPED — public catalog path",
+    });
+    expect(az.detail.why).toContain("was not called");
+  });
+
   test("authorize_denied phase renders authorize step as error", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
@@ -277,14 +298,19 @@ describe("buildTraceSteps — statuses from evidence", () => {
   });
 
   test("gw-authorize token event fills gateway step checks", () => {
+    const statements = [{
+      name: "MCP Tool Authorization Denied",
+      payload: '{"denied":true,"reason":"invalid_aud"}',
+    }];
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       tokenEvents: [{ id: "gw-authorize", status: "active",
-        decision: "PERMIT", url: "https://gw/authz", statements: [] }],
+        decision: "PERMIT", url: "https://gw/authz", statements }],
     });
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.status).toBe("done");
     expect(gw.detail.kv.some(([k]) => k === "authorize")).toBe(true);
+    expect(gw.detail.kv.find(([k]) => k === "statements")[1]).toBe(statements);
   });
 
   test("gw-authorize parameters + rawResponse render full request/response and moreDetail link", () => {
@@ -388,6 +414,43 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.api.detail.response.text).toContain("txn_9d2e");
     expect(byId.reply.status).toBe("done");
     expect(byId.reply.detail.response.text).toContain("Done!");
+  });
+
+  test("United SQL results add observed resource-server and database cards", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      mcpResult: {
+        tool: "get_airline_bookings",
+        result: { source: "sqlite", upcomingTrips: 2 },
+      },
+      phases: [{ phase: "mcp_remote_done" }],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+
+    expect(byId.api).toMatchObject({
+      title: "United Airlines backend app — resource server",
+      lane: "AIRLINES",
+      status: "done",
+    });
+    expect(byId.database).toMatchObject({
+      title: "SQL Database — United Airlines data",
+      lane: "DATA",
+      status: "done",
+    });
+    expect(byId.database.detail.kv).toContainEqual(["engine", "SQLite"]);
+    expect(steps.indexOf(byId.database)).toBe(steps.indexOf(byId.api) + 1);
+  });
+
+  test("a non-United SQLite result keeps generic backend labels", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      mcpResult: { tool: "future_sql_tool", result: { source: "sqlite", ok: true } },
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+
+    expect(byId.api.title).toBe("Resource server — backend app");
+    expect(byId.database.title).toBe("Database — data query");
+    expect(byId.database.detail.narrative).not.toContain("United Airlines");
   });
 
   test("two-exchange event ids fill agent-token and exchange steps", () => {
@@ -545,6 +608,18 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
 
     const complete = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } }, outcome: "ok" });
     expect(complete.find((s) => s.id === "api-key-swap").status).toBe("notinpath");
+  });
+
+  test("database stays pending mid-flight and becomes notinpath without SQL evidence", () => {
+    const midFlight = buildTraceSteps({ ...EMPTY_TRACE, mcpResult: { result: { ok: true } } });
+    expect(midFlight.find((s) => s.id === "database").status).toBe("pending");
+
+    const complete = buildTraceSteps({
+      ...EMPTY_TRACE,
+      mcpResult: { result: { ok: true } },
+      outcome: "ok",
+    });
+    expect(complete.find((s) => s.id === "database").status).toBe("notinpath");
   });
 
   test("stepup is absent mid-flight and appears as notinpath once the trace completes without a challenge", () => {

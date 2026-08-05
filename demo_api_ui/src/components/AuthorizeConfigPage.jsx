@@ -274,7 +274,7 @@ export default function AuthorizeConfigPage() {
             <h3>Simulated Authorize Rules</h3>
             <p className="azc-description">
               These thresholds apply when{" "}
-              <code>ff_authorize_simulated=true</code> and{" "}
+              <code>ff_authorize_real=false</code> and{" "}
               <code>authorize_enabled=true</code>. Changes take effect
               immediately without server restart.
             </p>

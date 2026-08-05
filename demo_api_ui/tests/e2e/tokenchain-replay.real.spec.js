@@ -58,7 +58,7 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
       .toContain(new URL(process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_BASE_URL).port);
     await page.waitForSelector('.luw-topbar__agent-tools', { timeout: 30_000 });
 
-    // Deliberately does NOT pin ff_authorize_simulated. This demo always runs
+    // Deliberately does NOT pin ff_authorize_real. This demo always runs
     // real PingOne Authorize — the simulated engine is only for the handful of
     // use cases P1AZ cannot cover (e.g. PAR). Forcing the flag on here would
     // verify a configuration nobody demos, and would hide a replay button that
@@ -266,14 +266,14 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
     const flagsResp = await ctx.request.get('/api/admin/feature-flags');
     expect(flagsResp.ok(), 'feature-flag API reachable').toBe(true);
     const flags = (await flagsResp.json())?.flags || [];
-    const flag = flags.find((x) => x.id === 'ff_authorize_simulated');
-    expect(flag, 'ff_authorize_simulated exists').toBeTruthy();
-    restoreFlags.ff_authorize_simulated = flag.value === true || flag.value === 'true';
+    const flag = flags.find((x) => x.id === 'ff_authorize_real');
+    expect(flag, 'ff_authorize_real exists').toBeTruthy();
+    restoreFlags.ff_authorize_real = flag.value === true || flag.value === 'true';
 
     const patch = await ctx.request.patch('/api/admin/feature-flags', {
-      data: { updates: { ff_authorize_simulated: true } },
+      data: { updates: { ff_authorize_real: false } },
     });
-    expect(patch.ok(), 'simulated authorize pinned on').toBe(true);
+    expect(patch.ok(), 'mock authorize pinned').toBe(true);
 
     await page.goto('/use-cases/live');
     await page.waitForSelector('.luw-topbar__agent-tools', { timeout: 30_000 });

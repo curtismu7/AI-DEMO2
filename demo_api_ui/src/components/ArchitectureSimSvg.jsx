@@ -330,7 +330,7 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
         tooltip="Resource Server (/api/resource-server) — validates access tokens independently; serves banking data; used in Path B (dual-token) and Path C (oauth_bearer) dispositions"
         state={ns('n-resource-server')} />
       <SimNode id="n-pingauthorize"   x={COL.external} y={ROW.lower} label="PingOne Authorization Server"    sub="cloud PDP"
-        tooltip="PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_simulated / AUTHORIZE_FAILOVER_MODE=fallback_simulated"
+        tooltip="PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_real / AUTHORIZE_FAILOVER_MODE=fallback_simulated"
         state={ns('n-pingauthorize')} />
 
       {/* Row 4: HITL */}

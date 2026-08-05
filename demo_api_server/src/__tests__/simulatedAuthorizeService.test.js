@@ -382,8 +382,8 @@ describe('simulatedAuthorizeService', () => {
   });
 
   describe('isSimulatedModeEnabled', () => {
-    it('returns true when configStore.get has ff_authorize_simulated true (no getEffective)', () => {
-      expect(isSimulatedModeEnabled({ get: (k) => (k === 'ff_authorize_simulated' ? 'true' : null) })).toBe(true);
+    it('returns true when configStore.get has ff_authorize_real false (no getEffective)', () => {
+      expect(isSimulatedModeEnabled({ get: (k) => (k === 'ff_authorize_real' ? 'false' : null) })).toBe(true);
     });
     it('returns false on a get-only stub when the flag is absent (fallback path)', () => {
       // Stub with only .get and no value → falls back to .get → false.
@@ -393,29 +393,29 @@ describe('simulatedAuthorizeService', () => {
     // REGRESSION (high-value transfer fail-open incident, 2026-05-18):
     // a corrupt/empty config.db makes the real configStore's .get() return
     // null for everything while .getEffective() still applies field
-    // defaults. ff_authorize_simulated defaults to 'true' and the simulated
+    // defaults. ff_authorize_real defaults to 'true' and the real
     // path is what enforces the amount-based step-up / HITL gate. The old
     // code used .get() → null → false → the gate silently DISABLED and a
     // $750 transfer executed with NO consent. isSimulatedModeEnabled must
     // resolve via .getEffective so an unreadable config FAILS SAFE (gate on).
-    it('prefers getEffective: null .get but default-true .getEffective → ENABLED (fail-safe)', () => {
+    it('prefers getEffective: null .get but default-true .getEffective → real mode', () => {
       const corruptConfigDbStore = {
         get: () => null, // SQLite init failed → raw cache empty
-        getEffective: (k) => (k === 'ff_authorize_simulated' ? 'true' : null), // default applied
+        getEffective: (k) => (k === 'ff_authorize_real' ? 'true' : null), // default applied
       };
-      expect(isSimulatedModeEnabled(corruptConfigDbStore)).toBe(true);
+      expect(isSimulatedModeEnabled(corruptConfigDbStore)).toBe(false);
     });
 
-    it('explicit getEffective "false" stays DISABLED (operator opt-out respected)', () => {
+    it('explicit getEffective "false" enables mock outage mode', () => {
       expect(
         isSimulatedModeEnabled({ get: () => 'true', getEffective: () => 'false' }),
-      ).toBe(false);
+      ).toBe(true);
     });
 
-    it('getEffective boolean true is honored', () => {
+    it('getEffective boolean true selects real mode', () => {
       expect(
         isSimulatedModeEnabled({ get: () => null, getEffective: () => true }),
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 

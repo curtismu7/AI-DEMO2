@@ -6,6 +6,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
+import { buildA2aChainDetail } from "../utils/a2aChainDetail";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
@@ -19,6 +20,7 @@ import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import "./TokenChainTraceRail.css";
 
 const ZOOM_KEY = "tctr:zoom";
+const VIEW_MODE_KEY = "tctr:view-mode";
 const ZOOM_MIN = 0.8;
 const ZOOM_MAX = 1.6;
 const ZOOM_STEP = 0.1;
@@ -31,6 +33,120 @@ function readStoredZoom() {
   } catch {
     return 1;
   }
+}
+
+function readStoredViewMode() {
+  try {
+    return window.localStorage.getItem(VIEW_MODE_KEY) === "classic" ? "classic" : "live";
+  } catch {
+    return "live";
+  }
+}
+
+const SKIPPED_STEP_REASONS = {
+  signin: "No sign-in token evidence was recorded for this run.",
+  agent: "The agent service did not participate in this run.",
+  llm: "No LLM reasoning was used on this run.",
+  "agent-token": "No separate agent identity token was acquired.",
+  exchange: "Token exchange was skipped; no delegated token was issued.",
+  authorize: "PingOne Authorize was skipped; no policy decision was recorded.",
+  stepup: "No step-up or human approval challenge was required.",
+  "intent-binding": "No RAR intent-binding check was required.",
+  gateway: "The Agent Gateway was not in this run's path.",
+  "api-key-swap": "The run did not use the API-key credential-swap path.",
+  mcp: "No MCP tool call occurred.",
+  api: "No downstream resource-server call occurred.",
+  database: "No SQL database access was observed for this run.",
+  reply: "No final reply evidence was recorded.",
+  "a2a-agent1-actor": "The main agent identity token was not observed.",
+  "a2a-exchange1": "The user-to-main-agent exchange was not observed.",
+  "a2a-agent2-actor": "The specialist agent identity token was not observed.",
+  "a2a-exchange2": "The nested specialist delegation exchange was not observed.",
+  "a2a-agent-card": "Specialist Agent Card discovery was not observed.",
+  "a2a-protocol-message": "The A2A SendMessage handoff was not observed.",
+};
+
+function statusFromA2aEvent(event) {
+  if (!event) return "pending";
+  const status = String(event.status || "").toLowerCase();
+  return ["error", "failed", "failure", "denied"].includes(status) ? "error" : "done";
+}
+
+export function buildA2aTokenChainSteps(tokenEvents) {
+  const events = Array.isArray(tokenEvents) ? tokenEvents : [];
+  const detail = buildA2aChainDetail(events);
+  if (!detail.present) return [];
+  const byId = (id) => events.find((event) => event?.id === id) || null;
+  const mainAgent = detail.generalist || "Main agent";
+  const specialist = detail.specialist || "Specialist agent";
+  const definitions = [
+    ["a2a-agent1-actor", `Main agent — ${mainAgent}`, "A2A"],
+    ["a2a-exchange1", "A2A Exchange #1 — user + main agent", "A2A"],
+    ["a2a-agent2-actor", `Specialist agent — ${specialist}`, "A2A"],
+    ["a2a-exchange2", "A2A Exchange #2 — nested specialist delegation", "A2A"],
+    ["a2a-agent-card", `Agent Card — ${specialist} discovery`, "A2A"],
+    ["a2a-protocol-message", `A2A SendMessage — ${specialist} handoff`, "A2A"],
+  ];
+
+  return definitions.map(([id, title, lane]) => {
+    const event = byId(id);
+    return {
+      id,
+      title,
+      lane,
+      status: statusFromA2aEvent(event),
+      detail: {
+        narrative: event
+          ? `${title} was observed in this run.`
+          : SKIPPED_STEP_REASONS[id],
+        claims: event?.claims,
+        request: event?.exchangeRequest || event?.protocolRequest,
+        response: event?.protocolResponse || event?.agentCard,
+        tokenEvent: event || undefined,
+      },
+    };
+  });
+}
+
+export function buildLiveTokenChainSteps(steps, trace) {
+  const source = Array.isArray(steps) ? steps.slice() : [];
+  const a2aSteps = buildA2aTokenChainSteps(trace?.tokenEvents);
+  if (a2aSteps.length) {
+    const insertAfter = source.findIndex((step) => step.id === "llm");
+    source.splice(insertAfter + 1, 0, ...a2aSteps);
+  }
+  const hasActivity = Boolean(
+    trace?.startedAt || trace?.prompt || trace?.tokenEvents?.length ||
+    trace?.phases?.length || trace?.mcpResult || trace?.authorize ||
+    trace?.llmDetail || trace?.llmReply || trace?.outcome || trace?.routingMode,
+  );
+  if (!hasActivity) return [];
+
+  const complete = trace?.outcome === "ok" || trace?.outcome === "error";
+  const projected = !complete
+    ? source.filter((step) => ["active", "done", "error"].includes(step.status))
+    : source.map((step) => {
+    const baseId = step.baseId || step.id;
+    if (step.status === "notinpath" && SKIPPED_STEP_REASONS[baseId]) {
+      return {
+        ...step,
+        detail: {
+          ...step.detail,
+          narrative: SKIPPED_STEP_REASONS[baseId],
+        },
+      };
+    }
+    if (step.status !== "pending") return step;
+    return {
+      ...step,
+      status: "notinpath",
+      detail: {
+        ...step.detail,
+        narrative: SKIPPED_STEP_REASONS[baseId] || "This possible step was not observed in the completed run.",
+      },
+    };
+  });
+  return projected.map((step, index) => ({ ...step, num: index + 1 }));
 }
 
 const CHAIN_DOTS = [
@@ -83,6 +199,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
   const [zoom, setZoom] = useState(readStoredZoom);
+  const [viewMode, setViewMode] = useState(readStoredViewMode);
   const tokenChain = useTokenChainOptional();
   // Names the running use case in each step's pop-out. Optional: several rail
   // mounts (Monitoring routes, standalone pages) sit outside the Proof provider.
@@ -97,6 +214,13 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       /* private mode / storage disabled — scale is session-only */
     }
   }, [zoom]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    } catch {
+      /* private mode / storage disabled — mode is session-only */
+    }
+  }, [viewMode]);
   const stepZoom = useCallback((delta) => {
     setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
   }, []);
@@ -115,11 +239,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
-  const steps = mcpRouteOnly
+  const classicSteps = mcpRouteOnly
     ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id))
     : snap.steps;
+  const steps = viewMode === "classic"
+    ? classicSteps
+    : buildLiveTokenChainSteps(classicSteps, trace);
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
-  const mcpDone = steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  const mcpDone = classicSteps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
   const showTrust = shouldShowTrustTab({
     ffDpop: trustFlags.ffDpop,
     ffRar: trustFlags.ffRar,
@@ -143,7 +270,27 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   return (
     <div className="tctr" style={{ zoom }}>
       <div className="tctr-head">
-        <span className="tctr-title">Token Chain</span>
+        <div className="tctr-title-group">
+          <span className="tctr-title">Token Chain</span>
+          <div className="tctr-view-mode" role="group" aria-label="Token chain view mode">
+            <button
+              type="button"
+              className={viewMode === "live" ? "active" : ""}
+              aria-pressed={viewMode === "live"}
+              onClick={() => setViewMode("live")}
+            >
+              Live
+            </button>
+            <button
+              type="button"
+              className={viewMode === "classic" ? "active" : ""}
+              aria-pressed={viewMode === "classic"}
+              onClick={() => setViewMode("classic")}
+            >
+              Classic
+            </button>
+          </div>
+        </div>
         <div className="tctr-head-actions">
           <div className="tctr-zoom" role="group" aria-label="Token chain text size">
             <button
@@ -262,9 +409,14 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             </div>
           )}
           <div className="tctr-sec-label">
-            {trace.prompt ? `Pipeline — "${trace.prompt.message}"` : "Pipeline — awaiting agent action"}
+            {trace.prompt
+              ? `${viewMode === "live" ? "Live Pipeline" : "Pipeline"} — "${trace.prompt.message}"`
+              : `${viewMode === "live" ? "Live Pipeline" : "Pipeline"} — awaiting agent action`}
           </div>
 
+          {viewMode === "live" && steps.length === 0 && (
+            <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
+          )}
           {steps.map((step) => (
             <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}
@@ -297,7 +449,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       ) : tab === "demo-track" ? (
         <TokenChainDemoTrackTab />
       ) : (
-        <TraceMcpPanel steps={steps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
+        <TraceMcpPanel steps={classicSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
 
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}

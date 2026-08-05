@@ -15,11 +15,11 @@ import './QuickFlagsPill.css';
 // on/off switch. For segmented booleans, modes map labels onto true/false.
 const QUICK_FLAGS = [
   { id: 'ff_mcp_gateway_jwks',          group: 'Token & Gateway', control: 'segmented', label: 'Token Validation',                modes: [{ value: true, label: '🔐 JWKS' }, { value: false, label: 'Introspect' }] },
-  { id: 'ff_mcp_gateway_pinggateway',   group: 'Token & Gateway', control: 'segmented', label: 'Agent Gateway',                   modes: [{ value: true, label: 'PingOne GW' }, { value: false, label: 'Demo GW' }] },
+  { id: 'ff_mcp_gateway_pinggateway',   group: 'Token & Gateway', control: 'segmented', label: 'Agent Gateway',                   modes: [{ value: true, label: 'Real Agent GW' }, { value: false, label: 'Mock Agent GW (outage)' }] },
   { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingGateway' }, { value: 'p1az', label: 'P1AZ' }] },
   { id: 'ff_skip_token_exchange',       group: 'Token & Gateway', control: 'toggle',    label: 'Skip Token Exchange' },
   { id: 'ff_enterprise_managed_mcp_auth', group: 'AuthN / AuthZ', control: 'toggle',    label: 'Enterprise-Managed MCP Auth' },
-  { id: 'ff_authorize_simulated',       group: 'AuthN / AuthZ',   control: 'segmented', label: 'Authorize Engine',                modes: [{ value: false, label: 'Real P1AZ' }, { value: true, label: 'Simulated' }] },
+  { id: 'ff_authorize_real',       group: 'AuthN / AuthZ',   control: 'segmented', label: 'Authorize Engine',                modes: [{ value: true, label: 'Real P1AZ' }, { value: false, label: 'Mock (outage)' }] },
   { id: 'ff_id_token_exchange',         group: 'AuthN / AuthZ',   control: 'toggle',    label: 'ID Token Exchange Mode' },
   { id: 'ff_token_auth_private_key_jwt', group: 'AuthN / AuthZ',  control: 'toggle',    label: 'Client Auth — Private Key JWT' },
   { id: 'ciba_enabled',                 group: 'AuthN / AuthZ',   control: 'toggle',    label: 'CIBA — Out-of-Band Approval' },
@@ -36,8 +36,8 @@ const PILL_FLAG = 'ff_mcp_gateway_jwks';
 
 /** Ping IDAI–shaped demo: Agent Gateway + live P1AZ + introspect (not JWKS). */
 const IDAI_FAITHFUL_PRESET = [
-  { id: 'ff_mcp_gateway_pinggateway', value: true,  label: 'PingOne GW' },
-  { id: 'ff_authorize_simulated',     value: false, label: 'Real P1AZ' },
+  { id: 'ff_mcp_gateway_pinggateway', value: true,  label: 'Real Agent GW' },
+  { id: 'ff_authorize_real',     value: true,  label: 'Real P1AZ' },
   { id: 'ff_mcp_gateway_jwks',        value: false, label: 'Introspect' },
 ];
 
@@ -331,11 +331,11 @@ export default function QuickFlagsPill({ user }) {
               <div className="qfp-group-title">Demo preset</div>
               {isIdaiFaithful(flagsById) ? (
                 <div className="qfp-preset-status qfp-preset-status--ok">
-                  ✅ IDAI-faithful: PingOne GW + Real P1AZ + Introspect
+                  ✅ IDAI-faithful: Real PingOne GW + Real P1AZ + Introspect
                 </div>
               ) : (
                 <div className="qfp-preset-status qfp-preset-status--warn">
-                  ⚠️ Not IDAI-faithful — Demo GW, Simulated, and/or JWKS may be on
+                  ⚠️ Not IDAI-faithful — Mock Gateway, Mock Authorize, and/or JWKS may be on
                 </div>
               )}
               {presetNotice && <div className="qfp-preset-notice">{presetNotice}</div>}
@@ -343,7 +343,7 @@ export default function QuickFlagsPill({ user }) {
                 type="button"
                 className="qfp-preset-btn"
                 disabled={!canEdit || savingId === 'idai-preset'}
-                title="Set PingOne Agent Gateway ON, Simulated Authorize OFF, JWKS OFF. See docs/IDAI_FAITHFUL_DEMO_MODE.md"
+                title="Set real PingOne Agent Gateway ON, real PingOne Authorize ON, and JWKS OFF. See docs/IDAI_FAITHFUL_DEMO_MODE.md"
                 onClick={applyIdaiFaithfulPreset}
               >
                 {savingId === 'idai-preset' ? 'Applying…' : 'Apply IDAI-faithful preset'}

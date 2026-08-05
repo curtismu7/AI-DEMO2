@@ -67,15 +67,15 @@ describe('transactionAuthorizationService', () => {
       expect(getAuthorizationStatusSummary().activeEngine).toBe('off');
     });
 
-    it('returns activeEngine simulated when ff_authorize_simulated is true', () => {
+    it('returns activeEngine simulated when ff_authorize_real is false', () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'authorize_enabled') return 'true';
-        if (k === 'ff_authorize_simulated') return 'true';
+        if (k === 'ff_authorize_real') return 'false';
         return null;
       });
       // isSimulatedModeEnabled uses getEffective (default-aware) not get
       configStore.getEffective.mockImplementation((k) => {
-        if (k === 'ff_authorize_simulated') return 'true';
+        if (k === 'ff_authorize_real') return 'false';
         return null;
       });
       pingOneAuthorizeService.isConfigured.mockReturnValue(false);
@@ -87,14 +87,14 @@ describe('transactionAuthorizationService', () => {
     it('returns activeEngine pingone when worker configured and decision endpoint id set', () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'authorize_enabled') return 'true';
-        if (k === 'ff_authorize_simulated') return 'false';
+        if (k === 'ff_authorize_real') return 'true';
         if (k === 'authorize_decision_endpoint_id') return 'ep-123';
         return null;
       });
-      // The summary resolves these via getEffective (env-aware): 'false' so
+      // The summary resolves these via getEffective (env-aware): 'true' so
       // simulated mode is off, and the decision endpoint id so PingOne is ready.
       configStore.getEffective.mockImplementation((k) => {
-        if (k === 'ff_authorize_simulated') return 'false';
+        if (k === 'ff_authorize_real') return 'true';
         if (k === 'authorize_decision_endpoint_id') return 'ep-123';
         return null;
       });
@@ -105,12 +105,12 @@ describe('transactionAuthorizationService', () => {
     it('returns activeEngine pending_config when authorize on but not simulated and PingOne not ready', () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'authorize_enabled') return 'true';
-        if (k === 'ff_authorize_simulated') return 'false';
+        if (k === 'ff_authorize_real') return 'true';
         return null;
       });
-      // isSimulatedModeEnabled uses getEffective; return 'false' so simulated mode is off
+      // isSimulatedModeEnabled uses getEffective; return 'true' so simulated mode is off
       configStore.getEffective.mockImplementation((k) => {
-        if (k === 'ff_authorize_simulated') return 'false';
+        if (k === 'ff_authorize_real') return 'true';
         return null;
       });
       pingOneAuthorizeService.isConfigured.mockReturnValue(false);

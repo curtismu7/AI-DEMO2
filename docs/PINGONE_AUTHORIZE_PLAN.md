@@ -131,7 +131,7 @@ These attributes are sent on the first MCP tool call per user session.
 | `TransactionType = "withdrawal"` AND `Amount > 10000` AND `Acr` does not include MFA | **OBLIGATION — step-up** | Stricter requirement for withdrawals |
 | *(all other cases)* | **PERMIT** | Allow standard transactions |
 
-> The simulated Authorize service (`ff_authorize_simulated = true`) uses these same thresholds in-process. Matching these rules in your live policy ensures consistent behavior when you toggle between simulated and live evaluation.
+> The simulated Authorize service (`ff_authorize_real = false`) uses these same thresholds in-process. Matching these rules in your live policy ensures consistent behavior when you toggle between simulated and live evaluation.
 
 ---
 
@@ -212,7 +212,7 @@ Enable and adjust flags from **Admin → Feature Flags** or the `/demo-data` pag
 
 | Flag | What it does | Recommended starting value |
 |------|-------------|---------------------------|
-| `ff_authorize_simulated` | Use in-process simulated Authorize — no PingOne API call. Use this to verify the UI and flow before connecting live PingOne. | `ON` first, then `OFF` once live PingOne is configured |
+| `ff_authorize_real` | Use live PingOne Authorize when `ON`; `OFF` selects the in-process mock outage fallback. | `ON` |
 | `ff_authorize_fail_open` | Allow transactions to proceed when the Authorize API call fails (timeout, misconfiguration) | `ON` during initial setup; reassess for production |
 | `ff_authorize_deposits` | Also apply Authorize to deposit transactions (default: transfers + withdrawals only) | `OFF` by default |
 | `ff_authorize_mcp_first_tool` | Evaluate PingOne Authorize on the first MCP tool call per session | `OFF` until Step 5b is configured |

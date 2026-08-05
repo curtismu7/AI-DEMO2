@@ -117,7 +117,148 @@ the global API timeout and all other calls remain unchanged.
 `/api/demo/intent-binding/run`; do not increase the shared `apiClient` timeout.
 **Verify:** `cd demo_api_ui && npm run test:unit -- AIAgent.intentBindingTimeout.test.js`;
 `cd demo_api_ui && npm run build`.
+### 2026-08-05 — United provenance UI overstated database activity
 
+**Files changed:** `demo_mcp_resource_server/src/tools/airlinesToolHandler.ts`,
+`demo_mcp_resource_server/tests/airlinesTools.test.ts`,
+`demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** Legacy booking payloads received live-database badges, all
+airline requests showed the database pulse, every historical receipt inherited
+global refresh state, and sensitive booking receipts named the open booking
+tool.
+
+**What was fixed:** Live badges now require server provenance, the database
+pulse follows only the resolved booking action, refresh state is scoped to the
+clicked message, the refresh button dispatches the deterministic database read
+in every agent mode, and each booking tool stamps its own name.
+
+**Do not break:** UI proof must remain receipt-backed and request-specific.
+Unrelated United actions and historical responses must not claim current
+database activity. The refresh control must not route through an LLM or
+clarification path that can complete without querying the database.
+
+**Verify:** Resource-server airlines tests; focused UI terminology tests; UI
+production build.
+
+### 2026-08-05 — United backend provenance was hidden during the demo
+
+**Files changed:** `demo_mcp_resource_server/src/db/airlinesDb.ts`,
+`demo_mcp_resource_server/src/tools/airlinesToolHandler.ts`,
+`demo_mcp_resource_server/tests/airlinesTools.test.ts`,
+`demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** United returned real SQLite data, but the chat response did
+not visibly prove the backend source, query freshness, or exact rows.
+
+**What was fixed:** The resource server now stamps booking reads with a query
+receipt. United chat shows a live query pulse, database badges, freshness,
+refresh, an expandable proof receipt, and a read-only row preview.
+
+**Do not break:** Provenance values must come from the resource server; do not
+fabricate query IDs, timestamps, durations, or record counts in the UI. Other
+verticals keep their existing loading and message rendering.
+
+**Verify:** Resource-server airlines tests; UI unit suite; UI production build.
+
+### 2026-08-05 — United booking replies displayed compact raw JSON
+
+**Files changed:** `demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** United booking responses could include the reservation
+payload as one unformatted JSON line in the assistant bubble.
+
+**What was fixed:** Recognized United booking payloads now render as compact,
+readable passenger and reservation cards. Other and malformed JSON keeps the
+existing message renderer.
+
+**Do not break:** Keep this formatter gated to the United
+`passenger.bookings` response shape; do not reinterpret arbitrary chat prose as
+JSON.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`
+
+### 2026-08-05 — Token Topology pre-rendered every node and Clear started another trace
+
+**Files changed:** `demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/__tests__/TokenTopologyPanel.a2a.test.jsx`
+**What was broken:** the topology showed the complete static pipeline before a
+run, then only updated those boxes. Clear called `beginTrace()`, which created a
+new run and carried session evidence instead of returning the diagram to empty.
+**What was fixed:** the panel now starts empty, derives boxes and arrows only
+from observed trace steps while a run progresses, enriches already-drawn nodes
+as details arrive, and Clear calls the store's full `reset()`. A reset boundary
+also rejects late tagged evidence from the cleared run and invalidates any
+inspector selection whose observed node disappeared.
+**Do not break:** pending and not-in-path steps must not produce topology boxes;
+conditional and repeated observed steps must render in trace order; Clear must
+leave `runId` null with no rendered topology boxes or inspector, and late tagged
+events from that cleared run must not create an implicit replacement run.
+**Verify:** focused Token Topology unit tests, UI unit suite, UI build.
+
+### 2026-08-05 — Token Chain pre-rendered the full possible pipeline during live runs
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx`
+**What was broken:** the Token Chain always showed every possible step before
+and during a run, so presenters could not distinguish observed hops from the
+catalog of things that might happen.
+**What was fixed:** Live mode starts empty, adds observed steps as evidence
+arrives, then reconciles the completed run against the possible-step catalog so
+skipped steps remain visible with explicit reasons. A2A evidence expands into
+distinct main-agent, specialist-agent, exchange, Agent Card, and SendMessage
+steps instead of being forced through the standard hardcoded chain. Classic
+preserves the prior fixed catalog and is persisted as an immediate demo fallback.
+Observed backend results add separate Resource Server and Database cards; United
+Airlines completes the database card only when its result reports the real
+SQLite source.
+**Do not break:** Live must show only observed steps before completion and must
+show skipped exchange/Authorize steps after completion; Classic must retain the
+previous complete catalog; A2A must show both agents; SQL database cards must
+require runtime data-source evidence; Clear must remain a full reset in both modes.
+**Verify:** focused Token Chain and trace-store tests, UI unit suite, UI build.
+
+### 2026-08-05 — Positive Authorize flag migration left mock-mode guidance and E2E fixtures inverted
+
+**Files changed:** `demo_api_ui/src/components/AuthorizeConfigPage.jsx`,
+`demo_api_ui/src/__tests__/AuthorizeConfigPage.test.js`,
+`demo_api_ui/tests/e2e/*.real.spec.js`, `docs/PINGONE_AUTHORIZE_SETUP_GUIDE.md`,
+`docs/PINGONE_AUTHORIZE_PLAN.md`, `ping-gateway/README.md`,
+`ping-gateway/.env.example`
+**What was broken:** mock-mode UI copy and several real-stack fixtures still used
+`ff_authorize_real=true`, while setup and gateway guidance described `ON` as
+selecting the mock backend.
+**What was fixed:** real PingOne Authorize is consistently `true`; the mock
+outage path and fixtures that explicitly require it now use `false`.
+**Do not break:** `X-Authz-Simulated` remains the inverse wire header:
+`ff_authorize_real=true` must send `false`, and `ff_authorize_real=false` must
+send `true`.
+**Verify:** Authorize configuration unit test, focused polarity search, UI build.
+
+### 2026-08-05 — Token Chain rendered nested policy statements as escaped text
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TraceStepCard.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/__tests__/TraceStepCard.teaching.test.jsx`,
+`demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+**What was broken:** the Agent Gateway step stringified its policy statements
+before rendering, so nested JSON in each statement's `payload` appeared as a
+dense block of escaped quotes.
+**What was fixed:** the trace model now preserves statements as structured data,
+and the inline and pop-out views deep-format nested JSON with indentation and
+syntax highlighting.
+**Do not break:** preserve the statement objects through the trace model; do not
+pre-stringify them before the deep JSON renderer.
+**Verify:** `cd demo_api_ui && npm run test:unit`; `cd demo_api_ui && npm run build`.
 ### 2026-08-05 — UC14b PAR-permit `create_transfer` self-rejected with a false "aud mismatch" whenever Step 9 resource narrowing was enabled
 
 **Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`,
@@ -174,6 +315,28 @@ the separate PingOne A2A wire bearer are now distinct.
 **Do not break:** A2A UI remains evidence-driven and absent from ordinary runs.
 Never conflate the A2A wire bearer with the nested-act MCP token.
 **Verify:** `cd demo_api_ui && npm run test:unit`; `cd demo_api_ui && npm run build`.
+### 2026-08-04 — UC24 falsely labeled its skipped P1AZ hop as simulated
+
+**Files changed:** `demo_api_server/services/publicCatalogTokenEvents.js`,
+`demo_api_server/tests/publicCatalogTokenEvents.test.js`,
+`demo_api_server/config/useCases.js`,
+`demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`demo_api_ui/src/components/demoScript.js`,
+`scripts/gen-demo-flag-map.js`, `scripts/preflight-demo.sh`,
+`docs/demo-flag-map.md`
+**What was broken:** UC24 serves public catalog data locally without calling
+PingOne Authorize, but its synthetic token event claimed a simulated PERMIT.
+Persisted flag drift could also leave the demo on the simulated Authorize or
+Demo Gateway path without preflight treating that posture as a blocker.
+**What was fixed:** UC24 now records Authorize as skipped/not called and the
+rail marks that hop not in path. Demo preflight now requires the real PingOne
+Agent Gateway and real PingOne Authorize posture; simulated Authorize remains
+available only as the explicit outage fallback.
+**Do not break:** protected tools must continue to show their actual real or
+simulated Authorize decision. Only public-catalog events may mark P1AZ skipped.
+**Verify:** targeted server/UI tests, generated flag-map check, full UI unit
+suite and build.
 
 ### 2026-08-04 — Token Chain rail showed a prior run's `create_transfer` step-up error on a successful public-catalog read (UC24)
 

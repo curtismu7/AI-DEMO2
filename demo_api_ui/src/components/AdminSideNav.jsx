@@ -150,7 +150,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "demos", paths: ["/agent-lifecycle", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
+  { id: "demos", paths: ["/agent-lifecycle", "/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
@@ -468,6 +468,11 @@ export default function AdminSideNav({ user }) {
           path: "/agent-lifecycle",
           icon: "agt",
           customerOnly: true,
+        },
+        {
+          label: "Delegated Commerce",
+          path: "/delegated-commerce",
+          icon: "agt",
         },
         { label: "Use Cases", path: "/use-cases", icon: "demo" },
         { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },

@@ -16,7 +16,7 @@ const configStore = require('../services/configStore');
 const DEMO_DEFAULTS = {
   agent_mode: 'heuristics',        // deterministic chip->tool routing
   ff_heuristic_enabled: 'true',    // heuristic floor stays on
-  ff_authorize_simulated: 'false', // real PingOne Authorize, no mock
+  ff_authorize_real: 'true',     // real PingOne Authorize, no mock
 };
 
 (async () => {
