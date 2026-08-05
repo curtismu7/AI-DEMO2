@@ -117,11 +117,13 @@ tool.
 
 **What was fixed:** Live badges now require server provenance, the database
 pulse follows only the resolved booking action, refresh state is scoped to the
-clicked message, and each booking tool stamps its own name.
+clicked message, the refresh button dispatches the deterministic database read
+in every agent mode, and each booking tool stamps its own name.
 
 **Do not break:** UI proof must remain receipt-backed and request-specific.
 Unrelated United actions and historical responses must not claim current
-database activity.
+database activity. The refresh control must not route through an LLM or
+clarification path that can complete without querying the database.
 
 **Verify:** Resource-server airlines tests; focused UI terminology tests; UI
 production build.

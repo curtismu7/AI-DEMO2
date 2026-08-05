@@ -5690,7 +5690,6 @@ export default function BankingAgent({
         useCaseId,
       }).finally(() => {
         setNlLoading(false);
-        setRefreshingAirlineMessageId(null);
         nlSendGuardRef.current.release();
       });
       return;
@@ -5804,7 +5803,6 @@ export default function BankingAgent({
         .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
         .finally(() => {
           setNlLoading(false);
-          setRefreshingAirlineMessageId(null);
           nlSendGuardRef.current.release();
         });
     });
@@ -5812,10 +5810,9 @@ export default function BankingAgent({
 
   // Sends text through the full NL pipeline (same path as typing in the chat box).
   function sendAsNl(text, useCaseId) {
-    if (!nlSendGuardRef.current.tryAcquire()) return false;
+    if (!nlSendGuardRef.current.tryAcquire()) return;
     try {
       sendAsNlInner(text, useCaseId);
-      return true;
     } catch (e) {
       // Synchronous failure before any async release path ran — free the
       // guard so the send box doesn't stay locked. (Parity with
@@ -5823,6 +5820,41 @@ export default function BankingAgent({
       nlSendGuardRef.current.release();
       throw e;
     }
+  }
+
+  function refreshAirlineBookings(messageId) {
+    if (!nlSendGuardRef.current.tryAcquire()) {
+      notifyInfo("Wait for the current request to finish before refreshing.");
+      return;
+    }
+
+    const text = "show my reservations";
+    try {
+      tokenChainTraceStore.beginTrace({ prompt: text });
+    } catch (_) { /* display-only */ }
+    prepNlCompliance(text);
+    addMessage("user", text);
+    setRefreshingAirlineMessageId(messageId);
+    setNlLoading(true);
+
+    // The button promises a database refresh, so bypass provider routing and
+    // dispatch the known read action directly in every agent mode.
+    dispatchNlResult(
+      {
+        kind: "vertical",
+        vertical: "airlines",
+        action: "get_airline_bookings",
+        params: {},
+      },
+      "heuristic",
+      text,
+    )
+      .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
+      .finally(() => {
+        setRefreshingAirlineMessageId(null);
+        setNlLoading(false);
+        nlSendGuardRef.current.release();
+      });
   }
 
   // Thin wrapper around the attack-sim POST + verdict render, supplied as the
@@ -10520,14 +10552,7 @@ export default function BankingAgent({
                               proofRunId={msg.proofRunId}
                               onAirlineRefresh={
                                 effectiveVerticalId === "airlines"
-                                  ? () => {
-                                      const started = sendAsNl("show my reservations");
-                                      if (started) {
-                                        setRefreshingAirlineMessageId(msg.id);
-                                      } else {
-                                        notifyInfo("Wait for the current request to finish before refreshing.");
-                                      }
-                                    }
+                                  ? () => refreshAirlineBookings(msg.id)
                                   : undefined
                               }
                               refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
