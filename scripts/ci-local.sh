@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
-# Local stand-in for GitHub Actions CI (.github/workflows/ci.yml).
+# Manual full local equivalent of the main GitHub Actions CI suites.
 #
-# Why this exists: Actions is refusing to start jobs ("recent account payments
-# have failed or your spending limit needs to be increased"). Every job dies in
-# ~3s with zero steps executed, so every PR shows red regardless of the code and
-# no merge has been verified. This runs the same checks locally so the push
-# boundary still has a guard.
+# GitHub Actions is the PR gate. Run this script only when you deliberately want
+# the broad checks locally before opening a PR; the pre-push hook does not run it.
 #
-# Mirrors ci.yml exactly:
+# Main suites:
 #   job "Hygiene + topology gates" -> hygiene:check, regression:paths, topology:verify
 #   job "API server tests (Jest)"  -> npm test --prefix demo_api_server
 #
-# Usage: npm run ci:local     (also runs from .husky/pre-push)
-# Bypass: git push --no-verify
+# Usage: npm run ci:local
 
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -151,7 +147,7 @@ run_api_tests() {
   rm -f "$log"
 }
 
-echo "local CI (GitHub Actions on this repo is billing-blocked — remote checks fail in ~3-4s with 0 steps executed; that red X is not a real result, this local run is authoritative)"
+echo "local full CI (manual; GitHub Actions is the authoritative PR gate)"
 ensure_deps demo_api_server
 ensure_deps demo_mcp_gateway
 

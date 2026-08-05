@@ -28,7 +28,43 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  changes:
+    name: Select affected test suites
+    runs-on: ubuntu-latest
+    outputs:
+      api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
+      decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
+    steps:
+      - name: Run every suite for scheduled and manual CI
+        if: github.event_name != 'pull_request'
+        id: all
+        run: |
+          echo "api-server=true" >> "$GITHUB_OUTPUT"
+          echo "decision-services=true" >> "$GITHUB_OUTPUT"
+      - name: Select suites affected by this PR
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api-server:
+              - '.github/workflows/ci.yml'
+              - 'demo_api_server/**'
+            decision-services:
+              - '.github/workflows/ci.yml'
+              - 'package.json'
+              - 'demo_authz_server/**'
+              - 'demo_mcp_gateway/**'
+              - 'oauth-mcp/**'
+              - 'snapshots/**'
+              - 'scripts/test-service-suite.sh'
+              - 'scripts/test-snapshots.sh'
+
   gates:
     name: Hygiene + topology gates
     runs-on: ubuntu-latest
@@ -62,6 +98,8 @@ jobs:
 
   api-server-tests:
     name: API server tests (Jest)
+    needs: changes
+    if: needs.changes.outputs['api-server'] == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -94,6 +132,8 @@ jobs:
     # constraint — a separate job means another runner and another npm install
     # for ~90s of tests. Bundling is why this job already spans two services.
     name: Service suites (authz-server + mcp-gateway + mcp-server)
+    needs: changes
+    if: needs.changes.outputs['decision-services'] == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
