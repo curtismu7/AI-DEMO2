@@ -56,9 +56,13 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
     );
     if (!resolved || !resolved.token) {
       const needAuth = !!(resolved && resolved.need_auth);
-      const err = new Error(needAuth ? 'Session expired' : 'Could not resolve delegated token for tool discovery');
-      err.code = needAuth ? 'need_auth' : 'discovery_token_failed';
-      err.httpStatus = needAuth ? 401 : 502;
+      const blocked = !!(resolved && resolved.blocked);
+      const err = new Error(
+        blocked ? (resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.')
+          : (needAuth ? 'Session expired' : 'Could not resolve delegated token for tool discovery')
+      );
+      err.code = blocked ? (resolved.blockCode || 'user_token_forwarding_disabled') : (needAuth ? 'need_auth' : 'discovery_token_failed');
+      err.httpStatus = blocked ? (resolved.blockHttpStatus || 403) : (needAuth ? 401 : 502);
       throw err;
     }
     tok = { access_token: resolved.token, expires_in: DISCOVERY_TOKEN_TTL_S };

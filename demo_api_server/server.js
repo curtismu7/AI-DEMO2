@@ -1645,7 +1645,15 @@ app.get('/api/mcp/tool/events', (req, res) => {
 // Stores the resulting write-scoped token in session.mcpWriteToken for subsequent tool calls.
 app.post('/api/mcp/scope-upgrade', express.json(), requireSession, async (req, res) => {
     try {
-        const { token, tokenEvents } = await resolveMcpAccessTokenWithEvents(req, 'create_transfer');
+        const resolved = await resolveMcpAccessTokenWithEvents(req, 'create_transfer');
+        const { token, tokenEvents } = resolved;
+        if (resolved.blocked) {
+            return res.status(resolved.blockHttpStatus || 403).json({
+                error: resolved.blockCode || 'user_token_forwarding_disabled',
+                message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+                tokenEvents,
+            });
+        }
         if (!token) {
             return res.status(403).json({
                 error: 'scope_upgrade_failed',

@@ -2599,9 +2599,28 @@ async function runTwoExchangeInteractiveTest(req, userToken, scopes = ['read', '
   }
 }
 
+/**
+ * Shared helper for callers of resolveMcpAccessTokenWithEvents: turns a
+ * `blocked` resolution (e.g. ff_skip_token_exchange denying raw user-token
+ * forwarding) into the { httpStatus, body } an HTTP route should send, so the
+ * specific 403 user_token_forwarding_disabled reaches the client instead of
+ * a generic 401/502 from a caller's own `!token` fallback.
+ */
+function describeBlockedToken(resolved, tokenEvents) {
+  return {
+    httpStatus: resolved.blockHttpStatus || 403,
+    body: {
+      error: resolved.blockCode || 'user_token_forwarding_disabled',
+      message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+      tokenEvents: tokenEvents || resolved.tokenEvents || [],
+    },
+  };
+}
+
 module.exports = {
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
+  describeBlockedToken,
   buildSessionPreviewTokenEvents,
   decodeJwtClaims,
   buildTokenEvent,

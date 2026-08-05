@@ -5,6 +5,20 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-08-04 — Blocked-token resolution wasn't checked by direct callers of resolveMcpAccessTokenWithEvents (follow-up to the raw-user-token-forwarding fix)
+
+**Symptom**: Code review (Greptile) flagged that the `blocked` result added to `resolveMcpAccessTokenWithEvents` (see the entry above) was only handled by `mcpToolPipeline.js`. Other direct callers destructured `token` and either surfaced a generic 401/502 instead of the intended 403, or — in `agentPreflightService.evaluate()` — continued past the null token into the P1AZ gate call, where a gate that doesn't run (`!gate.ran`) falls back to `PERMIT`. A blocked resolution could therefore still end up PERMITted.
+
+**Root cause**: `blocked`/`blockCode`/`blockMessage`/`blockHttpStatus` were only added to the return shape; no caller besides `mcpToolPipeline.js` was updated to check for them.
+
+**Fix**: Added `resolved.blocked` checks (short-circuiting to DENY/403 before any downstream gate/gateway/MCP call) to: `services/agentPreflightService.js` (`evaluate()` and `evaluateBatch()` — the real fail-open risk), `services/agentToolsResolver.js`, `services/bffMcpToolExecutor.js` (`callMcpToolAsAgent` and the direct `tool.invoke` fallback), `server.js` (`/api/mcp/scope-upgrade`), and `routes/mcpGatewayConfig.js` (both direct tool-call routes). Added a shared `describeBlockedToken()` helper export in `agentMcpTokenService.js` for future callers.
+
+**Do not break**: `agentPreflightService.evaluate()` must return DENY on a blocked resolution before the gate is ever called, regardless of `ff_authorize_fail_open` — a blocked token must never fall through to the gate's own `!gate.ran → PERMIT` fallback.
+
+**Tests**: `demo_api_server/tests/agentPreflight.regression.test.js` (new blocked-resolution case), `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js` (2 new blocked-resolution pipeline cases)
+
+---
+
 ## 2026-08-04 — MCP tool calls forwarded the raw user token when `ff_skip_token_exchange` was enabled
 
 **Symptom**: `create_transfer` reached the MCP server with `aud=enduser.ping.demo` instead of a delegated MCP audience, so the gateway/MCP hop failed with an audience mismatch instead of exercising the intended exchange path.

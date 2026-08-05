@@ -47,10 +47,20 @@ async function callMcpToolAsAgent({ name, args, userId, userToken, sessionId, to
     session: { oauthTokens: { accessToken: userToken }, id: sessionId },
     sessionID: sessionId,
   };
-  const { token: agentToken, tokenEvents: exchangeEvents } =
-    await resolveMcpAccessTokenWithEvents(mockReq, name);
+  const resolved = await resolveMcpAccessTokenWithEvents(mockReq, name);
+  const { token: agentToken, tokenEvents: exchangeEvents } = resolved;
   if (exchangeEvents && exchangeEvents.length > 0) {
     tokenEvents.push(...exchangeEvents);
+  }
+  if (resolved.blocked) {
+    // ff_skip_token_exchange denied raw user-token forwarding. Without this
+    // check, callMcpToolInternal's own null-token guard would still fail
+    // closed, but with a generic 401 login_required instead of the specific
+    // 403 the block represents.
+    throw Object.assign(
+      new Error(resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.'),
+      { code: resolved.blockCode || 'user_token_forwarding_disabled', httpStatus: resolved.blockHttpStatus || 403 },
+    );
   }
   return callMcpToolInternal(name, args || {}, agentToken, userId, tokenEvents);
 }
@@ -159,10 +169,19 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
       session: { oauthTokens: { accessToken: userToken }, id: sessionId },
       sessionID: sessionId,
     };
-    const { token: agentToken, tokenEvents: exchangeEvents } =
-      await resolveMcpAccessTokenWithEvents(mockReq, name);
+    const resolved = await resolveMcpAccessTokenWithEvents(mockReq, name);
+    const { token: agentToken, tokenEvents: exchangeEvents } = resolved;
     if (exchangeEvents && exchangeEvents.length > 0) {
       tokenEvents.push(...exchangeEvents);
+    }
+    if (resolved.blocked) {
+      // Never invoke the tool with a blocked (denied) token — tool.invoke does
+      // not itself guard against a null/blocked agentToken the way
+      // callMcpToolInternal's choke point does.
+      return JSON.stringify({
+        error: resolved.blockCode || 'user_token_forwarding_disabled',
+        message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+      });
     }
     const _toolStart = Date.now();
     const result = await tool.invoke(args, { configurable: { agentContext: { agentToken, userId, tokenEvents } } });

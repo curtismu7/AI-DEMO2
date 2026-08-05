@@ -168,4 +168,24 @@ describe('agentPreflightService.evaluate()', () => {
       _cfg.ff_authorize_fail_open = prev;
     }
   });
+
+  test('blocked resolution (ff_skip_token_exchange deny) → DENY immediately, gate never called, even with fail_open=true', async () => {
+    const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
+    resolveMcpAccessTokenWithEvents.mockResolvedValueOnce({
+      token: null,
+      tokenEvents: [{ id: 'exchange-skipped', status: 'failed' }],
+      userSub: null,
+      blocked: true,
+      blockCode: 'user_token_forwarding_disabled',
+      blockMessage: 'Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.',
+      blockHttpStatus: 403,
+    });
+    const result = await evaluate({ req: fakeReq(), tool: 'create_transfer', params: {} });
+    expect(result.decision).toBe('DENY');
+    expect(result.reason).toBe('user_token_forwarding_disabled');
+    expect(result.message).toBe('Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.');
+    // Must short-circuit before the gate — a blocked resolution must never reach
+    // the `!gate.ran` PERMIT fallback (gate not called with an empty token).
+    expect(evaluateMcpFirstToolGate).not.toHaveBeenCalled();
+  });
 });
