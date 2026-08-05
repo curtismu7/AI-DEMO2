@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import './TokenTopologyPanel.css';
 
 // Coerce any value to a renderable string — trace data can contain {message} objects
@@ -26,6 +27,75 @@ const NODES = [
   { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'decision',   desc: 'Token validation + routing' },
   { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'validated',  desc: 'Tool execution' },
 ];
+
+function eventById(events, id) {
+  return (Array.isArray(events) ? events : []).find((event) => event?.id === id) || null;
+}
+
+function evidenceStatus(event) {
+  if (!event) return 'pending';
+  const status = String(event.status || '').toLowerCase();
+  return ['error', 'failed', 'failure', 'denied'].includes(status) ? 'error' : 'done';
+}
+
+function audience(event) {
+  const value = event?.claims?.aud;
+  if (Array.isArray(value)) return value[value.length - 1] || null;
+  return value || null;
+}
+
+export function buildA2aTopology(events) {
+  const detail = buildA2aChainDetail(events);
+  if (!detail.present) return null;
+
+  const exchange1 = eventById(events, 'a2a-exchange1');
+  const exchange2 = eventById(events, 'a2a-exchange2');
+  const wireBearer = eventById(events, 'a2a-protocol-bearer');
+  const agentCard = eventById(events, 'a2a-agent-card');
+  const message = eventById(events, 'a2a-protocol-message');
+  const specialist = detail.specialist || 'Specialist agent';
+
+  return {
+    identity: [
+      { id: 'a2a-main-identity', name: 'Main agent', desc: str(detail.generalist) || 'Generalist', status: exchange1 ? 'done' : 'pending' },
+      { id: 'a2a-exchange1', name: 'Exchange #1', desc: `RFC 8693 · user + main actor${audience(exchange1) ? ` · aud ${audience(exchange1)}` : ''}`, status: evidenceStatus(exchange1) },
+      { id: 'a2a-exchange2', name: 'Exchange #2', desc: `RFC 8693 · nested act${audience(exchange2) ? ` · aud ${audience(exchange2)}` : ''}`, status: evidenceStatus(exchange2) },
+      { id: 'a2a-specialist-identity', name: specialist, desc: 'Specialist identity used for delegated MCP authorization', status: evidenceStatus(exchange2) },
+    ],
+    wire: [
+      { id: 'a2a-main-wire', name: 'Main agent', desc: 'A2A client', status: wireBearer ? 'done' : 'pending' },
+      { id: 'a2a-wire-bearer', name: 'PingOne wire bearer', desc: `Separate client-credentials token${audience(wireBearer) ? ` · aud ${audience(wireBearer)}` : ''}`, status: evidenceStatus(wireBearer) },
+      { id: 'a2a-agent-card', name: 'Agent Card', desc: 'Specialist discovery', status: evidenceStatus(agentCard) },
+      { id: 'a2a-send-message', name: 'A2A SendMessage', desc: 'JSON-RPC handoff', status: evidenceStatus(message) },
+      { id: 'a2a-specialist-wire', name: specialist, desc: 'Specialist agent called by main agent', status: evidenceStatus(message) },
+    ],
+  };
+}
+
+function EvidenceFlow({ label, nodes }) {
+  return (
+    <section className="ttp-evidence-flow" aria-label={label}>
+      <div className="ttp-evidence-label">{label}</div>
+      <div className="ttp-evidence-row">
+        {nodes.map((node, index) => (
+          <React.Fragment key={node.id}>
+            {index > 0 && (
+              <div className="ttp-evidence-conn" aria-hidden="true">
+                <div className="ttp-line" />
+                <span className="ttp-arrowhead">▶</span>
+              </div>
+            )}
+            <div className={`ttp-evidence-node ttp-evidence-node--${node.status}`}>
+              <span className="ttp-evidence-status">{node.status === 'done' ? '✓' : node.status === 'error' ? 'FAILED' : 'WAITING'}</span>
+              <strong>{node.name}</strong>
+              <span>{node.desc}</span>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function claimsFromStep(step, options = {}) {
   const { truncateReason = false } = options;
@@ -385,13 +455,9 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
 
   const routingMode = trace.routingMode || (trace.llmDetail ? 'llm' : trace.phases?.length ? 'heuristic' : null);
   const prompt = trace.prompt || null;
+  const a2aTopology = buildA2aTopology(trace.tokenEvents);
 
-  // Only show nodes that have been reached
-  const visibleNodes = NODES.filter((node) => {
-    const step = steps.find(s => s.id === node.id);
-    return step && step.status !== 'pending';
-  });
-  const hasActivity = visibleNodes.length > 0;
+  const hasActivity = steps.some((step) => step.status !== 'pending') || Boolean(a2aTopology);
 
   return (
     <DraggableModal
@@ -422,56 +488,45 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
         {/* Main: topology + inspector side-by-side */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
           <div className="ttp-diagram">
-            {!hasActivity && (
-              <div className="ttp-idle">
-                <div className="ttp-idle-icon">⟡</div>
-                <div>Waiting for agent flow — nodes appear as each server is called</div>
-              </div>
-            )}
-            {hasActivity && (
-              <>
-                <div className="ttp-label">RFC 8693 delegation chain — click a node to inspect token details</div>
-                <div className="ttp-row">
-                  {visibleNodes.map((node, i) => {
-                    const step = steps.find(s => s.id === node.id);
-                    return (
-                      <React.Fragment key={node.id}>
-                        {i > 0 && (
-                          <div className={`ttp-conn${step?.status === 'error' ? ' blocked' : ''}`}>
-                            <div className="ttp-line" />
-                            <span className="ttp-arrowhead">▶</span>
-                            {node.connLabel && <div className="ttp-conn-label">{node.connLabel}</div>}
-                          </div>
-                        )}
-                        <NodeBox
-                          node={node}
-                          step={step}
-                          selected={expandedId === node.id}
-                          animateIn={true}
-                          onClick={() => handleNodeClick(node.id, step)}
-                        />
-                      </React.Fragment>
-                    );
-                  })}
-                  {/* Next pending node shown as ghost */}
-                  {visibleNodes.length < NODES.length && (
-                    <>
-                      <div className="ttp-conn ghost">
+            <div className="ttp-label">Complete delegated pipeline — every step stays visible</div>
+            <div className="ttp-row">
+              {NODES.map((node, i) => {
+                const step = steps.find(s => s.id === node.id);
+                return (
+                  <React.Fragment key={node.id}>
+                    {i > 0 && (
+                      <div className={`ttp-conn${step?.status === 'error' ? ' blocked' : ''}${step?.status === 'pending' ? ' ghost' : ''}`}>
                         <div className="ttp-line" />
                         <span className="ttp-arrowhead">▶</span>
+                        {node.connLabel && <div className="ttp-conn-label">{node.connLabel}</div>}
                       </div>
-                      <div className="ttp-node ghost">
-                        <div className="ttp-box pulsing">
-                          <div className="ttp-status pend"><span className="ttp-pulse-dot" /></div>
-                          <div className="ttp-icon">{NODES[visibleNodes.length].icon}</div>
-                          <div className="ttp-name">{NODES[visibleNodes.length].name}</div>
-                          <div className="ttp-desc">{NODES[visibleNodes.length].desc}</div>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                    )}
+                    <NodeBox
+                      node={node}
+                      step={step}
+                      selected={expandedId === node.id}
+                      animateIn={Boolean(step && step.status !== 'pending')}
+                      onClick={() => step && handleNodeClick(node.id, step)}
+                    />
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            {a2aTopology && (
+              <div className="ttp-a2a-topology">
+                <div className="ttp-a2a-heading">
+                  <strong>A2A: main agent calling specialist agent</strong>
+                  <span>Identity and wire-protocol evidence are separate paths.</span>
                 </div>
-              </>
+                <EvidenceFlow
+                  label="Identity path — RFC 8693 token exchanges for MCP authorization"
+                  nodes={a2aTopology.identity}
+                />
+                <EvidenceFlow
+                  label="Wire path — Agent Card and JSON-RPC handoff"
+                  nodes={a2aTopology.wire}
+                />
+              </div>
             )}
           </div>
 

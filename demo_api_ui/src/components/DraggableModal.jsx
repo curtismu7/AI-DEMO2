@@ -291,6 +291,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
       <div
         className={`dm-panel${className ? ` ${className}` : ""}`}
         role="dialog"
+        aria-label={title}
         aria-modal={noBackdrop ? undefined : "true"}
         style={{
           left: pos.x,
