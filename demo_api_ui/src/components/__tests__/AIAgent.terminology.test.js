@@ -58,6 +58,43 @@ describe("MessageContent", () => {
     expect(screen.queryByRole("columnheader", { name: /^account$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /^balance$/i })).not.toBeInTheDocument();
   });
+
+  test("formats an embedded United bookings payload as reservation cards", () => {
+    const text = `[CUSTOMER AGENT]
+Here are your airline bookings:
+${JSON.stringify({
+  source: "sqlite",
+  passenger: {
+    name: "Jordan A. Rivera",
+    loyaltyTier: "Premier Gold",
+    loyaltyPoints: 45320,
+    bookings: [
+      {
+        confirmationNumber: "K7XR2M",
+        flightNumber: "UA328",
+        route: "ORD to SFO",
+        departureTime: "2026-08-15T08:40:00-05:00",
+        gate: "C12",
+        seat: "14A",
+        cabin: "Economy Plus",
+        checkedBags: 1,
+        status: "Confirmed",
+        flightStatus: "On Time",
+      },
+    ],
+  },
+})}`;
+
+    const { container } = render(<MessageContent text={text} />);
+
+    expect(screen.getByText("Jordan A. Rivera")).toBeInTheDocument();
+    expect(screen.getByText(/45,320 miles/)).toBeInTheDocument();
+    expect(screen.getByText("UA328")).toBeInTheDocument();
+    expect(screen.getByText("K7XR2M")).toBeInTheDocument();
+    expect(screen.getByText("Economy Plus")).toBeInTheDocument();
+    expect(screen.getByText(/08:40/)).toBeInTheDocument();
+    expect(container.textContent).not.toContain('"confirmationNumber"');
+  });
 });
 
 describe("buildClarificationQuestions", () => {

@@ -1874,6 +1874,71 @@ body > .banking-agent-float-root .banking-agent-panel {
   margin-bottom: 0.4em;
 }
 
+.ba-airline-bookings .ba-msg-body {
+  margin-bottom: 10px;
+}
+
+.ba-airline-passenger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ba-airline-passenger span {
+  font-size: 0.88em;
+}
+
+.ba-airline-booking-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ba-airline-booking {
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.ba-airline-booking-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ba-airline-booking-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 14px;
+  margin: 8px 0 0;
+}
+
+.ba-airline-booking-details > div {
+  min-width: 0;
+}
+
+.ba-airline-booking-details dt {
+  font-size: 0.74em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ba-airline-booking-details dd {
+  margin: 1px 0 0;
+  overflow-wrap: anywhere;
+}
+
 .banking-agent-tool-badge {
   display: inline-block;
   margin-top: 5px;
