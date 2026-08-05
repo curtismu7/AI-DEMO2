@@ -7,14 +7,15 @@ export const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
-  gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
+  gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API",
+  database: "DATA", reply: "LLM",
 };
 
 // The delegation-to-MCP portion of the pipeline, in order. Not derivable from
 // LANES (exchange shares the BFF lane with agent-token), so declared explicitly
 // here alongside the rest of the step-model vocabulary — the MCP tab and the
 // rail's MCP-step badge both consume it, so a step-id rename stays a one-file fix.
-export const MCP_STEP_IDS = ["exchange", "gateway", "api-key-swap", "mcp", "api"];
+export const MCP_STEP_IDS = ["exchange", "gateway", "api-key-swap", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -30,7 +31,8 @@ const TITLES = {
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   mcp: "MCP server — tool executes",
-  api: "Resource server — API call",
+  api: "Resource server — backend app",
+  database: "Database — data query",
   reply: "LLM composes reply → chat",
 };
 
@@ -53,6 +55,7 @@ const NARRATIVES = {
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
+  database: "The backend application queries its data store. This hop appears as completed only when the tool result identifies a real SQL data source.",
   reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
 };
 
@@ -195,6 +198,12 @@ const STEP_SPEC = {
     why: "This is where the narrowing done at the exchange hop actually pays off: the same call made with the user's original broad token would succeed against far more endpoints. The delegated token can only do the one thing the chosen tool needed.",
     failure: "Reading an expected DENY here as an outage. A blocked out-of-scope call is the control working, and in the deny-track use cases it is the whole demonstration.",
   },
+  database: {
+    refs: [],
+    mandate: "No OAuth specification governs the database query. OAuth authorization has already been enforced by the resource server before application code reads or writes data.",
+    why: "Keeping the database behind the resource-server boundary makes the trust transition explicit: the MCP call reaches backend application code, and only that application queries its private data store. United Airlines tools use the resource server's real SQLite database.",
+    failure: "Showing a database hop without runtime evidence makes a proxy, mock, or denied request look like a real data access. This card completes only when the result reports a SQL source.",
+  },
   reply: {
     refs: [],
     mandate: "No specification governs this hop. The tool result goes back to the model, which writes the user-facing text.",
@@ -232,11 +241,38 @@ const TOOL_BACKEND_MAP = {
   get_investment_transactions: { label: "MCP Resource Server", lane: "INVEST" },
   get_portfolio_summary: { label: "MCP Resource Server", lane: "INVEST" },
 };
+const UNITED_SQL_TOOLS = new Set([
+  "pay_airline_fee",
+  "cancel_airline_reservation",
+  "sensitive_airline_bookings",
+  "get_airline_bookings",
+  "get_flight_status",
+  "check_seat_availability",
+  "sensitive_passenger_record",
+]);
 function resolveBackendLabel(toolName, meta) {
+  if (UNITED_SQL_TOOLS.has(toolName)) {
+    return { label: "United Airlines backend app", lane: "AIRLINES" };
+  }
   const mapped = toolName && TOOL_BACKEND_MAP[toolName];
   if (mapped) return mapped;
   if (meta?.backend) return { label: meta.backend, lane: "API" };
   return null;
+}
+
+const SQL_SOURCE_LABELS = {
+  sqlite: "SQLite",
+  postgres: "PostgreSQL",
+  postgresql: "PostgreSQL",
+  mysql: "MySQL",
+  mariadb: "MariaDB",
+  sqlserver: "SQL Server",
+};
+
+function resolveDatabaseInfo(result, toolName) {
+  const source = typeof result?.source === "string" ? result.source.toLowerCase() : "";
+  const engine = SQL_SOURCE_LABELS[source];
+  return engine ? { engine, source, isUnited: UNITED_SQL_TOOLS.has(toolName) } : null;
 }
 
 // --- replay payloads -------------------------------------------------------
@@ -841,7 +877,7 @@ export function buildTraceSteps(trace) {
       narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
 
-  // 9. mcp + 10. api — a gateway denial means the call never reached the MCP
+  // 9. mcp + 10. api + 11. database — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
   // A failed MCP tool call still carries a `result` (e.g. { error, message }
   // for TraceRail), so `mcpResult.result` alone can't distinguish success from
@@ -888,7 +924,28 @@ export function buildTraceSteps(trace) {
   }
   steps.push(apiStep);
 
-  // 11. reply — heuristics compose from the tool result (no LLM); chip paths
+  const databaseInfo = resolveDatabaseInfo(
+    mcpResult?.result,
+    mcpResult?.tool || mcpResult?.toolName,
+  );
+  const databaseStep = makeStep("database",
+    authorizeFailed ? "notinpath" : databaseInfo ? "done" : traceComplete ? "notinpath" : "pending",
+    databaseInfo ? {
+      narrative: databaseInfo.isUnited
+        ? "The United Airlines resource server queried its real SQLite database and returned stored operational data."
+        : `The resource server queried its ${databaseInfo.engine} database and returned stored data.`,
+      kv: [
+        ["engine", databaseInfo.engine],
+        ["reported source", databaseInfo.source],
+      ],
+      response: { title: "Database-backed result", text: asJson(mcpResult.result) },
+    } : {});
+  if (databaseInfo?.isUnited) {
+    databaseStep.title = "SQL Database — United Airlines data";
+  }
+  steps.push(databaseStep);
+
+  // 12. reply — heuristics compose from the tool result (no LLM); chip paths
   // often have mcpResult but no llmReply, so either evidence marks the step done.
   const replyDone = Boolean(llmReply) || (isHeuristic && mcpDone);
   const replyStep = makeStep("reply", replyDone ? "done" : traceComplete ? "notinpath" : "pending",

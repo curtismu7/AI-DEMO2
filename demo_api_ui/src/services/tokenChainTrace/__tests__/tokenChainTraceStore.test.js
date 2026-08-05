@@ -105,6 +105,32 @@ test("reset clears everything including sign-in token (full demo wipe)", () => {
   expect(trace.outcome).toBeNull();
 });
 
+test("reset rejects late tagged evidence from the cleared run", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "my accounts", flowTraceId: "flow-cleared" });
+  tokenChainTraceStore.reset();
+
+  tokenChainTraceStore.ingestTokenEvent({
+    id: "gw-authorize",
+    flowTraceId: "flow-cleared",
+    decision: "PERMIT",
+  });
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: {
+      flowTraceId: "flow-cleared",
+      type: "mcp-result",
+      tool: "get_my_accounts",
+      result: { ok: 1 },
+      mcpAuthorizeEvaluation: { decision: "PERMIT" },
+    },
+  }));
+
+  const { trace } = tokenChainTraceStore.getState();
+  expect(trace.runId).toBeNull();
+  expect(trace.tokenEvents).toEqual([]);
+  expect(trace.mcpResult).toBeNull();
+  expect(trace.authorize).toBeNull();
+});
+
 test("ingestAuthorizeEvaluations stores the ordered decision list", () => {
   const list = [
     { decision: "PERMIT", decisionId: "gate-1", decisionContext: "McpFirstTool" },

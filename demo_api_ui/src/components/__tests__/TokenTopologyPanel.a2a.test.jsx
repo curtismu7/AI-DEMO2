@@ -150,6 +150,28 @@ describe('buildA2aTopology', () => {
     expect(tokenChainTraceStore.getState().trace.runId).toBeNull();
   });
 
+  it('closes the inspector when another surface resets the trace', async () => {
+    const user = userEvent.setup();
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+    });
+    render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    await user.click(screen.getByText('Website'));
+    expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
+
+    act(() => {
+      tokenChainTraceStore.reset();
+    });
+
+    expect(screen.queryByText('Website — browser / UI app')).not.toBeInTheDocument();
+    expect(screen.getByText('Run an agent flow to build the topology.')).toBeInTheDocument();
+  });
+
   it('provides a visible switch for light and dark topology themes', async () => {
     const user = userEvent.setup();
     const { container } = render(

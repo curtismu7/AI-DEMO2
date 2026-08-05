@@ -5,6 +5,71 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-08-05 — Token Chain could not distinguish live hops from possible steps
+
+**Symptom**: Token Chain rendered the full possible pipeline before the agent
+ran, making skipped token exchange or PingOne Authorize look like pending work
+and reducing the visual impact of a live demo.
+
+**Root cause**: `TokenChainTraceRail` mapped the complete `buildTraceSteps`
+catalog directly for every trace state. The catalog correctly knew every
+possible hop, but the UI had no run-aware projection over it.
+
+**Fix**: Added a Live projection that starts empty, reveals active/completed/
+failed steps as evidence arrives, and reconciles all possible steps when the run
+completes. Any still-pending possibility becomes an explicit `notinpath` step
+with a reason, including skipped token exchange and PingOne Authorize. A2A token
+events inject distinct main-agent, specialist-agent, exchange, Agent Card, and
+SendMessage steps into the live sequence. Observed backend results add separate
+Resource Server and Database cards, with United Airlines completing the database
+hop only when the result reports its real SQLite source. The unchanged Classic
+projection remains selectable and persisted as the immediate demo fallback.
+
+**Do not break**: Classic must always remain available without a redeploy; Live
+must not show future steps mid-run; completed Live runs must explain applicable
+skips; database completion must require runtime SQL-source evidence; Clear must
+empty either projection and reject stale tagged evidence.
+
+**Tests**: `demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx`
+(empty Live start, observed-step reveal, completed skip reconciliation,
+conditional/repeated steps, persisted Classic fallback, Clear);
+`demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+(reset and late-event rejection); full UI unit suite and production build.
+
+---
+
+## 2026-08-05 — Token Topology showed a fixed route and could repaint after Clear
+
+**Symptom**: Token Topology pre-rendered a fixed set of boxes rather than showing
+the route the agent actually took. Clear did not visibly remove those boxes, and
+late tagged evidence or a retained inspector selection could repaint stale run
+details after another surface reset the trace.
+
+**Root cause**: The panel rendered a static node list and Clear called
+`beginTrace()`, which created another run and retained session evidence. After
+switching Clear to `reset()`, the store had no active flow identity against which
+to reject a late event from the cleared run, while the inspector resolved its
+selection against the always-populated step model rather than the observed
+topology.
+
+**Fix**: `TokenTopologyPanel` now derives boxes and arrows from active, completed,
+or failed trace steps and enriches those nodes as evidence arrives. Clear uses a
+full store reset; the store treats that reset as an explicit run boundary that
+rejects late tagged evidence until the next `beginTrace`; inspector selection is
+resolved only from currently observed topology nodes.
+
+**Do not break**: pending and not-in-path steps must remain absent, conditional
+and repeated observed steps must render in trace order, and Clear must leave an
+empty topology that cannot be repainted by tagged evidence from the cleared run.
+
+**Tests**: `demo_api_ui/src/components/__tests__/TokenTopologyPanel.a2a.test.jsx`
+(observed live topology, detail enrichment, full clear, external-reset inspector
+cleanup); `demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+(late tagged token/SSE evidence rejected after reset); full UI unit suite and
+production build.
+
+---
+
 ## 2026-08-04 — Blocked-token resolution wasn't checked by direct callers of resolveMcpAccessTokenWithEvents (follow-up to the raw-user-token-forwarding fix)
 
 **Symptom**: Code review (Greptile) flagged that the `blocked` result added to `resolveMcpAccessTokenWithEvents` (see the entry above) was only handled by `mcpToolPipeline.js`. Other direct callers destructured `token` and either surfaced a generic 401/502 instead of the intended 403, or — in `agentPreflightService.evaluate()` — continued past the null token into the P1AZ gate call, where a gate that doesn't run (`!gate.ran`) falls back to `PERMIT`. A blocked resolution could therefore still end up PERMITted.
