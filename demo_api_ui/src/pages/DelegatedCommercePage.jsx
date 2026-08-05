@@ -462,6 +462,9 @@ export default function DelegatedCommercePage({ user }) {
                   <h3>1B. Claim and authorize the agent</h3>
                   {!registration && (
                     <>
+                      <p className="dc-claim-code-help">
+                        The administrator receives this one-time code after completing 1A. Ask them to create the agent and share the displayed code before claiming it.
+                      </p>
                       <label>One-time agent claim code<input value={claimCode} onChange={(event) => setClaimCode(event.target.value)} /></label>
                       <button className="dc-btn" type="button" onClick={claimAgent} disabled={!claimCode || busy === "claim"}>Claim agent</button>
                     </>
