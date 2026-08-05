@@ -615,6 +615,7 @@ app.use(
         '/api/demo/attack-sim',
         '/api/tokens',
         '/api/demo-scenario',
+        '/api/delegated-commerce',
         '/api/auth/oauth',
         '/api/mfa/test',
     ],

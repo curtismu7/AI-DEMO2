@@ -13,7 +13,7 @@ function removeCredentials(registrationId) {
   credentialVault.delete(registrationId);
 }
 
-function resolveAgentRuntime(req, { requireActive = true } = {}) {
+function resolveAgentRuntime(req, { requireActive = true, fallbackToDefault = false } = {}) {
   const registrationId = req?.session?.delegatedCommerceRegistrationId;
   if (!registrationId) return null;
 
@@ -31,6 +31,7 @@ function resolveAgentRuntime(req, { requireActive = true } = {}) {
     err.httpStatus = 403;
     throw err;
   }
+  if (requireActive && fallbackToDefault && registration.status === 'claimed') return null;
   if (requireActive && registration.status !== 'active') {
     const err = new Error('The delegated agent authorization is not active.');
     err.code = registration.status === 'revoked'
@@ -40,7 +41,9 @@ function resolveAgentRuntime(req, { requireActive = true } = {}) {
     throw err;
   }
 
-  const credentials = credentialVault.get(registrationId);
+  const credentials = credentialVault.get(registrationId) || {
+    clientSecret: store.decryptClientSecret(registration),
+  };
   if (!credentials?.clientSecret) {
     const err = new Error('The delegated agent credential is no longer available. Register the agent again.');
     err.code = 'delegated_agent_credential_unavailable';
@@ -62,18 +65,22 @@ function resolveConsentContext(req, tool) {
   if (!registrationId) return null;
   const registration = store.get(registrationId);
   const userId = req.user?.id || req.session?.user?.id || req.session?.user?.oauthId;
+  const expired = registration?.expiresAt <= Date.now();
   const requiredScopes = scopeTopology.toolScopes(tool)
     .filter((scope) => scope === 'read' || scope === 'write');
   const consentScopes = registration?.scopes || [];
   return {
     registrationId,
     agentId: registration?.applicationId || null,
-    status: registration?.claimedByUserId === userId ? registration.status : 'invalid_binding',
+    status: registration?.claimedByUserId === userId
+      ? (expired ? 'expired' : registration.status)
+      : 'invalid_binding',
     consentScopes,
     requiredScopes,
     sufficient:
       registration?.claimedByUserId === userId &&
       registration.status === 'active' &&
+      !expired &&
       requiredScopes.every((scope) => consentScopes.includes(scope)),
   };
 }

@@ -19,10 +19,12 @@ jest.mock('../services/delegatedCommerceService', () => ({
 }));
 jest.mock('../services/lmdb/delegatedCommerceStore.lmdb', () => ({
   get: jest.fn(),
+  put: jest.fn(),
 }));
 jest.mock('../services/lmdb/delegationStore.lmdb', () => ({
   findActiveByActorAndGrantor: jest.fn(),
   grantDelegation: jest.fn(),
+  getDelegations: jest.fn(() => []),
 }));
 jest.mock('../services/delegationService', () => ({
   revokeDelegation: jest.fn(),
@@ -97,6 +99,7 @@ it('persists named scopes for the exact claimed agent', async () => {
     status: 'claimed',
   });
   delegationStore.findActiveByActorAndGrantor.mockReturnValue(null);
+  delegationStore.getDelegations.mockReturnValue([]);
   delegationStore.grantDelegation.mockReturnValue({ id: 'del-1' });
   delegatedCommerceService.updateConsent.mockReturnValue({
     id: 'reg-1',
@@ -119,6 +122,45 @@ it('persists named scopes for the exact claimed agent', async () => {
       scopes: ['read', 'write'],
     }),
   );
+});
+
+it('compensates mayAct and local state when consent cannot be persisted', async () => {
+  const registration = {
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'claimed',
+    expiresAt: Date.now() + 60000,
+  };
+  delegatedCommerceStore.get.mockReturnValue(registration);
+  delegationStore.grantDelegation.mockReturnValue({ id: 'del-1' });
+  delegatedCommerceService.updateConsent.mockImplementation(() => {
+    throw new Error('LMDB unavailable');
+  });
+
+  const response = await request(makeApp())
+    .post('/api/delegated-commerce/consent')
+    .send({ scopes: ['read'] });
+
+  expect(response.status).toBe(502);
+  expect(pingOneUserService.setMayActAttribute).toHaveBeenLastCalledWith('user-1', null);
+  expect(delegatedCommerceStore.put).toHaveBeenCalledWith(registration);
+});
+
+it('does not authorize an expired registration', async () => {
+  delegatedCommerceStore.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'active',
+    scopes: ['read'],
+    expiresAt: Date.now() - 1,
+  });
+  delegationStore.findActiveByActorAndGrantor.mockReturnValue({ id: 'del-1', scopes: ['read'] });
+
+  const response = await request(makeApp()).get('/api/delegated-commerce/status');
+
+  expect(response.body.authorized).toBe(false);
 });
 
 it('revokes mayAct and returns immutable audit evidence', async () => {
