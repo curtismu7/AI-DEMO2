@@ -20,6 +20,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Demos",
     children: [
       "Agent Lifecycle",
+      "Delegated Commerce",
       "Use Cases",
       "Use Cases (Live)",
       "Guided Demo Track",
