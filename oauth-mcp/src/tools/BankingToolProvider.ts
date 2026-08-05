@@ -368,8 +368,12 @@ export class BankingToolProvider {
 
     // Item 8: structural exp/iss/aud pre-flight for sensitive operations.
     // Non-network local decode — verifies token has not expired before we hit the banking API.
+    // Verify agentToken (the token that arrived at this MCP server from the gateway), not the
+    // post-resolution `token`: when Step 9 resource-narrowing ran, `token` is deliberately
+    // re-audienced to BANKING_API_RESOURCE_URI and will never carry the MCP server audience this
+    // check expects. Falls back to `token` when there's no agentToken (matches its own audience).
     if (this.jwtVerifier.isSensitiveHandler(tool.handler)) {
-      await this.jwtVerifier.assertClaims(token, tool.name);
+      await this.jwtVerifier.assertClaims(agentToken ?? token, tool.name);
     }
 
     const handler = handlerMap[tool.handler];
