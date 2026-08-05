@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
+import { useTheme } from '../context/ThemeContext';
 import './TokenTopologyPanel.css';
 
 // Coerce any value to a renderable string — trace data can contain {message} objects
@@ -23,9 +24,9 @@ const NODES = [
   { id: 'agent',     icon: '👤', name: 'Agent Service',     lane: 'AGENT',    connLabel: 'request',    desc: 'LLM reasoning & tool catalog' },
   { id: 'llm',       icon: 'ML', name: 'LLM Model',         lane: 'LLM',      connLabel: 'reasoning',  desc: 'Tool choice & reasoning' },
   { id: 'exchange',  icon: 'TX', name: 'BFF Token Exchange', lane: 'BFF',     connLabel: 'user token', desc: 'RFC 8693 subject + actor' },
-  { id: 'authorize', icon: 'AZ', name: 'PingOne Authorize', lane: 'AUTHZ',   connLabel: 'delegated token', desc: 'Policy decision point' },
-  { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'decision',   desc: 'Token validation + routing' },
-  { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'validated',  desc: 'Tool execution' },
+  { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'delegated token', desc: 'Token validation + routing' },
+  { id: 'authorize', icon: 'AZ', name: 'PingOne Authorize', lane: 'AUTHZ',   connLabel: 'policy request', desc: 'Policy decision point' },
+  { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'decision',   desc: 'Tool execution' },
 ];
 
 function eventById(events, id) {
@@ -397,6 +398,7 @@ function Inspector({ step, onClose }) {
 }
 
 export default function TokenTopologyPanel({ isOpen, onClose }) {
+  const { darkMode, setDarkMode } = useTheme();
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
   const [expandedId, setExpandedId] = useState(null);
   const [selectedStep, setSelectedStep] = useState(null);
@@ -472,17 +474,35 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
       zIndex={10001}
       minWidth={580}
       minHeight={360}
+      className={`ttp-modal ttp-modal--${darkMode ? 'dark' : 'light'}`}
     >
-      <div className="ttp-root">
+      <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'}>
         {/* Toolbar */}
         <div className="ttp-toolbar">
           <div className="ttp-toolbar-left">
             {prompt && <><span className="ttp-ctx-lbl">Prompt</span><span className="ttp-ctx-prompt">{str(prompt)}</span></>}
             {routingMode && <span className="ttp-ctx-mode">{str(routingMode)}</span>}
           </div>
-          <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
-            <span className="ttp-clear-icon">↺</span> Clear
-          </button>
+          <div className="ttp-toolbar-actions">
+            <div className="ttp-theme-control" aria-label="Token topology color theme">
+              <span className={!darkMode ? 'active' : ''}>Light</span>
+              <button
+                type="button"
+                className="ttp-theme-switch"
+                role="switch"
+                aria-checked={darkMode}
+                aria-label="Dark mode"
+                title={`Switch to ${darkMode ? 'light' : 'dark'} mode`}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span className="ttp-theme-switch-thumb" />
+              </button>
+              <span className={darkMode ? 'active' : ''}>Dark</span>
+            </div>
+            <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
+              <span className="ttp-clear-icon">↺</span> Clear
+            </button>
+          </div>
         </div>
 
         {/* Main: topology + inspector side-by-side */}
