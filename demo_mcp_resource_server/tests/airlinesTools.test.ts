@@ -69,6 +69,19 @@ describe('airlines dispatch', () => {
     expect(result.upcomingTrips).toBe(2);
     expect(result.bookings[0].confirmationNumber).toBe('K7XR2M');
     expect(result.bookings[0].route).toBe('ORD to SFO');
+    expect(result.provenance).toEqual(expect.objectContaining({
+      backend: 'United Reservations DB',
+      engine: 'SQLite',
+      database: 'airlines.db',
+      tool: 'get_airline_bookings',
+      recordCount: 2,
+      tables: ['passengers', 'bookings', 'flights'],
+    }));
+    expect(result.provenance.queryId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(Number.isNaN(Date.parse(result.provenance.queriedAt))).toBe(false);
+    expect(result.provenance.durationMs).toBeGreaterThanOrEqual(0);
   });
 
   it('reads flight status', async () => {

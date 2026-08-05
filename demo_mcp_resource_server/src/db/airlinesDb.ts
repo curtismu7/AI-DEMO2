@@ -154,6 +154,10 @@ function dbPath(): string {
   return process.env.AIRLINES_DB_PATH || path.join(process.cwd(), 'data', 'airlines.db');
 }
 
+export function airlinesDatabaseName(): string {
+  return path.basename(dbPath());
+}
+
 function seedPath(): string {
   return process.env.AIRLINES_SEED_PATH || path.join(__dirname, '..', '..', 'seed', 'airlines.seed.json');
 }

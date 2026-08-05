@@ -102,6 +102,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — United backend provenance was hidden during the demo
+
+**Files changed:** `demo_mcp_resource_server/src/db/airlinesDb.ts`,
+`demo_mcp_resource_server/src/tools/airlinesToolHandler.ts`,
+`demo_mcp_resource_server/tests/airlinesTools.test.ts`,
+`demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** United returned real SQLite data, but the chat response did
+not visibly prove the backend source, query freshness, or exact rows.
+
+**What was fixed:** The resource server now stamps booking reads with a query
+receipt. United chat shows a live query pulse, database badges, freshness,
+refresh, an expandable proof receipt, and a read-only row preview.
+
+**Do not break:** Provenance values must come from the resource server; do not
+fabricate query IDs, timestamps, durations, or record counts in the UI. Other
+verticals keep their existing loading and message rendering.
+
+**Verify:** Resource-server airlines tests; UI unit suite; UI production build.
+
 ### 2026-08-05 — United booking replies displayed compact raw JSON
 
 **Files changed:** `demo_api_ui/src/components/agentResultPanels.js`,

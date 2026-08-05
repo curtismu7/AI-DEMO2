@@ -1,7 +1,7 @@
 // Presentational result-display components extracted from AIAgent.js.
 // All are stateless w.r.t. the BankingAgent component — they render from props only.
 // (ResultsPanel keeps its own local resize state, but takes its content via props.)
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import { InlineMd, MarkdownContent } from "./shared/MarkdownText";
 import VerticalResult from "./VerticalResult";
@@ -224,10 +224,15 @@ function parseAirlineBookingsMessage(text) {
   try {
     const payload = JSON.parse(text.slice(jsonStart).trim());
     const passenger = payload?.passenger;
-    if (!passenger || !Array.isArray(passenger.bookings)) return null;
+    const bookings = Array.isArray(passenger?.bookings)
+      ? passenger.bookings
+      : payload?.bookings;
+    if (!passenger || !Array.isArray(bookings)) return null;
     return {
       intro: text.slice(0, jsonStart).trim(),
       passenger,
+      bookings,
+      provenance: payload.provenance || passenger.provenance || null,
     };
   } catch {
     return null;
@@ -241,7 +246,45 @@ function formatAirlineDeparture(value) {
   return formatDateTime(localTime ? `${localTime}Z` : value);
 }
 
-function AirlineBookingsMessage({ intro, passenger }) {
+function freshnessLabel(queriedAt, now) {
+  const queriedMs = Date.parse(queriedAt);
+  if (!Number.isFinite(queriedMs)) return "Retrieved from live backend";
+  const ageSeconds = Math.max(0, Math.floor((now - queriedMs) / 1000));
+  if (ageSeconds < 5) return "Retrieved just now";
+  if (ageSeconds < 60) return `Retrieved ${ageSeconds}s ago`;
+  const ageMinutes = Math.floor(ageSeconds / 60);
+  return `Retrieved ${ageMinutes}m ago`;
+}
+
+export function UnitedDatabasePulse() {
+  return (
+    <div
+      className="ba-airline-query-pulse"
+      role="status"
+      aria-label="Querying United Reservations Database"
+    >
+      <span className="ba-airline-live-dot" aria-hidden />
+      <span>Querying United Reservations DB...</span>
+    </div>
+  );
+}
+
+function AirlineBookingsMessage({
+  intro,
+  passenger,
+  bookings,
+  provenance,
+  proofRunId,
+  onRefresh,
+  refreshing,
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!provenance?.queriedAt) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 15000);
+    return () => window.clearInterval(timer);
+  }, [provenance?.queriedAt]);
+
   const summary = [
     passenger.loyaltyTier,
     passenger.loyaltyPoints != null
@@ -257,13 +300,16 @@ function AirlineBookingsMessage({ intro, passenger }) {
         {summary.length > 0 && <span>{summary.join(" · ")}</span>}
       </div>
       <div className="ba-airline-booking-list">
-        {passenger.bookings.map((booking, index) => (
+        {bookings.map((booking, index) => (
           <section
             className="ba-airline-booking"
             key={booking.confirmationNumber || `${booking.flightNumber}-${index}`}
           >
             <div className="ba-airline-booking-header">
-              <strong>{booking.flightNumber || "United flight"}</strong>
+              <div>
+                <strong>{booking.flightNumber || "United flight"}</strong>
+                <span className="ba-airline-source-badge">LIVE · UNITED DB</span>
+              </div>
               {booking.route && <span>{booking.route}</span>}
             </div>
             <dl className="ba-airline-booking-details">
@@ -288,14 +334,106 @@ function AirlineBookingsMessage({ intro, passenger }) {
           </section>
         ))}
       </div>
+      {provenance && (
+        <section className="ba-airline-provenance" aria-label="United data provenance">
+          <div className="ba-airline-provenance-summary">
+            <div>
+              <span className="ba-airline-live-dot" aria-hidden />
+              <strong>Live backend proof</strong>
+            </div>
+            <span>{freshnessLabel(provenance.queriedAt, now)}</span>
+          </div>
+          <details className="ba-airline-provenance-details">
+            <summary>View database proof</summary>
+            <dl>
+              {[
+                ["Backend", provenance.backend],
+                ["Engine", provenance.engine],
+                ["Database", provenance.database],
+                ["Tool", provenance.tool],
+                ["Rows", provenance.recordCount],
+                ["Query time", provenance.durationMs != null ? `${provenance.durationMs} ms` : null],
+                ["Retrieved", provenance.queriedAt ? formatDateTime(provenance.queriedAt) : null],
+                ["Query ID", provenance.queryId],
+                ["Trace run", proofRunId],
+              ]
+                .filter(([, value]) => value !== null && value !== undefined && value !== "")
+                .map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{String(value)}</dd>
+                  </div>
+                ))}
+            </dl>
+            <p className="ba-airline-proof-link">
+              This query uses the same run shown in Token Chain, Topology, and Flow Detail.
+            </p>
+            <div className="ba-airline-db-preview">
+              <strong>Read-only database rows returned</strong>
+              <div>
+                <table aria-label="United database rows">
+                  <thead>
+                    <tr>
+                      <th>confirmation_number</th>
+                      <th>flight_number</th>
+                      <th>route</th>
+                      <th>departure_time</th>
+                      <th>gate</th>
+                      <th>seat</th>
+                      <th>status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bookings.map((booking, index) => (
+                      <tr key={booking.confirmationNumber || index}>
+                        <td>{booking.confirmationNumber}</td>
+                        <td>{booking.flightNumber}</td>
+                        <td>{booking.route}</td>
+                        <td>{booking.departureTime}</td>
+                        <td>{booking.gate}</td>
+                        <td>{booking.seat}</td>
+                        <td>{booking.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+          {onRefresh && (
+            <button
+              type="button"
+              className="ba-airline-refresh"
+              disabled={refreshing}
+              onClick={onRefresh}
+            >
+              {refreshing ? "Refreshing from United DB..." : "Refresh from United DB"}
+            </button>
+          )}
+        </section>
+      )}
     </div>
   );
 }
 
-export function MessageContent({ text, isTokenEvent, terminology }) {
+export function MessageContent({
+  text,
+  isTokenEvent,
+  terminology,
+  proofRunId,
+  onAirlineRefresh,
+  refreshing,
+}) {
   const airlineBookings = parseAirlineBookingsMessage(text);
   if (airlineBookings) {
-    return <AirlineBookingsMessage {...airlineBookings} />;
+    return (
+      <AirlineBookingsMessage
+        {...airlineBookings}
+        proofRunId={proofRunId}
+        onRefresh={onAirlineRefresh}
+        refreshing={refreshing}
+      />
+    );
   }
 
   // Detect and format account data as tables (remove emojis)
