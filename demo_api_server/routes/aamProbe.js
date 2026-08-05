@@ -37,7 +37,7 @@ router.get('/probe', async (req, res) => {
   }
 
   const base = process.env.MCP_PINGGATEWAY_URL || 'http://ping-gateway:8080';
-  const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+  const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
 
   try {
     const gwRes = await axios.get(`${base}/aam/health`, {

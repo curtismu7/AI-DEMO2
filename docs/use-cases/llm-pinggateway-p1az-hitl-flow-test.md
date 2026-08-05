@@ -22,7 +22,7 @@ Agent steps (02–06) use mocked `/api/demo-agent/nl` + `/api/mcp/tool` (428 `hi
 Same stack as the [PERMIT flow guide](./llm-pinggateway-p1az-flow-test.md), plus:
 
 - `ff_hitl_enabled=true` (Demo Controls → Feature Flags)
-- `ff_mcp_gateway_pinggateway=true`, `ff_authorize_simulated=false` (real P1AZ)
+- `ff_mcp_gateway_pinggateway=true`, `ff_authorize_real=true` (real P1AZ)
 - Customer OAuth session with MCP write scopes
 - LLM: local Phi-4 via `~/models` (see PERMIT guide)
 
@@ -156,7 +156,7 @@ Output: `docs/screenshots/llm-pinggateway-p1az-hitl-flow/*.png` (6 files)
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | Transfer completes without modal | `ff_hitl_enabled` off | Enable in Demo Controls |
-| No modal, generic error | Simulated authz without HITL rules | Set `ff_authorize_simulated=false` |
+| No modal, generic error | Simulated authz without HITL rules | Set `ff_authorize_real=true` |
 | Modal never opens (mocked UI test) | `/api/mcp/tool` not returning 428 | Verify `create_transfer` + `hitl_required` |
 | OTP step fails | Notifications not configured | Use stub OTP or check BFF logs |
 | PERMIT without retry | Missing `hitlChallengeId` on refire | Approve via `/api/mcp/decision/{id}/approve` first |

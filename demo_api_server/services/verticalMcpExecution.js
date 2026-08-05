@@ -93,7 +93,7 @@ async function executePluginToolViaMcp({ name, args, userId, userToken, req, tok
  * Gateway owns authz when live PingOne Authorize is active.
  */
 function shouldRunLocalAuthzGate() {
-  const p1azLive = configStore.getEffective('ff_authorize_simulated') !== 'true';
+  const p1azLive = configStore.getEffective('ff_authorize_real') === 'true';
   return !p1azLive;
 }
 

@@ -16,7 +16,7 @@ describe('authorizeCheck', () => {
   afterEach(() => jest.clearAllMocks());
 
   test('mode reports Real when not simulated', async () => {
-    const r = await mode.run({ flags: { ff_authorize_simulated: false } });
+    const r = await mode.run({ flags: { ff_authorize_real: true } });
     expect(r.status).toBe('pass');
     expect(r.meta.mode).toBe('real');
   });
@@ -25,7 +25,7 @@ describe('authorizeCheck', () => {
     p1az.evaluateTransaction
       .mockResolvedValueOnce({ decision: 'PERMIT', decisionId: 'a1' })
       .mockResolvedValueOnce({ decision: 'DENY', decisionId: 'a2' });
-    const r = await realDecision.run({ flags: { ff_authorize_simulated: false } });
+    const r = await realDecision.run({ flags: { ff_authorize_real: true } });
     expect(r.status).toBe('pass');
     expect(r.meta.decisions.map((d) => d.decision)).toEqual(['PERMIT', 'DENY']);
   });

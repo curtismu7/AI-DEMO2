@@ -3,7 +3,7 @@ const { buildTokenEvent } = require('./agentMcpTokenService');
 
 /**
  * Token-chain events for progressive-trust Act 1 (UC24): public catalog tools
- * that Authorize PERMITs without RFC 8693 delegation.
+ * that skip both Authorize and RFC 8693 delegation.
  */
 function buildPublicCatalogTokenEvents(toolName = 'get_branch_hours') {
   return [
@@ -13,19 +13,18 @@ function buildPublicCatalogTokenEvents(toolName = 'get_branch_hours') {
       'skipped',
       null,
       'Progressive trust Act 1: public catalog data does not require RFC 8693 delegation. '
-        + 'PingOne Authorize PERMITs the read-only tool without minting a delegated MCP token.',
+        + 'The public path skips PingOne Authorize and does not mint a delegated MCP token.',
       { rfc: 'RFC 8693', progressiveTrustAct: 1, publicCatalog: true },
     ),
     buildTokenEvent(
       'authorize-decision',
-      'PingOne Authorize — Policy Decision (public tool)',
-      'active',
+      'PingOne Authorize — skipped (public tool)',
+      'skipped',
       null,
-      `Authorize evaluated ${toolName} as a public read-only tool and returned PERMIT — `
-        + 'no bearer token or user delegation required.',
+      `${toolName} is served from the public catalog without calling PingOne Authorize.`,
       {
-        authorizeDecision: 'PERMIT',
-        authorizeEngine: 'simulated',
+        authorizeDecision: 'SKIPPED',
+        authorizeEngine: 'not-called',
         tool: toolName,
         publicCatalog: true,
         progressiveTrustAct: 1,

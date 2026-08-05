@@ -98,7 +98,7 @@ jest.mock('../../data/store', () => ({
 // ─── Mock configStore to prevent simulated mode from interfering ──────────────
 jest.mock('../../services/configStore', () => {
   const lookup = (key) => {
-    if (key === 'ff_authorize_simulated') return 'false';
+    if (key === 'ff_authorize_real') return 'true';
     if (key === 'authorize_enabled') return null;
     if (key === 'authorize_policy_id') return null;
     if (key === 'authorize_decision_endpoint_id') return null;

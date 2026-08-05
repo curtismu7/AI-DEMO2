@@ -3,7 +3,7 @@
  *
  * Unit contract for simulatedAuthorizeService.resolveAuthorizeMode() — the
  * single source of truth that maps the `authorize_mode` configStore key (and
- * the legacy ff_authorize_simulated / authorize_failover_mode fallback) to
+ * the legacy ff_authorize_real / authorize_failover_mode fallback) to
  * { mode, useSimulated, failoverMode }.
  */
 
@@ -46,33 +46,33 @@ describe('resolveAuthorizeMode — explicit authorize_mode', () => {
       .toEqual({ mode: 'pingone', useSimulated: false, failoverMode: 'permit' });
   });
 
-  test('ff_authorize_simulated=true overrides authorize_mode=pingone default (no split brain)', () => {
-    // QuickFlagsPill sets ff_authorize_simulated; it must win for the BFF path
+  test('ff_authorize_real=true overrides authorize_mode=pingone default (no split brain)', () => {
+    // QuickFlagsPill sets ff_authorize_real; it must win for the BFF path
     // too so the transaction engine and the PingGateway header agree.
-    expect(resolveAuthorizeMode(mkStore({ authorize_mode: 'pingone', ff_authorize_simulated: 'true' })))
+    expect(resolveAuthorizeMode(mkStore({ authorize_mode: 'pingone', ff_authorize_real: 'false' })))
       .toEqual({ mode: 'simulated', useSimulated: true, failoverMode: 'fallback_simulated' });
   });
 });
 
 describe('resolveAuthorizeMode — legacy fallback (authorize_mode unset)', () => {
-  test('ff_authorize_simulated=true → simulated', () => {
-    expect(resolveAuthorizeMode(mkStore({ ff_authorize_simulated: 'true' }))).toEqual({
+  test('ff_authorize_real=false → simulated', () => {
+    expect(resolveAuthorizeMode(mkStore({ ff_authorize_real: 'false' }))).toEqual({
       mode: 'simulated', useSimulated: true, failoverMode: 'fallback_simulated',
     });
   });
 
-  test('ff_authorize_simulated=false + failover fallback_simulated → pingone_fallback_simulated', () => {
-    expect(resolveAuthorizeMode(mkStore({ ff_authorize_simulated: 'false', authorize_failover_mode: 'fallback_simulated' })))
+  test('ff_authorize_real=true + failover fallback_simulated → pingone_fallback_simulated', () => {
+    expect(resolveAuthorizeMode(mkStore({ ff_authorize_real: 'true', authorize_failover_mode: 'fallback_simulated' })))
       .toEqual({ mode: 'pingone_fallback_simulated', useSimulated: false, failoverMode: 'fallback_simulated' });
   });
 
-  test('ff_authorize_simulated=false + failover deny → pingone', () => {
-    expect(resolveAuthorizeMode(mkStore({ ff_authorize_simulated: 'false', authorize_failover_mode: 'deny' })))
+  test('ff_authorize_real=true + failover deny → pingone', () => {
+    expect(resolveAuthorizeMode(mkStore({ ff_authorize_real: 'true', authorize_failover_mode: 'deny' })))
       .toEqual({ mode: 'pingone', useSimulated: false, failoverMode: 'deny' });
   });
 
   test('invalid authorize_mode falls through to legacy derivation', () => {
-    expect(resolveAuthorizeMode(mkStore({ authorize_mode: 'bogus', ff_authorize_simulated: 'false', authorize_failover_mode: 'deny' })))
+    expect(resolveAuthorizeMode(mkStore({ authorize_mode: 'bogus', ff_authorize_real: 'true', authorize_failover_mode: 'deny' })))
       .toEqual({ mode: 'pingone', useSimulated: false, failoverMode: 'deny' });
   });
 });

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import './ThresholdControls.css';
 
 const FLAG_LABELS = {
-  ff_authorize_simulated: 'Simulated Authorization',
+  ff_authorize_real: 'Real PingOne Authorize',
   ff_authorize_fail_open: 'Allow Transactions if Auth Unavailable',
   step_up_enabled: 'MFA Step-up',
   ff_hitl_enabled: 'Human-in-the-Loop Consent',
@@ -15,7 +15,7 @@ const FLAG_LABELS = {
 };
 
 const FLAG_DESCRIPTIONS = {
-  ff_authorize_simulated: 'Use simulated (offline) auth responses instead of live PingOne',
+  ff_authorize_real: 'Use live PingOne Authorize; turn off only for mock outage fallback',
   ff_authorize_fail_open: 'Allow operations to proceed when authorization service is unavailable',
   step_up_enabled: 'Prompt for MFA on transactions above the step-up threshold',
   ff_hitl_enabled: 'Show a consent challenge before executing sensitive operations',

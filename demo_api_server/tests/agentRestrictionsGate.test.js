@@ -94,14 +94,18 @@ test('returns 428 with taskId on DENY', async () => {
 });
 
 test('P1AZ mode with no real evaluator surfaces the simulated-engine substitution (not silent)', async () => {
-  // authorize_mode defaults to 'pingone' and ff_authorize_simulated is unset, so the
+  // authorize_mode defaults to 'pingone' and ff_authorize_real is unset, so the
   // gate takes the P1AZ branch — but pingOneAuthorizeService.evaluateAgentRestrictions
   // does not exist, so it falls back to the simulated engine. That substitution must be
   // observable: the DENY body carries authorize_engine + a fallback reason, and a warn logs.
   const { logger } = require('../utils/logger');
   const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
   const configStore = require('../services/configStore');
-  configStore.getEffective.mockImplementation((key) => key === 'ff_agent_restrictions' ? 'true' : null);
+  configStore.getEffective.mockImplementation((key) => {
+    if (key === 'ff_agent_restrictions') return 'true';
+    if (key === 'ff_authorize_real') return 'true';
+    return null;
+  });
 
   await agentRestrictionsGate(makeReq(), mockRes, mockNext);
 

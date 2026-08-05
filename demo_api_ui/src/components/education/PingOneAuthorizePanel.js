@@ -472,7 +472,7 @@ export default function PingOneAuthorizePanel({ isOpen, onClose, initialTabId })
    POST /api/transactions  { type: "transfer", amount: 500 }
 
 2. BFF checks configStore: authorize_enabled = "true"
-   If ff_authorize_simulated = "true" → in-process simulatedAuthorizeService (no PingOne call)
+   If ff_authorize_real = "false" → in-process simulatedAuthorizeService (no PingOne call)
    Else selects API path:
      • authorize_decision_endpoint_id set → Decision Endpoints API (Phase 2)
      • authorize_policy_id set            → Legacy PDP API (Phase 1 fallback)

@@ -43,6 +43,8 @@ None of these are armed by running a step.
 |---|---|---|
 | `ff_use_cases_launcher` | ON | Gates the `/use-cases` surface the demo runs from. |
 | `ff_heuristic_enabled` | ON | The routing floor. Off, chips go to the LLM and answer non-deterministically. |
+| `ff_mcp_gateway_pinggateway` | ON | Real PingOne Agent Gateway is the steady-state enforcement point. |
+| `ff_authorize_real` | ON | Real PingOne Authorize is the steady state; OFF selects the mock outage fallback. |
 | `NODE_ENV` | not `production` | Attack sims return 403 `not_available_in_production` — that is Act 3. |
 | Sign-in host | `local.ping-devops.com:4000` | Passkey rp.id. On `api.ping.demo` the session cookie lands elsewhere and every call 401s. |
 | `MCP_MTLS_ON` | unset (OFF today) | The ONE switch for gateway→MCP mTLS: sets the mcp-server listener, both gateways' scheme (http/ws vs https/wss) and every client cert. `MCP_MTLS_ON=1` in the root `.env` turns it on — needs `certs/gw-mtls/` present, which `run-docker.sh` generates. Off while the Privilege MCP path needs a plaintext listener. |

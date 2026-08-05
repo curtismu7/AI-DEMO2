@@ -212,6 +212,27 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.detail.request.text).toContain("transfer_funds");
   });
 
+  test("public catalog marks P1AZ not in path instead of claiming simulation", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "authorize-decision",
+        status: "skipped",
+        authorizeDecision: "SKIPPED",
+        authorizeEngine: "not-called",
+        publicCatalog: true,
+      }],
+      outcome: "ok",
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("notinpath");
+    expect(az.detail.decision).toEqual({
+      outcome: "SKIPPED",
+      label: "SKIPPED — public catalog path",
+    });
+    expect(az.detail.why).toContain("was not called");
+  });
+
   test("authorize_denied phase renders authorize step as error", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,

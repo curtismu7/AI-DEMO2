@@ -223,7 +223,7 @@ The gate evaluates:
 1. Token `aud` and scope sufficiency
 2. Amount-based business rules (HITL and step-up)
 
-**Decision source:** Either PingOne Authorize (production) or the simulated policy service (demo/education mode, `ff_authorize_simulated=true`).
+**Decision source:** Either PingOne Authorize (production) or the simulated policy service (demo/education mode, `ff_authorize_real=false`).
 
 ### Simulated policy thresholds (configurable at runtime)
 
@@ -299,7 +299,7 @@ These flags are runtime-configurable via `/api/admin/feature-flags`.
 |---|---|
 | `ff_hitl_enabled` | Enables HITL consent enforcement on transfers |
 | `step_up_enabled` | Enables MFA step-up for high-value transactions |
-| `ff_authorize_simulated` | Uses local policy simulation instead of PingOne Authorize |
+| `ff_authorize_real` | Uses local policy simulation instead of PingOne Authorize |
 | `ff_oidc_only_authorize` | Strips banking scopes from authorize request; disables scope gates (OIDC-only mode) |
 | `ff_inject_may_act` | Synthetically injects `may_act` claim for demo (never use in production) |
 | `ff_skip_token_exchange` | Bypasses RFC 8693 exchange (demo bypass — never production) |

@@ -50,15 +50,15 @@ router.post('/run', authenticateToken, async (req, res) => {
   // real PingOne Authorize for this call, mirroring the transient-flag-flip
   // pattern already used throughout attackSimulatorService.js (ff_rar,
   // requireRarIntent) rather than inventing new plumbing.
-  // ff_authorize_simulated is a global, app-wide flag, so the prior value is
+  // ff_authorize_real is a global, app-wide flag, so the prior value is
   // snapshotted and restored in `finally` below — a live:true run must only
   // affect this one call, not leave the app routed through real PingOne
   // Authorize afterward (success, failure, or a later live-unset request).
   let previousAuthorizeSimulated = null;
   if (live === true) {
     try {
-      previousAuthorizeSimulated = configStore.getEffective('ff_authorize_simulated');
-      await configStore.setRaw({ ff_authorize_simulated: 'false' });
+      previousAuthorizeSimulated = configStore.getEffective('ff_authorize_real');
+      await configStore.setRaw({ ff_authorize_real: 'true' });
     } catch (err) {
       console.error('[intentBinding] failed to arm live mode (non-fatal):', err.message);
     }
@@ -175,9 +175,9 @@ router.post('/run', authenticateToken, async (req, res) => {
   } finally {
     if (live === true && previousAuthorizeSimulated !== null) {
       try {
-        await configStore.setRaw({ ff_authorize_simulated: previousAuthorizeSimulated });
+        await configStore.setRaw({ ff_authorize_real: previousAuthorizeSimulated });
       } catch (err) {
-        console.error('[intentBinding] failed to restore ff_authorize_simulated (non-fatal):', err.message);
+        console.error('[intentBinding] failed to restore ff_authorize_real (non-fatal):', err.message);
       }
     }
   }

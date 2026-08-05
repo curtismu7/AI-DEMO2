@@ -155,14 +155,14 @@ services:
       # demo-auth compose profile (authz-server + mcp-gateway).
       #
       # AUTHORIZE ENGINE (default = real PingOne Authorize ONLY, 2026-06-20):
-      # ff_authorize_simulated is the SINGLE flip flag. Default "false" + failover
-      # "deny" => strict PingOne: the BFF evaluates against the real cloud PingOne
+      # ff_authorize_real is the SINGLE positive flag. Default "true" routes the
+      # BFF to the real cloud PingOne
       # Authorize decision endpoint and FAILS CLOSED (HTTP 503) on a genuine PingOne
-      # outage — it does NOT fall back to the mock. ff_authorize_simulated also
-      # drives the BFF's X-Authz-Simulated header, so "false" routes the agent/MCP
+      # outage — it does NOT fall back to the mock. ff_authorize_real also
+      # drives the inverse X-Authz-Simulated header, so "true" routes the agent/MCP
       # tool path to real P1AZ too (PERMITs end-to-end per the provisioned MCP policy).
       # To force the simulated/education engine on BOTH paths, flip the feature
-      # flag: FF_AUTHORIZE_SIMULATED: "true" (or toggle it in the admin UI). To allow
+      # flag: FF_AUTHORIZE_REAL: "false" (or toggle it in the admin UI). To allow
       # mock fallback on an outage instead of failing closed, set
       # AUTHORIZE_FAILOVER_MODE: "fallback_simulated".
       # Do NOT set AUTHORIZE_MODE here — an explicit authorize_mode wins over the
@@ -857,7 +857,7 @@ services:
 
   # ── PingOne Authorization Server (mock) ──────────────────────────────────────
   # Demo Authorize AS — profile demo-auth. Real stack uses cloud PingOne Authorize;
-  # IG mock failover uses this when ff_authorize_simulated is ON. `./run-docker.sh demo-sync`.
+  # IG mock failover uses this when ff_authorize_real is OFF. `./run-docker.sh demo-sync`.
   authz-server:
     profiles: ["demo-auth"]
     build:
@@ -1178,7 +1178,7 @@ services:
         condition: service_started
       authz-server:
         condition: service_started
-        required: false   # demo-auth profile — mock Authorize when ff_authorize_simulated is ON
+        required: false   # demo-auth profile — mock Authorize when ff_authorize_real is OFF
     restart: unless-stopped
 
   # ── PingOne Privilege MCPGW (commercial) ───────────────────────────────────

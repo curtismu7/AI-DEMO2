@@ -142,9 +142,9 @@ async function agentRestrictionsGate(req, res, next) {
     }
 
     // Respect the configured authorize_mode, not just isSimulatedModeEnabled.
-    // When ff_authorize_simulated=true, use simulated engine regardless of authorize_mode.
+    // When ff_authorize_real=false, use simulated engine regardless of authorize_mode.
     // Otherwise, when authorize_mode is 'pingone', prefer P1AZ.
-    const ffSimulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const ffSimulated = configStore.getEffective('ff_authorize_real') !== 'true';
     const authorizeMode = configStore.getEffective('authorize_mode') || 'pingone';
     const useSimulated = ffSimulated || authorizeMode === 'simulated';
     let authzResult;

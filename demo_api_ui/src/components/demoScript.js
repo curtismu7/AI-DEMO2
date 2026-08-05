@@ -48,7 +48,7 @@ export const DEMO_SCRIPT = {
           action: "Step 3 · `what branches are near me` (UC24)",
           what:
             "Agent answers from public branch data (Austin, Dallas, Houston, Miami, Denver) — no user token, no privilege escalation.",
-          expected: "PERMIT, no token exchange",
+          expected: "Public result; no Agent Gateway, P1AZ, or token exchange",
           say: "Public data - zero token exchange. The agent escalates privilege only when it must. Least privilege by default. (Trim this step first if the slot runs tight.)",
         },
       ],
@@ -142,7 +142,7 @@ export const DEMO_SCRIPT = {
   },
   fallback: [
     "Re-run the step once - the agent is deterministic; same real tools, gateway, and policy.",
-    "Simulated Authorize (ff_authorize_simulated) with authz-server up - last resort before replay.",
+    "Turn ff_authorize_real OFF with authz-server up - outage fallback only, last resort before replay.",
     "REPLAY - 'Show the expected result (REPLAY)' on the failure message; token chain / activity stay empty (live proof only).",
   ],
 };

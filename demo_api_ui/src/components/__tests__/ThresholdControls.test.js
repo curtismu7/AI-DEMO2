@@ -31,7 +31,7 @@ beforeEach(() => {
         json: () => Promise.resolve({
           flags: [
             { id: 'ff_hitl_enabled', value: true },
-            { id: 'ff_authorize_simulated', value: false },
+            { id: 'ff_authorize_real', value: false },
           ],
         }),
       });

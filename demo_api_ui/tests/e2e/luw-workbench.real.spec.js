@@ -55,14 +55,14 @@ test.describe('LUW workbench — real browser (header hoist + drawer + verdict +
     const flagsResp = await ctx.request.get('/api/admin/feature-flags');
     if (flagsResp.ok()) {
       const flags = (await flagsResp.json())?.flags || [];
-      const f = flags.find((x) => x.id === 'ff_authorize_simulated');
+      const f = flags.find((x) => x.id === 'ff_authorize_real');
       const current = f && (f.value === true || f.value === 'true');
       if (f && current !== true) {
-        restoreFlags.ff_authorize_simulated = current;
+        restoreFlags.ff_authorize_real = current;
         const patch = await ctx.request.patch('/api/admin/feature-flags', {
-          data: { updates: { ff_authorize_simulated: true } },
+          data: { updates: { ff_authorize_real: true } },
         });
-        expect(patch.ok(), 'ff_authorize_simulated pinned true').toBe(true);
+        expect(patch.ok(), 'ff_authorize_real pinned true').toBe(true);
       }
     }
 

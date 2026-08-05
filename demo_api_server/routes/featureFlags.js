@@ -34,17 +34,16 @@ const FLAG_REGISTRY = [
   // ── PingOne Authorize (ALWAYS ON — no toggle) ──────────────────────────────
   // Authorization is mandatory for security. See transactionAuthorizationService.js for details.
   {
-    id:           'ff_authorize_simulated',
-    name:         'Simulated Authorize (education)',
+    id:           'ff_authorize_real',
+    name:         'Real PingOne Authorize',
     category:     'PingOne Authorize',
     description:
-      'When **Transaction authorization** is ON, evaluate with an in-process policy that mimics PingOne Authorize outcomes (PERMIT, DENY, policy step-up → 428). No worker token or PingOne API call. ' +
-      'Turn **OFF** to use real PingOne Authorize (requires decision endpoint or policy ID + worker credentials).',
+      'When **ON** (default), evaluate with real PingOne Authorize. Turn **OFF** only during an outage to use the local mock policy engine.',
     impact:
-      'ON = education mode: deny above $50k (configurable via SIMULATED_AUTHORIZE_DENY_AMOUNT); policy step-up for large transfers/withdrawals without strong ACR (see simulatedAuthorizeService.js). OFF (default) = live PingOne only.',
+      'ON (default) = live PingOne Authorize. OFF = outage fallback using the local mock; no PingOne decision API call.',
     type:         'boolean',
-    defaultValue: false,
-    warnIfEnabled: true,
+    defaultValue: true,
+    warnIfDisabled: true,
   },
   {
     id:           'ff_authorize_fail_open',
@@ -717,20 +716,20 @@ const FLAG_REGISTRY = [
   },
   {
     id:           'ff_mcp_gateway_pinggateway',
-    name:         'Use PingOne Agent Gateway',
+    name:         'Real PingOne Agent Gateway',
     category:     'MCP / Agent',
     description:
-      'When **ON**, the BFF routes MCP traffic through the **PingOne Agent Gateway** (Ping Identity ' +
-      'Gateway / IG) instead of the **Demo Agent Gateway** (the homegrown Node gateway). The PingOne ' +
+      'When **ON** (`true`), the BFF routes MCP traffic through the **real PingOne Agent Gateway** (Ping Identity ' +
+      'Gateway / IG) instead of the **mock Demo Agent Gateway** (the homegrown Node gateway). The PingOne ' +
       'Agent Gateway performs inbound token introspection via McpProtectionFilter, mirrors the Demo ' +
       'Agent Gateway PingOneAuthorizeClient decision, and performs an IG-native RFC 8693 token exchange ' +
       'to the backend MCP servers. Its authorize backend is live-switchable (mock demo_authz_server vs ' +
-      'real PingOne Authorize) and follows the same **Simulated Authorize** (ff_authorize_simulated) ' +
-      'toggle, carried via the X-Authz-Simulated request header. When **OFF**, traffic goes ' +
-      'through the Demo Agent Gateway as normal.',
+      'real PingOne Authorize) and follows the same **Real PingOne Authorize** (ff_authorize_real) ' +
+      'toggle. Its inverse is carried via the X-Authz-Simulated request header. When **OFF** (`false`), traffic goes ' +
+      'through the mock Demo Agent Gateway as an outage fallback.',
     impact:
-      'OFF = Demo Agent Gateway path unchanged. ' +
-      'ON (default) = the PingOne Agent Gateway is the MCP enforcement point; the Demo Agent Gateway P1AZ flag should be OFF to avoid double-evaluation.',
+      'OFF = mock Demo Agent Gateway outage fallback. ' +
+      'ON (default) = the real PingOne Agent Gateway is the MCP enforcement point; the Demo Agent Gateway P1AZ flag should be OFF to avoid double-evaluation.',
     type:         'boolean',
     defaultValue: true,
   },
@@ -953,7 +952,7 @@ const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
-  ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
+  ff_authorize_real:     'FF_AUTHORIZE_REAL',
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
   ff_helix_lmstudio_fallback: 'FF_HELIX_LMSTUDIO_FALLBACK',
   ciba_enabled:               'CIBA_ENABLED',

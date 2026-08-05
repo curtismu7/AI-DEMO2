@@ -88,9 +88,9 @@ Every agent tool call is run past a policy decision. Two implementations exist b
 | Implementation | File | Used when |
 |---|---|---|
 | **PingOne Authorize** (live) | `demo_api_server/services/pingOneAuthorizeService.js`, gateway `pingAuthorizeGuard.ts` + `PingOneAuthorizeClient.ts` | production / connected |
-| **Simulated Authorize** (education) | `demo_api_server/services/simulatedAuthorizeService.js` | `ff_authorize_simulated = true` |
+| **Simulated Authorize** (education) | `demo_api_server/services/simulatedAuthorizeService.js` | `ff_authorize_real = false` |
 
-The `ff_authorize_simulated` feature flag (admin-toggleable) swaps the live policy engine for a deterministic local one so the demo runs offline and the decision logic is inspectable. The mock `demo_authz_server` (:9001) provides the same for the gateway's introspection + decision endpoints — and **must stay in parity** with the real PingOne request/response shape (see the `authz-server-parity` skill).
+The `ff_authorize_real` feature flag (admin-toggleable) swaps the live policy engine for a deterministic local one so the demo runs offline and the decision logic is inspectable. The mock `demo_authz_server` (:9001) provides the same for the gateway's introspection + decision endpoints — and **must stay in parity** with the real PingOne request/response shape (see the `authz-server-parity` skill).
 
 ### Decisions
 
