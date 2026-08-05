@@ -1374,12 +1374,12 @@ export default function AdminSideNav({ user }) {
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
         {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
-            Cust/Admin/Setup when expanded (Refresh lives next to search). */}
+            Agent/Admin/Setup when expanded (Refresh lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
             className={`admin-side-nav__quick-link${location.pathname === "/dashboard" ? " admin-side-nav__quick-link--active" : ""}`}
-            title="Customer View"
+            title="Agent View"
             disabled={custLoading}
             onClick={() => {
               if (!isAdmin) {
@@ -1409,7 +1409,7 @@ export default function AdminSideNav({ user }) {
             {custLoading ? (
               <span className="admin-side-nav__quick-link-spinner" aria-label="Loading" />
             ) : (
-              collapsed ? "C" : "Cust"
+              collapsed ? "Ag" : "Agent"
             )}
           </button>
           <button
