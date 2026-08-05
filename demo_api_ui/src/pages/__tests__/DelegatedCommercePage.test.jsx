@@ -119,3 +119,13 @@ it("claims the agent and submits the selected customer scopes", async () => {
   );
   expect(screen.getByText("1 of 4")).toBeInTheDocument();
 });
+
+it("explains where a customer gets the one-time claim code", () => {
+  render(<DelegatedCommercePage user={{ role: "customer" }} />);
+
+  expect(
+    screen.getByText(
+      "The administrator receives this one-time code after completing 1A. Ask them to create the agent and share the displayed code before claiming it.",
+    ),
+  ).toBeInTheDocument();
+});

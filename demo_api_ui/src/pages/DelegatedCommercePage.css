@@ -126,6 +126,7 @@
 .dc-subcard h3 { margin-top: 0; }
 .dc-subcard label { display: block; font-weight: 700; }
 .dc-subcard input { display: block; width: 100%; margin: 7px 0 14px; padding: 11px; border: 1px solid #9eafbf; border-radius: 6px; }
+.dc-claim-code-help { margin: 0 0 14px; color: #17243a; line-height: 1.45; }
 .dc-safe-result { margin-top: 16px; padding: 14px; border-left: 4px solid #16744a; background: #eef8f2; overflow-wrap: anywhere; }
 .dc-safe-result p { margin-bottom: 0; }
 .dc-safe-result dl { display: grid; grid-template-columns: 100px 1fr; gap: 6px 12px; margin-bottom: 0; }
