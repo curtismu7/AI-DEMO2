@@ -157,6 +157,18 @@ test("Live draws observed steps during the run and reconciles skipped possibilit
   expect(authorize).toHaveTextContent("PingOne Authorize was skipped");
 });
 
+test("Live adds Resource Server and United SQL Database cards from backend evidence", () => {
+  render(<TokenChainTraceRail />);
+  act(() => tokenChainTraceStore.beginTrace({ prompt: "show my United reservations" }));
+  act(() => tokenChainTraceStore.ingestMcpResult({
+    tool: "get_airline_bookings",
+    result: { source: "sqlite", upcomingTrips: 2 },
+  }));
+
+  expect(screen.getByText(/United Airlines backend app — resource server/)).toBeInTheDocument();
+  expect(screen.getByText(/SQL Database — United Airlines data/)).toBeInTheDocument();
+});
+
 test("Live projection preserves conditional observed steps and repeated decisions", () => {
   const projected = buildLiveTokenChainSteps([
     { id: "website", status: "done" },

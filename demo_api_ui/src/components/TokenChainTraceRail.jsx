@@ -56,6 +56,7 @@ const SKIPPED_STEP_REASONS = {
   "api-key-swap": "The run did not use the API-key credential-swap path.",
   mcp: "No MCP tool call occurred.",
   api: "No downstream resource-server call occurred.",
+  database: "No SQL database access was observed for this run.",
   reply: "No final reply evidence was recorded.",
   "a2a-agent1-actor": "The main agent identity token was not observed.",
   "a2a-exchange1": "The user-to-main-agent exchange was not observed.",

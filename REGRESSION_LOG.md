@@ -20,12 +20,15 @@ failed steps as evidence arrives, and reconciles all possible steps when the run
 completes. Any still-pending possibility becomes an explicit `notinpath` step
 with a reason, including skipped token exchange and PingOne Authorize. A2A token
 events inject distinct main-agent, specialist-agent, exchange, Agent Card, and
-SendMessage steps into the live sequence. The unchanged Classic projection
-remains selectable and persisted as the immediate demo fallback.
+SendMessage steps into the live sequence. Observed backend results add separate
+Resource Server and Database cards, with United Airlines completing the database
+hop only when the result reports its real SQLite source. The unchanged Classic
+projection remains selectable and persisted as the immediate demo fallback.
 
 **Do not break**: Classic must always remain available without a redeploy; Live
 must not show future steps mid-run; completed Live runs must explain applicable
-skips; Clear must empty either projection and reject stale tagged evidence.
+skips; database completion must require runtime SQL-source evidence; Clear must
+empty either projection and reject stale tagged evidence.
 
 **Tests**: `demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx`
 (empty Live start, observed-step reveal, completed skip reconciliation,

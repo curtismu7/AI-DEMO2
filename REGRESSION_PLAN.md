@@ -153,10 +153,13 @@ skipped steps remain visible with explicit reasons. A2A evidence expands into
 distinct main-agent, specialist-agent, exchange, Agent Card, and SendMessage
 steps instead of being forced through the standard hardcoded chain. Classic
 preserves the prior fixed catalog and is persisted as an immediate demo fallback.
+Observed backend results add separate Resource Server and Database cards; United
+Airlines completes the database card only when its result reports the real
+SQLite source.
 **Do not break:** Live must show only observed steps before completion and must
 show skipped exchange/Authorize steps after completion; Classic must retain the
-previous complete catalog; A2A must show both agents; Clear must remain a full
-reset in both modes.
+previous complete catalog; A2A must show both agents; SQL database cards must
+require runtime data-source evidence; Clear must remain a full reset in both modes.
 **Verify:** focused Token Chain and trace-store tests, UI unit suite, UI build.
 
 ### 2026-08-05 — Positive Authorize flag migration left mock-mode guidance and E2E fixtures inverted
