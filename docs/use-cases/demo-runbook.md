@@ -65,6 +65,24 @@
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 | UC28 | `can you request a price adjustment on my order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
+## abercrombie-fitch
+
+| UC | Type this | Must happen | What to say |
+|---|---|---|---|
+| UC1 | `show my A&F orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive A&F order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC33 | `show my saved items at A&F` | `PERMIT` | Same delegated token, a different A&F tool — the act claim proves the agent through the saved-styles lookup, not just order history. |
+| UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
+| UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
+| UC6 | `checkout A&F outerwear for $2500` | `DENY` | $2500 A&F checkout exceeds the policy ceiling — Authorize returns DENY. |
+| UC7 | `checkout A&F outerwear for $600` | `STEP_UP` | $600 A&F checkout >= the step-up bar → MFA required first. |
+| UC8 | `checkout A&F outerwear for $300` | `HITL_REQUIRED` | $300 A&F checkout requires human consent before it runs. |
+| UC22 | `checkout A&F outerwear for $150` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
+| UC24 | `What A&F stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC28 | `can you request a price adjustment on my A&F order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
+
 ## government
 
 | UC | Type this | Must happen | What to say |

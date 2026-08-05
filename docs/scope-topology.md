@@ -570,3 +570,4 @@ Granted scopes: `read`, `identity:read`
 | `request_fee_tier_review` | gateway | `write` | — |
 | `request_spec_exception` | gateway | `write` | — |
 | `request_price_adjustment` | gateway | `write` | — |
+| `list_anf_orders` | gateway | `read` | — |

@@ -29,7 +29,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '../../');
-const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
+const { A2A_SPECIALISTS, specialistForVertical } = require('../config/a2aSpecialists');
 const { A2A_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
 const scopeTopology = require('../services/scopeTopology');
 const { verticalManifest } = require('../services/verticalManifest');
@@ -151,7 +151,7 @@ describe('a2aSpecialists registry — declared tools must be real and delegable'
     // here is a guaranteed runtime error on the UC2 chip.
     const mismatches = [];
     for (const [vertical, tool] of Object.entries(A2A_PRIMARY_TOOL_BY_VERTICAL)) {
-      const specialist = A2A_SPECIALISTS[vertical];
+      const specialist = specialistForVertical(vertical);
       if (!specialist) {
         mismatches.push(`${vertical}: UC2 names ${tool} but no specialist is registered`);
         continue;
@@ -165,4 +165,3 @@ describe('a2aSpecialists registry — declared tools must be real and delegable'
     expect(mismatches).toEqual([]);
   });
 });
-
