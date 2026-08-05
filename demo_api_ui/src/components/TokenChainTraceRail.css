@@ -193,6 +193,13 @@
   border-radius: 6px; margin: 4px 0; overflow-x: auto; line-height: 1.5;
   font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word;
 }
+.tctr-claim-diff {
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.tctr-claim-diff--before { background: rgba(251, 191, 36, 0.24); }
+.tctr-claim-diff--after { background: rgba(45, 212, 191, 0.24); }
 .tctr-kv { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 12.5px; margin: 4px 0; }
 .tctr-kv-k { color: #64748b; font-weight: 600; }
 .tctr-kv-v { font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }

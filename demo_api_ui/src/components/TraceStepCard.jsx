@@ -15,10 +15,34 @@ export const EVIDENCE_POPOUT_CHARS = 1200;
 // narrative prefix line + embedded JSON, not pure JSON) — tokenize() colors
 // the JSON portions and leaves the rest as plain text, so it's safe to run
 // over the whole string as-is rather than re-parsing it as a JSON value.
-function HighlightedText({ text }) {
-  return tokenize(text).map((t, i) => (
-    <span key={i} className={t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`}>{t.text}</span>
-  ));
+function claimDiffs(beforeText, afterText) {
+  try {
+    const before = JSON.parse(beforeText);
+    const after = JSON.parse(afterText);
+    return new Set(
+      ["aud", "scope"].filter((claim) =>
+        JSON.stringify(before?.[claim]) !== JSON.stringify(after?.[claim])),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function HighlightedText({ text, changedClaims = new Set(), side }) {
+  let activeClaim = null;
+  return tokenize(text).map((t, i) => {
+    if (t.type === "key") {
+      const match = t.text.match(/"([^"]+)"\s*:/);
+      activeClaim = match && changedClaims.has(match[1]) ? match[1] : null;
+    }
+    const classes = [
+      `jh-${t.type}`,
+      t.critical ? "jh-critical" : null,
+      t.focused ? "jh-focus" : null,
+    ];
+    if (activeClaim) classes.push(`tctr-claim-diff tctr-claim-diff--${side}`);
+    return <span key={i} className={classes.filter(Boolean).join(" ")}>{t.text}</span>;
+  });
 }
 
 function escapeHtml(s) {
@@ -29,7 +53,11 @@ function textToHtml(text) {
   if (text == null || text === "") return "";
   return tokenize(String(text))
     .map((t) => {
-      const cls = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
+      const cls = [
+        `jh-${t.type}`,
+        t.critical ? "jh-critical" : null,
+        t.focused ? "jh-focus" : null,
+      ].filter(Boolean).join(" ");
       return `<span class="${cls}">${escapeHtml(t.text)}</span>`;
     })
     .join("");
@@ -349,11 +377,19 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
               <div className="tctr-before-after">
                 <div className="tctr-before-after__column">
                   <h4>{d.beforeAfter.before?.title || "Before"}</h4>
-                  <pre className="tctr-code jh-dark"><HighlightedText text={d.beforeAfter.before?.text || "—"} /></pre>
+                  <pre className="tctr-code jh-dark"><HighlightedText
+                    text={d.beforeAfter.before?.text || "—"}
+                    changedClaims={claimDiffs(d.beforeAfter.before?.text, d.beforeAfter.after?.text)}
+                    side="before"
+                  /></pre>
                 </div>
                 <div className="tctr-before-after__column">
                   <h4>{d.beforeAfter.after?.title || "After"}</h4>
-                  <pre className="tctr-code jh-dark"><HighlightedText text={d.beforeAfter.after?.text || "—"} /></pre>
+                  <pre className="tctr-code jh-dark"><HighlightedText
+                    text={d.beforeAfter.after?.text || "—"}
+                    changedClaims={claimDiffs(d.beforeAfter.before?.text, d.beforeAfter.after?.text)}
+                    side="after"
+                  /></pre>
                 </div>
               </div>
             )}

@@ -70,6 +70,38 @@ test("large evidence hints to prefer Pop out without hiding the JSON", () => {
   expect(screen.getByRole("button", { name: /Pop out full detail/i })).toBeInTheDocument();
 });
 
+test("highlights changed audience and scope claims in the before/after comparison", () => {
+  const step = {
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      beforeAfter: {
+        before: {
+          title: "Before exchange",
+          text: '{"aud":["enduser.ping.demo"],"scope":"read write","sub":"user-1"}',
+        },
+        after: {
+          title: "After exchange",
+          text: '{"aud":["https://api.ping.demo:3036/mcp"],"scope":"gateway:mcp:invoke","sub":"user-1"}',
+        },
+      },
+    },
+  };
+  const { container } = render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
+
+  const beforeHighlighted = [...container.querySelectorAll(".tctr-claim-diff--before")]
+    .map((element) => element.textContent).join("");
+  const afterHighlighted = [...container.querySelectorAll(".tctr-claim-diff--after")]
+    .map((element) => element.textContent).join("");
+
+  expect(beforeHighlighted).toContain('"aud":["enduser.ping.demo"]');
+  expect(beforeHighlighted).toContain('"scope":"read write"');
+  expect(afterHighlighted).toContain('"aud":["https://api.ping.demo:3036/mcp"]');
+  expect(afterHighlighted).toContain('"scope":"gateway:mcp:invoke"');
+  expect(beforeHighlighted).not.toContain('"sub"');
+  expect(afterHighlighted).not.toContain('"sub"');
+});
+
 test("renders nested policy statement payloads as readable JSON", () => {
   const step = {
     ...STEP_WITH_EVIDENCE,
