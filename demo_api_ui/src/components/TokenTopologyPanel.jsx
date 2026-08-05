@@ -17,17 +17,40 @@ function str(v) {
   return JSON.stringify(v);
 }
 
-const NODES = [
-  { id: 'website',   icon: '🪟', name: 'Website',           lane: 'BROWSER',  connLabel: null,         desc: 'Browser / UI App' },
-  { id: 'signin',    icon: '🔐', name: 'PingOne AS',        lane: 'PINGONE',  connLabel: 'auth code',  desc: 'OIDC Auth Code + PKCE' },
-  { id: 'prompt',    icon: 'CH', name: 'Chatbot',           lane: 'CHAT',     connLabel: null,         desc: 'Browser → BFF message' },
-  { id: 'agent',     icon: '👤', name: 'Agent Service',     lane: 'AGENT',    connLabel: 'request',    desc: 'LLM reasoning & tool catalog' },
-  { id: 'llm',       icon: 'ML', name: 'LLM Model',         lane: 'LLM',      connLabel: 'reasoning',  desc: 'Tool choice & reasoning' },
-  { id: 'exchange',  icon: 'TX', name: 'BFF Token Exchange', lane: 'BFF',     connLabel: 'user token', desc: 'RFC 8693 subject + actor' },
-  { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'delegated token', desc: 'Token validation + routing' },
-  { id: 'authorize', icon: 'AZ', name: 'PingOne Authorize', lane: 'AUTHZ',   connLabel: 'policy request', desc: 'Policy decision point' },
-  { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'decision',   desc: 'Tool execution' },
-];
+const STEP_ICONS = {
+  website: '🪟',
+  signin: '🔐',
+  prompt: 'CH',
+  agent: '👤',
+  llm: 'ML',
+  'agent-token': 'AT',
+  exchange: 'TX',
+  authorize: 'AZ',
+  stepup: '🔑',
+  'intent-binding': 'IB',
+  gateway: 'GW',
+  'api-key-swap': 'KS',
+  mcp: 'M',
+  api: 'API',
+  reply: 'CH',
+};
+
+export function buildObservedTopology(steps) {
+  return (Array.isArray(steps) ? steps : [])
+    .filter((step) => ['active', 'done', 'error'].includes(step?.status))
+    .map((step) => {
+      const baseId = step.baseId || step.id;
+      const [name, ...descriptionParts] = str(step.title || step.id).split(' — ');
+      return {
+        id: step.id,
+        icon: STEP_ICONS[baseId] || str(step.lane).slice(0, 2),
+        name,
+        lane: step.lane || 'FLOW',
+        desc: descriptionParts.join(' — ') || `${step.lane || 'Flow'} hop observed in this run`,
+        step,
+      };
+    });
+}
 
 function eventById(events, id) {
   return (Array.isArray(events) ? events : []).find((event) => event?.id === id) || null;
@@ -225,7 +248,7 @@ function NodeBox({ node, step, selected, onClick, animateIn }) {
   );
 }
 
-function Inspector({ step, onClose }) {
+function Inspector({ step, topologyNodes, onClose }) {
   const [tab, setTab] = useState('details');
   useEffect(() => { setTab('details'); }, [step?.id]);
 
@@ -250,10 +273,10 @@ function Inspector({ step, onClose }) {
   const spec = detail.spec || {};
 
   // Build the Interaction Map sequence
-  const activeNodeIdx = NODES.findIndex(n => n.id === step.id);
-  const activeNode = NODES[activeNodeIdx];
-  const prevNode = activeNodeIdx > 0 ? NODES[activeNodeIdx - 1] : null;
-  const nextNode = activeNodeIdx < NODES.length - 1 ? NODES[activeNodeIdx + 1] : null;
+  const activeNodeIdx = topologyNodes.findIndex(n => n.id === step.id);
+  const activeNode = topologyNodes[activeNodeIdx];
+  const prevNode = activeNodeIdx > 0 ? topologyNodes[activeNodeIdx - 1] : null;
+  const nextNode = activeNodeIdx < topologyNodes.length - 1 ? topologyNodes[activeNodeIdx + 1] : null;
 
   return (
     <div className="ttp-insp">
@@ -401,7 +424,6 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
   const { darkMode, setDarkMode } = useTheme();
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedStep, setSelectedStep] = useState(null);
   const prevRunId = useRef(null);
   const [inspWidth, setInspWidth] = useState(320);
   const dragging = useRef(false);
@@ -435,31 +457,35 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
     if (trace.runId && trace.runId !== prevRunId.current) {
       prevRunId.current = trace.runId;
       setExpandedId(null);
-      setSelectedStep(null);
     }
   }, [trace.runId]);
 
-  const handleNodeClick = useCallback((nodeId, step) => {
+  const handleNodeClick = useCallback((nodeId) => {
     if (expandedId === nodeId) {
       setExpandedId(null);
-      setSelectedStep(null);
     } else {
       setExpandedId(nodeId);
-      setSelectedStep(step || null);
     }
   }, [expandedId]);
 
   const handleClear = useCallback(() => {
-    tokenChainTraceStore.beginTrace({ prompt: null });
+    tokenChainTraceStore.reset();
     setExpandedId(null);
-    setSelectedStep(null);
   }, []);
 
   const routingMode = trace.routingMode || (trace.llmDetail ? 'llm' : trace.phases?.length ? 'heuristic' : null);
   const prompt = trace.prompt || null;
   const a2aTopology = buildA2aTopology(trace.tokenEvents);
 
-  const hasActivity = steps.some((step) => step.status !== 'pending') || Boolean(a2aTopology);
+  const hasActivity = Boolean(
+    trace.startedAt || trace.prompt || trace.tokenEvents?.length || trace.phases?.length ||
+    trace.mcpResult || trace.authorize || trace.llmDetail || trace.llmReply ||
+    trace.outcome || trace.routingMode || a2aTopology,
+  );
+  const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
+  const selectedStep = expandedId
+    ? steps.find((step) => step.id === expandedId) || null
+    : null;
 
   return (
     <DraggableModal
@@ -508,30 +534,38 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
         {/* Main: topology + inspector side-by-side */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
           <div className="ttp-diagram">
-            <div className="ttp-label">Complete delegated pipeline — every step stays visible</div>
-            <div className="ttp-row">
-              {NODES.map((node, i) => {
-                const step = steps.find(s => s.id === node.id);
-                return (
-                  <React.Fragment key={node.id}>
-                    {i > 0 && (
-                      <div className={`ttp-conn${step?.status === 'error' ? ' blocked' : ''}${step?.status === 'pending' ? ' ghost' : ''}`}>
-                        <div className="ttp-line" />
-                        <span className="ttp-arrowhead">▶</span>
-                        {node.connLabel && <div className="ttp-conn-label">{node.connLabel}</div>}
-                      </div>
-                    )}
-                    <NodeBox
-                      node={node}
-                      step={step}
-                      selected={expandedId === node.id}
-                      animateIn={Boolean(step && step.status !== 'pending')}
-                      onClick={() => step && handleNodeClick(node.id, step)}
-                    />
-                  </React.Fragment>
-                );
-              })}
-            </div>
+            {hasActivity ? (
+              <>
+                <div className="ttp-label">Live delegated pipeline — nodes appear as evidence arrives</div>
+                <div className="ttp-row">
+                  {topologyNodes.map((node, i) => {
+                    const { step } = node;
+                    return (
+                      <React.Fragment key={node.id}>
+                        {i > 0 && (
+                          <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}`}>
+                            <div className="ttp-line" />
+                            <span className="ttp-arrowhead">▶</span>
+                          </div>
+                        )}
+                        <NodeBox
+                          node={node}
+                          step={step}
+                          selected={expandedId === node.id}
+                          animateIn
+                          onClick={() => handleNodeClick(node.id)}
+                        />
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="ttp-idle">
+                <div>Run an agent flow to build the topology.</div>
+                <div>Nodes will appear as each hop produces evidence.</div>
+              </div>
+            )}
             {a2aTopology && (
               <div className="ttp-a2a-topology">
                 <div className="ttp-a2a-heading">
@@ -553,7 +587,11 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
           {selectedStep ? (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}>
               <div className="ttp-resize-handle" onMouseDown={handleResizeStart} />
-              <Inspector step={selectedStep} onClose={() => { setSelectedStep(null); setExpandedId(null); }} />
+              <Inspector
+                step={selectedStep}
+                topologyNodes={topologyNodes}
+                onClose={() => setExpandedId(null)}
+              />
             </div>
           ) : hasActivity && (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}>
