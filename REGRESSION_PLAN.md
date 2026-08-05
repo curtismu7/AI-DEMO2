@@ -102,6 +102,24 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — United departure times shifted with viewer timezone
+
+**Files changed:** `demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** Offset-bearing airline departure timestamps were
+reinterpreted as UTC and then converted to the viewer's timezone, shifting the
+scheduled airport-local departure time.
+
+**What was fixed:** United cards now format the timestamp's wall-clock fields
+without applying a viewer-timezone conversion. The regression test runs under
+an America/Chicago timezone and verifies the `08:40` schedule remains `08:40`.
+
+**Do not break:** Airline schedules are airport-local wall-clock values. Do not
+convert them to the browser's timezone.
+
+**Verify:** Focused UI terminology tests; UI production build.
+
 ### 2026-08-05 — United provenance UI overstated database activity
 
 **Files changed:** `demo_mcp_resource_server/src/tools/airlinesToolHandler.ts`,

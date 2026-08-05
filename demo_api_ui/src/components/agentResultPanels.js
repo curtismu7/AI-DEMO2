@@ -240,10 +240,31 @@ function parseAirlineBookingsMessage(text) {
 }
 
 function formatAirlineDeparture(value) {
-  const localTime = String(value).match(
-    /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)/,
-  )?.[1];
-  return formatDateTime(localTime ? `${localTime}Z` : value);
+  const match = String(value).match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/,
+  );
+  if (!match) return formatDateTime(value);
+
+  const [, year, month, day, hour, minute, second = "00"] = match;
+  const wallClock = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    ),
+  );
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "UTC",
+  }).format(wallClock);
 }
 
 function freshnessLabel(queriedAt, now) {
