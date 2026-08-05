@@ -1052,9 +1052,11 @@ export default function OtpStepUpModal({
         onClose={handleCancel}
         title="Verify Your Identity"
         footer={p1Footer}
-        defaultWidth={460}
-        defaultHeight={440}
-        storageKey="otp-step-up-modal-p1mfa"
+        defaultWidth={840}
+        defaultHeight={760}
+        minWidth={760}
+        minHeight={720}
+        storageKey="otp-step-up-modal-p1mfa-v2"
         zIndex={100080}
       >
         <div className="dm-scroll">
