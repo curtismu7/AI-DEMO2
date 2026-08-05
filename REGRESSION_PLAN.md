@@ -130,10 +130,13 @@ run, then only updated those boxes. Clear called `beginTrace()`, which created a
 new run and carried session evidence instead of returning the diagram to empty.
 **What was fixed:** the panel now starts empty, derives boxes and arrows only
 from observed trace steps while a run progresses, enriches already-drawn nodes
-as details arrive, and Clear calls the store's full `reset()`.
+as details arrive, and Clear calls the store's full `reset()`. A reset boundary
+also rejects late tagged evidence from the cleared run and invalidates any
+inspector selection whose observed node disappeared.
 **Do not break:** pending and not-in-path steps must not produce topology boxes;
 conditional and repeated observed steps must render in trace order; Clear must
-leave `runId` null with no rendered topology boxes.
+leave `runId` null with no rendered topology boxes or inspector, and late tagged
+events from that cleared run must not create an implicit replacement run.
 **Verify:** focused Token Topology unit tests, UI unit suite, UI build.
 
 ### 2026-08-05 — Positive Authorize flag migration left mock-mode guidance and E2E fixtures inverted

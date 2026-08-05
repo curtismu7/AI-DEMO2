@@ -484,7 +484,7 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
   );
   const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
   const selectedStep = expandedId
-    ? steps.find((step) => step.id === expandedId) || null
+    ? topologyNodes.find((node) => node.id === expandedId)?.step || null
     : null;
 
   return (
