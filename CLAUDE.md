@@ -65,6 +65,8 @@ Citable facts live in `graphify-out/*.kb.json`: `repo-topology` (service boundar
 
 ## Before claiming done
 
+Use **Super Sports** as the default vertical for manual validation and tests that select a vertical. Keep another vertical only when that test explicitly verifies vertical-specific behavior.
+
 1. Run the checks for what you touched and paste the result line: server → `cd demo_api_server && CI=true npm test -- --forceExit`; UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify`.
 2. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
 

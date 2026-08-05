@@ -1,11 +1,18 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TokenTopologyPanel, { buildA2aTopology } from '../TokenTopologyPanel';
+import { ThemeProvider } from '../../context/ThemeContext';
 
 vi.mock('../DraggableModal', () => ({
-  default: ({ isOpen, children }) => isOpen ? <div>{children}</div> : null,
+  default: ({ isOpen, children, className }) => isOpen ? <div className={className}>{children}</div> : null,
 }));
+
+beforeEach(() => {
+  localStorage.clear();
+  document.documentElement.removeAttribute('data-theme');
+});
 
 describe('buildA2aTopology', () => {
   it('shows token exchanges separately from the A2A wire handoff', () => {
@@ -44,8 +51,12 @@ describe('buildA2aTopology', () => {
     expect(buildA2aTopology([{ id: 'exchange', status: 'exchanged' }])).toBeNull();
   });
 
-  it('keeps every standard topology step visible before a run starts', () => {
-    render(<TokenTopologyPanel isOpen onClose={() => {}} />);
+  it('keeps every standard topology step visible in gateway-first order before a run starts', () => {
+    const { container } = render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
 
     expect(screen.getByText('Website')).toBeInTheDocument();
     expect(screen.getByText('PingOne AS')).toBeInTheDocument();
@@ -54,5 +65,39 @@ describe('buildA2aTopology', () => {
     expect(screen.getByText('PingOne Authorize')).toBeInTheDocument();
     expect(screen.getByText('Agent Gateway')).toBeInTheDocument();
     expect(screen.getByText('MCP Server')).toBeInTheDocument();
+    expect([...container.querySelectorAll('.ttp-name')].map((node) => node.textContent)).toEqual([
+      'Website',
+      'PingOne AS',
+      'Chatbot',
+      'Agent Service',
+      'LLM Model',
+      'BFF Token Exchange',
+      'Agent Gateway',
+      'PingOne Authorize',
+      'MCP Server',
+    ]);
+  });
+
+  it('provides a visible switch for light and dark topology themes', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    const toggle = screen.getByRole('switch', { name: 'Dark mode' });
+    const topology = container.querySelector('.ttp-root');
+
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(topology).toHaveAttribute('data-theme', 'light');
+    expect(container.querySelector('.ttp-modal')).toHaveClass('ttp-modal--light');
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(topology).toHaveAttribute('data-theme', 'dark');
+    expect(container.querySelector('.ttp-modal')).toHaveClass('ttp-modal--dark');
+    expect(localStorage.getItem('ba_dark_mode')).toBe('true');
   });
 });
