@@ -425,6 +425,23 @@ async function callMcpTool(toolName, params, agentToken, userId, tokenEvents = [
         return callMcpTool(toolName, params, upgradedToken, userId, [...tokenEvents], true);
       }
 
+      // HTTP 428 Precondition Required: step-up MFA or HITL consent — not a tool
+      // failure, but a valid authorization precondition. Return the response so the
+      // caller can prompt the user for MFA / consent.
+      if (response.status === 428 && data && (data.error === 'mcp_step_up_required' || data.error === 'hitl_required')) {
+        if (tokenEvents) {
+          tokenEvents.push(buildTokenEvent(
+            'tool-call-precondition-required',
+            `Authorization Precondition: ${toolName}`,
+            'indeterminate',
+            null,
+            `"${toolName}" requires ${data.error === 'mcp_step_up_required' ? 'step-up authentication' : 'human approval'} (HTTP 428).`,
+            { toolName, statusCode: response.status, precondition: data.error, actor: 'agent' }
+          ));
+        }
+        return data;
+      }
+
       if (tokenEvents) {
         tokenEvents.push(buildTokenEvent(
           'tool-call-failed',
