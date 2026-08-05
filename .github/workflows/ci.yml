@@ -48,17 +48,22 @@ jobs:
           echo "decision-services=true" >> "$GITHUB_OUTPUT"
       - name: Select suites affected by this PR
         if: github.event_name == 'pull_request'
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
         id: filter
         with:
           filters: |
             api-server:
               - '.github/workflows/ci.yml'
               - 'demo_api_server/**'
+              - 'demo_authz_server/scopeTopology.js'
+              - 'demo_llm_proxy/**'
+              - 'scope-topology.json'
+              - 'snapshots/**'
             decision-services:
               - '.github/workflows/ci.yml'
               - 'package.json'
               - 'demo_authz_server/**'
+              - 'demo_api_server/data/publicBranchCatalog.js'
               - 'demo_mcp_gateway/**'
               - 'oauth-mcp/**'
               - 'snapshots/**'
