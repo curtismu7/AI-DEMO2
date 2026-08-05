@@ -320,12 +320,41 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
       });
       return JSON.stringify({
         error: isStepUp ? 'step_up_required' : 'hitl_required',
+        isError: false,
         hitl: { type: isStepUp ? 'step_up' : 'consent' },
         hitlChallengeId: d.challengeId || null,
         challenge_type: d.challenge_type || 'consent',
         message: d.instructions || (isStepUp
           ? 'This action requires step-up verification.'
           : 'This action requires your approval.'),
+      });
+    }
+
+    // Gateway step-up obligation (dedicated 428 code, no HITL challenge minted —
+    // mcpGatewayClient throws { stepUp:true } for this, distinct from the
+    // { hitl:true, rpcData } shape above). Same non-failure treatment: MFA is a
+    // valid precondition, not a tool error, so this must not fall through to the
+    // generic re-throw below (that previously surfaced step-up as a failure).
+    if (error && error.stepUp) {
+      if (tokenEvents) {
+        tokenEvents.push(buildTokenEvent(
+          'tool-hitl',
+          'Gateway — Step-up Required',
+          'indeterminate',
+          null,
+          'PingOne Authorize returned INDETERMINATE — step-up MFA is required before this tool call can proceed.',
+          { toolName, actor: 'agent' }
+        ));
+      }
+      emitTrace({
+        result: { isError: false, hitl: true, challenge_type: 'step_up', detail: 'step_up_required' },
+      });
+      return JSON.stringify({
+        error: 'step_up_required',
+        isError: false,
+        hitl: { type: 'step_up' },
+        challenge_type: 'step_up',
+        message: error.message || 'This action requires step-up verification.',
       });
     }
 
@@ -439,7 +468,7 @@ async function callMcpTool(toolName, params, agentToken, userId, tokenEvents = [
             { toolName, statusCode: response.status, precondition: data.error, actor: 'agent' }
           ));
         }
-        return data;
+        return { ...data, isError: false, isPrecondition: true };
       }
 
       if (tokenEvents) {

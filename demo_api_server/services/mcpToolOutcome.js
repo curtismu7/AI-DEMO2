@@ -19,6 +19,7 @@
  * @param {object|null|undefined} result parsed tool result (NOT the raw JSON string)
  * @returns {{
  *   kind: 'hitl'|'step_up'|'error'|'ok',
+ *   isError: boolean,          // false for 'ok'/'hitl'/'step_up' (valid preconditions), true only for 'error'
  *   error?: string,            // normalised bare code ('hitl_required'|'step_up_required') or raw error code
  *   hitl?: { type: string },   // hitl/step_up only
  *   hitlChallengeId?: string|null,
@@ -30,7 +31,7 @@
  */
 function classifyMcpToolResult(result) {
   const errCode = result?.error;
-  if (!errCode) return { kind: 'ok' };
+  if (!errCode) return { kind: 'ok', isError: false };
 
   const isStepUp = errCode === 'step_up_required' || errCode === 'mcp_step_up_required';
   const isHitl = errCode === 'hitl_required' || errCode === 'mcp_hitl_required';
@@ -38,6 +39,9 @@ function classifyMcpToolResult(result) {
   if (isHitl || isStepUp) {
     return {
       kind: isStepUp ? 'step_up' : 'hitl',
+      // A 428 precondition (MFA / human approval) is not a failure — callers
+      // should branch on this instead of inferring it from the `error` string.
+      isError: false,
       // Normalise to the bare code both callers' envelope handlers expect.
       error: isStepUp ? 'step_up_required' : 'hitl_required',
       hitl: result.hitl || { type: isStepUp ? 'step_up' : 'consent' },
@@ -54,6 +58,7 @@ function classifyMcpToolResult(result) {
   // Deny / generic tool error — prefer a human-readable reason over the bare code.
   return {
     kind: 'error',
+    isError: true,
     error: errCode,
     message: result.error_description || result.deny_reason || result.message || errCode,
   };

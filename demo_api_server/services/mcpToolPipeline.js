@@ -110,6 +110,7 @@ function localResultOutcome(result, tokenEvents, extraBodyFields) {
       tokenEvents,
       body: {
         error: isStepUp ? 'mcp_step_up_required' : 'mcp_hitl_required',
+        isError: false,
         error_description: result.message
           || (isStepUp
             ? 'This transaction requires step-up authentication (MFA). Approve it on the dashboard to continue.'
@@ -621,6 +622,10 @@ async function runMcpToolPipeline(ctx) {
             } catch (_) { /* SSE best-effort */ }
             return { kind: 'block', httpStatus: mcpAuthz.block.status, tokenEvents, body: {
                 ...mcpAuthz.block.body,
+                // 428 is a valid authorization precondition (step-up/HITL), not a
+                // failure — 403 (DENY) is the only genuine error status this block
+                // returns. Explicit so callers don't have to infer it from status.
+                isError: mcpAuthz.block.status !== 428,
                 tool,
                 ...(hitlChallenge ? {
                     challengeId: hitlChallenge.challengeId,
@@ -1223,6 +1228,7 @@ async function runMcpToolPipeline(ctx) {
             }
             const stepUpBody = {
                 error: 'mcp_step_up_required',
+                isError: false,
                 error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
                 tool,
                 step_up_method: resolveStepUpMethod(ctx.useCaseId),
@@ -1277,6 +1283,7 @@ async function runMcpToolPipeline(ctx) {
             }
             const hitlBody = {
                 error: 'hitl_required',
+                isError: false,
                 tool,
                 message: 'Transaction requires human approval (HITL consent)',
                 // The agent retries by echoing this id back as
