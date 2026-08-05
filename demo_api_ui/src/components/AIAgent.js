@@ -146,6 +146,7 @@ import {
   ToolProgressChips,
   MessageContent,
   ResultsPanel,
+  UnitedDatabasePulse,
 } from "./agentResultPanels";
 // Re-export the presentational result components on AIAgent's public surface for tests.
 export {
@@ -10503,7 +10504,17 @@ export default function BankingAgent({
                           <div
                             className={`banking-agent-msg-bubble${msg.tool ? " banking-agent-msg-bubble--tool-result" : ""}${msg.isPrompt ? " banking-agent-msg-bubble--prompt" : ""}`}
                           >
-                            <MessageContent text={msg.content} terminology={terminology} />
+                            <MessageContent
+                              text={msg.content}
+                              terminology={terminology}
+                              proofRunId={msg.proofRunId}
+                              onAirlineRefresh={
+                                effectiveVerticalId === "airlines"
+                                  ? () => sendAsNl("show my reservations")
+                                  : undefined
+                              }
+                              refreshing={nlLoading}
+                            />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
                             {msg.verticalResult && (
                               <VerticalResult
@@ -10552,15 +10563,19 @@ export default function BankingAgent({
                   // `.banking-agent-msg.assistant.typing` rule dead.
                   <div className="banking-agent-msg assistant typing">
                     <div>
-                      <div
-                        className="banking-agent-msg-bubble ba-typing-indicator"
-                        role="status"
-                        aria-label="Assistant is working"
-                      >
-                        <span className="ba-typing-dot" />
-                        <span className="ba-typing-dot" />
-                        <span className="ba-typing-dot" />
-                      </div>
+                      {effectiveVerticalId === "airlines" ? (
+                        <UnitedDatabasePulse />
+                      ) : (
+                        <div
+                          className="banking-agent-msg-bubble ba-typing-indicator"
+                          role="status"
+                          aria-label="Assistant is working"
+                        >
+                          <span className="ba-typing-dot" />
+                          <span className="ba-typing-dot" />
+                          <span className="ba-typing-dot" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

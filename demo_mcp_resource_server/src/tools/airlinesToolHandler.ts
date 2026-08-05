@@ -12,7 +12,17 @@
  * looking like a real subject match.
  */
 
-import { getFlight, getPassengerRecord, listBookings, listSeats, nextFlightFor, recordFeePayment, resolvePassenger } from '../db/airlinesDb';
+import { randomUUID } from 'node:crypto';
+import {
+  airlinesDatabaseName,
+  getFlight,
+  getPassengerRecord,
+  listBookings,
+  listSeats,
+  nextFlightFor,
+  recordFeePayment,
+  resolvePassenger,
+} from '../db/airlinesDb';
 
 const SOURCE = 'sqlite';
 
@@ -143,9 +153,16 @@ function sensitiveBookings(subject: string): unknown {
 }
 
 function getBookings(subject: string): unknown {
+  const startedAt = performance.now();
+  const queriedAt = new Date().toISOString();
   const match = resolvePassenger(subject);
   if (!match) {
-    return { source: SOURCE, bookings: [], note: 'No passenger records in the airlines database.' };
+    return {
+      source: SOURCE,
+      bookings: [],
+      note: 'No passenger records in the airlines database.',
+      provenance: bookingProvenance(queriedAt, startedAt, 0),
+    };
   }
   const { passenger, matchedBy } = match;
   const bookings = listBookings(passenger.passenger_ref);
@@ -171,6 +188,21 @@ function getBookings(subject: string): unknown {
       status: b.status,
       flightStatus: b.flight_status,
     })),
+    provenance: bookingProvenance(queriedAt, startedAt, bookings.length),
+  };
+}
+
+function bookingProvenance(queriedAt: string, startedAt: number, recordCount: number) {
+  return {
+    backend: 'United Reservations DB',
+    engine: 'SQLite',
+    database: airlinesDatabaseName(),
+    tool: 'get_airline_bookings',
+    queryId: randomUUID(),
+    queriedAt,
+    durationMs: Number((performance.now() - startedAt).toFixed(2)),
+    recordCount,
+    tables: ['passengers', 'bookings', 'flights'],
   };
 }
 
