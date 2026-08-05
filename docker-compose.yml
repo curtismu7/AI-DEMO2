@@ -532,6 +532,14 @@ services:
       MCP_GW_RESOURCE_SERVER_WS_URL: "ws://mcp-resource-server:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
+      # Weather/Brave showcase backends — mirrors ping-gateway's PG_WEATHER_BACKEND_URL /
+      # PG_BRAVE_BACKEND_URL (~L1100 below). Streamable HTTP, no RFC 8693 exchange
+      # (see src/scopePolicies.ts) — the Node gateway forwards the caller's original
+      # bearer token unchanged, same as ping-gateway's rsFilter->ReverseProxyHandler chain.
+      MCP_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
+      MCP_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
+      BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
+      BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
       # Accepted token audiences (comma list, tokenValidator.ts): Node-gateway +
       # PingGateway + the A2A specialists' dedicated Exchange #2 audience. This
@@ -617,6 +625,12 @@ services:
       mcp-jwt-verifier:
         condition: service_started
         required: false   # routes jwt_* diagnostic tools when up
+      mcp-weather:
+        condition: service_started
+        required: false   # routes get_weather when up
+      mcp-brave:
+        condition: service_started
+        required: false   # routes brave_news_search when up
       authz-server:
         condition: service_started
         required: false   # demo-auth profile — co-starts with mcp-gateway via demo-sync
@@ -1113,7 +1127,7 @@ services:
       # so the real value works for both backends).
       PG_API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
-      BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
+      BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set

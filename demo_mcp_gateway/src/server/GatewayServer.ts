@@ -642,12 +642,20 @@ export class GatewayServer {
       return;
     }
 
-    // demo_mcp_jwt_verifier (FastMCP/Python) is a second HTTP-forward target —
-    // same Streamable HTTP handshake/forward path as 'olb' below, just pointed
-    // at a different upstream base.
-    const upstreamBase = rpcToolName && routeTool(rpcToolName) === 'jwtverifier'
+    // demo_mcp_jwt_verifier (FastMCP/Python), demo_mcp_weather, and demo_mcp_brave
+    // are additional HTTP-forward targets — same Streamable HTTP handshake/forward
+    // path as 'olb' below, just pointed at a different upstream base. weather/brave
+    // never reach here with an exchanged token — authorizeMcpRequest.ts's Step 3.6
+    // forwards the caller's original bearer token unchanged for these two targets,
+    // matching ping-gateway's rsFilter->ReverseProxyHandler chain (no RFC 8693 hop).
+    const rpcTarget = rpcToolName ? routeTool(rpcToolName) : undefined;
+    const upstreamBase = rpcTarget === 'jwtverifier'
       ? backendHttpMcpUrl('jwtverifier', this.config)
-      : this.upstreamMcpUrl;
+      : rpcTarget === 'weather'
+        ? backendHttpMcpUrl('weather', this.config)
+        : rpcTarget === 'brave'
+          ? backendHttpMcpUrl('brave', this.config)
+          : this.upstreamMcpUrl;
     const upstreamUrl = `${upstreamBase}/mcp`;
 
     const isInitialize = jsonRpc.method === 'initialize';

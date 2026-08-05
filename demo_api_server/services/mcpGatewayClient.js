@@ -77,19 +77,22 @@ const BANKINGDATA_TOOLS = new Set([
     'demo_show_transactions',
 ]);
 
-// weather-mcp showcase: PingGateway (IG) only — 00-mcp-weather.json fronts a
-// third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy.
-// No Node mcp-gateway equivalent exists. Only applied when the gateway base
-// IS PingGateway (base === pgUrl below).
+// weather-mcp showcase: fronted by PingGateway's 00-mcp-weather.json (a
+// third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy)
+// via the dedicated /mcp/weather route when the base IS PingGateway. The Node
+// mock gateway (demo_mcp_gateway) mirrors the same Texas-only geofence
+// (src/scopePolicies.ts checkWeatherScope) and takes this tool over its
+// single /mcp endpoint (routeTool() -> 'weather') — no dedicated path needed.
 const WEATHER_TOOLS = new Set([
     'get_weather',
 ]);
 
-// brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
+// brave-mcp showcase: fronted by PingGateway's 00-mcp-brave.json (a
 // hand-written MCP server that calls the real Brave Search News API, gated
-// by tx-brave-scope.groovy (crypto-term content blocklist). No
-// Node mcp-gateway equivalent exists. Only applied when the gateway base IS
-// PingGateway (base === pgUrl below) — same conditional weather uses.
+// by tx-brave-scope.groovy's crypto-term content blocklist) via the
+// dedicated /mcp/brave route when the base IS PingGateway. The Node mock
+// gateway mirrors the same blocklist (src/scopePolicies.ts checkBraveScope)
+// and takes this tool over its single /mcp endpoint (routeTool() -> 'brave').
 const BRAVE_TOOLS = new Set([
     'brave_news_search',
 ]);

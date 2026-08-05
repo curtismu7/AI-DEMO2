@@ -126,6 +126,24 @@
         "additionalProperties": false
       }
     },
+    "brave_news_search": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
     "buy_security": {
       "source": "olb",
       "inputSchema": {
@@ -1082,6 +1100,29 @@
           "transaction_id"
         ],
         "additionalProperties": false
+      }
+    },
+    "get_weather": {
+      "source": "gateway",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city_name": {
+            "type": "string",
+            "description": "City name, optionally with state, e.g. \"Austin, TX\""
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          },
+          "location_name": {
+            "type": "string",
+            "description": "A saved location name (not scope-verifiable; denied by policy)"
+          }
+        },
+        "additionalProperties": true
       }
     },
     "initiate_return": {

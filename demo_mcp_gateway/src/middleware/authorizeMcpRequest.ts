@@ -44,6 +44,7 @@ import { selfBaseUrl } from '../selfBaseUrl';
 import { buildApiKeyToolResult } from '../apiKeyDispatch';
 import { buildDualTokenToolResult } from '../dualTokenDispatch';
 import { buildBankingDataToolResult } from '../bankingDataDispatch';
+import { checkWeatherScope, checkBraveScope } from '../scopePolicies';
 import { validateIntentToken } from '../intentTokenValidator';
 import { validateMethodAndShape, validateToolArgs } from '../validation/mcpRequestValidation';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
@@ -1055,6 +1056,27 @@ export function buildAuthorizeMcpRequest(
           error: { code: outcome.code, message: outcome.message, data: outcome.data },
         }));
       }
+      return;
+    }
+
+    // ── Step 3.6: weather/brave showcase — mirrors ping-gateway's
+    // tx-weather-scope.groovy / tx-brave-scope.groovy ScriptableFilters, which
+    // run just before ReverseProxyHandler with NO RFC 8693 exchange (rsFilter
+    // only admits; the original bearer token reaches the backend unchanged).
+    // Same posture here: skip Step 4's exchange entirely for these two targets
+    // and forward the original bearerToken once the scope check permits.
+    if (method === 'tools/call' && toolName && (routeTool(toolName) === 'weather' || routeTool(toolName) === 'brave')) {
+      const rpcId = parsedBody.id ?? null;
+      const scopeCheck = routeTool(toolName) === 'weather'
+        ? await checkWeatherScope(toolArgs, config.bffWeatherFlagUrl, config.bffInternalSecret)
+        : await checkBraveScope(toolArgs, config.bffBraveFlagUrl, config.bffInternalSecret);
+      if (scopeCheck.denied) {
+        sendRpcError(403, rpcId, { code: -32000, message: scopeCheck.message || 'Forbidden' });
+        return;
+      }
+      setAuditHeader(res);
+      teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
+      await forward(bearerToken, outBody);
       return;
     }
 

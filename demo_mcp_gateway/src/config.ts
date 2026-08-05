@@ -31,6 +31,18 @@ export interface GatewayConfig {
   // forwarded via GatewayServer.forwardToUpstream() like 'olb', not WebSocket.
   mcpJwtVerifierHttpUrl: string;
   mcpJwtVerifierResourceUri: string;
+  // weather/brave showcase backends — mirrors ping-gateway's PG_WEATHER_BACKEND_URL /
+  // PG_BRAVE_BACKEND_URL. HTTP (Streamable HTTP), forwarded via
+  // GatewayServer.forwardToUpstream() like 'jwtverifier'. No RFC 8693 exchange
+  // (see scopePolicies.ts comment) — same posture as the real Agent Gateway,
+  // which forwards the original bearer token unchanged on these two routes.
+  mcpWeatherHttpUrl: string;
+  mcpBraveHttpUrl: string;
+  // Live feature-flag lookups against the BFF — same two flags tx-weather-scope.groovy
+  // and tx-brave-scope.groovy read (ff_weather_mcp_showcase / ff_weather_mcp_allowed_state,
+  // ff_brave_mcp_showcase). Uses bffInternalSecret (below) as the shared-secret header.
+  bffWeatherFlagUrl: string;
+  bffBraveFlagUrl: string;
   // Optional PingAuthorize endpoint for tools/list guard
   pingAuthorizeEndpoint: string;
   pingAuthorizeWorkerId: string;
@@ -297,6 +309,10 @@ export function loadConfig(): GatewayConfig {
     mcpJwtVerifierHttpUrl: optional('MCP_GW_JWTVERIFIER_HTTP_URL', 'http://localhost:8083'),
     mcpJwtVerifierResourceUri: optional('PINGONE_RESOURCE_JWT_VERIFIER_URI',
       optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo')),
+    mcpWeatherHttpUrl: optional('MCP_WEATHER_BACKEND_URL', 'http://localhost:8896'),
+    mcpBraveHttpUrl: optional('MCP_BRAVE_BACKEND_URL', 'http://localhost:8897'),
+    bffWeatherFlagUrl: optional('BFF_WEATHER_FLAG_URL', ''),
+    bffBraveFlagUrl: optional('BFF_BRAVE_FLAG_URL', ''),
     pingAuthorizeEndpoint: optional('PINGAUTHORIZE_ENDPOINT', ''),
     pingAuthorizeWorkerId: optional('PINGAUTHORIZE_WORKER_ID', ''),
     pingAuthorizeMockBase: optional('PINGAUTHORIZE_MOCK_BASE', '') || undefined,

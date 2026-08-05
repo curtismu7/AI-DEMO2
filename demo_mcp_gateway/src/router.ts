@@ -23,7 +23,11 @@ import { GatewayConfig } from './config';
 // ADD new sibling targets for Phase 266.
 // 'jwtverifier' is a sibling HTTP-forward target (like 'olb'), not a WebSocket
 // backend like 'invest' — see backendWsUrl()/backendHttpMcpUrl() below.
-export type BackendTarget = 'olb' | 'invest' | 'apikey' | 'dualtoken' | 'bankingdata' | 'jwtverifier';
+// 'weather'/'brave' mirror the Agent Gateway (IG) showcase routes
+// (00-mcp-weather.json / 00-mcp-brave.json) — same HTTP-forward shape as
+// 'jwtverifier', plus a scope-policy check (see scopePolicies.ts) run in
+// GatewayServer.forwardToUpstream() before the call reaches the backend.
+export type BackendTarget = 'olb' | 'invest' | 'apikey' | 'dualtoken' | 'bankingdata' | 'jwtverifier' | 'weather' | 'brave';
 
 const OLB_TOOLS = new Set([
   'get_my_accounts',
@@ -79,6 +83,14 @@ const JWT_VERIFIER_TOOLS = new Set([
   'jwt_inspect_key',
 ]);
 
+// weather-mcp showcase — mirrors ping-gateway's 00-mcp-weather.json. Same tool
+// name the BFF (mcpGatewayClient.js WEATHER_TOOLS) calls on both gateways.
+const WEATHER_TOOLS = new Set(['get_weather']);
+
+// brave-mcp showcase — mirrors ping-gateway's 00-mcp-brave.json. Same tool
+// name the BFF (mcpGatewayClient.js BRAVE_TOOLS) calls on both gateways.
+const BRAVE_TOOLS = new Set(['brave_news_search']);
+
 // Path A: api_key disposition.
 //   Phase 266 shipped this target as a Gateway-only marker (no backend call).
 //   Phase 267 makes `show_mortgage` the first apikey tool that actually
@@ -117,6 +129,8 @@ export function routeTool(toolName: string): BackendTarget {
   if (INVEST_TOOLS.has(toolName))        return 'invest';
   if (AIRLINES_TOOLS.has(toolName))      return 'invest';
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
+  if (WEATHER_TOOLS.has(toolName))       return 'weather';
+  if (BRAVE_TOOLS.has(toolName))         return 'brave';
   if (APIKEY_TOOLS.has(toolName))        return 'apikey';
   if (DUALTOKEN_TOOLS.has(toolName))     return 'dualtoken';
   if (BANKINGDATA_TOOLS.has(toolName))   return 'bankingdata';
@@ -128,16 +142,19 @@ export function routeTool(toolName: string): BackendTarget {
 // them use WebSocket. Without this guard, they would silently fall through
 // to mcpOlbWsUrl (wrong backend).
 export function backendWsUrl(target: BackendTarget, config: GatewayConfig): string {
-  if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata' || target === 'jwtverifier') return '';
+  if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata' || target === 'jwtverifier' || target === 'weather' || target === 'brave') return '';
   return target === 'invest' ? config.mcpResourceServerWsUrl : config.mcpOlbWsUrl;
 }
 
 // Resolve the concrete HTTP MCP base URL for a target that forwards via
 // GatewayServer.forwardToUpstream() (Streamable HTTP), i.e. everything except
 // 'invest' (WebSocket) and the Gateway-terminating/REST targets. Today that's
-// just 'jwtverifier' — 'olb' keeps using GatewayServer's own upstreamMcpUrl.
+// 'jwtverifier', 'weather', and 'brave' — 'olb' keeps using GatewayServer's own
+// upstreamMcpUrl.
 export function backendHttpMcpUrl(target: BackendTarget, config: GatewayConfig): string {
   if (target === 'jwtverifier') return config.mcpJwtVerifierHttpUrl;
+  if (target === 'weather') return config.mcpWeatherHttpUrl;
+  if (target === 'brave') return config.mcpBraveHttpUrl;
   return '';
 }
 
