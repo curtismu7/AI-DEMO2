@@ -19,6 +19,7 @@ import {
 import { SPEC_GUIDE } from "./specGuide";
 import TokenCard from "./TokenCard";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
+import DraggableModal from "./DraggableModal";
 import JsonField from "./shared/JsonField";
 import { isEducationalPath } from "../utils/educationalPages";
 // A8 -- Ping product attribution
@@ -101,6 +102,9 @@ const STATUS_VISUAL = {
   active: { bucket: "active", label: "Active" },
   acquired: { bucket: "active", label: "Active" },
   success: { bucket: "active", label: "Success" },
+  complete: { bucket: "active", label: "Complete" },
+  completed: { bucket: "active", label: "Completed" },
+  discovered: { bucket: "active", label: "Discovered" },
   ok: { bucket: "active", label: "OK" },
   permit: { bucket: "active", label: "Permit" },
   valid: { bucket: "active", label: "Valid" }, // gateway introspection active=true
@@ -1719,8 +1723,7 @@ function A2aChainOverview({ chainEvents }) {
         <div className="tcd-edu-box tcd-edu-box--ok">
           <div className="tcd-edu-box-hd">
             <span className="tcd-edu-icon">✅</span>
-            <strong>Agent 1 → Agent 2</strong>
-            <RfcRef rfc="RFC 8693 §4.1 · A2A Protocol" />
+            <strong>Main agent called a specialist agent</strong>
           </div>
           <div className="tcd-edu-body">
             <ul className="tcd-edu-checklist">
@@ -1736,6 +1739,16 @@ function A2aChainOverview({ chainEvents }) {
             <pre className="tcd-a2a-diagram">
               {detail.diagramLines.join('\n')}
             </pre>
+            <div className="tcd-a2a-paths" role="list" aria-label="A2A handoff paths">
+              <div className="tcd-a2a-path" role="listitem">
+                <strong>Identity path</strong>
+                <span>RFC 8693 Exchange #1 and Exchange #2 create the nested <code>act</code> token used for MCP and gateway authorization.</span>
+              </div>
+              <div className="tcd-a2a-path" role="listitem">
+                <strong>Wire-protocol path</strong>
+                <span>A separate PingOne bearer authenticates Agent Card discovery and A2A JSON-RPC SendMessage to the specialist.</span>
+              </div>
+            </div>
 
             {detail.agentCard && (
               <div className="tcd-a2a-hop">
@@ -1787,6 +1800,59 @@ function A2aChainOverview({ chainEvents }) {
         </div>
       </div>
     </details>
+  );
+}
+
+export function getTokenChainProgress(events, isLive) {
+  const list = Array.isArray(events) ? events : [];
+  const actionable = list.filter((event) => {
+    const bucket = resolveStatusVisual(event?.status).bucket;
+    return bucket !== "notinpath";
+  });
+  const completed = actionable.filter((event) => {
+    const bucket = resolveStatusVisual(event?.status).bucket;
+    return bucket === "active" || bucket === "exchanged";
+  }).length;
+  const failed = actionable.some((event) => {
+    const bucket = resolveStatusVisual(event?.status).bucket;
+    return bucket === "failed";
+  });
+  const terminal = actionable.some((event) =>
+    ["mcp-tool-result", "resource-server-reply", "a2a-protocol-message"].includes(event?.id) &&
+    ["active", "exchanged"].includes(resolveStatusVisual(event?.status).bucket),
+  );
+  const state = failed ? "failed" : terminal ? "completed" : isLive ? "running" : "idle";
+  const label = state === "failed"
+    ? "Chain failed"
+    : state === "completed"
+      ? "Chain complete"
+      : state === "running"
+        ? "Chain running"
+        : "Chain idle";
+  return { state, label, completed, total: actionable.length };
+}
+
+function A2aHandoffChip({ events, onOpen }) {
+  const detail = buildA2aChainDetail(events);
+  if (!detail.present) return null;
+  const protocolEvent = events.find((event) => event?.id === "a2a-protocol-message");
+  const failed = resolveStatusVisual(protocolEvent?.status).bucket === "failed";
+  const complete = protocolEvent &&
+    ["active", "exchanged"].includes(resolveStatusVisual(protocolEvent.status).bucket);
+  const state = failed ? "failed" : complete ? "complete" : "running";
+  const specialist = detail.specialist || "specialist";
+
+  return (
+    <button
+      type="button"
+      className={`tcd-a2a-chip tcd-a2a-chip--${state}`}
+      onClick={onOpen}
+      aria-haspopup="dialog"
+    >
+      <span className="tcd-a2a-chip__state">{state === "complete" ? "A2A complete" : state === "failed" ? "A2A failed" : "A2A in progress"}</span>
+      <span className="tcd-a2a-chip__call">Main agent called {specialist}</span>
+      <span className="tcd-a2a-chip__toggle">View handoff</span>
+    </button>
   );
 }
 
@@ -4335,6 +4401,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   const [copied, setCopied] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [updateStatus, setUpdateStatus] = useState(null); // 'updated' | 'completed' | null
+  const [showA2aHandoff, setShowA2aHandoff] = useState(false);
 
   // ── Spotlight walk-through state ─────────────────────────────────────────
   const [walkEnabled, setWalkEnabled] = useState(() => loadWalkPrefs().enabled);
@@ -4511,6 +4578,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     // Prepend unique agent CC events to currentEvents
     return [...uniqueAgentCcEvents, ...currentEvents];
   }, [currentEvents, agentCcEvents]);
+  const chainProgress = getTokenChainProgress(currentEventsWithCc, isLive);
   const isPlaceholder = !isLive && !isSessionPreview;
   const history = ctx ? ctx.history : [];
 
@@ -4518,6 +4586,14 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   const handleInspect = useCallback((event, triggerEl) => {
     setInspectorPos(calcInitialPos(triggerEl));
     setInspectedEvent(event);
+  }, []);
+
+  const handleShowProgress = useCallback(() => {
+    setTab("current");
+    requestAnimationFrame(() => {
+      const el = eventsScrollRef.current;
+      if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    });
   }, []);
 
   // Keep an open inspector in sync with the live chain: the inspected event is
@@ -4723,6 +4799,16 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
               <div className="tcd-header-title">Token Chain</div>
               <button
                 type="button"
+                className={`tcd-progress-btn tcd-progress-btn--${chainProgress.state}`}
+                onClick={handleShowProgress}
+                aria-label={`${chainProgress.label}. ${chainProgress.completed} of ${chainProgress.total} visible steps complete. Show latest step.`}
+              >
+                <span>{chainProgress.label}</span>
+                <strong>{chainProgress.completed}/{chainProgress.total}</strong>
+                <span className="tcd-progress-btn__action">Latest step</span>
+              </button>
+              <button
+                type="button"
                 className="tcd-theme-btn"
                 onClick={toggleTheme}
                 aria-pressed={theme === "dark"}
@@ -4786,6 +4872,16 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                   />
                 )}
               </div>
+              <button
+                type="button"
+                className={`tcd-progress-btn tcd-progress-btn--${chainProgress.state}`}
+                onClick={handleShowProgress}
+                aria-label={`${chainProgress.label}. ${chainProgress.completed} of ${chainProgress.total} visible steps complete. Show latest step.`}
+              >
+                <span>{chainProgress.label}</span>
+                <strong>{chainProgress.completed}/{chainProgress.total}</strong>
+                <span className="tcd-progress-btn__action">Latest step</span>
+              </button>
               <button
                 type="button"
                 className="tcd-theme-btn"
@@ -5034,6 +5130,10 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                 )
               )}
               {isLive && <ExchangeModeBanner events={currentEventsWithCc} />}
+              <A2aHandoffChip
+                events={currentEventsWithCc}
+                onOpen={() => setShowA2aHandoff(true)}
+              />
               {isPlaceholder &&
                 identityHints?.currentUser &&
                 !sessionPreviewFetched && (
@@ -5242,6 +5342,20 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
           onClose={() => setInspectedEvent(null)}
         />
       )}
+      <DraggableModal
+        isOpen={showA2aHandoff}
+        onClose={() => setShowA2aHandoff(false)}
+        title="A2A main-agent to specialist handoff"
+        className="tcd-a2a-modal"
+        defaultWidth={720}
+        defaultHeight={620}
+        storageKey="tcd-a2a-handoff-modal"
+        singletonKey="tcd-a2a-handoff"
+      >
+        <div className="tcd-a2a-modal__body">
+          <A2aChainOverview chainEvents={currentEventsWithCc} />
+        </div>
+      </DraggableModal>
     </>
   );
 };

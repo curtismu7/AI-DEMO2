@@ -2312,6 +2312,108 @@ pre.tcd-jwt-dump.jh-dark {
   white-space: nowrap;
 }
 
+.tcd-progress-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 2px solid #1d4ed8;
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tcd-progress-btn strong {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #dbeafe;
+}
+.tcd-progress-btn__action {
+  padding-left: 7px;
+  border-left: 1px solid #93c5fd;
+  text-decoration: underline;
+}
+.tcd-progress-btn--running {
+  border-color: #b45309;
+  background: #fffbeb;
+  color: #78350f;
+}
+.tcd-progress-btn--completed {
+  border-color: #15803d;
+  background: #f0fdf4;
+  color: #14532d;
+}
+.tcd-progress-btn--failed {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.tcd-a2a-chip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 20px);
+  margin: 10px;
+  padding: 10px 12px;
+  border: 2px solid #6d28d9;
+  border-radius: 9px;
+  background: #f5f3ff;
+  color: #2e1065;
+  text-align: left;
+  cursor: pointer;
+}
+.tcd-a2a-chip--running { border-color: #b45309; background: #fffbeb; color: #78350f; }
+.tcd-a2a-chip--failed { border-color: #b91c1c; background: #fef2f2; color: #7f1d1d; }
+.tcd-a2a-chip__state {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #5b21b6;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.tcd-a2a-chip--running .tcd-a2a-chip__state { background: #92400e; }
+.tcd-a2a-chip--failed .tcd-a2a-chip__state { background: #991b1b; }
+.tcd-a2a-chip__call { font-weight: 800; }
+.tcd-a2a-chip__toggle { font-size: 11px; font-weight: 700; text-decoration: underline; }
+.tcd-a2a-chip:focus-visible,
+.tcd-progress-btn:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+
+.tcd-a2a-modal {
+  --modal-body-bg: #fff;
+  color: #111827;
+}
+.tcd-a2a-modal__body {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+  background: #fff;
+  color: #111827;
+}
+.tcd-a2a-paths {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.tcd-a2a-path {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+}
+.tcd-a2a-path strong { color: #312e81; }
+
 /* Client-auth method chip: how the BFF authenticated to the token endpoint for
    this step. The JWKS (private_key_jwt) variant is emphasized in green to show
    the stronger asymmetric path; client_secret variants are neutral. */

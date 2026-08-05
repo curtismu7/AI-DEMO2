@@ -141,6 +141,24 @@ explicitly proving that path is blocked).
 (31/31, including the new "Step 9 resource exchange" regression test), then
 `npx tsc --noEmit`.
 
+### 2026-08-04 — Token Chain and Topology obscured A2A handoff progress and token exchanges
+
+**Files changed:** `demo_api_ui/src/components/TokenChainDisplay.jsx`,
+`demo_api_ui/src/components/TokenChainDisplay.css`,
+`demo_api_ui/src/components/TokenTopologyPanel.jsx`,
+`demo_api_ui/src/components/TokenTopologyPanel.css`,
+`demo_api_ui/src/components/DraggableModal.jsx`
+**What was broken:** Token Chain exposed A2A evidence only through individual
+event inspection, so it was not obvious that the main agent called a specialist.
+Topology hid unreached steps and represented token exchange as one generic node.
+**What was fixed:** Added a visible chain-progress control, an A2A handoff chip
+with a details modal, a complete always-visible standard topology, and separate
+A2A identity and wire-protocol paths. Exchange #1, nested-act Exchange #2, and
+the separate PingOne A2A wire bearer are now distinct.
+**Do not break:** A2A UI remains evidence-driven and absent from ordinary runs.
+Never conflate the A2A wire bearer with the nested-act MCP token.
+**Verify:** `cd demo_api_ui && npm run test:unit`; `cd demo_api_ui && npm run build`.
+
 ### 2026-08-04 — Token Chain rail showed a prior run's `create_transfer` step-up error on a successful public-catalog read (UC24)
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`,
