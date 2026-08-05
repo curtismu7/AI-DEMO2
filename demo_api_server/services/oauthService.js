@@ -665,17 +665,17 @@ class OAuthService {
    * makes PingOne emit the `act` delegation claim. Tries the configured auth method, then the
    * alternate on invalid_client (the app may be client_secret_basic or _post).
    */
-  async getAiAgentClientCredentialsToken() {
-    const clientId =
+  async getAiAgentClientCredentialsToken(runtime = null) {
+    const clientId = runtime?.clientId ||
       configStore.getEffective('pingone_ai_agent_client_id') ||
       process.env.PINGONE_AI_AGENT_CLIENT_ID;
-    const clientSecret =
+    const clientSecret = runtime?.clientSecret ||
       configStore.getEffective('pingone_ai_agent_client_secret') ||
       process.env.PINGONE_AI_AGENT_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
       throw new Error('AI Agent credentials not configured. Set PINGONE_AI_AGENT_CLIENT_ID + PINGONE_AI_AGENT_CLIENT_SECRET.');
     }
-    const configured = (
+    const configured = runtime?.authMethod || (
       configStore.getEffective('pingone_ai_agent_cc_auth_method') ||
       process.env.PINGONE_AI_AGENT_CC_AUTH_METHOD || 'post'
     ).toLowerCase();

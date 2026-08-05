@@ -170,6 +170,7 @@ const tokenRoutes = require('./routes/tokens');
 const logsRoutes = require('./routes/logs');
 const delegationRoutes = require('./routes/delegation');
 const agentAuthorizationRoutes = require('./routes/agentAuthorization');
+const delegatedCommerceRoutes = require('./routes/delegatedCommerce');
 const tokenChainRoutes = require('./routes/tokenChain');
 const tokenExchangeLogRouter = require('./routes/tokenExchangeLog');
 const {
@@ -1333,6 +1334,7 @@ app.use('/api/oauth/token', oauthTokenRoutes);
 app.use('/api/oauth/jwks', require('./routes/oauthJwks'));
 app.use('/api/delegation', authenticateToken, delegationRoutes);
 app.use('/api/agent-authorization', authenticateToken, agentAuthorizationRoutes);
+app.use('/api/delegated-commerce', authenticateToken, delegatedCommerceRoutes);
 app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
 app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the

@@ -56,6 +56,7 @@ const oauthConfig = require('../config/oauth');
 const { validateToken: jwksValidateUserToken } = require('./tokenValidationService');
 const { getSessionDpopKey } = require('./dpopKeyService');
 const scopeTopology = require('./scopeTopology');
+const { resolveAgentRuntime } = require('./delegatedCommerceRuntime');
 const enterpriseMcpPolicy = require('./enterpriseMcpPolicyService');
 const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 const {
@@ -1425,9 +1426,12 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       // only the actor_token identity is fixed to the AI Agent so PingOne's
       // resource SPEL (act ← subject's may_act) has a consistent actor to
       // compare against when may_act is present.
-      actorToken = await oauthService.getAiAgentClientCredentialsToken();
+      const agentRuntime = resolveAgentRuntime(req);
+      actorToken = await oauthService.getAiAgentClientCredentialsToken(agentRuntime);
       const a0Decoded = decodeJwtClaims(actorToken);
-      const actorClientId = configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID;
+      const actorClientId = agentRuntime?.clientId ||
+        configStore.getEffective('pingone_ai_agent_client_id') ||
+        process.env.PINGONE_AI_AGENT_CLIENT_ID;
       tokenEvents.push(buildTokenEvent(
         'agent-actor-token',
         'Agent access token (client credentials)',
@@ -2064,7 +2068,8 @@ async function _performTwoExchangeDelegation(
   }
 
   // Extract validated configuration - no hard-coded defaults
-  const aiAgentClientId       = configResult.credentials.aiAgentClientId;
+  const agentRuntime = resolveAgentRuntime(req);
+  const aiAgentClientId       = agentRuntime?.clientId || configResult.credentials.aiAgentClientId;
   const mcpExchangerClient    = configResult.credentials.mcpClientId;
   const agentGatewayAud       = configResult.audiences.agentGatewayAud;
   const intermediateAud       = configResult.audiences.intermediateAud;
@@ -2075,12 +2080,12 @@ async function _performTwoExchangeDelegation(
   const twoExFinalAud = opts.forceDirectMcpAudience
     ? mcpServerAudForFallback
     : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
-  const aiAgentClientSecret   = configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
+  const aiAgentClientSecret   = agentRuntime?.clientSecret || configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
   const mcpExchangerSecret    = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   // ARCHITECTURE TRUTH: all PingOne client connections use client_secret_post.
   // Only the Worker Token CC client (oauthService.getAgentClientCredentialsToken*)
   // stays 'basic'. These are non-worker (AI agent / MCP exchanger) → default 'post'.
-  const aiAgentAuthMethod     = (configStore.get('ai_agent_token_endpoint_auth_method') || process.env.AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
+  const aiAgentAuthMethod     = (agentRuntime?.authMethod || configStore.get('ai_agent_token_endpoint_auth_method') || process.env.AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
   const mcpExchangerAuthMethod = (configStore.get('mcp_exchanger_token_endpoint_auth_method') || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD || process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD || process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
 
   // ─ Step 1: AI Agent Actor Token (Client Credentials) ───────────────────────────
