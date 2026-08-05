@@ -5,6 +5,35 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-08-05 — Token Chain could not distinguish live hops from possible steps
+
+**Symptom**: Token Chain rendered the full possible pipeline before the agent
+ran, making skipped token exchange or PingOne Authorize look like pending work
+and reducing the visual impact of a live demo.
+
+**Root cause**: `TokenChainTraceRail` mapped the complete `buildTraceSteps`
+catalog directly for every trace state. The catalog correctly knew every
+possible hop, but the UI had no run-aware projection over it.
+
+**Fix**: Added a Live projection that starts empty, reveals active/completed/
+failed steps as evidence arrives, and reconciles all possible steps when the run
+completes. Any still-pending possibility becomes an explicit `notinpath` step
+with a reason, including skipped token exchange and PingOne Authorize. A2A token
+events inject distinct main-agent, specialist-agent, exchange, Agent Card, and
+SendMessage steps into the live sequence. The unchanged Classic projection
+remains selectable and persisted as the immediate demo fallback.
+
+**Do not break**: Classic must always remain available without a redeploy; Live
+must not show future steps mid-run; completed Live runs must explain applicable
+skips; Clear must empty either projection and reject stale tagged evidence.
+
+**Tests**: `demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx`
+(empty Live start, observed-step reveal, completed skip reconciliation,
+conditional/repeated steps, persisted Classic fallback, Clear);
+`demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+(reset and late-event rejection); full UI unit suite and production build.
+
+---
 
 ## 2026-08-05 — Token Topology showed a fixed route and could repaint after Clear
 

@@ -139,6 +139,26 @@ leave `runId` null with no rendered topology boxes or inspector, and late tagged
 events from that cleared run must not create an implicit replacement run.
 **Verify:** focused Token Topology unit tests, UI unit suite, UI build.
 
+### 2026-08-05 — Token Chain pre-rendered the full possible pipeline during live runs
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx`
+**What was broken:** the Token Chain always showed every possible step before
+and during a run, so presenters could not distinguish observed hops from the
+catalog of things that might happen.
+**What was fixed:** Live mode starts empty, adds observed steps as evidence
+arrives, then reconciles the completed run against the possible-step catalog so
+skipped steps remain visible with explicit reasons. A2A evidence expands into
+distinct main-agent, specialist-agent, exchange, Agent Card, and SendMessage
+steps instead of being forced through the standard hardcoded chain. Classic
+preserves the prior fixed catalog and is persisted as an immediate demo fallback.
+**Do not break:** Live must show only observed steps before completion and must
+show skipped exchange/Authorize steps after completion; Classic must retain the
+previous complete catalog; A2A must show both agents; Clear must remain a full
+reset in both modes.
+**Verify:** focused Token Chain and trace-store tests, UI unit suite, UI build.
+
 ### 2026-08-05 — Positive Authorize flag migration left mock-mode guidance and E2E fixtures inverted
 
 **Files changed:** `demo_api_ui/src/components/AuthorizeConfigPage.jsx`,

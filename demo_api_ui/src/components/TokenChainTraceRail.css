@@ -33,6 +33,20 @@
   justify-content: space-between;
 }
 .tctr-title { font-size: 14px; font-weight: 700; }
+.tctr-title-group {
+  display: flex; align-items: center; gap: 10px;
+}
+.tctr-view-mode {
+  display: flex; padding: 2px; border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px; background: rgba(15, 23, 42, 0.2);
+}
+.tctr-view-mode button {
+  border: 0; border-radius: 4px; padding: 2px 7px; background: transparent;
+  color: #cbd5e1; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.tctr-view-mode button.active {
+  color: #16325c; background: #ffffff;
+}
 .tctr-head-actions {
   display: flex; align-items: center; gap: 6px;
 }
@@ -54,6 +68,10 @@
 }
 .tctr-clear-btn:disabled {
   opacity: 0.4; cursor: default;
+}
+.tctr-live-empty {
+  margin: 10px 12px; padding: 16px; border: 1px dashed var(--tctr-border);
+  border-radius: 6px; color: var(--tctr-text); text-align: center; font-size: 12px;
 }
 
 /* Presenter text size — steps the rail's `zoom` (see TokenChainTraceRail.jsx). */

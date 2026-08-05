@@ -1,5 +1,8 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
-import TokenChainTraceRail from "../TokenChainTraceRail";
+import TokenChainTraceRail, {
+  buildA2aTokenChainSteps,
+  buildLiveTokenChainSteps,
+} from "../TokenChainTraceRail";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 vi.mock("../../context/TokenChainContext", () => ({
@@ -39,14 +42,20 @@ function mockFeatureFlags(flags = {}) {
 
 beforeEach(() => {
   tokenChainTraceStore.reset();
+  localStorage.clear();
   mockFeatureFlags();
 });
 
-test("renders header, chain line, and all 11 collapsed steps by default", () => {
+test("Live starts empty and Classic keeps the complete fixed catalog as fallback", () => {
   render(<TokenChainTraceRail />);
   expect(document.querySelector(".tctr-title")).toHaveTextContent("Token Chain");
   expect(screen.getByRole("button", { name: /legend/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /clear token chain/i })).toBeDisabled();
+  expect(screen.getByText(/Run an agent flow to build the token chain/)).toBeInTheDocument();
+  expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Classic" }));
+
   // 11 step titles present, none expanded (no step body text visible)
   expect(screen.getByText(/Sign-in — User Token acquired/)).toBeInTheDocument();
   expect(screen.getByText(/LLM composes reply/)).toBeInTheDocument();
@@ -88,10 +97,12 @@ test("MCP tab shows the MCP panel and hides the full step list; chain line stays
   expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
 });
 
-test("Token Chain tab remains the default and shows all steps", () => {
+test("Classic selection persists as the emergency fallback", () => {
   render(<TokenChainTraceRail />);
+  fireEvent.click(screen.getByRole("button", { name: "Classic" }));
   expect(screen.getByText(/Sign-in — User Token acquired/)).toBeInTheDocument();
   expect(screen.getByText(/Exchange Mode Details/)).toBeInTheDocument();
+  expect(localStorage.getItem("tctr:view-mode")).toBe("classic");
 });
 
 test("token summary accordion lists tokens with change rows", () => {
@@ -124,16 +135,110 @@ test("steps not in this run's path render struck-through with a Not in path badg
   expect(stepupStep).toHaveAttribute("data-status", "notinpath");
 });
 
+test("Live draws observed steps during the run and reconciles skipped possibilities at completion", () => {
+  render(<TokenChainTraceRail />);
+  act(() => tokenChainTraceStore.beginTrace({ prompt: "show my accounts" }));
+  act(() => tokenChainTraceStore.ingestRoutingMode("heuristic", { action: "get_accounts" }));
+
+  expect(screen.getByText(/Website — browser/)).toBeInTheDocument();
+  expect(screen.getByText(/Chatbot — prompt sent/)).toBeInTheDocument();
+  expect(screen.queryByText(/Token exchange — delegation/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/PingOne Authorize — policy decision/)).not.toBeInTheDocument();
+
+  act(() => tokenChainTraceStore.completeTrace(true));
+
+  const exchange = screen.getByText(/Token exchange — delegation/).closest("details");
+  const authorize = screen.getByText(/PingOne Authorize — policy decision/).closest("details");
+  expect(exchange).toHaveAttribute("data-status", "notinpath");
+  expect(authorize).toHaveAttribute("data-status", "notinpath");
+  fireEvent.click(exchange.querySelector("summary"));
+  fireEvent.click(authorize.querySelector("summary"));
+  expect(exchange).toHaveTextContent("Token exchange was skipped");
+  expect(authorize).toHaveTextContent("PingOne Authorize was skipped");
+});
+
+test("Live projection preserves conditional observed steps and repeated decisions", () => {
+  const projected = buildLiveTokenChainSteps([
+    { id: "website", status: "done" },
+    { id: "exchange", status: "pending", detail: {} },
+    { id: "authorize", status: "done" },
+    { id: "authorize:2", baseId: "authorize", status: "error" },
+    { id: "stepup", status: "active" },
+  ], { startedAt: 1 });
+
+  expect(projected.map((step) => step.id)).toEqual([
+    "website", "authorize", "authorize:2", "stepup",
+  ]);
+});
+
+test("Live A2A chain shows the main and specialist agents as distinct steps", () => {
+  const tokenEvents = [
+    {
+      id: "a2a-agent1-actor",
+      status: "acquired",
+      claims: { client_id: "main-agent" },
+    },
+    {
+      id: "a2a-exchange1",
+      status: "exchanged",
+      claims: { act: { sub: "main-agent" } },
+    },
+    {
+      id: "a2a-agent2-actor",
+      status: "acquired",
+      specialist: "Investment Advisor",
+      claims: { client_id: "investment-agent" },
+    },
+    {
+      id: "a2a-exchange2",
+      status: "exchanged",
+      specialist: "Investment Advisor",
+      claims: { act: { sub: "investment-agent", act: { sub: "main-agent" } } },
+    },
+    {
+      id: "a2a-agent-card",
+      status: "discovered",
+      agentName: "Investment Advisor",
+    },
+    {
+      id: "a2a-protocol-message",
+      status: "completed",
+      agentName: "Investment Advisor",
+    },
+  ];
+
+  const a2aSteps = buildA2aTokenChainSteps(tokenEvents);
+  expect(a2aSteps.map((step) => step.title)).toContain("Main agent — main-agent");
+  expect(a2aSteps.map((step) => step.title)).toContain("Specialist agent — Investment Advisor");
+
+  const projected = buildLiveTokenChainSteps([
+    { id: "website", title: "Website", lane: "BROWSER", status: "done" },
+    { id: "llm", title: "LLM", lane: "LLM", status: "done" },
+    { id: "gateway", title: "Gateway", lane: "GATEWAY", status: "pending", detail: {} },
+  ], { startedAt: 1, tokenEvents });
+
+  expect(projected.map((step) => step.id)).toEqual([
+    "website",
+    "llm",
+    "a2a-agent1-actor",
+    "a2a-exchange1",
+    "a2a-agent2-actor",
+    "a2a-exchange2",
+    "a2a-agent-card",
+    "a2a-protocol-message",
+  ]);
+});
+
 test("Clear resets the rail to awaiting state for the next demo run", () => {
   render(<TokenChainTraceRail />);
   act(() => tokenChainTraceStore.beginTrace({ prompt: "transfer $250 to savings" }));
   act(() => tokenChainTraceStore.completeTrace(true));
-  expect(screen.getByText(/Pipeline — "transfer \$250 to savings"/)).toBeInTheDocument();
+  expect(screen.getByText(/Live Pipeline — "transfer \$250 to savings"/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /clear token chain/i })).toBeEnabled();
 
   fireEvent.click(screen.getByRole("button", { name: /clear token chain/i }));
 
-  expect(screen.getByText(/Pipeline — awaiting agent action/)).toBeInTheDocument();
+  expect(screen.getByText(/Live Pipeline — awaiting agent action/)).toBeInTheDocument();
   expect(tokenChainTraceStore.getState().trace.prompt).toBeNull();
   expect(tokenChainTraceStore.getState().trace.outcome).toBeNull();
   expect(screen.getByRole("button", { name: /clear token chain/i })).toBeDisabled();
