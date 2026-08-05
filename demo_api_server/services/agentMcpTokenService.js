@@ -1130,28 +1130,33 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     await resolveMcpTokenEnterpriseManaged(req, tokenEvents);
   }
 
-  // ── ff_skip_token_exchange — direct user token path (no RFC 8693) ────────
-  // When ON the user access token is forwarded to MCP unchanged. No actor token
-  // is acquired and no exchange is performed. Useful when PingOne is not yet
-  // configured for token exchange. The alternative (OFF) is the full on-behalf-of
-  // exchange: agent client-credentials token + RFC 8693 → scoped MCP token + act claim.
+  // ── ff_skip_token_exchange — deny raw user-token forwarding ───────────────
+  // When ON we still do NOT forward the user access token to MCP. Instead we
+  // surface an explicit block so demos can show that raw user tokens are not
+  // allowed on the MCP hop.
   const ffSkipExchange =
     configStore.getEffective('ff_skip_token_exchange') === true ||
     configStore.getEffective('ff_skip_token_exchange') === 'true';
   if (ffSkipExchange) {
     tokenEvents.push(buildTokenEvent(
       'exchange-skipped',
-      'Token Exchange (RFC 8693) — Bypassed',
-      'skipped',
+      'Token Exchange (RFC 8693) — Raw user token blocked',
+      'failed',
       null,
-      'ff_skip_token_exchange is ON. The user access token is passed directly to the MCP server without RFC 8693 exchange. ' +
-        'The MCP server receives the user\'s original token (no act claim, no audience narrowing). ' +
-        'Alternative — turn this flag OFF: the BFF performs a full RFC 8693 on-behalf-of exchange, ' +
-        'minting a scoped MCP token with act: { client_id: <agent> } for audit provenance. ' +
-        'In production always use token exchange.',
-      { rfc: 'RFC 8693', bypass: true }
+      'ff_skip_token_exchange is ON. The BFF will not forward the user token to MCP; raw user-token forwarding is denied by design. ' +
+        'Turn this flag OFF to use RFC 8693 token exchange and mint a scoped MCP token with act: { client_id: <agent> }.',
+      { rfc: 'RFC 8693', blocked: true }
     ));
-    return { token: userToken, tokenEvents, userSub, tratContextHeader: null };
+    return {
+      token: null,
+      tokenEvents,
+      userSub,
+      tratContextHeader: null,
+      blocked: true,
+      blockCode: 'user_token_forwarding_disabled',
+      blockMessage: 'Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.',
+      blockHttpStatus: 403,
+    };
   }
   // ─────────────────────────────────────────────────────────────────────────
 

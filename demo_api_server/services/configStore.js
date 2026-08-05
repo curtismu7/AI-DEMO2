@@ -326,7 +326,7 @@ const FIELD_DEFS = {
   ff_a2a_delegation:       { public: true, default: 'false' }, // Enable agent-to-agent (A2A) specialist delegation — Investment Advisor (Agent 2) via chained RFC 8693 nested act; authorization decided by Authorize over the act chain (no may_act)
   ff_inject_audience:      { public: true, default: 'false' }, // BFF-add mcp_resource_uri to aud claim snapshot when absent (demo/dev — no PingOne change needed)
   ff_inject_scopes:        { public: true, default: 'false' }, // BFF-inject read write scopes when absent from user token (demo/dev — no PingOne change needed)
-  ff_skip_token_exchange:  { public: true, default: 'false' }, // Skip RFC 8693 — pass user access token directly to MCP (demo mode; token exchange not required)
+  ff_skip_token_exchange:  { public: true, default: 'false' }, // Demo-only deny path for raw user-token forwarding; never passes the user token to MCP
   ff_oidc_only_authorize:  { public: true, default: 'false' }, // Strip resource scopes from user /authorize — fixes multi-resource error when scopes are on a PingOne Resource Server
   mcp_use_legacy_protocol: { public: true, default: 'false' }, // When 'true', BFF uses protocolVersion 2024-11-05 in MCP initialize; default (false) = 2025-11-25
 ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to Heuristics for known chips (true) vs LLM only (false)

@@ -477,6 +477,22 @@ function AppWithAuth() {
               {appRendersSideNav({ pathname, user }) && (
                 <AdminSideNav user={user} />
               )}
+              {/* Auth check in flight — every route below renders null until `loading`
+                  resolves, which left a blank content area under the side nav/dock.
+                  Show a branded loading card in that same slot instead. */}
+              {loading && (
+                <main className="main-content main-content--auth-loading">
+                  <div className="auth-loading-card">
+                    <div className="auth-loading-dots">
+                      <span className="auth-loading-dot" />
+                      <span className="auth-loading-dot" />
+                      <span className="auth-loading-dot" />
+                    </div>
+                    <div className="auth-loading-title">Loading Agent</div>
+                    <div className="auth-loading-sub">Checking session and preparing chat...</div>
+                  </div>
+                </main>
+              )}
               <Routes>
                 {/* /setup/* sub-routes — no auth required */}
                 <Route

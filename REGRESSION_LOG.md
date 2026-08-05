@@ -5,6 +5,20 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-08-04 — MCP tool calls forwarded the raw user token when `ff_skip_token_exchange` was enabled
+
+**Symptom**: `create_transfer` reached the MCP server with `aud=enduser.ping.demo` instead of a delegated MCP audience, so the gateway/MCP hop failed with an audience mismatch instead of exercising the intended exchange path.
+
+**Root cause**: The `ff_skip_token_exchange` branch in `resolveMcpAccessTokenWithEvents` returned the session user token unchanged. That meant the BFF could hand the MCP hop a raw end-user bearer instead of a delegated token, which is exactly the case the demo should never allow except to demonstrate that it is blocked.
+
+**Fix**: `demo_api_server/services/agentMcpTokenService.js` now treats `ff_skip_token_exchange` as a deny path: it emits an `exchange-skipped` failure event, returns a blocked result, and never forwards the user token. `demo_api_server/services/mcpToolPipeline.js` now surfaces that blocked result as a 403 before any MCP call, and the config comment / unit tests were updated to match.
+
+**Do not break**: keep the normal RFC 8693 exchange path intact, including delegated MCP tokens and token-chain events; only the raw user-token forwarding path is blocked.
+
+**Tests**: `demo_api_server/src/__tests__/agentMcpTokenService.test.js` (`ff_skip_token_exchange` cases)
+
+---
+
 ## 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
 
 **Symptom**: The consent modal rendered too tall relative to the reference screenshot, with oversized vertical padding and spacing that made the dialog feel stretched.
