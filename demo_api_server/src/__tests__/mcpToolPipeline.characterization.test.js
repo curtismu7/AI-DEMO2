@@ -477,7 +477,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   // Task 7 (docs/superpowers/sdd — token-chain dynamic steps plan): the
-  // BFF-simulated authorize decision (ff_authorize_simulated=true, engine
+  // BFF-simulated authorize decision (ff_authorize_real=false, engine
   // 'simulated') must produce a gw-authorize Token Chain event with the SAME
   // id/status contract as the real-gateway path (gwAuditTrail.authorize,
   // tested above) — so TokenChainDisplay renders identically regardless of

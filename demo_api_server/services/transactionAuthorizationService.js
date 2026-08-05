@@ -553,7 +553,7 @@ function getAuthorizationStatusSummary() {
 
   // Authorization is always-on in this demo (evaluateTransactionPolicy hardcodes
   // AUTHORIZE_ENABLED=true). The steady-state config leaves authorize_mode UNSET
-  // and lets ff_authorize_simulated drive the engine, so we must NOT gate
+  // and lets ff_authorize_real drive the engine, so we must NOT gate
   // "enabled" on an explicit authorize_mode — otherwise the FF-derived steady
   // state would report activeEngine='off'. Treat it enabled when an engine will
   // actually run: explicit mode, legacy flag, simulated engine, or PingOne ready.

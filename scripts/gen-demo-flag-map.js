@@ -130,6 +130,8 @@ function build() {
   L.push('|---|---|---|');
   L.push('| `ff_use_cases_launcher` | ON | Gates the `/use-cases` surface the demo runs from. |');
   L.push('| `ff_heuristic_enabled` | ON | The routing floor. Off, chips go to the LLM and answer non-deterministically. |');
+  L.push('| `ff_mcp_gateway_pinggateway` | ON | Real PingOne Agent Gateway is the steady-state enforcement point. |');
+  L.push('| `ff_authorize_real` | ON | Real PingOne Authorize is the steady state; OFF selects the mock outage fallback. |');
   L.push('| `NODE_ENV` | not `production` | Attack sims return 403 `not_available_in_production` — that is Act 3. |');
   L.push('| Sign-in host | `local.ping-devops.com:4000` | Passkey rp.id. On `api.ping.demo` the session cookie lands elsewhere and every call 401s. |');
   L.push('| `MCP_MTLS_ON` | unset (OFF today) | The ONE switch for gateway→MCP mTLS: sets the mcp-server listener, both gateways\' scheme (http/ws vs https/wss) and every client cert. `MCP_MTLS_ON=1` in the root `.env` turns it on — needs `certs/gw-mtls/` present, which `run-docker.sh` generates. Off while the Privilege MCP path needs a plaintext listener. |');
@@ -226,6 +228,8 @@ async function live(baseUrl) {
   const ambient = [
     ['ff_use_cases_launcher', true, 'gates the /use-cases surface'],
     ['ff_heuristic_enabled', true, 'routing floor; off => chips go to the LLM'],
+    ['ff_mcp_gateway_pinggateway', true, 'real PingOne Agent Gateway is required'],
+    ['ff_authorize_real', true, 'real PingOne Authorize required; OFF is outage fallback only'],
   ];
   let problems = 0;
   for (const [id, want, why] of ambient) {

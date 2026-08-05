@@ -517,7 +517,7 @@ router.post('/config', async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/active', (req, res) => {
     const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
     let url = null;
     try { url = require('../services/mcpGatewayClient').getMcpGatewayHttpUrl(); } catch { /* not configured */ }
     res.json({
@@ -544,7 +544,7 @@ router.post('/test', express.json(), async (req, res) => {
     }
 
     const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
     const gateway = {
         flag:        'ff_mcp_gateway_pinggateway',
         usePingGateway: usePing,
@@ -758,7 +758,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
         try {
             await configStore.setRaw({
                 ff_mcp_gateway_pinggateway: 'false',
-                ff_authorize_simulated: 'true',
+                ff_authorize_real: 'false',
                 ff_mcp_rate_limit: 'true',
             });
         } catch (e) {
@@ -794,7 +794,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
                 // engine is exactly the config drift that broke the live site.
                 // The burst presets (uc18-throttle / real-throttle-ig) stay
                 // simulated deliberately: they hammer the decision endpoint.
-                ff_authorize_simulated: 'false',
+                ff_authorize_real: 'true',
                 ff_mcp_rate_limit: 'false',
             });
         } catch (e) {
@@ -815,7 +815,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
         try {
             await configStore.setRaw({
                 ff_mcp_gateway_pinggateway: 'true',
-                ff_authorize_simulated: 'true',
+                ff_authorize_real: 'false',
                 ff_mcp_rate_limit: 'true',
             });
         } catch (e) {
@@ -855,7 +855,7 @@ router.post('/test/burst', express.json(), async (req, res) => {
     }
 
     const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
     const gateway = {
         flag: 'ff_mcp_gateway_pinggateway',
         usePingGateway: usePing,

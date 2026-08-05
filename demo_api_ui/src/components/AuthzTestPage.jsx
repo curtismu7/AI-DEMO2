@@ -317,7 +317,7 @@ export default function AuthzTestPage() {
 			const flagRes = await apiClient.patch("/api/admin/feature-flags", {
 				updates: {
 					authorize_enabled: "true",
-					ff_authorize_simulated: engineMode === "simulated" ? "true" : "false",
+					ff_authorize_real: engineMode === "simulated" ? "false" : "true",
 				},
 			});
 			if (!flagRes.data?.updated) throw new Error("Feature flag save failed");
@@ -378,7 +378,7 @@ export default function AuthzTestPage() {
 		setQuickEnabling(true);
 		try {
 			const res = await apiClient.patch("/api/admin/feature-flags", {
-				updates: { authorize_enabled: "true", ff_authorize_simulated: "true" },
+				updates: { authorize_enabled: "true", ff_authorize_real: "false" },
 			});
 			if (!res.data?.updated) throw new Error("Flag update failed");
 			notifySuccess("Simulated authorization enabled");
@@ -404,7 +404,7 @@ export default function AuthzTestPage() {
 				if (!status?.authorizeEnabled) {
 					try {
 						const res = await apiClient.patch("/api/admin/feature-flags", {
-							updates: { authorize_enabled: "true", ff_authorize_simulated: "true" },
+							updates: { authorize_enabled: "true", ff_authorize_real: "false" },
 						});
 						if (!res.data?.updated) throw new Error("not updated");
 						notifySuccess("Simulated mode enabled — running scenario…");

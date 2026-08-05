@@ -752,7 +752,7 @@ const RAW_USE_CASES = [
     track: 'demo',
     title: 'Act 1 — Public catalog access',
     buyerStory: 'Users should explore low-risk information before signing in — auth only when value is clear.',
-    pingOneSolution: 'PingOne Authorize PERMITs a read-only public tool with no token exchange.',
+    pingOneSolution: 'The public catalog path skips PingOne Authorize, the Agent Gateway, and token exchange.',
     trigger: { type: 'chip', text: 'What branches are near me?' },
     hint: 'Works for Austin, Dallas, Houston, Miami, or Denver.',
     expectedOutcome: 'PERMIT',
@@ -763,11 +763,11 @@ const RAW_USE_CASES = [
     whatToSay: 'Low-friction first — no token exchange for public catalog data.',
     advanced: false,
     match: { tool: 'get_branch_hours' },
-    whatLong: 'Act 1 of the progressive trust demo. The agent answers a public branch-catalog question without authentication — mirroring the MyHotels public hotel search. Requires a read-only MCP tool (e.g. get_branch_hours) with Authorize PERMIT for anonymous callers.',
+    whatLong: 'Act 1 of the progressive trust demo. The agent answers a public branch-catalog question without authentication — mirroring the MyHotels public hotel search. The local public tool (get_branch_hours) does not call PingOne Authorize or the Agent Gateway.',
     businessValue: 'Demonstrates progressive authentication — users are not forced to sign in before seeing non-sensitive catalog data.',
     productRoles: {
-      authz: 'Returns PERMIT for the public tool without requiring a bearer token.',
-      gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
+      authz: 'Not called for this public catalog request.',
+      gw:    'Not in path for this local public catalog request.',
     },
     primaryTool: 'get_branch_hours',
     // Every vertical stores its own primaryTool even though the value is the

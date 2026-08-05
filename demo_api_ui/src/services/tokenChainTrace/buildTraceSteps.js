@@ -561,6 +561,7 @@ export function buildTraceSteps(trace) {
     path: azEvent.authorizePath || azEvent.path,
     request: azEvent.authorizeRequest || azEvent.request,
     response: azEvent.authorizeResponse || azEvent.response || azEvent.rawResponse,
+    publicCatalog: azEvent.publicCatalog === true,
   } : null) || (gwAzForAuthorize ? {
     engine: gwAzForAuthorize.authorizeEngine || gwAzForAuthorize.backend || "pingone",
     decision: gwAzForAuthorize.decision || gwAzForAuthorize.authorizeDecision,
@@ -579,6 +580,9 @@ export function buildTraceSteps(trace) {
     : "";
   const azIsPermit = azPermitted || azDecision === "PERMIT";
   const azIsDeny = azDecision === "DENY";
+  const azIsSkipped = azDecision === "SKIPPED"
+    || azEval?.engine === "not-called"
+    || azEval?.publicCatalog === true;
   // 428 block or INDETERMINATE evaluation = step-up / HITL challenge path.
   // status may arrive as a number on the phase, or only in detail ("HTTP 428")
   // from older SSE rows that did not preserve payload.status.
@@ -588,7 +592,8 @@ export function buildTraceSteps(trace) {
     if (m) azDeniedHttp = Number(m[1]) || 0;
   }
   const azIsChallenge = azDecision === "INDETERMINATE" || azDeniedHttp === 428;
-  const azStatus = azIsPermit ? "done"
+  const azStatus = azIsSkipped ? "notinpath"
+    : azIsPermit ? "done"
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
     : azIsChallenge || azBegun || azEval ? "active"
     // Gateway-level denies (UC5/UC11/UC12 sims) block BEFORE Authorize is
@@ -604,7 +609,9 @@ export function buildTraceSteps(trace) {
         || azEval.request)
     : null;
   const authorizeWhy = azEval
-    ? (azIsChallenge
+    ? (azIsSkipped
+      ? "PingOne Authorize was not called because this run used public catalog data."
+      : azIsChallenge
       ? `Authorize returned ${azEval.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
       : azIsDeny
         ? `Authorize denied this action (${azEval.engine || "policy"}) — the tool call is blocked.`
@@ -644,7 +651,9 @@ export function buildTraceSteps(trace) {
         response: azEval.response
           ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
         decision: { outcome: azEval.decision || "INDETERMINATE",
-          label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
+          label: azIsSkipped
+            ? "SKIPPED — public catalog path"
+            : `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
         kv: [
           ["engine", String(azEval.engine || "")],
           ["decision id", String(azEval.decisionId || "")],

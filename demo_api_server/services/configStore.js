@@ -293,14 +293,12 @@ const FIELD_DEFS = {
   // Each maps to a runtime behaviour controlled via /api/admin/feature-flags.
   ff_authorize_fail_open:  { public: true, default: 'false' }, // fail closed by default; enable to allow transactions when auth service is unavailable
   ff_authorize_deposits:   { public: true, default: 'false' }, // apply Authorize to deposits too
-  // Single flip flag for the authorize engine. Default 'false' => real PingOne
-  // Authorize is used; with authorize_failover_mode='fallback_simulated' (the
-  // default) a genuine PingOne failure falls back to the in-process simulated
-  // engine (and surfaces a fallback modal). Flip to 'true' to force the
-  // simulated/education engine (no PingOne call). NOTE: leave the explicit
+  // Single positive flag for the authorize engine. Default 'true' => real
+  // PingOne Authorize; false forces the simulated/education engine (no PingOne
+  // call). NOTE: leave the explicit
   // `authorize_mode` UNSET so this flag drives the engine — an explicit
   // authorize_mode wins in resolveAuthorizeMode() and would ignore this flag.
-  ff_authorize_simulated:      { public: true, default: 'false' },
+  ff_authorize_real:           { public: true, default: 'true' },
   // Scenario 1 — group-membership deny. OFF by default (no behavior change);
   // SE enables it for the "user not in group" demo. When on, the authorize
   // engines DENY a restricted tool unless the user is in its required group.
@@ -540,9 +538,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
 
   // PingOne Authorize failover — what happens when the live policy engine is unreachable.
   // 'deny' (default): PingOne-ONLY — block all transactions with 503 (fail-closed).
-  //   Combined with ff_authorize_simulated='false' this makes the steady-state
-  //   engine strict 'pingone' (no mock fallback). Flip ff_authorize_simulated to
-  //   'true' to use the simulated engine; set 'fallback_simulated' here to allow
+  //   Combined with ff_authorize_real='true' this makes the steady-state
+  //   engine strict 'pingone' (no mock fallback). Flip ff_authorize_real to
+  //   'false' to use the simulated engine; set 'fallback_simulated' here to allow
   //   falling back to the mock on a genuine PingOne outage.
   // 'fallback_simulated': switch to in-process simulated engine (keeps demo running)
   // 'permit': allow all transactions with a warning log (fail-open — weakest)
@@ -1162,7 +1160,7 @@ class ConfigStore {
       ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
       ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
       pingone_resource_pinggateway_uri: ['PINGONE_RESOURCE_PINGGATEWAY_URI'],
-      ff_authorize_simulated:          ['FF_AUTHORIZE_SIMULATED'],
+      ff_authorize_real:          ['FF_AUTHORIZE_REAL'],
       pingone_ai_agent_client_id:       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
       pingone_ai_agent_client_secret:    ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],
       // Direct aliases for the renamed env vars so getEffective(lowercased-new-name) works.
@@ -2068,6 +2066,19 @@ function mapErrorToCode(errorMessage, _context = {}) {
  * Runs at startup: if LMDB differs from .env, updates LMDB.
  */
 async function syncOAuthEndpointsToLmdb() {
+  // One-time polarity migration: legacy true meant mock; the positive flag's
+  // true means real. A new env/config value always wins over the legacy key.
+  if (!configStore.get('ff_authorize_real')) {
+    const legacy = configStore.get('ff_authorize_simulated');
+    if (legacy === 'true' || legacy === 'false') {
+      const real = legacy === 'true' ? 'false' : 'true';
+      _lmdbConfig.upsert('FF_AUTHORIZE_REAL', real);
+      configStore._setCache({ ff_authorize_real: real }, 'sqlite');
+      configStore.deleteRaw('ff_authorize_simulated');
+      console.log(`[configStore-lmdb-sync] Migrated ff_authorize_simulated=${legacy} to ff_authorize_real=${real}`);
+    }
+  }
+
   const OAUTH_CONFIG_KEYS = [
     'oauth_authorization_endpoint',
     'oauth_token_endpoint',
@@ -2178,7 +2189,7 @@ async function syncOAuthEndpointsToLmdb() {
     ff_local_fallback_on_exchange_failure: 'FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE',
     ff_bedrock_agentcore_gateway: 'FF_BEDROCK_AGENTCORE_GATEWAY',
     ff_bedrock_llm:             'FF_BEDROCK_LLM',
-    ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
+    ff_authorize_real:     'FF_AUTHORIZE_REAL',
   };
   let ffSynced = 0;
   for (const [key, envKey] of Object.entries(FF_ENV_MAP)) {

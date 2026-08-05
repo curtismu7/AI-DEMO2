@@ -725,7 +725,7 @@ _wait_bff_healthy_k8() {
   return 1
 }
 
-# Read ff_authorize_simulated + ff_mcp_gateway_pinggateway from the BFF LMDB store.
+# Read ff_authorize_real + ff_mcp_gateway_pinggateway from the BFF LMDB store.
 # Prints "sim pgw" as 0/1 tokens. Falls back to 0 1 (real P1AZ + PingGateway).
 _read_demo_stack_flags_k8() {
   if ! kubectl get deploy demo-api-server -n "$NS" &>/dev/null; then
@@ -738,7 +738,7 @@ _read_demo_stack_flags_k8() {
   kubectl exec -n "$NS" deploy/demo-api-server -- node -e "
     const cs = require('./services/configStore');
     const t = (v) => (v === true || v === 'true') ? '1' : '0';
-    const sim = t(cs.getEffective('ff_authorize_simulated'));
+    const sim = t(cs.getEffective('ff_authorize_real')) === '1' ? '0' : '1';
     const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
     process.stdout.write(sim + ' ' + pgw);
   " 2>/dev/null || echo "0 1"

@@ -158,6 +158,28 @@ the separate PingOne A2A wire bearer are now distinct.
 **Do not break:** A2A UI remains evidence-driven and absent from ordinary runs.
 Never conflate the A2A wire bearer with the nested-act MCP token.
 **Verify:** `cd demo_api_ui && npm run test:unit`; `cd demo_api_ui && npm run build`.
+### 2026-08-04 — UC24 falsely labeled its skipped P1AZ hop as simulated
+
+**Files changed:** `demo_api_server/services/publicCatalogTokenEvents.js`,
+`demo_api_server/tests/publicCatalogTokenEvents.test.js`,
+`demo_api_server/config/useCases.js`,
+`demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`demo_api_ui/src/components/demoScript.js`,
+`scripts/gen-demo-flag-map.js`, `scripts/preflight-demo.sh`,
+`docs/demo-flag-map.md`
+**What was broken:** UC24 serves public catalog data locally without calling
+PingOne Authorize, but its synthetic token event claimed a simulated PERMIT.
+Persisted flag drift could also leave the demo on the simulated Authorize or
+Demo Gateway path without preflight treating that posture as a blocker.
+**What was fixed:** UC24 now records Authorize as skipped/not called and the
+rail marks that hop not in path. Demo preflight now requires the real PingOne
+Agent Gateway and real PingOne Authorize posture; simulated Authorize remains
+available only as the explicit outage fallback.
+**Do not break:** protected tools must continue to show their actual real or
+simulated Authorize decision. Only public-catalog events may mark P1AZ skipped.
+**Verify:** targeted server/UI tests, generated flag-map check, full UI unit
+suite and build.
 
 ### 2026-08-04 — Token Chain rail showed a prior run's `create_transfer` step-up error on a successful public-catalog read (UC24)
 

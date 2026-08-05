@@ -20,7 +20,7 @@
  *                   REQUIRE_ACT_FOR_AGENT_TOOLS ]
  *
  * A mock PDP is worth KNOWING about before you claim real enforcement on stage.
- * It is not, on its own, a contradiction: ff_authorize_simulated governs the
+ * It is not, on its own, a contradiction: ff_authorize_real governs the
  * BFF's in-process transaction authorization, and this gateway never reads it.
  * An earlier version of this check failed on that pair and was wrong.
  *
@@ -133,20 +133,16 @@ const posture = {
     // The demo claims real Authorize unless it says otherwise. Reading the flag
     // rather than assuming, so turning simulation ON deliberately is not a fail.
     // Is a real PDP answering? Read from the gateway itself. Deliberately NOT
-    // cross-referenced against ff_authorize_simulated — see the note below.
+    // cross-referenced against ff_authorize_real — see the note below.
     const engineIsReal = !NOT_REAL.has(policySource);
     const meta = { url, policySource, failOpen, enforcing, engineIsReal };
 
     // NO split-brain check here, deliberately.
     //
-    // An earlier version FAILED when policySource was a mock while
-    // ff_authorize_simulated was false, calling it "the UI claims real PingOne
-    // Authorize". That coupling was wrong. ff_authorize_simulated controls the
-    // BFF's in-process TRANSACTION authorization (simulatedAuthorizeService) —
-    // its own description says "evaluate with an in-process policy... no worker
-    // token or PingOne API call" — and demo_mcp_gateway does not read that flag
-    // at ALL (zero references in its source). Which PDP this gateway calls is
-    // set by PINGAUTHORIZE_ENDPOINT, independently.
+    // An earlier version failed when policySource was mock while
+    // ff_authorize_real requested real PingOne. That coupling was wrong:
+    // policySource is the observed backend and remains authoritative when the
+    // gateway uses its configured outage failover.
     //
     // Two unrelated facts that both say "authorize". Failing on the pair put a
     // false blocking red on the demo-readiness screen, which is worse than not

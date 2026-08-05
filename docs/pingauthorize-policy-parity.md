@@ -7,7 +7,7 @@
 
 ## Why this doc exists
 
-The Super Banking demo runs **two parallel authorization-server (AS) implementations**, picked at runtime via `ff_authorize_simulated`:
+The Super Banking demo runs **two parallel authorization-server (AS) implementations**, picked at runtime via `ff_authorize_real`:
 
 | FF value | Active AS |
 |---|---|
@@ -44,13 +44,13 @@ Or as a structured rule:
 
 **Catches step-skipping attacks.** Without this rule, an attacker who obtains an intermediate-step exchange token (e.g. `aud=intermediate.2x.ping.demo` from Two-Exchange Step 2) could send it directly to the MCP server and bypass Step 4's narrowing.
 
-The simulated AS enforces this. PingAuthorize must match — otherwise switching `ff_authorize_simulated` from `true` to `false` silently loosens the policy.
+The simulated AS enforces this. PingAuthorize must match — otherwise switching `ff_authorize_real` from `false` to `true` silently loosens the policy.
 
 ## Verification
 
 After adding the rule to PingAuthorize policy:
 
-1. Set `ff_authorize_simulated=false` in `.env`.
+1. Set `ff_authorize_real=true` in `.env`.
 2. Restart BFF.
 3. Click any chip from the dashboard.
 4. Live session log:

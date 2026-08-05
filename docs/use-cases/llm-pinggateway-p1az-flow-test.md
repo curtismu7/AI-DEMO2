@@ -25,7 +25,7 @@ Screenshots below were captured with the Playwright script against the live UI. 
 - UI: `https://api.ping.demo:4000`
 - BFF: `https://api.ping.demo:3001`
 - Port-forwards (minimum): `frontend 4000:4000`, `demo-api-server 3001:3001`, `mcp-gateway 3005:3005`
-- Feature flags: `ff_mcp_gateway_pinggateway=true` (PingOne Agent Gateway), `ff_authorize_simulated=false` (real P1AZ)
+- Feature flags: `ff_mcp_gateway_pinggateway=true` (PingOne Agent Gateway), `ff_authorize_real=true` (real P1AZ)
 - LLM mode: **llama.cpp** via in-cluster `llm-proxy:8090` with local **Microsoft Phi-4-mini-instruct** GGUF at `~/models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf` — mount into tiers with `LLM_MODELS_HOST_PATH=$HOME/models ./k8s/deploy.sh yotuo on` (do **not** use the YOTUO external drive; it is unreliable). Alternatives: host **oMLX** (`bash demo_llm_proxy/start-omlx.sh start`, model in `~/.omlx/models/Phi-4-mini-instruct-4bit`), **Helix**, or **heuristics**
 - For fully live OAuth login tests: `demo_api_ui/tests/e2e/.env.e2e` with `E2E_CUSTOMER_USERNAME` / `E2E_CUSTOMER_PASSWORD`
 

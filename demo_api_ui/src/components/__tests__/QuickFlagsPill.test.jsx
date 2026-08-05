@@ -16,7 +16,7 @@ function flagsResponse(overrides = {}) {
     ff_mcp_gateway_pinggateway: flag('ff_mcp_gateway_pinggateway', true),
     introspectionProvider: flag('introspectionProvider', 'pinggateway', { options: ['pinggateway', 'p1az'] }),
     ff_skip_token_exchange: flag('ff_skip_token_exchange', false),
-    ff_authorize_simulated: flag('ff_authorize_simulated', false),
+    ff_authorize_real: flag('ff_authorize_real', true),
     ff_id_token_exchange: flag('ff_id_token_exchange', false),
     ff_token_auth_private_key_jwt: flag('ff_token_auth_private_key_jwt', false),
     ciba_enabled: flag('ciba_enabled', false),
@@ -108,10 +108,10 @@ describe('QuickFlagsPill', () => {
     await waitFor(() => screen.getByRole('button', { name: /JWKS/ }));
     fireEvent.click(screen.getByRole('button', { name: /JWKS/ }));
     await waitFor(() => screen.getByText('Token & Gateway'));
-    const demoGw = screen.getByRole('button', { name: 'Demo GW' });
-    expect(demoGw.disabled).toBe(true);
-    expect(demoGw.title).toMatch(/FF_MCP_GATEWAY_PINGGATEWAY/);
-    fireEvent.click(demoGw);
+    const mockGw = screen.getByRole('button', { name: 'Mock Agent GW (outage)' });
+    expect(mockGw.disabled).toBe(true);
+    expect(mockGw.title).toMatch(/FF_MCP_GATEWAY_PINGGATEWAY/);
+    fireEvent.click(mockGw);
     expect(fetchMock.mock.calls.find(([, o]) => o && o.method === 'PATCH')).toBeUndefined();
   });
 

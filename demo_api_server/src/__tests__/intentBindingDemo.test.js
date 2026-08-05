@@ -367,11 +367,11 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
 });
 
 // ── Finding 2 (live-mode flag leak) + PAR config resolution ──────────────────
-describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_simulated (Finding 2)', () => {
+describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_real (Finding 2)', () => {
   function bootIsolatedApp({ runResult, runError, config = {}, parImpl }) {
     const cfg = {
       ff_use_cases_launcher: 'true',
-      ff_authorize_simulated: 'true',
+      ff_authorize_real: 'false',
       ...config,
     };
     jest.doMock('../../services/configStore', () => ({
@@ -613,7 +613,7 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     });
   });
 
-  test('live unset (false/absent) never touches ff_authorize_simulated', async () => {
+  test('live unset (false/absent) never touches ff_authorize_real', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
         const { app, supertest, configStore } = bootIsolatedApp({

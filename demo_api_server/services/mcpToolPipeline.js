@@ -557,7 +557,7 @@ async function runMcpToolPipeline(ctx) {
                 mcp_hitl_receipt_rejected: 'HITL_REQUIRED',
                 policy_not_found: 'POLICY_NOT_FOUND',
             }[mcpAuthz.block.body.error] || null;
-            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // BFF-simulated engine decided (ff_authorize_real, or a genuine
             // PingOne-unreachable fallback): mirror the PERMIT branch below and
             // push the gw-authorize Token Chain card here too, so DENY/step-up/
             // HITL outcomes render the same card the real-gateway path would.
@@ -671,14 +671,14 @@ async function runMcpToolPipeline(ctx) {
             mcpAuthorizeEvaluationThisRequest = (ctx.useCaseId || ctx.vertical)
               ? { ...mcpAuthz.evaluation, ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}), ...(ctx.vertical ? { vertical: ctx.vertical } : {}) }
               : mcpAuthz.evaluation;
-            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // BFF-simulated engine decided (ff_authorize_real, or a genuine
             // PingOne-unreachable fallback): no gateway audit trail exists for
             // this call, so the gw-authorize Token Chain card is built here —
             // same id/status contract as the real-gateway path (gwAuditTrail.
             // authorize, above) so TokenChainDisplay renders the same card
             // regardless of which backend actually decided.
             // Guarded by !useGateway: when the call goes through the real
-            // gateway (ff_authorize_simulated + ff_mcp_gateway_pinggateway both
+            // gateway (ff_authorize_real + ff_mcp_gateway_pinggateway both
             // on), PingGateway runs its own decision too and the audit-trail
             // push below (gwAuditTrail.authorize) already covers it — pushing
             // here as well would double the gw-authorize card for one call.

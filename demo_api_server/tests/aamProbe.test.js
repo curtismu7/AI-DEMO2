@@ -116,7 +116,7 @@ describe('GET /api/aam/probe', () => {
   test('forwards the simulated flag so the gateway can select the mock backend', async () => {
     configStore.getEffective.mockImplementation((k) => {
       if (k === 'ff_aam') return 'true';
-      if (k === 'ff_authorize_simulated') return 'true';
+      if (k === 'ff_authorize_real') return 'false';
       return 'false';
     });
     axios.get.mockResolvedValue(gwResponse(403, DENY_AAM));

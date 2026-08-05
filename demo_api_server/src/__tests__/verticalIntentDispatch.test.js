@@ -23,11 +23,11 @@ const configStore = require('../../services/configStore');
 
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
-    const defaults = { ff_hitl_enabled: 'true', ff_authorize_simulated: 'true' };
+    const defaults = { ff_hitl_enabled: 'true', ff_authorize_real: 'false' };
     return defaults[key] || null;
   }),
   get: jest.fn((key) => {
-    const defaults = { ff_hitl_enabled: 'true', ff_authorize_simulated: 'true' };
+    const defaults = { ff_hitl_enabled: 'true', ff_authorize_real: 'false' };
     return defaults[key] || null;
   }),
 }));

@@ -13,7 +13,7 @@ import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
-const AUTHZ_FLAG = 'ff_authorize_simulated';
+const AUTHZ_FLAG = 'ff_authorize_real';
 
 const FALLBACK_TOOLS = [
   {

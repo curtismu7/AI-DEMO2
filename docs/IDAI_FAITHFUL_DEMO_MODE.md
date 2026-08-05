@@ -13,7 +13,7 @@ items (login Agreement Prompt, faithful preset) are listed in
 
 | Flag | IDAI-faithful value | Quick Flags label | Why |
 |------|---------------------|-------------------|-----|
-| Use PingOne Agent Gateway | **ON** | Agent Gateway → PingOne GW | Ping doc uses PingGateway in front of MCP |
+| Real PingOne Agent Gateway | **ON** (`true`) | Agent Gateway → Real PingOne | Ping doc uses PingGateway in front of MCP; `false` is mock outage fallback |
 | Simulated Authorize | **OFF** | Authorize Engine → Real P1AZ | Live PingOne Authorize, not the in-process mock |
 | Token Validation JWKS | **OFF** | Token Validation → Introspect | Doc path introspects; JWKS is educational (no revocation) |
 
@@ -24,20 +24,20 @@ Leave other Quick Flags alone unless your scenario needs them (CIBA, tracing, et
 1. Sign in.
 2. Open the **Quick Flags** pill in the top nav (shows `Introspect` or `🔐 JWKS`).
 3. Click **Apply IDAI-faithful preset**.
-4. Confirm the green status line: PingOne GW + Real P1AZ + Introspect.
+4. Confirm the green status line: Real PingOne GW + Real P1AZ + Introspect.
 5. If any target flag is **pinned** by Docker/env, the preset skips it and shows ⚠️ — change the env / compose pin instead.
 
 ## Manual path
 
 Same three toggles in Quick Flags or Admin → Feature Flags:
 
-1. Agent Gateway = **PingOne GW**
+1. Agent Gateway = **Real PingOne**
 2. Authorize Engine = **Real P1AZ**
 3. Token Validation = **Introspect**
 
 ## Verify before the demo
 
-- [ ] PingGateway container healthy; MCP calls hit IG (not Demo Agent Gateway).
+- [ ] PingGateway container healthy; MCP calls hit IG (not the mock Demo Agent Gateway).
 - [ ] A tool call shows a real PingOne Authorize decision (decision id / live policy), not simulated-only education copy.
 - [ ] No `X-Token-Validation: jwks` / `X-Token-Validation-Mode: jwks` on the happy path.
 - [ ] Optional: no-token request to gateway returns `401` with `WWW-Authenticate` (introspect routes use `McpProtectionFilter`; JWKS educational routes add `resource_metadata` only).
@@ -60,5 +60,5 @@ independent of Quick Flags. Per-tool HITL / CIBA / OTP still apply for high-risk
 
 - Gap report: `docs/PING_IDAI_SECURING_AGENTS_DIFF.md`
 - MCP ProtectionFilter audit: `docs/superpowers/plans/2026-07-22-mcp-protection-filter-gap.md`
-- Feature flag registry: `demo_api_server/routes/featureFlags.js` (`ff_mcp_gateway_pinggateway`, `ff_authorize_simulated`, `ff_mcp_gateway_jwks`)
+- Feature flag registry: `demo_api_server/routes/featureFlags.js` (`ff_mcp_gateway_pinggateway`, `ff_authorize_real`, `ff_mcp_gateway_jwks`)
 - Agent client packaging: `docs/PINGONE_APP_CONFIG.md` §5

@@ -10,27 +10,27 @@ describe('configCheck', () => {
 
   test('fails when real P1AZ prereqs missing', async () => {
     configStore.getEffective.mockReturnValue(null);
-    const r = await prereqs.run({ flags: { ff_authorize_simulated: false } });
+    const r = await prereqs.run({ flags: { ff_authorize_real: true } });
     expect(r.status).toBe('fail');
     expect(r.meta.missing).toEqual(expect.arrayContaining(['authorize_worker_client_id', 'authorize_decision_endpoint_id']));
   });
 
   test('passes when real P1AZ prereqs present', async () => {
     configStore.getEffective.mockReturnValue('set');
-    const r = await prereqs.run({ flags: { ff_authorize_simulated: false } });
+    const r = await prereqs.run({ flags: { ff_authorize_real: true } });
     expect(r.status).toBe('pass');
   });
 
   test('meta.missing is an empty array when real P1AZ prereqs present', async () => {
     configStore.getEffective.mockReturnValue('set');
-    const r = await prereqs.run({ flags: { ff_authorize_simulated: false } });
+    const r = await prereqs.run({ flags: { ff_authorize_real: true } });
     expect(r.status).toBe('pass');
     expect(r.meta.missing).toEqual([]);
   });
 
   test('fails when simulated+gateway+jwks needs AUTHZ_JWT_SECRET', async () => {
     delete process.env.AUTHZ_JWT_SECRET;
-    const r = await prereqs.run({ flags: { ff_authorize_simulated: true, ff_mcp_gateway_pinggateway: true, ff_mcp_gateway_jwks: true } });
+    const r = await prereqs.run({ flags: { ff_authorize_real: false, ff_mcp_gateway_pinggateway: true, ff_mcp_gateway_jwks: true } });
     expect(r.status).toBe('fail');
     expect(r.meta.missing).toContain('AUTHZ_JWT_SECRET');
   });

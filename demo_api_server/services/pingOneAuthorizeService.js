@@ -1204,7 +1204,7 @@ const WARMUP_THROTTLE_MS = 60_000;
  */
 async function warmup({ force = false } = {}) {
   // The simulated engine runs in-process — nothing live to warm.
-  if (configStore.getEffective('ff_authorize_simulated') === 'true') {
+  if (configStore.getEffective('ff_authorize_real') !== 'true') {
     return { ok: false, skipped: 'simulated' };
   }
   if (!isWorkerCredentialReady()) {

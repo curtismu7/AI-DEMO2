@@ -9,7 +9,7 @@
  * say, and the fallback ladder when it fails live:
  *
  *   Layer 1  switch Agent mode to Heuristics (deterministic routing, real tools)
- *   Layer 2  PATCH /api/admin/feature-flags {"updates":{"ff_authorize_simulated":true}}
+ *   Layer 2  PATCH /api/admin/feature-flags {"updates":{"ff_authorize_real":false}}
  *            (+ authz-server up) — real chips, simulated policy backend
  *   Layer 3  click "Show the expected result (REPLAY)" on the failure message —
  *            captured known-good run, always labeled, never impersonates live proof
@@ -35,7 +35,7 @@ function generateContent() {
     '',
     '1. **Real LLM run** — the default. If it fails:',
     '2. **Heuristics mode** — switch Agent mode to Heuristics (one click; deterministic routing, same real tools/gateway/policy).',
-    '3. **Simulated Authorize** — `PATCH /api/admin/feature-flags {"updates":{"ff_authorize_simulated":true}}` with authz-server up (real chips + tools, simulated policy backend). Last resort before replay.',
+    '3. **Mock Authorize** — `PATCH /api/admin/feature-flags {"updates":{"ff_authorize_real":false}}` with authz-server up (real chips + tools, mock policy backend). Outage fallback only; last resort before replay.',
     '4. **REPLAY** — click "Show the expected result (REPLAY)" on the failure message: a captured known-good run, labeled with its capture date. Token chain / activity panels stay empty — live proof only.',
     '',
   ];

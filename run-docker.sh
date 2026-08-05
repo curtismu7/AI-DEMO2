@@ -1069,7 +1069,7 @@ _wait_bff_healthy() {
   return 1
 }
 
-# Read ff_authorize_simulated + ff_mcp_gateway_pinggateway from the running BFF.
+# Read ff_authorize_real + ff_mcp_gateway_pinggateway from the running BFF.
 # Prints "sim pgw trc" as 0/1 tokens. Falls back to 0 1 1 (real P1AZ + PingGateway + tracing on) on failure.
 _read_demo_stack_flags() {
   if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'ai-demo-api-server'; then
@@ -1090,7 +1090,7 @@ _read_demo_stack_flags() {
     (async () => {
       await cs.ensureInitialized();
       const t = (v) => (v === true || v === 'true') ? '1' : '0';
-      const sim = t(cs.getEffective('ff_authorize_simulated'));
+      const sim = t(cs.getEffective('ff_authorize_real')) === '1' ? '0' : '1';
       const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
       const trc = (cs.getEffective('ff_tracing') === false || cs.getEffective('ff_tracing') === 'false') ? '0' : '1';
       process.stdout.write('\n' + sim + ' ' + pgw + ' ' + trc);

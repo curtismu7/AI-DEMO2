@@ -8,7 +8,7 @@
  * DENY / HITL + challengeId) in one response.
  *
  * Replaces the simulated-only checkLocalAuthzGate (verticalMcpExecution.js:77)
- * which never called PingOne Authorize and only ran in dev (ff_authorize_simulated=true).
+ * which never called PingOne Authorize and only ran in dev (ff_authorize_real=false).
  *
  * Exported: evaluate({ req, tool, params, hitlChallengeId? })
  *   → { decision: 'PERMIT'|'DENY'|'HITL'|'STEP_UP', ... }
@@ -279,7 +279,7 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
  * RequiredGroup / InRequiredGroup stay per-tool (tool-specific).
  *
  * No simulated-engine path — the bulk decision API has no mock/simulated
- * counterpart in this repo (see plan). When ff_authorize_simulated is on, or
+ * counterpart in this repo (see plan). When ff_authorize_real is on, or
  * the MCP decision endpoint isn't configured, this returns ok:false with a
  * reason instead of silently calling live PingOne or fabricating a verdict.
  *

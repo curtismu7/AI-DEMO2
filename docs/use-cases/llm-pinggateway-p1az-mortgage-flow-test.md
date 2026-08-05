@@ -23,7 +23,7 @@ Same stack as the PERMIT banking guide, plus:
 
 - Customer token includes **`mortgage:read`** scope (re-login if the gateway returns `insufficient_scope`)
 - `api-resource-server` running in-cluster (`k8s/64-api-resource-server-deployment.yaml`)
-- Feature flags: `ff_mcp_gateway_pinggateway=true`, real P1AZ (`ff_authorize_simulated=false`)
+- Feature flags: `ff_mcp_gateway_pinggateway=true`, real P1AZ (`ff_authorize_real=true`)
 
 **Trigger:** chip **My mortgage** or prompt **`show my mortgage`**
 
