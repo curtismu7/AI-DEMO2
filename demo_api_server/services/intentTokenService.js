@@ -65,6 +65,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   pay_bill:                 ['pay_bill', 'view_coverage', 'view_records'],
   // Retail
   list_orders:              ['list_orders', 'order_status', 'show_large_purchase'],
+  list_anf_orders:          ['list_anf_orders', 'order_status'],
   view_rewards:             ['rewards_balance', 'loyalty_balance'],
   checkout:                 ['checkout', 'list_orders'],
   // Sporting-goods
@@ -122,7 +123,7 @@ const READ_ONLY_TOOLS = [
   // Healthcare
   'view_records', 'view_coverage', 'list_appointments', 'show_health_record',
   // Retail
-  'list_orders', 'order_status', 'rewards_balance', 'show_large_purchase',
+  'list_orders', 'list_anf_orders', 'order_status', 'rewards_balance', 'show_large_purchase',
   // Sporting-goods
   'list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order',
   'show_gear_warranty',
@@ -158,6 +159,7 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   ],
   healthcare: ['view_records', 'view_coverage', 'list_appointments', 'show_health_record', 'sequential_think'],
   retail: ['list_orders', 'order_status', 'rewards_balance', 'show_large_purchase', 'sequential_think'],
+  'abercrombie-fitch': ['list_anf_orders', 'order_status', 'rewards_balance', 'sequential_think'],
   'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'show_gear_warranty', 'sequential_think'],
   workforce: ['view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report', 'sequential_think'],
   mortgage: ['show_mortgage', 'sequential_think'],

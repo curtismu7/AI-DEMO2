@@ -28,7 +28,7 @@
  */
 
 const VERTICALS = [
-  'banking', 'healthcare', 'retail', 'government',
+  'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
   'investment', 'airlines',
 ];
@@ -38,6 +38,7 @@ const VERTICALS = [
 const READ_TRIGGER_BY_VERTICAL = {
   healthcare: 'check my coverage',
   retail: 'list my orders',
+  'abercrombie-fitch': 'show my A&F orders',
   government: 'show my permits',
   university: 'show my enrolled courses',
   workforce: 'my benefits',
@@ -53,6 +54,7 @@ function amountTriggerByVertical(amount) {
   return {
     healthcare: `pay my $${n} bill`,
     retail: `checkout headphones for $${n}`,
+    'abercrombie-fitch': `checkout A&F outerwear for $${n}`,
     government: `pay the $${n} fee`,
     university: `pay $${n} tuition`,
     workforce: `submit a $${n} expense`,
@@ -86,6 +88,7 @@ function chipOverrides(textByVertical, extraByVertical = {}) {
 const READ_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare: 'view_coverage',
   retail: 'list_orders',
+  'abercrombie-fitch': 'list_anf_orders',
   government: 'view_permits',
   university: 'view_courses',
   workforce: 'view_benefits',
@@ -99,6 +102,7 @@ const READ_PRIMARY_TOOL_BY_VERTICAL = {
 const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare: 'pay_bill',
   retail: 'checkout',
+  'abercrombie-fitch': 'checkout',
   government: 'pay_fee',
   university: 'pay_tuition_balance',
   workforce: 'submit_expense',
@@ -120,6 +124,7 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
 const SECOND_PRODUCT_TRIGGER_BY_VERTICAL = {
   healthcare: 'show my health records',
   retail: 'show my large purchase',
+  'abercrombie-fitch': 'show my saved items at A&F',
   government: 'show my permit status',
   university: 'show my enrollment status',
   workforce: 'show my expense report',
@@ -134,6 +139,7 @@ const SECOND_PRODUCT_TRIGGER_BY_VERTICAL = {
 const SECOND_PRODUCT_TOOL_BY_VERTICAL = {
   healthcare: 'show_health_record',
   retail: 'show_large_purchase',
+  'abercrombie-fitch': 'view_wishlist',
   government: 'show_permit',
   university: 'show_enrollment',
   workforce: 'show_expense_report',
@@ -156,6 +162,7 @@ const REQUEST_ONLY_TRIGGER_BY_VERTICAL = {
   workforce: 'can you request a schedule change for me?',
   'sporting-goods': 'can you price-match my last order?',
   retail: 'can you request a price adjustment on my order?',
+  'abercrombie-fitch': 'can you request a price adjustment on my A&F order?',
   manufacturing: 'can you request a spec exception?',
   investment: 'can you request a fee tier review?',
 };
@@ -166,6 +173,7 @@ const REQUEST_ONLY_TOOL_BY_VERTICAL = {
   workforce: 'request_schedule_change',
   'sporting-goods': 'request_price_match',
   retail: 'request_price_adjustment',
+  'abercrombie-fitch': 'request_price_adjustment',
   manufacturing: 'request_spec_exception',
   investment: 'request_fee_tier_review',
 };
@@ -218,6 +226,7 @@ const REQUEST_ONLY_PER_VERTICAL = {
 const A2A_TRIGGER_BY_VERTICAL = {
   healthcare:        'show my sensitive patient records',
   retail:            'show my sensitive order history',
+  'abercrombie-fitch':'show my sensitive A&F order history',
   government:        'show my sensitive tax record',
   university:        'access my sensitive student finance',
   workforce:         'show my sensitive payroll details',
@@ -229,6 +238,7 @@ const A2A_TRIGGER_BY_VERTICAL = {
 const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare:        'sensitive_patient_records',
   retail:            'sensitive_order_history',
+  'abercrombie-fitch':'sensitive_order_history',
   government:        'sensitive_tax_record',
   university:        'sensitive_student_finance',
   workforce:         'sensitive_payroll_details',
@@ -434,6 +444,14 @@ const RAW_USE_CASES = [
     // demonstrates the point instead of repeating UC1's read.
     perVertical: {
       ...SECOND_PRODUCT_PER_VERTICAL,
+      'abercrombie-fitch': {
+        ...SECOND_PRODUCT_PER_VERTICAL['abercrombie-fitch'],
+        title: 'My saved styles',
+        buyerStory: "Delegated-access proof must cover every A&F customer tool, not just order history.",
+        pingOneSolution: 'The same RFC 8693 delegated token (act={agent}) authorizes the saved-styles lookup without changing the chain of custody.',
+        whatToSay: 'Same delegated token, a different A&F tool — the act claim proves the agent through the saved-styles lookup, not just order history.',
+        whatLong: "This A&F scenario runs the same RFC 8693 chain as the order lookup against the customer's saved styles, proving attribution travels with every tool call.",
+      },
       'sporting-goods': {
         ...SECOND_PRODUCT_PER_VERTICAL['sporting-goods'],
         whatToSay: 'Same delegated token, a different product — the act claim proves the agent all the way to a warranty lookup, not just the gear list.',
@@ -548,6 +566,7 @@ const RAW_USE_CASES = [
     perVertical: AMOUNT_PER_VERTICAL(2500, {
       healthcare: '$2500 bill payment exceeds the policy ceiling — Authorize returns DENY.',
       retail: '$2500 checkout exceeds the policy ceiling — Authorize returns DENY.',
+      'abercrombie-fitch': '$2500 A&F checkout exceeds the policy ceiling — Authorize returns DENY.',
       government: '$2500 fee payment exceeds the policy ceiling — Authorize returns DENY.',
       university: '$2500 tuition payment exceeds the policy ceiling — Authorize returns DENY.',
       workforce: '$2500 expense exceeds the policy ceiling — Authorize returns DENY.',
@@ -590,6 +609,7 @@ const RAW_USE_CASES = [
     perVertical: AMOUNT_PER_VERTICAL(600, {
       healthcare: '$600 bill payment >= the step-up bar → MFA required first.',
       retail: '$600 checkout >= the step-up bar → MFA required first.',
+      'abercrombie-fitch': '$600 A&F checkout >= the step-up bar → MFA required first.',
       government: '$600 fee payment >= the step-up bar → MFA required first.',
       university: '$600 tuition payment >= the step-up bar → MFA required first.',
       workforce: '$600 expense >= the step-up bar → MFA required first.',
@@ -625,6 +645,7 @@ const RAW_USE_CASES = [
     perVertical: AMOUNT_PER_VERTICAL(300, {
       healthcare: '$300 bill payment requires human consent before it runs.',
       retail: '$300 checkout requires human consent before it runs.',
+      'abercrombie-fitch': '$300 A&F checkout requires human consent before it runs.',
       government: '$300 fee payment requires human consent before it runs.',
       university: '$300 tuition payment requires human consent before it runs.',
       workforce: '$300 expense requires human consent before it runs.',
@@ -776,6 +797,7 @@ const RAW_USE_CASES = [
     perVertical: chipOverrides({
       healthcare: 'What clinics are near me?',
       retail: 'What stores are near me?',
+      'abercrombie-fitch': 'What A&F stores are near me?',
       government: 'What city offices are near me?',
       university: 'What campus locations are near me?',
       workforce: 'What office locations are near me?',
@@ -786,6 +808,7 @@ const RAW_USE_CASES = [
     }, withPrimaryTool({
       healthcare: 'get_branch_hours',
       retail: 'get_branch_hours',
+      'abercrombie-fitch': 'get_branch_hours',
       government: 'get_branch_hours',
       university: 'get_branch_hours',
       workforce: 'get_branch_hours',

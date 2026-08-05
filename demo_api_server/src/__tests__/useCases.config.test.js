@@ -72,14 +72,14 @@ describe('useCases catalog SoT', () => {
     expect(blob).not.toMatch(/banking:(read|write|admin)/);
   });
 
-  test('VERTICALS lists the 10 supported verticals', () => {
+  test('VERTICALS lists the 11 supported verticals', () => {
     // Adding a vertical here is not cosmetic: VERTICALS is what gives a vertical its
     // perVertical chip overrides AND is the list every audit loops over. Omitting one
     // makes it inherit banking phrases its own heuristics cannot route (kind:'none' ->
     // "I didn't catch that", Authorize/Gateway never reached) while no test can see it.
     // investment was 6/7 dead exactly that way.
     expect(VERTICALS).toEqual([
-      'banking', 'healthcare', 'retail', 'government',
+      'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
       'university', 'workforce', 'sporting-goods', 'manufacturing',
       'investment', 'airlines',
     ]);
@@ -127,6 +127,13 @@ describe('useCases catalog SoT', () => {
         UC7: 'checkout headphones for $600',
         UC8: 'checkout headphones for $300',
         UC24: 'What stores are near me?',
+      },
+      'abercrombie-fitch': {
+        UC1: 'show my A&F orders',
+        UC6: 'checkout A&F outerwear for $2500',
+        UC7: 'checkout A&F outerwear for $600',
+        UC8: 'checkout A&F outerwear for $300',
+        UC24: 'What A&F stores are near me?',
       },
       government: {
         UC1: 'show my permits',

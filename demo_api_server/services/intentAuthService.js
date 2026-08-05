@@ -85,7 +85,7 @@ async function evaluateIntentAuthorization(intentContext) {
   // Read-only intents never require HITL consent — they cannot cause harm.
   const READ_ONLY_INTENTS = new Set([
     'view_balance', 'view_accounts', 'view_transactions', 'view_records',
-    'view_coverage', 'list_appointments', 'list_orders', 'pto_balance',
+    'view_coverage', 'list_appointments', 'list_orders', 'list_anf_orders', 'pto_balance',
     'view_benefits', 'list_gear',
     // UC1 primary read per vertical — these four shipped after this set was
     // written, so their read chips fell through to the conservative-consent

@@ -1,0 +1,145 @@
+{
+  "orders": [
+    {
+      "id": "ANF-10482",
+      "product": "Essential Popover Hoodie",
+      "sku": "ANF-157-243",
+      "size": "M",
+      "color": "Heather Oat",
+      "amount": 80,
+      "status": "Delivered",
+      "date": "2026-07-28"
+    },
+    {
+      "id": "ANF-10519",
+      "product": "Curve Love High Rise 90s Relaxed Jean",
+      "sku": "ANF-155-489",
+      "size": "28 Regular",
+      "color": "Medium Wash",
+      "amount": 90,
+      "status": "Shipped",
+      "date": "2026-08-01"
+    },
+    {
+      "id": "ANF-10544",
+      "product": "Sloane Tailored Pant",
+      "sku": "ANF-156-772",
+      "size": "M",
+      "color": "Black",
+      "amount": 90,
+      "status": "Processing",
+      "date": "2026-08-03"
+    }
+  ],
+  "rewards": [
+    {
+      "id": "MYANF-2046",
+      "tier": "VIP",
+      "points": 2375,
+      "storeCredit": 25,
+      "status": "Active"
+    }
+  ],
+  "wishlist": [
+    {
+      "id": "ANF-W-501",
+      "product": "Madeline Crew Sweater Tee",
+      "size": "S",
+      "color": "Dark Brown",
+      "price": 60
+    },
+    {
+      "id": "ANF-W-502",
+      "product": "Premium Linen-Blend Mini Dress",
+      "size": "M",
+      "color": "White",
+      "price": 100
+    }
+  ],
+  "returns": [
+    {
+      "id": "ANF-R-701",
+      "product": "Essential Sunday Half-Zip",
+      "reason": "Size too large",
+      "status": "Refunded",
+      "date": "2026-07-19"
+    },
+    {
+      "id": "ANF-R-702",
+      "product": "Curve Love A&F Sloane Tailored Pant",
+      "reason": "Exchange for petite length",
+      "status": "In Transit",
+      "date": "2026-08-02"
+    }
+  ],
+  "payment_methods": [
+    {
+      "id": "ANF-PMT-1",
+      "type": "Visa",
+      "last4": "4242",
+      "expiry": "2028-04",
+      "is_default": "Yes"
+    }
+  ],
+  "addresses": [
+    {
+      "id": "ANF-ADDR-1",
+      "label": "Home",
+      "street": "125 Market Street",
+      "city": "Columbus",
+      "is_default": "Yes"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "ANF-SUB-1",
+      "product": "A&F Essential Tee Edit",
+      "frequency": "Quarterly",
+      "next_date": "2026-10-01",
+      "status": "Active"
+    }
+  ],
+  "support_tickets": [
+    {
+      "id": "ANF-TKT-1",
+      "subject": "Exchange petite length",
+      "category": "Returns",
+      "status": "Open",
+      "created_date": "2026-08-03"
+    }
+  ],
+  "gift_cards": [
+    {
+      "id": "ANF-GC-1",
+      "last4": "8821",
+      "balance": 50,
+      "expiry": "2028-12-31",
+      "status": "Active"
+    }
+  ],
+  "price_alerts": [
+    {
+      "id": "ANF-PA-1",
+      "product": "Collins Relaxed Poplin Shirt",
+      "target_price": 45,
+      "current_price": 70,
+      "status": "Watching"
+    }
+  ],
+  "recently_viewed": [
+    {
+      "id": "ANF-RV-1",
+      "product": "Emerson Poplin Midi Dress",
+      "price": 120,
+      "viewed_date": "2026-08-04",
+      "category": "Dresses"
+    },
+    {
+      "id": "ANF-RV-2",
+      "product": "Vintage Stretch Denim Trucker Jacket",
+      "price": 110,
+      "viewed_date": "2026-08-03",
+      "category": "Jackets"
+    }
+  ]
+}

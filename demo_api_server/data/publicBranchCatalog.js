@@ -91,6 +91,13 @@ const RETAIL = Object.freeze([
   { id: 'store-denver', name: 'Super Retail Denver Store', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: true },
 ]);
 
+const ABERCROMBIE_FITCH = Object.freeze([
+  { id: 'anf-austin', name: 'Abercrombie & Fitch at Domain NORTHSIDE', city: 'Austin', state: 'TX', address: '11700 Domain Blvd, Austin, TX 78758', hours: 'Daily 10:00–21:00', atm: false },
+  { id: 'anf-dallas', name: 'Abercrombie & Fitch at NorthPark Center', city: 'Dallas', state: 'TX', address: '8687 N Central Expy, Dallas, TX 75225', hours: 'Daily 10:00–20:00', atm: false },
+  { id: 'anf-miami', name: 'Abercrombie & Fitch at Aventura Mall', city: 'Miami', state: 'FL', address: '19501 Biscayne Blvd, Aventura, FL 33180', hours: 'Daily 10:00–21:00', atm: false },
+  { id: 'anf-denver', name: 'Abercrombie & Fitch at Cherry Creek', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: false },
+]);
+
 const GOVERNMENT = Object.freeze([
   { id: 'gov-austin', name: 'Austin City Permits Office', city: 'Austin', state: 'TX', address: '6310 Wilhelmina Delco Dr, Austin, TX 78752', hours: 'Mon–Fri 8:00–16:00', atm: false },
   { id: 'gov-dallas', name: 'Dallas County Records Office', city: 'Dallas', state: 'TX', address: '509 Main St, Dallas, TX 75202', hours: 'Mon–Fri 8:00–16:30', atm: false },
@@ -145,6 +152,7 @@ const CATALOG_BY_VERTICAL = Object.freeze({
   banking: BRANCHES,
   healthcare: HEALTHCARE,
   retail: RETAIL,
+  'abercrombie-fitch': ABERCROMBIE_FITCH,
   government: GOVERNMENT,
   university: UNIVERSITY,
   workforce: WORKFORCE,
@@ -159,6 +167,7 @@ const LABEL_BY_VERTICAL = Object.freeze({
   banking: 'branch',
   healthcare: 'clinic',
   retail: 'store',
+  'abercrombie-fitch': 'store',
   government: 'office',
   university: 'campus location',
   workforce: 'office',
@@ -173,6 +182,7 @@ const BRAND_BY_VERTICAL = Object.freeze({
   banking: 'Super Banking',
   healthcare: 'Wellspring Health',
   retail: 'Super Retail',
+  'abercrombie-fitch': 'Abercrombie & Fitch',
   government: 'City & County',
   university: 'Riverbend University',
   workforce: 'Northwind',
