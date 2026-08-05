@@ -30,6 +30,7 @@ import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import ConfirmModal from "./ConfirmModal";
 import ThresholdControls from "./ThresholdControls";
 import AdminCustomerPanel from "./AdminCustomerPanel";
+import GroupMembershipToggle from "./GroupMembershipToggle";
 
 // Decode a JWT into { header, payload, raw } — no component deps
 function decodeToken(token) {
@@ -641,6 +642,15 @@ const Dashboard = ({ user, onLogout }) => {
 
               {/* Col-2 wrapper: all right-column sections scroll together */}
               <div className="admin-dash-col2">
+              <section
+                className="dash-shell-card"
+                aria-labelledby="pingone-admin-access-heading"
+              >
+                <h2 id="pingone-admin-access-heading" className="dash-shell-card__title">
+                  PingOne Admin access
+                </h2>
+                <GroupMembershipToggle verticalId="pingone-admin" />
+              </section>
               <AdminCustomerPanel />
               <section
                 className="dash-shell-card"

@@ -1,7 +1,11 @@
 import React from 'react';
 import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { HitlChipMark, verticalSuggestionChips } from './agentChrome';
+import {
+  buildPingOneUserListMessage,
+  HitlChipMark,
+  verticalSuggestionChips,
+} from './agentChrome';
 
 describe('HitlChipMark challenge markers', () => {
   test('consent → 👤 only', () => {
@@ -20,7 +24,22 @@ describe('HitlChipMark challenge markers', () => {
     expect(container.textContent).not.toContain('👤');
   });
   test('verticalSuggestionChips carries challenge', () => {
-    const chips = verticalSuggestionChips({ dashboard: { chips10: [{ id: 'a', label: 'A', message: 'a', challenge: 'both' }] } });
+    const chips = verticalSuggestionChips({ dashboard: { chips10: [{ id: 'a', label: 'A', message: 'a', challenge: 'both', queryPrompt: 'userFilter' }] } });
     expect(chips[0].challenge).toBe('both');
+    expect(chips[0].queryPrompt).toBe('userFilter');
+  });
+});
+
+describe('buildPingOneUserListMessage', () => {
+  test('maps all to an unfiltered listUsers request', () => {
+    expect(buildPingOneUserListMessage('all')).toContain('no filter');
+  });
+
+  test('maps a trailing wildcard to a PingOne starts-with filter', () => {
+    expect(buildPingOneUserListMessage('curtis*')).toContain('username sw "curtis"');
+  });
+
+  test('rejects unsupported wildcard shapes', () => {
+    expect(buildPingOneUserListMessage('*curtis')).toBeNull();
   });
 });

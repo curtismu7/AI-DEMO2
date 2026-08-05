@@ -23,6 +23,7 @@ const ChipSchema = z.object({
   caption: z.string().optional(),
   stepUpMethod: z.string().optional(),
   denyTool: z.string().optional(),
+  queryPrompt: z.enum(['userFilter']).optional(),
   // Proof-of-enforcement catalog identity (Task 1: config/verticals/*/manifest.json
   // chips10 entries). Threaded through onChipClick → callMcpTool/sendAgentMessage
   // request bodies (Task 2) so the BFF can stamp the run against a known use case.
