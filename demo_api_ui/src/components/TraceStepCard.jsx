@@ -49,27 +49,34 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function textToHtml(text) {
+function textToHtml(text, changedClaims = new Set(), side) {
   if (text == null || text === "") return "";
+  let activeClaim = null;
   return tokenize(String(text))
     .map((t) => {
+      if (t.type === "key") {
+        const match = t.text.match(/"([^"]+)"\s*:/);
+        activeClaim = match && changedClaims.has(match[1]) ? match[1] : null;
+      }
       const cls = [
         `jh-${t.type}`,
         t.critical ? "jh-critical" : null,
         t.focused ? "jh-focus" : null,
       ].filter(Boolean).join(" ");
-      return `<span class="${cls}">${escapeHtml(t.text)}</span>`;
+      const claimClass = activeClaim ? ` claim-diff claim-diff--${side}` : "";
+      return `<span class="${cls}${claimClass}">${escapeHtml(t.text)}</span>`;
     })
     .join("");
 }
 
 function renderBeforeAfterBlock(beforeAfter) {
   if (!beforeAfter?.before?.text && !beforeAfter?.after?.text) return "";
+  const changedClaims = claimDiffs(beforeAfter?.before?.text, beforeAfter?.after?.text);
   const beforeHtml = beforeAfter?.before?.text
-    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.before.title || "Before")}</h3><pre class="pre">${textToHtml(beforeAfter.before.text)}</pre></div>`
+    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.before.title || "Before")}</h3><pre class="pre">${textToHtml(beforeAfter.before.text, changedClaims, "before")}</pre></div>`
     : "";
   const afterHtml = beforeAfter?.after?.text
-    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.after.title || "After")}</h3><pre class="pre">${textToHtml(beforeAfter.after.text)}</pre></div>`
+    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.after.title || "After")}</h3><pre class="pre">${textToHtml(beforeAfter.after.text, changedClaims, "after")}</pre></div>`
     : "";
   return `<div class="before-after">${beforeHtml}${afterHtml}</div>`;
 }
@@ -241,6 +248,10 @@ export function openStepTeachingWindow(step, useCase) {
   .jh-key{color:#79c0ff}.jh-string{color:#7ee787}.jh-number{color:#ffa657}
   .jh-keyword{color:#d2a8ff;font-weight:600}.jh-punct{color:#8b949e}
   .jh-critical{color:#ff6b6b;font-weight:600}
+  .jh-focus{background:rgba(251,191,36,.28);color:#fde68a;font-weight:700;border-radius:3px}
+  .claim-diff{border-radius:3px}
+  .claim-diff--before{background:rgba(251,191,36,.24)}
+  .claim-diff--after{background:rgba(45,212,191,.24)}
 </style></head>
 <body>
   <h1>${escapeHtml(title)}</h1>
