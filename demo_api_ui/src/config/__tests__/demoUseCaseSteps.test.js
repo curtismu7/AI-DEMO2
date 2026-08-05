@@ -87,6 +87,11 @@ describe('demoUseCaseSteps', () => {
     expect(DEMO_PRIMARY_USE_CASE_IDS[1]).toBe('UC1');
   });
 
+  it('places the P1AZ PAR deny tile immediately after the PAR permit tile', () => {
+    const permitIndex = DEMO_PRIMARY_USE_CASE_IDS.indexOf('UC14b');
+    expect(DEMO_PRIMARY_USE_CASE_IDS[permitIndex + 1]).toBe('UC14');
+  });
+
   it('ADMIN ids all start with ADMIN', () => {
     for (const id of ADMIN_PRIMARY_USE_CASE_IDS) {
       expect(id).toMatch(/^ADMIN/);

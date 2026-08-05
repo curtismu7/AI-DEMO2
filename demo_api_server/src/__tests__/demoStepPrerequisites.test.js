@@ -110,6 +110,9 @@ describe('demoStepPrerequisites', () => {
   test('UC14 / UC14b require PingOne PAR (RFC 9126) config', () => {
     const violation = resolveUseCase('UC14', 'banking');
     const verified = resolveUseCase('UC14b', 'banking');
+    expect(violation.title).toBe('P1AZ denies PAR intent mismatch (DENY)');
+    expect(violation.trigger).toEqual({ type: 'attack', sim: 'rar-exceeded' });
+    expect(violation.expectedOutcome).toBe('DENY');
     expect(needsParConfig(violation)).toBe(true);
     expect(needsParConfig(verified)).toBe(true);
     expect(PAR_CONFIG_KEYS).toEqual(
