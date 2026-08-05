@@ -84,6 +84,11 @@ describe('airlines dispatch', () => {
     expect(result.provenance.durationMs).toBeGreaterThanOrEqual(0);
   });
 
+  it('stamps the sensitive booking tool name into its query receipt', async () => {
+    const result: any = await dispatch('sensitive_airline_bookings', {}, '', 'unknown-sub');
+    expect(result.provenance.tool).toBe('sensitive_airline_bookings');
+  });
+
   it('reads flight status', async () => {
     const result: any = await dispatch('get_flight_status', { flight_number: 'ua328' }, '', '');
     expect(result.source).toBe('sqlite');

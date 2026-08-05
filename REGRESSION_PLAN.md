@@ -102,6 +102,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-05 — United provenance UI overstated database activity
+
+**Files changed:** `demo_mcp_resource_server/src/tools/airlinesToolHandler.ts`,
+`demo_mcp_resource_server/tests/airlinesTools.test.ts`,
+`demo_api_ui/src/components/agentResultPanels.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.terminology.test.js`
+
+**What was broken:** Legacy booking payloads received live-database badges, all
+airline requests showed the database pulse, every historical receipt inherited
+global refresh state, and sensitive booking receipts named the open booking
+tool.
+
+**What was fixed:** Live badges now require server provenance, the database
+pulse follows only the resolved booking action, refresh state is scoped to the
+clicked message, and each booking tool stamps its own name.
+
+**Do not break:** UI proof must remain receipt-backed and request-specific.
+Unrelated United actions and historical responses must not claim current
+database activity.
+
+**Verify:** Resource-server airlines tests; focused UI terminology tests; UI
+production build.
+
 ### 2026-08-05 — United backend provenance was hidden during the demo
 
 **Files changed:** `demo_mcp_resource_server/src/db/airlinesDb.ts`,

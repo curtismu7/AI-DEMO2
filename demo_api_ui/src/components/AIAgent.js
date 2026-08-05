@@ -399,6 +399,8 @@ export default function BankingAgent({
   const [inputHistory, setInputHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [nlLoading, setNlLoading] = useState(false);
+  const [unitedDatabaseQueryLoading, setUnitedDatabaseQueryLoading] = useState(false);
+  const [refreshingAirlineMessageId, setRefreshingAirlineMessageId] = useState(null);
   const [nlMeta, setNlMeta] = useState(null);
   // Map agentProviderMode (updated immediately on mode switch via useLangchainProvider)
   // to the provider string the BFF expects, using the shared SSOT (config/agentModes.js).
@@ -5688,6 +5690,7 @@ export default function BankingAgent({
         useCaseId,
       }).finally(() => {
         setNlLoading(false);
+        setRefreshingAirlineMessageId(null);
         nlSendGuardRef.current.release();
       });
       return;
@@ -5801,6 +5804,7 @@ export default function BankingAgent({
         .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
         .finally(() => {
           setNlLoading(false);
+          setRefreshingAirlineMessageId(null);
           nlSendGuardRef.current.release();
         });
     });
@@ -5808,9 +5812,10 @@ export default function BankingAgent({
 
   // Sends text through the full NL pipeline (same path as typing in the chat box).
   function sendAsNl(text, useCaseId) {
-    if (!nlSendGuardRef.current.tryAcquire()) return;
+    if (!nlSendGuardRef.current.tryAcquire()) return false;
     try {
       sendAsNlInner(text, useCaseId);
+      return true;
     } catch (e) {
       // Synchronous failure before any async release path ran — free the
       // guard so the send box doesn't stay locked. (Parity with
@@ -6412,6 +6417,9 @@ export default function BankingAgent({
       // re-dispatch must run that vertical's service (canned response) regardless of
       // agent_mode — otherwise "Helix only" mode re-routes it to the LLM and the chip
       // returns an empty reply. Applies to every vertical.
+      const isUnitedDatabaseQuery =
+        verticalId === "airlines" && result.action === "get_airline_bookings";
+      if (isUnitedDatabaseQuery) setUnitedDatabaseQueryLoading(true);
       try {
         // When clarification already filled the missing params, reconstruct a
         // message the heuristic can re-parse with the complete params intact
@@ -6589,6 +6597,8 @@ export default function BankingAgent({
           },
         );
         return;
+      } finally {
+        if (isUnitedDatabaseQuery) setUnitedDatabaseQueryLoading(false);
       }
     }
     // kind:'none' is the server's explicit "routed nowhere" signal. Ask the BFF
@@ -10510,10 +10520,17 @@ export default function BankingAgent({
                               proofRunId={msg.proofRunId}
                               onAirlineRefresh={
                                 effectiveVerticalId === "airlines"
-                                  ? () => sendAsNl("show my reservations")
+                                  ? () => {
+                                      const started = sendAsNl("show my reservations");
+                                      if (started) {
+                                        setRefreshingAirlineMessageId(msg.id);
+                                      } else {
+                                        notifyInfo("Wait for the current request to finish before refreshing.");
+                                      }
+                                    }
                                   : undefined
                               }
-                              refreshing={nlLoading}
+                              refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
                             />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
                             {msg.verticalResult && (
@@ -10563,7 +10580,7 @@ export default function BankingAgent({
                   // `.banking-agent-msg.assistant.typing` rule dead.
                   <div className="banking-agent-msg assistant typing">
                     <div>
-                      {effectiveVerticalId === "airlines" ? (
+                      {unitedDatabaseQueryLoading ? (
                         <UnitedDatabasePulse />
                       ) : (
                         <div

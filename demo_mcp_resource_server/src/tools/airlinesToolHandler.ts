@@ -131,11 +131,11 @@ function cancelReservation(args: Record<string, unknown>, subject: string): unkn
 }
 
 function sensitiveBookings(subject: string): unknown {
+  const base = getBookings(subject, 'sensitive_airline_bookings') as Record<string, unknown>;
   const match = resolvePassenger(subject);
   if (!match) {
-    return { source: SOURCE, bookings: [], note: 'No passenger records in the airlines database.' };
+    return base;
   }
-  const base = getBookings(subject) as Record<string, unknown>;
   const { passenger } = match;
   return {
     ...base,
@@ -152,7 +152,10 @@ function sensitiveBookings(subject: string): unknown {
   };
 }
 
-function getBookings(subject: string): unknown {
+function getBookings(
+  subject: string,
+  toolName: 'get_airline_bookings' | 'sensitive_airline_bookings' = 'get_airline_bookings',
+): unknown {
   const startedAt = performance.now();
   const queriedAt = new Date().toISOString();
   const match = resolvePassenger(subject);
@@ -161,7 +164,7 @@ function getBookings(subject: string): unknown {
       source: SOURCE,
       bookings: [],
       note: 'No passenger records in the airlines database.',
-      provenance: bookingProvenance(queriedAt, startedAt, 0),
+      provenance: bookingProvenance(toolName, queriedAt, startedAt, 0),
     };
   }
   const { passenger, matchedBy } = match;
@@ -188,16 +191,21 @@ function getBookings(subject: string): unknown {
       status: b.status,
       flightStatus: b.flight_status,
     })),
-    provenance: bookingProvenance(queriedAt, startedAt, bookings.length),
+    provenance: bookingProvenance(toolName, queriedAt, startedAt, bookings.length),
   };
 }
 
-function bookingProvenance(queriedAt: string, startedAt: number, recordCount: number) {
+function bookingProvenance(
+  tool: 'get_airline_bookings' | 'sensitive_airline_bookings',
+  queriedAt: string,
+  startedAt: number,
+  recordCount: number,
+) {
   return {
     backend: 'United Reservations DB',
     engine: 'SQLite',
     database: airlinesDatabaseName(),
-    tool: 'get_airline_bookings',
+    tool,
     queryId: randomUUID(),
     queriedAt,
     durationMs: Number((performance.now() - startedAt).toFixed(2)),
