@@ -1,15 +1,17 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import TokenTopologyPanel, { buildA2aTopology } from '../TokenTopologyPanel';
+import TokenTopologyPanel, { buildA2aTopology, buildObservedTopology } from '../TokenTopologyPanel';
 import { ThemeProvider } from '../../context/ThemeContext';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 vi.mock('../DraggableModal', () => ({
   default: ({ isOpen, children, className }) => isOpen ? <div className={className}>{children}</div> : null,
 }));
 
 beforeEach(() => {
+  tokenChainTraceStore.reset();
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
 });
@@ -51,31 +53,101 @@ describe('buildA2aTopology', () => {
     expect(buildA2aTopology([{ id: 'exchange', status: 'exchanged' }])).toBeNull();
   });
 
-  it('keeps every standard topology step visible in gateway-first order before a run starts', () => {
+  it('builds topology nodes only from steps observed in the run', () => {
+    const topology = buildObservedTopology([
+      { id: 'website', title: 'Website — browser', lane: 'BROWSER', status: 'done' },
+      { id: 'signin', title: 'Sign-in — user token', lane: 'PINGONE', status: 'pending' },
+      { id: 'stepup', title: 'Step-up required — MFA', lane: 'AUTHZ', status: 'active' },
+      { id: 'api-key-swap', title: 'API-key path — credential swap', lane: 'GATEWAY', status: 'notinpath' },
+      { id: 'authorize:2', baseId: 'authorize', title: 'PingOne Authorize — policy decision', lane: 'AUTHZ', status: 'error' },
+    ]);
+
+    expect(topology.map((node) => node.id)).toEqual(['website', 'stepup', 'authorize:2']);
+    expect(topology.map((node) => node.name)).toEqual(['Website', 'Step-up required', 'PingOne Authorize']);
+    expect(topology[2].icon).toBe('AZ');
+  });
+
+  it('starts empty and draws observed boxes and arrows as evidence arrives', () => {
     const { container } = render(
       <ThemeProvider>
         <TokenTopologyPanel isOpen onClose={() => {}} />
       </ThemeProvider>,
     );
 
+    expect(screen.getByText('Run an agent flow to build the topology.')).toBeInTheDocument();
+    expect(screen.queryByText('Website')).not.toBeInTheDocument();
+
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+    });
+
     expect(screen.getByText('Website')).toBeInTheDocument();
-    expect(screen.getByText('PingOne AS')).toBeInTheDocument();
-    expect(screen.getByText('Agent Service')).toBeInTheDocument();
-    expect(screen.getByText('BFF Token Exchange')).toBeInTheDocument();
-    expect(screen.getByText('PingOne Authorize')).toBeInTheDocument();
-    expect(screen.getByText('Agent Gateway')).toBeInTheDocument();
-    expect(screen.getByText('MCP Server')).toBeInTheDocument();
+    expect(screen.getByText('Chatbot')).toBeInTheDocument();
+    expect(screen.queryByText('Sign-in')).not.toBeInTheDocument();
+    expect(screen.queryByText('Agent service receives request')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.ttp-conn')).toHaveLength(1);
+
+    act(() => {
+      tokenChainTraceStore.ingestRoutingMode('heuristic');
+    });
+
+    expect(screen.getByText('Agent service receives request')).toBeInTheDocument();
+    expect(screen.getByText('Heuristics')).toBeInTheDocument();
+    expect(screen.queryByText('Token exchange')).not.toBeInTheDocument();
     expect([...container.querySelectorAll('.ttp-name')].map((node) => node.textContent)).toEqual([
       'Website',
-      'PingOne AS',
       'Chatbot',
-      'Agent Service',
-      'LLM Model',
-      'BFF Token Exchange',
-      'Agent Gateway',
-      'PingOne Authorize',
-      'MCP Server',
+      'Agent service receives request',
+      'Heuristics',
     ]);
+    expect(container.querySelectorAll('.ttp-conn')).toHaveLength(3);
+  });
+
+  it('enriches an already drawn node when detailed evidence arrives', async () => {
+    const user = userEvent.setup();
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+      tokenChainTraceStore.ingestTokenEvent({ id: 'exchanged-token', status: 'waiting' });
+    });
+    render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    await user.click(screen.getByText('Token exchange'));
+    expect(screen.queryByRole('button', { name: 'Request' })).not.toBeInTheDocument();
+
+    act(() => {
+      tokenChainTraceStore.ingestTokenEvent({
+        id: 'exchanged-token',
+        status: 'exchanged',
+        claims: { aud: 'mcp-gateway', scope: 'banking:read' },
+      });
+    });
+
+    expect(screen.getByRole('button', { name: 'Request' })).toBeInTheDocument();
+  });
+
+  it('clears the rendered topology back to an empty state', async () => {
+    const user = userEvent.setup();
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+      tokenChainTraceStore.ingestRoutingMode('heuristic');
+    });
+    render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText('Website')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /clear/i }));
+
+    expect(screen.queryByText('Website')).not.toBeInTheDocument();
+    expect(screen.getByText('Run an agent flow to build the topology.')).toBeInTheDocument();
+    expect(tokenChainTraceStore.getState().trace.runId).toBeNull();
   });
 
   it('provides a visible switch for light and dark topology themes', async () => {
