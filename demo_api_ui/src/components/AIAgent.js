@@ -6843,7 +6843,7 @@ export default function BankingAgent({
   }
 
   /** NL API errors: 401 is session missing on server — not a parse failure. */
-  function reportNlFailure(err, retry) {
+  function reportNlFailure(err, retry, originalText) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
     // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
@@ -6902,7 +6902,7 @@ export default function BankingAgent({
     notifyError(`❌ ${friendly}`, {
       autoClose: agentToastMs.errShort,
     });
-    addMessage("assistant", friendly);
+    addMessage("assistant", friendly, null, originalText ? { retryText: originalText } : undefined);
   }
 
   /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
@@ -7427,7 +7427,7 @@ export default function BankingAgent({
       await dispatchNlResult(_nlResult, _nlSource || "heuristic", text);
     } catch (err) {
       if (isAbortError(err)) return;
-      reportNlFailure(err, () => handleNaturalLanguageInner(text));
+      reportNlFailure(err, () => handleNaturalLanguageInner(text), text);
     } finally {
       setNlLoading(false);
     }
@@ -9270,7 +9270,7 @@ export default function BankingAgent({
                   position: "fixed",
                   inset: 0,
                   zIndex: 9999,
-                  background: "rgba(0,0,0,0.55)",
+                  background: "var(--v2-overlay, rgba(0,0,0,0.55))",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -9285,7 +9285,7 @@ export default function BankingAgent({
                     padding: "28px 32px",
                     maxWidth: "540px",
                     width: "100%",
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+                    boxShadow: "0 8px 40px rgba(0,0,0,0.5)",  /* intentional deep shadow for modal depth */
                     color: "var(--color-text, #e2e4ef)",
                     fontFamily: "inherit",
                   }}
@@ -9322,7 +9322,7 @@ export default function BankingAgent({
                         This action requires{"  "}
                         <code
                           style={{
-                            background: "rgba(255,200,80,0.15)",
+                            background: "var(--v2-highlight-warn, rgba(255,200,80,0.15))",
                             padding: "1px 6px",
                             borderRadius: "4px",
                           }}
@@ -9336,8 +9336,8 @@ export default function BankingAgent({
                       </p>
                       <div
                         style={{
-                          background: "rgba(255,80,80,0.08)",
-                          border: "1px solid rgba(255,80,80,0.25)",
+                          background: "var(--v2-highlight-error, rgba(255,80,80,0.08))",
+                          border: "1px solid var(--v2-highlight-error-border, rgba(255,80,80,0.25))",
                           borderRadius: "8px",
                           padding: "12px 14px",
                           marginBottom: "16px",
@@ -9354,7 +9354,7 @@ export default function BankingAgent({
                             <code
                               key={s}
                               style={{
-                                background: "rgba(255,80,80,0.15)",
+                                background: "var(--v2-highlight-error-strong, rgba(255,80,80,0.15))",
                                 borderRadius: "4px",
                                 padding: "1px 6px",
                                 marginLeft: "4px",
@@ -10370,6 +10370,27 @@ export default function BankingAgent({
                               suggestions={msg.noMatchSuggestions}
                               onSelect={(s) => handleChipActivate(s)}
                             />
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.retryText && !msg.showPrewarmRetryAction) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                onClick={() => {
+                                  setNlInput(msg.retryText);
+                                  setTimeout(() => nlInputRef.current?.focus(), 0);
+                                }}
+                              >
+                                Retry
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );

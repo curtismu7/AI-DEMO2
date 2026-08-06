@@ -29,10 +29,28 @@
   --v2-accent-muted: rgba(27, 58, 107, 0.08);
 
   /* Semantic colors */
-  --v2-positive: #1a6b49;
-  --v2-negative: #a33020;
-  --v2-warning:  #a67c52;
-  --v2-info:     #1b3a6b;
+  --v2-positive:        #1a6b49;
+  --v2-negative:        #a33020;
+  --v2-warning:         #a67c52;
+  --v2-info:            #1b3a6b;
+
+  /* Account-type badge palette */
+  --v2-badge-savings:      #10b981;
+  --v2-badge-investment:   #8b5cf6;
+  --v2-badge-money-market: #06b6d4;
+  --v2-badge-credit:       #f59e0b;
+  --v2-badge-loan:         #ec4899;
+  --v2-badge-mortgage:     #6366f1;
+  --v2-badge-inactive:     #6b7280;
+
+  /* Inline semantic highlights (used in chat bubbles / code highlights) */
+  --v2-highlight-warn:    rgba(255, 200, 80, 0.15);
+  --v2-highlight-error:   rgba(255, 80, 80, 0.08);
+  --v2-highlight-error-border: rgba(255, 80, 80, 0.25);
+  --v2-highlight-error-strong: rgba(255, 80, 80, 0.15);
+
+  /* Overlay */
+  --v2-overlay: rgba(0, 0, 0, 0.55);
 
   /* Typography */
   --v2-font-body:    "Inter", ui-sans-serif, system-ui, sans-serif;
