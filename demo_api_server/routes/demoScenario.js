@@ -284,7 +284,6 @@ router.get('/', async (req, res) => {
         },
       },
       accountProfileFields: scenario.accountProfileFields || {},
-      accountProfileFields: scenario.accountProfileFields || {},
       persistenceNote:
         (process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT) &&
         !demoScenarioStore.isPersistenceConfigured()
