@@ -73,7 +73,7 @@
     "Super Banking MCP Server": {
       "uri": "mcpserver.ping.demo",
       "scopes": ["mcp:invoke", "code:search"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking MCP Invest": {
       "uri": "mcp-invest.ping.demo",
