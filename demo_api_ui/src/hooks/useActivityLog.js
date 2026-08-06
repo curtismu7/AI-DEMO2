@@ -5,7 +5,7 @@
  * - Seeds from GET /api/app-events (history) when enabled, then appends live SSE.
  * - Wraps useAppEventsSSE (handles EventSource lifecycle).
  * - Maintains a 200-event ring buffer (newest first).
- * - Per-category filter: 15 known categories, all active by default.
+ * - Per-category filter: 16 known categories, all active by default.
  * - Pause: stops prepending to visible list but keeps SSE open.
  * - Clear: empties visible list; new events continue.
  * - newCount: events received while isPaused (shown in Resume button label).
@@ -52,6 +52,7 @@ export const ALL_CATEGORIES = [
   'session',
   'jwks',
   'auth_lifecycle',
+  'pingone',
 ];
 
 export function useActivityLog({ enabled = false } = {}) {
