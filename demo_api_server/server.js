@@ -1,3 +1,7 @@
+// New Relic APM must be the absolute first require — before Sentry, before dotenv.
+// No-op when NR_LICENSE_KEY is absent (agent_enabled: false in newrelic.js).
+require('newrelic');
+
 // Sentry must be required before anything else so it can auto-instrument the app.
 // No-op unless SENTRY_DSN is set (see instrument.js).
 require('./instrument');
@@ -1262,6 +1266,20 @@ app.get('/api/pingone-events', requireSession, (req, res) => {
     if (limit) filters.limit = Math.min(Number(limit) || 50, 200);
     const events = require('./services/lmdb/pingoneEventStore.lmdb').query(filters);
     return res.json({ events });
+});
+
+// POST /api/nr-log — proxy for UI-originated New Relic log entries.
+// No auth required (session check omitted intentionally — used on login page too).
+// No-op when NR_LICENSE_KEY is absent.
+app.post('/api/nr-log', express.json({ limit: '16kb' }), (req, res) => {
+    const { message, attributes } = req.body || {};
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'message required' });
+    }
+    require('./services/newRelicForwarder')
+        .forwardUIEvent(String(message).slice(0, 512), attributes || {})
+        .catch(() => {});
+    return res.json({ ok: true });
 });
 
 app.use('/api/tokens', authenticateToken, tokenRoutes);
