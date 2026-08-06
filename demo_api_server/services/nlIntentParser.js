@@ -258,6 +258,8 @@ function extractIntentAndConfidence(message) {
   // write tool, and PingGateway P1AZ denies on intent_mismatch instead of
   // the amount rule the demo is proving. Writes must precede every read
   // branch — "execute a large trade" would otherwise hit the trades read.
+  if (/\bpay\b.*\b(change|airline|flight|booking|cancellation)\b.*\bfees?\b|\bpay\b.*\bfees?\b.*\b(change|airline|flight)\b/.test(t))
+    return { intent: "pay_airline_fee", toolName: "pay_airline_fee", confidence: 0.9 };
   if (/\bpay\b.*\bfees?\b/.test(t))
     return { intent: "pay_fee", toolName: "pay_fee", confidence: 0.9 };
   if (/\bpay\b.*\bbills?\b/.test(t))
