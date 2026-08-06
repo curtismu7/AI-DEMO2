@@ -12,6 +12,38 @@ const {
 // host.docker.internal lets the container reach llama-server processes running
 // on the host; override with LLAMA_HOST for non-Docker runs.
 const HOST = process.env.LLAMA_HOST || 'host.docker.internal';
+
+// Per-IP rate limit for inference routes (not /health, /refresh, /status).
+// Window and max are tunable via env; defaults are generous for demo use.
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.LLM_PROXY_RATE_WINDOW_MS || '60000', 10);
+const RATE_LIMIT_MAX       = parseInt(process.env.LLM_PROXY_RATE_MAX       || '60',    10);
+const rateLimitDisabled    = ['1', 'true', 'yes'].includes(
+  String(process.env.LLM_PROXY_DISABLE_RATE_LIMIT || '').toLowerCase(),
+);
+
+// Sliding-window per-IP counters. Each entry: { count, windowStart }.
+const _rateLimitMap = new Map();
+
+function checkRateLimit(ip) {
+  if (rateLimitDisabled) return true;
+  const now = Date.now();
+  let entry = _rateLimitMap.get(ip);
+  if (!entry || now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    entry = { count: 1, windowStart: now };
+    _rateLimitMap.set(ip, entry);
+    return true;
+  }
+  entry.count += 1;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
+// Periodically evict expired entries so the map doesn't grow unbounded.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of _rateLimitMap) {
+    if (now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) _rateLimitMap.delete(ip);
+  }
+}, RATE_LIMIT_WINDOW_MS).unref();
 const HEALTH_TTL_MS = 30000;           // don't re-probe a backend more often than this
 const HEALTH_INTERVAL_MS = HEALTH_TTL_MS; // sweep cadence — matches the TTL so no wasted passes
 
@@ -416,6 +448,15 @@ const server = http.createServer((req, res) => {
       swapping: swapInFlight ? TIERS[swapInFlight.cls].name : null,
       models: TIERS.map(modelSummary),
     }));
+    return;
+  }
+
+  // Per-IP rate limit — applied to inference routes only (not /health etc.).
+  const clientIp = req.socket.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    console.warn(`[proxy] rate-limited ${clientIp} (>${RATE_LIMIT_MAX} req/${RATE_LIMIT_WINDOW_MS}ms)`);
+    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) });
+    res.end(JSON.stringify({ error: 'rate_limit_exceeded', message: 'Too many requests. Please wait before retrying.' }));
     return;
   }
 
