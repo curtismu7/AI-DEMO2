@@ -96,8 +96,8 @@ function summarizeSess(sessJson: string): {
 }
 
 export const sessionsListSchema = z.object({
-  activeOnly: z.boolean().default(true),
-  limit: z.number().int().min(1).max(100).default(20),
+  activeOnly: z.boolean().default(true).describe("When true, exclude expired sessions"),
+  limit: z.number().int().min(1).max(100).default(20).describe("Maximum sessions to return (1–100, default 20)"),
 });
 
 export function sessionsList(input: z.infer<typeof sessionsListSchema>): {
@@ -128,7 +128,7 @@ export function sessionsList(input: z.infer<typeof sessionsListSchema>): {
   return { total, returned: Math.min(all.length, input.limit), sessions: all.slice(0, input.limit) };
 }
 
-export const sessionsGetSchema = z.object({ sid: z.string().min(8) });
+export const sessionsGetSchema = z.object({ sid: z.string().min(8).describe("Session ID to retrieve") });
 
 export function sessionsGet(input: z.infer<typeof sessionsGetSchema>): {
   found: boolean;
@@ -161,7 +161,7 @@ function readRuntimeData(): Record<string, unknown> {
   }
 }
 
-export const configGetSchema = z.object({ key: z.string().min(1) });
+export const configGetSchema = z.object({ key: z.string().min(1).describe("Config key to look up (checked in runtimeData then env)") });
 
 export function configGet(input: z.infer<typeof configGetSchema>): {
   key: string;
@@ -186,7 +186,7 @@ export function configGet(input: z.infer<typeof configGetSchema>): {
   return { key: input.key, found: false, source: null, value: null };
 }
 
-export const configListKeysSchema = z.object({ filter: z.string().optional() });
+export const configListKeysSchema = z.object({ filter: z.string().optional().describe("Optional substring filter applied to key names") });
 
 export function configListKeys(input: z.infer<typeof configListKeysSchema>): {
   count: number;
