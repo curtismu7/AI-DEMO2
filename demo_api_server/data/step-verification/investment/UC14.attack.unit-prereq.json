@@ -6,7 +6,7 @@
   "status": "FAIL",
   "errorClass": "missing_prereq",
   "primaryTool": null,
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-06",
   "requiredFlags": [
     "ff_rar"
   ],

@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "view_portfolios",
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-06",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

@@ -1610,6 +1610,46 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-color: rgba(0, 0, 0, 0.35);
 }
 
+/* Clarification option buttons — appear below the agent question bubble */
+.clarify-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.clarify-options__btn {
+  padding: 4px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.clarify-options__btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.clarify-options__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ba-mode-light .clarify-options__btn {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.ba-mode-light .clarify-options__btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
 /* MFA marker on chips that trigger HITL — flags consent/MFA actions for the demo presenter */
 .ba-chip-hitl-mark {
   display: inline-flex;

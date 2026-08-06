@@ -88,6 +88,29 @@ export function ParamHintCopy({ hint }) {
   );
 }
 
+// Clickable option buttons for clarification messages — replaces typing "checking"
+// with a tap. Calls onSelect(option) when clicked. Disabled once the question is no
+// longer active (active=false).
+export function ClarifyOptions({ options, onSelect, active }) {
+  if (!options || options.length === 0) return null;
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  return (
+    <div className="clarify-options">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          className="clarify-options__btn"
+          disabled={!active}
+          onClick={() => active && onSelect(opt)}
+        >
+          {cap(opt)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // Map a vertical manifest's `chips10` into discovery-chip shape. Each carries a
 // `message` so the click routes through the NL pipeline (the vertical service)
 // rather than a banking action ID. Shared by the popout and the left-rail so
