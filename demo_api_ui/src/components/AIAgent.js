@@ -813,12 +813,7 @@ export default function BankingAgent({
     finishRequest: activityFinishRequest,
     reset: activityReset,
   } = activity;
-  const { run: aguiRun, abort: aguiAbort, isRunning: aguiIsRunning } = useAgentRun(aguiHandlers);
-
-  /** Auto-open the token chain panel when an agent run starts. */
-  useEffect(() => {
-    if (aguiIsRunning) setShowTokenChain(true);
-  }, [aguiIsRunning]);
+  const { run: aguiRun, abort: aguiAbort } = useAgentRun(aguiHandlers);
 
   // Refs for stable thread ID and active run ID (needed by HITL resume)
   const aguiThreadIdRef = React.useRef(null);
