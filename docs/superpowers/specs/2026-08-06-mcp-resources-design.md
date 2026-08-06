@@ -22,7 +22,7 @@ Add MCP `resources/*` support and expand tool coverage to all 9 demo verticals i
 
 Pre-existing verticals (unchanged): `investment` (`invest:read`), `airlines` (`airlines:read`)
 
-## New files (18 total)
+## New files (19 total)
 
 ```
 src/tools/bankingTools.ts
@@ -43,19 +43,25 @@ src/tools/workforceTools.ts
 src/tools/workforceToolHandler.ts
 src/tools/anfTools.ts
 src/tools/anfToolHandler.ts
+src/shared/mockData.ts       (shared loader)
 ```
 
-## Modified files (3)
+## Modified files (4)
 
+- `src/tools/toolTypes.ts` — add `intentHints?: string[]` to `McpToolDef`
 - `src/tools/registry.ts` — import + spread all 9 new tool arrays into `ALL_TOOLS`
-- `src/index.ts` — add `resources/list`, `resources/read`, `resources/templates/list` handlers; add `resources` to `capabilities`
-- `src/shared/mockData.ts` (new shared helper) — loads `demo_api_server/config/verticals/{vertical}/mock-data.json` at startup
+- `src/index.ts` — add `resources/list`, `resources/read`, `resources/templates/list` handlers; add `resources` to `capabilities`; include `intentHints` in `tools/list` response
+- `demo_api_server/services/nlIntentParser.js` — add `intentHints` fallback pass
 
 ## Tool pattern (per vertical)
 
 Each `{vertical}Tools.ts` exports a `McpToolDef[]` with 2 tools:
 - `list_{entities}` — returns the list from mock-data (requires `{vertical}:read`)
 - `get_{entity}` — returns one item by id (requires `{vertical}:read`)
+
+Each tool carries:
+- `description` — rich human-readable sentence (shown to LLM via `tools/list`)
+- `intentHints: string[]` — 3–5 natural-language example phrases a user might type, e.g. `["show my accounts", "what's my balance", "list accounts"]`
 
 Each `{vertical}ToolHandler.ts` exports `dispatch(name, args)` reading from `mockData`.
 
