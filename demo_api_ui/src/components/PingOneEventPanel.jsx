@@ -35,11 +35,17 @@ export default function PingOneEventPanel() {
   const prevStreamLen = useRef(0);
   useEffect(() => {
     if (streamEvents.length === prevStreamLen.current) return;
+    if (streamEvents.length < prevStreamLen.current) {
+      prevStreamLen.current = 0;
+    }
     const newOnes = streamEvents.slice(prevStreamLen.current);
     prevStreamLen.current = streamEvents.length;
     const p1Events = newOnes.filter((e) => e.tag === 'pingone/event');
     if (p1Events.length === 0) return;
-    setEvents((prev) => [...p1Events, ...prev].slice(0, 200));
+    setEvents((prev) => {
+      const seen = new Set(prev.map((e) => e.eventId));
+      return [...p1Events.filter((e) => !seen.has(e.eventId)), ...prev].slice(0, 200);
+    });
   }, [streamEvents]);
 
   return (
@@ -52,9 +58,9 @@ export default function PingOneEventPanel() {
         <div className="pingone-event-panel__empty">No events received yet</div>
       ) : (
         <div className="pingone-event-panel__list">
-          {events.map((ev) => (
+          {events.map((ev, idx) => (
             <div
-              key={ev.eventId}
+              key={ev.eventId ?? ev.id ?? idx}
               className="pingone-event-panel__row"
               onClick={() => setExpanded((p) => (p === ev.eventId ? null : ev.eventId))}
             >
