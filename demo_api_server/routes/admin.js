@@ -563,7 +563,8 @@ router.put('/settings', requireAdmin, requireScopes(['admin']), async (req, res)
       }
     }
 
-    console.log(`[Settings] Updated by ${changedBy}:`, req.body);
+    const updatedKeys = Object.keys(req.body || {}).join(', ');
+    console.log(`[Settings] Updated by ${changedBy}: ${updatedKeys}`);
     res.json({ message: 'Settings updated successfully.', settings: result.settings });
   } catch (error) {
     console.error('Settings update error:', error);
@@ -721,7 +722,7 @@ router.get('/setup/management-probe', requireAdmin, async (_req, res) => {
     res.status(200).json(result);
   } catch (error) {
     console.error('management-probe error:', error);
-    res.status(500).json({ ok: false, error: error.message || 'probe_failed' });
+    res.status(500).json({ ok: false, error: 'probe_failed' });
   }
 });
 

@@ -502,6 +502,7 @@ router.post('/run', async (req, res) => {
   });
 
   agentReq = http.request(options, (agentRes) => {
+    agentReq.setTimeout(0); // cancel the connect timeout once the response begins
     // Non-200 from agent service — emit RUN_ERROR rather than piping raw JSON as SSE
     if (agentRes.statusCode !== 200) {
       let body = '';
@@ -553,6 +554,19 @@ router.post('/run', async (req, res) => {
         type: 'RUN_ERROR',
         message: 'Cannot reach agent service: ' + err.message,
         code: 'AGENT_UNREACHABLE',
+      }) + '\n\n');
+    } catch (_) {}
+    _cleanupHitlConsentSubscription(runId).finally(() => res.end());
+  });
+
+  agentReq.setTimeout(60000, () => {
+    console.error('[agentRun] Agent service timed out after 60s');
+    agentReq.destroy();
+    try {
+      res.write('data: ' + JSON.stringify({
+        type: 'RUN_ERROR',
+        message: 'Agent service timed out',
+        code: 'AGENT_TIMEOUT',
       }) + '\n\n');
     } catch (_) {}
     _cleanupHitlConsentSubscription(runId).finally(() => res.end());

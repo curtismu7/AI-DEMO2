@@ -179,9 +179,7 @@ async function agentSessionMiddleware(req, res, next) {
     console.error('[agentSessionMiddleware] Error message:', error.message);
     console.error('[agentSessionMiddleware] Error stack:', error.stack);
     console.error('[agentSessionMiddleware] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    return res
-      .status(500)
-      .json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
