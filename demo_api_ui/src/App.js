@@ -38,6 +38,7 @@ import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
 import ErrorBoundary from "./components/ErrorBoundary";
+import OfflineBanner from "./components/OfflineBanner";
 import ApiKeyPathPage from "./components/ApiKeyPathPage";
 import AuditPage from "./components/AuditPage";
 import BankingAdminOps from "./components/BankingAdminOps";
@@ -458,6 +459,7 @@ function AppWithAuth() {
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
             >
+              <OfflineBanner />
               <ToastContainer
                 position="top-center"
                 autoClose={toastContainerAutoCloseMs}
