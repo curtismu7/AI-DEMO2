@@ -22,8 +22,8 @@ function capByBytes<T>(items: T[], renderer: (t: T) => string): { kept: T[]; tru
 }
 
 export const logsTailSchema = z.object({
-  service: z.enum(LOG_SERVICES),
-  lines: z.number().int().min(1).max(500).default(100),
+  service: z.enum(LOG_SERVICES).describe("Which service log to tail"),
+  lines: z.number().int().min(1).max(500).default(100).describe("Number of lines to return (1–500, default 100)"),
 });
 
 export function logsTail(input: z.infer<typeof logsTailSchema>): {
@@ -39,11 +39,12 @@ export function logsTail(input: z.infer<typeof logsTailSchema>): {
 
 export const logsGrepSchema = z.object({
   pattern: z.string().min(1).describe("Literal substring or /regex/flags"),
-  services: z.array(z.enum(LOG_SERVICES)).optional(),
+  services: z.array(z.enum(LOG_SERVICES)).optional().describe("Services to search; omit to search all"),
   since: z
     .string()
     .regex(/^\d+(s|m|h|d)$/)
-    .default("5m"),
+    .default("5m")
+    .describe("How far back to search, e.g. 30s, 5m, 2h, 1d"),
 });
 
 function compilePattern(p: string): RegExp {
@@ -94,8 +95,8 @@ export function logsGrep(input: z.infer<typeof logsGrepSchema>): {
 }
 
 export const logsCorrelateSchema = z.object({
-  request_id: z.string().min(4),
-  services: z.array(z.enum(LOG_SERVICES)).optional(),
+  request_id: z.string().min(4).describe("Request ID or correlation token to search for across logs"),
+  services: z.array(z.enum(LOG_SERVICES)).optional().describe("Services to search; omit to search all"),
 });
 
 export function logsCorrelate(input: z.infer<typeof logsCorrelateSchema>): {
