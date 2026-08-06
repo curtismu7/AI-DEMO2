@@ -7,6 +7,7 @@ process.env.PINGONE_WEBHOOK_SECRET = 'test-secret-abc';
 
 const webhookRouter = require('../routes/webhookPingOne');
 const pingoneEventStore = require('../services/lmdb/pingoneEventStore.lmdb');
+const appEventService = require('../services/appEventService');
 
 afterEach(() => pingoneEventStore.clear());
 
@@ -15,9 +16,6 @@ function makeApp() {
   app.use('/webhook', express.json({
     verify: (req, _res, buf) => { req.rawBody = buf; },
   }));
-  const broadcasts = [];
-  app.locals.broadcast = (evt) => broadcasts.push(evt);
-  app._broadcasts = broadcasts;
   app.use('/webhook', webhookRouter);
   return app;
 }
@@ -84,15 +82,32 @@ test('missing type field returns 400', async () => {
   expect(res.body.error).toBe('invalid_event');
 });
 
-test('broadcast is called on valid event', async () => {
+test('appEventService.logEvent called on valid event', async () => {
   const app = makeApp();
   const body = JSON.stringify(VALID_EVENT);
   const sig = sign(body, 'test-secret-abc');
+  const logSpy = jest.spyOn(appEventService, 'logEvent').mockImplementation(() => {});
   await request(app)
     .post('/webhook/pingone')
     .set('Content-Type', 'application/json')
     .set('x-p1-signature', sig)
     .send(body);
-  expect(app._broadcasts.length).toBe(1);
-  expect(app._broadcasts[0].tag).toBe('pingone/event');
+  expect(logSpy).toHaveBeenCalledWith(
+    'pingone',
+    'info',
+    expect.stringContaining('AUTHENTICATION'),
+    expect.objectContaining({ tag: 'pingone/event' })
+  );
+  logSpy.mockRestore();
+});
+
+test('short HMAC (length mismatch) returns 401', async () => {
+  const app = makeApp();
+  const body = JSON.stringify(VALID_EVENT);
+  const res = await request(app)
+    .post('/webhook/pingone')
+    .set('Content-Type', 'application/json')
+    .set('x-p1-signature', 'deadbeef')
+    .send(body);
+  expect(res.status).toBe(401);
 });

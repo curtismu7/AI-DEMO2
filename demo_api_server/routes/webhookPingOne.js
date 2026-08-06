@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const express = require('express');
 const pingoneEventStore = require('../services/lmdb/pingoneEventStore.lmdb');
 const { forward } = require('../services/newRelicForwarder');
+const appEventService = require('../services/appEventService');
 
 const router = express.Router();
 
@@ -45,16 +46,19 @@ router.post('/pingone', (req, res) => {
   const mapped = _mapEvent(p1Event);
   const stored = pingoneEventStore.append(mapped);
   forward(stored).catch(() => {});
-  if (typeof req.app.locals.broadcast === 'function') {
-    req.app.locals.broadcast({
+  appEventService.logEvent('pingone', 'info',
+    `PingOne ${stored.eventType || 'event'}: ${stored.status || 'unknown'}`,
+    {
       tag: 'pingone/event',
-      eventType: stored.eventType,
-      actorId: stored.actorId,
-      status: stored.status,
-      timestamp: stored.timestamp,
-      eventId: stored.eventId,
-    });
-  }
+      metadata: {
+        eventId: stored.eventId,
+        eventType: stored.eventType,
+        actorId: stored.actorId,
+        status: stored.status,
+        timestamp: stored.timestamp,
+      },
+    }
+  );
   return res.status(200).json({ received: true, eventId: stored.eventId });
 });
 
