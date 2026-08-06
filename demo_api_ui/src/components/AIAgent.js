@@ -171,6 +171,7 @@ import {
 import {
   SessionExpiryTimer,
   ParamHintCopy,
+  ClarifyOptions,
   buildPingOneUserListMessage,
   verticalSuggestionChips,
   HitlChipMark,
@@ -5725,7 +5726,7 @@ export default function BankingAgent({
       if (!merged) {
         // Couldn't extract — re-ask once. After that, give up and let
         // the parser try a normal interpretation.
-        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
         setPendingClarification(pc);
         nlSendGuardRef.current.release();
         return;
@@ -5739,7 +5740,7 @@ export default function BankingAgent({
         if (!merged.toId) still.push('destination account (e.g. "to savings")');
         if (merged.amount == null) still.push('amount (e.g. "$100")');
         const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
-        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null });
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
         setPendingClarification({
           ...pc,
           partialParams: merged,
@@ -6401,20 +6402,16 @@ export default function BankingAgent({
         // this works for all verticals that use the account model — not just
         // banking. parseClarificationReply matches on account type, so we list
         // the distinct types (e.g. "Checking, Savings").
-        const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
         const acctTypes = [
           ...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean)),
         ];
-        const optionsHint = acctTypes.length
-          ? ` Options: ${acctTypes.map(cap).join(", ")}.`
-          : "";
         const questions = {
-          balance:  `Which ${termAccount} would you like to check the ${termBalance} for?${optionsHint}`,
-          deposit:  `How much would you like to deposit, and to which ${termAccount}?${optionsHint}`,
-          withdraw: `How much would you like to withdraw, and from which ${termAccount}?${optionsHint}`,
-          transfer: `Which ${termAccounts} would you like to ${termHighValue.toLowerCase()} between, and how much?${optionsHint}`,
+          balance:  `Which ${termAccount} would you like to check the ${termBalance} for?`,
+          deposit:  `How much would you like to deposit, and to which ${termAccount}?`,
+          withdraw: `How much would you like to withdraw, and from which ${termAccount}?`,
+          transfer: `Which ${termAccounts} would you like to ${termHighValue.toLowerCase()} between, and how much?`,
         };
-        addMessage("assistant", questions[action], null, { source: _source });
+        addMessage("assistant", questions[action], null, { source: _source, clarifyOptions: acctTypes });
         // Remember WHAT we asked so the next user message can fill the slot.
         // sendAsNl() inspects this on the next turn and skips re-parsing
         // when we already know the intent. We also remember any partial
@@ -6424,6 +6421,7 @@ export default function BankingAgent({
           action,
           partialParams: p || {},
           asked: questions[action],
+          clarifyOptions: acctTypes,
         });
       } else {
         await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
@@ -6478,6 +6476,15 @@ export default function BankingAgent({
         ingestActivity(response, nlUserText || result.action);
         if (response?.reply) {
           const paramHint = response.needsParams?.hint || null;
+          // Compute clarifyOptions once for both addMessage and setPendingClarification.
+          // Surfaces account/portfolio type buttons when the missing param is type-ish.
+          const typeParams = new Set(['accounttype', 'portfoliotype', 'accountid', 'fromid', 'toid']);
+          const hasTypeParam = response.needsParams?.missing?.some(
+            (k) => typeParams.has(String(k).toLowerCase()),
+          );
+          const needsClarifyOptions = hasTypeParam
+            ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
+            : null;
           // HITL/step-up blocks: don't echo the raw error_description as chat text —
           // it duplicates the approval modal opened below and reads as a canned
           // refusal ("no tool ran") rather than a pending-approval state.
@@ -6499,7 +6506,7 @@ export default function BankingAgent({
           const replyWithAgentBadge = isHitlBlock
             ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
             : `[CUSTOMER AGENT - LangGraph]\n${failureSentence || response.reply}`;
-          addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
+          addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint, clarifyOptions: needsClarifyOptions });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
           if (response.education?.panel) {
@@ -6562,6 +6569,7 @@ export default function BankingAgent({
               partialParams: result.params || {},
               asked: response.reply,
               hint: paramHint,
+              clarifyOptions: needsClarifyOptions,
             });
           }
           return;
@@ -7197,7 +7205,7 @@ export default function BankingAgent({
       );
       if (!merged) {
         // Couldn't extract — re-ask once, then let a normal interpretation try.
-        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
         setPendingClarification(pc);
         return;
       }
@@ -7210,7 +7218,7 @@ export default function BankingAgent({
         if (!merged.toId) still.push('destination account (e.g. "to savings")');
         if (merged.amount == null) still.push('amount (e.g. "$100")');
         const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
-        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null });
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
         setPendingClarification({
           ...pc,
           partialParams: merged,
@@ -10580,6 +10588,13 @@ export default function BankingAgent({
                               refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
                             />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
+                            {msg.clarifyOptions && msg.clarifyOptions.length > 0 && (
+                              <ClarifyOptions
+                                options={msg.clarifyOptions}
+                                active={pendingClarification != null && msg.id === messages[messages.length - 1]?.id}
+                                onSelect={(opt) => sendAsNl(opt)}
+                              />
+                            )}
                             {msg.verticalResult && (
                               <VerticalResult
                                 descriptor={msg.verticalResult.descriptor}
