@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { notifyError } from '../utils/appToast';
 
 const WORKER_FIELDS = [
   { key: 'pingone_environment_id',    label: 'Environment ID',             secret: false, placeholder: 'PingOne Environment UUID' },
@@ -85,10 +86,10 @@ export default function WorkerAppConfigTab() {
         // Private key is now saved server-side — reflect it locally
         setValues(v => ({ ...v, pingone_mgmt_private_key: '(generated — stored server-side)' }));
       } else {
-        alert(`Key generation failed: ${data.error || 'unknown error'}`);
+        notifyError(`Key generation failed: ${data.error || 'unknown error'}`);
       }
     } catch (err) {
-      alert(`Key generation failed: ${err.message}`);
+      notifyError(`Key generation failed: ${err.message}`);
     } finally {
       setGenerating(false);
     }

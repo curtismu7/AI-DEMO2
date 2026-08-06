@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
+import { notifyError } from '../utils/appToast';
 
 const PAGE = { maxWidth: '860px', margin: '0 auto', padding: '32px 24px' };
 const BACK = { background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: '14px', marginBottom: '20px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: 0 };
@@ -167,7 +168,7 @@ export default function UserDetailPage() {
       await bffAxios.delete(`/api/auth/mfa/devices/${deviceId}`);
       loadDevices();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove device');
+      notifyError(err.response?.data?.message || 'Failed to remove device');
     }
   };
 
