@@ -181,8 +181,8 @@ export default function CodeSearchAsk({ codebaseId }) {
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="ask-sources">
                       <h4>Sources</h4>
-                      {msg.sources.map((s, i) => (
-                        <div key={i} className="ask-source">
+                      {msg.sources.map((s) => (
+                        <div key={`${s.file}:${s.line_start}`} className="ask-source">
                           <code>
                             {s.file}:{s.line_start}-{s.line_end}
                           </code>

@@ -489,5 +489,4 @@ module.exports = {
   // exported for unit tests
   buildA2aEvent,
   countActDepth,
-  deriveSpecialistScopes,
 };
