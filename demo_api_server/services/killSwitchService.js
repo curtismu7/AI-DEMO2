@@ -118,27 +118,27 @@ async function disableAgentApplicationsAtPingOne() {
     return [];
   }
 
-  const results = [];
-  for (const app of apps) {
-    try {
-      pingOneUserService.initialize();
-      const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
-      if (current.enabled === false) {
-        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already disabled`);
-        results.push({ key: app.key, applicationId: app.id, disabled: true, reason: 'already_disabled' });
-        continue;
+  const results = await Promise.all(
+    apps.map(async (app) => {
+      try {
+        pingOneUserService.initialize();
+        const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
+        if (current.enabled === false) {
+          console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already disabled`);
+          return { key: app.key, applicationId: app.id, disabled: true, reason: 'already_disabled' };
+        }
+        const body = { ...current, enabled: false };
+        for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
+        await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
+        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) disabled — no new agent tokens can be issued`);
+        return { key: app.key, applicationId: app.id, disabled: true };
+      } catch (err) {
+        // Non-fatal: token revocation + user disable still apply
+        console.error(`[killSwitch] Failed to disable PingOne application ${app.id} (${app.key}):`, err.message);
+        return { key: app.key, applicationId: app.id, disabled: false, reason: err.message };
       }
-      const body = { ...current, enabled: false };
-      for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
-      await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
-      console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) disabled — no new agent tokens can be issued`);
-      results.push({ key: app.key, applicationId: app.id, disabled: true });
-    } catch (err) {
-      // Non-fatal: token revocation + user disable still apply
-      console.error(`[killSwitch] Failed to disable PingOne application ${app.id} (${app.key}):`, err.message);
-      results.push({ key: app.key, applicationId: app.id, disabled: false, reason: err.message });
-    }
-  }
+    })
+  );
   return results;
 }
 
@@ -161,26 +161,26 @@ async function enableAgentApplicationsAtPingOne() {
     return [];
   }
 
-  const results = [];
-  for (const app of apps) {
-    try {
-      pingOneUserService.initialize();
-      const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
-      if (current.enabled === true) {
-        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already enabled`);
-        results.push({ key: app.key, applicationId: app.id, enabled: true, reason: 'already_enabled' });
-        continue;
+  const results = await Promise.all(
+    apps.map(async (app) => {
+      try {
+        pingOneUserService.initialize();
+        const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
+        if (current.enabled === true) {
+          console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already enabled`);
+          return { key: app.key, applicationId: app.id, enabled: true, reason: 'already_enabled' };
+        }
+        const body = { ...current, enabled: true };
+        for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
+        await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
+        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) re-enabled`);
+        return { key: app.key, applicationId: app.id, enabled: true };
+      } catch (err) {
+        console.error(`[killSwitch] Failed to re-enable PingOne application ${app.id} (${app.key}):`, err.message);
+        return { key: app.key, applicationId: app.id, enabled: false, reason: err.message };
       }
-      const body = { ...current, enabled: true };
-      for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
-      await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
-      console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) re-enabled`);
-      results.push({ key: app.key, applicationId: app.id, enabled: true });
-    } catch (err) {
-      console.error(`[killSwitch] Failed to re-enable PingOne application ${app.id} (${app.key}):`, err.message);
-      results.push({ key: app.key, applicationId: app.id, enabled: false, reason: err.message });
-    }
-  }
+    })
+  );
   return results;
 }
 
