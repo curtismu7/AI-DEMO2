@@ -1121,7 +1121,7 @@ router.post('/pre-flight', authenticateToken, express.json(), async (req, res) =
     return res.json(result);
   } catch (err) {
     console.error('[authorize/pre-flight] Unexpected error for tool=%s: %s', tool, err.message);
-    return res.status(500).json({ error: 'preflight_error', message: err.message });
+    return res.status(500).json({ error: 'preflight_error' });
   }
 });
 
@@ -1169,7 +1169,7 @@ router.post('/pre-flight-bulk', authenticateToken, express.json(), async (req, r
     return res.json(result);
   } catch (err) {
     console.error('[authorize/pre-flight-bulk] Unexpected error: %s', err.message);
-    return res.status(500).json({ error: 'preflight_bulk_error', message: err.message });
+    return res.status(500).json({ error: 'preflight_bulk_error' });
   }
 });
 
