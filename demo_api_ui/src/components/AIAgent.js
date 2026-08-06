@@ -48,6 +48,7 @@ import {
   warmupAuthz,
 } from "../services/demoAgentService";
 import bffAxios from "../services/bffAxios";
+import { nrLog } from "../utils/nrLog";
 import { getCachedStatus } from "../services/cachedStatusService";
 import { loadPublicConfig } from "../services/configService";
 import { spinner } from "../services/spinnerService";
@@ -5646,6 +5647,7 @@ export default function BankingAgent({
   }
 
   function sendAsNlInner(text, useCaseId) {
+    nrLog('ui.agent_message', { useCaseId: useCaseId || null, length: text ? text.length : 0 });
     // A typed message is a new turn: start a fresh token-chain trace with the
     // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
     // the prompt step lights up (demoAgentService's chip path only begins a
