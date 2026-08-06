@@ -22,6 +22,7 @@ jest.mock('../services/delegationService', () => ({
 jest.mock('../services/pingOneUserService', () => ({
   initialize: jest.fn(),
   setMayActAttribute: jest.fn(),
+  clearMayActIfMatches: jest.fn(),
 }));
 
 const delegatedCommerceService = require('../services/delegatedCommerceService');
@@ -33,6 +34,7 @@ const pingOneUserService = require('../services/pingOneUserService');
 
 beforeEach(() => {
   jest.clearAllMocks();
+  pingOneUserService.clearMayActIfMatches.mockResolvedValue(true);
 });
 
 it('clears customer authorization before deleting a claimed demo application', async () => {
@@ -49,8 +51,27 @@ it('clears customer authorization before deleting a claimed demo application', a
 
   await delegatedCommerceService.cleanup('reg-1', 'admin-1');
 
-  expect(pingOneUserService.setMayActAttribute).toHaveBeenCalledWith('user-1', null);
+  expect(pingOneUserService.clearMayActIfMatches).toHaveBeenCalledWith('user-1', 'agent-new');
+  expect(pingOneUserService.setMayActAttribute).not.toHaveBeenCalledWith('user-1', null);
   expect(delegationService.revokeDelegation).toHaveBeenCalledWith('delegation-1', 'user-1');
   expect(pingOneClientService.deleteApplication).toHaveBeenCalledWith('agent-new');
   expect(store.remove).toHaveBeenCalledWith('reg-1');
+});
+
+it('does not wipe mayAct when cleanup targets an older registration than the current agent', async () => {
+  store.get.mockReturnValue({
+    id: 'reg-old',
+    applicationId: 'agent-old',
+    marker: 'A&F delegated-commerce demo',
+    creatorUserId: 'admin-1',
+    claimedByUserId: 'user-1',
+  });
+  pingOneUserService.clearMayActIfMatches.mockResolvedValue(false);
+  delegationStore.findActiveByActorAndGrantor.mockReturnValue(null);
+
+  await delegatedCommerceService.cleanup('reg-old', 'admin-1');
+
+  expect(pingOneUserService.clearMayActIfMatches).toHaveBeenCalledWith('user-1', 'agent-old');
+  expect(pingOneUserService.setMayActAttribute).not.toHaveBeenCalled();
+  expect(pingOneClientService.deleteApplication).toHaveBeenCalledWith('agent-old');
 });
