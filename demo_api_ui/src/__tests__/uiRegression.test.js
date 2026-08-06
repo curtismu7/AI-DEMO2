@@ -304,7 +304,8 @@ describe("CSS/JS monospace regression", () => {
         f.includes("TokenFlowDetailModal.css") ||        // token claim/JSON code display (intentional)
         f.includes("LiveUseCaseWorkbenchPage.css") ||    // workbench log/tool code display (intentional)
         f.includes("ResourceServerJourneyPage.css") ||   // journey token/code display (intentional)
-        f.includes("agent-clinical/TokensPane.css")      // token claim/badge value display (intentional)
+        f.includes("agent-clinical/TokensPane.css") ||   // token claim/badge value display (intentional)
+        f.includes("PingOneEventPanel.css")              // PingOne event JSON detail display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");
