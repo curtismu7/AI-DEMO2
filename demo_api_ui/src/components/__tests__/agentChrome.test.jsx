@@ -68,6 +68,23 @@ describe('ClarifyOptions — amountOptions', () => {
     expect(onSelect).toHaveBeenCalledWith('$500');
   });
 
+  it('calls onSelect with "$1000" (no locale commas) when $1,000 clicked', () => {
+    // Regression: locale-formatted "$1,000" truncated to $1 in parseClarificationReply.
+    const onSelect = vi.fn();
+    render(
+      <ClarifyOptions
+        options={[]}
+        amountOptions={[1000, 2500]}
+        onSelect={onSelect}
+        active={true}
+      />
+    );
+    fireEvent.click(screen.getByText('$1,000'));
+    expect(onSelect).toHaveBeenCalledWith('$1000');
+    fireEvent.click(screen.getByText('$2,500'));
+    expect(onSelect).toHaveBeenCalledWith('$2500');
+  });
+
   it('disables amount buttons when active=false', () => {
     render(
       <ClarifyOptions
