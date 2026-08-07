@@ -288,6 +288,7 @@ async function handleMessage(
       inputSchema: t.inputSchema,
       requiredScopes: t.requiredScopes,
       readOnly: t.readOnly,
+      ...(t.intentHints ? { intentHints: t.intentHints } : {}),
     }));
     send(rpcResult(id, { tools }));
     return;
