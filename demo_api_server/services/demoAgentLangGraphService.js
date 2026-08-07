@@ -1335,10 +1335,23 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
     // Look up the example hint from the active vertical plugin's heuristics.
     const heuristics = plugin ? plugin.getHeuristics() : [];
     const paramHint = heuristics.find((h) => h.action === action)?.paramHint || null;
+    // Extract enum choices for missing params that define them.
+    const choices = {};
+    missing.forEach((k) => {
+      const prop = toolDef && toolDef.inputSchema && toolDef.inputSchema.properties && toolDef.inputSchema.properties[k];
+      if (prop && Array.isArray(prop.enum)) {
+        choices[k] = prop.enum;
+      }
+    });
     return {
       reply: `To ${String(action).replace(/_/g, ' ')}, I need: ${missingLabels.join(', ')}. Please provide ${missing.length > 1 ? 'these details' : 'this detail'}.`,
       success: false,
-      needsParams: { action, missing, hint: paramHint },
+      needsParams: {
+        action,
+        missing,
+        hint: paramHint,
+        ...(Object.keys(choices).length > 0 ? { choices } : {}),
+      },
       toolsCalled: [],
       tokensUsed: 0,
       requiresConsent: false,

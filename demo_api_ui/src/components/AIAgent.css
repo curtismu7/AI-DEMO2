@@ -1611,11 +1611,17 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Clarification option buttons — appear below the agent question bubble */
+@keyframes clarify-fadein {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .clarify-options {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+  animation: clarify-fadein 0.15s ease-out both;
 }
 
 .clarify-options__btn {
@@ -1638,6 +1644,48 @@ body > .banking-agent-float-root .banking-agent-panel {
 .clarify-options__btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Amount quick-pick row — rendered below account option buttons */
+.clarify-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  animation: clarify-fadein 0.15s ease-out 0.05s both;
+}
+
+.clarify-amounts__btn {
+  padding: 3px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(80, 200, 120, 0.4);
+  background: rgba(80, 200, 120, 0.1);
+  color: #1a7a3c;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: monospace;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.clarify-amounts__btn:hover:not(:disabled) {
+  background: rgba(80, 200, 120, 0.2);
+  border-color: rgba(80, 200, 120, 0.65);
+}
+
+.clarify-amounts__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ba-mode-light .clarify-amounts__btn {
+  border-color: rgba(22, 101, 52, 0.35);
+  background: rgba(22, 101, 52, 0.06);
+  color: #14532d;
+}
+
+.ba-mode-light .clarify-amounts__btn:hover:not(:disabled) {
+  background: rgba(22, 101, 52, 0.12);
 }
 
 .ba-mode-light .clarify-options__btn {
