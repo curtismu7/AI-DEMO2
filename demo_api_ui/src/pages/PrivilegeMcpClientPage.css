@@ -123,10 +123,33 @@
 /* Sidebar */
 .cur-sidebar {
   width: 280px;
+  min-width: 180px;
   background: #1e1e1e;
-  border-right: 1px solid #2b2b2b;
+  border-right: none;
   overflow-y: auto;
+  overflow-x: hidden;
   flex-shrink: 0;
+}
+
+/* Drag handles */
+.cur-resize-handle {
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.cur-resize-handle:hover,
+.cur-resize-handle:active { background: #007acc; }
+.cur-resize-handle--v {
+  width: 4px;
+  cursor: col-resize;
+  border-right: 1px solid #2b2b2b;
+}
+.cur-resize-handle--h {
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+  border-top: 1px solid #2b2b2b;
 }
 
 .cur-sidebar-header {
@@ -312,7 +335,7 @@ select.cur-input { cursor: pointer; }
 
 .cur-tool-desc {
   font-size: 11px;
-  color: #666;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -502,6 +525,34 @@ select.cur-input { cursor: pointer; }
 
 .cur-result-block {
   margin-top: 16px;
+}
+
+.cur-tool-detail {
+  background: #252526;
+  border: 1px solid #2b2b2b;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+.cur-tool-detail-section {
+  margin-bottom: 10px;
+}
+.cur-tool-detail-section:last-child { margin-bottom: 0; }
+.cur-tool-detail-desc {
+  margin: 4px 0 0;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cur-code-output--schema {
+  max-height: 200px;
+  overflow-y: auto;
+  color: #ce9178;
+}
+.cur-tool-search {
+  padding: 4px 8px;
+  height: 26px;
+  font-size: 11px;
 }
 
 .cur-result-label {
