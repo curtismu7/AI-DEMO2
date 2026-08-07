@@ -124,4 +124,18 @@ describe('ClarifyOptions — keyboard nav', () => {
     fireEvent.keyDown(btn, { key: 'Escape' });
     expect(onDismiss).toHaveBeenCalled();
   });
+
+  it('calls onSelect with correct value on Enter', () => {
+    const onSelect = vi.fn();
+    render(
+      <ClarifyOptions
+        options={['Checking', 'Savings']}
+        onSelect={onSelect}
+        active={true}
+      />
+    );
+    const btns = screen.getAllByRole('option');
+    fireEvent.keyDown(btns[1], { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith('savings');
+  });
 });

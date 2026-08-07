@@ -122,6 +122,9 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
       e.preventDefault();
       const prev = (idx - 1 + btns.length) % btns.length;
       btns[prev]?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.currentTarget.click();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onDismiss?.();
