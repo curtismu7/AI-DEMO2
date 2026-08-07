@@ -6504,12 +6504,16 @@ export default function BankingAgent({
           // Compute clarifyOptions once for both addMessage and setPendingClarification.
           // Surfaces account/portfolio type buttons when the missing param is type-ish.
           const typeParams = new Set(['accounttype', 'portfoliotype', 'accountid', 'fromid', 'toid']);
+          const firstMissing = response.needsParams?.missing?.[0];
+          const enumChoices = firstMissing && response.needsParams?.choices?.[firstMissing];
           const hasTypeParam = response.needsParams?.missing?.some(
             (k) => typeParams.has(String(k).toLowerCase()),
           );
-          const needsClarifyOptions = hasTypeParam
-            ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
-            : null;
+          const needsClarifyOptions = enumChoices
+            ? enumChoices
+            : hasTypeParam
+              ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
+              : null;
           // HITL/step-up blocks: don't echo the raw error_description as chat text —
           // it duplicates the approval modal opened below and reads as a canned
           // refusal ("no tool ran") rather than a pending-approval state.
