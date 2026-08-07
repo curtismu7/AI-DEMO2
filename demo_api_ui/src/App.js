@@ -482,8 +482,9 @@ function AppWithAuth() {
               )}
               {/* Auth check in flight — every route below renders null until `loading`
                   resolves, which left a blank content area under the side nav/dock.
-                  Show a branded loading card in that same slot instead. */}
-              {loading && (
+                  Show a branded loading card in that same slot instead.
+                  Skip on / and /dashboard — those routes render immediately for guests. */}
+              {loading && pathname !== "/" && pathname !== "/dashboard" && (
                 <main className="main-content main-content--auth-loading">
                   <div className="auth-loading-card">
                     <div className="auth-loading-dots">
@@ -919,14 +920,15 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage */}
+                {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage.
+                    No loading guard — DashboardContent handles user=null with demo data immediately. */}
                 <Route
                   path="/dashboard"
                   element={
                     <>
                       <TopNav user={user} onLogout={logout} />
                       <main className="main-content">
-                        {loading ? null : user?.role === "admin" ? (
+                        {user?.role === "admin" ? (
                           <AdminBlockedDashboard user={user} onLogout={logout} />
                         ) : (
                           <DashboardContent user={user} logout={logout} />
