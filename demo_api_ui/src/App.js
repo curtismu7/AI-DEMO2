@@ -433,7 +433,7 @@ function AppWithAuth() {
   if (clinicalSplit) {
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   } else if (hasEmbeddedDockLayout) {
-    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true };
+    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true, splitColumnChrome: true };
   } else if (onMiddlePlacementInDashboard) {
     // Middle column owns the agent surface — render inline so the floating
     // dock chrome doesn't appear inside the column. Same pattern as the
