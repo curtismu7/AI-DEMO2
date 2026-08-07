@@ -80,3 +80,48 @@ describe('ClarifyOptions — amountOptions', () => {
     expect(screen.getByRole('option', { name: '$100' })).toBeDisabled();
   });
 });
+
+describe('ClarifyOptions — keyboard nav', () => {
+  it('moves focus right on ArrowRight', () => {
+    render(
+      <ClarifyOptions
+        options={['Checking', 'Savings']}
+        onSelect={() => {}}
+        active={true}
+      />
+    );
+    const btns = screen.getAllByRole('option');
+    btns[0].focus();
+    fireEvent.keyDown(btns[0], { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(btns[1]);
+  });
+
+  it('wraps from last to first on ArrowRight', () => {
+    render(
+      <ClarifyOptions
+        options={['A', 'B']}
+        onSelect={() => {}}
+        active={true}
+      />
+    );
+    const btns = screen.getAllByRole('option');
+    btns[1].focus();
+    fireEvent.keyDown(btns[1], { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(btns[0]);
+  });
+
+  it('calls onDismiss on Escape', () => {
+    const onDismiss = vi.fn();
+    render(
+      <ClarifyOptions
+        options={['A']}
+        onSelect={() => {}}
+        active={true}
+        onDismiss={onDismiss}
+      />
+    );
+    const btn = screen.getByRole('option', { name: 'A' });
+    fireEvent.keyDown(btn, { key: 'Escape' });
+    expect(onDismiss).toHaveBeenCalled();
+  });
+});

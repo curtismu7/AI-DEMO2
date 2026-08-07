@@ -108,8 +108,28 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
     return `$${Number(n).toLocaleString('en-US')}`;
   }
 
+  function handleKeyDown(e) {
+    const container = e.currentTarget.closest('.clarify-options-wrapper');
+    const btns = container
+      ? Array.from(container.querySelectorAll('button:not(:disabled)'))
+      : [];
+    const idx = btns.indexOf(e.currentTarget);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = (idx + 1) % btns.length;
+      btns[next]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = (idx - 1 + btns.length) % btns.length;
+      btns[prev]?.focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onDismiss?.();
+    }
+  }
+
   return (
-    <div>
+    <div className="clarify-options-wrapper">
       {options && options.length > 0 && (
         <div className="clarify-options" role="listbox">
           {options.map((opt) => {
@@ -124,6 +144,7 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
                 className="clarify-options__btn"
                 disabled={!active}
                 onClick={() => active && onSelect(value)}
+                onKeyDown={handleKeyDown}
               >
                 {label}
               </button>
@@ -142,6 +163,7 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
               className="clarify-amounts__btn"
               disabled={!active}
               onClick={() => active && onSelect(fmtAmount(amt))}
+              onKeyDown={handleKeyDown}
             >
               {fmtAmount(amt)}
             </button>
