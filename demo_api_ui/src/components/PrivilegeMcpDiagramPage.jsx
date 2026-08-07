@@ -79,39 +79,40 @@ const SEQUENCE_SOURCE = `sequenceDiagram
     B-->>P: result or error`;
 
 const AUTH_FLOW_SOURCE = `flowchart LR
-    A([Browser loads\\n/privilege-mcp-client]) --> B[GET /api/privilege-mcp/state]
-    B --> C{Authenticated?}
+    A([Browser /privilege-mcp-client]) --> B[GET /api/privilege-mcp/state]
+    B --> C{oauth.accessToken\\nin session?}
 
-    C -- No --> D[User clicks\\nSign In with Privilege]
+    C -- No --> D[User clicks Sign In]
     D --> E[POST /api/privilege-mcp/auth/start]
-    E --> F[BFF: discover OAuth endpoints\\nvia PRIVILEGE_SSO_ENV_ID\\nor MCP URL WWW-Authenticate]
-    F --> G[Generate PKCE\\nverifier + challenge]
-    G --> H[Return authUrl to browser]
-    H --> I[Browser redirects to\\nauth.pingone.com/01d89b06/as/authorize\\nclient_id=6586d3de]
-    I --> J[User authenticates\\nwith PingOne]
-    J --> K[PingOne redirects to\\n/api/privilege-mcp/auth/callback\\n?code=...&state=...]
-    K --> L[BFF: exchange code + PKCE verifier\\nPOST auth.pingone.com/01d89b06/as/token\\nclient_id=6586d3de + client_secret\\ncode_verifier=...]
-    L --> M{Token\\nexchange OK?}
-    M -- 401 --> N[❌ Auth failed]
-    M -- 200 --> O[BFF stores access_token\\n+ refresh_token in memory]
-    O --> P[Redirect to\\n/privilege-mcp-client?auth=success]
+    E --> F{MCP URL responds\\nwith WWW-Authenticate?}
+    F -- Yes --> G[Use authorization_uri\\n+ token_uri from header]
+    F -- No --> H[PingOne OIDC fallback\\nauth.pingone.com/PRIVILEGE_SSO_ENV_ID/as\\n.well-known/openid-configuration]
+    G --> I[Generate PKCE\\nverifier SHA-256 challenge S256\\n+ random state]
+    H --> I
+    I --> J[Redirect browser to\\nauthorize?client_id=PRIVILEGE_SSO_CLIENT_ID\\n&code_challenge=...&state=...]
+    J --> K[User signs in at PingOne]
+    K --> L[PingOne redirects to\\n/api/privilege-mcp/auth/callback\\n?code=...&state=...]
+    L --> M[BFF verifies state\\nPOST token_uri\\ngrant_type=authorization_code\\nclient_id + client_secret POST\\ncode + code_verifier]
+    M --> N{200?}
+    N -- 401 invalid_client --> O[❌ Wrong secret or\\nclient not SECRET_POST]
+    N -- 200 --> P[Store access_token\\nrefresh_token + expiresAt\\nin clientSessions map]
+    P --> Q[Redirect to\\n/privilege-mcp-client?auth=success]
 
-    C -- Yes --> Q
-    P --> Q[UI: Authenticated\\nshows Retry Tools button]
+    C -- Yes --> R
     Q --> R[POST /api/privilege-mcp/tools/list]
-    R --> S[BFF: POST PRIVILEGE_MCPGW_URL\\nAuthorization: Bearer access_token]
+    R --> S{Token expiring\\nwithin 60s?}
+    S -- Yes --> T[POST token_uri\\ngrant_type=refresh_token\\nclient_id + client_secret]
+    T --> R
+    S -- No --> U[POST PRIVILEGE_MCPGW_URL\\nAuthorization: Bearer access_token\\nmcp-protocol-version header\\nMCP-Session-Id header if set]
+    U --> V[initialize handshake\\nif not yet done]
+    V --> W[tools/list]
+    W --> X[mcp-server:8080\\nMCP_AUTH_DISABLED=true\\nreturns stub token\\nskips all auth checks]
+    X --> Y[✅ Tools returned to UI]
 
-    S --> T{MCP URL target?}
-    T -- Privilege Cloud :8643 --> U[Privilege Cloud validates Bearer\\nroutes via ping-mcpgw gRPC\\nto Privilege Cloud backend]
-    T -- Local mcp-server:8080 --> V[mcp-server\\nMCP_AUTH_DISABLED=true\\nskips bearer check\\nreturns tools]
-
-    U --> W[Tools returned to BFF]
-    V --> W
-    W --> X[UI renders tool list]
-
-    style N fill:#c0392b,color:#fff
-    style O fill:#1e8449,color:#fff
-    style V fill:#7d6608,color:#fff`;
+    style O fill:#c0392b,color:#fff
+    style P fill:#1e8449,color:#fff
+    style X fill:#1a5276,color:#fff
+    style Y fill:#1e8449,color:#fff`;
 
 const TABS = [
   { id: "arch", label: "Architecture", source: ARCHITECTURE_SOURCE, filename: "privilege-mcp-architecture.mmd" },

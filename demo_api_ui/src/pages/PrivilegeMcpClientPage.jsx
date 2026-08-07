@@ -57,11 +57,41 @@ export default function PrivilegeMcpClientPage() {
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
   const [terminalTab, setTerminalTab] = useState('events');
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const terminalRef = useRef(null);
+  const bodyRef = useRef(null);
+
+  const startSidebarDrag = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sidebarRef.current.offsetWidth;
+    const onMove = (ev) => {
+      const next = Math.max(180, Math.min(600, startW + ev.clientX - startX));
+      sidebarRef.current.style.width = `${next}px`;
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const startTerminalDrag = (e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = terminalRef.current.offsetHeight;
+    const onMove = (ev) => {
+      const next = Math.max(80, Math.min(500, startH - (ev.clientY - startY)));
+      terminalRef.current.style.height = `${next}px`;
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   // Scroll the message list itself, never the window: scrollIntoView() walked up
   // to the document and pushed the title bar (and its Skin picker) off-screen on
@@ -476,7 +506,7 @@ export default function PrivilegeMcpClientPage() {
         </div>
       </header>
 
-      <div className="cur-body">
+      <div className="cur-body" ref={bodyRef}>
         {/* Activity bar */}
         <nav className="cur-activity-bar">
           <button className={`cur-act-btn ${activeTab === 'chat' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('chat')} title="Agent Chat">
@@ -491,7 +521,7 @@ export default function PrivilegeMcpClientPage() {
         </nav>
 
         {/* Sidebar */}
-        <aside className="cur-sidebar">
+        <aside className="cur-sidebar" ref={sidebarRef}>
           <div className="cur-sidebar-header">
             <span className="cur-sidebar-title">CONNECTION</span>
           </div>
@@ -540,24 +570,39 @@ export default function PrivilegeMcpClientPage() {
               <span className="cur-sidebar-title">MCP TOOLS</span>
               <span className="cur-scope-count">{tools.length}</span>
             </div>
-            {tools.length > 0 ? (
-              <div className="cur-tools-list">
-                {tools.map((t) => (
-                  <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
-                    <span className="cur-tool-icon">fn</span>
-                    <div className="cur-tool-info">
-                      <span className="cur-tool-name">{t.name}</span>
-                      {t.description && <span className="cur-tool-desc">{truncate(t.description, 60)}</span>}
+            {tools.length > 0 && (
+              <input
+                className="cur-input cur-tool-search"
+                placeholder="Filter tools..."
+                value={toolSearch}
+                onChange={(e) => setToolSearch(e.target.value)}
+                style={{ margin: '4px 8px', width: 'calc(100% - 16px)', fontSize: 11 }}
+              />
+            )}
+            {tools.length > 0 ? (() => {
+              const q = toolSearch.trim().toLowerCase();
+              const filtered = q ? tools.filter((t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q)) : tools;
+              return filtered.length > 0 ? (
+                <div className="cur-tools-list">
+                  {filtered.map((t) => (
+                    <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
+                      <span className="cur-tool-icon">fn</span>
+                      <div className="cur-tool-info">
+                        <span className="cur-tool-name">{t.name}</span>
+                        {t.description && <span className="cur-tool-desc">{truncate(t.description, 60)}</span>}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+                  ))}
+                </div>
+              ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
+            })() : (
               <div className="cur-empty-state">No tools discovered yet</div>
             )}
             <button className="cur-btn cur-btn--primary cur-btn--refresh" onClick={() => refreshTools(false)}>Refresh Tools</button>
           </div>
         </aside>
+
+        <div className="cur-resize-handle cur-resize-handle--v" onMouseDown={startSidebarDrag} />
 
         {/* Main editor area */}
         <main className="cur-main">
@@ -615,29 +660,54 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'tools' && (
-              <div className="cur-tools-panel">
-                <div className="cur-tools-header"><h3>Direct Tool Call</h3></div>
-                <label className="cur-field">
-                  <span className="cur-field-label">Tool</span>
-                  <select className="cur-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-                    <option value="">Select a tool...</option>
-                    {tools.map((t) => <option key={t.name} value={t.name}>{t.name} — {truncate(t.description || '', 60)}</option>)}
-                  </select>
-                </label>
-                <label className="cur-field">
-                  <span className="cur-field-label">Arguments (JSON)</span>
-                  <textarea className="cur-input cur-input--code" rows={5} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
-                </label>
-                <button className="cur-btn cur-btn--primary" onClick={callTool} disabled={!selectedTool}>Execute Tool</button>
-                {toolResult && (
-                  <div className="cur-result-block">
-                    <span className="cur-result-label">Result</span>
-                    <pre className="cur-code-output">{toolResult}</pre>
-                  </div>
-                )}
-              </div>
-            )}
+            {activeTab === 'tools' && (() => {
+              const activeTool = tools.find((t) => t.name === selectedTool);
+              return (
+                <div className="cur-tools-panel">
+                  <div className="cur-tools-header"><h3>Direct Tool Call</h3></div>
+                  <label className="cur-field">
+                    <span className="cur-field-label">Tool</span>
+                    <select className="cur-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
+                      <option value="">Select a tool...</option>
+                      {tools.map((t) => <option key={t.name} value={t.name}>{t.name}{t.description ? ` — ${truncate(t.description, 60)}` : ''}</option>)}
+                    </select>
+                  </label>
+                  {activeTool && (
+                    <div className="cur-tool-detail">
+                      {activeTool.description && (
+                        <div className="cur-tool-detail-section">
+                          <span className="cur-field-label">Description</span>
+                          <p className="cur-tool-detail-desc">{activeTool.description}</p>
+                        </div>
+                      )}
+                      {activeTool.inputSchema && (
+                        <div className="cur-tool-detail-section">
+                          <span className="cur-field-label">Input Schema</span>
+                          <pre className="cur-code-output cur-code-output--schema">{JSON.stringify(activeTool.inputSchema, null, 2)}</pre>
+                        </div>
+                      )}
+                      {activeTool.resources && activeTool.resources.length > 0 && (
+                        <div className="cur-tool-detail-section">
+                          <span className="cur-field-label">Resources</span>
+                          <pre className="cur-code-output cur-code-output--schema">{JSON.stringify(activeTool.resources, null, 2)}</pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <label className="cur-field">
+                    <span className="cur-field-label">Arguments (JSON)</span>
+                    <textarea className="cur-input cur-input--code" rows={5} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
+                  </label>
+                  <button className="cur-btn cur-btn--primary" onClick={callTool} disabled={!selectedTool}>Execute Tool</button>
+                  {toolResult && (
+                    <div className="cur-result-block">
+                      <span className="cur-result-label">Result</span>
+                      <pre className="cur-code-output">{toolResult}</pre>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {activeTab === 'rpc' && (
               <div className="cur-rpc-panel">
@@ -658,7 +728,8 @@ export default function PrivilegeMcpClientPage() {
           </div>
 
           {/* Terminal panel */}
-          <div className="cur-terminal">
+          <div className="cur-resize-handle cur-resize-handle--h" onMouseDown={startTerminalDrag} />
+          <div className="cur-terminal" ref={terminalRef}>
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
               <button className={`cur-terminal-tab ${terminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
