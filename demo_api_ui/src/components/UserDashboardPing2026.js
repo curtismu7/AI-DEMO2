@@ -3467,6 +3467,21 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="main-content--auth-loading">
+        <div className="auth-loading-card">
+          <div className="auth-loading-dots">
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+          </div>
+          <div className="auth-loading-title">Loading your dashboard</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`customer-skin-p1 user-dashboard user-dashboard--2026${

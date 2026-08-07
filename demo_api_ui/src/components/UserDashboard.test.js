@@ -143,11 +143,13 @@ function renderDashboard(user = mockUser) {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("UserDashboard", () => {
-  it("renders the user-dashboard wrapper div", () => {
+  it("renders the user-dashboard wrapper div", async () => {
     const { container } = renderDashboard();
 
-    const wrapperDiv = container.querySelector(".user-dashboard");
-    expect(wrapperDiv).not.toBeNull();
+    // loading=true on mount shows spinner; wait for fetchUserData to complete
+    await waitFor(() =>
+      expect(container.querySelector(".user-dashboard")).not.toBeNull()
+    );
   });
 
   it("does not crash when user prop is null", () => {
