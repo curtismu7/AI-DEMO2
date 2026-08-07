@@ -907,6 +907,32 @@ function resolveActiveVerticalCtx(req = null) {
   return resolveVerticalCtx(sessionVerticalId(req) || "banking");
 }
 
+/**
+ * intentHints fallback — only called when no heuristic matched (kind:'none' path).
+ * First match wins at confidence 0.7; only fires when a hint phrase is a substring
+ * of the normalized message.
+ * @returns {object|null}
+ */
+function tryIntentHints(message, verticalCtx, vertical) {
+  if (!verticalCtx?.tools || !Array.isArray(verticalCtx.tools)) return null;
+  const tNorm = norm(message);
+  for (const tool of verticalCtx.tools) {
+    if (!Array.isArray(tool.intentHints)) continue;
+    for (const hint of tool.intentHints) {
+      if (tNorm.includes(norm(hint))) {
+        return {
+          kind: vertical,
+          [vertical]: { action: tool.name },
+          toolName: tool.name,
+          confidence: 0.7,
+          source: 'intentHints',
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function parseHeuristic(
   message,
   vertical = "banking",
@@ -920,29 +946,6 @@ function parseHeuristic(
       kind: "none",
       message: "Say what you want to do or which topic to learn.",
     };
-  }
-
-  // intentHints fallback: when caller supplied verticalCtx.tools (from tools/list),
-  // try phrase matching against intentHints before any other heuristic.
-  // First match wins at confidence 0.7; only runs when a hint phrase is a substring
-  // of the normalized message, so it does not fire when no hints match.
-  if (verticalCtx?.tools && Array.isArray(verticalCtx.tools)) {
-    const norm2 = (s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-    const tNorm = norm2(message);
-    for (const tool of verticalCtx.tools) {
-      if (!Array.isArray(tool.intentHints)) continue;
-      for (const hint of tool.intentHints) {
-        if (tNorm.includes(norm2(hint))) {
-          return {
-            kind: vertical,
-            [vertical]: { action: tool.name },
-            toolName: tool.name,
-            confidence: 0.7,
-            source: 'intentHints',
-          };
-        }
-      }
-    }
   }
 
   // Hard fast-path: "list/show/get mcp tools" and the bare chip label "mcp tools" are
@@ -1329,6 +1332,8 @@ function parseHeuristic(
       if (bankFallback) return bankFallback;
       return { kind: "none", message: buildAdminCatalogMessage() };
     }
+    const ih1 = tryIntentHints(message, verticalCtx, vertical);
+    if (ih1) return ih1;
     return { kind: "none", message: buildCatalogMessage(verticalCtx) };
   }
 
@@ -1348,6 +1353,8 @@ function parseHeuristic(
   const edu2 = parseEducation(t);
   if (edu2) return edu2;
 
+  const ih2 = tryIntentHints(message, verticalCtx, vertical);
+  if (ih2) return ih2;
   return { kind: "none", message: buildCatalogMessage(verticalCtx) };
 }
 
