@@ -495,6 +495,12 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-sidebar-header">
             <span className="cur-sidebar-title">CONNECTION</span>
           </div>
+          <div style={{padding:'6px 12px',fontSize:10,fontFamily:'monospace',background:'#0a0a0a',borderBottom:'1px solid #1e1e1e',color:'#888'}}>
+            <div><span style={{color:'#555'}}>mcpUrl: </span><span style={{color:'#7ec8e3',wordBreak:'break-all'}}>{config.mcpUrl || '—'}</span></div>
+            <div><span style={{color:'#555'}}>clientId: </span><span style={{color:'#ffd93d'}}>{config.clientId || '—'}</span></div>
+            <div><span style={{color:'#555'}}>scopes: </span><span style={{color:'#a8e6cf'}}>{config.scopes || '—'}</span></div>
+            <div><span style={{color:'#555'}}>authStatus: </span><span style={{color: authenticated ? '#a8e6cf' : '#ff6b6b'}}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
+          </div>
           <div className="cur-sidebar-content">
             {authenticated ? (
               <div className="cur-auth-status">
