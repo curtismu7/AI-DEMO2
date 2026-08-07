@@ -7,6 +7,7 @@ import DevToolsDashboard from "../components/DevToolsDashboard";
 import LogViewerPage from "../components/LogViewerPage";
 import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
+import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
@@ -35,6 +36,7 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         {/* Live app-events stream (oauth / mcp / HITL / …). HTTP audit table kept at api-activity. */}
         <Route path="activity-log" element={<ActivityLogPage />} />
         <Route path="api-activity" element={<ActivityLogs user={user} onLogout={logout} />} />
+        <Route path="new-relic" element={<PingOneEventPanel />} />
       </Routes>
     </AppShell>
   );

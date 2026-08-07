@@ -820,6 +820,11 @@ export default function AdminSideNav({ user }) {
           icon: "log",
           adminOnly: true,
         },
+        {
+          label: "New Relic",
+          path: "/monitoring/new-relic",
+          icon: "log",
+        },
       ],
     },
     {
