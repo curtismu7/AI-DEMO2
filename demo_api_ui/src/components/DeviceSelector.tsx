@@ -92,74 +92,80 @@ const DeviceSelector: FC<DeviceSelectorProps> = ({
 
   return (
     <div className="device-selector">
-      <p className="device-selector__title">{title}</p>
-      <div className="device-selector__list">
-        {devices.map((device) => (
+      {/* Scrollable region: title + device rows + setup rows */}
+      <div className="device-selector__scroll">
+        <p className="device-selector__title">{title}</p>
+        <div className="device-selector__list">
+          {devices.map((device) => (
+            <button
+              key={device.id}
+              type="button"
+              className={`device-selector__btn device-selector__btn--${device.type.toLowerCase()}${selectedDeviceId === device.id ? " device-selector__btn--selected" : ""}`}
+              onClick={() => onSelectDevice(device.id)}
+              disabled={disabled}
+            >
+              <span className="device-selector__label">
+                {getDeviceLabel(device)}
+              </span>
+              {device.phone && (
+                <span className="device-selector__detail">{device.phone}</span>
+              )}
+              {device.email && (
+                <span className="device-selector__detail">{device.email}</span>
+              )}
+              {device.nickname && (
+                <span className="device-selector__detail">{device.nickname}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        {missingTypes.length > 0 && (
+          <div className="device-selector__setup">
+            {devices.length > 0 && (
+              <p className="device-selector__setup-title">Or set up a new method:</p>
+            )}
+            <div className="device-selector__list">
+              {missingTypes.map((type) => {
+                const isRegistering = registeringType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`device-selector__btn device-selector__btn--setup device-selector__btn--${type.toLowerCase()}`}
+                    onClick={() => onRegisterDevice(type)}
+                    disabled={disabled || Boolean(registeringType)}
+                    aria-busy={isRegistering}
+                  >
+                    <span className="device-selector__label">
+                      {isRegistering ? "Waiting…" : `Set up ${getSetupLabel(type)}`}
+                    </span>
+                    <span className="device-selector__detail">
+                      {getSetupHint(type)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {registerError && (
+              <p className="device-selector__setup-error" role="alert">
+                {registerError}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+      {/* Back button pinned below scroll region — always visible */}
+      {onBack && (
+        <div className="device-selector__footer">
           <button
-            key={device.id}
             type="button"
-            className={`device-selector__btn device-selector__btn--${device.type.toLowerCase()}${selectedDeviceId === device.id ? " device-selector__btn--selected" : ""}`}
-            onClick={() => onSelectDevice(device.id)}
+            className="device-selector__back-btn"
+            onClick={onBack}
             disabled={disabled}
           >
-            <span className="device-selector__label">
-              {getDeviceLabel(device)}
-            </span>
-            {device.phone && (
-              <span className="device-selector__detail">{device.phone}</span>
-            )}
-            {device.email && (
-              <span className="device-selector__detail">{device.email}</span>
-            )}
-            {device.nickname && (
-              <span className="device-selector__detail">{device.nickname}</span>
-            )}
+            ← Back
           </button>
-        ))}
-      </div>
-      {missingTypes.length > 0 && (
-        <div className="device-selector__setup">
-          {devices.length > 0 && (
-            <p className="device-selector__setup-title">Or set up a new method:</p>
-          )}
-          <div className="device-selector__list">
-            {missingTypes.map((type) => {
-              const isRegistering = registeringType === type;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  className={`device-selector__btn device-selector__btn--setup device-selector__btn--${type.toLowerCase()}`}
-                  onClick={() => onRegisterDevice(type)}
-                  disabled={disabled || Boolean(registeringType)}
-                  aria-busy={isRegistering}
-                >
-                  <span className="device-selector__label">
-                    {isRegistering ? "Waiting…" : `Set up ${getSetupLabel(type)}`}
-                  </span>
-                  <span className="device-selector__detail">
-                    {getSetupHint(type)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {registerError && (
-            <p className="device-selector__setup-error" role="alert">
-              {registerError}
-            </p>
-          )}
         </div>
-      )}
-      {onBack && (
-        <button
-          type="button"
-          className="device-selector__back-btn"
-          onClick={onBack}
-          disabled={disabled}
-        >
-          ← Back
-        </button>
       )}
     </div>
   );
