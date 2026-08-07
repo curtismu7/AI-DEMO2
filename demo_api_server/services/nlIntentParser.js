@@ -909,6 +909,32 @@ function resolveActiveVerticalCtx(req = null) {
   return resolveVerticalCtx(sessionVerticalId(req) || "banking");
 }
 
+/**
+ * intentHints fallback — only called when no heuristic matched (kind:'none' path).
+ * First match wins at confidence 0.7; only fires when a hint phrase is a substring
+ * of the normalized message.
+ * @returns {object|null}
+ */
+function tryIntentHints(message, verticalCtx, vertical) {
+  if (!verticalCtx?.tools || !Array.isArray(verticalCtx.tools)) return null;
+  const tNorm = norm(message);
+  for (const tool of verticalCtx.tools) {
+    if (!Array.isArray(tool.intentHints)) continue;
+    for (const hint of tool.intentHints) {
+      if (tNorm.includes(norm(hint))) {
+        return {
+          kind: vertical,
+          [vertical]: { action: tool.name },
+          toolName: tool.name,
+          confidence: 0.7,
+          source: 'intentHints',
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function parseHeuristic(
   message,
   vertical = "banking",
@@ -1317,6 +1343,8 @@ function parseHeuristic(
       if (bankFallback) return bankFallback;
       return { kind: "none", message: buildAdminCatalogMessage() };
     }
+    const ih1 = tryIntentHints(message, verticalCtx, vertical);
+    if (ih1) return ih1;
     return { kind: "none", message: buildCatalogMessage(verticalCtx) };
   }
 
@@ -1336,6 +1364,8 @@ function parseHeuristic(
   const edu2 = parseEducation(t);
   if (edu2) return edu2;
 
+  const ih2 = tryIntentHints(message, verticalCtx, vertical);
+  if (ih2) return ih2;
   return { kind: "none", message: buildCatalogMessage(verticalCtx) };
 }
 
