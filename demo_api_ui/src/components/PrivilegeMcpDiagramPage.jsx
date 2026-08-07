@@ -78,9 +78,45 @@ const SEQUENCE_SOURCE = `sequenceDiagram
     end
     B-->>P: result or error`;
 
+const AUTH_FLOW_SOURCE = `flowchart LR
+    A([Browser loads\\n/privilege-mcp-client]) --> B[GET /api/privilege-mcp/state]
+    B --> C{Authenticated?}
+
+    C -- No --> D[User clicks\\nSign In with Privilege]
+    D --> E[POST /api/privilege-mcp/auth/start]
+    E --> F[BFF: discover OAuth endpoints\\nvia PRIVILEGE_SSO_ENV_ID\\nor MCP URL WWW-Authenticate]
+    F --> G[Generate PKCE\\nverifier + challenge]
+    G --> H[Return authUrl to browser]
+    H --> I[Browser redirects to\\nauth.pingone.com/01d89b06/as/authorize\\nclient_id=6586d3de]
+    I --> J[User authenticates\\nwith PingOne]
+    J --> K[PingOne redirects to\\n/api/privilege-mcp/auth/callback\\n?code=...&state=...]
+    K --> L[BFF: exchange code + PKCE verifier\\nPOST auth.pingone.com/01d89b06/as/token\\nclient_id=6586d3de + client_secret\\ncode_verifier=...]
+    L --> M{Token\\nexchange OK?}
+    M -- 401 --> N[❌ Auth failed]
+    M -- 200 --> O[BFF stores access_token\\n+ refresh_token in memory]
+    O --> P[Redirect to\\n/privilege-mcp-client?auth=success]
+
+    C -- Yes --> Q
+    P --> Q[UI: Authenticated\\nshows Retry Tools button]
+    Q --> R[POST /api/privilege-mcp/tools/list]
+    R --> S[BFF: POST PRIVILEGE_MCPGW_URL\\nAuthorization: Bearer access_token]
+
+    S --> T{MCP URL target?}
+    T -- Privilege Cloud :8643 --> U[Privilege Cloud validates Bearer\\nroutes via ping-mcpgw gRPC\\nto Privilege Cloud backend]
+    T -- Local mcp-server:8080 --> V[mcp-server\\nMCP_AUTH_DISABLED=true\\nskips bearer check\\nreturns tools]
+
+    U --> W[Tools returned to BFF]
+    V --> W
+    W --> X[UI renders tool list]
+
+    style N fill:#c0392b,color:#fff
+    style O fill:#1e8449,color:#fff
+    style V fill:#7d6608,color:#fff`;
+
 const TABS = [
   { id: "arch", label: "Architecture", source: ARCHITECTURE_SOURCE, filename: "privilege-mcp-architecture.mmd" },
   { id: "seq", label: "Sign-in + Tool Call", source: SEQUENCE_SOURCE, filename: "privilege-mcp-sequence.mmd" },
+  { id: "flow", label: "Auth Flow", source: AUTH_FLOW_SOURCE, filename: "privilege-mcp-auth-flow.mmd" },
 ];
 
 export default function PrivilegeMcpDiagramPage() {

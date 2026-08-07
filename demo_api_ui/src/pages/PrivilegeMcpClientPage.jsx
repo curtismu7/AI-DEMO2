@@ -667,7 +667,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
             <div className="cur-terminal-content">
               {terminalTab === 'trace' && (
-                <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:11}}>
+                <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:13}}>
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
                     const rest = { ...e, ts: undefined, type: undefined };

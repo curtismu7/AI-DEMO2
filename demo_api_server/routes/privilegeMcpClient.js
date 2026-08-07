@@ -233,10 +233,10 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   if (targetUrl.hostname === 'privilege.pingone.com' || targetUrl.hostname.endsWith('.applications.privilege.pingone.com')) {
     headers['x-procyon-session-id'] = session.config._procyonSessionId ||
       (session.config._procyonSessionId = crypto.randomUUID());
-    // Privilege Cloud requires protocol version header on non-initialize requests
-    if (body?.method && body.method !== 'initialize') {
-      headers['mcp-protocol-version'] = session.mcpSession.protocolVersion || '2024-11-05';
-    }
+  }
+  // MCP spec requires mcp-protocol-version on all non-initialize requests
+  if (body?.method && body.method !== 'initialize') {
+    headers['mcp-protocol-version'] = session.mcpSession.protocolVersion || '2024-11-05';
   }
 
   emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
@@ -471,7 +471,6 @@ router.get('/auth/callback', async (req, res) => {
       code_verifier: session.pendingAuth.verifier,
     });
     const tokenHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    // PingOne app uses client_secret_post — always send credentials in the body
     tokenBody.set('client_id', session.config.clientId);
     const clientSecret = process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
     if (clientSecret) tokenBody.set('client_secret', clientSecret);
