@@ -5728,7 +5728,7 @@ export default function BankingAgent({
       if (!merged) {
         // Couldn't extract — re-ask once. After that, give up and let
         // the parser try a normal interpretation.
-        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification(pc);
         nlSendGuardRef.current.release();
         return;
@@ -5742,7 +5742,7 @@ export default function BankingAgent({
         if (!merged.toId) still.push('destination account (e.g. "to savings")');
         if (merged.amount == null) still.push('amount (e.g. "$100")');
         const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
-        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification({
           ...pc,
           partialParams: merged,
@@ -6431,7 +6431,11 @@ export default function BankingAgent({
           withdraw: `How much would you like to withdraw, and from which ${termAccount}?`,
           transfer: `Which ${termAccounts} would you like to ${termHighValue.toLowerCase()} between, and how much?`,
         };
-        addMessage("assistant", questions[action], null, { source: _source, clarifyOptions: acctTypes });
+        const AMOUNT_ACTIONS = new Set(['deposit', 'withdraw', 'transfer']);
+        const amountOptions = AMOUNT_ACTIONS.has(action) && !p?.amount
+          ? (terminology?.amountPresets || null)
+          : null;
+        addMessage("assistant", questions[action], null, { source: _source, clarifyOptions: acctTypes, amountOptions });
         // Remember WHAT we asked so the next user message can fill the slot.
         // sendAsNl() inspects this on the next turn and skips re-parsing
         // when we already know the intent. We also remember any partial
@@ -6442,6 +6446,7 @@ export default function BankingAgent({
           partialParams: p || {},
           asked: questions[action],
           clarifyOptions: acctTypes,
+          amountOptions,
         });
       } else {
         await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
@@ -7225,7 +7230,7 @@ export default function BankingAgent({
       );
       if (!merged) {
         // Couldn't extract — re-ask once, then let a normal interpretation try.
-        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification(pc);
         return;
       }
@@ -7238,7 +7243,7 @@ export default function BankingAgent({
         if (!merged.toId) still.push('destination account (e.g. "to savings")');
         if (merged.amount == null) still.push('amount (e.g. "$100")');
         const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
-        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null });
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification({
           ...pc,
           partialParams: merged,
@@ -10608,9 +10613,10 @@ export default function BankingAgent({
                               refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
                             />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
-                            {msg.clarifyOptions && msg.clarifyOptions.length > 0 && (
+                            {(msg.clarifyOptions?.length > 0 || msg.amountOptions?.length > 0) && (
                               <ClarifyOptions
                                 options={msg.clarifyOptions}
+                                amountOptions={msg.amountOptions || null}
                                 active={pendingClarification != null && msg.id === messages[messages.length - 1]?.id}
                                 onSelect={(opt) => sendAsNl(opt)}
                               />

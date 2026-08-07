@@ -38,3 +38,45 @@ describe('ClarifyOptions', () => {
     expect(screen.getByRole('option', { name: /Checking/ })).toBeDisabled();
   });
 });
+
+describe('ClarifyOptions — amountOptions', () => {
+  it('renders amount buttons when amountOptions provided', () => {
+    render(
+      <ClarifyOptions
+        options={['Checking']}
+        amountOptions={[100, 500, 1000]}
+        onSelect={() => {}}
+        active={true}
+      />
+    );
+    expect(screen.getByText('$100')).toBeInTheDocument();
+    expect(screen.getByText('$500')).toBeInTheDocument();
+    expect(screen.getByText('$1,000')).toBeInTheDocument();
+  });
+
+  it('calls onSelect with "$500" when amount button clicked', () => {
+    const onSelect = vi.fn();
+    render(
+      <ClarifyOptions
+        options={[]}
+        amountOptions={[500]}
+        onSelect={onSelect}
+        active={true}
+      />
+    );
+    fireEvent.click(screen.getByText('$500'));
+    expect(onSelect).toHaveBeenCalledWith('$500');
+  });
+
+  it('disables amount buttons when active=false', () => {
+    render(
+      <ClarifyOptions
+        options={[]}
+        amountOptions={[100]}
+        onSelect={() => {}}
+        active={false}
+      />
+    );
+    expect(screen.getByRole('option', { name: '$100' })).toBeDisabled();
+  });
+});

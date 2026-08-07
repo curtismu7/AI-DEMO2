@@ -93,8 +93,8 @@ export function ParamHintCopy({ hint }) {
 // longer active (active=false).
 // Options may be plain strings or { label, value } objects. For plain strings the
 // label is the string itself and onSelect receives the lowercased string.
-export function ClarifyOptions({ options, onSelect, active, onDismiss }) {
-  if (!options || options.length === 0) return null;
+export function ClarifyOptions({ options, amountOptions, onSelect, active, onDismiss }) {
+  if ((!options || options.length === 0) && (!amountOptions || amountOptions.length === 0)) return null;
 
   function getLabel(opt) {
     return typeof opt === 'object' && opt !== null ? opt.label : opt;
@@ -104,25 +104,50 @@ export function ClarifyOptions({ options, onSelect, active, onDismiss }) {
     return opt.charAt(0).toLowerCase() + opt.slice(1);
   }
 
+  function fmtAmount(n) {
+    return `$${Number(n).toLocaleString('en-US')}`;
+  }
+
   return (
-    <div className="clarify-options" role="listbox">
-      {options.map((opt) => {
-        const label = getLabel(opt);
-        const value = getValue(opt);
-        return (
-          <button
-            key={value}
-            type="button"
-            role="option"
-            aria-selected="false"
-            className="clarify-options__btn"
-            disabled={!active}
-            onClick={() => active && onSelect(value)}
-          >
-            {label}
-          </button>
-        );
-      })}
+    <div>
+      {options && options.length > 0 && (
+        <div className="clarify-options" role="listbox">
+          {options.map((opt) => {
+            const label = getLabel(opt);
+            const value = getValue(opt);
+            return (
+              <button
+                key={value}
+                type="button"
+                role="option"
+                aria-selected="false"
+                className="clarify-options__btn"
+                disabled={!active}
+                onClick={() => active && onSelect(value)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {amountOptions && amountOptions.length > 0 && (
+        <div className="clarify-amounts" role="listbox" aria-label="Amount presets">
+          {amountOptions.map((amt) => (
+            <button
+              key={amt}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className="clarify-amounts__btn"
+              disabled={!active}
+              onClick={() => active && onSelect(fmtAmount(amt))}
+            >
+              {fmtAmount(amt)}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
