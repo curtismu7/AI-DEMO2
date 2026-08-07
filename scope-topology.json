@@ -322,8 +322,7 @@
     },
     "pay_airline_fee": {
       "requiredScopes": ["airlines:read", "airlines:write"],
-      "surface": "gateway",
-      "challengeType": "step_up"
+      "surface": "gateway"
     },
     "get_airline_bookings": {
       "requiredScopes": ["airlines:read"],

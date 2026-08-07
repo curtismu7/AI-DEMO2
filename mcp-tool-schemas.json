@@ -132,10 +132,12 @@
         "type": "object",
         "properties": {
           "query": {
-            "type": "string"
+            "type": "string",
+            "description": "Search query string"
           },
           "count": {
-            "type": "number"
+            "type": "number",
+            "description": "Number of results to return (default 5)"
           }
         },
         "required": [
@@ -649,7 +651,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "portfolioType"
         ],
         "additionalProperties": false
       }
@@ -1112,10 +1115,12 @@
             "description": "City name, optionally with state, e.g. \"Austin, TX\""
           },
           "latitude": {
-            "type": "number"
+            "type": "number",
+            "description": "Decimal latitude, e.g. 30.2672"
           },
           "longitude": {
-            "type": "number"
+            "type": "number",
+            "description": "Decimal longitude, e.g. -97.7431"
           },
           "location_name": {
             "type": "string",
@@ -3132,7 +3137,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "portfolioType"
         ],
         "additionalProperties": false
       }
