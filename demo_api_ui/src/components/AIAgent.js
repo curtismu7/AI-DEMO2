@@ -6404,9 +6404,27 @@ export default function BankingAgent({
         // this works for all verticals that use the account model — not just
         // banking. parseClarificationReply matches on account type, so we list
         // the distinct types (e.g. "Checking, Savings").
-        const acctTypes = [
-          ...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean)),
-        ];
+        function last4(num) {
+          const digits = String(num || '').replace(/\D/g, '');
+          return digits.length >= 4 ? digits.slice(-4) : null;
+        }
+        // Deduplicate by type. If two accounts share a type, both appear with masked numbers.
+        const acctTypes = (liveAccounts || [])
+          .filter((a) => a.type)
+          .reduce((acc, a) => {
+            const type = a.type;
+            const l4 = last4(a.accountNumber);
+            const label = l4 ? `${type} ••${l4}` : type;
+            const value = type.toLowerCase();
+            // If same type already added without a number, upgrade it; otherwise add.
+            const existing = acc.findIndex((o) => o.value === value && !o.label.includes('••'));
+            if (existing >= 0 && l4) {
+              acc[existing] = { label, value };
+            } else if (!acc.some((o) => o.label === label)) {
+              acc.push({ label, value });
+            }
+            return acc;
+          }, []);
         const questions = {
           balance:  `Which ${termAccount} would you like to check the ${termBalance} for?`,
           deposit:  `How much would you like to deposit, and to which ${termAccount}?`,
