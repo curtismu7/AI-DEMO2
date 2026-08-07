@@ -157,21 +157,6 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const authenticatedStandardDock = Boolean(user) && onBottomDockRoute;
 
   if (!authenticatedStandardDock) {
-    // Guest on a bottom-dock route: no agent portals into the dock (App gates
-    // that on a signed-in user), so show a login prompt instead of nothing.
-    if (!user && onBottomDockRoute) {
-      return (
-        <div
-          className="global-embedded-agent-dock-wrap refined-dock rd2-dock"
-          role="region"
-          aria-label="Assistant"
-        >
-          <div className="embedded-agent-dock-guest-prompt">
-            Please sign in to use the Agent
-          </div>
-        </div>
-      );
-    }
     return null;
   }
 

@@ -3528,18 +3528,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 className="ud-dashboard-inline-agent-host"
                 ref={middleHostRefCb}
               />
-              {!user && (
-                <div className="ud-dashboard-inline-agent-login-prompt" role="status">
-                  <span>Please sign in to use the Agent</span>
-                  <button
-                    type="button"
-                    className="ud-dashboard-inline-agent-login-btn"
-                    onClick={navigateToCustomerOAuthLogin}
-                  >
-                    Sign In
-                  </button>
-                </div>
-              )}
             </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag; height handle remains keyboard-reachable. */}
             <div
