@@ -181,13 +181,16 @@ test("1. renders without crashing", () => {
   expect(container).toBeInTheDocument();
 });
 
-test("2. .customer-skin-p1 wrapper is present", () => {
+test("2. .customer-skin-p1 wrapper is present", async () => {
   const { container } = render(
     <Wrapper>
       <UserDashboardPing2026 user={mockUser} onLogout={vi.fn()} />
     </Wrapper>,
   );
-  expect(container.querySelector(".customer-skin-p1")).not.toBeNull();
+  // loading=true on mount shows spinner; wait for fetchUserData to complete
+  await waitFor(() =>
+    expect(container.querySelector(".customer-skin-p1")).not.toBeNull()
+  );
 });
 
 test("3. root element has both customer-skin-p1 and user-dashboard--2026 classes", async () => {
@@ -307,13 +310,11 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-03: #1161 removed the dashboard loading spinner and
-  // added embedded-agent scroll. Previous baseline 2026-07-27 (consent-decline
-  // toast copy change).
+  // Re-baselined 2026-08-07: added loading spinner (early return when loading=true).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "0cb21738778be71dc06c6c0bab9255ebd8cdf8e05b388f455113d97111be97e9";
+    "a0e5e457e27b66da43f246dcc7b17e6d06e2c07d3fe7ebe5e1a59c6eaeaffb56";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

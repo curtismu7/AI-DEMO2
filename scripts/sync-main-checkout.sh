@@ -48,8 +48,15 @@ if [ -n "$DIRTY_OUTSIDE_NOISE" ]; then
 fi
 
 STASHED=0
-if [ -n "$(git status --porcelain -- "${NOISE_PATHS[@]}")" ]; then
-  git stash push -u -m "$STASH_TAG" -- "${NOISE_PATHS[@]}" >/dev/null
+# Build stash pathspec excluding gitignored paths — git stash push -u refuses
+# to stash a path that matches .gitignore and aborts the whole stash.
+STASH_PATHS=()
+for p in "${NOISE_PATHS[@]}"; do
+  git check-ignore -q "$p" 2>/dev/null && continue
+  STASH_PATHS+=("$p")
+done
+if [ "${#STASH_PATHS[@]}" -gt 0 ] && [ -n "$(git status --porcelain -- "${STASH_PATHS[@]}")" ]; then
+  git stash push -u -m "$STASH_TAG" -- "${STASH_PATHS[@]}" >/dev/null
   STASHED=1
 fi
 

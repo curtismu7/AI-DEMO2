@@ -153,7 +153,9 @@ function readStoredMiddleHeight() {
 const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { placement: agentPlacement, setSurfaceHostEl } = useAgentUiMode();
+  const { placement: agentPlacement, setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
+  const [toolbarHostEl, setToolbarHostElNode] = useState(null);
+  const toolbarHostRef = useCallback((node) => setToolbarHostElNode(node), []);
   const { pageManifest, pageMockData } = useVertical();
   const themeDashboard = pageManifest?.dashboard;
   const isRetailDashboard = themeDashboard && themeDashboard.kind === "retail";
@@ -1528,6 +1530,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       setSurfaceHostEl((cur) => (cur === middleHostEl ? null : cur));
     };
   }, [middleHostEl, setSurfaceHostEl, clinicalSplitEnabled]);
+
+  useEffect(() => {
+    setToolbarHostEl(toolbarHostEl);
+    return () => setToolbarHostEl((cur) => (cur === toolbarHostEl ? null : cur));
+  }, [toolbarHostEl, setToolbarHostEl]);
 
   const handleScrollToAccounts = useCallback(() => {
     accountsAnchorRef.current?.scrollIntoView({
@@ -3467,6 +3474,21 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="main-content--auth-loading">
+        <div className="auth-loading-card">
+          <div className="auth-loading-dots">
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+          </div>
+          <div className="auth-loading-title">Loading your dashboard</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`customer-skin-p1 user-dashboard user-dashboard--2026${
@@ -3496,6 +3518,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               tabIndex: -1,
             })}
           >
+            <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
             <div className="embedded-banking-agent ud-dashboard-inline-agent">
               {/* Host stays mounted so the BankingAgent portal target's ref always
                   attaches. Guests have no portaled agent here (App.js gates the

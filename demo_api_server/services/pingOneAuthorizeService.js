@@ -798,7 +798,12 @@ function buildMcpDelegationParameters({
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(userTier ? { UserTier: userTier } : {}),
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),
-    ...(amount != null ? { Amount: amount, TransactionAmount: String(amount) } : {}),
+    // Always send Amount (0 for read tools). If omitted entirely, P1AZ tier-cap
+    // comparison has a missing operand and returns INDETERMINATE — which the
+    // fail-closed gate (#1310) collapses to DENY, blocking every read for
+    // PrivateBanking users. Sends the real amount for write tools unchanged.
+    Amount: amount != null ? amount : 0,
+    TransactionAmount: amount != null ? String(amount) : '0',
     ...(transactionType ? { TransactionType: transactionType } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(rarMaxAmount != null ? { RarMaxAmount: rarMaxAmount } : {}),
