@@ -111,3 +111,9 @@ export function AgentFlowInspectorRoute({ user }) {
     <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
   );
 }
+
+// Public — no session required. Rendered without AppShell chrome so it works
+// for unauthenticated users and in standalone/embed contexts.
+export function NewRelicRoute() {
+  return <PingOneEventPanel />;
+}

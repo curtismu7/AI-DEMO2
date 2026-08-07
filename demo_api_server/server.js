@@ -1258,7 +1258,7 @@ app.get('/api/app-events/stream', (req, res) => {
 // Register before the authenticateToken block so customers with a valid session can access it.
 app.get('/api/tokens/agent-cc-preview', requireSession, tokenRoutes.agentCcPreviewHandler);
 
-app.get('/api/pingone-events', requireSession, (req, res) => {
+app.get('/api/pingone-events', (req, res) => {
     const { limit, eventType, actorId } = req.query;
     const filters = {};
     if (eventType) filters.eventType = eventType;

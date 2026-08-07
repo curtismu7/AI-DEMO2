@@ -145,6 +145,7 @@ import MonitoringRoutes, {
   ApiTrafficRoute,
   LogsRoute,
   McpTrafficRoute,
+  NewRelicRoute,
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
@@ -503,6 +504,8 @@ function AppWithAuth() {
                   path="/setup/*"
                   element={<PublicRoutes user={user} logout={logout} />}
                 />
+                {/* New Relic event stream — public, no session required */}
+                <Route path="/monitoring/new-relic" element={<NewRelicRoute />} />
                 {/* Demo config accessible without login */}
                 <Route
                   path="/configure"
