@@ -1,0 +1,20 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "UC9",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
+  "primaryTool": "pay_airline_fee",
+  "checkedAt": "2026-08-07",
+  "requiredFlags": [
+    "ff_authorize_group_policy",
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_authorize_group_policy",
+    "ff_mcp_gateway_pinggateway"
+  ]
+}
