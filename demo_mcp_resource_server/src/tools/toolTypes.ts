@@ -15,6 +15,7 @@ export interface McpToolDef {
   inputSchema: Record<string, unknown>;
   requiredScopes: string[];
   readOnly: boolean;
+  intentHints?: string[];
 }
 
 export function filterByScopes(tools: McpToolDef[], tokenScopes: string[]): McpToolDef[] {
