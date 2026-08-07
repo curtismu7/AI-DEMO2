@@ -160,9 +160,9 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
 
   const onBottomDockRoute =
     agentPlacement === 'bottom' && isEmbeddedAgentDockRoute(pathname);
-  const authenticatedStandardDock = Boolean(user) && onBottomDockRoute;
-
-  if (!authenticatedStandardDock) {
+  // No user gate — guests need the dock so the portaled AIAgent can mount.
+  // AIAgent handles its own guest vs. signed-in state internally.
+  if (!onBottomDockRoute) {
     return null;
   }
 
