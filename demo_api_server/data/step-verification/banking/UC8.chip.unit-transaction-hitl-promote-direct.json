@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-07",
   "verifiedBy": "_applyTransactionPolicy Transaction hitlRequired direct promotion (e90262f9)"
 }
