@@ -19,7 +19,20 @@ const { evaluateIntentAuthorization } = require('../services/intentAuthService')
 const { extractIntentAndConfidence } = require('../services/nlIntentParser');
 const { evaluateRiskAndAuthority } = require('../services/intentRiskScorer');
 const { authenticateToken } = require('../middleware/auth');
-const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
+const { agentGuestSessionMiddleware } = require('../middleware/agentSessionMiddleware');
+
+// Pass through as guest when no session token and no Authorization header.
+// Uses authenticateToken for the validated path so mocks in tests work unchanged.
+const optionalAuthenticateToken = (req, res, next) => {
+  const hasAuthHeader = !!(req.headers['authorization']?.split(' ')[1]);
+  const hasSessionToken = !!(req.session?.oauthTokens?.accessToken) &&
+    req.session.oauthTokens.accessToken !== '_cookie_session';
+  if (!hasAuthHeader && !hasSessionToken) {
+    req.user = null;
+    return next();
+  }
+  return authenticateToken(req, res, next);
+};
 const configStore = require('../services/configStore');
 const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
@@ -123,7 +136,7 @@ function extractIntentFromResponse(response) {
  * Response:
  *   (same as /api/demo-agent/message)
  */
-router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.json(), nrTransactionMiddleware, async (req, res) => {
+router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddleware, express.json(), nrTransactionMiddleware, async (req, res) => {
   // Hoist flowTraceId so the catch block can stamp NDJSON error events with it.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : null;
   try {
@@ -152,8 +165,9 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
     // req.agentContext.tokenEvents, but this route threads req.tokenEvents).
     if (!req.tokenEvents) req.tokenEvents = [];
 
-    console.log('[agentInvokeRoute] Processing prompt', { vertical });
-    const userId = req.user.sub;
+    const isGuest = !req.agentContext;
+    console.log('[agentInvokeRoute] Processing prompt', { vertical, isGuest });
+    const userId = req.user?.sub || null;
     const runId = crypto.randomUUID();
     const runStartedAt = new Date().toISOString();
     const intentAuthorizationEnabled = configStore.getEffective('ff_intent_authorization_enabled') === 'true';
@@ -233,7 +247,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       const { intent: _itIntent, confidence: _itConf } = extractIntentFromPrompt(prompt);
       const { token: _intentToken } = mintIntentToken({
         userId,
-        sessionId: req.session.id,
+        sessionId: req.session?.id || null,
         prompt,
         intent: _itIntent,
         confidence: _itConf,
@@ -283,11 +297,12 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
     const agentResponse = await processAgentMessage({
       message: prompt,
       userId,
-      userToken: req.session?.oauthTokens?.accessToken,
-      sessionId: req.session.id,
+      userToken: req.session?.oauthTokens?.accessToken || null,
+      sessionId: req.session?.id || null,
       tokenEvents: agentTokenEvents,
       langchainConfig: req.session?.langchain_config || {},
       vertical,
+      isGuest,
       req,
     });
 
