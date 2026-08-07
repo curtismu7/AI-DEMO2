@@ -1,0 +1,11 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-gate-pdp",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "large_trade",
+  "checkedAt": "2026-08-07",
+  "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy — PingOne Authorize Transaction obligation"
+}

@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-07",
   "verifiedBy": "_applyTransactionPolicy step-up sets hitlRequired:false (e90262f9)"
 }

@@ -191,12 +191,13 @@ describe('airlines vertical', () => {
     expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
   });
 
-  // The amount ladder must decide the outcome, not a pinned challengeType.
-  // large_trade pins step_up unconditionally, which would render UC6's $2500
-  // DENY and UC8's $300 HITL both as step-up.
-  test('pay_airline_fee pins no challengeType', () => {
+  // pay_airline_fee declares step_up so live P1AZ includes it in RequiresMcpStepUp
+  // (the MCP Delegation policy condition). The amount ladder still decides for
+  // amount-bearing calls: declaresStepUp in decision.js only fires when !hasAmount,
+  // so UC6 ($2500 DENY) and UC8 ($300 HITL) are unaffected.
+  test('pay_airline_fee declares step_up challengeType for RequiresMcpStepUp', () => {
     const topology = require('../../scope-topology.json');
-    expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();
+    expect(topology.tools.pay_airline_fee.challengeType).toBe('step_up');
   });
 
   test('the resource server declares the same tools and scope', () => {

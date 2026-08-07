@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "get_account_balance",
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-07",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

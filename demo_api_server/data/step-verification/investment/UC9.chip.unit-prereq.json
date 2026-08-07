@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "large_trade",
-  "checkedAt": "2026-08-06",
+  "checkedAt": "2026-08-07",
   "requiredFlags": [
     "ff_authorize_group_policy",
     "ff_mcp_gateway_pinggateway"

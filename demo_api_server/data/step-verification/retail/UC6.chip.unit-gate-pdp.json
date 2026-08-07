@@ -1,0 +1,11 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-gate-pdp",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "checkout",
+  "checkedAt": "2026-08-07",
+  "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy — PingOne Authorize Transaction obligation"
+}
