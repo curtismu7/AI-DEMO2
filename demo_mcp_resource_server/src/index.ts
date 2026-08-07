@@ -25,6 +25,31 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
+
+interface ResourceDef {
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+  requiredScope: string;
+  uriTemplate: string;
+  templateName: string;
+  listTool: string;
+}
+
+const RESOURCE_CATALOG: ResourceDef[] = [
+  { uri: 'banking://accounts', name: 'Bank Accounts', description: 'All bank accounts for the authenticated user', mimeType: 'application/json', requiredScope: 'banking:read', uriTemplate: 'banking://accounts/{accountId}', templateName: 'Bank Account', listTool: 'list_banking_accounts' },
+  { uri: 'healthcare://records', name: 'Patient Records', description: 'All patient records for the authenticated user', mimeType: 'application/json', requiredScope: 'healthcare:read', uriTemplate: 'healthcare://records/{recordId}', templateName: 'Patient Record', listTool: 'list_patient_records' },
+  { uri: 'government://permits', name: 'Government Permits', description: 'All government permits for the authenticated user', mimeType: 'application/json', requiredScope: 'government:read', uriTemplate: 'government://permits/{permitId}', templateName: 'Government Permit', listTool: 'list_permits' },
+  { uri: 'manufacturing://work-orders', name: 'Work Orders', description: 'All work orders for the authenticated user', mimeType: 'application/json', requiredScope: 'manufacturing:read', uriTemplate: 'manufacturing://work-orders/{orderId}', templateName: 'Work Order', listTool: 'list_work_orders' },
+  { uri: 'retail://orders', name: 'Retail Orders', description: 'All retail orders for the authenticated user', mimeType: 'application/json', requiredScope: 'retail:read', uriTemplate: 'retail://orders/{orderId}', templateName: 'Retail Order', listTool: 'list_orders' },
+  { uri: 'sporting-goods://gear-orders', name: 'Gear Orders', description: 'All sporting-goods orders for the authenticated user', mimeType: 'application/json', requiredScope: 'sporting-goods:read', uriTemplate: 'sporting-goods://gear-orders/{orderId}', templateName: 'Gear Order', listTool: 'list_gear_orders' },
+  { uri: 'university://courses', name: 'Courses', description: 'All courses for the authenticated student', mimeType: 'application/json', requiredScope: 'university:read', uriTemplate: 'university://courses/{courseId}', templateName: 'Course', listTool: 'list_courses' },
+  { uri: 'workforce://expenses', name: 'Expenses', description: 'All expense reports for the authenticated employee', mimeType: 'application/json', requiredScope: 'workforce:read', uriTemplate: 'workforce://expenses/{expenseId}', templateName: 'Expense', listTool: 'list_expenses' },
+  { uri: 'anf://orders', name: 'ANF Orders', description: 'All Abercrombie & Fitch orders for the authenticated user', mimeType: 'application/json', requiredScope: 'anf:read', uriTemplate: 'anf://orders/{orderId}', templateName: 'ANF Order', listTool: 'list_anf_orders' },
+  { uri: 'investment://accounts', name: 'Investment Accounts', description: 'All investment accounts for the authenticated user', mimeType: 'application/json', requiredScope: 'invest:read', uriTemplate: 'investment://accounts/{accountId}', templateName: 'Investment Account', listTool: 'get_investment_accounts' },
+  { uri: 'airlines://bookings', name: 'Airline Bookings', description: 'All airline bookings for the authenticated passenger', mimeType: 'application/json', requiredScope: 'airlines:read', uriTemplate: 'airlines://bookings/{bookingId}', templateName: 'Airline Booking', listTool: 'get_airline_bookings' },
+];
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import WebSocket from 'ws';
 import jwt from 'jsonwebtoken';
@@ -266,7 +291,10 @@ async function handleMessage(
   if (method === 'initialize') {
     send(rpcResult(id, {
       protocolVersion: '2025-11-25',
-      capabilities: { tools: {} },
+      capabilities: {
+        tools: {},
+        resources: { subscribe: false, listChanged: false },
+      },
       serverInfo: { name: 'banking-mcp-resource-server', version: '1.0.0' },
     }));
     return;
@@ -333,6 +361,82 @@ async function handleMessage(
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       send(rpcResult(id, { content: [{ type: 'text', text: errMsg }], isError: true }));
+    }
+    return;
+  }
+
+  if (method === 'resources/list') {
+    let decoded;
+    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+      const te = e as TokenError;
+      send(rpcError(id, -32001, te.message));
+      return;
+    }
+    const scopes = extractScopes(decoded);
+    const has = (s: string) => scopes.includes(s) || scopes.includes('*');
+    const resources = RESOURCE_CATALOG.filter((r) => has(r.requiredScope)).map((r) => ({
+      uri: r.uri,
+      name: r.name,
+      description: r.description,
+      mimeType: r.mimeType,
+    }));
+    send(rpcResult(id, { resources }));
+    return;
+  }
+
+  if (method === 'resources/templates/list') {
+    let decoded;
+    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+      const te = e as TokenError;
+      send(rpcError(id, -32001, te.message));
+      return;
+    }
+    const scopes = extractScopes(decoded);
+    const has = (s: string) => scopes.includes(s) || scopes.includes('*');
+    const resourceTemplates = RESOURCE_CATALOG.filter((r) => has(r.requiredScope)).map((r) => ({
+      uriTemplate: r.uriTemplate,
+      name: r.templateName,
+      description: r.description,
+      mimeType: r.mimeType,
+    }));
+    send(rpcResult(id, { resourceTemplates }));
+    return;
+  }
+
+  if (method === 'resources/read') {
+    const uri: string = msg.params?.uri || '';
+    let decoded: Awaited<ReturnType<typeof decodeAndValidate>>;
+    try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch (e) {
+      const te = e as TokenError;
+      send(rpcError(id, -32001, te.message));
+      return;
+    }
+    const resource = RESOURCE_CATALOG.find((r) => r.uri === uri);
+    if (!resource) {
+      send(rpcError(id, -32002, `Unknown resource URI: ${uri}`));
+      return;
+    }
+    const scopes = extractScopes(decoded);
+    const hasScope = scopes.includes(resource.requiredScope) || scopes.includes('*');
+    if (!hasScope) {
+      send(rpcError(id, -32005, `Insufficient scope for resource '${uri}'`, {
+        requiredScope: resource.requiredScope,
+        availableScopes: scopes,
+      }));
+      return;
+    }
+    try {
+      const data = await dispatch(resource.listTool, {}, token, decoded.sub);
+      send(rpcResult(id, {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify(data, null, 2),
+        }],
+      }));
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      send(rpcError(id, -32603, `Resource read failed: ${errMsg}`));
     }
     return;
   }
