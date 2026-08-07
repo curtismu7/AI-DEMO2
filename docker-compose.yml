@@ -400,6 +400,9 @@ services:
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
       # Parity with mcp-gateway: allow BFF TraT simulation header in demo compose.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      # Wide-open mode for Privilege MCP Gateway: the gateway itself enforces authz,
+      # so the MCP server trusts all callers on the internal hop.
+      MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently

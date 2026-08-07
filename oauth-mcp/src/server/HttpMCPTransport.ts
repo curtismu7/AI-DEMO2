@@ -119,6 +119,9 @@ export class HttpMCPTransport {
   /** Idle TTL for HTTP sessions (ms). Override with MCP_HTTP_SESSION_TTL_MS. */
   private readonly sessionTtlMs: number;
 
+  /** When true, skip bearer validation entirely — all callers are trusted. */
+  private readonly authDisabled = process.env.MCP_AUTH_DISABLED === 'true';
+
   constructor(
     private readonly config: HttpMCPTransportConfig,
     private readonly messageHandler: MCPMessageHandler,
@@ -476,7 +479,8 @@ export class HttpMCPTransport {
 
     // 3a–3b: Security checks (TraT, upstream contract, delegation chain) only
     // apply to authenticated requests — discovery is unauthenticated.
-    if (!isDiscovery) {
+    // Also skipped when MCP_AUTH_DISABLED=true (Privilege MCP open-access mode).
+    if (!isDiscovery && !this.authDisabled) {
 
     // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract the
     // TraT context and BIND it to the request. A transaction token names the tool
@@ -804,6 +808,19 @@ export class HttpMCPTransport {
    * authorization server mix-up attacks.
    */
   private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<AuthenticatedBearer | null> {
+    if (this.authDisabled) {
+      return {
+        token: 'disabled',
+        tokenInfo: {
+          tokenHash: 'disabled',
+          clientId: 'anonymous',
+          scopes: [],
+          expiresAt: new Date(Date.now() + 3_600_000),
+          isValid: true,
+          signatureVerified: false,
+        },
+      };
+    }
     const bearer = this.extractBearer(req);
     if (!bearer) {
       this.sendUnauthorized(res, 'Bearer token required');
