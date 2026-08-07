@@ -1,5 +1,6 @@
 'use strict';
 const axios = require('axios');
+const { get: getNrCtx } = require('./nrContext');
 
 const NR_ENDPOINT =
   process.env.NR_LOGS_ENDPOINT || 'https://log-api.newrelic.com/log/v1';
@@ -59,6 +60,9 @@ async function forwardAppEvent(event) {
           logtype: 'app_event',
           category: event.category,
           severity: event.severity,
+          ...(getNrCtx().correlationId ? { correlationId: getNrCtx().correlationId } : {}),
+          ...(getNrCtx().useCaseId ? { useCaseId: getNrCtx().useCaseId } : {}),
+          ...(getNrCtx().useCaseName ? { useCaseName: getNrCtx().useCaseName } : {}),
         },
       },
       logs: [
@@ -70,8 +74,8 @@ async function forwardAppEvent(event) {
             category: event.category,
             severity: event.severity,
             tag: event.tag,
-            useCaseId: event.useCaseId,
-            correlationId: event.correlationId,
+            useCaseId: event.useCaseId || getNrCtx().useCaseId || undefined,
+            correlationId: event.correlationId || getNrCtx().correlationId || undefined,
             requestId: event.requestId,
             sessionId: event.sessionId,
             username: event.username,

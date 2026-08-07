@@ -1,5 +1,7 @@
 'use strict';
 
+const nrSegments = require('./nrSegments');
+
 /**
  * hitlServiceClient.js — BFF client for the canonical HITL service (port 3009).
  *
@@ -34,15 +36,17 @@ const HITL_CHALLENGE_ARG = '_hitl_challenge_id';
  * @returns {Promise<{ challengeId: string, status: string, expiresAt: string, tool: string, context: object }>}
  */
 async function createChallenge(payload, correlationId) {
-  const res = await _fetchJson(`${HITL_SERVICE_URL}/challenges`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(HITL_INTERNAL_SECRET ? { 'X-HITL-Internal-Secret': HITL_INTERNAL_SECRET } : {}),
-      ...(correlationId ? { 'X-Correlation-ID': correlationId } : {}),
-    },
-    body: JSON.stringify({ ...payload, ...(correlationId ? { correlationId } : {}) }),
-  });
+  const res = await nrSegments.hitlRequest(() =>
+    _fetchJson(`${HITL_SERVICE_URL}/challenges`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(HITL_INTERNAL_SECRET ? { 'X-HITL-Internal-Secret': HITL_INTERNAL_SECRET } : {}),
+        ...(correlationId ? { 'X-Correlation-ID': correlationId } : {}),
+      },
+      body: JSON.stringify({ ...payload, ...(correlationId ? { correlationId } : {}) }),
+    })
+  );
   return res;
 }
 
@@ -52,12 +56,14 @@ async function createChallenge(payload, correlationId) {
  * @returns {Promise<object>} the challenge record (challengeId, status, userId, agentId, tool, expiresAt, ...)
  */
 async function getChallengeStatus(challengeId) {
-  return _fetchJson(`${HITL_SERVICE_URL}/challenges/${encodeURIComponent(challengeId)}`, {
-    method: 'GET',
-    headers: {
-      ...(HITL_INTERNAL_SECRET ? { 'X-HITL-Internal-Secret': HITL_INTERNAL_SECRET } : {}),
-    },
-  });
+  return nrSegments.hitlAwait(() =>
+    _fetchJson(`${HITL_SERVICE_URL}/challenges/${encodeURIComponent(challengeId)}`, {
+      method: 'GET',
+      headers: {
+        ...(HITL_INTERNAL_SECRET ? { 'X-HITL-Internal-Secret': HITL_INTERNAL_SECRET } : {}),
+      },
+    })
+  );
 }
 
 /**

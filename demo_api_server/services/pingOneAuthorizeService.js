@@ -42,6 +42,7 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 const { CircuitBreaker } = require('../utils/circuitBreaker');
+const nrSegments = require('./nrSegments');
 const { buildTestCasesForRule } = require('./policyTestCaseSolver');
 
 // Bounded fetch: every outbound PingOne Authorize call gets a timeout so a
@@ -338,11 +339,11 @@ function _resetAuthorizeRuntimeState() {
  *   bulk-decision media type explicitly.
  */
 async function _postDecisionWithAuth(url, body, contentType = 'application/json') {
-  const doFetch = (tok) => fetchRetryable(url, {
+  const doFetch = (tok) => nrSegments.p1azAuthorize(() => fetchRetryable(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tok}`, 'Content-Type': contentType },
     body,
-  });
+  }));
 
   let workerToken = await getWorkerToken();
   let response = await doFetch(workerToken);

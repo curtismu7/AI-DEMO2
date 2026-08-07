@@ -1,5 +1,7 @@
 'use strict';
 
+const nrSegments = require('./nrSegments');
+
 /**
  * Attack Simulator Service — A6.1 + A6.2
  *
@@ -580,6 +582,7 @@ function _isCrossOwnerDeniedResult(outcome) {
  * @returns {Promise<{sim, status, errorCode, reason, tokenChainEvents, useCaseId}>}
  */
 async function runAttackSim(sim, req, attackAmount) {
+  return nrSegments.attackSimVerdict(async () => {
   const subjectToken = req?.session?.oauthTokens?.accessToken;
   if (!subjectToken) {
     return {
@@ -663,6 +666,7 @@ async function runAttackSim(sim, req, attackAmount) {
     tokenChainEvents: [],
     useCaseId: null,
   };
+  }); // end nrSegments.attackSimVerdict
 }
 
 /**

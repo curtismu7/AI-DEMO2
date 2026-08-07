@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const config = require('../config/oauthUser');
+const nrSegments = require('./nrSegments');
 const { isOAuthVerboseDebug } = require('../utils/oauthDebugFlags');
 const { verboseOAuthLog } = require('../utils/oauthVerboseLogger');
 
@@ -153,9 +154,11 @@ class OAuthUserService {
       if (codeVerifier) {
         params.set('code_verifier', codeVerifier);
       }
-      const response = await axios.post(this.config.tokenEndpoint, params.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      const response = await nrSegments.pingOneAuthenticate(() =>
+        axios.post(this.config.tokenEndpoint, params.toString(), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        })
+      );
 
       if (response.data.access_token) {
         logTokenInfo(response.data.access_token, 'User OAuth Token Exchange');
