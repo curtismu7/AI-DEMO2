@@ -26,6 +26,7 @@ const axios = require('axios');
 const https = require('node:https');
 const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
+const nrSegments = require('./nrSegments');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -318,13 +319,15 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     let response;
     try {
-        response = await axios.post(url, body, {
-            headers,
-            timeout: timeoutMs,
-            // Handle error status codes ourselves so we can emit structured errors
-            validateStatus: () => true,
-            httpsAgent: _httpsAgent,
-        });
+        response = await nrSegments.mcpToolCall(() =>
+            axios.post(url, body, {
+                headers,
+                timeout: timeoutMs,
+                // Handle error status codes ourselves so we can emit structured errors
+                validateStatus: () => true,
+                httpsAgent: _httpsAgent,
+            })
+        );
     } catch (axErr) {
         console.error(
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',

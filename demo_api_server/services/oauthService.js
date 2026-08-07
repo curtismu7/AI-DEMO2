@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const oauthConfig = require('../config/oauth');
+const nrSegments = require('./nrSegments');
 const appEventService = require('./appEventService');
 const { isOAuthVerboseDebug } = require('../utils/oauthDebugFlags');
 const { verboseOAuthLog } = require('../utils/oauthVerboseLogger');
@@ -323,7 +324,9 @@ class OAuthService {
       `POST ${this.config.tokenEndpoint} (RFC 8693 token exchange → ${audience})`,
       { tag: 'token-exchange', metadata: { audience, scope: scopeStr } });
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = await nrSegments.tokenExchangeSubject(() =>
+        axios.post(this.config.tokenEndpoint, body.toString(), { headers })
+      );
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       appEventService.logEvent('token_exchange', 'info',
@@ -438,7 +441,9 @@ class OAuthService {
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     applyAdminTokenEndpointClientAuth(this.config, body, headers);
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = await nrSegments.tokenExchangeActor(() =>
+        axios.post(this.config.tokenEndpoint, body.toString(), { headers })
+      );
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       console.log(`[TokenExchange+Actor] Delegated token audience=${audience} scope="${scopeStr}"`);
