@@ -191,13 +191,9 @@ describe('airlines vertical', () => {
     expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
   });
 
-  // pay_airline_fee declares step_up so live P1AZ includes it in RequiresMcpStepUp
-  // (the MCP Delegation policy condition). The amount ladder still decides for
-  // amount-bearing calls: declaresStepUp in decision.js only fires when !hasAmount,
-  // so UC6 ($2500 DENY) and UC8 ($300 HITL) are unaffected.
-  test('pay_airline_fee declares step_up challengeType for RequiresMcpStepUp', () => {
+  test('pay_airline_fee has no challengeType (amount-ladder gates it instead)', () => {
     const topology = require('../../scope-topology.json');
-    expect(topology.tools.pay_airline_fee.challengeType).toBe('step_up');
+    expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();
   });
 
   test('the resource server declares the same tools and scope', () => {
