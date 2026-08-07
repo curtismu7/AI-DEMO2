@@ -4,6 +4,7 @@ import { getCachedJson } from "../services/cachedStatusService";
 import { savePublicConfig } from "../services/configService";
 import { SESSION_REAUTH_EVENT } from "../utils/authUi";
 import { clearStatusCache } from "../services/cachedStatusService";
+import { nrLog } from "../utils/nrLog";
 
 // Module-level flag mirrors the _didLogOut pattern — survives React
 // re-renders, reset only on explicit logout.
@@ -22,6 +23,7 @@ export function useAuth() {
       if (!sessionEstablishedRef.current) {
         sessionEstablishedRef.current = true;
         window.dispatchEvent(new CustomEvent("userAuthenticated"));
+        nrLog('ui.login', { username: u?.username || u?.email || 'unknown' });
       }
       setLoading(false);
     };

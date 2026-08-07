@@ -1118,6 +1118,15 @@ function parseHeuristic(
             };
           }
         }
+        if (h.extractsPortfolioType) {
+          // Match portfolio type keywords so "deposit $500 into brokerage" fills
+          // portfolioType and skips the clarification step.
+          const ptMatch = t.match(/\b(brokerage|retirement|trust)\b/i);
+          if (ptMatch) {
+            const raw = ptMatch[1];
+            params = { ...params, portfolioType: raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() };
+          }
+        }
         // These id extractors run alongside extractsAmount on the SAME text, and
         // norm() has already stripped "$" (it drops every non-word character), so
         // the amount is indistinguishable from an id by the time we get here:
