@@ -120,6 +120,10 @@ export function useAgentRun({
       abortRef.current.abort();
       abortRef.current = null;
     }
+    // Flip the trace to a terminal outcome so any progress spinners (rail,
+    // flow-detail modal, use-case Run chip) can render "aborted" instead of
+    // staying at "in progress" forever after the SSE stream is cut.
+    try { tokenChainTraceStore.completeTrace(false); } catch (_) { /* display-only */ }
     setIsRunning(false);
   }, []);
 

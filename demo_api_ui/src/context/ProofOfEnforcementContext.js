@@ -216,6 +216,12 @@ export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
 
   useEffect(() => {
     let cancelled = false;
+    // Switching vertical also invalidates every prior verdict — those runs
+    // scored against the old vertical's catalog. Otherwise a stale strip from
+    // the previous vertical stays pinned to its runId and reappears when the
+    // rail re-mounts.
+    setVerdict(null);
+    setVerdictsByRun({});
     fetch(`/api/use-cases?vertical=${encodeURIComponent(vertical)}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { useCases: [] }))
       .then((data) => { if (!cancelled) setCatalog(data.useCases || []); })
