@@ -30,6 +30,7 @@ const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenService');
 const { guardPromptInput } = require('../services/promptGuard');
+const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
 const router = express.Router();
 router.use(agentSessionMiddleware);
@@ -175,7 +176,7 @@ function markRecovered(tokenEvents) {
 // POST /api/agent/run
 // ---------------------------------------------------------------------------
 
-router.post('/run', async (req, res) => {
+router.post('/run', nrTransactionMiddleware, async (req, res) => {
   // Feature flag check
   const aguiEnabled = configStore.getEffective('ff_agui_enabled');
   if (aguiEnabled !== 'true' && aguiEnabled !== true) {

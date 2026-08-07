@@ -29,6 +29,7 @@ const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
+const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
 const router = express.Router();
 
@@ -122,7 +123,7 @@ function extractIntentFromResponse(response) {
  * Response:
  *   (same as /api/demo-agent/message)
  */
-router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.json(), async (req, res) => {
+router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.json(), nrTransactionMiddleware, async (req, res) => {
   // Hoist flowTraceId so the catch block can stamp NDJSON error events with it.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : null;
   try {
