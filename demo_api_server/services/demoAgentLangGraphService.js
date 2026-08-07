@@ -1543,7 +1543,7 @@ function extractHelixConfig(langchainConfig = {}) {
  *     ... (other fields per tool context)
  *   }
  */
-async function processAgentMessage({ message, userId, userToken, sessionId, tokenEvents = [], langchainConfig = {}, vertical = null, req = null }) {
+async function processAgentMessage({ message, userId, userToken, sessionId, tokenEvents = [], langchainConfig = {}, vertical = null, isGuest = false, req = null }) {
   try {
     console.log('[processAgentMessage] Starting');
     appEventService.logEvent('agent', 'info', 'Agent processing message…', { tag: 'agent/message', metadata: { ...(req?.body?.useCaseId ? { useCaseId: req.body.useCaseId } : {}) } });
@@ -1808,6 +1808,23 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // executors locally — token custody + HITL enforcement stay BFF-side. The
     // agent⇄tools loop bound (WR-03) is now enforced in runReasonLoop's
     // for(i < maxIterations) cap, still using MAX_TOOL_ITERATIONS.
+    // Guest users have no OAuth token — the reason loop cannot call any
+    // auth-gated tools. Return need_auth so the frontend redirects to PingOne.
+    if (isGuest) {
+      return {
+        reply: 'Please sign in to use the banking agent. Sign in with PingOne to access your accounts and use all features.',
+        success: false,
+        toolsCalled: [],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents: req?.tokenEvents || [],
+        need_auth: true,
+        requiresLogin: true,
+        error: 'need_auth',
+      };
+    }
+
     console.log('[processAgentMessage] Driving :3006 reason loop...');
     appEventService.logEvent('agent', 'info', 'Initializing reasoning agent', { tag: 'agent/init' });
     appEventService.logEvent('agent', 'info', 'LLM reasoning…', { tag: 'agent/invoke' });
