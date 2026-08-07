@@ -392,6 +392,13 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               sessionStorage.getItem(REAUTH_KEY),
             );
             if (!silent) {
+              // Only redirect when App.js has confirmed a session (propUser non-null).
+              // If we mounted as a guest (propUser=null, lazy-auth), a 401 on accounts
+              // means the user hasn't logged in yet — show demo data, don't redirect.
+              if (!propUser) {
+                loadDemoFallback("guest 401 — not yet authenticated");
+                return;
+              }
               // Token expired or cold-start stub. Redirect to re-auth.
               // PingOne's SSO session usually makes this seamless (no credentials needed).
               // Guard: only auto-redirect once — if a redirect already happened and we still
