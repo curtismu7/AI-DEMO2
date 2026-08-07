@@ -334,7 +334,7 @@ Granted scopes: `read`, `identity:read`
 | `get_investment_accounts` | gateway | `invest:read` | — |
 | `get_investment_transactions` | gateway | `invest:read` | — |
 | `get_portfolio_summary` | gateway | `invest:read` | — |
-| `pay_airline_fee` | gateway | `airlines:read` `airlines:write` | step_up |
+| `pay_airline_fee` | gateway | `airlines:read` `airlines:write` | — |
 | `get_airline_bookings` | gateway | `airlines:read` | — |
 | `sensitive_airline_bookings` | gateway | `airlines:read` `sensitive:read` | consent |
 | `cancel_airline_reservation` | gateway | `airlines:read` `airlines:write` | step_up |
