@@ -93,7 +93,7 @@ export function ParamHintCopy({ hint }) {
 // longer active (active=false).
 // Options may be plain strings or { label, value } objects. For plain strings the
 // label is the string itself and onSelect receives the lowercased string.
-export function ClarifyOptions({ options, onSelect, active }) {
+export function ClarifyOptions({ options, onSelect, active, onDismiss }) {
   if (!options || options.length === 0) return null;
 
   function getLabel(opt) {
