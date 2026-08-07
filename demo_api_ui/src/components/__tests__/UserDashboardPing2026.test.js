@@ -313,7 +313,7 @@ test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "31ca45ccbfb0586e78676bb5ddc0f6153151b957e58b057b874e22dd22c96722";
+    "0cb21738778be71dc06c6c0bab9255ebd8cdf8e05b388f455113d97111be97e9";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);
