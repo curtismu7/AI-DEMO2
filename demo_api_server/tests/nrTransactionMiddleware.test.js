@@ -1,15 +1,19 @@
 'use strict';
 
-const mockSetTransactionName = jest.fn();
 jest.mock('newrelic', () => ({
-  setTransactionName: mockSetTransactionName,
+  setTransactionName: jest.fn(),
 }), { virtual: true });
 
-const nrContext = require('../services/nrContext');
-const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
+let newrelic;
+let nrContext;
+let nrTransactionMiddleware;
 
 beforeEach(() => {
-  mockSetTransactionName.mockClear();
+  jest.resetModules();
+  jest.mock('newrelic', () => ({ setTransactionName: jest.fn() }), { virtual: true });
+  newrelic = require('newrelic');
+  nrContext = require('../services/nrContext');
+  ({ nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware'));
 });
 
 function makeReq(body = {}, query = {}, headers = {}) {
@@ -25,36 +29,36 @@ function runMiddleware(req) {
 describe('nrTransactionMiddleware', () => {
   test('sets transaction name for known useCaseId from body', async () => {
     await runMiddleware(makeReq({ useCaseId: 'UC14' }));
-    expect(mockSetTransactionName).toHaveBeenCalledWith('/BankingDemo/UC14-AttackSim');
+    expect(newrelic.setTransactionName).toHaveBeenCalledWith('/BankingDemo/UC14-AttackSim');
   });
 
   test('sets transaction name for UC1 from body', async () => {
     await runMiddleware(makeReq({ useCaseId: 'UC1' }));
-    expect(mockSetTransactionName).toHaveBeenCalledWith('/BankingDemo/UC1-ChipLogin');
+    expect(newrelic.setTransactionName).toHaveBeenCalledWith('/BankingDemo/UC1-ChipLogin');
   });
 
   test('uses query param when body missing useCaseId', async () => {
     await runMiddleware(makeReq({}, { useCaseId: 'UC17' }));
-    expect(mockSetTransactionName).toHaveBeenCalledWith('/BankingDemo/UC17-HITL');
+    expect(newrelic.setTransactionName).toHaveBeenCalledWith('/BankingDemo/UC17-HITL');
   });
 
   test('uses x-use-case-id header as fallback', async () => {
     await runMiddleware(makeReq({}, {}, { 'x-use-case-id': 'UC2' }));
-    expect(mockSetTransactionName).toHaveBeenCalledWith('/BankingDemo/UC2-SensitiveTransfer');
+    expect(newrelic.setTransactionName).toHaveBeenCalledWith('/BankingDemo/UC2-SensitiveTransfer');
   });
 
   test('falls back to UC-<id> for unknown useCaseId', async () => {
     await runMiddleware(makeReq({ useCaseId: 'UC99' }));
-    expect(mockSetTransactionName).toHaveBeenCalledWith('/BankingDemo/UC-UC99');
+    expect(newrelic.setTransactionName).toHaveBeenCalledWith('/BankingDemo/UC-UC99');
   });
 
   test('does not call setTransactionName when no useCaseId', async () => {
     await runMiddleware(makeReq());
-    expect(mockSetTransactionName).not.toHaveBeenCalled();
+    expect(newrelic.setTransactionName).not.toHaveBeenCalled();
   });
 
   test('calls next() even when newrelic throws', async () => {
-    mockSetTransactionName.mockImplementationOnce(() => { throw new Error('agent gone'); });
+    newrelic.setTransactionName.mockImplementationOnce(() => { throw new Error('agent gone'); });
     await expect(runMiddleware(makeReq({ useCaseId: 'UC14' }))).resolves.toBeUndefined();
   });
 
