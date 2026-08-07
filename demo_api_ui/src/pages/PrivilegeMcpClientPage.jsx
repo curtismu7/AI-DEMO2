@@ -655,9 +655,39 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-terminal">
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
+              <button className={`cur-terminal-tab ${terminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
               <button className={`cur-terminal-tab ${terminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>
+              {terminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
             </div>
             <div className="cur-terminal-content">
+              {terminalTab === 'trace' && (
+                <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:11}}>
+                  {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
+                  {events.slice(0, 100).map((e, i) => {
+                    const rest = { ...e, ts: undefined, type: undefined };
+                    let label = e.type;
+                    let color = '#888';
+                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; color = '#7ec8e3'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; color = e.status >= 400 ? '#ff6b6b' : '#a8e6cf'; }
+                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; color = '#ffd93d'; }
+                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; color = '#c3aed6'; }
+                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; color = '#ff6b6b'; }
+                    if (e.type === 'config') { label = 'Config updated'; color = '#b2bec3'; }
+                    return (
+                      <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
+                        <summary style={{cursor:'pointer',color,listStyle:'none',display:'flex',gap:8,alignItems:'center'}}>
+                          <span style={{color:'#555',minWidth:70}}>{e.ts?.slice(11,23)||''}</span>
+                          <span>{label}</span>
+                          {e.type === 'error' && <span style={{color:'#ff6b6b'}}>{e.message}</span>}
+                        </summary>
+                        <pre style={{margin:'4px 0 4px 80px',color:'#ddd',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+                          {JSON.stringify(rest, null, 2)}
+                        </pre>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
               {terminalTab === 'events' && (
                 <div className="cur-terminal-log">
                   {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
