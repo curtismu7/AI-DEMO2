@@ -404,20 +404,15 @@ export async function guardToolCall(
         };
       }
       // No classifiable obligation on an INDETERMINATE means the PDP could not
-      // evaluate a real verdict (see this file's `AuthzDecision.obligation` doc
-      // above) — a policy engine fault, not a step-up/consent ask. Resolve it
-      // to a concrete decision instead of a fake HITL challenge: PERMIT by
-      // default (fail open on ambiguity), DENY only if the response carries an
-      // explicit deny reason. Parity with PingOneAuthorizeClient's HTTP path.
+      // evaluate a real verdict — a policy engine fault, not a step-up/consent
+      // ask. Fail closed: an unknown outcome must never widen access.
+      // Parity with PingOneAuthorizeClient's HTTP path.
       console.warn(
         `[GW-WS] PingAuthorize returned INDETERMINATE with no classifiable obligation (engine=${engine}) — ` +
-        'treating as a policy engine fault, not a step-up/consent ask.',
+        'fail-closed: treating as DENY.',
       );
       const rawReason = response.data?.reason;
-      if (typeof rawReason === 'string' && /deny/i.test(rawReason)) {
-        return { permitted: false, reason: `indeterminate_no_obligation: ${rawReason}`, engine, policySource };
-      }
-      return { permitted: true, engine, policySource };
+      return { permitted: false, reason: `indeterminate_no_obligation: ${rawReason ?? 'unknown'}`, engine, policySource };
     }
 
     // Preserve the policy engine's specific DENY reason (e.g. the mock's
