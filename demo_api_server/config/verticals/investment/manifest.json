@@ -33,7 +33,8 @@
     "agent": "Wealth Assistant",
     "dashboard": "My Portfolio",
     "highValueAction": "Large Trade",
-    "highValueLabel": "High-value trade or withdrawal from a managed portfolio"
+    "highValueLabel": "High-value trade or withdrawal from a managed portfolio",
+    "amountPresets": [500, 1000, 5000, 10000]
   },
   "groups": {
     "categories": {

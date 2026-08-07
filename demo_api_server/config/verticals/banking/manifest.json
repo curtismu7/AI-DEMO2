@@ -41,7 +41,8 @@
     "agent": "Banking Agent",
     "dashboard": "Dashboard",
     "highValueAction": "Transfer",
-    "highValueLabel": "High-value transfer"
+    "highValueLabel": "High-value transfer",
+    "amountPresets": [100, 500, 1000, 2500]
   },
   "tiers": {
     "default": "Standard",
