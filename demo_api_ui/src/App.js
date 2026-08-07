@@ -372,8 +372,10 @@ function AppWithAuth() {
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
 
   // Landing /: always show float agent, never bottom dock.
+  // No Boolean(user) check — guests on /dashboard get the bottom dock agent
+  // (same reasoning as onMiddlePlacementInDashboard: guest must be able to start the demo).
   const hasEmbeddedDockLayout =
-    Boolean(user) && agentPlacement === "bottom" && onEmbeddedDockRoute;
+    agentPlacement === "bottom" && onEmbeddedDockRoute;
 
   const onMonitoringRoute = isMonitoringRoute(pathname);
 
