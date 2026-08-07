@@ -566,6 +566,19 @@ ensure_omlx() {
   fi
 }
 
+# Install the launchd watchdog that keeps llama-server tiers alive across logins.
+# macOS only. Without this, tiers die and stay dead until a manual kick.
+ensure_llm_launchd() {
+  [[ "$(uname)" == "Darwin" ]] || return 0
+  if ! command -v llama-server >/dev/null 2>&1 && ! command -v omlx >/dev/null 2>&1; then
+    return 0  # nothing to supervise
+  fi
+  info "Installing LLM launchd watchdog (keeps tiers alive at login and every 60s)..."
+  bash demo_llm_proxy/install-launchd.sh \
+    && ok "LLM launchd watchdog installed (com.ai-demo.llama-models)" \
+    || warn "launchd install failed — run manually: bash demo_llm_proxy/install-launchd.sh"
+}
+
 # Ensure llama.cpp is installed and the 2-tier LLM proxy is serving :8090.
 # :8090 is ALWAYS the proxy (demo_llm_proxy/router.js → tier llama-servers on
 # :8091 and :8096) — never a raw llama-server pointing straight at one model.
@@ -1237,8 +1250,9 @@ main() {
       # PingGateway (the MCP authorization gateway, ping-gateway/docker-compose.yml).
       # Without Docker run.sh starts but silently skips PingGateway, so install it.
       ensure_orbstack  # Docker (+ kubectl) via OrbStack on macOS — used by PingGateway
-      ensure_llamacpp  # offer local llama.cpp for NL intent routing (default backend)
-      ensure_omlx      # optional Mac fast path for agent chip dev
+      ensure_llamacpp     # offer local llama.cpp for NL intent routing (default backend)
+      ensure_omlx         # optional Mac fast path for agent chip dev
+      ensure_llm_launchd  # keep llama-server tiers alive across logins (macOS watchdog)
       ensure_codegraph_llamacpp  # Code Explorer requires tool-capable model
       ;;
     orbstack)
