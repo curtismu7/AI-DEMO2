@@ -3,7 +3,7 @@
 # the agent's "llama.cpp only" mode never silently dies.
 #
 # Installs a per-user LaunchAgent that runs `supervise-swap.sh` at login
-# (RunAtLoad) and every 60 seconds (StartInterval). supervise-swap applies
+# (RunAtLoad) and every 3 minutes (StartInterval). supervise-swap applies
 # residencyPolicy.js automatically each run (≥32GB dual, <32GB pin :8091).
 #
 # Do NOT bake LLM_PROXY_RESIDENT_TIERS into the plist by default — the supervisor
@@ -90,7 +90,7 @@ cat > "$PLIST" <<PLISTEOF
     <key>PATH</key><string>$PATH_ENV</string>$ENV_EXTRA
   </dict>
   <key>RunAtLoad</key><true/>
-  <key>StartInterval</key><integer>60</integer>
+  <key>StartInterval</key><integer>180</integer>
   <key>StandardOutPath</key><string>/tmp/llama-models/launchd.log</string>
   <key>StandardErrorPath</key><string>/tmp/llama-models/launchd.log</string>
 </dict>

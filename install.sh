@@ -573,7 +573,7 @@ ensure_llm_launchd() {
   if ! command -v llama-server >/dev/null 2>&1 && ! command -v omlx >/dev/null 2>&1; then
     return 0  # nothing to supervise
   fi
-  info "Installing LLM launchd watchdog (keeps tiers alive at login and every 60s)..."
+  info "Installing LLM launchd watchdog (keeps tiers alive at login and every 3 min)..."
   bash demo_llm_proxy/install-launchd.sh \
     && ok "LLM launchd watchdog installed (com.ai-demo.llama-models)" \
     || warn "launchd install failed — run manually: bash demo_llm_proxy/install-launchd.sh"
