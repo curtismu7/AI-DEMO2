@@ -1611,11 +1611,17 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Clarification option buttons — appear below the agent question bubble */
+@keyframes clarify-fadein {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .clarify-options {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+  animation: clarify-fadein 0.15s ease-out both;
 }
 
 .clarify-options__btn {

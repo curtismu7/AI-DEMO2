@@ -89,24 +89,40 @@ export function ParamHintCopy({ hint }) {
 }
 
 // Clickable option buttons for clarification messages — replaces typing "checking"
-// with a tap. Calls onSelect(option) when clicked. Disabled once the question is no
+// with a tap. Calls onSelect(value) when clicked. Disabled once the question is no
 // longer active (active=false).
+// Options may be plain strings or { label, value } objects. For plain strings the
+// label is the string itself and onSelect receives the lowercased string.
 export function ClarifyOptions({ options, onSelect, active }) {
   if (!options || options.length === 0) return null;
-  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function getLabel(opt) {
+    return typeof opt === 'object' && opt !== null ? opt.label : opt;
+  }
+  function getValue(opt) {
+    if (typeof opt === 'object' && opt !== null) return opt.value;
+    return opt.charAt(0).toLowerCase() + opt.slice(1);
+  }
+
   return (
-    <div className="clarify-options">
-      {options.map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          className="clarify-options__btn"
-          disabled={!active}
-          onClick={() => active && onSelect(opt)}
-        >
-          {cap(opt)}
-        </button>
-      ))}
+    <div className="clarify-options" role="listbox">
+      {options.map((opt) => {
+        const label = getLabel(opt);
+        const value = getValue(opt);
+        return (
+          <button
+            key={value}
+            type="button"
+            role="option"
+            aria-selected="false"
+            className="clarify-options__btn"
+            disabled={!active}
+            onClick={() => active && onSelect(value)}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
