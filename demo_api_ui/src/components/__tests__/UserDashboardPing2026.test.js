@@ -310,11 +310,11 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-07: added loading spinner (early return when loading=true).
+  // Re-baselined 2026-08-07: guard 401 redirect when propUser is null (guest/lazy-auth).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "c220783b936d884f44931eeea171169beedc29b97a717b425334c383df17cfa8";
+    "83951467f947b66d4e16d562935751f729cf4b9aac28165794ae0f596ed082f9";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);
