@@ -564,6 +564,19 @@ router.post('/rpc', express.json(), async (req, res) => {
   }
 });
 
+// POST /auth/logout — clear the Privilege OAuth tokens for this session
+router.post('/auth/logout', (req, res) => {
+  const session = getClientSession(req);
+  session.oauth.accessToken = null;
+  session.oauth.refreshToken = null;
+  session.oauth.expiresAt = null;
+  session.oauth.tokenUri = null;
+  session.oauth.scope = '';
+  resetMcpState(session);
+  emitEvent(session, 'oauth', { phase: 'logout' });
+  res.json({ ok: true });
+});
+
 // POST /chat — demo chat with optional LLM routing
 router.post('/chat', express.json(), async (req, res) => {
   const session = getClientSession(req);

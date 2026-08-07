@@ -500,7 +500,15 @@ export default function PrivilegeMcpClientPage() {
               <div className="cur-auth-status">
                 <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 {user?.email && <span className="cur-auth-user">{user.email}</span>}
-                <button className="cur-btn" onClick={() => refreshTools()} style={{ marginTop: 8 }}>Retry Tools</button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button className="cur-btn" onClick={() => refreshTools()}>Retry Tools</button>
+                  <button className="cur-btn" onClick={async () => {
+                    await api('/auth/logout', { method: 'POST' }).catch(() => {});
+                    setAuthenticated(false);
+                    setGrantedScopes([]);
+                    setTools([]);
+                  }}>Sign Out</button>
+                </div>
               </div>
             ) : (
               <div className="cur-btn-row">
