@@ -5186,6 +5186,21 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-hg--flat {
   display: contents;
 }
+/* Focus Mode: single-line horizontal strip — no box, no collapse toggle.
+   All controls stay visible; flex-wrap keeps them from overflowing. */
+.ba-hg--strip {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: var(--ba-surface, #f8fafc);
+  border: none;
+  border-bottom: 1px solid var(--ba-border, #e2e8f0);
+  border-radius: 0;
+  padding: 4px 10px;
+  min-height: 36px;
+}
 
 /* Collapsible Configuration group — the label doubles as the disclosure button.
    Collapsed hides every sibling but the button, so the group shrinks to one row
