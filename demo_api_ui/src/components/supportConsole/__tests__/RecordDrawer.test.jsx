@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import RecordDrawer from '../RecordDrawer';
 
 const row = { id: 'a1', title: 'Premier Checking', sub: 'Balance $4,210.55', status: 'Active', tone: 'ok', actions: ['Seed charge', 'Delete'] };
-const category = { id: 'accounts', label: 'Accounts', icon: '💳' };
+const category = { id: 'accounts', label: 'Accounts', icon: 'AC' };
 const customer = { name: 'Jordan Rivera' };
 
 it('renders record detail, actions, and a timeline when open', () => {
