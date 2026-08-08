@@ -62,4 +62,4 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8623
+              number: 8620
