@@ -492,6 +492,28 @@ describe('Phase 2 verticals', () => {
     expect(stillOpen.map((w) => w.id)).toEqual(openOrders.map((w) => w.id));
   });
 
+  // An id from a DIFFERENT slice of the same customer must not satisfy the
+  // existence check — the mutator's fallback would then release the first open
+  // work order and the store would be written before any id comparison ran.
+  it('an id from another slice does not release a work order', async () => {
+    const agent = makeSessionApp();
+    await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });
+
+    const before = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
+    const openBefore = before.body.data.workOrders.filter((w) => w.status !== 'Released').map((w) => w.id);
+    const shipmentId = before.body.data.shipments[0].id;
+    expect(shipmentId).toBeTruthy();
+
+    const r = await request(agent)
+      .post(`/api/admin/manufacturing/work-orders/${shipmentId}/release`)
+      .send({ userId: 'u1' });
+    expect(r.status).toBe(404);
+
+    const after = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
+    const openAfter = after.body.data.workOrders.filter((w) => w.status !== 'Released').map((w) => w.id);
+    expect(openAfter).toEqual(openBefore);
+  });
+
   it('releasing a real work order still works and targets that order', async () => {
     const agent = makeSessionApp();
     await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });

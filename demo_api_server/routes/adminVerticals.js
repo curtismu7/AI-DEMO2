@@ -75,7 +75,11 @@ function isKnownUser(userId) {
 
 // Write actions. Each takes { userId } in the body (the resolved user.id from
 // lookup) and mutates that user's vertical store via the vertical's helpers.
-function writeAction(plugin, method, noun) {
+// `sliceKey` names the slice the action operates on. Without it the existence
+// check has to search every array in the customer's data, which accepts an id
+// from an unrelated slice — a shipment id passed to the work-order release —
+// and the fallback inside the mutator then writes to the wrong row anyway.
+function writeAction(plugin, method, noun, sliceKey) {
   return (req, res) => {
     const userId = req.body?.userId;
     const id = req.params.id;
@@ -88,7 +92,10 @@ function writeAction(plugin, method, noun) {
     // late: the store has already been mutated.
     const store = plugin.getDataStore();
     const owned = store.get(String(userId)) || {};
-    const rowExists = Object.values(owned).some(
+    const searchable = sliceKey
+      ? [owned[sliceKey]]
+      : Object.values(owned);
+    const rowExists = searchable.some(
       (slice) => Array.isArray(slice) && slice.some((row) => String(row?.id) === String(id)),
     );
     if (!rowExists) return res.status(404).json({ ok: false, error: `${noun} not found` });
@@ -370,13 +377,13 @@ router.get('/government/lookup', requireAdmin, lookupAction(government, 'governm
   permits: 'permits', payments: 'payments', filings: 'filings',
   inspections: 'inspections', recordsRequests: 'recordsRequests',
 }));
-router.post('/government/permits/:id/release', ...ADMIN_WRITE, writeAction(government, 'releaseRecord', 'permit'));
+router.post('/government/permits/:id/release', ...ADMIN_WRITE, writeAction(government, 'releaseRecord', 'permit', 'permits'));
 
 router.get('/manufacturing/lookup', requireAdmin, lookupAction(manufacturing, 'manufacturing', {
   workOrders: 'workOrders', maintenanceTickets: 'maintenanceTickets', shipments: 'shipments',
   qualityInspections: 'qualityInspections', purchaseOrders: 'purchaseOrders',
 }));
-router.post('/manufacturing/work-orders/:id/release', ...ADMIN_WRITE, writeAction(manufacturing, 'releaseWorkOrder', 'work order'));
+router.post('/manufacturing/work-orders/:id/release', ...ADMIN_WRITE, writeAction(manufacturing, 'releaseWorkOrder', 'work order', 'workOrders'));
 
 // Read-only. investment's only mutators are trades (buy/sell/deposit/withdraw),
 // which is not a support operator's authority; abercrombie-fitch's store
