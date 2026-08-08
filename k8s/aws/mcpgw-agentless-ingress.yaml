@@ -5,7 +5,7 @@
 # here, so the directives from demo_mcpgw_nginx/nginx.conf appear as annotations.
 # Keep the two in sync.
 #
-#   https://banking.mcpgw.ai-demo.ping-devops.com/mcp
+#   https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp
 #     -> ingress-nginx :443
 #     -> ping-mcpgw :8620        (agentless API port; Frontend Name in the console)
 #     -> mcp-server :8080        (Backend Name in the Privilege console)
@@ -42,7 +42,7 @@ spec:
   tls:
   - hosts:
     - mcpgw.ai-demo.ping-devops.com
-    - banking.mcpgw.ai-demo.ping-devops.com
+    - aidemo.mcpgw.ai-demo.ping-devops.com
     secretName: mcpgw-agentless-tls
   rules:
   # Gateway base host: /authorize and /callback, the OIDC dance MCPGW runs itself.
@@ -59,7 +59,7 @@ spec:
             port:
               number: 8620
   # One host per Privilege MCP Server application.
-  - host: banking.mcpgw.ai-demo.ping-devops.com
+  - host: aidemo.mcpgw.ai-demo.ping-devops.com
     http:
       paths:
       - path: /

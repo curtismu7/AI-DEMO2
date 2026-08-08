@@ -880,7 +880,7 @@ selects the topology is the MCP Server application's **Frontend Name**.
 | | Local Docker Compose | SE cluster (pingaws) |
 |---|---|---|
 | Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` | `https://mcpgw.ai-demo.ping-devops.com` |
-| Frontend Name (per app) | `banking.mcpgw.local.ping-devops.com` | `banking.mcpgw.ai-demo.ping-devops.com` |
+| Frontend Name (per app) | `aidemo.mcpgw.local.ping-devops.com` | `aidemo.mcpgw.ai-demo.ping-devops.com` |
 | nginx engine | `mcpgw-nginx` service, host `443` | ingress-nginx, `k8s/aws/mcpgw-agentless-ingress.yaml` |
 | Gateway runtime | `ping-mcpgw`, `-listen :8623` | same, Service/Deployment on `8623` (was `8680`) |
 | Backend Name | `http://mcp-server:8080/mcp` | `http://mcp-server:8080/mcp` |
@@ -923,7 +923,7 @@ system` exit 1).
    (the BFF relay still uses it). Put its id/secret in `ping-mcpgw/config/pingone.env`
    (copy from `pingone.env.example`).
 3. **MCP Server application** in the Privilege console:
-   - Frontend Name: `banking.mcpgw.local.ping-devops.com` — **our domain, not the
+   - Frontend Name: `aidemo.mcpgw.local.ping-devops.com` — **our domain, not the
      auto-assigned cloud FQDN. This is the setting the whole pivot turns on.**
    - Backend Name: `http://mcp-server:8080/mcp`
    - Mesh Cluster: the cluster the freshly enrolled proxy joined
@@ -932,8 +932,8 @@ system` exit 1).
 4. **Policy**, attached to `cmuir+ssoEndUser@pingone.com`. Time-bound policies expire —
    re-author before each test session.
 5. `/etc/hosts`: `127.0.0.1 mcpgw.local.ping-devops.com` and
-   `127.0.0.1 banking.mcpgw.local.ping-devops.com`.
-6. `PRIVILEGE_MCPGW_URL=https://banking.mcpgw.local.ping-devops.com/mcp` in
+   `127.0.0.1 aidemo.mcpgw.local.ping-devops.com`.
+6. `PRIVILEGE_MCPGW_URL=https://aidemo.mcpgw.local.ping-devops.com/mcp` in
    `demo_api_server/.env`.
 
 ### The gate — run this before trusting any of the above
@@ -955,7 +955,7 @@ has been carrying.
 Then through the front door:
 
 ```bash
-curl -vk https://banking.mcpgw.local.ping-devops.com/mcp \
+curl -vk https://aidemo.mcpgw.local.ping-devops.com/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 ```
 

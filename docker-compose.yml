@@ -1266,7 +1266,7 @@ services:
   # TLS in front of the gateway runtime, so the frontend URL a client calls is a
   # domain we control rather than a Ping-assigned cloud FQDN.
   #
-  #   https://banking.mcpgw.local.ping-devops.com/mcp  ->  nginx :443
+  #   https://aidemo.mcpgw.local.ping-devops.com/mcp  ->  nginx :443
   #                                                    ->  ping-mcpgw :8623
   #                                                    ->  mcp-server :8080
   #
@@ -1297,7 +1297,7 @@ services:
       ai-demo:
         aliases:
           - mcpgw.local.ping-devops.com
-          - banking.mcpgw.local.ping-devops.com
+          - aidemo.mcpgw.local.ping-devops.com
     restart: unless-stopped
 
   # ── RAG Code Search Services ──────────────────────────────────────────────
