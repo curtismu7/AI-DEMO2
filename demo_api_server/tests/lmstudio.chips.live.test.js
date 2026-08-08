@@ -21,6 +21,11 @@ const LMS_BASE = (process.env.LMSTUDIO_BASE_URL || 'http://127.0.0.1:1234')
 
 const BFF_BASE = process.env.BFF_BASE_URL || 'https://api.ping.demo:3001';
 
+// Every live case requests this exact model. The probe has to check the same
+// one — probing loadedModels[0] would green-light a host that has some other
+// model loaded, and then each case 404s instead of skipping.
+const REQUIRED_MODEL = 'google/gemma-4-e2b';
+
 // BFF is behind a mkcert cert. Node native `fetch` ignores NODE_TLS_REJECT_UNAUTHORIZED
 // and has no dispatcher API without undici. Use https.request directly instead.
 function bffFetch(path, options = {}) {
@@ -67,7 +72,7 @@ beforeAll(async () => {
     if (res.ok) {
       const data = await res.json();
       loadedModels = (data.models || []).filter(m => (m.loaded_instances || []).length > 0);
-      lmsAvailable = loadedModels.length > 0;
+      lmsAvailable = loadedModels.some(m => m.key === REQUIRED_MODEL);
     }
   } catch {
     lmsAvailable = false;
@@ -88,13 +93,15 @@ beforeAll(async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: loadedModels[0].key, max_tokens: 1,
+          model: REQUIRED_MODEL, max_tokens: 1,
           messages: [{ role: 'user', content: 'ping' }],
         }),
       });
-      if (probe.status === 404) {
+      // Any non-2xx, not just 404: a 400/401/500/503 means the cases (which all
+      // require 200) would fail rather than skip.
+      if (!probe.ok) {
         lmsAvailable = false;
-        console.warn('[LMS Live] LM Studio has no Anthropic-compat /v1/messages (404) — skipping');
+        console.warn(`[LMS Live] Anthropic-compat /v1/messages returned ${probe.status} — skipping`);
       }
     } catch {
       lmsAvailable = false;
@@ -168,7 +175,7 @@ describe('BFF /api/langchain/lmstudio/status (live)', () => {
 // ── Anthropic-compat endpoint ─────────────────────────────────────────────────
 
 describe('LM Studio Anthropic-compat endpoint (live)', () => {
-  const DEFAULT_MODEL = 'google/gemma-4-e2b';
+  const DEFAULT_MODEL = REQUIRED_MODEL;
 
   function callLms(message, extra = {}) {
     return lmsFetch('/v1/messages', {
@@ -238,7 +245,7 @@ describe('Chip messages → LM Studio Anthropic-compat (live)', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': 'lm-studio' },
       body: JSON.stringify({
-        model: 'google/gemma-4-e2b',
+        model: REQUIRED_MODEL,
         max_tokens: 128,
         messages: [{ role: 'user', content: message }],
       }),
@@ -280,7 +287,7 @@ describe('LM Studio tool_use capability (live)', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': 'lm-studio' },
       body: JSON.stringify({
-        model: 'google/gemma-4-e2b',
+        model: REQUIRED_MODEL,
         max_tokens: 128,
         tools: [{
           name: 'get_account_balance',
