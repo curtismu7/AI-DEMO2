@@ -26,7 +26,7 @@ export default function OpsAssistantChat({ vertical, query }) {
   return (
     <div className="vops-assistant">
       <button type="button" className="vops-assistant__bar" onClick={() => setOpen((o) => !o)}>
-        🤖 <b>Ops Assistant</b> <span className="vops-assistant__ro">READ-ONLY</span>
+        <span className="vops__cardicon">AI</span> <b>Ops Assistant</b> <span className="vops-assistant__ro">READ-ONLY</span>
       </button>
       {open && (
         <div className="vops-assistant__panel">

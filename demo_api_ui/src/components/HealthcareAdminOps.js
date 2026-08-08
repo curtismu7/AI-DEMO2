@@ -1,6 +1,6 @@
 import React from 'react';
-import VerticalOpsConsole from './verticalOps/VerticalOpsConsole';
+import SupportConsole from './supportConsole/SupportConsole';
 
 export default function HealthcareAdminOps({ user, onLogout }) {
-  return <VerticalOpsConsole vertical="healthcare" user={user} onLogout={onLogout} />;
+  return <SupportConsole vertical="healthcare" user={user} onLogout={onLogout} />;
 }

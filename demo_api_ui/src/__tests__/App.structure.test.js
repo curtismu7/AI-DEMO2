@@ -134,6 +134,25 @@ describe("App.js — critical JSX placements", () => {
     );
     expect(appSrc).not.toContain('element={<McpGatewayConfig />}');
   });
+
+  // The five vertical-ops consoles show customer data. /admin, /admin/vault and
+  // /admin/verticals were wrapped; these five were not, so the URL alone reached
+  // them. A new admin route must not land unwrapped.
+  test("every /admin/<vertical> route element is wrapped in RequireAdminLogin", () => {
+    const adminPaths = [
+      "/admin/banking",
+      "/admin/healthcare",
+      "/admin/retail",
+      "/admin/sporting-goods",
+      "/admin/workforce",
+    ];
+    for (const p of adminPaths) {
+      const start = appSrc.indexOf(`path="${p}"`);
+      expect(start, `no route declares path="${p}"`).toBeGreaterThan(-1);
+      const block = appSrc.slice(start);
+      expect(block.slice(0, block.indexOf("/>"))).toContain("RequireAdminLogin");
+    }
+  });
 });
 
 // ─── DashboardContent (highest priority — guards the 3d2cf092 regression) ────

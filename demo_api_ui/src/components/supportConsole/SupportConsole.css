@@ -1,8 +1,8 @@
-/* VerticalOpsConsole.css — scoped to .vops; uses local --accent/--accent2/--tint only */
+/* SupportConsole.css — scoped to .vops; uses local --accent/--accent2/--tint only */
 .vops { --accent:#2563eb; --accent2:#1e3a8a; --tint:#eef4ff; color:#1a2230; }
 .vops__hero { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; padding:20px 28px 56px; }
 .vops__brand { display:flex; align-items:center; gap:12px; } .vops__brand h1 { font-size:20px; margin:0; }
-.vops__icon { width:40px;height:40px;border-radius:12px;background:#ffffff26;display:grid;place-items:center;font-size:20px; }
+.vops__icon { width:40px;height:40px;border-radius:12px;background:#ffffff26;display:grid;place-items:center;font-size:15px;font-weight:800;letter-spacing:.02em; }
 .vops__lookup { margin-top:16px; display:flex; gap:8px; max-width:560px; }
 .vops__lookup input { flex:1; border:0; border-radius:10px; padding:12px 14px; font-size:14px; }
 .vops__lookup button { border:0; border-radius:10px; padding:0 18px; font-weight:700; background:#ffffff; color:var(--accent2); cursor:pointer; }
@@ -16,6 +16,7 @@
 .vops__grid { max-width:1080px; margin:18px auto 40px; padding:0 12px; display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
 .vops__card { background:#fff; border:1px solid #eceef5; border-radius:14px; overflow:hidden; }
 .vops__cardhead { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid #f0f1f7; }
+.vops__cardicon { display:inline-grid; place-items:center; min-width:28px; height:28px; padding:0 6px; border-radius:6px; background:var(--tint); color:var(--accent); font-size:11px; font-weight:800; letter-spacing:.02em; }
 .vops__count { margin-left:auto; font-size:11px; font-weight:700; color:var(--accent2); background:var(--tint); padding:2px 9px; border-radius:99px; }
 .vops__item { display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid #f5f6fa; cursor:pointer; }
 .vops__item:hover { background:var(--tint); } .vops__itemmain { flex:1; } .vops__ititle { font-weight:600; font-size:13px; } .vops__isub { color:#7a8498; font-size:12px; }
@@ -58,3 +59,12 @@
 .vops-assistant__in { display:flex; gap:8px; padding:10px 12px; border-top:1px solid #f0f1f7; }
 .vops-assistant__in input { flex:1; border:1px solid #e1e5ef; border-radius:9px; padding:8px 11px; font-size:12.5px; }
 .vops-assistant__in button { background:var(--accent); color:#fff; border:0; border-radius:9px; padding:0 14px; font-weight:700; cursor:pointer; }
+.vops__scopewarn {
+  padding: 0.6rem 1rem;
+  margin: 0 0 0.75rem;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: 0.85rem;
+}

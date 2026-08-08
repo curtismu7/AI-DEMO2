@@ -1,9 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 
+// get() must resolve: the console fetches the operator's scopes on mount.
 vi.mock('../../../services/bffAxios', () => ({
   __esModule: true,
-  default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() }
+  default: {
+    get: vi.fn(() => Promise.resolve({ data: { scopes: [], source: 'introspection' } })),
+    post: vi.fn(),
+    delete: vi.fn(),
+  }
 }));
 vi.mock('../../../utils/appToast', () => ({
   notifySuccess: vi.fn(),
