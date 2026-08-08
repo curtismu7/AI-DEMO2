@@ -93,5 +93,5 @@
 /* Severity is a CSS dot, never an emoji — REGRESSION_PLAN §0 allowlist. */
 .nrd-sev { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--nrd-ink-2); white-space: nowrap; }
 .nrd-sev::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--nrd-ok); flex: none; }
-.nrd-sev-warn::before { background: var(--nrd-warn); }
+.nrd-sev-warn::before, .nrd-sev-warning::before { background: var(--nrd-warn); }
 .nrd-sev-error::before, .nrd-sev-err::before { background: var(--nrd-err); }

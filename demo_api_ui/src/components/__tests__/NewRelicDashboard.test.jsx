@@ -67,6 +67,25 @@ describe('NewRelicDashboard', () => {
     expect(screen.getByText('a3f1c9e2')).toBeInTheDocument();
   });
 
+  it('renders a "warning" severity with the warn class, not the default/info treatment', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        ...PAYLOAD,
+        stream: [{
+          timestamp: 1786194823914,
+          message: 'rate limit approaching',
+          category: 'mcp',
+          severity: 'warning',
+          correlationId: null,
+        }],
+      },
+    });
+    renderDash();
+    const sev = await screen.findByText('warning');
+    expect(sev).toHaveClass('nrd-sev-warning');
+    expect(sev).not.toHaveClass('nrd-sev-info');
+  });
+
   it('shows the not-configured state on 503, not a generic error', async () => {
     apiClient.get.mockRejectedValue({ response: { status: 503 } });
     renderDash();
