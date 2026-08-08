@@ -67,6 +67,9 @@ vi.mock("../../context/AgentUiModeContext", async (importOriginal) => {
     useAgentUiMode: () => ({
       placement: "bottom",
       setSurfaceHostEl: vi.fn(),
+      // The dashboard registers a toolbar host too; omitting this makes every
+      // case in this file die on "setToolbarHostEl is not a function".
+      setToolbarHostEl: vi.fn(),
       fab: false,
     }),
   };

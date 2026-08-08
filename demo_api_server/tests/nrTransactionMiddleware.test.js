@@ -1,8 +1,11 @@
 'use strict';
 
+// NOT { virtual: true } — see tests/nrSegments.test.js for why. newrelic is a
+// real dependency; the virtual flag makes the mock miss requires that
+// originate inside middleware/nrTransactionMiddleware.js.
 jest.mock('newrelic', () => ({
   setTransactionName: jest.fn(),
-}), { virtual: true });
+}));
 
 let newrelic;
 let nrContext;
@@ -10,7 +13,7 @@ let nrTransactionMiddleware;
 
 beforeEach(() => {
   jest.resetModules();
-  jest.mock('newrelic', () => ({ setTransactionName: jest.fn() }), { virtual: true });
+  jest.mock('newrelic', () => ({ setTransactionName: jest.fn() }));
   newrelic = require('newrelic');
   nrContext = require('../services/nrContext');
   ({ nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware'));

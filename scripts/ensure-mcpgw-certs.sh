@@ -23,8 +23,31 @@ CERT_SANS=("*.mcpgw.local.ping-devops.com" "mcpgw.local.ping-devops.com")
 err() { echo "  x  $*" >&2; }
 ok()  { echo "  +  $*"; }
 
+# Ping's SE material names three files a gateway host carries:
+#
+#   /var/lib/procyon/config/pingone.env
+#   /var/lib/procyon/ssl/mcpgw-cert.pem
+#   /var/lib/procyon/ssl/mcpgw-key.pem
+#
+# ping-mcpgw/procyon/ is bind-mounted whole at /var/lib/procyon, so placing the pair
+# under procyon/ssl/ puts them at exactly those in-container paths. Note this is NOT
+# /procyon/ssl — that is the separate mcpgw-ssl volume holding the mesh identity, and
+# putting the certs there instead had no effect (PR #1465, reverted by #1466).
+PROCYON_SSL="${ROOT}/ping-mcpgw/procyon/ssl"
+
+# Copy the wildcard pair into the procyon tree under the names Privilege expects.
+install_into_procyon_tree() {
+  mkdir -p "${PROCYON_SSL}"
+  cp "${CERT_FILE}" "${PROCYON_SSL}/mcpgw-cert.pem"
+  cp "${KEY_FILE}"  "${PROCYON_SSL}/mcpgw-key.pem"
+  chmod 644 "${PROCYON_SSL}/mcpgw-cert.pem"
+  chmod 600 "${PROCYON_SSL}/mcpgw-key.pem"
+  ok "Gateway certs placed at ping-mcpgw/procyon/ssl/mcpgw-{cert,key}.pem"
+}
+
 if [[ -f "${CERT_FILE}" && -f "${KEY_FILE}" ]]; then
   ok "MCPGW wildcard certs present in certs/."
+  install_into_procyon_tree
   exit 0
 fi
 
@@ -44,3 +67,4 @@ mkdir -p "${CERTS_DIR}"
   exit 1
 }
 ok "MCPGW wildcard certs generated in certs/."
+install_into_procyon_tree
