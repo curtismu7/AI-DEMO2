@@ -972,3 +972,54 @@ is the proof the tool call was governed.
 | `404` from the gateway | Host header rewritten, or Frontend Name does not match the host called | keep `proxy_set_header Host $host` |
 | Browser cert warning | wildcard cert not trusted | `mkcert -install` |
 | MCP session drops after 60s | a proxy timeout somewhere still at its default | `proxy_read_timeout 3600s` on every hop |
+
+### 2026-08-08 (later): the frontend is port 8620, not 8623 — and the cert theory was wrong
+
+Two corrections to the section above, both found by probing the running proxy rather
+than by reading vendor material.
+
+**1. `-listen` is the mesh port. The MCP frontend is `-alp-port`.**
+
+Ports actually bound inside the container:
+
+```
+8090   debug api (loopback)
+8620   -alp-port, "agentless proxy api port"   <- the MCP frontend
+8623   -listen  (we set it; mesh/mTLS)
+8690   medusa
+```
+
+Probing each one settles it:
+
+```
+POST http://localhost:8620/mcp   -> 401  "Bearer Token not found."
+POST https://localhost:8623/mcp  -> TLS: tlsv13 alert certificate required
+```
+
+`Bearer Token not found.` is this gateway's documented tokenless response — the same
+string the blocker table above records. 8620 is the hop nginx must target, over plain
+HTTP. Pointing nginx at 8623 produces a bare `502` whose real cause appears only in the
+nginx error log, which is what made this take a while to see.
+
+The vendor SE deck's "proxy forwards to MCPGW runtime, often 8623 in field examples"
+is what sent us at 8623. Either their field config differs, or the deck is loose about
+which port is which; the local evidence is unambiguous.
+
+**2. Mounting a server certificate for 8623 changed nothing.**
+
+PR #1465 mounted `certs/mcpgw-wildcard.pem` at `/procyon/ssl/mcpgw-cert.pem` on the
+theory that the listener demanded a client certificate because it lacked a server one.
+Verified after the mount landed and the container was recreated: the files were present
+(`ls /procyon/ssl/` shows both) and 8623 returned the *identical* alert. 8623 requires
+mTLS because it is the mesh port, full stop. The mount has been reverted — re-add it
+only with evidence that some listener reads those files.
+
+The one durable finding from #1465 stands: `ping-mcpgw/README.md` had documented that
+mount as existing since the service was added, and it never did.
+
+**Still unresolved and console-side:** the 401 carries no `WWW-Authenticate` header, so
+the browser never learns where to authenticate. Grepping the log after a restart with
+`pingone.env` correctly mounted and populated still returns **zero** hits for
+`SERVER_URL`, `authorize`, `oidc`, or `pingone.env`. The challenge is control-plane
+driven — it should appear once the MCP Server application's Frontend Name and auth mode
+are set in the console.

@@ -7,7 +7,7 @@
 #
 #   https://banking.mcpgw.ai-demo.ping-devops.com/mcp
 #     -> ingress-nginx :443
-#     -> ping-mcpgw :8623        (Frontend Name in the Privilege console)
+#     -> ping-mcpgw :8620        (agentless API port; Frontend Name in the console)
 #     -> mcp-server :8080        (Backend Name in the Privilege console)
 #
 # <<NAMESPACE>> is substituted by deploy.sh, matching se-ingress.yaml.
@@ -28,12 +28,11 @@ metadata:
     cert-manager.io/cluster-issuer: "letsencrypt-pdo"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    # cyonproxy serves TLS on its -listen port with its own /procyon/ssl material,
-    # which no CA in the cluster trusts. If a build ever listens plain HTTP,
-    # switch this to "HTTP"; the symptom of getting it wrong is a 502 with an
-    # SSL handshake error in the ingress controller log.
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-    nginx.ingress.kubernetes.io/proxy-ssl-verify: "off"
+    # The agentless API port (8620) is plain HTTP. Do not switch this to HTTPS
+    # and aim at 8623: that is the mesh port, it speaks mTLS, and it answers with
+    # "tlsv13 alert certificate required" — surfacing as a bare 502 whose real
+    # cause appears only in the ingress controller log.
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     # MCP streamable HTTP and SSE hold the response open for the session's life.
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
@@ -58,7 +57,7 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8623
+              number: 8620
   # One host per Privilege MCP Server application.
   - host: banking.mcpgw.ai-demo.ping-devops.com
     http:
@@ -69,4 +68,4 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8623
+              number: 8620

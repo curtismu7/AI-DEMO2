@@ -40,11 +40,15 @@ spec:
         args:
         - "-hostname"
         - "mcpgw.ai-demo.ping-devops.com"
-        # 8623 matches Docker Compose and the vendor's SE material. Was :8680.
+        # -listen is the MESH port, not the MCP frontend. It speaks mTLS and
+        # answers every plain request with "tlsv13 alert certificate required".
+        # The frontend is -alp-port ("agentless proxy api port"), which defaults
+        # to :8620 and is what the Service and Ingress target. Verified locally:
+        # POST http://<proxy>:8620/mcp -> 401 "Bearer Token not found."
         - "-listen"
         - ":8623"
         ports:
-        - containerPort: 8623
+        - containerPort: 8620
           name: http
         env:
         - name: ENV_PROXY_TOKEN
@@ -78,19 +82,19 @@ spec:
             cpu: "500m"
         startupProbe:
           tcpSocket:
-            port: 8623
+            port: 8620
           failureThreshold: 30
           periodSeconds: 2
           timeoutSeconds: 2
         livenessProbe:
           tcpSocket:
-            port: 8623
+            port: 8620
           periodSeconds: 60
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           tcpSocket:
-            port: 8623
+            port: 8620
           initialDelaySeconds: 5
           periodSeconds: 30
           timeoutSeconds: 3
@@ -141,8 +145,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8623
-    targetPort: 8623
+  - port: 8620
+    targetPort: 8620
     protocol: TCP
     name: http
   sessionAffinity: ClientIP
