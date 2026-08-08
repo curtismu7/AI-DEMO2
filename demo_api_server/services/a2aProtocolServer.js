@@ -14,7 +14,10 @@ const {
   AgentEvent,
 } = require('@a2a-js/sdk/server');
 const { agentCardHandler, jsonRpcHandler } = require('@a2a-js/sdk/server/express');
-const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
+const {
+  specialistForVertical,
+  verticalsWithSpecialist,
+} = require('../config/a2aSpecialists');
 const { isA2aEnabled } = require('./a2aDelegationService');
 const { buildSpecialistAgentCard } = require('./a2aAgentCardService');
 const {
@@ -27,7 +30,7 @@ function defaultConfigStore() {
 }
 
 /** AgentExecutor: acknowledge wire handoff (MCP still uses nested-act path). */
-function makeSpecialistExecutor(specialist) {
+function makeSpecialistExecutor(specialist, vertical = specialist.appKey) {
   return {
     async execute(requestContext, eventBus) {
       const userText =
@@ -54,7 +57,8 @@ function makeSpecialistExecutor(specialist) {
             },
           ],
           metadata: {
-            vertical: specialist.appKey,
+            vertical,
+            specialistAppKey: specialist.appKey,
             specialist: specialist.specialistName,
             demoLayer: 'a2a-protocol-wire',
           },
@@ -73,14 +77,14 @@ function makeSpecialistExecutor(specialist) {
  * @param {object} [cfg]
  */
 function createSpecialistProtocolHandler(vertical, cfg) {
-  const specialist = A2A_SPECIALISTS[vertical];
+  const specialist = specialistForVertical(vertical);
   if (!specialist) return null;
   const card = buildSpecialistAgentCard(vertical, cfg);
   if (!card) return null;
   const handler = new DefaultRequestHandler(
     card,
     new InMemoryTaskStore(),
-    makeSpecialistExecutor(specialist),
+    makeSpecialistExecutor(specialist, vertical),
   );
   return { handler, card, specialist };
 }
@@ -104,7 +108,7 @@ function createA2aProtocolRouter(opts = {}) {
     return next();
   });
 
-  for (const vertical of Object.keys(A2A_SPECIALISTS)) {
+  for (const vertical of verticalsWithSpecialist()) {
     const built = createSpecialistProtocolHandler(vertical, typeof getCfg === 'function' ? getCfg() : getCfg);
     if (!built) continue;
     const { handler } = built;
