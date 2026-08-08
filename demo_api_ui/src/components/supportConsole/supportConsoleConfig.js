@@ -1,7 +1,8 @@
 // Per-vertical operator console config. Pure data + lookup adapters that
 // normalize each vertical's lookup response into { customer, categories }.
 
-export const VERTICAL_ORDER = ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce'];
+export const VERTICAL_ORDER = ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
+  'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch'];
 
 const money = (n) => (typeof n === 'number' ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : n);
 
@@ -35,7 +36,9 @@ function userCentric(sliceDefs) {
       },
       categories: sliceDefs.map((d) =>
         category(d.id, d.label, d.icon, data[d.slice], (r) => ({
-          id: r.id,
+          // Some slices key on a domain field rather than `id` — investment
+          // holdings carry only `symbol`, and an undefined key collides.
+          id: d.rowId ? d.rowId(r) : r.id,
           title: d.title(r),
           sub: d.sub(r),
           status: r.status || '—',
@@ -196,6 +199,113 @@ export const CONFIGS = {
       { id: 'benefits', slice: 'benefits', label: 'Benefits', icon: 'BN', title: (r) => r.name || 'Benefit', sub: (r) => r.enrollmentStatus || '', actions: [] },
     ]),
   },
+
+  // ── Phase 2 verticals ──────────────────────────────────────────────────────
+  // Cards are curated from each seed (university and government seed 14 slices
+  // each) and only ever array-valued slices — an object slice renders nothing.
+  university: {
+    id: 'university', name: 'University Ops', short: 'University', icon: 'UV',
+    theme: { accent: '#7c3aed', accent2: '#4c1d95', tint: '#f5f0ff' },
+    lookupPath: '/api/admin/university/lookup',
+    lookupPlaceholder: 'Look up a student by name, email, or id…',
+    identityActions: [],
+    caseSource: { path: '/api/admin/university/cases' },
+    // No actions: both store mutators take an options object, not a row id, so
+    // writeAction could not act on the row the operator clicked.
+    permissions: {},
+    actions: {},
+    adaptLookup: userCentric([
+      { id: 'courses', slice: 'courses', label: 'Courses', icon: 'CO', title: (r) => r.title || r.id, sub: (r) => `${r.courseType || ''} · ${r.credits || 0} cr · ${r.term || ''}`, actions: [] },
+      { id: 'billing', slice: 'billing', label: 'Billing', icon: 'BL', title: (r) => r.description || 'Charge', sub: (r) => `${money(Number(r.amount))} · due ${r.dueDate || ''}`, actions: [] },
+      { id: 'holds', slice: 'holds', label: 'Holds', icon: 'HD', title: (r) => `${r.holdType || 'Hold'} hold`, sub: (r) => r.reason || '', actions: [] },
+      { id: 'financial_aid', slice: 'financial_aid', label: 'Financial aid', icon: 'FA', title: (r) => r.name || 'Award', sub: (r) => `${r.type || ''} · ${money(Number(r.amount))}`, actions: [] },
+      { id: 'enrollmentHistory', slice: 'enrollmentHistory', label: 'Enrollment', icon: 'EN', title: (r) => r.type || 'Entry', sub: (r) => `${r.course || ''} · ${r.date || ''}`, actions: [] },
+    ]),
+  },
+
+  government: {
+    id: 'government', name: 'Government Ops', short: 'Government', icon: 'GV',
+    theme: { accent: '#0f766e', accent2: '#134e4a', tint: '#effcfa' },
+    lookupPath: '/api/admin/government/lookup',
+    lookupPlaceholder: 'Look up a constituent by name, email, or id…',
+    identityActions: [],
+    caseSource: { path: '/api/admin/government/cases' },
+    permissions: {
+      // Handing over the record itself — same posture as healthcare's Release.
+      'Release record': { scope: 'sensitive:read', gate: 'approval' },
+    },
+    actions: {
+      'Release record': { method: 'post', buildUrl: (row) => `/api/admin/government/permits/${encodeURIComponent(row.id)}/release`, body: (_r, c) => ({ userId: c.id }) },
+    },
+    adaptLookup: userCentric([
+      { id: 'permits', slice: 'permits', label: 'Permits', icon: 'PM', title: (r) => `${r.permitType || 'Permit'} permit`, sub: (r) => r.subject || '', actions: ['Release record'] },
+      { id: 'payments', slice: 'payments', label: 'Payments', icon: 'PY', title: (r) => r.description || 'Payment', sub: (r) => `${money(Number(r.amount))} · ${r.method || ''}`, actions: [] },
+      { id: 'filings', slice: 'filings', label: 'Filings', icon: 'FL', title: (r) => r.type || 'Filing', sub: (r) => `${r.permitId || ''} · ${r.date || ''}`, actions: [] },
+      { id: 'inspections', slice: 'inspections', label: 'Inspections', icon: 'IN', title: (r) => r.type || 'Inspection', sub: (r) => r.address || '', actions: [] },
+      { id: 'recordsRequests', slice: 'recordsRequests', label: 'Records requests', icon: 'RR', title: (r) => r.requestType || 'Request', sub: (r) => r.description || '', actions: [] },
+    ]),
+  },
+
+  manufacturing: {
+    id: 'manufacturing', name: 'Manufacturing Ops', short: 'Manufacturing', icon: 'MF',
+    theme: { accent: '#b45309', accent2: '#78350f', tint: '#fff8ed' },
+    lookupPath: '/api/admin/manufacturing/lookup',
+    lookupPlaceholder: 'Look up an account by name, email, or id…',
+    identityActions: [],
+    caseSource: { path: '/api/admin/manufacturing/cases' },
+    permissions: {
+      'Release work order': { scope: 'general:write', gate: 'verified' },
+    },
+    actions: {
+      'Release work order': { method: 'post', buildUrl: (row) => `/api/admin/manufacturing/work-orders/${encodeURIComponent(row.id)}/release`, body: (_r, c) => ({ userId: c.id }) },
+    },
+    adaptLookup: userCentric([
+      { id: 'workOrders', slice: 'workOrders', label: 'Work orders', icon: 'WO', title: (r) => r.product || r.id, sub: (r) => `${r.type || ''} · ${r.completedQty || 0}/${r.quantity || 0}`, actions: ['Release work order'] },
+      { id: 'maintenanceTickets', slice: 'maintenanceTickets', label: 'Maintenance', icon: 'MT', title: (r) => r.issue || 'Ticket', sub: (r) => `${r.machineId || ''} · ${r.priority || ''}`, actions: [] },
+      { id: 'shipments', slice: 'shipments', label: 'Shipments', icon: 'SH', title: (r) => r.destination || 'Shipment', sub: (r) => `${r.carrier || ''} · ${r.shipDate || ''}`, actions: [] },
+      { id: 'qualityInspections', slice: 'qualityInspections', label: 'Quality', icon: 'QA', title: (r) => r.type || 'Inspection', sub: (r) => `${r.workOrder || ''} · ${r.inspector || ''}`, actions: [] },
+      { id: 'purchaseOrders', slice: 'purchaseOrders', label: 'Purchase orders', icon: 'PO', title: (r) => r.material || r.id, sub: (r) => `${r.supplier || ''} · ${money(Number(r.total))}`, actions: [] },
+    ]),
+  },
+
+  // Read-only: every investment mutator is a trade, which is not a support
+  // operator's authority.
+  investment: {
+    id: 'investment', name: 'Investment Ops', short: 'Investment', icon: 'IV',
+    theme: { accent: '#1d4ed8', accent2: '#1e3a8a', tint: '#eef3ff' },
+    lookupPath: '/api/admin/investment/lookup',
+    lookupPlaceholder: 'Look up an investor by name, email, or id…',
+    identityActions: [],
+    caseSource: { path: '/api/admin/investment/cases' },
+    permissions: {},
+    actions: {},
+    adaptLookup: userCentric([
+      { id: 'portfolios', slice: 'portfolios', label: 'Portfolios', icon: 'PF', title: (r) => r.portfolioType || 'Portfolio', sub: (r) => `${r.portfolioNumber || ''} · ${money(Number(r.value))}`, actions: [] },
+      { id: 'holdings', slice: 'holdings', label: 'Holdings', icon: 'HO', rowId: (r) => r.symbol, title: (r) => r.name || r.symbol, sub: (r) => `${r.symbol || ''} · ${r.quantity || 0} · ${money(Number(r.marketValue))}`, actions: [] },
+      { id: 'trades', slice: 'trades', label: 'Trades', icon: 'TR', title: (r) => `${r.type || 'Trade'} ${r.symbol || ''}`, sub: (r) => `${money(Number(r.amount))} · ${r.date || ''}`, actions: [] },
+      { id: 'dividends', slice: 'dividends', label: 'Dividends', icon: 'DV', rowId: (r) => r.id, title: (r) => r.symbol || 'Dividend', sub: (r) => `${money(Number(r.amount))} · ${r.period || ''}`, actions: [] },
+    ]),
+  },
+
+  // Read-only: the store is createSeedStore with no mutator map.
+  'abercrombie-fitch': {
+    id: 'abercrombie-fitch', name: 'Abercrombie & Fitch Ops', short: 'A&F', icon: 'AF',
+    theme: { accent: '#475569', accent2: '#1e293b', tint: '#f4f6f9' },
+    lookupPath: '/api/admin/abercrombie-fitch/lookup',
+    lookupPlaceholder: 'Look up a shopper by name, email, or id…',
+    identityActions: [],
+    caseSource: { path: '/api/admin/abercrombie-fitch/cases' },
+    permissions: {},
+    actions: {},
+    adaptLookup: userCentric([
+      { id: 'orders', slice: 'orders', label: 'Orders', icon: 'OR', title: (r) => r.product || r.id, sub: (r) => `${r.size || ''} ${r.color || ''} · ${money(Number(r.amount))}`, actions: [] },
+      { id: 'returns', slice: 'returns', label: 'Returns', icon: 'RN', title: (r) => r.product || 'Return', sub: (r) => r.reason || '', actions: [] },
+      { id: 'support_tickets', slice: 'support_tickets', label: 'Support', icon: 'TK', title: (r) => r.subject || 'Ticket', sub: (r) => `${r.category || ''} · ${r.created_date || ''}`, actions: [] },
+      { id: 'rewards', slice: 'rewards', label: 'Rewards', icon: 'RW', title: (r) => r.tier || 'Rewards', sub: (r) => `${r.points || 0} pts`, actions: [] },
+      { id: 'gift_cards', slice: 'gift_cards', label: 'Gift cards', icon: 'GC', title: (r) => `Card ending ${r.last4 || '????'}`, sub: (r) => `${money(Number(r.balance))} · expires ${r.expiry || ''}`, actions: [] },
+    ]),
+  },
+
 };
 
 export function getVerticalConfig(id) {

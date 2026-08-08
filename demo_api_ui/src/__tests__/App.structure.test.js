@@ -145,6 +145,11 @@ describe("App.js — critical JSX placements", () => {
       "/admin/retail",
       "/admin/sporting-goods",
       "/admin/workforce",
+      "/admin/university",
+      "/admin/government",
+      "/admin/manufacturing",
+      "/admin/investment",
+      "/admin/abercrombie-fitch",
     ];
     for (const p of adminPaths) {
       const start = appSrc.indexOf(`path="${p}"`);

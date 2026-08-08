@@ -11,8 +11,29 @@ function hasDisallowedEmoji(value) {
 }
 
 describe('supportConsoleConfig', () => {
-  it('has all five verticals in order', () => {
-    expect(VERTICAL_ORDER).toEqual(['banking','healthcare','retail','sporting-goods','workforce']);
+  it('has all ten verticals in order', () => {
+    expect(VERTICAL_ORDER).toEqual([
+      'banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
+      'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch',
+    ]);
+  });
+
+  // A card whose slice key is absent from the lookup payload renders an empty
+  // list and says nothing about why. The server test asserts the payload; this
+  // asserts the config asks for slices by the same names.
+  it('every category id is unique within a vertical', () => {
+    for (const id of VERTICAL_ORDER) {
+      const { categories } = CONFIGS[id].adaptLookup({ user: { id: 'u1', name: 'T' }, data: {} });
+      const ids = categories.map((c) => c.id);
+      expect(new Set(ids).size, `${id} has duplicate category ids`).toBe(ids.length);
+    }
+  });
+
+  it('read-only verticals declare no actions', () => {
+    for (const id of ['university', 'investment', 'abercrombie-fitch']) {
+      expect(Object.keys(CONFIGS[id].actions)).toEqual([]);
+      expect(Object.keys(CONFIGS[id].permissions)).toEqual([]);
+    }
   });
 
   it('each config has required fields and a theme', () => {

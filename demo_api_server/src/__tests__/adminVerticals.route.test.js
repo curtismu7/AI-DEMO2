@@ -409,3 +409,83 @@ describe('admin gate', () => {
     }
   });
 });
+
+describe('Phase 2 verticals', () => {
+  const PHASE2 = [
+    ['university', ['courses', 'billing', 'holds', 'financial_aid', 'enrollmentHistory']],
+    ['government', ['permits', 'payments', 'filings', 'inspections', 'recordsRequests']],
+    ['manufacturing', ['workOrders', 'maintenanceTickets', 'shipments', 'qualityInspections', 'purchaseOrders']],
+    ['investment', ['portfolios', 'holdings', 'trades', 'dividends']],
+    ['abercrombie-fitch', ['orders', 'returns', 'support_tickets', 'rewards', 'gift_cards']],
+  ];
+
+  // A card whose slice key does not exist in the store renders empty and says
+  // nothing about why — the likeliest mistake in a change shaped like this, so
+  // assert the payload is actually populated rather than merely present.
+  it.each(PHASE2)('GET /%s/lookup returns the declared slices', async (vertical, slices) => {
+    const r = await request(makeSessionApp()).get(`/api/admin/${vertical}/lookup?q=demo`);
+    expect(r.status).toBe(200);
+    expect(r.body.vertical).toBe(vertical);
+    expect(r.body.user).toMatchObject({ id: 'u1' });
+    for (const key of slices) {
+      expect(r.body.data).toHaveProperty(key);
+      expect(r.body.data[key]).not.toBeNull();
+    }
+  });
+
+  it.each(PHASE2)('%s lookup requires admin', async (vertical) => {
+    mockAdminAllowed = false;
+    const r = await request(makeSessionApp()).get(`/api/admin/${vertical}/lookup?q=demo`);
+    expect(r.status).toBe(403);
+  });
+
+  it('the read-only verticals register no write route', async () => {
+    const agent = makeSessionApp();
+    // Verified for u1, so a 404 here is "no such route", not the gate refusing.
+    await request(agent).post('/api/admin/investment/verify/initiate').send({ customerId: 'u1' });
+    for (const path of [
+      '/api/admin/investment/trades/t1/buy',
+      '/api/admin/investment/portfolios/p1/withdraw',
+      '/api/admin/abercrombie-fitch/orders/o1/cancel',
+    ]) {
+      const r = await request(agent).post(path).send({ userId: 'u1' });
+      expect(r.status).toBe(404);
+    }
+  });
+
+  it('a gated write on a Phase 2 vertical is refused until the customer is verified', async () => {
+    const agent = makeSessionApp();
+    const look = await request(agent).get('/api/admin/government/lookup?q=demo');
+    const permit = actionable(look.body.data.permits, 'status', ['Released']);
+    expect(permit).toBeTruthy();
+
+    const denied = await request(agent).post(`/api/admin/government/permits/${permit.id}/release`).send({ userId: 'u1' });
+    expect(denied.status).toBe(403);
+    expect(denied.body.error).toBe('customer_not_verified');
+
+    await request(agent).post('/api/admin/government/verify/initiate').send({ customerId: 'u1' });
+    const ok = await request(agent).post(`/api/admin/government/permits/${permit.id}/release`).send({ userId: 'u1' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.ok).toBe(true);
+    expect(ok.body.item.status).toBe('Released');
+  });
+
+  // writeAction calls store[method](userId, rowId). Only mutators shaped
+  // (userId, itemId) honour the row the operator clicked; the (data, {...})
+  // ones fall back to a default row and report success anyway. Exposing one
+  // would be worse than not offering it, so assert they stay unexposed.
+  it('mutators that cannot honour a row id are not exposed as routes', async () => {
+    const agent = makeSessionApp();
+    await request(agent).post('/api/admin/university/verify/initiate').send({ customerId: 'u1' });
+    for (const path of [
+      '/api/admin/university/courses/C-1/register',
+      '/api/admin/university/transcripts/T-1/release',
+      '/api/admin/government/fees/F-1/pay',
+      '/api/admin/manufacturing/work-orders/WO-1/schedule',
+    ]) {
+      const r = await request(agent).post(path).send({ userId: 'u1' });
+      expect(r.status).toBe(404);
+    }
+  });
+
+});

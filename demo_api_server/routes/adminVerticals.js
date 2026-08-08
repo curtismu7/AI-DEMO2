@@ -11,6 +11,11 @@ const healthcare = require('../config/verticals/healthcare');
 const retail = require('../config/verticals/retail');
 const sportingGoods = require('../config/verticals/sporting-goods');
 const workforce = require('../config/verticals/workforce');
+const university = require('../config/verticals/university');
+const government = require('../config/verticals/government');
+const manufacturing = require('../config/verticals/manufacturing');
+const investment = require('../config/verticals/investment');
+const abercrombieFitch = require('../config/verticals/abercrombie-fitch');
 // Reads this session's own record of what it was granted — no signature check
 // needed, and none performed.
 const { decodeJwt } = require('../utils/tokenUtils');
@@ -35,7 +40,8 @@ function listLookupUsers(vertical) {
   };
 }
 
-for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
+for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
+  'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch']) {
   router.get(`/${vertical}/users`, requireAdmin, listLookupUsers(vertical));
 }
 
@@ -277,7 +283,8 @@ const { makeRequireCustomerVerified } = require('../middleware/requireCustomerVe
 // tests red; that is the proof the gate is real and not decorative.
 const ADMIN_WRITE = [requireAdmin, makeRequireCustomerVerified({ isCustomerVerified, recordAudit })];
 
-for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
+for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
+  'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch']) {
   router.post(`/${vertical}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
   router.get(`/${vertical}/verify/status`, ...ADMIN_WRITE, verifyStatus);
   router.get(`/${vertical}/permissions`, ...ADMIN_WRITE, permissionsFor);
@@ -323,6 +330,48 @@ router.post('/workforce/expenses/:id/approve', ...ADMIN_WRITE, writeAction(workf
 router.post('/workforce/expenses/:id/deny', ...ADMIN_WRITE, writeAction(workforce, 'denyExpense', 'expense'));
 router.post('/workforce/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(workforce, 'resolveTicket', 'ticket'));
 router.post('/workforce/trainings/:id/complete', ...ADMIN_WRITE, writeAction(workforce, 'completeTraining', 'training'));
+
+// ── Phase 2 verticals ─────────────────────────────────────────────────────────
+// Cards are curated from each seed rather than dumped: university and
+// government seed 14 slices each, and a console showing all of them is noise.
+// Only array-valued slices are cards — government's `fees` and manufacturing's
+// `inventory` are objects and render nothing useful in a row list.
+//
+// Write actions are limited to mutators whose signature is (userId, itemId),
+// which is what writeAction passes. The createSeedStore mutators shaped
+// (data, {...}) — registerCourse, releaseTranscript, payFee, scheduleRun —
+// would receive the row id where they expect an options object, silently fall
+// back to a default row, and report success for an action the operator did not
+// ask for. They stay unexposed until there is a parameter contract for them.
+
+router.get('/university/lookup', requireAdmin, lookupAction(university, 'university', {
+  courses: 'courses', billing: 'billing', holds: 'holds',
+  financial_aid: 'financial_aid', enrollmentHistory: 'enrollmentHistory',
+}));
+
+router.get('/government/lookup', requireAdmin, lookupAction(government, 'government', {
+  permits: 'permits', payments: 'payments', filings: 'filings',
+  inspections: 'inspections', recordsRequests: 'recordsRequests',
+}));
+router.post('/government/permits/:id/release', ...ADMIN_WRITE, writeAction(government, 'releaseRecord', 'permit'));
+
+router.get('/manufacturing/lookup', requireAdmin, lookupAction(manufacturing, 'manufacturing', {
+  workOrders: 'workOrders', maintenanceTickets: 'maintenanceTickets', shipments: 'shipments',
+  qualityInspections: 'qualityInspections', purchaseOrders: 'purchaseOrders',
+}));
+router.post('/manufacturing/work-orders/:id/release', ...ADMIN_WRITE, writeAction(manufacturing, 'releaseWorkOrder', 'work order'));
+
+// Read-only. investment's only mutators are trades (buy/sell/deposit/withdraw),
+// which is not a support operator's authority; abercrombie-fitch's store
+// exposes no mutators at all. Neither registers a write route — not a disabled
+// one, none.
+router.get('/investment/lookup', requireAdmin, lookupAction(investment, 'investment', {
+  portfolios: 'portfolios', holdings: 'holdings', trades: 'trades', dividends: 'dividends',
+}));
+router.get('/abercrombie-fitch/lookup', requireAdmin, lookupAction(abercrombieFitch, 'abercrombie-fitch', {
+  orders: 'orders', returns: 'returns', support_tickets: 'support_tickets',
+  rewards: 'rewards', gift_cards: 'gift_cards',
+}));
 
 // ── Case notes ────────────────────────────────────────────────────────────────
 // In-memory, keyed `<vertical>:<customerId>`. Not gated on verification: a note

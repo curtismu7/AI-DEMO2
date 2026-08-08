@@ -31,13 +31,44 @@ would act on, not a dump of the seed.
 
 | Vertical | Cards | Actions (scope, gate) |
 |---|---|---|
-| university | `courses`, `billing`, `holds`, `financial_aid`, `enrollmentHistory` | Register course (`general:write`, verified) · Release transcript (`sensitive:read`, approval) |
-| government | `permits`, `fees`, `filings`, `inspections`, `recordsRequests` | Pay fee (`transactions:write`, verified) · Release record (`sensitive:read`, approval) |
-| manufacturing | `workOrders`, `maintenanceTickets`, `shipments`, `qualityInspections`, `inventory` | Schedule run (`general:write`, verified) · Release work order (`general:write`, verified) |
+| university | `courses`, `billing`, `holds`, `financial_aid`, `enrollmentHistory` | none — read-only |
+| government | `permits`, `payments`, `filings`, `inspections`, `recordsRequests` | Release record (`sensitive:read`, approval) |
+| manufacturing | `workOrders`, `maintenanceTickets`, `shipments`, `qualityInspections`, `purchaseOrders` | Release work order (`general:write`, verified) |
 | investment | `portfolios`, `holdings`, `trades`, `dividends` | none — read-only |
 | abercrombie-fitch | `orders`, `returns`, `support_tickets`, `rewards`, `gift_cards` | none — read-only |
 
 Investment's `profile` slice becomes the customer summary rather than a card.
+
+### Only array-valued slices are cards
+
+`government.fees` and `manufacturing.inventory` are objects, not lists, and
+render nothing useful in a row list. They are replaced by `payments` and
+`purchaseOrders`. Every one of the 24 slice keys above was verified against the
+live store before being written into config.
+
+### Why only two write actions
+
+`writeAction` calls `store[method](userId, rowId)`. The Phase 1 verticals define
+mutators to match — `cancelAppointment(userId, appointmentId)`. The Phase 2
+stores are built on `createSeedStore`, whose mutators are shaped
+`(data, optionsObject)`, and only two of them take a bare id:
+
+| Mutator | Signature | Exposed |
+|---|---|---|
+| `government.releaseRecord` | `(data, permitId)` | yes |
+| `manufacturing.releaseWorkOrder` | `(data, orderId)` | yes |
+| `university.registerCourse` | `(data, { course, title })` | no |
+| `university.releaseTranscript` | `(data, { recipient })` | no |
+| `government.payFee` | `(data, { amount, permitId })` | no |
+| `manufacturing.scheduleRun` | `(data, { workOrder, when })` | no |
+
+The four unexposed ones would receive the row id where they expect an options
+object, destructure `undefined`, silently fall back to a default row, and report
+success for an action the operator did not ask for. A button that acts on the
+wrong record is worse than no button. Exposing them needs a parameter contract
+between config and `writeAction` — its own change, not this one.
+
+That leaves university read-only despite having mutators.
 
 ### Why investment and abercrombie-fitch are read-only
 
@@ -52,12 +83,12 @@ console is designed to authorise it. Exposing them behind `gate: 'approval'`
 was considered and rejected: it ships buttons the console can never complete,
 which is worse than not offering them.
 
-### Why both "release" actions use `gate: 'approval'`
+### Gates on the two exposed actions
 
-Releasing a transcript or a government record hands over the record itself.
-That matches healthcare's existing `Release`, which is the one Phase 1 action
-carrying `sensitive:read` + approval. The other four new actions are ordinary
-support operations and take `gate: 'verified'`.
+`Release record` hands over a government record itself, so it carries
+`sensitive:read` + `gate: 'approval'` — matching healthcare's `Release`, the one
+Phase 1 action with that posture. `Release work order` is an ordinary shop-floor
+operation and takes `general:write` + `gate: 'verified'`.
 
 Every scope name above comes from `demo_api_server/config/scopes.js`. The
 vocabulary is coarse and cannot distinguish "release transcript" from "register
@@ -78,13 +109,13 @@ independently.
 ## Server
 
 For each of the five: a `GET /<vertical>/lookup` and the existing
-`/<vertical>/users` registration, both behind `requireAdmin`. The three verticals
-with actions also register their write routes behind `ADMIN_WRITE`
+`/<vertical>/users` registration, both behind `requireAdmin`. Government and
+manufacturing also register their one write route each behind `ADMIN_WRITE`
 (`requireAdmin` + `requireCustomerVerified`), so the customer-verification gate
 from Phase 1 applies to them unchanged.
 
-Read-only verticals register no write routes at all — not a disabled route, no
-route.
+The other three register no write routes at all — not a disabled route, no
+route. A test asserts the unexposed mutators 404 rather than silently acting.
 
 ## Testing
 
