@@ -87,3 +87,49 @@ it('says scopes could not be read rather than rendering a blanket denial', async
   await lookUpMarcus();
   expect(screen.getByText(/Could not read your granted permissions/i)).toBeInTheDocument();
 });
+
+it('keeps verification across the refresh that follows a successful write', async () => {
+  mockGets();
+  const expiresAt = Date.now() + 900000;
+  // 1st post = verify/initiate, 2nd = the action itself.
+  bffAxios.post
+    .mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } })
+    .mockResolvedValueOnce({ data: { ok: true, item: { id: 'o1' } } });
+
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await lookUpMarcus();
+  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await waitFor(() => expect(screen.getByRole('button', { name: /Cancel order/i })).toBeEnabled());
+
+  // runAction re-runs doLookup to refresh. The server's verification for u1 is
+  // still live, so the strip must not fall back to "Not verified".
+  fireEvent.click(screen.getByRole('button', { name: /Cancel order/i }));
+  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'),
+  );
+  expect(screen.getByRole('button', { name: /Cancel order/i })).toBeEnabled();
+});
+
+it('drops verification when the lookup resolves a different customer', async () => {
+  mockGets();
+  const expiresAt = Date.now() + 900000;
+  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await lookUpMarcus();
+  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await waitFor(() => expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'));
+
+  // Same session, different person — verification must not carry over.
+  bffAxios.get.mockImplementation((url) => {
+    if (url.endsWith('/permissions')) return Promise.resolve({ data: { scopes: ['transactions:write', 'general:write'], source: 'introspection' } });
+    if (url.includes('/lookup')) return Promise.resolve({ data: { user: { id: 'u2', name: 'Casey Stone' }, data: { orders: [] } } });
+    return Promise.resolve({ data: { data: { notes: [] } } });
+  });
+  fireEvent.change(screen.getByPlaceholderText(/Look up a member/i), { target: { value: 'casey' } });
+  fireEvent.submit(screen.getByTestId('vops-lookup-form'));
+
+  await waitFor(() => expect(screen.getByText('Casey Stone')).toBeInTheDocument());
+  expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'false');
+});

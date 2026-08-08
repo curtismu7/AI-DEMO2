@@ -19,6 +19,9 @@ export default function SupportConsole({ vertical }) {
   // Verification is per customer and lives on the server session; this mirrors
   // it so buttons can be gated before the click, never instead of the server.
   const [verifiedUntil, setVerifiedUntil] = useState(0);
+  // Which customer verifiedUntil belongs to — mirrors the server keying it by
+  // customer id, so a refresh keeps it and a different customer drops it.
+  const verifiedCustomerRef = useRef(null);
   const [scopes, setScopes] = useState([]);
   const [scopeSource, setScopeSource] = useState(null);
   const traceRef = useRef(null);
@@ -48,10 +51,18 @@ export default function SupportConsole({ vertical }) {
     setLoading(true);
     try {
       const { data } = await bffAxios.get(cfg.lookupPath, { params: { q } });
-      setResult(cfg.adaptLookup(data));
-      // A new customer is a new call. Carrying the previous customer's
-      // verification forward is exactly what the server-side keying prevents.
-      setVerifiedUntil(0);
+      const next = cfg.adaptLookup(data);
+      setResult(next);
+      // Drop verification only when this resolves a DIFFERENT customer. A new
+      // customer is a new call, and carrying verification across is exactly
+      // what the server-side keying prevents. But runAction re-runs this to
+      // refresh after a successful write, and the server's 15-minute
+      // verification for that same customer is still live — clearing it there
+      // would send the operator back to the strip after every single action.
+      if ((next?.customer?.id ?? null) !== verifiedCustomerRef.current) {
+        setVerifiedUntil(0);
+        verifiedCustomerRef.current = null;
+      }
     } catch (err) {
       const st = err?.response?.status;
       notifyError(st === 401 ? 'Session expired — please sign in again.' : 'Lookup failed.');
@@ -75,6 +86,7 @@ export default function SupportConsole({ vertical }) {
       // server wins and the strip flips back.
       if (err?.response?.data?.error === 'customer_not_verified') {
         setVerifiedUntil(0);
+        verifiedCustomerRef.current = null;
         notifyError('Verify the customer before making changes.');
         return;
       }
@@ -87,6 +99,11 @@ export default function SupportConsole({ vertical }) {
   // have none. Rendering every action denied would be a lie dressed as a
   // security decision.
   const scopesUnknown = scopeSource === 'none';
+
+  const handleVerified = useCallback((expiresAt) => {
+    verifiedCustomerRef.current = result?.customer?.id ?? null;
+    setVerifiedUntil(expiresAt);
+  }, [result]);
 
   const theme = { '--accent': cfg.theme.accent, '--accent2': cfg.theme.accent2, '--tint': cfg.theme.tint };
 
@@ -127,7 +144,7 @@ export default function SupportConsole({ vertical }) {
           vertical={vertical}
           customer={result.customer}
           verified={verified}
-          onVerified={setVerifiedUntil}
+          onVerified={handleVerified}
         />
       )}
 
