@@ -1227,15 +1227,27 @@ services:
     # WWW-Authenticate challenge and validate the PingOne-issued bearer the client
     # returns with (slide 4: GET /callback -> POST /as/token -> POST /mcp).
     #
-    # required: false so the profile still starts on a checkout that has not created
-    # the file yet (it is gitignored — copy pingone.env.example).
+    # required: false on both so the profile still starts on a checkout that has not
+    # created them yet (both gitignored — copy pingone.env.example for the first).
+    #
+    # NO `environment:` block here. It used to carry
+    # ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}", which the compose-env-shadow
+    # hygiene gate correctly rejects once env_file is in play: `environment:` wins
+    # over env_file unconditionally, so on any checkout where the shell or root .env
+    # does not set PRIVILEGE_PROXY_TOKEN it would blank the token to "".
+    #
+    # The enrollment token now travels in its own env file, which is the use
+    # ping-mcpgw/README.md has always described for proxy-token.env:
+    #
+    #   printf 'ENV_PROXY_TOKEN=%s\n' 'eyJ...' > ping-mcpgw/procyon/config/proxy-token.env
+    #
+    # Only needed for FIRST boot or re-enrollment — after that cyonproxy keeps a
+    # long-lived token in the mcpgw-ssl volume and ignores this entirely.
     env_file:
       - path: ./ping-mcpgw/procyon/config/pingone.env
         required: false
-    environment:
-      # Declared AFTER env_file on purpose: compose lets `environment:` win, and the
-      # enrollment token must not be overridable by a stray line in that file.
-      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
+      - path: ./ping-mcpgw/procyon/config/proxy-token.env
+        required: false
     ports:
       - "8620:8620"
       - "8690:8690"
