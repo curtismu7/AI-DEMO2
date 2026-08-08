@@ -142,7 +142,20 @@ Infrastructure is done and proven. Remaining work is console-side only.
   `8d4d7a4c`. `AuthzMiddleware` for the app carries `AuthzServer:<app-name>` and
   `IssuerPublicKey:[]`. The control plane also advertises a tenant-level
   `AuthzServer:<envid>.oauth.privilege.pingone.com`, but the app is not bound to it.
-  **Everything converges here: populate `IssuerPublicKey` and the demo unblocks.**
+- **The gateway has no unauthenticated surface at all.** Every path answers
+  `401 Bearer Token not found.` — including `/authorize`, `/callback`, and both
+  `.well-known` documents, which must be publicly readable for OAuth discovery:
+
+  ```
+  /mcp  /authorize  /callback
+  /.well-known/oauth-authorization-server
+  /.well-known/oauth-protected-resource     -> all 401, identical body
+  ```
+
+  You need a token to reach the endpoint that issues tokens. That is what an
+  `AuthzMiddleware` with no authorization server configured looks like: fail-closed
+  over everything, including the endpoints a client would use to bootstrap.
+  **Everything converges here: give the app an authz server and the demo unblocks.**
 - **Duplicate node registration.** `has same NodeURL - this happens because of
   misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`.
   Cosmetic — confirmed the command stream stays up and discovery still dispatches.

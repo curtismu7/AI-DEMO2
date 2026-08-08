@@ -1074,6 +1074,42 @@ tables are all unaffected — they were verified independently. Agentless is sti
 right topology: fewer moving parts, no dependency on Ping's cloud routing, and it is
 what the SE material documents. It just does not solve authentication.
 
+### The intended flow, and exactly where it stops
+
+The design is:
+
+```
+Postman -> MCPGW /mcp -> 401 + WWW-Authenticate -> PingOne sign-in
+        -> MCPGW /callback -> MCPGW mints its own token
+        -> MCPGW /mcp (with that token) -> MCP server
+```
+
+The token the client finally presents is **issued by MCPGW**, not by PingOne — MCPGW
+authenticates the user against PingOne behind the scenes and then acts as the
+authorization server itself. That is consistent with the binary: it vendors
+`ory/fosite` (an OAuth2 *server* library) and carries `/authorize` and `/callback`.
+
+Which means the earlier token test was sending the wrong *kind* of token — a
+PingOne-issued one, where the gateway expects one of its own. But the flow is blocked
+before that ever matters, in two places at once:
+
+```
+POST /mcp        -> 401 Bearer Token not found.   (no WWW-Authenticate: nothing tells
+                                                   the client where to authenticate)
+GET  /authorize  -> 401 Bearer Token not found.   (the OAuth endpoint is itself behind
+                                                   the same middleware)
+```
+
+Every path answers identically, including `/.well-known/oauth-authorization-server`
+and `/.well-known/oauth-protected-resource`, which must be publicly readable for any
+OAuth discovery to work. You need a token to reach the endpoint that issues tokens.
+
+That is what an `AuthzMiddleware` with no authorization server configured looks like:
+it fails closed over the entire surface, including the endpoints that would let a
+client bootstrap. So the conclusion is unchanged but better grounded — the gateway is
+not merely missing an issuer key for validating foreign tokens, it has **no
+unauthenticated surface at all**.
+
 ### The state everything converges on
 
 ```
