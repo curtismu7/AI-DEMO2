@@ -89,7 +89,6 @@ the `verify-ai-demo2` skill; the cause is a missing `node_modules` or a needed
 | Action | Path | Responsibility |
 |---|---|---|
 | Delete | `demo_api_ui/src/components/Admin.jsx`, `Admin.css` | Unrouted since Dashboard.js took `/admin` |
-| Delete | `demo_api_ui/src/components/OAuthHealthDashboard.jsx` | Zero importers |
 | Delete | `demo_api_ui/src/components/AdminConfigValidationPanel.jsx`, `.css` | Zero importers |
 | Modify | `demo_api_ui/src/App.js:1001-1045` | Wrap five vertical-ops routes in `RequireAdminLogin` |
 | Modify | `demo_api_ui/src/components/verticalOps/verticalOpsConfig.js` | Replace non-allowlist emoji with text tokens |
@@ -112,14 +111,20 @@ the `verify-ai-demo2` skill; the cause is a missing `node_modules` or a needed
 
 ## Task 1: Delete the unrouted admin components
 
-Three components have zero importers outside their own files. `Admin.jsx` is the oldest —
-`App.js:360` carries the comment "Admin uses Dashboard.js on /admin", which is why it went
-dark. Deleting them is the whole task; the proof is that the build still passes.
+Two components have zero importers anywhere. `Admin.jsx` is the oldest — `App.js:360`
+carries the comment "Admin uses Dashboard.js on /admin", which is why it went dark.
+Deleting them is the whole task; the proof is that the build still passes.
+
+**`OAuthHealthDashboard.jsx` is NOT deleted.** The first draft of this plan listed it as an
+orphan on the strength of a grep restricted to `*.js` and `*.jsx`. It is imported by
+`demo_api_ui/src/components/Configuration/UnifiedConfigurationPage.tsx`, which is routed
+through `routes/PublicRoutes.js`. It is live code. This is also why Step 1's grep now covers
+`.ts` and `.tsx`: `demo_api_ui/CLAUDE.md` says the directory is "plain JS/JSX — no
+TypeScript sources", and that statement is false.
 
 **Files:**
 - Delete: `demo_api_ui/src/components/Admin.jsx`
 - Delete: `demo_api_ui/src/components/Admin.css`
-- Delete: `demo_api_ui/src/components/OAuthHealthDashboard.jsx`
 - Delete: `demo_api_ui/src/components/AdminConfigValidationPanel.jsx`
 - Delete: `demo_api_ui/src/components/AdminConfigValidationPanel.css`
 
@@ -129,24 +134,24 @@ dark. Deleting them is the whole task; the proof is that the build still passes.
 
 - [ ] **Step 1: Confirm each file has zero importers**
 
-Run from `demo_api_ui/src`:
+Run from the repository root, once per component. The file-type list must include `.ts` and
+`.tsx` — omitting them is exactly how the first draft got this wrong:
 
 ```bash
-for c in Admin OAuthHealthDashboard AdminConfigValidationPanel; do
-  echo "--- $c"
-  grep -rEl "from ['\"][^'\"]*/${c}['\"]" . --include="*.js" --include="*.jsx"
-done
+grep -rEln "from ['\"][^'\"]*/Admin['\"]" demo_api_ui/src
+grep -rEln "from ['\"][^'\"]*/AdminConfigValidationPanel['\"]" demo_api_ui/src
 ```
 
-Expected: no output under any of the three headers. If a path prints, **stop** — that file
-is live and this plan is wrong about it. Report it rather than deleting.
+`grep -r` with no `--include` searches every file type, which is what you want here.
 
-- [ ] **Step 2: Delete the five files**
+Expected: exit code 1 and no output for both. If a path prints, **stop** — that file is
+live and this plan is wrong about it. Report BLOCKED with the path rather than deleting.
+
+- [ ] **Step 2: Delete the four files**
 
 ```bash
 git rm demo_api_ui/src/components/Admin.jsx \
        demo_api_ui/src/components/Admin.css \
-       demo_api_ui/src/components/OAuthHealthDashboard.jsx \
        demo_api_ui/src/components/AdminConfigValidationPanel.jsx \
        demo_api_ui/src/components/AdminConfigValidationPanel.css
 ```
@@ -168,11 +173,14 @@ Expected: PASS, same count as before minus any tests that targeted the deleted c
 
 ```bash
 git add demo_api_ui/src/components/
-git commit -m "chore(admin): delete three unrouted admin components
+git commit -m "chore(admin): delete two unrouted admin components
 
 Admin.jsx has been dark since Dashboard.js took /admin (see the comment at
-App.js:360). OAuthHealthDashboard.jsx and AdminConfigValidationPanel.jsx have
-zero importers. Build and unit suite pass without them."
+App.js:360). AdminConfigValidationPanel.jsx has zero importers. Build and unit
+suite pass without them.
+
+OAuthHealthDashboard.jsx was on the original list and is deliberately kept:
+UnifiedConfigurationPage.tsx imports it and is routed via PublicRoutes.js."
 ```
 
 ---
