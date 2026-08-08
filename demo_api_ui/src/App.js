@@ -146,6 +146,7 @@ import MonitoringRoutes, {
   LogsRoute,
   McpTrafficRoute,
   NewRelicRoute,
+  PingOneEventsRoute,
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
@@ -510,6 +511,11 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/new-relic"
                   element={<NewRelicRoute user={user} logout={logout} />}
+                />
+                {/* PingOne webhook events — public, same posture as New Relic */}
+                <Route
+                  path="/monitoring/pingone-events"
+                  element={<PingOneEventsRoute user={user} logout={logout} />}
                 />
                 {/* Demo config accessible without login */}
                 <Route

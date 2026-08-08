@@ -8,6 +8,7 @@ import LogViewerPage from "../components/LogViewerPage";
 import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
 import NewRelicDashboard from "../components/NewRelicDashboard";
+import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
@@ -119,6 +120,16 @@ export function NewRelicRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <NewRelicDashboard />
+    </AppShell>
+  );
+}
+
+// The PingOne webhook event stream. Split out of /monitoring/new-relic, which
+// was named for New Relic but rendered this. Public, matching its old behavior.
+export function PingOneEventsRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingOneEventPanel />
     </AppShell>
   );
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../context/ThemeContext';
-import { NewRelicRoute } from '../MonitoringRoutes';
+import { NewRelicRoute, PingOneEventsRoute } from '../MonitoringRoutes';
 import apiClient from '../../services/apiClient';
 
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
@@ -49,5 +49,23 @@ describe('NewRelicRoute', () => {
     );
     await waitFor(() => expect(screen.getByTestId('stage-oauth')).toBeInTheDocument());
     expect(screen.queryByText(/No events received yet/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('PingOneEventsRoute', () => {
+  it('renders the PingOne panel with chrome', async () => {
+    render(
+      <MemoryRouter initialEntries={['/monitoring/pingone-events']}>
+        <ThemeProvider><PingOneEventsRoute user={null} logout={() => {}} /></ThemeProvider>
+      </MemoryRouter>,
+    );
+    // "PingOne Events" appears both as the new nav label and the panel's own
+    // title — selector narrows to the panel heading to avoid an ambiguous match.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/PingOne Events/i, { selector: '.pingone-event-panel__title' }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 });
