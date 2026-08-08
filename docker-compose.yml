@@ -1193,19 +1193,38 @@ services:
     profiles: ["mcpgw"]
     image: public.ecr.aws/s7q1z8z4/privilege-proxy
     container_name: ai-demo-ping-mcpgw
-    # No -listen flag, matching the vendor's own docker run. This proxy binds no
-    # public MCP port at all: it holds an outbound gRPC command stream to the
-    # control plane, and each application's frontend is hosted in the cloud and
-    # routed back over that mesh. Inside the container only :8090 (loopback) is
-    # bound. Published ports below are the health endpoint and the mesh port —
-    # earlier attempts to publish an "MCP port" (8680, then 8623) were chasing a
-    # listener that never exists in this topology.
-    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com
+    # AGENTLESS (self-hosted frontend) MODE — see docs/PRIVILEGE-MCP.md.
+    #
+    # There are two Privilege topologies and they behave completely differently:
+    #
+    #   mesh / cloud frontend  the console assigns each MCP Server application an
+    #                          *.applications.privilege.pingone.com FQDN, requests
+    #                          land in Ping's cloud and are routed back over the
+    #                          outbound gRPC stream. Nothing binds locally. Privilege
+    #                          validates the client's PingOne JWT itself — which is
+    #                          the "IssuerPublicKey:[]" / "JWT signature validation
+    #                          failed" wall this demo hit for weeks.
+    #
+    #   agentless / self-hosted frontend  (this config) the console's Frontend Name
+    #                          is OUR domain, the proxy binds -listen locally, and
+    #                          the gateway runs the OIDC dance itself against the
+    #                          endpoints in ping-mcpgw/config/pingone.env. No issuer
+    #                          trust is required, so the JWT-signature wall does not
+    #                          apply.
+    #
+    # The earlier "listener that never exists" comment here was true of mesh mode
+    # only. `cyonproxy --help` documents `-listen` (default ":8680"); 8623 is the
+    # value the vendor's own SE material uses, so it is what nginx forwards to.
+    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8623
     environment:
       ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     ports:
       - "8620:8620"
       - "8690:8690"
+      # Published for direct-probe troubleshooting only (curl -vk
+      # https://localhost:8623/mcp). Real traffic arrives via mcpgw-nginx, which
+      # reaches this over the compose network, not this published port.
+      - "8623:8623"
     volumes:
       # NO single-file bind of the enrollment token here. cyonproxy REWRITES
       # /procyon/ssl/proxy-token.data at startup (it swaps the short-lived
@@ -1217,22 +1236,79 @@ services:
       # exchanged copy into this writable volume, which is what the vendor's own
       # `docker run` does with -v /var/lib/procyon/ssl:/procyon/ssl.
       - mcpgw-ssl:/procyon/ssl
+      # NO mcpgw-cert.pem / mcpgw-key.pem mount here. It was added in #1465 on the
+      # theory that 8623 demanded a client certificate because it had no server
+      # certificate of its own. Mounting the pair changed nothing — 8623 returned
+      # the identical "tlsv13 alert certificate required" alert with the files in
+      # place. 8623 is the mesh port and mTLS is simply what it does; the MCP
+      # frontend is 8620 (plain HTTP), which nginx now targets. Re-add only with
+      # evidence that some listener actually reads these files.
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
-      # pingone.env — SERVER_URL + the OIDC endpoints the gateway uses to
-      # authenticate MCP clients. It was authored into ping-mcpgw/config (the BFF
-      # writes it via PUT /api/privilege-mcp/env) but NEVER mounted here, so the
-      # proxy never saw it. Its own docs call a missing SERVER_URL a cause of
-      # "gateway does not behave as expected", which matches a proxy that enrolls
-      # fine and then serves nothing. Directory mount, not a single file: a
-      # single-file bind goes stale when the host file is replaced.
-      - ./ping-mcpgw/config:/var/lib/procyon/config
+      # The WHOLE /var/lib/procyon tree, same path on both sides. This mirrors the
+      # vendor's own run command, which is embedded verbatim in the cyctl binary:
+      #
+      #   --net=host --name procyon-proxy \
+      #     -v /var/log/procyon:/var/log/procyon \
+      #     -v /var/lib/procyon/ssl:/procyon/ssl \
+      #     -v /var/lib/procyon/recordings:/procyon/recordings \
+      #     -v /var/lib/procyon:/var/lib/procyon \        <- this one
+      #     -v /etc/ssh/sshd_config:/etc/ssh/sshd_config
+      #
+      # We previously bound only the config subdirectory, which put pingone.env at
+      # the right path but hid every sibling the proxy might expect next to it.
+      # Note the console's "Get Docker Command" output omits this mount entirely —
+      # a proxy enrolled straight from that command has no /var/lib/procyon at all.
+      #
+      # Directory mount, never single files: a single-file bind goes stale when the
+      # host file is replaced (git checkout, editor save-by-rename give it a new
+      # inode) and then vanishes inside the container.
+      - ./ping-mcpgw/procyon:/var/lib/procyon
     networks:
       ai-demo:
         aliases:
           - local.ping-devops.com
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ── MCPGW front door (nginx) ───────────────────────────────────────────────
+  # The "nginx engine" from the Privilege SE storyboard: customer-owned DNS and
+  # TLS in front of the gateway runtime, so the frontend URL a client calls is a
+  # domain we control rather than a Ping-assigned cloud FQDN.
+  #
+  #   https://aidemo.mcpgw.local.ping-devops.com/mcp  ->  nginx :443
+  #                                                    ->  ping-mcpgw :8623
+  #                                                    ->  mcp-server :8080
+  #
+  # Requires /etc/hosts entries — a wildcard cert works, but /etc/hosts has no
+  # wildcard, so add one 127.0.0.1 line per frontend host (see
+  # demo_mcpgw_nginx/README.md).
+  #
+  # The wildcard cert pair is NOT the core stack's api.ping.demo+2 pair; it is
+  # generated separately by scripts/ensure-mcpgw-certs.sh into the same certs/
+  # directory (gitignored).
+  mcpgw-nginx:
+    profiles: ["mcpgw"]
+    image: nginx:alpine
+    container_name: ai-demo-mcpgw-nginx
+    ports:
+      # Host 443 so the frontend URLs registered in the Privilege console carry
+      # no port, matching the vendor's own SE material. If something else on the
+      # host claims 443, change this to 8643:443 and append :8643 to every
+      # Frontend Name in the console and to PRIVILEGE_MCPGW_URL.
+      - "443:443"
+    volumes:
+      - ./demo_mcpgw_nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      ping-mcpgw:
+        condition: service_started
+    networks:
+      ai-demo:
+        aliases:
+          - mcpgw.local.ping-devops.com
+          - aidemo.mcpgw.local.ping-devops.com
     restart: unless-stopped
 
   # ── RAG Code Search Services ──────────────────────────────────────────────

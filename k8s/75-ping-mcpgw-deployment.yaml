@@ -3,7 +3,10 @@
 # Policy and session recording are configured in the PingOne Privilege console,
 # not in this repo. ENV_PROXY_TOKEN comes from the gateway wizard and is stored
 # in the ping-mcpgw-secrets K8s secret (created by create-secrets.sh).
-# Exposed externally at https://ai-demo.ping-devops.com/mcpgw via se-ingress.yaml.
+# Exposed externally at https://ai-demo.ping-devops.com/mcpgw via se-ingress.yaml,
+# and per-application at https://<app>.mcpgw.ai-demo.ping-devops.com/mcp via
+# aws/mcpgw-agentless-ingress.yaml (agentless / self-hosted frontend mode — see
+# docs/PRIVILEGE-MCP.md for why that mode sidesteps the JWT issuer-trust wall).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -36,11 +39,16 @@ spec:
         command: ["/procyon/bin/cyonproxy"]
         args:
         - "-hostname"
-        - "ai-demo.ping-devops.com"
+        - "mcpgw.ai-demo.ping-devops.com"
+        # -listen is the MESH port, not the MCP frontend. It speaks mTLS and
+        # answers every plain request with "tlsv13 alert certificate required".
+        # The frontend is -alp-port ("agentless proxy api port"), which defaults
+        # to :8620 and is what the Service and Ingress target. Verified locally:
+        # POST http://<proxy>:8620/mcp -> 401 "Bearer Token not found."
         - "-listen"
-        - ":8680"
+        - ":8623"
         ports:
-        - containerPort: 8680
+        - containerPort: 8620
           name: http
         env:
         - name: ENV_PROXY_TOKEN
@@ -49,13 +57,22 @@ spec:
               name: ping-mcpgw-secrets
               key: ENV_PROXY_TOKEN
         volumeMounts:
+        # NOT readOnly, and NOT emptyDir: cyonproxy rewrites proxy-token.data at
+        # startup (it swaps the short-lived wizard JWT for a long-lived one). A
+        # read-only mount makes it exit 1 with "ProxyToken write ... read-only file
+        # system"; an emptyDir loses the exchanged token on every restart, forcing
+        # a fresh enrollment JWT from the console each time.
         - name: ssl-certs
           mountPath: /procyon/ssl
-          readOnly: true
         - name: recordings
           mountPath: /procyon/recordings
         - name: logs
           mountPath: /var/log/procyon
+        # Agentless mode only: SERVER_URL + the OIDC endpoints the gateway uses to
+        # authenticate MCP clients itself. Optional so a mesh-mode cluster still boots.
+        - name: pingone-env
+          mountPath: /var/lib/procyon/config
+          readOnly: true
         resources:
           requests:
             memory: "256Mi"
@@ -65,31 +82,57 @@ spec:
             cpu: "500m"
         startupProbe:
           tcpSocket:
-            port: 8680
+            port: 8620
           failureThreshold: 30
           periodSeconds: 2
           timeoutSeconds: 2
         livenessProbe:
           tcpSocket:
-            port: 8680
+            port: 8620
           periodSeconds: 60
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           tcpSocket:
-            port: 8680
+            port: 8620
           initialDelaySeconds: 5
           periodSeconds: 30
           timeoutSeconds: 3
           failureThreshold: 3
       volumes:
       - name: ssl-certs
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: ping-mcpgw-ssl
       - name: recordings
         emptyDir: {}
       - name: logs
         emptyDir: {}
+      - name: pingone-env
+        secret:
+          secretName: ping-mcpgw-secrets
+          optional: true
+          items:
+          - key: pingone.env
+            path: pingone.env
       restartPolicy: Always
+---
+# Holds the long-lived proxy token cyonproxy writes after enrollment. Losing this
+# volume means re-enrolling the gateway in the Privilege console for a fresh JWT —
+# get the new token BEFORE deleting it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ping-mcpgw-ssl
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ping-mcpgw
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -102,8 +145,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8680
-    targetPort: 8680
+  - port: 8620
+    targetPort: 8620
     protocol: TCP
     name: http
   sessionAffinity: ClientIP

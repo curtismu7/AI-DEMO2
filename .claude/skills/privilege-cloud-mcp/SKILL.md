@@ -4,6 +4,53 @@ Use when troubleshooting, configuring, or extending the PingOne Privilege Cloud
 MCP integration: the Privilege Gateway, the BFF MCP client relay, the
 Privilege MCP Client UI page, or the K8s deployment.
 
+## Read this first — the five things that cost weeks
+
+Every one of these was learned the expensive way. Check them before theorising.
+
+1. **The MCP frontend is port `8620`, not `8623`.** `8623` is the mesh port; it
+   speaks mTLS and answers everything else with `tlsv13 alert certificate required`,
+   which nginx reports as a bare `502`. Probe: `POST http://localhost:8620/mcp` must
+   return `401 Bearer Token not found.`
+2. **`IssuerPublicKey:[]` is the blocker, and agentless mode does NOT avoid it.**
+   Tested 2026-08-08 with a real PingOne token through nginx to the agentless port:
+   `401 Authorization header JWT parsing failed JWT signature validation failed` —
+   byte-identical to mesh mode. The gateway validates inbound JWTs on 8620 too.
+   Even a token from Privilege's own tenant (`8d4d7a4c`) is rejected, so this is not
+   about picking the right environment. Nothing in this repo populates that key.
+3. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
+   with Privilege console access, and every required setting lives in that console.
+4. **An expired enrollment token is almost never the problem.** cyonproxy swaps the
+   wizard JWT for a long-lived one in the `mcpgw-ssl` volume on first boot. A token
+   that expired days ago still starts the container fine. Only a deleted volume, a
+   new cluster, or a new host needs a fresh one.
+5. **`pingone.env` is never read.** Zero log hits for its keys, on two tenants, in
+   both modes. Keep it correct; never debug through it.
+
+### Fast path for a fresh setup
+
+```bash
+# 1. Certs + stack (ensure-mcpgw-certs.sh runs automatically for this profile)
+./run-docker.sh optional start mcpgw
+
+# 2. Hosts entries — one line per frontend host, no wildcards in /etc/hosts
+sudo sh -c 'printf "127.0.0.1\tmcpgw.local.ping-devops.com\n127.0.0.1\taidemo.mcpgw.local.ping-devops.com\n" >> /etc/hosts'
+
+# 3. Prove the gateway answers BEFORE touching the console
+curl -i -X POST http://localhost:8620/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+# expect: 401 "Bearer Token not found."
+
+# 4. Prove the full chain (nginx -> gateway)
+curl -i -X POST https://aidemo.mcpgw.local.ping-devops.com/mcp -d '...'
+# expect: the same 401. A 502 here means nginx, not Privilege.
+```
+
+Then do the console steps, then re-run step 4 and check for a `WWW-Authenticate`
+header. That header is the pass/fail signal for the whole integration.
+
 ## Architecture
 
 ```
@@ -20,12 +67,41 @@ applies tool-level access policies, then proxies allowed calls to the backend.
 The BFF authenticates the user via a **separate OAuth flow** using the Privilege
 SSO client — the main banking app token has the wrong audience for Privilege Cloud.
 
-### Two deployment paths
+### Three deployment paths — pick agentless
 
 | Path | Endpoint | Status |
 |------|----------|--------|
-| **Gateway frontend** (use this) | `https://local.ping-devops.com:8623/mcp` — SE cluster: `https://ai-demo.ping-devops.com/mcpgw` | The only path that can work. Requires an MCP Server application in the console (see below) |
+| **Agentless / self-hosted frontend** (use this) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` → nginx :443 → proxy :8620 | Reaches the gateway directly, bypassing Ping's cloud. Everything below the auth layer works: routing, backend, discovery |
+| **Mesh / cloud frontend** | `https://<app>-app-default.applications.privilege.pingone.com:8643/mcp` | Ping-assigned FQDN, routed through Ping's cloud and back over the mesh |
 | **Cloud API** | `https://privilege.pingone.com/api/mcp` | DEAD END — 401s every request including its own `.well-known/oauth-protected-resource`, sends no `WWW-Authenticate` |
+
+**Both of the first two hit the same auth wall.** A hypothesis held through most of
+2026-08-08 — that agentless mode escapes the JWT-signature failure because the
+gateway would run OIDC itself — was **disproven by direct test**: a real PingOne
+token sent through nginx to 8620 returns the identical
+`JWT signature validation failed`. Prefer agentless anyway (fewer moving parts, no
+dependency on Ping's cloud routing, and it is what the SE material documents), but
+do not expect it to solve authentication.
+
+The console field that selects mesh vs agentless is the MCP Server application's
+Frontend Name — and in the current console build it is **read-only**, assigned on
+create as `<app>-app-default.applications.privilege.pingone.com:8643`.
+
+### The nginx front door (agentless only)
+
+Agentless mode needs customer-owned DNS + TLS in front of the proxy:
+
+| Piece | Where |
+|---|---|
+| nginx service | `demo_mcpgw_nginx/nginx.conf`, compose service `mcpgw-nginx`, host `443` |
+| Wildcard cert | `scripts/ensure-mcpgw-certs.sh` → `certs/mcpgw-wildcard{,-key}.pem`, SAN `*.mcpgw.local.ping-devops.com` |
+| k8s equivalent | `k8s/aws/mcpgw-agentless-ingress.yaml` (ingress-nginx **is** the engine there) |
+| `/etc/hosts` | one `127.0.0.1` line **per frontend host** — a wildcard cert works, `/etc/hosts` has no wildcards |
+
+nginx must forward the original `Host` header (`proxy_set_header Host $host`) — the
+gateway routes on the frontend hostname. Use a **variable** upstream plus
+`resolver 127.0.0.11`, or nginx refuses to start with `host not found in upstream`
+whenever the proxy is down.
 
 **Do not repoint `PRIVILEGE_MCPGW_URL` at the Cloud API.** That was tried and
 reverted; `docs/PRIVILEGE-MCP.md` §"4. The client pointed at the Privilege cloud
@@ -35,30 +111,69 @@ dedicated `873cc9e4` "Privilege Cloud MCP Gateway" app (which mints
 `aud: mcpserver.ping.demo`, the demo's own audience). The 401 arrives before any
 policy runs, so it looks like an authorization problem and is not one.
 
-**Port `8623`, not `8680`.** `-listen :8680` opened no reachable MCP listener:
-inside the container only `127.0.0.1:8090` was bound, so `:8680` accepted the host
-port-forward's TCP connection and immediately closed it (`UND_ERR_SOCKET` at the
-BFF). #1219 moved the listener to `:8623`, the product's MCP traffic port, which
-is also what the k8s ingress maps 443 to. `PRIVILEGE_MCPGW_URL` and the service's
-`-listen` flag must always name the same port.
+**Port: `8620`.** Earlier revisions of this skill said `8680`, then `8623`. Both
+were wrong — see "Proxy ports" below for the probe that settles it. `8680` and
+`8623` accept a TCP connection without serving MCP, which is why each looked
+plausible for a while.
 
-### Current state (verified 2026-08-02)
+### Current state (verified 2026-08-08)
 
-The proxy runs and is healthy; the demo is blocked entirely on console-side setup.
+Infrastructure is done and proven. Remaining work is console-side only.
 
-- Container `ai-demo-ping-mcpgw` up, node `e40f4540-…` `Active`, control-plane link
-  established, `ProxyURL local.ping-devops.com:8623`.
-- **No MCP frontend exists.** The log creates only the vendor defaults
-  (`console.tun.procyon.ai`, `login.procyon.ai`, `agent.procyon.ai`,
-  `local.procyon.ai:8643`, `*.privilege.pingone.com`) and inside the container only
-  `127.0.0.1:8090` is bound. Nothing serves 8623, so `tools/list` cannot work no
-  matter what the BFF sends. Fixed only by creating the MCP Server application in
-  the console (checklist step 5).
+- Container `ai-demo-ping-mcpgw` up, node `1cf90baf-2a83-45db-830f-581ea98110d1`
+  `Active` in cluster **`ai-demo-fresh`**, command streams established,
+  `ProxyURL local.ping-devops.com:8623`.
+- **The gateway answers.** `POST http://localhost:8620/mcp` → `401 Bearer Token not
+  found.` End to end through nginx also reaches it:
+  `POST https://aidemo.mcpgw.local.ping-devops.com/mcp` → `HTTP/2 401` same body.
+- Backend reachable from inside the compose network:
+  `POST http://mcp-server:8080/mcp` → `200`.
+- **The 401 carries no `WWW-Authenticate` header**, so a browser never learns where
+  to authenticate. Control-plane driven — see below.
+- **A real bearer token fails signature validation.** Tested through nginx to 8620:
+
+  ```
+  no token      -> 401 Bearer Token not found.
+  PingOne token -> 401 Authorization header JWT parsing failed
+                       JWT signature validation failed
+  ```
+
+  Same error as mesh mode, and the token was minted in Privilege's own tenant
+  `8d4d7a4c`. `AuthzMiddleware` for the app carries `AuthzServer:<app-name>` and
+  `IssuerPublicKey:[]`. The control plane also advertises a tenant-level
+  `AuthzServer:<envid>.oauth.privilege.pingone.com`, but the app is not bound to it.
+- **The gateway has no unauthenticated surface at all.** Every path answers
+  `401 Bearer Token not found.` — including `/authorize`, `/callback`, and both
+  `.well-known` documents, which must be publicly readable for OAuth discovery:
+
+  ```
+  /mcp  /authorize  /callback
+  /.well-known/oauth-authorization-server
+  /.well-known/oauth-protected-resource     -> all 401, identical body
+  ```
+
+  You need a token to reach the endpoint that issues tokens. That is what an
+  `AuthzMiddleware` with no authorization server configured looks like: fail-closed
+  over everything, including the endpoints a client would use to bootstrap.
+  **Everything converges here: give the app an authz server and the demo unblocks.**
 - **Duplicate node registration.** `has same NodeURL - this happens because of
-  misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`
-  as the live node. Delete the stale one in the console.
+  misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`.
+  Cosmetic — confirmed the command stream stays up and discovery still dispatches.
+  Console offers no way to delete the stale row.
 - `Error sending update to mesh controller: … not found` is the same symptom, not a
   separate fault.
+
+### `pingone.env` is never read — do not debug it
+
+Grepping the proxy log after a clean restart, with `pingone.env` correctly mounted
+at `/var/lib/procyon/config/pingone.env` and populated, returns **zero** hits for
+`SERVER_URL`, `authorize`, `oidc`, or `pingone.env`. Verified twice, on two
+different tenants, in both mesh and agentless mode.
+
+Whatever drives the OIDC challenge is control-plane state, not this file. Keep it
+correct anyway (the console wizard asks for the same values), but never conclude
+"the gateway is misconfigured" from its contents, and never spend time editing it
+to make a challenge appear.
 
 ### Headers (Cloud API path only — kept for reference, that path is dead)
 
@@ -78,6 +193,48 @@ The proxy runs and is healthy; the demo is blocked entirely on console-side setu
 | **Policies / Configure MCP Access** | Grant users access to specific tools (requires discovery first) |
 
 These are **separate entities** linked via the "Mesh Cluster" dropdown on the MCP App.
+
+### Console forms, field by field
+
+**Setup Gateways** (Cloud → Gateways → Add via Docker). Only needed for a *new*
+node — see rule 4 above before opening it.
+
+| Field | Value |
+|---|---|
+| Mode | Private Proxy |
+| Cluster ID | `ai-demo-fresh` |
+| Host IP | `local.ping-devops.com` |
+
+Then *Get Docker Command* and copy the `ENV_PROXY_TOKEN` JWT. Decode it before
+using it — the `clusterID` claim must match the cluster your MCP application is
+bound to, or the frontend will have no node behind it. Enrolling a second node on
+the same Host IP produces the permanent `has same NodeURL` error.
+
+**Add MCP Application** (Agentic Apps → Add Application).
+
+| Field | Value | Note |
+|---|---|---|
+| Application Name | `MCP-aidemo` | free text |
+| **MCP Server URL** | `http://mcp-server:8080/mcp` | the **backend**. Compose DNS — the proxy shares that network. Never `localhost:8080` |
+| Auth Mode | Static Token | this is **upstream** auth (gateway → backend), not how clients are challenged |
+| Auth Token | *empty* | `mcp-server` runs `MCP_AUTH_DISABLED=true`; Privilege is the boundary |
+| Headers | none | |
+| Mesh Cluster | `ai-demo-fresh` | must match the enrolled node's cluster |
+
+There is **no Frontend field in this modal.** The console assigns a cloud FQDN on
+create — which is mesh mode. Immediately open the app and change **Frontend Name**
+to `aidemo.mcpgw.local.ping-devops.com`. That single edit is what selects agentless
+mode, and skipping it puts you back on the unfixable JWT-signature wall.
+
+Verify the backend is reachable from inside the network first, or discovery fails:
+
+```bash
+docker run --rm --network ai-demo_ai-demo curlimages/curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST http://mcp-server:8080/mcp -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}'
+# expect 200
+```
 
 ### Upstream auth modes (MCP Application → Auth Mode)
 
@@ -102,31 +259,77 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 
 | What | Value |
 |------|-------|
-| PingOne Env | `01d89b06-66d5-430e-9f28-65636843788b` |
-| OIDC Client (MCP Gateway) | `6586d3de-b916-454c-84e5-6d21b572a534` |
-| Privilege Tenant | `8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` |
+| PingOne Env | `8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` — **the only tenant we hold Privilege console access in**, which is what decides it |
+| OIDC Client (gateway) | `deff60f5-5a67-4a6e-b283-47252856c89c` (in `8d4d7a4c`) |
 | Proxy Image | `public.ecr.aws/s7q1z8z4/privilege-proxy` |
 | Proxy Binary | `/procyon/bin/cyonproxy` |
-| Cluster ID | `ai-demo-se` |
-| Cluster Name | `cmuir-mcpgw` |
-| MCP endpoint (gateway frontend) | `https://local.ping-devops.com:8623/mcp` — what `PRIVILEGE_MCPGW_URL` must be |
+| Cluster ID | `ai-demo-fresh` |
+| Node ID (current) | `1cf90baf-2a83-45db-830f-581ea98110d1`, `ProxyURL local.ping-devops.com:8623` |
+| MCP Server app | `mcp-pingone-admin` / `MCP-aidemo`, backend `http://mcp-server:8080/mcp` |
+| Frontend host (local) | `aidemo.mcpgw.local.ping-devops.com` |
+| Frontend host (SE) | `aidemo.mcpgw.ai-demo.ping-devops.com` |
+| Gateway base / `SERVER_URL` | `https://mcpgw.local.ping-devops.com` — the **nginx** URL, never the proxy port |
 | MCP endpoint (Cloud API) | `https://privilege.pingone.com/api/mcp` — DEAD END, do not use |
-| Node ID (current) | `e40f4540-ac21-47f4-bfc0-47a41adb8022`, `ProxyURL local.ping-devops.com:8623` |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
-| End user | `cmuir+ssoEndUser@pingone.com` / `Demo1234!` |
+| End user | `cmuir+ssoEndUser@pingone.com` |
+| Admin user | `cmuir+ssoAdmin@pingone.com` |
 | Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
 | Gateway OIDC config | `ping-mcpgw/config/pingone.env` (gitignored; `.example` is committed) |
+| Console | `https://console.pingone.com/?env=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` then launch Privilege |
 
-### Current token status
+**Environment `01d89b06` (AI-Demo) is where the banking users live, and it is NOT
+usable here** — no Privilege console access, so the gateway cannot be configured
+at all. The gateway signs users in against `8d4d7a4c`, so `cmuir+sso*` are the
+identities that reach the MCP tools. Note this split is **not** what causes the
+signature failure — a token minted in `8d4d7a4c` itself is rejected the same way.
+
+Verify a credential belongs to the right environment before trusting a doc:
+
+```bash
+curl -s -X POST "https://auth.pingone.com/$ENVID/as/token" \
+  -d grant_type=client_credentials -d "client_id=$CID" -d "client_secret=$CS"
+# decode the JWT payload and check the `env` claim
+```
+
+### Current token status — expired, and that is fine
 
 The enrollment token in `ping-mcpgw/config/proxy-token` (and `PRIVILEGE_PROXY_TOKEN`
-in the root `.env`) **expired 2026-08-02T12:22:37Z**. That does **not** stop the
-proxy: verified 2026-08-02, the container starts, enrolls, and holds an active
-control-plane link with the expired wizard JWT still in place, because cyonproxy
-already swapped it for a long-lived token inside the `mcpgw-ssl` volume. An expired
-token only matters on **first** boot or after that volume is deleted — do not
-diagnose "expired token" from the file's `exp` alone; check whether the container
-is running and linked first.
+in the root `.env`) expired **2026-08-04**. The proxy does not care: verified again
+on 2026-08-08 across two container recreates, it starts, links to the control plane,
+and re-exchanges `proxy-token.data` — because cyonproxy already swapped the wizard
+JWT for a long-lived one inside the `mcpgw-ssl` volume.
+
+Never diagnose "expired token" from a file's `exp`. Check whether the container is
+running and linked first.
+
+**When a new token IS required:**
+
+| Situation | New token? |
+|---|---|
+| Container recreate / restart / compose change | No |
+| `mcpgw-ssl` volume deleted | Yes |
+| Enrolling into a different cluster | Yes |
+| First proxy on a new host (e.g. pingaws) | Yes — separate node |
+
+The expiry clock only runs between clicking *Get Docker Command* and the
+container's first successful start (~2h in practice). After `proxy-token.data`
+exists, let it expire.
+
+**The one unrecoverable move:** deleting `ai-demo_mcpgw-ssl` without a fresh token
+already in hand. That discards the only enrollment identity and needs console
+access to redo.
+
+Decode a token before using it — `clusterID` and `tenantName` must match what you
+expect:
+
+```bash
+python3 -c "
+import base64,json,sys,datetime
+p=sys.argv[1].split('.')[1]; p+='='*(-len(p)%4)
+c=json.loads(base64.urlsafe_b64decode(p))
+print({k:c.get(k) for k in ('clusterID','nodeId','tenantName')})
+print('exp', datetime.datetime.fromtimestamp(c['exp'],datetime.timezone.utc))" "eyJ..."
+```
 
 See **[ping-mcpgw/RENEW-TOKEN.md](../../ping-mcpgw/RENEW-TOKEN.md)** for the
 full step-by-step renewal procedure.
@@ -145,7 +348,7 @@ gateway. Key settings in `docker-compose.yml`:
 | `tmpfs: /app/dev-data` | (volume config) | Dev mode needs writable session dir; container runs as uid 1001 |
 
 The `PRIVILEGE_MCPGW_URL` env var on the BFF (`demo-api-server`) points to the
-gateway frontend: `https://local.ping-devops.com:8623/mcp`
+frontend host through nginx: `https://aidemo.mcpgw.local.ping-devops.com/mcp`
 
 ## Proxy enrollment
 
@@ -198,18 +401,52 @@ export PRIVILEGE_PROXY_TOKEN="eyJ..."
 docker logs ai-demo-ping-mcpgw 2>&1 | grep -i "enrolled\|connected\|ready"
 ```
 
-## Proxy ports
+## Proxy ports — 8620 is the MCP frontend, NOT 8623
 
-| Port | Purpose |
-|------|---------|
-| 8623 | MCP traffic — the frontend the BFF calls, and what k8s maps 443 to |
-| 8620 | Agentless API |
-| 8690 | Medusa gRPC tunnel (also the node's `NodeURL`) |
+| Port | Flag | Purpose |
+|------|------|---------|
+| **8620** | `-alp-port` | **The MCP frontend. Plain HTTP.** Point nginx / the BFF / k8s Service here |
+| 8623 | `-listen` | Mesh. Speaks **mTLS** and rejects everything else |
+| 8690 | `-medusa` | gRPC tunnel (also the node's `NodeURL`) |
+| 8090 | `-debug-port` | Debug API, loopback only |
 
-The container publishes 8623 whether or not anything serves it. A successful TCP
-connect to 8623 proves the port-forward, not the gateway — `curl` the `/mcp` path
-and check for a listener inside the container (`docker exec … cat /proc/net/tcp`)
-before concluding the gateway is up.
+Settle it by probing, never by reading vendor material:
+
+```bash
+curl -i -X POST http://localhost:8620/mcp -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+# HTTP/1.1 401 Unauthorized
+# Bearer Token not found.          <- the gateway. This is the frontend.
+
+curl -ik -X POST https://localhost:8623/mcp -d '...'
+# TLS: tlsv13 alert certificate required   <- the mesh port demanding a client cert
+```
+
+`Bearer Token not found.` is the gateway's tokenless response and is the positive
+signal you are on the right port.
+
+**This table was wrong until 2026-08-08 and cost hours twice.** Two traps:
+
+- Ping's SE deck says *"proxy forwards to MCPGW runtime, often 8623 in field
+  examples."* Not true here.
+- Pointing nginx at 8623 yields a bare **502** with the real cause only in the nginx
+  error log (`SSL_read() failed … tlsv13 alert certificate required`). The response
+  body says nothing.
+
+Do **not** try to fix the 8623 alert by giving it a server certificate. That was
+tried (PR #1465, reverted by #1466): `/procyon/ssl/mcpgw-cert.pem` + `mcpgw-key.pem`
+were mounted, the container recreated, and 8623 returned the identical alert. It
+requires mTLS because it is the mesh port, full stop.
+
+Listing what actually binds (busybox has no `ss`/`netstat`, and `awk` here lacks
+`strtonum`, so parse the hex on the host):
+
+```bash
+docker exec ai-demo-ping-mcpgw cat /proc/net/tcp /proc/net/tcp6 > /tmp/t.txt
+python3 -c "
+print(sorted({int(f[1].rsplit(':',1)[1],16) for f in
+  (l.split() for l in open('/tmp/t.txt')) if len(f)>3 and f[3]=='0A'}))"
+# [8090, 8620, 8623, 8690]
+```
 
 ## BFF MCP client (privilegeMcpClient.js)
 
@@ -246,7 +483,7 @@ issues tokens for custom resources. The ONLY working path is authorization_code.
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | Gateway frontend: `https://local.ping-devops.com:8623/mcp` — must match the `ping-mcpgw` service's `-listen` port |
+| `PRIVILEGE_MCPGW_URL` | Frontend host through nginx: `https://aidemo.mcpgw.local.ping-devops.com/mcp`. nginx forwards to the proxy on **8620** |
 | `PRIVILEGE_SSO_CLIENT_ID` | PingOne OIDC client for Privilege auth |
 | `PRIVILEGE_SSO_CLIENT_SECRET` | Client secret (client_secret_post for code exchange) |
 | `PRIVILEGE_SSO_ENV_ID` | PingOne env ID (for OIDC discovery fallback) |
@@ -311,9 +548,12 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
 | gRPC `UNAVAILABLE` / proxy silent hang | Firewall blocking outbound to `grpc.privilege.pingone.com:443` | Allow outbound 443; no inbound holes needed |
 | `IssuerPublicKey:[]` in proxy logs | Controller never pushes JWKS keys to the local proxy | Known gap. The Cloud API is **not** the workaround — it 401s everything (see "Two deployment paths") |
-| Container up, 8623 accepts TCP, but `curl https://…:8623/mcp` fails to connect | No MCP frontend exists — the proxy binds only `127.0.0.1:8090`. The log shows the vendor default frontends (`console.tun.procyon.ai`, `login.procyon.ai`, `agent.procyon.ai`, `*.privilege.pingone.com`) and none for our MCP server | Create the MCP Server application in the console against cluster `ai-demo-se` (checklist step 5). No code change will open that port |
-| `has same NodeURL - this happens because of misconfigured Node` | Two node registrations claim the same `NodeURL local.ping-devops.com:8690` — the live node is linking to a stale twin of itself | Console → Gateways → delete the stale node row, keep the one whose ID matches the running container's log |
-| BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | `PRIVILEGE_MCPGW_URL` port does not match the service's `-listen` port | Both must be `8623` (see "Port 8623, not 8680") |
+| `curl https://…:8623/mcp` fails to connect | Wrong port — 8623 is the mesh port and speaks mTLS only | Use `http://…:8620` (see "Proxy ports") |
+| `has same NodeURL - this happens because of misconfigured Node` | Two node registrations claim the same `NodeURL local.ping-devops.com:8690` — the live node is linking to a stale twin of itself | **Cosmetic — ignore.** Command streams stay up and discovery still dispatches. The console offers no way to delete the stale row. Avoid making it worse: do not enroll a second node on the same Host IP |
+| BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | Pointing at a port that accepts TCP but serves no MCP | Use `8620` (see "Proxy ports") |
+| nginx returns a bare `502`, body says nothing | Upstream is `8623` (mesh, mTLS). Check the nginx error log for `tlsv13 alert certificate required` | Point the upstream at `http://…:8620` |
+| `401 Bearer Token not found.` | Normal — the gateway with no token. This is the **success** signal for "am I on the right port" | Nothing to fix |
+| `401` with no `WWW-Authenticate` header | Console-side: Frontend Name / auth mode not set on the MCP Server application | Set Frontend Name to our domain (see checklist) |
 | Server crash: `EACCES: permission denied, mkdir './dev-data'` | Dev mode needs writable dir but container runs as non-root (uid 1001) | Add `tmpfs: /app/dev-data:uid=1001,gid=1001` to docker-compose.yml |
 | Server crash: `Configuration validation failed` | `SKIP_TOKEN_SIGNATURE_VALIDATION=true` forbidden outside development | Set `NODE_ENV: development` in docker-compose.yml for the mcp-server service |
 | Cloud API 400: "mcp-protocol-version header is required" | Non-initialize requests need protocol version header | BFF's fetchMcp adds `mcp-protocol-version: 2024-11-05` for non-initialize requests |
@@ -372,13 +612,23 @@ token — the volume state is sufficient. Only clear the volume if re-enrolling.
    (`docker logs` is empty). Look for `established command stream` / `Created
    frontend node`.
 5. **Register MCP App** in console: AI Security → Agentic Apps → Add Application → MCP Server
-   - Frontend URL: `https://local.ping-devops.com:8623`
    - MCP Server URL: `http://mcp-server:8080/mcp` (compose-internal DNS — the
      gateway resolves it inside the network; it is not browser-reachable)
-   - Mesh Cluster: `ai-demo-se`
-6. **Discover tools**: wait ~30s after MCP app creation, check console for discovered tools
-7. **Create policy**: assign user `cmuir+ssoEndUser@pingone.com` a policy granting tool access
-8. **Test from UI**: navigate to `/privilege-mcp-client`, sign in, call a tool
+   - Auth Mode: Static Token, token empty
+   - Mesh Cluster: `ai-demo-fresh` — must match the enrolled node
+   - See "Console forms, field by field" above for the full modal
+6. **Set Frontend Name** on the app you just created:
+   `aidemo.mcpgw.local.ping-devops.com`. **Do not skip this.** On create the console
+   assigns a `*.applications.privilege.pingone.com` FQDN, which is mesh mode and
+   hits the unfixable JWT-signature wall
+7. **Discover tools**: wait ~30s after MCP app creation, check console for discovered
+   tools. Discovery has fired hours late before — a delay is not a failure
+8. **Create policy**: assign user `cmuir+ssoEndUser@pingone.com` a policy granting
+   tool access. Time-bound policies expire; re-author before each test session
+9. **Verify the challenge**: `curl -i -X POST https://aidemo.mcpgw.local.ping-devops.com/mcp -d '…'`
+   and look for `WWW-Authenticate: Bearer authorization_uri="…"`. A bare 401 means
+   steps 6–8 did not take effect
+10. **Test from UI**: navigate to `/privilege-mcp-client`, sign in, call a tool
 
 ## mTLS and Privilege proxy coexistence
 
@@ -425,7 +675,7 @@ There is no `guest-agent.env` — earlier revisions of this skill described one.
 
 | Field | Purpose |
 |-------|---------|
-| `SERVER_URL` | Public URL of this MCPGW; `https://local.ping-devops.com:8623` locally, `https://ai-demo.ping-devops.com/mcpgw` on the SE cluster. The PingOne redirect URI must be `${SERVER_URL}/callback` |
+| `SERVER_URL` | The **nginx front door**, browser-reachable — `https://mcpgw.local.ping-devops.com` locally, `https://mcpgw.ai-demo.ping-devops.com` on the SE cluster. Never a proxy port: this is the URL the 401 challenge hands the browser. PingOne redirect URI must be `${SERVER_URL}/callback` |
 | `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | The MCPGW application in PingOne (AI Security → Agentic Apps) |
 | PingOne AS endpoints | Authorize / token / userinfo for the environment |
 

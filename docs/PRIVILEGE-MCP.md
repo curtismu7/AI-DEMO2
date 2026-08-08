@@ -837,3 +837,300 @@ changes it, except that step 1 (discovery dispatch) now has a positive data poin
 above) while step 2 (issuer trust) is still the open blocker. Try the role lead first since
 it's untested and cheap; if it doesn't pan out, this is still fundamentally "ask Ping" —
 see that section's two concrete questions.
+
+## 2026-08-08: Pivot to agentless (self-hosted frontend) mode
+
+Everything above fought the same wall from inside **mesh / cloud-frontend** mode: the
+console assigns each MCP Server application an `*.applications.privilege.pingone.com`
+FQDN, the client presents a PingOne JWT to Ping's cloud, and Privilege rejects it with
+`IssuerPublicKey:[]` / `JWT signature validation failed`. Two PingOne environments,
+three clusters, and a `cyctl` detour later, that is still unfixable from this repo.
+
+Ping's own SE enablement storyboard ("Priv for AI Gateway: Architecture, Flows, and
+Troubleshooting") documents a **different topology** that does not have this problem:
+
+```
+MCP client -> customer DNS -> nginx :443 -> MCPGW runtime :8623
+           -> 401 WWW-Authenticate: Bearer authorization_uri="https://<gateway>/authorize"
+           -> MCPGW runs the OIDC dance ITSELF against pingone.env's OIDC_* endpoints
+           -> policy -> Backend Name -> backend MCP server -> Activity Logs
+```
+
+> **Superseded later the same day — read
+> [the correction](#2026-08-08-correction-agentless-does-not-avoid-the-signature-wall)
+> before acting on this section.** The passage below predicted that the gateway would
+> authenticate the user itself via `OIDC_USER_URL` and therefore never need to trust
+> our issuer's signing keys. Direct test disproved it. The rest of the section — ports,
+> nginx, the tree mount, the wiring table — still holds.
+
+The gateway authenticates the user itself and validates via `OIDC_USER_URL` (userinfo),
+so it never has to trust our issuer's signing keys. `pingone.env` — which the mesh-mode
+investigation correctly proved was dead code, with zero hits for `SERVER_URL` or
+`auth.pingone.com` in the proxy log — is the live configuration in this mode.
+
+### What flipped the switch
+
+`docker run --rm --entrypoint /procyon/bin/cyonproxy <image> --help` documents:
+
+```
+-listen string        local port to listen on (default ":8680")
+-alp-port string      agentless proxy api port (default ":8620")
+```
+
+The listener always existed. The earlier "listener that never exists in this topology"
+comment in `docker-compose.yml` was true of mesh mode only — with no self-hosted
+Frontend Name registered, the port binds and serves nothing. The console field that
+selects the topology is the MCP Server application's **Frontend Name**.
+
+### Wiring as of this change
+
+| | Local Docker Compose | SE cluster (pingaws) |
+|---|---|---|
+| Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` | `https://mcpgw.ai-demo.ping-devops.com` |
+| Frontend Name (per app) | `aidemo.mcpgw.local.ping-devops.com` | `aidemo.mcpgw.ai-demo.ping-devops.com` |
+| nginx engine | `mcpgw-nginx` service, host `443` | ingress-nginx, `k8s/aws/mcpgw-agentless-ingress.yaml` |
+| Gateway runtime | `ping-mcpgw`, `-listen :8623` | same, Service/Deployment on `8623` (was `8680`) |
+| Backend Name | `http://mcp-server:8080/mcp` | `http://mcp-server:8080/mcp` |
+| PingOne environment | `8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` | same |
+
+**Environment is `8d4d7a4c`, and the reason is access, not theory.** It is the only
+environment we hold PingOne Privilege console access in, and everything that makes this
+mode work is authored in that console: the gateway cluster, the MCP Server application's
+Frontend Name, and the policy. No console access means no way to configure the gateway
+at all, so `01d89b06` is not a candidate however convenient its user population is.
+
+Consequence worth stating plainly: the gateway signs users in against `8d4d7a4c`, so the
+identities that reach the MCP tools are that environment's — `cmuir+ssoEndUser@pingone.com`
+and `cmuir+ssoAdmin@pingone.com`. The banking demo's own users live in `01d89b06` and are
+unrelated to this hop. (An earlier draft claimed agentless mode makes that split harmless
+because the gateway validates its own sign-in via userinfo — see the correction at the end
+of this document. The split is real but is *not* the cause of the signature failure: a
+token minted in `8d4d7a4c` itself is rejected identically.)
+
+Known app in this environment: `deff60f5-5a67-4a6e-b283-47252856c89c`. It already carries
+`https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`; agentless mode needs
+`https://mcpgw.local.ping-devops.com/callback` **added** to it, not swapped in — the BFF
+relay path still uses the first one.
+
+Repo changes: `demo_mcpgw_nginx/` (new), `scripts/ensure-mcpgw-certs.sh` (new),
+`k8s/aws/mcpgw-agentless-ingress.yaml` (new), plus `-listen :8623` and the nginx service
+in `docker-compose.yml`, port `8680` → `8623` in `k8s/75-ping-mcpgw-deployment.yaml` and
+`k8s/aws/se-ingress.yaml`, and a `pingone.env` mount + a real PVC for `/procyon/ssl`
+(it was `emptyDir` and `readOnly: true` — the first would lose the exchanged proxy token
+on every restart, the second is the documented `ProxyToken write ... read-only file
+system` exit 1).
+
+### Console steps — not automatable, do these before testing
+
+1. **Enrollment JWT.** Privilege console → Cloud → Gateways → Add via Docker. Copy the
+   `ENV_PROXY_TOKEN` JWT into `PRIVILEGE_PROXY_TOKEN` in the root `.env`. The previous
+   token expired 2026-08-04 and the `ai-demo_mcpgw-ssl` volume is gone, so this is
+   required, not optional.
+2. **PingOne OIDC app** in `8d4d7a4c` — `deff60f5-5a67-4a6e-b283-47252856c89c` unless you
+   create a new one. **Add** redirect URI `https://mcpgw.local.ping-devops.com/callback`,
+   keeping the existing `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`
+   (the BFF relay still uses it). Put its id/secret in `ping-mcpgw/config/pingone.env`
+   (copy from `pingone.env.example`).
+3. **MCP Server application** in the Privilege console:
+   - Frontend Name: `aidemo.mcpgw.local.ping-devops.com` — **our domain, not the
+     auto-assigned cloud FQDN. This is the setting the whole pivot turns on.**
+   - Backend Name: `http://mcp-server:8080/mcp`
+   - Mesh Cluster: the cluster the freshly enrolled proxy joined
+   - Auth Mode: Static Token, empty value (`MCP_AUTH_DISABLED=true` on `mcp-server`
+     leaves the gateway→server hop open; Privilege enforces at its own layer)
+4. **Policy**, attached to `cmuir+ssoEndUser@pingone.com`. Time-bound policies expire —
+   re-author before each test session.
+5. `/etc/hosts`: `127.0.0.1 mcpgw.local.ping-devops.com` and
+   `127.0.0.1 aidemo.mcpgw.local.ping-devops.com`.
+6. `PRIVILEGE_MCPGW_URL=https://aidemo.mcpgw.local.ping-devops.com/mcp` in
+   `demo_api_server/.env`.
+
+### The gate — run this before trusting any of the above
+
+```bash
+./run-docker.sh optional start mcpgw
+docker exec ai-demo-ping-mcpgw ss -lntp | grep 8623        # is anything listening?
+curl -vk https://localhost:8623/mcp \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+**Pass:** `401` carrying `WWW-Authenticate: Bearer authorization_uri="https://mcpgw.local.ping-devops.com/authorize"`.
+
+**Fail (nothing bound on 8623, or the console refuses a non-Privilege Frontend Name):**
+agentless mode is not available to this tenant or licence. Stop — that is the question
+to take to Ping, and it is a much sharper one than the issuer-trust question this doc
+has been carrying.
+
+Then through the front door:
+
+```bash
+curl -vk https://aidemo.mcpgw.local.ping-devops.com/mcp \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+Same 401 challenge means nginx, DNS, TLS and Host-header passthrough are all correct.
+Browser sign-in at `/privilege-mcp-client` closes the loop; the console's Activity Log
+is the proof the tool call was governed.
+
+### Troubleshooting the new hops
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| nginx exits at start | `certs/mcpgw-wildcard.pem` missing | `bash scripts/ensure-mcpgw-certs.sh` |
+| `502` + `SSL_do_handshake` in nginx log | proxy's `-listen` port is plain HTTP, not TLS | change `proxy_pass` to `http://` in `demo_mcpgw_nginx/nginx.conf` (and `backend-protocol: "HTTP"` in the k8s ingress) |
+| `404` from the gateway | Host header rewritten, or Frontend Name does not match the host called | keep `proxy_set_header Host $host` |
+| Browser cert warning | wildcard cert not trusted | `mkcert -install` |
+| MCP session drops after 60s | a proxy timeout somewhere still at its default | `proxy_read_timeout 3600s` on every hop |
+
+### 2026-08-08 (later): the frontend is port 8620, not 8623 — and the cert theory was wrong
+
+Two corrections to the section above, both found by probing the running proxy rather
+than by reading vendor material.
+
+**1. `-listen` is the mesh port. The MCP frontend is `-alp-port`.**
+
+Ports actually bound inside the container:
+
+```
+8090   debug api (loopback)
+8620   -alp-port, "agentless proxy api port"   <- the MCP frontend
+8623   -listen  (we set it; mesh/mTLS)
+8690   medusa
+```
+
+Probing each one settles it:
+
+```
+POST http://localhost:8620/mcp   -> 401  "Bearer Token not found."
+POST https://localhost:8623/mcp  -> TLS: tlsv13 alert certificate required
+```
+
+`Bearer Token not found.` is this gateway's documented tokenless response — the same
+string the blocker table above records. 8620 is the hop nginx must target, over plain
+HTTP. Pointing nginx at 8623 produces a bare `502` whose real cause appears only in the
+nginx error log, which is what made this take a while to see.
+
+The vendor SE deck's "proxy forwards to MCPGW runtime, often 8623 in field examples"
+is what sent us at 8623. Either their field config differs, or the deck is loose about
+which port is which; the local evidence is unambiguous.
+
+**2. Mounting a server certificate for 8623 changed nothing.**
+
+PR #1465 mounted `certs/mcpgw-wildcard.pem` at `/procyon/ssl/mcpgw-cert.pem` on the
+theory that the listener demanded a client certificate because it lacked a server one.
+Verified after the mount landed and the container was recreated: the files were present
+(`ls /procyon/ssl/` shows both) and 8623 returned the *identical* alert. 8623 requires
+mTLS because it is the mesh port, full stop. The mount has been reverted — re-add it
+only with evidence that some listener reads those files.
+
+The one durable finding from #1465 stands: `ping-mcpgw/README.md` had documented that
+mount as existing since the service was added, and it never did.
+
+**Still unresolved and console-side:** the 401 carries no `WWW-Authenticate` header, so
+the browser never learns where to authenticate. Grepping the log after a restart with
+`pingone.env` correctly mounted and populated still returns **zero** hits for
+`SERVER_URL`, `authorize`, `oidc`, or `pingone.env`. The challenge is control-plane
+driven — it should appear once the MCP Server application's Frontend Name and auth mode
+are set in the console.
+
+## 2026-08-08 correction: agentless does not avoid the signature wall
+
+The central hypothesis of this session — that agentless mode escapes
+`IssuerPublicKey:[]` because the gateway runs the OIDC dance itself — is **wrong**.
+It was reasoned from Ping's SE deck, held through five merged PRs, and disproved by
+one direct test. Recording it plainly so nobody rebuilds on it.
+
+### The test
+
+A real `client_credentials` token from PingOne env `8d4d7a4c` (app `deff60f5`), sent
+through nginx to the agentless port:
+
+```
+POST https://aidemo.mcpgw.local.ping-devops.com/mcp
+Authorization: Bearer eyJraWQiOiJiMzY3NjYzMC04MjNk...
+
+HTTP/2 401
+Authorization header JWT parsing failed JWT signature validation failed
+```
+
+Byte-identical to the mesh-mode failure this document has carried since 2026-08-02.
+
+### What it establishes
+
+- **The gateway validates inbound JWTs on 8620.** The agentless port is a real
+  security boundary, not a passthrough. Reaching it directly changes the network
+  path, not the auth decision.
+- **The failure is signature, not audience or scope.** It never reaches a policy
+  decision, so no amount of policy authoring will move it.
+- **Environment choice is not the cause.** The rejected token was issued by
+  `https://auth.pingone.com/8d4d7a4c-.../as` — Privilege's *own* tenant. Whatever
+  populates `IssuerPublicKey`, it does not default to trusting the home tenant.
+
+### What is still true from the earlier sections
+
+Ports (8620 frontend, 8623 mesh), the nginx front door, the wildcard certs, the
+whole-tree `/var/lib/procyon` mount, the read-only Frontend Name, and the wiring
+tables are all unaffected — they were verified independently. Agentless is still the
+right topology: fewer moving parts, no dependency on Ping's cloud routing, and it is
+what the SE material documents. It just does not solve authentication.
+
+### The intended flow, and exactly where it stops
+
+The design is:
+
+```
+Postman -> MCPGW /mcp -> 401 + WWW-Authenticate -> PingOne sign-in
+        -> MCPGW /callback -> MCPGW mints its own token
+        -> MCPGW /mcp (with that token) -> MCP server
+```
+
+The token the client finally presents is **issued by MCPGW**, not by PingOne — MCPGW
+authenticates the user against PingOne behind the scenes and then acts as the
+authorization server itself. That is consistent with the binary: it vendors
+`ory/fosite` (an OAuth2 *server* library) and carries `/authorize` and `/callback`.
+
+Which means the earlier token test was sending the wrong *kind* of token — a
+PingOne-issued one, where the gateway expects one of its own. But the flow is blocked
+before that ever matters, in two places at once:
+
+```
+POST /mcp        -> 401 Bearer Token not found.   (no WWW-Authenticate: nothing tells
+                                                   the client where to authenticate)
+GET  /authorize  -> 401 Bearer Token not found.   (the OAuth endpoint is itself behind
+                                                   the same middleware)
+```
+
+Every path answers identically, including `/.well-known/oauth-authorization-server`
+and `/.well-known/oauth-protected-resource`, which must be publicly readable for any
+OAuth discovery to work. You need a token to reach the endpoint that issues tokens.
+
+That is what an `AuthzMiddleware` with no authorization server configured looks like:
+it fails closed over the entire surface, including the endpoints that would let a
+client bootstrap. So the conclusion is unchanged but better grounded — the gateway is
+not merely missing an issuer key for validating foreign tokens, it has **no
+unauthenticated surface at all**.
+
+### The state everything converges on
+
+```
+AuthzMiddleware{ ... http-MCP-aidemo ...
+  AuthzServer:      MCP-aidemo
+  IssuerPublicKey:  []
+  AppType:          mcp
+```
+
+The control plane also advertises a tenant-level
+`AuthzServer:8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b.oauth.privilege.pingone.com`, but
+the application is not bound to it.
+
+### The question for Ping
+
+> For a Docker-enrolled private proxy on image `v1.260726`, what populates
+> `AuthzMiddleware.IssuerPublicKey` for an `AppType:mcp` application, and how is an
+> application bound to the tenant's `<envid>.oauth.privilege.pingone.com` authz
+> server? The `cyonproxy` binary contains no reference to `pingone.env` or any of its
+> keys in any casing, and the console exposes no field for either.
+
+Everything reachable from this repo has been eliminated by test rather than argument:
+ports probed, certs mounted and reverted, the full vendor tree mounted, two PingOne
+environments tried, and both frontend topologies exercised.

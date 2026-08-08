@@ -62,4 +62,4 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8680
+              number: 8620
