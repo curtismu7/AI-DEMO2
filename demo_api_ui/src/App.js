@@ -507,7 +507,10 @@ function AppWithAuth() {
                   element={<PublicRoutes user={user} logout={logout} />}
                 />
                 {/* New Relic event stream — public, no session required */}
-                <Route path="/monitoring/new-relic" element={<NewRelicRoute />} />
+                <Route
+                  path="/monitoring/new-relic"
+                  element={<NewRelicRoute user={user} logout={logout} />}
+                />
                 {/* Demo config accessible without login */}
                 <Route
                   path="/configure"
