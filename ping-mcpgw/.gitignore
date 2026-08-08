@@ -20,7 +20,9 @@ config/procyon-guest-agent.env
 procyon/recordings/*
 !procyon/recordings/.gitkeep
 
-# Anything else the proxy drops into the tree at runtime
+# Gateway serving certs, copied in by scripts/ensure-mcpgw-certs.sh — these are the
+# /var/lib/procyon/ssl/mcpgw-{cert,key}.pem files Ping's SE material names. Generated,
+# never committed (the key is private).
 procyon/ssl/
 
 # TLS certs — *.pem is also caught by the repo-root rule but be explicit
