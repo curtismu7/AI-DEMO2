@@ -17,6 +17,12 @@ function makeApp() {
 }
 
 const OLD_ENV = { ...process.env };
+beforeEach(() => {
+  // The response cache (Finding 2) is module-level state on the router
+  // required at module scope above, so it survives across specs in this
+  // file unless reset explicitly.
+  newRelicQueryRoute._resetCache();
+});
 afterEach(() => {
   process.env = { ...OLD_ENV };
   jest.clearAllMocks();
@@ -36,6 +42,14 @@ describe('GET /api/newrelic/pipeline', () => {
     delete process.env.NR_ACCOUNT_ID;
     const res = await request(makeApp()).get('/api/newrelic/pipeline');
     expect(res.status).toBe(503);
+  });
+
+  it('503s when NR_ACCOUNT_ID is non-numeric', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = 'not-a-number';
+    const res = await request(makeApp()).get('/api/newrelic/pipeline');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('newrelic_not_configured');
   });
 
   it('400s on a window outside the fixed map', async () => {
@@ -104,5 +118,23 @@ describe('GET /api/newrelic/pipeline', () => {
     });
     const res = await request(makeApp()).get('/api/newrelic/pipeline');
     expect(res.status).toBe(502);
+  });
+
+  it('serves a cached response within the TTL instead of issuing a second axios call', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    axios.post.mockResolvedValue({
+      data: { data: { actor: { account: {
+        funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] },
+      } } } },
+    });
+
+    const app = makeApp();
+    const first = await request(app).get('/api/newrelic/pipeline?window=1h');
+    const second = await request(app).get('/api/newrelic/pipeline?window=1h');
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(axios.post).toHaveBeenCalledTimes(1);
   });
 });

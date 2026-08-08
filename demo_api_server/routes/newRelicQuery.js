@@ -24,6 +24,17 @@ const WINDOWS = {
 
 const DEFAULT_WINDOW = '1h';
 
+// Anonymous callers hit this route with no rate limiting of their own; a short
+// cache keeps repeated page loads/polling from spending upstream NerdGraph
+// quota on every request. Key space is the three fixed WINDOWS values, so no
+// eviction policy is needed.
+const CACHE_TTL_MS = 20000;
+const _cache = new Map(); // window -> { at, payload }
+
+function _resetCache() {
+  _cache.clear();
+}
+
 function _buildQuery(accountId, since, bucket) {
   const funnel =
     `SELECT count(*) FROM Log WHERE logtype='app_event' FACET category SINCE ${since}`;
@@ -46,7 +57,7 @@ function _buildQuery(accountId, since, bucket) {
 router.get('/pipeline', async (req, res) => {
   const key = process.env.NR_USER_API_KEY;
   const accountId = process.env.NR_ACCOUNT_ID;
-  if (!key || !accountId) {
+  if (!key || !Number.isFinite(Number(accountId))) {
     return res.status(503).json({ error: 'newrelic_not_configured' });
   }
 
@@ -54,6 +65,11 @@ router.get('/pipeline', async (req, res) => {
   const spec = WINDOWS[window];
   if (!spec) {
     return res.status(400).json({ error: 'invalid_window' });
+  }
+
+  const cached = _cache.get(window);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return res.json(cached.payload);
   }
 
   try {
@@ -67,17 +83,19 @@ router.get('/pipeline', async (req, res) => {
     );
 
     if (response.data && response.data.errors) {
-      console.warn('[newRelicQuery] NerdGraph returned errors');
+      console.warn('[newRelicQuery] NerdGraph returned errors:', response.data.errors);
       return res.status(502).json({ error: 'newrelic_query_failed' });
     }
 
     const account = response.data?.data?.actor?.account || {};
-    return res.json({
+    const payload = {
       window,
       funnel: account.funnel?.results || [],
       timeseries: account.timeseries?.results || [],
       stream: account.stream?.results || [],
-    });
+    };
+    _cache.set(window, { at: Date.now(), payload });
+    return res.json(payload);
   } catch (err) {
     // Deliberately not echoed to the client — this endpoint is public and the
     // upstream message can carry hostnames and IPs.
@@ -85,5 +103,9 @@ router.get('/pipeline', async (req, res) => {
     return res.status(502).json({ error: 'newrelic_query_failed' });
   }
 });
+
+// Exposed for tests only — resets the module-level response cache between
+// specs (see tests/newRelicQuery.test.js).
+router._resetCache = _resetCache;
 
 module.exports = router;
