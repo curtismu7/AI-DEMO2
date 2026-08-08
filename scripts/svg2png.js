@@ -2,11 +2,22 @@
  * Convert an SVG file to PNG using Chrome via Puppeteer.
  *
  * Usage:
- *   node scripts/svg2png.js <input.svg> <output.png>
+ *   npx -y -p puppeteer-core node scripts/svg2png.js <input.svg> <output.png>
  *
  * Requires Chrome at the default macOS path. Adjust CHROME_PATH if different.
  */
-const puppeteer = require('/Users/cmuir/.npm/_npx/668c188756b835f3/node_modules/puppeteer-core');
+// puppeteer-core is deliberately NOT a repo dependency — this is a one-off
+// authoring tool, and pulling it into package.json would cost every install.
+// Resolve it normally so the script works on any machine; the previous absolute
+// path into one developer's npx cache failed the fresh-clone hygiene gate.
+let puppeteer;
+try {
+  puppeteer = require('puppeteer-core');
+} catch (err) {
+  console.error(`puppeteer-core could not be loaded (${err.code || err.message}). Run:`);
+  console.error('  npx -y -p puppeteer-core node scripts/svg2png.js <input.svg> <output.png>');
+  process.exit(1);
+}
 const fs = require('fs');
 
 const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
