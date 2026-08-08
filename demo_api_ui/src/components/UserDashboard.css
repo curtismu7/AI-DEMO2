@@ -4031,6 +4031,16 @@
     overflow: visible;
   }
 
+  /* The split3 shell itself is `flex: 1 1 0%; overflow: hidden` (line ~23), so
+   * even with the App shell released it would still clip the stack to whatever
+   * the flex parent allots. Let it size to content on a phone. */
+  .user-dashboard.user-dashboard--split3 {
+    flex: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
   /* Same collision one level down: `.ud-banking-column.ud-center { height: 100% }`
    * and the 1024px `{ height: auto }` are both 0,2,0, and the unmediated one is
    * later in source, so it wins.
