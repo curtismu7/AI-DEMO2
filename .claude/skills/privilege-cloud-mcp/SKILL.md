@@ -12,11 +12,12 @@ Every one of these was learned the expensive way. Check them before theorising.
    speaks mTLS and answers everything else with `tlsv13 alert certificate required`,
    which nginx reports as a bare `502`. Probe: `POST http://localhost:8620/mcp` must
    return `401 Bearer Token not found.`
-2. **Mesh mode cannot work here; agentless can.** If the MCP Server application's
-   **Frontend Name** is the Ping-assigned `*.applications.privilege.pingone.com`
-   FQDN, Privilege validates the client's PingOne JWT itself and fails with
-   `IssuerPublicKey:[]`. Nothing in this repo fixes that. Set Frontend Name to a
-   domain we control instead.
+2. **`IssuerPublicKey:[]` is the blocker, and agentless mode does NOT avoid it.**
+   Tested 2026-08-08 with a real PingOne token through nginx to the agentless port:
+   `401 Authorization header JWT parsing failed JWT signature validation failed` —
+   byte-identical to mesh mode. The gateway validates inbound JWTs on 8620 too.
+   Even a token from Privilege's own tenant (`8d4d7a4c`) is rejected, so this is not
+   about picking the right environment. Nothing in this repo populates that key.
 3. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
    with Privilege console access, and every required setting lives in that console.
 4. **An expired enrollment token is almost never the problem.** cyonproxy swaps the
@@ -70,15 +71,21 @@ SSO client — the main banking app token has the wrong audience for Privilege C
 
 | Path | Endpoint | Status |
 |------|----------|--------|
-| **Agentless / self-hosted frontend** (use this) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` → nginx :443 → proxy :8620 | Frontend Name is **our** domain. The gateway runs the OIDC dance itself, so it never has to trust our issuer |
-| **Mesh / cloud frontend** | `https://<app>-app-default.applications.privilege.pingone.com:8643/mcp` | Frontend Name is Ping-assigned. Privilege validates the client's PingOne JWT itself and fails `IssuerPublicKey:[]` / `JWT signature validation failed`. **Unfixable from this repo** — weeks were lost here |
+| **Agentless / self-hosted frontend** (use this) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` → nginx :443 → proxy :8620 | Reaches the gateway directly, bypassing Ping's cloud. Everything below the auth layer works: routing, backend, discovery |
+| **Mesh / cloud frontend** | `https://<app>-app-default.applications.privilege.pingone.com:8643/mcp` | Ping-assigned FQDN, routed through Ping's cloud and back over the mesh |
 | **Cloud API** | `https://privilege.pingone.com/api/mcp` | DEAD END — 401s every request including its own `.well-known/oauth-protected-resource`, sends no `WWW-Authenticate` |
 
-**The console field that selects mesh vs agentless is the MCP Server
-application's Frontend Name.** Leave it as the auto-assigned
-`*.applications.privilege.pingone.com` FQDN and you are in mesh mode with the
-JWT-signature wall. Set it to a domain you control and you are in agentless mode,
-where that wall does not apply.
+**Both of the first two hit the same auth wall.** A hypothesis held through most of
+2026-08-08 — that agentless mode escapes the JWT-signature failure because the
+gateway would run OIDC itself — was **disproven by direct test**: a real PingOne
+token sent through nginx to 8620 returns the identical
+`JWT signature validation failed`. Prefer agentless anyway (fewer moving parts, no
+dependency on Ping's cloud routing, and it is what the SE material documents), but
+do not expect it to solve authentication.
+
+The console field that selects mesh vs agentless is the MCP Server application's
+Frontend Name — and in the current console build it is **read-only**, assigned on
+create as `<app>-app-default.applications.privilege.pingone.com:8643`.
 
 ### The nginx front door (agentless only)
 
@@ -122,8 +129,33 @@ Infrastructure is done and proven. Remaining work is console-side only.
 - Backend reachable from inside the compose network:
   `POST http://mcp-server:8080/mcp` → `200`.
 - **The 401 carries no `WWW-Authenticate` header**, so a browser never learns where
-  to authenticate. This is the one thing still missing, and it is control-plane
-  driven — see below.
+  to authenticate. Control-plane driven — see below.
+- **A real bearer token fails signature validation.** Tested through nginx to 8620:
+
+  ```
+  no token      -> 401 Bearer Token not found.
+  PingOne token -> 401 Authorization header JWT parsing failed
+                       JWT signature validation failed
+  ```
+
+  Same error as mesh mode, and the token was minted in Privilege's own tenant
+  `8d4d7a4c`. `AuthzMiddleware` for the app carries `AuthzServer:<app-name>` and
+  `IssuerPublicKey:[]`. The control plane also advertises a tenant-level
+  `AuthzServer:<envid>.oauth.privilege.pingone.com`, but the app is not bound to it.
+- **The gateway has no unauthenticated surface at all.** Every path answers
+  `401 Bearer Token not found.` — including `/authorize`, `/callback`, and both
+  `.well-known` documents, which must be publicly readable for OAuth discovery:
+
+  ```
+  /mcp  /authorize  /callback
+  /.well-known/oauth-authorization-server
+  /.well-known/oauth-protected-resource     -> all 401, identical body
+  ```
+
+  You need a token to reach the endpoint that issues tokens. That is what an
+  `AuthzMiddleware` with no authorization server configured looks like: fail-closed
+  over everything, including the endpoints a client would use to bootstrap.
+  **Everything converges here: give the app an authz server and the demo unblocks.**
 - **Duplicate node registration.** `has same NodeURL - this happens because of
   misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`.
   Cosmetic — confirmed the command stream stays up and discovery still dispatches.
@@ -248,7 +280,8 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 **Environment `01d89b06` (AI-Demo) is where the banking users live, and it is NOT
 usable here** — no Privilege console access, so the gateway cannot be configured
 at all. The gateway signs users in against `8d4d7a4c`, so `cmuir+sso*` are the
-identities that reach the MCP tools. Agentless mode makes that split harmless.
+identities that reach the MCP tools. Note this split is **not** what causes the
+signature failure — a token minted in `8d4d7a4c` itself is rejected the same way.
 
 Verify a credential belongs to the right environment before trusting a doc:
 

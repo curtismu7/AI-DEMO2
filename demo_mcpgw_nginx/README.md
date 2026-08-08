@@ -24,7 +24,7 @@ Privilege has two topologies and only one of them works for this demo.
 | Local listener | none — routed over the outbound gRPC mesh | `cyonproxy -listen :8623` |
 | Who authenticates the client | Privilege validates the client's PingOne JWT | the gateway runs the OIDC dance itself |
 | `ping-mcpgw/config/pingone.env` | never read | the OIDC config |
-| Blocker | `IssuerPublicKey:[]` → `JWT signature validation failed`, unfixable from this repo | none — no issuer trust needed |
+| Blocker | `IssuerPublicKey:[]` → `JWT signature validation failed` | **the same** — tested 2026-08-08, agentless does not avoid it |
 
 Full history in [`docs/PRIVILEGE-MCP.md`](../docs/PRIVILEGE-MCP.md).
 
