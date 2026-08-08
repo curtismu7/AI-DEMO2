@@ -231,8 +231,14 @@ export const CONFIGS = {
     identityActions: [],
     caseSource: { path: '/api/admin/government/cases' },
     permissions: {
-      // Handing over the record itself — same posture as healthcare's Release.
-      'Release record': { scope: 'sensitive:read', gate: 'approval' },
+      // gate:'verified', not 'approval'. Nothing on the server enforces
+      // approval — ADMIN_WRITE is [requireAdmin, requireCustomerVerified] — so
+      // declaring it here would be a client-only gate that a direct POST walks
+      // straight through, and the console's own rule is that the UI mirrors
+      // server truth rather than inventing it. A real approval posture needs
+      // the HITL service in the request path; until then the honest gate is
+      // the one that actually holds.
+      'Release record': { scope: 'sensitive:read', gate: 'verified' },
     },
     actions: {
       'Release record': { method: 'post', buildUrl: (row) => `/api/admin/government/permits/${encodeURIComponent(row.id)}/release`, body: (_r, c) => ({ userId: c.id }) },

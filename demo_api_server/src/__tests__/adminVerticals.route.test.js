@@ -470,6 +470,41 @@ describe('Phase 2 verticals', () => {
     expect(ok.body.item.status).toBe('Released');
   });
 
+  // manufacturing's releaseWorkOrder falls back to "the first order not yet
+  // released" when the id does not match. Without a guard, a stale or repeated
+  // request silently releases a DIFFERENT order and reports success — the exact
+  // failure this phase refused to ship for the other mutators.
+  it('a write against an unknown row id does not act on a different row', async () => {
+    const agent = makeSessionApp();
+    await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });
+
+    const before = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
+    const openOrders = before.body.data.workOrders.filter((w) => w.status !== 'Released');
+    expect(openOrders.length).toBeGreaterThan(0);
+
+    const r = await request(agent)
+      .post('/api/admin/manufacturing/work-orders/WO-does-not-exist/release')
+      .send({ userId: 'u1' });
+    expect(r.status).toBe(404);
+
+    const after = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
+    const stillOpen = after.body.data.workOrders.filter((w) => w.status !== 'Released');
+    expect(stillOpen.map((w) => w.id)).toEqual(openOrders.map((w) => w.id));
+  });
+
+  it('releasing a real work order still works and targets that order', async () => {
+    const agent = makeSessionApp();
+    await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });
+    const look = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
+    const wo = actionable(look.body.data.workOrders, 'status', ['Released']);
+    expect(wo).toBeTruthy();
+
+    const r = await request(agent).post(`/api/admin/manufacturing/work-orders/${wo.id}/release`).send({ userId: 'u1' });
+    expect(r.status).toBe(200);
+    expect(r.body.item.id).toBe(wo.id);
+    expect(r.body.item.status).toBe('Released');
+  });
+
   // writeAction calls store[method](userId, rowId). Only mutators shaped
   // (userId, itemId) honour the row the operator clicked; the (data, {...})
   // ones fall back to a default row and report success anyway. Exposing one

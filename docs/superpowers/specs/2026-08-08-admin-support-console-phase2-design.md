@@ -32,7 +32,7 @@ would act on, not a dump of the seed.
 | Vertical | Cards | Actions (scope, gate) |
 |---|---|---|
 | university | `courses`, `billing`, `holds`, `financial_aid`, `enrollmentHistory` | none — read-only |
-| government | `permits`, `payments`, `filings`, `inspections`, `recordsRequests` | Release record (`sensitive:read`, approval) |
+| government | `permits`, `payments`, `filings`, `inspections`, `recordsRequests` | Release record (`sensitive:read`, verified) |
 | manufacturing | `workOrders`, `maintenanceTickets`, `shipments`, `qualityInspections`, `purchaseOrders` | Release work order (`general:write`, verified) |
 | investment | `portfolios`, `holdings`, `trades`, `dividends` | none — read-only |
 | abercrombie-fitch | `orders`, `returns`, `support_tickets`, `rewards`, `gift_cards` | none — read-only |
@@ -83,12 +83,37 @@ console is designed to authorise it. Exposing them behind `gate: 'approval'`
 was considered and rejected: it ships buttons the console can never complete,
 which is worse than not offering them.
 
-### Gates on the two exposed actions
+### Gates on the two exposed actions — only what the server enforces
 
-`Release record` hands over a government record itself, so it carries
-`sensitive:read` + `gate: 'approval'` — matching healthcare's `Release`, the one
-Phase 1 action with that posture. `Release work order` is an ordinary shop-floor
-operation and takes `general:write` + `gate: 'verified'`.
+Both carry `gate: 'verified'`.
+
+`Release record` was first written as `gate: 'approval'`, matching healthcare's
+`Release`. That is wrong here: `ADMIN_WRITE` is
+`[requireAdmin, requireCustomerVerified]` and nothing on the server enforces
+approval, so a verified admin posting directly walks straight through a gate the
+UI presents as blocking. The console's own rule is that the client mirrors
+server truth rather than inventing it, and this phase already refused to ship
+investment's trades on the grounds that a button which can never complete is
+worse than no button. A real approval posture needs the HITL service in the
+request path; until it is there, the honest declaration is the gate that holds.
+
+**Pre-existing, not fixed here:** healthcare's `Release` on `main` carries
+`gate: 'approval'` with the same absence of server enforcement, and the `scope`
+field on every permission is likewise advisory — `requireScopes` is not applied
+to these routes. Both deserve a pass of their own.
+
+### Writes must not act on the wrong row
+
+`manufacturing.releaseWorkOrder` falls back to "the first order not yet
+released" when the id does not match, so a stale or repeated request released a
+*different* order and reported success.
+
+`writeAction` now checks the row exists in the customer's own data **before**
+calling the mutator. Checking the returned row is too late — the store has
+already been written, which an early version of this fix demonstrated by
+returning 404 while `WO-4001` was released anyway. A second check still compares
+the returned row's id against the requested one, for a mutator that swaps rows
+despite a valid id.
 
 Every scope name above comes from `demo_api_server/config/scopes.js`. The
 vocabulary is coarse and cannot distinguish "release transcript" from "register

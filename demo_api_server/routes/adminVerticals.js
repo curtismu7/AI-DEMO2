@@ -81,8 +81,25 @@ function writeAction(plugin, method, noun) {
     const id = req.params.id;
     if (!userId) return res.status(400).json({ ok: false, error: 'userId is required' });
     if (!isKnownUser(userId)) return res.status(404).json({ ok: false, error: 'unknown user' });
-    const item = plugin.getDataStore()[method](String(userId), id);
+    // Refuse BEFORE calling the mutator, not after. Some mutators fall back to
+    // "the first row still in a non-terminal state" when the id does not match
+    // — manufacturing's releaseWorkOrder does — so a stale or repeated request
+    // silently writes to a DIFFERENT record. Checking the returned row is too
+    // late: the store has already been mutated.
+    const store = plugin.getDataStore();
+    const owned = store.get(String(userId)) || {};
+    const rowExists = Object.values(owned).some(
+      (slice) => Array.isArray(slice) && slice.some((row) => String(row?.id) === String(id)),
+    );
+    if (!rowExists) return res.status(404).json({ ok: false, error: `${noun} not found` });
+
+    const item = store[method](String(userId), id);
     if (!item) return res.status(404).json({ ok: false, error: `${noun} not found` });
+    // Second layer: the id existed, but the mutator still returned a different
+    // row than the one asked for.
+    if (item.id !== undefined && String(item.id) !== String(id)) {
+      return res.status(404).json({ ok: false, error: `${noun} not found` });
+    }
     recordAudit(req, {
       action: `${req.method} ${req.originalUrl}`,
       customerId: String(userId),
