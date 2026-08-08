@@ -52,6 +52,12 @@ export const CONFIGS = {
     id: 'banking', name: 'Banking Ops', short: 'Banking', icon: 'BK',
     theme: { accent: '#2563eb', accent2: '#1e3a8a', tint: '#eef4ff' },
     lookupPath: '/api/admin/banking/lookup',
+    identityActions: [],
+    caseSource: { path: '/api/admin/banking/cases' },
+    permissions: {
+      'Seed charge': { scope: 'transactions:write', gate: 'verified' },
+      'Delete':      { scope: 'transactions:write', gate: 'verified' },
+    },
     lookupPlaceholder: 'Look up by holder name, username, email, or account number…',
     actions: {
       'Seed charge': { method: 'post', buildUrl: (row) => `/api/admin/banking/accounts/${encodeURIComponent(row.id)}/seed-charges` },
@@ -86,6 +92,14 @@ export const CONFIGS = {
     id: 'healthcare', name: 'Healthcare Ops', short: 'Healthcare', icon: 'HC',
     theme: { accent: '#0d9488', accent2: '#115e59', tint: '#ecfdf9' },
     lookupPath: '/api/admin/healthcare/lookup',
+    identityActions: [],
+    caseSource: { path: '/api/admin/healthcare/cases' },
+    permissions: {
+      'Cancel':   { scope: 'transactions:write', gate: 'verified' },
+      'Pay bill': { scope: 'transactions:write', gate: 'verified' },
+      'Refill':   { scope: 'transactions:write', gate: 'verified' },
+      'Release':  { scope: 'sensitive:read',     gate: 'approval' },
+    },
     lookupPlaceholder: 'Look up a patient by name, email, or id…',
     actions: {
       'Cancel': { method: 'post', buildUrl: (row, _c, catId) => `/api/admin/healthcare/${catId === 'referrals' ? 'referrals' : 'appointments'}/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
@@ -105,6 +119,14 @@ export const CONFIGS = {
     id: 'retail', name: 'Retail Ops', short: 'Retail', icon: 'RT',
     theme: { accent: '#ea580c', accent2: '#9a3412', tint: '#fff3ec' },
     lookupPath: '/api/admin/retail/lookup',
+    identityActions: [],
+    caseSource: { path: '/api/admin/retail/cases' },
+    permissions: {
+      'Cancel order': { scope: 'transactions:write', gate: 'verified' },
+      'Cancel sub':   { scope: 'transactions:write', gate: 'verified' },
+      'Resolve':      { scope: 'general:write',      gate: 'none' },
+      'Approve':      { scope: 'transactions:write', gate: 'verified' },
+    },
     lookupPlaceholder: 'Look up a shopper by name, email, or id…',
     actions: {
       'Cancel order': { method: 'post', buildUrl: (row) => `/api/admin/retail/orders/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
@@ -124,6 +146,14 @@ export const CONFIGS = {
     id: 'sporting-goods', name: 'Sporting Goods Ops', short: 'Sporting', icon: 'SG',
     theme: { accent: '#16a34a', accent2: '#14532d', tint: '#edfcef' },
     lookupPath: '/api/admin/sporting-goods/lookup',
+    identityActions: [],
+    caseSource: { path: '/api/admin/sporting-goods/cases' },
+    permissions: {
+      'Cancel order':    { scope: 'transactions:write', gate: 'verified' },
+      'Return':          { scope: 'transactions:write', gate: 'verified' },
+      'Resolve':         { scope: 'general:write',      gate: 'none' },
+      'Cancel coaching': { scope: 'transactions:write', gate: 'verified' },
+    },
     lookupPlaceholder: 'Look up a member by name, email, or id…',
     actions: {
       'Cancel order': { method: 'post', buildUrl: (row) => `/api/admin/sporting-goods/orders/${encodeURIComponent(row.id)}/cancel`, body: (_r, c) => ({ userId: c.id }) },
@@ -143,6 +173,14 @@ export const CONFIGS = {
     id: 'workforce', name: 'Workforce Ops', short: 'Workforce', icon: 'WF',
     theme: { accent: '#7c3aed', accent2: '#4c1d95', tint: '#f5f0ff' },
     lookupPath: '/api/admin/workforce/lookup',
+    identityActions: [],
+    caseSource: { path: '/api/admin/workforce/cases' },
+    permissions: {
+      'Approve':  { scope: 'transactions:write', gate: 'approval' },
+      'Deny':     { scope: 'transactions:write', gate: 'approval' },
+      'Resolve':  { scope: 'general:write',      gate: 'none' },
+      'Complete': { scope: 'general:write',      gate: 'verified' },
+    },
     lookupPlaceholder: 'Look up an employee by name, email, or id…',
     actions: {
       'Approve': { method: 'post', buildUrl: (row) => `/api/admin/workforce/expenses/${encodeURIComponent(row.id)}/approve`, body: (_r, c) => ({ userId: c.id }) },
