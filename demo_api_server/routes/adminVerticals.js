@@ -11,6 +11,9 @@ const healthcare = require('../config/verticals/healthcare');
 const retail = require('../config/verticals/retail');
 const sportingGoods = require('../config/verticals/sporting-goods');
 const workforce = require('../config/verticals/workforce');
+// Reads this session's own record of what it was granted — no signature check
+// needed, and none performed.
+const { decodeJwt } = require('../utils/tokenUtils');
 
 // Known demo users an operator can type into a vertical ops lookup box.
 // The BFF user store is shared across verticals — accounts are seeded per
@@ -149,10 +152,100 @@ function bankingLookup(req, res) {
   }
 }
 
+// ── Customer verification ─────────────────────────────────────────────────────
+// Records that THIS OPERATOR SESSION verified THIS CUSTOMER. Deliberately not
+// req.session.stepUpVerified — that field records the operator's own MFA, and
+// crediting it here would let an operator's MFA unlock writes against anyone.
+// Not consumed single-use: one support call legitimately performs several
+// writes, so the TTL is the bound.
+const SUPPORT_VERIFY_TTL_MS = 15 * 60 * 1000;
+
+function markCustomerVerified(req, customerId) {
+  if (!req.session) return 0;
+  if (!req.session.supportVerified) req.session.supportVerified = {};
+  const expiresAt = Date.now() + SUPPORT_VERIFY_TTL_MS;
+  req.session.supportVerified[String(customerId)] = expiresAt;
+  return expiresAt;
+}
+
+function verificationExpiry(req, customerId) {
+  const at = req.session?.supportVerified?.[String(customerId)];
+  return typeof at === 'number' ? at : 0;
+}
+
+function isCustomerVerified(req, customerId) {
+  return verificationExpiry(req, customerId) > Date.now();
+}
+
+// POST /<vertical>/verify/initiate — start a challenge against the customer's
+// registered device. The demo completes it synchronously; a deployment wired to
+// a real CIBA channel would flip `ok` to false and let the client poll /status.
+function verifyInitiate(req, res) {
+  const customerId = req.body?.customerId;
+  if (!customerId) return res.status(400).json({ ok: false, error: 'customerId is required' });
+  if (!isKnownUser(customerId)) return res.status(404).json({ ok: false, error: 'unknown user' });
+  const expiresAt = markCustomerVerified(req, customerId);
+  res.json({
+    ok: true,
+    customerId: String(customerId),
+    channel: 'device-otp',
+    expiresIn: SUPPORT_VERIFY_TTL_MS,
+    expiresAt,
+  });
+}
+
+// GET /<vertical>/verify/status?customerId=
+function verifyStatus(req, res) {
+  const customerId = req.query.customerId;
+  if (!customerId) return res.status(400).json({ error: 'customerId is required' });
+  const expiresAt = verificationExpiry(req, customerId);
+  res.json({
+    customerId: String(customerId),
+    verified: expiresAt > Date.now(),
+    expiresAt,
+  });
+}
+
+// GET /<vertical>/permissions — the operator's granted scopes.
+//
+// Admin login writes req.session.loginIntrospection.scopes in routes/oauth.js,
+// but that write is fire-and-forget and non-fatal, so it can be missing. Fall
+// back to the access token's own scope claim, and report which source answered.
+// `source: 'none'` means "could not read", NOT "has none" — the client must not
+// render that as a blanket denial.
+function operatorScopes(req) {
+  const introspected = req.session?.loginIntrospection?.scopes;
+  if (Array.isArray(introspected) && introspected.length) {
+    return { scopes: introspected, source: 'introspection' };
+  }
+  const accessToken = req.session?.oauthTokens?.accessToken;
+  if (accessToken) {
+    // decodeJwt returns { header, claims } — not the payload itself.
+    const raw = decodeJwt(accessToken)?.claims?.scope;
+    if (typeof raw === 'string' && raw.trim()) {
+      return { scopes: raw.trim().split(/\s+/), source: 'token' };
+    }
+    if (Array.isArray(raw) && raw.length) {
+      return { scopes: raw, source: 'token' };
+    }
+  }
+  return { scopes: [], source: 'none' };
+}
+
+function permissionsFor(req, res) {
+  res.json(operatorScopes(req));
+}
+
 // Vertical Ops are open to any authenticated user. The /api/admin mount applies
 // authenticateToken upstream, so req.user is populated; no admin role/scope gate
 // is required here. (Spreads to no extra middleware.)
 const ADMIN_WRITE = [];
+
+for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
+  router.post(`/${vertical}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
+  router.get(`/${vertical}/verify/status`, ...ADMIN_WRITE, verifyStatus);
+  router.get(`/${vertical}/permissions`, ...ADMIN_WRITE, permissionsFor);
+}
 
 router.get('/banking/lookup', ...ADMIN_WRITE, bankingLookup);
 
@@ -193,3 +286,11 @@ router.post('/workforce/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(workfo
 router.post('/workforce/trainings/:id/complete', ...ADMIN_WRITE, writeAction(workforce, 'completeTraining', 'training'));
 
 module.exports = router;
+// Exposed for the gated-write middleware and its tests without changing what
+// server.js mounts.
+module.exports.__verify = {
+  markCustomerVerified,
+  isCustomerVerified,
+  verificationExpiry,
+  SUPPORT_VERIFY_TTL_MS,
+};

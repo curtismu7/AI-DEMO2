@@ -120,3 +120,93 @@ describe('admin vertical Ops — write actions', () => {
     expect(r.status).toBe(404);
   });
 });
+
+// ── Customer verification + operator permissions ──────────────────────────────
+// A minimal session shim: one object shared across requests from one agent.
+function makeSessionApp(seed = {}) {
+  const app = express();
+  app.use(express.json());
+  const session = { ...seed };
+  app.use((req, _res, next) => { req.session = session; next(); });
+  app.use('/api/admin', adminVerticals);
+  return app;
+}
+
+describe('customer verification', () => {
+  it('starts unverified', async () => {
+    const a = makeSessionApp();
+    const r = await request(a).get('/api/admin/sporting-goods/verify/status?customerId=u1');
+    expect(r.status).toBe(200);
+    expect(r.body.verified).toBe(false);
+  });
+
+  it('initiate then status reports verified', async () => {
+    const a = makeSessionApp();
+    const init = await request(a)
+      .post('/api/admin/sporting-goods/verify/initiate')
+      .send({ customerId: 'u1' });
+    expect(init.status).toBe(200);
+    expect(init.body.ok).toBe(true);
+
+    const r = await request(a).get('/api/admin/sporting-goods/verify/status?customerId=u1');
+    expect(r.body.verified).toBe(true);
+    expect(r.body.expiresAt).toBeGreaterThan(Date.now());
+  });
+
+  it('verifying one customer does not verify another', async () => {
+    const a = makeSessionApp();
+    await request(a).post('/api/admin/sporting-goods/verify/initiate').send({ customerId: 'u1' });
+    const r = await request(a).get('/api/admin/sporting-goods/verify/status?customerId=u2');
+    expect(r.body.verified).toBe(false);
+  });
+
+  it('rejects an unknown customerId with 404', async () => {
+    const a = makeSessionApp();
+    const r = await request(a)
+      .post('/api/admin/sporting-goods/verify/initiate')
+      .send({ customerId: 'ghost' });
+    expect(r.status).toBe(404);
+    expect(r.body.error).toBe('unknown user');
+  });
+
+  it('rejects a missing customerId with 400', async () => {
+    const a = makeSessionApp();
+    const r = await request(a)
+      .post('/api/admin/sporting-goods/verify/initiate')
+      .send({});
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe('customerId is required');
+  });
+});
+
+describe('operator permissions', () => {
+  it('reports scopes from loginIntrospection when present', async () => {
+    const a = makeSessionApp({
+      loginIntrospection: { scopes: ['general:read', 'general:write'] },
+    });
+    const r = await request(a).get('/api/admin/sporting-goods/permissions');
+    expect(r.status).toBe(200);
+    expect(r.body.scopes).toEqual(['general:read', 'general:write']);
+    expect(r.body.source).toBe('introspection');
+  });
+
+  it('falls back to the access token scope claim', async () => {
+    // An unsigned JWT carrying the scope claim. decodeJwt parses the header too,
+    // so it has to be real base64url JSON — not a placeholder character.
+    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const header = b64({ alg: 'none', typ: 'JWT' });
+    const payload = b64({ scope: 'general:read transactions:write' });
+    const a = makeSessionApp({ oauthTokens: { accessToken: `${header}.${payload}.sig` } });
+
+    const r = await request(a).get('/api/admin/sporting-goods/permissions');
+    expect(r.body.scopes).toEqual(['general:read', 'transactions:write']);
+    expect(r.body.source).toBe('token');
+  });
+
+  it('reports source none rather than pretending the operator has no scopes', async () => {
+    const a = makeSessionApp();
+    const r = await request(a).get('/api/admin/sporting-goods/permissions');
+    expect(r.body.scopes).toEqual([]);
+    expect(r.body.source).toBe('none');
+  });
+});
