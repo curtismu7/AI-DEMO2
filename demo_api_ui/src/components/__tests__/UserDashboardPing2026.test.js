@@ -67,6 +67,7 @@ vi.mock("../../context/AgentUiModeContext", async (importOriginal) => {
     useAgentUiMode: () => ({
       placement: "bottom",
       setSurfaceHostEl: vi.fn(),
+      setToolbarHostEl: vi.fn(),
       fab: false,
     }),
   };

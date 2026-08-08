@@ -21,6 +21,7 @@ vi.mock("../context/AgentUiModeContext", () => ({
   useAgentUiMode: () => ({
     placement: "none",
     setSurfaceHostEl: vi.fn(),
+    setToolbarHostEl: vi.fn(),
   }),
 }));
 
