@@ -57,7 +57,7 @@ function _buildQuery(accountId, since, bucket) {
 router.get('/pipeline', async (req, res) => {
   const key = process.env.NR_USER_API_KEY;
   const accountId = process.env.NR_ACCOUNT_ID;
-  if (!key || !Number.isFinite(Number(accountId))) {
+  if (!key || !String(accountId || '').trim() || !Number.isFinite(Number(accountId))) {
     return res.status(503).json({ error: 'newrelic_not_configured' });
   }
 

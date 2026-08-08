@@ -52,6 +52,22 @@ describe('GET /api/newrelic/pipeline', () => {
     expect(res.body.error).toBe('newrelic_not_configured');
   });
 
+  it('503s when NR_ACCOUNT_ID is an empty string (Number("") is 0, not NaN)', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '';
+    const res = await request(makeApp()).get('/api/newrelic/pipeline');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('newrelic_not_configured');
+  });
+
+  it('503s when NR_ACCOUNT_ID is whitespace-only', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '   ';
+    const res = await request(makeApp()).get('/api/newrelic/pipeline');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('newrelic_not_configured');
+  });
+
   it('400s on a window outside the fixed map', async () => {
     process.env.NR_USER_API_KEY = 'k';
     process.env.NR_ACCOUNT_ID = '8369622';
