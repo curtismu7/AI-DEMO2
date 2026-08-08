@@ -884,11 +884,24 @@ selects the topology is the MCP Server application's **Frontend Name**.
 | nginx engine | `mcpgw-nginx` service, host `443` | ingress-nginx, `k8s/aws/mcpgw-agentless-ingress.yaml` |
 | Gateway runtime | `ping-mcpgw`, `-listen :8623` | same, Service/Deployment on `8623` (was `8680`) |
 | Backend Name | `http://mcp-server:8080/mcp` | `http://mcp-server:8080/mcp` |
-| PingOne environment | `01d89b06-66d5-430e-9f28-65636843788b` | same |
+| PingOne environment | `8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` | same |
 
-Back on `01d89b06` (AI-Demo) rather than Privilege's own tenant `8d4d7a4c`: the only
-reason to be on `8d4d7a4c` was the issuer-trust theory, which agentless mode makes moot,
-and the banking demo's users live in `01d89b06`.
+**Environment is `8d4d7a4c`, and the reason is access, not theory.** It is the only
+environment we hold PingOne Privilege console access in, and everything that makes this
+mode work is authored in that console: the gateway cluster, the MCP Server application's
+Frontend Name, and the policy. No console access means no way to configure the gateway
+at all, so `01d89b06` is not a candidate however convenient its user population is.
+
+Consequence worth stating plainly: the gateway signs users in against `8d4d7a4c`, so the
+identities that reach the MCP tools are that environment's — `cmuir+ssoEndUser@pingone.com`
+and `cmuir+ssoAdmin@pingone.com`. The banking demo's own users live in `01d89b06` and are
+unrelated to this hop. Agentless mode makes that split harmless where mesh mode could not:
+the gateway validates its own sign-in via userinfo and never has to trust a foreign issuer.
+
+Known app in this environment: `deff60f5-5a67-4a6e-b283-47252856c89c`. It already carries
+`https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`; agentless mode needs
+`https://mcpgw.local.ping-devops.com/callback` **added** to it, not swapped in — the BFF
+relay path still uses the first one.
 
 Repo changes: `demo_mcpgw_nginx/` (new), `scripts/ensure-mcpgw-certs.sh` (new),
 `k8s/aws/mcpgw-agentless-ingress.yaml` (new), plus `-listen :8623` and the nginx service
@@ -904,9 +917,11 @@ system` exit 1).
    `ENV_PROXY_TOKEN` JWT into `PRIVILEGE_PROXY_TOKEN` in the root `.env`. The previous
    token expired 2026-08-04 and the `ai-demo_mcpgw-ssl` volume is gone, so this is
    required, not optional.
-2. **PingOne OIDC app** in `01d89b06`. Redirect URI
-   `https://mcpgw.local.ping-devops.com/callback`. Put its id/secret in
-   `ping-mcpgw/config/pingone.env` (copy from `pingone.env.example`).
+2. **PingOne OIDC app** in `8d4d7a4c` — `deff60f5-5a67-4a6e-b283-47252856c89c` unless you
+   create a new one. **Add** redirect URI `https://mcpgw.local.ping-devops.com/callback`,
+   keeping the existing `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`
+   (the BFF relay still uses it). Put its id/secret in `ping-mcpgw/config/pingone.env`
+   (copy from `pingone.env.example`).
 3. **MCP Server application** in the Privilege console:
    - Frontend Name: `banking.mcpgw.local.ping-devops.com` — **our domain, not the
      auto-assigned cloud FQDN. This is the setting the whole pivot turns on.**
