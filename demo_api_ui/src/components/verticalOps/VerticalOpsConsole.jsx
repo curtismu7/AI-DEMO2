@@ -82,7 +82,7 @@ export default function VerticalOpsConsole({ vertical }) {
         <section className="vops__grid" data-testid="vops-grid">
           {result.categories.map((c) => (
             <div className="vops__card" key={c.id}>
-              <div className="vops__cardhead"><span>{c.icon}</span><b>{c.label}</b><span className="vops__count">{c.rows.length}</span></div>
+              <div className="vops__cardhead"><span className="vops__cardicon">{c.icon}</span><b>{c.label}</b><span className="vops__count">{c.rows.length}</span></div>
               {c.rows.map((r) => (
                 <div className="vops__item" key={r.id} onClick={() => setDrawer({ category: c, row: r })}>
                   <div className="vops__itemmain"><div className="vops__ititle">{r.title}</div><div className="vops__isub">{r.sub}</div></div>

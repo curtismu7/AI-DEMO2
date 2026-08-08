@@ -1,5 +1,14 @@
 // __tests__/verticalOpsConfig.test.js
-import { VERTICAL_ORDER, getVerticalConfig } from '../verticalOpsConfig';
+import { CONFIGS, VERTICAL_ORDER, getVerticalConfig } from '../verticalOpsConfig';
+
+// REGRESSION_PLAN §0 — the only emoji permitted anywhere in the UI.
+const ALLOWED = ['⚠️', '✅', '❌', '🔐', '✕', '✓', '👤', '🔑', '🪟', '📚'];
+
+function hasDisallowedEmoji(value) {
+  let s = String(value);
+  for (const ok of ALLOWED) s = s.split(ok).join('');
+  return /\p{Extended_Pictographic}/u.test(s);
+}
 
 describe('verticalOpsConfig', () => {
   it('has all five verticals in order', () => {
@@ -14,6 +23,25 @@ describe('verticalOpsConfig', () => {
       expect(c.theme.accent).toMatch(/^#/);
       expect(c.lookupPath).toBe(`/api/admin/${id}/lookup`);
       expect(typeof c.adaptLookup).toBe('function');
+    }
+  });
+
+  it('no vertical config value uses an emoji outside the allowlist', () => {
+    const offenders = [];
+    for (const id of VERTICAL_ORDER) {
+      const cfg = CONFIGS[id];
+      if (hasDisallowedEmoji(cfg.icon)) offenders.push(`${id}.icon=${cfg.icon}`);
+      const { categories } = cfg.adaptLookup({ user: { id: 'u1', name: 'T' }, data: {} });
+      for (const c of categories) {
+        if (hasDisallowedEmoji(c.icon)) offenders.push(`${id}.${c.id}.icon=${c.icon}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('every icon token is one or two uppercase letters', () => {
+    for (const id of VERTICAL_ORDER) {
+      expect(CONFIGS[id].icon).toMatch(/^[A-Z]{1,2}$/);
     }
   });
 
