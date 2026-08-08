@@ -5,12 +5,15 @@ enforces just-in-time, least-privilege access and full session auditing for MCP 
 It fronts the unchanged `mcp-server`; the `/privilege-mcp-client` page in the demo UI
 is the client that drives it.
 
-Port `8680`. Compose profile: `mcpgw`. Image: `public.ecr.aws/s7q1z8z4/privilege-proxy`.
+MCP frontend port `8620`. Compose profile: `mcpgw`. Image: `public.ecr.aws/s7q1z8z4/privilege-proxy`.
+
+Clients reach it through nginx, never the proxy port directly:
 
 | | URL |
 |---|---|
-| Local (Docker Compose) | `https://local.ping-devops.com:8680` |
-| SE cluster (AWS) | `https://ai-demo.ping-devops.com/mcpgw` |
+| Local (Docker Compose) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` |
+| SE cluster (AWS) | `https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp` |
+| Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` |
 
 ## Prerequisite that no test can cover
 
@@ -42,7 +45,7 @@ docker compose --profile mcpgw stop ping-mcpgw
 3. The wizard shows a `docker run` command containing `ENV_PROXY_TOKEN=eyJ...`.
 4. Extract the token value and save it:
    ```sh
-   printf '%s' 'eyJ...<full JWT>' > ping-mcpgw/config/proxy-token
+   printf '%s' 'eyJ...<full JWT>' > ping-mcpgw/procyon/config/proxy-token
    ```
    This file is gitignored and must never be committed.
 
@@ -52,7 +55,7 @@ If using the full wizard (Add via Wizard), fill in the MCP Config step:
 
 | Field | Value |
 |---|---|
-| Gateway URL | `https://local.ping-devops.com:8680` |
+| Gateway URL | `https://mcpgw.local.ping-devops.com` (the nginx front door) |
 | Cert Path | `/procyon/ssl` |
 | Client ID | Use `PINGONE_MCP_GATEWAY_CLIENT_ID` from `demo_api_server/.env` |
 | Client Secret | Use `PINGONE_MCP_GATEWAY_CLIENT_SECRET` from `demo_api_server/.env` |
@@ -92,42 +95,65 @@ does not cover the `*.mcpgw.` frontend hosts.
 1. PingOne Privilege console → **AI Security > Agentic Apps** → **Add Application**.
 2. Select the **MCP Server** tile → **Integrate**.
 3. Set:
-   - **Frontend URL**: `https://local.ping-devops.com:8680` (or
-     `https://ai-demo.ping-devops.com/mcpgw` for the SE cluster)
    - **MCP Server URL**: `http://mcp-server:8080/mcp` (internal service DNS — same
-     name in Compose and Kubernetes)
+     name in Compose and Kubernetes). This is the **backend**
+   - **Auth Mode**: Static Token, token empty — this is upstream auth to our MCP
+     server, which runs `MCP_AUTH_DISABLED=true`
 4. In **Mesh Cluster**, select the gateway you registered in step 1.
-5. Configure tool/prompt/resource policy and bind to PingOne identities. Author the
+5. There is **no Frontend field in the create modal.** The console assigns
+   `<app>-app-default.applications.privilege.pingone.com:8643` on save, which is
+   mesh mode. See `docs/PRIVILEGE-MCP.md` for why mesh cannot work here.
+6. Configure tool/prompt/resource policy and bind to PingOne identities. Author the
    rule that produces the DENY here, and enable session recording.
 
 ## Key facts
 
 - **Image**: `public.ecr.aws/s7q1z8z4/privilege-proxy` (hardcoded, not configurable)
-- **Binary**: `/procyon/bin/cyonproxy -hostname <fqdn> -listen :8680`
+- **Binary**: `/procyon/bin/cyonproxy -hostname <fqdn> -listen :8623` (MCP serves on `-alp-port` 8620)
 - **Token**: `ENV_PROXY_TOKEN` env var, or file at `/procyon/ssl/proxy-token.data` (file preferred — the proxy writes back to it)
 - **Proxy phones home** outbound to `grpc.privilege.pingone.com:443` — no inbound firewall holes needed
-- **Default listen port**: `:8680` (flag `-listen`)
-- **Token expiry**: ~1 year from wizard creation; decode the JWT `exp` claim to check
+- **MCP frontend port**: `:8620` (flag `-alp-port`). `-listen` (default `:8680`, we
+  set `:8623`) is the **mesh** port and speaks mTLS — see `docs/PRIVILEGE-MCP.md`
+- **Token expiry**: decode the JWT `exp` claim to check. An expired token does not
+  stop an already-enrolled proxy — see `RENEW-TOKEN.md`
 
 ## Directory layout
 
+`ping-mcpgw/procyon/` is bind-mounted **whole** at `/var/lib/procyon`, same path on
+both sides, matching the vendor's own run command (embedded in the `cyctl` binary):
+
+```
+-v /var/lib/procyon:/var/lib/procyon
+```
+
+Earlier revisions bound only `config/`, which placed `pingone.env` at the right path
+but hid every sibling next to it. Add new proxy-side files under `procyon/`, not
+`config/`, so the container sees them.
+
 ```
 ping-mcpgw/
-  config/
-    proxy-token          ← gitignored — JWT from the Privilege gateway wizard
-    proxy-token.env      ← gitignored — ENV_PROXY_TOKEN=<jwt> for env_file use
-    pingone.env.example  ← committed template (legacy OIDC approach)
+  procyon/                       ← mounted at /var/lib/procyon
+    config/
+      pingone.env                ← gitignored — real OIDC config (holds a secret)
+      pingone.env.example        ← committed template
+      proxy-token                ← gitignored — JWT from the gateway wizard
+    procyon-guest-agent.env      ← gitignored — per-host guest agent config
+    recordings/                  ← session recordings the proxy writes
   README.md
+  RENEW-TOKEN.md
   .gitignore
 ```
+
+Note: the console's **Get Docker Command** output omits the `/var/lib/procyon`
+mount entirely, so a proxy enrolled straight from that command never sees this tree.
 
 ## Where the wiring lives
 
 | file | what it does |
 |---|---|
 | `docker-compose.yml` | `ping-mcpgw` service (profile `mcpgw`), mounts proxy-token as `/procyon/ssl/proxy-token.data` |
-| `k8s/75-ping-mcpgw-deployment.yaml` | Deployment + ClusterIP Service on 8680, token from `ping-mcpgw-secrets` |
-| `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `config/proxy-token` |
-| `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend port 8680 |
+| `k8s/75-ping-mcpgw-deployment.yaml` | Deployment + ClusterIP Service on 8620, token from `ping-mcpgw-secrets` |
+| `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `procyon/config/proxy-token` + `procyon/config/pingone.env` |
+| `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend port 8620 |
 | `demo_api_server/routes/privilegeMcpClient.js` | seeds the client page's default MCP URL from `PRIVILEGE_MCPGW_URL` |
 | `docs/PRIVILEGE-MCP.md` | end-to-end explainer: protocols per hop, flow diagrams, BFF endpoint reference, current known gaps |
