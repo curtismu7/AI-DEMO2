@@ -63,20 +63,29 @@ If using the full wizard (Add via Wizard), fill in the MCP Config step:
 
 Replace `<env-id>` with `PINGONE_ENVIRONMENT_ID` from `demo_api_server/.env`.
 
-### 3. TLS certificates — nothing to generate
+### 3. TLS certificates — generated, then mounted
 
-The existing repo cert pair is mounted into the container:
+The gateway's serving certificate for its `-listen` frontend:
 
 ```
-certs/api.ping.demo+2.pem      → /procyon/ssl/mcpgw-cert.pem
-certs/api.ping.demo+2-key.pem  → /procyon/ssl/mcpgw-key.pem
+certs/mcpgw-wildcard.pem      → /procyon/ssl/mcpgw-cert.pem
+certs/mcpgw-wildcard-key.pem  → /procyon/ssl/mcpgw-key.pem
 ```
 
-That cert already covers `local.ping-devops.com` and is valid until Oct 2028, so no
-`ping-mcpgw/ssl/` directory is created and no private key is duplicated. In Compose
-the service also carries a network alias of `local.ping-devops.com`, which is what
-makes one cert-valid URL work for both the browser (via `/etc/hosts` and the
-published port) and the BFF's server-side relay (via compose DNS).
+Privilege looks for exactly those two file names. The vendor's `docker run` maps
+host `/var/lib/procyon/ssl` to container `/procyon/ssl`, which is why Ping's SE
+material calls them `/var/lib/procyon/ssl/mcpgw-{cert,key}.pem`.
+
+`scripts/ensure-mcpgw-certs.sh` creates the pair (wildcard mkcert over
+`*.mcpgw.local.ping-devops.com`); `run-docker.sh` runs it before this profile
+starts. The core stack's `certs/api.ping.demo+2.pem` is **not** usable here — it
+does not cover the `*.mcpgw.` frontend hosts.
+
+> Earlier revisions of this section described the `api.ping.demo+2` pair as
+> already mounted. It never was — `docker-compose.yml` carried no such mount, so
+> the listener had no server certificate and answered TLS by demanding a client
+> certificate instead. Symptom: `502` from nginx with
+> `tlsv13 alert certificate required` in its error log.
 
 ### 4. Attach an MCP Server application
 
