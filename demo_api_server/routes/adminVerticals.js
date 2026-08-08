@@ -320,6 +320,47 @@ router.post('/workforce/expenses/:id/deny', ...ADMIN_WRITE, writeAction(workforc
 router.post('/workforce/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(workforce, 'resolveTicket', 'ticket'));
 router.post('/workforce/trainings/:id/complete', ...ADMIN_WRITE, writeAction(workforce, 'completeTraining', 'training'));
 
+// ── Case notes ────────────────────────────────────────────────────────────────
+// In-memory, keyed `<vertical>:<customerId>`. Not gated on verification: a note
+// records what happened on the call, it does not change customer data, and
+// gating it would push operators to keep notes somewhere else.
+//
+// Registered after the five per-vertical loops above — `/:vertical/...` is a
+// wildcard and an earlier registration would shadow the explicit routes.
+const caseNotes = new Map();
+
+function notesKey(vertical, customerId) {
+  return `${vertical}:${customerId}`;
+}
+
+function listNotes(req, res) {
+  const vertical = req.params.vertical;
+  const key = notesKey(vertical, req.params.customerId);
+  res.json({ vertical, data: { notes: caseNotes.get(key) || [] } });
+}
+
+function addNote(req, res) {
+  const vertical = req.params.vertical;
+  const { customerId } = req.params;
+  const body = String(req.body?.body || '').trim();
+  if (!body) return res.status(400).json({ error: 'note body is required' });
+  if (!isKnownUser(customerId)) return res.status(404).json({ error: 'unknown user' });
+
+  const key = notesKey(vertical, customerId);
+  if (!caseNotes.has(key)) caseNotes.set(key, []);
+  const note = {
+    id: `${key}:${caseNotes.get(key).length + 1}`,
+    at: new Date().toISOString(),
+    operator: req.user?.sub || req.user?.username || 'unknown',
+    body,
+  };
+  caseNotes.get(key).push(note);
+  res.json({ ok: true, note });
+}
+
+router.get('/:vertical/cases/:customerId/notes', listNotes);
+router.post('/:vertical/cases/:customerId/notes', addNote);
+
 module.exports = router;
 // Exposed for the gated-write middleware and its tests without changing what
 // server.js mounts.

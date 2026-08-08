@@ -329,3 +329,41 @@ describe('verification is enforced on writes', () => {
     expect(outcomes).toContain('ok');
   });
 });
+
+describe('case notes', () => {
+  it('starts empty, accepts a note, and returns it', async () => {
+    const a = makeSessionApp();
+
+    const empty = await request(a).get('/api/admin/sporting-goods/cases/u1/notes');
+    expect(empty.status).toBe(200);
+    expect(empty.body.data.notes).toEqual([]);
+
+    const post = await request(a)
+      .post('/api/admin/sporting-goods/cases/u1/notes')
+      .send({ body: 'Verified via OTP. Photos received.' });
+    expect(post.status).toBe(200);
+    expect(post.body.note.body).toBe('Verified via OTP. Photos received.');
+    expect(post.body.note.at).toEqual(expect.any(String));
+
+    const after = await request(a).get('/api/admin/sporting-goods/cases/u1/notes');
+    expect(after.body.data.notes).toHaveLength(1);
+  });
+
+  it('rejects an empty note body with 400', async () => {
+    const a = makeSessionApp();
+    const r = await request(a)
+      .post('/api/admin/sporting-goods/cases/u1/notes')
+      .send({ body: '   ' });
+    expect(r.status).toBe(400);
+    expect(r.body.error).toBe('note body is required');
+  });
+
+  it('rejects a note against an unknown customer with 404', async () => {
+    const a = makeSessionApp();
+    const r = await request(a)
+      .post('/api/admin/sporting-goods/cases/ghost/notes')
+      .send({ body: 'hello' });
+    expect(r.status).toBe(404);
+    expect(r.body.error).toBe('unknown user');
+  });
+});

@@ -5,6 +5,7 @@ import { notifySuccess, notifyError } from '../../utils/appToast';
 import { getVerticalConfig } from './supportConsoleConfig';
 import RecordDrawer from './RecordDrawer';
 import IdentityGate from './IdentityGate';
+import CaseNotes from './CaseNotes';
 import { resolvePermission, PERMISSION_LABEL } from './resolvePermission';
 import TokenChainTraceRail from '../TokenChainTraceRail';
 import './SupportConsole.css';
@@ -164,6 +165,10 @@ export default function SupportConsole({ vertical }) {
             </div>
           ))}
         </section>
+      )}
+
+      {result?.customer?.id && (
+        <CaseNotes vertical={vertical} customerId={result.customer.id} />
       )}
 
       <details className="vops__trace" data-testid="vops-token-chain" ref={traceRef}>
