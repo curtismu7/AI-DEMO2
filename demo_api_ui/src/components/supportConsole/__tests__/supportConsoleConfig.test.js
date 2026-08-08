@@ -1,5 +1,5 @@
-// __tests__/verticalOpsConfig.test.js
-import { CONFIGS, VERTICAL_ORDER, getVerticalConfig } from '../verticalOpsConfig';
+// __tests__/supportConsoleConfig.test.js
+import { CONFIGS, VERTICAL_ORDER, getVerticalConfig } from '../supportConsoleConfig';
 
 // REGRESSION_PLAN §0 — the only emoji permitted anywhere in the UI.
 const ALLOWED = ['⚠️', '✅', '❌', '🔐', '✕', '✓', '👤', '🔑', '🪟', '📚'];
@@ -10,7 +10,7 @@ function hasDisallowedEmoji(value) {
   return /\p{Extended_Pictographic}/u.test(s);
 }
 
-describe('verticalOpsConfig', () => {
+describe('supportConsoleConfig', () => {
   it('has all five verticals in order', () => {
     expect(VERTICAL_ORDER).toEqual(['banking','healthcare','retail','sporting-goods','workforce']);
   });

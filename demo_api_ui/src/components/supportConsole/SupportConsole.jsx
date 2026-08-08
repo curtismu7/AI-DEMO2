@@ -1,13 +1,13 @@
-// VerticalOpsConsole.jsx
+// SupportConsole.jsx
 import React, { useState, useCallback, useRef } from 'react';
 import bffAxios from '../../services/bffAxios';
 import { notifySuccess, notifyError } from '../../utils/appToast';
-import { getVerticalConfig } from './verticalOpsConfig';
+import { getVerticalConfig } from './supportConsoleConfig';
 import RecordDrawer from './RecordDrawer';
 import TokenChainTraceRail from '../TokenChainTraceRail';
-import './VerticalOpsConsole.css';
+import './SupportConsole.css';
 
-export default function VerticalOpsConsole({ vertical }) {
+export default function SupportConsole({ vertical }) {
   const cfg = getVerticalConfig(vertical);
   const [q, setQ] = useState('');
   const [result, setResult] = useState(null); // { customer, categories }

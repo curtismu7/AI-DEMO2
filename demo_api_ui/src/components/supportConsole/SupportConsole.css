@@ -1,4 +1,4 @@
-/* VerticalOpsConsole.css — scoped to .vops; uses local --accent/--accent2/--tint only */
+/* SupportConsole.css — scoped to .vops; uses local --accent/--accent2/--tint only */
 .vops { --accent:#2563eb; --accent2:#1e3a8a; --tint:#eef4ff; color:#1a2230; }
 .vops__hero { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; padding:20px 28px 56px; }
 .vops__brand { display:flex; align-items:center; gap:12px; } .vops__brand h1 { font-size:20px; margin:0; }
