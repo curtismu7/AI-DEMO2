@@ -2,9 +2,14 @@
 
 const mockStartSegment = jest.fn((name, record, fn) => fn());
 
+// NOT { virtual: true }: newrelic is a real dependency. Declaring it virtual
+// keys the mock by bare name rather than the resolved package path, so a
+// require() originating inside services/nrSegments.js can miss it and get the
+// real agent instead — silently, because startSegment swallows the error. That
+// made this suite fail or pass depending on how late it ran in the process.
 jest.mock('newrelic', () => ({
   startSegment: mockStartSegment,
-}), { virtual: true });
+}));
 
 const newrelic = require('newrelic');
 const nrSegments = require('../services/nrSegments');
