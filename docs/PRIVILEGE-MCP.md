@@ -856,6 +856,13 @@ MCP client -> customer DNS -> nginx :443 -> MCPGW runtime :8623
            -> policy -> Backend Name -> backend MCP server -> Activity Logs
 ```
 
+> **Superseded later the same day — read
+> [the correction](#2026-08-08-correction-agentless-does-not-avoid-the-signature-wall)
+> before acting on this section.** The passage below predicted that the gateway would
+> authenticate the user itself via `OIDC_USER_URL` and therefore never need to trust
+> our issuer's signing keys. Direct test disproved it. The rest of the section — ports,
+> nginx, the tree mount, the wiring table — still holds.
+
 The gateway authenticates the user itself and validates via `OIDC_USER_URL` (userinfo),
 so it never has to trust our issuer's signing keys. `pingone.env` — which the mesh-mode
 investigation correctly proved was dead code, with zero hits for `SERVER_URL` or
@@ -895,8 +902,10 @@ at all, so `01d89b06` is not a candidate however convenient its user population 
 Consequence worth stating plainly: the gateway signs users in against `8d4d7a4c`, so the
 identities that reach the MCP tools are that environment's — `cmuir+ssoEndUser@pingone.com`
 and `cmuir+ssoAdmin@pingone.com`. The banking demo's own users live in `01d89b06` and are
-unrelated to this hop. Agentless mode makes that split harmless where mesh mode could not:
-the gateway validates its own sign-in via userinfo and never has to trust a foreign issuer.
+unrelated to this hop. (An earlier draft claimed agentless mode makes that split harmless
+because the gateway validates its own sign-in via userinfo — see the correction at the end
+of this document. The split is real but is *not* the cause of the signature failure: a
+token minted in `8d4d7a4c` itself is rejected identically.)
 
 Known app in this environment: `deff60f5-5a67-4a6e-b283-47252856c89c`. It already carries
 `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`; agentless mode needs
@@ -1023,3 +1032,69 @@ the browser never learns where to authenticate. Grepping the log after a restart
 `SERVER_URL`, `authorize`, `oidc`, or `pingone.env`. The challenge is control-plane
 driven — it should appear once the MCP Server application's Frontend Name and auth mode
 are set in the console.
+
+## 2026-08-08 correction: agentless does not avoid the signature wall
+
+The central hypothesis of this session — that agentless mode escapes
+`IssuerPublicKey:[]` because the gateway runs the OIDC dance itself — is **wrong**.
+It was reasoned from Ping's SE deck, held through five merged PRs, and disproved by
+one direct test. Recording it plainly so nobody rebuilds on it.
+
+### The test
+
+A real `client_credentials` token from PingOne env `8d4d7a4c` (app `deff60f5`), sent
+through nginx to the agentless port:
+
+```
+POST https://aidemo.mcpgw.local.ping-devops.com/mcp
+Authorization: Bearer eyJraWQiOiJiMzY3NjYzMC04MjNk...
+
+HTTP/2 401
+Authorization header JWT parsing failed JWT signature validation failed
+```
+
+Byte-identical to the mesh-mode failure this document has carried since 2026-08-02.
+
+### What it establishes
+
+- **The gateway validates inbound JWTs on 8620.** The agentless port is a real
+  security boundary, not a passthrough. Reaching it directly changes the network
+  path, not the auth decision.
+- **The failure is signature, not audience or scope.** It never reaches a policy
+  decision, so no amount of policy authoring will move it.
+- **Environment choice is not the cause.** The rejected token was issued by
+  `https://auth.pingone.com/8d4d7a4c-.../as` — Privilege's *own* tenant. Whatever
+  populates `IssuerPublicKey`, it does not default to trusting the home tenant.
+
+### What is still true from the earlier sections
+
+Ports (8620 frontend, 8623 mesh), the nginx front door, the wildcard certs, the
+whole-tree `/var/lib/procyon` mount, the read-only Frontend Name, and the wiring
+tables are all unaffected — they were verified independently. Agentless is still the
+right topology: fewer moving parts, no dependency on Ping's cloud routing, and it is
+what the SE material documents. It just does not solve authentication.
+
+### The state everything converges on
+
+```
+AuthzMiddleware{ ... http-MCP-aidemo ...
+  AuthzServer:      MCP-aidemo
+  IssuerPublicKey:  []
+  AppType:          mcp
+```
+
+The control plane also advertises a tenant-level
+`AuthzServer:8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b.oauth.privilege.pingone.com`, but
+the application is not bound to it.
+
+### The question for Ping
+
+> For a Docker-enrolled private proxy on image `v1.260726`, what populates
+> `AuthzMiddleware.IssuerPublicKey` for an `AppType:mcp` application, and how is an
+> application bound to the tenant's `<envid>.oauth.privilege.pingone.com` authz
+> server? The `cyonproxy` binary contains no reference to `pingone.env` or any of its
+> keys in any casing, and the console exposes no field for either.
+
+Everything reachable from this repo has been eliminated by test rather than argument:
+ports probed, certs mounted and reverted, the full vendor tree mounted, two PingOne
+environments tried, and both frontend topologies exercised.
