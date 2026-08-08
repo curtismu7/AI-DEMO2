@@ -73,6 +73,11 @@ function writeAction(plugin, method, noun) {
     if (!isKnownUser(userId)) return res.status(404).json({ ok: false, error: 'unknown user' });
     const item = plugin.getDataStore()[method](String(userId), id);
     if (!item) return res.status(404).json({ ok: false, error: `${noun} not found` });
+    recordAudit(req, {
+      action: `${req.method} ${req.originalUrl}`,
+      customerId: String(userId),
+      outcome: 'ok',
+    });
     res.json({ ok: true, item });
   };
 }
@@ -236,20 +241,50 @@ function permissionsFor(req, res) {
   res.json(operatorScopes(req));
 }
 
-// Vertical Ops are open to any authenticated user. The /api/admin mount applies
-// authenticateToken upstream, so req.user is populated; no admin role/scope gate
-// is required here. (Spreads to no extra middleware.)
-const ADMIN_WRITE = [];
+// ── Operator audit ────────────────────────────────────────────────────────────
+// In-memory, per process, same lifetime as the other demo stores. A denial that
+// leaves no trace is worse than no audit at all, so denials are recorded too.
+const auditLog = new Map(); // customerId -> entries[]
+
+function recordAudit(req, entry) {
+  const key = String(entry.customerId);
+  if (!auditLog.has(key)) auditLog.set(key, []);
+  auditLog.get(key).push({
+    at: new Date().toISOString(),
+    operator: req.user?.sub || req.user?.username || 'unknown',
+    ...entry,
+  });
+}
+
+function auditFor(req, res) {
+  const customerId = req.query.customerId;
+  if (!customerId) return res.status(400).json({ error: 'customerId is required' });
+  res.json({
+    vertical: req.baseUrl.split('/').pop(),
+    data: { entries: auditLog.get(String(customerId)) || [] },
+  });
+}
+
+const { makeRequireCustomerVerified } = require('../middleware/requireCustomerVerified');
+
+// Every vertical write requires a live verification for the targeted customer.
+// This array was previously empty — the routes were open to any authenticated
+// user. Removing this middleware must turn the "verification is enforced"
+// tests red; that is the proof the gate is real and not decorative.
+const ADMIN_WRITE = [makeRequireCustomerVerified({ isCustomerVerified, recordAudit })];
 
 for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
   router.post(`/${vertical}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
   router.get(`/${vertical}/verify/status`, ...ADMIN_WRITE, verifyStatus);
   router.get(`/${vertical}/permissions`, ...ADMIN_WRITE, permissionsFor);
+  router.get(`/${vertical}/audit`, auditFor);
 }
 
-router.get('/banking/lookup', ...ADMIN_WRITE, bankingLookup);
+// Lookups stay open: an operator has to find the customer before verifying
+// them. Only the writes below carry the gate.
+router.get('/banking/lookup', bankingLookup);
 
-router.get('/healthcare/lookup', ...ADMIN_WRITE, lookupAction(healthcare, 'healthcare', {
+router.get('/healthcare/lookup', lookupAction(healthcare, 'healthcare', {
   patientRecords: 'patientRecords', appointments: 'appointments', billingHistory: 'billingHistory',
   medications: 'medications', referrals: 'referrals', coverage: 'coverage',
 }));
@@ -259,7 +294,7 @@ router.post('/healthcare/medications/:id/refill', ...ADMIN_WRITE, writeAction(he
 router.post('/healthcare/records/:id/release', ...ADMIN_WRITE, writeAction(healthcare, 'markRecordReleased', 'record'));
 router.post('/healthcare/referrals/:id/cancel', ...ADMIN_WRITE, writeAction(healthcare, 'cancelReferral', 'referral'));
 
-router.get('/retail/lookup', ...ADMIN_WRITE, lookupAction(retail, 'retail', {
+router.get('/retail/lookup', lookupAction(retail, 'retail', {
   orders: 'orders', returns: 'returns', subscriptions: 'subscriptions',
   support_tickets: 'support_tickets', rewards: 'rewards',
 }));
@@ -268,7 +303,7 @@ router.post('/retail/subscriptions/:id/cancel', ...ADMIN_WRITE, writeAction(reta
 router.post('/retail/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(retail, 'resolveTicket', 'ticket'));
 router.post('/retail/returns/:id/approve', ...ADMIN_WRITE, writeAction(retail, 'approveReturn', 'return'));
 
-router.get('/sporting-goods/lookup', ...ADMIN_WRITE, lookupAction(sportingGoods, 'sporting-goods', {
+router.get('/sporting-goods/lookup', lookupAction(sportingGoods, 'sporting-goods', {
   orders: 'orders', rentals: 'rentals', support_tickets: 'support_tickets',
   coaching_sessions: 'coaching_sessions', loyalty: 'loyalty',
 }));
@@ -277,7 +312,7 @@ router.post('/sporting-goods/rentals/:id/return', ...ADMIN_WRITE, writeAction(sp
 router.post('/sporting-goods/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(sportingGoods, 'resolveTicket', 'ticket'));
 router.post('/sporting-goods/coaching/:id/cancel', ...ADMIN_WRITE, writeAction(sportingGoods, 'cancelCoaching', 'coaching session'));
 
-router.get('/workforce/lookup', ...ADMIN_WRITE, lookupAction(workforce, 'workforce', {
+router.get('/workforce/lookup', lookupAction(workforce, 'workforce', {
   expenses: 'expenses', tickets: 'tickets', trainings: 'trainings', pto: 'pto', benefits: 'benefits',
 }));
 router.post('/workforce/expenses/:id/approve', ...ADMIN_WRITE, writeAction(workforce, 'approveExpense', 'expense'));
