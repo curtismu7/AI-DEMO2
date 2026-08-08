@@ -1758,6 +1758,29 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         return verticalResult;
       }
       if (heuristic && heuristic.kind === 'banking') {
+        // Mirror the vertical no-token guard above. Banking heuristics (balance,
+        // transfer, accounts, …) need a session bearer for RFC 8693 / gateway.
+        // Without this, guests (lazy-auth #1445) hit executeBffTool, get a bare
+        // error reply, and never receive need_auth — so the SPA never redirects
+        // to PingOne. branch_hours is the public catalog (UC24) and stays open.
+        const bankingAction = heuristic.banking?.action;
+        if (bankingAction !== 'branch_hours' && (!userToken || userToken === '_cookie_session')) {
+          if (req) req.agentPath = 'heuristic';
+          console.warn('[processAgentMessage] banking intent blocked — no real OAuth token (got: %s)', userToken || 'null');
+          return {
+            reply: 'Please sign in again — your session has no active token, so I cannot securely call that tool on your behalf.',
+            success: false,
+            toolsCalled: [],
+            tokensUsed: 0,
+            requiresConsent: false,
+            agentConfigured: true,
+            tokenEvents: req?.tokenEvents || [],
+            need_auth: true,
+            agentInitRequired: true,
+            error: 'need_auth',
+            requiresLogin: true,
+          };
+        }
         const heuristicResult = await executeHeuristicBanking(heuristic, userId, userToken, req, subjectToken, _verticalCtx, _activeVerticalId);
         if (heuristicResult) {
           // Best-effort agent-path attribution for the delegation audit log
