@@ -59,3 +59,12 @@
 .vops-assistant__in { display:flex; gap:8px; padding:10px 12px; border-top:1px solid #f0f1f7; }
 .vops-assistant__in input { flex:1; border:1px solid #e1e5ef; border-radius:9px; padding:8px 11px; font-size:12.5px; }
 .vops-assistant__in button { background:var(--accent); color:#fff; border:0; border-radius:9px; padding:0 14px; font-weight:700; cursor:pointer; }
+.vops__scopewarn {
+  padding: 0.6rem 1rem;
+  margin: 0 0 0.75rem;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: 0.85rem;
+}

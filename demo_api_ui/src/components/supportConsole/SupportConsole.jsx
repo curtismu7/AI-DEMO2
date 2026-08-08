@@ -1,9 +1,11 @@
 // SupportConsole.jsx
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import bffAxios from '../../services/bffAxios';
 import { notifySuccess, notifyError } from '../../utils/appToast';
 import { getVerticalConfig } from './supportConsoleConfig';
 import RecordDrawer from './RecordDrawer';
+import IdentityGate from './IdentityGate';
+import { resolvePermission, PERMISSION_LABEL } from './resolvePermission';
 import TokenChainTraceRail from '../TokenChainTraceRail';
 import './SupportConsole.css';
 
@@ -13,7 +15,25 @@ export default function SupportConsole({ vertical }) {
   const [result, setResult] = useState(null); // { customer, categories }
   const [loading, setLoading] = useState(false);
   const [drawer, setDrawer] = useState(null);  // { category, row }
+  // Verification is per customer and lives on the server session; this mirrors
+  // it so buttons can be gated before the click, never instead of the server.
+  const [verifiedUntil, setVerifiedUntil] = useState(0);
+  const [scopes, setScopes] = useState([]);
+  const [scopeSource, setScopeSource] = useState(null);
   const traceRef = useRef(null);
+
+  useEffect(() => {
+    let live = true;
+    bffAxios
+      .get(`/api/admin/${vertical}/permissions`)
+      .then(({ data }) => {
+        if (!live) return;
+        setScopes(Array.isArray(data?.scopes) ? data.scopes : []);
+        setScopeSource(data?.source || 'none');
+      })
+      .catch(() => { if (live) setScopeSource('none'); });
+    return () => { live = false; };
+  }, [vertical]);
 
   const jumpToTrace = useCallback(() => {
     if (!traceRef.current) return;
@@ -28,6 +48,9 @@ export default function SupportConsole({ vertical }) {
     try {
       const { data } = await bffAxios.get(cfg.lookupPath, { params: { q } });
       setResult(cfg.adaptLookup(data));
+      // A new customer is a new call. Carrying the previous customer's
+      // verification forward is exactly what the server-side keying prevents.
+      setVerifiedUntil(0);
     } catch (err) {
       const st = err?.response?.status;
       notifyError(st === 401 ? 'Session expired — please sign in again.' : 'Lookup failed.');
@@ -47,9 +70,22 @@ export default function SupportConsole({ vertical }) {
       if (drawer) setDrawer(null);
       await doLookup({ preventDefault() {} });
     } catch (err) {
+      // If the server disagrees with the client's idea of verification, the
+      // server wins and the strip flips back.
+      if (err?.response?.data?.error === 'customer_not_verified') {
+        setVerifiedUntil(0);
+        notifyError('Verify the customer before making changes.');
+        return;
+      }
       notifyError(err?.response?.data?.error || `${label} failed.`);
     }
   }, [cfg, result, drawer, doLookup]);
+
+  const verified = verifiedUntil > Date.now();
+  // 'none' means the BFF could not read the operator's scopes — not that they
+  // have none. Rendering every action denied would be a lie dressed as a
+  // security decision.
+  const scopesUnknown = scopeSource === 'none';
 
   const theme = { '--accent': cfg.theme.accent, '--accent2': cfg.theme.accent2, '--tint': cfg.theme.tint };
 
@@ -78,6 +114,22 @@ export default function SupportConsole({ vertical }) {
         </section>
       )}
 
+      {scopesUnknown && result?.customer && (
+        <div className="vops__scopewarn" role="status">
+          ⚠️ Could not read your granted permissions. Actions are shown as
+          unavailable until this resolves — this is a read failure, not a denial.
+        </div>
+      )}
+
+      {result?.customer && (
+        <IdentityGate
+          vertical={vertical}
+          customer={result.customer}
+          verified={verified}
+          onVerified={setVerifiedUntil}
+        />
+      )}
+
       {result && (
         <section className="vops__grid" data-testid="vops-grid">
           {result.categories.map((c) => (
@@ -88,7 +140,23 @@ export default function SupportConsole({ vertical }) {
                   <div className="vops__itemmain"><div className="vops__ititle">{r.title}</div><div className="vops__isub">{r.sub}</div></div>
                   <span className={`vops__badge vops__badge--${r.tone}`}>{r.status}</span>
                   <div className="vops__acts" onClick={(e) => e.stopPropagation()}>
-                    {r.actions.map((a) => (<button key={a} onClick={() => runAction(a, r, c.id)}>{a}</button>))}
+                    {r.actions.map((a) => {
+                      const state = resolvePermission({
+                        permission: cfg.permissions[a], scopes, verified,
+                      });
+                      return (
+                        <button
+                          key={a}
+                          type="button"
+                          data-permission={state}
+                          disabled={state !== 'allowed'}
+                          title={state === 'allowed' ? a : `${a} — ${PERMISSION_LABEL[state]}`}
+                          onClick={() => runAction(a, r, c.id)}
+                        >
+                          {state === 'allowed' ? a : `🔐 ${a}`}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
