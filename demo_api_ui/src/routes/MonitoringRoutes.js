@@ -7,6 +7,7 @@ import DevToolsDashboard from "../components/DevToolsDashboard";
 import LogViewerPage from "../components/LogViewerPage";
 import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
+import NewRelicDashboard from "../components/NewRelicDashboard";
 import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
@@ -36,7 +37,6 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         {/* Live app-events stream (oauth / mcp / HITL / …). HTTP audit table kept at api-activity. */}
         <Route path="activity-log" element={<ActivityLogPage />} />
         <Route path="api-activity" element={<ActivityLogs user={user} onLogout={logout} />} />
-        <Route path="new-relic" element={<PingOneEventPanel />} />
       </Routes>
     </AppShell>
   );
@@ -112,8 +112,24 @@ export function AgentFlowInspectorRoute({ user }) {
   );
 }
 
-// Public — no session required. Rendered without AppShell chrome so it works
-// for unauthenticated users and in standalone/embed contexts.
-export function NewRelicRoute() {
-  return <PingOneEventPanel />;
+// Public — no session required. Wrapped in AppShell so the header and side nav
+// render for signed-out visitors too; TopNav and AdminSideNav are both
+// null-user safe. Deliberately NOT in isNoChromeRoute(): with user null,
+// shellRendersSideNav() returns true and AppShell supplies the sidebar.
+export function NewRelicRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <NewRelicDashboard />
+    </AppShell>
+  );
+}
+
+// The PingOne webhook event stream. Split out of /monitoring/new-relic, which
+// was named for New Relic but rendered this. Public, matching its old behavior.
+export function PingOneEventsRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingOneEventPanel />
+    </AppShell>
+  );
 }

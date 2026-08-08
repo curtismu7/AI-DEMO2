@@ -1282,6 +1282,10 @@ app.post('/api/nr-log', express.json({ limit: '16kb' }), (req, res) => {
     return res.json({ ok: true });
 });
 
+// New Relic read proxy — public, same posture as /api/nr-log above.
+// Named queries only; see routes/newRelicQuery.js.
+app.use('/api/newrelic', require('./routes/newRelicQuery'));
+
 app.use('/api/tokens', authenticateToken, tokenRoutes);
 // /api/token-exchanges is mounted once below with authenticateToken +
 // tokenExchangeLogRouter (hashes tokens, session-scopes reads). Do NOT add an
