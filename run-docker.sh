@@ -147,7 +147,7 @@ _optional_group_services() {
     agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
     tracing)   echo "jaeger" ;;
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
-    mcpgw)     echo "ping-mcpgw" ;;
+    mcpgw)     echo "ping-mcpgw mcpgw-nginx" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -1183,6 +1183,12 @@ cmd_optional_start() {
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Starting optional: ${groups[*]}${RESET}"
   echo ""
+
+  # mcpgw-nginx bind-mounts a wildcard cert pair that ensure-dev-certs.sh does
+  # not create. Without it nginx exits immediately on a missing ssl_certificate.
+  if [[ " ${groups[*]} " == *" mcpgw "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
+    bash "${BASEDIR}/scripts/ensure-mcpgw-certs.sh"
+  fi
 
   # Profile-gated services require `--profile`; `up -d` respects depends_on.
   # shellcheck disable=SC2206

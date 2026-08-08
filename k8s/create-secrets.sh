@@ -365,9 +365,19 @@ align_internal_secret                                                       # on
 # Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
 # ping-mcpgw/config/proxy-token (one line, the raw JWT).
 if [ -f "$ASSET_ROOT/ping-mcpgw/config/proxy-token" ]; then
+  # pingone.env carries the gateway's own OIDC client secret, so it belongs in
+  # the Secret rather than a ConfigMap. It is only consulted in agentless
+  # (self-hosted frontend) mode; the deployment mounts it optionally so a cluster
+  # still running mesh mode does not fail to start without it.
+  mcpgw_secret_args=(--from-file=ENV_PROXY_TOKEN="$ASSET_ROOT/ping-mcpgw/config/proxy-token")
+  if [ -f "$ASSET_ROOT/ping-mcpgw/config/pingone.env" ]; then
+    mcpgw_secret_args+=(--from-file=pingone.env="$ASSET_ROOT/ping-mcpgw/config/pingone.env")
+  else
+    warn "  ping-mcpgw/config/pingone.env not found — agentless mode will have no OIDC config"
+  fi
   kubectl create secret generic ping-mcpgw-secrets \
     --namespace="$NS" \
-    --from-file=ENV_PROXY_TOKEN="$ASSET_ROOT/ping-mcpgw/config/proxy-token" \
+    "${mcpgw_secret_args[@]}" \
     --dry-run=client -o yaml | kubectl apply -f -
   info "  ping-mcpgw-secrets applied (ENV_PROXY_TOKEN from ping-mcpgw/config/proxy-token)"
 else
