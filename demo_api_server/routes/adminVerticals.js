@@ -14,6 +14,10 @@ const workforce = require('../config/verticals/workforce');
 // Reads this session's own record of what it was granted — no signature check
 // needed, and none performed.
 const { decodeJwt } = require('../utils/tokenUtils');
+// Applied PER ROUTE, never as router.use(): other routers share the
+// /api/admin mount, and a router-level guard would 403 their traffic before
+// Express could fall through to them.
+const { requireAdmin } = require('../middleware/auth');
 
 // Known demo users an operator can type into a vertical ops lookup box.
 // The BFF user store is shared across verticals — accounts are seeded per
@@ -32,7 +36,7 @@ function listLookupUsers(vertical) {
 }
 
 for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
-  router.get(`/${vertical}/users`, listLookupUsers(vertical));
+  router.get(`/${vertical}/users`, requireAdmin, listLookupUsers(vertical));
 }
 
 // Resolve a free-text query (username, email, name fragment, or id) to a single
@@ -271,7 +275,7 @@ const { makeRequireCustomerVerified } = require('../middleware/requireCustomerVe
 // This array was previously empty — the routes were open to any authenticated
 // user. Removing this middleware must turn the "verification is enforced"
 // tests red; that is the proof the gate is real and not decorative.
-const ADMIN_WRITE = [makeRequireCustomerVerified({ isCustomerVerified, recordAudit })];
+const ADMIN_WRITE = [requireAdmin, makeRequireCustomerVerified({ isCustomerVerified, recordAudit })];
 
 for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
   router.post(`/${vertical}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
@@ -282,9 +286,9 @@ for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'wo
 
 // Lookups stay open: an operator has to find the customer before verifying
 // them. Only the writes below carry the gate.
-router.get('/banking/lookup', bankingLookup);
+router.get('/banking/lookup', requireAdmin, bankingLookup);
 
-router.get('/healthcare/lookup', lookupAction(healthcare, 'healthcare', {
+router.get('/healthcare/lookup', requireAdmin, lookupAction(healthcare, 'healthcare', {
   patientRecords: 'patientRecords', appointments: 'appointments', billingHistory: 'billingHistory',
   medications: 'medications', referrals: 'referrals', coverage: 'coverage',
 }));
@@ -294,7 +298,7 @@ router.post('/healthcare/medications/:id/refill', ...ADMIN_WRITE, writeAction(he
 router.post('/healthcare/records/:id/release', ...ADMIN_WRITE, writeAction(healthcare, 'markRecordReleased', 'record'));
 router.post('/healthcare/referrals/:id/cancel', ...ADMIN_WRITE, writeAction(healthcare, 'cancelReferral', 'referral'));
 
-router.get('/retail/lookup', lookupAction(retail, 'retail', {
+router.get('/retail/lookup', requireAdmin, lookupAction(retail, 'retail', {
   orders: 'orders', returns: 'returns', subscriptions: 'subscriptions',
   support_tickets: 'support_tickets', rewards: 'rewards',
 }));
@@ -303,7 +307,7 @@ router.post('/retail/subscriptions/:id/cancel', ...ADMIN_WRITE, writeAction(reta
 router.post('/retail/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(retail, 'resolveTicket', 'ticket'));
 router.post('/retail/returns/:id/approve', ...ADMIN_WRITE, writeAction(retail, 'approveReturn', 'return'));
 
-router.get('/sporting-goods/lookup', lookupAction(sportingGoods, 'sporting-goods', {
+router.get('/sporting-goods/lookup', requireAdmin, lookupAction(sportingGoods, 'sporting-goods', {
   orders: 'orders', rentals: 'rentals', support_tickets: 'support_tickets',
   coaching_sessions: 'coaching_sessions', loyalty: 'loyalty',
 }));
@@ -312,7 +316,7 @@ router.post('/sporting-goods/rentals/:id/return', ...ADMIN_WRITE, writeAction(sp
 router.post('/sporting-goods/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(sportingGoods, 'resolveTicket', 'ticket'));
 router.post('/sporting-goods/coaching/:id/cancel', ...ADMIN_WRITE, writeAction(sportingGoods, 'cancelCoaching', 'coaching session'));
 
-router.get('/workforce/lookup', lookupAction(workforce, 'workforce', {
+router.get('/workforce/lookup', requireAdmin, lookupAction(workforce, 'workforce', {
   expenses: 'expenses', tickets: 'tickets', trainings: 'trainings', pto: 'pto', benefits: 'benefits',
 }));
 router.post('/workforce/expenses/:id/approve', ...ADMIN_WRITE, writeAction(workforce, 'approveExpense', 'expense'));
@@ -358,8 +362,8 @@ function addNote(req, res) {
   res.json({ ok: true, note });
 }
 
-router.get('/:vertical/cases/:customerId/notes', listNotes);
-router.post('/:vertical/cases/:customerId/notes', addNote);
+router.get('/:vertical/cases/:customerId/notes', requireAdmin, listNotes);
+router.post('/:vertical/cases/:customerId/notes', requireAdmin, addNote);
 
 module.exports = router;
 // Exposed for the gated-write middleware and its tests without changing what

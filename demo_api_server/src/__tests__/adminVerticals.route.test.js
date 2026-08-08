@@ -11,11 +11,16 @@
 const express = require('express');
 const request = require('supertest');
 
-// ── Mock auth: admin + scopes always pass ─────────────────────────────────────
+// ── Mock auth: admin passes unless a case flips mockAdminAllowed ──────────────
+// `var` (not const/let) so the hoisted jest.mock factory can close over it.
+var mockAdminAllowed = true;
 jest.mock('../../middleware/auth', () => ({
-  requireAdmin: (req, res, next) => next(),
+  requireAdmin: (req, res, next) => (
+    mockAdminAllowed ? next() : res.status(403).json({ error: 'admin required' })
+  ),
   requireScopes: () => (req, res, next) => next(),
 }));
+afterEach(() => { mockAdminAllowed = true; });
 
 // ── Mock the BFF user store: one deterministic non-admin demo user ────────────
 const DEMO_USER = {
@@ -365,5 +370,42 @@ describe('case notes', () => {
       .send({ body: 'hello' });
     expect(r.status).toBe(404);
     expect(r.body.error).toBe('unknown user');
+  });
+});
+
+describe('admin gate', () => {
+  // The /api/admin mount applies authenticateToken only (server.js), so without
+  // requireAdmin on each route ANY authenticated user — including a customer —
+  // could self-serve verify/initiate for a known customer id and then write to
+  // that customer's records. The verification gate is not an authorization
+  // boundary on its own.
+  it('refuses a non-admin on verify/initiate', async () => {
+    mockAdminAllowed = false;
+    const r = await request(makeSessionApp())
+      .post('/api/admin/sporting-goods/verify/initiate')
+      .send({ customerId: 'u1' });
+    expect(r.status).toBe(403);
+  });
+
+  it('refuses a non-admin on a write', async () => {
+    mockAdminAllowed = false;
+    const r = await request(makeSessionApp())
+      .post('/api/admin/healthcare/appointments/201/cancel')
+      .send({ userId: 'u1' });
+    expect(r.status).toBe(403);
+  });
+
+  it('refuses a non-admin on lookup, notes and the user list', async () => {
+    mockAdminAllowed = false;
+    const a = makeSessionApp();
+    for (const call of [
+      request(a).get('/api/admin/sporting-goods/lookup?q=demo'),
+      request(a).get('/api/admin/sporting-goods/users'),
+      request(a).get('/api/admin/sporting-goods/cases/u1/notes'),
+      request(a).post('/api/admin/sporting-goods/cases/u1/notes').send({ body: 'x' }),
+    ]) {
+      const r = await call;
+      expect(r.status).toBe(403);
+    }
   });
 });
