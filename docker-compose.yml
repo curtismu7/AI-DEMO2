@@ -1245,14 +1245,25 @@ services:
       # evidence that some listener actually reads these files.
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
-      # pingone.env — SERVER_URL + the OIDC endpoints the gateway uses to
-      # authenticate MCP clients. It was authored into ping-mcpgw/config (the BFF
-      # writes it via PUT /api/privilege-mcp/env) but NEVER mounted here, so the
-      # proxy never saw it. Its own docs call a missing SERVER_URL a cause of
-      # "gateway does not behave as expected", which matches a proxy that enrolls
-      # fine and then serves nothing. Directory mount, not a single file: a
-      # single-file bind goes stale when the host file is replaced.
-      - ./ping-mcpgw/config:/var/lib/procyon/config
+      # The WHOLE /var/lib/procyon tree, same path on both sides. This mirrors the
+      # vendor's own run command, which is embedded verbatim in the cyctl binary:
+      #
+      #   --net=host --name procyon-proxy \
+      #     -v /var/log/procyon:/var/log/procyon \
+      #     -v /var/lib/procyon/ssl:/procyon/ssl \
+      #     -v /var/lib/procyon/recordings:/procyon/recordings \
+      #     -v /var/lib/procyon:/var/lib/procyon \        <- this one
+      #     -v /etc/ssh/sshd_config:/etc/ssh/sshd_config
+      #
+      # We previously bound only the config subdirectory, which put pingone.env at
+      # the right path but hid every sibling the proxy might expect next to it.
+      # Note the console's "Get Docker Command" output omits this mount entirely —
+      # a proxy enrolled straight from that command has no /var/lib/procyon at all.
+      #
+      # Directory mount, never single files: a single-file bind goes stale when the
+      # host file is replaced (git checkout, editor save-by-rename give it a new
+      # inode) and then vanishes inside the container.
+      - ./ping-mcpgw/procyon:/var/lib/procyon
     networks:
       ai-demo:
         aliases:
