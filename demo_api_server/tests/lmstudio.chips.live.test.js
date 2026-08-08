@@ -72,8 +72,51 @@ beforeAll(async () => {
   } catch {
     lmsAvailable = false;
   }
+
+  // A loaded model is not enough. Every case here goes through either the
+  // Anthropic-compat endpoint or the BFF, and both can be absent while
+  // /api/v1/models answers happily:
+  //   - LM Studio builds without Anthropic-compat return 404 on /v1/messages
+  //   - the BFF runs in Docker, where its default localhost:1234 is the
+  //     container, so it reports server_running:false
+  // Probing only /api/v1/models let the suite run anyway and fail red. Since
+  // LM Studio is not one of the wired-up backends (heuristics, llama, Groq
+  // are), an unreachable dependency must skip, not fail.
+  if (lmsAvailable) {
+    try {
+      const probe = await lmsFetch('/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: loadedModels[0].key, max_tokens: 1,
+          messages: [{ role: 'user', content: 'ping' }],
+        }),
+      });
+      if (probe.status === 404) {
+        lmsAvailable = false;
+        console.warn('[LMS Live] LM Studio has no Anthropic-compat /v1/messages (404) — skipping');
+      }
+    } catch {
+      lmsAvailable = false;
+    }
+  }
+
+  if (lmsAvailable) {
+    try {
+      const status = await bffFetch('/api/langchain/lmstudio/status');
+      const body = status.ok ? await status.json() : {};
+      if (!body.server_running) {
+        lmsAvailable = false;
+        console.warn(`[LMS Live] BFF cannot reach LM Studio (${body.reason || 'unknown'}) — skipping`);
+      }
+    } catch {
+      lmsAvailable = false;
+      console.warn('[LMS Live] BFF not reachable — skipping');
+    }
+  }
+
   if (!lmsAvailable) {
-    console.warn('[LMS Live] LM Studio not reachable or no model loaded — all tests will skip');
+    console.warn('[LMS Live] LM Studio not usable end-to-end — all tests will skip');
   } else {
     console.log('[LMS Live] Loaded models:', loadedModels.map(m => m.key).join(', '));
   }
