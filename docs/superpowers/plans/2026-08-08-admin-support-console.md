@@ -27,7 +27,21 @@ inventing signatures against interfaces that do not yet exist.
    stating "Vertical Ops are open to any authenticated user." This strengthens the case for
    Task 6 rather than weakening it, but no task should assume a pre-existing gate.
 
-2. **`identityActions` (reset password / unlock / remove passkey) is deferred.** No
+2. **Scope names must come from `demo_api_server/config/scopes.js`.** The first draft of
+   this plan invented `orders:refund`, `support:write`, `pan:read` and others. None exist.
+   The real vocabulary is exactly: `accounts:read`, `admin:read`, `agent:invoke`,
+   `general:read`, `general:write`, `mcp:invoke`, `mortgage:read`, `sensitive:read`,
+   `transactions:read`, `transactions:write`. A config test in Task 7 fails on any name
+   outside that list. The vocabulary is coarse and cannot distinguish "refund" from "cancel
+   order" — `gate`, not `scope`, carries the interesting distinction.
+
+3. **`SessionTokenContext` has no scopes.** It exposes only `tokenSecondsLeft`,
+   `tokenLoading`, `sessionType`, `staleSession`, `hasActiveToken` and the modal-opener
+   registration. Task 5 therefore adds `GET /api/admin/<vertical>/permissions`, reading
+   `req.session.loginIntrospection.scopes` with a fallback to the access token's `scope`
+   claim.
+
+4. **`identityActions` (reset password / unlock / remove passkey) is deferred.** No
    BFF endpoint exists for any of them, and building them means PingOne Management API
    calls against a live environment. That is its own change with its own risk review. The
    config key is still defined in Task 7 so later phases have somewhere to put them, but no
@@ -543,6 +557,19 @@ This task only records and reports verification. Task 6 enforces it.
   - Both exported as `module.exports.__verify = { markCustomerVerified, isCustomerVerified, SUPPORT_VERIFY_TTL_MS }` so Task 6's middleware and the tests can reach them
   - `POST /api/admin/<vertical>/verify/initiate` body `{ customerId }` → `{ ok: true, customerId, channel, expiresIn }`
   - `GET  /api/admin/<vertical>/verify/status?customerId=` → `{ customerId, verified, expiresAt }`
+  - `GET  /api/admin/<vertical>/permissions` → `{ scopes, source }` where `source` is `'introspection' | 'token' | 'none'`
+
+### Where the operator's scopes come from
+
+Admin login stores `req.session.loginIntrospection.scopes` (a `string[]`) at
+`routes/oauth.js:385-392`. That write is fire-and-forget and explicitly non-fatal, so it
+can be absent. The endpoint falls back to decoding the `scope` claim from
+`req.session.oauthTokens.accessToken` via `decodeJwt` from `utils/tokenUtils`, and reports
+which source it used.
+
+`source: 'none'` means "we could not read your scopes", which is **not** the same as "you
+have none" — the UI must say so rather than silently rendering every action denied. Task 8
+handles that distinction.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -608,7 +635,42 @@ describe('customer verification', () => {
     expect(r.body.error).toBe('customerId is required');
   });
 });
+
+describe('operator permissions', () => {
+  it('reports scopes from loginIntrospection when present', async () => {
+    const a = makeSessionApp({
+      loginIntrospection: { scopes: ['general:read', 'general:write'] },
+    });
+    const r = await request(a).get('/api/admin/sporting-goods/permissions');
+    expect(r.status).toBe(200);
+    expect(r.body.scopes).toEqual(['general:read', 'general:write']);
+    expect(r.body.source).toBe('introspection');
+  });
+
+  it('falls back to the access token scope claim', async () => {
+    // {"scope":"general:read transactions:write"} as an unsigned JWT payload.
+    const payload = Buffer
+      .from(JSON.stringify({ scope: 'general:read transactions:write' }))
+      .toString('base64url');
+    const a = makeSessionApp({ oauthTokens: { accessToken: `x.${payload}.y` } });
+
+    const r = await request(a).get('/api/admin/sporting-goods/permissions');
+    expect(r.body.scopes).toEqual(['general:read', 'transactions:write']);
+    expect(r.body.source).toBe('token');
+  });
+
+  it('reports source none rather than pretending the operator has no scopes', async () => {
+    const a = makeSessionApp();
+    const r = await request(a).get('/api/admin/sporting-goods/permissions');
+    expect(r.body.scopes).toEqual([]);
+    expect(r.body.source).toBe('none');
+  });
+});
 ```
+
+`makeSessionApp` needs to accept a seed so these cases can plant session state. Change its
+signature to `function makeSessionApp(seed = {})` and build the shared object as
+`const session = { ...seed };`. The existing call sites pass nothing and are unaffected.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -679,11 +741,48 @@ function verifyStatus(req, res) {
   });
 }
 
+// GET /<vertical>/permissions — the operator's granted scopes.
+//
+// Admin login writes req.session.loginIntrospection.scopes at
+// routes/oauth.js:385, but that write is fire-and-forget and non-fatal, so it
+// can be missing. Fall back to the access token's own scope claim, and report
+// which source answered. `source: 'none'` means "could not read", NOT "has
+// none" — the client must not render that as a blanket denial.
+const { decodeJwt } = require('../utils/tokenUtils');
+
+function operatorScopes(req) {
+  const introspected = req.session?.loginIntrospection?.scopes;
+  if (Array.isArray(introspected) && introspected.length) {
+    return { scopes: introspected, source: 'introspection' };
+  }
+  const accessToken = req.session?.oauthTokens?.accessToken;
+  if (accessToken) {
+    const claims = decodeJwt(accessToken);
+    const raw = claims?.scope;
+    if (typeof raw === 'string' && raw.trim()) {
+      return { scopes: raw.trim().split(/\s+/), source: 'token' };
+    }
+    if (Array.isArray(raw) && raw.length) {
+      return { scopes: raw, source: 'token' };
+    }
+  }
+  return { scopes: [], source: 'none' };
+}
+
+function permissionsFor(req, res) {
+  res.json(operatorScopes(req));
+}
+
 for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce']) {
   router.post(`/${vertical}/verify/initiate`, verifyInitiate);
   router.get(`/${vertical}/verify/status`, verifyStatus);
+  router.get(`/${vertical}/permissions`, permissionsFor);
 }
 ```
+
+`decodeJwt` returns the decoded payload or null; it does not verify the signature, which is
+correct here — the token came from this session, and the BFF is reading its own record of
+what it was granted, not authenticating a claim.
 
 At the bottom of the file, replace `module.exports = router;` with:
 
@@ -746,6 +845,24 @@ targets. Denials are audited.
 
 Append to `demo_api_server/src/__tests__/adminVerticals.route.test.js`:
 
+First, add a second demo user so the cross-customer case can distinguish "the gate refused"
+from "the user does not exist". At the top of the file, beside `DEMO_USER`:
+
+```js
+const SECOND_USER = {
+  id: 'u2', username: 'casey', firstName: 'Casey', lastName: 'Stone',
+  email: 'casey@example.com', role: 'customer', isActive: true,
+};
+jest.mock('../../data/store', () => ({
+  getAllUsers: () => [DEMO_USER, SECOND_USER],
+}));
+```
+
+Neither `casey` nor `casey@example.com` nor `Casey Stone` contains the substring `demo`, so
+`resolveUser('demo')` still returns `u1` and every existing lookup case is unaffected.
+
+Then append:
+
 ```js
 describe('verification is enforced on writes', () => {
   async function firstActionableOrder(agentApp) {
@@ -784,15 +901,20 @@ describe('verification is enforced on writes', () => {
 
   it('verifying customer A does not unlock writes against customer B', async () => {
     const a = makeSessionApp();
+    const order = await firstActionableOrder(a);
+    expect(order).toBeTruthy();
+
     await request(a).post('/api/admin/sporting-goods/verify/initiate').send({ customerId: 'u1' });
 
     const r = await request(a)
-      .post('/api/admin/sporting-goods/orders/anything/cancel')
+      .post(`/api/admin/sporting-goods/orders/${order.id}/cancel`)
       .send({ userId: 'u2' });
 
-    // u2 is not a known demo user, so it must not reach the store either way —
-    // the point is that it does not come back 200.
-    expect(r.status).not.toBe(200);
+    // u2 IS a known demo user (see the store mock), so a 404 here would mean the
+    // gate never ran. It must be the gate's own 403, naming u2.
+    expect(r.status).toBe(403);
+    expect(r.body.error).toBe('customer_not_verified');
+    expect(r.body.customerId).toBe('u2');
   });
 
   it('the operator own step-up does not satisfy the customer gate', async () => {
@@ -1070,32 +1192,48 @@ Create `demo_api_ui/src/components/supportConsole/__tests__/resolvePermission.te
 import { resolvePermission } from '../resolvePermission';
 import { CONFIGS, VERTICAL_ORDER } from '../supportConsoleConfig';
 
-const S = ['orders:read', 'orders:write', 'orders:refund'];
+// The real scope vocabulary — see demo_api_server/config/scopes.js. Do not
+// invent finer-grained names; nothing issues them.
+const S = ['general:read', 'general:write', 'transactions:write'];
 
 it('missing scope is denied regardless of gate', () => {
-  expect(resolvePermission({ permission: { scope: 'pan:read', gate: 'none' }, scopes: S, verified: true }))
+  expect(resolvePermission({ permission: { scope: 'sensitive:read', gate: 'none' }, scopes: S, verified: true }))
     .toBe('denied');
 });
 
 it('gate none with the scope present is allowed even unverified', () => {
-  expect(resolvePermission({ permission: { scope: 'orders:read', gate: 'none' }, scopes: S, verified: false }))
+  expect(resolvePermission({ permission: { scope: 'general:write', gate: 'none' }, scopes: S, verified: false }))
     .toBe('allowed');
 });
 
 it('gate verified is verify-first while unverified and allowed once verified', () => {
-  const permission = { scope: 'orders:refund', gate: 'verified' };
+  const permission = { scope: 'transactions:write', gate: 'verified' };
   expect(resolvePermission({ permission, scopes: S, verified: false })).toBe('verify-first');
   expect(resolvePermission({ permission, scopes: S, verified: true })).toBe('allowed');
 });
 
 it('gate approval stays approval even when verified', () => {
-  expect(resolvePermission({ permission: { scope: 'orders:refund', gate: 'approval' }, scopes: S, verified: true }))
+  expect(resolvePermission({ permission: { scope: 'transactions:write', gate: 'approval' }, scopes: S, verified: true }))
     .toBe('approval');
 });
 
 it('gate never is denied even with the scope and verification', () => {
-  expect(resolvePermission({ permission: { scope: 'orders:refund', gate: 'never' }, scopes: S, verified: true }))
+  expect(resolvePermission({ permission: { scope: 'transactions:write', gate: 'never' }, scopes: S, verified: true }))
     .toBe('denied');
+});
+
+it('every declared scope exists in the real vocabulary', () => {
+  const REAL = [
+    'accounts:read', 'admin:read', 'agent:invoke', 'general:read', 'general:write',
+    'mcp:invoke', 'mortgage:read', 'sensitive:read', 'transactions:read', 'transactions:write',
+  ];
+  const invented = [];
+  for (const id of VERTICAL_ORDER) {
+    for (const [label, p] of Object.entries(CONFIGS[id].permissions)) {
+      if (!REAL.includes(p.scope)) invented.push(`${id}.${label} -> ${p.scope}`);
+    }
+  }
+  expect(invented).toEqual([]);
 });
 
 it('an unknown action is denied, never implicitly allowed', () => {
@@ -1158,14 +1296,22 @@ export function resolvePermission({ permission, scopes, verified }) {
 
 - [ ] **Step 4: Add the three config keys**
 
-In `supportConsoleConfig.js`, add to each of the five vertical entries. Banking:
+In `supportConsoleConfig.js`, add to each of the five vertical entries.
+
+Every `scope` value below is drawn from `demo_api_server/config/scopes.js` — the vocabulary
+the environment actually issues. It is coarse: it cannot distinguish "refund" from "cancel
+order", so `scope` alone does not carry the interesting part of the permission. That is what
+`gate` is for. Do not invent finer-grained names to make the table look richer; nothing
+issues them, so every button carrying one would render denied.
+
+Banking:
 
 ```js
     identityActions: [],
     caseSource: { path: '/api/admin/banking/cases' },
     permissions: {
-      'Seed charge': { scope: 'accounts:write', gate: 'verified' },
-      'Delete':      { scope: 'accounts:write', gate: 'verified' },
+      'Seed charge': { scope: 'transactions:write', gate: 'verified' },
+      'Delete':      { scope: 'transactions:write', gate: 'verified' },
     },
 ```
 
@@ -1175,10 +1321,10 @@ Healthcare:
     identityActions: [],
     caseSource: { path: '/api/admin/healthcare/cases' },
     permissions: {
-      'Cancel':   { scope: 'health:write', gate: 'verified' },
-      'Pay bill': { scope: 'health:write', gate: 'verified' },
-      'Refill':   { scope: 'health:write', gate: 'verified' },
-      'Release':  { scope: 'health:records', gate: 'approval' },
+      'Cancel':   { scope: 'transactions:write', gate: 'verified' },
+      'Pay bill': { scope: 'transactions:write', gate: 'verified' },
+      'Refill':   { scope: 'transactions:write', gate: 'verified' },
+      'Release':  { scope: 'sensitive:read',     gate: 'approval' },
     },
 ```
 
@@ -1188,10 +1334,10 @@ Retail:
     identityActions: [],
     caseSource: { path: '/api/admin/retail/cases' },
     permissions: {
-      'Cancel order': { scope: 'orders:write',  gate: 'verified' },
-      'Cancel sub':   { scope: 'orders:write',  gate: 'verified' },
-      'Resolve':      { scope: 'support:write', gate: 'none' },
-      'Approve':      { scope: 'orders:refund', gate: 'verified', limit: 250 },
+      'Cancel order': { scope: 'transactions:write', gate: 'verified' },
+      'Cancel sub':   { scope: 'transactions:write', gate: 'verified' },
+      'Resolve':      { scope: 'general:write',      gate: 'none' },
+      'Approve':      { scope: 'transactions:write', gate: 'verified' },
     },
 ```
 
@@ -1201,10 +1347,10 @@ Sporting goods:
     identityActions: [],
     caseSource: { path: '/api/admin/sporting-goods/cases' },
     permissions: {
-      'Cancel order':    { scope: 'orders:write',  gate: 'verified' },
-      'Return':          { scope: 'orders:write',  gate: 'verified' },
-      'Resolve':         { scope: 'support:write', gate: 'none' },
-      'Cancel coaching': { scope: 'orders:write',  gate: 'verified' },
+      'Cancel order':    { scope: 'transactions:write', gate: 'verified' },
+      'Return':          { scope: 'transactions:write', gate: 'verified' },
+      'Resolve':         { scope: 'general:write',      gate: 'none' },
+      'Cancel coaching': { scope: 'transactions:write', gate: 'verified' },
     },
 ```
 
@@ -1214,14 +1360,19 @@ Workforce:
     identityActions: [],
     caseSource: { path: '/api/admin/workforce/cases' },
     permissions: {
-      'Approve':  { scope: 'expenses:write', gate: 'approval' },
-      'Deny':     { scope: 'expenses:write', gate: 'approval' },
-      'Resolve':  { scope: 'support:write',  gate: 'none' },
-      'Complete': { scope: 'training:write', gate: 'verified' },
+      'Approve':  { scope: 'transactions:write', gate: 'approval' },
+      'Deny':     { scope: 'transactions:write', gate: 'approval' },
+      'Resolve':  { scope: 'general:write',      gate: 'none' },
+      'Complete': { scope: 'general:write',      gate: 'verified' },
     },
 ```
 
-The keys must match `cfg.actions` exactly — the last test in Step 1 fails on any mismatch.
+The keys must match `cfg.actions` exactly — the "every declared action has a permission
+entry" test in Step 1 fails on any mismatch.
+
+No `limit` field: nothing reads or enforces one, and config that looks like a control but
+is not is worse than no config at all. A real spend limit belongs with the server-side check
+that would enforce it.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
@@ -1436,43 +1587,94 @@ Expected: PASS, all three cases.
 
 Append to `demo_api_ui/src/components/supportConsole/__tests__/SupportConsole.test.jsx`:
 
+The console now issues more than one GET (permissions on mount, lookup on submit, and case
+notes once Task 9 lands), so key the mock by URL rather than by call order — `mockResolvedValueOnce`
+chains break the moment another request is added.
+
 ```jsx
-it('disables gated action buttons until the customer is verified', async () => {
-  bffAxios.get.mockResolvedValueOnce({
-    data: {
-      user: { id: 'u1', name: 'Marcus Hall' },
-      data: { orders: [{ id: 'o1', product: 'Trail Runner GTX', amount: 189, status: 'Delivered' }] },
-    },
+const LOOKUP = {
+  user: { id: 'u1', name: 'Marcus Hall' },
+  data: { orders: [{ id: 'o1', product: 'Trail Runner GTX', amount: 189, status: 'Delivered' }] },
+};
+
+// scopeSource 'introspection' with the scope every sporting-goods write needs.
+function mockGets({ scopes = ['transactions:write', 'general:write'], source = 'introspection' } = {}) {
+  bffAxios.get.mockImplementation((url) => {
+    if (url.endsWith('/permissions')) return Promise.resolve({ data: { scopes, source } });
+    if (url.includes('/lookup')) return Promise.resolve({ data: LOOKUP });
+    if (url.includes('/notes')) return Promise.resolve({ data: { data: { notes: [] } } });
+    return Promise.resolve({ data: {} });
   });
-  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+}
+
+async function lookUpMarcus() {
   fireEvent.change(screen.getByPlaceholderText(/Look up a member/i), { target: { value: 'marcus' } });
   fireEvent.submit(screen.getByTestId('vops-lookup-form'));
-
   await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
+}
+
+it('disables gated action buttons until the customer is verified', async () => {
+  mockGets();
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await lookUpMarcus();
   expect(screen.getByRole('button', { name: /Cancel order/i })).toBeDisabled();
 });
 
 it('enables gated action buttons after verification', async () => {
+  mockGets();
   const expiresAt = Date.now() + 900000;
-  bffAxios.get.mockResolvedValueOnce({
-    data: {
-      user: { id: 'u1', name: 'Marcus Hall' },
-      data: { orders: [{ id: 'o1', product: 'Trail Runner GTX', amount: 189, status: 'Delivered' }] },
-    },
-  });
   bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
 
   render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
-  fireEvent.change(screen.getByPlaceholderText(/Look up a member/i), { target: { value: 'marcus' } });
-  fireEvent.submit(screen.getByTestId('vops-lookup-form'));
-  await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
+  await lookUpMarcus();
 
   fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
   await waitFor(() =>
     expect(screen.getByRole('button', { name: /Cancel order/i })).toBeEnabled(),
   );
 });
+
+it('denies actions whose scope the operator does not hold, even when verified', async () => {
+  mockGets({ scopes: ['general:read'] });
+  const expiresAt = Date.now() + 900000;
+  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await lookUpMarcus();
+  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+
+  await waitFor(() => expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'));
+  expect(screen.getByRole('button', { name: /Cancel order/i })).toBeDisabled();
+});
+
+it('says scopes could not be read rather than rendering a blanket denial', async () => {
+  mockGets({ scopes: [], source: 'none' });
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await lookUpMarcus();
+  expect(screen.getByText(/Could not read your granted permissions/i)).toBeInTheDocument();
+});
 ```
+
+The third case is the one that makes the scope branch load-bearing: same customer, same
+verification, denied purely because the operator's token lacks `transactions:write`.
+
+Also repair the pre-existing case in this file. `'looks up a customer and renders category
+cards from the response'` uses `bffAxios.get.mockResolvedValueOnce(...)`, and the new
+permissions fetch on mount now consumes that single queued value. Convert it to the same
+URL-keyed `mockGets()` helper, keeping its existing assertions:
+
+```jsx
+it('looks up a customer and renders category cards from the response', async () => {
+  mockGets();
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await lookUpMarcus();
+  expect(bffAxios.get).toHaveBeenCalledWith('/api/admin/sporting-goods/lookup', { params: { q: 'marcus' } });
+  expect(within(screen.getByTestId('vops-grid')).getByText('Orders')).toBeInTheDocument();
+});
+```
+
+Add `beforeEach(() => { bffAxios.get.mockReset(); bffAxios.post.mockReset(); });` at the top
+of the file so a `mockImplementation` from one case cannot leak into the next.
 
 - [ ] **Step 7: Run it to verify it fails**
 
@@ -1505,14 +1707,60 @@ Clear it whenever a new lookup lands — inside `doLookup`, right after
 A new customer is a new call; carrying the previous customer's verification forward is the
 exact confusion the server-side keying prevents, and the client must not contradict it.
 
+Fetch the operator's real scopes once on mount, beside the existing state:
+
+```jsx
+  const [scopes, setScopes] = useState([]);
+  const [scopeSource, setScopeSource] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    bffAxios
+      .get(`/api/admin/${vertical}/permissions`)
+      .then(({ data }) => {
+        if (!live) return;
+        setScopes(Array.isArray(data?.scopes) ? data.scopes : []);
+        setScopeSource(data?.source || 'none');
+      })
+      .catch(() => { if (live) setScopeSource('none'); });
+    return () => { live = false; };
+  }, [vertical]);
+```
+
+Add `useEffect` to the React import.
+
 Derive the state each render, below the `cfg` line:
 
 ```jsx
   const verified = verifiedUntil > Date.now();
-  // Operator scopes are not yet surfaced to this component; until the evidence
-  // rail lands (Phase 3) assume the scopes the vertical declares, so the gate
-  // under test is verification rather than scope.
-  const scopes = Object.values(cfg.permissions).map((p) => p.scope);
+  const scopesUnknown = scopeSource === 'none';
+```
+
+`source: 'none'` means the BFF could not read the operator's scopes — not that the operator
+has none. Rendering every action as denied in that case would be a lie dressed as a
+security decision. Say so instead; put this directly above the `IdentityGate` render:
+
+```jsx
+      {scopesUnknown && result?.customer && (
+        <div className="vops__scopewarn" role="status">
+          ⚠️ Could not read your granted permissions. Actions are shown as
+          unavailable until this resolves — this is a read failure, not a denial.
+        </div>
+      )}
+```
+
+and in `SupportConsole.css`:
+
+```css
+.vops__scopewarn {
+  padding: 0.6rem 1rem;
+  margin: 0 0 0.75rem;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: 0.85rem;
+}
 ```
 
 Render the gate directly above the `vops__grid` section:
