@@ -837,3 +837,123 @@ changes it, except that step 1 (discovery dispatch) now has a positive data poin
 above) while step 2 (issuer trust) is still the open blocker. Try the role lead first since
 it's untested and cheap; if it doesn't pan out, this is still fundamentally "ask Ping" —
 see that section's two concrete questions.
+
+## 2026-08-08: Pivot to agentless (self-hosted frontend) mode
+
+Everything above fought the same wall from inside **mesh / cloud-frontend** mode: the
+console assigns each MCP Server application an `*.applications.privilege.pingone.com`
+FQDN, the client presents a PingOne JWT to Ping's cloud, and Privilege rejects it with
+`IssuerPublicKey:[]` / `JWT signature validation failed`. Two PingOne environments,
+three clusters, and a `cyctl` detour later, that is still unfixable from this repo.
+
+Ping's own SE enablement storyboard ("Priv for AI Gateway: Architecture, Flows, and
+Troubleshooting") documents a **different topology** that does not have this problem:
+
+```
+MCP client -> customer DNS -> nginx :443 -> MCPGW runtime :8623
+           -> 401 WWW-Authenticate: Bearer authorization_uri="https://<gateway>/authorize"
+           -> MCPGW runs the OIDC dance ITSELF against pingone.env's OIDC_* endpoints
+           -> policy -> Backend Name -> backend MCP server -> Activity Logs
+```
+
+The gateway authenticates the user itself and validates via `OIDC_USER_URL` (userinfo),
+so it never has to trust our issuer's signing keys. `pingone.env` — which the mesh-mode
+investigation correctly proved was dead code, with zero hits for `SERVER_URL` or
+`auth.pingone.com` in the proxy log — is the live configuration in this mode.
+
+### What flipped the switch
+
+`docker run --rm --entrypoint /procyon/bin/cyonproxy <image> --help` documents:
+
+```
+-listen string        local port to listen on (default ":8680")
+-alp-port string      agentless proxy api port (default ":8620")
+```
+
+The listener always existed. The earlier "listener that never exists in this topology"
+comment in `docker-compose.yml` was true of mesh mode only — with no self-hosted
+Frontend Name registered, the port binds and serves nothing. The console field that
+selects the topology is the MCP Server application's **Frontend Name**.
+
+### Wiring as of this change
+
+| | Local Docker Compose | SE cluster (pingaws) |
+|---|---|---|
+| Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` | `https://mcpgw.ai-demo.ping-devops.com` |
+| Frontend Name (per app) | `banking.mcpgw.local.ping-devops.com` | `banking.mcpgw.ai-demo.ping-devops.com` |
+| nginx engine | `mcpgw-nginx` service, host `443` | ingress-nginx, `k8s/aws/mcpgw-agentless-ingress.yaml` |
+| Gateway runtime | `ping-mcpgw`, `-listen :8623` | same, Service/Deployment on `8623` (was `8680`) |
+| Backend Name | `http://mcp-server:8080/mcp` | `http://mcp-server:8080/mcp` |
+| PingOne environment | `01d89b06-66d5-430e-9f28-65636843788b` | same |
+
+Back on `01d89b06` (AI-Demo) rather than Privilege's own tenant `8d4d7a4c`: the only
+reason to be on `8d4d7a4c` was the issuer-trust theory, which agentless mode makes moot,
+and the banking demo's users live in `01d89b06`.
+
+Repo changes: `demo_mcpgw_nginx/` (new), `scripts/ensure-mcpgw-certs.sh` (new),
+`k8s/aws/mcpgw-agentless-ingress.yaml` (new), plus `-listen :8623` and the nginx service
+in `docker-compose.yml`, port `8680` → `8623` in `k8s/75-ping-mcpgw-deployment.yaml` and
+`k8s/aws/se-ingress.yaml`, and a `pingone.env` mount + a real PVC for `/procyon/ssl`
+(it was `emptyDir` and `readOnly: true` — the first would lose the exchanged proxy token
+on every restart, the second is the documented `ProxyToken write ... read-only file
+system` exit 1).
+
+### Console steps — not automatable, do these before testing
+
+1. **Enrollment JWT.** Privilege console → Cloud → Gateways → Add via Docker. Copy the
+   `ENV_PROXY_TOKEN` JWT into `PRIVILEGE_PROXY_TOKEN` in the root `.env`. The previous
+   token expired 2026-08-04 and the `ai-demo_mcpgw-ssl` volume is gone, so this is
+   required, not optional.
+2. **PingOne OIDC app** in `01d89b06`. Redirect URI
+   `https://mcpgw.local.ping-devops.com/callback`. Put its id/secret in
+   `ping-mcpgw/config/pingone.env` (copy from `pingone.env.example`).
+3. **MCP Server application** in the Privilege console:
+   - Frontend Name: `banking.mcpgw.local.ping-devops.com` — **our domain, not the
+     auto-assigned cloud FQDN. This is the setting the whole pivot turns on.**
+   - Backend Name: `http://mcp-server:8080/mcp`
+   - Mesh Cluster: the cluster the freshly enrolled proxy joined
+   - Auth Mode: Static Token, empty value (`MCP_AUTH_DISABLED=true` on `mcp-server`
+     leaves the gateway→server hop open; Privilege enforces at its own layer)
+4. **Policy**, attached to `cmuir+ssoEndUser@pingone.com`. Time-bound policies expire —
+   re-author before each test session.
+5. `/etc/hosts`: `127.0.0.1 mcpgw.local.ping-devops.com` and
+   `127.0.0.1 banking.mcpgw.local.ping-devops.com`.
+6. `PRIVILEGE_MCPGW_URL=https://banking.mcpgw.local.ping-devops.com/mcp` in
+   `demo_api_server/.env`.
+
+### The gate — run this before trusting any of the above
+
+```bash
+./run-docker.sh optional start mcpgw
+docker exec ai-demo-ping-mcpgw ss -lntp | grep 8623        # is anything listening?
+curl -vk https://localhost:8623/mcp \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+**Pass:** `401` carrying `WWW-Authenticate: Bearer authorization_uri="https://mcpgw.local.ping-devops.com/authorize"`.
+
+**Fail (nothing bound on 8623, or the console refuses a non-Privilege Frontend Name):**
+agentless mode is not available to this tenant or licence. Stop — that is the question
+to take to Ping, and it is a much sharper one than the issuer-trust question this doc
+has been carrying.
+
+Then through the front door:
+
+```bash
+curl -vk https://banking.mcpgw.local.ping-devops.com/mcp \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+Same 401 challenge means nginx, DNS, TLS and Host-header passthrough are all correct.
+Browser sign-in at `/privilege-mcp-client` closes the loop; the console's Activity Log
+is the proof the tool call was governed.
+
+### Troubleshooting the new hops
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| nginx exits at start | `certs/mcpgw-wildcard.pem` missing | `bash scripts/ensure-mcpgw-certs.sh` |
+| `502` + `SSL_do_handshake` in nginx log | proxy's `-listen` port is plain HTTP, not TLS | change `proxy_pass` to `http://` in `demo_mcpgw_nginx/nginx.conf` (and `backend-protocol: "HTTP"` in the k8s ingress) |
+| `404` from the gateway | Host header rewritten, or Frontend Name does not match the host called | keep `proxy_set_header Host $host` |
+| Browser cert warning | wildcard cert not trusted | `mkcert -install` |
+| MCP session drops after 60s | a proxy timeout somewhere still at its default | `proxy_read_timeout 3600s` on every hop |
