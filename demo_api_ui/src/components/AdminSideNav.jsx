@@ -213,7 +213,6 @@ export default function AdminSideNav({ user }) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [navFilter, setNavFilter] = useState("");
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
-  const [custLoading, setCustLoading] = useState(false);
   const [navOrder, setNavOrder] = useState(null);
   const [childOrder, setChildOrder] = useState(null);
   const isResizing = useRef(false);
@@ -1421,37 +1420,19 @@ export default function AdminSideNav({ user }) {
             type="button"
             className={`admin-side-nav__quick-link${location.pathname === "/dashboard" ? " admin-side-nav__quick-link--active" : ""}`}
             title="Agent View"
-            disabled={custLoading}
+            // Viewing the customer dashboard never re-authenticates. This used to
+            // POST /api/auth/switch, which returns {redirectUrl:'/api/auth/oauth/
+            // user/login'} \u2014 it destroyed the admin session and forced a PingOne
+            // login just to look at the page. The customer dashboard is viewable
+            // without authn; only protected prompts need it. An admin token is
+            // refused on customer data (requireNotAdmin, 403), so the dashboard
+            // shows demo data, exactly as it does for a signed-out visitor.
             onClick={() => {
-              if (!isAdmin) {
-                spinner.show('Loading customer dashboard\u2026', '/dashboard');
-                navigate("/dashboard");
-                return;
-              }
-              setCustLoading(true);
               spinner.show('Loading customer dashboard\u2026', '/dashboard');
-              fetch("/api/auth/switch", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ targetRole: "customer" }),
-              })
-                .then((r) => r.json())
-                .then(({ redirectUrl }) => {
-                  window.location.href = redirectUrl;
-                })
-                .catch((e) => {
-                  console.error("[QuickNav] switch failed:", e.message);
-                  setCustLoading(false);
-                  spinner.hide();
-                });
+              navigate("/dashboard");
             }}
           >
-            {custLoading ? (
-              <span className="admin-side-nav__quick-link-spinner" aria-label="Loading" />
-            ) : (
-              collapsed ? "Ag" : "Agent"
-            )}
+            {collapsed ? "Ag" : "Agent"}
           </button>
           <button
             type="button"
