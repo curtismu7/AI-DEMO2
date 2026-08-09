@@ -1,8 +1,7 @@
-/* Shared dashboard tokens. Dark mode activates via the root element's
-   data-theme="dark" attribute — the attribute ThemeProvider writes — never
-   prefers-color-scheme, which this app deliberately ignores. .dash paints its
-   own background: without it, dark-mode ink lands on the app shell's light
-   ground (the #1484 bug). */
+/* Shared dashboard tokens. Dark is keyed to :root[data-theme="dark"] — the
+   attribute ThemeProvider writes — never prefers-color-scheme, which this app
+   deliberately ignores. .dash paints its own background: without it, dark-mode
+   ink lands on the app shell's light ground (the #1484 bug). */
 .dash {
   --dash-ground: #eef2f7;
   --dash-surface: #ffffff;

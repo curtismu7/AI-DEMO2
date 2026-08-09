@@ -114,8 +114,17 @@ describe('dashboard.css theme grounds', () => {
   });
 
   it('defines --dash-ground in both themes with different values', () => {
-    const light = css.match(/\.dash\s*\{[^}]*--dash-ground:\s*(#[0-9a-f]{3,8})/i);
-    const dark = css.match(/\[data-theme="dark"\][^{]*\{[^}]*--dash-ground:\s*(#[0-9a-f]{3,8})/i);
+    // Scoped by literal selector index/slice rather than a regex scan — a
+    // regex crossing comment text (e.g. a comment mentioning the dark
+    // selector above the real rule) can latch onto the wrong block. This
+    // matches the sibling guard in NewRelicDashboard.test.jsx.
+    const baseBlock = css.slice(css.indexOf('.dash {'), css.indexOf('}', css.indexOf('.dash {')));
+    const darkBlock = css.slice(
+      css.indexOf(':root[data-theme="dark"] .dash {'),
+      css.indexOf('}', css.indexOf(':root[data-theme="dark"] .dash {')),
+    );
+    const light = baseBlock.match(/--dash-ground:\s*(#[0-9a-f]{3,8})/i);
+    const dark = darkBlock.match(/--dash-ground:\s*(#[0-9a-f]{3,8})/i);
     expect(light).not.toBeNull();
     expect(dark).not.toBeNull();
     expect(light[1].toLowerCase()).not.toBe(dark[1].toLowerCase());
