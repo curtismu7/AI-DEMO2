@@ -1,0 +1,143 @@
+/* demo_api_ui/src/components/DemoTrackBand.css
+ *
+ * The presenter's nine-step script, above the chain map.
+ *
+ * Two rules inherited from REGRESSION_PLAN §4 and deliberately followed here:
+ *   - dark styling is keyed to :root[data-theme="dark"], NEVER
+ *     @media (prefers-color-scheme: dark)
+ *   - no declaration below 11px
+ */
+
+.dtb {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 12px 9px;
+}
+
+.dtb-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.dtb-act {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 0 6px 0 2px;
+}
+
+.dtb-act:not(:first-child) {
+  margin-left: 6px;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 10px;
+}
+
+.dtb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 3px 11px 3px 4px;
+  cursor: pointer;
+}
+
+.dtb-chip-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #475569;
+}
+
+.dtb-chip-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.dtb-chip:hover { border-color: #94a3b8; }
+
+.dtb-chip--done .dtb-chip-n { border-color: #16a34a; color: #16a34a; }
+.dtb-chip--done .dtb-chip-title { color: #64748b; }
+
+.dtb-chip--on {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.15);
+}
+
+.dtb-chip--on .dtb-chip-n { background: #1d4ed8; border-color: #1d4ed8; color: #ffffff; }
+.dtb-chip--on .dtb-chip-title { color: #0f172a; }
+
+.dtb-now {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dtb-now-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dtb-cap {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #3730a3;
+  background: #e0e7ff;
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+
+.dtb-story {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #1e293b;
+}
+
+.dtb-nav {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  border-radius: 6px;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+
+.dtb-nav:hover:not(:disabled) { border-color: #1d4ed8; color: #1d4ed8; }
+.dtb-nav:disabled { opacity: 0.4; cursor: default; }
+
+/* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
+:root[data-theme="dark"] .dtb { border-bottom-color: #26304a; }
+:root[data-theme="dark"] .dtb-act { color: #90a0c2; }
+:root[data-theme="dark"] .dtb-act:not(:first-child) { border-left-color: #26304a; }
+:root[data-theme="dark"] .dtb-chip { background: #0f1830; border-color: #26304a; }
+:root[data-theme="dark"] .dtb-chip:hover { border-color: #9ec1ff; }
+:root[data-theme="dark"] .dtb-chip-n { background: #0b1426; border-color: #26304a; color: #cdd7ec; }
+:root[data-theme="dark"] .dtb-chip-title { color: #cdd7ec; }
+:root[data-theme="dark"] .dtb-chip--done .dtb-chip-n { border-color: #5fe39c; color: #5fe39c; }
+:root[data-theme="dark"] .dtb-chip--done .dtb-chip-title { color: #90a0c2; }
+:root[data-theme="dark"] .dtb-chip--on { border-color: #9ec1ff; box-shadow: 0 0 0 2px rgba(158, 193, 255, 0.2); }
+:root[data-theme="dark"] .dtb-chip--on .dtb-chip-n { background: #1d4ed8; border-color: #9ec1ff; color: #ffffff; }
+:root[data-theme="dark"] .dtb-chip--on .dtb-chip-title { color: #eaf0fb; }
+:root[data-theme="dark"] .dtb-cap { background: #1b2540; color: #9ec1ff; }
+:root[data-theme="dark"] .dtb-story { color: #eaf0fb; }
+:root[data-theme="dark"] .dtb-nav { background: #0f1830; border-color: #26304a; color: #cdd7ec; }
+:root[data-theme="dark"] .dtb-nav:hover:not(:disabled) { border-color: #9ec1ff; color: #9ec1ff; }
