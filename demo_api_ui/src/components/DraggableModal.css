@@ -26,6 +26,10 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--modal-radius, 12px);
+  /* Always light, in every colour scheme — there is no prefers-color-scheme
+     rule for this surface. Anything rendered inside a DraggableModal must
+     therefore keep dark text; a dark-scheme override that lightens text
+     without also setting a background will be invisible here. */
   background: var(--modal-body-bg, #ffffff);
   box-shadow: var(
     --modal-shadow,
