@@ -130,3 +130,38 @@ describe('/admin skin must not clip escaping UI', () => {
     expect(SKIN).not.toMatch(/prefers-color-scheme/);
   });
 });
+
+describe('/admin skin must not fight the design system', () => {
+  const SKIN = fs.readFileSync(
+    path.resolve(__dirname, '../AdminDashboardSkin.css'),
+    'utf8',
+  );
+  const RULES = SKIN.replace(/\/\*[\s\S]*?\*\//g, '');
+
+  // A blanket `.dash-shell-card button` rule outranks .btn-primary (0,2,1 vs
+  // 0,1,0), so it stripped the primary button's fill and left its white label
+  // on a white background — the "Look up customer" control rendered as an empty
+  // box. Skin only buttons the design system does not own.
+  it('never styles .btn* buttons', () => {
+    const buttonRules = RULES.match(/[^{}]*\bbutton\b[^{}]*\{/g) || [];
+    expect(buttonRules.length).toBeGreaterThan(0);
+    for (const rule of buttonRules) {
+      expect(rule).toContain(':not([class*="btn"])');
+    }
+  });
+
+  it('never styles .form-control inputs', () => {
+    const inputRules = RULES.match(/[^{}]*\binput\b[^{}]*\{/g) || [];
+    expect(inputRules.length).toBeGreaterThan(0);
+    for (const rule of inputRules) {
+      expect(rule).toContain(':not(.form-control)');
+    }
+  });
+
+  // .admin-dash-col2 is a flex column with gap and overflow-y: auto. A bottom
+  // margin on the last card is clipped by that scroll container and the end of
+  // the page becomes unreachable.
+  it('adds no card margin that the scroll column would clip', () => {
+    expect(RULES).not.toMatch(/\.dash-shell-card\s*\{[^}]*margin-bottom/);
+  });
+});
