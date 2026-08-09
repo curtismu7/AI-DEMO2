@@ -108,3 +108,25 @@ describe('/admin feature parity', () => {
     expect(SRC).toContain('pingOne');
   });
 });
+
+describe('/admin skin must not clip escaping UI', () => {
+  const SKIN = fs.readFileSync(
+    path.resolve(__dirname, '../AdminDashboardSkin.css'),
+    'utf8',
+  );
+
+  // TokenChainTraceRail's .tctr-more-pop is position:absolute at
+  // top: calc(100% + 5px), so it hangs outside its trigger's box. A card with
+  // overflow:hidden puts that menu out of reach — a feature lost to styling,
+  // which is the one thing this restyle promised not to do.
+  it('never sets overflow:hidden on a dashboard card', () => {
+    const rules = SKIN.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).not.toMatch(/overflow\s*:\s*hidden/);
+  });
+
+  // A colour-only dark-scheme override is how #1483 happened. This page shell
+  // is light in every scheme.
+  it('adds no dark-scheme block', () => {
+    expect(SKIN).not.toMatch(/prefers-color-scheme/);
+  });
+});

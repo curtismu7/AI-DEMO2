@@ -17,24 +17,31 @@
  */
 
 .admin-dashboard-page {
-  /* Same tokens SupportConsole.css uses for the banking accent. */
+  /* Accent matches SupportConsole.css. Surface, border and text defer to the
+     dashboard's existing --dash-* tokens so a theme change moves this page with
+     the rest of the admin UI; the literals are fallbacks, not the source. */
   --admin-accent: #2563eb;
   --admin-accent2: #1e3a8a;
   --admin-tint: #eef4ff;
-  --admin-line: #eceef5;
-  --admin-ink: #1a2230;
-  --admin-muted: #69748a;
+  --admin-surface: var(--dash-surface, #ffffff);
+  --admin-line: var(--dash-border, #eceef5);
+  --admin-ink: var(--dash-text, #1a2230);
+  --admin-muted: var(--dash-muted, #69748a);
 }
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */
 
 .admin-dashboard-page .dash-shell-card {
-  background: #ffffff;
+  background: var(--admin-surface);
   color: var(--admin-ink);
   border: 1px solid var(--admin-line);
   border-radius: 14px;
-  overflow: hidden;
   margin-bottom: 16px;
+  /* Deliberately NOT overflow: hidden. SupportConsole's .vops__card can afford
+     it, but this page hosts TokenChainTraceRail, whose .tctr-more-pop is
+     position:absolute at top: calc(100% + 5px) — clipping it would put the
+     rail's "more" menu out of reach. The card head clips its own corners
+     instead. */
 }
 
 .admin-dashboard-page .dash-shell-card + .dash-shell-card {
@@ -52,7 +59,9 @@
   font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--admin-ink);
-  background: #ffffff;
+  background: var(--admin-surface);
+  /* Clips its own top corners, since the card no longer clips for it. */
+  border-radius: 14px 14px 0 0;
 }
 
 /* Everything after the title gets the card's inner padding. */
@@ -85,7 +94,7 @@
   padding: 10px 12px;
   font-size: 13px;
   color: var(--admin-ink);
-  background: #ffffff;
+  background: var(--admin-surface);
 }
 
 .admin-dashboard-page .dash-shell-card input:focus-visible {
@@ -99,8 +108,8 @@
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 700;
-  color: #404a5e;
-  background: #ffffff;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
   cursor: pointer;
 }
 
@@ -117,7 +126,7 @@
 /* ── Key metrics tiles ──────────────────────────────────────────────────── */
 
 .admin-dashboard-page [aria-label^="View "][aria-label$=" details"] {
-  background: #ffffff;
+  background: var(--admin-surface);
   color: var(--admin-ink);
   border: 1px solid var(--admin-line);
   border-radius: 12px;
@@ -132,5 +141,11 @@
 /* ── Token chain column ─────────────────────────────────────────────────── */
 
 .admin-dashboard-page .dash-shell-card--token {
-  background: #ffffff;
+  background: var(--admin-surface);
+  /* No overflow declaration here on purpose. The base card no longer clips, and
+     in split layout Dashboard.css sets overflow-y: auto on this card with
+     higher specificity (main.admin-dash-main--split ...) — writing
+     `overflow: visible` here would be a no-op that reads like a guarantee the
+     rail's popup always escapes. It does not in split layout, and that is
+     pre-existing behaviour, not something this skin introduced. */
 }
