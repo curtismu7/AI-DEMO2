@@ -37,8 +37,53 @@
   font-variant-numeric: tabular-nums;
 }
 
-.tcnr-density {
+/* walk-through controls — Run is the primary action, so it leads */
+.tcnr-run {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 5px 13px 5px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tcnr-run:hover { background: #1e40af; }
+
+.tcnr-run-ico {
+  width: 0;
+  height: 0;
+  border-left: 7px solid currentColor;
+  border-top: 4.5px solid transparent;
+  border-bottom: 4.5px solid transparent;
+}
+
+.tcnr-run[data-state="running"] .tcnr-run-ico {
+  width: 7px;
+  height: 8px;
+  border: 0;
+  border-left: 2.5px solid currentColor;
+  border-right: 2.5px solid currentColor;
+}
+
+.tcnr-speed {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tcnr-density {
   display: inline-flex;
   gap: 2px;
   background: #eef2f7;
@@ -217,6 +262,9 @@
 :root[data-theme="dark"] .tcnr { border-bottom-color: #26304a; }
 :root[data-theme="dark"] .tcnr-title { color: #cdd7ec; }
 :root[data-theme="dark"] .tcnr-count { color: #90a0c2; }
+:root[data-theme="dark"] .tcnr-run { background: #1d4ed8; color: #ffffff; }
+:root[data-theme="dark"] .tcnr-run:hover { background: #2563eb; }
+:root[data-theme="dark"] .tcnr-speed { background: #0f1830; border-color: #26304a; color: #eaf0fb; }
 :root[data-theme="dark"] .tcnr-density { background: #1b2540; }
 :root[data-theme="dark"] .tcnr-density button { color: #cdd7ec; }
 :root[data-theme="dark"] .tcnr-density button.active { background: #0f1830; color: #eaf0fb; }

@@ -15,6 +15,15 @@ import React, { useCallback, useEffect, useState } from "react";
 import "./TokenChainNodeRail.css";
 
 const DENSITY_KEY = "tctr_node_density";
+const SPEED_KEY = "tctr_run_speed";
+
+/** Walk-through speeds, fastest first — "Run" is the default for demo setup. */
+export const SPEEDS = [
+  { ms: 400, label: "Run" },
+  { ms: 900, label: "Fast" },
+  { ms: 1800, label: "Steady" },
+  { ms: 3200, label: "Slow" },
+];
 
 /** @returns {"detailed"|"compact"} */
 export function readDensity() {
@@ -22,6 +31,16 @@ export function readDensity() {
     return window.localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "detailed";
   } catch {
     return "detailed";
+  }
+}
+
+/** @returns {number} milliseconds per step */
+export function readSpeed() {
+  try {
+    const stored = Number(window.localStorage.getItem(SPEED_KEY));
+    return SPEEDS.some((s) => s.ms === stored) ? stored : SPEEDS[0].ms;
+  } catch {
+    return SPEEDS[0].ms;
   }
 }
 
@@ -83,6 +102,8 @@ function headline(step) {
 
 export default function TokenChainNodeRail({ steps, activeId, onSelect }) {
   const [density, setDensity] = useState(readDensity);
+  const [speed, setSpeed] = useState(readSpeed);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     try {
@@ -92,12 +113,51 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect }) {
     }
   }, [density]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SPEED_KEY, String(speed));
+    } catch {
+      /* ignore */
+    }
+  }, [speed]);
+
   const select = useCallback(
     (id) => {
       if (typeof onSelect === "function") onSelect(id);
     },
     [onSelect],
   );
+
+  const count = Array.isArray(steps) ? steps.length : 0;
+  const atEnd = count > 0 && steps[count - 1]?.id === activeId;
+
+  /**
+   * Walk the chain on a timer. Plays THROUGH and stops on the last step rather
+   * than looping: a looping walk-through never settles anywhere long enough to
+   * read, which makes the detail below it useless during a demo.
+   */
+  useEffect(() => {
+    if (!running || count === 0) return undefined;
+    const timer = window.setInterval(() => {
+      const at = steps.findIndex((s) => s.id === activeId);
+      if (at >= count - 1) {
+        setRunning(false);
+        return;
+      }
+      select(steps[at + 1].id);
+    }, speed);
+    return () => window.clearInterval(timer);
+  }, [running, speed, steps, activeId, count, select]);
+
+  const toggleRun = useCallback(() => {
+    if (running) {
+      setRunning(false);
+      return;
+    }
+    // Replay: restart from the top rather than sitting on the final step.
+    if (atEnd || !activeId) select(steps[0].id);
+    setRunning(true);
+  }, [running, atEnd, activeId, steps, select]);
 
   if (!Array.isArray(steps) || steps.length === 0) return null;
 
@@ -108,6 +168,29 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect }) {
         <span className="tcnr-count">
           {steps.length} {steps.length === 1 ? "step" : "steps"}
         </span>
+
+        <button
+          type="button"
+          className="tcnr-run"
+          data-state={running ? "running" : "paused"}
+          onClick={toggleRun}
+        >
+          <span className="tcnr-run-ico" aria-hidden="true" />
+          {running ? "Pause" : atEnd ? "Replay" : "Run"}
+        </button>
+        <select
+          className="tcnr-speed"
+          aria-label="Walk-through speed"
+          value={speed}
+          onChange={(e) => setSpeed(Number(e.target.value))}
+        >
+          {SPEEDS.map((s) => (
+            <option key={s.ms} value={s.ms}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+
         <div className="tcnr-density">
           <button
             type="button"
