@@ -4006,6 +4006,82 @@
   grid-template-columns: auto auto;
 }
 
+/* ── 2026 skin: stack split3 on narrow viewports ──────────────────────────
+ * The @media (max-width: 1024px) block near the top of this file already
+ * says `grid-template-columns: 1fr`, but it never applied to the 2026 skin:
+ * media queries carry no specificity, and every rule above out-weighs its
+ * 0,2,0 selector (up to 0,5,0 for the collapsed no-banking variant). The
+ * measured result at 390px was `154.5px 153.5px` — agent and token rail
+ * side by side — or `154.5px 0px 153.5px` with the banking column shown,
+ * giving the whole dashboard a zero-width track.
+ *
+ * Each selector below carries at least one more class than the rule it has
+ * to beat AND sits later in source, so the tie-break holds either way. */
+@media (max-width: 1024px) {
+  .user-dashboard--2026 .ud-body.ud-body--2026.ud-body--dashboard-split3,
+  .user-dashboard--2026
+    .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking,
+  .user-dashboard--2026
+    .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-middle-collapsed,
+  .user-dashboard--2026
+    .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* The split3 shell itself is `flex: 1 1 0%; overflow: hidden` (line ~23), so
+   * even with the App shell released it would still clip the stack to whatever
+   * the flex parent allots. Let it size to content on a phone. */
+  .user-dashboard.user-dashboard--split3 {
+    flex: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* Same collision one level down: `.ud-banking-column.ud-center { height: 100% }`
+   * and the 1024px `{ height: auto }` are both 0,2,0, and the unmediated one is
+   * later in source, so it wins.
+   *
+   * NOTE: this rule alone does not make the banking column tall enough yet. The
+   * shell above it (.App / .main-content / .user-dashboard) is a fixed-height
+   * overflow:hidden flex chain, so the grid row is still viewport-bound and the
+   * column measures ~28px with its content scrolled away inside. Releasing that
+   * chain on mobile is a separate, app-wide change. This rule is here so the
+   * height:100% does not come straight back once the shell is fixed. */
+  .user-dashboard--2026
+    .ud-body.ud-body--dashboard-split3
+    > .ud-banking-column.ud-center {
+    height: auto;
+  }
+}
+
+/* Phone: the columns are stacked, so DOM order now decides reading order.
+ * The agent column precedes the banking column in JSX, which would put a
+ * transcript above the balance. Reorder the grid items (CSS only — no JSX
+ * change, so the §1 #68 .ba-body/.ba-left-col invariants are untouched) and
+ * drop the agent's tablet height cap now that it is not sharing a row. */
+@media (max-width: 700px) {
+  .user-dashboard--2026 .ud-body.ud-body--dashboard-split3 > * {
+    order: 5;
+  }
+  .user-dashboard--2026 .ud-body.ud-body--dashboard-split3 > .ud-banking-column {
+    order: 1;
+  }
+  .user-dashboard--2026 .ud-body.ud-body--dashboard-split3 > .ud-agent-column {
+    order: 2;
+    max-height: none;
+  }
+  .user-dashboard--2026 .ud-body.ud-body--dashboard-split3 > .ud-float-reserve {
+    order: 3;
+  }
+  .user-dashboard--2026 .ud-body.ud-body--dashboard-split3 > .ud-token-rail {
+    order: 4;
+  }
+}
+
 /* ── Focus Mode: config strip above agent panel ─────────────────────────── */
 .ud-dashboard-config-strip {
   flex-shrink: 0;

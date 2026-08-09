@@ -65,6 +65,44 @@
   overflow: hidden;
 }
 
+/* Phone: undo the viewport-tall shell. The one-page model above assumes three
+   side-by-side columns that each scroll internally; stacked into one column
+   that becomes ~3,000px of content inside an 844px `overflow: hidden` box, and
+   everything past the fold is unreachable. Below 1024px the page scrolls
+   instead and the columns size to their content.
+
+   Same selectors as the rules above, so this wins on source order alone — no
+   !important, and no effect on any other route because the :has() still gates
+   on the split3 dashboard being rendered. */
+@media (max-width: 1024px) {
+  .App:has(.user-dashboard--split3) {
+    height: auto;
+    min-height: 100dvh;
+    /* x stays clipped: two control rows below are intrinsically wider than a
+       phone and were only ever hidden by the old `overflow: hidden`. Releasing
+       y without this turns that into a sideways-scrolling page. */
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .App:has(.user-dashboard--split3) main.main-content {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* The agent-mode row is ~566px of nowrap chips inside the stacked column, so
+     it would be the one thing still pushing past the fold-in. Let it scroll on
+     its own axis. (The topnav's own right-hand controls are left alone — that
+     row is compressed to 0 by flex before this media query is even involved,
+     which is a pre-existing topnav problem, not a stacking one.) */
+  .App:has(.user-dashboard--split3) .ams--compact {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+}
+
 /* Quick nav (signed-in /, /admin, /dashboard only) — extra stack + content inset */
 .App.App--has-quick-nav {
   --float-edge: 12px;
