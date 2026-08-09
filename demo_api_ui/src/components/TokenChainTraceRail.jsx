@@ -11,6 +11,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
 import TokenChainNodeRail from "./TokenChainNodeRail";
+import StepDetailPanel from "./StepDetailPanel";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -459,6 +460,12 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               }
             }}
           />
+          {activeStepId ? (
+            <StepDetailPanel
+              step={steps.find((s) => s.id === activeStepId)}
+              onInspect={onInspect}
+            />
+          ) : null}
           {presenting ? (
             <TokenChainPresenter
               steps={steps}
