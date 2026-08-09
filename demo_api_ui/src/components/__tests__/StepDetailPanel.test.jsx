@@ -16,6 +16,19 @@ const STEP = {
   },
 };
 
+// The claim diff is the strongest explainer of RFC 8693 delegation, so the
+// mock puts before/after side by side with only the moved rows marked.
+const DIFF_STEP = {
+  ...STEP,
+  detail: {
+    ...STEP.detail,
+    beforeAfter: {
+      before: { title: "User token", text: '{"scope":"read write","aud":"banking-api","exp":1000}' },
+      after: { title: "Delegated token", text: '{"scope":"write","aud":"mcp-gw","exp":900,"act":{"sub":"agent-001"}}' },
+    },
+  },
+};
+
 describe("StepDetailPanel", () => {
   it("puts what happened above the payloads", () => {
     render(<StepDetailPanel step={STEP} />);
@@ -23,11 +36,42 @@ describe("StepDetailPanel", () => {
     expect(order).toEqual(["What happened", "What changed", "Request", "Response"]);
   });
 
-  it("renders request and response uncollapsed", () => {
+  it("keeps raw payloads one click away rather than in the way", () => {
     render(<StepDetailPanel step={STEP} />);
-    expect(screen.getByText(/grant_type=\.\.\.token-exchange/)).toBeVisible();
-    expect(screen.getByText(/"scope": "write"/)).toBeVisible();
-    expect(document.querySelector("details")).toBeNull();
+    const payloads = document.querySelectorAll(".sdp-payload");
+    expect(payloads.length).toBe(2);
+    for (const d of payloads) expect(d.tagName).toBe("DETAILS");
+    for (const d of payloads) expect(d.open).toBe(false);
+    // Collapsed, not dropped — the text is still in the document.
+    expect(screen.getByText(/grant_type=\.\.\.token-exchange/)).toBeInTheDocument();
+  });
+
+  it("renders what changed as before and after, marking only the moved claims", () => {
+    render(<StepDetailPanel step={DIFF_STEP} />);
+    expect(document.querySelectorAll(".sdp-ba-col")).toHaveLength(2);
+    const marked = [...document.querySelectorAll(".sdp-ba-row--changed")].map((e) => e.dataset.claim);
+    // scope narrowed, aud rebound, exp shortened, act appeared.
+    expect(new Set(marked)).toEqual(new Set(["scope", "aud", "exp", "act"]));
+  });
+
+  it("says so when a step changed nothing, instead of faking a diff", () => {
+    render(<StepDetailPanel step={{
+      id: "website", title: "Website — browser", lane: "BROWSER", status: "done",
+      detail: { narrative: "The browser loaded the app." },
+    }} />);
+    expect(screen.getByText(/nothing changed/i)).toBeInTheDocument();
+    expect(screen.queryByText("What changed")).toBeNull();
+  });
+
+  it("does not claim a step changed nothing when it has not run yet", () => {
+    for (const status of ["pending", "notinpath"]) {
+      const { unmount } = render(<StepDetailPanel step={{
+        id: "gateway", title: "Agent Gateway", lane: "GATEWAY", status,
+        detail: { narrative: "Static teaching text shown before the run." },
+      }} />);
+      expect(screen.queryByText(/nothing changed/i)).toBeNull();
+      unmount();
+    }
   });
 
   it("omits sections the step has no data for, rather than showing empty ones", () => {
