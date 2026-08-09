@@ -426,6 +426,29 @@ function _decisionError(status, text, label) {
   return err;
 }
 
+// Pure mapper from a raw PingOne Authorize decision-endpoint response to the
+// four fields the dashboard needs. Exported as a test seam so extraction
+// correctness is verified against the real function, not a copy of it.
+function _mapDecisionFields(raw) {
+  return {
+    // PingOne sends `correlationId`; it sends neither `id` nor `decisionId`,
+    // which is why this was always null. The other two are kept as fallbacks
+    // in case a different decision path returns them.
+    decisionId: raw.correlationId || raw.id || raw.decisionId || null,
+    // PingOne's own policy-evaluation time, distinct from the wall-clock the
+    // caller measures — that one includes the network round trip.
+    policyEvalMs:
+      typeof raw.elapsedMicroseconds === 'number'
+        ? raw.elapsedMicroseconds / 1000
+        : null,
+    // Which policy fired, e.g. "Transaction Denied" / "transaction-denied".
+    // Only the first statement is captured; multi-statement decisions are out
+    // of scope until a policy here actually returns more than one.
+    ruleName: raw.statements?.[0]?.name || null,
+    ruleCode: raw.statements?.[0]?.code || null,
+  };
+}
+
 /**
  * POST a Trust Framework parameters object to a decision endpoint (Phase 2).
  * @param {string} endpointId
@@ -456,23 +479,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
     });
     const policyNotFound = _isPolicyNotFoundEffect(raw);
 
-    // PingOne sends `correlationId`; it sends neither `id` nor `decisionId`,
-    // which is why this was always null. The other two are kept as fallbacks
-    // in case a different decision path returns them.
-    const decisionId = raw.correlationId || raw.id || raw.decisionId || null;
-
-    // PingOne's own policy-evaluation time, distinct from the wall-clock the
-    // caller measures — that one includes the network round trip.
-    const policyEvalMs =
-      typeof raw.elapsedMicroseconds === 'number'
-        ? raw.elapsedMicroseconds / 1000
-        : null;
-
-    // Which policy fired, e.g. "Transaction Denied" / "transaction-denied".
-    // Only the first statement is captured; multi-statement decisions are out
-    // of scope until a policy here actually returns more than one.
-    const ruleName = raw.statements?.[0]?.name || null;
-    const ruleCode = raw.statements?.[0]?.code || null;
+    const { decisionId, policyEvalMs, ruleName, ruleCode } = _mapDecisionFields(raw);
 
     const _debug = {
       request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
@@ -1607,6 +1614,7 @@ module.exports = {
   _normalizeDecision,
   _isPolicyNotFoundEffect,
   _decisionError,
+  _mapDecisionFields,
   _invalidateWorkerToken,
   _resetAuthorizeRuntimeState,
   _fetchRetryable: fetchRetryable,

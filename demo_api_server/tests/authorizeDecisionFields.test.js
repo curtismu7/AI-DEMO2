@@ -63,6 +63,15 @@ async function evaluate() {
     .send({ amount: 60000, type: 'transfer', acr: 'pwd', userId: 'probe' });
 }
 
+// Selects the `forceLive` branch in routes/authorize.js (~line 385):
+// `const forceLive = req.body?.live === true || req.body?.forceLive === true;`
+// `live: true` is the field/value used here.
+async function evaluateForceLive() {
+  await request(makeApp())
+    .post('/api/authorize/test-evaluate')
+    .send({ amount: 60000, type: 'transfer', acr: 'pwd', userId: 'probe', live: true });
+}
+
 describe('authorize live evaluate metadata', () => {
   it('emits a numeric wall-clock latencyMs', async () => {
     await evaluate();
@@ -94,7 +103,29 @@ describe('authorize live evaluate metadata', () => {
   });
 });
 
+// routes/authorize.js has two call sites for these fields: the `forceLive`
+// branch (~line 385, selected by `live: true` / `forceLive: true` in the
+// body) and the general non-forced PingOne branch covered above. Both were
+// field-threaded identically; this proves the forceLive one independently
+// rather than trusting identical-by-inspection.
+describe('authorize live evaluate metadata — forceLive branch', () => {
+  it('carries decisionId, ruleName, ruleCode, policyEvalMs and latencyMs', async () => {
+    await evaluateForceLive();
+    const meta = metaFromLastEvent();
+    expect(meta.decisionId).toBe('48c67322-351e-45b4-8614-ce5208b2651f');
+    expect(meta.ruleName).toBe('Transaction Denied');
+    expect(meta.ruleCode).toBe('transaction-denied');
+    expect(meta.policyEvalMs).toBe(2.885);
+    expect(typeof meta.latencyMs).toBe('number');
+    expect(meta.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe('decision field extraction from a real PingOne body', () => {
+  // Real module, not the mock above — this is what proves the extraction
+  // itself is correct rather than a hand-copied expression.
+  const { _mapDecisionFields } = jest.requireActual('../services/pingOneAuthorizeService');
+
   // Captured verbatim from a live PERMIT on 2026-08-09.
   const RAW = {
     correlationId: '48c67322-351e-45b4-8614-ce5208b2651f',
@@ -106,17 +137,25 @@ describe('decision field extraction from a real PingOne body', () => {
   };
 
   it('reads decisionId from correlationId, not id', () => {
-    expect(RAW.correlationId || RAW.id || RAW.decisionId || null)
-      .toBe('48c67322-351e-45b4-8614-ce5208b2651f');
+    expect(_mapDecisionFields(RAW).decisionId).toBe('48c67322-351e-45b4-8614-ce5208b2651f');
     expect(RAW.id).toBeUndefined();
   });
 
   it('converts elapsedMicroseconds to milliseconds', () => {
-    expect(RAW.elapsedMicroseconds / 1000).toBeCloseTo(2.885, 3);
+    expect(_mapDecisionFields(RAW).policyEvalMs).toBeCloseTo(2.885, 3);
   });
 
   it('reads the rule name and code from the first statement', () => {
-    expect(RAW.statements?.[0]?.name).toBe('Transaction Approved');
-    expect(RAW.statements?.[0]?.code).toBe('transaction-approved');
+    const mapped = _mapDecisionFields(RAW);
+    expect(mapped.ruleName).toBe('Transaction Approved');
+    expect(mapped.ruleCode).toBe('transaction-approved');
+  });
+
+  it('yields nulls, not a throw or NaN, when statements and elapsedMicroseconds are absent', () => {
+    const mapped = _mapDecisionFields({ decision: 'PERMIT' });
+    expect(mapped.decisionId).toBeNull();
+    expect(mapped.policyEvalMs).toBeNull();
+    expect(mapped.ruleName).toBeNull();
+    expect(mapped.ruleCode).toBeNull();
   });
 });
