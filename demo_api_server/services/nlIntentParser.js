@@ -1167,8 +1167,10 @@ function parseHeuristic(
         const amountToken = params.amount === undefined ? null : String(params.amount);
         const notTheAmount = (m) => m && m[1] !== amountToken;
         if (h.extractsOrderId) {
-          // Match numeric IDs (1003, 2001) or short alphanumeric codes (o1, o2)
-          const orderIdMatch = t.match(/\b([a-z]?\d+)\b/i);
+          // Prefer manufacturing-style WO-4001 before the short retail codes
+          // (1003, o1). Otherwise "release work order WO-4002" captured only
+          // "4002", missed the row, and the old mutator fallback released WO-4001.
+          const orderIdMatch = t.match(/\b(WO-\d+)\b/i) || t.match(/\b([a-z]?\d+)\b/i);
           if (notTheAmount(orderIdMatch)) params = { ...params, orderId: orderIdMatch[1] };
         }
         if (h.extractsRentalId) {

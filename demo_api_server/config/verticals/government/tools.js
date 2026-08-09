@@ -158,8 +158,11 @@ function buildGovernmentTools(store) {
         return { result: store.get(userId).fees, render: 'view_fees' };
       case 'view_filings':
         return { result: { filings: store.get(userId).filings }, render: 'view_filings' };
-      case 'pay_fee':
-        return { result: store.payFee(userId, params || {}), render: 'pay_fee' };
+      case 'pay_fee': {
+        const paid = store.payFee(userId, params || {});
+        if (paid && paid.error) return { result: paid, render: 'text' };
+        return { result: paid, render: 'pay_fee' };
+      }
       case 'release_record': {
         // Consent/step-up showcase chips carry no permit id — default to the first permit
         // so the security control (consent + step-up) is demonstrated against a real record.
