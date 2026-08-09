@@ -12,12 +12,16 @@ Every one of these was learned the expensive way. Check them before theorising.
    speaks mTLS and answers everything else with `tlsv13 alert certificate required`,
    which nginx reports as a bare `502`. Probe: `POST http://localhost:8620/mcp` must
    return `401 Bearer Token not found.`
-2. **`IssuerPublicKey:[]` is the blocker, and agentless mode does NOT avoid it.**
-   Tested 2026-08-08 with a real PingOne token through nginx to the agentless port:
-   `401 Authorization header JWT parsing failed JWT signature validation failed` —
-   byte-identical to mesh mode. The gateway validates inbound JWTs on 8620 too.
-   Even a token from Privilege's own tenant (`8d4d7a4c`) is rejected, so this is not
-   about picking the right environment. Nothing in this repo populates that key.
+2. **The rejection is `ValidateInfraJwt`, and it reproduces on Ping's own cloud.**
+   The gateway compares the token's `kid` against a fixed `infra-root-jwt`
+   (`graph.go:282`, via `AgentlessRestAPIService.forwardReq`, `agentless_api.go:98`).
+   No PingOne token can match, whatever the env/audience/scope; nor can one
+   self-signed with `mcpgw-key.pem`. The response says "JWT signature validation
+   failed" but **no signature was checked** — only a key id compared. Do not chase
+   signature/JWKS problems from that string.
+   The Ping-hosted frontend returns byte-identical errors without forwarding to our
+   proxy at all, so **no local change can fix this**. See `docs/PRIVILEGE-MCP.md`
+   §2026-08-09.
 3. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
    with Privilege console access, and every required setting lives in that console.
 4. **An expired enrollment token is almost never the problem.** cyonproxy swaps the
@@ -152,10 +156,12 @@ Infrastructure is done and proven. Remaining work is console-side only.
   /.well-known/oauth-protected-resource     -> all 401, identical body
   ```
 
-  You need a token to reach the endpoint that issues tokens. That is what an
-  `AuthzMiddleware` with no authorization server configured looks like: fail-closed
-  over everything, including the endpoints a client would use to bootstrap.
-  **Everything converges here: give the app an authz server and the demo unblocks.**
+  You need a token to reach the endpoint that issues tokens. (`GET /` is the sole
+  exception — a 3-byte `OK` liveness probe.)
+- **Diagnose from the gateway's log delta, not the HTTP response.** Capture
+  `wc -c < /var/log/procyon/cyonproxy.log` before and after a request and tail the
+  difference. That is the only way `ValidateInfraJwt` / `InfraKid` becomes visible;
+  the 401 body actively misdirects. `scratchpad/report.sh` automates it.
 - **Duplicate node registration.** `has same NodeURL - this happens because of
   misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`.
   Cosmetic — confirmed the command stream stays up and discovery still dispatches.
