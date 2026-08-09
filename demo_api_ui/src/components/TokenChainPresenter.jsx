@@ -7,12 +7,13 @@
 // It owns no data. Same `steps` array and same `activeId` as the rail and the
 // chain map, so Run keeps walking while it is open and closing it lands you on
 // whatever step you finished on.
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import "./TokenChainPresenter.css";
 
 const STATUS_TEXT = {
   done: "Completed",
+  active: "In flight",
   pending: "Not yet run",
   notinpath: "Not in this path",
   denied: "Denied",
@@ -33,6 +34,37 @@ export default function TokenChainPresenter({ steps, activeId, onSelect, onClose
     },
     [at, count, steps, onSelect],
   );
+
+  const boxRef = useRef(null);
+
+  // Move focus into the overlay and keep it there. Without this, Tab walked
+  // straight through to the rail's Run / speed / density buttons sitting behind
+  // the projector view. Focus returns to whatever opened it on close.
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return undefined;
+    const previous = document.activeElement;
+    box.focus();
+    const onTab = (e) => {
+      if (e.key !== "Tab") return;
+      const focusable = box.querySelectorAll("button:not([disabled])");
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    box.addEventListener("keydown", onTab);
+    return () => {
+      box.removeEventListener("keydown", onTab);
+      if (previous && typeof previous.focus === "function") previous.focus();
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -62,7 +94,14 @@ export default function TokenChainPresenter({ steps, activeId, onSelect, onClose
   // Rendering outside that subtree removes the whole category of collision
   // rather than out-specifying one rule at a time.
   return createPortal(
-    <div className="tcp" role="dialog" aria-modal="true" aria-label="Token chain presenter">
+    <div
+      className="tcp"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Token chain presenter"
+      ref={boxRef}
+      tabIndex={-1}
+    >
       <div className="tcp-top">
         <span className="tcp-count">
           Step {at + 1} of {count}
