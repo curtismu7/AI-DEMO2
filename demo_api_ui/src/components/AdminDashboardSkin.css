@@ -36,16 +36,15 @@
   color: var(--admin-ink);
   border: 1px solid var(--admin-line);
   border-radius: 14px;
-  margin-bottom: 16px;
+  /* No margin-bottom. .admin-dash-col2 is a flex column with gap: 1rem and
+     overflow-y: auto; a bottom margin on the last card is clipped by that
+     scroll container, which cut off the end of the page. The gap already
+     spaces them. */
   /* Deliberately NOT overflow: hidden. SupportConsole's .vops__card can afford
      it, but this page hosts TokenChainTraceRail, whose .tctr-more-pop is
      position:absolute at top: calc(100% + 5px) — clipping it would put the
      rail's "more" menu out of reach. The card head clips its own corners
      instead. */
-}
-
-.admin-dashboard-page .dash-shell-card + .dash-shell-card {
-  margin-top: 0;
 }
 
 .admin-dashboard-page .dash-shell-card__title {
@@ -87,8 +86,10 @@
 
 /* ── Controls ───────────────────────────────────────────────────────────── */
 
-.admin-dashboard-page .dash-shell-card input[type="text"],
-.admin-dashboard-page .dash-shell-card input:not([type]) {
+/* :not(.form-control) — .form-control is the design system's input. Restyling
+   it here fights the shared component instead of skinning the page. */
+.admin-dashboard-page .dash-shell-card input[type="text"]:not(.form-control),
+.admin-dashboard-page .dash-shell-card input:not([type]):not(.form-control) {
   border: 1px solid #e1e5ef;
   border-radius: 10px;
   padding: 10px 12px;
@@ -97,12 +98,16 @@
   background: var(--admin-surface);
 }
 
-.admin-dashboard-page .dash-shell-card input:focus-visible {
+.admin-dashboard-page .dash-shell-card input:not(.form-control):focus-visible {
   outline: 2px solid var(--admin-accent);
   outline-offset: 1px;
 }
 
-.admin-dashboard-page .dash-shell-card button {
+/* :not([class*="btn"]) — .btn/.btn-primary/.btn-secondary carry their own fill
+   and text colour. This rule outranked them (0,2,1 vs 0,1,0), so the "Look up
+   customer" primary button lost its blue and its white label went invisible on
+   the white background it inherited. Skin the unclassed buttons only. */
+.admin-dashboard-page .dash-shell-card button:not([class*="btn"]) {
   border: 1px solid #dfe3ee;
   border-radius: 9px;
   padding: 8px 14px;
@@ -113,12 +118,12 @@
   cursor: pointer;
 }
 
-.admin-dashboard-page .dash-shell-card button:hover:not(:disabled) {
+.admin-dashboard-page .dash-shell-card button:not([class*="btn"]):hover:not(:disabled) {
   background: var(--admin-tint);
   border-color: color-mix(in srgb, var(--admin-accent) 30%, #ffffff);
 }
 
-.admin-dashboard-page .dash-shell-card button:disabled {
+.admin-dashboard-page .dash-shell-card button:not([class*="btn"]):disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
