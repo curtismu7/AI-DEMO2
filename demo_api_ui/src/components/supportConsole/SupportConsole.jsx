@@ -6,6 +6,7 @@ import { getVerticalConfig } from './supportConsoleConfig';
 import RecordDrawer from './RecordDrawer';
 import IdentityGate from './IdentityGate';
 import CaseNotes from './CaseNotes';
+import SupportQueueRail from './SupportQueueRail';
 import { resolvePermission, PERMISSION_LABEL } from './resolvePermission';
 import TokenChainTraceRail from '../TokenChainTraceRail';
 import './SupportConsole.css';
@@ -45,12 +46,13 @@ export default function SupportConsole({ vertical }) {
     traceRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const doLookup = useCallback(async (e) => {
-    e.preventDefault();
-    if (!q.trim()) return;
+  // Split from the submit handler so the queue rail can open a customer
+  // without synthesising a form event.
+  const runLookup = useCallback(async (query) => {
+    if (!String(query || '').trim()) return;
     setLoading(true);
     try {
-      const { data } = await bffAxios.get(cfg.lookupPath, { params: { q } });
+      const { data } = await bffAxios.get(cfg.lookupPath, { params: { q: query } });
       const next = cfg.adaptLookup(data);
       setResult(next);
       // Drop verification only when this resolves a DIFFERENT customer. A new
@@ -68,7 +70,19 @@ export default function SupportConsole({ vertical }) {
       notifyError(st === 401 ? 'Session expired — please sign in again.' : 'Lookup failed.');
       setResult(null);
     } finally { setLoading(false); }
-  }, [q, cfg]);
+  }, [cfg]);
+
+  const doLookup = useCallback(async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    return runLookup(q);
+  }, [q, runLookup]);
+
+  // Selecting queued work opens that customer through the ordinary lookup, so
+  // the rail never becomes a second path to customer data.
+  const openFromQueue = useCallback((row) => {
+    setQ(row.customerQuery);
+    return runLookup(row.customerQuery);
+  }, [runLookup]);
 
   const runAction = useCallback(async (label, row, catId) => {
     const action = cfg.actions[label];
@@ -144,6 +158,10 @@ export default function SupportConsole({ vertical }) {
           unavailable until this resolves — this is a read failure, not a denial.
         </div>
       )}
+
+      <section className="vops__queue">
+        <SupportQueueRail vertical={vertical} onSelect={openFromQueue} />
+      </section>
 
       {result?.customer && (
         <IdentityGate

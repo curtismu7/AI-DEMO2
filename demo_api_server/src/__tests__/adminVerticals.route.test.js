@@ -546,3 +546,63 @@ describe('Phase 2 verticals', () => {
   });
 
 });
+
+describe('support queue', () => {
+  // The queue is a projection over slices, so every row must trace to a record
+  // really in that state. Asserting only "rows.length > 0" would pass on
+  // fabricated rows.
+  it('returns only records whose status is genuinely open', async () => {
+    const agent = makeSessionApp();
+    const q = await request(agent).get('/api/admin/manufacturing/queue');
+    expect(q.status).toBe(200);
+    expect(q.body.vertical).toBe('manufacturing');
+    expect(q.body.data.rows.length).toBeGreaterThan(0);
+
+    const look = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
+    for (const row of q.body.data.rows.filter((r) => r.customerId === 'u1')) {
+      const source = (look.body.data[row.category] || []).find((r) => String(r.id) === row.id);
+      // jest's expect takes no message argument (that is vitest); the row
+      // identifiers are in the failure output via the toBe below.
+      expect(source).toBeTruthy();
+      expect(String(source.status).toLowerCase()).toBe(String(row.status).toLowerCase());
+    }
+  });
+
+  it('matches status case-insensitively', async () => {
+    // sporting-goods seeds 'open'/'in_progress'; retail seeds 'Open'/'In Progress'.
+    const agent = makeSessionApp();
+    for (const vertical of ['sporting-goods', 'retail']) {
+      const r = await request(agent).get(`/api/admin/${vertical}/queue`);
+      expect(r.status).toBe(200);
+      expect(r.body.data.rows.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('renders an honest empty queue where nothing is open', async () => {
+    // banking's seed has null account statuses and only 'completed'
+    // transactions; investment's trades are all settled. Neither declares
+    // rules, and neither should invent rows.
+    for (const vertical of ['banking', 'investment']) {
+      const r = await request(makeSessionApp()).get(`/api/admin/${vertical}/queue`);
+      expect(r.status).toBe(200);
+      expect(r.body.data.rows).toEqual([]);
+    }
+  });
+
+  it('requires admin', async () => {
+    mockAdminAllowed = false;
+    const r = await request(makeSessionApp()).get('/api/admin/workforce/queue');
+    expect(r.status).toBe(403);
+  });
+
+  it('carries what the console needs to open the customer', async () => {
+    const r = await request(makeSessionApp()).get('/api/admin/university/queue');
+    expect(r.body.data.rows.length).toBeGreaterThan(0);
+    for (const row of r.body.data.rows) {
+      expect(row.customerId).toBeTruthy();
+      expect(row.customerQuery).toBeTruthy();
+      expect(row.title).toBeTruthy();
+      expect(row.categoryLabel).toBeTruthy();
+    }
+  });
+});

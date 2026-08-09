@@ -177,3 +177,30 @@ it('the drawer refuses an action the card refuses', async () => {
   expect(drawerButton).toBeDisabled();
   expect(drawerButton).toHaveAttribute('data-permission', 'approval');
 });
+
+it('opening queued work runs the ordinary lookup for that customer', async () => {
+  const QUEUE_ROW = {
+    customerId: 'u1', customerName: 'Marcus Hall', customerQuery: 'marcus',
+    category: 'support_tickets', categoryLabel: 'Support',
+    id: 'TKT-1', title: 'Exchange request', status: 'open',
+  };
+  bffAxios.get.mockImplementation((url) => {
+    if (url.endsWith('/permissions')) {
+      return Promise.resolve({ data: { scopes: ['transactions:write'], source: 'introspection' } });
+    }
+    if (url.endsWith('/queue')) return Promise.resolve({ data: { data: { rows: [QUEUE_ROW] } } });
+    if (url.includes('/lookup')) return Promise.resolve({ data: LOOKUP });
+    return Promise.resolve({ data: { data: { notes: [] } } });
+  });
+
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+  await waitFor(() => expect(screen.getByText('Exchange request')).toBeInTheDocument());
+
+  fireEvent.click(screen.getByText('Exchange request'));
+
+  // The rail must go through the same lookup path, not a private read.
+  await waitFor(() =>
+    expect(bffAxios.get).toHaveBeenCalledWith('/api/admin/sporting-goods/lookup', { params: { q: 'marcus' } }),
+  );
+  await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
+});
