@@ -10,6 +10,7 @@ import { buildA2aChainDetail } from "../utils/a2aChainDetail";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
+import TokenChainNodeRail from "./TokenChainNodeRail";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
@@ -200,6 +201,9 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
   const [zoom, setZoom] = useState(readStoredZoom);
   const [viewMode, setViewMode] = useState(readStoredViewMode);
+  // Chain-map selection. Purely a scroll/highlight aid over the cards below —
+  // it never filters or reorders `steps`.
+  const [activeStepId, setActiveStepId] = useState(null);
   const tokenChain = useTokenChainOptional();
   // Names the running use case in each step's pop-out. Optional: several rail
   // mounts (Monitoring routes, standalone pages) sit outside the Proof provider.
@@ -417,6 +421,21 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           {viewMode === "live" && steps.length === 0 && (
             <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
           )}
+          <TokenChainNodeRail
+            steps={steps}
+            activeId={activeStepId}
+            onSelect={(id) => {
+              setActiveStepId(id);
+              // TraceStepCard already renders data-step-id on its <details>, so
+              // the map can reveal a card without either component knowing about
+              // the other's internals.
+              const card = document.querySelector(`.tctr-step[data-step-id="${id}"]`);
+              if (card) {
+                card.open = true;
+                card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+              }
+            }}
+          />
           {steps.map((step) => (
             <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}
