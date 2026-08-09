@@ -100,7 +100,7 @@ function headline(step) {
   return "done";
 }
 
-export default function TokenChainNodeRail({ steps, activeId, onSelect }) {
+export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresent }) {
   const [density, setDensity] = useState(readDensity);
   const [speed, setSpeed] = useState(readSpeed);
   const [running, setRunning] = useState(false);
@@ -190,6 +190,12 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect }) {
             </option>
           ))}
         </select>
+
+        {typeof onPresent === "function" ? (
+          <button type="button" className="tcnr-present" onClick={onPresent}>
+            Present
+          </button>
+        ) : null}
 
         <div className="tcnr-density">
           <button

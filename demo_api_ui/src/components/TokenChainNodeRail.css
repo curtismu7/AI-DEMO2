@@ -83,6 +83,20 @@
   cursor: pointer;
 }
 
+.tcnr-present {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 6px;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tcnr-present:hover { border-color: #1d4ed8; color: #1d4ed8; }
+
 .tcnr-density {
   display: inline-flex;
   gap: 2px;
@@ -265,6 +279,8 @@
 :root[data-theme="dark"] .tcnr-run { background: #1d4ed8; color: #ffffff; }
 :root[data-theme="dark"] .tcnr-run:hover { background: #2563eb; }
 :root[data-theme="dark"] .tcnr-speed { background: #0f1830; border-color: #26304a; color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr-present { background: #0f1830; border-color: #26304a; color: #cdd7ec; }
+:root[data-theme="dark"] .tcnr-present:hover { border-color: #9ec1ff; color: #9ec1ff; }
 :root[data-theme="dark"] .tcnr-density { background: #1b2540; }
 :root[data-theme="dark"] .tcnr-density button { color: #cdd7ec; }
 :root[data-theme="dark"] .tcnr-density button.active { background: #0f1830; color: #eaf0fb; }

@@ -11,6 +11,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
 import TokenChainNodeRail from "./TokenChainNodeRail";
+import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
@@ -204,6 +205,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   // Chain-map selection. Purely a scroll/highlight aid over the cards below —
   // it never filters or reorders `steps`.
   const [activeStepId, setActiveStepId] = useState(null);
+  // Presenter overlay — the same steps at projector size. Purely a second view.
+  const [presenting, setPresenting] = useState(false);
   const tokenChain = useTokenChainOptional();
   // Names the running use case in each step's pop-out. Optional: several rail
   // mounts (Monitoring routes, standalone pages) sit outside the Proof provider.
@@ -424,6 +427,10 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           <TokenChainNodeRail
             steps={steps}
             activeId={activeStepId}
+            onPresent={() => {
+              if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
+              setPresenting(true);
+            }}
             onSelect={(id) => {
               setActiveStepId(id);
               // TraceStepCard already renders data-step-id on its <details>, so
@@ -436,6 +443,15 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               }
             }}
           />
+          {presenting ? (
+            <TokenChainPresenter
+              steps={steps}
+              activeId={activeStepId}
+              onSelect={setActiveStepId}
+              onClose={() => setPresenting(false)}
+            />
+          ) : null}
+
           {steps.map((step) => (
             <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}
