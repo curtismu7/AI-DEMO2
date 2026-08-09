@@ -245,6 +245,7 @@ describe("CSS/JS monospace regression", () => {
         f.includes("TokenCard.css") ||           // JWT token claim display (intentional)
         f.includes("TokenChainDisplay.css") ||   // token chain code display (intentional)
         f.includes("TokenChainTraceRail.css") || // trace rail code/claims/JSON display (intentional)
+        f.includes("TokenChainPresenter.css") || // presenter claim key/value display (intentional)
         f.includes("UserMenu.css") ||            // user ID code display (intentional)
         f.includes("VerticalFeaturePage.css") || // feature code display (intentional)
         f.includes("WebMcpPanel.css") ||         // MCP tool code display (intentional)
