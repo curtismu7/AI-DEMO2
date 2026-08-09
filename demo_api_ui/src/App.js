@@ -145,7 +145,6 @@ import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
-import AdminBlockedDashboard from "./components/AdminBlockedDashboard";
 import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
   AgentFlowInspectorRoute,
@@ -942,18 +941,18 @@ function AppWithAuth() {
                   }
                 />
                 {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage.
-                    No loading guard — DashboardContent handles user=null with demo data immediately. */}
+                    No loading guard — DashboardContent handles user=null with demo data immediately.
+                    Admins get the same surface: the dashboard is viewable without a customer
+                    token, and DashboardContent falls back to demo data when the backend answers
+                    admin_token_forbidden. It used to render AdminBlockedDashboard here, a wall
+                    whose only way forward was a role switch that signed the admin out. */}
                 <Route
                   path="/dashboard"
                   element={
                     <>
                       <TopNav user={user} onLogout={logout} />
                       <main className="main-content">
-                        {user?.role === "admin" ? (
-                          <AdminBlockedDashboard user={user} onLogout={logout} />
-                        ) : (
-                          <DashboardContent user={user} logout={logout} />
-                        )}
+                        <DashboardContent user={user} logout={logout} />
                       </main>
                     </>
                   }
