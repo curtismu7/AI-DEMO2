@@ -231,14 +231,18 @@ export const CONFIGS = {
     identityActions: [],
     caseSource: { path: '/api/admin/government/cases' },
     permissions: {
-      // gate:'verified', not 'approval'. Nothing on the server enforces
-      // approval — ADMIN_WRITE is [requireAdmin, requireCustomerVerified] — so
-      // declaring it here would be a client-only gate that a direct POST walks
-      // straight through, and the console's own rule is that the UI mirrors
-      // server truth rather than inventing it. A real approval posture needs
-      // the HITL service in the request path; until then the honest gate is
-      // the one that actually holds.
-      'Release record': { scope: 'sensitive:read', gate: 'verified' },
+      // Handing over the record itself — same posture as healthcare's Release,
+      // which is the other approval-gated action in the console.
+      //
+      // This gate is advisory: ADMIN_WRITE is
+      // [requireAdmin, requireCustomerVerified] and nothing on the server
+      // checks approval, so a direct POST is not stopped by it. That is a
+      // deliberate call for this demo. "Needs approval" is a state the console
+      // exists to teach, and every `scope` in this table is advisory in the
+      // same way (`requireScopes` is not applied to these routes). Making the
+      // badge enforceable would mean putting the HITL service in the request
+      // path — worth doing when approval becomes part of the story, not before.
+      'Release record': { scope: 'sensitive:read', gate: 'approval' },
     },
     actions: {
       'Release record': { method: 'post', buildUrl: (row) => `/api/admin/government/permits/${encodeURIComponent(row.id)}/release`, body: (_r, c) => ({ userId: c.id }) },

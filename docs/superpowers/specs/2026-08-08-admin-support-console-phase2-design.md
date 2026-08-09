@@ -32,7 +32,7 @@ would act on, not a dump of the seed.
 | Vertical | Cards | Actions (scope, gate) |
 |---|---|---|
 | university | `courses`, `billing`, `holds`, `financial_aid`, `enrollmentHistory` | none — read-only |
-| government | `permits`, `payments`, `filings`, `inspections`, `recordsRequests` | Release record (`sensitive:read`, verified) |
+| government | `permits`, `payments`, `filings`, `inspections`, `recordsRequests` | Release record (`sensitive:read`, approval) |
 | manufacturing | `workOrders`, `maintenanceTickets`, `shipments`, `qualityInspections`, `purchaseOrders` | Release work order (`general:write`, verified) |
 | investment | `portfolios`, `holdings`, `trades`, `dividends` | none — read-only |
 | abercrombie-fitch | `orders`, `returns`, `support_tickets`, `rewards`, `gift_cards` | none — read-only |
@@ -78,29 +78,40 @@ map, so the store exposes nothing to write.
 Investment does have mutators — `buySecurity`, `sellSecurity`, `deposit`,
 `withdraw`, `largeTrade`, `rebalancePortfolio` — and every one of them is a
 trade. A support operator executing a withdrawal or a buy on a customer's
-account is a different risk class from cancelling an order, and nothing in this
-console is designed to authorise it. Exposing them behind `gate: 'approval'`
-was considered and rejected: it ships buttons the console can never complete,
-which is worse than not offering them.
+account is a different authority from cancelling an order, and nothing in this
+console models it.
 
-### Gates on the two exposed actions — only what the server enforces
+The reason is authority, not completability. Government's `Release record` is
+also non-completable while its approval badge stands, and that is fine — it is
+a legitimate support action showing a gate. Six trade buttons are not a support
+console gaining a teaching state; they are a console claiming powers it should
+not have.
 
-Both carry `gate: 'verified'`.
+### Gates on the two exposed actions
 
-`Release record` was first written as `gate: 'approval'`, matching healthcare's
-`Release`. That is wrong here: `ADMIN_WRITE` is
-`[requireAdmin, requireCustomerVerified]` and nothing on the server enforces
-approval, so a verified admin posting directly walks straight through a gate the
-UI presents as blocking. The console's own rule is that the client mirrors
-server truth rather than inventing it, and this phase already refused to ship
-investment's trades on the grounds that a button which can never complete is
-worse than no button. A real approval posture needs the HITL service in the
-request path; until it is there, the honest declaration is the gate that holds.
+`Release record` carries `sensitive:read` + `gate: 'approval'`, matching
+healthcare's `Release`. `Release work order` is an ordinary shop-floor operation
+and takes `general:write` + `gate: 'verified'`.
 
-**Pre-existing, not fixed here:** healthcare's `Release` on `main` carries
-`gate: 'approval'` with the same absence of server enforcement, and the `scope`
-field on every permission is likewise advisory — `requireScopes` is not applied
-to these routes. Both deserve a pass of their own.
+**The approval gate is advisory, deliberately.** `ADMIN_WRITE` is
+`[requireAdmin, requireCustomerVerified]`; nothing on the server checks
+approval, so a direct POST is not stopped by the badge. This was briefly changed
+to `gate: 'verified'` on the argument that the console should never declare a
+gate the server does not enforce — and then changed back, because that argument
+imports a production threat model into a demo. There is no real customer data
+here, and "Needs approval" is a state the console exists to *teach*. Every
+`scope` in the permission table is advisory in exactly the same way:
+`requireScopes` is not applied to these routes either.
+
+Making the badge enforceable means putting the HITL service in the request path.
+That is worth doing when approval becomes part of the demo's story, and not
+before. Enforcing `scope` server-side is a *worse* idea in the meantime: if
+operator tokens do not carry `transactions:write`, every button renders denied
+and the console looks broken.
+
+What does still matter in a demo is behaviour that is visibly wrong in front of
+an audience — a console that writes to the record you did not select. That is
+the next section, and it stays fixed.
 
 ### Writes must not act on the wrong row
 

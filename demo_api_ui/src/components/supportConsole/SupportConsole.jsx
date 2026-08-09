@@ -100,6 +100,12 @@ export default function SupportConsole({ vertical }) {
   // security decision.
   const scopesUnknown = scopeSource === 'none';
 
+  // One source of truth for both the card buttons and the drawer.
+  const permissionFor = useCallback(
+    (label) => resolvePermission({ permission: cfg.permissions[label], scopes, verified }),
+    [cfg, scopes, verified],
+  );
+
   const handleVerified = useCallback((expiresAt) => {
     verifiedCustomerRef.current = result?.customer?.id ?? null;
     setVerifiedUntil(expiresAt);
@@ -159,9 +165,7 @@ export default function SupportConsole({ vertical }) {
                   <span className={`vops__badge vops__badge--${r.tone}`}>{r.status}</span>
                   <div className="vops__acts" onClick={(e) => e.stopPropagation()}>
                     {r.actions.map((a) => {
-                      const state = resolvePermission({
-                        permission: cfg.permissions[a], scopes, verified,
-                      });
+                      const state = permissionFor(a);
                       return (
                         <button
                           key={a}
@@ -195,7 +199,7 @@ export default function SupportConsole({ vertical }) {
         </div>
       </details>
 
-      <RecordDrawer open={!!drawer} vertical={vertical} category={drawer?.category || {}} row={drawer?.row} customer={result?.customer} query={q} onClose={() => setDrawer(null)} onAction={runAction} />
+      <RecordDrawer open={!!drawer} vertical={vertical} category={drawer?.category || {}} row={drawer?.row} customer={result?.customer} query={q} onClose={() => setDrawer(null)} onAction={runAction} permissionFor={permissionFor} />
     </div>
   );
 }
