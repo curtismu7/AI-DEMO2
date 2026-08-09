@@ -1,26 +1,10 @@
 'use strict';
-const crypto = require('crypto');
 const express = require('express');
 const pingoneEventStore = require('../services/lmdb/pingoneEventStore.lmdb');
 const { forward } = require('../services/newRelicForwarder');
 const appEventService = require('../services/appEventService');
 
 const router = express.Router();
-
-function _hmacOk(req) {
-  const secret = process.env.PINGONE_WEBHOOK_SECRET;
-  if (!secret) return false;
-  const presented = req.headers['x-p1-signature'];
-  if (!presented) return false;
-  const raw = req.rawBody;
-  if (!raw) return false;
-  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(presented), Buffer.from(expected));
-  } catch {
-    return false; // length mismatch = wrong signature
-  }
-}
 
 function _mapEvent(p1Event) {
   return {
@@ -35,31 +19,52 @@ function _mapEvent(p1Event) {
   };
 }
 
+/**
+ * Open ingest — no authentication.
+ *
+ * PingOne offers only Basic auth, static custom headers, or mTLS on a webhook;
+ * it does NOT sign the body, so the HMAC check this route used to perform could
+ * never pass against a real subscription. Rather than swap in a shared secret,
+ * this endpoint is deliberately unauthenticated for the demo: anyone who can
+ * reach it can inject events into the store and on to New Relic. That is an
+ * accepted tradeoff here, not an oversight.
+ */
 router.post('/pingone', (req, res) => {
-  if (!_hmacOk(req)) {
-    return res.status(401).json({ error: 'invalid_signature' });
-  }
-  const p1Event = req.body;
-  if (!p1Event || typeof p1Event.type !== 'string') {
+  // PingOne posts a batch: a JSON array of up to 500 events. Accept a bare
+  // object too, so hand-crafted single-event curls keep working.
+  const batch = Array.isArray(req.body) ? req.body : [req.body];
+  const valid = batch.filter((e) => e && typeof e.type === 'string');
+  if (valid.length === 0) {
     return res.status(400).json({ error: 'invalid_event' });
   }
-  const mapped = _mapEvent(p1Event);
-  const stored = pingoneEventStore.append(mapped);
-  forward(stored).catch(() => {});
-  appEventService.logEvent('pingone', 'info',
-    `PingOne ${stored.eventType || 'event'}: ${stored.status || 'unknown'}`,
-    {
-      tag: 'pingone/event',
-      metadata: {
-        eventId: stored.eventId,
-        eventType: stored.eventType,
-        actorId: stored.actorId,
-        status: stored.status,
-        timestamp: stored.timestamp,
-      },
-    }
-  );
-  return res.status(200).json({ received: true, eventId: stored.eventId });
+
+  const eventIds = [];
+  for (const p1Event of valid) {
+    const stored = pingoneEventStore.append(_mapEvent(p1Event));
+    eventIds.push(stored.eventId);
+    forward(stored).catch(() => {});
+    appEventService.logEvent('pingone', 'info',
+      `PingOne ${stored.eventType || 'event'}: ${stored.status || 'unknown'}`,
+      {
+        tag: 'pingone/event',
+        metadata: {
+          eventId: stored.eventId,
+          eventType: stored.eventType,
+          actorId: stored.actorId,
+          status: stored.status,
+          timestamp: stored.timestamp,
+        },
+      }
+    );
+  }
+
+  // eventId (singular) retained for existing callers; eventIds carries the batch.
+  return res.status(200).json({
+    received: true,
+    eventId: eventIds[0],
+    eventIds,
+    count: eventIds.length,
+  });
 });
 
 module.exports = router;

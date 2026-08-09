@@ -499,10 +499,11 @@ app.use(sessionMiddleware);
     }
 }());
 
-// PingOne webhook — own body parser with rawBody capture (HMAC needs the raw bytes)
-app.use('/webhook', express.json({
-    verify: (req, _res, buf) => { req.rawBody = buf; },
-}), webhookPingOneRoutes);
+// PingOne webhook — mounted ahead of the global parser so it keeps its own
+// limit. The rawBody capture that used to live here existed only for the HMAC
+// check, which is gone: PingOne cannot sign a request body. See
+// docs/PINGONE-WEBHOOK.md. Batches of 500 events exceed the default 100kb.
+app.use('/webhook', express.json({ limit: '5mb' }), webhookPingOneRoutes);
 
 // Body parsing middleware
 app.use(express.json());

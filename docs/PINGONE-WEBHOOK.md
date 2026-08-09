@@ -1,76 +1,113 @@
 # PingOne webhook to New Relic
 
-Two things must both be true before `/monitoring/pingone-events` shows anything.
+Two ways to get PingOne activity into New Relic. Pick by whether you need the
+events on screen in the demo UI.
 
-## 1. The shared secret
+---
 
-`demo_api_server/routes/webhookPingOne.js` verifies an HMAC-SHA256 over the
-raw request body against the `x-p1-signature` header (`_hmacOk()`, lines
-10-23). When `PINGONE_WEBHOOK_SECRET` is unset, `_hmacOk()` returns false
-immediately (line 12), and the route handler responds 401
-`{"error":"invalid_signature"}` before any event handling — mapping,
-storage, or forwarding to New Relic (lines 39-41 short-circuit before lines
-42-62 run).
+## Option A — PingOne posts straight to New Relic
 
-Note: the JSON body is still parsed before that check runs. `server.js`
-mounts a route-specific `express.json()` on `/webhook` with a `verify`
-callback that captures the raw bytes into `req.rawBody` (server.js
-lines 503-505) — that parsing happens for every request regardless of the
-HMAC outcome. What the missing secret skips is the application-level event
-handling in the route, not JSON parsing itself.
+Simplest, and it needs no code, no secret, and no tunnel. PingOne ships a native
+New Relic event schema, and New Relic's Logs API is on the public internet.
 
-Set it in `demo_api_server/.env`:
+In the PingOne console, **Connections → Webhooks → Add Webhook**:
 
-    PINGONE_WEBHOOK_SECRET=<64 hex chars>
+| Field | Value |
+|---|---|
+| Name | anything, e.g. `NR` |
+| Protocol | HTTPS |
+| Destination URL | `https://log-api.newrelic.com/log/v1` |
+| Allow TLS with untrusted certificates | unchecked — New Relic has a real CA cert |
+| TLS Client Authentication Key | None |
+| Basic Authentication | leave blank |
+| Custom HTTP Header | Key `Api-Key`, Value = your `NR_LICENSE_KEY` |
+| JSON Format | JSON array |
+| Pretty Print | unchecked — adds ~20% payload for no benefit |
+| Event Schema | **New Relic** |
+| Payload Limit | Limit by Events, **1** |
 
-Generate with:
+`Api-Key` here is not a security control — it is the credential New Relic
+requires to accept ingest. Without it every payload is rejected.
 
-    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+Payload limit `1` matters for a live demo: at the default 500 PingOne batches
+events and nothing appears until a batch fills.
 
-The same value goes in the PingOne webhook subscription config.
+Verify in New Relic (account id is in `NR_ACCOUNT_ID`):
 
-## 2. Reachability
+    SELECT * FROM Log WHERE source LIKE '%pingone%' SINCE 30 minutes ago
 
-The endpoint is `POST /webhook/pingone` on the BFF. Locally that is
-`https://api.ping.demo:3001/webhook/pingone` — a hostname that resolves only
-on your machine. PingOne runs in the cloud and cannot route to it, so no
-amount of secret configuration will produce events locally without a
-tunnel.
+**Tradeoff:** events reach New Relic but not the demo's own
+`/monitoring/pingone-events` panel, which reads the BFF's local store.
 
-Options:
+---
 
-- **Public tunnel** (ngrok, Cloudflare Tunnel) pointed at
-  `api.ping.demo:3001`, then register the tunnel URL as the webhook target.
-- **SE AWS deployment** — `ai-demo.ping-devops.com` is already
-  internet-facing; point the subscription there instead.
+## Option B — PingOne posts to this app
 
-## Verifying
+Use this when you want events on screen in the demo.
 
-With the secret set and the BFF restarted so it picks up the new env var, a
-correctly signed request should be accepted:
+### The endpoint is open on purpose
 
-    BODY='{"type":"AUTHENTICATION","result":{"status":"SUCCESS"}}'
-    SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$PINGONE_WEBHOOK_SECRET" -hex | awk '{print $2}')
-    curl -sk -X POST https://api.ping.demo:3001/webhook/pingone \
+`POST /webhook/pingone` performs **no authentication**. Anyone who can reach it
+can inject events into the store and on to New Relic.
+
+That is a deliberate demo tradeoff, not an oversight. PingOne's webhook offers
+only Basic auth, static custom headers, or mTLS — it does not sign the request
+body. The HMAC check this route used to perform (`x-p1-signature` over the raw
+body) could therefore never pass against a real PingOne subscription; it only
+ever passed for hand-crafted curls. Rather than keep a check that guaranteed
+401s in production use, the gate was removed.
+
+If you later need this closed, the honest options are a static shared secret in
+a custom header, Basic auth, or mTLS — all things PingOne can actually send.
+
+### Payload shape
+
+PingOne posts a **batch**: a JSON array of up to 500 events. The route accepts
+an array or a single bare object, keeps every element with a string `type`,
+drops the rest, and returns `{ received, eventId, eventIds, count }`. It returns
+400 `invalid_event` only when nothing in the payload is usable.
+
+### Reachability
+
+The endpoint must be reachable from PingOne's cloud.
+`https://api.ping.demo:3001/webhook/pingone` is a local-only hostname and will
+never work. Either:
+
+- point the subscription at the SE AWS deployment,
+  `https://ai-demo.ping-devops.com/webhook/pingone`, or
+- run a public tunnel (ngrok, Cloudflare Tunnel) to your local BFF and use the
+  tunnel URL.
+
+### Console fields
+
+Same as Option A except:
+
+| Field | Value |
+|---|---|
+| Destination URL | your tunnel or `https://ai-demo.ping-devops.com/webhook/pingone` |
+| Basic Authentication | leave blank — the endpoint ignores credentials |
+| Event Schema | **Ping Activity** — the mapper reads `type`, `actors`, `result`, `resources`, `recordedAt` |
+| Allow TLS with untrusted certificates | check only if the target uses a mkcert/self-signed cert |
+
+### Verifying
+
+    curl -sk -X POST https://<your-host>/webhook/pingone \
       -H 'Content-Type: application/json' \
-      -H "x-p1-signature: $SIG" \
-      -d "$BODY"
+      -d '[{"type":"AUTHENTICATION","result":{"status":"SUCCESS"}}]'
 
-Expected: `{"received":true,"eventId":"<id>"}` and the event appears at
-`/monitoring/pingone-events`. An unsigned request still returns
-`{"error":"invalid_signature"}` — that is the guard working, not a failure.
+Expected: `{"received":true,"eventId":"...","eventIds":["..."],"count":1}`, and
+the event appears at `/monitoring/pingone-events`.
 
-This snippet has **not** been run against a live server as part of writing
-this runbook — the secret was never set in any running environment, so the
-40x-to-200 transition described above is not empirically confirmed here. It
-follows directly from reading `_hmacOk()` and the route handler, but treat
-it as unverified until someone runs it.
+---
 
-## What this does and does not fix
+## Provisioning via the Management API
 
-Setting `PINGONE_WEBHOOK_SECRET` removes the blanket 401 that currently
-rejects every request regardless of signature. It does **not**, by itself,
-make PingOne events show up anywhere — reachability (§2) is a separate,
-independent blocker. A reader who sets only the secret and skips the tunnel
-will still see zero events at `/monitoring/pingone-events`, correctly: no
-POST is arriving at all.
+The console is not the only route — a Worker token can create the subscription
+directly:
+
+    POST https://api.pingone.com/v1/environments/{environmentId}/subscriptions
+
+Get the token with `client_credentials` against
+`https://auth.pingone.com/{environmentId}/as/token` using
+`PINGONE_WORKER_CLIENT_ID` / `PINGONE_WORKER_CLIENT_SECRET`. List existing
+subscriptions with the same path and `GET`.
