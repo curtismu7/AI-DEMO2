@@ -160,7 +160,10 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "platform-admin", paths: ["/admin", "/admin/pingone"] },
-  { id: "industry-verticals", paths: ["/admin", "/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
+  // No "/admin" here — it belongs to platform-admin now that the dashboard
+  // is back on it. Listing a path in two sections expands both, which
+  // breaks the single-section accordion.
+  { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
