@@ -133,3 +133,47 @@ it('drops verification when the lookup resolves a different customer', async () 
   await waitFor(() => expect(screen.getByText('Casey Stone')).toBeInTheDocument());
   expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'false');
 });
+
+// The record drawer used to render every action as a plain enabled button, so a
+// card reading "Needs approval" still offered the action one click away. For
+// approval- and scope-gated actions the server does not refuse either, so it
+// actually ran — the console contradicting the gate it exists to demonstrate.
+it('the drawer refuses an action the card refuses', async () => {
+  bffAxios.get.mockImplementation((url) => {
+    if (url.endsWith('/permissions')) {
+      return Promise.resolve({ data: { scopes: ['sensitive:read', 'general:write'], source: 'introspection' } });
+    }
+    if (url.includes('/lookup')) {
+      return Promise.resolve({
+        data: {
+          user: { id: 'u1', name: 'Dana Reed' },
+          data: { permits: [{ id: 'P-1001', permitType: 'Building', subject: '1234 Maple Street', status: 'Issued' }] },
+        },
+      });
+    }
+    return Promise.resolve({ data: { data: { notes: [] } } });
+  });
+  const expiresAt = Date.now() + 900000;
+  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+
+  render(<SupportConsole vertical="government" user={{ role: 'admin' }} />);
+  fireEvent.change(screen.getByPlaceholderText(/Look up a constituent/i), { target: { value: 'dana' } });
+  fireEvent.submit(screen.getByTestId('vops-lookup-form'));
+  await waitFor(() => expect(screen.getByText('Dana Reed')).toBeInTheDocument());
+
+  // Verify the customer, so the only thing still holding the action back is the
+  // approval gate rather than the verification one.
+  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await waitFor(() => expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'));
+
+  const cardButton = screen.getByRole('button', { name: /Release record/i });
+  expect(cardButton).toBeDisabled();
+  expect(cardButton).toHaveAttribute('data-permission', 'approval');
+
+  // Open the drawer on that row; the same action must be refused there too.
+  fireEvent.click(screen.getByText('Building permit'));
+  const drawer = await screen.findByRole('dialog');
+  const drawerButton = within(drawer).getByRole('button', { name: /Release record/i });
+  expect(drawerButton).toBeDisabled();
+  expect(drawerButton).toHaveAttribute('data-permission', 'approval');
+});
