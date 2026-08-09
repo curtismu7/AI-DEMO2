@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../../context/ThemeContext';
 import P1AzDashboard from '../P1AzDashboard';
 import apiClient from '../../services/apiClient';
@@ -103,7 +103,7 @@ describe('P1AzDashboard', () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
     renderDash();
     await waitFor(() => expect(apiClient.get).toHaveBeenCalled());
-    screen.getByRole('button', { name: '7d' }).click();
+    fireEvent.click(screen.getByRole('button', { name: '7d' }));
     await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
       '/api/newrelic/view/authorize?window=7d'));
   });
