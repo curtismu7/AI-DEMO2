@@ -25,7 +25,7 @@ describe('isBankingAgentDashboardRoute', () => {
 });
 
 describe('isPingOneAdminAgentRoute', () => {
-  it('matches only /admin/pingone (not the console, vertical ops or customer dash)', () => {
+  it('matches both dashboard paths, not the vertical consoles or customer dash', () => {
     // The PingOne admin content moved from /admin to /admin/pingone when the
     // support console took /admin; this predicate moved with it. If it ever
     // points at a page that does not hold Demo Steps, the agent falls back to
@@ -33,9 +33,11 @@ describe('isPingOneAdminAgentRoute', () => {
     // 2026-07-22 regression in REGRESSION_PLAN §4.
     expect(isPingOneAdminAgentRoute('/admin/pingone')).toBe(true);
     expect(isPingOneAdminAgentRoute('/admin/pingone/')).toBe(true);
-    // /admin is now the support console, not the admin agent surface.
-    expect(isPingOneAdminAgentRoute('/admin')).toBe(false);
-    expect(isPingOneAdminAgentRoute('/admin/')).toBe(false);
+    // /admin renders the dashboard again after the #1486 repoint was reverted,
+    // and /admin/pingone still resolves to the same component, so the admin
+    // agent must mount on both.
+    expect(isPingOneAdminAgentRoute('/admin')).toBe(true);
+    expect(isPingOneAdminAgentRoute('/admin/')).toBe(true);
     expect(isPingOneAdminAgentRoute('/admin/banking')).toBe(false);
     expect(isPingOneAdminAgentRoute('/dashboard')).toBe(false);
     expect(isPingOneAdminAgentRoute('/')).toBe(false);
