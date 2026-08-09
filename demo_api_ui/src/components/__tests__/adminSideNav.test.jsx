@@ -41,6 +41,14 @@ import AdminSideNav from "../AdminSideNav";
 import { NAV_ITEM_CATALOG } from "../../config/navItemsCatalog";
 import { NAV_STRUCTURE_CATALOG } from "../../config/navStructureCatalog";
 
+// The sidebar now rests as an icon rail (labels hidden). These suites exercise
+// the expanded tree — filtering by label, group auto-expand — so they opt into
+// the expanded state explicitly rather than relying on a default.
+beforeEach(() => {
+  try { window.localStorage.setItem("adminSideNav.collapsed", "false"); } catch { /* jsdom always has it */ }
+});
+
+
 const adminUser = { id: "4", username: "admin", role: "admin" };
 const customerUser = { id: "1", username: "customer", role: "customer" };
 const renderNav = (path = "/admin") =>

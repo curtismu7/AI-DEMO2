@@ -25,6 +25,14 @@ vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 
 import AdminSideNav from "../AdminSideNav";
 
+// The sidebar now rests as an icon rail (labels hidden). These suites exercise
+// the expanded tree — filtering by label, group auto-expand — so they opt into
+// the expanded state explicitly rather than relying on a default.
+beforeEach(() => {
+  try { window.localStorage.setItem("adminSideNav.collapsed", "false"); } catch { /* jsdom always has it */ }
+});
+
+
 // jsdom has no matchMedia; AdminSideNav's responsive-collapse effect calls it
 // unconditionally on mount, so any full render needs this stub. This same gap
 // pre-exists in adminSideNav.test.jsx in this directory.
