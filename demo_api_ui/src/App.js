@@ -417,7 +417,7 @@ function AppWithAuth() {
    *  Restricting to signed-in users would silently strip the inline agent
    *  for guests and leave them with no way to start the demo. */
   const onMiddlePlacementInDashboard =
-    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute);
+    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute || pathname === "/dashboard");
   /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise.
    *  onLiveWorkbenchRoute always mounts the agent here regardless of agentPlacement: this route's entire purpose
    *  requires the real agent to be present (narrow, inline), and unlike UserDashboard it renders no dock fallback
