@@ -15,14 +15,24 @@
   --nrd-warn: #b26a00;
   --nrd-err: #d13c31;
 
+  --nrd-ground: #eef2f7;
+
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 18px 22px 30px;
   color: var(--nrd-ink);
+  /* Paint our own ground. Without this the page keeps whatever the app shell
+     renders, and in dark mode --nrd-ink goes near-white — so the title and
+     subtitle, which sit bare on the page rather than inside a card, became
+     white-on-light. The cards were unaffected because they set their own
+     background. */
+  background: var(--nrd-ground);
+  min-height: 100%;
 }
 
 :root[data-theme="dark"] .nrd {
+  --nrd-ground: #0a0f18;
   --nrd-surface: #111823;
   --nrd-surface-2: #161f2c;
   --nrd-line: #253244;
