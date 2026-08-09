@@ -49,22 +49,51 @@ docker compose --profile mcpgw stop ping-mcpgw
    ```
    This file is gitignored and must never be committed.
 
-### 2. Configure the MCP application (wizard MCP Config step)
+### 2. Front-end PingOne credentials — `pingone.env`
 
-If using the full wizard (Add via Wizard), fill in the MCP Config step:
+**This is the config that authenticates CLIENTS to the gateway.** PingOne is the OAuth
+server; the gateway is an MCP server in front of ours. A client calls the gateway, gets
+a `401`, is sent to PingOne to sign in, and comes back with a token the gateway accepts.
+`pingone.env` holds the PingOne credentials that make that possible.
 
-| Field | Value |
+Do not confuse it with the backend hop — see the table under "Two auth boundaries" below.
+
+`ping-mcpgw/procyon/config/pingone.env` (copy `pingone.env.example`):
+
+| Key | Value |
 |---|---|
-| Gateway URL | `https://mcpgw.local.ping-devops.com` (the nginx front door) |
-| Cert Path | `/procyon/ssl` |
-| Client ID | Use `PINGONE_MCP_GATEWAY_CLIENT_ID` from `demo_api_server/.env` |
-| Client Secret | Use `PINGONE_MCP_GATEWAY_CLIENT_SECRET` from `demo_api_server/.env` |
-| Auth URL | `https://auth.pingone.com/<env-id>/as/authorize` |
-| Token URL | `https://auth.pingone.com/<env-id>/as/token` |
-| User Info URL | `https://auth.pingone.com/<env-id>/as/userinfo` |
-| UserID Claim | `sub` |
+| `SERVER_URL` | `https://mcpgw.local.ping-devops.com` — the nginx front door, browser-reachable. This is what the `401` challenge hands the client, so it must not be a proxy port |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | the PingOne application the gateway signs users in against |
+| `OIDC_AUTH_URL` | `https://auth.pingone.com/<env-id>/as/authorize` |
+| `OIDC_TOKEN_URL` | `https://auth.pingone.com/<env-id>/as/token` |
+| `OIDC_USER_URL` | `https://auth.pingone.com/<env-id>/as/userinfo` |
+| `OIDC_SCOPES` | `openid profile email` |
 
-Replace `<env-id>` with `PINGONE_ENVIRONMENT_ID` from `demo_api_server/.env`.
+Register `${SERVER_URL}/callback` as a redirect URI on that PingOne application.
+
+`docker-compose.yml` both bind-mounts this file at
+`/var/lib/procyon/config/pingone.env` and loads it via `env_file`, so its values reach
+the container as files *and* as environment variables.
+
+> **Open issue (2026-08-09):** with all of the above in place the gateway still returns
+> `401 Bearer Token not found.` and emits no `WWW-Authenticate`. The proxy binary
+> contains no reference to `pingone.env` or its key names, and the same failure
+> reproduces on Ping's own hosted frontend. The component that consumes this config
+> appears to be the **guest agent**, which ships only with the native installer and is
+> not in the Docker image (`/procyon/bin/` has just `cyctl` and `cyonproxy`). See
+> `docs/PRIVILEGE-MCP.md` §2026-08-09 and `procyon-guest-agent.env`, which carries the
+> same settings under different key names plus the `APIKey`/`APISecret` the agent uses
+> to register them with the control plane.
+
+### Two auth boundaries — do not mix them up
+
+| Hop | Configured in | Current setting |
+|---|---|---|
+| **Client → MCPGW** (front end) | `pingone.env` (this section) | PingOne OIDC |
+| **MCPGW → our MCP server** (back end) | the MCP Application in the console: MCP Server URL, Auth Mode, Auth Token | Static Token with an **empty** value — `mcp-server` runs `MCP_AUTH_DISABLED=true`, so the internal hop is deliberately open and Privilege enforces policy at its own layer |
+
+The console's MCP Application screen has no front-end fields at all, which is the
+quickest way to tell the two apart while you are in there.
 
 ### 3. TLS certificates — generated, then mounted
 

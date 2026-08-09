@@ -106,6 +106,8 @@ import WebMcpExplainer from "./components/WebMcpExplainer";
 import NotFoundPage from "./components/NotFoundPage";
 import WorkforceAdminOps from "./components/WorkforceAdminOps";
 import UniversityAdminOps from "./components/UniversityAdminOps";
+import SupportConsole from "./components/supportConsole/SupportConsole";
+import { resolveConsoleVertical } from "./components/supportConsole/supportConsoleConfig";
 import GovernmentAdminOps from "./components/GovernmentAdminOps";
 import ManufacturingAdminOps from "./components/ManufacturingAdminOps";
 import InvestmentAdminOps from "./components/InvestmentAdminOps";
@@ -143,7 +145,6 @@ import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
-import AdminBlockedDashboard from "./components/AdminBlockedDashboard";
 import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
   AgentFlowInspectorRoute,
@@ -417,7 +418,7 @@ function AppWithAuth() {
    *  Restricting to signed-in users would silently strip the inline agent
    *  for guests and leave them with no way to start the demo. */
   const onMiddlePlacementInDashboard =
-    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute);
+    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute || pathname === "/dashboard");
   /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise.
    *  onLiveWorkbenchRoute always mounts the agent here regardless of agentPlacement: this route's entire purpose
    *  requires the real agent to be present (narrow, inline), and unlike UserDashboard it renders no dock fallback
@@ -940,18 +941,18 @@ function AppWithAuth() {
                   }
                 />
                 {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage.
-                    No loading guard — DashboardContent handles user=null with demo data immediately. */}
+                    No loading guard — DashboardContent handles user=null with demo data immediately.
+                    Admins get the same surface: the dashboard is viewable without a customer
+                    token, and DashboardContent falls back to demo data when the backend answers
+                    admin_token_forbidden. It used to render AdminBlockedDashboard here, a wall
+                    whose only way forward was a role switch that signed the admin out. */}
                 <Route
                   path="/dashboard"
                   element={
                     <>
                       <TopNav user={user} onLogout={logout} />
                       <main className="main-content">
-                        {user?.role === "admin" ? (
-                          <AdminBlockedDashboard user={user} onLogout={logout} />
-                        ) : (
-                          <DashboardContent user={user} logout={logout} />
-                        )}
+                        <DashboardContent user={user} logout={logout} />
                       </main>
                     </>
                   }
@@ -1004,8 +1005,27 @@ function AppWithAuth() {
                               "Render smoke" tests for the failure mode. To
                               add a new admin route, add it to this block and
                               wrap with <AdminRoute user={user}>...</AdminRoute>. */}
+                            {/* /admin is the PingOne admin dashboard. It was
+                                briefly repointed at the support console (#1486)
+                                and reverted (#REVERT): the console does not yet
+                                carry what this page does — group membership,
+                                the PingOne user record on lookup, the full
+                                token chain — so the repoint lost real
+                                capability. It moves back once the console is at
+                                parity. The support console lives at
+                                /admin/<vertical> meanwhile. */}
                             <Route
                               path="/admin"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <Dashboard user={user} onLogout={logout} />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            {/* Kept from #1486 so the Platform Admin nav entry
+                                and any bookmark still resolve. Same component. */}
+                            <Route
+                              path="/admin/pingone"
                               element={
                                 <RequireAdminLogin user={user}>
                                   <Dashboard user={user} onLogout={logout} />

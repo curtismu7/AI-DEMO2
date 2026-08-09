@@ -159,7 +159,11 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
-  { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
+  { id: "platform-admin", paths: ["/admin", "/admin/pingone"] },
+  // No "/admin" here — it belongs to platform-admin now that the dashboard
+  // is back on it. Listing a path in two sections expands both, which
+  // breaks the single-section accordion.
+  { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
@@ -209,7 +213,6 @@ export default function AdminSideNav({ user }) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [navFilter, setNavFilter] = useState("");
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
-  const [custLoading, setCustLoading] = useState(false);
   const [navOrder, setNavOrder] = useState(null);
   const [childOrder, setChildOrder] = useState(null);
   const isResizing = useRef(false);
@@ -701,18 +704,40 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
+      label: "Platform Admin",
+      icon: "cfg",
+      children: [
+        // The PingOne admin dashboard used to be /admin and had no side-nav
+        // entry at all — it was reached by URL. The support console took
+        // /admin, so this content moved to /admin/pingone and now has one.
+        {
+          label: "PingOne Admin",
+          path: "/admin/pingone",
+          icon: "cfg",
+          adminOnly: true,
+        },
+      ],
+    },
+    {
       label: "Industry Verticals",
       icon: "bld",
       children: [
-        { label: "Banking Ops", path: "/admin/banking", icon: "acc" },
-        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
-        { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
+        // adminOnly does not hide these — it shows the "admin" badge and
+        // prompts an admin re-login on click. Every /admin/<vertical> route has
+        // been wrapped in RequireAdminLogin since PR #1473, but the nav was
+        // never updated to match, so a non-admin got an ordinary-looking link
+        // that dead-ends at the route-level login wall. /admin is the same.
+        { label: "Support Console", path: "/admin/sporting-goods", icon: "bld", adminOnly: true },
+        { label: "Banking Ops", path: "/admin/banking", icon: "acc", adminOnly: true },
+        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg", adminOnly: true },
+        { label: "Retail Ops", path: "/admin/retail", icon: "cfg", adminOnly: true },
         {
           label: "Sporting Goods Ops",
           path: "/admin/sporting-goods",
           icon: "cfg",
+          adminOnly: true,
         },
-        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg" },
+        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg", adminOnly: true },
         {
           label: "Vertical Editor",
           path: "/admin/verticals",
@@ -1123,8 +1148,18 @@ export default function AdminSideNav({ user }) {
 
     switch (action) {
       case "switch-role": {
-        const targetRole = isAdmin ? "customer" : "admin";
-        startRoleSwitch(targetRole).catch((e) => {
+        // The two directions are not symmetric. "Customer View" is a view
+        // change: the customer dashboard is viewable without authentication, so
+        // it must not sign the admin out — startRoleSwitch POSTs
+        // /api/auth/switch, which returns the login URL and destroys the current
+        // session. "Admin View" genuinely changes identity and still requires
+        // authenticating as an admin.
+        if (isAdmin) {
+          spinner.show("Loading customer dashboard…", "/dashboard");
+          navigate("/dashboard");
+          break;
+        }
+        startRoleSwitch("admin").catch((e) => {
           console.error("[Sidebar] Role switch failed:", e.message);
         });
         break;
@@ -1395,37 +1430,19 @@ export default function AdminSideNav({ user }) {
             type="button"
             className={`admin-side-nav__quick-link${location.pathname === "/dashboard" ? " admin-side-nav__quick-link--active" : ""}`}
             title="Agent View"
-            disabled={custLoading}
+            // Viewing the customer dashboard never re-authenticates. This used to
+            // POST /api/auth/switch, which returns {redirectUrl:'/api/auth/oauth/
+            // user/login'} \u2014 it destroyed the admin session and forced a PingOne
+            // login just to look at the page. The customer dashboard is viewable
+            // without authn; only protected prompts need it. An admin token is
+            // refused on customer data (requireNotAdmin, 403), so the dashboard
+            // shows demo data, exactly as it does for a signed-out visitor.
             onClick={() => {
-              if (!isAdmin) {
-                spinner.show('Loading customer dashboard\u2026', '/dashboard');
-                navigate("/dashboard");
-                return;
-              }
-              setCustLoading(true);
               spinner.show('Loading customer dashboard\u2026', '/dashboard');
-              fetch("/api/auth/switch", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ targetRole: "customer" }),
-              })
-                .then((r) => r.json())
-                .then(({ redirectUrl }) => {
-                  window.location.href = redirectUrl;
-                })
-                .catch((e) => {
-                  console.error("[QuickNav] switch failed:", e.message);
-                  setCustLoading(false);
-                  spinner.hide();
-                });
+              navigate("/dashboard");
             }}
           >
-            {custLoading ? (
-              <span className="admin-side-nav__quick-link-spinner" aria-label="Loading" />
-            ) : (
-              collapsed ? "Ag" : "Agent"
-            )}
+            {collapsed ? "Ag" : "Agent"}
           </button>
           <button
             type="button"

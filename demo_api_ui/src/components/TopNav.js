@@ -72,12 +72,23 @@ export default function TopNav({ user, onLogout }) {
       location.pathname === '/error-audit' ||
       location.pathname === '/oauth-debug');
 
-  // Real token switch (not a view toggle): signs out and re-logs in under the
-  // other role so the session carries a token actually issued for that role.
-  // Admins can't view the customer dashboard with an admin token, so the only
-  // way there is to switch to a user token.
+  // Asymmetric by design. Going to the customer dashboard is a view change: it
+  // renders without authentication (demo data when the token can't read customer
+  // records), so it must not sign the admin out. Going to admin is a real
+  // identity change and still re-logs in under an admin token.
+  //
+  // The previous comment here said an admin "can't view the customer dashboard
+  // with an admin token, so the only way there is to switch" — that stopped
+  // being true when the dashboard started falling back to demo data on
+  // admin_token_forbidden.
   const { switching, switchRole } = useRoleSwitch();
-  const handleSwitchRole = () => switchRole(isAdmin ? 'customer' : 'admin');
+  const handleSwitchRole = () => {
+    if (isAdmin) {
+      navigate('/dashboard');
+      return;
+    }
+    switchRole('admin');
+  };
 
   function formatCountdown(seconds) {
     if (seconds === null || seconds < 0) return '';

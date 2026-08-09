@@ -51,7 +51,6 @@ import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 import AgentIdentityCard from "./AgentIdentityCard";
-import StaleSessionBanner from "./StaleSessionBanner";
 
 /** Format a number as USD currency — $1,234.56 */
 const fmt = (n) =>
@@ -427,9 +426,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             }
             // silent refresh 401 — ignore; next explicit load will handle it
           } else if (dataErr.response?.status === 403) {
-            notifyError(
-              "You do not have permission to access this information.",
-            );
+            // admin_token_forbidden: an admin is viewing the customer dashboard.
+            // requireNotAdmin refuses admin tokens on customer data by design, so
+            // there is nothing to re-authenticate *for* — show the same demo data a
+            // guest sees rather than an error the admin cannot act on. Signing in as
+            // a customer stays available from the header.
+            if (dataErr.response?.data?.error === "admin_token_forbidden") {
+              if (!silent) loadDemoFallback("admin token — customer data not available");
+            } else {
+              notifyError(
+                "You do not have permission to access this information.",
+              );
+            }
           } else if (!silent) {
             // API unreachable or 5xx — fall back to demo without blocking the user
             loadDemoFallback("could not reach banking API");
@@ -3506,7 +3514,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       data-refined-surface="customer"
       data-rd-v2
     >
-      <StaleSessionBanner />
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div

@@ -1134,3 +1134,98 @@ the application is not bound to it.
 Everything reachable from this repo has been eliminated by test rather than argument:
 ports probed, certs mounted and reverted, the full vendor tree mounted, two PingOne
 environments tried, and both frontend topologies exercised.
+
+## 2026-08-09: the real rejection point, and it reproduces on Ping's own cloud
+
+Two findings that supersede the diagnosis in the correction above. Both came from
+reading the gateway's own log delta per request rather than from the HTTP response.
+
+### 1. It is not `AuthzMiddleware`. It is `ValidateInfraJwt`.
+
+Every earlier section blamed the app's `AuthzMiddleware` and its empty
+`IssuerPublicKey`. That object is real and it is empty, but requests never reach it.
+The gateway log for an authenticated request says:
+
+```
+plasma.(*Graph).ValidateInfraJwt.func1            graph.go:282
+  Kid: b3676630-823d-11f1-9dd9-913a8c30ada1 doesn't match InfraKid: infra-root-jwt
+
+plasma.(*Graph).ValidateInfraJwt                  graph.go:287
+  JWT signature validation failed
+
+edgeproxy.(*AgentlessRestAPIService).forwardReq   agentless_api.go:98
+  authorization header JWT parsing failed: ... [REDACTED]
+```
+
+The handler on `-alp-port` compares the token's `kid` against a fixed
+**`infra-root-jwt`** and fails on mismatch. `infra-root-jwt` is not a literal in the
+binary, so it is runtime state from enrollment.
+
+Consequences worth internalising:
+
+- **No PingOne token can ever match**, whatever the environment, audience or scope.
+  Neither can a token self-signed with `mcpgw-key.pem` — both were tested.
+- **The surfaced error is misleading.** It says "JWT signature validation failed"
+  when no signature was checked; only a key id was compared. Chasing signature,
+  issuer or JWKS problems from that string wastes time.
+- An unauthenticated request fails earlier still, at `pcrypto.GetBearerToken`
+  ("authorization header missing") via `agentless_api.go:91`.
+
+The graph node exists and is wired — `AuthzMiddleware(MCP-aidemo)` has
+`Next:{BackendCluster http-MCP-aidemo}` — it is simply never reached.
+
+### 2. Ping's own hosted frontend fails identically
+
+Tested once against the console-assigned FQDN
+`MCP-aidemo-app-default.applications.privilege.pingone.com` (DNS → 18.225.158.143):
+
+```
+:8643 no auth            401  content-length: 24    "Bearer Token not found."
+:443  no auth            401  content-length: 24    "Bearer Token not found."
+:8643 .well-known x2     401  "Bearer Token not found."
+:8643 + PingOne bearer   401  content-length: 999   "JWT signature validation failed"
+
+our local proxy log during all of the above:  (nothing)
+```
+
+Byte-identical to our own gateway, and Ping's cloud rejected everything at its own
+edge without forwarding over the mesh.
+
+**This is the most useful result in the whole investigation.** The failure reproduces
+on infrastructure we do not run, so nginx, ports, certificates, `pingone.env`, the
+tree mount and DNS were never the cause. No change in this repo can fix it, and
+local debugging has no remaining surface.
+
+Testing is local-only from here; that cloud probe was a one-off and should not be
+repeated.
+
+### The question, with the strongest possible backing
+
+> MCP application `MCP-aidemo` (`AppType:mcp`) in tenant `8d4d7a4c`, cluster
+> `ai-demo-fresh`, image `v1.260726`. Both the Ping-assigned frontend and a
+> self-hosted agentless frontend return `401 Bearer Token not found.` with no
+> `WWW-Authenticate`, on every path including `/authorize` and both `.well-known`
+> documents. With a PingOne bearer from that same tenant the proxy logs
+> `Kid: … doesn't match InfraKid: infra-root-jwt` in `ValidateInfraJwt`. The app's
+> `AuthzMiddleware` carries `IssuerPublicKey:[]`.
+> **What token should an MCP client present, and what populates the application's
+> authorization server?**
+
+`AppUserToken` (315 references) and `AIAgentAccount` (555 references) are first-class
+object types in the proxy binary, both with `create` verbs in `cyctl`, so a
+Privilege-issued identity token is the most likely answer. Nothing in this repo can
+mint one.
+
+### Reproducing all of this
+
+Three local-only scripts, kept out of the repo (session scratchpad):
+
+| Script | Purpose |
+|---|---|
+| `report.sh` | Generates `MCPGW-DEBUG-REPORT.md` — every request, full headers and bodies, and the gateway log delta each request produced |
+| `diag.sh` | Eleven-step path trace: containers, ports, DNS, TLS, both hops, token mint, control-plane objects |
+| `mcpmatrix.sh` | Request-shape sweep — verbs, paths, protocol versions, auth header forms, Host values |
+
+The log-delta technique is what exposed `ValidateInfraJwt`: capture
+`wc -c` of `/var/log/procyon/cyonproxy.log` before and after each request and tail the
+difference. The HTTP response alone never revealed it.

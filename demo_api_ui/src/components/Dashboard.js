@@ -18,6 +18,10 @@ import { navigateToAdminOAuthLogin } from "../utils/authUi";
 import { toastAdminSessionError } from "../utils/dashboardToast";
 import "../styles/appShellPages.css";
 import "./Dashboard.css";
+// Console visual language for this page — additive CSS only, scoped to
+// .admin-dashboard-page. See the file header for why the look moved here
+// rather than the features moving to the console.
+import "./AdminDashboardSkin.css";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useSessionToken } from '../context/SessionTokenContext';
 import { useEventStream } from "../context/EventStreamContext";

@@ -63,20 +63,61 @@ a custom header, Basic auth, or mTLS — all things PingOne can actually send.
 ### Payload shape
 
 PingOne posts a **batch**: a JSON array of up to 500 events. The route accepts
-an array or a single bare object, keeps every element with a string `type`,
+an array or a single bare object, keeps every element with a usable event type,
 drops the rest, and returns `{ received, eventId, eventIds, count }`. It returns
 400 `invalid_event` only when nothing in the payload is usable.
+
+The event type lives at **`action.type`**, not at the top level — a real
+delivery looks like:
+
+```json
+[ { "id": "...", "recordedAt": "...",
+    "actors": { "user": { "id": "...", "environment": { "id": "..." } } },
+    "action": { "type": "EVENT_DELIVERY_TEST" },
+    "result": { "status": "SUCCESS" },
+    "_embedded": {} } ]
+```
+
+Two traps worth knowing, both of which cost real 400s here: `_embedded` is `{}`
+on live payloads, so the environment must be read off the actor; and reading a
+top-level `type` matches hand-written curls while failing every genuine PingOne
+event.
 
 ### Reachability
 
 The endpoint must be reachable from PingOne's cloud.
-`https://api.ping.demo:3001/webhook/pingone` is a local-only hostname and will
-never work. Either:
+`https://api.ping.demo:3001/webhook/pingone` and `https://local.ping-devops.com:4000`
+are **local-only** — both are `/etc/hosts` entries pointing at 127.0.0.1 and
+resolve to nothing from outside your machine, despite looking like real domains.
 
-- point the subscription at the SE AWS deployment,
-  `https://ai-demo.ping-devops.com/webhook/pingone`, or
-- run a public tunnel (ngrok, Cloudflare Tunnel) to your local BFF and use the
-  tunnel URL.
+**Recommended: a public tunnel.** This repo is set up for ngrok with a static
+domain, managed by a launchd agent so it survives logout:
+
+    ~/Library/LaunchAgents/com.cmuir.ngrok-pingone-webhook.plist
+
+Start/stop with `launchctl load|unload` on that path; logs at
+`/tmp/ngrok-pingone-webhook.log`. Manually:
+
+    ngrok http https://localhost:3001 --url https://<your-static-domain>
+
+The static domain matters: the PingOne subscription keeps working across
+restarts instead of needing a new URL each time.
+
+Note the tunnel exposes the **whole BFF** on :3001, not just `/webhook/`.
+
+**SE AWS deployment.** `https://ai-demo.ping-devops.com/webhook/pingone` works
+only when the cluster is actually deployed — as of 2026-08-09 the host is
+NXDOMAIN. Two things had to be true for it to work at all, and one of them was
+missing until now:
+
+- the ingress sends `/` to `frontend:4000`, so the request lands on nginx, and
+- nginx must proxy `/webhook/` to the BFF.
+
+Without that nginx rule the request falls through to `location /` and is
+answered with the SPA's `index.html` — **HTTP 200 with an HTML body**. PingOne
+records the delivery as successful and the events are silently discarded, which
+is worse than a clean failure. The rule now exists in `demo_api_ui/nginx.conf`,
+but has not been exercised against a live cluster.
 
 ### Console fields
 
@@ -84,10 +125,15 @@ Same as Option A except:
 
 | Field | Value |
 |---|---|
-| Destination URL | your tunnel or `https://ai-demo.ping-devops.com/webhook/pingone` |
+| Destination URL | your tunnel URL + `/webhook/pingone` |
 | Basic Authentication | leave blank — the endpoint ignores credentials |
-| Event Schema | **Ping Activity** — the mapper reads `type`, `actors`, `result`, `resources`, `recordedAt` |
-| Allow TLS with untrusted certificates | check only if the target uses a mkcert/self-signed cert |
+| Event Schema | **Ping Activity** — the mapper reads `action.type`, `actors`, `result`, `resources`, `recordedAt` |
+| Allow TLS with untrusted certificates | unchecked for ngrok (real cert); check only for a mkcert/self-signed target |
+| Payload Limit | Limit by Events, **1** — at the default 500 nothing appears until a batch fills |
+
+PingOne issues a `HEAD` before it will `POST` (that is what **Test Connection**
+sends). The route answers 200; if you see the console report the subscription as
+unreachable, check that first.
 
 ### Verifying
 

@@ -1,0 +1,151 @@
+/* AdminDashboardSkin.css — the support console's visual language, applied to
+ * the admin dashboard.
+ *
+ * Purely additive and scoped to .admin-dashboard-page. No markup moved, no
+ * feature touched: /admin was briefly repointed at the console (#1486) and
+ * reverted (#1494) because that lost PingOne lookup, group membership and the
+ * full token chain. The look was the only thing worth keeping, so it is brought
+ * to the features rather than the features to it.
+ *
+ * .dash-shell-card had no base style anywhere in src — it was an unstyled hook,
+ * which is why this page read as plainer than the console. These rules give it
+ * the same card treatment SupportConsole.css gives .vops__card.
+ *
+ * Every rule sets background and colour together. A colour-only override is how
+ * the group-membership modal ended up near-white on white (#1483); the page
+ * shell here is light in every scheme, so nothing is lightened for dark mode.
+ */
+
+.admin-dashboard-page {
+  /* Accent matches SupportConsole.css. Surface, border and text defer to the
+     dashboard's existing --dash-* tokens so a theme change moves this page with
+     the rest of the admin UI; the literals are fallbacks, not the source. */
+  --admin-accent: #2563eb;
+  --admin-accent2: #1e3a8a;
+  --admin-tint: #eef4ff;
+  --admin-surface: var(--dash-surface, #ffffff);
+  --admin-line: var(--dash-border, #eceef5);
+  --admin-ink: var(--dash-text, #1a2230);
+  --admin-muted: var(--dash-muted, #69748a);
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.admin-dashboard-page .dash-shell-card {
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  /* Deliberately NOT overflow: hidden. SupportConsole's .vops__card can afford
+     it, but this page hosts TokenChainTraceRail, whose .tctr-more-pop is
+     position:absolute at top: calc(100% + 5px) — clipping it would put the
+     rail's "more" menu out of reach. The card head clips its own corners
+     instead. */
+}
+
+.admin-dashboard-page .dash-shell-card + .dash-shell-card {
+  margin-top: 0;
+}
+
+.admin-dashboard-page .dash-shell-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f1f7;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+  /* Clips its own top corners, since the card no longer clips for it. */
+  border-radius: 14px 14px 0 0;
+}
+
+/* Everything after the title gets the card's inner padding. */
+.admin-dashboard-page .dash-shell-card > *:not(.dash-shell-card__title) {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.admin-dashboard-page .dash-shell-card > *:last-child {
+  padding-bottom: 14px;
+}
+
+/* ── Section subheadings (Customer profile / Accounts / Recent transactions) */
+
+.admin-dashboard-page .dash-shell-card h3 {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-muted);
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+
+.admin-dashboard-page .dash-shell-card input[type="text"],
+.admin-dashboard-page .dash-shell-card input:not([type]) {
+  border: 1px solid #e1e5ef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+}
+
+.admin-dashboard-page .dash-shell-card input:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 1px;
+}
+
+.admin-dashboard-page .dash-shell-card button {
+  border: 1px solid #dfe3ee;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+  cursor: pointer;
+}
+
+.admin-dashboard-page .dash-shell-card button:hover:not(:disabled) {
+  background: var(--admin-tint);
+  border-color: color-mix(in srgb, var(--admin-accent) 30%, #ffffff);
+}
+
+.admin-dashboard-page .dash-shell-card button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Key metrics tiles ──────────────────────────────────────────────────── */
+
+.admin-dashboard-page [aria-label^="View "][aria-label$=" details"] {
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.admin-dashboard-page [aria-label^="View "][aria-label$=" details"]:hover {
+  background: var(--admin-tint);
+  border-color: color-mix(in srgb, var(--admin-accent) 30%, #ffffff);
+}
+
+/* ── Token chain column ─────────────────────────────────────────────────── */
+
+.admin-dashboard-page .dash-shell-card--token {
+  background: var(--admin-surface);
+  /* No overflow declaration here on purpose. The base card no longer clips, and
+     in split layout Dashboard.css sets overflow-y: auto on this card with
+     higher specificity (main.admin-dash-main--split ...) — writing
+     `overflow: visible` here would be a no-op that reads like a guarantee the
+     rail's popup always escapes. It does not in split layout, and that is
+     pre-existing behaviour, not something this skin introduced. */
+}
