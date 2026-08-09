@@ -2,6 +2,7 @@
 // TokenChainModal. Single-column by construction (no viewport media queries).
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
@@ -13,6 +14,7 @@ import TraceStepCard from "./TraceStepCard";
 import TokenChainNodeRail from "./TokenChainNodeRail";
 import StepDetailPanel from "./StepDetailPanel";
 import ChainViewMenu from "./ChainViewMenu";
+import DemoTrackBand from "./DemoTrackBand";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -225,6 +227,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   // the header so the visible toolbar is Views and More, not twenty controls.
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef(null);
+  // The presenter's script. The server owns it (demo_api_server/config/demoTrack.js)
+  // and TokenChainDemoTrackTab reads the same endpoints — the band must not
+  // become a second copy of a nine-step list that changes.
+  const [track, setTrack] = useState([]);
+  const [trackIndex, setTrackIndex] = useState(0);
   // Scope card lookups to THIS rail. The rail mounts on ~28 pages and
   // FloatingTokenChainPanel can put a second one over a dashboard that already
   // embeds one; a document-wide query would open the other rail's card and
@@ -270,6 +277,41 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       document.removeEventListener("keydown", onKey);
     };
   }, [moreOpen]);
+
+  // `n` is the step's position in the track, not a server field — deriving it
+  // here is not a second source of truth; hardcoding the titles would be.
+  // Promise.resolve() because apiClient is mocked to a bare vi.fn() in several
+  // suites, where a raw .then() would throw inside the effect.
+  useEffect(() => {
+    if (mcpRouteOnly) return undefined;
+    let alive = true;
+    Promise.resolve(apiClient.get("/api/demo-track"))
+      .then((res) => {
+        const serverSteps = res?.data?.track?.steps;
+        if (!alive || !Array.isArray(serverSteps)) return;
+        setTrack(serverSteps.map((s, i) => ({
+          n: i + 1,
+          stepId: s.stepId,
+          act: s.act,
+          title: s.title,
+          capability: s.capability,
+          buyerStory: s.buyerStory,
+        })));
+        const at = serverSteps.findIndex((s) => s.stepId === res?.data?.run?.activeStepId);
+        if (at >= 0) setTrackIndex(at);
+      })
+      .catch(() => { /* no track available — the band renders nothing */ });
+    return () => { alive = false; };
+  }, [mcpRouteOnly]);
+
+  // Report the presenter's position, the same way TokenChainDemoTrackTab does.
+  const onTrackSelect = useCallback((index) => {
+    setTrackIndex(index);
+    const stepId = track[index]?.stepId;
+    if (!stepId) return;
+    Promise.resolve(apiClient.post("/api/demo-track/active-step", { stepId }))
+      .catch(() => { /* position is local either way */ });
+  }, [track]);
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   useEffect(() => subscribeTrustFlags(setTrustFlags), []);
@@ -468,6 +510,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           {viewMode === "live" && steps.length === 0 && (
             <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
           )}
+          <DemoTrackBand track={track} activeIndex={trackIndex} onSelect={onTrackSelect} />
           <TokenChainNodeRail
             steps={steps}
             activeId={activeStepId}
