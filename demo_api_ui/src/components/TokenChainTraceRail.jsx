@@ -12,6 +12,7 @@ import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementCont
 import TraceStepCard from "./TraceStepCard";
 import TokenChainNodeRail from "./TokenChainNodeRail";
 import StepDetailPanel from "./StepDetailPanel";
+import ChainViewMenu from "./ChainViewMenu";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -151,6 +152,18 @@ export function buildLiveTokenChainSteps(steps, trace) {
   });
   return projected.map((step, index) => ({ ...step, num: index + 1 }));
 }
+
+// ChainViewMenu names the views; the rail decides what one is. Its ids are
+// camelCase, the tab state is the rail's existing kebab vocabulary — the only
+// place the two differ is Demo Track.
+const VIEW_ID_TO_TAB = {
+  tokens: "tokens",
+  mcp: "mcp",
+  trust: "trust",
+  simple: "simple",
+  detailed: "detailed",
+  demoTrack: "demo-track",
+};
 
 const CHAIN_DOTS = [
   { cls: "user", label: "User" },
@@ -316,6 +329,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           </div>
         </div>
         <div className="tctr-head-actions">
+          <ChainViewMenu
+            steps={steps}
+            showTrust={showTrust}
+            onOpenView={(viewId) => setTab(VIEW_ID_TO_TAB[viewId] || "chain")}
+          />
           <div className="tctr-zoom" role="group" aria-label="Token chain text size">
             <button
               type="button"
