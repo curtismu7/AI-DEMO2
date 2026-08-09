@@ -23,6 +23,11 @@ export default function SupportConsole({ vertical }) {
   // Which customer verifiedUntil belongs to — mirrors the server keying it by
   // customer id, so a refresh keeps it and a different customer drops it.
   const verifiedCustomerRef = useRef(null);
+  // Monotonic id for in-flight lookups. The queue rail makes overlapping
+  // lookups a two-click gesture, and without this a slower earlier response
+  // overwrites a newer one — leaving the operator looking at, and acting on,
+  // a different customer than the one they selected.
+  const lookupSeq = useRef(0);
   const [scopes, setScopes] = useState([]);
   const [scopeSource, setScopeSource] = useState(null);
   const traceRef = useRef(null);
@@ -50,9 +55,12 @@ export default function SupportConsole({ vertical }) {
   // without synthesising a form event.
   const runLookup = useCallback(async (query) => {
     if (!String(query || '').trim()) return;
+    const seq = (lookupSeq.current += 1);
+    const superseded = () => seq !== lookupSeq.current;
     setLoading(true);
     try {
       const { data } = await bffAxios.get(cfg.lookupPath, { params: { q: query } });
+      if (superseded()) return;
       const next = cfg.adaptLookup(data);
       setResult(next);
       // Drop verification only when this resolves a DIFFERENT customer. A new
@@ -66,10 +74,15 @@ export default function SupportConsole({ vertical }) {
         verifiedCustomerRef.current = null;
       }
     } catch (err) {
+      if (superseded()) return;
       const st = err?.response?.status;
       notifyError(st === 401 ? 'Session expired — please sign in again.' : 'Lookup failed.');
       setResult(null);
-    } finally { setLoading(false); }
+    } finally {
+      // A superseded request must not clear the spinner out from under the
+      // newer one that is still running.
+      if (!superseded()) setLoading(false);
+    }
   }, [cfg]);
 
   const doLookup = useCallback(async (e) => {

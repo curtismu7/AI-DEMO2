@@ -204,3 +204,40 @@ it('opening queued work runs the ordinary lookup for that customer', async () =>
   );
   await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
 });
+
+it('a slow earlier lookup does not overwrite a newer selection', async () => {
+  // Two overlapping lookups, with the FIRST resolving last. Without a sequence
+  // guard the stale response wins and the operator ends up viewing — and able
+  // to act on — a customer they did not select.
+  let resolveFirst;
+  const firstResponse = new Promise((r) => { resolveFirst = r; });
+
+  const CASEY = { user: { id: 'u2', name: 'Casey Stone' }, data: { orders: [] } };
+
+  bffAxios.get.mockImplementation((url, config) => {
+    if (url.endsWith('/permissions')) {
+      return Promise.resolve({ data: { scopes: ['transactions:write'], source: 'introspection' } });
+    }
+    if (url.endsWith('/queue')) return Promise.resolve({ data: { data: { rows: [] } } });
+    if (url.includes('/lookup')) {
+      return config?.params?.q === 'marcus' ? firstResponse : Promise.resolve({ data: CASEY });
+    }
+    return Promise.resolve({ data: { data: { notes: [] } } });
+  });
+
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+
+  const input = screen.getByPlaceholderText(/Look up a member/i);
+  fireEvent.change(input, { target: { value: 'marcus' } });
+  fireEvent.submit(screen.getByTestId('vops-lookup-form'));
+
+  fireEvent.change(input, { target: { value: 'casey' } });
+  fireEvent.submit(screen.getByTestId('vops-lookup-form'));
+
+  await waitFor(() => expect(screen.getByText('Casey Stone')).toBeInTheDocument());
+
+  // The earlier request now lands. It must be ignored.
+  resolveFirst({ data: LOOKUP });
+  await waitFor(() => expect(screen.getByText('Casey Stone')).toBeInTheDocument());
+  expect(screen.queryByText('Marcus Hall')).toBeNull();
+});
