@@ -112,7 +112,11 @@ async function _handleView(viewName, req, res) {
     return res.status(503).json({ error: 'newrelic_not_configured' });
   }
 
-  const view = VIEWS[viewName];
+  // VIEWS is a plain object literal, so a bare VIEWS[viewName] lookup resolves
+  // inherited names ('__proto__', 'constructor', 'toString', ...) through the
+  // prototype chain as truthy. Object.hasOwn restricts the lookup to VIEWS'
+  // own keys so those names correctly 400 as invalid_view.
+  const view = Object.hasOwn(VIEWS, viewName) ? VIEWS[viewName] : undefined;
   if (!view) {
     return res.status(400).json({ error: 'invalid_view' });
   }

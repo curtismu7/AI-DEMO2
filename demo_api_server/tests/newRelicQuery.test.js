@@ -168,6 +168,17 @@ describe('GET /api/newrelic/view/:view', () => {
     expect(res.body.error).toBe('invalid_view');
   });
 
+  it.each(['__proto__', 'constructor'])(
+    '400s on the prototype-chain view name %s instead of falling through to a 502',
+    async (viewName) => {
+      process.env.NR_USER_API_KEY = 'k';
+      process.env.NR_ACCOUNT_ID = '8369622';
+      const res = await request(makeApp()).get(`/api/newrelic/view/${viewName}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('invalid_view');
+    },
+  );
+
   it('accepts the 7d window', async () => {
     process.env.NR_USER_API_KEY = 'k';
     process.env.NR_ACCOUNT_ID = '8369622';
