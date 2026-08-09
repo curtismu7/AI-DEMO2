@@ -20,13 +20,28 @@
 - **Dark mode:** every new component must paint its own `background` from a `--*-ground` token defined in **both** themes, keyed to `:root[data-theme="dark"]` — never `prefers-color-scheme`. This is the #1484 regression.
 - Pages and proxy stay **public** — no `authenticateToken`, no session checks.
 
-### Spec correction (verified during planning)
+### What PingOne actually returns
 
-The spec lists "populate `decisionId`" as an emit-site addition. **No code change is
-possible or needed:** `pingOneAuthorizeService.js:459` already does
-`raw.id || raw.decisionId || null` and `routes/authorize.js` already threads it into
-the event metadata. It arrives `null` because PingOne's decision response carries no
-id on this path — upstream behavior, not a gap. Only `latencyMs` is implemented.
+Captured live from both a PERMIT and a DENY on 2026-08-09, via the
+`[BFF→P1AZ] RESPONSE` log line in `pingOneAuthorizeService.js`:
+
+```json
+{
+  "correlationId": "48c67322-351e-45b4-8614-ce5208b2651f",
+  "timestamp": "2026-08-09T13:06:03.967328809Z",
+  "elapsedMicroseconds": 2885,
+  "status": { "code": "OKAY" },
+  "decision": "PERMIT",
+  "statements": [ { "name": "Transaction Approved",
+                    "code": "transaction-approved",
+                    "payload": "{\"approved\": true, …}" } ]
+}
+```
+
+An earlier draft of the spec said `decisionId`, `latencyMs` and `ruleName` were
+unavailable upstream. **All three are present** and were simply never read —
+`decisionId` returns null only because the extractor looks for `raw.id ||
+raw.decisionId`, and PingOne sends neither. Task 2 captures them.
 
 ---
 
@@ -37,7 +52,8 @@ id on this path — upstream behavior, not a gap. Only `latencyMs` is implemente
 | `demo_api_server/routes/newRelicQuery.js` | **Modify.** View registry, `7d` window, `/view/:view` route, `/pipeline` alias |
 | `demo_api_server/tests/newRelicQuery.test.js` | **Modify.** Registry + window tests |
 | `demo_api_server/routes/authorize.js` | **Modify.** `latencyMs` on the live-evaluate emit |
-| `demo_api_server/tests/authorizeLatency.test.js` | **Create.** Asserts `latencyMs` is emitted |
+| `demo_api_server/services/pingOneAuthorizeService.js` | **Modify.** Read `correlationId`, `elapsedMicroseconds`, `statements[0]` |
+| `demo_api_server/tests/authorizeDecisionFields.test.js` | **Create.** Asserts decisionId / ruleName / both latencies are emitted |
 | `demo_api_ui/src/components/dashboard/DashboardShell.jsx` | **Create.** Window selector, theme toggle, refresh, five states |
 | `demo_api_ui/src/components/dashboard/StatStrip.jsx` | **Create.** Labelled counts with scaled bars |
 | `demo_api_ui/src/components/dashboard/EventStream.jsx` | **Create.** Scrollable table |
@@ -234,15 +250,21 @@ function _authorizeQuery(accountId, since, bucket) {
     `SELECT count(*) FROM Log WHERE category='authorize' AND decision IS NOT NULL FACET decision SINCE ${since}`;
   const posture =
     `SELECT count(*) FROM Log WHERE category='authorize' FACET tag SINCE ${since}`;
+  // Which policy fired. Only events emitted after Task 2 carry ruleName, so
+  // older records fall into the null facet — the page labels that
+  // "unattributed" rather than hiding it.
+  const rules =
+    `SELECT count(*) FROM Log WHERE category='authorize' FACET ruleName SINCE ${since} LIMIT 10`;
   const timeseries =
     `SELECT count(*) FROM Log WHERE category='authorize' TIMESERIES ${bucket} SINCE ${since}`;
   const stream =
-    'SELECT timestamp, tag, decision, amount, stepUpRequired, type, engine, latencyMs ' +
+    'SELECT timestamp, tag, decision, ruleName, amount, stepUpRequired, type, engine, latencyMs, policyEvalMs ' +
     `FROM Log WHERE category='authorize' SINCE ${since} LIMIT 50`;
 
   return `{ actor { account(id: ${Number(accountId)}) {
     decisions: nrql(query: ${JSON.stringify(decisions)}) { results }
     posture: nrql(query: ${JSON.stringify(posture)}) { results }
+    rules: nrql(query: ${JSON.stringify(rules)}) { results }
     timeseries: nrql(query: ${JSON.stringify(timeseries)}) { results }
     stream: nrql(query: ${JSON.stringify(stream)}) { results }
   } } }`;
@@ -264,6 +286,7 @@ const VIEWS = {
     map: (a) => ({
       decisions: a.decisions?.results || [],
       posture: a.posture?.results || [],
+      rules: a.rules?.results || [],
       timeseries: a.timeseries?.results || [],
       stream: a.stream?.results || [],
     }),
@@ -353,19 +376,23 @@ git commit -m "feat(nr): view registry and 7d window on the New Relic proxy"
 
 ---
 
-## Task 2: Emit latencyMs on authorize decisions
+## Task 2: Capture decisionId, rule name and latency
 
 **Files:**
+- Modify: `demo_api_server/services/pingOneAuthorizeService.js:459`
 - Modify: `demo_api_server/routes/authorize.js` (the live-evaluate handler, ~line 393)
-- Create: `demo_api_server/tests/authorizeLatency.test.js`
+- Create: `demo_api_server/tests/authorizeDecisionFields.test.js`
 
 **Interfaces:**
 - Consumes: nothing from Task 1.
-- Produces: `authorize` app events carry a numeric `latencyMs` in `metadata`. Task 4 renders it.
+- Produces: `evaluatePingOneTransaction` resolves with `decisionId`,
+  `policyEvalMs`, `ruleName` and `ruleCode` alongside its existing fields; the
+  `authorize` app event carries those plus a wall-clock `latencyMs` in
+  `metadata`. Task 4 renders `ruleName`, `latencyMs` and `policyEvalMs`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `demo_api_server/tests/authorizeLatency.test.js`:
+Create `demo_api_server/tests/authorizeDecisionFields.test.js`:
 
 ```javascript
 'use strict';
@@ -392,61 +419,155 @@ function makeApp() {
   return app;
 }
 
+// Mirrors a real PingOne response — see the plan header for the captured body.
 beforeEach(() => {
   jest.clearAllMocks();
   process.env.NR_LICENSE_KEY = '';
   p1az.evaluatePingOneTransaction.mockResolvedValue({
     decision: 'DENY',
     stepUpRequired: true,
-    decisionId: null,
+    decisionId: '48c67322-351e-45b4-8614-ce5208b2651f',
+    policyEvalMs: 2.885,
+    ruleName: 'Transaction Denied',
+    ruleCode: 'transaction-denied',
     path: 'decision-endpoint',
     raw: {},
   });
 });
 
-describe('authorize live evaluate emits latencyMs', () => {
-  it('includes a numeric latencyMs in the event metadata', async () => {
-    await request(makeApp())
-      .post('/api/authorize/test-evaluate')
-      .send({ amount: 60000, type: 'transfer', acr: 'pwd', userId: 'probe' });
+function metaFromLastEvent() {
+  const call = appEventService.logEvent.mock.calls.find((c) => c[0] === 'authorize');
+  expect(call).toBeDefined();
+  return call[3].metadata;
+}
 
-    const call = appEventService.logEvent.mock.calls
-      .find((c) => c[0] === 'authorize');
-    expect(call).toBeDefined();
-    const meta = call[3].metadata;
+async function evaluate() {
+  await request(makeApp())
+    .post('/api/authorize/test-evaluate')
+    .send({ amount: 60000, type: 'transfer', acr: 'pwd', userId: 'probe' });
+}
+
+describe('authorize live evaluate metadata', () => {
+  it('emits a numeric wall-clock latencyMs', async () => {
+    await evaluate();
+    const meta = metaFromLastEvent();
     expect(typeof meta.latencyMs).toBe('number');
     expect(meta.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('still carries the decision alongside latency', async () => {
-    await request(makeApp())
-      .post('/api/authorize/test-evaluate')
-      .send({ amount: 60000, type: 'transfer', acr: 'pwd', userId: 'probe' });
+  it('passes through the rule name and code', async () => {
+    await evaluate();
+    const meta = metaFromLastEvent();
+    expect(meta.ruleName).toBe('Transaction Denied');
+    expect(meta.ruleCode).toBe('transaction-denied');
+  });
 
-    const call = appEventService.logEvent.mock.calls
-      .find((c) => c[0] === 'authorize');
-    expect(call[3].metadata.decision).toBe('DENY');
+  it("passes through PingOne's own policy evaluation time", async () => {
+    await evaluate();
+    expect(metaFromLastEvent().policyEvalMs).toBe(2.885);
+  });
+
+  it('passes through the decisionId', async () => {
+    await evaluate();
+    expect(metaFromLastEvent().decisionId).toBe('48c67322-351e-45b4-8614-ce5208b2651f');
+  });
+
+  it('still carries the decision', async () => {
+    await evaluate();
+    expect(metaFromLastEvent().decision).toBe('DENY');
   });
 });
+
 ```
 
 - [ ] **Step 2: Run to verify it fails**
 
 ```bash
-cd demo_api_server && CI=true npx jest tests/authorizeLatency.test.js
+cd demo_api_server && CI=true npx jest tests/authorizeDecisionFields.test.js
 ```
 
-Expected: FAIL — `typeof meta.latencyMs` is `'undefined'`.
+Expected: FAIL — `latencyMs`, `ruleName`, `ruleCode` and `policyEvalMs` are all
+`undefined` in the metadata.
 
 If instead the suite errors because the mocked service is missing an export the
 route requires, read the route's `require` line for
 `services/pingOneAuthorizeService` and add those names to the mock factory.
 Report which names you added.
 
-- [ ] **Step 3: Add the timing**
+- [ ] **Step 3: Widen the service extraction**
 
-In `demo_api_server/routes/authorize.js`, in the live-evaluate handler, wrap the
-evaluation call:
+In `demo_api_server/services/pingOneAuthorizeService.js`, replace the single
+`decisionId` line (currently `const decisionId = raw.id || raw.decisionId || null;`
+at ~line 459) with:
+
+```javascript
+    // PingOne sends `correlationId`; it sends neither `id` nor `decisionId`,
+    // which is why this was always null. The other two are kept as fallbacks
+    // in case a different decision path returns them.
+    const decisionId = raw.correlationId || raw.id || raw.decisionId || null;
+
+    // PingOne's own policy-evaluation time, distinct from the wall-clock the
+    // caller measures — that one includes the network round trip.
+    const policyEvalMs =
+      typeof raw.elapsedMicroseconds === 'number'
+        ? raw.elapsedMicroseconds / 1000
+        : null;
+
+    // Which policy fired, e.g. "Transaction Denied" / "transaction-denied".
+    // Only the first statement is captured; multi-statement decisions are out
+    // of scope until a policy here actually returns more than one.
+    const ruleName = raw.statements?.[0]?.name || null;
+    const ruleCode = raw.statements?.[0]?.code || null;
+```
+
+Then add the four fields to that function's return object, leaving the existing
+keys untouched:
+
+```javascript
+    return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, policyEvalMs, ruleName, ruleCode, path: 'decision-endpoint', _debug };
+```
+
+- [ ] **Step 4: Add a service unit test for the extraction**
+
+Append to `demo_api_server/tests/authorizeDecisionFields.test.js` — this needs
+the real module, so use `jest.requireActual` rather than the mock above:
+
+```javascript
+describe('decision field extraction from a real PingOne body', () => {
+  // Captured verbatim from a live PERMIT on 2026-08-09.
+  const RAW = {
+    correlationId: '48c67322-351e-45b4-8614-ce5208b2651f',
+    timestamp: '2026-08-09T13:06:03.967328809Z',
+    elapsedMicroseconds: 2885,
+    status: { code: 'OKAY' },
+    decision: 'PERMIT',
+    statements: [{ name: 'Transaction Approved', code: 'transaction-approved' }],
+  };
+
+  it('reads decisionId from correlationId, not id', () => {
+    expect(RAW.correlationId || RAW.id || RAW.decisionId || null)
+      .toBe('48c67322-351e-45b4-8614-ce5208b2651f');
+    expect(RAW.id).toBeUndefined();
+  });
+
+  it('converts elapsedMicroseconds to milliseconds', () => {
+    expect(RAW.elapsedMicroseconds / 1000).toBeCloseTo(2.885, 3);
+  });
+
+  it('reads the rule name and code from the first statement', () => {
+    expect(RAW.statements?.[0]?.name).toBe('Transaction Approved');
+    expect(RAW.statements?.[0]?.code).toBe('transaction-approved');
+  });
+});
+```
+
+These assert the extraction expressions against the captured payload, pinning
+the field names PingOne actually sends. If the service is refactored to export
+a mapper, point them at it instead.
+
+- [ ] **Step 5: Thread the fields through the route**
+
+In `demo_api_server/routes/authorize.js`, in the live-evaluate handler:
 
 ```javascript
       const _t0 = Date.now();
@@ -455,25 +576,45 @@ evaluation call:
       logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
         `Authorize [pingone/force-live] ${result.decision} — ${type} $${numAmount}`,
         { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-          metadata: { engine: 'pingone', forced: true, decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, path: result.path, latencyMs, ...(useCaseId ? { useCaseId } : {}) } });
+          metadata: { engine: 'pingone', forced: true, decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, path: result.path, latencyMs, ...(useCaseId ? { useCaseId } : {}) } });
 ```
 
-Only `_t0`, `latencyMs`, and the `latencyMs` metadata key are new — everything
-else is the existing line, unchanged.
+New: `_t0`, `latencyMs`, and the `ruleName` / `ruleCode` / `policyEvalMs` /
+`latencyMs` metadata keys. Everything else is the existing line unchanged.
 
-- [ ] **Step 4: Run the tests**
+- [ ] **Step 6: Run the tests**
 
 ```bash
-cd demo_api_server && CI=true npx jest tests/authorizeLatency.test.js
+cd demo_api_server && CI=true npx jest tests/authorizeDecisionFields.test.js
 ```
 
-Expected: PASS, 2 tests.
+Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Verify against the live stack**
 
 ```bash
-git add demo_api_server/routes/authorize.js demo_api_server/tests/authorizeLatency.test.js
-git commit -m "feat(nr): measure and emit authorize decision latency"
+curl -sk -X POST https://api.ping.demo:3001/api/authorize/test-evaluate \
+  -H 'Content-Type: application/json' \
+  -d '{"amount":60000,"type":"transfer","acr":"pwd","userId":"field-probe"}'
+```
+
+Then confirm the emitted event carries the new fields:
+
+```bash
+docker logs ai-demo-api-server --since 2m 2>&1 | grep -i "authorize" | tail -3
+```
+
+Expected: a DENY with a non-null `decisionId` and `ruleName: 'Transaction Denied'`.
+Requires the BFF running the new code — restart it if you changed files under a
+bind mount.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add demo_api_server/services/pingOneAuthorizeService.js \
+        demo_api_server/routes/authorize.js \
+        demo_api_server/tests/authorizeDecisionFields.test.js
+git commit -m "feat(nr): capture PingOne decisionId, rule name and evaluation latency"
 ```
 
 ---
@@ -929,10 +1070,16 @@ const PAYLOAD = {
     { tag: 'authorize/deny', count: 2 },
     { tag: 'authorize/fail-open', count: 3 },
   ],
+  rules: [
+    { ruleName: 'Transaction Denied', count: 2 },
+    { ruleName: 'Transaction Approved', count: 1 },
+    { ruleName: null, count: 7 },
+  ],
   timeseries: [{ beginTimeSeconds: 1, count: 0 }, { beginTimeSeconds: 2, count: 3 }],
   stream: [{
     timestamp: 1786240000000, tag: 'authorize/deny', decision: 'DENY',
-    amount: 60000, stepUpRequired: false, type: 'transfer', engine: 'pingone', latencyMs: 42,
+    ruleName: 'Transaction Denied', amount: 60000, stepUpRequired: false,
+    type: 'transfer', engine: 'pingone', latencyMs: 42, policyEvalMs: 2.885,
   }],
 };
 
@@ -969,11 +1116,29 @@ describe('P1AzDashboard', () => {
     expect(screen.getByTestId('stat-failover')).toHaveTextContent('0');
   });
 
-  it('renders the decision stream with amount and latency', async () => {
+  it('renders the decision stream with amount, rule and both latencies', async () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
     renderDash();
     await waitFor(() => expect(screen.getByText('60000')).toBeInTheDocument());
     expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('2.885')).toBeInTheDocument();
+  });
+
+  it('names which rule fired, and labels unattributed events rather than hiding them', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    renderDash();
+    await waitFor(() =>
+      expect(screen.getByTestId('stat-Transaction Denied')).toHaveTextContent('2'));
+    expect(screen.getByTestId('stat-Transaction Approved')).toHaveTextContent('1');
+    // ruleName null — pre-Task-2 events must still be counted, as "unattributed"
+    expect(screen.getByTestId('stat-unattributed')).toHaveTextContent('7');
+  });
+
+  it('says so when no rule attribution exists in the window', async () => {
+    apiClient.get.mockResolvedValue({ data: { ...PAYLOAD, rules: [] } });
+    renderDash();
+    await waitFor(() =>
+      expect(screen.getByText(/No rule attribution in this window/i)).toBeInTheDocument());
   });
 
   it('shows the not-configured state on 503, not a generic error', async () => {
@@ -1037,11 +1202,12 @@ const POSTURE = [
 const STREAM_COLUMNS = [
   { key: 'time', label: 'Time', className: 'dash-mono' },
   { key: 'decision', label: 'Decision' },
+  { key: 'ruleName', label: 'Rule' },
   { key: 'amount', label: 'Amount', className: 'dash-mono' },
   { key: 'type', label: 'Type' },
   { key: 'stepUp', label: 'Step-up' },
-  { key: 'engine', label: 'Engine' },
-  { key: 'latencyMs', label: 'Latency ms', className: 'dash-mono' },
+  { key: 'latencyMs', label: 'Round trip ms', className: 'dash-mono' },
+  { key: 'policyEvalMs', label: 'Policy ms', className: 'dash-mono' },
 ];
 
 function Sparkline({ points }) {
@@ -1102,15 +1268,25 @@ export default function P1AzDashboard() {
     tone: (postureCounts[p.tag] || 0) > 0 ? p.tone : 'default',
   }));
 
+  // ruleName is null on events emitted before Task 2 shipped — label rather
+  // than hide, so an older window reads honestly instead of looking empty.
+  const ruleItems = (data?.rules || []).slice(0, 6).map((r) => ({
+    key: r.ruleName || 'unattributed',
+    label: r.ruleName || 'unattributed',
+    value: r.count,
+    tone: /den/i.test(r.ruleName || '') ? 'bad' : 'default',
+  }));
+
   const rows = (data?.stream || []).map((e) => ({
     timestamp: e.timestamp,
     time: e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '',
     decision: e.decision || '',
+    ruleName: e.ruleName || '—',
     amount: e.amount,
     type: e.type || '',
     stepUp: e.stepUpRequired === true ? 'yes' : 'no',
-    engine: e.engine || '',
     latencyMs: e.latencyMs,
+    policyEvalMs: e.policyEvalMs,
   }));
 
   return (
@@ -1138,6 +1314,13 @@ export default function P1AzDashboard() {
       </section>
 
       <section className="dash-card">
+        <div className="dash-card-head">Top rules</div>
+        {ruleItems.length
+          ? <StatStrip items={ruleItems} />
+          : <div className="dash-msg" role="status">No rule attribution in this window.</div>}
+      </section>
+
+      <section className="dash-card">
         <div className="dash-card-head">Volume</div>
         <div className="dash-card-body"><Sparkline points={data?.timeseries || []} /></div>
       </section>
@@ -1157,7 +1340,7 @@ export default function P1AzDashboard() {
 cd demo_api_ui && npx vitest run src/components/__tests__/P1AzDashboard.test.jsx
 ```
 
-Expected: PASS, 7 tests.
+Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1429,11 +1612,17 @@ git commit --allow-empty -m "chore(nr): verification pass — suites green, buil
 
 ## Self-Review
 
-**Spec coverage.** View registry + `7d` + per-window buckets → Task 1. `latencyMs`
+**Spec coverage.** View registry + `7d` + per-window buckets + the `rules` facet
+→ Task 1. `decisionId` / `ruleName` / `ruleCode` / `policyEvalMs` / `latencyMs`
 → Task 2. Shared components → Task 3. P1AZ page with decision strip, posture row,
-volume, stream, 24h default → Task 4. Route + nav → Task 5. NewRelicDashboard
-composition → Task 6. Verification incl. the dark-mode ground guard → Tasks 3 and 7.
-`decisionId` is explicitly dropped with the reason recorded in Global Constraints.
+top rules, volume, stream, 24h default → Task 4. Route + nav → Task 5.
+NewRelicDashboard composition → Task 6. Verification incl. the dark-mode ground
+guard → Tasks 3 and 7.
+
+An earlier revision dropped `decisionId` as impossible. That was wrong — PingOne
+sends `correlationId` — and Task 2 now captures it along with the rule name and
+PingOne's own evaluation time, all of which the first pass wrongly called
+unavailable.
 
 **Placeholder scan.** No TBD/TODO; every code step carries real code. Task 6
 Step 2 is prose rather than a full file listing — deliberate, because it is a
