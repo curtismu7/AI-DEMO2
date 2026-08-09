@@ -208,6 +208,11 @@
 
 .tcnr-node--pending { border-top-color: #cbd5e1; }
 
+/* a hop still in flight - amber, and distinct from the selected node */
+.tcnr-node--active { border-top-color: #b45309; }
+.tcnr-node--active .tcnr-node-n { border-color: #b45309; color: #b45309; }
+.tcnr-node--active .tcnr-node-fact { color: #b45309; font-weight: 650; }
+
 .tcnr-node--notinpath { opacity: 0.62; }
 
 .tcnr-node--denied { border-top-color: #dc2626; }
@@ -218,11 +223,11 @@
 .tcnr-node--error .tcnr-node-n { border-color: #b45309; color: #b45309; }
 .tcnr-node--error .tcnr-node-fact { color: #b45309; font-weight: 650; }
 
-.tcnr-node--active {
+.tcnr-node--sel {
   border-color: #1d4ed8;
   box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.16);
 }
-.tcnr-node--active .tcnr-node-n {
+.tcnr-node--sel .tcnr-node-n {
   background: #1d4ed8;
   border-color: #1d4ed8;
   color: #ffffff;
@@ -258,7 +263,7 @@
   max-width: 60px;
 }
 
-.tcnr[data-density="compact"] .tcnr-node--active .tcnr-node-title {
+.tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title {
   color: #0f172a;
   font-weight: 700;
 }
@@ -291,14 +296,17 @@
 :root[data-theme="dark"] .tcnr-node-fact { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr-node--done { border-top-color: #5fe39c; }
 :root[data-theme="dark"] .tcnr-node--done .tcnr-node-n { border-color: #5fe39c; color: #5fe39c; }
+:root[data-theme="dark"] .tcnr-node--active { border-top-color: #ffce7a; }
+:root[data-theme="dark"] .tcnr-node--active .tcnr-node-n { border-color: #ffce7a; color: #ffce7a; }
+:root[data-theme="dark"] .tcnr-node--active .tcnr-node-fact { color: #ffce7a; }
 :root[data-theme="dark"] .tcnr-node--denied { border-top-color: #ff8a80; }
 :root[data-theme="dark"] .tcnr-node--denied .tcnr-node-n { border-color: #ff8a80; color: #ff8a80; }
 :root[data-theme="dark"] .tcnr-node--denied .tcnr-node-fact { color: #ff8a80; }
 :root[data-theme="dark"] .tcnr-node--error { border-top-color: #ffce7a; }
 :root[data-theme="dark"] .tcnr-node--error .tcnr-node-n { border-color: #ffce7a; color: #ffce7a; }
 :root[data-theme="dark"] .tcnr-node--error .tcnr-node-fact { color: #ffce7a; }
-:root[data-theme="dark"] .tcnr-node--active { border-color: #9ec1ff; box-shadow: 0 0 0 2px rgba(158, 193, 255, 0.2); }
-:root[data-theme="dark"] .tcnr-node--active .tcnr-node-n { background: #1d4ed8; border-color: #9ec1ff; color: #ffffff; }
+:root[data-theme="dark"] .tcnr-node--sel { border-color: #9ec1ff; box-shadow: 0 0 0 2px rgba(158, 193, 255, 0.2); }
+:root[data-theme="dark"] .tcnr-node--sel .tcnr-node-n { background: #1d4ed8; border-color: #9ec1ff; color: #ffffff; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node { background: transparent; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node-title { color: #90a0c2; }
-:root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node--active .tcnr-node-title { color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title { color: #eaf0fb; }
