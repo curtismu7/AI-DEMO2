@@ -153,6 +153,7 @@ import MonitoringRoutes, {
   LogsRoute,
   McpTrafficRoute,
   NewRelicRoute,
+  P1AzRoute,
   PingOneEventsRoute,
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
@@ -523,6 +524,11 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/pingone-events"
                   element={<PingOneEventsRoute user={user} logout={logout} />}
+                />
+                {/* PingOne Authorize decisions — public, same posture as the others */}
+                <Route
+                  path="/monitoring/p1az"
+                  element={<P1AzRoute user={user} logout={logout} />}
                 />
                 {/* Demo config accessible without login */}
                 <Route

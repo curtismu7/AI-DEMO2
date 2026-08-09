@@ -856,6 +856,11 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/pingone-events",
           icon: "log",
         },
+        {
+          label: "PingOne Authorize",
+          path: "/monitoring/p1az",
+          icon: "log",
+        },
       ],
     },
     {
