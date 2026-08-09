@@ -65,8 +65,29 @@ Three assumptions were wrong and are recorded so the plan does not repeat them:
 so it generalizes to a server-side registry:
 
 ```
-GET /api/newrelic/view/:view?window=30m|1h|24h      view ∈ { pipeline, authorize }
+GET /api/newrelic/view/:view?window=30m|1h|24h|7d   view ∈ { pipeline, authorize }
 ```
+
+`7d` is added to the window map (the New Relic page ships 30m/1h/24h today).
+History is wanted, not avoided: a week is the working retention target for both
+dashboards, so a demo can show more than the last few minutes of traffic.
+
+Timeseries bucket per window — a fixed 7-day bucket of 5 minutes would return
+2016 points and swamp the sparkline:
+
+| Window | Bucket |
+|---|---|
+| `30m` | 2 minutes |
+| `1h` | 5 minutes |
+| `24h` | 1 hour |
+| `7d` | 6 hours |
+
+**Retention reality, measured 2026-08-09:** the account holds 1066 `Log`
+records and the counts are identical `SINCE 7 days ago`, `14 days ago` and
+`30 days ago` — nothing is aging out. The oldest record is
+`2026-08-06T22:53 UTC`, because forwarding only began when #1432 shipped. The
+`7d` window is therefore correct to build but will look partial until a week of
+traffic accumulates.
 
 `VIEWS` is a fixed map of view name → named NRQL set. The security property is
 preserved exactly: the client sends a **key**, never a query. An unknown view is
@@ -86,6 +107,10 @@ The `authorize` view issues four queries:
 
 New `P1AzDashboard.jsx` at `/monitoring/p1az`, public, nav entry under
 Monitoring alongside New Relic and PingOne Events.
+
+Window selector offers `30m / 1h / 24h / 7d`, **defaulting to `24h`** — not the
+New Relic page's `1h`. Authorize decisions are far sparser than pipeline events,
+and a `1h` default would show an empty page most of the time.
 
 Layout, in reading order:
 
@@ -162,13 +187,21 @@ Amounts 100 / 20000 / 60000 produce PERMIT / DENY / DENY.
 
 ## Risks
 
-**The page will look sparse.** Only three real decisions exist in the account;
-everything older is fixtures. Demos need traffic generated first, and the empty
-state must read as "no decisions in this window", never as an error.
+**The page will look sparse at short windows.** Only three real decisions exist
+so far, all generated on 2026-08-09. At `30m` or `1h` the page will usually be
+empty unless someone has just driven traffic. The empty state must read as "no
+decisions in this window", never as an error — and the default window is `24h`
+rather than `1h` for that reason.
 
-**Fixture records remain in wide windows.** A 24h view will mix the historical
-`test-user-id` records with real ones. Filtering them out by userId would be
-brittle; the honest mitigation is that new pollution has stopped.
+**Fixture records remain in history, and that is accepted.** The ~50
+`test-user-id` / `user-a-id` records from before #1493 stay in the account and
+will appear in `24h` and `7d` views. Keeping history is the explicit preference,
+so they are not filtered: a userId-based exclusion would be brittle and would
+silently drop real records that happen to lack a userId. New pollution has
+stopped; the old records simply age out of relevance as real traffic accrues.
+
+**`7d` is aspirational until traffic accumulates.** Forwarding began 2026-08-06,
+so the deepest window currently returns about three days.
 
 ---
 
