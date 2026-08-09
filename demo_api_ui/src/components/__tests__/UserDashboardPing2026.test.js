@@ -313,11 +313,15 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-07: guard 401 redirect when propUser is null (guest/lazy-auth).
+  // Re-baselined 2026-08-09: dropped the StaleSessionBanner mount and import.
+  // The customer dashboard must not check authentication on load — a signed-out
+  // visitor is a supported state, and only protected prompts require PingOne
+  // authn. Previous baseline 2026-08-07: guard 401 redirect when propUser is
+  // null (guest/lazy-auth).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "706e70c2581cb6d9c57d5c4542f2cd4cfe73804957c9a58f0efee1cf732855e1";
+    "2dc1762741fdab52cccfa4c5fdd4944f747741135a643a98e56ce87b9ac680db";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

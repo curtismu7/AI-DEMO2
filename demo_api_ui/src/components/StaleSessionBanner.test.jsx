@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/StaleSessionBanner.test.jsx
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -27,36 +27,49 @@ describe('StaleSessionBanner', () => {
     window.history.replaceState(null, '', '/dashboard');
   });
 
-  it('does not redirect again when landing with ?silent_reauth_failed=1 alongside the URL-cleanup hook (regression: infinite reauth loop)', async () => {
-    window.history.replaceState(null, '', '/dashboard?silent_reauth_failed=1');
+  it('shows the manual sign-in notice on a stale session', async () => {
     getCachedJson.mockResolvedValue({
       data: { staleSession: true, staleReason: 'tokens_missing' },
     });
 
-    const { findByRole } = render(
-      <MemoryRouter initialEntries={['/dashboard?silent_reauth_failed=1']}>
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
         <AppShell />
       </MemoryRouter>,
     );
 
-    // The manual "Sign in again" banner must appear instead of a redirect back
-    // into the silent-reauth flow (the URL-cleanup hook legitimately stripping
-    // the query param is fine — re-navigating to /silent-reauth is not).
-    await findByRole('alert');
-    expect(window.location.href).not.toContain('/api/auth/oauth/user/silent-reauth');
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: /sign in again/i })).toBeInTheDocument();
   });
 
-  it('attempts a silent reauth redirect on a fresh stale session with no failure marker', async () => {
+  it('renders nothing when the session is healthy', async () => {
+    getCachedJson.mockResolvedValue({ data: { staleSession: false } });
+
+    const { container } = render(<StaleSessionBanner />);
+
+    await waitFor(() => expect(getCachedJson).toHaveBeenCalled());
+    expect(container.querySelector('.stale-session-banner')).toBeNull();
+  });
+
+  // The silent prompt=none reauth was removed. It could not distinguish "PingOne
+  // session expired" from "PingOne will never issue one", so a dead SSO session
+  // produced login_required forever — 51 full-page redirects in one observed
+  // session, which also swallowed clicks on the real Sign In button.
+  it('never navigates on its own, even under StrictMode with a stale session', async () => {
     getCachedJson.mockResolvedValue({
       data: { staleSession: true, staleReason: 'tokens_missing' },
     });
     delete window.location;
     window.location = { ...window.location, href: '/dashboard', pathname: '/dashboard', search: '' };
 
-    render(<StaleSessionBanner />);
-
-    await waitFor(() =>
-      expect(window.location.href).toContain('/api/auth/oauth/user/silent-reauth'),
+    render(
+      <React.StrictMode>
+        <StaleSessionBanner />
+      </React.StrictMode>,
     );
+
+    await screen.findByRole('alert');
+    expect(window.location.href).toBe('/dashboard');
+    expect(window.location.href).not.toContain('silent-reauth');
   });
 });

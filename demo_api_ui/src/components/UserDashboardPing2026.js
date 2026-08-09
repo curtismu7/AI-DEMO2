@@ -51,7 +51,6 @@ import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 import AgentIdentityCard from "./AgentIdentityCard";
-import StaleSessionBanner from "./StaleSessionBanner";
 
 /** Format a number as USD currency — $1,234.56 */
 const fmt = (n) =>
@@ -3506,7 +3505,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       data-refined-surface="customer"
       data-rd-v2
     >
-      <StaleSessionBanner />
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div
