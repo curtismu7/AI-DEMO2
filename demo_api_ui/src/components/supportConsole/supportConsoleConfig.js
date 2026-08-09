@@ -318,6 +318,19 @@ export const CONFIGS = {
 
 };
 
+// Super Sports is the demo's default vertical.
+export const DEFAULT_CONSOLE_VERTICAL = 'sporting-goods';
+
+/**
+ * The console only knows the verticals in CONFIGS. `activeId` from useVertical()
+ * is null before a vertical is chosen and can also be one with no console —
+ * pingone-admin, airlines, a2a, mortgage, oauth-teaching. getVerticalConfig
+ * THROWS on those, which would take down /admin entirely, so resolve first.
+ */
+export function resolveConsoleVertical(id) {
+  return id && CONFIGS[id] ? id : DEFAULT_CONSOLE_VERTICAL;
+}
+
 export function getVerticalConfig(id) {
   const c = CONFIGS[id];
   if (!c) throw new Error(`Unknown vertical: ${id}`);

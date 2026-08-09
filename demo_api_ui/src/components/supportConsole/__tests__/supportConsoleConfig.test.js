@@ -1,5 +1,5 @@
 // __tests__/supportConsoleConfig.test.js
-import { CONFIGS, VERTICAL_ORDER, getVerticalConfig } from '../supportConsoleConfig';
+import { CONFIGS, VERTICAL_ORDER, getVerticalConfig, resolveConsoleVertical } from '../supportConsoleConfig';
 
 // REGRESSION_PLAN §0 — the only emoji permitted anywhere in the UI.
 const ALLOWED = ['⚠️', '✅', '❌', '🔐', '✕', '✓', '👤', '🔑', '🪟', '📚'];
@@ -101,5 +101,27 @@ describe('supportConsoleConfig', () => {
     });
     expect(out.categories.find((x) => x.id === 'accounts').rows[0].id).toBe('ac1');
     expect(out.customer.name).toBe('Account holder');
+  });
+});
+
+describe('resolveConsoleVertical', () => {
+  // getVerticalConfig throws on an unknown id. /admin renders the console for
+  // whatever vertical is active, and activeId is null before one is chosen and
+  // can be a vertical with no console at all — so an unresolved id would crash
+  // the admin landing page rather than degrade.
+  it('passes through a vertical the console knows', () => {
+    for (const id of VERTICAL_ORDER) expect(resolveConsoleVertical(id)).toBe(id);
+  });
+
+  it('falls back to Super Sports for null, undefined or a console-less vertical', () => {
+    for (const id of [null, undefined, '', 'pingone-admin', 'airlines', 'a2a', 'mortgage', 'oauth-teaching']) {
+      expect(resolveConsoleVertical(id)).toBe('sporting-goods');
+    }
+  });
+
+  it('never returns an id getVerticalConfig would throw on', () => {
+    for (const id of [null, 'nope', 'airlines', 'banking']) {
+      expect(() => getVerticalConfig(resolveConsoleVertical(id))).not.toThrow();
+    }
   });
 });

@@ -31,7 +31,9 @@ export default function DashboardQuickNav({ user }) {
     return null;
   }
 
-  const dashboardPath = user ? (isAdmin ? '/admin' : '/dashboard') : '/dashboard';
+  // The admin dashboard moved to /admin/pingone when the support console took
+  // /admin. This button says "Admin dashboard", so it follows the content.
+  const dashboardPath = user ? (isAdmin ? '/admin/pingone' : '/dashboard') : '/dashboard';
 
   const openApiPopout = () => {
     window.open('/api-traffic', 'ApiTraffic', POPOUT);
@@ -43,7 +45,7 @@ export default function DashboardQuickNav({ user }) {
 
   const homeActive = pathname === '/' || pathname === '';
   const dashActive = user
-    ? (isAdmin ? pathname === '/admin' : pathname === '/dashboard')
+    ? (isAdmin ? pathname.replace(/\/$/, '') === '/admin/pingone' : pathname === '/dashboard')
     : pathname === '/dashboard';
   const bankingAdminActive = isAdmin && pathname.replace(/\/$/, '') === '/admin/banking';
 
@@ -68,12 +70,14 @@ export default function DashboardQuickNav({ user }) {
         className="dashboard-quick-nav__btn"
         title="Open AI Agent panel"
         onClick={() => {
-          const agentRoutes = ['/', '/admin', '/dashboard'];
+          // The admin agent mounts where isPingOneAdminAgentRoute matches,
+          // which is /admin/pingone now — not /admin.
+          const agentRoutes = ['/', '/admin/pingone', '/dashboard'];
           const norm = pathname.replace(/\/$/, '') || '/';
           if (agentRoutes.includes(norm)) {
             window.dispatchEvent(new CustomEvent('banking-agent-open'));
           } else {
-            const dest = isAdmin ? '/admin' : '/dashboard';
+            const dest = isAdmin ? '/admin/pingone' : '/dashboard';
             navigate(dest, { state: { openAgent: true } });
           }
         }}

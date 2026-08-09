@@ -12,15 +12,24 @@ export function isBankingAgentDashboardRoute(pathname) {
 }
 
 /**
- * /admin console agent — PingOne Admin vertical (ADMIN1–4 demo steps +
+ * PingOne Admin console agent — PingOne Admin vertical (ADMIN1–4 demo steps +
  * /api/admin-agent), not the banking trust-ladder catalog.
+ *
+ * This matched `/admin` until the support console took that route; the PingOne
+ * admin content now lives at `/admin/pingone` and this predicate moved with it.
+ * The two must stay together: pointing it at a page that no longer holds the
+ * admin content is what broke Demo Steps in the 2026-07-22 regression
+ * (REGRESSION_PLAN §4) — the agent used the theme vertical, loaded the customer
+ * trust-ladder catalog, and running a step hit customerTokenGuard.
+ *
+ * `/admin/<vertical>` support consoles are deliberately NOT admin-agent routes.
  * @param {string} [pathname]
  * @returns {boolean}
  */
 export function isPingOneAdminAgentRoute(pathname) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
-  return p === '/admin';
+  return p === '/admin/pingone';
 }
 
 /**
@@ -72,7 +81,7 @@ export function isDashboardQuickNavRoute(pathname, user) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
   if (isBankingAgentDashboardRoute(pathname)) return true;
-  if (user?.role === 'admin' && p === '/admin/banking') return true;
+  if (user?.role === 'admin' && (p === '/admin' || p === '/admin/pingone' || p.startsWith('/admin/'))) return true;
   // Also show on secondary pages so the nav rail is always accessible while signed in
   if (p === '/demo-data' || p === '/config' || p === '/mcp-inspector' || p === '/logs' || p === '/activity' || p === '/agent') return true;
   return false;
