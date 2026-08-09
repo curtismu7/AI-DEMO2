@@ -35,6 +35,7 @@ import {
 } from "../utils/agentColumnLayout";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
+import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -3517,7 +3518,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div
-          className={`dashboard-content ud-body ud-body--2026 ${splitGridClass(
+          // ud-focus-mode overrides the split grid to a single column: the agent
+          // takes the full width and the chain lies underneath it, which is the
+          // whole point of Focus Mode. The grid classes stay so the collapsed
+          // and banking-column states keep their existing rules.
+          className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
@@ -3570,19 +3575,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </button>
           </section>
 
-          {showBankingInMiddle && (
-            <main
-              className="ud-center ud-banking-column"
-              id="main-dashboard-content"
-              tabIndex={-1}
-            >
-              {isRetailDashboard ? (
-                <RetailDashboard data={pageMockData} />
-              ) : (
-                renderBankingMain()
-              )}
-            </main>
-          )}
+          {/* No banking column in Focus Mode. Stacking it between the agent and
+              the chain puts balances in the middle of the evidence — and the
+              balances are the proof, not the subject. The 'bottom' and 'none'
+              branches below still render it. */}
+
 
           {/* Collapsed middle: agent column is CSS-hidden (host stays mounted so
               the portaled BankingAgent keeps its chat state); surface the same
@@ -3602,10 +3599,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </aside>
           )}
 
-          <DashboardTokenRail>
-            <ExchangeModeToggle hideTable />
-            <TokenChainTraceRail />
-          </DashboardTokenRail>
+          {/* Focus Mode: the chain lies along the bottom, full width, so a click
+              raises a sheet across the whole width instead of confining the
+              evidence to the narrowest column. TokenChainFilmstrip is a sibling
+              over the same store — the shared TokenChainTraceRail, which mounts
+              on ~20 other surfaces, is not modified. The 'bottom' and 'none'
+              branches below keep the vertical rail unchanged. */}
+          <TokenChainFilmstrip />
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
