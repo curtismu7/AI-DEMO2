@@ -1,9 +1,6 @@
 'use strict';
-const crypto = require('crypto');
 const request = require('supertest');
 const express = require('express');
-
-process.env.PINGONE_WEBHOOK_SECRET = 'test-secret-abc';
 
 const webhookRouter = require('../routes/webhookPingOne');
 const pingoneEventStore = require('../services/lmdb/pingoneEventStore.lmdb');
@@ -13,15 +10,9 @@ afterEach(() => pingoneEventStore.clear());
 
 function makeApp() {
   const app = express();
-  app.use('/webhook', express.json({
-    verify: (req, _res, buf) => { req.rawBody = buf; },
-  }));
+  app.use('/webhook', express.json());
   app.use('/webhook', webhookRouter);
   return app;
-}
-
-function sign(body, secret) {
-  return crypto.createHmac('sha256', secret).update(body).digest('hex');
 }
 
 const VALID_EVENT = {
@@ -34,64 +25,73 @@ const VALID_EVENT = {
   recordedAt: '2026-08-06T10:00:00.000Z',
 };
 
-test('valid HMAC + body returns 200 and persists event', async () => {
-  const app = makeApp();
-  const body = JSON.stringify(VALID_EVENT);
-  const sig = sign(body, 'test-secret-abc');
-  const res = await request(app)
-    .post('/webhook/pingone')
-    .set('Content-Type', 'application/json')
-    .set('x-p1-signature', sig)
-    .send(body);
+const SECOND_EVENT = {
+  id: 'evt-2',
+  type: 'USER.CREATED',
+  actors: { user: { id: 'user-2', type: 'USER' } },
+  result: { status: 'SUCCESS' },
+  recordedAt: '2026-08-06T10:00:05.000Z',
+};
+
+test('single event with no auth header returns 200 and persists', async () => {
+  const res = await request(makeApp()).post('/webhook/pingone').send(VALID_EVENT);
   expect(res.status).toBe(200);
-  const stored = pingoneEventStore.query({ limit: 1 });
+  expect(res.body.count).toBe(1);
+  const stored = pingoneEventStore.query({ limit: 10 });
   expect(stored.length).toBe(1);
   expect(stored[0].eventType).toBe('AUTHENTICATION');
 });
 
-test('missing HMAC returns 401', async () => {
-  const app = makeApp();
-  const res = await request(app).post('/webhook/pingone').send(VALID_EVENT);
-  expect(res.status).toBe(401);
-  expect(res.body.error).toBe('invalid_signature');
+// The behavior change this route exists to make: PingOne cannot sign a body, so
+// the endpoint is deliberately open. A request carrying no credentials at all,
+// and one carrying a bogus signature header, must both be accepted.
+test('open ingest — a bogus x-p1-signature is ignored, not rejected', async () => {
+  const res = await request(makeApp())
+    .post('/webhook/pingone')
+    .set('x-p1-signature', 'deadbeef')
+    .send(VALID_EVENT);
+  expect(res.status).toBe(200);
+  expect(pingoneEventStore.query({ limit: 10 }).length).toBe(1);
 });
 
-test('wrong HMAC returns 401', async () => {
-  const app = makeApp();
-  const body = JSON.stringify(VALID_EVENT);
-  const badSig = sign(body, 'wrong-secret');
-  const res = await request(app)
+test('batch array persists every event in the batch', async () => {
+  const res = await request(makeApp())
     .post('/webhook/pingone')
-    .set('Content-Type', 'application/json')
-    .set('x-p1-signature', badSig)
-    .send(body);
-  expect(res.status).toBe(401);
+    .send([VALID_EVENT, SECOND_EVENT]);
+  expect(res.status).toBe(200);
+  expect(res.body.count).toBe(2);
+  expect(res.body.eventIds).toHaveLength(2);
+  const types = pingoneEventStore.query({ limit: 10 }).map((e) => e.eventType).sort();
+  expect(types).toEqual(['AUTHENTICATION', 'USER.CREATED']);
 });
 
-test('missing type field returns 400', async () => {
-  const app = makeApp();
-  const badEvent = { id: 'x' };
-  const body = JSON.stringify(badEvent);
-  const sig = sign(body, 'test-secret-abc');
-  const res = await request(app)
+test('batch keeps the valid events and drops malformed ones', async () => {
+  const res = await request(makeApp())
     .post('/webhook/pingone')
-    .set('Content-Type', 'application/json')
-    .set('x-p1-signature', sig)
-    .send(body);
+    .send([VALID_EVENT, { id: 'no-type' }, SECOND_EVENT]);
+  expect(res.status).toBe(200);
+  expect(res.body.count).toBe(2);
+  expect(pingoneEventStore.query({ limit: 10 }).length).toBe(2);
+});
+
+test('event without a type returns 400', async () => {
+  const res = await request(makeApp()).post('/webhook/pingone').send({ id: 'x' });
   expect(res.status).toBe(400);
   expect(res.body.error).toBe('invalid_event');
+  expect(pingoneEventStore.query({ limit: 10 }).length).toBe(0);
 });
 
-test('appEventService.logEvent called on valid event', async () => {
-  const app = makeApp();
-  const body = JSON.stringify(VALID_EVENT);
-  const sig = sign(body, 'test-secret-abc');
+test('empty batch returns 400 and stores nothing', async () => {
+  const res = await request(makeApp()).post('/webhook/pingone').send([]);
+  expect(res.status).toBe(400);
+  expect(res.body.error).toBe('invalid_event');
+  expect(pingoneEventStore.query({ limit: 10 }).length).toBe(0);
+});
+
+test('appEventService.logEvent called once per event in a batch', async () => {
   const logSpy = jest.spyOn(appEventService, 'logEvent').mockImplementation(() => {});
-  await request(app)
-    .post('/webhook/pingone')
-    .set('Content-Type', 'application/json')
-    .set('x-p1-signature', sig)
-    .send(body);
+  await request(makeApp()).post('/webhook/pingone').send([VALID_EVENT, SECOND_EVENT]);
+  expect(logSpy).toHaveBeenCalledTimes(2);
   expect(logSpy).toHaveBeenCalledWith(
     'pingone',
     'info',
@@ -99,15 +99,4 @@ test('appEventService.logEvent called on valid event', async () => {
     expect.objectContaining({ tag: 'pingone/event' })
   );
   logSpy.mockRestore();
-});
-
-test('short HMAC (length mismatch) returns 401', async () => {
-  const app = makeApp();
-  const body = JSON.stringify(VALID_EVENT);
-  const res = await request(app)
-    .post('/webhook/pingone')
-    .set('Content-Type', 'application/json')
-    .set('x-p1-signature', 'deadbeef')
-    .send(body);
-  expect(res.status).toBe(401);
 });
