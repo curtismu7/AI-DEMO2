@@ -67,6 +67,9 @@ vi.mock("../../context/AgentUiModeContext", async (importOriginal) => {
     useAgentUiMode: () => ({
       placement: "bottom",
       setSurfaceHostEl: vi.fn(),
+      // The dashboard registers a toolbar host too; omitting this makes every
+      // case in this file die on "setToolbarHostEl is not a function".
+      setToolbarHostEl: vi.fn(),
       fab: false,
     }),
   };
@@ -310,11 +313,11 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-07: added loading spinner (early return when loading=true).
+  // Re-baselined 2026-08-07: guard 401 redirect when propUser is null (guest/lazy-auth).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "a0e5e457e27b66da43f246dcc7b17e6d06e2c07d3fe7ebe5e1a59c6eaeaffb56";
+    "706e70c2581cb6d9c57d5c4542f2cd4cfe73804957c9a58f0efee1cf732855e1";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

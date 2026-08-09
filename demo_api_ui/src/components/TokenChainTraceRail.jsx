@@ -1,7 +1,7 @@
 // Compact full-pipeline trace rail for the portal token rails and the agent
 // TokenChainModal. Single-column by construction (no viewport media queries).
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
@@ -10,6 +10,8 @@ import { buildA2aChainDetail } from "../utils/a2aChainDetail";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
+import TokenChainNodeRail from "./TokenChainNodeRail";
+import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
@@ -200,6 +202,16 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
   const [zoom, setZoom] = useState(readStoredZoom);
   const [viewMode, setViewMode] = useState(readStoredViewMode);
+  // Chain-map selection. Purely a scroll/highlight aid over the cards below —
+  // it never filters or reorders `steps`.
+  const [activeStepId, setActiveStepId] = useState(null);
+  // Presenter overlay — the same steps at projector size. Purely a second view.
+  const [presenting, setPresenting] = useState(false);
+  // Scope card lookups to THIS rail. The rail mounts on ~28 pages and
+  // FloatingTokenChainPanel can put a second one over a dashboard that already
+  // embeds one; a document-wide query would open the other rail's card and
+  // leave this one's shut.
+  const railRef = useRef(null);
   const tokenChain = useTokenChainOptional();
   // Names the running use case in each step's pop-out. Optional: several rail
   // mounts (Monitoring routes, standalone pages) sit outside the Proof provider.
@@ -246,6 +258,17 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     ? classicSteps
     : buildLiveTokenChainSteps(classicSteps, trace);
   const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
+  // Clearing a run (or switching to a Live view that has not produced steps
+  // yet) must drop both the selection and the presenter. Otherwise the flag
+  // survives the empty state and the next run pops the full-screen projector
+  // overlay open on its own.
+  useEffect(() => {
+    if (steps.length === 0) {
+      setPresenting(false);
+      setActiveStepId(null);
+    }
+  }, [steps.length]);
+
   const mcpDone = classicSteps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
   const showTrust = shouldShowTrustTab({
     ffDpop: trustFlags.ffDpop,
@@ -268,7 +291,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   }, [showTrust, tab, mcpRouteOnly]);
 
   return (
-    <div className="tctr" style={{ zoom }}>
+    <div className="tctr" style={{ zoom }} ref={railRef}>
       <div className="tctr-head">
         <div className="tctr-title-group">
           <span className="tctr-title">Token Chain</span>
@@ -417,6 +440,34 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           {viewMode === "live" && steps.length === 0 && (
             <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
           )}
+          <TokenChainNodeRail
+            steps={steps}
+            activeId={activeStepId}
+            onPresent={() => {
+              if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
+              setPresenting(true);
+            }}
+            onSelect={(id) => {
+              setActiveStepId(id);
+              // TraceStepCard already renders data-step-id on its <details>, so
+              // the map can reveal a card without either component knowing about
+              // the other's internals.
+              const card = railRef.current?.querySelector(`.tctr-step[data-step-id="${id}"]`);
+              if (card) {
+                card.open = true;
+                card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+              }
+            }}
+          />
+          {presenting ? (
+            <TokenChainPresenter
+              steps={steps}
+              activeId={activeStepId}
+              onSelect={setActiveStepId}
+              onClose={() => setPresenting(false)}
+            />
+          ) : null}
+
           {steps.map((step) => (
             <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}

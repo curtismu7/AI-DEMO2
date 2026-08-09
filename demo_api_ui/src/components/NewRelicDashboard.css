@@ -1,0 +1,107 @@
+/* Tokens are defined on the component root so both themes resolve from one
+   place. Dark is keyed to :root[data-theme="dark"] — the attribute ThemeProvider
+   writes — never to prefers-color-scheme, which this app deliberately ignores. */
+.nrd {
+  --nrd-surface: #ffffff;
+  --nrd-surface-2: #f8fafc;
+  --nrd-line: #d8e0ea;
+  --nrd-line-soft: #e8edf3;
+  --nrd-ink: #0f172a;
+  --nrd-ink-2: #475569;
+  --nrd-ink-3: #64748b;
+  --nrd-accent: #1d4ed8;
+  --nrd-accent-soft: #dbeafe;
+  --nrd-ok: #3d9142;
+  --nrd-warn: #b26a00;
+  --nrd-err: #d13c31;
+
+  --nrd-ground: #eef2f7;
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 22px 30px;
+  color: var(--nrd-ink);
+  /* Paint our own ground. Without this the page keeps whatever the app shell
+     renders, and in dark mode --nrd-ink goes near-white — so the title and
+     subtitle, which sit bare on the page rather than inside a card, became
+     white-on-light. The cards were unaffected because they set their own
+     background. */
+  background: var(--nrd-ground);
+  min-height: 100%;
+}
+
+:root[data-theme="dark"] .nrd {
+  --nrd-ground: #0a0f18;
+  --nrd-surface: #111823;
+  --nrd-surface-2: #161f2c;
+  --nrd-line: #253244;
+  --nrd-line-soft: #1c2634;
+  --nrd-ink: #e8eef7;
+  --nrd-ink-2: #a5b4c8;
+  --nrd-ink-3: #7d8ca1;
+  --nrd-accent: #7aa2f7;
+  --nrd-accent-soft: #172554;
+  --nrd-ok: #6cc46c;
+  --nrd-warn: #e0a145;
+  --nrd-err: #f0776c;
+}
+
+.nrd-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.nrd-title { margin: 0; font-size: 21px; font-weight: 700; }
+.nrd-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--nrd-ink-3); }
+.nrd-spacer { flex: 1; }
+
+.nrd-seg { display: inline-flex; border: 1px solid var(--nrd-line); border-radius: 8px; overflow: hidden; background: var(--nrd-surface); }
+.nrd-seg button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border: 0; background: transparent; color: var(--nrd-ink-2); cursor: pointer; }
+.nrd-seg button + button { border-left: 1px solid var(--nrd-line); }
+.nrd-seg button.is-on { background: var(--nrd-accent); color: #fff; }
+.nrd-seg button:focus-visible { outline: 2px solid var(--nrd-accent); outline-offset: -2px; }
+
+.nrd-btn { font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 13px; border-radius: 8px; border: 1px solid var(--nrd-line); background: var(--nrd-surface); color: var(--nrd-ink-2); cursor: pointer; }
+.nrd-btn:focus-visible { outline: 2px solid var(--nrd-accent); outline-offset: 1px; }
+
+.nrd-theme { display: inline-flex; align-items: center; gap: 8px; padding: 4px 11px; border: 1px solid var(--nrd-line); border-radius: 8px; background: var(--nrd-surface); }
+.nrd-theme span { font-size: 11.5px; font-weight: 600; color: var(--nrd-ink-3); user-select: none; }
+.nrd-theme span.is-on { color: var(--nrd-ink); }
+.nrd-switch { position: relative; width: 34px; height: 18px; flex: none; border-radius: 999px; border: 1px solid var(--nrd-line); background: var(--nrd-surface-2); cursor: pointer; padding: 0; }
+.nrd-switch[aria-checked="true"] { background: var(--nrd-accent); border-color: var(--nrd-accent); }
+.nrd-switch:focus-visible { outline: 2px solid var(--nrd-accent); outline-offset: 2px; }
+.nrd-thumb { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--nrd-surface); border: 1px solid var(--nrd-line); transition: transform .16s ease; }
+.nrd-switch[aria-checked="true"] .nrd-thumb { transform: translateX(16px); background: #fff; border-color: transparent; }
+@media (prefers-reduced-motion: reduce) { .nrd-thumb { transition: none; } }
+
+.nrd-card { background: var(--nrd-surface); border: 1px solid var(--nrd-line); border-radius: 8px; min-width: 0; }
+.nrd-card-head { padding: 11px 15px; border-bottom: 1px solid var(--nrd-line-soft); font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--nrd-ink-2); }
+.nrd-card-body { padding: 15px; overflow-x: auto; }
+
+.nrd-msg { padding: 22px; border: 1px solid var(--nrd-line); border-radius: 8px; background: var(--nrd-surface); color: var(--nrd-ink-2); font-size: 13.5px; }
+.nrd-msg code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--nrd-ink); }
+.nrd-msg-err { border-color: var(--nrd-err); color: var(--nrd-err); }
+
+.nrd-pipe { display: flex; overflow-x: auto; }
+.nrd-stage { flex: 1 1 0; min-width: 128px; padding: 13px 14px; border-right: 1px solid var(--nrd-line-soft); display: flex; flex-direction: column; gap: 3px; }
+.nrd-stage:last-child { border-right: 0; }
+.nrd-stage-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--nrd-ink-3); white-space: nowrap; }
+.nrd-stage-count { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 25px; font-weight: 700; line-height: 1.15; }
+.nrd-stage-note { font-size: 11px; color: var(--nrd-ink-3); }
+.nrd-stage-bar { height: 3px; border-radius: 2px; background: var(--nrd-accent); margin-top: 5px; }
+.nrd-stage.is-zero .nrd-stage-count, .nrd-stage.is-zero .nrd-stage-name { opacity: .55; }
+.nrd-stage.is-zero .nrd-stage-bar { background: var(--nrd-line); }
+
+.nrd-spark { display: block; width: 100%; height: auto; }
+.nrd-spark-max { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; font-weight: 700; fill: var(--nrd-ink-3); }
+
+.nrd-tbl-wrap { overflow-x: auto; }
+.nrd-tbl { border-collapse: collapse; width: 100%; min-width: 720px; }
+.nrd-tbl th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--nrd-ink-3); padding: 9px 15px; border-bottom: 1px solid var(--nrd-line); background: var(--nrd-surface-2); white-space: nowrap; }
+.nrd-tbl td { padding: 9px 15px; border-bottom: 1px solid var(--nrd-line-soft); font-size: 13px; vertical-align: top; }
+.nrd-tbl tr:last-child td { border-bottom: 0; }
+.nrd-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--nrd-ink-3); white-space: nowrap; }
+.nrd-chip { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: var(--nrd-accent-soft); color: var(--nrd-accent); white-space: nowrap; }
+
+/* Severity is a CSS dot, never an emoji — REGRESSION_PLAN §0 allowlist. */
+.nrd-sev { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--nrd-ink-2); white-space: nowrap; }
+.nrd-sev::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--nrd-ok); flex: none; }
+.nrd-sev-warn::before, .nrd-sev-warning::before { background: var(--nrd-warn); }
+.nrd-sev-error::before, .nrd-sev-err::before { background: var(--nrd-err); }

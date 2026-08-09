@@ -1,0 +1,71 @@
+---
+# Per-application frontend hosts for PingOne Privilege MCPGW in agentless
+# (self-hosted frontend) mode. This is the Kubernetes equivalent of the
+# mcpgw-nginx service in docker-compose.yml — ingress-nginx IS the nginx engine
+# here, so the directives from demo_mcpgw_nginx/nginx.conf appear as annotations.
+# Keep the two in sync.
+#
+#   https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp
+#     -> ingress-nginx :443
+#     -> ping-mcpgw :8620        (agentless API port; Frontend Name in the console)
+#     -> mcp-server :8080        (Backend Name in the Privilege console)
+#
+# <<NAMESPACE>> is substituted by deploy.sh, matching se-ingress.yaml.
+#
+# HOSTS ARE ENUMERATED, NOT WILDCARDED, on purpose: a wildcard certificate needs
+# a DNS-01 solver, while one host per MCP Server application works with the
+# cluster's existing HTTP-01 issuer. Add a rule and a tls host per new app.
+#
+# The cluster's *.ping-devops.com certificate does NOT cover these names — a
+# wildcard matches one label only, and these are two labels deep. Hence the
+# explicit cert-manager annotation and tls block; se-ingress.yaml needs neither.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-mcpgw-agentless-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-pdo"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # The agentless API port (8620) is plain HTTP. Do not switch this to HTTPS
+    # and aim at 8623: that is the mesh port, it speaks mTLS, and it answers with
+    # "tlsv13 alert certificate required" — surfacing as a bare 502 whose real
+    # cause appears only in the ingress controller log.
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # MCP streamable HTTP and SSE hold the response open for the session's life.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx-public
+  tls:
+  - hosts:
+    - mcpgw.ai-demo.ping-devops.com
+    - aidemo.mcpgw.ai-demo.ping-devops.com
+    secretName: mcpgw-agentless-tls
+  rules:
+  # Gateway base host: /authorize and /callback, the OIDC dance MCPGW runs itself.
+  # Must equal SERVER_URL in ping-mcpgw/config/pingone.env and be registered as
+  # <SERVER_URL>/callback on the PingOne OIDC application.
+  - host: mcpgw.ai-demo.ping-devops.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ping-mcpgw
+            port:
+              number: 8620
+  # One host per Privilege MCP Server application.
+  - host: aidemo.mcpgw.ai-demo.ping-devops.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ping-mcpgw
+            port:
+              number: 8620

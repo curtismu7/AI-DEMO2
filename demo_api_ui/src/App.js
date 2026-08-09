@@ -105,6 +105,11 @@ import VerticalFeaturePage from "./components/VerticalFeaturePage";
 import WebMcpExplainer from "./components/WebMcpExplainer";
 import NotFoundPage from "./components/NotFoundPage";
 import WorkforceAdminOps from "./components/WorkforceAdminOps";
+import UniversityAdminOps from "./components/UniversityAdminOps";
+import GovernmentAdminOps from "./components/GovernmentAdminOps";
+import ManufacturingAdminOps from "./components/ManufacturingAdminOps";
+import InvestmentAdminOps from "./components/InvestmentAdminOps";
+import AbercrombieFitchAdminOps from "./components/AbercrombieFitchAdminOps";
 import { ActivityNarrativeProvider } from "./context/ActivityNarrativeContext";
 import {
   AgentUiModeProvider,
@@ -146,6 +151,7 @@ import MonitoringRoutes, {
   LogsRoute,
   McpTrafficRoute,
   NewRelicRoute,
+  PingOneEventsRoute,
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
@@ -372,8 +378,10 @@ function AppWithAuth() {
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
 
   // Landing /: always show float agent, never bottom dock.
+  // No Boolean(user) check — guests on /dashboard get the bottom dock agent
+  // (same reasoning as onMiddlePlacementInDashboard: guest must be able to start the demo).
   const hasEmbeddedDockLayout =
-    Boolean(user) && agentPlacement === "bottom" && onEmbeddedDockRoute;
+    agentPlacement === "bottom" && onEmbeddedDockRoute;
 
   const onMonitoringRoute = isMonitoringRoute(pathname);
 
@@ -433,7 +441,7 @@ function AppWithAuth() {
   if (clinicalSplit) {
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   } else if (hasEmbeddedDockLayout) {
-    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true };
+    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true, splitColumnChrome: true };
   } else if (onMiddlePlacementInDashboard) {
     // Middle column owns the agent surface — render inline so the floating
     // dock chrome doesn't appear inside the column. Same pattern as the
@@ -505,7 +513,15 @@ function AppWithAuth() {
                   element={<PublicRoutes user={user} logout={logout} />}
                 />
                 {/* New Relic event stream — public, no session required */}
-                <Route path="/monitoring/new-relic" element={<NewRelicRoute />} />
+                <Route
+                  path="/monitoring/new-relic"
+                  element={<NewRelicRoute user={user} logout={logout} />}
+                />
+                {/* PingOne webhook events — public, same posture as New Relic */}
+                <Route
+                  path="/monitoring/pingone-events"
+                  element={<PingOneEventsRoute user={user} logout={logout} />}
+                />
                 {/* Demo config accessible without login */}
                 <Route
                   path="/configure"
@@ -999,46 +1015,111 @@ function AppWithAuth() {
                             <Route
                               path="/admin/banking"
                               element={
-                                <BankingAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <BankingAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/healthcare"
                               element={
-                                <HealthcareAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <HealthcareAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/retail"
                               element={
-                                <RetailAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <RetailAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/sporting-goods"
                               element={
-                                <SportingGoodsAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <SportingGoodsAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/workforce"
                               element={
-                                <WorkforceAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <WorkforceAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/university"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <UniversityAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/government"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <GovernmentAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/manufacturing"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <ManufacturingAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/investment"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <InvestmentAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/abercrombie-fitch"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <AbercrombieFitchAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route

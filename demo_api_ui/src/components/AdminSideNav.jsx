@@ -825,6 +825,11 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/new-relic",
           icon: "log",
         },
+        {
+          label: "PingOne Events",
+          path: "/monitoring/pingone-events",
+          icon: "log",
+        },
       ],
     },
     {
