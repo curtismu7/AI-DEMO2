@@ -25,6 +25,30 @@ const VALID_EVENT = {
   recordedAt: '2026-08-06T10:00:00.000Z',
 };
 
+// Captured verbatim from a real PingOne "Test Connection" delivery. The event
+// type is at action.type, NOT at the top level, and _embedded is empty — the
+// environment is carried on the actor. Both cost us a 400 in production.
+const REAL_PING_ACTIVITY_EVENT = {
+  id: '81943c49-5435-48cd-937a-f9b8a7b7982f',
+  recordedAt: '2026-08-09T02:24:24.507594727Z',
+  correlationId: '11111111-2222-3333-4444-555555555555',
+  actors: {
+    client: { id: 'ADMIN', name: 'ADMIN', type: 'CLIENT' },
+    user: {
+      id: 'user-abc',
+      name: 'test@pingidentity.com',
+      environment: { id: 'env-from-actor' },
+      type: 'USER',
+    },
+  },
+  source: { userAgent: 'Test Connection Client' },
+  action: { type: 'EVENT_DELIVERY_TEST', description: 'Test event for subscription delivery' },
+  resources: [{ type: 'USER', id: 'res-abc', name: 'NR2' }],
+  result: { status: 'SUCCESS', description: 'test connection' },
+  _embedded: {},
+  subscriptionName: 'NR2',
+};
+
 const SECOND_EVENT = {
   id: 'evt-2',
   type: 'USER.CREATED',
@@ -32,6 +56,37 @@ const SECOND_EVENT = {
   result: { status: 'SUCCESS' },
   recordedAt: '2026-08-06T10:00:05.000Z',
 };
+
+// The regression this change exists for: before it, a real PingOne delivery
+// 400'd because the route looked for a top-level `type`.
+test('real Ping Activity payload maps action.type and persists', async () => {
+  const res = await request(makeApp())
+    .post('/webhook/pingone')
+    .send([REAL_PING_ACTIVITY_EVENT]);
+  expect(res.status).toBe(200);
+  expect(res.body.count).toBe(1);
+  const [stored] = pingoneEventStore.query({ limit: 10 });
+  expect(stored.eventType).toBe('EVENT_DELIVERY_TEST');
+  expect(stored.actorId).toBe('user-abc');
+  expect(stored.status).toBe('SUCCESS');
+  expect(stored.resource).toBe('NR2');
+  // _embedded is {} on real payloads — environment comes off the actor.
+  expect(stored.environmentId).toBe('env-from-actor');
+  expect(stored.correlationId).toBe('11111111-2222-3333-4444-555555555555');
+});
+
+test('HEAD /pingone returns 200 so Test Connection succeeds', async () => {
+  const res = await request(makeApp()).head('/webhook/pingone');
+  expect(res.status).toBe(200);
+});
+
+test('event with neither action.type nor type returns 400', async () => {
+  const res = await request(makeApp())
+    .post('/webhook/pingone')
+    .send([{ id: 'x', action: { description: 'no type here' } }]);
+  expect(res.status).toBe(400);
+  expect(res.body.error).toBe('invalid_event');
+});
 
 test('single event with no auth header returns 200 and persists', async () => {
   const res = await request(makeApp()).post('/webhook/pingone').send(VALID_EVENT);
