@@ -13,18 +13,21 @@
   display: inline-block;
 }
 
+/* The trigger sits on the rail's dark header bar (#16325c), so it matches the
+   header's outline-button treatment rather than a light-surface button. */
 .cvm-trigger {
-  font-size: 11.5px;
+  font: inherit;
+  font-size: 12.5px;
   font-weight: 600;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #1e293b;
-  border-radius: 6px;
-  padding: 4px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: none;
+  color: #e2e8f0;
+  border-radius: 5px;
+  padding: 3px 10px;
   cursor: pointer;
 }
 
-.cvm-trigger:hover { border-color: #1d4ed8; color: #1d4ed8; }
+.cvm-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 
 .cvm-pop {
   position: absolute;
@@ -56,9 +59,22 @@
 .cvm-item:hover { background: #f1f5f9; }
 
 .cvm-item-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12.5px;
   font-weight: 600;
   color: #0f172a;
+}
+
+.cvm-item-count {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #047857;
+  background: #d1fae5;
+  border-radius: 999px;
+  padding: 0 6px;
 }
 
 .cvm-item-hint {
@@ -75,10 +91,9 @@
 }
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
-:root[data-theme="dark"] .cvm-trigger { background: #0f1830; border-color: #26304a; color: #cdd7ec; }
-:root[data-theme="dark"] .cvm-trigger:hover { border-color: #9ec1ff; color: #9ec1ff; }
 :root[data-theme="dark"] .cvm-pop { background: #0f1830; border-color: #26304a; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
 :root[data-theme="dark"] .cvm-item:hover { background: #1b2540; }
 :root[data-theme="dark"] .cvm-item-label { color: #eaf0fb; }
+:root[data-theme="dark"] .cvm-item-count { background: #10331f; color: #5fe39c; }
 :root[data-theme="dark"] .cvm-item-hint { color: #90a0c2; }
 :root[data-theme="dark"] .cvm-note { color: #90a0c2; border-top-color: #26304a; }

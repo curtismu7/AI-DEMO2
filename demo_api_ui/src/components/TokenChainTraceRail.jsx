@@ -221,6 +221,10 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [activeStepId, setActiveStepId] = useState(null);
   // Presenter overlay — the same steps at projector size. Purely a second view.
   const [presenting, setPresenting] = useState(false);
+  // The rail's settings tray: view mode, text size, Clear and Legend. They left
+  // the header so the visible toolbar is Views and More, not twenty controls.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
   // Scope card lookups to THIS rail. The rail mounts on ~28 pages and
   // FloatingTokenChainPanel can put a second one over a dashboard that already
   // embeds one; a document-wide query would open the other rail's card and
@@ -250,6 +254,22 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const stepZoom = useCallback((delta) => {
     setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
   }, []);
+
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const onDocClick = (e) => {
+      if (!moreRef.current?.contains(e.target)) setMoreOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   useEffect(() => subscribeTrustFlags(setTrustFlags), []);
@@ -309,76 +329,106 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
       <div className="tctr-head">
         <div className="tctr-title-group">
           <span className="tctr-title">Token Chain</span>
-          <div className="tctr-view-mode" role="group" aria-label="Token chain view mode">
-            <button
-              type="button"
-              className={viewMode === "live" ? "active" : ""}
-              aria-pressed={viewMode === "live"}
-              onClick={() => setViewMode("live")}
-            >
-              Live
-            </button>
-            <button
-              type="button"
-              className={viewMode === "classic" ? "active" : ""}
-              aria-pressed={viewMode === "classic"}
-              onClick={() => setViewMode("classic")}
-            >
-              Classic
-            </button>
-          </div>
         </div>
-        <div className="tctr-head-actions">
+        <div className="tctr-toolbar">
+          {tab !== "chain" ? (
+            <button
+              type="button"
+              className="tctr-back-btn"
+              onClick={() => setTab("chain")}
+              title="Back to the inline token chain"
+            >
+              Token Chain
+            </button>
+          ) : null}
           <ChainViewMenu
             steps={steps}
             showTrust={showTrust}
+            mcpCount={mcpDone}
             onOpenView={(viewId) => setTab(VIEW_ID_TO_TAB[viewId] || "chain")}
           />
-          <div className="tctr-zoom" role="group" aria-label="Token chain text size">
+          <div className="tctr-more" ref={moreRef}>
             <button
               type="button"
-              className="tctr-zoom-btn"
-              onClick={() => stepZoom(-ZOOM_STEP)}
-              disabled={zoom <= ZOOM_MIN}
-              title="Smaller token chain text"
-              aria-label="Decrease token chain text size"
+              className="tctr-more-trigger"
+              aria-haspopup="true"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
             >
-              A-
+              More
             </button>
-            <button
-              type="button"
-              className="tctr-zoom-pct"
-              onClick={() => setZoom(1)}
-              disabled={zoom === 1}
-              title="Reset token chain text size"
-              aria-label="Reset token chain text size"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              className="tctr-zoom-btn"
-              onClick={() => stepZoom(ZOOM_STEP)}
-              disabled={zoom >= ZOOM_MAX}
-              title="Larger token chain text"
-              aria-label="Increase token chain text size"
-            >
-              A+
-            </button>
+            {/* Deliberately does NOT close on item click. Zoom is a repeat-press
+                control and Live/Classic is a toggle; closing after each press
+                would make the presenter reopen the tray three times to reach
+                120%. Outside click and Escape close it. */}
+            {moreOpen ? (
+              <div className="tctr-more-pop">
+                <div className="tctr-view-mode" role="group" aria-label="Token chain view mode">
+                  <button
+                    type="button"
+                    className={viewMode === "live" ? "active" : ""}
+                    aria-pressed={viewMode === "live"}
+                    onClick={() => setViewMode("live")}
+                  >
+                    Live
+                  </button>
+                  <button
+                    type="button"
+                    className={viewMode === "classic" ? "active" : ""}
+                    aria-pressed={viewMode === "classic"}
+                    onClick={() => setViewMode("classic")}
+                  >
+                    Classic
+                  </button>
+                </div>
+                <div className="tctr-zoom" role="group" aria-label="Token chain text size">
+                  <button
+                    type="button"
+                    className="tctr-zoom-btn"
+                    onClick={() => stepZoom(-ZOOM_STEP)}
+                    disabled={zoom <= ZOOM_MIN}
+                    title="Smaller token chain text"
+                    aria-label="Decrease token chain text size"
+                  >
+                    A-
+                  </button>
+                  <button
+                    type="button"
+                    className="tctr-zoom-pct"
+                    onClick={() => setZoom(1)}
+                    disabled={zoom === 1}
+                    title="Reset token chain text size"
+                    aria-label="Reset token chain text size"
+                  >
+                    {Math.round(zoom * 100)}%
+                  </button>
+                  <button
+                    type="button"
+                    className="tctr-zoom-btn"
+                    onClick={() => stepZoom(ZOOM_STEP)}
+                    disabled={zoom >= ZOOM_MAX}
+                    title="Larger token chain text"
+                    aria-label="Increase token chain text size"
+                  >
+                    A+
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="tctr-clear-btn"
+                  onClick={handleClear}
+                  disabled={!hasTraceActivity}
+                  title="Clear token chain back to nothing done (ready for next demo run)"
+                  aria-label="Clear token chain"
+                >
+                  Clear
+                </button>
+                <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
+                  Legend
+                </button>
+              </div>
+            ) : null}
           </div>
-          <button
-            type="button"
-            className="tctr-clear-btn"
-            onClick={handleClear}
-            disabled={!hasTraceActivity}
-            title="Clear token chain back to nothing done (ready for next demo run)"
-            aria-label="Clear token chain"
-          >
-            Clear
-          </button>
-          <button type="button" className="tctr-legend-btn" onClick={() => setLegendOpen(true)}>
-            Legend
-          </button>
         </div>
       </div>
 
@@ -390,47 +440,6 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           </React.Fragment>
         ))}
         <span className="tctr-badge">CHAINED</span>
-      </div>
-
-      <div className="tctr-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={tab === "chain"}
-          className={`tctr-tab${tab === "chain" ? " tctr-tab--active" : ""}`}
-          onClick={() => setTab("chain")}>
-          Token Chain
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "tokens"}
-          className={`tctr-tab${tab === "tokens" ? " tctr-tab--active" : ""}`}
-          onClick={() => setTab("tokens")}>
-          Tokens
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "mcp"}
-          className={`tctr-tab${tab === "mcp" ? " tctr-tab--active" : ""}`}
-          onClick={() => setTab("mcp")}>
-          MCP <span className="tctr-tab-count">{mcpDone}</span>
-        </button>
-        {showTrust && (
-          <button type="button" role="tab" aria-selected={tab === "trust"}
-            className={`tctr-tab${tab === "trust" ? " tctr-tab--active" : ""}`}
-            onClick={() => setTab("trust")}>
-            Trust
-          </button>
-        )}
-        <button type="button" role="tab" aria-selected={tab === "simple"}
-          className={`tctr-tab${tab === "simple" ? " tctr-tab--active" : ""}`}
-          onClick={() => setTab("simple")}>
-          Simple
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "detailed"}
-          className={`tctr-tab${tab === "detailed" ? " tctr-tab--active" : ""}`}
-          onClick={() => setTab("detailed")}>
-          Detailed
-        </button>
-        <button type="button" role="tab" aria-selected={tab === "demo-track"}
-          className={`tctr-tab${tab === "demo-track" ? " tctr-tab--active" : ""}`}
-          onClick={() => setTab("demo-track")}
-          title="Guided Demo Track — live step tracker">
-          Demo Track
-        </button>
       </div>
 
       {tab === "chain" ? (

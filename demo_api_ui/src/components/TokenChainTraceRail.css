@@ -9,7 +9,6 @@
   --tctr-header-text: #ffffff;
   --tctr-row-hover: #f1f5f9;
   --tctr-step-body-bg: #f8fafc;
-  --tctr-tab-active: #16325c;
   --tctr-pill-bg: #eef2f9;
 
   background: #fff;
@@ -47,9 +46,48 @@
 .tctr-view-mode button.active {
   color: #16325c; background: #ffffff;
 }
-.tctr-head-actions {
+/* Visible toolbar. Everything that used to sit here — Live/Classic, the zoom
+   trio, Clear and Legend — moved into .tctr-more-pop; Run and the speed select
+   live in TokenChainNodeRail below. What is left visible is Views, More, and a
+   way back to the chain when a view has replaced it. */
+.tctr-toolbar {
   display: flex; align-items: center; gap: 6px;
 }
+.tctr-back-btn {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #e2e8f0; font: inherit; font-size: 12.5px; font-weight: 600;
+  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+}
+.tctr-back-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+
+.tctr-more { position: relative; display: inline-block; }
+.tctr-more-trigger {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #e2e8f0; font: inherit; font-size: 12.5px; font-weight: 600;
+  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+}
+.tctr-more-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.tctr-more-pop {
+  position: absolute; top: calc(100% + 5px); right: 0; z-index: 30;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 9px; min-width: 190px;
+  border: 1px solid var(--tctr-border); border-radius: 8px;
+  background: var(--tctr-card-bg, #ffffff);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+}
+/* Inside the tray the header's white-on-dark treatment no longer applies. */
+.tctr-more-pop .tctr-view-mode {
+  border-color: var(--tctr-border); background: var(--tctr-pill-bg);
+}
+.tctr-more-pop .tctr-view-mode button { color: var(--tctr-muted); }
+.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #1d4ed8; }
+.tctr-more-pop .tctr-zoom { margin-right: 0; padding-right: 0; border-right: 0; }
+.tctr-more-pop .tctr-legend-btn,
+.tctr-more-pop .tctr-clear-btn {
+  border-color: var(--tctr-border); color: var(--tctr-text);
+}
+.tctr-more-pop .tctr-clear-btn { color: #b91c1c; border-color: rgba(185, 28, 28, 0.4); }
+.tctr-more-pop .tctr-clear-btn:hover:not(:disabled) { background: rgba(185, 28, 28, 0.1); color: #991b1b; }
 .tctr-theme-btn,
 .tctr-legend-btn,
 .tctr-clear-btn {
@@ -292,23 +330,6 @@
   padding: 10px 12px; font-size: 13px; color: #64748b; font-style: italic;
 }
 
-/* Tab strip */
-.tctr-tabs {
-  display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--tctr-border);
-}
-.tctr-tab {
-  background: none; border: none; border-bottom: 2px solid transparent;
-  padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--tctr-muted);
-  cursor: pointer; display: flex; align-items: center; gap: 5px;
-}
-.tctr-tab:hover { color: var(--tctr-tab-active); }
-.tctr-tab--active { color: var(--tctr-tab-active); border-bottom-color: var(--tctr-tab-active); }
-.tctr-tab-count {
-  font-size: 12px; font-weight: 700; color: var(--tctr-muted);
-  background: var(--tctr-pill-bg); border-radius: 999px; padding: 0 6px;
-}
-.tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: var(--tctr-tab-active); }
-
 /* Trust tab — DPoP / RAR posture (shown when ff_dpop / ff_rar or evidence) */
 .tctr-trust {
   display: flex;
@@ -390,7 +411,6 @@
   --tctr-header-text: #f8fafc;
   --tctr-row-hover: #17253a;
   --tctr-step-body-bg: #111b2d;
-  --tctr-tab-active: #bfdbfe;
   --tctr-pill-bg: #1e293b;
 }
 
@@ -507,8 +527,6 @@
 :root[data-theme="dark"] .tctr .tctr-acc { border-top-color: var(--tctr-border); }
 
 :root[data-theme="dark"] .tctr .tctr-count { background: #1e293b; color: #94a3b8; }
-
-:root[data-theme="dark"] .tctr .tctr-tab--active .tctr-tab-count { background: rgba(191, 219, 254, 0.15); }
 
 :root[data-theme="dark"] .tctr .tctr-tok-inspect {
   background: #17253a;

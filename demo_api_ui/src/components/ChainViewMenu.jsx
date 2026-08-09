@@ -19,7 +19,7 @@ const VIEWS = [
   ["demoTrack", "Demo Track", "The guided nine-step demo script."],
 ];
 
-export default function ChainViewMenu({ steps, onOpenView, showTrust = true }) {
+export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcpCount = 0 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const count = Array.isArray(steps) ? steps.length : 0;
@@ -72,7 +72,14 @@ export default function ChainViewMenu({ steps, onOpenView, showTrust = true }) {
                 close();
               }}
             >
-              <span className="cvm-item-label">{label}</span>
+              <span className="cvm-item-label">
+                {label}
+                {/* The MCP tab carried a done-call count; it must survive the
+                    move into this menu. */}
+                {id === "mcp" && mcpCount > 0 ? (
+                  <span className="cvm-item-count">{mcpCount}</span>
+                ) : null}
+              </span>
               <span className="cvm-item-hint">{hint}</span>
             </button>
           ))}
