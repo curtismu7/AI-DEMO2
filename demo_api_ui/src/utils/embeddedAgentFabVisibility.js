@@ -29,7 +29,11 @@ export function isBankingAgentDashboardRoute(pathname) {
 export function isPingOneAdminAgentRoute(pathname) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
-  return p === '/admin/pingone';
+  // Both, because both render the dashboard: /admin is the original home and
+  // /admin/pingone was added by #1486 and kept when that repoint was reverted.
+  // This predicate has to match wherever Demo Steps actually is — pointing it
+  // at a page that does not hold them is the 2026-07-22 regression.
+  return p === '/admin' || p === '/admin/pingone';
 }
 
 /**

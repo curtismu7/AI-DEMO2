@@ -1006,29 +1006,25 @@ function AppWithAuth() {
                               "Render smoke" tests for the failure mode. To
                               add a new admin route, add it to this block and
                               wrap with <AdminRoute user={user}>...</AdminRoute>. */}
-                            {/* /admin is the support console for whatever
-                                vertical is active. resolveConsoleVertical is
-                                required, not defensive: activeId is null until
-                                a vertical is chosen and can be one with no
-                                console (pingone-admin, airlines, a2a), and
-                                getVerticalConfig throws on those — which would
-                                take down the admin landing page. */}
+                            {/* /admin is the PingOne admin dashboard. It was
+                                briefly repointed at the support console (#1486)
+                                and reverted (#REVERT): the console does not yet
+                                carry what this page does — group membership,
+                                the PingOne user record on lookup, the full
+                                token chain — so the repoint lost real
+                                capability. It moves back once the console is at
+                                parity. The support console lives at
+                                /admin/<vertical> meanwhile. */}
                             <Route
                               path="/admin"
                               element={
                                 <RequireAdminLogin user={user}>
-                                  <SupportConsole
-                                    vertical={resolveConsoleVertical(activeVerticalId)}
-                                    user={user}
-                                    onLogout={logout}
-                                  />
+                                  <Dashboard user={user} onLogout={logout} />
                                 </RequireAdminLogin>
                               }
                             />
-                            {/* Today's /admin content. isPingOneAdminAgentRoute
-                                moved here in the same change so the admin agent
-                                keeps forceVertical: "pingone-admin" on the page
-                                that actually holds Demo Steps. */}
+                            {/* Kept from #1486 so the Platform Admin nav entry
+                                and any bookmark still resolve. Same component. */}
                             <Route
                               path="/admin/pingone"
                               element={
