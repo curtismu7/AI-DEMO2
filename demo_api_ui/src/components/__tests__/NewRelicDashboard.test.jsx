@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '../../context/ThemeContext';
@@ -126,5 +128,38 @@ describe('NewRelicDashboard', () => {
     screen.getByRole('button', { name: '24h' }).click();
     await waitFor(() =>
       expect(apiClient.get).toHaveBeenLastCalledWith('/api/newrelic/pipeline?window=24h'));
+  });
+});
+
+// jsdom does not apply real stylesheets, so this is a static check on the CSS
+// source. It guards a shipped bug: .nrd set `color` for dark mode but no
+// `background`, so the title and subtitle — the only text sitting bare on the
+// page rather than inside a card — rendered near-white on the app shell's
+// light ground and were unreadable in dark mode.
+describe('NewRelicDashboard.css dark-mode ground', () => {
+  const css = fs.readFileSync(
+    path.resolve(__dirname, '../NewRelicDashboard.css'),
+    'utf8',
+  );
+
+  const baseBlock = css.slice(css.indexOf('.nrd {'), css.indexOf('}', css.indexOf('.nrd {')));
+  const darkBlock = css.slice(
+    css.indexOf(':root[data-theme="dark"] .nrd {'),
+    css.indexOf('}', css.indexOf(':root[data-theme="dark"] .nrd {')),
+  );
+
+  it('paints its own background rather than inheriting the shell', () => {
+    expect(baseBlock).toMatch(/background:\s*var\(--nrd-ground\)/);
+  });
+
+  it('defines --nrd-ground in both themes', () => {
+    expect(baseBlock).toMatch(/--nrd-ground:\s*#[0-9a-f]{3,8}/i);
+    expect(darkBlock).toMatch(/--nrd-ground:\s*#[0-9a-f]{3,8}/i);
+  });
+
+  it('gives light and dark different grounds', () => {
+    const light = baseBlock.match(/--nrd-ground:\s*(#[0-9a-f]{3,8})/i)[1].toLowerCase();
+    const dark = darkBlock.match(/--nrd-ground:\s*(#[0-9a-f]{3,8})/i)[1].toLowerCase();
+    expect(light).not.toBe(dark);
   });
 });
