@@ -456,13 +456,29 @@ async function _postDecisionEndpoint(endpointId, parameters) {
     });
     const policyNotFound = _isPolicyNotFoundEffect(raw);
 
-    const decisionId = raw.id || raw.decisionId || null;
+    // PingOne sends `correlationId`; it sends neither `id` nor `decisionId`,
+    // which is why this was always null. The other two are kept as fallbacks
+    // in case a different decision path returns them.
+    const decisionId = raw.correlationId || raw.id || raw.decisionId || null;
+
+    // PingOne's own policy-evaluation time, distinct from the wall-clock the
+    // caller measures — that one includes the network round trip.
+    const policyEvalMs =
+      typeof raw.elapsedMicroseconds === 'number'
+        ? raw.elapsedMicroseconds / 1000
+        : null;
+
+    // Which policy fired, e.g. "Transaction Denied" / "transaction-denied".
+    // Only the first statement is captured; multi-statement decisions are out
+    // of scope until a policy here actually returns more than one.
+    const ruleName = raw.statements?.[0]?.name || null;
+    const ruleCode = raw.statements?.[0]?.code || null;
 
     const _debug = {
       request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
       response: raw,
     };
-    return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
+    return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, policyEvalMs, ruleName, ruleCode, path: 'decision-endpoint', _debug };
   });
 }
 
