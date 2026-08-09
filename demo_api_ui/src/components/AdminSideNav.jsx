@@ -159,7 +159,8 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
-  { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
+  { id: "platform-admin", paths: ["/admin/pingone"] },
+  { id: "industry-verticals", paths: ["/admin", "/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
@@ -701,9 +702,25 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
+      label: "Platform Admin",
+      icon: "cfg",
+      children: [
+        // The PingOne admin dashboard used to be /admin and had no side-nav
+        // entry at all — it was reached by URL. The support console took
+        // /admin, so this content moved to /admin/pingone and now has one.
+        {
+          label: "PingOne Admin",
+          path: "/admin/pingone",
+          icon: "cfg",
+          adminOnly: true,
+        },
+      ],
+    },
+    {
       label: "Industry Verticals",
       icon: "bld",
       children: [
+        { label: "Support Console", path: "/admin", icon: "bld" },
         { label: "Banking Ops", path: "/admin/banking", icon: "acc" },
         { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
         { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
