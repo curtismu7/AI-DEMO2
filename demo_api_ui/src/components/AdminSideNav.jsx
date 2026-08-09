@@ -720,16 +720,22 @@ export default function AdminSideNav({ user }) {
       label: "Industry Verticals",
       icon: "bld",
       children: [
-        { label: "Support Console", path: "/admin", icon: "bld" },
-        { label: "Banking Ops", path: "/admin/banking", icon: "acc" },
-        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg" },
-        { label: "Retail Ops", path: "/admin/retail", icon: "cfg" },
+        // adminOnly does not hide these — it shows the "admin" badge and
+        // prompts an admin re-login on click. Every /admin/<vertical> route has
+        // been wrapped in RequireAdminLogin since PR #1473, but the nav was
+        // never updated to match, so a non-admin got an ordinary-looking link
+        // that dead-ends at the route-level login wall. /admin is the same.
+        { label: "Support Console", path: "/admin", icon: "bld", adminOnly: true },
+        { label: "Banking Ops", path: "/admin/banking", icon: "acc", adminOnly: true },
+        { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg", adminOnly: true },
+        { label: "Retail Ops", path: "/admin/retail", icon: "cfg", adminOnly: true },
         {
           label: "Sporting Goods Ops",
           path: "/admin/sporting-goods",
           icon: "cfg",
+          adminOnly: true,
         },
-        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg" },
+        { label: "Workforce Ops", path: "/admin/workforce", icon: "cfg", adminOnly: true },
         {
           label: "Vertical Editor",
           path: "/admin/verticals",
