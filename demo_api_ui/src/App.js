@@ -105,6 +105,11 @@ import VerticalFeaturePage from "./components/VerticalFeaturePage";
 import WebMcpExplainer from "./components/WebMcpExplainer";
 import NotFoundPage from "./components/NotFoundPage";
 import WorkforceAdminOps from "./components/WorkforceAdminOps";
+import UniversityAdminOps from "./components/UniversityAdminOps";
+import GovernmentAdminOps from "./components/GovernmentAdminOps";
+import ManufacturingAdminOps from "./components/ManufacturingAdminOps";
+import InvestmentAdminOps from "./components/InvestmentAdminOps";
+import AbercrombieFitchAdminOps from "./components/AbercrombieFitchAdminOps";
 import { ActivityNarrativeProvider } from "./context/ActivityNarrativeContext";
 import {
   AgentUiModeProvider,
@@ -1056,6 +1061,61 @@ function AppWithAuth() {
                               element={
                                 <RequireAdminLogin user={user}>
                                   <WorkforceAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/university"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <UniversityAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/government"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <GovernmentAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/manufacturing"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <ManufacturingAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/investment"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <InvestmentAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/abercrombie-fitch"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <AbercrombieFitchAdminOps
                                     user={user}
                                     onLogout={logout}
                                   />
