@@ -1148,8 +1148,18 @@ export default function AdminSideNav({ user }) {
 
     switch (action) {
       case "switch-role": {
-        const targetRole = isAdmin ? "customer" : "admin";
-        startRoleSwitch(targetRole).catch((e) => {
+        // The two directions are not symmetric. "Customer View" is a view
+        // change: the customer dashboard is viewable without authentication, so
+        // it must not sign the admin out — startRoleSwitch POSTs
+        // /api/auth/switch, which returns the login URL and destroys the current
+        // session. "Admin View" genuinely changes identity and still requires
+        // authenticating as an admin.
+        if (isAdmin) {
+          spinner.show("Loading customer dashboard…", "/dashboard");
+          navigate("/dashboard");
+          break;
+        }
+        startRoleSwitch("admin").catch((e) => {
           console.error("[Sidebar] Role switch failed:", e.message);
         });
         break;
