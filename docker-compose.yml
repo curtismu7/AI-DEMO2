@@ -1191,7 +1191,17 @@ services:
   # ping-mcpgw/config/proxy-token (gitignored).
   ping-mcpgw:
     profiles: ["mcpgw"]
+    # Deliberately UNTAGGED (= :latest) and always re-pulled. This is a vendor image
+    # for an actively developed product; running the newest build matters more here
+    # than reproducibility, and picking up a new version mid-demo is acceptable.
+    # Do not pin a version tag.
+    #
+    # pull_policy is required, not decorative: plain `compose up` reuses whatever
+    # `latest` was last fetched and never checks the registry, so without this the
+    # image silently goes stale. On 2026-08-09 the local `latest` was v1.260726 while
+    # the registry had shipped v1.260806 eleven days earlier.
     image: public.ecr.aws/s7q1z8z4/privilege-proxy
+    pull_policy: always
     container_name: ai-demo-ping-mcpgw
     # AGENTLESS (self-hosted frontend) MODE — see docs/PRIVILEGE-MCP.md.
     #
