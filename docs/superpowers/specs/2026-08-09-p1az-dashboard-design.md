@@ -34,8 +34,37 @@ Verified live: amount 100 → PERMIT, 20000 → DENY, 60000 → DENY. The 20000 
 is correct — step-up is required above 10000 and the probe sent `acr: pwd`, so
 the obligation could not be satisfied.
 
-**Missing:** `latencyMs` (nowhere), `ruleName`/policy name (nowhere), and
-`decisionId` is present as a field but arrives `null` on this path.
+**Available but not captured.** An earlier draft of this spec claimed `latencyMs`,
+`ruleName` and `decisionId` were unavailable upstream. That was wrong. The raw
+PingOne decision response — logged by `pingOneAuthorizeService.js` and captured
+from live PERMIT and DENY calls on 2026-08-09 — carries all three:
+
+```json
+{
+  "correlationId": "48c67322-351e-45b4-8614-ce5208b2651f",
+  "timestamp": "2026-08-09T13:06:03.967328809Z",
+  "elapsedMicroseconds": 2885,
+  "status": { "code": "OKAY" },
+  "decision": "PERMIT",
+  "statements": [ { "name": "Transaction Approved",
+                    "code": "transaction-approved",
+                    "payload": "{\"approved\": true, …}",
+                    "obligatory": false, "fulfilled": false } ]
+}
+```
+
+| Wanted | Actually available as | Why it was missed |
+|---|---|---|
+| `decisionId` | `raw.correlationId` | the extractor checks `raw.id \|\| raw.decisionId`, neither of which PingOne sends |
+| policy-eval latency | `raw.elapsedMicroseconds` | never read |
+| `ruleName` | `raw.statements[0].name` / `.code` | never read |
+
+Confirmed identical in shape on both outcomes: DENY yields
+`Transaction Denied` / `transaction-denied`, PERMIT yields
+`Transaction Approved` / `transaction-approved`.
+
+This materially improves the dashboard: it can name **which rule fired**, which
+is the PingOne Authorize story rather than a bare PERMIT/DENY count.
 
 **Gate configuration is healthy.** `/api/authorize/test-status` on the running
 stack reports `activeEngine: pingone`, `authorizeEnabled: true`,
@@ -94,14 +123,19 @@ preserved exactly: the client sends a **key**, never a query. An unknown view is
 a 400, matching the existing `invalid_window` behavior. `/api/newrelic/pipeline`
 remains as an alias so nothing that exists today breaks.
 
-The `authorize` view issues four queries:
+The `authorize` view issues five queries:
 
 | Purpose | Query shape |
 |---|---|
 | Decision split | `FACET decision` |
 | Posture | `FACET tag` — surfaces gate-skipped / fail-open / failover / policy-not-found |
+| Top rules | `FACET ruleName` — which policy fired |
 | Volume | `TIMESERIES` |
-| Stream | `SELECT timestamp, tag, decision, amount, stepUpRequired, type, engine … LIMIT 50` |
+| Stream | `SELECT timestamp, tag, decision, ruleName, amount, stepUpRequired, type, engine, latencyMs, policyEvalMs … LIMIT 50` |
+
+`ruleName` only exists on events emitted after this change ships; older records
+return `null` for that facet, which the page renders as "unattributed" rather
+than hiding.
 
 ### UI
 
@@ -118,8 +152,13 @@ Layout, in reading order:
 2. **Posture row** — gate-skipped / fail-open / failover / policy-not-found.
    A non-zero fail-open or failover count is the thing an operator must notice,
    so it renders in the warning color rather than as a neutral stat.
-3. **Volume** — inline SVG timeseries, same treatment as the New Relic page.
-4. **Decision stream** — time, decision, amount, type, step-up, engine.
+3. **Top rules** — `FACET ruleName`, so the page names *which policy fired*
+   (`Transaction Denied`, `Transaction Approved`) rather than only counting
+   outcomes. This is the PingOne Authorize story and the strongest thing on the
+   page for a demo.
+4. **Volume** — inline SVG timeseries, same treatment as the New Relic page.
+5. **Decision stream** — time, decision, rule, amount, type, step-up, engine,
+   latency (wall-clock) and policy-eval ms.
 
 ### Shared components
 
@@ -137,19 +176,33 @@ gateway pages land and the shape is known.
 
 ### Emit-site additions
 
-Two, both justified by what the live data lacks:
+All four read fields PingOne already returns and the code simply never captured.
 
-- `latencyMs` measured around `evaluatePingOneTransaction` — answers whether the
-  authz hop is slow, which nothing currently can.
-- Populate `decisionId` where PingOne returns one, linking a dashboard row back
-  to the PingOne decision record.
+In `pingOneAuthorizeService.js`, widen the extraction:
+
+| Emitted field | Source |
+|---|---|
+| `decisionId` | `raw.correlationId \|\| raw.id \|\| raw.decisionId \|\| null` |
+| `policyEvalMs` | `raw.elapsedMicroseconds / 1000` — PingOne's own evaluation time |
+| `ruleName` | `raw.statements?.[0]?.name \|\| null` |
+| `ruleCode` | `raw.statements?.[0]?.code \|\| null` |
+
+Plus one measured in the BFF:
+
+- `latencyMs` — wall-clock around `evaluatePingOneTransaction`.
+
+`latencyMs` and `policyEvalMs` answer different questions and both are cheap:
+PingOne reports ~3ms of policy evaluation, while the wall-clock figure includes
+the network round trip, which is what a user actually waits for. Reporting only
+one would misrepresent the other.
 
 ---
 
 ## Non-goals
 
-- `ruleName` / policy-name attribution. PingOne would need to return it and the
-  emit sites would need to thread it; out of scope here.
+- Multi-statement rule attribution. A decision can carry several `statements`;
+  only the first is captured. Rendering all of them is deferred until a policy
+  in this environment actually returns more than one.
 - Cleaning the ~50 fixture `authorize` records already in New Relic. #1493 stops
   new pollution; history stays and will appear in wide windows.
 - A dashboard framework (see Shared components).
