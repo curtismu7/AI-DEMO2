@@ -59,6 +59,8 @@ export default function PrivilegeMcpClientPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
+  const [consoleCurl, setConsoleCurl] = useState('');
+  const [consoleTokenInfo, setConsoleTokenInfo] = useState(null);
   const [terminalTab, setTerminalTab] = useState('events');
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
@@ -189,6 +191,22 @@ export default function PrivilegeMcpClientPage() {
       window.location.href = data.authUrl;
     } catch (err) {
       appendChat('system', `OAuth start failed: ${err.message}`);
+    }
+  };
+
+  // DEV: use a Privilege console token as the gateway bearer. Paste a whole
+  // "Copy as cURL" from the console's DevTools; the BFF parses auth_token out.
+  const useConsoleToken = async () => {
+    try {
+      const data = await api('/dev/console-token', { method: 'POST', body: { curl: consoleCurl } });
+      setConsoleTokenInfo(data);
+      setAuthenticated(true);
+      appendChat('system',
+        `Console token set for ${data.user || 'user'} — ${data.expiresInMinutes} min left, kid ${data.kidMatchesGateway ? 'matches gateway' : data.kid}. Target: ${data.mcpUrl}`);
+      await refreshTools();
+    } catch (err) {
+      setConsoleTokenInfo(null);
+      appendChat('system', `Console token rejected: ${err.message}`);
     }
   };
 
@@ -549,6 +567,33 @@ export default function PrivilegeMcpClientPage() {
             ) : (
               <div className="cur-btn-row">
                 <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+              </div>
+            )}
+
+            {import.meta.env.DEV && (
+              <div className="cur-console-token">
+                <div className="cur-sidebar-header">
+                  <span className="cur-sidebar-title">CONSOLE TOKEN (DEV)</span>
+                </div>
+                <p className="cur-console-token-hint">
+                  Privilege console &gt; DevTools &gt; Network &gt; any request &gt; Copy as cURL, paste below.
+                  The bearer PingOne mints is rejected by the gateway (kid wall); a console token is accepted.
+                </p>
+                <textarea
+                  className="cur-console-token-input"
+                  rows={4}
+                  placeholder="curl 'https://console.privilege.pingone.com/...' -b 'auth_token=eyJ...'"
+                  value={consoleCurl}
+                  onChange={(e) => setConsoleCurl(e.target.value)}
+                />
+                <button type="button" className="cur-btn cur-btn--primary" onClick={useConsoleToken} disabled={!consoleCurl.trim()}>
+                  Use console token
+                </button>
+                {consoleTokenInfo && (
+                  <div className="cur-console-token-status">
+                    {consoleTokenInfo.kidMatchesGateway ? '✓' : '⚠️'} {consoleTokenInfo.user} — {consoleTokenInfo.expiresInMinutes} min left
+                  </div>
+                )}
               </div>
             )}
 
