@@ -804,9 +804,34 @@ function readExistingEnvVars() {
   }
 }
 
+// Derive the gateway OIDC env from the live process env, so the Settings panel
+// shows the real Privilege config even when pingone.env has never been written
+// (the file is bind-mounted + gitignored, so a fresh checkout has none). Uses the
+// SAME precedence the OAuth handlers above already use for these apps. Only keys
+// that resolve to a non-empty value are returned — blanks stay editable.
+function envFallbackVars() {
+  const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
+  const asBase = envId ? `https://auth.pingone.com/${envId}/as` : '';
+  const candidates = {
+    SERVER_URL: process.env.PRIVILEGE_MCPGW_URL,
+    OIDC_CLIENT_ID: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID,
+    OIDC_CLIENT_SECRET: process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET,
+    OIDC_AUTH_URL: asBase && `${asBase}/authorize`,
+    OIDC_TOKEN_URL: asBase && `${asBase}/token`,
+    OIDC_USER_URL: asBase && `${asBase}/userinfo`,
+    OIDC_SCOPES: 'openid profile email',
+  };
+  const out = {};
+  for (const key of PINGONE_ENV_ALLOWED_KEYS) {
+    if (candidates[key]) out[key] = String(candidates[key]);
+  }
+  return out;
+}
+
 router.get('/env', requireAdminSession, (req, res) => {
   try {
-    res.json({ ok: true, vars: readExistingEnvVars() });
+    // File values win; the process-env fallback fills any key the file omits.
+    res.json({ ok: true, vars: { ...envFallbackVars(), ...readExistingEnvVars() } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -843,6 +868,7 @@ module.exports = router;
 module.exports.__test = {
   emitEvent,
   getClientSession,
+  envFallbackVars,
   /** @param {string} sid @param {{ write: Function }} res */
   subscribeSse(sid, res) {
     let clients = sseClients.get(sid);
