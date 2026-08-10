@@ -41,9 +41,57 @@
   top: 8px;
 }
 
+/* ── Metric-details modal content. Lives inside DraggableModal, which portals
+   to document.body — OUTSIDE .admin-dashboard-page — so the --admin-* tokens
+   do not resolve here and these classes carry their own dark block below.
+   Solid high-contrast colors per REGRESSION_PLAN §0 (no muted modal text). ── */
+.dash-metric-detail__desc {
+  margin-top: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+.dash-metric-detail__value-box {
+  background: #f3f4f6;
+  padding: 1.5rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+.dash-metric-detail__value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.dash-metric-detail__h {
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.dash-metric-detail__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.dash-metric-detail__label {
+  color: #475569;
+  font-weight: 500;
+}
+.dash-metric-detail__val {
+  font-weight: 600;
+  color: #1e293b;
+}
+
 /* ── Dark (:root[data-theme="dark"], never the OS setting). The amber banner's
    deep-amber ink and the skip link's white card are the only literals here
    that fail on a dark ground. ── */
+:root[data-theme="dark"] .dash-metric-detail__desc,
+:root[data-theme="dark"] .dash-metric-detail__label { color: #a5b4c8; }
+:root[data-theme="dark"] .dash-metric-detail__value-box { background: #161f2c; }
+:root[data-theme="dark"] .dash-metric-detail__value,
+:root[data-theme="dark"] .dash-metric-detail__val { color: #e8eef7; }
+:root[data-theme="dark"] .dash-metric-detail__row { border-bottom-color: #253244; }
 :root[data-theme="dark"] .dash-scope-injection-banner__text strong { color: #fbbf24; }
 :root[data-theme="dark"] .dash-scope-injection-banner__text span { color: #e0a145; }
 :root[data-theme="dark"] .dash-scope-injection-banner__close { color: #fbbf24; }

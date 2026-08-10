@@ -32,6 +32,7 @@ import ApiCallsModal from "./ApiCallsModal";
 import FloatingPanel from "./FloatingPanel";
 import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import ConfirmModal from "./ConfirmModal";
+import DraggableModal from "./DraggableModal";
 import ThresholdControls from "./ThresholdControls";
 import AdminCustomerPanel from "./AdminCustomerPanel";
 import GroupMembershipToggle from "./GroupMembershipToggle";
@@ -892,128 +893,40 @@ const Dashboard = ({ user, onLogout }) => {
         />
 
         {/* Metric Details Modal */}
-        {selectedMetric && metricDetails && (
-          <button
-            type="button"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000,
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-            }}
-            onClick={() => setSelectedMetric(null)}
-            aria-label="Close metric details"
-          >
-            <div
-              role="dialog"
-              aria-labelledby="metric-details-title"
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: "8px",
-                padding: "2rem",
-                maxWidth: "500px",
-                width: "90%",
-                boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)",
-                cursor: "default",
-              }}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.key === "Escape" && setSelectedMetric(null)}
-            >
-              <h2
-                style={{
-                  marginTop: 0,
-                  marginBottom: "0.5rem",
-                  fontSize: "1.5rem",
-                  fontWeight: 600,
-                }}
-              >
-                {metricDetails.title}
-              </h2>
-              <p style={{ marginTop: 0, color: "#666", fontSize: "0.95rem" }}>
-                {metricDetails.description}
-              </p>
-              <div
-                style={{
-                  backgroundColor: "#f3f4f6",
-                  padding: "1.5rem",
-                  borderRadius: "6px",
-                  marginBottom: "1.5rem",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "2.5rem",
-                    fontWeight: 700,
-                    color: "#1e293b",
-                  }}
-                >
-                  {metricDetails.value}
-                </div>
+        {/* Metric details — DraggableModal per the standing modal rule (was a
+            hand-rolled fixed overlay). The default footer supplies Close.
+            Styled via .dash-metric-detail classes (Dashboard.css): the modal
+            portals to document.body, OUTSIDE .admin-dashboard-page, so the
+            --admin-* tokens do not resolve here — those classes carry their
+            own dark block. */}
+        <DraggableModal
+          isOpen={Boolean(selectedMetric && metricDetails)}
+          onClose={() => setSelectedMetric(null)}
+          title={metricDetails?.title || "Metric details"}
+          defaultWidth={500}
+          defaultHeight={430}
+          storageKey="admin-metric-details"
+        >
+          {metricDetails && (
+            <div className="dash-metric-detail">
+              <p className="dash-metric-detail__desc">{metricDetails.description}</p>
+              <div className="dash-metric-detail__value-box">
+                <div className="dash-metric-detail__value">{metricDetails.value}</div>
               </div>
-
               {metricDetails.details && metricDetails.details.length > 0 && (
                 <div>
-                  <h3
-                    style={{
-                      marginBottom: "1rem",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Related Metrics
-                  </h3>
-                  {metricDetails.details.map((detail, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "0.75rem 0",
-                        borderBottom: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <span style={{ color: "#666", fontWeight: 500 }}>
-                        {detail.label}
-                      </span>
-                      <span style={{ fontWeight: 600, color: "#1e293b" }}>
-                        {detail.value}
-                      </span>
+                  <h3 className="dash-metric-detail__h">Related Metrics</h3>
+                  {metricDetails.details.map((detail) => (
+                    <div key={detail.label} className="dash-metric-detail__row">
+                      <span className="dash-metric-detail__label">{detail.label}</span>
+                      <span className="dash-metric-detail__val">{detail.value}</span>
                     </div>
                   ))}
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => setSelectedMetric(null)}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  marginTop: "1.5rem",
-                  backgroundColor: "#2563eb",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
             </div>
-          </button>
-        )}
+          )}
+        </DraggableModal>
       </div>
     </div>
   );
