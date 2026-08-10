@@ -316,6 +316,10 @@ export default function BankingAgent({
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
+  // Same pattern for the guided Demo Track picks arriving from the /admin
+  // page strip's DemoTrackAgentControl (agent-track-step-pick/-complete).
+  const trackStepPickRef = useRef(null);
+  const trackStepCompleteRef = useRef(null);
   // Same interaction contract as the Token Chain rail's More tray: outside
   // click and Escape close it, an item click does NOT — several entries are
   // switches a presenter flips in sequence.
@@ -832,6 +836,9 @@ export default function BankingAgent({
 
   // Guided Demo Track (Plan C): picked step drives a banner + swapped chip row.
   const [trackStep, setTrackStep] = useState(null); // { step, index, total, completed?, next? } | null
+  trackStepPickRef.current = handleTrackStepPick;
+  trackStepCompleteRef.current = handleTrackStepComplete;
+
   async function handleTrackStepPick({ step, index, total }) {
     setTrackStep({ step, index, total, completed: false, next: null });
     addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
@@ -1221,15 +1228,31 @@ export default function BankingAgent({
     const onFallback = (e) => {
       if (typeof e.detail?.enabled === "boolean") setHeuristicEnabled(e.detail.enabled);
     };
+    // Guided Demo Track picked from the /admin page strip: open the agent so
+    // the step's story line lands in a visible transcript, then run the same
+    // handler the header control uses. Completion toasts need no open panel.
+    const onTrackPick = (e) => {
+      if (!e.detail?.step) return;
+      setIsOpen(true);
+      setTimeout(() => trackStepPickRef.current?.(e.detail), 80);
+    };
+    const onTrackComplete = (e) => {
+      if (!e.detail?.step) return;
+      trackStepCompleteRef.current?.(e.detail);
+    };
     window.addEventListener("agent-demo-step-select", onStepSelect);
     window.addEventListener("agent-flow-detail-open", onFlowDetail);
     window.addEventListener("agent-scope-write-changed", onScope);
     window.addEventListener("agent-heuristic-fallback-changed", onFallback);
+    window.addEventListener("agent-track-step-pick", onTrackPick);
+    window.addEventListener("agent-track-step-complete", onTrackComplete);
     return () => {
       window.removeEventListener("agent-demo-step-select", onStepSelect);
       window.removeEventListener("agent-flow-detail-open", onFlowDetail);
       window.removeEventListener("agent-scope-write-changed", onScope);
       window.removeEventListener("agent-heuristic-fallback-changed", onFallback);
+      window.removeEventListener("agent-track-step-pick", onTrackPick);
+      window.removeEventListener("agent-track-step-complete", onTrackComplete);
     };
   }, []);
 
@@ -8761,8 +8784,11 @@ export default function BankingAgent({
                 </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
-                {/* Demo steps — same scripted list as /use-cases Demo section */}
-                {!pageOwnsAgentChrome && (
+                {/* Demo steps — same scripted list as /use-cases Demo section.
+                    Deliberately NOT gated on pageOwnsAgentChrome: on /admin this
+                    shows ADMIN1-7 (forceVertical pingone-admin), which belongs
+                    WITH the admin agent — the page strip carries the guided
+                    Demo Track instead (2026-08-10 layout decision). */}
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
                   disabled={consentBlocked}
@@ -8775,7 +8801,6 @@ export default function BankingAgent({
                     handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
-                )}
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
                 {splitChrome && (
                   <button
