@@ -73,6 +73,35 @@ describe('admin agent — heuristic-first routing', () => {
     expect(res.toolsCalled).toEqual(['call_pingone_tool']);
     expect(res.reply).toContain('demoAdmin');
     expect(res.reply).toContain('1 users found');
+
+    // Same Token Chain visibility contract as the LLM loop
+    // (adminAgentService.tokenChainStep.test.js) — a heuristic-routed call
+    // must record a step too, or it is invisible in the rail.
+    const step = res.tokenEvents.find((e) => e.id === 'pingone-admin-api:call_pingone_tool');
+    expect(step).toBeDefined();
+    expect(step.status).toBe('success');
+  });
+
+  test('a tool-level error records a failed step and falls through to the LLM', async () => {
+    const { processAdminMessage, executeAdminTool, runReasonLoop } =
+      loadServiceWithMocks({ heuristicFlag: 'true' });
+    executeAdminTool.mockResolvedValueOnce(
+      JSON.stringify({ error: 'pingone_mcp_unavailable', message: 'PingOne API timeout' }),
+    );
+
+    const res = await processAdminMessage({
+      message: 'show all users who start with demo',
+      userId: 'u1',
+      sessionId: 's1',
+      tokenEvents: [],
+    });
+
+    const step = res.tokenEvents.find((e) => e.id === 'pingone-admin-api:call_pingone_tool');
+    expect(step).toBeDefined();
+    expect(step.status).toBe('failed');
+    expect(step.explanation).toContain('PingOne API timeout');
+    // Fallthrough: the model gets a chance to route around the failure.
+    expect(runReasonLoop).toHaveBeenCalledTimes(1);
   });
 
   test('LLM-only mode (flag off) still goes to the model', async () => {

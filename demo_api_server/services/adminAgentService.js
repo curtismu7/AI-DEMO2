@@ -15,6 +15,48 @@ function _fingerprint(msg) {
 }
 
 /**
+ * Record a Token Chain step for one admin tool execution — shared by the LLM
+ * reason loop's executeTool wrapper AND the heuristic-first dispatch, so a
+ * heuristic-routed call is exactly as visible in the rail as a model-routed
+ * one. executeAdminTool never rejects on a real PingOne failure — it resolves
+ * with a JSON-stringified { error, message } (config/admin/tools.js) — so the
+ * error is detected from the resolved payload. Returns the parsed error (or
+ * null) so callers can branch.
+ */
+function recordAdminToolStep(tokenEvents, name, args, result, startedAt) {
+  const { buildTokenEvent } = require('./agentMcpTokenService');
+  let resolvedError = null;
+  try {
+    const parsed = JSON.parse(result);
+    if (parsed && typeof parsed === 'object' && parsed.error) {
+      resolvedError = parsed;
+    }
+  } catch (_parseErr) {
+    // Not JSON, or not an error payload — a normal success result.
+  }
+  if (resolvedError) {
+    tokenEvents.push(buildTokenEvent(
+      `pingone-admin-api:${name}`,
+      `PingOne Admin API — ${name}`,
+      'failed',
+      null,
+      `Admin agent's PingOne Management API tool "${name}" failed: ${resolvedError.message || resolvedError.error}`,
+      { tool: name, args, error: resolvedError.message || resolvedError.error },
+    ));
+  } else {
+    tokenEvents.push(buildTokenEvent(
+      `pingone-admin-api:${name}`,
+      `PingOne Admin API — ${name}`,
+      'success',
+      null,
+      `Admin agent called PingOne Management API tool "${name}" (${Date.now() - startedAt}ms).`,
+      { tool: name, args, durationMs: Date.now() - startedAt },
+    ));
+  }
+  return resolvedError;
+}
+
+/**
  * Deterministic reply for a heuristic-dispatched admin tool result — the
  * same envelope the tool hands the LLM (responseSummary/rows/totalCount/
  * rowsTruncated from config/verticals/pingone-admin/tools.js), rendered as
@@ -107,25 +149,33 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
           parsed && parsed.kind === 'vertical' &&
           (parsed.action === 'call_pingone_tool' || parsed.action === 'list_pingone_tools')
         ) {
+          const startedAt = Date.now();
           const raw = await executeAdminTool(parsed.action, parsed.params || {});
-          let result = null;
-          try { result = JSON.parse(raw); } catch (_) { /* reply falls back to raw */ }
-          if (result && !result.error) {
-            appEventService.logEvent('agent', 'info',
-              `Admin heuristic dispatch: ${parsed.action} (${parsed.params?.name || '-'})`,
-              { tag: 'agent/admin_heuristic' });
-            return {
-              reply: formatAdminToolReply(parsed.action, result),
-              success: true,
-              toolsCalled: [parsed.action],
-              tokensUsed: 0,
-              requiresConsent: false,
-              agentConfigured: true,
-              tokenEvents: tokenEvents || [],
-            };
+          // Same Token Chain step the LLM loop records — a heuristic-routed
+          // call must be exactly as visible in the rail as a model-routed one.
+          const stepError = recordAdminToolStep(
+            tokenEvents, parsed.action, parsed.params || {}, raw, startedAt,
+          );
+          if (!stepError) {
+            let result = null;
+            try { result = JSON.parse(raw); } catch (_) { /* reply falls back to raw */ }
+            if (result) {
+              appEventService.logEvent('agent', 'info',
+                `Admin heuristic dispatch: ${parsed.action} (${parsed.params?.name || '-'})`,
+                { tag: 'agent/admin_heuristic' });
+              return {
+                reply: formatAdminToolReply(parsed.action, result),
+                success: true,
+                toolsCalled: [parsed.action],
+                tokensUsed: 0,
+                requiresConsent: false,
+                agentConfigured: true,
+                tokenEvents: tokenEvents || [],
+              };
+            }
           }
-          // Tool-level error: fall through to the LLM, which can read the live
-          // tool list and try another route.
+          // Tool-level error (failed step already recorded): fall through to
+          // the LLM, which can read the live tool list and try another route.
         }
       } catch (heurErr) {
         console.warn('[adminAgentService] heuristic pre-parse failed, using LLM:', heurErr.message);
@@ -188,41 +238,9 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
         const startedAt = Date.now();
         try {
           const result = await executeAdminTool(name, args);
-
-          // executeAdminTool never rejects on a real PingOne API failure — it
-          // catches internally and resolves with a JSON-stringified
-          // { error, message } string (config/admin/tools.js). Detect that
-          // shape so a genuine failure isn't recorded as a 'success' step.
-          let resolvedError = null;
-          try {
-            const parsed = JSON.parse(result);
-            if (parsed && typeof parsed === 'object' && parsed.error) {
-              resolvedError = parsed;
-            }
-          } catch (_parseErr) {
-            // Not JSON, or not an error payload — treat as a normal success result.
-          }
-
-          if (resolvedError) {
-            tokenEvents.push(buildTokenEvent(
-              `pingone-admin-api:${name}`,
-              `PingOne Admin API — ${name}`,
-              'failed',
-              null,
-              `Admin agent's PingOne Management API tool "${name}" failed: ${resolvedError.message || resolvedError.error}`,
-              { tool: name, args, error: resolvedError.message || resolvedError.error },
-            ));
-            return result;
-          }
-
-          tokenEvents.push(buildTokenEvent(
-            `pingone-admin-api:${name}`,
-            `PingOne Admin API — ${name}`,
-            'success',
-            null,
-            `Admin agent called PingOne Management API tool "${name}" (${Date.now() - startedAt}ms).`,
-            { tool: name, args, durationMs: Date.now() - startedAt },
-          ));
+          // Step recording (success or resolved-error failure) is shared with
+          // the heuristic-first path — see recordAdminToolStep.
+          recordAdminToolStep(tokenEvents, name, args, result, startedAt);
           return result;
         } catch (err) {
           tokenEvents.push(buildTokenEvent(
