@@ -1041,3 +1041,124 @@ select.cur-input { cursor: pointer; }
   font-size: 12px;
   color: #ffffff;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Light mode — page-local, toggled by the Light/Dark button in the title bar
+   (data-cur-theme="light" on .cur-ide). The base styles above are the dark
+   Cursor-IDE look; everything here is the light override. Scoped so it never
+   leaks to the app's own theme.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-ide[data-cur-theme="light"] { background: #ffffff; color: #1e1e1e; }
+
+/* Chrome: title bar, activity bar, sidebar, tabs, composer, terminal */
+.cur-ide[data-cur-theme="light"] .cur-titlebar { background: #f3f3f3; border-bottom-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-titlebar-title { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-activity-bar { background: #ececec; border-right-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-act-btn { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-act-btn:hover { background: #ddd; color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-act-btn--active { background: #d0d0d0; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-sidebar { background: #f7f7f7; border-right-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-sidebar-title,
+.cur-ide[data-cur-theme="light"] .cur-field-label,
+.cur-ide[data-cur-theme="light"] .cur-tools-header h3,
+.cur-ide[data-cur-theme="light"] .cur-settings-section-title { color: #444; }
+.cur-ide[data-cur-theme="light"] .cur-sidebar-divider { background: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-composer { background: #f7f7f7; border-top-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-tabs,
+.cur-ide[data-cur-theme="light"] .cur-terminal-tabs { background: #ececec; border-bottom-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-tab,
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-tab:hover,
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab:hover { color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-tab--active { background: #ffffff; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab--active { color: #000; }
+
+/* Status pill + model badge */
+.cur-ide[data-cur-theme="light"] .cur-status { background: #e8e8e8; color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-model-badge { background: #ede9fe; color: #6d28d9; }
+
+/* Inputs, buttons, selects */
+.cur-ide[data-cur-theme="light"] .cur-input,
+.cur-ide[data-cur-theme="light"] .cur-btn,
+.cur-ide[data-cur-theme="light"] .cur-composer-input,
+.cur-ide[data-cur-theme="light"] .cur-skin-picker select,
+.cur-ide[data-cur-theme="light"] .cur-flow-trigger { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-btn:hover,
+.cur-ide[data-cur-theme="light"] .cur-flow-trigger:hover { background: #eaeaea; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-skin-picker > span,
+.cur-ide[data-cur-theme="light"] .cur-msg-role,
+.cur-ide[data-cur-theme="light"] .cur-result-label,
+.cur-ide[data-cur-theme="light"] .cur-auth-user { color: #666; }
+
+/* Muted greys → readable on white */
+.cur-ide[data-cur-theme="light"] .cur-empty-state,
+.cur-ide[data-cur-theme="light"] .cur-chat-empty p,
+.cur-ide[data-cur-theme="light"] .cur-chat-hint,
+.cur-ide[data-cur-theme="light"] .cur-terminal-empty,
+.cur-ide[data-cur-theme="light"] .cur-terminal-ts,
+.cur-ide[data-cur-theme="light"] .cur-terminal-msg,
+.cur-ide[data-cur-theme="light"] .cur-scopes-count-label,
+.cur-ide[data-cur-theme="light"] .cur-scope-cat,
+.cur-ide[data-cur-theme="light"] .cur-scopes-table th,
+.cur-ide[data-cur-theme="light"] .cur-flow-label,
+.cur-ide[data-cur-theme="light"] .cur-flow-conn-label,
+.cur-ide[data-cur-theme="light"] .cur-flow-sub { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-chat-empty-icon { color: #bbb; }
+
+/* Chat messages */
+.cur-ide[data-cur-theme="light"] .cur-msg--user { background: #d6e4f5; }
+.cur-ide[data-cur-theme="light"] .cur-msg--assistant { background: #f0f0f0; }
+.cur-ide[data-cur-theme="light"] .cur-msg--system { background: #e3f2fd; color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-msg--thinking { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-msg-meta { background: #f0f0f0; color: #666; }
+
+/* Tool list + detail + code output */
+.cur-ide[data-cur-theme="light"] .cur-tool-item:hover { background: #eef2ff; }
+.cur-ide[data-cur-theme="light"] .cur-tool-icon { background: #eee; color: #7a6a00; }
+.cur-ide[data-cur-theme="light"] .cur-tool-name { color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-desc,
+.cur-ide[data-cur-theme="light"] .cur-tool-detail-desc { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-tool-detail { background: #f5f5f5; }
+.cur-ide[data-cur-theme="light"] .cur-code-output { background: #f5f5f5; color: #0451a5; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-code-output--schema { color: #a31515; }
+
+/* Terminal event badges — lighter fills, darker text */
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--relay { background: #cffafe; color: #0e7490; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--oauth { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--config { background: #ecfccb; color: #4d7c0f; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--mcp { background: #dcfce7; color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--error { background: #fee2e2; color: #b91c1c; }
+
+/* Scopes panel */
+.cur-ide[data-cur-theme="light"] .cur-scopes-summary { background: #e3f2fd; }
+.cur-ide[data-cur-theme="light"] .cur-scopes-count-large { color: #1d4ed8; }
+.cur-ide[data-cur-theme="light"] .cur-scope-count { background: #dbeafe; color: #1d4ed8; }
+
+/* Modals: blocked, flow, settings */
+.cur-ide[data-cur-theme="light"] .cur-modal { background: #ffffff; color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-modal h2 { color: #dc2626; }
+.cur-ide[data-cur-theme="light"] .cur-modal p { color: #333; }
+.cur-ide[data-cur-theme="light"] .cur-flow-modal,
+.cur-ide[data-cur-theme="light"] .cur-settings-modal { background: #ffffff; color: #1e1e1e; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-header { background: #f0f0f0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-title,
+.cur-ide[data-cur-theme="light"] .cur-flow-name { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-flow-close { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-flow-close:hover { background: #eee; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-flow-box { background: #f5f5f5; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-box:hover { background: #eaeaea; }
+.cur-ide[data-cur-theme="light"] .cur-flow-claims { background: #f0f0f0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-ck { color: #1d4ed8; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv { color: #333; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--hi { color: #7c3aed; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--ok,
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--aud { color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-flow-line,
+.cur-ide[data-cur-theme="light"] .cur-flow-arrow { background: #ccc; color: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-auth-badge--ok { background: rgba(56, 139, 253, 0.12); color: #1d4ed8; }
+
+/* Console token (dev) box — the white hint would vanish on white, flip it dark */
+.cur-ide[data-cur-theme="light"] .cur-console-token { background: #f7f7f7; border-color: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-console-token-hint,
+.cur-ide[data-cur-theme="light"] .cur-console-token-status { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-console-token-input { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
