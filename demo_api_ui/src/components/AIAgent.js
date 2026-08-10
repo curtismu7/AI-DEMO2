@@ -250,6 +250,10 @@ const NL_FAILURE_MESSAGES = {
     "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway, then retry.",
   a2a_delegation_disabled:
     "A2A delegation isn't enabled — turning it on automatically. Try the step again in a moment.",
+  pingone_admin_group_required:
+    "PingOne Authorize denied this — its group-membership policy requires the signed-in user to be in the 'pingone-admin' group, which this session isn't. Add the user to that group, then try again.",
+  pingone_admin_group_lookup_unavailable:
+    "PingOne Authorize couldn't verify the 'pingone-admin' group membership needed for this policy check right now. Try again in a moment.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";

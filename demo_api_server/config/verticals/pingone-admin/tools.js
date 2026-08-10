@@ -25,6 +25,7 @@ const REST_FALLBACK = {
     return { method: 'GET', path: `/users${suffix ? `?${suffix}` : ''}` };
   },
   listApplications: () => ({ method: 'GET', path: '/applications' }),
+  listResources:    () => ({ method: 'GET', path: '/resources' }),
   listPopulations:  () => ({ method: 'GET', path: '/populations' }),
   getEnvironment:   () => ({ method: 'GET', path: '' }),
   getUser: (args) => {
@@ -37,6 +38,33 @@ const REST_FALLBACK = {
     return null;
   },
 };
+
+/**
+ * "Resources with their scopes" (ADMIN8): the hosted MCP exposes
+ * listResources but NO scope tool (probed live 2026-08-10), so scopes come
+ * per-resource from the Management API and are attached as `_scopes` for
+ * rowsForResponse. Capped to ROW_CAP resources (the rows cap anyway) and
+ * fetched in parallel; a failed scope read leaves that row scope-less rather
+ * than failing the listing.
+ */
+async function enrichResourceScopes(name, data) {
+  if (name !== 'listResources') return;
+  const arr = collectionFor('listResources', data);
+  if (!Array.isArray(arr) || arr.length === 0) return;
+  try {
+    pingOneUserService.initialize();
+  } catch (_) {
+    return; // no worker creds — rows render without scopes
+  }
+  await Promise.all(arr.slice(0, ROW_CAP).map(async (r) => {
+    try {
+      const s = await pingOneUserService.makeRequest('GET', `/resources/${encodeURIComponent(r.id)}/scopes`);
+      r._scopes = (s?._embedded?.scopes || s?.scopes || []).map((x) => x.name);
+    } catch (_) {
+      r._scopes = undefined;
+    }
+  }));
+}
 
 const LIVE_SOURCE = 'live — hosted PingOne MCP';
 const apiSource = (reason) => `api — hosted PingOne MCP unavailable, used direct Management API: ${reason}`;
@@ -89,7 +117,7 @@ function parseMcpResult(raw) {
 // some of them bare (`{ applications: [...] }` — verified live 2026-08-10).
 // Accept both so neither transport degrades to a JSON.stringify blob.
 function collectionFor(tool, data) {
-  const key = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations' }[tool];
+  const key = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations', listResources: 'resources' }[tool];
   if (!key) return null;
   const arr = data?._embedded?.[key] ?? data?.[key];
   return Array.isArray(arr) ? arr : null;
@@ -121,6 +149,17 @@ function rowsForResponse(tool, data) {
       if (tool === 'listApplications') {
         return { name: item.name, type: item.type, enabled: item.enabled };
       }
+      if (tool === 'listResources') {
+        // _scopes is attached by the enrichment in callPingOneTool (the
+        // hosted MCP has no scope tool; scopes come per-resource from REST).
+        return {
+          name: item.name,
+          type: item.type,
+          scopes: Array.isArray(item._scopes)
+            ? (item._scopes.length ? item._scopes.join(', ') : '(no scopes)')
+            : undefined,
+        };
+      }
       return { name: item.name, description: (item.description || '').slice(0, 80) || undefined };
     });
     return rows.length ? rows : null;
@@ -151,7 +190,7 @@ function summaryForResponse(tool, data) {
   try {
     const arr = collectionFor(tool, data);
     if (arr) {
-      const noun = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations' }[tool];
+      const noun = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations', listResources: 'resources' }[tool];
       return `${arr.length} ${noun} found`;
     }
     switch (tool) {
@@ -237,6 +276,7 @@ async function callPingOneTool(params) {
         }
       }
     }
+    await enrichResourceScopes(name, data);
     const fields = resultFields(name, data);
     if (effectiveFilter && effectiveFilter !== args.filter) {
       fields.responseSummary = `${fields.responseSummary} (no matches for ${args.filter}; matched with ${effectiveFilter})`;
@@ -268,6 +308,7 @@ async function callPingOneTool(params) {
         pingOneUserService.initialize();
         const data = await pingOneUserService.makeRequest(restReq.method, restReq.path);
         console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
+        await enrichResourceScopes(name, data);
         return {
           result: { tool: name, ...resultFields(name, data), source: apiSource(err.message) },
           render: 'call_pingone_tool',

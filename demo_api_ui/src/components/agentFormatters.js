@@ -283,7 +283,25 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
       "   Check that:\n   • PingOne has Token Exchange grant enabled on the admin OAuth app\n   • Audience policy allows \"demo_mcp_server\"\n   • The delegated token carries a valid act claim for this agent",
     ].join("\n");
   }
-  return null;
+  // Fallback: the turn carried token activity but nothing exchange-shaped —
+  // e.g. the pingone-admin vertical, which runs on a worker client_credentials
+  // token with deliberately NO RFC 8693 exchange. Summarize what DID happen so
+  // the RFC info toggle is never a silent no-op ("RFC info not working",
+  // reported live 2026-08-10 — the toggle was on, the builder returned null).
+  const summaryLines = tokenEvents
+    .filter((e) => e && (e.title || e.id))
+    .slice(0, 8)
+    .map((e) => {
+      const mark = e.status === "failed" ? "❌" : e.status === "warning" ? "⚠️" : "✅";
+      const rfc = e.extra?.rfc ? `  (${e.extra.rfc})` : "";
+      return `${mark} ${e.title || e.id}${rfc}`;
+    });
+  if (!summaryLines.length) return null;
+  return [
+    "Security Verification — token activity (no RFC 8693 exchange this turn)",
+    "",
+    ...summaryLines,
+  ].join("\n");
 }
 
 export function formatResult(result, terminology) {

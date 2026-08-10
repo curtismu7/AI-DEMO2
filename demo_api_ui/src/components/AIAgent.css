@@ -5939,7 +5939,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   margin: 0;
   padding: 8px 12px;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 6px;
   max-height: 310px;
   overflow-y: auto;
@@ -5999,7 +5999,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   text-align: left;
   white-space: normal;
-  word-break: break-word;
+  /* Wrap BETWEEN words only — word-break: break-word split "applications"
+     into "application / s" on the admin chips (reported live 2026-08-10).
+     overflow-wrap still rescues a genuinely overlong single token; the grid's
+     minmax(160px) column floor keeps real titles from needing it. */
+  word-break: normal;
+  overflow-wrap: break-word;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 

@@ -8,13 +8,6 @@ import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
 
-// One-click token grab: the user saves this as a bookmark URL, then clicks it on
-// the Privilege console page. It reads the auth_token cookie and copies it to the
-// clipboard so they can paste it here instead of digging through DevTools. Inert
-// text in our app (shown read-only for copying), executed only from the console tab.
-const GRAB_BOOKMARKLET =
-  "javascript:(function(){var m=document.cookie.match(/auth_token=([^;]+)/);if(!m){alert('No auth_token cookie on this page. Open the Privilege console and sign in first.');return;}var t=decodeURIComponent(m[1]);function done(){alert('Privilege auth_token copied. Paste it into the MCP client.');}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){window.prompt('Copy this token:',t);});}else{window.prompt('Copy this token:',t);}})();";
-
 function api(path, options = {}) {
   return fetch(`${API_BASE}${path}`, {
     method: options.method || 'GET',
@@ -328,7 +321,9 @@ export default function PrivilegeMcpClientPage() {
   // also records it in the RESULTS terminal tab (which flashes so the user sees
   // fresh output land).
   const recordResult = useCallback((name, result, ok) => {
-    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev].slice(0, 50));
+    // Keep only the latest result per tool — re-running a tool replaces its prior
+    // entry instead of stacking a duplicate (the RESULTS panel is tight).
+    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev.filter((r) => r.tool !== name)].slice(0, 50));
     setResultNonce((n) => n + 1);
     setTerminalTab('results');
   }, []);
@@ -712,7 +707,7 @@ export default function PrivilegeMcpClientPage() {
                     Use console token
                   </button>
                   <button type="button" className="cur-btn" onClick={() => setShowGrabHelper((v) => !v)}>
-                    {showGrabHelper ? 'Hide grab helper' : 'Grab helper'}
+                    {showGrabHelper ? 'Hide how-to' : 'How to grab'}
                   </button>
                   {autoMintConfigured && (
                     <button type="button" className="cur-btn" onClick={autoMintToken} title="Mint a fresh gateway token via the configured admin credential">
@@ -722,8 +717,13 @@ export default function PrivilegeMcpClientPage() {
                 </div>
                 {showGrabHelper && (
                   <div className="cur-ct-grab">
-                    <p>One-click grab: make a browser bookmark with the code below as its URL. On the Privilege console page, click it — your <code>auth_token</code> copies to the clipboard, then paste it above.</p>
-                    <textarea className="cur-console-token-input" rows={3} readOnly value={GRAB_BOOKMARKLET} onFocus={(e) => e.target.select()} />
+                    <p>The <code>auth_token</code> cookie is HttpOnly, so a script can&apos;t read it. Grab it from a request the browser already sent:</p>
+                    <ol className="cur-ct-steps">
+                      <li>On the Privilege console tab, open DevTools &gt; <strong>Network</strong>.</li>
+                      <li>Click any request &gt; right-click &gt; <strong>Copy &gt; Copy as cURL</strong>.</li>
+                      <li>Paste the whole cURL into the box above &gt; <strong>Use console token</strong>.</li>
+                    </ol>
+                    <p>The cURL carries the <code>cookie:</code> header the browser sent (HttpOnly included), and the server pulls <code>auth_token</code> out of it.</p>
                   </div>
                 )}
                 {consoleTokenInfo && (() => {
