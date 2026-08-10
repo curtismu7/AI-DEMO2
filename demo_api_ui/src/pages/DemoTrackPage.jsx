@@ -203,9 +203,10 @@ export default function DemoTrackPage() {
     const key = `${step.stepId}:${color}`;
     setSlotRun(key, "running");
     try {
-      // Make this the ACTIVE step first: the matcher's wildcard (which lets any
-      // vertical's tool stamp the step) only fires on the active step.
-      await apiClient.post("/api/demo-track/active-step", { stepId: step.stepId }).catch(() => {});
+      // Arm THIS slot first: the matcher's wildcard (which lets any vertical's
+      // tool stamp the step) fires only for the armed slot, and only until the
+      // run it was armed for fills it.
+      await apiClient.post("/api/demo-track/arm", { stepId: step.stepId, color }).catch(() => {});
       if (slot.source === "sim") {
         const results = [];
         for (const sim of slot.match?.sims || []) {

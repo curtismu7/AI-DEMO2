@@ -173,9 +173,9 @@ describe("DemoTrackPage", () => {
         vertical: "healthcare",
       })
     );
-    // The run makes its step active first — the matcher wildcard (any vertical's
-    // tool) only fires on the active step.
-    expect(apiClient.post).toHaveBeenCalledWith("/api/demo-track/active-step", { stepId: "delegated-access" });
+    // The run arms its own slot first — the matcher wildcard (any vertical's
+    // tool) fires only for the armed slot, not for whatever step is active.
+    expect(apiClient.post).toHaveBeenCalledWith("/api/demo-track/arm", { stepId: "delegated-access", color: "green" });
     // gateway runtime flag armed before dispatch (launcher contract)
     expect(apiClient.patch).toHaveBeenCalledWith("/api/admin/feature-flags", expect.objectContaining({
       updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }),

@@ -10067,13 +10067,21 @@ export default function BankingAgent({
                       <div className="ba-track-chips">
                         {trackStep.step.slots.green?.chipText && (
                           <button type="button" className="ba-track-chip ba-track-chip--g"
-                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-green`, label: trackStep.step.slots.green.chipText, message: trackStep.step.slots.green.chipText })}>
+                            onClick={async () => {
+                              // Arm this slot so the track's '*' matcher accepts whatever tool
+                              // this vertical's chip dispatches — armed slot only, one fill.
+                              await apiClient.post("/api/demo-track/arm", { stepId: trackStep.step.stepId, color: "green" }).catch(() => {});
+                              handleChipActivate({ id: `track-${trackStep.step.stepId}-green`, label: trackStep.step.slots.green.chipText, message: trackStep.step.slots.green.chipText });
+                            }}>
                             ✓ {trackStep.step.slots.green.chipText}
                           </button>
                         )}
                         {trackStep.step.slots.red?.chipText && (
                           <button type="button" className="ba-track-chip ba-track-chip--r"
-                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-red`, label: trackStep.step.slots.red.chipText, message: trackStep.step.slots.red.chipText })}>
+                            onClick={async () => {
+                              await apiClient.post("/api/demo-track/arm", { stepId: trackStep.step.stepId, color: "red" }).catch(() => {});
+                              handleChipActivate({ id: `track-${trackStep.step.stepId}-red`, label: trackStep.step.slots.red.chipText, message: trackStep.step.slots.red.chipText });
+                            }}>
                             ✕ {trackStep.step.slots.red.chipText}
                           </button>
                         )}

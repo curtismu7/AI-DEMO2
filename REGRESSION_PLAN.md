@@ -102,6 +102,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-09 — Guided Demo Track slots filled with unrelated evidence
+
+**Files changed:** `demo_api_server/services/demoTrackService.js`,
+`demo_api_server/routes/demoTrack.js`, `demo_api_server/config/demoTrack.js`,
+`demo_api_ui/src/pages/DemoTrackPage.jsx`, `demo_api_ui/src/components/AIAgent.js`,
+plus the matching server and UI specs
+
+**What was broken:** The `'*'` tool matcher fired for whatever step was ACTIVE,
+and a fill immediately advanced the active pointer. Any observed tool call —
+including passive traffic with the track page closed — stamped the active step
+and walked the wildcard down the whole track. Cards then showed evidence that
+contradicted their own static narrative (`list_orders` proving "A2A specialist
+handoff", `get_weather` proving "a normal transfer was permitted").
+
+**What was fixed:** `'*'` now fires only for a single slot armed by
+`POST /api/demo-track/arm` (`{stepId, color}`), which the page calls immediately
+before dispatching that slot's chip. The arm is color-scoped, expires after
+`ARM_TTL_MS` (120s), and is consumed by the fill it caused.
+
+**Do not break:** Passive observation must keep requiring exact tool names. A run
+surface that dispatches a track chip must arm its own slot first, or vertical
+page-runs stop stamping (the bug #1366 was fixing).
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+`cd demo_api_ui && npm run test:unit && npm run build`.
+
 ### 2026-08-05 — United departure times shifted with viewer timezone
 
 **Files changed:** `demo_api_ui/src/components/agentResultPanels.js`,
