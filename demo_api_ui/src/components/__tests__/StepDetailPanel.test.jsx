@@ -36,14 +36,14 @@ describe("StepDetailPanel", () => {
     expect(order).toEqual(["What happened", "What changed", "Request", "Response"]);
   });
 
-  it("keeps raw payloads one click away rather than in the way", () => {
+  // The mock's prose says "raw payloads collapsed"; the mock's screenshot shows
+  // REQUEST and RESPONSE fully open. The screenshot is the agreed reference.
+  it("shows request and response payloads open, not behind a disclosure", () => {
     render(<StepDetailPanel step={STEP} />);
-    const payloads = document.querySelectorAll(".sdp-payload");
-    expect(payloads.length).toBe(2);
-    for (const d of payloads) expect(d.tagName).toBe("DETAILS");
-    for (const d of payloads) expect(d.open).toBe(false);
-    // Collapsed, not dropped — the text is still in the document.
-    expect(screen.getByText(/grant_type=\.\.\.token-exchange/)).toBeInTheDocument();
+    expect(document.querySelectorAll(".sdp-payload")).toHaveLength(2);
+    expect(document.querySelector(".sdp details")).toBeNull();
+    expect(screen.getByText(/grant_type=\.\.\.token-exchange/)).toBeVisible();
+    expect(screen.getByText(/"scope": "write"/)).toBeVisible();
   });
 
   it("renders what changed as before and after, marking only the moved claims", () => {

@@ -144,20 +144,9 @@
   padding: 6px 9px;
 }
 
-/* Payloads collapsed: one click away for whoever asks, out of the way otherwise. */
-.sdp-payload { margin-bottom: 8px; }
-.sdp-payload > summary {
-  cursor: pointer;
-  list-style: none;
-}
-.sdp-payload > summary::-webkit-details-marker { display: none; }
-.sdp-payload > summary::before {
-  content: "▶";
-  display: inline-block;
-  width: 11px;
-  font-size: 11px;
-  color: #94a3b8;
-}
+/* Payloads render open, as the agreed mock shows them. .sdp-pre caps its own
+   height and scrolls, so a long body cannot push the rest of the panel away. */
+.sdp-payload { margin-bottom: 9px; }
 
 .sdp-payload-title {
   font-size: 11px;
