@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../../context/ThemeContext';
 import NewRelicDashboard from '../NewRelicDashboard';
 import apiClient from '../../services/apiClient';
@@ -20,6 +20,7 @@ const PAYLOAD = {
     { category: 'oauth', count: 13 },
     { category: 'mcp', count: 11 },
     { category: 'intent_auth', count: 16 },
+    { category: 'threshold', count: 4 },
   ],
   timeseries: [
     { beginTimeSeconds: 100, count: 0 },
@@ -50,16 +51,27 @@ describe('NewRelicDashboard', () => {
   it('renders pipeline stage counts from the funnel', async () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
     renderDash();
-    await waitFor(() => expect(screen.getByTestId('stage-oauth')).toHaveTextContent('13'));
-    expect(screen.getByTestId('stage-mcp')).toHaveTextContent('11');
-    expect(screen.getByTestId('stage-intent_auth')).toHaveTextContent('16');
+    await waitFor(() => expect(screen.getByTestId('stat-oauth')).toHaveTextContent('13'));
+    expect(screen.getByTestId('stat-mcp')).toHaveTextContent('11');
+    expect(screen.getByTestId('stat-intent_auth')).toHaveTextContent('16');
   });
 
   it('shows zero for a pipeline stage absent from the funnel', async () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
     renderDash();
     // token_exchange is not in PAYLOAD.funnel — it must still render, as 0.
-    await waitFor(() => expect(screen.getByTestId('stage-token_exchange')).toHaveTextContent('0'));
+    await waitFor(() => expect(screen.getByTestId('stat-token_exchange')).toHaveTextContent('0'));
+  });
+
+  it('shows every funnel category in "By category", including ones the pipeline strip does not call out', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    renderDash();
+    // "threshold" is not one of the 5 pipeline stages but is in PAYLOAD.funnel —
+    // the whole point of the panel is to not silently discard it.
+    await waitFor(() => expect(screen.getByTestId('stat-cat-threshold')).toHaveTextContent('4'));
+    expect(screen.getByTestId('stat-cat-oauth')).toHaveTextContent('13');
+    expect(screen.getByTestId('stat-cat-mcp')).toHaveTextContent('11');
+    expect(screen.getByTestId('stat-cat-intent_auth')).toHaveTextContent('16');
   });
 
   it('renders the event stream with its correlation id', async () => {
@@ -97,7 +109,9 @@ describe('NewRelicDashboard', () => {
   it('shows an error state on 502', async () => {
     apiClient.get.mockRejectedValue({ response: { status: 502 } });
     renderDash();
-    await waitFor(() => expect(screen.getByText(/Could not load New Relic data/i)).toBeInTheDocument());
+    // Message text is DashboardShell's — it has no per-page override, and
+    // it's the same shared "ready" state gate used by every dashboard.
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Could not load data/i));
   });
 
   it('reads as no-traffic, not as an error, when every series is empty', async () => {
@@ -112,11 +126,11 @@ describe('NewRelicDashboard', () => {
   it('toggles the shared app theme, not local state', async () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
     renderDash();
-    await waitFor(() => expect(screen.getByTestId('stage-oauth')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('stat-oauth')).toBeInTheDocument());
 
     const sw = screen.getByRole('switch', { name: /dark mode/i });
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    sw.click();
+    fireEvent.click(sw);
     await waitFor(() =>
       expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
   });
@@ -125,7 +139,7 @@ describe('NewRelicDashboard', () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
     renderDash();
     await waitFor(() => expect(apiClient.get).toHaveBeenCalled());
-    screen.getByRole('button', { name: '24h' }).click();
+    fireEvent.click(screen.getByRole('button', { name: '24h' }));
     await waitFor(() =>
       expect(apiClient.get).toHaveBeenLastCalledWith('/api/newrelic/pipeline?window=24h'));
   });
