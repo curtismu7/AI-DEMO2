@@ -321,7 +321,9 @@ export default function PrivilegeMcpClientPage() {
   // also records it in the RESULTS terminal tab (which flashes so the user sees
   // fresh output land).
   const recordResult = useCallback((name, result, ok) => {
-    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev].slice(0, 50));
+    // Keep only the latest result per tool — re-running a tool replaces its prior
+    // entry instead of stacking a duplicate (the RESULTS panel is tight).
+    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev.filter((r) => r.tool !== name)].slice(0, 50));
     setResultNonce((n) => n + 1);
     setTerminalTab('results');
   }, []);
