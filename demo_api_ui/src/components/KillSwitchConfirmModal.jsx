@@ -16,6 +16,7 @@ export default function KillSwitchConfirmModal({
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [liveSteps, setLiveSteps] = useState([]);
+  const [error, setError] = useState(null);
   const esRef = useRef(null);
 
   // Re-seed scope from the trigger that opened the modal (e.g. roster's
@@ -54,6 +55,7 @@ export default function KillSwitchConfirmModal({
   const handleConfirm = async () => {
     setIsLoading(true);
     setLiveSteps([]);
+    setError(null);
     openStepStream();
     try {
       const reason =
@@ -67,8 +69,15 @@ export default function KillSwitchConfirmModal({
       if (data && Array.isArray(data.steps)) {
         setResult(data);
       } else {
-        handleCancel();
+        // Steps already streamed live even if the final POST response came
+        // back malformed — fall back to those rather than a dead end.
+        setResult({ scope, steps: liveSteps });
       }
+    } catch (err) {
+      // Don't silently vanish (no explanation) on a network error or a
+      // slow full-scope kill outrunning the client timeout — show what we
+      // know and let the admin retry or close deliberately.
+      setError(err?.message || "Kill-switch request failed. The agent may or may not have been stopped — check the roster status before retrying.");
     } finally {
       esRef.current?.close();
       esRef.current = null;
@@ -84,6 +93,7 @@ export default function KillSwitchConfirmModal({
     setScope(initialScope);
     setResult(null);
     setLiveSteps([]);
+    setError(null);
     onCancel?.();
   };
 
@@ -91,7 +101,7 @@ export default function KillSwitchConfirmModal({
     <DraggableModal
       isOpen={isOpen}
       onClose={handleCancel}
-      title={result ? "Stop Agent — Result" : isLoading ? "Stop Agent — Running" : "Stop Agent — Confirm"}
+      title={result ? "Stop Agent — Result" : isLoading ? "Stop Agent — Running" : error ? "Stop Agent — Failed" : "Stop Agent — Confirm"}
       defaultWidth={480}
       defaultHeight={460}
       storageKey="kill-switch-modal"
@@ -184,6 +194,29 @@ export default function KillSwitchConfirmModal({
           </>
         ) : (
           <>
+            {error && (
+              <div className="ksm-error">
+                <strong>Request failed:</strong> {error}
+                {liveSteps.length > 0 && (
+                  <ul className="ksm-result-list" style={{ marginTop: 10 }}>
+                    {liveSteps.map((step) => (
+                      <li
+                        key={step.key}
+                        className={`ksm-result-step ${step.skipped ? "ksm-result-step--skipped" : "ksm-result-step--ran"}`}
+                      >
+                        <span className="ksm-result-badge">
+                          {step.skipped ? "Skipped" : "Done"}
+                        </span>
+                        <div className="ksm-result-text">
+                          <strong>{step.label}</strong>
+                          <span>{step.detail}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <div className="ksm-instructions">
               <p className="ksm-instructions-lead">
                 PingOne revokes the agent's OAuth token now (RFC 7009) and its
