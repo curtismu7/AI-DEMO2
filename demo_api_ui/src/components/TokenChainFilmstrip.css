@@ -16,9 +16,21 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
+    "strip strip"
     "agent spotlight"
     "chain chain";
+  /* Rows size to content, except the agent/spotlight row which takes the rest.
+     Without this the strip row inherited the stretch and grew far beyond its
+     content. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   align-items: stretch;
+}
+
+/* The strip spans both columns and is only as tall as its controls. */
+.dashboard-content.ud-body.ud-focus-mode > .ud-dashboard-config-strip {
+  grid-area: strip;
+  min-width: 0;
+  align-self: start;
 }
 
 /* ── Focus Mode fits the screen; history is a scrollback ───────────────────

@@ -3527,6 +3527,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
+          {/* Full width above both columns, where the mock puts it. Inside the
+              agent column it had ~760px for ~14 controls and wrapped onto five
+              rows, taking 161px straight out of the transcript. The controls
+              already carry the mock's grouping (ba-hg groups, labels, dividers);
+              they were being asked to fit half the width they were built for. */}
+          <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
           <section
             className="ud-agent-column"
             ref={agentColumnRef}
@@ -3537,7 +3543,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               tabIndex: -1,
             })}
           >
-            <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
             <div className="embedded-banking-agent ud-dashboard-inline-agent">
               {/* Host stays mounted so the BankingAgent portal target's ref always
                   attaches. Guests have no portaled agent here (App.js gates the
