@@ -1425,7 +1425,50 @@ AgentlessRestAPIService.forwardReq -> pcrypto.GetBearerToken "authorization head
 Routing is only exercised once a token is present. Any test that reads a bare `401` as
 "the right application resolved" is proving nothing.
 
-### How the gateway resolves an application: EvaluateHost
+### 2026-08-10 (final): END-TO-END SUCCESS — and what it proved
+
+With `Host: mcp-pingone-admin.default.applications.procyon.ai:8643` and a console
+token, direct against `:8620`:
+
+```
+initialize                 -> 200, Mcp-Session-Id issued
+notifications/initialized  -> 202
+tools/list                 -> 200, 238 tools
+tools/call get_my_accounts -> 200 (backend answered "Insufficient scope. Required:
+                              read" — our own mcp-server's scope model, downstream
+                              of Privilege)
+```
+
+Gateway log confirms every stage: `MCP App RBAC check` → `User … has policy based
+capabilities` → `[mcpfilter] cap header present: {"tools":[".*"]}` → proxied to
+backend. The complete chain — auth, routing, policy, proxy — works.
+
+Three facts this run settled:
+
+1. **The label-strip "EvaluateHost" model from the SE deck is wrong for this build**
+   (`v1.260726`). A bare label host passed through unchanged gets `Domain not found`;
+   only the full registered Frontend Name routes. nginx must rewrite per app.
+2. **The session-header trap is real and self-inflicted.** A stray `\r` folded
+   `Mcp-Session-Id` into `Mcp-Protocol-Version`, and the backend answered
+   `404 {"error":"Unknown or expired MCP-Session-Id"}` — which reads like a gateway
+   failure. Strip CR when scripting: `awk '{gsub(/[\r\n]/,"")…}'`.
+3. **Policy scoping is per-application.** The surviving policy granted
+   `mcp-pingone-admin`; the same token on `MCP-aidemo` got 403. Policies also
+   expire silently — `test2` and `first-success` (1h/2h lifetimes) were already
+   gone by 13:0x, which presents identically to never having existed.
+
+What a PingOne (non-console) token still needs: `ResourceOAuth` on the application.
+`cyctl` rejects the console *cookie* JWT (`unexpected signing method: RS256` — it
+wants HS256, and dashboard XHRs carry `Authorization: Bearer undefined`, so there is
+no bearer to lift). The console REST API accepts the cookie for reads but 401s
+`User is not authorized` on `PUT /v1/applications/...` writes. The one write path
+left: perform the edit in the console UI with devtools open and copy that XHR — it
+reveals both the real write route and whatever credential the UI uses for writes.
+
+### How the gateway resolves an application: EvaluateHost — DISPROVEN on this build
+
+> ⚠️ Kept for reference because the SE deck teaches it, but the end-to-end run above
+> disproved it here: this build matches the full registered Frontend Name only.
 
 From Ping's SE enablement deck (`priv_for_ai_specialist_training.html`, routing
 reference diagram) — the gateway does not compare the Host to a registered name. It

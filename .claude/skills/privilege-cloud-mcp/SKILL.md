@@ -109,19 +109,18 @@ Agentless mode needs customer-owned DNS + TLS in front of the proxy:
 | k8s equivalent | `k8s/aws/mcpgw-agentless-ingress.yaml` (ingress-nginx **is** the engine there) |
 | `/etc/hosts` | one `127.0.0.1` line **per frontend host**, named after the app — a wildcard cert works, `/etc/hosts` has no wildcards: `127.0.0.1 MCP-aidemo.mcpgw.local.ping-devops.com` and `127.0.0.1 mcp-pingone-admin.mcpgw.local.ping-devops.com` |
 
-**Name the frontend host after the application.** The gateway does not compare `Host`
-to a registered name — its `EvaluateHost` strips the **first DNS label** and constructs
-`<label>.default.applications.procyon.ai` from the Agentic App's name. So
-`MCP-aidemo.mcpgw.local.ping-devops.com` resolves on its own, and adding an MCP
-application costs a DNS name, not a config change. Get the label wrong and the gateway
-logs `Domain not found` and returns an empty `200` — which reads like a broken backend.
+**The gateway matches `Host` against the full registered Frontend Name**
+(`<app-name>.default.applications.procyon.ai:8643`) — nothing else. Proven end to end
+2026-08-10 on build `v1.260726`: with that Host, initialize → tools/list (238 tools) →
+tools/call all completed. Anything else gets `Domain not found` in the proxy log and an
+empty `200` — which reads like a broken backend. (Ping's SE deck describes a label-strip
+"EvaluateHost"; that was tested and does NOT hold on this build.)
 
-`demo_mcpgw_nginx/nginx.conf` therefore forwards `$host` unchanged (`map` default),
-rewriting only the legacy hosts whose first label is not an application name
-(`aidemo.mcpgw…`). The k8s ingress still uses
-`nginx.ingress.kubernetes.io/upstream-vhost` — Ingress hosts must be lowercase, and the
-app is named `MCP-aidemo`; renaming it lowercase is what would let k8s drop the
-annotation too. `X-Forwarded-Host` always keeps the original.
+`demo_mcpgw_nginx/nginx.conf` therefore carries **one map line per application**,
+client host → registered name; the k8s ingress does it with
+`nginx.ingress.kubernetes.io/upstream-vhost` (one value per Ingress object, so one
+Ingress per app there). `X-Forwarded-Host` always keeps the original. Adding an app =
+one map line + one `/etc/hosts` line.
 
 The registered value is **not** what the console displays — the console shows a
 `…applications.privilege.pingone.com` name while the object holds a

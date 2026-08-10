@@ -17,13 +17,13 @@ Clients reach it through nginx, never the proxy port directly:
 | SE cluster (AWS) | `https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp` |
 | Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` |
 
-**Name each frontend host after its Agentic App.** The gateway strips the first DNS
-label off `Host` and constructs `<label>.default.applications.procyon.ai` from the app's
-name, so `MCP-aidemo.mcpgw.local.ping-devops.com` resolves with nothing to configure —
-that is why the table above lists per-app hosts. A first label that is not an app name
-(the legacy `aidemo.mcpgw…`) gets `Domain not found` and an empty `200`, so `nginx.conf`
-rewrites those and only those. Adding an MCP application costs a `/etc/hosts` line and
-nothing else. Full account: `docs/PRIVILEGE-MCP.md` §2026-08-10 (later).
+**nginx rewrites every client hostname to the app's registered Frontend Name**
+(`<app-name>.default.applications.procyon.ai:8643`) — the only Host this gateway build
+routes on, proven end to end 2026-08-10 (initialize → 238 tools → tools/call). The
+per-app client hosts in the table are named after their app purely for readability;
+each one has a map line in `nginx.conf` doing the rewrite. Anything unmapped gets
+`Domain not found` and an empty `200`. Adding an MCP application = one map line + one
+`/etc/hosts` line. Full account: `docs/PRIVILEGE-MCP.md` §2026-08-10 (final).
 
 ## Prerequisite that no test can cover
 
