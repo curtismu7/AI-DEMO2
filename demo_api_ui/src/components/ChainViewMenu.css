@@ -30,10 +30,14 @@
 .cvm-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 
 .cvm-pop {
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  z-index: 30;
+  /* Fixed + portaled to <body>: the token card is an overflow-y:auto scroll
+     container in split layout, which clipped an absolutely-positioned popover
+     mid-list on the short views. Coordinates come inline from the trigger's
+     rect at open time. */
+  position: fixed;
+  z-index: 1000;
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
   min-width: 250px;
   display: flex;
   flex-direction: column;
