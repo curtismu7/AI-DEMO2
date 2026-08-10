@@ -15,10 +15,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SRC = fs.readFileSync(
-  path.resolve(__dirname, '../Dashboard.js'),
-  'utf8',
-);
+// Both files, because /admin is Dashboard.js PLUS the panels it composes.
+// The customer lookup consolidation moved the search and the PingOne read from
+// Dashboard.js into AdminCustomerPanel.jsx; the guarantee being guarded is
+// "this feature is reachable on /admin", not "this feature lives in this
+// file". Widening the scope keeps that guarantee across the move instead of
+// deleting assertions to make them pass.
+const SRC = [
+  fs.readFileSync(path.resolve(__dirname, '../Dashboard.js'), 'utf8'),
+  fs.readFileSync(path.resolve(__dirname, '../AdminCustomerPanel.jsx'), 'utf8'),
+].join('\n');
 
 // 1–16 of the census taken before the restyle.
 const COMPONENTS = [

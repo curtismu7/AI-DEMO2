@@ -253,3 +253,29 @@
   border-radius: 8px;
   border: 1px solid var(--dash-border, #e2e8f0);
 }
+
+/* ── Consolidated lookup (absorbed from the dashboard's separate card) ────── */
+.acp-hints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.acp-hint-chip {
+  border: 1px solid var(--dash-border, #e1e5ef);
+  background: var(--dash-surface, #fff);
+  color: var(--dash-text, #1a2230);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.acp-hint-chip:hover { background: #eef4ff; border-color: #b9ccf5; }
+.acp-lookup { margin-top: 14px; }
+.acp-lookup__h {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--dash-muted, #69748a);
+}
+.acp-kv { margin: 0; display: grid; gap: 2px; }
+.acp-kv__row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #f1f2f8; font-size: 13px; }
+.acp-kv__row dt { color: var(--dash-muted, #69748a); }
+.acp-kv__row dd { margin: 0; color: var(--dash-text, #1a2230); font-weight: 600; }
