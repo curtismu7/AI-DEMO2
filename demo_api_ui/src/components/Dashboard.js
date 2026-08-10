@@ -70,14 +70,6 @@ const Dashboard = ({ user, onLogout }) => {
   const [resettingDemo, setResettingDemo] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmWriteSeed, setConfirmWriteSeed] = useState(false);
-  const [txLookupUsername, setTxLookupUsername] = useState("demoUser");
-  const [txLookupTx, setTxLookupTx] = useState([]);
-  const [txLookupMeta, setTxLookupMeta] = useState(null);
-  const [txLookupAccounts, setTxLookupAccounts] = useState([]);
-  const [txLookupPingOne, setTxLookupPingOne] = useState(null);
-  const [txLookupTotalTx, setTxLookupTotalTx] = useState(0);
-  const [txLookupLoading, setTxLookupLoading] = useState(false);
-  const [txLookupHints, setTxLookupHints] = useState([]);
   const [apiCallsModalOpen, setApiCallsModalOpen] = useState(false);
   const [showEventStream, setShowEventStream] = useState(false);
   const fetchingRef = React.useRef(false);
@@ -382,6 +374,25 @@ const Dashboard = ({ user, onLogout }) => {
     },
     [user],
   );
+  // Scope-injection flag. This used to share an effect with the customer
+  // lookup card's config/hints fetches; that card is gone, but
+  // setScopeInjectionEnabled is not — it drives the scope-injection banner.
+  // Removing the effect wholesale took this with it until the parity guard
+  // caught the missing /api/admin/config call.
+  useEffect(() => {
+    bffAxios
+      .get("/api/admin/config")
+      .then((res) => {
+        const cfg = res.data;
+        setScopeInjectionEnabled(
+          cfg.ff_inject_scopes === "true" || cfg.ff_inject_scopes === true,
+        );
+      })
+      .catch(() => {
+        /* non-critical */
+      });
+  }, []);
+
 
   useEffect(() => {
     mountedRef.current = true;
@@ -396,42 +407,6 @@ const Dashboard = ({ user, onLogout }) => {
     fetchDashboardData();
   }, [location.state, location.pathname, navigate, fetchDashboardData]);
 
-  const handleLookupUserTransactions = useCallback(
-    async (e) => {
-      e.preventDefault();
-      setTxLookupLoading(true);
-      setTxLookupTx([]);
-      setTxLookupMeta(null);
-      setTxLookupAccounts([]);
-      setTxLookupPingOne(null);
-      setTxLookupTotalTx(0);
-      try {
-        const { data } = await bffAxios.post("/api/admin/transactions/lookup", {
-          username: txLookupUsername.trim(),
-        });
-        setTxLookupTx(data.transactions || []);
-        setTxLookupMeta(data.user || null);
-        setTxLookupAccounts(data.accounts || []);
-        setTxLookupPingOne(data.pingOne || null);
-        setTxLookupTotalTx(
-          typeof data.totalTransactions === "number"
-            ? data.totalTransactions
-            : (data.transactions || []).length,
-        );
-        const n = data.count ?? data.transactions?.length ?? 0;
-        const ac = (data.accounts || []).length;
-        notifySuccess(
-          `Loaded profile, ${ac} account(s), ${n} recent transaction row(s)`,
-        );
-      } catch (err) {
-        const msg = err.response?.data?.error || err.message || "Lookup failed";
-        notifyError(msg);
-      } finally {
-        setTxLookupLoading(false);
-      }
-    },
-    [txLookupUsername],
-  );
 
   // Function to decode JWT token
   // Function to fetch current OAuth tokens
@@ -490,25 +465,6 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
   // Check if scope injection is enabled (Phase 146 — D-04)
-  useEffect(() => {
-    bffAxios
-      .get("/api/admin/config")
-      .then((res) => {
-        const cfg = res.data;
-        setScopeInjectionEnabled(
-          cfg.ff_inject_scopes === "true" || cfg.ff_inject_scopes === true,
-        );
-        const configuredUsername = cfg.config?.demo_username;
-        if (configuredUsername) setTxLookupUsername(configuredUsername);
-      })
-      .catch(() => {
-        /* non-critical */
-      });
-    bffAxios
-      .get("/api/admin/users/hints")
-      .then((res) => setTxLookupHints(res.data.hints || []))
-      .catch(() => {/* non-critical */});
-  }, []);
 
   if (loading) {
     return (
