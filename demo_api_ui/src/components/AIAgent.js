@@ -7070,6 +7070,16 @@ export default function BankingAgent({
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
     }
+    // Prompt-first steps (ADMIN5): open the username-filter modal so the
+    // presenter picks the prefix live, instead of sending the step's canned
+    // example text. Mirrors handleChipActivate's queryPrompt handling; the
+    // modal's Run filter submits through sendAsNl like any typed message.
+    if (uc.trigger?.queryPrompt === "userFilter") {
+      setUserFilter("");
+      setUserFilterError("");
+      setShowUserFilterModal(true);
+      return;
+    }
     markUseCaseCompleted(uc.id);
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};

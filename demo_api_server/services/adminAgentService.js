@@ -14,6 +14,36 @@ function _fingerprint(msg) {
   return createHash('sha256').update(String(msg)).digest('hex').slice(0, 8);
 }
 
+/**
+ * Deterministic reply for a heuristic-dispatched admin tool result — the
+ * same envelope the tool hands the LLM (responseSummary/rows/totalCount/
+ * rowsTruncated from config/verticals/pingone-admin/tools.js), rendered as
+ * prose without a model in the loop.
+ */
+function formatAdminToolReply(action, result) {
+  if (action === 'list_pingone_tools') {
+    const names = (result.tools || []).map((t) => `- ${t.name}`).join('\n');
+    return `Available PingOne tools:\n${names}\n\nSource: ${result.source || 'unknown'}`;
+  }
+  const lines = [result.responseSummary || 'Done.'];
+  if (Array.isArray(result.rows) && result.rows.length) {
+    lines.push('');
+    for (const row of result.rows) {
+      const label = row.username || row.name || JSON.stringify(row);
+      const extra = row.email && row.email !== row.username ? ` (${row.email})`
+        : row.type ? ` — ${row.type}`
+        : row.description ? ` — ${row.description}`
+        : '';
+      lines.push(`- ${label}${extra}`);
+    }
+    if (result.rowsTruncated && result.totalCount) {
+      lines.push(`\nShowing the first ${result.rows.length} of ${result.totalCount}.`);
+    }
+  }
+  lines.push(`\nSource: ${result.source || 'unknown'}`);
+  return lines.join('\n');
+}
+
 function _extractHelixConfig(langchainConfig = {}) {
   const cfg = langchainConfig || {};
   return {
@@ -56,6 +86,51 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
     const { provider: llmProvider, model: llmModel } = resolveLlmProvider(
       { ...langchainConfig, provider: 'llamacpp' }
     );
+
+    // Fallback (Heuristics) routing, honored on THIS vertical too. Typed admin
+    // chat always lands here (demoAgentService.sendToAdminAgent), so before
+    // this gate the mode picker's "Fallback (Heuristics)" promise was silently
+    // ignored and every message rode the LLM — one llama.cpp refusal ("I'm
+    // sorry, but I can't help with that", captured in the step-verification
+    // fixtures) killed a demo step that the deterministic parser resolves
+    // perfectly, filter included. LLM-only mode (ff_heuristic_enabled=false)
+    // still bypasses this.
+    const heuristicFirst =
+      String(configStore.getEffective('ff_heuristic_enabled') ?? 'true') === 'true';
+    if (heuristicFirst) {
+      try {
+        const { parseHeuristic, resolveVerticalCtx } = require('./nlIntentParser');
+        const parsed = parseHeuristic(
+          message, 'pingone-admin', resolveVerticalCtx('pingone-admin'), {},
+        );
+        if (
+          parsed && parsed.kind === 'vertical' &&
+          (parsed.action === 'call_pingone_tool' || parsed.action === 'list_pingone_tools')
+        ) {
+          const raw = await executeAdminTool(parsed.action, parsed.params || {});
+          let result = null;
+          try { result = JSON.parse(raw); } catch (_) { /* reply falls back to raw */ }
+          if (result && !result.error) {
+            appEventService.logEvent('agent', 'info',
+              `Admin heuristic dispatch: ${parsed.action} (${parsed.params?.name || '-'})`,
+              { tag: 'agent/admin_heuristic' });
+            return {
+              reply: formatAdminToolReply(parsed.action, result),
+              success: true,
+              toolsCalled: [parsed.action],
+              tokensUsed: 0,
+              requiresConsent: false,
+              agentConfigured: true,
+              tokenEvents: tokenEvents || [],
+            };
+          }
+          // Tool-level error: fall through to the LLM, which can read the live
+          // tool list and try another route.
+        }
+      } catch (heurErr) {
+        console.warn('[adminAgentService] heuristic pre-parse failed, using LLM:', heurErr.message);
+      }
+    }
 
     let toolSchemas;
     try {
