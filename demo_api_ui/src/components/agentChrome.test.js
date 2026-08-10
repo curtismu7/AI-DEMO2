@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import {
+  buildPingOneAppListMessage,
   buildPingOneUserListMessage,
   HitlChipMark,
   verticalSuggestionChips,
@@ -41,5 +42,21 @@ describe('buildPingOneUserListMessage', () => {
 
   test('rejects unsupported wildcard shapes', () => {
     expect(buildPingOneUserListMessage('*curtis')).toBeNull();
+  });
+});
+
+describe('buildPingOneAppListMessage', () => {
+  test('maps all to an unfiltered listApplications request', () => {
+    expect(buildPingOneAppListMessage('all')).toContain('no filter');
+  });
+
+  test('maps a trailing wildcard to a case-preserved name sw filter', () => {
+    // Case matters: PingOne SCIM sw is case-sensitive, "Demo" must not
+    // arrive lowercased.
+    expect(buildPingOneAppListMessage('Demo*')).toContain('name sw "Demo"');
+  });
+
+  test('rejects unsupported wildcard shapes', () => {
+    expect(buildPingOneAppListMessage('*Demo')).toBeNull();
   });
 });

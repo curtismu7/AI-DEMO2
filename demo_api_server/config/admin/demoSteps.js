@@ -45,8 +45,11 @@ const ADMIN_DEMO_STEPS = [
   },
   {
     id: 'ADMIN6',
-    title: 'Filter applications (Demo*)',
-    trigger: { type: 'chip', text: 'List the PingOne applications whose name starts with Demo' },
+    title: 'Search applications by prefix',
+    // queryPrompt: same prompt-first contract as ADMIN5 — the UI opens the
+    // shared prefix modal (app variant) so the presenter chooses the prefix
+    // live. Text stays as the parse-ledger phrase and no-modal fallback.
+    trigger: { type: 'chip', queryPrompt: 'appFilter', text: 'List the PingOne applications whose name starts with Demo' },
   },
   {
     id: 'ADMIN7',

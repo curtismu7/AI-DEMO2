@@ -62,7 +62,7 @@ function recordAdminToolStep(tokenEvents, name, args, result, startedAt) {
  * rowsTruncated from config/verticals/pingone-admin/tools.js), rendered as
  * prose without a model in the loop.
  */
-function formatAdminToolReply(action, result) {
+function formatAdminToolReply(action, result, params) {
   if (action === 'list_pingone_tools') {
     const names = (result.tools || []).map((t) => `- ${t.name}`).join('\n');
     return `Available PingOne tools:\n${names}\n\nSource: ${result.source || 'unknown'}`;
@@ -81,6 +81,17 @@ function formatAdminToolReply(action, result) {
     if (result.rowsTruncated && result.totalCount) {
       lines.push(`\nShowing the first ${result.rows.length} of ${result.totalCount}.`);
     }
+  }
+  // Discoverability: nobody knows the prefix filter exists from a bare list
+  // (reported live: "we need to have a box that tells them"). Only on
+  // UNFILTERED user/app lists — a filtered reply repeating the tip is noise,
+  // and populations has no prefix heuristic to advertise.
+  const filterHint = {
+    listUsers: 'Tip: you can filter — try "users starting with curt", or click the List Users chip to pick a prefix.',
+    listApplications: 'Tip: you can filter — try "apps that start with Demo", or click the List Apps chip to pick a prefix. Prefixes are case-sensitive.',
+  }[result.tool];
+  if (filterHint && !params?.arguments?.filter) {
+    lines.push(`\n${filterHint}`);
   }
   lines.push(`\nSource: ${result.source || 'unknown'}`);
   return lines.join('\n');
@@ -164,7 +175,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
                 `Admin heuristic dispatch: ${parsed.action} (${parsed.params?.name || '-'})`,
                 { tag: 'agent/admin_heuristic' });
               return {
-                reply: formatAdminToolReply(parsed.action, result),
+                reply: formatAdminToolReply(parsed.action, result, parsed.params),
                 success: true,
                 toolsCalled: [parsed.action],
                 tokensUsed: 0,
