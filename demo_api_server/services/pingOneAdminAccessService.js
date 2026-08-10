@@ -45,15 +45,6 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
 
   const inRequiredGroup = groups.includes(requiredGroup);
 
-  // The decision is made by PingOne Authorize (Scenario 1 group-policy rule),
-  // not in JS — but the deployed "McpFirstTool" policy runs an audience/actor
-  // check BEFORE that rule, so this call needs a REAL TokenAudience or it
-  // denies everyone (see docs/superpowers/specs/2026-08-10-pingone-admin-
-  // p1az-group-gate-design.md for the first, reverted attempt that omitted
-  // one). This call site has no MCP-audienced token of its own, so one is
-  // minted here via RFC 8693 token exchange, using the admin's own session
-  // token as the subject and the already-provisioned Token Exchanger app's
-  // identity as the exchanging party — no new PingOne provisioning needed.
   if (!accessToken) {
     return {
       allowed: false,
@@ -63,20 +54,33 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
     };
   }
 
+  // Two-hop RFC 8693 exchange — banking's own pattern, confirmed live via
+  // the involved resources' actual attribute mappings (not just their code).
+  // Hop 1's resource (agentgateway.ping.demo) constructs `act` from the
+  // SUBJECT token's `may_act` claim; the admin's own PingOne user record
+  // names the AI Agent Actor client as its permitted actor. Hop 2's
+  // resource (mcpgateway.ping.demo) only PROPAGATES an existing `act` — it
+  // never constructs one from a request-supplied actor_token, which is why
+  // a single hop with an actor token attached (tried first, live-tested,
+  // did not work) never populates `act`. See
+  // docs/superpowers/specs/2026-08-10-pingone-admin-real-p1az-design.md.
+  const intermediateAud = configStore.getEffective('ai_agent_intermediate_audience');
   const mcpResourceUri = resolveExpectedMcpResourceUri();
-  let tokenAudience;
+  let finalToken;
   try {
+    const aiAgentActorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
+    const aiAgentActorClientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
+    const hop1Token = await oauthService.performTokenExchangeAs(
+      accessToken, null, aiAgentActorClientId, aiAgentActorClientSecret,
+      intermediateAud, ['read'], 'post',
+    );
+
     const exchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
     const exchangerClientSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
-    // 'post' (client_secret_post), not the function's own 'basic' default —
-    // this exchanger app's token-endpoint auth method rejects 'basic' with
-    // 401 invalid_client (live-verified this session).
-    const exchanged = await oauthService.performTokenExchangeAs(
-      accessToken, null, exchangerClientId, exchangerClientSecret, mcpResourceUri, ['read'], 'post',
+    finalToken = await oauthService.performTokenExchangeAs(
+      hop1Token, null, exchangerClientId, exchangerClientSecret,
+      mcpResourceUri, ['read'], 'post',
     );
-    const decoded = decodeJwt(exchanged);
-    const aud = decoded?.claims?.aud;
-    tokenAudience = Array.isArray(aud) ? aud[0] : aud;
   } catch (err) {
     console.warn('[pingOneAdminAccessService] MCP token exchange failed (denying):', err.message);
     return {
@@ -87,8 +91,12 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
     };
   }
 
+  const decoded = decodeJwt(finalToken);
+  const aud = decoded?.claims?.aud;
+  const tokenAudience = Array.isArray(aud) ? aud[0] : aud;
+  const actClientId = decoded?.claims?.act?.sub;
+
   if (!tokenAudience) {
-    console.warn('[pingOneAdminAccessService] Exchanged token has no audience claim (denying)');
     return {
       allowed: false,
       error: 'pingone_admin_group_lookup_unavailable',
@@ -108,6 +116,7 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
       inRequiredGroup,
       tokenAudience,
       mcpResourceUri,
+      actClientId,
     }));
   } catch (err) {
     console.warn('[pingOneAdminAccessService] P1AZ evaluation error (denying):', err.message);
