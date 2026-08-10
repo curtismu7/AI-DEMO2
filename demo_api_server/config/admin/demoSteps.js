@@ -53,8 +53,15 @@ const ADMIN_DEMO_STEPS = [
   },
   {
     id: 'ADMIN7',
-    title: 'Show my available tools',
-    trigger: { type: 'chip', text: 'What PingOne tools can I use right now?' },
+    // Title is the chip's visible label (requested wording). The trigger text
+    // deliberately differs: "MCP" in a message matches an earlier BANKING
+    // heuristic (mcp_tools) before the admin overlay runs, so the literal
+    // title as a message would dispatch the wrong tool. This phrasing parses
+    // to list_pingone_tools (step-verification asserts it).
+    // queryPrompt: the UI opens the tool-filter prompt (all tools, or a
+    // name/description fragment); the text is the no-modal fallback.
+    title: 'Show available tools for PingOne MCP server',
+    trigger: { type: 'chip', queryPrompt: 'toolFilter', text: 'What PingOne tools can I use right now?' },
   },
 ];
 

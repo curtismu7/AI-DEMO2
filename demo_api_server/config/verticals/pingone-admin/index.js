@@ -47,6 +47,18 @@ const HEURISTICS = [
   // the LLM, which reads the live tool list, rather than pinning a name that 404s.
   { re: /\blist\b.*\bpopulation|\bshow\b.*\bpopulation/i,                            action: 'call_pingone_tool', defaultParams: { name: 'listPopulations' } },
   { re: /\b(get|show|view)\b.*\benvironment\b/i,                                     action: 'call_pingone_tool', defaultParams: { name: 'getEnvironment' } },
+  // Filtered tool discovery — MUST precede the generic discovery regex.
+  // list_pingone_tools takes `filter` directly (case-insensitive substring
+  // over name/description, applied in tools.js), so unlike the sw prefixes
+  // there is no case trap and no asterisk.
+  {
+    re: /\btools?\b.*\b(?:matching|containing|named|about)\b/i,
+    action: 'list_pingone_tools',
+    extractParams: (raw) => {
+      const m = raw.match(/\b(?:matching|containing|named|about)\s+["']?([A-Za-z0-9._-]+)["']?/);
+      return m ? { filter: m[1] } : {};
+    },
+  },
   { re: /\b(discover|explore|show|list|what|which)\b.*\b(tools?|apis?|operat|capabilit|can you do)/i, action: 'list_pingone_tools' },
 ];
 

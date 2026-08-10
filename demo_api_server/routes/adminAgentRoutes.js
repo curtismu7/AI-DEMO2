@@ -19,6 +19,7 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
   const access = await pingOneAdminAccessService.checkAccess({
     username: req.session?.user?.username || null,
     pingOneUserId: req.agentContext?.userId || null,
+    accessToken: req.agentContext?.accessToken || null,
   });
   if (access.allowed) return true;
 
