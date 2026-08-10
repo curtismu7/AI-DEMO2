@@ -7,7 +7,15 @@
 //
 // A <button> and a useState flag, not <details>: the native `open` attribute
 // fights Testing Library's click semantics, and this menu is asserted on.
+//
+// The popover PORTALS to document.body with fixed positioning. In split
+// layout the token card is an overflow-y:auto scroll container, and on the
+// short views (Simple/Detailed) an absolutely-positioned popover taller than
+// the space below the trigger was clipped mid-list — the presenter could see
+// Tokens/MCP/Trust and nothing else (reported live 2026-08-10). A portal has
+// no clipping ancestor to fight.
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./ChainViewMenu.css";
 
 const VIEWS = [
@@ -21,7 +29,11 @@ const VIEWS = [
 
 export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcpCount = 0 }) {
   const [open, setOpen] = useState(false);
+  // Fixed-position coords for the portaled popover, derived from the trigger's
+  // rect at open time (top-left origin; right-aligned to the trigger).
+  const [popPos, setPopPos] = useState(null);
   const rootRef = useRef(null);
+  const popRef = useRef(null);
   const count = Array.isArray(steps) ? steps.length : 0;
   // Trust only exists for ff_dpop / ff_rar runs. The rail drops a Trust
   // selection the moment that stops being true, so offering it unconditionally
@@ -33,16 +45,26 @@ export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcp
   useEffect(() => {
     if (!open) return undefined;
     const onDocClick = (e) => {
-      if (!rootRef.current?.contains(e.target)) close();
+      // The popover is portaled, so the trigger's subtree no longer contains
+      // it — both refs must vouch for the click.
+      if (!rootRef.current?.contains(e.target) && !popRef.current?.contains(e.target)) close();
     };
     const onKey = (e) => {
       if (e.key === "Escape") close();
     };
+    // Any scroll (capture phase catches the card's own scroll container, which
+    // never bubbles to window) would leave a fixed-position popover floating
+    // detached from its trigger — close instead of chasing it.
+    const onScroll = () => close();
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, [open, close]);
 
@@ -53,12 +75,23 @@ export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcp
         className="cvm-trigger"
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setPopPos({
+            top: rect.bottom + 5,
+            right: Math.max(8, window.innerWidth - rect.right),
+          });
+          setOpen((v) => !v);
+        }}
       >
         Views
       </button>
-      {open ? (
-        <div className="cvm-pop">
+      {open ? createPortal(
+        <div
+          className="cvm-pop"
+          ref={popRef}
+          style={popPos ? { top: popPos.top, right: popPos.right } : undefined}
+        >
           {views.map(([id, label, hint]) => (
             <button
               type="button"
@@ -86,7 +119,8 @@ export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcp
           <p className="cvm-note">
             Token Chain runs inline, below{count ? ` — ${count} ${count === 1 ? "step" : "steps"}` : ""}.
           </p>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
