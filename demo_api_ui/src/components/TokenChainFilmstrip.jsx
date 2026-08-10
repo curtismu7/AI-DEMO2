@@ -211,7 +211,16 @@ export default function TokenChainFilmstrip() {
                 ✕
               </button>
             </div>
-            <div className="tcfs-sheet-body">
+            {/* `tctr` is deliberate. The panels below — TraceMcpPanel,
+                TraceTokenSummary, the steppers — get their dark palette from 28
+                rules in TokenChainTraceRail.css scoped to
+                `:root[data-theme="dark"] .tctr …`. Rendered outside that class
+                they kept light-mode colours on this dark surface: measured
+                rgb(17,17,16) text on rgb(11,20,38), a contrast ratio of 1.03:1
+                — invisible. Carrying the class re-uses the rail's palette
+                instead of duplicating 28 declarations that would then have to
+                be kept in sync. */}
+            <div className="tcfs-sheet-body tctr">
               {view ? renderView() : <StepDetailPanel step={activeStep} onInspect={onInspect} />}
             </div>
           </section>
