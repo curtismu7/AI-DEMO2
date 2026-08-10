@@ -32,7 +32,10 @@ export function FootprintSkinPicker({
     const [nextCategory, nextVariant] = next.split(":");
     if (!nextCategory || !nextVariant) return;
     writeMockSelection(nextCategory, nextVariant);
-    navigate(MOCK_CATALOG[nextCategory].route);
+    // Carry the variant in the URL. Every category reuses one route, so without
+    // a changing query, switching variants within a group navigates to the same
+    // path — a React Router no-op — and only the first variant ever rendered.
+    navigate(`${MOCK_CATALOG[nextCategory].route}?v=${encodeURIComponent(nextVariant)}`);
   };
 
   return (
