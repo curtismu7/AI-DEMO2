@@ -190,6 +190,19 @@ async function listPingOneTools(params) {
   }
 }
 
+// If an sw prefix filter has a letter as its first character, return the same
+// filter with that letter's case flipped, else null. PingOne SCIM sw is
+// case-sensitive and rejects `or` filters (400, probed live 2026-08-10), so
+// case tolerance has to be a second call, not a smarter filter.
+function flippedCaseFilter(filter) {
+  const m = /^(username|name) sw "(.)(.*)"$/.exec(String(filter || ''));
+  if (!m) return null;
+  const [, field, first, rest] = m;
+  const flipped = first === first.toLowerCase() ? first.toUpperCase() : first.toLowerCase();
+  if (flipped === first) return null; // digit or symbol — nothing to flip
+  return `${field} sw "${flipped}${rest}"`;
+}
+
 async function callPingOneTool(params) {
   const name = params?.name;
   if (!name) {
@@ -207,9 +220,29 @@ async function callPingOneTool(params) {
     args.environmentId = process.env.PINGONE_ENVIRONMENT_ID;
   }
   try {
-    const data = parseMcpResult(await adapter.callTool(name, args));
+    let data = parseMcpResult(await adapter.callTool(name, args));
+    // Case-tolerant prefix ("so we do not fail on case, for demo"): when the
+    // exact-case sw filter finds nothing, retry ONCE with the first letter's
+    // case flipped ("demo" ⇄ "Demo") and report which prefix matched. Only on
+    // an empty result — a non-empty exact match is never second-guessed.
+    let effectiveFilter = args.filter;
+    const emptyCollection = collectionFor(name, data)?.length === 0;
+    if (emptyCollection) {
+      const flipped = flippedCaseFilter(args.filter);
+      if (flipped) {
+        const retryData = parseMcpResult(await adapter.callTool(name, { ...args, filter: flipped }));
+        if ((collectionFor(name, retryData) || []).length > 0) {
+          data = retryData;
+          effectiveFilter = flipped;
+        }
+      }
+    }
+    const fields = resultFields(name, data);
+    if (effectiveFilter && effectiveFilter !== args.filter) {
+      fields.responseSummary = `${fields.responseSummary} (no matches for ${args.filter}; matched with ${effectiveFilter})`;
+    }
     return {
-      result: { tool: name, ...resultFields(name, data), source: LIVE_SOURCE },
+      result: { tool: name, ...fields, source: LIVE_SOURCE },
       render: 'call_pingone_tool',
     };
   } catch (err) {
