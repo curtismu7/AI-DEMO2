@@ -2,7 +2,6 @@
 
 const groupPolicy = require('./groupPolicy');
 const membershipService = require('./pingOneGroupMembershipService');
-const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 
 const VERTICAL_ID = 'pingone-admin';
 const GROUP_CATEGORY = 'privileged';
@@ -39,45 +38,20 @@ async function checkAccess({ username, pingOneUserId }) {
     };
   }
 
-  const inRequiredGroup = groups.includes(requiredGroup);
-
-  // Decision is made by PingOne Authorize (Scenario 1 group-policy rule),
-  // not in JS. inRequiredGroup is a pre-resolved input (the snapshot DSL has
-  // no array-contains) — the PDP still decides PERMIT/DENY/INDETERMINATE.
-  // Calling evaluateMcpToolDelegation directly (rather than flipping
-  // ff_authorize_group_policy) keeps this scoped to this vertical only —
-  // see docs/superpowers/specs/2026-08-10-pingone-admin-p1az-group-gate-design.md.
-  let decision;
-  let policyNotFound;
-  try {
-    ({ decision, policyNotFound } = await pingOneAuthorizeService.evaluateMcpToolDelegation({
-      userId: pingOneUserId,
-      toolName: 'pingone_admin_access',
-      verticalId: VERTICAL_ID,
-      requiredGroup,
-      inRequiredGroup,
-    }));
-  } catch (err) {
-    console.warn('[pingOneAdminAccessService] P1AZ evaluation error (denying):', err.message);
-    return {
-      allowed: false,
-      error: 'pingone_admin_group_lookup_unavailable',
-      status: 503,
-      requiredGroup,
-    };
-  }
-
-  if (policyNotFound) {
-    console.warn('[pingOneAdminAccessService] policy_not_found for pingone_admin_access (denying)');
-    return {
-      allowed: false,
-      error: 'pingone_admin_group_lookup_unavailable',
-      status: 503,
-      requiredGroup,
-    };
-  }
-
-  const allowed = decision === 'PERMIT';
+  // Decided in JS, not via PingOne Authorize. A live-verify pass (2026-08-10)
+  // found evaluateMcpToolDelegation's deployed "McpFirstTool" policy runs an
+  // unconditional TokenAudience/actor-chain check BEFORE its group rule — a
+  // real group member was DENIED with "Token audience 'none' or actor chain
+  // validation failed", the group rule never reached. This call site has no
+  // MCP bearer token (it gates a plain session-based dashboard route), so it
+  // has no TokenAudience to legitimately supply, and fabricating one would
+  // violate this codebase's own C1 rule 1 ("never hardcode this to the
+  // expected URI"). Routing this vertical's gate through PingOne Authorize
+  // needs either a dedicated decision endpoint/policy with no audience gate,
+  // or a real token-audience source — both out of scope here. See
+  // docs/superpowers/specs/2026-08-10-pingone-admin-p1az-group-gate-design.md
+  // for the design that was reverted, and REGRESSION_PLAN.md §4 for this fix.
+  const allowed = groups.includes(requiredGroup);
   return {
     allowed,
     error: allowed ? null : 'pingone_admin_group_required',

@@ -1,7 +1,16 @@
 # PingOne Admin group gate — route through PingOne Authorize (P1AZ)
 
 **Date:** 2026-08-10
-**Status:** Implemented (unit-tested); live-verification pending.
+**Status:** Reverted 2026-08-10. Live-verify found the deployed "McpFirstTool"
+policy runs an unconditional TokenAudience/actor-chain check before its group
+rule — a confirmed group member was DENIED with "Token audience 'none' or
+actor chain validation failed," the group rule never reached. This call site
+has no MCP bearer token to supply a real `TokenAudience` from, and fabricating
+one violates this codebase's own C1 rule 1. `checkAccess` now decides in JS
+again (pre-this-spec behavior). Routing this vertical through PingOne
+Authorize needs either a dedicated decision endpoint/policy with no audience
+gate, or a real token-audience source — both out of scope for this document;
+a follow-up spec is needed before re-attempting this design.
 **Scope:** `services/pingOneAdminAccessService.js#checkAccess` only. No route, UI, or flag-default changes.
 
 ## Problem
