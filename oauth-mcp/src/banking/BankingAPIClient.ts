@@ -189,12 +189,16 @@ export class BankingAPIClient {
     userToken: string,
     name: string,
     args: Record<string, unknown> = {},
+    vertical?: string,
   ): Promise<{ ok: boolean; result: unknown; render?: string }> {
+    // vertical: the tool's own vertical, forwarded as a hint so the BFF runs
+    // that vertical's agent regardless of the caller's active/selected vertical
+    // (resolveVertical honours it only when the vertical owns the tool).
     const response = await this.makeAuthenticatedRequest<{ ok: boolean; result: unknown; render?: string }>(
       'POST',
       '/api/path/vertical-tool',
       userToken,
-      { name, args },
+      { name, args, ...(vertical ? { vertical } : {}) },
     );
     return response.data;
   }
