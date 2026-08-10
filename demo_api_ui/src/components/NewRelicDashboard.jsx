@@ -63,18 +63,20 @@ function Sparkline({ points }) {
 
 export default function NewRelicDashboard() {
   const [win, setWin] = useState(DEFAULT_WINDOW);
+  const [search, setSearch] = useState('');
   const [data, setData] = useState(null);
   const [state, setState] = useState('loading');
 
   const load = useCallback(async () => {
     try {
-      const res = await apiClient.get(`/api/newrelic/pipeline?window=${win}`);
+      const q = search ? `&q=${encodeURIComponent(search)}` : '';
+      const res = await apiClient.get(`/api/newrelic/pipeline?window=${win}${q}`);
       setData(res.data);
       setState('ready');
     } catch (err) {
       setState(err?.response?.status === 503 ? 'unconfigured' : 'error');
     }
-  }, [win]);
+  }, [win, search]);
 
   useEffect(() => {
     load();
@@ -116,6 +118,14 @@ export default function NewRelicDashboard() {
 
   const hasNoTraffic = totalEvents === 0 && (data?.stream || []).length === 0;
 
+  // data?.q — not the local `search` state — is what the server actually
+  // applied (it trims/truncates), so the empty-state message reflects reality
+  // even if the client's debounced value hasn't caught up yet.
+  const appliedSearch = data?.q || '';
+  const streamEmptyMessage = appliedSearch
+    ? `No events match "${appliedSearch}".`
+    : undefined;
+
   return (
     <DashboardShell
       title="New Relic"
@@ -123,6 +133,9 @@ export default function NewRelicDashboard() {
       window={win}
       windows={WINDOWS}
       onWindow={setWin}
+      search={search}
+      onSearch={setSearch}
+      searchPlaceholder="Search events…"
       onRefresh={load}
       state={state}
       notConfiguredHint={
@@ -157,7 +170,7 @@ export default function NewRelicDashboard() {
 
           <section className="dash-card">
             <div className="dash-card-head">Recent events</div>
-            <EventStream columns={STREAM_COLUMNS} rows={rows} />
+            <EventStream columns={STREAM_COLUMNS} rows={rows} emptyMessage={streamEmptyMessage} />
           </section>
         </>
       )}

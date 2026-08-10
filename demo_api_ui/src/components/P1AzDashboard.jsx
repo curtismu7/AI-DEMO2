@@ -51,18 +51,20 @@ function Sparkline({ points }) {
 
 export default function P1AzDashboard() {
   const [win, setWin] = useState(DEFAULT_WINDOW);
+  const [search, setSearch] = useState('');
   const [data, setData] = useState(null);
   const [state, setState] = useState('loading');
 
   const load = useCallback(async () => {
     try {
-      const res = await apiClient.get(`/api/newrelic/view/authorize?window=${win}`);
+      const q = search ? `&q=${encodeURIComponent(search)}` : '';
+      const res = await apiClient.get(`/api/newrelic/view/authorize?window=${win}${q}`);
       setData(res.data);
       setState('ready');
     } catch (err) {
       setState(err?.response?.status === 503 ? 'unconfigured' : 'error');
     }
-  }, [win]);
+  }, [win, search]);
 
   useEffect(() => {
     load();
@@ -123,6 +125,14 @@ export default function P1AzDashboard() {
     policyEvalMs: e.policyEvalMs,
   }));
 
+  // data?.q — not the local `search` state — is what the server actually
+  // applied (it trims/truncates), so the empty-state message reflects reality
+  // even if the client's debounced value hasn't caught up yet.
+  const appliedSearch = data?.q || '';
+  const streamEmptyMessage = appliedSearch
+    ? `No decisions match "${appliedSearch}".`
+    : undefined;
+
   return (
     <DashboardShell
       title="PingOne Authorize"
@@ -130,6 +140,9 @@ export default function P1AzDashboard() {
       window={win}
       windows={WINDOWS}
       onWindow={setWin}
+      search={search}
+      onSearch={setSearch}
+      searchPlaceholder="Search decisions…"
       onRefresh={load}
       state={state}
       notConfiguredHint={
@@ -161,7 +174,7 @@ export default function P1AzDashboard() {
 
       <section className="dash-card">
         <div className="dash-card-head">Recent decisions</div>
-        <EventStream columns={STREAM_COLUMNS} rows={rows} />
+        <EventStream columns={STREAM_COLUMNS} rows={rows} emptyMessage={streamEmptyMessage} />
       </section>
     </DashboardShell>
   );
