@@ -66,6 +66,10 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
+  // Tool-call results collected into the RESULTS terminal tab. resultNonce bumps
+  // on each new result to flash the tab so the user notices output arrived.
+  const [toolResults, setToolResults] = useState([]);
+  const [resultNonce, setResultNonce] = useState(0);
   // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
   // With a long granted-scope list, clicking a pill on the left jumps to its row.
   const [selectedScope, setSelectedScope] = useState(null);
@@ -275,15 +279,29 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
-  // Per-row executor for the Tools table: returns the pretty-printed result.
+  // Per-row executor for the Tools table: returns the pretty-printed result and
+  // also records it in the RESULTS terminal tab (which flashes so the user sees
+  // fresh output land).
+  const recordResult = useCallback((name, result, ok) => {
+    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev].slice(0, 50));
+    setResultNonce((n) => n + 1);
+    setTerminalTab('results');
+  }, []);
+
   const executeToolCall = async (name, argsStr) => {
+    let out;
+    let ok = true;
     try {
       const args = JSON.parse(argsStr || '{}');
       const data = await api('/tools/call', { method: 'POST', body: { name, arguments: args } });
-      return JSON.stringify(data, null, 2);
+      out = JSON.stringify(data, null, 2);
+      ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      return JSON.stringify({ error: err.message }, null, 2);
+      out = JSON.stringify({ error: err.message }, null, 2);
+      ok = false;
     }
+    recordResult(name, out, ok);
+    return out;
   };
 
   // Land on the Tools tab the first time tools are discovered — it is the point
@@ -804,7 +822,15 @@ export default function PrivilegeMcpClientPage() {
               <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
               <button className={`cur-terminal-tab ${terminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
               <button className={`cur-terminal-tab ${terminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>
+              <button
+                key={`results-tab-${resultNonce}`}
+                className={`cur-terminal-tab ${terminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && terminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
+                onClick={() => setTerminalTab('results')}
+              >
+                RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
+              </button>
               {terminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
+              {terminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
             </div>
             <div className="cur-terminal-content">
               {terminalTab === 'trace' && (
@@ -876,6 +902,24 @@ export default function PrivilegeMcpClientPage() {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                </div>
+              )}
+              {terminalTab === 'results' && (
+                <div className="cur-terminal-results">
+                  {toolResults.length === 0 ? (
+                    <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
+                  ) : (
+                    toolResults.map((r, i) => (
+                      <div key={`${r.ts}-${i}`} className="cur-result-item">
+                        <div className="cur-result-item-head">
+                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                          <span className="cur-result-item-tool">{r.tool}</span>
+                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                        </div>
+                        <pre className="cur-result-item-body">{r.result}</pre>
+                      </div>
+                    ))
                   )}
                 </div>
               )}
