@@ -23,6 +23,7 @@ import "./Dashboard.css";
 // rather than the features moving to the console.
 import "./AdminDashboardSkin.css";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
+import { useTheme } from "../context/ThemeContext";
 import { useSessionToken } from '../context/SessionTokenContext';
 import { useEventStream } from "../context/EventStreamContext";
 import EventStreamPanel from "./EventStreamPanel";
@@ -60,6 +61,7 @@ const Dashboard = ({ user, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { placement: agentPlacement } = useAgentUiMode();
+  const { darkMode, toggleDarkMode } = useTheme();
   const { addEvent } = useEventStream();
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -534,6 +536,27 @@ const Dashboard = ({ user, onLogout }) => {
                 />
                 What's Happening:
               </label>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("agent-demo-steps-open"))}
+                className="app-page-toolbar-btn"
+                title="Open the admin agent with the scripted demo steps"
+              >
+                Demo steps
+              </button>
+              {/* Page-level theme control. The only other dark-mode switch in
+                  the app lives in the agent header's More tray, and the agent
+                  starts collapsed on this page — without this button the
+                  dashboard's dark mode is unreachable on sight. */}
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="app-page-toolbar-btn"
+                title="Switch the dashboard between light and dark"
+                aria-pressed={darkMode}
+              >
+                {darkMode ? "Light mode" : "Dark mode"}
+              </button>
               <button
                 type="button"
                 onClick={() => setApiCallsModalOpen(true)}
