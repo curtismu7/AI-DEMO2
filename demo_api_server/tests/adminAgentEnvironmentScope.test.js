@@ -30,13 +30,36 @@ describe('admin agent — environment is fixed server-side', () => {
     expect(prompt).toMatch(/never ask the admin for an environment id/i);
   });
 
-  // Independent of the model: the wrapper drops environmentId rather than
-  // forwarding it, so a model that ignores the instruction still works.
-  it('strips environmentId from tool arguments before dispatch', () => {
-    const src = require('fs').readFileSync(
-      require('path').resolve(__dirname, '../config/verticals/pingone-admin/tools.js'),
-      'utf8',
+  // Independent of the model: the wrapper must DROP environmentId rather than
+  // forward it, so a model that ignores the instruction still works.
+  //
+  // This invokes execute() against a mocked adapter and inspects what the
+  // adapter actually received. An earlier version asserted on the source text
+  // of the destructuring instead — that passes on a string and proves nothing
+  // about behaviour, and would survive a refactor that reintroduced the bug.
+  it('strips environmentId before the adapter is called', async () => {
+    jest.resetModules();
+    const callTool = jest.fn().mockResolvedValue({
+      content: [{ type: 'text', text: JSON.stringify({ _embedded: { users: [] } }) }],
+    });
+    jest.doMock('../services/mcpPingOneHttpAdapter', () => ({
+      callTool,
+      listTools: jest.fn().mockResolvedValue([]),
+    }));
+
+    const { execute } = require('../config/verticals/pingone-admin/tools');
+    await execute(
+      'call_pingone_tool',
+      { name: 'listUsers', arguments: { environmentId: 'should-not-be-forwarded', limit: 5 } },
+      {},
     );
-    expect(src).toMatch(/environmentId:\s*_ignoredEnvId,\s*\.\.\.args/);
+
+    expect(callTool).toHaveBeenCalledTimes(1);
+    const [toolName, forwardedArgs] = callTool.mock.calls[0];
+    expect(toolName).toBe('listUsers');
+    expect(forwardedArgs).not.toHaveProperty('environmentId');
+    // the caller's other arguments must survive
+    expect(forwardedArgs).toMatchObject({ limit: 5 });
   });
+
 });
