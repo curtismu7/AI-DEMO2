@@ -5765,7 +5765,13 @@ export default function BankingAgent({
     // BFF's provider fallback would silently send the message to the default
     // LLM (agentRun.js resolves null → llm_provider config → 'anthropic'),
     // violating the agentModes.js contract that Heuristics needs no provider.
-    if (aguiEnabled && activeLlmProvider) {
+    // pingone-admin must not either: /api/agent/run drives the CUSTOMER
+    // LangGraph agent, which has no PingOne admin tools — an admin message
+    // streamed there gets a model refusal ("I don't have permission to
+    // retrieve user lists", reported live on ADMIN5). The vertical's own
+    // route (sendAgentMessage → sendToAdminAgent) carries the admin toolset
+    // and the heuristic-first gate.
+    if (aguiEnabled && activeLlmProvider && effectiveVerticalId !== "pingone-admin") {
       // Stable thread ID for the session (persists across HITL resumes).
       // runId is per-message so each turn is distinct.
       if (!aguiThreadIdRef.current) {
@@ -7525,7 +7531,9 @@ export default function BankingAgent({
       // BFF's provider fallback would silently send the message to the default
       // LLM (agentRun.js resolves null → llm_provider config → 'anthropic'),
       // violating the agentModes.js contract that Heuristics needs no provider.
-      if (aguiEnabled && activeLlmProvider) {
+      // pingone-admin also skips it — same reason as the sendAsNlInner branch:
+      // the AG-UI run endpoint has no admin tools; the admin route does.
+      if (aguiEnabled && activeLlmProvider && effectiveVerticalId !== "pingone-admin") {
         if (!aguiThreadIdRef.current) aguiThreadIdRef.current = "ba-" + Date.now();
         aguiActiveRunIdRef.current = "run-" + Date.now();
         if (activityNarrationEnabled) activityStartRequest(text);
