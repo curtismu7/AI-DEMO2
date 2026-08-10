@@ -33,15 +33,13 @@ metadata:
     # "tlsv13 alert certificate required" — surfacing as a bare 502 whose real
     # cause appears only in the ingress controller log.
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    # MCPGW routes strictly on Host and only recognises the Frontend Name
-    # registered on the application object — the $mcpgw_frontend map in
-    # demo_mcpgw_nginx/nginx.conf, expressed here as an annotation. Passing our
-    # own hostname through gets "Domain not found" and an empty 200. ingress-nginx
-    # still sets X-Forwarded-Host to the name the client used.
-    #
-    # The registered value is NOT what the console displays — read it from the
-    # API, per the comment block in demo_mcpgw_nginx/nginx.conf. One value per
-    # ingress, so a second MCP application needs its own Ingress object.
+    # Host rewrite, the annotation form of the $mcpgw_frontend map in
+    # demo_mcpgw_nginx/nginx.conf. The gateway routes ONLY on the full
+    # registered Frontend Name (<app>.default.applications.procyon.ai:8643) —
+    # verified end to end 2026-08-10; the SE deck's label-strip "EvaluateHost"
+    # does not hold on this build. upstream-vhost takes ONE value per Ingress
+    # object, so each additional MCP application needs its own Ingress here
+    # (Docker takes one map line instead).
     nginx.ingress.kubernetes.io/upstream-vhost: "MCP-aidemo.default.applications.procyon.ai:8643"
     # MCP streamable HTTP and SSE hold the response open for the session's life.
     nginx.ingress.kubernetes.io/proxy-buffering: "off"

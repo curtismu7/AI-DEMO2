@@ -285,7 +285,15 @@ the demo still shows nothing.
 
 ---
 
-## Current state (verified 2026-08-02, re-verified 2026-08-03)
+## Current state (verified 2026-08-02, re-verified 2026-08-03) — SUPERSEDED
+
+> ⚠️ **The tenant was rebuilt on 2026-08-08.** This section describes the old tenant and
+> the `mypingone` application, and its claim that `AuthMode` is "back on OAuth with the
+> client secret populated" is **false today** — the rebuild wiped that config. For the
+> live values read
+> [§2026-08-10 (later): live application state](#2026-08-10-later-live-application-state),
+> or the console API, which is always authoritative. Kept for the reasoning, not the
+> values.
 
 **The demo side is complete, proven, and deployed.** Two defects found on 2026-08-03 are
 fixed and live-verified against the running stack:
@@ -978,7 +986,7 @@ is the proof the tool call was governed.
 |---|---|---|
 | nginx exits at start | `certs/mcpgw-wildcard.pem` missing | `bash scripts/ensure-mcpgw-certs.sh` |
 | `502` + `SSL_do_handshake` in nginx log | proxy's `-listen` port is plain HTTP, not TLS | change `proxy_pass` to `http://` in `demo_mcpgw_nginx/nginx.conf` (and `backend-protocol: "HTTP"` in the k8s ingress) |
-| `404` from the gateway | Host header rewritten, or Frontend Name does not match the host called | keep `proxy_set_header Host $host` |
+| `404` / `Domain not found` / an empty `200` from the gateway | The `Host` header is not the Frontend Name registered on the application object | Rewrite it — `proxy_set_header Host $mcpgw_frontend` (see §2026-08-10 later: Host routing). Forwarding `$host` unchanged is what causes this |
 | Browser cert warning | wildcard cert not trusted | `mkcert -install` |
 | MCP session drops after 60s | a proxy timeout somewhere still at its default | `proxy_read_timeout 3600s` on every hop |
 
@@ -1339,3 +1347,234 @@ it destroys a certificate, not a token.
   The gateway must forward both once client auth works.
 - **`/authorize` strings in the binary are vendored `ory/fosite` source paths**, not
   registered routes. Do not read them as evidence the endpoint exists.
+
+## 2026-08-10 (later): Host routing was a second, independent blocker — fixed
+
+The section above says the `kid` wall is "the whole problem; everything else works."
+That was wrong in one respect: even a token the gateway *does* trust never reached an
+application, because MCPGW routes strictly on the `Host` header and we were sending
+our own hostname.
+
+### The symptom, and why it misleads
+
+`Domain not found` in the proxy log, and an **empty `200`** to the client — no body,
+no error. That reads like a broken backend. It is the gateway declining to match any
+MCP application and closing the request.
+
+### The registered name is not what the console displays
+
+| Where | Value |
+|---|---|
+| Console UI shows | `MCP-aidemo-app-default.applications.privilege.pingone.com:8643` |
+| Application object holds | `MCP-aidemo.default.applications.procyon.ai:8643` |
+
+Different domain — `procyon.ai`, the pre-Ping branding. Every hostname tried on
+2026-08-10, **including the one the console displayed**, missed for that reason. Read
+the true value from the API, never from the UI — the recipe is already in this document
+under §"the console API reads the real config", and the field is
+`.Applications[0].Spec.McpAppConfig.FrontEndName.Elems`:
+
+```bash
+curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -b "auth_token=$TOK" -H "x-procyon-session-id: $SID" -H 'accept: application/json' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['Applications'][0]['Spec']['McpAppConfig']['FrontEndName'])"
+```
+
+Note the casing: **`McpAppConfig`**, not `MCPAppConfig`. Prose in earlier PR
+descriptions used the latter; the object does not, and the wrong spelling reads as
+`undefined` rather than failing loudly.
+
+### The fix, in this repo
+
+Rewriting the header in our own proxy layer keeps the fix here — no mutation of
+Privilege state, nothing to undo in the console, no dependence on a short-lived admin
+token.
+
+| Surface | Mechanism |
+|---|---|
+| Docker | `demo_mcpgw_nginx/nginx.conf` — `map $host $mcpgw_frontend`, then `proxy_set_header Host $mcpgw_frontend`. One map line per MCP application |
+| Kubernetes | `k8s/aws/mcpgw-agentless-ingress.yaml` — `nginx.ingress.kubernetes.io/upstream-vhost`. **One value per Ingress object**, so a second MCP application needs its own Ingress, not another line |
+
+`X-Forwarded-Host` still carries the hostname the client used, on both surfaces.
+
+### What the gateway answers now
+
+With a **console** token (whose `kid` is `infra-root-jwt`, the key the gateway compares
+against) and the corrected `Host`:
+
+```
+403 User 4c746ea6-… doesn't have access to MCP app MCP-aidemo
+```
+
+Auth passed, routing matched, the application resolved by name. That 403 comes from
+Privilege's **authorization** layer — the first response in the whole investigation
+that did, rather than from a failure to get that far.
+
+Unauthenticated through nginx, the same host answers `401 Bearer Token not found.`
+
+⚠️ **That 401 is not evidence of routing.** Verified 2026-08-10 against the running
+gateway: `Host: garbage.nowhere.example.com` returns the identical `401`. The log shows
+why — on the `:8620` agentless API path the order is bearer check first, host evaluation
+second:
+
+```
+AgentlessRestAPIService.forwardReq -> pcrypto.GetBearerToken "authorization header missing"
+                                   -> "Invalid Authorization token"   (401, no host lookup at all)
+```
+
+Routing is only exercised once a token is present. Any test that reads a bare `401` as
+"the right application resolved" is proving nothing.
+
+### 2026-08-10 (final): END-TO-END SUCCESS — and what it proved
+
+With `Host: mcp-pingone-admin.default.applications.procyon.ai:8643` and a console
+token, direct against `:8620`:
+
+```
+initialize                 -> 200, Mcp-Session-Id issued
+notifications/initialized  -> 202
+tools/list                 -> 200, 238 tools
+tools/call get_my_accounts -> 200 (backend answered "Insufficient scope. Required:
+                              read" — our own mcp-server's scope model, downstream
+                              of Privilege)
+```
+
+Gateway log confirms every stage: `MCP App RBAC check` → `User … has policy based
+capabilities` → `[mcpfilter] cap header present: {"tools":[".*"]}` → proxied to
+backend. The complete chain — auth, routing, policy, proxy — works.
+
+Three facts this run settled:
+
+1. **The label-strip "EvaluateHost" model from the SE deck is wrong for this build**
+   (`v1.260726`). A bare label host passed through unchanged gets `Domain not found`;
+   only the full registered Frontend Name routes. nginx must rewrite per app.
+2. **The session-header trap is real and self-inflicted.** A stray `\r` folded
+   `Mcp-Session-Id` into `Mcp-Protocol-Version`, and the backend answered
+   `404 {"error":"Unknown or expired MCP-Session-Id"}` — which reads like a gateway
+   failure. Strip CR when scripting: `awk '{gsub(/[\r\n]/,"")…}'`.
+3. **Policy scoping is per-application.** The surviving policy granted
+   `mcp-pingone-admin`; the same token on `MCP-aidemo` got 403. Policies also
+   expire silently — `test2` and `first-success` (1h/2h lifetimes) were already
+   gone by 13:0x, which presents identically to never having existed.
+
+What a PingOne (non-console) token still needs: `ResourceOAuth` on the application.
+`cyctl` rejects the console *cookie* JWT (`unexpected signing method: RS256` — it
+wants HS256, and dashboard XHRs carry `Authorization: Bearer undefined`, so there is
+no bearer to lift). The console REST API accepts the cookie for reads but 401s
+`User is not authorized` on `PUT /v1/applications/...` writes. The one write path
+left: perform the edit in the console UI with devtools open and copy that XHR — it
+reveals both the real write route and whatever credential the UI uses for writes.
+
+### How the gateway resolves an application: EvaluateHost — DISPROVEN on this build
+
+> ⚠️ Kept for reference because the SE deck teaches it, but the end-to-end run above
+> disproved it here: this build matches the full registered Frontend Name only.
+
+From Ping's SE enablement deck (`priv_for_ai_specialist_training.html`, routing
+reference diagram) — the gateway does not compare the Host to a registered name. It
+**strips the first DNS label and constructs one**:
+
+```
+request Host : pingone-mcp-server-2.cj-agentless-mcpgw.ping-devops.com
+first label  : pingone-mcp-server-2
+constructed  : pingone-mcp-server-2.default.applications.procyon.ai   -> routing table lookup
+routes to    : https://pingone-mcp-server-2.svc.local.cluster
+```
+
+The constructed name is built from the **`name` configured on the Agentic App**. That
+explains the failure exactly: our host `aidemo.mcpgw.local.ping-devops.com` yields
+`aidemo.default.applications.procyon.ai`, while the app is named **`MCP-aidemo`** — so
+nothing matched, and `Domain not found` followed.
+
+It also means the Host rewrite is a workaround, not the intended configuration. The
+design is **one subdomain per application whose first label is the application name**:
+
+| Host to serve | Constructed name | App |
+|---|---|---|
+| `MCP-aidemo.mcpgw.local.ping-devops.com` | `MCP-aidemo.default.applications.procyon.ai` | `MCP-aidemo` |
+| `mcp-pingone-admin.mcpgw.local.ping-devops.com` | `mcp-pingone-admin.default.applications.procyon.ai` | `mcp-pingone-admin` |
+
+Named that way, a second MCP application needs no map line and no extra Ingress. The
+existing wildcard cert (`*.mcpgw.local.ping-devops.com`) already covers both names; each
+still needs its own `/etc/hosts` line:
+
+```bash
+sudo sh -c 'printf "127.0.0.1\tMCP-aidemo.mcpgw.local.ping-devops.com\n127.0.0.1\tmcp-pingone-admin.mcpgw.local.ping-devops.com\n" >> /etc/hosts'
+```
+
+**Kubernetes cannot adopt this yet.** Ingress `host` must be an RFC 1123 subdomain —
+lowercase only — so a rule can only carry `mcp-aidemo.…`, which constructs
+`mcp-aidemo.default.…` against an app named `MCP-aidemo`. Whether the gateway compares
+case-insensitively is untested, and a wrong guess fails as a silent empty `200`, so the
+ingress keeps `upstream-vhost`. **Renaming the Agentic App to a lowercase name removes
+the problem on every surface** and lets both Docker and k8s drop their rewrites.
+
+### 2026-08-10 (later): live application state
+
+Read from the console API at 11:33. This is the state that matters; anything earlier in
+this document describes a tenant that no longer exists.
+
+| | `MCP-aidemo` | `mcp-pingone-admin` |
+|---|---|---|
+| `FrontEndName` | `MCP-aidemo.default.applications.procyon.ai:8643` | `mcp-pingone-admin.default.applications.procyon.ai:8643` |
+| `Backends` | `http://mcp-server:8080` | `http://mcp-server:8080` |
+| `MeshCluster` | `ai-demo-fresh` | `ai-demo-fresh` |
+| `EntryPath` | `/mcp` | `/mcp` |
+| `AuthMode` | **`static-token`** | **`static-token`** |
+| `ResourceOAuth` | **every field empty** | **every field empty** |
+
+Both created 2026-08-08 on tenant `8d4d7a4c`. Policy collections at 11:43:
+`pacpolicys` **1**, `accesspolicys` 0, `approles` 0, `aiagentaccounts` 0. (Two policies
+existed by 12:0x — both authored with 1h/2h lifetimes.)
+
+**Empty `ResourceOAuth` is the remaining blocker, and it is fixable from here.** Run
+[`scripts/set-privilege-frontend-oauth.sh`](../scripts/set-privilege-frontend-oauth.sh)
+with a console JWT. Two details in that script cost a day to find:
+
+- **`--apigw` must be `https://console.privilege.pingone.com`**, not
+  `https://privilege.pingone.com`. The latter is the data-plane host and fails in ways
+  that look like auth errors.
+- **`EntryPath` is `/mcp` today**, but this document's URL-model section proposes
+  `/aidemo/{mcp,authorize,token,callback}` and a PingOne callback registered at
+  `.../aidemo/callback`. Those disagree — pick one and make the app, the script's
+  `ENTRY_PATH`, and the registered redirect URI agree, or the callback lands on a path
+  the application does not serve.
+
+### What Ping's own enablement material says
+
+Source: `priv_for_ai_specialist_training.html` (SE storyboard, 10 diagrams). Three
+things in it contradict or extend this document:
+
+1. **Path-based routing is a second resolution mode.** The gateway can take the first
+   path segment as the *Application Key* — `POST /githubmcp/mcp` → app `githubmcp` → a
+   routing table mapping path prefix to backend URL. We only ever modelled host-based
+   resolution. Both appear in Ping's material; which one a build uses is worth checking
+   before assuming.
+2. **The reference topology is nginx `443 → 8623`**, with the gateway listener on
+   `:8623 HTTPS`. Our container serves MCP on `:8620` (`-alp-port`) and answers `:8623`
+   with `tlsv13 alert certificate required`, because we set `-listen :8623` in mesh
+   mode. Ours is not wrong, but do not "correct" it toward the deck without re-testing.
+3. **Frontend URL is meant to be the customer's own DNS name**
+   (`https://pingone-mcp-server-2.examplecorp.com/mcp`), resolved through EvaluateHost as
+   above — not the `procyon.ai` string, which is the constructed internal form.
+
+The deck also confirms the auth flow this repo has never completed: a configured gateway
+answers a tokenless `POST /mcp` with `401` **plus** `WWW-Authenticate: Bearer
+realm="MCP OAuth Server", authorization_uri=…/authorize, token_uri=…/token`, and the
+client bootstraps from that header. **A `401` with no `WWW-Authenticate` means the
+front-end OAuth config is missing** — which is exactly today's symptom.
+
+### Two gates remain, and they are separate
+
+1. **Policy.** The 403 above is a policy decision. Two policies were authored in the
+   console on 2026-08-10 (`test2`, `first-success`), each binding 1 resource and 2
+   users. ⚠️ **Both are time-boxed** — they were created with 1- and 2-hour lifetimes.
+   When one lapses the 403 returns, which looks exactly like the routing fix
+   regressing. It has not. Check the policy is live before concluding anything else.
+2. **Issuer trust for PingOne-minted tokens.** Unchanged by this fix. The console
+   token works because its `kid` happens to match; a PingOne access token still fails
+   the `kid` comparison until the application carries front-end OAuth config
+   (`--spec-mcp-app-config-resource-o-auth-*` via `cyctl`, per the section above).
+
+An end-to-end `tools/call` with a PingOne token has **not** been demonstrated. What is
+demonstrated is that routing and application resolution are no longer in the way.

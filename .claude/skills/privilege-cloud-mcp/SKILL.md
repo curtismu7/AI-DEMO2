@@ -107,12 +107,38 @@ Agentless mode needs customer-owned DNS + TLS in front of the proxy:
 | nginx service | `demo_mcpgw_nginx/nginx.conf`, compose service `mcpgw-nginx`, host `443` |
 | Wildcard cert | `scripts/ensure-mcpgw-certs.sh` → `certs/mcpgw-wildcard{,-key}.pem`, SAN `*.mcpgw.local.ping-devops.com` |
 | k8s equivalent | `k8s/aws/mcpgw-agentless-ingress.yaml` (ingress-nginx **is** the engine there) |
-| `/etc/hosts` | one `127.0.0.1` line **per frontend host** — a wildcard cert works, `/etc/hosts` has no wildcards |
+| `/etc/hosts` | one `127.0.0.1` line **per frontend host**, named after the app — a wildcard cert works, `/etc/hosts` has no wildcards: `127.0.0.1 MCP-aidemo.mcpgw.local.ping-devops.com` and `127.0.0.1 mcp-pingone-admin.mcpgw.local.ping-devops.com` |
 
-nginx must forward the original `Host` header (`proxy_set_header Host $host`) — the
-gateway routes on the frontend hostname. Use a **variable** upstream plus
-`resolver 127.0.0.11`, or nginx refuses to start with `host not found in upstream`
-whenever the proxy is down.
+**The gateway matches `Host` against the full registered Frontend Name**
+(`<app-name>.default.applications.procyon.ai:8643`) — nothing else. Proven end to end
+2026-08-10 on build `v1.260726`: with that Host, initialize → tools/list (238 tools) →
+tools/call all completed. Anything else gets `Domain not found` in the proxy log and an
+empty `200` — which reads like a broken backend. (Ping's SE deck describes a label-strip
+"EvaluateHost"; that was tested and does NOT hold on this build.)
+
+`demo_mcpgw_nginx/nginx.conf` therefore carries **one map line per application**,
+client host → registered name; the k8s ingress does it with
+`nginx.ingress.kubernetes.io/upstream-vhost` (one value per Ingress object, so one
+Ingress per app there). `X-Forwarded-Host` always keeps the original. Adding an app =
+one map line + one `/etc/hosts` line.
+
+The registered value is **not** what the console displays — the console shows a
+`…applications.privilege.pingone.com` name while the object holds a
+`…applications.procyon.ai` one. Read it from the API:
+
+```bash
+curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -b "auth_token=$TOK" -H "x-procyon-session-id: $SID" -H 'accept: application/json' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['Applications'][0]['Spec']['McpAppConfig']['FrontEndName'])"
+```
+
+`McpAppConfig`, not `MCPAppConfig` — the wrong casing reads as `undefined` instead of
+failing. `TOK` and `SID` come from devtools and last ~60 minutes; full recipe and the
+other collections (`/v1/pacpolicys` for access policies) in `docs/PRIVILEGE-MCP.md`
+§"the console API reads the real config".
+
+Use a **variable** upstream plus `resolver 127.0.0.11`, or nginx refuses to start with
+`host not found in upstream` whenever the proxy is down.
 
 **Do not repoint `PRIVILEGE_MCPGW_URL` at the Cloud API.** That was tried and
 reverted; `docs/PRIVILEGE-MCP.md` §"4. The client pointed at the Privilege cloud
@@ -574,6 +600,13 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | Pointing at a port that accepts TCP but serves no MCP | Use `8620` (see "Proxy ports") |
 | nginx returns a bare `502`, body says nothing | Upstream is `8623` (mesh, mTLS). Check the nginx error log for `tlsv13 alert certificate required` | Point the upstream at `http://…:8620` |
 | `401 Bearer Token not found.` | Normal — the gateway with no token. This is the **success** signal for "am I on the right port" | Nothing to fix |
+| `Domain not found` in the proxy log, **empty `200`** to the client | `Host` is not the Frontend Name registered on the application object. Reads like a broken backend; it is the gateway matching no application | Rewrite `Host` — nginx `map $host $mcpgw_frontend`, k8s `upstream-vhost`. See "The nginx front door" |
+| Host tried matches what the console shows, still `Domain not found` | The console UI displays a different domain than the object holds (`…privilege.pingone.com` vs `…procyon.ai`) | Read `FrontEndName.Elems` from the console applications API, never from the UI |
+| `403 User <id> doesn't have access to MCP app <name>` | **Progress, not a regression.** Auth passed and routing matched; Privilege is enforcing policy | Author a policy binding that user to that MCP application resource |
+| A previously working call goes back to `403 … doesn't have access` | Console policies can be created **time-boxed** (1h, 2h). An expired policy fails exactly like a missing one | Check the policy is still live before debugging anything else |
+| `401` with **no** `WWW-Authenticate` header | The application has no front-end OAuth config (`ResourceOAuth` empty), so the gateway cannot advertise `authorization_uri`/`token_uri`. A configured gateway always sends that header | `bash scripts/set-privilege-frontend-oauth.sh '<console-JWT>'` |
+| A bare `401 Bearer Token not found.` treated as proof of routing | On `:8620` the bearer check runs **before** host evaluation — `garbage.nowhere.example.com` returns the same 401 (verified 2026-08-10) | Only a request carrying a token exercises routing. Do not use a tokenless 401 as a routing signal |
+| `cyctl` fails in ways that look like auth errors | `--apigw` pointed at `https://privilege.pingone.com` — the data-plane host | Use `https://console.privilege.pingone.com`; `scripts/set-privilege-frontend-oauth.sh` already does |
 | `401` with no `WWW-Authenticate` header | Console-side: Frontend Name / auth mode not set on the MCP Server application | Set Frontend Name to our domain (see checklist) |
 | Server crash: `EACCES: permission denied, mkdir './dev-data'` | Dev mode needs writable dir but container runs as non-root (uid 1001) | Add `tmpfs: /app/dev-data:uid=1001,gid=1001` to docker-compose.yml |
 | Server crash: `Configuration validation failed` | `SKIP_TOKEN_SIGNATURE_VALIDATION=true` forbidden outside development | Set `NODE_ENV: development` in docker-compose.yml for the mcp-server service |

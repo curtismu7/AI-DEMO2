@@ -11,9 +11,19 @@ Clients reach it through nginx, never the proxy port directly:
 
 | | URL |
 |---|---|
-| Local (Docker Compose) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` |
+| Local — app `MCP-aidemo` | `https://MCP-aidemo.mcpgw.local.ping-devops.com/mcp` |
+| Local — app `mcp-pingone-admin` | `https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp` |
+| Local — legacy, rewritten by nginx | `https://aidemo.mcpgw.local.ping-devops.com/mcp` |
 | SE cluster (AWS) | `https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp` |
 | Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` |
+
+**nginx rewrites every client hostname to the app's registered Frontend Name**
+(`<app-name>.default.applications.procyon.ai:8643`) — the only Host this gateway build
+routes on, proven end to end 2026-08-10 (initialize → 238 tools → tools/call). The
+per-app client hosts in the table are named after their app purely for readability;
+each one has a map line in `nginx.conf` doing the rewrite. Anything unmapped gets
+`Domain not found` and an empty `200`. Adding an MCP application = one map line + one
+`/etc/hosts` line. Full account: `docs/PRIVILEGE-MCP.md` §2026-08-10 (final).
 
 ## Prerequisite that no test can cover
 
