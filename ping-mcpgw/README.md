@@ -11,18 +11,19 @@ Clients reach it through nginx, never the proxy port directly:
 
 | | URL |
 |---|---|
-| Local (Docker Compose) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` |
+| Local — app `MCP-aidemo` | `https://MCP-aidemo.mcpgw.local.ping-devops.com/mcp` |
+| Local — app `mcp-pingone-admin` | `https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp` |
+| Local — legacy, rewritten by nginx | `https://aidemo.mcpgw.local.ping-devops.com/mcp` |
 | SE cluster (AWS) | `https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp` |
 | Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` |
 
-Those are the hostnames **clients** use. nginx does not forward them: MCPGW routes
-strictly on `Host` and only recognises the Frontend Name registered on the application
-object (`MCP-aidemo.default.applications.procyon.ai:8643`), so `nginx.conf` rewrites
-`Host` to it and passes the original as `X-Forwarded-Host`. Send the client hostname
-through and the gateway logs `Domain not found` and returns an empty `200`. Adding an
-MCP application means adding a line to the `$mcpgw_frontend` map — and in Kubernetes,
-a whole Ingress, since `upstream-vhost` is one value per object. Full account:
-`docs/PRIVILEGE-MCP.md` §2026-08-10 (later).
+**Name each frontend host after its Agentic App.** The gateway strips the first DNS
+label off `Host` and constructs `<label>.default.applications.procyon.ai` from the app's
+name, so `MCP-aidemo.mcpgw.local.ping-devops.com` resolves with nothing to configure —
+that is why the table above lists per-app hosts. A first label that is not an app name
+(the legacy `aidemo.mcpgw…`) gets `Domain not found` and an empty `200`, so `nginx.conf`
+rewrites those and only those. Adding an MCP application costs a `/etc/hosts` line and
+nothing else. Full account: `docs/PRIVILEGE-MCP.md` §2026-08-10 (later).
 
 ## Prerequisite that no test can cover
 

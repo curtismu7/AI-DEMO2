@@ -107,14 +107,21 @@ Agentless mode needs customer-owned DNS + TLS in front of the proxy:
 | nginx service | `demo_mcpgw_nginx/nginx.conf`, compose service `mcpgw-nginx`, host `443` |
 | Wildcard cert | `scripts/ensure-mcpgw-certs.sh` → `certs/mcpgw-wildcard{,-key}.pem`, SAN `*.mcpgw.local.ping-devops.com` |
 | k8s equivalent | `k8s/aws/mcpgw-agentless-ingress.yaml` (ingress-nginx **is** the engine there) |
-| `/etc/hosts` | one `127.0.0.1` line **per frontend host** — a wildcard cert works, `/etc/hosts` has no wildcards |
+| `/etc/hosts` | one `127.0.0.1` line **per frontend host**, named after the app — a wildcard cert works, `/etc/hosts` has no wildcards: `127.0.0.1 MCP-aidemo.mcpgw.local.ping-devops.com` and `127.0.0.1 mcp-pingone-admin.mcpgw.local.ping-devops.com` |
 
-nginx must send the **Frontend Name registered on the application object** as `Host`,
-not the hostname the client used — the gateway routes strictly on `Host` and answers
-`Domain not found` plus an empty `200` for anything else. `demo_mcpgw_nginx/nginx.conf`
-maps it (`map $host $mcpgw_frontend` → `proxy_set_header Host $mcpgw_frontend`); the
-k8s ingress does the same with `nginx.ingress.kubernetes.io/upstream-vhost`, which
-takes one value per Ingress object. `X-Forwarded-Host` keeps the original.
+**Name the frontend host after the application.** The gateway does not compare `Host`
+to a registered name — its `EvaluateHost` strips the **first DNS label** and constructs
+`<label>.default.applications.procyon.ai` from the Agentic App's name. So
+`MCP-aidemo.mcpgw.local.ping-devops.com` resolves on its own, and adding an MCP
+application costs a DNS name, not a config change. Get the label wrong and the gateway
+logs `Domain not found` and returns an empty `200` — which reads like a broken backend.
+
+`demo_mcpgw_nginx/nginx.conf` therefore forwards `$host` unchanged (`map` default),
+rewriting only the legacy hosts whose first label is not an application name
+(`aidemo.mcpgw…`). The k8s ingress still uses
+`nginx.ingress.kubernetes.io/upstream-vhost` — Ingress hosts must be lowercase, and the
+app is named `MCP-aidemo`; renaming it lowercase is what would let k8s drop the
+annotation too. `X-Forwarded-Host` always keeps the original.
 
 The registered value is **not** what the console displays — the console shows a
 `…applications.privilege.pingone.com` name while the object holds a
