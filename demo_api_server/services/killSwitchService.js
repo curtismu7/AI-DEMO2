@@ -315,23 +315,25 @@ async function captureAgentState(agentId) {
 }
 
 /**
- * Check if agent is revoked
- * @param {string} agentId 
+ * Check if agent is revoked. Reads through the generic express-session Store
+ * interface (get/set, callback-based) rather than a Redis-specific client —
+ * this deployment's default store is LmdbSessionStore, which has no `.client`.
+ * Works identically against a Redis-backed store (e.g. connect-redis), which
+ * implements the same Store interface.
+ * @param {string} agentId
  * @returns {Promise<boolean>}
  */
 async function isAgentRevoked(agentId) {
   try {
     const sessionStore = require('../middleware/sessionConfig').store;
-    
-    if (!sessionStore || !sessionStore.client) {
-      return false;
-    }
+    if (!sessionStore) return false;
 
-    // Check if revoked flag is set
     const revokedKey = `agent:${agentId}:revoked`;
-    const revoked = await sessionStore.client.get(revokedKey);
-    
-    return revoked === 'true';
+    const entry = await new Promise((resolve) => {
+      sessionStore.get(revokedKey, (err, value) => resolve(err ? null : value));
+    });
+
+    return !!(entry && entry.revoked === true);
   } catch (error) {
     console.warn('[killSwitch] Error checking revocation:', error.message);
     return false;
@@ -488,11 +490,21 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     //    point: agentRateLimit.js checks this flag before letting ANY new
     //    tool call through, so it's what makes "stop this agent" real rather
     //    than just a token-revoke that a cached/in-flight call could outrun.
+    //    Written through the generic express-session Store interface (not a
+    //    Redis-specific client) so it works against this deployment's
+    //    LmdbSessionStore as well as a Redis-backed store.
     let revokedFlagSet = false;
     try {
       const sessionStore = require('../middleware/sessionConfig').store;
-      if (sessionStore && sessionStore.client) {
-        await sessionStore.client.setex(`agent:${agentId}:revoked`, 86400, 'true'); // 24 hour expiry
+      if (sessionStore) {
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        await new Promise((resolve, reject) => {
+          sessionStore.set(
+            `agent:${agentId}:revoked`,
+            { revoked: true, cookie: { maxAge: ONE_DAY_MS } },
+            (err) => (err ? reject(err) : resolve()),
+          );
+        });
         revokedFlagSet = true;
       }
     } catch (e) {
