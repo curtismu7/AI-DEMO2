@@ -299,46 +299,73 @@ select.cur-input { cursor: pointer; }
 .cur-tool-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
+  /* The tool list is the whole point of this page — give each row weight. */
+  background: #202124;
+  border: 1px solid #30363d;
+  border-left: 3px solid #4ec9b0;
 }
-.cur-tool-item:hover { background: #2a2d2e; }
+.cur-tool-item:hover { background: #2a2d2e; border-left-color: #6ee7d0; }
 
 .cur-tool-icon {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 700;
   color: #dcdcaa;
   background: #2a2a2a;
-  padding: 2px 4px;
-  border-radius: 3px;
+  padding: 4px 7px;
+  border-radius: 4px;
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .cur-tool-info {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
 .cur-tool-name {
-  font-size: 12px;
+  font-size: 17px;
+  font-weight: 700;
   color: #4ec9b0;
   font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .cur-tool-desc {
-  font-size: 11px;
+  font-size: 14px;
+  line-height: 1.45;
   color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.cur-tool-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+.cur-tool-param {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #9cdcfe;
+  background: #1a2733;
+  border: 1px solid #274156;
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+.cur-tool-param--req {
+  color: #ffd479;
+  background: #2e2612;
+  border-color: #4d3f19;
+  font-weight: 700;
 }
 
 .cur-empty-state {
@@ -1113,7 +1140,10 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-msg-meta { background: #f0f0f0; color: #666; }
 
 /* Tool list + detail + code output */
-.cur-ide[data-cur-theme="light"] .cur-tool-item:hover { background: #eef2ff; }
+.cur-ide[data-cur-theme="light"] .cur-tool-item { background: #f7f7f7; border-color: #e0e0e0; border-left-color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-item:hover { background: #eef2ff; border-left-color: #0a9d86; }
+.cur-ide[data-cur-theme="light"] .cur-tool-param { color: #0451a5; background: #eaf2fb; border-color: #cfe0f2; }
+.cur-ide[data-cur-theme="light"] .cur-tool-param--req { color: #8a5a00; background: #fdf3d9; border-color: #e6d29a; }
 .cur-ide[data-cur-theme="light"] .cur-tool-icon { background: #eee; color: #7a6a00; }
 .cur-ide[data-cur-theme="light"] .cur-tool-name { color: #0a7d6b; }
 .cur-ide[data-cur-theme="light"] .cur-tool-desc,
@@ -1162,3 +1192,65 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-console-token-hint,
 .cur-ide[data-cur-theme="light"] .cur-console-token-status { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-console-token-input { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Readability: on the dark background every bit of body/label/muted text is
+   bright white. Scoped to dark (never light mode, where white-on-white would
+   vanish). Bright accent colors — teal tool names, coloured badges, blue links
+   — are deliberately left as-is; they are the highlight, not the problem.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-ide:not([data-cur-theme="light"]) { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-titlebar-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-sidebar-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-field-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-settings-section-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-tools-header h3,
+.cur-ide:not([data-cur-theme="light"]) .cur-status,
+.cur-ide:not([data-cur-theme="light"]) .cur-tab,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab:hover,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-role,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-meta,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-body,
+.cur-ide:not([data-cur-theme="light"]) .cur-empty-state,
+.cur-ide:not([data-cur-theme="light"]) .cur-chat-empty p,
+.cur-ide:not([data-cur-theme="light"]) .cur-chat-hint,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-empty,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-ts,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-msg,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-cat,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table th,
+.cur-ide:not([data-cur-theme="light"]) .cur-result-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-auth-user,
+.cur-ide:not([data-cur-theme="light"]) .cur-skin-picker > span,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-conn-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-sub,
+.cur-ide:not([data-cur-theme="light"]) .cur-input,
+.cur-ide:not([data-cur-theme="light"]) .cur-btn,
+.cur-ide:not([data-cur-theme="light"]) .cur-composer-input,
+.cur-ide:not([data-cur-theme="light"]) .cur-skin-picker select,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-trigger,
+.cur-ide:not([data-cur-theme="light"]) .cur-modal p { color: #ffffff; }
+
+/* Relay log / Trace / Scopes readability (dark only). The terminal log, event
+   badges and scope pills carried coloured text on dark tinted fills that read
+   poorly. White text on the tint keeps the colour-coding (via background) at
+   full contrast. */
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log span,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-line,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-large,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table td,
+.cur-ide:not([data-cur-theme="light"]) .cur-code-output { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-badge,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-pill,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-count { color: #ffffff; font-weight: 600; }
+/* Lift the darkest pill/badge fills a little so white text sits on real contrast. */
+.cur-ide:not([data-cur-theme="light"]) .scope-mcp { background: #14532d; }
+.cur-ide:not([data-cur-theme="light"]) .scope-p1 { background: #1e3a5f; }
+.cur-ide:not([data-cur-theme="light"]) .scope-oidc { background: #3b2f5e; }
+.cur-ide:not([data-cur-theme="light"]) .scope-read { background: #164e59; }
+.cur-ide:not([data-cur-theme="light"]) .scope-write { background: #5a3a1a; }
+.cur-ide:not([data-cur-theme="light"]) .scope-default { background: #3a3a3a; }

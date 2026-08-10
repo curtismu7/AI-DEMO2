@@ -645,15 +645,26 @@ export default function PrivilegeMcpClientPage() {
               const filtered = q ? tools.filter((t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q)) : tools;
               return filtered.length > 0 ? (
                 <div className="cur-tools-list">
-                  {filtered.map((t) => (
+                  {filtered.map((t) => {
+                    const params = Object.keys(t.inputSchema?.properties || {});
+                    const required = new Set(t.inputSchema?.required || []);
+                    return (
                     <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
                       <span className="cur-tool-icon">fn</span>
                       <div className="cur-tool-info">
                         <span className="cur-tool-name">{t.name}</span>
-                        {t.description && <span className="cur-tool-desc">{truncate(t.description, 60)}</span>}
+                        {t.description && <span className="cur-tool-desc">{t.description}</span>}
+                        {params.length > 0 && (
+                          <div className="cur-tool-params">
+                            {params.map((p) => (
+                              <span key={p} className={`cur-tool-param${required.has(p) ? ' cur-tool-param--req' : ''}`}>{p}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
             })() : (
