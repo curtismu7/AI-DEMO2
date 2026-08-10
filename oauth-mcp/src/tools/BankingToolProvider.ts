@@ -120,6 +120,19 @@ export class BankingToolProvider {
       // - session path: run the challenge handler against session user tokens.
       if (tool.requiresUserAuth && tool.requiredScopes.length > 0) {
         if (agentToken) {
+          // Privilege MCP gateway path: the bearer is a Privilege-issued token
+          // (kid infra-root-jwt / aud procyon), NOT a banking OAuth token, so it
+          // carries no banking scopes by design. When the deployment declares
+          // open-access (MCP_AUTH_DISABLED), the Privilege gateway in front of
+          // this hop has already run policy — the same rationale Authentication
+          // Integration uses to proceed despite missing scopes. Skip the banking
+          // scope check ONLY for that token shape. Real banking / A2A tokens
+          // (aud != procyon) are unaffected and still fully enforced below.
+          if (process.env.MCP_AUTH_DISABLED === 'true' && this.isPrivilegeGatewayToken(agentToken)) {
+            this.logger.info(
+              `[BankingToolProvider] MCP_AUTH_DISABLED + Privilege gateway token — the Privilege gateway owns authorization on this hop; skipping banking scope check for ${toolName}`
+            );
+          } else {
           // A2A-delegated tools: PingOne scope-name uniqueness forces the
           // specialist's Exchange #2 bearer to carry the per-vertical scope
           // (scope-topology a2aDelegatedScope — records:read, tax:read, …)
@@ -139,6 +152,7 @@ export class BankingToolProvider {
             );
           }
           this.logger.debug(`[BankingToolProvider] agentToken scope check passed for ${toolName}`);
+          }
         } else {
           this.logger.debug(`[BankingToolProvider] Checking authorization for scopes: [${tool.requiredScopes.join(', ')}]`);
           const challengeResult = await this.authChallengeHandler.detectAuthorizationChallenge(
@@ -392,6 +406,28 @@ export class BankingToolProvider {
       text,
       success: true
     };
+  }
+
+  /**
+   * True when the bearer is a PingOne Privilege gateway token rather than a
+   * banking OAuth token: it is signed with the gateway's infra key
+   * (kid infra-root-jwt) and carries aud "procyon". Such a token never holds
+   * banking scopes by design — the Privilege gateway does policy on that hop.
+   * Used only to skip the banking scope check under MCP_AUTH_DISABLED; banking
+   * and A2A tokens (aud != procyon) never match and stay fully enforced.
+   */
+  private isPrivilegeGatewayToken(token: string): boolean {
+    try {
+      const [rawHeader, rawPayload] = token.split('.');
+      if (!rawHeader || !rawPayload) return false;
+      const header = JSON.parse(Buffer.from(rawHeader, 'base64url').toString());
+      const payload = JSON.parse(Buffer.from(rawPayload, 'base64url').toString());
+      const aud = payload.aud;
+      const audMatches = aud === 'procyon' || (Array.isArray(aud) && aud.includes('procyon'));
+      return header.kid === 'infra-root-jwt' || audMatches;
+    } catch {
+      return false;
+    }
   }
 
   /**
