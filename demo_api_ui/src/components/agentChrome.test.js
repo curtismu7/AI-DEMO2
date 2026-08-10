@@ -3,6 +3,7 @@ import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import {
   buildPingOneAppListMessage,
+  buildPingOneToolListMessage,
   buildPingOneUserListMessage,
   HitlChipMark,
   verticalSuggestionChips,
@@ -42,6 +43,26 @@ describe('buildPingOneUserListMessage', () => {
 
   test('rejects unsupported wildcard shapes', () => {
     expect(buildPingOneUserListMessage('*curtis')).toBeNull();
+  });
+});
+
+describe('buildPingOneToolListMessage', () => {
+  test('all maps to the proven catalog phrase, never the chip title', () => {
+    // The chip title contains "MCP", which an earlier banking heuristic
+    // (mcp_tools) would claim — the built message must avoid it.
+    const msg = buildPingOneToolListMessage('all');
+    expect(msg).toBe('What PingOne tools can I use right now?');
+    expect(msg).not.toMatch(/MCP/);
+  });
+
+  test('a fragment maps to the matching-phrase the admin heuristic extracts', () => {
+    expect(buildPingOneToolListMessage('user')).toContain('matching "user"');
+    // Trailing asterisk is tolerated UI sugar, not part of the fragment.
+    expect(buildPingOneToolListMessage('user*')).toContain('matching "user"');
+  });
+
+  test('rejects fragments outside the safe charset', () => {
+    expect(buildPingOneToolListMessage('a b')).toBeNull();
   });
 });
 

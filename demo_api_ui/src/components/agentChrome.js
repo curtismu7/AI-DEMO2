@@ -216,6 +216,23 @@ export function buildPingOneUserListMessage(value) {
   return `List PingOne users whose username starts with "${prefix}". Call listUsers with arguments.filter exactly username sw "${prefix}".`;
 }
 
+// Tool variant (queryPrompt "toolFilter"). Unlike the sw prefixes this is a
+// case-insensitive substring over tool name/description (applied client-side
+// in tools.js listPingOneTools), so no asterisk and no case trap. "all" (or
+// empty) lists the whole role-gated catalog via the proven fallback phrase —
+// the chip title's literal wording ("...MCP server") must NOT be sent as a
+// message: "MCP" matches an earlier banking heuristic and dispatches the
+// wrong tool.
+export function buildPingOneToolListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'What PingOne tools can I use right now?';
+  }
+  if (!/^[A-Za-z0-9._-]+\*?$/.test(input)) return null;
+  const fragment = input.endsWith('*') ? input.slice(0, -1) : input;
+  return `Show me the PingOne tools matching "${fragment}"`;
+}
+
 // App variant of the prefix prompt (queryPrompt "appFilter"). Same contract:
 // "all"/"*" lists everything, "<prefix>*" filters, anything else is invalid.
 // The prefix charset stays space-free to match the heuristic parser's
