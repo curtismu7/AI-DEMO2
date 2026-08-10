@@ -306,6 +306,11 @@ export default function BankingAgent({
   const { addEvent } = useEventStream();
   const { pageManifest, agentManifest, activeId: activeVerticalId } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
+  // Secondary header controls are collapsed behind a "More" toggle. The header
+  // had ~16 controls across five rows, which buries the ones actually used to
+  // drive a demo. Kept visible: Demo Track, Routing + Wiring, Flow Detail,
+  // Guide, Demo steps, agent scope, close. Everything else lives under More.
+  const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
@@ -8483,7 +8488,9 @@ export default function BankingAgent({
                   heuristicFallback={heuristicEnabled}
                   onHeuristicFallbackChange={setHeuristicEnabled}
                 />
-                {/* RFC info toggle — standard switch control, always visible in header */}
+                {headerMoreOpen && (
+                  <>
+                {/* RFC info toggle — under More, not always visible */}
                 <Check
                   variant="switch"
                   className="ba-header-toggle-label"
@@ -8579,6 +8586,8 @@ export default function BankingAgent({
                     Side panel
                   </Check>
                 )}
+                  </>
+                )}
                 {/* Flow Detail modal button */}
                 <button
                   type="button"
@@ -8590,13 +8599,27 @@ export default function BankingAgent({
                 </button>
                 <button
                   type="button"
+                  className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
+                  aria-expanded={headerMoreOpen}
+                  title="Show or hide the secondary header controls"
+                  onClick={() => setHeaderMoreOpen((v) => !v)}
+                >
+                  {headerMoreOpen ? "Less" : "More"}
+                </button>
+                {headerMoreOpen && (
+                <button
+                  type="button"
                   className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
                   title="Real-time token topology — RFC 8693 delegation chain"
                   onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
                 >
                   Topology
                 </button>
-                {/* Demo Guide trigger — visible to all users */}
+                )}
+                {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions
+                    dropdown removal deliberately moved header utility controls
+                    out of a popout and inline; AIAgent.chips.test.js asserts
+                    Guide renders. It is not collapsed under More. */}
                 <button
                   type="button"
                   className={`ba-actions-trigger${showDemoGuide ? " active" : ""}`}
@@ -8606,6 +8629,7 @@ export default function BankingAgent({
                   Guide
                 </button>
                 {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
+                {headerMoreOpen && (
                 <button
                   type="button"
                   className="ba-actions-trigger"
@@ -8614,6 +8638,7 @@ export default function BankingAgent({
                 >
                   Script
                 </button>
+                )}
                 </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
