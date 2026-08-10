@@ -188,6 +188,10 @@
 .gmt-modal {
   display: flex;
   flex-direction: column;
+  /* Centered content ("center text on page", 2026-08-10): the status row,
+     body copy and tier pill all sit on the modal's center axis. */
+  align-items: center;
+  text-align: center;
   gap: 12px;
   color: #1a1f2b;
 }
