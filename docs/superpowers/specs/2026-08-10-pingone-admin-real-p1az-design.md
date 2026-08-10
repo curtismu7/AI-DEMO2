@@ -36,7 +36,11 @@ live environment (in-container `node -e`, no code changes):
    lines 45 and 116) — audienced `enduser.ping.demo`, not MCP.
 3. Exchanging that access token via `oauthService.performTokenExchangeAs(
    accessToken, null, exchangerClientId, exchangerClientSecret,
-   'mcpgateway.ping.demo', ['read'])` — using the **already-provisioned**
+   'mcpgateway.ping.demo', ['read'], 'post')` — the explicit `'post'` method
+   matters: the function defaults to `'basic'`, which this exchanger app's
+   token-endpoint auth method rejects with `401 invalid_client` (hit and
+   fixed live this session before the successful exchange below) — using
+   the **already-provisioned**
    "Demo AI App - Token Exchanger" client's own identity as the exchanging
    party (`configStore` keys `pingone_mcp_token_exchanger_client_id` /
    `_secret`, the exact same ones `agentMcpTokenService.js` already uses for
@@ -78,8 +82,9 @@ attempt) makes the actual decision.
    "can't verify" branches). Never proceeds with a missing audience — the
    exact failure mode that broke #1548.
 4. Exchange: `oauthService.performTokenExchangeAs(accessToken, null,
-   exchangerClientId, exchangerClientSecret, mcpResourceUri, ['read'])`,
-   where `exchangerClientId`/`exchangerClientSecret` come from
+   exchangerClientId, exchangerClientSecret, mcpResourceUri, ['read'],
+   'post')` — `'post'` explicit, not the function's `'basic'` default (see
+   above). `exchangerClientId`/`exchangerClientSecret` come from
    `configStore.getEffective('pingone_mcp_token_exchanger_client_id')` /
    `('pingone_mcp_token_exchanger_client_secret')` and `mcpResourceUri` from
    `resolveExpectedMcpResourceUri()` (`mcpToolAuthorizationService.js:86`) —
