@@ -73,6 +73,8 @@ describe('admin agent — heuristic-first routing', () => {
     expect(res.toolsCalled).toEqual(['call_pingone_tool']);
     expect(res.reply).toContain('demoAdmin');
     expect(res.reply).toContain('1 users found');
+    // FILTERED reply: no discoverability tip — repeating it is noise.
+    expect(res.reply).not.toContain('Tip:');
 
     // Same Token Chain visibility contract as the LLM loop
     // (adminAgentService.tokenChainStep.test.js) — a heuristic-routed call
@@ -102,6 +104,22 @@ describe('admin agent — heuristic-first routing', () => {
     expect(step.explanation).toContain('PingOne API timeout');
     // Fallthrough: the model gets a chance to route around the failure.
     expect(runReasonLoop).toHaveBeenCalledTimes(1);
+  });
+
+  test('an UNFILTERED list reply carries the filter discoverability tip', async () => {
+    const { processAdminMessage } = loadServiceWithMocks({ heuristicFlag: 'true' });
+
+    const res = await processAdminMessage({
+      message: 'list all users',
+      userId: 'u1',
+      sessionId: 's1',
+      tokenEvents: [],
+    });
+
+    // Nobody learns the prefix filter exists from a bare list (reported
+    // live) — the reply itself must teach it.
+    expect(res.success).toBe(true);
+    expect(res.reply).toContain('Tip: you can filter');
   });
 
   test('LLM-only mode (flag off) still goes to the model', async () => {

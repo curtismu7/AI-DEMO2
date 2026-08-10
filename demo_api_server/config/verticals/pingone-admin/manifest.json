@@ -71,7 +71,7 @@
     "chips10": [
       { "id": "pa1", "label": "List Tools",      "message": "Show me the tools available from the PingOne MCP server", "tool": "list_pingone_tools", "mode": "both" },
       { "id": "pa2", "label": "List Users",      "message": "List the users in my PingOne environment",                "tool": "call_pingone_tool",  "mode": "both", "queryPrompt": "userFilter" },
-      { "id": "pa3", "label": "List Apps",       "message": "List the applications registered in my environment",      "tool": "call_pingone_tool",  "mode": "both" },
+      { "id": "pa3", "label": "List Apps",       "message": "List the applications registered in my environment",      "tool": "call_pingone_tool",  "mode": "both", "queryPrompt": "appFilter" },
       { "id": "pa4", "label": "List Populations", "message": "List the populations in my PingOne environment",         "tool": "call_pingone_tool",  "mode": "both" },
       { "id": "pa5", "label": "Get Environment", "message": "Get the details of my PingOne environment",               "tool": "call_pingone_tool",  "mode": "both" }
     ]

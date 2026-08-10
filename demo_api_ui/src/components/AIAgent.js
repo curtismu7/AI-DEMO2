@@ -173,6 +173,7 @@ import {
   SessionExpiryTimer,
   ParamHintCopy,
   ClarifyOptions,
+  buildPingOneAppListMessage,
   buildPingOneUserListMessage,
   verticalSuggestionChips,
   HitlChipMark,
@@ -546,7 +547,10 @@ export default function BankingAgent({
   // MCP tools list modal state
   const [showMcpToolsModal, setShowMcpToolsModal] = useState(false);
   const [mcpToolsList, setMcpToolsList] = useState([]);
-  const [showUserFilterModal, setShowUserFilterModal] = useState(false);
+  // Shared prefix-filter modal: 'user' (ADMIN5 / List Users chip) or 'app'
+  // (ADMIN6 / List Apps chip); null = closed. userFilter holds the typed
+  // prefix for whichever kind is open.
+  const [filterModalKind, setFilterModalKind] = useState(null);
   const [userFilter, setUserFilter] = useState("");
   const [userFilterError, setUserFilterError] = useState("");
   // Demo guide modal state
@@ -6013,10 +6017,10 @@ export default function BankingAgent({
       });
       return;
     }
-    if (action.queryPrompt === "userFilter") {
+    if (action.queryPrompt === "userFilter" || action.queryPrompt === "appFilter") {
       setUserFilter("");
       setUserFilterError("");
-      setShowUserFilterModal(true);
+      setFilterModalKind(action.queryPrompt === "appFilter" ? "app" : "user");
       return;
     }
     if (action.message) sendAsNl(action.message);
@@ -7093,14 +7097,15 @@ export default function BankingAgent({
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
     }
-    // Prompt-first steps (ADMIN5): open the username-filter modal so the
-    // presenter picks the prefix live, instead of sending the step's canned
-    // example text. Mirrors handleChipActivate's queryPrompt handling; the
-    // modal's Run filter submits through sendAsNl like any typed message.
-    if (uc.trigger?.queryPrompt === "userFilter") {
+    // Prompt-first steps (ADMIN5 users, ADMIN6 apps): open the shared prefix
+    // modal so the presenter picks the prefix live, instead of sending the
+    // step's canned example text. Mirrors handleChipActivate's queryPrompt
+    // handling; the modal's Run filter submits through sendAsNl like any
+    // typed message.
+    if (uc.trigger?.queryPrompt === "userFilter" || uc.trigger?.queryPrompt === "appFilter") {
       setUserFilter("");
       setUserFilterError("");
-      setShowUserFilterModal(true);
+      setFilterModalKind(uc.trigger.queryPrompt === "appFilter" ? "app" : "user");
       return;
     }
     markUseCaseCompleted(uc.id);
@@ -11098,9 +11103,9 @@ export default function BankingAgent({
         onClose={() => setShowTokenChain(false)}
       />
       <DraggableModal
-        isOpen={showUserFilterModal}
-        onClose={() => setShowUserFilterModal(false)}
-        title="List PingOne users"
+        isOpen={filterModalKind != null}
+        onClose={() => setFilterModalKind(null)}
+        title={filterModalKind === "app" ? "List PingOne applications" : "List PingOne users"}
         defaultWidth={460}
         defaultHeight={330}
         storageKey="pingone-admin-user-filter"
@@ -11109,7 +11114,7 @@ export default function BankingAgent({
             <button
               type="button"
               className="ba-user-filter-btn ba-user-filter-btn--secondary"
-              onClick={() => setShowUserFilterModal(false)}
+              onClick={() => setFilterModalKind(null)}
             >
               Cancel
             </button>
@@ -11117,22 +11122,34 @@ export default function BankingAgent({
               type="button"
               className="ba-user-filter-btn ba-user-filter-btn--secondary"
               onClick={() => {
-                setShowUserFilterModal(false);
-                sendAsNl(buildPingOneUserListMessage("all"));
+                const kind = filterModalKind;
+                setFilterModalKind(null);
+                sendAsNl(
+                  kind === "app"
+                    ? buildPingOneAppListMessage("all")
+                    : buildPingOneUserListMessage("all"),
+                );
               }}
             >
-              All users
+              {filterModalKind === "app" ? "All applications" : "All users"}
             </button>
             <button
               type="button"
               className="ba-user-filter-btn"
               onClick={() => {
-                const message = buildPingOneUserListMessage(userFilter);
+                const kind = filterModalKind;
+                const message = kind === "app"
+                  ? buildPingOneAppListMessage(userFilter)
+                  : buildPingOneUserListMessage(userFilter);
                 if (!message || !userFilter.trim() || userFilter.trim().toLowerCase() === "all") {
-                  setUserFilterError("Enter a username prefix ending in *, for example curtis*.");
+                  setUserFilterError(
+                    kind === "app"
+                      ? "Enter an application-name prefix ending in *, for example Demo*."
+                      : "Enter a username prefix ending in *, for example curtis*.",
+                  );
                   return;
                 }
-                setShowUserFilterModal(false);
+                setFilterModalKind(null);
                 sendAsNl(message);
               }}
             >
@@ -11142,8 +11159,14 @@ export default function BankingAgent({
         }
       >
         <div className="ba-user-filter">
-          <p>Choose all users, or enter a username prefix filter.</p>
-          <label htmlFor="pingone-user-filter">Username filter</label>
+          <p>
+            {filterModalKind === "app"
+              ? "Choose all applications, or enter a name prefix filter. Prefixes are case-sensitive."
+              : "Choose all users, or enter a username prefix filter."}
+          </p>
+          <label htmlFor="pingone-user-filter">
+            {filterModalKind === "app" ? "Application name filter" : "Username filter"}
+          </label>
           <input
             id="pingone-user-filter"
             type="text"
@@ -11152,7 +11175,7 @@ export default function BankingAgent({
               setUserFilter(event.target.value);
               setUserFilterError("");
             }}
-            placeholder="curtis*"
+            placeholder={filterModalKind === "app" ? "Demo*" : "curtis*"}
             autoComplete="off"
           />
           {userFilterError ? (
