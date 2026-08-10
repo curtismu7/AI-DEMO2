@@ -218,3 +218,8 @@
 .cur-ide[data-cur-theme="light"] .ptt-args { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
 .cur-ide[data-cur-theme="light"] .ptt-result { background: #f5f5f5; color: #1e1e1e; border-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .ptt-present-overlay { background: #ffffff; }
+
+/* Row revealed from the left rail — accent bar + tint so the jump is obvious. */
+.ptt-row--selected td { box-shadow: inset 3px 0 0 #6d9eeb; }
+.ptt-row--selected td:first-child { background: rgba(109, 158, 235, 0.14); }
+.cur-ide[data-cur-theme="light"] .ptt-row--selected td:first-child { background: rgba(37, 99, 235, 0.10); }

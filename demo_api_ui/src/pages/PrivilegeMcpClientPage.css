@@ -308,6 +308,8 @@ select.cur-input { cursor: pointer; }
   border-left: 2px solid transparent;
 }
 .cur-tool-row:hover { background: #2a2d2e; border-left-color: #4ec9b0; }
+.cur-tool-row--selected { background: #2a2d2e; border-left-color: #6d9eeb; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row--selected { background: #eef2ff; border-left-color: #2563eb; }
 .cur-tool-row-name {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
