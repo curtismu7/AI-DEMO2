@@ -58,11 +58,18 @@ raw.decisionId`, and PingOne sends neither. Task 2 captures them.
 | `demo_api_ui/src/components/dashboard/StatStrip.jsx` | **Create.** Labelled counts with scaled bars |
 | `demo_api_ui/src/components/dashboard/EventStream.jsx` | **Create.** Scrollable table |
 | `demo_api_ui/src/components/dashboard/dashboard.css` | **Create.** Shared tokens + styles, both themes |
-| `demo_api_ui/src/components/NewRelicDashboard.jsx` | **Modify.** Compose the shared components |
+| `demo_api_ui/src/components/NewRelicDashboard.jsx` | **Deferred.** Not modified in this branch — see status note below |
 | `demo_api_ui/src/components/P1AzDashboard.jsx` | **Create.** The new page |
 | `demo_api_ui/src/routes/MonitoringRoutes.js` | **Modify.** `P1AzRoute` |
 | `demo_api_ui/src/App.js` | **Modify.** Register `/monitoring/p1az` |
 | `demo_api_ui/src/components/AdminSideNav.jsx` | **Modify.** Nav entry after "PingOne Events" |
+
+> **Status (2026-08-09):** Task 6 (pointing `NewRelicDashboard` at the shared
+> components) was deferred by the human partner and is not in this branch.
+> `NewRelicDashboard.jsx` and `NewRelicDashboard.css` are unmodified;
+> `dashboard.css` is intentionally parallel to `NewRelicDashboard.css` until
+> that task lands. The shared components currently have one consumer,
+> `P1AzDashboard.jsx`.
 
 ---
 

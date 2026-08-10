@@ -59,19 +59,21 @@ function _pipelineQuery(accountId, since, bucket) {
 
 function _authorizeQuery(accountId, since, bucket) {
   const decisions =
-    `SELECT count(*) FROM Log WHERE category='authorize' AND decision IS NOT NULL FACET decision SINCE ${since}`;
+    `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL FACET decision SINCE ${since}`;
   const posture =
-    `SELECT count(*) FROM Log WHERE category='authorize' FACET tag SINCE ${since}`;
-  // Which policy fired. Only events emitted after Task 2 carry ruleName, so
-  // older records fall into the null facet — the page labels that
-  // "unattributed" rather than hiding it.
+    `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' FACET tag SINCE ${since}`;
+  // Which policy fired. NRQL omits rows for records missing an attribute
+  // entirely rather than emitting a null facet bucket, so records without
+  // ruleName (pre-Task-2, or any non-decision branch) simply don't appear
+  // here — this returns attributed decisions only. The client derives the
+  // "unattributed" remainder from the decisions total minus this sum.
   const rules =
-    `SELECT count(*) FROM Log WHERE category='authorize' FACET ruleName SINCE ${since} LIMIT 10`;
+    `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL FACET ruleName SINCE ${since} LIMIT 10`;
   const timeseries =
-    `SELECT count(*) FROM Log WHERE category='authorize' TIMESERIES ${bucket} SINCE ${since}`;
+    `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL TIMESERIES ${bucket} SINCE ${since}`;
   const stream =
     'SELECT timestamp, tag, decision, ruleName, amount, stepUpRequired, type, engine, latencyMs, policyEvalMs ' +
-    `FROM Log WHERE category='authorize' SINCE ${since} LIMIT 50`;
+    `FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL SINCE ${since} LIMIT 50`;
 
   return `{ actor { account(id: ${Number(accountId)}) {
     decisions: nrql(query: ${JSON.stringify(decisions)}) { results }

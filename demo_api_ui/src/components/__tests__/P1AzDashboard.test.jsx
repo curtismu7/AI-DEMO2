@@ -15,16 +15,22 @@ const PAYLOAD = {
     { tag: 'authorize/deny', count: 2 },
     { tag: 'authorize/fail-open', count: 3 },
   ],
+  // NRQL omits rows for records missing ruleName entirely rather than
+  // emitting a null facet bucket, so the rules facet only ever carries
+  // attributed decisions — see P1AzDashboard.jsx's unattributed remainder.
   rules: [
     { ruleName: 'Transaction Denied', count: 2 },
     { ruleName: 'Transaction Approved', count: 1 },
-    { ruleName: null, count: 7 },
   ],
   timeseries: [{ beginTimeSeconds: 1, count: 0 }, { beginTimeSeconds: 2, count: 3 }],
   stream: [{
     timestamp: 1786240000000, tag: 'authorize/deny', decision: 'DENY',
     ruleName: 'Transaction Denied', amount: 60000, stepUpRequired: false,
     type: 'transfer', engine: 'pingone', latencyMs: 42, policyEvalMs: 2.885,
+  }, {
+    timestamp: 1786243600000, tag: 'authorize/deny', decision: 'DENY',
+    ruleName: null, amount: 1500, stepUpRequired: false,
+    type: 'transfer', engine: 'pingone', latencyMs: 12, policyEvalMs: 1.2,
   }],
 };
 
@@ -69,18 +75,30 @@ describe('P1AzDashboard', () => {
     expect(screen.getByText('2.885')).toBeInTheDocument();
   });
 
-  it('names which rule fired, and labels unattributed events rather than hiding them', async () => {
+  it('falls back to an em dash in the stream when a row has no rule attribution', async () => {
     apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    renderDash();
+    await waitFor(() => expect(screen.getByText('1500')).toBeInTheDocument());
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('names which rule fired, and derives the unattributed remainder rather than hiding it', async () => {
+    // NRQL never returns a null-ruleName facet row — the rules query only
+    // carries attributed decisions. The unattributed count is derived as
+    // totalDecisions (10) minus the attributed sum (2 + 1 = 3).
+    apiClient.get.mockResolvedValue({ data: {
+      ...PAYLOAD,
+      decisions: [{ decision: 'PERMIT', count: 8 }, { decision: 'DENY', count: 2 }],
+    } });
     renderDash();
     await waitFor(() =>
       expect(screen.getByTestId('stat-Transaction Denied')).toHaveTextContent('2'));
     expect(screen.getByTestId('stat-Transaction Approved')).toHaveTextContent('1');
-    // ruleName null — pre-Task-2 events must still be counted, as "unattributed"
     expect(screen.getByTestId('stat-unattributed')).toHaveTextContent('7');
   });
 
   it('says so when no rule attribution exists in the window', async () => {
-    apiClient.get.mockResolvedValue({ data: { ...PAYLOAD, rules: [] } });
+    apiClient.get.mockResolvedValue({ data: { ...PAYLOAD, decisions: [], rules: [] } });
     renderDash();
     await waitFor(() =>
       expect(screen.getByText(/No rule attribution in this window/i)).toBeInTheDocument());

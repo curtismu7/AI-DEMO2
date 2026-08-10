@@ -78,6 +78,7 @@ export default function P1AzDashboard() {
     value: decisionCounts[d] || 0,
     tone: d === 'DENY' ? 'bad' : 'default',
   }));
+  const totalDecisions = (data?.decisions || []).reduce((sum, r) => sum + (r.count || 0), 0);
 
   const postureCounts = {};
   (data?.posture || []).forEach((r) => { postureCounts[r.tag] = r.count; });
@@ -88,14 +89,27 @@ export default function P1AzDashboard() {
     tone: (postureCounts[p.tag] || 0) > 0 ? p.tone : 'default',
   }));
 
-  // ruleName is null on events emitted before Task 2 shipped — label rather
-  // than hide, so an older window reads honestly instead of looking empty.
-  const ruleItems = (data?.rules || []).slice(0, 6).map((r) => ({
-    key: r.ruleName || 'unattributed',
-    label: r.ruleName || 'unattributed',
+  // The rules query only returns attributed decisions (NRQL omits rows for
+  // records missing ruleName entirely — it does not emit a null facet). The
+  // remainder — events emitted before Task 2, or with no rule attribution —
+  // is derived here, not fetched, so it isn't silently dropped.
+  const rulesData = data?.rules || [];
+  const ruleItems = rulesData.slice(0, 6).map((r) => ({
+    key: r.ruleName,
+    label: r.ruleName,
     value: r.count,
     tone: /den/i.test(r.ruleName || '') ? 'bad' : 'default',
   }));
+  const attributedTotal = rulesData.reduce((sum, r) => sum + (r.count || 0), 0);
+  const unattributedCount = totalDecisions - attributedTotal;
+  if (unattributedCount > 0) {
+    ruleItems.push({
+      key: 'unattributed',
+      label: 'unattributed',
+      value: unattributedCount,
+      tone: 'default',
+    });
+  }
 
   const rows = (data?.stream || []).map((e) => ({
     timestamp: e.timestamp,

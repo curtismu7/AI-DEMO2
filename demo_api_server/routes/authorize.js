@@ -790,7 +790,7 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [console] ${result.decision} — endpoint ${endpointId}`,
       { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-        metadata: { engine: 'pingone', console: true, endpointId, decision: result.decision, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ...(useCaseId ? { useCaseId } : {}) } });
+        metadata: { engine: 'pingone', console: true, endpointId, decision: result.decision, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, ...(useCaseId ? { useCaseId } : {}) } });
     return res.json({
       ok: true,
       decision: result.decision,

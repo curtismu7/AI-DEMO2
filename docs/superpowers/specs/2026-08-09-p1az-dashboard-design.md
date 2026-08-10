@@ -174,6 +174,12 @@ Both pages compose them. **No config-driven dashboard framework** — two
 consumers is not enough evidence for the right abstraction. Revisit when the
 gateway pages land and the shape is known.
 
+> **Status (2026-08-09):** `P1AzDashboard.jsx` composes the shared components.
+> Pointing `NewRelicDashboard.jsx` at them was deferred by the human partner
+> and is not in this branch — it remains on its own `NewRelicDashboard.css`.
+> `dashboard.css` and `NewRelicDashboard.css` are intentionally parallel until
+> that lands. The shared components currently have one consumer.
+
 ### Emit-site additions
 
 All four read fields PingOne already returns and the code simply never captured.

@@ -199,6 +199,7 @@ describe('GET /api/newrelic/view/:view', () => {
     nerdgraphOk({
       decisions: { results: [{ decision: 'PERMIT', count: 1 }, { decision: 'DENY', count: 2 }] },
       posture: { results: [{ tag: 'authorize/fail-open', count: 1 }] },
+      rules: { results: [{ ruleName: 'Wire Fraud Block', count: 2 }] },
       timeseries: { results: [{ beginTimeSeconds: 10, count: 3 }] },
       stream: { results: [{ timestamp: 1, tag: 'authorize/deny', decision: 'DENY', amount: 60000, stepUpRequired: false, type: 'transfer', engine: 'pingone' }] },
     });
@@ -207,6 +208,7 @@ describe('GET /api/newrelic/view/:view', () => {
     expect(res.body.view).toBe('authorize');
     expect(res.body.decisions).toHaveLength(2);
     expect(res.body.posture[0].tag).toBe('authorize/fail-open');
+    expect(res.body.rules).toEqual([{ ruleName: 'Wire Fraud Block', count: 2 }]);
     expect(res.body.stream[0].amount).toBe(60000);
   });
 

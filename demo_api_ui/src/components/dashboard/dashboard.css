@@ -1,4 +1,9 @@
-/* Shared dashboard tokens. Dark is keyed to :root[data-theme="dark"] — the
+/* Shared dashboard tokens, consumed by P1AzDashboard.jsx. Sibling of
+   ../NewRelicDashboard.css, which NewRelicDashboard.jsx still uses directly —
+   pointing it at these shared tokens is deferred (see the status note in
+   docs/superpowers/plans/2026-08-09-p1az-dashboard.md), so the two files are
+   intentionally parallel for now.
+   Dark is keyed to :root[data-theme="dark"] — the
    attribute ThemeProvider writes — never prefers-color-scheme, which this app
    deliberately ignores. .dash paints its own background: without it, dark-mode
    ink lands on the app shell's light ground (the #1484 bug). */
