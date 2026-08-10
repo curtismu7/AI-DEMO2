@@ -125,18 +125,24 @@ export default function ControlPlaneRoster() {
   // Live row: real kill via the existing unchanged endpoint. Destroys the
   // session (logout) on the server; the apiClient 401 handling takes over.
   // Returns the kill result (scope + step breakdown) so the confirm modal can
-  // show what ran vs. what was skipped before it closes.
+  // show what ran vs. what was skipped before it closes. Throws on any
+  // failure that ISN'T the expected agent_killed 401 (network error, axios
+  // timeout on a slow full-scope kill, ...) so the modal can show that
+  // failure instead of silently vanishing with no explanation.
   const confirmLiveKill = async (agentId, reason, scope) => {
-    let data = null;
+    let res;
     try {
-      const res = await apiClient.post(`/api/admin/agent/${agentId}/kill-switch`, { reason, scope });
-      data = res?.data || null;
+      res = await apiClient.post(`/api/admin/agent/${agentId}/kill-switch`, { reason, scope });
     } catch (err) {
       // 401 agent_killed is the expected success response — the body still carries scope/steps
-      data = err?.response?.data?.error === "agent_killed" ? err.response.data : null;
+      if (err?.response?.data?.error === "agent_killed") {
+        setLive((l) => (l ? { ...l, status: "revoked" } : l));
+        return err.response.data;
+      }
+      throw new Error(err?.response?.data?.message || err?.message || "Kill-switch request failed");
     }
     setLive((l) => (l ? { ...l, status: "revoked" } : l));
-    return data;
+    return res?.data || null;
   };
 
   // Inverse of confirmLiveKill: re-enables the PingOne agent application(s)
