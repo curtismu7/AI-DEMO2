@@ -28,25 +28,46 @@ const WINDOWS = {
 
 const DEFAULT_WINDOW = '1h';
 
+// A free-text search term is the first caller-controlled VALUE (as opposed to
+// a fixed-map key) to reach query construction. It is bounded so a caller
+// can't push an arbitrarily large string upstream, and it never widens what
+// data is reachable — it only narrows the stream query's SINCE window further.
+const MAX_SEARCH_LEN = 200;
+
+// NRQL string literals are single-quoted; a raw apostrophe in the term would
+// close the literal early and turn the rest of the term into NRQL syntax.
+// Escape backslashes first (so an escaping backslash inserted below can't
+// itself be mistaken for an already-escaped one), then the quote.
+function _escapeNrqlLiteral(raw) {
+  return raw.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// Applied to the stream query only — a search narrows the event list, it
+// does not rewrite the facet/timeseries summary panels above it.
+function _searchClause(search) {
+  if (!search) return '';
+  return ` AND message LIKE '%${_escapeNrqlLiteral(search)}%'`;
+}
+
 // Anonymous callers hit this route with no rate limiting of their own; a short
 // cache keeps repeated page loads/polling from spending upstream NerdGraph
-// quota on every request. Key space is view x window, both fixed maps, so no
-// eviction policy is needed.
+// quota on every request. Key space is view x window x search term — search
+// is a bounded, escaped string, so it's safe to fold into the key as-is.
 const CACHE_TTL_MS = 20000;
-const _cache = new Map(); // `${view}:${window}` -> { at, payload }
+const _cache = new Map(); // `${view}:${window}:${search}` -> { at, payload }
 
 function _resetCache() {
   _cache.clear();
 }
 
-function _pipelineQuery(accountId, since, bucket) {
+function _pipelineQuery(accountId, since, bucket, search) {
   const funnel =
     `SELECT count(*) FROM Log WHERE logtype='app_event' FACET category SINCE ${since}`;
   const timeseries =
     `SELECT count(*) FROM Log WHERE logtype='app_event' TIMESERIES ${bucket} SINCE ${since}`;
   const stream =
     'SELECT timestamp, message, category, severity, correlationId ' +
-    `FROM Log WHERE logtype='app_event' SINCE ${since} LIMIT 50`;
+    `FROM Log WHERE logtype='app_event'${_searchClause(search)} SINCE ${since} LIMIT 50`;
 
   // JSON.stringify supplies the surrounding quotes and escapes the single
   // quotes inside each NRQL string. accountId is coerced to a number so it can
@@ -58,7 +79,7 @@ function _pipelineQuery(accountId, since, bucket) {
   } } }`;
 }
 
-function _authorizeQuery(accountId, since, bucket) {
+function _authorizeQuery(accountId, since, bucket, search) {
   const decisions =
     `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL FACET decision SINCE ${since}`;
   const posture =
@@ -74,7 +95,7 @@ function _authorizeQuery(accountId, since, bucket) {
     `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL TIMESERIES ${bucket} SINCE ${since}`;
   const stream =
     'SELECT timestamp, tag, decision, ruleName, amount, stepUpRequired, type, engine, latencyMs, policyEvalMs ' +
-    `FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL SINCE ${since} LIMIT 50`;
+    `FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL${_searchClause(search)} SINCE ${since} LIMIT 50`;
 
   return `{ actor { account(id: ${Number(accountId)}) {
     decisions: nrql(query: ${JSON.stringify(decisions)}) { results }
@@ -130,9 +151,17 @@ async function _handleView(viewName, req, res) {
     return res.status(400).json({ error: 'invalid_window' });
   }
 
-  // Cache key includes the view — otherwise an authorize request inside the TTL
-  // would be served the pipeline payload.
-  const cacheKey = `${viewName}:${window}`;
+  // A blank/absent q must behave exactly as before — falsy short-circuits to
+  // '', which _searchClause treats as "no filter". A present q is trimmed
+  // and capped at MAX_SEARCH_LEN before it ever reaches query construction.
+  const rawQ = req.query.q;
+  const search = rawQ ? String(rawQ).trim().slice(0, MAX_SEARCH_LEN) : '';
+
+  // Cache key includes the view and search term — otherwise an authorize
+  // request inside the TTL would be served the pipeline payload, or a
+  // searched request would be served an unsearched (or differently
+  // searched) payload and vice versa.
+  const cacheKey = `${viewName}:${window}:${search}`;
   const cached = _cache.get(cacheKey);
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return res.json(cached.payload);
@@ -141,7 +170,7 @@ async function _handleView(viewName, req, res) {
   try {
     const response = await axios.post(
       NERDGRAPH_ENDPOINT,
-      { query: view.build(accountId, spec.since, spec.bucket) },
+      { query: view.build(accountId, spec.since, spec.bucket, search) },
       {
         headers: { 'Api-Key': key, 'Content-Type': 'application/json' },
         timeout: 10000,
@@ -154,7 +183,7 @@ async function _handleView(viewName, req, res) {
     }
 
     const account = response.data?.data?.actor?.account || {};
-    const payload = { view: viewName, window, ...view.map(account) };
+    const payload = { view: viewName, window, q: search, ...view.map(account) };
     _cache.set(cacheKey, { at: Date.now(), payload });
     return res.json(payload);
   } catch (err) {

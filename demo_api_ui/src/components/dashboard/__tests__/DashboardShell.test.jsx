@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../../../context/ThemeContext';
 import DashboardShell from '../DashboardShell';
 import StatStrip from '../StatStrip';
@@ -69,6 +69,70 @@ describe('DashboardShell', () => {
     fireEvent.click(screen.getByRole('switch', { name: /dark mode/i }));
     await waitFor(() =>
       expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
+  });
+});
+
+describe('DashboardShell search', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders no search input when onSearch is not passed', () => {
+    shell();
+    expect(screen.queryByLabelText('Search events')).not.toBeInTheDocument();
+  });
+
+  it('renders a search input when onSearch is passed', () => {
+    shell({ onSearch: () => {} });
+    expect(screen.getByLabelText('Search events')).toBeInTheDocument();
+  });
+
+  it('debounces typing: several keystrokes fire onSearch once, with the final value', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const onSearch = vi.fn();
+    shell({ onSearch });
+    const input = screen.getByLabelText('Search events');
+
+    fireEvent.change(input, { target: { value: 'P' } });
+    fireEvent.change(input, { target: { value: 'Pi' } });
+    fireEvent.change(input, { target: { value: 'PingOne' } });
+
+    // Not yet — the debounce window hasn't elapsed.
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(onSearch).not.toHaveBeenCalled();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(onSearch).toHaveBeenCalledTimes(1);
+    expect(onSearch).toHaveBeenCalledWith('PingOne');
+  });
+
+  it('shows an active state and a clear control once text is entered', () => {
+    shell({ onSearch: () => {} });
+    const input = screen.getByLabelText('Search events');
+    expect(screen.queryByLabelText('Clear search')).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: 'foo' } });
+    expect(screen.getByLabelText('Clear search')).toBeInTheDocument();
+    expect(input.closest('.dash-search')).toHaveClass('is-active');
+  });
+
+  it('clearing empties the input and calls onSearch immediately, without waiting for the debounce', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const onSearch = vi.fn();
+    shell({ onSearch });
+    const input = screen.getByLabelText('Search events');
+
+    fireEvent.change(input, { target: { value: 'foo' } });
+    fireEvent.click(screen.getByLabelText('Clear search'));
+
+    expect(onSearch).toHaveBeenCalledWith('');
+    expect(input.value).toBe('');
+    expect(screen.queryByLabelText('Clear search')).not.toBeInTheDocument();
+
+    // The pending debounced call from typing 'foo' must not fire afterward
+    // and clobber the clear.
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(onSearch).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -1,17 +1,45 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useThemeOptional } from '../../context/ThemeContext';
 import './dashboard.css';
 
+// No lodash — this is the entire debounce. Typing resets the timer; only the
+// value left standing SEARCH_DEBOUNCE_MS after the last keystroke is sent up.
+const SEARCH_DEBOUNCE_MS = 300;
+
 /**
  * Chrome shared by every New Relic-backed dashboard: title, window selector,
- * theme toggle, refresh, and the four load states. Children render only when
- * state is 'ready', so pages never have to guard their own body.
+ * search, theme toggle, refresh, and the four load states. Children render
+ * only when state is 'ready', so pages never have to guard their own body.
+ *
+ * Search is opt-in: pass `onSearch` to show the input. The shell owns the
+ * keystroke-to-debounced-value plumbing; the caller only ever sees the
+ * settled term, the same way it only ever sees a clicked `window` value.
  */
 export default function DashboardShell({
   title, subtitle, window: win, windows, onWindow, onRefresh,
   state, notConfiguredHint, children,
+  search, onSearch, searchPlaceholder,
 }) {
   const { darkMode, setDarkMode } = useThemeOptional();
+  const [inputValue, setInputValue] = useState(search || '');
+  const debounceRef = useRef(null);
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setInputValue(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onSearch(val.trim()), SEARCH_DEBOUNCE_MS);
+  };
+
+  const clearSearch = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setInputValue('');
+    onSearch('');
+  };
 
   return (
     <div className="dash">
@@ -30,6 +58,25 @@ export default function DashboardShell({
             </button>
           ))}
         </div>
+
+        {onSearch ? (
+          <div className={`dash-search${inputValue ? ' is-active' : ''}`}>
+            <input
+              type="search"
+              className="dash-search-input"
+              value={inputValue}
+              onChange={handleSearchChange}
+              placeholder={searchPlaceholder || 'Search events…'}
+              aria-label="Search events"
+            />
+            {inputValue ? (
+              <button type="button" className="dash-search-clear"
+                      onClick={clearSearch} aria-label="Clear search">
+                ✕
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="dash-theme">
           <span className={darkMode ? '' : 'is-on'}>Light</span>

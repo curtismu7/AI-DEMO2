@@ -270,3 +270,135 @@ describe('GET /api/newrelic/view/:view', () => {
     expect(res.body.funnel[0].category).toBe('oauth');
   });
 });
+
+describe('GET /api/newrelic/view/:view search (q)', () => {
+  function nerdgraphOk(account) {
+    axios.post.mockResolvedValue({ data: { data: { actor: { account } } } });
+  }
+
+  it('an absent q behaves exactly as before: no LIKE clause, q reported as empty', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({ funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] } });
+    const res = await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h');
+    expect(res.status).toBe(200);
+    expect(res.body.q).toBe('');
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).not.toContain('LIKE');
+  });
+
+  it('an empty q behaves exactly as an absent one', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({ funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] } });
+    const res = await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h&q=');
+    expect(res.body.q).toBe('');
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).not.toContain('LIKE');
+  });
+
+  it('a search term reaches only the stream query, filtering on message', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({ funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] } });
+    const res = await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h&q=PingOne');
+    expect(res.body.q).toBe('PingOne');
+    const sent = axios.post.mock.calls[0][1].query;
+
+    // Only the stream sub-query carries the filter.
+    const streamMatch = sent.match(/stream: nrql\(query: "([\s\S]*?)"\)/);
+    expect(streamMatch[1]).toContain("message LIKE '%PingOne%'");
+    const funnelMatch = sent.match(/funnel: nrql\(query: "([\s\S]*?)"\)/);
+    expect(funnelMatch[1]).not.toContain('LIKE');
+    const timeseriesMatch = sent.match(/timeseries: nrql\(query: "([\s\S]*?)"\)/);
+    expect(timeseriesMatch[1]).not.toContain('LIKE');
+  });
+
+  it('the authorize view applies q to stream only, leaving decisions/posture/rules/timeseries unfiltered', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      decisions: { results: [] }, posture: { results: [] }, rules: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/authorize?window=24h&q=wire+fraud');
+    const sent = axios.post.mock.calls[0][1].query;
+
+    const streamMatch = sent.match(/stream: nrql\(query: "([\s\S]*?)"\)/);
+    expect(streamMatch[1]).toContain("message LIKE '%wire fraud%'");
+    for (const field of ['decisions', 'posture', 'rules', 'timeseries']) {
+      const m = sent.match(new RegExp(`${field}: nrql\\(query: "([\\s\\S]*?)"\\)`));
+      expect(m[1]).not.toContain('LIKE');
+    }
+  });
+
+  it("an apostrophe in the term is escaped and cannot break out of the NRQL string literal", async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({ funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] } });
+    await request(makeApp()).get(`/api/newrelic/view/pipeline?window=1h&q=${encodeURIComponent("it's")}`);
+    const sent = axios.post.mock.calls[0][1].query;
+
+    // The apostrophe must be backslash-escaped inside the NRQL literal. Once
+    // the whole NRQL string is JSON.stringify'd to embed in the GraphQL
+    // query text, that single escaping backslash is itself doubled — so the
+    // literal, unescaped text sent over the wire contains two backslashes
+    // ahead of the apostrophe.
+    expect(sent).toContain("LIKE '%it\\\\'s%'");
+    // And the broken/unescaped form (a bare apostrophe with no backslash
+    // ahead of it) must not appear — that would mean the literal closed
+    // early and "s%'" became trailing NRQL syntax.
+    expect(sent).not.toContain("LIKE '%it's%'");
+  });
+
+  it('a double quote in the term does not need extra handling — the outer JSON.stringify wrap already escapes it', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({ funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] } });
+    const res = await request(makeApp())
+      .get(`/api/newrelic/view/pipeline?window=1h&q=${encodeURIComponent('"drop"')}`);
+    expect(res.status).toBe(200);
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).toContain('LIKE \'%\\"drop\\"%\'');
+  });
+
+  it('a term over MAX_SEARCH_LEN is truncated, not rejected, and the reported q reflects what was applied', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({ funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] } });
+    const huge = 'x'.repeat(250);
+    const res = await request(makeApp()).get(`/api/newrelic/view/pipeline?window=1h&q=${huge}`);
+    expect(res.status).toBe(200);
+    expect(res.body.q).toBe('x'.repeat(200));
+    expect(res.body.q.length).toBe(200);
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).toContain(`LIKE '%${'x'.repeat(200)}%'`);
+    expect(sent).not.toContain('x'.repeat(201));
+  });
+
+  it('the cache does not serve a searched payload to an unsearched request, or vice versa', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] },
+      stream: { results: [{ message: 'unfiltered event' }] },
+    });
+    const unsearched = await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h');
+    expect(unsearched.body.stream).toEqual([{ message: 'unfiltered event' }]);
+
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] },
+      stream: { results: [{ message: 'PingOne match only' }] },
+    });
+    const searched = await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h&q=PingOne');
+    expect(searched.body.stream).toEqual([{ message: 'PingOne match only' }]);
+
+    // Re-requesting the unsearched form must still get the unsearched
+    // payload from cache, not the searched one (and vice versa already
+    // proven above by the distinct nerdgraphOk stubs both being consumed).
+    const unsearchedAgain = await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h');
+    expect(unsearchedAgain.body.stream).toEqual([{ message: 'unfiltered event' }]);
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+});

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../../context/ThemeContext';
 import P1AzDashboard from '../P1AzDashboard';
 import apiClient from '../../services/apiClient';
@@ -133,5 +133,77 @@ describe('P1AzDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: '14d' }));
     await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
       '/api/newrelic/view/authorize?window=14d'));
+  });
+
+  describe('search', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('typing filters: after the debounce settles, the request carries q', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      apiClient.get.mockResolvedValue({ data: PAYLOAD });
+      renderDash();
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+
+      fireEvent.change(screen.getByLabelText('Search events'), { target: { value: 'Wire Fraud' } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/view/authorize?window=24h&q=Wire%20Fraud'));
+    });
+
+    it('debounces: several keystrokes before the request fires only send one extra request', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      apiClient.get.mockResolvedValue({ data: PAYLOAD });
+      renderDash();
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+      const callsBeforeTyping = apiClient.get.mock.calls.length;
+
+      const input = screen.getByLabelText('Search events');
+      fireEvent.change(input, { target: { value: 'D' } });
+      fireEvent.change(input, { target: { value: 'DE' } });
+      fireEvent.change(input, { target: { value: 'DENY' } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+
+      await waitFor(() =>
+        expect(apiClient.get.mock.calls.length).toBe(callsBeforeTyping + 1));
+      expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/view/authorize?window=24h&q=DENY');
+    });
+
+    it('clearing restores the unsearched request', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      apiClient.get.mockResolvedValue({ data: PAYLOAD });
+      renderDash();
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+
+      fireEvent.change(screen.getByLabelText('Search events'), { target: { value: 'DENY' } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/view/authorize?window=24h&q=DENY'));
+
+      fireEvent.click(screen.getByLabelText('Clear search'));
+      await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/view/authorize?window=24h'));
+    });
+
+    it('shows a distinct "no matches" message for a search that returns nothing, not the generic empty-stream message', async () => {
+      apiClient.get.mockResolvedValue({
+        data: { ...PAYLOAD, q: 'zzz-no-match', stream: [] },
+      });
+      renderDash();
+      await waitFor(() =>
+        expect(screen.getByText('No decisions match "zzz-no-match".')).toBeInTheDocument());
+      expect(screen.queryByText(/^No events in this window\.$/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the generic empty-stream message (not a "no matches" message) when there is no active search', async () => {
+      apiClient.get.mockResolvedValue({
+        data: { ...PAYLOAD, q: '', stream: [] },
+      });
+      renderDash();
+      await waitFor(() => expect(screen.getByText(/^No events in this window\.$/i)).toBeInTheDocument());
+      expect(screen.queryByText(/No decisions match/i)).not.toBeInTheDocument();
+    });
   });
 });
