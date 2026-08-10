@@ -9,36 +9,69 @@
  *   - no declaration below 11px
  */
 
-/* Focus Mode layout — overrides the split grid for placement:'middle' only.
-   The agent gets the full width and the chain lies underneath it; the evidence
-   stops living in the narrowest column on screen. Scoped to .ud-focus-mode so
-   the 'bottom' and 'none' branches, and the frozen classic dashboard, are
-   untouched. Declared here rather than in UserDashboard.css to keep the whole
-   feature in files this work created. */
+/* Focus Mode layout — the agreed mock: agent left, spotlight right, chain full
+   width beneath both. Scoped to .ud-focus-mode so the 'bottom' and 'none'
+   branches, and the frozen classic dashboard, are untouched. */
 .dashboard-content.ud-body.ud-focus-mode {
-  display: flex;
-  flex-direction: column;
-  grid-template-columns: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "agent spotlight"
+    "chain chain";
+  align-items: stretch;
 }
 
 .dashboard-content.ud-body.ud-focus-mode > .ud-agent-column {
-  width: 100%;
+  grid-area: agent;
+  width: auto;
   max-width: none;
-  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
 }
 
-/* The agent column's drag-to-resize width handle is meaningless at full width. */
+/* The column's drag-to-resize width handle fights a two-column grid. */
 .dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-agent-column__resize-handle { display: none; }
 
-.dashboard-content.ud-body.ud-focus-mode > .tcfs { flex: 0 0 auto; }
+/* display:contents so the two regions below become grid items of the dashboard
+   rather than of the filmstrip — one component, both halves of the layout. */
+.tcfs { display: contents; }
 
-.tcfs {
+.tcfs-spotlight {
+  grid-area: spotlight;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.tcfs-chain {
+  grid-area: chain;
+  min-width: 0;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
+}
+
+.tcfs-spotlight-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+/* Narrow: fall back to one column so the spotlight never becomes a slot. */
+@media (max-width: 1100px) {
+  .dashboard-content.ud-body.ud-focus-mode {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "agent" "spotlight" "chain";
+  }
+  .tcfs-spotlight { border-left: 0; border-top: 1px solid #e2e8f0; }
 }
 
 .tcfs-head {
@@ -228,7 +261,9 @@
 }
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
-:root[data-theme="dark"] .tcfs { background: #0b1426; border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-spotlight { background: #0b1426; border-left-color: #26304a; border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-chain { background: #0b1426; border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-spotlight-empty { color: #90a0c2; }
 :root[data-theme="dark"] .tcfs-more-pop { background: #0f1830; border-color: #26304a; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
 :root[data-theme="dark"] .tcfs-mode { background: #1b2540; border-color: #26304a; }
 :root[data-theme="dark"] .tcfs-mode button { color: #cdd7ec; }
