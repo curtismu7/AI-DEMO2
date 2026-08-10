@@ -309,8 +309,13 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
       const prompt = typeof lastUserMsg?.content === 'string'
         ? lastUserMsg.content
         : JSON.stringify(lastUserMsg?.content ?? '');
-      const { extractIntentFromPrompt } = require('../services/nlIntentParser');
-      const { intent: _itIntent, confidence: _itConf } = extractIntentFromPrompt(prompt);
+      // extractIntentAndConfidence is the exported API. A prior draft called a
+      // local helper name (extractIntentFromPrompt) that only exists inside
+      // routes/agentInvokeRoute.js — destructuring it here threw TypeError,
+      // the catch below swallowed it, and AG-UI never minted an Intent Token
+      // (Token Chain missing the step; session.intentToken left unset/stale).
+      const { extractIntentAndConfidence } = require('../services/nlIntentParser');
+      const { intent: _itIntent, confidence: _itConf } = extractIntentAndConfidence(prompt);
       const { token: _intentToken } = mintIntentToken({
         userId,
         sessionId: req.session.id,
