@@ -75,6 +75,14 @@ Register `${SERVER_URL}/callback` as a redirect URI on that PingOne application.
 `/var/lib/procyon/config/pingone.env` and loads it via `env_file`, so its values reach
 the container as files *and* as environment variables.
 
+> **Update (2026-08-10):** the front-end OAuth config does **not** come from this file
+> in the current build. It lives on the Privilege Application object and is set with
+> `cyctl` (`--spec-mcp-app-config-resource-o-auth-*`, `--spec-mcp-app-config-entry-path`,
+> `--spec-oidc-relying-party-redirect-ur-ls-elems`) — not exposed in the console UI.
+> Keep this file correct anyway; the native-install guest agent reads the same settings.
+> Note `use-pkce` is mandatory: PingOne app `deff60f5` enforces `S256_REQUIRED`.
+> See `docs/PRIVILEGE-MCP.md` §2026-08-10.
+
 > **Open issue (2026-08-09):** with all of the above in place the gateway still returns
 > `401 Bearer Token not found.` and emits no `WWW-Authenticate`. The proxy binary
 > contains no reference to `pingone.env` or its key names, and the same failure
