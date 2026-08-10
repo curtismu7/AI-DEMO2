@@ -1,8 +1,9 @@
-/* Shared dashboard tokens, consumed by P1AzDashboard.jsx. Sibling of
-   ../NewRelicDashboard.css, which NewRelicDashboard.jsx still uses directly —
-   pointing it at these shared tokens is deferred (see the status note in
-   docs/superpowers/plans/2026-08-09-p1az-dashboard.md), so the two files are
-   intentionally parallel for now.
+/* Shared dashboard tokens, consumed by both P1AzDashboard.jsx and
+   NewRelicDashboard.jsx — each composes DashboardShell/StatStrip/EventStream
+   and renders through the .dash-* classes defined here. NewRelicDashboard.css
+   now carries only page-specific rules (the severity dot) plus one dead block
+   kept solely to satisfy a pinned CSS-source test — see the note at the top
+   of that file.
    Dark is keyed to :root[data-theme="dark"] — the
    attribute ThemeProvider writes — never prefers-color-scheme, which this app
    deliberately ignores. .dash paints its own background: without it, dark-mode

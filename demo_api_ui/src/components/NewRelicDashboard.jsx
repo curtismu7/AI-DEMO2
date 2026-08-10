@@ -23,8 +23,21 @@ const POLL_MS = 30000;
 
 const STREAM_COLUMNS = [
   { key: 'time', label: 'Time', className: 'dash-mono' },
-  { key: 'category', label: 'Category' },
-  { key: 'severity', label: 'Severity' },
+  {
+    key: 'category',
+    label: 'Category',
+    // Explicit opt-in — every other column stays plain-value-only.
+    render: (row) => (row.category ? <span className="dash-chip">{row.category}</span> : ''),
+  },
+  {
+    key: 'severity',
+    label: 'Severity',
+    render: (row) => (
+      <span className={`nrd-sev nrd-sev-${row.severity || 'info'}`}>
+        {row.severity || 'info'}
+      </span>
+    ),
+  },
   { key: 'message', label: 'Message' },
   { key: 'correlationId', label: 'Correlation', className: 'dash-mono' },
 ];
@@ -95,12 +108,8 @@ export default function NewRelicDashboard() {
   const rows = (data?.stream || []).map((e) => ({
     timestamp: e.timestamp,
     time: e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '',
-    category: e.category ? <span className="dash-chip">{e.category}</span> : '',
-    severity: (
-      <span className={`nrd-sev nrd-sev-${e.severity || 'info'}`}>
-        {e.severity || 'info'}
-      </span>
-    ),
+    category: e.category || '',
+    severity: e.severity || '',
     message: e.message || '',
     correlationId: e.correlationId || '',
   }));
