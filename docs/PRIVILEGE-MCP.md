@@ -1578,3 +1578,62 @@ front-end OAuth config is missing** — which is exactly today's symptom.
 
 An end-to-end `tools/call` with a PingOne token has **not** been demonstrated. What is
 demonstrated is that routing and application resolution are no longer in the way.
+
+## 2026-08-10 (verdict): the PingOne-token path is not implementable on current vendor builds
+
+The afternoon session ran the remaining theory to ground. Read this before spending
+any more time on "make PingOne tokens work against the gateway."
+
+### What was tried, in order, all with a live console session
+
+1. **`cyctl object application update`** — rejects the console cookie JWT:
+   `unexpected signing method: RS256`. It wants HS256, and the console's own
+   dashboard XHRs send `Authorization: Bearer undefined`, so there is no HS256
+   bearer to lift from devtools. Dead end confirmed, not assumed.
+2. **Console REST API writes** — `PUT`/`PATCH`/`POST` on
+   `/v1/applications/<name>` all answer `401 User is not authorized` (route-level;
+   a fresh `x-procyon-session-id` changes nothing). The API is **list + create
+   only** for this user: `GET /v1/applications` 200, bare `POST /v1/applications`
+   reaches "already exists". Update params (`?update=true`, `?force=true`,
+   `?overwrite=true`, `?Op=update`) are ignored.
+3. **Create-instead-of-update worked.** `POST /v1/applications` with a full object
+   created `mcp-aidemo` (EntryPath `/aidemo`, `AuthMode: oauth`, `ResourceOAuth`
+   fully populated from `pingone.env`, `UsePKCE: true`) — HTTP 200, config pushed
+   to the runtime in under a second (`Created backend/authz/frontend node` in the
+   proxy log).
+4. **And it changed nothing.** The new app's authz node still logs
+   `IssuerPublicKey:[]`. `ResourceOAuth` is the *backend-facing* OAuth config —
+   this document said so at §"no inbound issuer field" and was right; the
+   set-frontend-oauth theory conflated the two. No inbound-issuer field exists on
+   the Application object.
+5. **The newer vendor build does not add it.** Registry `latest` still points at
+   `v1.260726` (July); `v1.260806` exists only under its version tag — "always
+   pull latest" quietly pins you to July. Recreated onto `v1.260806`: the working
+   console-token chain still passes (initialize 200), but tokenless requests get
+   the same bare `401 Bearer Token not found.` on every path and host tried,
+   including `/aidemo/authorize` and both `.well-known` documents on the gateway
+   base host.
+6. **The binary cannot do what the SE deck shows.** `grep -a` over
+   `/procyon/bin/cyonproxy` (v1.260806): `WWW-Authenticate` appears once (library
+   constant); `authorization_uri`, `MCP OAuth Server`,
+   `oauth-protected-resource` — zero occurrences. The deck's challenge/OIDC
+   bootstrap flow is not compiled into any build we can pull. The deck describes
+   a newer or internal build (`cj-agentless-mcpgw.ping-devops.com`).
+
+### Standing state
+
+- **Working and demonstrable:** the console-token chain, end to end, through
+  nginx (§2026-08-10 final). Auth, routing, per-app policy, session recording —
+  the entire Privilege value proposition minus PingOne-issued client tokens.
+- **Blocked on the vendor:** a tokenless 401 challenge and PingOne-issuer trust.
+  Nothing in this repo, the console, the API, or either published image changes
+  `IssuerPublicKey:[]`. When a build lands whose binary contains
+  `authorization_uri`, retry; until then stop looking here.
+- **Leftovers to know about:** app `mcp-aidemo` exists (harmless, fully
+  OAuth-configured, ready if a capable build arrives). The local image tag
+  `latest` was retagged to `v1.260806`; the compose `pull_policy: always` will
+  drag it back to the registry's stale `latest` on the next recreate — pin
+  `v1.260806` in compose if the newer build matters.
+- The `Applications` create route accepts a full object — the working payload
+  recipe is in this section's step 3; the collection endpoints and their
+  list/create/none permissions are in the debug Postman collection.
