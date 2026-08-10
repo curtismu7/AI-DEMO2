@@ -136,6 +136,63 @@ function _authorizeQuery(accountId, since, bucket, search) {
   } } }`;
 }
 
+// category='token_exchange' also holds token_chain/fetched and
+// oauth/user/callback rows — unrelated events sharing the category (measured
+// live: 77 of 93 category='token_exchange' rows are that noise). The tag
+// namespace is exchange-specific, so every sub-query below filters on
+// `tag LIKE 'token-exchange/%'` instead of category — never category alone.
+function _tokenExchangeQuery(accountId, since, bucket, search) {
+  const base = "logtype='app_event' AND tag LIKE 'token-exchange/%'";
+  // ok vs fail only — 'token-exchange/request' is the attempt, not an
+  // outcome; folding it in here would double-count against `attempts`.
+  const outcomes =
+    `SELECT count(*) FROM Log WHERE ${base} AND tag != 'token-exchange/request' FACET tag SINCE ${since}`;
+  // Scalar count of exchanges that started. The client derives
+  // unsettled = attempts − (ok + fail) rather than this query trying to
+  // express "started and never resolved" itself.
+  const attempts =
+    `SELECT count(*) FROM Log WHERE ${base} AND tag='token-exchange/request' SINCE ${since}`;
+  // hasActorToken is present on every outcome's metadata (request/ok/fail
+  // alike), so this facets over all matching rows, not just settled ones —
+  // that's the nested-`act` story, independent of whether the exchange
+  // ultimately succeeded.
+  const delegation =
+    `SELECT count(*) FROM Log WHERE ${base} FACET hasActorToken SINCE ${since}`;
+  const variants =
+    `SELECT count(*) FROM Log WHERE ${base} FACET exchangeVariant SINCE ${since}`;
+  // Dedicated facets, not derived from `stream` — `stream` is capped at
+  // LIMIT 50 for the row-level table, and live volume already exceeds that
+  // (56 exchange rows measured against a 50-row cap), so tallying these two
+  // from stream would silently undercount. Same reasoning as `rules` in
+  // _authorizeQuery: a summary panel gets its own uncapped-relative-to-50
+  // facet query.
+  const audience =
+    `SELECT count(*) FROM Log WHERE ${base} FACET audience SINCE ${since} LIMIT 20`;
+  const exchangeClientId =
+    `SELECT count(*) FROM Log WHERE ${base} FACET exchangeClientId SINCE ${since} LIMIT 20`;
+  // Same outcome-only scoping as `outcomes` — a volume chart that counted
+  // every request too would show roughly double the real settle rate.
+  const timeseries =
+    `SELECT count(*) FROM Log WHERE ${base} AND tag != 'token-exchange/request' TIMESERIES ${bucket} SINCE ${since}`;
+  // Searches exchangeVariant/audience/scope/exchangeClientId/pingoneError —
+  // the columns this view's table actually renders (not `message`, which
+  // this table never displays).
+  const stream =
+    'SELECT timestamp, tag, exchangeVariant, audience, scope, exchangeClientId, hasActorToken, subjectTokenType, latencyMs, httpStatus, pingoneError ' +
+    `FROM Log WHERE ${base}${_likeClause(['exchangeVariant', 'audience', 'scope', 'exchangeClientId', 'pingoneError'], search)} SINCE ${since} LIMIT 50`;
+
+  return `{ actor { account(id: ${Number(accountId)}) {
+    outcomes: nrql(query: ${JSON.stringify(outcomes)}) { results }
+    attempts: nrql(query: ${JSON.stringify(attempts)}) { results }
+    delegation: nrql(query: ${JSON.stringify(delegation)}) { results }
+    variants: nrql(query: ${JSON.stringify(variants)}) { results }
+    audience: nrql(query: ${JSON.stringify(audience)}) { results }
+    exchangeClientId: nrql(query: ${JSON.stringify(exchangeClientId)}) { results }
+    timeseries: nrql(query: ${JSON.stringify(timeseries)}) { results }
+    stream: nrql(query: ${JSON.stringify(stream)}) { results }
+  } } }`;
+}
+
 // Named query sets. The client sends a VIEW KEY, never a query — an open
 // passthrough would let any caller run arbitrary NRQL against the account.
 const VIEWS = {
@@ -153,6 +210,19 @@ const VIEWS = {
       decisions: a.decisions?.results || [],
       posture: a.posture?.results || [],
       rules: a.rules?.results || [],
+      timeseries: a.timeseries?.results || [],
+      stream: a.stream?.results || [],
+    }),
+  },
+  tokenexchange: {
+    build: _tokenExchangeQuery,
+    map: (a) => ({
+      outcomes: a.outcomes?.results || [],
+      attempts: a.attempts?.results || [],
+      delegation: a.delegation?.results || [],
+      variants: a.variants?.results || [],
+      audience: a.audience?.results || [],
+      exchangeClientId: a.exchangeClientId?.results || [],
       timeseries: a.timeseries?.results || [],
       stream: a.stream?.results || [],
     }),

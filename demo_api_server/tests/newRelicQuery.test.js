@@ -454,3 +454,133 @@ describe('GET /api/newrelic/view/:view search (q)', () => {
     expect(axios.post).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('GET /api/newrelic/view/tokenexchange', () => {
+  function nerdgraphOk(account) {
+    axios.post.mockResolvedValue({ data: { data: { actor: { account } } } });
+  }
+
+  it('maps the tokenexchange view into outcomes/attempts/delegation/variants/audience/exchangeClientId/timeseries/stream', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      outcomes: { results: [{ tag: 'token-exchange/ok', count: 7 }, { tag: 'token-exchange/fail', count: 1 }] },
+      attempts: { results: [{ count: 8 }] },
+      delegation: { results: [{ hasActorToken: true, count: 12 }, { hasActorToken: false, count: 4 }] },
+      variants: { results: [{ exchangeVariant: 'exchange-as', count: 14 }, { exchangeVariant: 'subject', count: 2 }] },
+      audience: { results: [{ audience: 'agentgateway.ping.demo', count: 6 }, { audience: 'mcpgateway.ping.demo', count: 2 }] },
+      exchangeClientId: { results: [{ exchangeClientId: 'f4dd707d', count: 8 }] },
+      timeseries: { results: [{ beginTimeSeconds: 10, count: 3 }] },
+      stream: { results: [{ timestamp: 1, tag: 'token-exchange/ok', exchangeVariant: 'exchange-as', audience: 'mcpgateway.ping.demo', scope: 'read', exchangeClientId: 'f4dd707d', hasActorToken: true, subjectTokenType: 'access_token', latencyMs: 122 }] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/tokenexchange?window=24h');
+    expect(res.status).toBe(200);
+    expect(res.body.view).toBe('tokenexchange');
+    expect(res.body.outcomes).toHaveLength(2);
+    expect(res.body.attempts).toEqual([{ count: 8 }]);
+    expect(res.body.delegation).toEqual([
+      { hasActorToken: true, count: 12 }, { hasActorToken: false, count: 4 },
+    ]);
+    expect(res.body.variants).toEqual([
+      { exchangeVariant: 'exchange-as', count: 14 }, { exchangeVariant: 'subject', count: 2 },
+    ]);
+    expect(res.body.audience).toEqual([
+      { audience: 'agentgateway.ping.demo', count: 6 }, { audience: 'mcpgateway.ping.demo', count: 2 },
+    ]);
+    expect(res.body.exchangeClientId).toEqual([{ exchangeClientId: 'f4dd707d', count: 8 }]);
+    expect(res.body.stream[0].exchangeClientId).toBe('f4dd707d');
+  });
+
+  it("filters every sub-query on tag LIKE 'token-exchange/%' — the contamination guard against category='token_exchange' noise", async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      outcomes: { results: [] }, attempts: { results: [] }, delegation: { results: [] },
+      variants: { results: [] }, audience: { results: [] }, exchangeClientId: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/tokenexchange?window=24h');
+    const sent = axios.post.mock.calls[0][1].query;
+    for (const field of ['outcomes', 'attempts', 'delegation', 'variants', 'audience', 'exchangeClientId', 'timeseries', 'stream']) {
+      const m = sent.match(new RegExp(`${field}: nrql\\(query: "([\\s\\S]*?)"\\)`));
+      expect(m[1]).toContain("tag LIKE 'token-exchange/%'");
+      // category is never used as the sole scope — it would let token_chain/
+      // fetched and oauth/user/callback rows leak into this view.
+      expect(m[1]).not.toContain("category=");
+    }
+    // outcomes and timeseries additionally exclude the /request tag so they
+    // don't double-count an attempt alongside its own settlement.
+    const outcomesMatch = sent.match(/outcomes: nrql\(query: "([\s\S]*?)"\)/);
+    expect(outcomesMatch[1]).toContain("tag != 'token-exchange/request'");
+    const timeseriesMatch = sent.match(/timeseries: nrql\(query: "([\s\S]*?)"\)/);
+    expect(timeseriesMatch[1]).toContain("tag != 'token-exchange/request'");
+  });
+
+  it('applies search only to the stream, on exchangeVariant/audience/scope/exchangeClientId/pingoneError — not message', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      outcomes: { results: [] }, attempts: { results: [] }, delegation: { results: [] },
+      variants: { results: [] }, audience: { results: [] }, exchangeClientId: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/tokenexchange?window=24h&q=agentgateway');
+    const sent = axios.post.mock.calls[0][1].query;
+
+    const streamMatch = sent.match(/stream: nrql\(query: "([\s\S]*?)"\)/);
+    expect(streamMatch[1]).toContain(
+      "AND (exchangeVariant LIKE '%agentgateway%' OR audience LIKE '%agentgateway%' " +
+      "OR scope LIKE '%agentgateway%' OR exchangeClientId LIKE '%agentgateway%' " +
+      "OR pingoneError LIKE '%agentgateway%')");
+    expect(streamMatch[1]).not.toContain('message LIKE');
+
+    // The other seven sub-queries keep the base contamination-guard LIKE
+    // (`tag LIKE 'token-exchange/%'`) but must not also pick up the search
+    // term — only the stream query narrows on caller input.
+    for (const field of ['outcomes', 'attempts', 'delegation', 'variants', 'audience', 'exchangeClientId', 'timeseries']) {
+      const m = sent.match(new RegExp(`${field}: nrql\\(query: "([\\s\\S]*?)"\\)`));
+      expect(m[1]).not.toContain('agentgateway');
+    }
+  });
+
+  it('caches per view, so tokenexchange does not serve the authorize payload', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      decisions: { results: [] }, posture: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/authorize?window=1h');
+
+    nerdgraphOk({
+      outcomes: { results: [{ tag: 'token-exchange/ok', count: 5 }] },
+      attempts: { results: [{ count: 5 }] }, delegation: { results: [] },
+      variants: { results: [] }, audience: { results: [] }, exchangeClientId: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/tokenexchange?window=1h');
+    expect(res.body.view).toBe('tokenexchange');
+    expect(res.body.outcomes[0].count).toBe(5);
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves pipeline and authorize query text unaffected by the new view', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h');
+    let sent = axios.post.mock.calls[0][1].query;
+    expect(sent).not.toContain('token-exchange');
+
+    nerdgraphOk({
+      decisions: { results: [] }, posture: { results: [] }, rules: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/authorize?window=1h');
+    sent = axios.post.mock.calls[1][1].query;
+    expect(sent).not.toContain('token-exchange');
+    expect(sent).toContain("category='authorize'");
+  });
+});

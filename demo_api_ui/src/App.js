@@ -155,6 +155,7 @@ import MonitoringRoutes, {
   P1AzRoute,
   PingOneEventsRoute,
   SequenceDiagramRoute,
+  TokenExchangeRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
   CibaApprovalPageRoute,
@@ -528,6 +529,11 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/p1az"
                   element={<P1AzRoute user={user} logout={logout} />}
+                />
+                {/* RFC 8693 token exchange telemetry — public, same posture as the others */}
+                <Route
+                  path="/monitoring/token-exchange"
+                  element={<TokenExchangeRoute user={user} logout={logout} />}
                 />
                 {/* Demo config accessible without login */}
                 <Route

@@ -876,6 +876,11 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/p1az",
           icon: "log",
         },
+        {
+          label: "Token Exchange",
+          path: "/monitoring/token-exchange",
+          icon: "log",
+        },
       ],
     },
     {
