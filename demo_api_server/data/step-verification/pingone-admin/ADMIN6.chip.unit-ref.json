@@ -1,6 +1,6 @@
 {
   "vertical": "pingone-admin",
-  "useCaseId": "ADMIN3",
+  "useCaseId": "ADMIN6",
   "triggerType": "chip",
   "mode": "unit-ref",
   "status": "PASS",
