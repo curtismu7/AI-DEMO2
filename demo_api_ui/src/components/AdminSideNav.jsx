@@ -743,7 +743,12 @@ export default function AdminSideNav({ user }) {
         // been wrapped in RequireAdminLogin since PR #1473, but the nav was
         // never updated to match, so a non-admin got an ordinary-looking link
         // that dead-ends at the route-level login wall. /admin is the same.
-        { label: "Support Console", path: "/admin/sporting-goods", icon: "bld", adminOnly: true },
+        // "Support Console" used to sit here pointing at /admin. #1494 put
+        // /admin back on the PingOne dashboard and repointed the entry at
+        // /admin/sporting-goods, which is exactly where "Sporting Goods Ops"
+        // below already goes — same route, same component, duplicate React key.
+        // Removed rather than re-keyed: a second link to one destination is not
+        // a distinct nav item.
         { label: "Banking Ops", path: "/admin/banking", icon: "acc", adminOnly: true },
         { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg", adminOnly: true },
         { label: "Retail Ops", path: "/admin/retail", icon: "cfg", adminOnly: true },

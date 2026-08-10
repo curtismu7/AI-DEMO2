@@ -239,6 +239,18 @@ describe("AdminSideNav — best-of-breed pass", () => {
     vi.unstubAllGlobals();
   });
 
+  it("Industry Verticals has one entry per destination — no duplicate-path React keys", () => {
+    renderNav();
+    fireEvent.click(screen.getByText("Industry Verticals"));
+    const group = screen.getByRole("region", { name: "Industry Verticals" });
+    const paths = within(group)
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+    // Two children resolving to the same path collide on the path-derived key.
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(paths.filter((p) => p === "/admin/sporting-goods")).toHaveLength(1);
+  });
+
   it("NAV_STRUCTURE_CATALOG top-level labels stay in sync with AdminSideNav", () => {
     renderNavAsUser(customerUser);
     NAV_STRUCTURE_CATALOG.forEach((group) => {
