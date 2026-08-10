@@ -457,6 +457,88 @@ router.post('/dev/console-token', express.json({ limit: '256kb' }), async (req, 
   res.json(body);
 });
 
+// Decode a bearer, store it as this client session's gateway credential, and
+// return the standard status body. Shared by the console-token and auto-mint paths.
+function applyBearerToSession(session, token, mcpUrlOverride) {
+  const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+  const expiresAt = payload.exp ? payload.exp * 1000 : null;
+  session.oauth.accessToken = token;
+  session.oauth.refreshToken = null;
+  session.oauth.expiresAt = expiresAt;
+  session.oauth.scope = 'console-token';
+  const mcpUrl = String(mcpUrlOverride || '').trim() ||
+    'https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp';
+  session.config.mcpUrl = mcpUrl;
+  resetMcpState(session);
+  return {
+    ok: true,
+    user: payload.user || payload.sub || null,
+    kid: header.kid || null,
+    kidMatchesGateway: header.kid === 'infra-root-jwt',
+    expiresInMinutes: expiresAt ? Math.round((expiresAt - Date.now()) / 60000) : null,
+    mcpUrl,
+  };
+}
+
+// GET /dev/auto-mint/status — is headless mint wired? (a control-plane admin
+// credential + a mint endpoint are configured). Off by default; drives the UI button.
+router.get('/dev/auto-mint/status', (req, res) => {
+  const configured = process.env.NODE_ENV !== 'production'
+    && Boolean(process.env.PRIVILEGE_ADMIN_TOKEN)
+    && Boolean(process.env.PRIVILEGE_MINT_URL);
+  res.json({ configured });
+});
+
+// POST /dev/auto-mint — mint/refresh the infra token headlessly, when configured.
+//
+// Forward hook for the day a Privilege control-plane admin credential exists:
+// POST the mint params to PRIVILEGE_MINT_URL with the admin bearer, take the
+// returned identity token, and set it as this session's gateway credential — the
+// same effect as pasting a fresh console token, but scriptable. Inert (501) until
+// PRIVILEGE_ADMIN_TOKEN + PRIVILEGE_MINT_URL are set. See docs/PRIVILEGE-MCP.md.
+router.post('/dev/auto-mint', express.json(), async (req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
+  const adminToken = process.env.PRIVILEGE_ADMIN_TOKEN;
+  const mintUrl = process.env.PRIVILEGE_MINT_URL;
+  if (!adminToken || !mintUrl) {
+    return res.status(501).json({
+      error: 'auto_mint_unconfigured',
+      message: 'Headless mint is not configured. Set PRIVILEGE_ADMIN_TOKEN and PRIVILEGE_MINT_URL (the control-plane token endpoint) to enable it.',
+    });
+  }
+  try {
+    const mintBody = {
+      tenant: process.env.PRIVILEGE_MINT_TENANT || '',
+      org: process.env.PRIVILEGE_MINT_ORG || 'default',
+      user: process.env.PRIVILEGE_MINT_USER || '',
+      device: process.env.PRIVILEGE_MINT_DEVICE || 'MCP Client',
+    };
+    const r = await fetch(mintUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify(mintBody),
+    });
+    const text = await r.text();
+    let data; try { data = JSON.parse(text); } catch { data = {}; }
+    const token = data.access_token || data.token || (text.match(/eyJ[A-Za-z0-9._-]+/) || [])[0];
+    if (!r.ok || !token) {
+      return res.status(502).json({ error: 'mint_failed', message: `Mint endpoint returned ${r.status}.` });
+    }
+    const session = getClientSession(req);
+    const body = applyBearerToSession(session, token, req.body?.mcpUrl);
+    emitEvent(session, 'mcp', { phase: 'auto_mint', user: body.user, kid: body.kid });
+    if (req.session) {
+      req.session.privilegeConsoleTokenAt = Date.now();
+      return req.session.save((err) => (err ? res.status(500).json({ error: 'Session save failed.' }) : res.json(body)));
+    }
+    return res.json(body);
+  } catch (err) {
+    const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+    return res.status(502).json({ error: 'mint_failed', message: normalizeAxiosError(err, { label: 'auto-mint' }).message });
+  }
+});
+
 // POST /config — save config
 router.post('/config', express.json(), (req, res) => {
   const session = getClientSession(req);
