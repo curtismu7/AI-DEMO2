@@ -102,6 +102,7 @@ Once implemented:
 4. Client collects a Protect device signal (`demo_api_ui/src/services/protectSignalService.js`) and sends it with the invoke request; the BFF gate (`demo_api_server/middleware/protectRiskGate.js`) risk-scores it before the agent runs.
 5. Verify: the **ProofStrip** evidence panel for that action shows a new `protect_risk_evaluation` row with a real `evaluationId` — not a placeholder.
 6. To see a `BLOCK`: use whatever risk-policy trigger condition was configured during setup (e.g. a known-bad test signal) — the request should return `403 agent_dispatch_blocked` before the agent dispatches at all.
+7. Also registered as **UC36** in the use-case catalog (Task 6 of the plan) — dispatchable from the catalog UI like every other demo chip, not just by hand-typing the phrase above.
 
 ### Verified Trust — signed agent assertion on A2A delegation
 
@@ -117,6 +118,7 @@ Once implemented (and only if entitlement clears):
 4. Verify the receiving specialist agent's **Agent Card** (`GET` the A2A discovery endpoint for that agent) now lists a second security scheme (`verified-trust-vc`) alongside the existing PingOne Bearer scheme — only when a `trustAssertion` was actually issued.
 5. If issuance fails (expected if entitlement is missing), the existing bearer-token delegation must still work unaffected — that's the fail-open behavior built into the plan, not a bug if you see it.
 6. Education panel: `demo_api_ui/src/components/education/IETFStandardsPanel.js` SD-JWT VC card should read "✅ Live (behind `ff_verified_trust_a2a`)" instead of "❌ Not implemented" once Task 4 of the plan lands — if it still says "Not implemented," the feature isn't actually wired yet regardless of what the flag list shows.
+7. Also registered as **UC37** in the use-case catalog (Task 5 of the plan) — reuses UC2's "hand off to a specialist" chip as the vehicle, dispatchable from the catalog UI.
 
 ### Note on the third original candidate — MCP gateway named filters
 

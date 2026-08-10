@@ -332,8 +332,83 @@ git commit -m "docs(verified-trust): flip education panel status to live"
 
 ---
 
+### Task 5: Register as a use-case catalog chip (UC37)
+
+**Files:**
+- Modify: `demo_api_server/config/useCases.js` — append a new entry to the `USE_CASES` array, after whatever the last UC is by then (UC36 if the Protect plan's Task 6 landed first — re-check with `grep -oE "id: 'UC[0-9.]+'" demo_api_server/config/useCases.js | sort -t'C' -k2 -n -u`, don't assume the number).
+- Regenerate: `npm run use-cases:gen && npm run use-cases:check` per `demo_api_server/CLAUDE.md`'s generated-artifacts rule.
+- Verify: `demo_api_server/tests/useCases.primaryTool.test.js` must pass for every vertical.
+
+**Interfaces:**
+- Consumes: `ff_verified_trust_a2a` (Task 2), the `trustAssertion` chain field (Task 2), the Agent Card security scheme (Task 3).
+- Produces: nothing new consumed elsewhere — leaf catalog entry.
+
+This chip reuses UC2's existing A2A vehicle (`hand off to a specialist` → `get_portfolio_summary`, same `A2A_PER_VERTICAL` mapping) rather than inventing a new one — what's new is the evidence step showing a signed credential was issued alongside the bearer-token chain, not a different action.
+
+**Grouping:** UC37 pairs with UC36 (Protect plan's Task 6) — same source research, meant to be browsed together in the catalog. Whichever plan lands first creates a `// --- COUPA/NIQ GAP-CLOSURE DEMO` comment block; whichever lands second inserts inside that same block, adjacent to the other entry, rather than appending elsewhere in the array.
+
+- [ ] **Step 1: Add the catalog entry**
+
+If the `// --- COUPA/NIQ GAP-CLOSURE DEMO` block already exists (Protect's Task 6 landed first), insert UC37 inside it, immediately after UC36. Otherwise create it fresh:
+
+```javascript
+// demo_api_server/config/useCases.js — append after the last UC entry, before the closing `];`
+// --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
+// Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed as a pair.
+{
+  id: 'UC37',
+  useCaseId: 'verified-trust-a2a-assertion',
+  track: 'controls',
+  title: 'Verified Trust — signed agent assertion on A2A delegation',
+  buyerStory: "When an agent hands off to another organization's agent, a bearer token alone doesn't let the receiving side verify the claim offline or prove it later without calling back to the issuer.",
+  pingOneSolution: 'PingOne Credentials issues a signed SD-JWT Verifiable Credential asserting which agent is acting for which user at A2A delegation start; the receiving specialist advertises it as a second security scheme alongside the existing bearer token.',
+  trigger: { type: 'chip', text: 'hand off to a specialist' },
+  expectedOutcome: 'PERMIT',
+  evidence: { tokenChain: ['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'verified-trust-issuance', 'a2a-agent2-actor', 'a2a-exchange2', 'tool-dispatched'], activity: ['token', 'delegate', 'verified-trust', 'authorize', 'mcp'] },
+  codeRefs: [
+    'demo_api_server/services/verifiedTrustService.js',
+    'demo_api_server/services/a2aDelegationService.js',
+    'demo_api_server/services/a2aAgentCardService.js',
+  ],
+  maturity: 'flag:ff_verified_trust_a2a',
+  owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] }, // reuses UC2's mapping — confirm still accurate for the added credential surface before merging
+  whatToSay: 'Same specialist handoff as before — but now the chain carries a signed, independently-verifiable credential too, not just a bearer token the receiving side has to trust blindly.',
+  advanced: false,
+  whatLong: "A2A delegation already proves the chain via RFC 8693 nested-act tokens, but a bearer token only means something to a party that can call back to the issuer. This scenario adds a signed SD-JWT Verifiable Credential at chain start, asserting agent_id/acting_for/scope/chain_id — independently verifiable, portable across an org boundary. Issuance is fail-open: if Credentials issuance fails, the existing bearer-token delegation still completes unaffected.",
+  businessValue: "Directly answers Coupa's cross-boundary trust ask: an external agent receiving a handoff doesn't have to trust a bearer token on faith or maintain a live connection to the issuing org — it can verify the credential's signature offline.",
+  productRoles: {
+    idp:   'Mints the nested-act delegated bearer token exactly as UC2 does.',
+    authz: 'Evaluates the act chain as usual — the credential is additive, not a replacement authorization signal.',
+  },
+  primaryTool: 'get_portfolio_summary',
+  perVertical: A2A_PER_VERTICAL,
+},
+```
+
+Every field is a draft pending real-tenant verification — especially `owasp` (copied from UC2, confirm it still fits once the credential surface is real) and the UC number (re-check for collisions at execution time, same caveat as the Protect plan's Task 6).
+
+- [ ] **Step 2: Regenerate + verify**
+
+Run: `cd demo_api_server && npm run use-cases:gen && npm run use-cases:check`
+Expected: PASS, no diff drift.
+
+Run: `cd demo_api_server && npx jest useCases.primaryTool`
+Expected: PASS for every vertical.
+
+- [ ] **Step 3: Manual verification** — flag ON, entitlement cleared, dispatch UC37 in Super Sports, confirm the ProofStrip/token-chain view shows the `verified-trust-issuance` evidence step between the two A2A exchanges.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add demo_api_server/config/useCases.js
+git commit -m "feat(verified-trust): register UC37 use-case catalog chip"
+```
+
+---
+
 ## Self-review notes
 
-- Spec coverage: entitlement check (blocking gate, deliberately front-loaded given near-certain licensing gap) → issuance service → fail-open wiring into the one place that matters (chain start) → Agent Card advertisement → education-panel truth update. Covers "agent-to-user binding, portable claims across org boundaries" from the comparison doc.
+- Spec coverage: entitlement check (blocking gate, deliberately front-loaded given near-certain licensing gap) → issuance service → fail-open wiring into the one place that matters (chain start) → Agent Card advertisement → education-panel truth update → use-case catalog registration so the feature is chip-dispatchable like every other UC. Covers "agent-to-user binding, portable claims across org boundaries" from the comparison doc plus this session's follow-up ask.
 - Fail-open by design (Task 2, Step 4): Verified Trust issuance failing must never break the existing, working bearer-token A2A delegation — this is the single most important constraint in this plan given how much is unconfirmed about tenant entitlement.
 - Explicitly NOT in scope: a wallet UI, credential revocation flow, or cross-organization verification by a real external relying party (Coupa's actual ask implies a second organization verifying the claim — this plan only gets as far as *issuing* a verifiable one; a second demo tenant or mock relying-party verifier would be a separate follow-up plan).
+- Task 5's catalog entry reuses UC2's `owasp` mapping as a starting point — don't ship it unverified; the credential surface may warrant its own threat/section mapping.
