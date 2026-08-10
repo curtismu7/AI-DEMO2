@@ -481,8 +481,77 @@ git commit -m "feat(protect): surface risk evaluation in ProofStrip evidence"
 
 ---
 
+### Task 6: Register as a use-case catalog chip (UC36)
+
+**Files:**
+- Modify: `demo_api_server/config/useCases.js` — append a new entry to the `USE_CASES` array, after `UC35` (id numbering is contiguous 1-35 today; confirm with `grep -oE "id: 'UC[0-9.]+'" demo_api_server/config/useCases.js | sort -t'C' -k2 -n -u` before picking the number, in case another UC landed first).
+- Regenerate: run whatever `npm run use-cases:gen` / `npm run use-cases:check` scripts exist per `demo_api_server/CLAUDE.md` ("Generated artifacts... use-cases... code-generated. After changing their sources run the matching `npm run *:gen`, then `npm run *:check`").
+- Verify: `demo_api_server/tests/useCases.primaryTool.test.js` (or wherever that pre-push gate lives today) must pass for every vertical — it fails loudly if a vertical has no stored `primaryTool` entry for this chip, per the `chip-correctness-testing` skill.
+
+**Interfaces:**
+- Consumes: `ff_protect_agent_dispatch` (Task 1), the `protect_risk_evaluation` evidence row (Task 5).
+- Produces: nothing new consumed elsewhere — this is a leaf catalog entry.
+
+This chip doesn't need a new tool — Protect risk evaluation wraps *every* `/api/agent/invoke` call when the flag is ON, so the demo vehicle is the same balance-check chip UC1 already uses (`show my balance` → `get_account_balance`). What's new is the evidence: with the flag ON, that same action now carries a live Protect risk decision in its ProofStrip trail.
+
+- [ ] **Step 1: Add the catalog entry**
+
+```javascript
+// demo_api_server/config/useCases.js — append after the UC35 entry, before the closing `];`
+{
+  id: 'UC36',
+  useCaseId: 'protect-agent-dispatch-risk',
+  track: 'controls',
+  title: 'Protect — agent-dispatch risk evaluation',
+  buyerStory: "Before an AI agent acts, a security team wants to know the dispatching request itself wasn't automated/bot traffic pretending to be a legitimate session.",
+  pingOneSolution: 'PingOne Protect scores a client-collected device signal at agent-dispatch time; PERMIT proceeds normally, a high-risk BLOCK stops the agent before it ever calls a tool.',
+  trigger: { type: 'chip', text: 'show my balance' },
+  expectedOutcome: 'PERMIT',
+  evidence: { tokenChain: ['user-token', 'protect-risk-evaluation', 'tool-dispatched'], activity: ['token', 'protect', 'mcp'] },
+  codeRefs: [
+    'demo_api_server/services/protectRiskService.js',
+    'demo_api_server/middleware/protectRiskGate.js',
+    'demo_api_ui/src/services/protectSignalService.js',
+  ],
+  maturity: 'flag:ff_protect_agent_dispatch',
+  owasp: { threats: ['T2'], sections: ['§4.1.2'] }, // confirm the real OWASP-for-LLM/agent threat + section ids against whatever mapping doc UC1/UC21 cite — placeholders until checked
+  whatToSay: 'Same balance chip as before — but now every dispatch gets a live Protect risk decision before the agent runs, not just an authenticated token.',
+  advanced: false,
+  whatLong: "An AI agent dispatch request looks identical to a legitimate one at the token layer — a valid bearer token doesn't prove the request wasn't scripted/automated traffic. This scenario adds a PingOne Protect risk evaluation at the dispatch boundary, scoring a client-collected device signal before the agent is allowed to run. A BLOCK recommendation stops the request before any tool call, not after.",
+  businessValue: "Coupa's own framing: 'is this an agent acting outside approved bounds' is a bot/automation question at the dispatch layer, not just an authorization-policy question. Protect answers that without agent-side code — the demo shows the check happening centrally, once, in the BFF gate.",
+  productRoles: {
+    idp:   'Issues the session/bearer token dispatch still requires underneath the risk check.',
+    authz: 'Unaffected by this chip — Protect runs before Authorize is ever reached on a BLOCK.',
+  },
+  primaryTool: 'get_account_balance',
+  perVertical: READ_PER_VERTICAL,
+},
+```
+
+Treat every field above as a draft — cross-check `owasp.threats`/`sections` against whatever mapping table UC1/UC21 actually cite (don't invent OWASP section numbers), and confirm `READ_PER_VERTICAL` is still the right per-vertical helper for a read-only chip by the time this lands.
+
+- [ ] **Step 2: Regenerate + verify**
+
+Run: `cd demo_api_server && npm run use-cases:gen && npm run use-cases:check`
+Expected: PASS, no diff drift.
+
+Run: `cd demo_api_server && npx jest useCases.primaryTool`
+Expected: PASS for every vertical — if a vertical has no `get_account_balance` mapping, this is where it fails, not silently.
+
+- [ ] **Step 3: Manual verification** — with the flag ON, open the Use Case catalog UI, find UC36, dispatch it in Super Sports, confirm the chip fires and the ProofStrip shows the `protect-risk-evaluation` evidence step from Task 5.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add demo_api_server/config/useCases.js
+git commit -m "feat(protect): register UC36 use-case catalog chip"
+```
+
+---
+
 ## Self-review notes
 
-- Spec coverage: entitlement check (blocking gate) → flag → server risk service → gating middleware → client signal collection → forensic surfacing. All five "what would real integration require" pieces from the comparison doc are covered.
+- Spec coverage: entitlement check (blocking gate) → flag → server risk service → gating middleware → client signal collection → forensic surfacing → use-case catalog registration so the feature is chip-dispatchable and demo-discoverable like every other UC. All six pieces the comparison doc + this session's follow-up ask required are covered.
 - Known open question carried into Task 2/4: the exact PingOne Protect risk-evaluations request/response shape and Signals SDK distribution are illustrative until the entitlement check confirms them against the real tenant — do not merge Task 2/Task 4 code without that live verification.
 - `CHALLENGE` recommendation is recorded but not enforced (no step-up UI) — intentionally out of scope for this plan; call it out as a explicit follow-up, not a silent gap.
+- Task 6's catalog entry is a draft — `owasp` mapping and UC number are placeholders pending a fresh check against `useCases.js` at execution time (another UC or OWASP doc could shift between now and then).
