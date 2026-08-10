@@ -121,10 +121,15 @@ The registered value is **not** what the console displays — the console shows 
 `…applications.procyon.ai` one. Read it from the API:
 
 ```bash
-# Cookie: auth_token=<console session JWT>;  x-procyon-session-id: <session id>
-GET https://console.privilege.pingone.com/api/<tenant>/v1/applications?ObjectMeta.Namespace=default
-# -> .Applications[].Spec.MCPAppConfig.FrontEndName.Elems
+curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -b "auth_token=$TOK" -H "x-procyon-session-id: $SID" -H 'accept: application/json' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['Applications'][0]['Spec']['McpAppConfig']['FrontEndName'])"
 ```
+
+`McpAppConfig`, not `MCPAppConfig` — the wrong casing reads as `undefined` instead of
+failing. `TOK` and `SID` come from devtools and last ~60 minutes; full recipe and the
+other collections (`/v1/pacpolicys` for access policies) in `docs/PRIVILEGE-MCP.md`
+§"the console API reads the real config".
 
 Use a **variable** upstream plus `resolver 127.0.0.11`, or nginx refuses to start with
 `host not found in upstream` whenever the proxy is down.

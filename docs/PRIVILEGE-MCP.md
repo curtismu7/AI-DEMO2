@@ -1362,15 +1362,19 @@ MCP application and closing the request.
 
 Different domain — `procyon.ai`, the pre-Ping branding. Every hostname tried on
 2026-08-10, **including the one the console displayed**, missed for that reason. Read
-the true value from the API, never from the UI:
+the true value from the API, never from the UI — the recipe is already in this document
+under §"the console API reads the real config", and the field is
+`.Applications[0].Spec.McpAppConfig.FrontEndName.Elems`:
 
+```bash
+curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
+  -b "auth_token=$TOK" -H "x-procyon-session-id: $SID" -H 'accept: application/json' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['Applications'][0]['Spec']['McpAppConfig']['FrontEndName'])"
 ```
-GET https://console.privilege.pingone.com/api/<tenant>/v1/applications?ObjectMeta.Namespace=default
-    Cookie: auth_token=<console session JWT>
-    x-procyon-session-id: <session id>
 
--> .Applications[].Spec.MCPAppConfig.FrontEndName.Elems
-```
+Note the casing: **`McpAppConfig`**, not `MCPAppConfig`. Prose in earlier PR
+descriptions used the latter; the object does not, and the wrong spelling reads as
+`undefined` rather than failing loudly.
 
 ### The fix, in this repo
 

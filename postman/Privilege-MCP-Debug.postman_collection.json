@@ -221,9 +221,32 @@
         "if (pm.response.code === 200) {",
         "  const apps = pm.response.json().Applications || [];",
         "  apps.forEach(a => console.log(a.ObjectMeta && a.ObjectMeta.Name, '->',",
-        "    JSON.stringify(((a.Spec||{}).MCPAppConfig||{}).FrontEndName)));",
+        "    JSON.stringify(((a.Spec||{}).McpAppConfig||{}).FrontEndName)));",
+        "  console.log('Key is McpAppConfig, not MCPAppConfig — wrong casing reads as undefined.');",
         "  console.log('Use FrontEndName.Elems as the Host header / $mcpgw_frontend map value.');",
         "  console.log('It will NOT match what the console UI displays.');",
+        "} else { console.log(pm.response.text().slice(0,300)); }"
+      ]}}]
+    },
+    {
+      "name": "13. Console API — is a policy still granting access?",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "auth_token={{consoleToken}}" },
+          { "key": "x-procyon-session-id", "value": "{{consoleSession}}" }
+        ],
+        "url": "https://console.privilege.pingone.com/api/{{envId}}/v1/pacpolicys"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code);",
+        "if (pm.response.code === 200) {",
+        "  const body = pm.response.json();",
+        "  const list = body.PacPolicys || body.Items || body.items || [];",
+        "  console.log('policies:', list.length);",
+        "  list.forEach(p => console.log(' -', JSON.stringify((p.ObjectMeta||{}).Name), JSON.stringify(p.Spec||{}).slice(0,300)));",
+        "  console.log('An EMPTY list is why tool calls answer \"User … doesn\\'t have access to MCP app\".');",
+        "  console.log('Policies can be created time-boxed (1h, 2h) — an expired one fails the same way.');",
         "} else { console.log(pm.response.text().slice(0,300)); }"
       ]}}]
     }
