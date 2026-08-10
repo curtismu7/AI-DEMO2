@@ -102,6 +102,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Kill switch's session-invalidate step was also Redis-only ("0 session key(s) removed", every time)
+
+**Files changed:** `demo_api_server/services/lmdb/sessionStore.js` (+ test),
+`demo_api_server/services/killSwitchService.js` (+ test)
+
+**What was broken:** follow-up to the enforcement-flag fix below —
+`invalidateSessionsInRedis()` (the "Invalidate this agent's local sessions"
+checklist step) was left Redis-only on purpose at the time, since it needs a
+pattern-scan the generic `express-session` Store interface doesn't have.
+Live-verified it always reported "0 session key(s) removed" on this
+deployment, same root cause as the enforcement flag: no Redis, no `.client`.
+
+**What was fixed:** added `LmdbSessionStore.deleteByPrefix(prefix)` — not
+part of the standard `express-session` Store interface, a small addition
+alongside the class's existing internal `_cleanup()` range-scan — bulk
+deletes every entry whose key starts with `prefix` via `_db.getRange()` +
+`removeSync()`. `invalidateSessionsInRedis()` now calls
+`sessionStore.deleteByPrefix('agent:<id>:')` when the store provides it,
+falling back to the original Redis `SCAN`/`unlink` path otherwise. Runs
+before the enforcement-flag write in `killAgent()`'s step order, so it can
+never delete the flag it's about to set in the same call. Verified against
+the real `LmdbSessionStore` class (not just a mock) — writes 3 keys across
+2 agents, deletes only the 2 belonging to the target agent, confirms the
+third (a different agent's key) survives.
+
+**Remaining gap, still out of scope:** `agentRateLimit.js`'s actual
+rate-limiting counters (`checkAutoKill`, request/violation counting,
+`NX`/`EX` Redis semantics) are still Redis-only — real concurrency-sensitive
+counter logic, needs its own pass, not a quick fix.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/killSwitchService.test.js src/__tests__/lmdbSessionStore` (25/25); direct sanity check against the real `LmdbSessionStore` class round-trips correctly.
+
 ### 2026-08-10 — Kill switch's enforcement flag never actually enforced anything (Redis-only code, LMDB deployment)
 
 **Files changed:** `demo_api_server/services/killSwitchService.js` (+ test)
