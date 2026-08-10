@@ -65,6 +65,14 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 .cp-node.dead .ndot{background:var(--danger);box-shadow:none}
 .cp-node.hit .ndot{animation:cphit .4s ease}
 @keyframes cphit{0%{transform:scale(1)}40%{transform:scale(1.7)}100%{transform:scale(1)}}
+/* source filter chips */
+.cp-source-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;position:relative;z-index:2}
+.cp-source-chip{font-size:11px;letter-spacing:.3px;padding:4px 10px;border-radius:999px;cursor:pointer;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#e8eef7;opacity:.75;
+  transition:background .15s,border-color .15s,opacity .15s}
+.cp-source-chip:hover{opacity:1}
+.cp-source-chip.active{background:rgba(37,99,235,.22);border-color:#2563eb;color:#bfdbfe;opacity:1}
+.cp-source-count{opacity:.65;font-variant-numeric:tabular-nums}
 /* roster */
 .cp-rows{margin-top:8px;display:flex;flex-direction:column;gap:6px;position:relative;z-index:2}
 .cp-row{display:grid;grid-template-columns:18px 1fr auto auto;align-items:center;gap:10px;

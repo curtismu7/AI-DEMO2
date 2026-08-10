@@ -23,10 +23,10 @@ vi.mock("../services/controlPlaneApi", () => ({
 import ControlPlaneRoster from "../components/ControlPlaneRoster";
 
 const ROSTER = {
-  live: { id: "demo-agent", kind: "live", label: "Live Agent (Super Banking)", provider: "helix", providerLabel: "Helix only", status: "active" },
+  live: { id: "demo-agent", kind: "live", label: "Live Agent (Super Banking)", provider: "helix", providerLabel: "Helix only", source: "this-app", sourceLabel: "This App", status: "active" },
   demo: [
-    { id: "chatgpt", platform: "ChatGPT", label: "ChatGPT", status: "active" },
-    { id: "glean", platform: "Glean", label: "Glean", status: "active" },
+    { id: "chatgpt", platform: "ChatGPT", label: "ChatGPT", status: "active", source: "azure", sourceLabel: "Azure" },
+    { id: "glean", platform: "Glean", label: "Glean", status: "active", source: "gcp", sourceLabel: "GCP" },
   ],
 };
 
@@ -52,6 +52,23 @@ describe("ControlPlaneRoster", () => {
     // self-explaining teaching copy is present
     expect(screen.getByText(/What this is:/i)).toBeInTheDocument();
     expect(screen.getByText(/the business value/i)).toBeInTheDocument();
+  });
+
+  it("filters the roster by source chip", async () => {
+    const { container } = render(<ControlPlaneRoster />);
+    await waitFor(() => expect(rosterRow("ChatGPT")).toBeTruthy());
+    expect(rosterRow("Glean")).toBeTruthy();
+
+    const chip = (label) =>
+      Array.from(container.querySelectorAll(".cp-source-chip")).find((el) => el.textContent.startsWith(label));
+
+    fireEvent.click(chip("Azure"));
+    expect(rosterRow("ChatGPT")).toBeTruthy();
+    expect(rosterRow("Glean")).toBeFalsy();
+
+    fireEvent.click(chip("All"));
+    expect(rosterRow("ChatGPT")).toBeTruthy();
+    expect(rosterRow("Glean")).toBeTruthy();
   });
 
   it("stops a demo agent via the control-plane API", async () => {

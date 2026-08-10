@@ -4,17 +4,17 @@ const {
   USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases,
 } = require('../../config/useCases');
 
-const TRACKS = ['foundations', 'controls', 'attacks', 'hitl', 'tools', 'learn', 'demo'];
+const TRACKS = ['foundations', 'controls', 'attacks', 'hitl', 'tools', 'learn', 'demo', 'nhi'];
 const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
-// 'tools' and 'learn' are utility/link-type cards (no scenario run), so they
-// carry no OWASP threat mapping or product-role narrative.
-const UTILITY_TRACKS = ['tools', 'learn'];
+// 'tools', 'learn', and 'nhi' are utility/link-type cards (no scenario run), so
+// they carry no OWASP threat mapping or product-role narrative.
+const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 51 use cases including UC1..UC32, UC33..UC35, and UC37', () => {
-    expect(USE_CASES).toHaveLength(51);
+  test('contains all 53 use cases including UC1..UC32, UC33..UC35, UC37, and UC-NHI1/2', () => {
+    expect(USE_CASES).toHaveLength(53);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(51);
+    expect(new Set(ids).size).toBe(53);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -31,6 +31,8 @@ describe('useCases catalog SoT', () => {
     expect(ids).toContain('UC35');
     // UC36 (Protect) is a separate, not-yet-built plan — only UC37 exists today.
     expect(ids).toContain('UC37');
+    expect(ids).toContain('UC-NHI1');
+    expect(ids).toContain('UC-NHI2');
   });
 
   test('every entry is schema-valid', () => {
@@ -200,9 +202,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 51 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(51);
-    expect(listUseCases()).toHaveLength(51);
+  test('listUseCases returns all 53 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(53);
+    expect(listUseCases()).toHaveLength(53);
   });
 
   test('only UC14 and UC15 are advanced', () => {

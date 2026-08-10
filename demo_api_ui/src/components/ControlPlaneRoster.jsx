@@ -31,6 +31,7 @@ export default function ControlPlaneRoster() {
   const [busy, setBusy] = useState(false);
   const [transient, setTransient] = useState({}); // id -> { pulse, hit, flashrow }
   const [showLiveModal, setShowLiveModal] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [liveKillScope, setLiveKillScope] = useState("instance");
   const mounted = useRef(true);
 
@@ -162,6 +163,11 @@ export default function ControlPlaneRoster() {
   if (live) allRows.push({ ...live, isLive: true });
   demo.forEach((d) => allRows.push({ ...d, isLive: false }));
 
+  const sourceOptions = Array.from(
+    new Map(allRows.filter((a) => a.source).map((a) => [a.source, a.sourceLabel || a.source])).entries()
+  );
+  const visibleRows = sourceFilter === "all" ? allRows : allRows.filter((a) => a.source === sourceFilter);
+
   const N = demo.length;
   const anchorX = 50;
 
@@ -244,8 +250,26 @@ export default function ControlPlaneRoster() {
         })}
       </div>
 
+      {sourceOptions.length > 0 && (
+        <div className="cp-source-filters">
+          <button
+            type="button"
+            className={`cp-source-chip${sourceFilter === "all" ? " active" : ""}`}
+            onClick={() => setSourceFilter("all")}
+          >All <span className="cp-source-count">{allRows.length}</span></button>
+          {sourceOptions.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`cp-source-chip${sourceFilter === id ? " active" : ""}`}
+              onClick={() => setSourceFilter(id)}
+            >{label} <span className="cp-source-count">{allRows.filter((a) => a.source === id).length}</span></button>
+          ))}
+        </div>
+      )}
+
       <div className="cp-rows">
-        {allRows.map((a) => {
+        {visibleRows.map((a) => {
           const t = transient[a.id] || {};
           const cls = ["cp-row", a.isLive ? "live" : "", a.status === "revoked" ? "dead" : "", t.pulse ? "cp-pulse" : "", t.flashrow ? "flashrow" : ""].join(" ").trim();
           const revoked = a.status === "revoked";
