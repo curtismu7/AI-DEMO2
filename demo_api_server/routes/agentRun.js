@@ -26,14 +26,33 @@ const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 const { agentRunStore } = require('../services/agentRunStore');
 const verticalDispatch = require('../services/verticalDispatch');
-const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
+const { agentGuestSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenService');
 const { guardPromptInput } = require('../services/promptGuard');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
+// Public catalog actions a signed-out visitor may run. UC24 ("What branches are
+// near me?") is the documented progressive-trust entry point: no Authorize, no
+// Gateway, no token exchange. Keep this list minimal — anything absent is
+// refused, which is what makes the gate in POST /run fail closed.
+const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours']);
+
 const router = express.Router();
-router.use(agentSessionMiddleware);
+// Guest-tolerant, matching /api/agent/invoke. The strict middleware returned a
+// blanket 401 session_expired for every signed-out prompt, which killed the
+// documented public paths — UC24's "What branches are near me?" is defined as
+// skipping PingOne Authorize, the Agent Gateway and token exchange entirely,
+// yet it could not run from the composer.
+//
+// This does not widen access. agentGuestSessionMiddleware delegates to
+// agentSessionMiddleware verbatim whenever a session exists, so the signed-in
+// path is untouched; a guest gets agentContext=null, which this file already
+// handles (`req.agentContext || {}`, `req.agentContext?.userId`). Protected
+// tools still refuse a guest downstream — "show my balance" answers
+// "Sign in to use the banking agent" — which is the same behaviour
+// /api/agent/invoke has shipped with all along.
+router.use(agentGuestSessionMiddleware);
 
 // ---------------------------------------------------------------------------
 // AG-UI trace store — persists run events for /runs/:runId/events retrieval
@@ -184,8 +203,36 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
   }
 
   const { userId, email: userEmail, accessToken, tokenEvents: sessionTokenEvents } = req.agentContext || {};
+
+  // Signed-out callers are allowed ONLY for the public catalog actions, which
+  // are defined as skipping PingOne Authorize, the Agent Gateway and token
+  // exchange (UC24 in demo_api_server/config/useCases.js). Everything else
+  // keeps the 401 this route has always returned.
+  //
+  // Fail closed by construction: the allowlist is explicit and the default is
+  // still refusal, matching the `noAuthTools` pattern in routes/mcpInspector.js.
+  // This matters more here than elsewhere — agentRun does NOT execute tools via
+  // mcpToolPipeline, so it does not inherit that pipeline's mcpNoBearerResponse
+  // denial. This gate is the only thing between a guest and a protected tool.
   if (!userId || !accessToken) {
-    return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+    const guestMsg = [...(req.body?.messages || [])].reverse().find((m) => m && m.role === 'user');
+    const guestPrompt = typeof guestMsg?.content === 'string'
+      ? guestMsg.content
+      : JSON.stringify(guestMsg?.content ?? '');
+    // parseHeuristic, not extractIntentAndConfidence: the latter returns
+    // intent "unknown" for this prompt, while the heuristic resolves the actual
+    // banking action ("branch_hours") — the same result /api/demo-agent/nl
+    // returns for the UC24 chip.
+    let guestAction = '';
+    try {
+      const { parseHeuristic } = require('../services/nlIntentParser');
+      guestAction = String(parseHeuristic(guestPrompt)?.banking?.action || '');
+    } catch {
+      guestAction = '';
+    }
+    if (!PUBLIC_GUEST_ACTIONS.has(guestAction)) {
+      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+    }
   }
 
   // Parse request body
