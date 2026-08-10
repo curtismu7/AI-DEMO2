@@ -223,6 +223,22 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [activeStepId, setActiveStepId] = useState(null);
   // Presenter overlay — the same steps at projector size. Purely a second view.
   const [presenting, setPresenting] = useState(false);
+  // Chain-view tab: the card stacked TWO renderings of the same chain (the
+  // node map with Run/Present, then the step-detail list), which doubled the
+  // column height and buried the page bottom. Tabs show one at a time;
+  // 'detail' is the default ("If we pick one then I want the bottom one with
+  // the detail", 2026-08-10). Persisted so a presenter's pick survives reloads.
+  const [chainView, setChainView] = useState(() => {
+    try {
+      return localStorage.getItem("tctr_chain_view") === "map" ? "map" : "detail";
+    } catch {
+      return "detail";
+    }
+  });
+  const pickChainView = (v) => {
+    setChainView(v);
+    try { localStorage.setItem("tctr_chain_view", v); } catch { /* private mode */ }
+  };
   // The rail's settings tray: view mode, text size, Clear and Legend. They left
   // the header so the visible toolbar is Views and More, not twenty controls.
   const [moreOpen, setMoreOpen] = useState(false);
@@ -511,6 +527,29 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
           )}
           <DemoTrackBand track={track} activeIndex={trackIndex} onSelect={onTrackSelect} />
+          {/* One rendering at a time — Chain Map (presenter-facing nodes +
+              Run/Present) or the Step Detail list. */}
+          <div className="tctr-chain-tabs" role="tablist" aria-label="Token chain view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chainView === "detail"}
+              className={chainView === "detail" ? "active" : ""}
+              onClick={() => pickChainView("detail")}
+            >
+              Step Detail
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chainView === "map"}
+              className={chainView === "map" ? "active" : ""}
+              onClick={() => pickChainView("map")}
+            >
+              Chain Map
+            </button>
+          </div>
+          {chainView === "map" && (
           <TokenChainNodeRail
             steps={steps}
             activeId={activeStepId}
@@ -522,7 +561,9 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               setActiveStepId(id);
               // TraceStepCard already renders data-step-id on its <details>, so
               // the map can reveal a card without either component knowing about
-              // the other's internals.
+              // the other's internals. On the map tab the cards are not mounted;
+              // the querySelector simply finds nothing and the node stays the
+              // selection indicator.
               const card = railRef.current?.querySelector(`.tctr-step[data-step-id="${id}"]`);
               if (card) {
                 card.open = true;
@@ -530,7 +571,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               }
             }}
           />
-          {activeStepId ? (
+          )}
+          {chainView === "map" && activeStepId ? (
             <StepDetailPanel
               step={steps.find((s) => s.id === activeStepId)}
               onInspect={onInspect}
@@ -545,7 +587,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             />
           ) : null}
 
-          {steps.map((step) => (
+          {chainView === "detail" && steps.map((step) => (
             <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}
 

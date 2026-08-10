@@ -465,6 +465,31 @@ Ruled out by experiment, so nobody repeats them:
   `openid-configuration`) returns the same 401, so `discoverAuth()` learns nothing and
   falls back to this environment — which is exactly the issuer being rejected.
 
+### 2026-08-10 re-confirmation — the *trusted* issuer's OAuth token is still rejected
+
+The 2026-08-03 write-up minted from environment `01d89b06` and reasoned that Privilege
+rejected it for being the *wrong issuer*. `PRIVILEGE_SSO_ENV_ID` now points at the
+**Privilege tenant `8d4d7a4c`** — the exact issuer whose console token *does* clear
+authentication. Re-ran the probe against that trusted issuer:
+
+```bash
+# client_credentials from the SSO app (deff60f5) in env 8d4d7a4c:
+#   header  {"kid":"b3676630-…","alg":"RS256"}     <- a normal PingOne JWKS kid
+#   payload {"iss":"https://auth.pingone.com/8d4d7a4c-…/as", ...}
+# relayed through the BFF (mTLS) to the registered frontend:
+401 Authorization header JWT parsing failed JWT signature validation failed
+```
+
+Same issuer as the working console token, and still rejected. So the wall is **not** the
+issuer environment — it is the **signer**: the gateway trusts only `kid: infra-root-jwt`
+(Privilege's internal signer, carried by the console session cookie), never a token signed
+by the environment's published JWKS. A standard OAuth **user** token from *any* PingOne
+environment — including the Privilege tenant itself — is JWKS-signed, so the "Sign in with
+Privilege" button can never mint a bearer the gateway accepts. **Console token is the only
+path**; the OAuth flow (`/auth/start` → callback → relay) is code-complete and correct, but
+dies at the gateway's signature check by design. Nothing in env, config, discovery, scopes,
+or the OIDC endpoints changes this (all ruled out above).
+
 ### Independent confirmation from the environment side
 
 Enumerating all **25 resources** in environment `01d89b06` shows why no token minted here

@@ -102,6 +102,108 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Kill switch's session-invalidate step was also Redis-only ("0 session key(s) removed", every time)
+
+**Files changed:** `demo_api_server/services/lmdb/sessionStore.js` (+ test),
+`demo_api_server/services/killSwitchService.js` (+ test)
+
+**What was broken:** follow-up to the enforcement-flag fix below —
+`invalidateSessionsInRedis()` (the "Invalidate this agent's local sessions"
+checklist step) was left Redis-only on purpose at the time, since it needs a
+pattern-scan the generic `express-session` Store interface doesn't have.
+Live-verified it always reported "0 session key(s) removed" on this
+deployment, same root cause as the enforcement flag: no Redis, no `.client`.
+
+**What was fixed:** added `LmdbSessionStore.deleteByPrefix(prefix)` — not
+part of the standard `express-session` Store interface, a small addition
+alongside the class's existing internal `_cleanup()` range-scan — bulk
+deletes every entry whose key starts with `prefix` via `_db.getRange()` +
+`removeSync()`. `invalidateSessionsInRedis()` now calls
+`sessionStore.deleteByPrefix('agent:<id>:')` when the store provides it,
+falling back to the original Redis `SCAN`/`unlink` path otherwise. Runs
+before the enforcement-flag write in `killAgent()`'s step order, so it can
+never delete the flag it's about to set in the same call. Verified against
+the real `LmdbSessionStore` class (not just a mock) — writes 3 keys across
+2 agents, deletes only the 2 belonging to the target agent, confirms the
+third (a different agent's key) survives.
+
+**Remaining gap, still out of scope:** `agentRateLimit.js`'s actual
+rate-limiting counters (`checkAutoKill`, request/violation counting,
+`NX`/`EX` Redis semantics) are still Redis-only — real concurrency-sensitive
+counter logic, needs its own pass, not a quick fix.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/killSwitchService.test.js src/__tests__/lmdbSessionStore` (25/25); direct sanity check against the real `LmdbSessionStore` class round-trips correctly.
+
+### 2026-08-10 — Kill switch's enforcement flag never actually enforced anything (Redis-only code, LMDB deployment)
+
+**Files changed:** `demo_api_server/services/killSwitchService.js` (+ test)
+
+**What was broken:** live-verified the kill-switch result checklist (after
+fixing it to survive the session teardown, same day) and its "Arm the
+next-request block" step reported "Skipped — the session store was
+unreachable." Traced it: this deployment has no Redis at all (checked the
+running container's env — nothing) — the real session store is
+`LmdbSessionStore` (`services/lmdb/sessionStore.js`), a standard
+`express-session` Store (`get`/`set`/`destroy`, callback-based) with no
+`.client` property. `isAgentRevoked()` and the flag-arm write in
+`killAgent()` both gated on `sessionStore.client` and called Redis-only
+methods (`.client.get`, `.client.setex`). That gate can never pass against
+LmdbSessionStore, so on this deployment (and any deployment without Redis
+configured) the flag was never written, and — more importantly —
+`isAgentRevoked()` (which `agentRateLimit.js` calls before every agent tool
+call) always returned `false`. The "next call gets rejected" claim this
+whole feature's copy makes was not actually true here.
+
+**What was fixed:** `isAgentRevoked()` and the flag-arm write now go through
+the generic `express-session` Store interface (`sessionStore.get(key, cb)` /
+`sessionStore.set(key, value, cb)`) instead of a Redis-specific client —
+works identically against `LmdbSessionStore` and a Redis-backed store (e.g.
+`connect-redis`, which implements the same Store interface). Verified
+against the real `LmdbSessionStore` class directly (not just a mock) — a
+round-trip `set`/`get` returns the written value correctly.
+
+**Known remaining gap, explicitly out of scope for this fix (user decision):**
+`agentRateLimit.js`'s actual rate-limiting counters (`checkAutoKill`, request/
+violation counting) are ALSO Redis-only (`sessionStore.client.set/incr/unlink`
+with Redis `NX`/`EX` semantics) — separately broken on this deployment. Real
+concurrency-sensitive counter logic, not a simple flag; needs its own pass,
+not a quick fix. `invalidateSessionsInRedis()` (the Redis `SCAN`-based bulk
+session-wipe, "0 session key(s) removed" in the checklist) is also
+Redis-only and was left alone per explicit scope decision — LMDB has no
+pattern-scan primitive, would need a small helper added to
+`LmdbSessionStore` itself.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/killSwitchService.test.js middleware/agentRateLimit` (18/18 + 17/17); direct sanity check against the real `LmdbSessionStore` class round-trips correctly.
+
+### 2026-08-10 — Privilege config lived in the container; stale .env would break it on recreate
+
+**Files changed:** `demo_api_server/services/startupConfigGuard.js` (+ test);
+local `.env` realigned (not committed — gitignored).
+
+**What was broken:** the working Privilege MCP config (SSO env `8d4d7a4c`, client
+`deff60f5`) lived only in the RUNNING `ai-demo-api-server` container (env frozen at
+create time). Root `.env` had drifted to a stale/broken state — `PRIVILEGE_SSO_ENV_ID`
+= the banking env `01d89b06` (whose issuer the gateway rejects) and a dead
+`PRIVILEGE_MCPGW_URL` host (`banking.mcpgw…`, which does not resolve). A
+`docker compose up`/recreate would have silently reverted Privilege to the broken
+config and killed console-token sign-in.
+
+**What was fixed:** realigned `.env` to the working runtime (SSO env/client/secret +
+`PRIVILEGE_MCPGW_URL` → `mcp-pingone-admin.mcpgw.local.ping-devops.com`, the nginx
+front the console-token path uses). Added a boot-time guard
+`warnIfPrivilegeConfigRegressed()` that WARNs (never fatal) on the two smoking guns:
+`PRIVILEGE_SSO_ENV_ID === PINGONE_ENVIRONMENT_ID`, and the dead `banking.mcpgw` host.
+
+**Do not break:** the guard is advisory only (`console.warn`, never `process.exit`)
+— a Privilege misconfig must not take down BFF boot. It fires only when a Privilege
+gateway is configured. `PRIVILEGE_MCPGW_URL` has one runtime consumer (the Privilege
+page's default `config.mcpUrl`); the console-token path overrides it, so the guard is
+a signal, not a hard dependency.
+
+**Verify:** `jest tests/services/privilegeConfigGuard.test.js` (4/4); live — after a
+BFF restart the boot log shows the `banking.mcpgw` warning (the current ghost).
+
+
 ### 2026-08-10 — Privilege open-access hop: banking data tools returned empty (no user identity)
 
 **Files changed:** `demo_api_server/routes/verticalTool.js`,
