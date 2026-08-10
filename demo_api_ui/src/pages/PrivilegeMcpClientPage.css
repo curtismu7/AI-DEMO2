@@ -1094,7 +1094,31 @@ select.cur-input { cursor: pointer; }
   margin-top: 8px;
   font-size: 12px;
   color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
 }
+.cur-ct-timer { font-family: monospace; font-variant-numeric: tabular-nums; }
+.cur-console-token-status.cur-ct-status--ok { border-color: rgba(74, 222, 128, .4); }
+.cur-console-token-status.cur-ct-status--ok .cur-ct-timer { color: #4ade80; }
+.cur-console-token-status.cur-ct-status--warn { border-color: rgba(250, 204, 21, .5); background: rgba(250, 204, 21, .1); }
+.cur-console-token-status.cur-ct-status--warn .cur-ct-timer { color: #facc15; }
+.cur-console-token-status.cur-ct-status--dead { border-color: rgba(248, 113, 113, .6); background: rgba(248, 113, 113, .12); }
+.cur-console-token-status.cur-ct-status--dead .cur-ct-timer { color: #f87171; font-weight: 700; }
+
+.cur-ct-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cur-ct-grab {
+  margin-top: 8px; padding: 8px; border: 1px solid #2a2a2a; border-radius: 4px;
+  background: #0d0d0d; font-size: 11.5px; color: #cfcfcf; line-height: 1.45;
+}
+.cur-ct-grab p { margin: 0 0 6px; }
+.cur-ct-grab code { color: #7ec8e3; }
+.cur-ide[data-cur-theme="light"] .cur-ct-grab { background: #f0f0f0; border-color: #ddd; color: #333; }
+.cur-ide[data-cur-theme="light"] .cur-ct-grab code { color: #0369a1; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Light mode — page-local, toggled by the Light/Dark button in the title bar
