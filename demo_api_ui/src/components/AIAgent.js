@@ -6586,14 +6586,31 @@ export default function BankingAgent({
         verticalId === "airlines" && result.action === "get_airline_bookings";
       if (isUnitedDatabaseQuery) setUnitedDatabaseQueryLoading(true);
       try {
+        // PingOne MCP tool intents must reach the ADMIN agent route. The parser
+        // returns vertical:'admin' for these (its admin-overlay vocabulary), but
+        // sendAgentMessage routes on 'pingone-admin' — so "list users starting
+        // with demo" fell through to the customer path, where LangGraph ran
+        // listUsers UNFILTERED over all 55+ directory users (reported live
+        // 2026-08-10). Route on the ACTION, and send the user's original text:
+        // the reconstructed "call pingone tool listusers …" form re-parses to
+        // the wrong tool (list_pingone_tools) and loses the sw filter.
+        const isPingOneAdminTool =
+          result.action === "call_pingone_tool" || result.action === "list_pingone_tools";
         // When clarification already filled the missing params, reconstruct a
         // message the heuristic can re-parse with the complete params intact
         // (e.g. "order status 1003" so orderId extraction fires).
         const hasFilledParams = result.params && Object.keys(result.params).length > 0;
-        const agentMessage = hasFilledParams
-          ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
-          : (nlUserText || result.action);
-        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven, ...(useCaseId ? { useCaseId } : {}) };
+        const agentMessage = isPingOneAdminTool
+          ? (nlUserText || result.action)
+          : hasFilledParams
+            ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
+            : (nlUserText || result.action);
+        const verticalOpts = {
+          forceHeuristic: true,
+          vertical: isPingOneAdminTool ? "pingone-admin" : verticalId,
+          consentGiven: !!result.consentGiven,
+          ...(useCaseId ? { useCaseId } : {}),
+        };
         const response = await sendAgentMessage(agentMessage, null, {
           ...verticalOpts,
           onTokenEvent: (ev) => tokenChain?.appendTokenEvent(result.action || "agent", ev),
@@ -6641,9 +6658,12 @@ export default function BankingAgent({
             !isHitlBlock && response.success === false && !response.needsParams
               ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
               : null;
+          // The badge must name the agent that actually answered — an admin-
+          // routed reply labeled CUSTOMER misreads as the wrong agent running.
+          const agentBadge = isPingOneAdminTool ? "[ADMIN AGENT]" : "[CUSTOMER AGENT - LangGraph]";
           const replyWithAgentBadge = isHitlBlock
-            ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
-            : `[CUSTOMER AGENT - LangGraph]\n${failureSentence || response.reply}`;
+            ? `${agentBadge}\nThis action needs your approval before it can run — check the approval prompt.`
+            : `${agentBadge}\n${failureSentence || response.reply}`;
           addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint, clarifyOptions: needsClarifyOptions });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
