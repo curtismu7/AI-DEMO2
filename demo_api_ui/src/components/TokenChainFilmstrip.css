@@ -21,29 +21,74 @@
   align-items: stretch;
 }
 
+/* ── Focus Mode scrolls the PAGE, not a box inside it ──────────────────────
+ *
+ * The app shell pins everything to the viewport: .App, main.main-content,
+ * .customer-skin-p1 and .dashboard-content each carry `flex: 1 1 0%` with
+ * `overflow: hidden`, so every pane is exactly one screen tall and the reply
+ * is confined to a ~370px scroller in the middle of it. Reading a long answer
+ * meant scrolling a small box while the rest of the page sat still.
+ *
+ * These rules release that chain — but ONLY under Focus Mode, matched with
+ * :has(). Every other placement, route and skin keeps the fixed-viewport shell
+ * it was built for. If :has() is unavailable the rules simply do not apply and
+ * the old behaviour stands, which is a safe failure.
+ *
+ * Specificity matters here and the selectors look odd on purpose. The shell is
+ * pinned by `.App:has(.user-dashboard--split3)` in App.css — the same class is
+ * on this layout too — and by `.banking-agent-panel.ba-mode-inline
+ * .ba-split-column .ba-right-col` in AIAgent.css. Both would otherwise win, one
+ * on cascade order and one on weight, so each override below is deliberately
+ * heavier than the rule it replaces. `.App.App` is a specificity bump, not a
+ * typo.
+ */
+.App.App:has(.ud-focus-mode),
+.App.App:has(.ud-focus-mode) main.main-content,
+.App.App:has(.ud-focus-mode) .customer-skin-p1 {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.dashboard-content.ud-body.ud-focus-mode {
+  height: auto;
+  overflow: visible;
+}
+
 .dashboard-content.ud-body.ud-focus-mode > .ud-agent-column {
   grid-area: agent;
   width: auto;
   max-width: none;
   min-width: 0;
-
-  /* .ud-agent-column ships `overflow: clip`. That was harmless while the column
-     sized to its content, but this grid row bounds its height — so a reply
-     longer than the row was cut off with no way to reach the rest of it.
-     Scoped override: inside Focus Mode the column scrolls. */
-  overflow-y: auto;
-
-  /* Give the transcript real room, and let the page scroll rather than
-     squeezing it when the viewport is short. Without this the agent got
-     whatever the grid had left after the chain strip. */
-  min-height: min(74vh, 780px);
+  /* .ud-agent-column ships `overflow: clip`, which cut the reply dead. The
+     column now grows to its content and the document does the scrolling. */
+  height: auto;
+  overflow: visible;
 }
 
-/* The host must be allowed to shrink inside the scrolling column, or it keeps
-   its own intrinsic height and the column never scrolls. */
-.dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-dashboard-inline-agent,
-.dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-dashboard-inline-agent-host {
-  min-height: 0;
+/* The agent's own panes are a nested flex chain that ends in a scroller. Each
+   link has to stop capping, or the transcript keeps its private scrollbar and
+   the page still has nothing to scroll. */
+.ud-focus-mode.ud-focus-mode .embedded-banking-agent,
+.ud-focus-mode.ud-focus-mode .ud-dashboard-inline-agent,
+.ud-focus-mode.ud-focus-mode .ud-dashboard-inline-agent-host,
+.ud-focus-mode.ud-focus-mode .banking-agent-panel,
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-body,
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .ba-body,
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-right-col,
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .ba-right-col {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+/* The reply renders in full — no inner scrollbar, no clipped tail. */
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .banking-agent-messages,
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .banking-agent-messages {
+  flex: 0 0 auto;
+  height: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 /* The column's drag-to-resize width handle fights a two-column grid. */
@@ -58,10 +103,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* Matches the agent column so the two halves stay the same height and the
-     step detail gets the same room the transcript does. */
-  min-height: min(74vh, 780px);
-  overflow: hidden;
+  /* Grows with the page like the agent column; the document scrolls. */
+  height: auto;
+  overflow: visible;
   border-left: 1px solid #e2e8f0;
   background: #ffffff;
 }
@@ -237,11 +281,8 @@
 .tcfs-sheet {
   display: flex;
   flex-direction: column;
-  /* Fill the spotlight column and let .tcfs-sheet-body do the scrolling —
-     min-height:0 is what allows a flex child to shrink below its content. */
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
+  overflow: visible;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
 }
@@ -278,9 +319,7 @@
 .tcfs-sheet-close:hover { border-color: #1d4ed8; color: #1d4ed8; }
 
 .tcfs-sheet-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+  overflow: visible;
   padding: 10px 12px 12px;
 }
 
