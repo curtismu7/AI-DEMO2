@@ -30,6 +30,18 @@ describe('admin agent — environment is fixed server-side', () => {
     expect(prompt).toMatch(/never ask the admin for an environment id/i);
   });
 
+  // "show me all apps that start with Demo" returned all 46 apps: the prompt
+  // only taught the sw-filter pattern for listUsers, so the model called
+  // listApplications bare. The guidance must name the filter field for every
+  // list tool, and must forbid filtering capped rows client-side.
+  it('teaches the sw filter for applications and populations, not just users', () => {
+    const prompt = buildAdminSystemPrompt(null);
+    expect(prompt).toMatch(/username for\s+listUsers/i);
+    expect(prompt).toMatch(/name for listApplications and listPopulations/i);
+    expect(prompt).toMatch(/name sw "Demo"/);
+    expect(prompt).toMatch(/never answer a prefix request by listing everything/i);
+  });
+
   // Independent of the model: a model-supplied environmentId must never reach
   // the adapter — the wrapper replaces it with the CONFIGURED one. The first
   // version of this contract (#1520) dropped the argument entirely, but the
