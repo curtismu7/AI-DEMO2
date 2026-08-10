@@ -97,6 +97,44 @@ router.post('/vertical-tool', authenticateToken, express.json(), async (req, res
   }
 });
 
+// POST /api/path/demo-subject-token — DEV/OPEN-ACCESS ONLY.
+//
+// Mints a real access token for the configured demo user (ROPC) so the MCP
+// server has a valid RFC 8693 subject_token on the open-access Privilege hop,
+// where the forwarded bearer is the un-exchangeable 'disabled' placeholder and
+// banking DATA tools would otherwise fail Step 9 with "cannot parse subject_token".
+//
+// 404 unless MCP_AUTH_DISABLED — the same open-access trust model the flag already
+// declares (the gateway owns authorization on this hop). Never exposed in a normal
+// deployment. Returns { access_token, expires_in } for the demo user only.
+let demoTokenCache = null; // { token, expiresAt }
+router.post('/demo-subject-token', express.json(), async (_req, res) => {
+  if (process.env.MCP_AUTH_DISABLED !== 'true') return res.status(404).json({ error: 'Not found' });
+
+  const username = process.env.DEMO_USER_USERNAME;
+  const password = process.env.DEMO_USER_PASSWORD;
+  if (!username || !password) {
+    return res.status(500).json({ error: 'demo_user_unconfigured' });
+  }
+
+  // Reuse a still-valid token — ROPC is a real network round-trip to PingOne.
+  const now = Date.now();
+  if (demoTokenCache && demoTokenCache.expiresAt - now > 60_000) {
+    return res.json({ access_token: demoTokenCache.token, expires_in: Math.round((demoTokenCache.expiresAt - now) / 1000) });
+  }
+
+  try {
+    const oauthUserService = require('../services/oauthUserService');
+    const data = await oauthUserService.exchangeResourceOwnerPassword(username, password);
+    if (!data?.access_token) return res.status(502).json({ error: 'ropc_no_token' });
+    demoTokenCache = { token: data.access_token, expiresAt: now + ((data.expires_in || 3600) * 1000) };
+    return res.json({ access_token: data.access_token, expires_in: data.expires_in || 3600 });
+  } catch (err) {
+    const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+    return res.status(502).json({ error: 'ropc_failed', message: normalizeAxiosError(err, { label: 'demo-subject-token' }).message });
+  }
+});
+
 module.exports = router;
 // Pure decision function, exported for direct testing: which vertical's
 // implementation serves a tool call. Its session-vs-global precedence is the

@@ -80,6 +80,11 @@ services:
       NODE_ENV: development
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      # Open-access demo flag — same value the mcp-server gets. The BFF reads it
+      # only to gate /api/path/demo-subject-token (mints the demo-user token the
+      # mcp-server needs as a Step 9 subject_token on the Privilege open-access
+      # hop). 404s the endpoint when false. No other BFF behavior keys on it.
+      MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
       # Phase 4 crash guard: unhandled rejections log-and-continue in demo runs
       # (see demo_api_server/utils/crashGuard.js).
       CRASH_GUARD: "1"
