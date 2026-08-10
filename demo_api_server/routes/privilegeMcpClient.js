@@ -432,14 +432,29 @@ router.post('/dev/console-token', express.json({ limit: '256kb' }), async (req, 
   resetMcpState(session);
 
   emitEvent(session, 'mcp', { phase: 'console_token_set', user: payload.user || payload.sub, kid: header.kid });
-  res.json({
+
+  const body = {
     ok: true,
     user: payload.user || payload.sub || null,
     kid: header.kid || null,
     kidMatchesGateway: header.kid === 'infra-root-jwt',
     expiresInMinutes: expiresAt ? Math.round((expiresAt - Date.now()) / 60000) : null,
     mcpUrl,
-  });
+  };
+
+  // The per-client token lives in clientSessions keyed by req.sessionID. With
+  // saveUninitialized:false an unmodified session issues no cookie, so a caller
+  // without an existing banking session would get a fresh sessionID on the next
+  // request and lose the token. Touch + save req.session here so a connect.sid
+  // is set and the following /tools/list reuses the same session.
+  if (req.session) {
+    req.session.privilegeConsoleTokenAt = Date.now();
+    return req.session.save((err) => {
+      if (err) return res.status(500).json({ error: 'Session save failed.' });
+      res.json(body);
+    });
+  }
+  res.json(body);
 });
 
 // POST /config — save config
