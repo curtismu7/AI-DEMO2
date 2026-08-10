@@ -1499,6 +1499,28 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
 }
 
 /**
+ * Pick the accounts the RAR PERMIT demo transfers between.
+ *
+ * Funding matters: taking accounts[0] blindly picked this user's loan (-12000),
+ * so the gateway and PingOne Authorize PERMITted and the banking API then failed
+ * the execution with "Insufficient balance" — a PERMIT demo ending in a 502.
+ * Falls back to the first account when nothing can cover the amount, so the
+ * shortfall still surfaces instead of being hidden.
+ *
+ * @param {Array<{id?: string|number, balance?: number|string}>} accounts
+ * @param {number} amount
+ * @returns {{ from: string|null, to: string|null }}
+ */
+function pickTransferAccounts(accounts, amount) {
+  const list = Array.isArray(accounts) ? accounts.filter((a) => a && a.id != null) : [];
+  if (!list.length) return { from: null, to: null };
+  const source = list.find((a) => Number(a.balance) >= amount) || list[0];
+  const from = String(source.id);
+  const target = list.find((a) => String(a.id) !== from);
+  return { from, to: target ? String(target.id) : null };
+}
+
+/**
  * Intent Binding demo (PERMIT path): mints the same $100 RAR grant UC14's
  * attack path denies, but requests a transfer within the granted cap. The
  * gateway/authz PERMIT and the response carries an 'intent-binding-verified'
@@ -1580,8 +1602,9 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
       try { data = JSON.parse(accountsRpc?.content?.[0]?.text || 'null'); } catch { data = null; }
     }
     const accounts = Array.isArray(data?.accounts) ? data.accounts : [];
-    if (accounts[0]?.id) fromAccountId = String(accounts[0].id);
-    if (accounts[1]?.id) toAccountId = String(accounts[1].id);
+    const picked = pickTransferAccounts(accounts, amount);
+    if (picked.from) fromAccountId = picked.from;
+    if (picked.to) toAccountId = picked.to;
   } catch (acctErr) {
     console.warn('[_runRarPermit] get_my_accounts via gateway failed (non-fatal, using sim ids):', acctErr.message);
   }
@@ -1879,5 +1902,5 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
 
 module.exports = {
   runAttackSim, runIntentBindingDemo, _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, IMPERSONATION_TRANSFER_ARGS },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts },
 };

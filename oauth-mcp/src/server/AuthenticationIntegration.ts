@@ -442,6 +442,17 @@ export class AuthenticationIntegration {
         (await this.authManager.validateTokenScopes(agentToken, requiredScopes)) ||
         (!!alternativeScopes?.length &&
           (await this.authManager.validateTokenScopes(agentToken, alternativeScopes)));
+      if (!hasScopes && process.env.MCP_AUTH_DISABLED === 'true') {
+        // Open-access mode (MCP_AUTH_DISABLED): the caller in front of this
+        // server owns authorization — PingGateway + PingOne Authorize on the
+        // demo hop, the Privilege proxy on its own. Denying here would overrule
+        // a decision that was already made, which is exactly what the flag says
+        // not to do. The check still runs and still logs, so the gap is visible.
+        console.warn(
+          `[AuthenticationIntegration] MCP_AUTH_DISABLED=true — proceeding despite missing scopes [${requiredScopes.join(', ')}]; the gateway owns authorization on this hop`
+        );
+        return { success: true, session };
+      }
       if (!hasScopes) {
         console.log(
           `[AuthenticationIntegration] agentToken missing required scopes [${requiredScopes.join(', ')}]`
