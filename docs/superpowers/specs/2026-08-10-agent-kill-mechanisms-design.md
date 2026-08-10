@@ -1,125 +1,218 @@
-# Agent kill mechanisms — session-scoped flag + loop halt, and nonce-hardened revoke
+# Agent kill mechanisms — session-scoped revocation + active-run audit trail
 
-**Status:** IN PROGRESS — captures what's agreed so far. Not all sections
-finished; open items are marked explicitly. Do not treat this as a green
-light to implement beyond what each section marks as approved.
+**Status:** DESIGN COMPLETE — ready for user review before `writing-plans`.
 
 ## Context
 
 Today's kill switch (`killSwitchService.js`, shipped across PRs #1555,
 #1565, #1586, #1588–#1592, #1597 on 2026-08-10) revokes a caller-supplied
 `agentId` string — every UI trigger built so far either hardcodes it
-(`"default-agent"`) or derives it loosely (`live.id`). Two problems this
-doesn't solve:
+(`"default-agent"`) or derives it loosely (`live.id`). That's a real,
+demonstrated bug: two different users clicking "Stop Agent" on a
+shared-string surface (Use Cases page, Demo steps dropdown, AdminSideNav)
+all target the literal string `"default-agent"` — no per-user isolation.
 
-1. **Coarse targeting.** Two different users clicking "Stop Agent" on a
-   shared-string surface (e.g. the Use Cases page, Demo steps dropdown)
-   both target the literal string `"default-agent"` — no real per-user
-   isolation.
-2. **Denies access, doesn't halt compute.** The enforcement flag
-   (`agentRateLimit.js`'s `isAgentRevoked`) stops the *next* PingOne/MCP
-   call, but if the agent is a runaway loop (e.g. reordering every 15s) or
-   a hijacked process, nothing tells the loop itself to stop running —
-   only its next real network call fails.
+Two scenarios were considered when scoping this: a benign runaway loop
+(bug, no attacker) and a compromised agent (attacker has valid
+credentials). Investigation (2026-08-10) found **no persistent background
+loop tied to agent execution anywhere in this codebase** — every agent
+action is request-scoped, alive only for the duration of one HTTP
+request/SSE response, torn down in a `finally` block when it ends. The
+"reordering every 15s" scenario used to motivate this design does not
+correspond to any real feature; `reorder` (retail vertical) fires once per
+chat message with no timer/cron re-triggering it. This finding narrowed
+the design considerably — see "Rejected approaches" below for what that
+ruled out and why.
 
-Two scenarios in scope: a benign runaway loop (bug, no attacker), and a
-compromised agent (attacker has valid credentials). See
-`project-killswitch-instance-scope` and today's REGRESSION_PLAN §4 entries
-for the existing mechanism this builds on.
+### Prior art (research, 2026-08-10)
 
-## Approach 1 — Session-scoped flag + self-checking loop
+- **Industry practice:** no standardized "kill switch" term. Real
+  mechanisms are cancel APIs plus policy gates — OpenAI's
+  `POST /threads/{id}/runs/{run_id}/cancel`, Anthropic's Agent SDK
+  `query.interrupt()` (their V2 SDK has an open gap for
+  interrupt-without-close — the same "notify a running process vs.
+  destroy the session" tension this design threads), LangGraph's
+  `runs.cancel()` plus checkpointed `interrupt()`/`Command(resume=...)`
+  for HITL pauses. "Circuit breaker" (threshold-triggered auto-pause) and
+  "kill switch" (operator-initiated hard stop) are the terms with real
+  industry traction — this feature is the latter, correctly named.
+  OWASP's Excessive Agency is **LLM06** (not LLM08); the newer **OWASP
+  Agentic AI Threats and Mitigations** doc names kill switches explicitly
+  under T6 (Intent Breaking & Goal Manipulation).
+- **CAEP / SSF (OpenID Foundation):** Continuous Access Evaluation
+  Profile 1.0 went **final Aug 2025** with a `session-revoked` event
+  type — this exact use case — built on RFC 8417 (Security Event Token)
+  and RFC 8935 (push delivery, reaches a *running* receiver directly
+  rather than only gating its next call). Real production use: Okta,
+  Microsoft Entra CAE, Google Workspace, Apple, Cisco Duo, SailPoint,
+  Keycloak (experimental, July 2026). This design's core mechanism
+  (revoke + receiver-side flag check before the next action) already
+  matches what CAEP prescribes for receivers — worth naming the internal
+  event `session-revoked` and citing CAEP rather than inventing bespoke
+  vocabulary.
+- **`draft-klrc-aiagent-auth-03`** (IETF individual draft, 6 Jul 2026,
+  co-authored by Brian Campbell — Ping Identity — with Okta and OpenAI
+  authors): prescribes CAEP/RISC subscriptions for AI agents; states
+  cached tokens **MUST NOT** be used after a revocation notification.
+  Directly validates the shipped revoke-then-check pattern.
+- **GNAP (RFC 9635, published Oct 2024):** cleaner grant-level revocation
+  (`DELETE` the whole grant, no new tokens issuable) than OAuth's
+  per-token `RFC 7009` scope — but near-zero production adoption. Cited
+  as design rationale only; not something to build on.
+- **SpiceDB (AuthZed's Zanzibar implementation)** was evaluated for the
+  active-run registry component and is **the wrong tool for that piece**
+  — Zanzibar-style stores hold the permission graph, not operational
+  metadata (`startedAt`, `tool` name), and writing on every single agent
+  action start/end is high churn against a system tuned for a
+  slowly-changing graph. No production examples found of Zanzibar/SpiceDB
+  used as a live session/run registry; the standard architecture is
+  "SpiceDB for permissions, KV store for live state." SpiceDB **does**
+  fit the *authorization* question this design doesn't currently need —
+  "who may kill which agent" (`agent:X#killer@user:alice`) — called out
+  below as an explicitly out-of-scope future extension, not part of this
+  spec.
 
-**Status: architecture APPROVED. Components/data-flow presented, one open
-question blocking finalization (see below). Error handling and testing not
-yet designed.**
-
-### Architecture (approved)
+## Architecture
 
 Replace the caller-supplied `agentId` string with a server-derived key.
 `killAgent(agentId, ...)`, `isAgentRevoked(agentId)`, and every enforcement
 check keep their existing signatures and storage mechanism (the generic
-`express-session` Store interface — `get`/`set` — already built today) —
-what changes is *what string gets passed in* as that key, and *who decides
-it*.
+`express-session` Store interface — `get`/`set`, already built today) —
+what changes is *what string gets passed in* as that key, and *who
+decides it*.
 
-- New: `deriveAgentKey(req)` — if the caller is hitting a route tied to a
-  real, named live agent (e.g. the Super Banking live agent), returns its
-  real id (unchanged behavior). Otherwise returns
-  `session:<truncated-hash-of-req.sessionID>` — a real per-user, per-login
-  key instead of a shared label.
-- `routes/admin.js`'s kill-switch route, and `agentRateLimit.js`'s
-  `isAgentRevoked` check, both call the same `deriveAgentKey(req)` instead
-  of trusting a client-supplied `:agentId` param. The URL param becomes
-  display/backward-compat only, not the enforcement key.
-- The running loop (self-checking half) polls the *same* flag via the same
-  `isAgentRevoked`/`deriveAgentKey` call at the top of each cycle — so
-  "denied" (auth layer) and "halted" (process layer) are backed by the
-  literal same read, not two mechanisms that could drift apart.
+- New: `deriveAgentKey(req, explicitAgentId)` — the caller passes an
+  explicit real agent id when one exists (e.g. `ControlPlaneRoster`
+  already knows `live.id` for the Super Banking live agent — that path is
+  unchanged). When no explicit id is passed (every `"default-agent"`
+  label call site today: `AdminSideNav`, the Use Cases page, the Demo
+  steps dropdown), it falls back to
+  `session:<truncated-hash-of-req.sessionID>` — a real per-user,
+  per-login key instead of a shared label. This is a caller-side choice,
+  not something `deriveAgentKey` infers from the route.
+- `routes/admin.js`'s kill-switch route and `agentRateLimit.js`'s
+  `isAgentRevoked` check both call the same `deriveAgentKey(req, ...)`
+  instead of trusting a client-supplied `:agentId` param directly. The
+  URL param becomes the `explicitAgentId` input to that function rather
+  than the raw enforcement key.
+- This *is* the security boundary — it blocks every future action for
+  that session. No loop-halting component is needed: there is no loop to
+  halt (see Context). A single in-flight request can still be running
+  when a kill fires; that's the mid-flight-abort item below, explicitly
+  optional.
 
-### Components & data flow (presented, not yet finalized)
+A second, independent component adds audit visibility on top — it does
+not change what gets blocked, only what the operator can see before and
+after clicking Stop.
 
-1. **`services/sessionKeyService.js` (new, small)** — houses
-   `deriveAgentKey(req)`. Single source of truth so `routes/admin.js`,
-   `killSwitchService.js`, and `agentRateLimit.js` can't quietly disagree
-   on what "the agent" means.
-2. **`routes/admin.js`'s kill-switch route** — swap
-   `const { agentId } = req.params` for `const agentId = deriveAgentKey(req)`.
-3. **`agentRateLimit.js`'s `isAgentRevoked` check** — same swap.
-4. **The runaway-loop code itself** — gets one new call at the top of each
-   cycle: `if (await killSwitchService.isAgentRevoked(deriveAgentKey(loopContext))) return;`
+## Components & data flow
+
+### 1. Core enforcement — `deriveAgentKey`
+
+- **`services/sessionKeyService.js`** (new, small) — houses
+  `deriveAgentKey(req, explicitAgentId)`. Single source of truth so
+  `routes/admin.js`, `killSwitchService.js`, and `agentRateLimit.js`
+  can't quietly disagree on what "the agent" means.
+- **`routes/admin.js`'s kill-switch route** — swap
+  `const { agentId } = req.params` for
+  `const agentId = deriveAgentKey(req, req.params.agentId)`.
+- **`agentRateLimit.js`'s `isAgentRevoked` check** — same swap.
 
 **Data flow:** `Stop Agent click → POST /kill-switch → deriveAgentKey(req)
-→ same key for BOTH the enforcement-flag write AND whatever the running
-loop reads` — closes the loop between "who clicked stop" and "which
-running process notices."
+→ same key written by the kill AND read by every subsequent request's
+enforcement check` — a session-scoped kill now actually isolates one
+user's session from another's, closing the coarse-targeting bug.
 
-### OPEN QUESTION — blocks finalizing this approach
+### 2. Audit layer — `services/agentRunRegistry.js` (new)
 
-Where does the 15s-reorder loop actually live?
+Stays on the existing LMDB-backed store — not SpiceDB (see Prior art).
 
-- If it's a persistent server-side process (a `setInterval`/cron-like job
-  in `demo_api_server`), step 4 above is straightforward: add a check to
-  an existing loop.
-- If "the agent" here is actually the LangChain/conversational loop that
-  runs per-request rather than a persistent background process, there is
-  no persistent loop to instrument — this scenario needs a different
-  mechanism than polling (possibly: the per-request handler itself checks
-  the flag before starting work, which is closer to today's existing
-  auth-layer denial than a new capability).
+- `startRun(agentKey, { tool, userId })` — mints a runId (same pattern as
+  the existing `correlationId` middleware), writes
+  `run:<runId> = {agentKey, userId, tool, startedAt}` via the generic
+  Store interface, TTL-capped so a crashed process can't leak an entry
+  forever.
+- `endRun(runId)` — removes it, called in the agent route's `finally`
+  block (mirrors the SSE-keepalive cancellation pattern already present
+  in `langchain_agent/src/api/agui_run_handler.py` and the Node
+  equivalent).
+- Hooks into `routes/agentRun.js` (already has a TTL-sweep at line 134 —
+  natural home for the start/end calls around tool execution).
+- The kill-switch confirm modal fetches active runs for the target
+  `agentKey` before showing "Confirm" — so it says *"This will stop:
+  reorder, started 4s ago"* instead of a blind revoke, or *"Nothing
+  currently running"* if the run already finished. This directly serves
+  the original ask behind this whole feature: explain what's being done
+  and why, not just do it.
 
-This needs an answer before Components/data-flow, error handling, and
-testing can be finalized for Approach 1.
+### 3. Optional/stretch — mid-flight abort as a CAEP-shaped push
 
-### Not yet designed
+Only worth building if real tool calls are slow enough that a running
+request could still be in flight when someone clicks kill (needs a
+latency check against real tool-call timings before committing to this).
 
-- Error handling (what happens if `deriveAgentKey` can't resolve a session —
-  fallback behavior, logging).
-- Testing strategy (unit coverage for `deriveAgentKey`, integration test
-  proving two different sessions get isolated flags).
+- Internally name the kill event `session-revoked` (CAEP vocabulary) and
+  shape the payload like a Security Event Token (RFC 8417) even without
+  implementing full SSF transport — reuses the existing `killSwitchSseHub`
+  pattern (built earlier today for the kill-switch modal) as the delivery
+  channel instead of RFC 8935's HTTP push, since there's no cross-system
+  receiver here, just this app's own running request.
+- The in-flight handler holds an `AbortController` tied to its runId
+  (from the registry above) and cancels the actual external call when it
+  receives the push.
+- Explicitly last to build, first to cut if time-boxed.
 
-## Approach 3 — Nonce-per-launch token (adversarial-hardened)
+## Rejected approaches (from the original brainstorm menu)
 
-**Status: one-paragraph pitch only. Not designed.**
+- **Self-checking loop / loop-halting component** — no persistent loop
+  exists anywhere in this codebase to instrument (see Context). Dropped
+  outright rather than build unused plumbing.
+- **Nonce-per-launch token (adversarial-hardened revoke)** — originally
+  pitched to survive a fully hijacked, non-cooperative process. Given the
+  confirmed request-scoped architecture, the real gap this would close is
+  the propagation window between "kill fires" and "flag write lands" —
+  milliseconds, not a structural hole, since there's no persistent
+  process for a hijacked credential to keep running against. Not worth
+  reworking token minting for that in a demo app. Not designed further.
+- **SpiceDB for the run registry** — wrong tool for operational metadata
+  with high write churn; see Prior art above.
 
-Best answer for "hacker got hold of it" specifically — a flag-based
-approach (Approach 1) still trusts the running process to check it
-honestly; a fully hijacked, non-cooperative process could ignore the flag
-entirely (the auth-layer denial still backstops this on the *next* real
-network call, but doesn't halt local compute). Idea: embed a random nonce
-in the agent's token at mint time; kill = blocklist that one nonce via the
-RFC 8693 `act`-claim delegation chain already used in this app. Survives a
-process that ignores every flag, since the credential itself becomes
-unusable. Heaviest of the three original menu items — touches token
-minting, not just revocation-checking. Full architecture/components/data-
-flow/error-handling/testing sections still to be written.
+## Error handling
+
+- `deriveAgentKey` can't resolve a session → falls back to a labeled
+  anonymous key, logs a warning; the kill route still succeeds (never
+  500s on this — killing "no session" is a safe no-op-ish default).
+- `agentRunRegistry` write failure (session store hiccup) → non-fatal,
+  the run proceeds untracked. Matches the existing pattern elsewhere in
+  this codebase (e.g. `killSwitchService.js`'s audit-log failures log,
+  don't block the action).
+- Orphaned run entries (process crashed before `endRun` fired) → handled
+  by the same TTL mechanism already used for the revoked flag.
+
+## Testing
+
+- Unit: `deriveAgentKey` — same session → same key; different sessions →
+  different keys.
+- Unit: `agentRunRegistry.startRun`/`endRun` round-trip against the real
+  `LmdbSessionStore` class directly, not just a mock — matches the
+  pattern already established today (`lmdbSessionStore.deleteByPrefix.test.js`).
+- Integration: two simulated sessions each start a run; kill session A;
+  confirm session B's active run and next action are untouched.
+- UI: confirm modal shows the active-run list when present, "nothing
+  currently running" when absent.
+
+## Explicitly out of scope for this spec
+
+- SpiceDB-based authorization ("who may kill which agent") — a real,
+  defensible future extension per the research, but a separate concern
+  from session-scoped revocation and not needed to fix the coarse-
+  targeting bug this spec addresses.
+- Full SSF/CAEP cross-system transport (RFC 8935 HTTP push to external
+  receivers) — this app has no external receiver for these events today;
+  only the internal CAEP-shaped naming/payload convention is adopted.
 
 ## Next steps
 
-1. Answer the open question above (where the loop lives) to finalize
-   Approach 1's components/data-flow.
-2. Design Approach 1's error handling and testing sections.
-3. Design Approach 3 in full (architecture through testing).
-4. Spec self-review once both approaches are complete.
-5. User reviews the finished spec.
-6. Invoke `writing-plans` to turn the approved spec into an implementation
-   plan — no implementation before that.
+1. User reviews this spec.
+2. Invoke `writing-plans` to turn the approved spec into an
+   implementation plan — no implementation before that.
