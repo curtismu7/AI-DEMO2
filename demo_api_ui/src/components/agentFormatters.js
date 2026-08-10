@@ -216,33 +216,84 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
   const jwksVerified = tokenEvents.find((e) => JWKS_VER_IDS.has(e.id) && e.extra?.verified);
   const jwksDegraded = jwksVerified?.extra?.fallbackMethod === "introspection";
   if (exchanged) {
-    const introspectionLine = "✅ RFC 7662  Introspection         user token validated";
-    const exchangeLine = "✅ RFC 8693  Token Exchange        user token → MCP-scoped token";
-    const jwksLine = jwksDegraded
-      ? "⚠️ RFC 7515  JWKS unavailable    verified via RFC 7662 introspection fallback"
+    // Expanded teaching copy (requested 2026-08-10, "really expand the
+    // description of the RFC"): each RFC carries a plain-English line about
+    // what it is and what just happened, not just a pass mark. RFC info is an
+    // opt-in toggle, so length is a feature here, not noise. No markdown
+    // markers — uiRegression.test.js bans ** and code fences in chat strings.
+    const audValue = exchanged.audienceNarrowed
+      || (Array.isArray(exchanged.claims?.aud) ? exchanged.claims.aud.join(", ") : exchanged.claims?.aud)
+      || "—";
+    const introspectionLines = [
+      "✅ RFC 7662 — Token Introspection",
+      "   Before anything ran, the BFF asked PingOne directly: is this user",
+      "   token genuine, unexpired, and unrevoked? The issuer itself vouched",
+      "   for it — nothing here trusts a token on sight.",
+    ];
+    const exchangeLines = [
+      "✅ RFC 8693 — OAuth 2.0 Token Exchange",
+      "   The user's token was traded for a NEW, narrower token minted just",
+      "   for this agent call: different audience, smaller scope, and an act",
+      "   claim recording who is acting on whose behalf. The agent never",
+      "   holds or forwards the user's own token.",
+    ];
+    const jwksLines = jwksDegraded
+      ? [
+          "⚠️ RFC 7515 — JWS Signature (degraded)",
+          "   PingOne's JWKS endpoint was unreachable, so the exchanged token",
+          "   was verified via RFC 7662 introspection instead — still",
+          "   issuer-confirmed, but by lookup rather than by signature.",
+        ]
       : jwksVerified?.extra?.verified
-        ? `✅ RFC 7515  JWKS Signature        verified (${jwksVerified.extra.alg || "RS256"}, kid: ${jwksVerified.extra.kid || "—"})`
-        : "   RFC 7515  JWKS Signature        (not verified)";
-    const audLine =
+        ? [
+            "✅ RFC 7515 — JWS Signature",
+            `   The exchanged token's signature was checked against PingOne's`,
+            `   published keys (${jwksVerified.extra.alg || "RS256"}, kid: ${jwksVerified.extra.kid || "—"}) —`,
+            "   cryptographic proof it was minted by PingOne and not altered.",
+          ]
+        : [
+            "   RFC 7515 — JWS Signature (not verified this turn)",
+          ];
+    const audLines =
       exchanged.audExpected !== undefined && exchanged.audMatches
-        ? `✅ RFC 8707  Resource Indicator    aud bound to "${exchanged.audActual ?? exchanged.audienceNarrowed}"`
+        ? [
+            "✅ RFC 8707 — Resource Indicators",
+            `   The token's aud is pinned to exactly "${exchanged.audActual ?? exchanged.audienceNarrowed}".`,
+            "   Even a stolen copy of this token is useless at any other API —",
+            "   the resource server rejects tokens not addressed to it.",
+          ]
         : exchanged.audExpected !== undefined
-          ? `❌ RFC 8707  Resource Indicator    aud mismatch — got "${exchanged.audActual}" expected "${exchanged.audExpected}"`
-          : `✅ RFC 8707  Resource Indicator    aud: ${exchanged.audienceNarrowed || (Array.isArray(exchanged.claims?.aud) ? exchanged.claims.aud.join(", ") : exchanged.claims?.aud) || "—"}`;
+          ? [
+              "❌ RFC 8707 — Resource Indicators",
+              `   aud mismatch — got "${exchanged.audActual}", expected "${exchanged.audExpected}".`,
+              "   The receiving API must refuse this token.",
+            ]
+          : [
+              "✅ RFC 8707 — Resource Indicators",
+              `   The token's aud is bound to: ${audValue}. Tokens addressed to`,
+              "   one API cannot be replayed against another.",
+            ];
     const actStatus = exchanged.actPresent
       ? `✅ BFF confirmed — ${exchanged.actDetails || "delegation proof present"}`
       : "⚠️ subject-only exchange (no delegation proof)";
     return [
       "Security Verification — RFC 8693 Token Exchange",
       "",
-      introspectionLine,
-      exchangeLine,
-      jwksLine,
-      audLine,
+      ...introspectionLines,
       "",
+      ...exchangeLines,
+      "",
+      ...jwksLines,
+      "",
+      ...audLines,
+      "",
+      "What the exchanged token actually says:",
       `act:      ${actStatus}`,
-      `aud:      ${exchanged.audienceNarrowed || (Array.isArray(exchanged.claims?.aud) ? exchanged.claims.aud.join(', ') : exchanged.claims?.aud) || "—"}`,
+      "          (the delegation chain — which agent is acting for which human)",
+      `aud:      ${audValue}`,
+      "          (the one API this token is addressed to)",
       `scope:    ${exchanged.scopeNarrowed || exchanged.claims?.scope || "—"} (narrowed)`,
+      "          (smaller than the user's own grant — least privilege applied)",
     ].join("\n");
   }
   if (required) {
@@ -299,6 +350,14 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
   if (!summaryLines.length) return null;
   return [
     "Security Verification — token activity (no RFC 8693 exchange this turn)",
+    "",
+    "This agent runs on its own machine identity: an RFC 6749 §4.4",
+    "client_credentials token the BFF obtains directly — no user token is",
+    "exchanged and no act chain exists, because no human's credentials are",
+    "being delegated. What gates each call instead is the worker app's",
+    "assigned roles and, on the admin vertical, live directory group",
+    "membership re-read per request. Different trust model, same rule:",
+    "every call is authorized, none is assumed.",
     "",
     ...summaryLines,
   ].join("\n");
