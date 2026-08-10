@@ -94,11 +94,11 @@ function ClaimDiff({ beforeAfter }) {
 /** A collapsed payload — one click away for whoever asks, out of the way otherwise. */
 function Payload({ label, title, text }) {
   return (
-    <details className="sdp-payload">
-      <summary className="sdp-section-label">{label}</summary>
+    <div className="sdp-payload">
+      <div className="sdp-section-label">{label}</div>
       {title ? <div className="sdp-payload-title">{title}</div> : null}
       <pre className="sdp-pre">{text}</pre>
-    </details>
+    </div>
   );
 }
 
