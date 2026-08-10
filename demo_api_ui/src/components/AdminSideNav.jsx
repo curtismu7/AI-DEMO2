@@ -14,7 +14,6 @@ import { useVertical } from "../vertical/useVertical";
 import ConfirmModal from "./ConfirmModal";
 import ControlPlaneIntroModal from "./ControlPlaneIntroModal";
 import { EDU } from "./education/educationIds";
-import KillSwitchConfirmModal from "./KillSwitchConfirmModal";
 import { PAC_EDITOR_URL } from "./pacEditorStatus";
 import "./adminSkinPing2026.css";
 import { HiOutlineUsers } from "react-icons/hi";
@@ -216,7 +215,11 @@ const sectionIdOf = (item, index) =>
 const isLocalHost = () =>
   typeof window !== "undefined" && LOCAL_HOSTNAMES.has(window.location.hostname);
 
-export default function AdminSideNav({ user }) {
+export default function AdminSideNav({
+  user,
+  onStopAgentClick = () => {},
+  agentRevoked = false,
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   // The icon rail is the resting state: "Unchanged — icon rail, expands to the
@@ -340,13 +343,11 @@ export default function AdminSideNav({ user }) {
       /* ignore storage-unavailable (private mode / quota) */
     }
   }, [expandedSections, expandedSectionsKey]);
-  const [showKillModal, setShowKillModal] = useState(false);
   // Path of the admin-marked link a non-admin clicked; non-null opens the
   // "log in as admin" confirm dialog.
   const [adminPromptPath, setAdminPromptPath] = useState(null);
   // Path queued behind the AI Control Plane intro-gate modal (null = closed).
   const [controlPlaneIntroPath, setControlPlaneIntroPath] = useState(null);
-  const [agentRevoked, setAgentRevoked] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [latestRunId, setLatestRunId] = useState(null);
   const [latestRunTime, setLatestRunTime] = useState(null);
@@ -1216,41 +1217,10 @@ export default function AdminSideNav({ user }) {
     performLogout();
   };
 
-  // Returns the response body (scope + steps) instead of closing the modal
-  // itself, so KillSwitchConfirmModal can show what actually ran before the
-  // nav sends the admin to /logout — and throws on any real failure instead
-  // of swallowing it, so a network error or timeout shows the modal's error
-  // panel rather than vanishing with nothing in the UI (only a console.error).
-  const handleKillSwitchConfirm = useCallback(
-    async (agentId, reason, scope = "instance") => {
-      const response = await fetch(`/api/admin/agent/${agentId}/kill-switch`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason, scope }),
-      });
-      const body = await response.json().catch(() => ({}));
-      // 401 with agent_killed is the expected success response: session revoked at server
-      const killed = response.status === 401 && body.error === "agent_killed";
-      if (!killed && !response.ok) {
-        throw new Error(
-          body.error_description ||
-            body.message ||
-            `Kill switch failed: ${response.status}`,
-        );
-      }
-      setAgentRevoked(true);
-      return body;
-    },
-    [],
-  );
-
-  // Runs once the modal is dismissed (Cancel pre-confirm, or Done after
-  // showing the result) — navigate to /logout only if a kill actually ran.
-  const handleKillModalDismiss = useCallback(() => {
-    setShowKillModal(false);
-    if (agentRevoked) navigate("/logout");
-  }, [agentRevoked, navigate]);
+  // Kill-switch state/handlers moved to App.js — this component (and its
+  // local state) unmounts the instant `user` clears, which a successful kill
+  // does immediately as its own side effect. A modal owned here can never
+  // survive long enough to show its own result. See App.js's `AppWithAuth`.
 
   const NavIcon = ({ name }) => {
     const IconComponent = ICON_MAP[name];
@@ -1673,7 +1643,7 @@ export default function AdminSideNav({ user }) {
           <button
             type="button"
             className="admin-side-nav__item admin-side-nav__stop-agent"
-            onClick={() => !agentRevoked && setShowKillModal(true)}
+            onClick={() => !agentRevoked && onStopAgentClick()}
             disabled={agentRevoked}
             title={
               agentRevoked
@@ -1712,16 +1682,6 @@ export default function AdminSideNav({ user }) {
           ))}
         </div>
       </nav>
-      {showKillModal && (
-        <KillSwitchConfirmModal
-          isOpen={showKillModal}
-          agentId="default-agent"
-          onCancel={handleKillModalDismiss}
-          onConfirm={(agentId, reason, scope) =>
-            handleKillSwitchConfirm(agentId || "default-agent", reason, scope)
-          }
-        />
-      )}
       <ConfirmModal
         isOpen={showResetModal}
         title="Reset Demo"

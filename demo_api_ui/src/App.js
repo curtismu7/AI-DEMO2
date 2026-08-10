@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Navigate,
   Route,
   BrowserRouter as Router,
   Routes,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { MdSwapHoriz } from "react-icons/md";
@@ -62,6 +63,7 @@ import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
 import TokenTopologyPanel from "./components/TokenTopologyPanel";
 import HealthcareAdminOps from "./components/HealthcareAdminOps";
+import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
@@ -293,6 +295,44 @@ function AppWithAuth() {
   const { appFlags } = useAppFlags();
   const { downServers, markAllUp, dismissForSession } = useServerHealthCheck();
   useOAuthUrlCleanup();
+  const navigate = useNavigate();
+
+  // Kill-switch modal state lives here (not in AdminSideNav) because a
+  // successful kill destroys the session, which unmounts AdminSideNav
+  // (gated on `user` — see routes/sideNavOwner.js) before it could ever
+  // show its own result. This component never unmounts on auth changes,
+  // so the modal survives long enough to render what actually happened.
+  const [showKillModal, setShowKillModal] = useState(false);
+  const [agentRevoked, setAgentRevoked] = useState(false);
+  const handleKillSwitchConfirm = useCallback(
+    async (agentId, reason, scope = "instance") => {
+      const response = await fetch(`/api/admin/agent/${agentId}/kill-switch`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, scope }),
+      });
+      const body = await response.json().catch(() => ({}));
+      // 401 with agent_killed is the expected success response: session revoked at server
+      const killed = response.status === 401 && body.error === "agent_killed";
+      if (!killed && !response.ok) {
+        throw new Error(
+          body.error_description ||
+            body.message ||
+            `Kill switch failed: ${response.status}`,
+        );
+      }
+      setAgentRevoked(true);
+      return body;
+    },
+    [],
+  );
+  // Runs once the modal is dismissed (Cancel pre-confirm, or Done after
+  // showing the result) — navigate to /logout only if a kill actually ran.
+  const handleKillModalDismiss = useCallback(() => {
+    setShowKillModal(false);
+    if (agentRevoked) navigate("/logout");
+  }, [agentRevoked, navigate]);
 
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
@@ -489,7 +529,11 @@ function AppWithAuth() {
                 />
               )}
               {appRendersSideNav({ pathname, user }) && (
-                <AdminSideNav user={user} />
+                <AdminSideNav
+                  user={user}
+                  onStopAgentClick={() => setShowKillModal(true)}
+                  agentRevoked={agentRevoked}
+                />
               )}
               {/* Auth check in flight — every route below renders null until `loading`
                   resolves, which left a blank content area under the side nav/dock.
@@ -1685,6 +1729,14 @@ function AppWithAuth() {
                   setCredentialsModal(null);
                 }}
                 onCancel={() => setCredentialsModal(null)}
+              />
+              <KillSwitchConfirmModal
+                isOpen={showKillModal}
+                agentId="default-agent"
+                onCancel={handleKillModalDismiss}
+                onConfirm={(agentId, reason, scope) =>
+                  handleKillSwitchConfirm(agentId || "default-agent", reason, scope)
+                }
               />
               <LoginSuccessModal
                 user={user}
