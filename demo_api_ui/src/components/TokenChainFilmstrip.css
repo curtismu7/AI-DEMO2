@@ -21,74 +21,50 @@
   align-items: stretch;
 }
 
-/* ── Focus Mode scrolls the PAGE, not a box inside it ──────────────────────
+/* ── Focus Mode fits the screen; history is a scrollback ───────────────────
  *
- * The app shell pins everything to the viewport: .App, main.main-content,
- * .customer-skin-p1 and .dashboard-content each carry `flex: 1 1 0%` with
- * `overflow: hidden`, so every pane is exactly one screen tall and the reply
- * is confined to a ~370px scroller in the middle of it. Reading a long answer
- * meant scrolling a small box while the rest of the page sat still.
+ * The page itself does not scroll. The newest reply sits at the bottom of the
+ * transcript, in view, and older turns are above it — the shape every chat UI
+ * uses, and what a presenter needs: the answer is on screen without touching
+ * anything.
  *
- * These rules release that chain — but ONLY under Focus Mode, matched with
- * :has(). Every other placement, route and skin keeps the fixed-viewport shell
- * it was built for. If :has() is unavailable the rules simply do not apply and
- * the old behaviour stands, which is a safe failure.
+ * This replaces a page-scrolling version. Letting the document grow put the
+ * latest reply below the fold on a long answer, so the demo started with a
+ * scroll gesture. A bounded transcript that is always pinned to the newest
+ * message is the better default; the scrollback is there when someone asks
+ * "what did it say before?".
  *
- * Specificity matters here and the selectors look odd on purpose. The shell is
- * pinned by `.App:has(.user-dashboard--split3)` in App.css — the same class is
- * on this layout too — and by `.banking-agent-panel.ba-mode-inline
- * .ba-split-column .ba-right-col` in AIAgent.css. Both would otherwise win, one
- * on cascade order and one on weight, so each override below is deliberately
- * heavier than the rule it replaces. `.App.App` is a specificity bump, not a
- * typo.
+ * The column still needs the `overflow: clip` override — .ud-agent-column
+ * ships it, and the grid row bounds the height, so without this the tail of a
+ * reply is unreachable by any means.
  */
-.App.App:has(.ud-focus-mode),
-.App.App:has(.ud-focus-mode) main.main-content,
-.App.App:has(.ud-focus-mode) .customer-skin-p1 {
-  height: auto;
-  min-height: 0;
-  overflow: visible;
-}
-
-.dashboard-content.ud-body.ud-focus-mode {
-  height: auto;
-  overflow: visible;
-}
-
 .dashboard-content.ud-body.ud-focus-mode > .ud-agent-column {
   grid-area: agent;
   width: auto;
   max-width: none;
   min-width: 0;
-  /* .ud-agent-column ships `overflow: clip`, which cut the reply dead. The
-     column now grows to its content and the document does the scrolling. */
-  height: auto;
-  overflow: visible;
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* The agent's own panes are a nested flex chain that ends in a scroller. Each
-   link has to stop capping, or the transcript keeps its private scrollbar and
-   the page still has nothing to scroll. */
+/* Each link in the agent's nested flex chain must be allowed to shrink, or the
+   transcript keeps its intrinsic height and the scrollback never engages. */
 .ud-focus-mode.ud-focus-mode .embedded-banking-agent,
 .ud-focus-mode.ud-focus-mode .ud-dashboard-inline-agent,
 .ud-focus-mode.ud-focus-mode .ud-dashboard-inline-agent-host,
 .ud-focus-mode.ud-focus-mode .banking-agent-panel,
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-body,
-.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .ba-body,
-.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-right-col,
-.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .ba-right-col {
-  height: auto;
-  max-height: none;
-  overflow: visible;
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-right-col {
+  min-height: 0;
 }
 
-/* The reply renders in full — no inner scrollbar, no clipped tail. */
+/* The transcript takes every pixel the column has left and scrolls itself. */
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .banking-agent-messages,
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .banking-agent-messages {
-  flex: 0 0 auto;
-  height: auto;
+  flex: 1 1 0%;
+  min-height: 0;
   max-height: none;
-  overflow: visible;
+  overflow-y: auto;
 }
 
 /* The column's drag-to-resize width handle fights a two-column grid. */
@@ -103,9 +79,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  /* Grows with the page like the agent column; the document scrolls. */
-  height: auto;
-  overflow: visible;
+  /* Bounded like the agent column: the sheet scrolls, the page does not. */
+  min-height: 0;
+  overflow: hidden;
   border-left: 1px solid #e2e8f0;
   background: #ffffff;
 }
@@ -281,8 +257,9 @@
 .tcfs-sheet {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
 }
@@ -319,7 +296,9 @@
 .tcfs-sheet-close:hover { border-color: #1d4ed8; color: #1d4ed8; }
 
 .tcfs-sheet-body {
-  overflow: visible;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   padding: 10px 12px 12px;
 }
 
