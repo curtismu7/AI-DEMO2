@@ -187,23 +187,35 @@ async function enableAgentApplicationsAtPingOne() {
 }
 
 /**
- * Invalidate all agent sessions in Redis/session store
+ * Invalidate all agent-scoped keys (agent:<id>:*) in the session store —
+ * the revoked flag, rate-limit counters, refresh-token cache, etc.
  * @param {string} agentId
  * @returns {Promise<{invalidated: number}>}
  */
 async function invalidateSessionsInRedis(agentId) {
   try {
-    // Access session store (Upstash Redis or local Redis)
     const sessionStore = require('../middleware/sessionConfig').store;
-    
-    if (!sessionStore || !sessionStore.client) {
+
+    if (!sessionStore) {
+      console.warn('[killSwitch] Session store not available');
+      return { invalidated: 0 };
+    }
+
+    // LmdbSessionStore path — direct range-scan delete, no Redis needed.
+    if (typeof sessionStore.deleteByPrefix === 'function') {
+      const invalidated = sessionStore.deleteByPrefix(`agent:${agentId}:`);
+      console.log(`[killSwitch] Invalidated ${invalidated} sessions for agent ${agentId}`);
+      return { invalidated };
+    }
+
+    if (!sessionStore.client) {
       console.warn('[killSwitch] Session store not available');
       return { invalidated: 0 };
     }
 
     // Pattern: agent:agentId:* — find all sessions for this agent
     const pattern = `agent:${agentId}:*`;
-    
+
     // Use Redis SCAN to find matching keys (non-blocking)
     let cursor = 0;
     let invalidatedCount = 0;
