@@ -202,17 +202,27 @@ Infrastructure is done and proven. Remaining work is console-side only.
 - `Error sending update to mesh controller: … not found` is the same symptom, not a
   separate fault.
 
-### `pingone.env` is never read — do not debug it
+### `pingone.env` — loaded as env vars, but no build acts on them yet
 
-Grepping the proxy log after a clean restart, with `pingone.env` correctly mounted
-at `/var/lib/procyon/config/pingone.env` and populated, returns **zero** hits for
-`SERVER_URL`, `authorize`, `oidc`, or `pingone.env`. Verified twice, on two
-different tenants, in both mesh and agentless mode.
+Precision matters here; the old heading ("never read — do not debug it") overstated.
+Three facts, each verified 2026-08-10:
 
-Whatever drives the OIDC challenge is control-plane state, not this file. Keep it
-correct anyway (the console wizard asks for the same values), but never conclude
-"the gateway is misconfigured" from its contents, and never spend time editing it
-to make a challenge appear.
+1. Compose `env_file` **does** inject its values — `OIDC_CLIENT_ID`, `SERVER_URL`,
+   etc. are present in the `cyonproxy` process environment (`docker inspect … .Config.Env`).
+2. The **binary never references the file itself** — proxy-log grep for
+   `SERVER_URL`/`authorize`/`oidc` after clean restart: zero hits, both tenants,
+   both modes.
+3. **No published build implements the OIDC challenge those values exist for** —
+   `grep -a` over `/procyon/bin/cyonproxy` v1.260806 finds zero occurrences of
+   `authorization_uri` / `MCP OAuth Server` / `oauth-protected-resource`.
+
+So: keep the file correct (the deck's slide-2 file list names it, and a capable
+build will presumably consume the env vars), but a missing `WWW-Authenticate`
+challenge is a **vendor-binary gap, not a config error** — never spend time editing
+this file to make a challenge appear. Deck file map, all three present in our
+container: `/var/lib/procyon/config/pingone.env` (bind mount of
+`ping-mcpgw/procyon/`), `/var/lib/procyon/ssl/mcpgw-{cert,key}.pem` (host copies;
+the runtime volume the deck refers to is `/procyon/ssl` — see `ping-mcpgw/README.md`).
 
 ### Headers (Cloud API path only — kept for reference, that path is dead)
 
