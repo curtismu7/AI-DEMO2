@@ -267,6 +267,18 @@ describe('killSwitchService', () => {
       expect(result).toHaveProperty('invalidated');
       expect(typeof result.invalidated).toBe('number');
     });
+
+    test('uses deleteByPrefix when the store provides it (LmdbSessionStore path), not the Redis client', async () => {
+      const sessionConfigMock = require('../../middleware/sessionConfig');
+      sessionConfigMock.store.deleteByPrefix = jest.fn().mockReturnValue(3);
+
+      const result = await killSwitchService.invalidateSessionsInRedis('mcp-agent-003');
+
+      expect(sessionConfigMock.store.deleteByPrefix).toHaveBeenCalledWith('agent:mcp-agent-003:');
+      expect(result).toEqual({ invalidated: 3 });
+
+      delete sessionConfigMock.store.deleteByPrefix;
+    });
   });
 
   describe('Error handling and recovery', () => {
