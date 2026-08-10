@@ -1,0 +1,201 @@
+// ToolsTable — the MCP tool catalogue as a wide table, the centrepiece of the
+// Privilege MCP Client page. Columns: Tool / Description / Resources / Run.
+// Click a row to expand an inline args box + Execute + result. In presentMode
+// it is display-only (no Run, no expand) for projecting during a demo.
+import { useMemo, useState } from 'react';
+import './ToolsTable.css';
+
+function paramsOf(tool) {
+  const props = tool.inputSchema?.properties || {};
+  const required = new Set(tool.inputSchema?.required ?? []);
+  return Object.entries(props).map(([name, schema]) => ({
+    name,
+    type: (schema && schema.type) || 'any',
+    required: required.has(name),
+  }));
+}
+
+// Prefill an args object with one empty entry per property, so the box shows the
+// shape the tool expects instead of a bare {}.
+function seedArgs(tool) {
+  const props = tool.inputSchema?.properties || {};
+  const keys = Object.keys(props);
+  if (keys.length === 0) return '{}';
+  const obj = {};
+  for (const k of keys) obj[k] = '';
+  return JSON.stringify(obj, null, 2);
+}
+
+export default function ToolsTable({ tools, presentMode = false, onExecute, onClose, onPresent }) {
+  const [filter, setFilter] = useState('');
+  const [expanded, setExpanded] = useState('');
+  const [argsByTool, setArgsByTool] = useState({});
+  const [resultByTool, setResultByTool] = useState({});
+  const [busyTool, setBusyTool] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return tools;
+    return tools.filter(
+      (t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q),
+    );
+  }, [tools, filter]);
+
+  const toggle = (name, tool) => {
+    if (presentMode) return;
+    setExpanded((cur) => {
+      const next = cur === name ? '' : name;
+      if (next && argsByTool[name] === undefined) {
+        setArgsByTool((m) => ({ ...m, [name]: seedArgs(tool) }));
+      }
+      return next;
+    });
+  };
+
+  const run = async (name) => {
+    setBusyTool(name);
+    const result = await onExecute(name, argsByTool[name] ?? '{}');
+    setResultByTool((m) => ({ ...m, [name]: result }));
+    setBusyTool('');
+  };
+
+  return (
+    <div className={`ptt${presentMode ? ' ptt--present' : ''}`}>
+      <div className="ptt-header">
+        <span className="ptt-title">
+          MCP Tools <span className="ptt-count">{tools.length}</span>
+        </span>
+        {presentMode ? (
+          <button type="button" className="ptt-close" onClick={onClose} title="Close (Esc)">
+            &#x2715;
+          </button>
+        ) : (
+          <div className="ptt-header-actions">
+            <input
+              className="ptt-filter"
+              placeholder="Filter tools..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            {onPresent && tools.length > 0 && (
+              <button type="button" className="ptt-present-btn" onClick={onPresent} title="Full-screen present mode">
+                Present
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="ptt-scroll">
+        <table className="ptt-table">
+          <thead>
+            <tr>
+              <th className="ptt-col-tool">Tool</th>
+              <th className="ptt-col-desc">Description</th>
+              <th className="ptt-col-res">Resources</th>
+              {!presentMode && <th className="ptt-col-run">Run</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={presentMode ? 3 : 4} className="ptt-empty">
+                  {tools.length === 0 ? 'No tools discovered yet' : `No tools match "${filter}"`}
+                </td>
+              </tr>
+            )}
+            {filtered.map((t) => {
+              const params = paramsOf(t);
+              const isOpen = expanded === t.name;
+              return (
+                <FragmentRow
+                  key={t.name}
+                  tool={t}
+                  params={params}
+                  isOpen={isOpen}
+                  presentMode={presentMode}
+                  onToggle={() => toggle(t.name, t)}
+                  args={argsByTool[t.name] ?? '{}'}
+                  onArgs={(v) => setArgsByTool((m) => ({ ...m, [t.name]: v }))}
+                  result={resultByTool[t.name]}
+                  busy={busyTool === t.name}
+                  onRun={() => run(t.name)}
+                />
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function FragmentRow({ tool, params, isOpen, presentMode, onToggle, args, onArgs, result, busy, onRun }) {
+  return (
+    <>
+      <tr className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
+        <td className="ptt-col-tool"><span className="ptt-name">{tool.name}</span></td>
+        <td className="ptt-col-desc">{tool.description || ''}</td>
+        <td className="ptt-col-res">
+          {params.length === 0 ? (
+            <span className="ptt-none">(none)</span>
+          ) : (
+            <div className="ptt-params">
+              {params.map((p) => (
+                <span key={p.name} className={`ptt-param${p.required ? ' ptt-param--req' : ''}`} title={`${p.type}${p.required ? ' · required' : ''}`}>
+                  {p.name}{p.required ? '*' : ''}
+                </span>
+              ))}
+            </div>
+          )}
+        </td>
+        {!presentMode && (
+          <td className="ptt-col-run">
+            <button
+              type="button"
+              className="ptt-run"
+              onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); onRun(); }}
+              disabled={busy}
+            >
+              {busy ? '...' : 'Run'}
+            </button>
+          </td>
+        )}
+      </tr>
+      {isOpen && !presentMode && (
+        <tr className="ptt-detail-row">
+          <td colSpan={4}>
+            <div className="ptt-detail">
+              {params.length > 0 && (
+                <div className="ptt-detail-res">
+                  {params.map((p) => (
+                    <span key={p.name} className="ptt-detail-param">
+                      <code>{p.name}</code> · {p.type}{p.required ? ' · required' : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <span className="ptt-args-label">Arguments (JSON)</span>
+              <textarea
+                className="ptt-args"
+                rows={Math.min(8, Math.max(2, args.split('\n').length))}
+                value={args}
+                onChange={(e) => onArgs(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button type="button" className="ptt-execute" onClick={(e) => { e.stopPropagation(); onRun(); }} disabled={busy}>
+                {busy ? 'Executing...' : 'Execute'}
+              </button>
+              {result !== undefined && (
+                <>
+                  <div className="ptt-result-label">Result</div>
+                  <pre className="ptt-result">{result}</pre>
+                </>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
