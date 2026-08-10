@@ -1279,3 +1279,42 @@ select.cur-input { cursor: pointer; }
 .cur-ide:not([data-cur-theme="light"]) .scope-read { background: #164e59; }
 .cur-ide:not([data-cur-theme="light"]) .scope-write { background: #5a3a1a; }
 .cur-ide:not([data-cur-theme="light"]) .scope-default { background: #3a3a3a; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Connection debug strip + trace JSON — were inline-styled with fixed dark
+   colors, so light mode left them dark ("stays dark even when toggled").
+   Now class-based with explicit light overrides so the toggle flips them too.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-conn-debug {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-family: monospace;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1e1e1e;
+  color: #888;
+}
+.cur-cd-k { color: #7a7a7a; }
+.cur-cd-v--url { color: #7ec8e3; word-break: break-all; }
+.cur-cd-v--id { color: #ffd93d; }
+.cur-cd-v--scope { color: #a8e6cf; }
+.cur-cd-v--ok { color: #a8e6cf; }
+.cur-cd-v--bad { color: #ff6b6b; }
+.cur-trace-ts { color: #777; min-width: 70px; }
+.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; }
+
+.cur-ide[data-cur-theme="light"] .cur-conn-debug { background: #f0f0f0; border-bottom-color: #e0e0e0; color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-cd-k { color: #888; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--url { color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--id { color: #92600a; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--scope,
+.cur-ide[data-cur-theme="light"] .cur-cd-v--ok { color: #0a7d4f; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--bad { color: #c0392b; }
+.cur-ide[data-cur-theme="light"] .cur-trace-ts { color: #999; }
+.cur-ide[data-cur-theme="light"] .cur-trace-json { color: #333; }
+
+/* Scope pick — left rail pill selects and jumps to the right SCOPES table. */
+.cur-scope-pill[role="button"] { cursor: pointer; }
+.cur-scope-pill--selected { outline: 2px solid #6d9eeb; outline-offset: 1px; }
+.cur-scopes-table tr { cursor: pointer; }
+.cur-scope-row--selected > td { background: rgba(109, 158, 235, 0.22); }
+.cur-ide[data-cur-theme="light"] .cur-scope-row--selected > td { background: rgba(37, 99, 235, 0.14); }
