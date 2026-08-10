@@ -1,3 +1,9 @@
+/* Dark ground for the app shell — dark-only so the light look is untouched.
+   Keyed to the ThemeContext data-theme stamp, never prefers-color-scheme. */
+:root[data-theme="dark"] .App {
+  background: var(--th-bg-page);
+}
+
 .App {
   min-height: 100vh;
   display: flex;

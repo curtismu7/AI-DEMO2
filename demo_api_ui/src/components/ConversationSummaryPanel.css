@@ -3,11 +3,11 @@
 
 .conv-summary-panel {
   margin: 6px 8px 0;
-  border: 1px solid var(--ba-border, #d0d0d0);
+  border: 1px solid var(--ba-border, var(--th-border));
   border-radius: 8px;
-  background: var(--ba-surface, #ffffff);
+  background: var(--ba-surface, var(--th-bg-inset));
   font-size: 12px;
-  color: var(--ba-text, #1a1a1a);
+  color: var(--ba-text, var(--th-text));
 }
 
 .conv-summary-toggle {
@@ -20,7 +20,7 @@
   background: none;
   font: inherit;
   font-weight: 600;
-  color: var(--ba-text, #1a1a1a);
+  color: var(--ba-text, var(--th-text));
   cursor: pointer;
   text-align: left;
 }
@@ -58,7 +58,7 @@
 }
 
 .conv-summary-item {
-  border-top: 1px solid var(--ba-border, #e2e2e2);
+  border-top: 1px solid var(--ba-border, var(--th-border));
   padding-top: 8px;
 }
 
@@ -70,7 +70,7 @@
 }
 
 .conv-summary-date {
-  color: var(--ba-text, #1a1a1a);
+  color: var(--ba-text, var(--th-text));
   opacity: 0.7;
 }
 
