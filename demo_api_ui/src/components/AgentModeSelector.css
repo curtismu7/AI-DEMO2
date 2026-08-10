@@ -21,7 +21,7 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-primary, #1f2937);
+  color: var(--text-primary, var(--th-text));
   letter-spacing: 0.3px;
 }
 .ams--compact .ams-label {

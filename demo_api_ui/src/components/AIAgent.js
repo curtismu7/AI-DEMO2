@@ -8599,7 +8599,7 @@ export default function BankingAgent({
                         className="ba-header-toggle-label"
                         checked={darkMode}
                         onChange={(e) => setDarkMode(e.target.checked)}
-                        title="Switch the Token Chain panel between light and dark"
+                        title="Switch the dashboard between light and dark"
                       >
                         Dark mode
                       </Check>

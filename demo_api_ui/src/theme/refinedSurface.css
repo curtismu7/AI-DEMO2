@@ -4,15 +4,18 @@
    stays blue, healthcare teal, retail yellow. */
 
 [data-refined-surface="customer"] {
-  /* Neutral institutional palette (vertical-independent) */
-  --rd-paper:        #f6f4ef;
-  --rd-surface:      #fffefb;
-  --rd-surface-sunk: #f1eee7;
-  --rd-ink:          #1a1a17;
-  --rd-ink-soft:     #57534c;
-  --rd-ink-faint:    #8a857c;
-  --rd-line:         #e3ddd2;
-  --rd-line-strong:  #d4cdbf;
+  /* Neutral palette — routed through the semantic --th-* tokens (index.css).
+     Light is the unified neutral family (warm-paper literals retired); dark
+     arrives via the :root[data-theme="dark"] token redefinition for free.
+     --rd-ink-faint was #8a857c (3.5:1 on the old paper, AA fail). */
+  --rd-paper:        var(--th-bg-page);
+  --rd-surface:      var(--th-bg-card);
+  --rd-surface-sunk: var(--th-bg-inset);
+  --rd-ink:          var(--th-text);
+  --rd-ink-soft:     var(--th-text-muted);
+  --rd-ink-faint:    var(--th-text-muted);
+  --rd-line:         var(--th-border);
+  --rd-line-strong:  var(--th-border-strong);
   --rd-positive:     #1f6b4a;
   --rd-negative:     #9a3526;
   --rd-gold:         #9a7b3f;

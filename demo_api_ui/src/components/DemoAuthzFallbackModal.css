@@ -8,7 +8,7 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
-  color: var(--ba-text, #1f2937);
+  color: var(--ba-text, var(--th-text));
 }
 .demo-authz-fallback__detail {
   margin: 0;

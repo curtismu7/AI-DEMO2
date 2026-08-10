@@ -3,9 +3,9 @@
 .fp-panel {
   display: flex;
   flex-direction: column;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   box-shadow: 0 4px 16px rgba(0,0,0,0.10);
   overflow: hidden;
   z-index: 9500;
@@ -175,7 +175,7 @@
 .fp-placeholder {
   border: 2px dashed #9ca3af;
   border-radius: 8px;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   min-height: 60px;
   display: flex;
   align-items: center;
@@ -186,14 +186,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #6b7280;
+  color: var(--th-text-muted);
   font-size: 14px;
 }
 
 .fp-btn-popin {
   background: #e5e7eb;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  border: 1px solid var(--th-border-strong);
+  color: var(--th-text);
   width: 28px;
   height: 28px;
   border-radius: 6px;
