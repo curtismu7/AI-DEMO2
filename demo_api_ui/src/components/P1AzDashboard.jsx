@@ -4,7 +4,7 @@ import DashboardShell from './dashboard/DashboardShell';
 import StatStrip from './dashboard/StatStrip';
 import EventStream from './dashboard/EventStream';
 
-const WINDOWS = ['30m', '1h', '24h', '7d'];
+const WINDOWS = ['30m', '1h', '24h', '7d', '14d'];
 // 24h, not 1h: authorize decisions are far sparser than pipeline events, and a
 // 1h default renders an empty page most of the time.
 const DEFAULT_WINDOW = '24h';

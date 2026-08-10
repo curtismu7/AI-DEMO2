@@ -125,4 +125,13 @@ describe('P1AzDashboard', () => {
     await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
       '/api/newrelic/view/authorize?window=7d'));
   });
+
+  it('requests the 14d window when selected', async () => {
+    apiClient.get.mockResolvedValue({ data: PAYLOAD });
+    renderDash();
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: '14d' }));
+    await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+      '/api/newrelic/view/authorize?window=14d'));
+  });
 });

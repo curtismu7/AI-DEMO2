@@ -23,6 +23,7 @@ const WINDOWS = {
   '1h': { since: '1 hour ago', bucket: '5 minutes' },
   '24h': { since: '24 hours ago', bucket: '1 hour' },
   '7d': { since: '7 days ago', bucket: '6 hours' },
+  '14d': { since: '14 days ago', bucket: '12 hours' },
 };
 
 const DEFAULT_WINDOW = '1h';

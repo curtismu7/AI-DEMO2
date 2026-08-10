@@ -193,6 +193,20 @@ describe('GET /api/newrelic/view/:view', () => {
     expect(sent).toContain('TIMESERIES 6 hours');
   });
 
+  it('accepts the 14d window', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/pipeline?window=14d');
+    expect(res.status).toBe(200);
+    expect(res.body.window).toBe('14d');
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).toContain('14 days ago');
+    expect(sent).toContain('TIMESERIES 12 hours');
+  });
+
   it('maps the authorize view into decisions/posture/timeseries/stream', async () => {
     process.env.NR_USER_API_KEY = 'k';
     process.env.NR_ACCOUNT_ID = '8369622';
