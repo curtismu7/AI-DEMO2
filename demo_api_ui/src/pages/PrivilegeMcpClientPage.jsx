@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
+import ToolsTable from '../components/privilege/ToolsTable';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -22,10 +23,6 @@ function api(path, options = {}) {
   });
 }
 
-function truncate(v, max = 240) {
-  if (typeof v !== 'string') return v;
-  return v.length <= max ? v : `${v.slice(0, max)}... (+${v.length - max} chars)`;
-}
 
 function scopeColor(scope) {
   if (scope.startsWith('mcp:')) return 'scope-mcp';
@@ -49,9 +46,6 @@ export default function PrivilegeMcpClientPage() {
   const [chatInput, setChatInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [events, setEvents] = useState([]);
-  const [selectedTool, setSelectedTool] = useState('');
-  const [toolArgs, setToolArgs] = useState('{}');
-  const [toolResult, setToolResult] = useState('');
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
@@ -59,6 +53,8 @@ export default function PrivilegeMcpClientPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
+  const [showPresent, setShowPresent] = useState(false);
+  const jumpedToToolsRef = useRef(false);
   const [consoleCurl, setConsoleCurl] = useState('');
   const [consoleTokenInfo, setConsoleTokenInfo] = useState(null);
   // Page-local light/dark, independent of the app theme. The page ships a fixed
@@ -82,7 +78,7 @@ export default function PrivilegeMcpClientPage() {
     const startX = e.clientX;
     const startW = sidebarRef.current.offsetWidth;
     const onMove = (ev) => {
-      const next = Math.max(180, Math.min(600, startW + ev.clientX - startX));
+      const next = Math.max(200, Math.min(1000, startW + ev.clientX - startX));
       sidebarRef.current.style.width = `${next}px`;
     };
     const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
@@ -266,15 +262,33 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
-  const callTool = async () => {
+  // Per-row executor for the Tools table: returns the pretty-printed result.
+  const executeToolCall = async (name, argsStr) => {
     try {
-      const args = JSON.parse(toolArgs || '{}');
-      const data = await api('/tools/call', { method: 'POST', body: { name: selectedTool, arguments: args } });
-      setToolResult(JSON.stringify(data, null, 2));
+      const args = JSON.parse(argsStr || '{}');
+      const data = await api('/tools/call', { method: 'POST', body: { name, arguments: args } });
+      return JSON.stringify(data, null, 2);
     } catch (err) {
-      setToolResult(JSON.stringify({ error: err.message }, null, 2));
+      return JSON.stringify({ error: err.message }, null, 2);
     }
   };
+
+  // Land on the Tools tab the first time tools are discovered — it is the point
+  // of the page. Only once, so it never fights later navigation.
+  useEffect(() => {
+    if (tools.length > 0 && !jumpedToToolsRef.current) {
+      jumpedToToolsRef.current = true;
+      setActiveTab('tools');
+    }
+  }, [tools.length]);
+
+  // Esc closes Present mode.
+  useEffect(() => {
+    if (!showPresent) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setShowPresent(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPresent]);
 
   const sendRawRpcCall = async () => {
     try {
@@ -288,6 +302,11 @@ export default function PrivilegeMcpClientPage() {
 
   return (
     <div className="cur-ide" data-cur-theme={pageTheme}>
+      {showPresent && (
+        <div className="ptt-present-overlay">
+          <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
+        </div>
+      )}
       {showBlockedModal && (
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
@@ -646,22 +665,11 @@ export default function PrivilegeMcpClientPage() {
               return filtered.length > 0 ? (
                 <div className="cur-tools-list">
                   {filtered.map((t) => {
-                    const params = Object.keys(t.inputSchema?.properties || {});
-                    const required = new Set(t.inputSchema?.required || []);
+                    const n = Object.keys(t.inputSchema?.properties || {}).length;
                     return (
-                    <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
-                      <span className="cur-tool-icon">fn</span>
-                      <div className="cur-tool-info">
-                        <span className="cur-tool-name">{t.name}</span>
-                        {t.description && <span className="cur-tool-desc">{t.description}</span>}
-                        {params.length > 0 && (
-                          <div className="cur-tool-params">
-                            {params.map((p) => (
-                              <span key={p} className={`cur-tool-param${required.has(p) ? ' cur-tool-param--req' : ''}`}>{p}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                    <div key={t.name} className="cur-tool-row" onClick={() => setActiveTab('tools')} title={t.description || t.name}>
+                      <span className="cur-tool-row-name">{t.name}</span>
+                      <span className="cur-tool-row-meta">{n} param{n === 1 ? '' : 's'}</span>
                     </div>
                     );
                   })}
@@ -680,7 +688,7 @@ export default function PrivilegeMcpClientPage() {
         <main className="cur-main">
           <div className="cur-tabs">
             <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
-            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tool Caller</button>
+            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
           </div>
 
@@ -732,54 +740,13 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {activeTab === 'tools' && (() => {
-              const activeTool = tools.find((t) => t.name === selectedTool);
-              return (
-                <div className="cur-tools-panel">
-                  <div className="cur-tools-header"><h3>Direct Tool Call</h3></div>
-                  <label className="cur-field">
-                    <span className="cur-field-label">Tool</span>
-                    <select className="cur-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-                      <option value="">Select a tool...</option>
-                      {tools.map((t) => <option key={t.name} value={t.name}>{t.name}{t.description ? ` — ${truncate(t.description, 60)}` : ''}</option>)}
-                    </select>
-                  </label>
-                  {activeTool && (
-                    <div className="cur-tool-detail">
-                      {activeTool.description && (
-                        <div className="cur-tool-detail-section">
-                          <span className="cur-field-label">Description</span>
-                          <p className="cur-tool-detail-desc">{activeTool.description}</p>
-                        </div>
-                      )}
-                      {activeTool.inputSchema && (
-                        <div className="cur-tool-detail-section">
-                          <span className="cur-field-label">Input Schema</span>
-                          <pre className="cur-code-output cur-code-output--schema">{JSON.stringify(activeTool.inputSchema, null, 2)}</pre>
-                        </div>
-                      )}
-                      {activeTool.resources && activeTool.resources.length > 0 && (
-                        <div className="cur-tool-detail-section">
-                          <span className="cur-field-label">Resources</span>
-                          <pre className="cur-code-output cur-code-output--schema">{JSON.stringify(activeTool.resources, null, 2)}</pre>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <label className="cur-field">
-                    <span className="cur-field-label">Arguments (JSON)</span>
-                    <textarea className="cur-input cur-input--code" rows={5} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
-                  </label>
-                  <button className="cur-btn cur-btn--primary" onClick={callTool} disabled={!selectedTool}>Execute Tool</button>
-                  {toolResult && (
-                    <div className="cur-result-block">
-                      <span className="cur-result-label">Result</span>
-                      <pre className="cur-code-output">{toolResult}</pre>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            {activeTab === 'tools' && (
+              <ToolsTable
+                tools={tools}
+                onExecute={executeToolCall}
+                onPresent={() => setShowPresent(true)}
+              />
+            )}
 
             {activeTab === 'rpc' && (
               <div className="cur-rpc-panel">

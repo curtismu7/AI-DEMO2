@@ -118,20 +118,47 @@ export class BankingToolProvider {
       //   direct MCP access). Skip session-based OAuth challenge detection — the
       //   delegated token is the credential.
       // - session path: run the challenge handler against session user tokens.
+      // The token actually used for execution/Step 9. Normally the agent token;
+      // on the open-access hop for a banking data tool it becomes a minted
+      // demo-user token (see below) so Step 9 has a real subject_token.
+      let effectiveAgentToken = agentToken;
       if (tool.requiresUserAuth && tool.requiredScopes.length > 0) {
         if (agentToken) {
-          // Privilege MCP gateway path: the bearer is a Privilege-issued token
-          // (kid infra-root-jwt / aud procyon), NOT a banking OAuth token, so it
-          // carries no banking scopes by design. When the deployment declares
-          // open-access (MCP_AUTH_DISABLED), the Privilege gateway in front of
-          // this hop has already run policy — the same rationale Authentication
-          // Integration uses to proceed despite missing scopes. Skip the banking
-          // scope check ONLY for that token shape. Real banking / A2A tokens
-          // (aud != procyon) are unaffected and still fully enforced below.
-          if (process.env.MCP_AUTH_DISABLED === 'true' && this.isPrivilegeGatewayToken(agentToken)) {
+          // Open-access hop (MCP_AUTH_DISABLED): a gateway in front of this
+          // server owns authorization, so the per-tool banking scope check must
+          // not fire. Two shapes reach here on that hop, and neither is a banking
+          // OAuth token:
+          //   1. The open-access PLACEHOLDER bearer 'disabled' — HttpMCPTransport
+          //      hands it downstream when the forwarded bearer does not validate
+          //      (the Privilege gateway case: it forwards a token this server
+          //      cannot verify, so the placeholder flows as agentToken with no
+          //      scopes). This is the exact bug the transport comment describes,
+          //      already fixed in AuthenticationIntegration but not here.
+          //   2. A Privilege-issued token (kid infra-root-jwt / aud procyon),
+          //      should one ever be forwarded intact.
+          // Real banking / A2A tokens are always signed JWTs with a banking aud
+          // and their scope-chain (records:read, tax:read, …) stays fully
+          // enforced below — they are never the placeholder and never aud procyon.
+          const openAccessHop =
+            process.env.MCP_AUTH_DISABLED === 'true' &&
+            (agentToken === 'disabled' || this.isPrivilegeGatewayToken(agentToken));
+          if (openAccessHop) {
             this.logger.info(
-              `[BankingToolProvider] MCP_AUTH_DISABLED + Privilege gateway token — the Privilege gateway owns authorization on this hop; skipping banking scope check for ${toolName}`
+              `[BankingToolProvider] open-access hop (MCP_AUTH_DISABLED) — the gateway owns authorization; skipping banking scope check for ${toolName}`
             );
+            // Banking DATA tools (not vertical) still need a real subject_token for
+            // Step 9 (the placeholder 'disabled' cannot be exchanged). Mint a demo
+            // user token from the BFF and run the tool as that user. Vertical tools
+            // execute server-side with no token, so they need nothing here.
+            if (!tool.vertical && agentToken === 'disabled') {
+              const demoToken = await this.apiClient.fetchDemoSubjectToken();
+              if (demoToken) {
+                effectiveAgentToken = demoToken;
+                this.logger.info(`[BankingToolProvider] open-access data tool — using demo-user subject token for Step 9 (${toolName})`);
+              } else {
+                this.logger.warn(`[BankingToolProvider] open-access data tool — demo subject token unavailable; ${toolName} will fail Step 9`);
+              }
+            }
           } else {
           // A2A-delegated tools: PingOne scope-name uniqueness forces the
           // specialist's Exchange #2 bearer to carry the per-vertical scope
@@ -215,7 +242,7 @@ export class BankingToolProvider {
       this.logger.debug(`[BankingToolProvider] Executing tool handler: ${tool.handler}`);
       this.apiClient.startTrace();  // keep started for error path in handleExecutionError
       callClient.startTrace();      // actual trace for this call
-      const result = await this.executeSpecificTool(tool, context, agentToken, callHandlerDeps);
+      const result = await this.executeSpecificTool(tool, context, effectiveAgentToken, callHandlerDeps);
       result.httpTrace = callClient.stopTrace();
       this.apiClient.stopTrace();   // clean up the base client's empty trace when callClient !== apiClient
 
@@ -223,7 +250,7 @@ export class BankingToolProvider {
       this.logger.info(`[BankingToolProvider] Tool execution completed: ${toolName} (${executionTime}ms) - Success: ${result.success}`);
 
       // Log token chain audit event (D-03, D-04)
-      await this.auditor.record({ toolName, tool, session, agentToken, result, executionTime, params: sanitizedParams });
+      await this.auditor.record({ toolName, tool, session, agentToken: effectiveAgentToken, result, executionTime, params: sanitizedParams });
 
       return result;
 

@@ -12,21 +12,22 @@
 //    via the agent-heuristic-fallback-changed event. One-way is enough: the
 //    agent's own copy of the control is hidden on this page.
 //  - Agent scope: same pattern, agent-scope-write-changed.
-//  - Demo steps: DemoStepsDropdown self-fetches by vertical; a selection is
-//    handed to the agent via agent-demo-step-select (the agent opens itself
-//    and runs the step exactly as if its own dropdown fired).
+//  - Guided Demo Track: the 9-step cross-vertical story (Act 1 customer,
+//    Act 2 admin). Lives on the PAGE here — the agent's header carries the
+//    pingone-admin Demo steps (ADMIN1-7) instead, so "admin tools on the
+//    agent, the big story on the page" (2026-08-10 layout decision). Picks
+//    and completions are handed to the agent over window events.
 //  - Flow Detail / Guide: window events; the agent opens the same modals.
 //  - Graph: plain navigation to /telemetry.
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AgentModeSelector from "./AgentModeSelector";
-import DemoStepsDropdown from "./DemoStepsDropdown";
+import DemoTrackAgentControl from "./DemoTrackAgentControl";
 import ScopePicker from "./ScopePicker";
 import "./AdminDemoControlStrip.css";
 
 export default function AdminDemoControlStrip() {
   const navigate = useNavigate();
-  const [stepsOpen, setStepsOpen] = useState(false);
   // Mirrors the agent's defaults (agentAllowWrite=true, heuristicEnabled=true).
   // The agent's own controls are hidden on this page, so this strip is the only
   // writer and the mirrors cannot be raced.
@@ -35,18 +36,13 @@ export default function AdminDemoControlStrip() {
 
   return (
     <div className="adcs" role="toolbar" aria-label="Demo controls">
-      <DemoStepsDropdown
-        vertical="pingone-admin"
-        open={stepsOpen}
-        onOpenChange={setStepsOpen}
-        onSelect={(uc, stepNumber, opts) => {
-          setStepsOpen(false);
-          window.dispatchEvent(
-            new CustomEvent("agent-demo-step-select", {
-              detail: { uc, stepNumber, opts },
-            }),
-          );
-        }}
+      <DemoTrackAgentControl
+        onPickStep={(detail) =>
+          window.dispatchEvent(new CustomEvent("agent-track-step-pick", { detail }))
+        }
+        onStepComplete={(detail) =>
+          window.dispatchEvent(new CustomEvent("agent-track-step-complete", { detail }))
+        }
       />
       <AgentModeSelector
         compact

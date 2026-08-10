@@ -316,6 +316,10 @@ export default function BankingAgent({
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
+  // Same pattern for the guided Demo Track picks arriving from the /admin
+  // page strip's DemoTrackAgentControl (agent-track-step-pick/-complete).
+  const trackStepPickRef = useRef(null);
+  const trackStepCompleteRef = useRef(null);
   // Same interaction contract as the Token Chain rail's More tray: outside
   // click and Escape close it, an item click does NOT — several entries are
   // switches a presenter flips in sequence.
@@ -832,6 +836,9 @@ export default function BankingAgent({
 
   // Guided Demo Track (Plan C): picked step drives a banner + swapped chip row.
   const [trackStep, setTrackStep] = useState(null); // { step, index, total, completed?, next? } | null
+  trackStepPickRef.current = handleTrackStepPick;
+  trackStepCompleteRef.current = handleTrackStepComplete;
+
   async function handleTrackStepPick({ step, index, total }) {
     setTrackStep({ step, index, total, completed: false, next: null });
     addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
@@ -1221,15 +1228,31 @@ export default function BankingAgent({
     const onFallback = (e) => {
       if (typeof e.detail?.enabled === "boolean") setHeuristicEnabled(e.detail.enabled);
     };
+    // Guided Demo Track picked from the /admin page strip: open the agent so
+    // the step's story line lands in a visible transcript, then run the same
+    // handler the header control uses. Completion toasts need no open panel.
+    const onTrackPick = (e) => {
+      if (!e.detail?.step) return;
+      setIsOpen(true);
+      setTimeout(() => trackStepPickRef.current?.(e.detail), 80);
+    };
+    const onTrackComplete = (e) => {
+      if (!e.detail?.step) return;
+      trackStepCompleteRef.current?.(e.detail);
+    };
     window.addEventListener("agent-demo-step-select", onStepSelect);
     window.addEventListener("agent-flow-detail-open", onFlowDetail);
     window.addEventListener("agent-scope-write-changed", onScope);
     window.addEventListener("agent-heuristic-fallback-changed", onFallback);
+    window.addEventListener("agent-track-step-pick", onTrackPick);
+    window.addEventListener("agent-track-step-complete", onTrackComplete);
     return () => {
       window.removeEventListener("agent-demo-step-select", onStepSelect);
       window.removeEventListener("agent-flow-detail-open", onFlowDetail);
       window.removeEventListener("agent-scope-write-changed", onScope);
       window.removeEventListener("agent-heuristic-fallback-changed", onFallback);
+      window.removeEventListener("agent-track-step-pick", onTrackPick);
+      window.removeEventListener("agent-track-step-complete", onTrackComplete);
     };
   }, []);
 
@@ -7070,6 +7093,16 @@ export default function BankingAgent({
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
     }
+    // Prompt-first steps (ADMIN5): open the username-filter modal so the
+    // presenter picks the prefix live, instead of sending the step's canned
+    // example text. Mirrors handleChipActivate's queryPrompt handling; the
+    // modal's Run filter submits through sendAsNl like any typed message.
+    if (uc.trigger?.queryPrompt === "userFilter") {
+      setUserFilter("");
+      setUserFilterError("");
+      setShowUserFilterModal(true);
+      return;
+    }
     markUseCaseCompleted(uc.id);
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
@@ -8565,7 +8598,15 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
+                {/* Hidden on /admin: its most prominent control launching the
+                    CUSTOMER-act catalog next to the admin agent read as "admin
+                    is doing demo use cases" (reported 2026-08-10). The strip's
+                    Demo steps (ADMIN1-7) is this page's step control; the
+                    guided 9-step track stays on every other page and on
+                    /demo-track, where its Act 2 admin steps remain reachable. */}
+                {!pageOwnsAgentChrome && (
                 <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
+                )}
                 <div
                   className={
                     splitChrome
@@ -8743,8 +8784,11 @@ export default function BankingAgent({
                 </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
-                {/* Demo steps — same scripted list as /use-cases Demo section */}
-                {!pageOwnsAgentChrome && (
+                {/* Demo steps — same scripted list as /use-cases Demo section.
+                    Deliberately NOT gated on pageOwnsAgentChrome: on /admin this
+                    shows ADMIN1-7 (forceVertical pingone-admin), which belongs
+                    WITH the admin agent — the page strip carries the guided
+                    Demo Track instead (2026-08-10 layout decision). */}
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
                   disabled={consentBlocked}
@@ -8757,7 +8801,6 @@ export default function BankingAgent({
                     handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
-                )}
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
                 {splitChrome && (
                   <button
@@ -9023,11 +9066,24 @@ export default function BankingAgent({
                           verticalMessage, null, { ...verticalOpts, consentGiven: true, hitlChallengeId: verticalChallengeId || null },
                         );
                         const consentParamHint = consentResp.needsParams?.hint || null;
+                        // Clickable account choices, mirroring the main needsParams
+                        // path (typeParams/enumChoices gate above): a post-consent
+                        // "which account?" ask was the one clarification that still
+                        // forced the customer to TYPE "checking"/"savings". Gated on
+                        // account-ish params so an amount ask never shows account chips.
+                        const consentTypeParams = new Set(['accounttype', 'portfoliotype', 'accountid', 'fromid', 'toid']);
+                        const consentFirstMissing = consentResp.needsParams?.missing?.[0];
+                        const consentEnumChoices = consentFirstMissing && consentResp.needsParams?.choices?.[consentFirstMissing];
+                        const consentClarifyOptions = consentEnumChoices
+                          ? consentEnumChoices
+                          : consentResp.needsParams?.missing?.some((k) => consentTypeParams.has(String(k).toLowerCase()))
+                            ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
+                            : null;
                         addMessage(
                           "assistant",
                           consentResp.reply || "\u2705 Done.",
                           null,
-                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint },
+                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint, clarifyOptions: consentClarifyOptions },
                         );
                         if (consentResp.needsParams?.action && consentResp.needsParams.missing?.length) {
                           setPendingClarification({
@@ -9037,6 +9093,7 @@ export default function BankingAgent({
                             partialParams: {},
                             asked: consentResp.reply,
                             hint: consentParamHint,
+                            clarifyOptions: consentClarifyOptions,
                             consentGiven: true,
                           });
                         }

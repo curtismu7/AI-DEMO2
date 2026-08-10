@@ -32,6 +32,7 @@ export default function ControlPlaneRoster() {
   const [transient, setTransient] = useState({}); // id -> { pulse, hit, flashrow }
   const [showLiveModal, setShowLiveModal] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [liveKillScope, setLiveKillScope] = useState("instance");
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -125,18 +126,24 @@ export default function ControlPlaneRoster() {
   // Live row: real kill via the existing unchanged endpoint. Destroys the
   // session (logout) on the server; the apiClient 401 handling takes over.
   // Returns the kill result (scope + step breakdown) so the confirm modal can
-  // show what ran vs. what was skipped before it closes.
+  // show what ran vs. what was skipped before it closes. Throws on any
+  // failure that ISN'T the expected agent_killed 401 (network error, axios
+  // timeout on a slow full-scope kill, ...) so the modal can show that
+  // failure instead of silently vanishing with no explanation.
   const confirmLiveKill = async (agentId, reason, scope) => {
-    let data = null;
+    let res;
     try {
-      const res = await apiClient.post(`/api/admin/agent/${agentId}/kill-switch`, { reason, scope });
-      data = res?.data || null;
+      res = await apiClient.post(`/api/admin/agent/${agentId}/kill-switch`, { reason, scope });
     } catch (err) {
       // 401 agent_killed is the expected success response — the body still carries scope/steps
-      data = err?.response?.data?.error === "agent_killed" ? err.response.data : null;
+      if (err?.response?.data?.error === "agent_killed") {
+        setLive((l) => (l ? { ...l, status: "revoked" } : l));
+        return err.response.data;
+      }
+      throw new Error(err?.response?.data?.message || err?.message || "Kill-switch request failed");
     }
     setLive((l) => (l ? { ...l, status: "revoked" } : l));
-    return data;
+    return res?.data || null;
   };
 
   // Inverse of confirmLiveKill: re-enables the PingOne agent application(s)
@@ -278,8 +285,23 @@ export default function ControlPlaneRoster() {
               <button
                 className={`cp-stop ${a.isLive ? "cp-stop--live" : ""}`}
                 disabled={revoked || busy}
-                onClick={() => (a.isLive ? setShowLiveModal(true) : onStopAgent(a))}
-              >{a.isLive ? "STOP" : "stop"}</button>
+                onClick={() => {
+                  if (!a.isLive) { onStopAgent(a); return; }
+                  setLiveKillScope("instance");
+                  setShowLiveModal(true);
+                }}
+              >{a.isLive ? "Stop this instance" : "stop"}</button>
+              {a.isLive && !revoked && (
+                <button
+                  className="cp-stop cp-stop--live-full"
+                  disabled={busy}
+                  title="Disables the agent's PingOne application — blocks new tokens for every user of this agent client."
+                  onClick={() => {
+                    setLiveKillScope("full");
+                    setShowLiveModal(true);
+                  }}
+                >Stop entire agent</button>
+              )}
               {a.isLive && revoked && (
                 <button
                   className="cp-stop cp-stop--revive"
@@ -332,6 +354,7 @@ export default function ControlPlaneRoster() {
         agentId={live ? live.id : "demo-agent"}
         onConfirm={confirmLiveKill}
         onCancel={() => setShowLiveModal(false)}
+        initialScope={liveKillScope}
       />
 
       {user?.role === "admin" && (

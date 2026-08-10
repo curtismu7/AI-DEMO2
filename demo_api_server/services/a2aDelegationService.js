@@ -434,6 +434,40 @@ async function delegateToSpecialist(req, opts = {}) {
       }
     }
 
+    // Additive Verified Trust assertion — a signed credential alongside the
+    // bearer chain, not instead of it. No DaVinci flow exists on this tenant
+    // yet (verifiedTrustService throws NOT_CONFIGURED), so this is soft-fail
+    // by design: any failure here must never affect tInvest/act above.
+    let trustAssertion;
+    const verifiedTrust = deps.verifiedTrustService || require('./verifiedTrustService');
+    if (verifiedTrust.isEnabled()) {
+      try {
+        trustAssertion = await verifiedTrust.issueAgentTrustAssertion({
+          agentId: c.agent2ClientId,
+          actingForUserId: userSub,
+          scope: specialistScopes.join(' '),
+          chainId: `${userSub}:${specialist.appKey}:${Date.now()}`,
+        });
+        tokenEvents.push(buildA2aEvent(
+          'verified-trust-issuance',
+          'Verified Trust — signed agent assertion issued',
+          'issued',
+          null,
+          `A signed SD-JWT credential was issued alongside the bearer chain, asserting ${specialist.specialistName} acts for the user — independently verifiable, portable across an org boundary.`,
+          { a2aRole: 'verified-trust', vertical, specialist: specialist.specialistName, credentialId: trustAssertion.credentialId },
+        ));
+      } catch (vtErr) {
+        tokenEvents.push(buildA2aEvent(
+          'verified-trust-issuance',
+          'Verified Trust — assertion not issued',
+          'failed',
+          null,
+          `Bearer-token delegation unaffected: ${vtErr.message}`,
+          { a2aRole: 'verified-trust', vertical, error: vtErr.message, code: vtErr.code || null },
+        ));
+      }
+    }
+
     return {
       token: tInvest,
       tokenEvents,
@@ -452,6 +486,7 @@ async function delegateToSpecialist(req, opts = {}) {
       scopes: specialistScopes,
       actChainDepth,
       protocolHandoff,
+      trustAssertion,
     };
   } catch (err) {
     tokenEvents.push(buildA2aEvent(

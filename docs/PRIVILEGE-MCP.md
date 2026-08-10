@@ -255,8 +255,22 @@ Two details that are easy to get wrong and are pinned by tests:
 - **Send `mcp-protocol-version`** on every non-`initialize` request, taken from the
   `initialize` response, or the MCP server answers `400`.
 
-A `client_credentials` token is a machine identity with no user, so `get_my_accounts`
-correctly returns `count: 0`. User-scoped data needs the interactive route.
+A `client_credentials` token is a machine identity with no user, so on its own
+`get_my_accounts` returns `count: 0`. In **open-access mode** (`MCP_AUTH_DISABLED=true`
+on `mcp-server`) the demo bridges this so data tools still return real rows:
+
+- The BFF mints the agent worker (`client_credentials`) token —
+  `POST /api/path/demo-subject-token`, 404 unless `MCP_AUTH_DISABLED` — and the MCP
+  server swaps it in as the Step 9 `subject_token` (PingOne has no ROPC grant, so a
+  worker token is the only non-interactive token available). This is what fixes the
+  older *"cannot parse subject_token"* Step 9 crash on this hop.
+- Because that token has no user `sub`, `authenticateToken` binds a **sub-less,
+  non-admin** request to a fixed demo user (`services/openAccessDemoUser.js`: env
+  `DEMO_SUBJECT_USER_ID`, else the richest seeded account owner) — **only** under
+  `MCP_AUTH_DISABLED`. A real user or admin token is never rebound. `get_my_accounts`
+  then returns that demo user's real accounts with a real holder name.
+
+Outside open-access mode, user-scoped data still needs the interactive route.
 
 The default target's scheme follows `MCP_MTLS_ENABLED`, because `mcp-server` serves TLS
 on 8080 only when mTLS is on. Overriding `PRIVILEGE_SIMPLE_MCP_URL` opts out of that — get

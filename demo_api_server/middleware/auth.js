@@ -904,7 +904,29 @@ const authenticateToken = async (req, res, next) => {
         // account create/delete, profile edits).
         isBankDelegate,
       };
-      
+
+      // Open-access Privilege hop only: banking DATA tools reach the BFF with a
+      // worker-derived Step 9 token that has no user subject (client_credentials
+      // → sub undefined), so /my would resolve to no accounts. Bind such a request
+      // to a real demo user so the tools return real rows. Scoped tight: ONLY when
+      // MCP_AUTH_DISABLED is on, the token has no sub, and the derived role is not
+      // admin — a real user (has a sub) or an admin token is never rebound, so
+      // requireNotAdmin and role enforcement are unchanged.
+      if (process.env.MCP_AUTH_DISABLED === 'true' && !decoded.sub && derivedRole !== 'admin') {
+        const demoUser = require('../services/openAccessDemoUser').resolveDemoUser();
+        if (demoUser?.id) {
+          req.user.id = demoUser.id;
+          req.user.sub = demoUser.id;
+          // Display fields so the banking page shows a real holder name, not a UUID.
+          if (demoUser.username) req.user.username = demoUser.username;
+          if (demoUser.email) req.user.email = demoUser.email;
+          if (demoUser.firstName) req.user.firstName = demoUser.firstName;
+          if (demoUser.lastName) req.user.lastName = demoUser.lastName;
+          if (demoUser.name) req.user.name = demoUser.name;
+          req.user.openAccessDemoBinding = true;
+        }
+      }
+
       return next();
     } catch (oauthError) {
       logger.error(LOG_CATEGORIES.AUTHENTICATION, 'OAuth token validation error', {

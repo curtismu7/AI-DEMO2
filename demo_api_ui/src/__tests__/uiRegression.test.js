@@ -246,6 +246,7 @@ describe("CSS/JS monospace regression", () => {
         f.includes("TokenChainDisplay.css") ||   // token chain code display (intentional)
         f.includes("TokenChainTraceRail.css") || // trace rail code/claims/JSON display (intentional)
         f.includes("TokenChainPresenter.css") || // presenter claim key/value display (intentional)
+        f.includes("privilege/ToolsTable.css") || // tool param/code display (intentional; shipped without this entry)
         f.includes("StepDetailPanel.css") ||     // step request/response/claims display (intentional)
         f.includes("UserMenu.css") ||            // user ID code display (intentional)
         f.includes("VerticalFeaturePage.css") || // feature code display (intentional)

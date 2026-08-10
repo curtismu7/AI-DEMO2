@@ -289,6 +289,24 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
 
+  {
+    id:           'ff_verified_trust_a2a',
+    name:         'Verified Trust — signed agent assertion on A2A delegation',
+    category:     'A2A Delegation',
+    description:
+      'Reserved for the upcoming Verified Trust integration — issuing a signed SD-JWT ' +
+      'credential (via a PingOne DaVinci flow, see services/verifiedTrustService.js) at ' +
+      'A2A delegation chain start, asserting which agent is acting for which user. ' +
+      'Not yet wired into any call path: the DaVinci flow itself does not exist on this ' +
+      'tenant yet, and delegateToSpecialist() does not call verifiedTrustService.js. ' +
+      'Turning this ON today has no effect.',
+    impact:
+      'OFF (default, and currently the only meaningful state) = no behavior change. ' +
+      'ON = no-op until a2aDelegationService.js is wired to call verifiedTrustService.js.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
   // ── PingOne Authorize — Group Policy ──────────────────────────────────────
   {
     id:           'ff_authorize_group_policy',
