@@ -1176,6 +1176,20 @@ export default function BankingAgent({
     return () => window.removeEventListener("agent-demo-guide-open", handler);
   }, []);
 
+  // Open the agent WITH the Demo steps dropdown, from a page-level launcher
+  // (admin dashboard toolbar). Exists because the agent starts collapsed on
+  // /admin — Demo steps lives in this header, so a closed agent left no
+  // visible path to it.
+  useEffect(() => {
+    const handler = () => {
+      setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
+      setShowDemoSteps(true);
+      setShowDiscovery(false);
+    };
+    window.addEventListener("agent-demo-steps-open", handler);
+    return () => window.removeEventListener("agent-demo-steps-open", handler);
+  }, []);
+
   // Run Intent Bypass attack demo from admin sidebar
   useEffect(() => {
     const _push = (content) =>
