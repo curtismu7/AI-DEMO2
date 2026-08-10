@@ -245,3 +245,62 @@ coverage there rather than only through a page:
 
 None new. Both findings addressed within the stated scope; `P1AzDashboard.jsx` and the
 pinned dead-CSS block are untouched as instructed.
+
+---
+
+## Addendum 2 — review follow-up (negative-check gap)
+
+Coordinator flagged that `EventStream.test.jsx`'s two plain-path tests (`60000`,
+`null`) would pass identically whether or not the old blanket
+`React.isValidElement` passthrough were reinstated — neither input is a React
+element, so neither exercises the thing the narrowed contract is supposed to
+forbid. Same class of "passes either way" defect called out for the third time
+in this piece of work; closing it now rather than logging it.
+
+### Fix
+
+Added one test to `EventStream.test.jsx`: a column with no `render`, given a row
+whose value is a React element (`{ amount: <span>60000</span> }`). Asserts the
+cell's text content is `[object Object]` (the actual output of `String()` on a
+React element) and that `'60000'` does **not** appear — i.e. the plain path
+stringifies the element rather than mounting it. Asserted on the stringified
+output itself, not on the absence of a `<span>`, per the coordinator's steer —
+that states the real guarantee ("raw values are stringified, never rendered as
+elements") rather than a side effect, and a comment above the assertion names
+why `[object Object]` is the intended result rather than a mistake.
+
+**Scope:** this one test only. `EventStream.jsx` was touched solely to verify the
+test is load-bearing (see below) and reverted — confirmed by an empty `git diff`
+after reverting, before staging/committing.
+
+### Counts
+
+`EventStream.test.jsx`: **5 → 6 tests**, all passing (verify command:
+`npx vitest run src/components/dashboard/__tests__/EventStream.test.jsx`).
+
+### Load-bearing check (the actual point of this round)
+
+1. Temporarily reinstated the old blanket branch in `EventStream.jsx`
+   (`React.isValidElement(val) ? val : ...` ahead of the `String(val)` fallback,
+   inside the non-`render` branch).
+2. Re-ran the file: **5 passed, 1 failed** — the new test failed with
+   `Expected element to have text content: [object Object] / Received: 60000`,
+   i.e. it caught the reinstated element-passthrough exactly as intended. The
+   other 5 tests (including the two plain-path ones the coordinator flagged as
+   blind to this) still passed, confirming they alone would have missed the
+   regression.
+3. Reverted `EventStream.jsx` to the committed version — `git diff` against it
+   is empty.
+4. Re-ran: **6 passed, 0 failed.**
+
+### Files changed (this addendum)
+
+- `demo_api_ui/src/components/dashboard/__tests__/EventStream.test.jsx` — one
+  new test (5 → 6)
+- `demo_api_ui/src/components/dashboard/EventStream.jsx` — temporarily modified
+  for the load-bearing check, then reverted; **no net change**, not staged.
+
+### Concerns
+
+None. The gap the coordinator identified is closed and verified as load-bearing,
+not just present.

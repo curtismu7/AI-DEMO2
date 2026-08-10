@@ -21,6 +21,24 @@ describe('EventStream', () => {
     expect(cell.children).toHaveLength(0);
   });
 
+  it('stringifies a React element given as a plain (non-render) cell value, rather than rendering it as markup', () => {
+    // Guards against reinstating the old blanket `React.isValidElement(val)`
+    // passthrough: a column with no `render` must treat ANY value, including
+    // an element, as opaque data to stringify — never as markup to mount.
+    // React elements stringify to "[object Object]"; that ugly output is the
+    // whole point of the assertion, not a bug — it's proof the plain path
+    // never special-cases an element.
+    render(
+      <EventStream
+        columns={[{ key: 'amount', label: 'Amount' }]}
+        rows={[{ amount: <span>60000</span> }]}
+      />,
+    );
+    const cell = document.querySelector('td');
+    expect(cell).toHaveTextContent('[object Object]');
+    expect(screen.queryByText('60000')).not.toBeInTheDocument();
+  });
+
   it('renders null/undefined plain values as an empty cell, not the string "null"', () => {
     render(
       <EventStream
