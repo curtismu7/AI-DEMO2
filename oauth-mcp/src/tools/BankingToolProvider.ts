@@ -120,17 +120,27 @@ export class BankingToolProvider {
       // - session path: run the challenge handler against session user tokens.
       if (tool.requiresUserAuth && tool.requiredScopes.length > 0) {
         if (agentToken) {
-          // Privilege MCP gateway path: the bearer is a Privilege-issued token
-          // (kid infra-root-jwt / aud procyon), NOT a banking OAuth token, so it
-          // carries no banking scopes by design. When the deployment declares
-          // open-access (MCP_AUTH_DISABLED), the Privilege gateway in front of
-          // this hop has already run policy — the same rationale Authentication
-          // Integration uses to proceed despite missing scopes. Skip the banking
-          // scope check ONLY for that token shape. Real banking / A2A tokens
-          // (aud != procyon) are unaffected and still fully enforced below.
-          if (process.env.MCP_AUTH_DISABLED === 'true' && this.isPrivilegeGatewayToken(agentToken)) {
+          // Open-access hop (MCP_AUTH_DISABLED): a gateway in front of this
+          // server owns authorization, so the per-tool banking scope check must
+          // not fire. Two shapes reach here on that hop, and neither is a banking
+          // OAuth token:
+          //   1. The open-access PLACEHOLDER bearer 'disabled' — HttpMCPTransport
+          //      hands it downstream when the forwarded bearer does not validate
+          //      (the Privilege gateway case: it forwards a token this server
+          //      cannot verify, so the placeholder flows as agentToken with no
+          //      scopes). This is the exact bug the transport comment describes,
+          //      already fixed in AuthenticationIntegration but not here.
+          //   2. A Privilege-issued token (kid infra-root-jwt / aud procyon),
+          //      should one ever be forwarded intact.
+          // Real banking / A2A tokens are always signed JWTs with a banking aud
+          // and their scope-chain (records:read, tax:read, …) stays fully
+          // enforced below — they are never the placeholder and never aud procyon.
+          const openAccessHop =
+            process.env.MCP_AUTH_DISABLED === 'true' &&
+            (agentToken === 'disabled' || this.isPrivilegeGatewayToken(agentToken));
+          if (openAccessHop) {
             this.logger.info(
-              `[BankingToolProvider] MCP_AUTH_DISABLED + Privilege gateway token — the Privilege gateway owns authorization on this hop; skipping banking scope check for ${toolName}`
+              `[BankingToolProvider] open-access hop (MCP_AUTH_DISABLED) — the gateway owns authorization; skipping banking scope check for ${toolName}`
             );
           } else {
           // A2A-delegated tools: PingOne scope-name uniqueness forces the
