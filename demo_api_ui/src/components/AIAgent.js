@@ -58,7 +58,7 @@ import {
   notifySuccess,
   toast,
 } from "../utils/appToast";
-import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility";
+import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
@@ -306,11 +306,31 @@ export default function BankingAgent({
   const { addEvent } = useEventStream();
   const { pageManifest, agentManifest, activeId: activeVerticalId } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
-  // Secondary header controls are collapsed behind a "More" toggle. The header
-  // had ~16 controls across five rows, which buries the ones actually used to
-  // drive a demo. Kept visible: Demo Track, Routing + Wiring, Flow Detail,
-  // Guide, Demo steps, agent scope, close. Everything else lives under More.
+  // Secondary header controls live in a "More" popout. The header had ~16
+  // controls across five rows, which buries the ones actually used to drive a
+  // demo. Kept inline: Demo Track, Routing + Wiring, Flow Detail, Guide, Demo
+  // steps, agent scope, close. A popout rather than an inline expansion so the
+  // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
+  const headerMoreRef = useRef(null);
+  // Same interaction contract as the Token Chain rail's More tray: outside
+  // click and Escape close it, an item click does NOT — several entries are
+  // switches a presenter flips in sequence.
+  useEffect(() => {
+    if (!headerMoreOpen) return undefined;
+    const onDocClick = (e) => {
+      if (!headerMoreRef.current?.contains(e.target)) setHeaderMoreOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setHeaderMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [headerMoreOpen]);
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
@@ -1008,6 +1028,9 @@ export default function BankingAgent({
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  // Current pathname reachable from effects that must not list it as a dep.
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
   // On the /agent route the inline/full-page instance is shown — hide duplicate float
   const isAgentPage = location.pathname === "/agent";
   /** Landing `/`: agent success/info/error toasts use longer autoClose (readable for guests). */
@@ -1501,7 +1524,17 @@ export default function BankingAgent({
       // command is intentionally dropped, not retained for a later page load.
       const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
 
-      setIsOpen(true);
+      // The admin console opens with its own content (group membership, customer
+      // lookup, metrics); auto-expanding the agent over it buries the page the
+      // admin just logged in to see. Every other vertical still opens the agent,
+      // which is the intended first beat of those demos. The rest of this effect
+      // (param stripping, pending-NL replay) must still run on admin routes.
+      // Read through a ref so pathname stays out of the dep array — this effect
+      // must fire once on the OAuth return, not again on every later navigation
+      // (the oauth param is stripped from window.location below, but the
+      // router's searchParams do not necessarily follow, so a re-run would
+      // re-open the panel).
+      if (!isPingOneAdminAgentRoute(pathnameRef.current)) setIsOpen(true);
       // Strip oauth params from URL so they don't re-trigger on navigation
       const url = new URL(window.location.href);
       url.searchParams.delete("oauth");
@@ -8488,29 +8521,9 @@ export default function BankingAgent({
                   heuristicFallback={heuristicEnabled}
                   onHeuristicFallbackChange={setHeuristicEnabled}
                 />
-                {headerMoreOpen && (
-                  <>
-                {/* RFC info toggle — under More, not always visible */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={showRfcInfo}
-                  onChange={(e) => setShowRfcInfo(e.target.checked)}
-                  title="Show or hide RFC token-event messages in the chat"
-                >
-                  RFC info
-                </Check>
-                {/* Dark mode switch — drives data-theme on the document root, which the
-                    dark-capable panels (Token Chain rail) key off. */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={darkMode}
-                  onChange={(e) => setDarkMode(e.target.checked)}
-                  title="Switch the Token Chain panel between light and dark"
-                >
-                  Dark mode
-                </Check>
+                {/* Model advisory and provider-fallback chips stay inline. They are
+                    transient alerts about a degraded provider, so hiding them behind
+                    More would mean the presenter never sees them. */}
                 {modelAdvisory && (
                   <span
                     className="ams-degraded-chip ba-model-advisory-chip"
@@ -8547,47 +8560,6 @@ export default function BankingAgent({
                     >×</button>
                   </span>
                 )}
-                {/* Compliance 12-step toggle */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={showCompliancePanel}
-                  onChange={(e) => {
-                    const newVal = e.target.checked;
-                    try {
-                      localStorage.setItem(
-                        "ba_show_compliance_panel",
-                        newVal ? "1" : "0",
-                      );
-                    } catch {}
-                    if (newVal) setComplianceSlideout(true);
-                    setShowCompliancePanel(newVal);
-                  }}
-                  title="Show or hide the 12-step compliance status"
-                >
-                  Compliance
-                </Check>
-                {showCompliancePanel && (
-                  <Check
-                    variant="switch"
-                    className="ba-header-toggle-label"
-                    checked={complianceSlideout}
-                    onChange={(e) => {
-                      try {
-                        localStorage.setItem(
-                          "ba_compliance_slideout",
-                          e.target.checked ? "1" : "0",
-                        );
-                      } catch {}
-                      setComplianceSlideout(e.target.checked);
-                    }}
-                    title="Show compliance as side-panel overlay"
-                  >
-                    Side panel
-                  </Check>
-                )}
-                  </>
-                )}
                 {/* Flow Detail modal button */}
                 <button
                   type="button"
@@ -8597,25 +8569,99 @@ export default function BankingAgent({
                 >
                   Flow Detail
                 </button>
-                <button
-                  type="button"
-                  className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
-                  aria-expanded={headerMoreOpen}
-                  title="Show or hide the secondary header controls"
-                  onClick={() => setHeaderMoreOpen((v) => !v)}
-                >
-                  {headerMoreOpen ? "Less" : "More"}
-                </button>
-                {headerMoreOpen && (
-                <button
-                  type="button"
-                  className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
-                  title="Real-time token topology — RFC 8693 delegation chain"
-                  onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
-                >
-                  Topology
-                </button>
-                )}
+                <div className="ba-header-more" ref={headerMoreRef}>
+                  <button
+                    type="button"
+                    className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
+                    aria-haspopup="true"
+                    aria-expanded={headerMoreOpen}
+                    title="Secondary header controls"
+                    onClick={() => setHeaderMoreOpen((v) => !v)}
+                  >
+                    More
+                  </button>
+                  {headerMoreOpen && (
+                    <div className="ba-header-more-pop">
+                      {/* RFC info toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showRfcInfo}
+                        onChange={(e) => setShowRfcInfo(e.target.checked)}
+                        title="Show or hide RFC token-event messages in the chat"
+                      >
+                        RFC info
+                      </Check>
+                      {/* Dark mode switch — drives data-theme on the document root, which the
+                          dark-capable panels (Token Chain rail) key off. */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={darkMode}
+                        onChange={(e) => setDarkMode(e.target.checked)}
+                        title="Switch the Token Chain panel between light and dark"
+                      >
+                        Dark mode
+                      </Check>
+                      {/* Compliance 12-step toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showCompliancePanel}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem(
+                              "ba_show_compliance_panel",
+                              newVal ? "1" : "0",
+                            );
+                          } catch {}
+                          if (newVal) setComplianceSlideout(true);
+                          setShowCompliancePanel(newVal);
+                        }}
+                        title="Show or hide the 12-step compliance status"
+                      >
+                        Compliance
+                      </Check>
+                      {showCompliancePanel && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={complianceSlideout}
+                          onChange={(e) => {
+                            try {
+                              localStorage.setItem(
+                                "ba_compliance_slideout",
+                                e.target.checked ? "1" : "0",
+                              );
+                            } catch {}
+                            setComplianceSlideout(e.target.checked);
+                          }}
+                          title="Show compliance as side-panel overlay"
+                        >
+                          Side panel
+                        </Check>
+                      )}
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
+                        title="Real-time token topology — RFC 8693 delegation chain"
+                        onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
+                      >
+                        Topology
+                      </button>
+                      {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        title="Open 15-Min Security Demo Script (teleprompter)"
+                        onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
+                      >
+                        Script
+                      </button>
+                    </div>
+                  )}
+                </div>
                 {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions
                     dropdown removal deliberately moved header utility controls
                     out of a popout and inline; AIAgent.chips.test.js asserts
@@ -8628,17 +8674,6 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
-                {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
-                {headerMoreOpen && (
-                <button
-                  type="button"
-                  className="ba-actions-trigger"
-                  title="Open 15-Min Security Demo Script (teleprompter)"
-                  onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
-                >
-                  Script
-                </button>
-                )}
                 </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>

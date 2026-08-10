@@ -20,19 +20,22 @@
   gap: 5px;
 }
 
+/* Full-width flex item so each act label forces a line break and always sits
+   ABOVE its chips. As a normal inline item it rode alongside the first chip,
+   and only looked like a heading when it happened to land at a wrap boundary —
+   which is why Act 1 read inline and Act 2 read as a heading. */
 .dtb-act {
+  flex: 0 0 100%;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748b;
-  padding: 0 6px 0 2px;
+  padding: 0 2px;
 }
 
 .dtb-act:not(:first-child) {
-  margin-left: 6px;
-  border-left: 1px solid #e2e8f0;
-  padding-left: 10px;
+  margin-top: 6px;
 }
 
 .dtb-chip {

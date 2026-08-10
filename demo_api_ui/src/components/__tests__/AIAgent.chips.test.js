@@ -193,9 +193,9 @@ const adminUser = {
   lastName: "User",
 };
 
-function renderAgent(props = {}) {
+function renderAgent(props = {}, { route = "/" } = {}) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[route]}>
       <ProofOfEnforcementProvider>
         <ActivityNarrativeProvider>
           <AIAgent {...props} />
@@ -443,6 +443,57 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
     expect(document.querySelector(".agent-scope-picker-row")).toBeInTheDocument();
     expect(screen.getByTestId("header-clear-progress")).toBeInTheDocument();
+  });
+
+  // The secondary controls moved into a "More" tray. Guide, Demo steps, the
+  // scope picker and Clear progress deliberately did NOT move — the test above
+  // is the 2026-07-24 Actions-dropdown-removal contract and still holds.
+  it("float mode: Topology and Script are in the More tray, not the header", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+
+    expect(screen.queryByRole("button", { name: /^Topology$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Script$/i })).not.toBeInTheDocument();
+
+    const more = screen.getByRole("button", { name: /^More$/i });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await act(async () => {
+      fireEvent.click(more);
+    });
+
+    expect(screen.getByRole("button", { name: /^Topology$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Script$/i })).toBeInTheDocument();
+    // The items live in the tray container, not loose in the header row. This
+    // asserts structure only — jsdom applies no CSS, so whether the tray is
+    // actually positioned as an overlay is not covered here.
+    expect(document.querySelector(".ba-header-more-pop")).toBeInTheDocument();
+    // The locked-inline controls are unaffected by opening the tray.
+    expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
+  });
+});
+
+// ─── Post-OAuth auto-open ────────────────────────────────────────────────────
+// The agent expands itself on return from login. On the PingOne admin console
+// that buried the page the admin just signed in to see, so the auto-open is
+// suppressed there and only there.
+describe("Auto-open on return from OAuth login", () => {
+  it("opens the panel on a non-admin route", async () => {
+    renderAgent({ user: customerUser, mode: "float" }, { route: "/dashboard?oauth=success" });
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: /AI Agent/i })).toBeInTheDocument();
+    });
+  });
+
+  it("stays collapsed on the PingOne admin console", async () => {
+    renderAgent({ user: adminUser, mode: "float" }, { route: "/admin?oauth=success" });
+    // The FAB is the collapsed state; assert it is still the only affordance.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Open.*AI Agent/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("dialog", { name: /AI Agent/i })).not.toBeInTheDocument();
   });
 });
 
