@@ -102,6 +102,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — PingOne Admin gate via P1AZ locked out every admin (reverted)
+
+**Files changed:** `demo_api_server/services/pingOneAdminAccessService.js`, its test,
+`docs/superpowers/specs/2026-08-10-pingone-admin-p1az-group-gate-design.md`
+
+**What was broken:** PR #1548 changed `checkAccess` to decide PingOne Admin
+dashboard access via `pingOneAuthorizeService.evaluateMcpToolDelegation`
+(a real PingOne Authorize decision) instead of a JS group check. Live-verify
+run immediately after merge/deploy found the deployed "McpFirstTool" policy
+runs an unconditional `TokenAudience`/actor-chain validation rule BEFORE its
+group rule. Called for a confirmed `pingone-admin` group member
+(`demoAdmin`), the real decision endpoint returned `DENY` with
+`"MCP tool 'pingone_admin_access' authorization denied. Token audience
+'none' or actor chain validation failed."` — the group rule never
+evaluated. Because this call site gates a plain session-based dashboard
+route (no MCP bearer token exists to read a real `TokenAudience` from), it
+has nothing legitimate to supply that check, and every admin — regardless
+of group membership — was locked out. Caught within minutes of deploy via
+the plan's own mandatory live-verify step, before any user besides the
+agent hit it.
+
+**What was fixed:** Reverted `checkAccess`'s decision back to
+`groups.includes(requiredGroup)` in JS (pre-PR-#1548 behavior). The
+directory-read-at-decision-time property is unchanged and still real. The
+PingOne Authorize call and its tests were removed rather than left dead —
+a follow-up needs either a dedicated decision endpoint/policy for this
+vertical with no audience gate, or a genuine token-audience source, before
+attempting P1AZ enforcement here again.
+
+**Do not break:** Do not re-attempt routing this specific check through
+`evaluateMcpToolDelegation`/the "McpFirstTool" decision context without
+first confirming (via the deployed policy's actual rule JSON, not just its
+documented intent) that its audience-chain rule won't fire for a caller
+with no MCP token. `routes/adminAgentRoutes.js`'s two call sites are
+unaffected either way — the `{allowed, error, status, requiredGroup}`
+contract never changed.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+live: a confirmed `pingone-admin` group member gets `200`/access; a
+non-member gets `403 pingone_admin_group_required`.
+
 ### 2026-08-10 — MCP_AUTH_DISABLED denied every scoped tool call
 
 **Files changed:** `oauth-mcp/src/server/HttpMCPTransport.ts`,
