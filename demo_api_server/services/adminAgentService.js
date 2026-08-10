@@ -73,6 +73,7 @@ function formatAdminToolReply(action, result, params) {
     for (const row of result.rows) {
       const label = row.username || row.name || JSON.stringify(row);
       const extra = row.email && row.email !== row.username ? ` (${row.email})`
+        : row.scopes ? ` — ${row.scopes}`
         : row.type ? ` — ${row.type}`
         : row.description ? ` — ${row.description}`
         : '';

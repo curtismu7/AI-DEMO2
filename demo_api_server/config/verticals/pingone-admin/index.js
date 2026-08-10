@@ -46,6 +46,9 @@ const HEURISTICS = [
   // demo_api_ui/public/pingone-mcp-tools.html), so group phrasing falls through to
   // the LLM, which reads the live tool list, rather than pinning a name that 404s.
   { re: /\blist\b.*\bpopulation|\bshow\b.*\bpopulation/i,                            action: 'call_pingone_tool', defaultParams: { name: 'listPopulations' } },
+  // Resources (ADMIN8): scopes ride along automatically — callPingOneTool
+  // enriches listResources rows with each resource's scopes from REST.
+  { re: /\b(list|show|get)\b.*\bresources?\b/i,                                      action: 'call_pingone_tool', defaultParams: { name: 'listResources' } },
   { re: /\b(get|show|view)\b.*\benvironment\b/i,                                     action: 'call_pingone_tool', defaultParams: { name: 'getEnvironment' } },
   // Filtered tool discovery — MUST precede the generic discovery regex.
   // list_pingone_tools takes `filter` directly (case-insensitive substring

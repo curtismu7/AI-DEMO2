@@ -28,12 +28,13 @@ const ADMIN_PARSE_EXPECT = {
   ADMIN5: { action: 'call_pingone_tool', toolName: 'listUsers', filter: 'username sw "curt"' },
   ADMIN6: { action: 'call_pingone_tool', toolName: 'listApplications', filter: 'name sw "Demo"' },
   ADMIN7: { action: 'list_pingone_tools', toolName: undefined },
+  ADMIN8: { action: 'call_pingone_tool', toolName: 'listResources' },
 };
 
 describe('step verification — pingone-admin catalog', () => {
   test('catalog lists ADMIN1–7 with chip triggers', () => {
     expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
-      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7',
+      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8',
     ]);
     for (const s of ADMIN_DEMO_STEPS) {
       expect(s.trigger?.type).toBe('chip');
@@ -109,6 +110,6 @@ describe('step verification — pingone-admin prerequisites', () => {
         verifiedBy: 'pingone-admin vertical has no flag/A2A/PAR prerequisites',
       });
     }
-    expect(ADMIN_DEMO_STEPS.length).toBe(7);
+    expect(ADMIN_DEMO_STEPS.length).toBe(8);
   });
 });

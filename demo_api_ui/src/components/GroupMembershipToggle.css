@@ -182,22 +182,26 @@
 
 /* Modal */
 
+/* Cleaned up 2026-08-10 ("clean up dialog box"): the status banner was a
+   heavy full-width block; now a compact status row, and the tier reads as a
+   small pill instead of a bare bold line. */
 .gmt-modal {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   color: #1a1f2b;
 }
 
 .gmt-modal-state {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1rem;
+  gap: 8px;
+  font-size: 0.92rem;
   font-weight: 700;
-  padding: 12px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: 1px solid transparent;
+  width: fit-content;
 }
 
 .gmt-modal-state--in {
@@ -212,12 +216,25 @@
   color: #7d1b15;
 }
 
-.gmt-modal-body,
-.gmt-modal-tier {
+.gmt-modal-body {
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.5;
   color: #1a1f2b;
+}
+
+.gmt-modal-tier {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  font-size: 0.82rem;
+  color: #1a1f2b;
+  background: #eef2f7;
+  border: 1px solid #c8ccd4;
+  border-radius: 999px;
+  padding: 3px 12px;
 }
 
 .gmt-modal-warn {
