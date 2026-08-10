@@ -2,69 +2,51 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `pingOneAdminAccessService#checkAccess` decide PingOne Admin dashboard access via a real PingOne Authorize decision with a genuine `TokenAudience` — closing the gap that made the first attempt (#1548, reverted as #1550) deny every admin.
+**Goal:** Make `pingOneAdminAccessService#checkAccess` decide PingOne Admin dashboard access via a real PingOne Authorize decision with a genuine `TokenAudience` and `ActClientId` — closing the gaps that made two prior attempts fail (audience-only #1548/#1550, then a single-hop exchange that fixed the audience but hit a second, independent actor-chain gate).
 
-**Architecture:** `adminAgentRoutes.js`'s `requirePingOneAdminGroup` passes the admin's already-in-scope `req.agentContext.accessToken` into `checkAccess()`. `checkAccess` exchanges it for an `mcpgateway.ping.demo`-audienced token via `oauthService.performTokenExchangeAs` (using the already-provisioned Token Exchanger app's own identity as the exchanging party — no new PingOne provisioning), decodes the real `aud` claim, and passes it to `evaluateMcpToolDelegation` as `tokenAudience` alongside the expected `mcpResourceUri` — both populated this time, so the deployed policy's audience-chain rule passes and its group rule makes the real decision.
+**Architecture:** `adminAgentRoutes.js`'s `requirePingOneAdminGroup` passes the admin's already-in-scope `req.agentContext.accessToken` into `checkAccess()`. `checkAccess` performs a **two-hop** RFC 8693 exchange — hop 1 as the AI Agent Actor client against the intermediate `agentgateway.ping.demo` audience (constructs a real `act` claim from the admin's own PingOne `mayAct` profile attribute), hop 2 as the Token Exchanger client against the final `mcpgateway.ping.demo` audience (propagates that `act` forward) — then decodes the final token's real `aud`/`act` and passes both to `evaluateMcpToolDelegation` as `tokenAudience`/`actClientId`, alongside `mcpResourceUri`. This satisfies both halves of the deployed policy's combined audience-and-actor-chain check. No new PingOne provisioning — every client and resource involved is already fully granted for banking's own use.
 
 **Tech Stack:** Node 22, CommonJS, Jest 29.7, `demo_api_server`.
 
+## Note on plan history
+
+This plan's Task 1 was previously implemented, reviewed, and fix-rounded as a **single-hop** exchange (commits `7592cc3d..62b9140d` on this branch) — it passed all tests and its own task review, but a live-verify pass (Task 2, run before any merge, working as designed) found the single-hop token never carries a real `act` claim, which the deployed policy separately requires. That live-verify is what caught this, not a review gap — the single-hop code was exactly what its own task review approved. This revision replaces Task 1's requirements with the two-hop fix; the prior single-hop commits remain in this branch's history and are superseded, not deleted, by Task 1's new commits below.
+
 ## Global Constraints
 
-- Never proceed to the P1AZ decision call with a missing/undecoded `tokenAudience` — the exact failure mode that broke #1548. Missing `accessToken` or a failed exchange must fail closed at `503 pingone_admin_group_lookup_unavailable` immediately, no fallback to the old JS-only check.
-- No token caching. Every `checkAccess` call does a fresh exchange + fresh decision call, matching this codebase's existing no-cache convention for MCP-audienced tokens (confirmed: nothing else caches one either).
-- Reuse existing infrastructure only: `oauthService.performTokenExchangeAs` (`services/oauthService.js:955`), `configStore` keys `pingone_mcp_token_exchanger_client_id`/`_secret`, `resolveExpectedMcpResourceUri()` (`services/mcpToolAuthorizationService.js:86`), `decodeJwt` (`utils/tokenUtils.js:20`), `pingOneAuthorizeService.evaluateMcpToolDelegation` (`services/pingOneAuthorizeService.js:849`). Do not write a new JWT decoder or a new token-exchange function.
+- Never proceed to the P1AZ decision call with a missing/undecoded `tokenAudience` — the exact failure mode that broke #1548. Missing `accessToken` or a failed exchange (either hop) must fail closed at `503 pingone_admin_group_lookup_unavailable` immediately, no fallback to the old JS-only check.
+- `actClientId` is passed through as decoded (may be `undefined` if genuinely absent) — the P1AZ policy itself validates it; `checkAccess` does not separately gate on its presence the way it gates on `tokenAudience`.
+- No token caching. Every `checkAccess` call does a fresh two-hop exchange + fresh decision call, matching this codebase's existing no-cache convention for MCP-audienced tokens.
+- Reuse existing infrastructure only: `oauthService.performTokenExchangeAs` (`services/oauthService.js:955`), `configStore` keys `pingone_ai_agent_actor_client_id`/`_secret`, `ai_agent_intermediate_audience`, `pingone_mcp_token_exchanger_client_id`/`_secret`, `resolveExpectedMcpResourceUri()` (`services/mcpToolAuthorizationService.js:86`), `decodeJwt` (`utils/tokenUtils.js:20`), `pingOneAuthorizeService.evaluateMcpToolDelegation` (`services/pingOneAuthorizeService.js:849`). Do not write a new JWT decoder or a new token-exchange function.
+- Both exchange calls use `'post'` as the explicit auth-method argument — the function's own default (`'basic'`) fails 401 for both clients involved (live-verified this session for the Token Exchanger client; assume the same for the AI Agent Actor client unless the implementer's own live-verify run says otherwise).
 - `policyNotFound` → `503` (config-drift signal), never a member-facing `403`.
 - `INDETERMINATE` fails closed as `403`, never `PERMIT`.
-- Do not merge until the live-verify task (Task 2) passes against the real environment — not mocks. This is the actual lesson from today's outage: verify live BEFORE merge, not after.
+- Do not merge until the live-verify task (Task 2) passes against the real environment — not mocks — for **both** the PERMIT and DENY directions, through the real two-hop chain. This is the second time live-verify has been the thing that actually catches a gap here; do not skip or shortcut it.
 - Spec: `docs/superpowers/specs/2026-08-10-pingone-admin-real-p1az-design.md`.
 
 ---
 
-## Task 1: Real P1AZ decision with a genuine TokenAudience
+## Task 1: Two-hop RFC 8693 exchange feeding a real TokenAudience + ActClientId
 
 **Files:**
-- Modify: `demo_api_server/routes/adminAgentRoutes.js` (lines ~18-22, ~43-49, ~116-120 — the `requirePingOneAdminGroup` helper and its two call sites)
-- Modify: `demo_api_server/services/pingOneAdminAccessService.js`
-- Modify: `demo_api_server/tests/pingOneAdminAccessService.test.js`
+- Modify: `demo_api_server/routes/adminAgentRoutes.js` — **only if not already done** by the prior single-hop commits on this branch (check first: `requirePingOneAdminGroup` should already pass `accessToken: req.agentContext?.accessToken || null` into `checkAccess`). If already present, this file needs no further change for this task.
+- Modify: `demo_api_server/services/pingOneAdminAccessService.js` — replace the single-hop exchange with the two-hop version below.
+- Modify: `demo_api_server/tests/pingOneAdminAccessService.test.js` — replace entirely (the single-hop test file's mocking shape no longer matches).
 
 **Interfaces:**
 - Consumes:
-  - `oauthService.performTokenExchangeAs(subjectToken, actorToken, clientId, clientSecret, audience, scopes, method, exchangeOptions)` (`services/oauthService.js:955`) — returns `Promise<string>` (the exchanged access token) or rejects with an `Error` carrying `.pingoneError`/`.pingoneErrorDescription`/`.httpStatus`.
-  - `decodeJwt(token)` (`utils/tokenUtils.js:20`) — returns `{ header, claims } | null`, never throws.
-  - `pingOneAuthorizeService.evaluateMcpToolDelegation(opts)` — unchanged from the reverted design, returns `Promise<{ decision: 'PERMIT'|'DENY'|'INDETERMINATE', policyNotFound?: boolean, ... }>` or rejects.
-  - `resolveExpectedMcpResourceUri()` (`services/mcpToolAuthorizationService.js:86`, exported) — returns a string (the expected MCP resource URI for this deployment).
-  - `configStore.getEffective(key)` — existing pattern, keys `pingone_mcp_token_exchanger_client_id` / `pingone_mcp_token_exchanger_client_secret`.
-- Produces: `checkAccess({ username, pingOneUserId, accessToken })` — **new required-in-practice `accessToken` param** (optional in signature; its absence is one of the fail-closed branches). Same return shape as before: `Promise<{ allowed: boolean, error: string|null, status: number, requiredGroup: string|null, username?: string, groups?: string[] }>`. Consumed by `routes/adminAgentRoutes.js#requirePingOneAdminGroup`, which this task also updates to pass `accessToken` through — both call sites already destructure it from `req.agentContext` one line above their existing call.
+  - `oauthService.performTokenExchangeAs(subjectToken, actorToken, clientId, clientSecret, audience, scopes, method, exchangeOptions)` (`services/oauthService.js:955`) — called **twice** per successful path, with different client credentials and audiences each time. Returns `Promise<string>` or rejects with an `Error`.
+  - `decodeJwt(token)` (`utils/tokenUtils.js:20`) — `{ header, claims } | null`, never throws.
+  - `pingOneAuthorizeService.evaluateMcpToolDelegation(opts)` — unchanged, now also receives `actClientId`.
+  - `resolveExpectedMcpResourceUri()` (`services/mcpToolAuthorizationService.js:86`, exported).
+  - `configStore.getEffective(key)` — five keys now: `pingone_ai_agent_actor_client_id`, `pingone_ai_agent_actor_client_secret`, `ai_agent_intermediate_audience`, `pingone_mcp_token_exchanger_client_id`, `pingone_mcp_token_exchanger_client_secret`.
+- Produces: `checkAccess({ username, pingOneUserId, accessToken })` — same signature and return shape as the (superseded) single-hop version: `Promise<{ allowed: boolean, error: string|null, status: number, requiredGroup: string|null, username?: string, groups?: string[] }>`.
 
-**Current `adminAgentRoutes.js` (relevant excerpts):**
+- [ ] **Step 1: Check whether `adminAgentRoutes.js`'s route wiring already exists**
 
-```js
-async function requirePingOneAdminGroup(req, res, response = {}) {
-  const access = await pingOneAdminAccessService.checkAccess({
-    username: req.session?.user?.username || null,
-    pingOneUserId: req.agentContext?.userId || null,
-  });
-  ...
-}
+Read `demo_api_server/routes/adminAgentRoutes.js`'s `requirePingOneAdminGroup` function (near the top of the file). If it already calls `pingOneAdminAccessService.checkAccess({ username: ..., pingOneUserId: ..., accessToken: req.agentContext?.accessToken || null })`, this file needs no changes for this task — skip to Step 2. If for any reason it does not (e.g. this task is being run on a fresh checkout without the prior commits), add exactly that one field to the object passed to `checkAccess`, matching the existing `username`/`pingOneUserId` style, and note this in your report.
 
-// call site 1, inside router.post('/init', ...):
-    const { userId, accessToken } = req.agentContext || {};
-    if (!userId || !accessToken) {
-      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
-    }
-    if (!await requirePingOneAdminGroup(req, res, { ... })) return;
-
-// call site 2, inside router.post('/message', ...):
-    const { userId, accessToken, tokenEvents } = req.agentContext || {};
-    if (!userId || !accessToken) {
-      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
-    }
-    if (!await requirePingOneAdminGroup(req, res, { ... })) return;
-```
-
-Both call sites already have `accessToken` in scope by the time they call `requirePingOneAdminGroup` — only `requirePingOneAdminGroup`'s own body needs to change to accept and forward it.
-
-- [ ] **Step 1: Write the failing tests for `checkAccess`'s new behavior**
+- [ ] **Step 2: Write the failing tests for the two-hop `checkAccess`**
 
 Replace `demo_api_server/tests/pingOneAdminAccessService.test.js` entirely with:
 
@@ -88,11 +70,13 @@ jest.mock('../services/mcpToolAuthorizationService', () => ({
   resolveExpectedMcpResourceUri: jest.fn(() => 'mcpgateway.ping.demo'),
 }));
 jest.mock('../services/configStore', () => ({
-  getEffective: jest.fn((key) => {
-    if (key === 'pingone_mcp_token_exchanger_client_id') return 'exchanger-client-id';
-    if (key === 'pingone_mcp_token_exchanger_client_secret') return 'exchanger-secret';
-    return null;
-  }),
+  getEffective: jest.fn((key) => ({
+    pingone_ai_agent_actor_client_id: 'actor-client-id',
+    pingone_ai_agent_actor_client_secret: 'actor-secret',
+    ai_agent_intermediate_audience: 'agentgateway.ping.demo',
+    pingone_mcp_token_exchanger_client_id: 'exchanger-client-id',
+    pingone_mcp_token_exchanger_client_secret: 'exchanger-secret',
+  }[key] || null)),
 }));
 
 const membershipService = require('../services/pingOneGroupMembershipService');
@@ -100,22 +84,28 @@ const oauthService = require('../services/oauthService');
 const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
 const { checkAccess } = require('../services/pingOneAdminAccessService');
 
-// A minimal valid JWT with { aud: 'mcpgateway.ping.demo' } in its payload —
-// decodeJwt only needs a 3-part base64url string, signature is never checked.
-const EXCHANGED_TOKEN = [
-  Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
-  Buffer.from(JSON.stringify({ aud: 'mcpgateway.ping.demo', sub: 'user-1' })).toString('base64url'),
-  'sig',
-].join('.');
+// Build a minimal valid JWT (3-part base64url) — decodeJwt never checks the
+// signature, so part 3 can be any placeholder string.
+function buildToken(claims) {
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
+  return `${header}.${payload}.sig`;
+}
+
+const HOP1_TOKEN = buildToken({ aud: 'agentgateway.ping.demo', sub: 'user-1', act: { sub: 'actor-client-id' } });
+const FINAL_TOKEN = buildToken({ aud: 'mcpgateway.ping.demo', sub: 'user-1', act: { sub: 'actor-client-id' } });
+const FINAL_TOKEN_NO_AUD = buildToken({ sub: 'user-1', act: { sub: 'actor-client-id' } });
 
 beforeEach(() => {
   jest.clearAllMocks();
   membershipService.isReady.mockReturnValue(true);
-  oauthService.performTokenExchangeAs.mockResolvedValue(EXCHANGED_TOKEN);
 });
 
-test('permits a live pingone-admin member via a real PingOne Authorize PERMIT', async () => {
+test('permits a live pingone-admin member via a real two-hop exchange and PingOne Authorize PERMIT', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs
+    .mockResolvedValueOnce(HOP1_TOKEN)
+    .mockResolvedValueOnce(FINAL_TOKEN);
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'PERMIT' });
 
   await expect(checkAccess({
@@ -128,8 +118,12 @@ test('permits a live pingone-admin member via a real PingOne Authorize PERMIT', 
     requiredGroup: 'pingone-admin',
   });
 
-  expect(oauthService.performTokenExchangeAs).toHaveBeenCalledWith(
-    'admin-session-token', null, 'exchanger-client-id', 'exchanger-secret',
+  expect(oauthService.performTokenExchangeAs).toHaveBeenNthCalledWith(1,
+    'admin-session-token', null, 'actor-client-id', 'actor-secret',
+    'agentgateway.ping.demo', ['read'], 'post',
+  );
+  expect(oauthService.performTokenExchangeAs).toHaveBeenNthCalledWith(2,
+    HOP1_TOKEN, null, 'exchanger-client-id', 'exchanger-secret',
     'mcpgateway.ping.demo', ['read'], 'post',
   );
   expect(pingOneAuthorizeService.evaluateMcpToolDelegation).toHaveBeenCalledWith(
@@ -140,12 +134,16 @@ test('permits a live pingone-admin member via a real PingOne Authorize PERMIT', 
       verticalId: 'pingone-admin',
       tokenAudience: 'mcpgateway.ping.demo',
       mcpResourceUri: 'mcpgateway.ping.demo',
+      actClientId: 'actor-client-id',
     }),
   );
 });
 
 test('denies a live pingone-admin member when the real PDP decision is DENY', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs
+    .mockResolvedValueOnce(HOP1_TOKEN)
+    .mockResolvedValueOnce(FINAL_TOKEN);
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'DENY' });
 
   await expect(checkAccess({
@@ -161,6 +159,9 @@ test('denies a live pingone-admin member when the real PDP decision is DENY', as
 
 test('fails closed on INDETERMINATE for a real member', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs
+    .mockResolvedValueOnce(HOP1_TOKEN)
+    .mockResolvedValueOnce(FINAL_TOKEN);
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'INDETERMINATE' });
 
   await expect(checkAccess({
@@ -176,6 +177,9 @@ test('fails closed on INDETERMINATE for a real member', async () => {
 
 test('fails closed with 503 on policyNotFound, not a member-facing 403', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs
+    .mockResolvedValueOnce(HOP1_TOKEN)
+    .mockResolvedValueOnce(FINAL_TOKEN);
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'DENY', policyNotFound: true });
 
   await expect(checkAccess({
@@ -189,7 +193,7 @@ test('fails closed with 503 on policyNotFound, not a member-facing 403', async (
   });
 });
 
-test('fails closed with 503 immediately when accessToken is missing — never calls the exchange', async () => {
+test('fails closed with 503 immediately when accessToken is missing — neither hop runs', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
 
   await expect(checkAccess({
@@ -206,9 +210,49 @@ test('fails closed with 503 immediately when accessToken is missing — never ca
   expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
 });
 
-test('fails closed with 503 when the token exchange itself throws', async () => {
+test('fails closed with 503 when hop 1 throws — hop 2 and the PDP never run', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
-  oauthService.performTokenExchangeAs.mockRejectedValue(new Error('Token exchange failed: invalid_grant'));
+  oauthService.performTokenExchangeAs.mockRejectedValueOnce(new Error('Token exchange failed: invalid_grant'));
+
+  await expect(checkAccess({
+    username: 'demoAdmin',
+    pingOneUserId: 'user-1',
+    accessToken: 'admin-session-token',
+  })).resolves.toMatchObject({
+    allowed: false,
+    error: 'pingone_admin_group_lookup_unavailable',
+    status: 503,
+  });
+
+  expect(oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(1);
+  expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
+});
+
+test('fails closed with 503 when hop 2 throws — the PDP never runs', async () => {
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs
+    .mockResolvedValueOnce(HOP1_TOKEN)
+    .mockRejectedValueOnce(new Error('Token exchange failed: invalid_grant'));
+
+  await expect(checkAccess({
+    username: 'demoAdmin',
+    pingOneUserId: 'user-1',
+    accessToken: 'admin-session-token',
+  })).resolves.toMatchObject({
+    allowed: false,
+    error: 'pingone_admin_group_lookup_unavailable',
+    status: 503,
+  });
+
+  expect(oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(2);
+  expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
+});
+
+test('fails closed with 503 when the final token has no audience claim — the PDP never runs', async () => {
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs
+    .mockResolvedValueOnce(HOP1_TOKEN)
+    .mockResolvedValueOnce(FINAL_TOKEN_NO_AUD);
 
   await expect(checkAccess({
     username: 'demoAdmin',
@@ -238,15 +282,15 @@ test('fails closed when live membership cannot be verified', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the test file and confirm it fails**
+- [ ] **Step 3: Run the test file and confirm it fails**
 
 ```bash
 cd demo_api_server && CI=true npm test -- tests/pingOneAdminAccessService.test.js --forceExit
 ```
 
-Expected: FAIL — `checkAccess` doesn't accept `accessToken` or call `oauthService.performTokenExchangeAs` yet.
+Expected: FAIL — `checkAccess` doesn't yet do a two-hop exchange or pass `actClientId`.
 
-- [ ] **Step 3: Implement `checkAccess`'s new behavior**
+- [ ] **Step 4: Implement the two-hop `checkAccess`**
 
 Replace `demo_api_server/services/pingOneAdminAccessService.js` with:
 
@@ -298,15 +342,6 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
 
   const inRequiredGroup = groups.includes(requiredGroup);
 
-  // The decision is made by PingOne Authorize (Scenario 1 group-policy rule),
-  // not in JS — but the deployed "McpFirstTool" policy runs an audience/actor
-  // check BEFORE that rule, so this call needs a REAL TokenAudience or it
-  // denies everyone (see docs/superpowers/specs/2026-08-10-pingone-admin-
-  // p1az-group-gate-design.md for the first, reverted attempt that omitted
-  // one). This call site has no MCP-audienced token of its own, so one is
-  // minted here via RFC 8693 token exchange, using the admin's own session
-  // token as the subject and the already-provisioned Token Exchanger app's
-  // identity as the exchanging party — no new PingOne provisioning needed.
   if (!accessToken) {
     return {
       allowed: false,
@@ -316,22 +351,49 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
     };
   }
 
+  // Two-hop RFC 8693 exchange — banking's own pattern, confirmed live via
+  // the involved resources' actual attribute mappings (not just their code).
+  // Hop 1's resource (agentgateway.ping.demo) constructs `act` from the
+  // SUBJECT token's `may_act` claim; the admin's own PingOne user record
+  // names the AI Agent Actor client as its permitted actor. Hop 2's
+  // resource (mcpgateway.ping.demo) only PROPAGATES an existing `act` — it
+  // never constructs one from a request-supplied actor_token, which is why
+  // a single hop with an actor token attached (tried first, live-tested,
+  // did not work) never populates `act`. See
+  // docs/superpowers/specs/2026-08-10-pingone-admin-real-p1az-design.md.
+  const intermediateAud = configStore.getEffective('ai_agent_intermediate_audience');
   const mcpResourceUri = resolveExpectedMcpResourceUri();
-  let tokenAudience;
+  let finalToken;
   try {
+    const aiAgentActorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
+    const aiAgentActorClientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
+    const hop1Token = await oauthService.performTokenExchangeAs(
+      accessToken, null, aiAgentActorClientId, aiAgentActorClientSecret,
+      intermediateAud, ['read'], 'post',
+    );
+
     const exchangerClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
     const exchangerClientSecret = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
-    // 'post' (client_secret_post), not the function's own 'basic' default —
-    // this exchanger app's token-endpoint auth method rejects 'basic' with
-    // 401 invalid_client (live-verified this session).
-    const exchanged = await oauthService.performTokenExchangeAs(
-      accessToken, null, exchangerClientId, exchangerClientSecret, mcpResourceUri, ['read'], 'post',
+    finalToken = await oauthService.performTokenExchangeAs(
+      hop1Token, null, exchangerClientId, exchangerClientSecret,
+      mcpResourceUri, ['read'], 'post',
     );
-    const decoded = decodeJwt(exchanged);
-    const aud = decoded?.claims?.aud;
-    tokenAudience = Array.isArray(aud) ? aud[0] : aud;
   } catch (err) {
     console.warn('[pingOneAdminAccessService] MCP token exchange failed (denying):', err.message);
+    return {
+      allowed: false,
+      error: 'pingone_admin_group_lookup_unavailable',
+      status: 503,
+      requiredGroup,
+    };
+  }
+
+  const decoded = decodeJwt(finalToken);
+  const aud = decoded?.claims?.aud;
+  const tokenAudience = Array.isArray(aud) ? aud[0] : aud;
+  const actClientId = decoded?.claims?.act?.sub;
+
+  if (!tokenAudience) {
     return {
       allowed: false,
       error: 'pingone_admin_group_lookup_unavailable',
@@ -351,6 +413,7 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
       inRequiredGroup,
       tokenAudience,
       mcpResourceUri,
+      actClientId,
     }));
   } catch (err) {
     console.warn('[pingOneAdminAccessService] P1AZ evaluation error (denying):', err.message);
@@ -386,30 +449,13 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
 module.exports = { checkAccess, VERTICAL_ID, GROUP_CATEGORY };
 ```
 
-- [ ] **Step 4: Run the test file again and confirm all 7 tests pass**
+- [ ] **Step 5: Run the test file again and confirm all 9 tests pass**
 
 ```bash
 cd demo_api_server && CI=true npm test -- tests/pingOneAdminAccessService.test.js --forceExit
 ```
 
-Expected: PASS, 7/7.
-
-- [ ] **Step 5: Wire `accessToken` through `adminAgentRoutes.js`**
-
-In `demo_api_server/routes/adminAgentRoutes.js`, change `requirePingOneAdminGroup`'s signature and body:
-
-```js
-async function requirePingOneAdminGroup(req, res, response = {}) {
-  const access = await pingOneAdminAccessService.checkAccess({
-    username: req.session?.user?.username || null,
-    pingOneUserId: req.agentContext?.userId || null,
-    accessToken: req.agentContext?.accessToken || null,
-  });
-  if (access.allowed) return true;
-  ...
-```
-
-(Only the object passed to `checkAccess` changes — one new line, `accessToken: req.agentContext?.accessToken || null`. Nothing else in this function or its two call sites needs to change; both already destructure `accessToken` from `req.agentContext` before calling `requirePingOneAdminGroup`, so it is already in scope on `req` by the time this function runs.)
+Expected: PASS, 9/9.
 
 - [ ] **Step 6: Run the full BFF suite**
 
@@ -422,22 +468,28 @@ Expected: PASS (pre-existing rotating live-integration flakes are fine — only 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add demo_api_server/routes/adminAgentRoutes.js demo_api_server/services/pingOneAdminAccessService.js demo_api_server/tests/pingOneAdminAccessService.test.js
+git add demo_api_server/services/pingOneAdminAccessService.js demo_api_server/tests/pingOneAdminAccessService.test.js
 git commit -m "$(cat <<'EOF'
-feat(admin): real P1AZ decision for the pingone-admin group gate
+feat(admin): two-hop RFC 8693 exchange for the pingone-admin P1AZ gate
 
-checkAccess now exchanges the admin session's real access token for an
-mcpgateway.ping.demo-audienced token (via the already-provisioned Token
-Exchanger app's identity, no new PingOne provisioning) and supplies a real
-TokenAudience to evaluateMcpToolDelegation -- closing the gap that made the
-first attempt (#1548, reverted as #1550) deny every admin. Missing token or
-a failed exchange fails closed at 503, never proceeds with an omitted
-audience.
+Single-hop exchange (prior commits on this branch) fixed the audience but
+live-verify caught a second, independent policy gate: a missing act
+(actor-chain) claim. Traced via the involved resources' actual attribute
+mappings -- mcpgateway.ping.demo only propagates an existing act claim, it
+never constructs one from a request-supplied actor_token. Only the
+intermediate agentgateway.ping.demo resource constructs act, from the
+subject token's own may_act claim (which names the AI Agent Actor client
+for this admin user). Two-hop exchange (AI Agent Actor -> Token Exchanger)
+produces a token with both a real aud and a real act, live-tested to a
+genuine PERMIT before this commit.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
 )"
 ```
+
+(If Step 1 found `adminAgentRoutes.js` needed a change, include it in this
+`git add`/commit too.)
 
 ---
 
@@ -447,19 +499,15 @@ This task requires the running Docker stack, a live admin session, and the
 ability to add/remove real PingOne group membership — it cannot be done by
 an isolated subagent without that access. If you are an autonomous worker
 without it, stop after Task 1 and hand this task back for interactive
-execution. **Do not open a PR for Task 1 until this task has passed** — the
-whole point of this task is verifying live before merge, not after (the
-opposite order broke production earlier today).
+execution. **Do not open a PR for Task 1 until this task has passed** —
+verified before merge, not after (the opposite order caused a live outage
+earlier in this feature's development, and a second live-verify round is
+exactly what caught the actor-chain gap this revision fixes).
 
 **Files:** none (verification only), plus `REGRESSION_PLAN.md` (§4 log
 entry — exempt from the worktree-write restriction per root `CLAUDE.md`).
 
 - [ ] **Step 1: Land the Task 1 code into the running stack without merging**
-
-Since this must be verified before any PR/merge, copy the two changed
-service/route files from the worktree into the main checkout (the one
-Docker bind-mounts), matching the precedent already used earlier today for
-pre-merge debug instrumentation:
 
 ```bash
 cp demo_api_server/services/pingOneAdminAccessService.js /Users/cmuir/Development/AI-DEMO2/demo_api_server/services/pingOneAdminAccessService.js
@@ -471,44 +519,46 @@ Wait for `https://api.ping.demo:3001/api/healthz` to respond before continuing.
 
 - [ ] **Step 2: Confirm the signed-in admin currently has the required group and a fresh session token**
 
-Ask the admin (or check live) that the current `/admin` session's access
-token has not expired (today's session hit this exact trap once already —
-an expired token surfaces as `Cannot parse token claims for request param
-'subject_token'`, not a permissions error). If in doubt, ask them to
+Check the freshest `demoAdmin` session's access token expiry (an expired
+token surfaces as PingOne's generic `Cannot parse token claims for request
+param 'subject_token'`, not a clear permissions error — hit this exact trap
+earlier in this feature's development). If in doubt, ask them to
 reload/re-login at `/admin` first.
 
-- [ ] **Step 3: Exercise the admin agent and confirm PERMIT**
+- [ ] **Step 3: Exercise the real two-hop chain and confirm PERMIT**
 
-Run any PingOne Admin demo step from `/admin` (e.g. ADMIN1 "List
-applications"). Confirm it succeeds (200, real data). Check the BFF logs:
+Either run an admin demo step from `/admin` (e.g. ADMIN1) or call
+`checkAccess` directly in-container with the fresh session's real
+`accessToken` (both are equally valid — the in-container call exercises the
+exact same code path and was how this was live-tested during design).
+Confirm the result is `{ allowed: true, status: 200 }`. Check the BFF logs:
 
 ```bash
-docker logs ai-demo-api-server --since 5m 2>&1 | grep -E "TokenExchange|BFF→P1AZ"
+docker logs ai-demo-api-server --since 5m 2>&1 | grep -E "Exchange-As|BFF→P1AZ"
 ```
 
-Confirm a `[TokenExchange...]` success line shows `audience=mcpgateway.ping.demo`,
-and the `[BFF→P1AZ] PARAMETERS` line shows both `TokenAudience` and
-`McpResourceUri` set to `mcpgateway.ping.demo` (not omitted, not `"none"`),
-and `RESPONSE` shows a real `PERMIT`-equivalent effect — not
-`policy_not_found`, not the old audience-chain `DENY`.
+Confirm **two** `[Exchange-As]` lines (one per hop, different `client=` and
+`audience=` values), and the `[BFF→P1AZ] PARAMETERS` line shows
+`TokenAudience: "mcpgateway.ping.demo"` **and** a non-empty `ActClientId`
+(not `""`), and `RESPONSE` shows a real `PERMIT`/`"MCP Tool Authorized"`
+effect.
 
 - [ ] **Step 4: Remove the group and confirm real DENY**
 
-Remove the demo admin user from the required group in PingOne, run the same
-admin demo step again (no new login, no new token needed for THIS part —
-the exchange still succeeds since it only needs the base session token
-fresh, not group membership). Confirm `403 pingone_admin_group_required`.
-Check the `[BFF→P1AZ]` log lines: confirm `InRequiredGroup: false` and the
-decision endpoint's `RESPONSE` reflects an actual `DENY` from the group
-rule (not `policy_not_found`, not the audience-chain denial from before).
+Remove the demo admin user from the required group in PingOne, repeat Step
+3's check. Confirm `403 pingone_admin_group_required`. Check the
+`[BFF→P1AZ]` log lines: confirm `InRequiredGroup: false`, `TokenAudience`
+and `ActClientId` are STILL populated correctly (the exchange doesn't
+depend on group membership — only the decision does), and the decision
+endpoint's `RESPONSE` reflects an actual `DENY` from the group rule (not
+`policy_not_found`, not an audience/actor-chain denial).
 
 If anything other than a clean group-rule `DENY` appears here, **stop** —
-do not proceed to Task 1's PR. This is exactly the check that would have
-caught #1548 before it shipped.
+do not proceed to Task 1's PR.
 
 - [ ] **Step 5: Add the group back and confirm PERMIT again**
 
-Re-add the group, run the demo step once more, confirm `200`/success.
+Re-add the group, repeat Step 3's check, confirm `200`/success.
 
 - [ ] **Step 6: Revert the pre-merge landing from Step 1**
 
@@ -518,14 +568,11 @@ git checkout -- demo_api_server/services/pingOneAdminAccessService.js demo_api_s
 docker restart ai-demo-api-server
 ```
 
-This restores the main checkout to its last-merged state (today's revert)
-before Task 1's actual PR lands normally.
-
-- [ ] **Step 7: Only now — open the PR for Task 1's commit and merge it through the normal flow** (push branch, `gh pr create`, wait for CI, `gh pr merge`), then sync the main checkout and do the real (non-temporary) deploy:
+- [ ] **Step 7: Only now — open the PR for Task 1's commits and merge it through the normal flow** (push branch, `gh pr create`, wait for CI, `gh pr merge`), then sync the main checkout and deploy:
 
 ```bash
 bash scripts/sync-main-checkout.sh
 docker restart ai-demo-api-server
 ```
 
-- [ ] **Step 8: Add a `REGRESSION_PLAN.md` §4 entry** (after the merge, in a follow-up commit on a fresh small branch or directly per the root `CLAUDE.md` exemption), documenting that real P1AZ enforcement is now live for this vertical, live-verified both directions before merge, and pointing at this spec.
+- [ ] **Step 8: Add a `REGRESSION_PLAN.md` §4 entry** documenting that real P1AZ enforcement (two-hop exchange) is now live for this vertical, live-verified both directions before merge, and pointing at this spec — including the actor-chain finding as its own noted lesson (single-hop live-verify passing the audience check is not sufficient proof; the full chain must be verified).
