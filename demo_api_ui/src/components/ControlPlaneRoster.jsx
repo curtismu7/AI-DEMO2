@@ -31,6 +31,7 @@ export default function ControlPlaneRoster() {
   const [busy, setBusy] = useState(false);
   const [transient, setTransient] = useState({}); // id -> { pulse, hit, flashrow }
   const [showLiveModal, setShowLiveModal] = useState(false);
+  const [liveKillScope, setLiveKillScope] = useState("instance");
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -254,8 +255,23 @@ export default function ControlPlaneRoster() {
               <button
                 className={`cp-stop ${a.isLive ? "cp-stop--live" : ""}`}
                 disabled={revoked || busy}
-                onClick={() => (a.isLive ? setShowLiveModal(true) : onStopAgent(a))}
-              >{a.isLive ? "STOP" : "stop"}</button>
+                onClick={() => {
+                  if (!a.isLive) { onStopAgent(a); return; }
+                  setLiveKillScope("instance");
+                  setShowLiveModal(true);
+                }}
+              >{a.isLive ? "Stop this instance" : "stop"}</button>
+              {a.isLive && !revoked && (
+                <button
+                  className="cp-stop cp-stop--live-full"
+                  disabled={busy}
+                  title="Disables the agent's PingOne application — blocks new tokens for every user of this agent client."
+                  onClick={() => {
+                    setLiveKillScope("full");
+                    setShowLiveModal(true);
+                  }}
+                >Stop entire agent</button>
+              )}
               {a.isLive && revoked && (
                 <button
                   className="cp-stop cp-stop--revive"
@@ -308,6 +324,7 @@ export default function ControlPlaneRoster() {
         agentId={live ? live.id : "demo-agent"}
         onConfirm={confirmLiveKill}
         onCancel={() => setShowLiveModal(false)}
+        initialScope={liveKillScope}
       />
 
       {user?.role === "admin" && (

@@ -846,7 +846,22 @@ router.get(
  */
 
 const killSwitchService = require('../services/killSwitchService');
+const killSwitchSseHub = require('../services/killSwitchSseHub');
 const auditLogService = require('../services/auditLogService');
+
+/**
+ * GET /api/admin/agent/:agentId/kill-switch/events
+ * SSE stream of kill-switch steps as they run, keyed by session — opened by
+ * KillSwitchConfirmModal right before it POSTs the kill so the checklist
+ * renders live instead of only after the whole call resolves.
+ */
+router.get(
+  '/agent/:agentId/kill-switch/events',
+  authenticateToken,
+  (req, res) => {
+    killSwitchSseHub.attach(req, res);
+  }
+);
 
 /**
  * POST /api/admin/agent/:agentId/kill-switch
@@ -896,7 +911,7 @@ router.post(
       // Execute kill switch — pass userId and session tokens for revocation at PingOne
       const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
       const oauthTokens = req.session?.oauthTokens || null;
-      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope);
+      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope, req.sessionID);
 
       // Destroy admin session — token is revoked, session is now invalid
       req.session.destroy(() => {});

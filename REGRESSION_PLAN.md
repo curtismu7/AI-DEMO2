@@ -102,6 +102,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Kill switch: explain the enforcement mechanism, stream steps live, split scope discoverability
+
+**Files changed:** `demo_api_server/services/killSwitchService.js`, new
+`demo_api_server/services/killSwitchSseHub.js`, `demo_api_server/routes/admin.js`,
+`demo_api_ui/src/components/KillSwitchConfirmModal.jsx` (+`.css`),
+`demo_api_ui/src/components/ControlPlaneRoster.jsx` (+`.css`)
+
+**What was missing:** the kill switch (instance-vs-full scope shipped in
+PR #684/#686) revoked tokens and disabled apps but never explained *why*
+that stops an agent, showed its steps only after the whole call finished,
+and buried instance-vs-full behind one generic "Stop Agent" button.
+
+**What was added:**
+
+- `killAgent()` now pushes an explicit `enforcement_flag` step for the
+  `agent:<id>:revoked` Redis write it already made silently — this is the
+  actual enforcement point `agentRateLimit.js` checks before any new tool
+  call, previously invisible in the UI. Step details across the board now
+  say *why*, not just what ran (e.g. token revoke doesn't interrupt an
+  in-flight call, only blocks the next one).
+- New `killSwitchSseHub.js` (same pattern as `pingoneTestSseHub.js`) —
+  `killAgent()` takes an optional `sessionId` and publishes each step as it
+  runs; new `GET /agent/:agentId/kill-switch/events` route. Modal opens an
+  `EventSource` before POSTing and renders steps live instead of waiting
+  for the response.
+- `ControlPlaneRoster.jsx`'s live row now has two explicit actions — "Stop
+  this instance" and "Stop entire agent" (visually distinct) — instead of
+  one button hiding the scope choice behind an in-modal radio.
+
+**Do not break:** the POST `/kill-switch` response shape (`steps` array)
+is unchanged — SSE is additive, not a replacement; `AgentLifecyclePage.jsx`'s
+self-service revoke and existing tests depend on that response still
+carrying the full `steps` array on its own. Step `key`s are matched by
+`.find()` in tests, not by array index/length — adding `enforcement_flag`
+as a 6th step doesn't break that.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`
+(killSwitchService: 17/17, agentRateLimit: 17/17); `cd demo_api_ui && npm run
+test:unit` (2915/2916 — the one failure is a pre-existing, unrelated
+`ToolsTable.css` monospace-font regression from PR #1551, not touched here)
+and `npm run build` (exit 0).
+
 ### 2026-08-10 — PingOne Admin gate via P1AZ locked out every admin (reverted)
 
 **Files changed:** `demo_api_server/services/pingOneAdminAccessService.js`, its test,

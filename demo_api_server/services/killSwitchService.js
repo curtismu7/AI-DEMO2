@@ -14,6 +14,7 @@ const oauthConfig = require('../config/oauth');
 const configStore = require('./configStore');
 const auditLogService = require('./auditLogService');
 const pingOneUserService = require('./pingOneUserService');
+const killSwitchSseHub = require('./killSwitchSseHub');
 
 /**
  * Revoke a single token at PingOne using the RFC 7009 revocation endpoint.
@@ -368,11 +369,18 @@ async function getAgentRefreshToken(agentId) {
  * @param {'full'|'instance'} [scope] - 'instance' (default) skips disableAgentApplicationsAtPingOne
  *   and disableUserAtPingOne so only THIS caller's tokens/session are stopped.
  *   'full' also disables the agent's PingOne application(s) and the user account.
+ * @param {string} [sessionId] - req.sessionID of the caller, if present. When set, each
+ *   step is also pushed to killSwitchSseHub so KillSwitchConfirmModal can render it live
+ *   instead of waiting for the whole call to finish.
  * @returns {Promise<{success: boolean, revoked_at: string, state_snapshot_id: string, time_to_revoke_ms: number, scope: string, steps: Array}>}
  */
-async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'instance') {
+async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'instance', sessionId = null) {
   const startTime = Date.now();
   const steps = [];
+  const pushStep = (step) => {
+    steps.push(step);
+    killSwitchSseHub.publishStep(sessionId, { agentId, step });
+  };
 
   try {
     console.log(`[killSwitch] Executing kill switch for agent ${agentId}. Reason: ${reason}. Scope: ${scope}`);
@@ -385,11 +393,11 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     if (!revokeResult.revoked) {
       console.warn(`[killSwitch] Token revocation returned revoked=false — proceeding with session invalidation`);
     }
-    steps.push({
+    pushStep({
       key: 'token_revocation',
       label: 'Revoke OAuth tokens at PingOne',
       detail: revokeResult.revoked
-        ? 'Access/ID token revoked (RFC 7009) — already-issued tokens are now invalid.'
+        ? 'Access/ID token revoked (RFC 7009) — already-issued tokens are now invalid. This does not interrupt a call already in progress; it stops the token being reused on the next one.'
         : 'No valid access/ID token found on this session to revoke.',
       ran: true,
       skipped: false,
@@ -400,7 +408,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     let userDisableResult = null;
     if (scope === 'instance') {
       killAgent._userId = null;
-      steps.push({
+      pushStep({
         key: 'user_disable',
         label: 'Disable the PingOne user account',
         detail: 'Skipped — instance-only scope. The human account stays enabled for re-login.',
@@ -413,7 +421,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
         userDisableResult = await disableUserAtPingOne(killAgent._userId);
         killAgent._userId = null;
       }
-      steps.push({
+      pushStep({
         key: 'user_disable',
         label: 'Disable the PingOne user account',
         detail: userDisableResult
@@ -436,7 +444,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     //     for everyone else.
     let applicationsDisabled = [];
     if (scope === 'instance') {
-      steps.push({
+      pushStep({
         key: 'app_disable',
         label: "Disable the agent's PingOne application",
         detail: 'Skipped — instance-only scope. The agent client stays enabled so other users are unaffected.',
@@ -447,7 +455,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     } else {
       applicationsDisabled = await disableAgentApplicationsAtPingOne();
       const anyDisabled = applicationsDisabled.some((a) => a.disabled);
-      steps.push({
+      pushStep({
         key: 'app_disable',
         label: "Disable the agent's PingOne application",
         detail: applicationsDisabled.length === 0
@@ -467,7 +475,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
 
     // 3. Invalidate sessions in Redis
     const sessionResult = await invalidateSessionsInRedis(agentId);
-    steps.push({
+    pushStep({
       key: 'session_invalidate',
       label: "Invalidate this agent's local sessions",
       detail: `${sessionResult.invalidated} session key(s) removed from the local session store.`,
@@ -475,19 +483,34 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       skipped: false,
     });
 
-    // 4. Mark agent as revoked in session store
+    // 4. Mark agent as revoked in session store — this is the actual enforcement
+    //    point: agentRateLimit.js checks this flag before letting ANY new
+    //    tool call through, so it's what makes "stop this agent" real rather
+    //    than just a token-revoke that a cached/in-flight call could outrun.
+    let revokedFlagSet = false;
     try {
       const sessionStore = require('../middleware/sessionConfig').store;
       if (sessionStore && sessionStore.client) {
         await sessionStore.client.setex(`agent:${agentId}:revoked`, 86400, 'true'); // 24 hour expiry
+        revokedFlagSet = true;
       }
     } catch (e) {
       console.warn('[killSwitch] Could not set revoked flag:', e.message);
     }
+    pushStep({
+      key: 'enforcement_flag',
+      label: 'Arm the next-request block',
+      detail: revokedFlagSet
+        ? `agent:${agentId}:revoked set for 24h — agentRateLimit rejects the agent's NEXT tool call because of this flag. A call already in flight when this ran will still complete.`
+        : 'Could not set the revoked flag — the session store was unreachable. Token revocation above still applies once the agent needs a fresh token.',
+      ran: revokedFlagSet,
+      skipped: !revokedFlagSet,
+      skipReason: revokedFlagSet ? undefined : 'session_store_unreachable',
+    });
 
     // 5. Record kill event in audit log
     await auditLogService.recordKillEvent(agentId, reason, stateSnapshot, timeToRevoke, stateSnapshotId);
-    steps.push({
+    pushStep({
       key: 'audit_log',
       label: 'Write immutable audit record',
       detail: 'Kill event recorded with reason, timing, and the state snapshot for forensic review.',
