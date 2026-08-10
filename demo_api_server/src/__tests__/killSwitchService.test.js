@@ -6,9 +6,11 @@
 
 const killSwitchService = require('../../services/killSwitchService');
 const auditLogService = require('../../services/auditLogService');
+const agentLifecycleEvents = require('../../services/agentLifecycleEvents');
 
 // Mock dependencies
 jest.mock('../../services/auditLogService');
+jest.mock('../../services/agentLifecycleEvents');
 jest.mock('axios');
 jest.mock('../../middleware/sessionConfig', () => ({
   store: {

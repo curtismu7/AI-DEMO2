@@ -12,7 +12,7 @@
  * @typedef {Object} UseCase
  * @property {string} id            e.g. 'UC7'
  * @property {string} useCaseId     slug, e.g. 'step-up-required'
- * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'|'demo'} track
+ * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'|'demo'|'nhi'} track
  * @property {string} title
  * @property {string} buyerStory
  * @property {string} pingOneSolution
@@ -1249,6 +1249,56 @@ const RAW_USE_CASES = [
     advanced: false,
     whatLong: 'A developer utility (not an identity scenario): CodeGraph indexes every symbol, file, and dependency in the codebase into a knowledge graph, then answers natural-language questions about flows, architecture, patterns, and implementation details with real, current code context.',
     businessValue: 'Explore and understand the codebase through AI-powered questions grounded in the actual source — no stale docs, no hallucinated APIs.',
+    productRoles: {},
+    primaryTool: null,
+  },
+
+  // --- NHI GOVERNANCE --- (link-type cards; AI Control Plane's own pages own the actual behavior)
+  {
+    id: 'UC-NHI1',
+    useCaseId: 'nhi-inventory',
+    track: 'nhi',
+    title: 'Multi-source NHI inventory',
+    buyerStory: 'Security teams managing agents across AWS, GCP, Azure, and on-prem have no single place to see them all, tagged by source, in one governed roster.',
+    pingOneSolution: 'The AI Control Plane roster tags every agent identity — demo and live — with its source platform and lets you filter the governed view by source, all revocable from the same place.',
+    trigger: { type: 'link', path: '/ai-control-plane', label: 'Open AI Control Plane' },
+    expectedOutcome: 'SOURCE_TAGGED_ROSTER',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_server/services/controlPlane/demoAgentRoster.js',
+      'demo_api_server/services/controlPlane/liveAgentInfo.js',
+      'demo_api_ui/src/components/ControlPlaneRoster.jsx',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Every agent here is tagged by source — AWS, GCP, Azure, on-prem, or this app — filter the roster the same way you\'d triage a real multi-cloud agent fleet.',
+    advanced: false,
+    whatLong: 'An NHI governance utility (not a per-vertical banking scenario): the roster aggregates the live agent plus the demo platform identities (ChatGPT, Copilot, Glean, Agentforce, ServiceNow) into one view, each tagged with an illustrative source (aws/gcp/azure/on-prem/this-app). Filter chips narrow the roster to a single source, and every stop/revoke works identically regardless of source.',
+    businessValue: 'A centralized, filterable inventory is the first thing security and platform teams ask for when they don\'t know the full scope of their AI ecosystem — this makes that inventory concrete instead of a slide.',
+    productRoles: {},
+    primaryTool: null,
+  },
+  {
+    id: 'UC-NHI2',
+    useCaseId: 'nhi-lifecycle-export',
+    track: 'nhi',
+    title: 'Agent lifecycle export (JML)',
+    buyerStory: 'Teams governing agents through an existing IGA tool (like SailPoint) need agent join/move/leave events in a shape that tool can consume — not a competing identity store.',
+    pingOneSolution: 'Agent register/kill-switch/re-enable actions emit joiner/mover/leaver events, queryable live at GET /api/control-plane/lifecycle-events and optionally forwarded to an external webhook — illustrating how Ping would feed an existing IGA process rather than replace it.',
+    trigger: { type: 'link', path: '/agent-lifecycle', label: 'Open Agent Lifecycle' },
+    expectedOutcome: 'JML_EVENT_FEED',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_server/services/agentLifecycleEvents.js',
+      'demo_api_server/services/lmdb/agentLifecycleEventStore.lmdb.js',
+      'demo_api_server/services/sailpointForwarder.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Run the self-service revoke below, then open the lifecycle export feed — that\'s the same joiner/mover/leaver shape an IGA system like SailPoint would pull to certify this agent the way it certifies a human.',
+    advanced: false,
+    whatLong: 'An NHI governance utility (not a per-vertical banking scenario): every demo-roster reset emits a joiner event per re-seeded agent, every kill-switch (demo or live) emits a leaver event, and every re-enable emits a mover event. Each event carries complianceTags, an auditId linking back to the immutable kill-switch audit record, and the agent\'s source tag. Illustrative-only — this is a generic webhook/pollable-JSON shape, not a real SailPoint API integration.',
+    businessValue: 'Teams locked into an existing IGA tool don\'t want Ping to replace it — they want agent lifecycle events shaped so that tool can certify agents the way it already certifies humans. This proves the export pattern without overclaiming an integration that doesn\'t exist.',
     productRoles: {},
     primaryTool: null,
   },

@@ -847,6 +847,7 @@ router.get(
 
 const killSwitchService = require('../services/killSwitchService');
 const auditLogService = require('../services/auditLogService');
+const agentLifecycleEvents = require('../services/agentLifecycleEvents');
 
 /**
  * POST /api/admin/agent/:agentId/kill-switch
@@ -938,6 +939,13 @@ router.post(
   async (req, res) => {
     try {
       const applications = await killSwitchService.enableAgentApplicationsAtPingOne();
+      agentLifecycleEvents.emit({
+        eventType: 'mover',
+        agentId: req.params.agentId,
+        source: 'this-app',
+        kind: 'live',
+        reason: 're-enable',
+      });
       return res.status(200).json({ ok: true, applications });
     } catch (error) {
       console.error('[admin] Re-enable agent error:', error.message);

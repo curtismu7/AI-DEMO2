@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const oauthConfig = require('../config/oauth');
 const configStore = require('./configStore');
 const auditLogService = require('./auditLogService');
+const agentLifecycleEvents = require('./agentLifecycleEvents');
 const pingOneUserService = require('./pingOneUserService');
 
 /**
@@ -486,13 +487,23 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     }
 
     // 5. Record kill event in audit log
-    await auditLogService.recordKillEvent(agentId, reason, stateSnapshot, timeToRevoke, stateSnapshotId);
+    const killAuditId = await auditLogService.recordKillEvent(agentId, reason, stateSnapshot, timeToRevoke, stateSnapshotId);
     steps.push({
       key: 'audit_log',
       label: 'Write immutable audit record',
       detail: 'Kill event recorded with reason, timing, and the state snapshot for forensic review.',
       ran: true,
       skipped: false,
+    });
+
+    agentLifecycleEvents.emit({
+      eventType: 'leaver',
+      agentId,
+      source: 'this-app',
+      kind: 'live',
+      reason,
+      auditId: killAuditId,
+      metadata: { scope },
     });
 
     const result = {
