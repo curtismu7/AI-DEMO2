@@ -1402,8 +1402,51 @@ Auth passed, routing matched, the application resolved by name. That 403 comes f
 Privilege's **authorization** layer — the first response in the whole investigation
 that did, rather than from a failure to get that far.
 
-Unauthenticated through nginx, the same host now answers `401 Bearer Token not found.`,
-which is the documented "right port, right application" signal.
+Unauthenticated through nginx, the same host answers `401 Bearer Token not found.`
+
+⚠️ **That 401 is not evidence of routing.** Verified 2026-08-10 against the running
+gateway: `Host: garbage.nowhere.example.com` returns the identical `401`. The log shows
+why — on the `:8620` agentless API path the order is bearer check first, host evaluation
+second:
+
+```
+AgentlessRestAPIService.forwardReq -> pcrypto.GetBearerToken "authorization header missing"
+                                   -> "Invalid Authorization token"   (401, no host lookup at all)
+```
+
+Routing is only exercised once a token is present. Any test that reads a bare `401` as
+"the right application resolved" is proving nothing.
+
+### How the gateway resolves an application: EvaluateHost
+
+From Ping's SE enablement deck (`priv_for_ai_specialist_training.html`, routing
+reference diagram) — the gateway does not compare the Host to a registered name. It
+**strips the first DNS label and constructs one**:
+
+```
+request Host : pingone-mcp-server-2.cj-agentless-mcpgw.ping-devops.com
+first label  : pingone-mcp-server-2
+constructed  : pingone-mcp-server-2.default.applications.procyon.ai   -> routing table lookup
+routes to    : https://pingone-mcp-server-2.svc.local.cluster
+```
+
+The constructed name is built from the **`name` configured on the Agentic App**. That
+explains the failure exactly: our host `aidemo.mcpgw.local.ping-devops.com` yields
+`aidemo.default.applications.procyon.ai`, while the app is named **`MCP-aidemo`** — so
+nothing matched, and `Domain not found` followed.
+
+It also means the Host rewrite is a workaround, not the intended configuration. The
+design is **one subdomain per application whose first label is the application name**:
+
+| Host to serve | Constructed name | App |
+|---|---|---|
+| `MCP-aidemo.mcpgw.local.ping-devops.com` | `MCP-aidemo.default.applications.procyon.ai` | `MCP-aidemo` |
+| `mcp-pingone-admin.mcpgw.local.ping-devops.com` | `mcp-pingone-admin.default.applications.procyon.ai` | `mcp-pingone-admin` |
+
+Named that way, a second MCP application needs no map line and no extra Ingress — which
+is the gap the current `$mcpgw_frontend` map has: `mcp-pingone-admin` falls through
+`default` to `MCP-aidemo`. The existing wildcard cert (`*.mcpgw.local.ping-devops.com`)
+already covers both names; each still needs its own `/etc/hosts` line.
 
 ### Two gates remain, and they are separate
 

@@ -43,10 +43,11 @@
         "console.log('status', pm.response.code);",
         "console.log('WWW-Authenticate:', w || '(absent)');",
         "console.log('body:', pm.response.text());",
-        "console.log('401 Bearer Token not found. = routing works, gateway wants a token.');",
-        "console.log('An empty 200 with no body = Host did not match a Frontend Name.');",
-        "pm.test('routing reaches the auth layer', () => pm.response.code === 401);",
-        "pm.test('not the empty-200 routing miss', () => pm.response.text().length > 0);"
+        "console.log('401 Bearer Token not found. = the gateway wants a token.');",
+        "console.log('It does NOT prove routing: on the :8620 agentless API path the bearer check');",
+        "console.log('runs BEFORE any host evaluation, so a garbage Host 401s identically.');",
+        "console.log('Routing is only exercised once a token is present — see #6.');",
+        "pm.test('gateway answers the auth challenge', () => pm.response.code === 401);"
       ]}}]
     },
     {
@@ -78,9 +79,11 @@
       },
       "event": [{ "listen": "test", "script": { "exec": [
         "console.log('status', pm.response.code, '|', pm.response.text().slice(0,120));",
-        "console.log('Same 401 as #1 = the Host header alone is the difference. That is the whole fix.');",
+        "console.log('Expect the same 401 as #1 and #2 — on :8620 the token check precedes routing,');",
+        "console.log('so this pair does NOT isolate a routing miss without a token. Verified 2026-08-10:');",
+        "console.log('garbage.nowhere.example.com also returns 401 Bearer Token not found.');",
         "console.log('Postman must be allowed to send Host: Settings > General > turn OFF the restricted-headers guard.');",
-        "pm.test('Host alone flips the routing miss into an auth challenge', () => pm.response.code === 401);"
+        "pm.test('reaches the gateway', () => pm.response.code === 401);"
       ]}}]
     },
     {
