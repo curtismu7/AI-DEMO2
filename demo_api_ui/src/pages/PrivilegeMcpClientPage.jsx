@@ -149,6 +149,13 @@ export default function PrivilegeMcpClientPage() {
       setUser(s.user || null);
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
+      // Rehydrate the console-token expiry countdown on reload — the BFF session
+      // still holds the token even though the paste-time client state is gone, so
+      // without this the timer only ever showed right after pasting.
+      if (s.oauth?.authenticated && s.oauth?.expiresAt && s.oauth?.scope === 'console-token') {
+        setConsoleTokenExpiresAt(s.oauth.expiresAt);
+        setConsoleTokenInfo({ user: s.user?.email || s.user?.id || 'console token', kidMatchesGateway: true });
+      }
       // Auto-discover tools only after Privilege auth completes
       if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
@@ -661,6 +668,16 @@ export default function PrivilegeMcpClientPage() {
             <div><span className="cur-cd-k">clientId: </span><span className="cur-cd-v cur-cd-v--id">{config.clientId || '—'}</span></div>
             <div><span className="cur-cd-k">scopes: </span><span className="cur-cd-v cur-cd-v--scope">{config.scopes || '—'}</span></div>
             <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
+            {consoleTokenExpiresAt && (() => {
+              const left = consoleTokenExpiresAt - nowTs;
+              const expired = left <= 0;
+              const mm = Math.max(0, Math.floor(left / 60000));
+              const ss = Math.max(0, Math.floor((left % 60000) / 1000));
+              const cls = expired ? 'cur-cd-v--bad' : left < 5 * 60000 ? 'cur-cd-v--scope' : 'cur-cd-v--ok';
+              return (
+                <div><span className="cur-cd-k">token: </span><span className={`cur-cd-v ${cls}`}>{expired ? 'EXPIRED — paste a fresh one' : `${mm}:${String(ss).padStart(2, '0')} left`}</span></div>
+              );
+            })()}
           </div>
           <div className="cur-sidebar-content">
             {authenticated ? (
