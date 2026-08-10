@@ -29,6 +29,25 @@ const ADMIN_DEMO_STEPS = [
     title: 'Get environment',
     trigger: { type: 'chip', text: 'Get the details of my PingOne environment' },
   },
+  // ADMIN5-7 exist because ADMIN1-4 are four unconditional reads in a row —
+  // nothing is filtered, gated, or refused, so nothing is demonstrated. These
+  // exercise the sw prefix filter (live PingOne SCIM filter, not client-side
+  // row filtering) and the scope/role gating on the tool catalog.
+  {
+    id: 'ADMIN5',
+    title: 'Filter users (curt*)',
+    trigger: { type: 'chip', text: 'List the PingOne users whose username starts with curt' },
+  },
+  {
+    id: 'ADMIN6',
+    title: 'Filter applications (Demo*)',
+    trigger: { type: 'chip', text: 'List the PingOne applications whose name starts with Demo' },
+  },
+  {
+    id: 'ADMIN7',
+    title: 'Show my available tools',
+    trigger: { type: 'chip', text: 'What PingOne tools can I use right now?' },
+  },
 ];
 
 module.exports = { ADMIN_DEMO_STEPS };
