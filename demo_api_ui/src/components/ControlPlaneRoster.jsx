@@ -3,7 +3,6 @@ import apiClient from "../services/apiClient";
 import { getAgents, stopAgent, resetRoster } from "../services/controlPlaneApi";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
 import { useAuth } from "../hooks/useAuth";
-import KillSwitchConfirmModal from "./KillSwitchConfirmModal";
 import ControlPlaneDemoGuideModal from "./ControlPlaneDemoGuideModal";
 import "./ControlPlaneRoster.css";
 
@@ -15,7 +14,7 @@ const nowStamp = () => new Date().toLocaleTimeString();
 // AI Control Plane roster. Any logged-in user. The live row is the real agent
 // (real PingOne revocation via the existing kill-switch endpoint); the other
 // rows are Ping-governed demo identities stopped via the control-plane API.
-export default function ControlPlaneRoster() {
+export default function ControlPlaneRoster({ openKillSwitchModal }) {
   const { user } = useAuth();
   const [showGuide, setShowGuide] = useState(false);
   const [live, setLive] = useState(null);
@@ -30,9 +29,7 @@ export default function ControlPlaneRoster() {
   const [endCard, setEndCard] = useState(null);
   const [busy, setBusy] = useState(false);
   const [transient, setTransient] = useState({}); // id -> { pulse, hit, flashrow }
-  const [showLiveModal, setShowLiveModal] = useState(false);
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [liveKillScope, setLiveKillScope] = useState("instance");
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -144,6 +141,19 @@ export default function ControlPlaneRoster() {
     }
     setLive((l) => (l ? { ...l, status: "revoked" } : l));
     return res?.data || null;
+  };
+
+  // Opens the shared, App.js-owned kill-switch modal (see App.js for why —
+  // this page's own route unmounts on the same session-death this action
+  // causes, so a locally-owned modal instance could never survive to show
+  // its result).
+  const openLiveKillModal = (scope) => {
+    openKillSwitchModal({
+      agentId: live ? live.id : "demo-agent",
+      initialScope: scope,
+      onConfirm: confirmLiveKill,
+      onDismiss: () => {},
+    });
   };
 
   // Inverse of confirmLiveKill: re-enables the PingOne agent application(s)
@@ -287,8 +297,7 @@ export default function ControlPlaneRoster() {
                 disabled={revoked || busy}
                 onClick={() => {
                   if (!a.isLive) { onStopAgent(a); return; }
-                  setLiveKillScope("instance");
-                  setShowLiveModal(true);
+                  openLiveKillModal("instance");
                 }}
               >{a.isLive ? "Stop this instance" : "stop"}</button>
               {a.isLive && !revoked && (
@@ -296,10 +305,7 @@ export default function ControlPlaneRoster() {
                   className="cp-stop cp-stop--live-full"
                   disabled={busy}
                   title="Disables the agent's PingOne application — blocks new tokens for every user of this agent client."
-                  onClick={() => {
-                    setLiveKillScope("full");
-                    setShowLiveModal(true);
-                  }}
+                  onClick={() => openLiveKillModal("full")}
                 >Stop entire agent</button>
               )}
               {a.isLive && revoked && (
@@ -348,14 +354,6 @@ export default function ControlPlaneRoster() {
             <span className="who">Strategy / Exec</span></div>
         </div>
       </div>
-
-      <KillSwitchConfirmModal
-        isOpen={showLiveModal}
-        agentId={live ? live.id : "demo-agent"}
-        onConfirm={confirmLiveKill}
-        onCancel={() => setShowLiveModal(false)}
-        initialScope={liveKillScope}
-      />
 
       {user?.role === "admin" && (
         <ControlPlaneDemoGuideModal

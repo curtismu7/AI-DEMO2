@@ -297,12 +297,26 @@ function AppWithAuth() {
   useOAuthUrlCleanup();
   const navigate = useNavigate();
 
-  // Kill-switch modal state lives here (not in AdminSideNav) because a
-  // successful kill destroys the session, which unmounts AdminSideNav
-  // (gated on `user` — see routes/sideNavOwner.js) before it could ever
-  // show its own result. This component never unmounts on auth changes,
-  // so the modal survives long enough to render what actually happened.
-  const [showKillModal, setShowKillModal] = useState(false);
+  // Kill-switch modal state lives here, not in whatever page/component
+  // triggers it, because a successful kill destroys the session — which
+  // unmounts anything gated on `user` (AdminSideNav globally, and every
+  // `user ? <Page/> : <Navigate to="/"/>` protected route, e.g.
+  // /ai-control-plane, /agent-lifecycle) before it could ever show its own
+  // result. This component never unmounts on auth changes, so the modal
+  // survives long enough to render what actually happened.
+  //
+  // Callers open it via openKillSwitchModal({ agentId, initialScope,
+  // onConfirm, onDismiss }) instead of owning their own modal instance —
+  // onConfirm/onDismiss are supplied per-open so each caller keeps its own
+  // post-kill behavior (AdminSideNav navigates to /logout; ControlPlaneRoster
+  // just updates its roster row) while sharing one modal that outlives them.
+  const [killModal, setKillModal] = useState(null);
+  const openKillSwitchModal = useCallback((config) => setKillModal(config), []);
+  const closeKillSwitchModal = useCallback(() => {
+    killModal?.onDismiss?.();
+    setKillModal(null);
+  }, [killModal]);
+
   const [agentRevoked, setAgentRevoked] = useState(false);
   const handleKillSwitchConfirm = useCallback(
     async (agentId, reason, scope = "instance") => {
@@ -327,12 +341,25 @@ function AppWithAuth() {
     },
     [],
   );
-  // Runs once the modal is dismissed (Cancel pre-confirm, or Done after
-  // showing the result) — navigate to /logout only if a kill actually ran.
-  const handleKillModalDismiss = useCallback(() => {
-    setShowKillModal(false);
-    if (agentRevoked) navigate("/logout");
-  }, [agentRevoked, navigate]);
+  // AdminSideNav's "STOP AGENT" trigger — navigates to /logout on dismiss,
+  // but only if this specific open actually killed the agent (not just any
+  // prior kill), so a fresh local flag rather than the shared agentRevoked
+  // state avoids a stale-closure/timing mismatch between open and dismiss.
+  const openAdminStopAgent = useCallback(() => {
+    let revokedThisOpen = false;
+    openKillSwitchModal({
+      agentId: "default-agent",
+      initialScope: "instance",
+      onConfirm: async (agentId, reason, scope) => {
+        const body = await handleKillSwitchConfirm(agentId, reason, scope);
+        revokedThisOpen = true;
+        return body;
+      },
+      onDismiss: () => {
+        if (revokedThisOpen) navigate("/logout");
+      },
+    });
+  }, [handleKillSwitchConfirm, navigate, openKillSwitchModal]);
 
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
@@ -531,7 +558,7 @@ function AppWithAuth() {
               {appRendersSideNav({ pathname, user }) && (
                 <AdminSideNav
                   user={user}
-                  onStopAgentClick={() => setShowKillModal(true)}
+                  onStopAgentClick={openAdminStopAgent}
                   agentRevoked={agentRevoked}
                 />
               )}
@@ -722,7 +749,7 @@ function AppWithAuth() {
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
-                          <AiControlPlanePage />
+                          <AiControlPlanePage openKillSwitchModal={openKillSwitchModal} />
                         </main>
                       </>
                     ) : (
@@ -1731,12 +1758,11 @@ function AppWithAuth() {
                 onCancel={() => setCredentialsModal(null)}
               />
               <KillSwitchConfirmModal
-                isOpen={showKillModal}
-                agentId="default-agent"
-                onCancel={handleKillModalDismiss}
-                onConfirm={(agentId, reason, scope) =>
-                  handleKillSwitchConfirm(agentId || "default-agent", reason, scope)
-                }
+                isOpen={!!killModal}
+                agentId={killModal?.agentId}
+                initialScope={killModal?.initialScope}
+                onCancel={closeKillSwitchModal}
+                onConfirm={killModal?.onConfirm}
               />
               <LoginSuccessModal
                 user={user}

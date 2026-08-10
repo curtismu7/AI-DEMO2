@@ -102,6 +102,51 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Kill switch's own result modal couldn't survive /ai-control-plane's auth-gated route redirect
+
+**Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/pages/AiControlPlanePage.jsx`,
+`demo_api_ui/src/components/ControlPlaneRoster.jsx` (+ test)
+
+**What was broken:** live-verified a kill from `/ai-control-plane`'s roster
+"Stop this instance" button — the browser landed on `/` before
+`ControlPlaneRoster`'s own `<KillSwitchConfirmModal>` result could render,
+same *class* of bug as the AdminSideNav fix earlier today (a kill's own
+side effect — clearing `user` — races the UI trying to show its result) but
+a different trigger: `/ai-control-plane`'s route element is
+`user ? <AiControlPlanePage/> : <Navigate to="/" replace/>`
+(`App.js`) — a standard protected-route guard, present on essentially every
+authenticated route in this file (confirmed the identical pattern on
+`/agent-lifecycle` too). The instant `user` clears, React Router redirects
+away and unmounts the whole page — including `ControlPlaneRoster`'s local
+modal instance and its `showLiveModal`/result state — before anything can
+render.
+
+**What was fixed:** generalized the App.js-level kill-switch modal built for
+AdminSideNav (see the entry below) from a single hardcoded instance into a
+shared service: `openKillSwitchModal({ agentId, initialScope, onConfirm,
+onDismiss })`, stored in one `killModal` state object, rendering one
+`<KillSwitchConfirmModal>` that outlives any page/component gated on `user`.
+`AdminSideNav`'s trigger now calls it via `openAdminStopAgent` (same
+navigate-to-/logout-on-dismiss behavior, using a fresh per-open local flag
+instead of the shared `agentRevoked` state to avoid an open/dismiss
+closure-timing mismatch). `openKillSwitchModal` is threaded down through
+`AiControlPlanePage` to `ControlPlaneRoster`, whose "Stop this instance" /
+"Stop entire agent" buttons now call it directly instead of owning a local
+modal — `confirmLiveKill` (the POST + `setLive(...)` update) stays local and
+is passed as that open's `onConfirm`.
+
+**Known remaining gap, not fixed:** `/agent-lifecycle` has the identical
+`user ? <Page/> : <Navigate/>` gate and its own local
+`<KillSwitchConfirmModal>` usage (`AgentLifecyclePage.jsx`) — same
+structural risk. Not touched here: that page's flow already shows its own
+inline `retryResult` message after revoke (a different, already-working
+proof mechanism — see `project-killswitch-instance-scope` memory), so
+whether it's actually affected in practice wasn't verified live, and fixing
+it needs the same lift-to-App.js treatment if it is. This is likely a
+systemic pattern across other protected routes too — no full audit done.
+
+**Verify:** `cd demo_api_ui && npx vitest run ControlPlaneRoster.test.jsx adminSideNav.test.jsx AdminSideNav.telemetry.test.jsx AgentLifecyclePage.test.jsx` (36/36); `npm run build` exit 0.
+
 ### 2026-08-10 — Kill switch's session-invalidate step was also Redis-only ("0 session key(s) removed", every time)
 
 **Files changed:** `demo_api_server/services/lmdb/sessionStore.js` (+ test),
