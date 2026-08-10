@@ -204,6 +204,42 @@ function warnIfAuthorizeModeUnconfigured() {
   }
 }
 
+// Advisory (never fatal): the working Privilege MCP config lives in the RUNNING
+// container (env is frozen at create time), so a stale root .env silently
+// regresses it on the next `compose up`. Catch the two smoking guns of that
+// regression at boot so a broken recreate is loud, not a mystery 401.
+// See docs/PRIVILEGE-MCP.md + REGRESSION_PLAN §4 (2026-08-10).
+function warnIfPrivilegeConfigRegressed() {
+  try {
+    const gwUrl = process.env.PRIVILEGE_MCPGW_URL || '';
+    const ssoEnv = process.env.PRIVILEGE_SSO_ENV_ID || '';
+    const bankingEnv = process.env.PINGONE_ENVIRONMENT_ID || '';
+    // Only relevant when a Privilege gateway is wired at all.
+    if (!gwUrl && !ssoEnv) return;
+
+    // 1) The dangerous one: Privilege SSO must be its OWN tenant, never the banking
+    //    environment. The gateway rejects a token whose issuer is the banking env,
+    //    so pointing SSO there breaks console-token sign-in entirely.
+    if (ssoEnv && bankingEnv && ssoEnv === bankingEnv) {
+      console.warn(
+        `[STARTUP GUARD] PRIVILEGE_SSO_ENV_ID (${ssoEnv}) == PINGONE_ENVIRONMENT_ID — the Privilege gateway REJECTS the banking env's issuer.\n` +
+        '  This is the stale-.env regression: PRIVILEGE_SSO_ENV_ID must be the Privilege tenant, not the banking env. Sign-in will fail.');
+    }
+
+    // 2) Known-dead gateway host: banking.mcpgw... does not resolve in-container and
+    //    is not in the mcpgw nginx rewrite map; only mcp-pingone-admin.mcpgw... is wired.
+    let host = '';
+    try { host = new URL(gwUrl).host; } catch { /* gwUrl not a URL */ }
+    if (host === 'banking.mcpgw.local.ping-devops.com') {
+      console.warn(
+        `[STARTUP GUARD] PRIVILEGE_MCPGW_URL host '${host}' does not resolve and is not in the mcpgw nginx rewrite map — the Privilege page's default target is dead.\n` +
+        '  Expected https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp (what the console-token path uses).');
+    }
+  } catch (err) {
+    console.warn(`[STARTUP GUARD] Privilege config check skipped: ${err.message}`);
+  }
+}
+
 function clearRedirectUrisFromConfigStore() {
   try {
     const cs = require('./configStore');
@@ -223,6 +259,7 @@ function clearRedirectUrisFromConfigStore() {
 function runStartupConfigGuard() {
   clearRedirectUrisFromConfigStore();
   warnIfAuthorizeModeUnconfigured();
+  warnIfPrivilegeConfigRegressed();
   let issues;
   try {
     issues = collectIssues();
@@ -245,4 +282,4 @@ function runStartupConfigGuard() {
   process.exit(1);
 }
 
-module.exports = { runStartupConfigGuard, collectIssues, warnIfAuthorizeModeUnconfigured };
+module.exports = { runStartupConfigGuard, collectIssues, warnIfAuthorizeModeUnconfigured, warnIfPrivilegeConfigRegressed };
