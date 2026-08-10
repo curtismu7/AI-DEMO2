@@ -144,6 +144,16 @@ const MAX_WIDTH = 520;
 // Namespaced by role so admin and customer keep independent expansion state
 // (deliberate UX: switching roles restores that role's own open group).
 const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
+const COLLAPSED_KEY = "adminSideNav.collapsed";
+
+/** The sidebar rests as an icon rail unless the user has expanded it before. */
+function readStoredCollapsed() {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.com"]);
 
 // Auto-expand table: the group containing the current route opens on first
@@ -209,7 +219,13 @@ const isLocalHost = () =>
 export default function AdminSideNav({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  // The icon rail is the resting state: "Unchanged — icon rail, expands to the
+  // same tree. Only the resting width changes" (dashboard-final.html). The nav
+  // is 36 items across 15 groups; at full width it competes with the thing the
+  // demo is actually about. Persisted in localStorage rather than sessionStorage
+  // because this is a standing preference, not per-tab state like the expanded
+  // group below — someone who expands it should not have to do so every tab.
+  const [collapsed, setCollapsed] = useState(readStoredCollapsed);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [navFilter, setNavFilter] = useState("");
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
@@ -1404,7 +1420,15 @@ export default function AdminSideNav({ user }) {
       <button
         type="button"
         className="admin-side-nav__toggle"
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={() => {
+          const next = !collapsed;
+          setCollapsed(next);
+          try {
+            window.localStorage.setItem(COLLAPSED_KEY, String(next));
+          } catch {
+            /* private mode — the choice is session-only */
+          }
+        }}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         title={collapsed ? "Expand" : "Collapse"}
       >
