@@ -102,6 +102,42 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — MCP_AUTH_DISABLED denied every scoped tool call
+
+**Files changed:** `oauth-mcp/src/server/HttpMCPTransport.ts`,
+`oauth-mcp/src/server/AuthenticationIntegration.ts`,
+`demo_api_server/services/attackSimulatorService.js`, plus their specs
+
+**What was broken:** With `MCP_AUTH_DISABLED=true` (the Privilege MCP
+open-access switch, set in the root `.env`), `authenticateBearer` returned a
+synthetic bearer equal to the literal string `"disabled"` with `scopes: []` and
+discarded the real `Authorization` header. That placeholder became
+`context.agentToken`, so every per-tool scope check decoded `"disabled"`, failed
+with `Malformed JWT`, and answered `-32005 insufficient_scope`. The flag that
+means "trust all callers" denied every scoped tool call — including calls
+PingOne Authorize had already PERMITted at PingGateway. UC14b (PAR intent
+verified) reported `403 Insufficient scope for tool 'create_transfer'` after a
+clean `P1AZ DECISION: PERMIT`; retail chips (`list_orders`, `checkout`) died the
+same way. In 24h mcp-server logged zero successful tool executions.
+
+**What was fixed:** Open-access mode now keeps a presented bearer (validating it,
+falling back to the placeholder only when absent or unvalidatable), so identity,
+scopes and the `act` chain still reach the tools. And when the flag is on, a
+failed scope check no longer denies — it warns and proceeds, which is what the
+flag's contract says. Separately, UC14b's PERMIT path now funds the transfer from
+an account that can cover it (`pickTransferAccounts`); it was taking
+`accounts[0]`, this user's loan at -12000, so a clean PERMIT ended in
+`502 backend_execution_failed "Insufficient balance"`.
+
+**Do not break:** With `MCP_AUTH_DISABLED` unset or false, the per-tool scope
+check must still fail closed — that path is unchanged and covered by the specs.
+The placeholder bearer must never be handed downstream when a real token exists.
+
+**Verify:** `cd oauth-mcp && npm run build && npm run test:unit`;
+`cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`; live:
+Intent Binding page PERMIT column, or the UC14b run, must reach
+`intent-binding-verified`.
+
 ### 2026-08-09 — Guided Demo Track slots filled with unrelated evidence
 
 **Files changed:** `demo_api_server/services/demoTrackService.js`,

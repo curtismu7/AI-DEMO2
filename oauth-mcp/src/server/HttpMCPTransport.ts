@@ -809,6 +809,21 @@ export class HttpMCPTransport {
    */
   private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<AuthenticatedBearer | null> {
     if (this.authDisabled) {
+      // Open-access mode still keeps a REAL bearer when one is presented. The
+      // placeholder below is not a token: handing it downstream as the agent
+      // token made every per-tool scope check decode the string 'disabled',
+      // fail with "Malformed JWT", and answer -32005 insufficient_scope — so
+      // the flag that means "trust all callers" denied every scoped tool call
+      // (PingGateway path included, after Authorize had already PERMITted).
+      const presented = this.extractBearer(req);
+      if (presented) {
+        try {
+          return { token: presented, tokenInfo: await this.authManager.validateAgentToken(presented) };
+        } catch {
+          // Unvalidatable token in open-access mode: fall through to the
+          // placeholder rather than 401 — that is what the flag asks for.
+        }
+      }
       return {
         token: 'disabled',
         tokenInfo: {
