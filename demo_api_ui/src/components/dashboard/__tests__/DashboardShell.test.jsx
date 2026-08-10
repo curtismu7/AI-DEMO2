@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../../../context/ThemeContext';
 import DashboardShell from '../DashboardShell';
 import StatStrip from '../StatStrip';
@@ -66,7 +66,7 @@ describe('DashboardShell', () => {
   it('toggles the shared app theme', async () => {
     shell();
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    screen.getByRole('switch', { name: /dark mode/i }).click();
+    fireEvent.click(screen.getByRole('switch', { name: /dark mode/i }));
     await waitFor(() =>
       expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
   });
