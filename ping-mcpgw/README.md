@@ -15,6 +15,15 @@ Clients reach it through nginx, never the proxy port directly:
 | SE cluster (AWS) | `https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp` |
 | Gateway base (`SERVER_URL`) | `https://mcpgw.local.ping-devops.com` |
 
+Those are the hostnames **clients** use. nginx does not forward them: MCPGW routes
+strictly on `Host` and only recognises the Frontend Name registered on the application
+object (`MCP-aidemo.default.applications.procyon.ai:8643`), so `nginx.conf` rewrites
+`Host` to it and passes the original as `X-Forwarded-Host`. Send the client hostname
+through and the gateway logs `Domain not found` and returns an empty `200`. Adding an
+MCP application means adding a line to the `$mcpgw_frontend` map — and in Kubernetes,
+a whole Ingress, since `upstream-vhost` is one value per object. Full account:
+`docs/PRIVILEGE-MCP.md` §2026-08-10 (later).
+
 ## Prerequisite that no test can cover
 
 The deny decision and the session recording this demo shows are **authored in the

@@ -109,10 +109,25 @@ Agentless mode needs customer-owned DNS + TLS in front of the proxy:
 | k8s equivalent | `k8s/aws/mcpgw-agentless-ingress.yaml` (ingress-nginx **is** the engine there) |
 | `/etc/hosts` | one `127.0.0.1` line **per frontend host** — a wildcard cert works, `/etc/hosts` has no wildcards |
 
-nginx must forward the original `Host` header (`proxy_set_header Host $host`) — the
-gateway routes on the frontend hostname. Use a **variable** upstream plus
-`resolver 127.0.0.11`, or nginx refuses to start with `host not found in upstream`
-whenever the proxy is down.
+nginx must send the **Frontend Name registered on the application object** as `Host`,
+not the hostname the client used — the gateway routes strictly on `Host` and answers
+`Domain not found` plus an empty `200` for anything else. `demo_mcpgw_nginx/nginx.conf`
+maps it (`map $host $mcpgw_frontend` → `proxy_set_header Host $mcpgw_frontend`); the
+k8s ingress does the same with `nginx.ingress.kubernetes.io/upstream-vhost`, which
+takes one value per Ingress object. `X-Forwarded-Host` keeps the original.
+
+The registered value is **not** what the console displays — the console shows a
+`…applications.privilege.pingone.com` name while the object holds a
+`…applications.procyon.ai` one. Read it from the API:
+
+```bash
+# Cookie: auth_token=<console session JWT>;  x-procyon-session-id: <session id>
+GET https://console.privilege.pingone.com/api/<tenant>/v1/applications?ObjectMeta.Namespace=default
+# -> .Applications[].Spec.MCPAppConfig.FrontEndName.Elems
+```
+
+Use a **variable** upstream plus `resolver 127.0.0.11`, or nginx refuses to start with
+`host not found in upstream` whenever the proxy is down.
 
 **Do not repoint `PRIVILEGE_MCPGW_URL` at the Cloud API.** That was tried and
 reverted; `docs/PRIVILEGE-MCP.md` §"4. The client pointed at the Privilege cloud
@@ -574,6 +589,10 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | Pointing at a port that accepts TCP but serves no MCP | Use `8620` (see "Proxy ports") |
 | nginx returns a bare `502`, body says nothing | Upstream is `8623` (mesh, mTLS). Check the nginx error log for `tlsv13 alert certificate required` | Point the upstream at `http://…:8620` |
 | `401 Bearer Token not found.` | Normal — the gateway with no token. This is the **success** signal for "am I on the right port" | Nothing to fix |
+| `Domain not found` in the proxy log, **empty `200`** to the client | `Host` is not the Frontend Name registered on the application object. Reads like a broken backend; it is the gateway matching no application | Rewrite `Host` — nginx `map $host $mcpgw_frontend`, k8s `upstream-vhost`. See "The nginx front door" |
+| Host tried matches what the console shows, still `Domain not found` | The console UI displays a different domain than the object holds (`…privilege.pingone.com` vs `…procyon.ai`) | Read `FrontEndName.Elems` from the console applications API, never from the UI |
+| `403 User <id> doesn't have access to MCP app <name>` | **Progress, not a regression.** Auth passed and routing matched; Privilege is enforcing policy | Author a policy binding that user to that MCP application resource |
+| A previously working call goes back to `403 … doesn't have access` | Console policies can be created **time-boxed** (1h, 2h). An expired policy fails exactly like a missing one | Check the policy is still live before debugging anything else |
 | `401` with no `WWW-Authenticate` header | Console-side: Frontend Name / auth mode not set on the MCP Server application | Set Frontend Name to our domain (see checklist) |
 | Server crash: `EACCES: permission denied, mkdir './dev-data'` | Dev mode needs writable dir but container runs as non-root (uid 1001) | Add `tmpfs: /app/dev-data:uid=1001,gid=1001` to docker-compose.yml |
 | Server crash: `Configuration validation failed` | `SKIP_TOKEN_SIGNATURE_VALIDATION=true` forbidden outside development | Set `NODE_ENV: development` in docker-compose.yml for the mcp-server service |

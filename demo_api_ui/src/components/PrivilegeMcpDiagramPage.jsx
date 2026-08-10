@@ -13,7 +13,8 @@ const ARCHITECTURE_SOURCE = `graph TB
 
     subgraph demo["Demo stack (Docker Compose)"]
         BFF["demo-api-server<br/>/api/privilege-mcp/*"]
-        GW["ping-mcpgw :8680<br/>cyonproxy"]
+        NGX["mcpgw-nginx :443<br/>rewrites Host to the<br/>registered Frontend Name"]
+        GW["ping-mcpgw :8620<br/>cyonproxy (agentless)"]
         MCP["mcp-server :8080<br/>Privilege-unaware"]
     end
 
@@ -26,7 +27,8 @@ const ARCHITECTURE_SOURCE = `graph TB
     UI -->|"HTTPS + session cookie"| BFF
     BFF -.->|"SSE: live relay events"| UI
     BFF -->|"OAuth 2.0 code + PKCE"| AS
-    BFF -->|"MCP JSON-RPC over HTTP"| GW
+    BFF -->|"MCP JSON-RPC over HTTPS"| NGX
+    NGX -->|"Host: MCP-aidemo.default<br/>.applications.procyon.ai:8643<br/>X-Forwarded-Host: original"| GW
     GW -->|"MCP JSON-RPC"| MCP
     GW <-->|"outbound gRPC<br/>enrollment JWT"| CP
     BFF -.->|"currently configured here<br/>instead of the gateway"| API
@@ -40,6 +42,7 @@ const SEQUENCE_SOURCE = `sequenceDiagram
     participant P as Client page
     participant B as BFF relay
     participant A as PingOne AS
+    participant N as mcpgw-nginx
     participant G as MCP Gateway
     participant M as MCP server
 
@@ -56,10 +59,13 @@ const SEQUENCE_SOURCE = `sequenceDiagram
 
     U->>P: Load Tools
     P->>B: POST /tools/list
-    B->>G: initialize
+    B->>N: initialize
+    Note over N,G: nginx rewrites Host to the registered<br/>Frontend Name. Send our own hostname and<br/>the gateway logs "Domain not found"<br/>and returns an empty 200.
+    N->>G: initialize (Host rewritten)
     G-->>B: protocolVersion + MCP-Session-Id
-    B->>G: notifications/initialized
-    B->>G: tools/list (Bearer + session headers)
+    B->>N: notifications/initialized
+    B->>N: tools/list (Bearer + session headers)
+    N->>G: tools/list
     G->>M: tools/list
     M-->>G: tools
     G-->>B: tools (JSON or SSE frames)
@@ -67,12 +73,15 @@ const SEQUENCE_SOURCE = `sequenceDiagram
 
     U->>P: Run a tool
     P->>B: POST /tools/call
-    B->>G: tools/call
+    B->>N: tools/call
+    N->>G: tools/call (Host rewritten)
     Note over G: Privilege decides:<br/>JIT least-privilege policy<br/>+ session recording
     alt permitted
         G->>M: tools/call
         M-->>G: result
         G-->>B: result
+    else no policy grants this user the app
+        G-->>B: 403 doesn't have access to MCP app
     else denied by policy
         G-->>B: 4xx — relayed with its own status
     end
@@ -202,7 +211,9 @@ export default function PrivilegeMcpDiagramPage() {
 
       <p className="pmd-footer">
         Source: <a href="https://github.com" className="pmd-link">docs/PRIVILEGE-MCP.md</a>.
-        Dashed lines indicate the currently broken path (gateway not yet serving).
+        Dashed lines indicate a path that is configured but not the intended one — the BFF
+        still talks to the Privilege cloud API directly instead of routing that call through
+        the gateway.
       </p>
     </div>
   );
