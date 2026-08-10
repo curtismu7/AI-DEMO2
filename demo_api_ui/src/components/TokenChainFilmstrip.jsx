@@ -151,8 +151,13 @@ export default function TokenChainFilmstrip() {
     }
   };
 
+  // Two regions, deliberately siblings rather than nested: the dashboard grid
+  // places the spotlight beside the agent and the chain across the full width
+  // beneath both. `.tcfs` is display:contents so these become grid items of the
+  // dashboard, which is what lets one component serve both layouts.
   return (
     <section className="tcfs" aria-label="Token chain">
+      <div className="tcfs-spotlight">
       <div className="tcfs-head">
         <span className="tcfs-title">Token Chain</span>
         <span className="tcfs-dots">
@@ -197,42 +202,53 @@ export default function TokenChainFilmstrip() {
         </div>
       </div>
 
-      <div className="tcfs-label">
-        {trace.prompt
-          ? `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — "${trace.prompt.message}"`
-          : `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — awaiting agent action`}
+        {sheetOpen ? (
+          <section className="tcfs-sheet"
+            aria-label={view ? `${VIEW_LABELS[view] || "Chain"} view` : "Step detail"}>
+            <div className="tcfs-sheet-head">
+              <span className="tcfs-sheet-title">{view ? VIEW_LABELS[view] || "Chain" : "Step detail"}</span>
+              <button type="button" className="tcfs-sheet-close" onClick={closeSheet} aria-label="Close detail">
+                ✕
+              </button>
+            </div>
+            <div className="tcfs-sheet-body">
+              {view ? renderView() : <StepDetailPanel step={activeStep} onInspect={onInspect} />}
+            </div>
+          </section>
+        ) : (
+          // The spotlight is the right column, so it must never be empty — an
+          // empty half-screen reads as broken. Say what to do instead.
+          <div className="tcfs-spotlight-empty">
+            {steps.length === 0
+              ? "Run an agent flow to build the token chain."
+              : "Pick a step on the chain below to see what it changed."}
+          </div>
+        )}
       </div>
 
-      {viewMode === "live" && steps.length === 0 ? (
-        <div className="tcfs-empty">Run an agent flow to build the token chain.</div>
-      ) : (
-        <div className="tcfs-track">
-          <TokenChainNodeRail
-            steps={steps}
-            activeId={activeStepId}
-            onPresent={() => {
-              if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
-              setPresenting(true);
-            }}
-            onSelect={(id) => { setActiveStepId(id); setView(null); }}
-          />
+      <div className="tcfs-chain">
+        <div className="tcfs-label">
+          {trace.prompt
+            ? `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — "${trace.prompt.message}"`
+            : `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — awaiting agent action`}
         </div>
-      )}
 
-      {sheetOpen ? (
-        <div className="tcfs-sheet" role="region"
-          aria-label={view ? `${VIEW_LABELS[view] || "Chain"} view` : "Step detail"}>
-          <div className="tcfs-sheet-head">
-            <span className="tcfs-sheet-title">{view ? VIEW_LABELS[view] || "Chain" : "Step detail"}</span>
-            <button type="button" className="tcfs-sheet-close" onClick={closeSheet} aria-label="Close detail">
-              ✕
-            </button>
+        {viewMode === "live" && steps.length === 0 ? (
+          <div className="tcfs-empty">Run an agent flow to build the token chain.</div>
+        ) : (
+          <div className="tcfs-track">
+            <TokenChainNodeRail
+              steps={steps}
+              activeId={activeStepId}
+              onPresent={() => {
+                if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
+                setPresenting(true);
+              }}
+              onSelect={(id) => { setActiveStepId(id); setView(null); }}
+            />
           </div>
-          <div className="tcfs-sheet-body">
-            {view ? renderView() : <StepDetailPanel step={activeStep} onInspect={onInspect} />}
-          </div>
-        </div>
-      ) : null}
+        )}
+      </div>
 
       {presenting ? (
         <TokenChainPresenter
