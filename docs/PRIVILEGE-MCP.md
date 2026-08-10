@@ -1596,6 +1596,16 @@ any more time on "make PingOne tokens work against the gateway."
    only** for this user: `GET /v1/applications` 200, bare `POST /v1/applications`
    reaches "already exists". Update params (`?update=true`, `?force=true`,
    `?overwrite=true`, `?Op=update`) are ignored.
+
+   **It is not the header shape — do not chase it.** A `PUT /v1/userpreferences/...`
+   *succeeds* (200) with the same session, empty `authorization;`, and `origin` +
+   `referer` headers. The difference is **object ownership, not headers**: the
+   userpreferences object lists the console user under `WrOwners.ObjectRef`, so the
+   user may write it; application objects do not, so every write 401s regardless of
+   header shape (empty `authorization;` + `origin` + `referer` all matching the
+   working PUT was tried — still 401). Seeing that one working PUT and concluding
+   "the write API works, just copy those headers" is the trap; it works only for
+   objects you own.
 3. **Create-instead-of-update worked.** `POST /v1/applications` with a full object
    created `mcp-aidemo` (EntryPath `/aidemo`, `AuthMode: oauth`, `ResourceOAuth`
    fully populated from `pingone.env`, `UsePKCE: true`) — HTTP 200, config pushed
