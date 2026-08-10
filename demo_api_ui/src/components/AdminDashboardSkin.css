@@ -12,21 +12,50 @@
  * the same card treatment SupportConsole.css gives .vops__card.
  *
  * Every rule sets background and colour together. A colour-only override is how
- * the group-membership modal ended up near-white on white (#1483); the page
- * shell here is light in every scheme, so nothing is lightened for dark mode.
+ * the group-membership modal ended up near-white on white (#1483).
+ *
+ * Dark mode: keyed to :root[data-theme="dark"] (the attribute ThemeProvider
+ * writes), never prefers-color-scheme. An earlier revision of this file
+ * declared the page "light in every scheme"; that stance was reversed
+ * 2026-08-10 on an explicit request for light/dark across the whole
+ * dashboard. Everything below consumes the --admin-* tokens, so the dark
+ * block redefining them is the single switch.
  */
 
 .admin-dashboard-page {
-  /* Accent matches SupportConsole.css. Surface, border and text defer to the
-     dashboard's existing --dash-* tokens so a theme change moves this page with
-     the rest of the admin UI; the literals are fallbacks, not the source. */
+  /* Accent matches SupportConsole.css. An earlier revision deferred surface,
+     border and text to --dash-* tokens — but those are scoped to .dash
+     (dashboard/dashboard.css), which this page is not inside, so the var()
+     lookups always fell through to their fallbacks. These literals ARE the
+     source; the dark block below is the only other one. */
   --admin-accent: #2563eb;
   --admin-accent2: #1e3a8a;
   --admin-tint: #eef4ff;
-  --admin-surface: var(--dash-surface, #ffffff);
-  --admin-line: var(--dash-border, #eceef5);
-  --admin-ink: var(--dash-text, #1a2230);
-  --admin-muted: var(--dash-muted, #69748a);
+  --admin-surface: #ffffff;
+  --admin-surface-2: #f1f5f9;
+  --admin-line: #eceef5;
+  --admin-ink: #1a2230;
+  --admin-muted: #69748a;
+}
+
+/* Same ramp dashboard/dashboard.css uses for .dash in dark, so /admin and the
+   P1AZ/New Relic dashboards read as one product when the theme flips.
+   The page ground is overridden here too: the shared .app-page-shell is
+   light-only (styles/appShellPages.css has no dark rules at all), and
+   restyling that shell would drag every settings-style page along — so the
+   dark ground is scoped to this page. */
+:root[data-theme="dark"] .admin-dashboard-page.app-page-shell {
+  background: #0a0f18;
+}
+:root[data-theme="dark"] .admin-dashboard-page {
+  --admin-accent: #7aa2f7;
+  --admin-accent2: #9ec1ff;
+  --admin-tint: #172554;
+  --admin-surface: #111823;
+  --admin-surface-2: #161f2c;
+  --admin-line: #253244;
+  --admin-ink: #e8eef7;
+  --admin-muted: #a5b4c8;
 }
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */
@@ -53,7 +82,7 @@
   gap: 8px;
   margin: 0;
   padding: 12px 16px;
-  border-bottom: 1px solid #f0f1f7;
+  border-bottom: 1px solid var(--admin-line);
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -90,7 +119,7 @@
    it here fights the shared component instead of skinning the page. */
 .admin-dashboard-page .dash-shell-card input[type="text"]:not(.form-control),
 .admin-dashboard-page .dash-shell-card input:not([type]):not(.form-control) {
-  border: 1px solid #e1e5ef;
+  border: 1px solid var(--admin-line);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
@@ -108,7 +137,7 @@
    customer" primary button lost its blue and its white label went invisible on
    the white background it inherited. Skin the unclassed buttons only. */
 .admin-dashboard-page .dash-shell-card button:not([class*="btn"]) {
-  border: 1px solid #dfe3ee;
+  border: 1px solid var(--admin-line);
   border-radius: 9px;
   padding: 8px 14px;
   font-size: 13px;
@@ -120,7 +149,7 @@
 
 .admin-dashboard-page .dash-shell-card button:not([class*="btn"]):hover:not(:disabled) {
   background: var(--admin-tint);
-  border-color: color-mix(in srgb, var(--admin-accent) 30%, #ffffff);
+  border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface));
 }
 
 .admin-dashboard-page .dash-shell-card button:not([class*="btn"]):disabled {
@@ -140,7 +169,30 @@
 
 .admin-dashboard-page [aria-label^="View "][aria-label$=" details"]:hover {
   background: var(--admin-tint);
-  border-color: color-mix(in srgb, var(--admin-accent) 30%, #ffffff);
+  border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface));
+}
+
+/* ── Tile innards + Recent Activity table ───────────────────────────────────
+   index.css paints .stat-card/.stat-value/.stat-label and .table with the
+   light-only --brand-* palette (.stat-label is a literal #999). The skin
+   already re-surfaces the tile buttons; these carry the inner text and the
+   table onto the same tokens so dark mode reaches them too. */
+.admin-dashboard-page .stat-card {
+  background: var(--admin-surface);
+}
+.admin-dashboard-page .stat-value {
+  color: var(--admin-accent);
+}
+.admin-dashboard-page .stat-label {
+  color: var(--admin-muted);
+}
+.admin-dashboard-page .table {
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+}
+.admin-dashboard-page .table th,
+.admin-dashboard-page .table td {
+  border-bottom-color: var(--admin-line);
 }
 
 /* ── Token chain column ─────────────────────────────────────────────────── */

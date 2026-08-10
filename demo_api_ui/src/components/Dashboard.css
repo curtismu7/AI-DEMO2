@@ -41,6 +41,18 @@
   top: 8px;
 }
 
+/* ── Dark (:root[data-theme="dark"], never the OS setting). The amber banner's
+   deep-amber ink and the skip link's white card are the only literals here
+   that fail on a dark ground. ── */
+:root[data-theme="dark"] .dash-scope-injection-banner__text strong { color: #fbbf24; }
+:root[data-theme="dark"] .dash-scope-injection-banner__text span { color: #e0a145; }
+:root[data-theme="dark"] .dash-scope-injection-banner__close { color: #fbbf24; }
+:root[data-theme="dark"] .dash-skip-link {
+  background: #111823;
+  color: #e8eef7;
+  border-color: #253244;
+}
+
 /* ── Admin dashboard: override split-pane-layout to column so toolbar stacks above grid ── */
 .admin-dashboard-page .split-pane-layout {
   flex-direction: column;
