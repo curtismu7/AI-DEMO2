@@ -1443,6 +1443,13 @@ Gateway log confirms every stage: `MCP App RBAC check` → `User … has policy 
 capabilities` → `[mcpfilter] cap header present: {"tools":[".*"]}` → proxied to
 backend. The complete chain — auth, routing, policy, proxy — works.
 
+**Re-run it yourself:** `bash scripts/privilege-smoke.sh '<console-auth_token>' [app]`.
+Five assertions (front-door 401 → initialize → session → tools/list → tools/call).
+MANUAL only — the console token cannot be minted programmatically, so this is never
+a CI test. A full pass needs BOTH a live token **and** a live console policy; a
+front-door PASS with an authenticated `403` means the policy lapsed, not that the
+gateway broke.
+
 Three facts this run settled:
 
 1. **The label-strip "EvaluateHost" model from the SE deck is wrong for this build**
