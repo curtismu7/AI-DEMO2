@@ -66,6 +66,10 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
+  // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
+  // With a long granted-scope list, clicking a pill on the left jumps to its row.
+  const [selectedScope, setSelectedScope] = useState(null);
+  const scopeRowRef = useRef(null);
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
@@ -281,6 +285,13 @@ export default function PrivilegeMcpClientPage() {
       setActiveTab('tools');
     }
   }, [tools.length]);
+
+  // Scroll the picked scope's row into view once the SCOPES table is showing it.
+  useEffect(() => {
+    if (selectedScope && terminalTab === 'scopes' && scopeRowRef.current) {
+      scopeRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedScope, terminalTab]);
 
   // Esc closes Present mode.
   useEffect(() => {
@@ -578,11 +589,11 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-sidebar-header">
             <span className="cur-sidebar-title">CONNECTION</span>
           </div>
-          <div style={{padding:'6px 12px',fontSize:10,fontFamily:'monospace',background:'#0a0a0a',borderBottom:'1px solid #1e1e1e',color:'#888'}}>
-            <div><span style={{color:'#555'}}>mcpUrl: </span><span style={{color:'#7ec8e3',wordBreak:'break-all'}}>{config.mcpUrl || '—'}</span></div>
-            <div><span style={{color:'#555'}}>clientId: </span><span style={{color:'#ffd93d'}}>{config.clientId || '—'}</span></div>
-            <div><span style={{color:'#555'}}>scopes: </span><span style={{color:'#a8e6cf'}}>{config.scopes || '—'}</span></div>
-            <div><span style={{color:'#555'}}>authStatus: </span><span style={{color: authenticated ? '#a8e6cf' : '#ff6b6b'}}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
+          <div className="cur-conn-debug">
+            <div><span className="cur-cd-k">mcpUrl: </span><span className="cur-cd-v cur-cd-v--url">{config.mcpUrl || '—'}</span></div>
+            <div><span className="cur-cd-k">clientId: </span><span className="cur-cd-v cur-cd-v--id">{config.clientId || '—'}</span></div>
+            <div><span className="cur-cd-k">scopes: </span><span className="cur-cd-v cur-cd-v--scope">{config.scopes || '—'}</span></div>
+            <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
           </div>
           <div className="cur-sidebar-content">
             {authenticated ? (
@@ -611,8 +622,9 @@ export default function PrivilegeMcpClientPage() {
                   <span className="cur-sidebar-title">CONSOLE TOKEN (DEV)</span>
                 </div>
                 <p className="cur-console-token-hint">
-                  Privilege console &gt; DevTools &gt; Network &gt; any request &gt; Copy as cURL, paste below.
-                  The bearer PingOne mints is rejected by the gateway (kid wall); a console token is accepted.
+                  Privilege console &gt; DevTools &gt; Network &gt; any request &gt; Copy as cURL
+                  (or Copy request headers), paste below. The bearer PingOne mints is rejected by
+                  the gateway (kid wall); a console token is accepted.
                 </p>
                 <textarea
                   className="cur-console-token-input"
@@ -640,7 +652,15 @@ export default function PrivilegeMcpClientPage() {
                 </div>
                 <div className="cur-scopes-grid">
                   {grantedScopes.map((s) => (
-                    <span key={s} className={`cur-scope-pill ${scopeColor(s)}`}>{s}</span>
+                    <span
+                      key={s}
+                      role="button"
+                      tabIndex={0}
+                      className={`cur-scope-pill ${scopeColor(s)}${s === selectedScope ? ' cur-scope-pill--selected' : ''}`}
+                      title={`Show ${s} in the scopes table`}
+                      onClick={() => { setSelectedScope(s); setTerminalTab('scopes'); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedScope(s); setTerminalTab('scopes'); } }}
+                    >{s}</span>
                   ))}
                 </div>
               </div>
@@ -792,11 +812,11 @@ export default function PrivilegeMcpClientPage() {
                     return (
                       <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
                         <summary style={{cursor:'pointer',color,listStyle:'none',display:'flex',gap:8,alignItems:'center'}}>
-                          <span style={{color:'#555',minWidth:70}}>{e.ts?.slice(11,23)||''}</span>
+                          <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
                           <span>{label}</span>
                           {e.type === 'error' && <span style={{color:'#ff6b6b'}}>{e.message}</span>}
                         </summary>
-                        <pre style={{margin:'4px 0 4px 80px',color:'#ddd',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+                        <pre className="cur-trace-json">
                           {JSON.stringify(rest, null, 2)}
                         </pre>
                       </details>
@@ -830,7 +850,12 @@ export default function PrivilegeMcpClientPage() {
                         <thead><tr><th>Scope</th><th>Category</th></tr></thead>
                         <tbody>
                           {grantedScopes.map((s) => (
-                            <tr key={s}>
+                            <tr
+                              key={s}
+                              ref={s === selectedScope ? scopeRowRef : null}
+                              className={s === selectedScope ? 'cur-scope-row--selected' : ''}
+                              onClick={() => setSelectedScope(s)}
+                            >
                               <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
                               <td className="cur-scope-cat">
                                 {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
