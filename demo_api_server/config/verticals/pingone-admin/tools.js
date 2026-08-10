@@ -84,19 +84,60 @@ function parseMcpResult(raw) {
   return raw;
 }
 
+// The hosted MCP and the direct Management API disagree on envelope shape:
+// REST wraps collections in HAL (`_embedded.users`), the hosted MCP returns
+// some of them bare (`{ applications: [...] }` — verified live 2026-08-10).
+// Accept both so neither transport degrades to a JSON.stringify blob.
+function collectionFor(tool, data) {
+  const key = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations' }[tool];
+  if (!key) return null;
+  const arr = data?._embedded?.[key] ?? data?.[key];
+  return Array.isArray(arr) ? arr : null;
+}
+
+// Compact object rows for the LLM (and anything else reading the tool
+// result). Without these the model only ever saw "87 users found" and could
+// not name a single user — a count is not an answer to "list the users
+// starting with curt". Capped and field-trimmed: the admin LLM is llama.cpp
+// with a frozen context budget, so the full PingOne records (which carry
+// _links, lifecycle blocks, etc.) must never be forwarded verbatim.
+const ROW_CAP = 20;
+function rowsForResponse(tool, data) {
+  try {
+    const arr = collectionFor(tool, data);
+    if (!arr) {
+      if (tool === 'getUser' && data?.username) {
+        return [{ username: data.username, email: data.email || undefined, enabled: data.enabled }];
+      }
+      if (tool === 'getEnvironment' && data?.name) {
+        return [{ name: data.name, type: data.type, region: data.region, id: data.id }];
+      }
+      return null;
+    }
+    const rows = arr.slice(0, ROW_CAP).map((item) => {
+      if (tool === 'listUsers') {
+        return { username: item.username, email: item.email || undefined, enabled: item.enabled };
+      }
+      if (tool === 'listApplications') {
+        return { name: item.name, type: item.type, enabled: item.enabled };
+      }
+      return { name: item.name, description: (item.description || '').slice(0, 80) || undefined };
+    });
+    return rows.length ? rows : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function summaryForResponse(tool, data) {
   if (typeof data === 'string') return data.slice(0, 200);
   try {
+    const arr = collectionFor(tool, data);
+    if (arr) {
+      const noun = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations' }[tool];
+      return `${arr.length} ${noun} found`;
+    }
     switch (tool) {
-      case 'listUsers':
-        if (Array.isArray(data?._embedded?.users)) return `${data._embedded.users.length} users found`;
-        break;
-      case 'listApplications':
-        if (Array.isArray(data?._embedded?.applications)) return `${data._embedded.applications.length} applications found`;
-        break;
-      case 'listPopulations':
-        if (Array.isArray(data?._embedded?.populations)) return `${data._embedded.populations.length} populations found`;
-        break;
       case 'getUser':
         if (data?.username) return `User: ${data.username}${data.email ? ` (${data.email})` : ''}`;
         break;
@@ -137,17 +178,26 @@ async function callPingOneTool(params) {
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
   }
-  // Drop environmentId if the model sends one anyway. PingOneUserService.baseUrl
-  // and the hosted MCP session are both already scoped to the configured
-  // environment (PINGONE_ENVIRONMENT_ID), so an extra argument is at best
-  // redundant and at worst a validation error. The system prompt tells the
-  // model not to send it; this makes the behaviour independent of whether any
-  // particular model complies.
+  // Pin environmentId to the configured environment. The hosted MCP tool
+  // schemas REQUIRE it as an argument (listUsers et al fail -32602 without
+  // it — verified live 2026-08-10), so dropping it outright broke every live
+  // call and the RPC validation error masqueraded as a real answer. The
+  // model still never needs to supply it (the system prompt says not to),
+  // and a model-supplied value is discarded so a call can never be pointed
+  // at another environment.
   const { environmentId: _ignoredEnvId, ...args } = params?.arguments || {};
+  if (process.env.PINGONE_ENVIRONMENT_ID) {
+    args.environmentId = process.env.PINGONE_ENVIRONMENT_ID;
+  }
   try {
     const data = parseMcpResult(await adapter.callTool(name, args));
     return {
-      result: { tool: name, responseSummary: summaryForResponse(name, data), source: LIVE_SOURCE },
+      result: {
+        tool: name,
+        responseSummary: summaryForResponse(name, data),
+        rows: rowsForResponse(name, data) || undefined,
+        source: LIVE_SOURCE,
+      },
       render: 'call_pingone_tool',
     };
   } catch (err) {
@@ -174,7 +224,12 @@ async function callPingOneTool(params) {
         const data = await pingOneUserService.makeRequest(restReq.method, restReq.path);
         console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
         return {
-          result: { tool: name, responseSummary: summaryForResponse(name, data), source: apiSource(err.message) },
+          result: {
+            tool: name,
+            responseSummary: summaryForResponse(name, data),
+            rows: rowsForResponse(name, data) || undefined,
+            source: apiSource(err.message),
+          },
           render: 'call_pingone_tool',
         };
       } catch (restErr) {

@@ -130,10 +130,28 @@ describe('/admin skin must not clip escaping UI', () => {
     expect(rules).not.toMatch(/overflow\s*:\s*hidden/);
   });
 
-  // A colour-only dark-scheme override is how #1483 happened. This page shell
-  // is light in every scheme.
-  it('adds no dark-scheme block', () => {
-    expect(SKIN).not.toMatch(/prefers-color-scheme/);
+  // The page went dark-capable on 2026-08-10 (explicit request: light/dark
+  // across the whole dashboard), reversing this file's original "light in
+  // every scheme" stance. Two things survive from that era:
+  //
+  // 1. Dark is app-controlled only. :root[data-theme="dark"] is what
+  //    ThemeProvider writes; keying any rule to the OS setting instead would
+  //    make the page disagree with the app's own theme toggle. (Comments are
+  //    stripped first — prose ABOUT the media query is fine.)
+  it('keys dark to data-theme, never the OS prefers-color-scheme', () => {
+    const rules = SKIN.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).not.toMatch(/prefers-color-scheme/);
+    expect(rules).toMatch(/:root\[data-theme="dark"\]\s*\.admin-dashboard-page/);
+  });
+
+  // 2. A colour-only dark override is how #1483 happened (near-white text on
+  //    a white ground). The dark block must move surface and ink TOGETHER —
+  //    if it redefines either, it redefines both.
+  it('dark block redefines surface and ink together', () => {
+    const dark = SKIN.match(/:root\[data-theme="dark"\]\s*\.admin-dashboard-page\s*\{[^}]*\}/);
+    expect(dark).not.toBeNull();
+    expect(dark[0]).toMatch(/--admin-surface:/);
+    expect(dark[0]).toMatch(/--admin-ink:/);
   });
 });
 
