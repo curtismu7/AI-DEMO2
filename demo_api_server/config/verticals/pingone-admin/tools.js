@@ -58,7 +58,7 @@ const tools = [
   },
   {
     name: 'call_pingone_tool',
-    description: 'Call a hosted PingOne MCP tool by name (e.g. listUsers, createUser, listApplications, getEnvironment) with camelCase arguments.',
+    description: 'Call a hosted PingOne MCP tool by name (e.g. listUsers, createUser, listApplications, getEnvironment) with camelCase arguments. List tools accept arguments.filter in PingOne SCIM syntax for prefix requests: username sw "curt" (listUsers), name sw "Demo" (listApplications, listPopulations).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -129,6 +129,23 @@ function rowsForResponse(tool, data) {
   }
 }
 
+// The result fields the model reasons over. totalCount/rowsTruncated exist so
+// a capped rows array cannot masquerade as the full collection — without them
+// the model answers "here are the applications" from 20 rows of 46 and the
+// audience never learns the list was cut.
+function resultFields(tool, data) {
+  const fields = {
+    responseSummary: summaryForResponse(tool, data),
+    rows: rowsForResponse(tool, data) || undefined,
+  };
+  const arr = collectionFor(tool, data);
+  if (arr) {
+    fields.totalCount = arr.length;
+    if (arr.length > ROW_CAP) fields.rowsTruncated = true;
+  }
+  return fields;
+}
+
 function summaryForResponse(tool, data) {
   if (typeof data === 'string') return data.slice(0, 200);
   try {
@@ -192,12 +209,7 @@ async function callPingOneTool(params) {
   try {
     const data = parseMcpResult(await adapter.callTool(name, args));
     return {
-      result: {
-        tool: name,
-        responseSummary: summaryForResponse(name, data),
-        rows: rowsForResponse(name, data) || undefined,
-        source: LIVE_SOURCE,
-      },
+      result: { tool: name, ...resultFields(name, data), source: LIVE_SOURCE },
       render: 'call_pingone_tool',
     };
   } catch (err) {
@@ -224,12 +236,7 @@ async function callPingOneTool(params) {
         const data = await pingOneUserService.makeRequest(restReq.method, restReq.path);
         console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
         return {
-          result: {
-            tool: name,
-            responseSummary: summaryForResponse(name, data),
-            rows: rowsForResponse(name, data) || undefined,
-            source: apiSource(err.message),
-          },
+          result: { tool: name, ...resultFields(name, data), source: apiSource(err.message) },
           render: 'call_pingone_tool',
         };
       } catch (restErr) {
