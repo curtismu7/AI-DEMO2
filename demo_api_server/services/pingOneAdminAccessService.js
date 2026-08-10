@@ -48,8 +48,9 @@ async function checkAccess({ username, pingOneUserId }) {
   // ff_authorize_group_policy) keeps this scoped to this vertical only —
   // see docs/superpowers/specs/2026-08-10-pingone-admin-p1az-group-gate-design.md.
   let decision;
+  let policyNotFound;
   try {
-    ({ decision } = await pingOneAuthorizeService.evaluateMcpToolDelegation({
+    ({ decision, policyNotFound } = await pingOneAuthorizeService.evaluateMcpToolDelegation({
       userId: pingOneUserId,
       toolName: 'pingone_admin_access',
       verticalId: VERTICAL_ID,
@@ -57,6 +58,17 @@ async function checkAccess({ username, pingOneUserId }) {
       inRequiredGroup,
     }));
   } catch (err) {
+    console.warn('[pingOneAdminAccessService] P1AZ evaluation error (denying):', err.message);
+    return {
+      allowed: false,
+      error: 'pingone_admin_group_lookup_unavailable',
+      status: 503,
+      requiredGroup,
+    };
+  }
+
+  if (policyNotFound) {
+    console.warn('[pingOneAdminAccessService] policy_not_found for pingone_admin_access (denying)');
     return {
       allowed: false,
       error: 'pingone_admin_group_lookup_unavailable',

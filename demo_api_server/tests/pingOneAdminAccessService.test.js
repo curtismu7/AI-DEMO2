@@ -62,7 +62,7 @@ test('denies a user outside the live pingone-admin group', async () => {
 });
 
 test('fails closed on an INDETERMINATE PingOne Authorize decision', async () => {
-  membershipService.listUserGroupNamesForVertical.mockResolvedValue([]);
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'INDETERMINATE' });
 
   await expect(checkAccess({
@@ -73,6 +73,24 @@ test('fails closed on an INDETERMINATE PingOne Authorize decision', async () => 
     error: 'pingone_admin_group_required',
     status: 403,
   });
+});
+
+test('denies a live pingone-admin member when the PDP decision is DENY', async () => {
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({ decision: 'DENY' });
+
+  await expect(checkAccess({
+    username: 'demoAdmin',
+    pingOneUserId: 'user-1',
+  })).resolves.toMatchObject({
+    allowed: false,
+    error: 'pingone_admin_group_required',
+    status: 403,
+  });
+
+  expect(pingOneAuthorizeService.evaluateMcpToolDelegation).toHaveBeenCalledWith(
+    expect.objectContaining({ inRequiredGroup: true }),
+  );
 });
 
 test('fails closed with 503 when PingOne Authorize is unreachable', async () => {

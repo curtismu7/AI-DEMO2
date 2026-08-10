@@ -1,7 +1,7 @@
 # PingOne Admin group gate — route through PingOne Authorize (P1AZ)
 
 **Date:** 2026-08-10
-**Status:** Design, approved in brainstorming. Not yet planned or implemented.
+**Status:** Implemented (unit-tested); live-verification pending.
 **Scope:** `services/pingOneAdminAccessService.js#checkAccess` only. No route, UI, or flag-default changes.
 
 ## Problem
