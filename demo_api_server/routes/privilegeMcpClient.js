@@ -386,6 +386,62 @@ router.get('/state', (req, res) => {
   });
 });
 
+// POST /dev/console-token — DEV ONLY. Inject a Privilege console token as the
+// client bearer, so the UI can drive the real gateway without the PingOne OAuth
+// flow (which fails the kid wall — see docs/PRIVILEGE-MCP.md). Accepts either a
+// raw token or a whole "Copy as cURL" blob and parses auth_token out of it.
+//
+// Disabled in production: the console token is a short-lived operator credential,
+// never a login. This is a bench aid, gated off any real deployment.
+router.post('/dev/console-token', express.json({ limit: '256kb' }), async (req, res) => {
+  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
+
+  const blob = String(req.body?.curl || req.body?.token || '');
+  // auth_token from a cookie (-b 'auth_token=...') or a raw JWT; JWTs are three
+  // base64url segments joined by dots.
+  const token =
+    (blob.match(/auth_token=([A-Za-z0-9._-]+)/) || [])[1] ||
+    (blob.match(/\b(eyJ[A-Za-z0-9._-]{20,})\b/) || [])[1] ||
+    '';
+  if (!token) return res.status(400).json({ error: 'No auth_token / JWT found in the pasted value.' });
+
+  let header, payload;
+  try {
+    header = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+    payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+  } catch {
+    return res.status(400).json({ error: 'Value is not a decodable JWT.' });
+  }
+  const expiresAt = payload.exp ? payload.exp * 1000 : null;
+  if (expiresAt && expiresAt <= Date.now()) {
+    return res.status(400).json({ error: 'Token is already expired — copy a fresh one from the console.' });
+  }
+
+  const session = getClientSession(req);
+  session.oauth.accessToken = token;
+  session.oauth.refreshToken = null;
+  session.oauth.expiresAt = expiresAt;
+  session.oauth.scope = 'console-token';
+  // Point this client session at an app the console token can route to. The
+  // default targets mcp-pingone-admin's frontend host (nginx rewrites it to the
+  // registered Frontend Name). Override per-session with mcpUrl in the body.
+  const mcpUrl = String(req.body?.mcpUrl || '').trim() ||
+    'https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp';
+  session.config.mcpUrl = mcpUrl;
+  // Force a fresh MCP handshake against the new target/token.
+  resetMcpState(session);
+
+  emitEvent(session, 'mcp', { phase: 'console_token_set', user: payload.user || payload.sub, kid: header.kid });
+  res.json({
+    ok: true,
+    user: payload.user || payload.sub || null,
+    kid: header.kid || null,
+    kidMatchesGateway: header.kid === 'infra-root-jwt',
+    expiresInMinutes: expiresAt ? Math.round((expiresAt - Date.now()) / 60000) : null,
+    mcpUrl,
+  });
+});
+
 // POST /config — save config
 router.post('/config', express.json(), (req, res) => {
   const session = getClientSession(req);

@@ -1346,9 +1346,17 @@ services:
         condition: service_started
     networks:
       ai-demo:
+        # In-container DNS aliases for the per-app frontend hosts, so the BFF
+        # (ai-demo-api-server) reaches the gateway front door by the same
+        # hostname a browser uses. Without the app-named entries the BFF cannot
+        # resolve them (those names live only in the host's /etc/hosts), and the
+        # Privilege client's gateway path is dead from inside Docker. The
+        # wildcard cert already covers every name here.
         aliases:
           - mcpgw.local.ping-devops.com
           - aidemo.mcpgw.local.ping-devops.com
+          - MCP-aidemo.mcpgw.local.ping-devops.com
+          - mcp-pingone-admin.mcpgw.local.ping-devops.com
     restart: unless-stopped
 
   # ── RAG Code Search Services ──────────────────────────────────────────────
