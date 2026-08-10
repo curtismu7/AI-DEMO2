@@ -1192,3 +1192,65 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-console-token-hint,
 .cur-ide[data-cur-theme="light"] .cur-console-token-status { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-console-token-input { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Readability: on the dark background every bit of body/label/muted text is
+   bright white. Scoped to dark (never light mode, where white-on-white would
+   vanish). Bright accent colors — teal tool names, coloured badges, blue links
+   — are deliberately left as-is; they are the highlight, not the problem.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-ide:not([data-cur-theme="light"]) { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-titlebar-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-sidebar-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-field-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-settings-section-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-tools-header h3,
+.cur-ide:not([data-cur-theme="light"]) .cur-status,
+.cur-ide:not([data-cur-theme="light"]) .cur-tab,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab:hover,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-role,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-meta,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-body,
+.cur-ide:not([data-cur-theme="light"]) .cur-empty-state,
+.cur-ide:not([data-cur-theme="light"]) .cur-chat-empty p,
+.cur-ide:not([data-cur-theme="light"]) .cur-chat-hint,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-empty,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-ts,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-msg,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-cat,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table th,
+.cur-ide:not([data-cur-theme="light"]) .cur-result-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-auth-user,
+.cur-ide:not([data-cur-theme="light"]) .cur-skin-picker > span,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-conn-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-sub,
+.cur-ide:not([data-cur-theme="light"]) .cur-input,
+.cur-ide:not([data-cur-theme="light"]) .cur-btn,
+.cur-ide:not([data-cur-theme="light"]) .cur-composer-input,
+.cur-ide:not([data-cur-theme="light"]) .cur-skin-picker select,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-trigger,
+.cur-ide:not([data-cur-theme="light"]) .cur-modal p { color: #ffffff; }
+
+/* Relay log / Trace / Scopes readability (dark only). The terminal log, event
+   badges and scope pills carried coloured text on dark tinted fills that read
+   poorly. White text on the tint keeps the colour-coding (via background) at
+   full contrast. */
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log span,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-line,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-large,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table td,
+.cur-ide:not([data-cur-theme="light"]) .cur-code-output { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-badge,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-pill,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-count { color: #ffffff; font-weight: 600; }
+/* Lift the darkest pill/badge fills a little so white text sits on real contrast. */
+.cur-ide:not([data-cur-theme="light"]) .scope-mcp { background: #14532d; }
+.cur-ide:not([data-cur-theme="light"]) .scope-p1 { background: #1e3a5f; }
+.cur-ide:not([data-cur-theme="light"]) .scope-oidc { background: #3b2f5e; }
+.cur-ide:not([data-cur-theme="light"]) .scope-read { background: #164e59; }
+.cur-ide:not([data-cur-theme="light"]) .scope-write { background: #5a3a1a; }
+.cur-ide:not([data-cur-theme="light"]) .scope-default { background: #3a3a3a; }
