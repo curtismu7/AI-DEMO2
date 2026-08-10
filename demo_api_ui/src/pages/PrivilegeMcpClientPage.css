@@ -1116,6 +1116,8 @@ select.cur-input { cursor: pointer; }
   background: #0d0d0d; font-size: 11.5px; color: #cfcfcf; line-height: 1.45;
 }
 .cur-ct-grab p { margin: 0 0 6px; }
+.cur-ct-steps { margin: 0 0 6px; padding-left: 18px; }
+.cur-ct-steps li { margin: 2px 0; }
 .cur-ct-grab code { color: #7ec8e3; }
 .cur-ide[data-cur-theme="light"] .cur-ct-grab { background: #f0f0f0; border-color: #ddd; color: #333; }
 .cur-ide[data-cur-theme="light"] .cur-ct-grab code { color: #0369a1; }
