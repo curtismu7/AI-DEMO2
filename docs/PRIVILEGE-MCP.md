@@ -285,7 +285,15 @@ the demo still shows nothing.
 
 ---
 
-## Current state (verified 2026-08-02, re-verified 2026-08-03)
+## Current state (verified 2026-08-02, re-verified 2026-08-03) — SUPERSEDED
+
+> ⚠️ **The tenant was rebuilt on 2026-08-08.** This section describes the old tenant and
+> the `mypingone` application, and its claim that `AuthMode` is "back on OAuth with the
+> client secret populated" is **false today** — the rebuild wiped that config. For the
+> live values read
+> [§2026-08-10 (later): live application state](#2026-08-10-later-live-application-state),
+> or the console API, which is always authoritative. Kept for the reasoning, not the
+> values.
 
 **The demo side is complete, proven, and deployed.** Two defects found on 2026-08-03 are
 fixed and live-verified against the running stack:
@@ -1443,10 +1451,75 @@ design is **one subdomain per application whose first label is the application n
 | `MCP-aidemo.mcpgw.local.ping-devops.com` | `MCP-aidemo.default.applications.procyon.ai` | `MCP-aidemo` |
 | `mcp-pingone-admin.mcpgw.local.ping-devops.com` | `mcp-pingone-admin.default.applications.procyon.ai` | `mcp-pingone-admin` |
 
-Named that way, a second MCP application needs no map line and no extra Ingress — which
-is the gap the current `$mcpgw_frontend` map has: `mcp-pingone-admin` falls through
-`default` to `MCP-aidemo`. The existing wildcard cert (`*.mcpgw.local.ping-devops.com`)
-already covers both names; each still needs its own `/etc/hosts` line.
+Named that way, a second MCP application needs no map line and no extra Ingress. The
+existing wildcard cert (`*.mcpgw.local.ping-devops.com`) already covers both names; each
+still needs its own `/etc/hosts` line:
+
+```bash
+sudo sh -c 'printf "127.0.0.1\tMCP-aidemo.mcpgw.local.ping-devops.com\n127.0.0.1\tmcp-pingone-admin.mcpgw.local.ping-devops.com\n" >> /etc/hosts'
+```
+
+**Kubernetes cannot adopt this yet.** Ingress `host` must be an RFC 1123 subdomain —
+lowercase only — so a rule can only carry `mcp-aidemo.…`, which constructs
+`mcp-aidemo.default.…` against an app named `MCP-aidemo`. Whether the gateway compares
+case-insensitively is untested, and a wrong guess fails as a silent empty `200`, so the
+ingress keeps `upstream-vhost`. **Renaming the Agentic App to a lowercase name removes
+the problem on every surface** and lets both Docker and k8s drop their rewrites.
+
+### 2026-08-10 (later): live application state
+
+Read from the console API at 11:33. This is the state that matters; anything earlier in
+this document describes a tenant that no longer exists.
+
+| | `MCP-aidemo` | `mcp-pingone-admin` |
+|---|---|---|
+| `FrontEndName` | `MCP-aidemo.default.applications.procyon.ai:8643` | `mcp-pingone-admin.default.applications.procyon.ai:8643` |
+| `Backends` | `http://mcp-server:8080` | `http://mcp-server:8080` |
+| `MeshCluster` | `ai-demo-fresh` | `ai-demo-fresh` |
+| `EntryPath` | `/mcp` | `/mcp` |
+| `AuthMode` | **`static-token`** | **`static-token`** |
+| `ResourceOAuth` | **every field empty** | **every field empty** |
+
+Both created 2026-08-08 on tenant `8d4d7a4c`. Policy collections at 11:43:
+`pacpolicys` **1**, `accesspolicys` 0, `approles` 0, `aiagentaccounts` 0. (Two policies
+existed by 12:0x — both authored with 1h/2h lifetimes.)
+
+**Empty `ResourceOAuth` is the remaining blocker, and it is fixable from here.** Run
+[`scripts/set-privilege-frontend-oauth.sh`](../scripts/set-privilege-frontend-oauth.sh)
+with a console JWT. Two details in that script cost a day to find:
+
+- **`--apigw` must be `https://console.privilege.pingone.com`**, not
+  `https://privilege.pingone.com`. The latter is the data-plane host and fails in ways
+  that look like auth errors.
+- **`EntryPath` is `/mcp` today**, but this document's URL-model section proposes
+  `/aidemo/{mcp,authorize,token,callback}` and a PingOne callback registered at
+  `.../aidemo/callback`. Those disagree — pick one and make the app, the script's
+  `ENTRY_PATH`, and the registered redirect URI agree, or the callback lands on a path
+  the application does not serve.
+
+### What Ping's own enablement material says
+
+Source: `priv_for_ai_specialist_training.html` (SE storyboard, 10 diagrams). Three
+things in it contradict or extend this document:
+
+1. **Path-based routing is a second resolution mode.** The gateway can take the first
+   path segment as the *Application Key* — `POST /githubmcp/mcp` → app `githubmcp` → a
+   routing table mapping path prefix to backend URL. We only ever modelled host-based
+   resolution. Both appear in Ping's material; which one a build uses is worth checking
+   before assuming.
+2. **The reference topology is nginx `443 → 8623`**, with the gateway listener on
+   `:8623 HTTPS`. Our container serves MCP on `:8620` (`-alp-port`) and answers `:8623`
+   with `tlsv13 alert certificate required`, because we set `-listen :8623` in mesh
+   mode. Ours is not wrong, but do not "correct" it toward the deck without re-testing.
+3. **Frontend URL is meant to be the customer's own DNS name**
+   (`https://pingone-mcp-server-2.examplecorp.com/mcp`), resolved through EvaluateHost as
+   above — not the `procyon.ai` string, which is the constructed internal form.
+
+The deck also confirms the auth flow this repo has never completed: a configured gateway
+answers a tokenless `POST /mcp` with `401` **plus** `WWW-Authenticate: Bearer
+realm="MCP OAuth Server", authorization_uri=…/authorize, token_uri=…/token`, and the
+client bootstraps from that header. **A `401` with no `WWW-Authenticate` means the
+front-end OAuth config is missing** — which is exactly today's symptom.
 
 ### Two gates remain, and they are separate
 
