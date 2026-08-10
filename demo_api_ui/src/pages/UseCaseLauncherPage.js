@@ -704,7 +704,7 @@ function ProgressiveTrustLlmShowcase() {
   );
 }
 
-export default function UseCaseLauncherPage() {
+export default function UseCaseLauncherPage({ onStopAgentClick }) {
   const navigate    = useNavigate();
   const { activeId: verticalId } = useVertical();
   const { open: openEdu } = useEducationUI();
@@ -954,6 +954,16 @@ export default function UseCaseLauncherPage() {
               title="Clear checkmarks for a fresh demo pass"
             >
               Clear progress
+            </button>
+          )}
+          {onStopAgentClick && (
+            <button
+              type="button"
+              className="uc-launcher__stop-agent"
+              onClick={onStopAgentClick}
+              title="Revoke the agent's OAuth token at PingOne — stops it before its next tool call"
+            >
+              Stop Agent
             </button>
           )}
         </div>

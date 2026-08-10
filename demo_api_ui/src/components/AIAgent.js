@@ -290,6 +290,7 @@ export default function BankingAgent({
   onPopout,
   surfaceHostEl = null,
   forceVertical = null,
+  onStopAgentClick = null,
 }) {
   const isInline = mode === "inline";
   const isBottomDock = isInline && embeddedDockBottom;
@@ -8826,6 +8827,7 @@ export default function BankingAgent({
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
                   disabled={consentBlocked}
+                  onStopAgentClick={onStopAgentClick}
                   open={showDemoSteps}
                   onOpenChange={(next) => {
                     setShowDemoSteps(next);

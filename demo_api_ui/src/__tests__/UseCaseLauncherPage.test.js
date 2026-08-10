@@ -208,10 +208,10 @@ const SAMPLE_SIM_RESULT = {
   useCaseId: 'insufficient-scope',
 };
 
-function renderPage() {
+function renderPage(props = {}) {
   return render(
     <MemoryRouter>
-      <UseCaseLauncherPage />
+      <UseCaseLauncherPage {...props} />
     </MemoryRouter>,
   );
 }
@@ -250,6 +250,21 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Happy Paths/i)).toBeInTheDocument());
     expect(screen.getByText(/Attacks — malicious/i)).toBeInTheDocument();
+  });
+
+  it('renders a Stop Agent button that calls onStopAgentClick, and omits it when the prop is absent', async () => {
+    const onStopAgentClick = vi.fn();
+    renderPage({ onStopAgentClick });
+    await waitFor(() => expect(screen.getByText(/Happy Paths/i)).toBeInTheDocument());
+    const stopBtn = screen.getByRole('button', { name: 'Stop Agent' });
+    fireEvent.click(stopBtn);
+    expect(onStopAgentClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the Stop Agent button when onStopAgentClick is not provided', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Happy Paths/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Stop Agent' })).not.toBeInTheDocument();
   });
 
   it('renders an enabled Run button for chip-type UC', async () => {
