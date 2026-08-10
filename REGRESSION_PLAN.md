@@ -102,6 +102,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Demo Steps panel 401'd on open, before any step ran
+
+**Files changed:** `demo_api_server/server.js`
+
+**What was broken:** opening the Demo Steps dropdown (or any read of the
+use-case catalog) immediately showed "Request failed with status code 401",
+even though nothing step-specific — like a step-up MFA prompt — had run
+yet. `server.js` mounted the whole `/api/use-cases` router behind a blanket
+`authenticateToken`: `app.use('/api/use-cases', authenticateToken,
+require('./routes/useCases'))`. That 401'd the plain catalog reads
+(`GET /`, `GET /:id`, `GET /golden/:vertical/:useCaseId`) for any visitor
+without a full OAuth session — including the `_cookie_session` stub used
+for lightweight sessions, which `authenticateToken` explicitly rejects.
+
+**What was fixed:** dropped `authenticateToken` from the router mount.
+`routes/useCases.js` was already designed for route-level gating — its own
+docstring calls the catalog "read-only" — and every state-changing route
+(`POST /demo/run`, `/conformance/run`, `/uc20/audit`, `/uc15/initiate`,
+`/uc15/poll`, `/uc10/scope-check`) already declares `authenticateToken`
+itself. The blanket mount was overriding that per-route design, not
+enforcing it.
+
+**Do not break:** keep `authenticateToken` on the individual POST/mutating
+routes inside `routes/useCases.js` — those still must require a real OAuth
+session. Don't restore the blanket mount.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit
+--maxWorkers=4` — 726/728 suites passed; the 2 failures
+(`demoSubjectToken.test.js`, `resourceServer.identity.regression.test.js`)
+are the known rotating live-integration flakes, unrelated to this route.
+
 ### 2026-08-10 — Kill switch's own result modal couldn't survive /ai-control-plane's auth-gated route redirect
 
 **Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/pages/AiControlPlanePage.jsx`,
