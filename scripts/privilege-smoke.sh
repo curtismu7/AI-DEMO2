@@ -83,8 +83,14 @@ BODY=$(curl -sk --resolve "$HOST:443:127.0.0.1" -m 30 \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}')
 N=$(printf '%s' "$BODY" | python3 -c "
 import sys,re,json
-m=re.search(r'data: (\{.*\})', sys.stdin.read())
-d=json.loads(m.group(1)) if m else {}
+raw=sys.stdin.read()
+# The gateway may answer as plain JSON OR as an SSE 'data:' frame. Try whole-body
+# JSON first, then fall back to the last SSE data line.
+try:
+    d=json.loads(raw)
+except Exception:
+    frames=re.findall(r'^data: (\{.*\})\s*$', raw, re.M)
+    d=json.loads(frames[-1]) if frames else {}
 print(len(d.get('result',{}).get('tools',[])))" 2>/dev/null || echo 0)
 if [ "${N:-0}" -gt 0 ] 2>/dev/null; then echo "  PASS tools/list ($N tools)"; pass=$((pass+1)); else echo "  FAIL tools/list (0 tools)"; fail=$((fail+1)); fi
 
