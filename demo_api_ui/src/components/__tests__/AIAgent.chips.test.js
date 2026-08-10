@@ -466,7 +466,9 @@ describe("Header controls after the Actions dropdown removal", () => {
 
     expect(screen.getByRole("button", { name: /^Topology$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Script$/i })).toBeInTheDocument();
-    // Still a popout, not an inline expansion.
+    // The items live in the tray container, not loose in the header row. This
+    // asserts structure only — jsdom applies no CSS, so whether the tray is
+    // actually positioned as an overlay is not covered here.
     expect(document.querySelector(".ba-header-more-pop")).toBeInTheDocument();
     // The locked-inline controls are unaffected by opening the tray.
     expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
