@@ -35,14 +35,14 @@ describe('GET /api/use-cases', () => {
     const res = await request(makeApp()).get('/api/use-cases?vertical=pingone-admin');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('pingone-admin');
-    expect(res.body.useCases).toHaveLength(7);
+    expect(res.body.useCases).toHaveLength(8);
     expect(res.body.useCases[0]).toEqual({
       id: 'ADMIN1',
       title: 'List applications',
       trigger: { type: 'chip', text: 'List all PingOne applications in this environment' },
     });
     expect(res.body.useCases.map((u) => u.id)).toEqual([
-      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7',
+      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8',
     ]);
   });
 

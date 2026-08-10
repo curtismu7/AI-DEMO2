@@ -63,6 +63,11 @@ const ADMIN_DEMO_STEPS = [
     title: 'Show available tools for PingOne MCP server',
     trigger: { type: 'chip', queryPrompt: 'toolFilter', text: 'What PingOne tools can I use right now?' },
   },
+  {
+    id: 'ADMIN8',
+    title: 'Show resources and their scopes',
+    trigger: { type: 'chip', text: 'List the PingOne resources and their scopes' },
+  },
 ];
 
 module.exports = { ADMIN_DEMO_STEPS };

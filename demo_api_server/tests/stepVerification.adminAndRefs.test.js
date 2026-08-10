@@ -20,7 +20,7 @@ const ADMIN_PARSE_EXPECT = {
 describe('step verification — pingone-admin ADMIN1–4 (#765/#766)', () => {
   test('catalog lists ADMIN1–7', () => {
     expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
-      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7',
+      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8',
     ]);
   });
 
