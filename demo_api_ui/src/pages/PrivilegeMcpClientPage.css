@@ -1019,9 +1019,9 @@ select.cur-input { cursor: pointer; }
 }
 .cur-console-token-hint {
   margin: 6px 0 8px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
-  color: #adbac7;
+  color: #ffffff;
 }
 .cur-console-token-input {
   width: 100%;
@@ -1039,5 +1039,5 @@ select.cur-input { cursor: pointer; }
 .cur-console-token-status {
   margin-top: 8px;
   font-size: 12px;
-  color: #e6edf3;
+  color: #ffffff;
 }
