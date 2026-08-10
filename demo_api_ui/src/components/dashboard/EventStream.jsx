@@ -13,11 +13,20 @@ export default function EventStream({ columns, rows }) {
         <tbody>
           {rows.map((r, i) => (
             <tr key={`${r.timestamp || 'row'}-${i}`}>
-              {columns.map((c) => (
-                <td key={c.key} className={c.className || ''}>
-                  {r[c.key] === null || r[c.key] === undefined ? '' : String(r[c.key])}
-                </td>
-              ))}
+              {columns.map((c) => {
+                const val = r[c.key];
+                let content = '';
+                if (React.isValidElement(val)) {
+                  // Lets a caller (e.g. a severity dot) pass pre-rendered
+                  // markup for a cell instead of a plain value.
+                  content = val;
+                } else if (val !== null && val !== undefined) {
+                  content = String(val);
+                }
+                return (
+                  <td key={c.key} className={c.className || ''}>{content}</td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

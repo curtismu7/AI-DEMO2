@@ -47,7 +47,7 @@ describe('NewRelicRoute', () => {
         <ThemeProvider><NewRelicRoute user={null} logout={() => {}} /></ThemeProvider>
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByTestId('stage-oauth')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('stat-oauth')).toBeInTheDocument());
     expect(screen.queryByText(/No events received yet/i)).not.toBeInTheDocument();
   });
 });
