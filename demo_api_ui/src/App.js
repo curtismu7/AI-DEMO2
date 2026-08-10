@@ -871,7 +871,11 @@ function AppWithAuth() {
                   path="/use-cases"
                   element={
                     loading ? null : user && appFlags.showUseCaseLauncher ? (
-                      <UseCasesPageRoute user={user} logout={logout} />
+                      <UseCasesPageRoute
+                        user={user}
+                        logout={logout}
+                        onStopAgentClick={openAdminStopAgent}
+                      />
                     ) : (
                       <Navigate to="/" replace />
                     )
@@ -1685,6 +1689,7 @@ function AppWithAuth() {
                     embeddedFocus={resolveEmbeddedFocus(pathname)}
                     distinctFloatingChrome
                     surfaceHostEl={surfaceHostEl}
+                    onStopAgentClick={openAdminStopAgent}
                     {...(isPingOneAdminAgentRoute(pathname)
                       ? { forceVertical: "pingone-admin" }
                       : {})}
