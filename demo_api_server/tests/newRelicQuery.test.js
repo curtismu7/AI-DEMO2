@@ -154,3 +154,119 @@ describe('GET /api/newrelic/pipeline', () => {
     expect(axios.post).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('GET /api/newrelic/view/:view', () => {
+  function nerdgraphOk(account) {
+    axios.post.mockResolvedValue({ data: { data: { actor: { account } } } });
+  }
+
+  it('400s on an unknown view', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    const res = await request(makeApp()).get('/api/newrelic/view/not-a-view');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_view');
+  });
+
+  it.each(['__proto__', 'constructor'])(
+    '400s on the prototype-chain view name %s instead of falling through to a 502',
+    async (viewName) => {
+      process.env.NR_USER_API_KEY = 'k';
+      process.env.NR_ACCOUNT_ID = '8369622';
+      const res = await request(makeApp()).get(`/api/newrelic/view/${viewName}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('invalid_view');
+    },
+  );
+
+  it('accepts the 7d window', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/pipeline?window=7d');
+    expect(res.status).toBe(200);
+    expect(res.body.window).toBe('7d');
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).toContain('7 days ago');
+    expect(sent).toContain('TIMESERIES 6 hours');
+  });
+
+  it('accepts the 14d window', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/pipeline?window=14d');
+    expect(res.status).toBe(200);
+    expect(res.body.window).toBe('14d');
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).toContain('14 days ago');
+    expect(sent).toContain('TIMESERIES 12 hours');
+  });
+
+  it('maps the authorize view into decisions/posture/timeseries/stream', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      decisions: { results: [{ decision: 'PERMIT', count: 1 }, { decision: 'DENY', count: 2 }] },
+      posture: { results: [{ tag: 'authorize/fail-open', count: 1 }] },
+      rules: { results: [{ ruleName: 'Wire Fraud Block', count: 2 }] },
+      timeseries: { results: [{ beginTimeSeconds: 10, count: 3 }] },
+      stream: { results: [{ timestamp: 1, tag: 'authorize/deny', decision: 'DENY', amount: 60000, stepUpRequired: false, type: 'transfer', engine: 'pingone' }] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/authorize?window=24h');
+    expect(res.status).toBe(200);
+    expect(res.body.view).toBe('authorize');
+    expect(res.body.decisions).toHaveLength(2);
+    expect(res.body.posture[0].tag).toBe('authorize/fail-open');
+    expect(res.body.rules).toEqual([{ ruleName: 'Wire Fraud Block', count: 2 }]);
+    expect(res.body.stream[0].amount).toBe(60000);
+  });
+
+  it("the authorize view queries category='authorize', not logtype", async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      decisions: { results: [] }, posture: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/authorize');
+    const sent = axios.post.mock.calls[0][1].query;
+    expect(sent).toContain("category='authorize'");
+    expect(sent).toContain('FACET decision');
+    expect(sent).toContain('FACET tag');
+  });
+
+  it('caches per view, so authorize does not serve the pipeline payload', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      funnel: { results: [] }, timeseries: { results: [] }, stream: { results: [] },
+    });
+    await request(makeApp()).get('/api/newrelic/view/pipeline?window=1h');
+
+    nerdgraphOk({
+      decisions: { results: [{ decision: 'PERMIT', count: 9 }] }, posture: { results: [] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/view/authorize?window=1h');
+    expect(res.body.view).toBe('authorize');
+    expect(res.body.decisions[0].count).toBe(9);
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps /pipeline working as an alias', async () => {
+    process.env.NR_USER_API_KEY = 'k';
+    process.env.NR_ACCOUNT_ID = '8369622';
+    nerdgraphOk({
+      funnel: { results: [{ category: 'oauth', count: 4 }] },
+      timeseries: { results: [] }, stream: { results: [] },
+    });
+    const res = await request(makeApp()).get('/api/newrelic/pipeline');
+    expect(res.status).toBe(200);
+    expect(res.body.funnel[0].category).toBe('oauth');
+  });
+});

@@ -13,7 +13,7 @@ const STAGES = [
   { key: 'mcp', note: 'tool call' },
 ];
 
-const WINDOWS = ['30m', '1h', '24h'];
+const WINDOWS = ['30m', '1h', '24h', '7d', '14d'];
 const POLL_MS = 30000;
 
 function Sparkline({ points }) {

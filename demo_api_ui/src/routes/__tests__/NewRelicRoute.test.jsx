@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../context/ThemeContext';
-import { NewRelicRoute, PingOneEventsRoute } from '../MonitoringRoutes';
+import { NewRelicRoute, PingOneEventsRoute, P1AzRoute } from '../MonitoringRoutes';
 import apiClient from '../../services/apiClient';
 
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
@@ -67,5 +67,20 @@ describe('PingOneEventsRoute', () => {
       ).toBeInTheDocument(),
     );
     expect(screen.getByRole('navigation')).toBeInTheDocument();
+  });
+});
+
+describe('P1AzRoute', () => {
+  it('renders app chrome and the dashboard for a signed-out visitor', async () => {
+    apiClient.get.mockResolvedValue({
+      data: { view: 'authorize', window: '24h', decisions: [{ decision: 'PERMIT', count: 2 }], posture: [], timeseries: [], stream: [] },
+    });
+    render(
+      <MemoryRouter initialEntries={['/monitoring/p1az']}>
+        <ThemeProvider><P1AzRoute user={null} logout={() => {}} /></ThemeProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole('navigation')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('stat-PERMIT')).toHaveTextContent('2'));
   });
 });

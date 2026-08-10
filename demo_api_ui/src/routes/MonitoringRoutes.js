@@ -8,6 +8,7 @@ import LogViewerPage from "../components/LogViewerPage";
 import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
 import NewRelicDashboard from "../components/NewRelicDashboard";
+import P1AzDashboard from "../components/P1AzDashboard";
 import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
@@ -130,6 +131,17 @@ export function PingOneEventsRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PingOneEventPanel />
+    </AppShell>
+  );
+}
+
+// PingOne Authorize decisions and gate posture. Public, matching the other
+// monitoring pages. Deliberately NOT in isNoChromeRoute(): with user null,
+// shellRendersSideNav() returns true and AppShell supplies the sidebar.
+export function P1AzRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <P1AzDashboard />
     </AppShell>
   );
 }
