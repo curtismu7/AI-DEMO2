@@ -7,7 +7,37 @@ const { tools, execute } = require('./tools');
 // the right tool. The parser injects h.defaultParams into the parsed params,
 // satisfying the tool's required `name` without asking the user to name the tool.
 // Order matters: specific data heuristics come before the broad discovery regex.
+
+// "starts with <prefix>" / "prefix <prefix>" — extracted from the RAW message
+// (extractParams contract in nlIntentParser) because PingOne SCIM `sw` filters
+// are case-sensitive: "Demo" must not arrive as "demo". A trailing asterisk on
+// the prefix is UI sugar, never sent to PingOne.
+const PREFIX_RE = /\b(?:start(?:s|ing)?\s+with|begin(?:s|ning)?\s+with|prefix(?:ed)?\s*(?:with|of)?)\s+["']?([A-Za-z0-9._@+-]+?)\*?["']?(?:\s|$|[.,?!])/;
+
 const HEURISTICS = [
+  // Prefix-filtered lists — MUST precede the generic list heuristics, which
+  // would otherwise match first and list everything (in heuristics routing the
+  // filter would silently vanish; ADMIN5/ADMIN6 exist to prove it doesn't).
+  {
+    re: /\busers?\b.*\b(?:start(?:s|ing)?|begin(?:s|ning)?|prefix)/i,
+    action: 'call_pingone_tool',
+    extractParams: (raw) => {
+      const m = raw.match(PREFIX_RE);
+      return m
+        ? { name: 'listUsers', arguments: { filter: `username sw "${m[1]}"` } }
+        : { name: 'listUsers' };
+    },
+  },
+  {
+    re: /\bapp(?:lication)?s?\b.*\b(?:start(?:s|ing)?|begin(?:s|ning)?|prefix)/i,
+    action: 'call_pingone_tool',
+    extractParams: (raw) => {
+      const m = raw.match(PREFIX_RE);
+      return m
+        ? { name: 'listApplications', arguments: { filter: `name sw "${m[1]}"` } }
+        : { name: 'listApplications' };
+    },
+  },
   { re: /\blist\b.*\busers?\b|\bshow\s+users?\b|\bhow many\b.*\b(users?|identit)/i, action: 'call_pingone_tool', defaultParams: { name: 'listUsers' } },
   { re: /\b(look\s*up|find|get|search)\b.*\buser\b|\buser\b.*\b(look\s*up|detail|info|profile)/i, action: 'call_pingone_tool', defaultParams: { name: 'getUser' } },
   { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b|\bnew\b.*\buser\b/i,                action: 'call_pingone_tool', defaultParams: { name: 'createUser' } },

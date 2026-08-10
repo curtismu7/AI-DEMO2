@@ -36,6 +36,7 @@ import ConfirmModal from "./ConfirmModal";
 import DraggableModal from "./DraggableModal";
 import ThresholdControls from "./ThresholdControls";
 import AdminCustomerPanel from "./AdminCustomerPanel";
+import AdminDemoControlStrip from "./AdminDemoControlStrip";
 import GroupMembershipToggle from "./GroupMembershipToggle";
 
 // Decode a JWT into { header, payload, raw } — no component deps
@@ -536,14 +537,6 @@ const Dashboard = ({ user, onLogout }) => {
                 />
                 What's Happening:
               </label>
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("agent-demo-steps-open"))}
-                className="app-page-toolbar-btn"
-                title="Open the admin agent with the scripted demo steps"
-              >
-                Demo steps
-              </button>
               {/* Page-level theme control. The only other dark-mode switch in
                   the app lives in the agent header's More tray, and the agent
                   starts collapsed on this page — without this button the
@@ -610,6 +603,10 @@ const Dashboard = ({ user, onLogout }) => {
                 {resettingDemo ? "Resetting…" : "Reset Demo"}
               </button>
             </div>
+            {/* Demo controls — the agent-header controls that only matter while
+                presenting this page. The agent hides its own copies here (see
+                pageOwnsAgentChrome in AIAgent.js). */}
+            <AdminDemoControlStrip />
             <main
               id="admin-dashboard-main"
               tabIndex={-1}

@@ -313,6 +313,9 @@ export default function BankingAgent({
   // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const headerMoreRef = useRef(null);
+  // Freshest handleDemoStepSelect for the strip's event bridge (the listener
+  // is registered once with [] deps, so it must read through a ref).
+  const demoStepSelectRef = useRef(null);
   // Same interaction contract as the Token Chain rail's More tray: outside
   // click and Escape close it, an item click does NOT — several entries are
   // switches a presenter flips in sequence.
@@ -1031,6 +1034,12 @@ export default function BankingAgent({
   // Current pathname reachable from effects that must not list it as a dep.
   const pathnameRef = useRef(location.pathname);
   pathnameRef.current = location.pathname;
+  // On the PingOne admin dashboard the page renders the demo controls itself
+  // (AdminDemoControlStrip) and this header hides its copies: Routing/Wiring,
+  // Flow Detail, Guide, Demo steps, agent scope, Graph. Everywhere else the
+  // header is unchanged — which is also what keeps the 2026-07-24
+  // Actions-dropdown-removal contract test (float mode, banking route) green.
+  const pageOwnsAgentChrome = isPingOneAdminAgentRoute(location.pathname);
   // On the /agent route the inline/full-page instance is shown — hide duplicate float
   const isAgentPage = location.pathname === "/agent";
   /** Landing `/`: agent success/info/error toasts use longer autoClose (readable for guests). */
@@ -1188,6 +1197,40 @@ export default function BankingAgent({
     };
     window.addEventListener("agent-demo-steps-open", handler);
     return () => window.removeEventListener("agent-demo-steps-open", handler);
+  }, []);
+
+  // AdminDemoControlStrip bridge — on /admin the strip owns the demo controls
+  // and the agent's own copies are hidden (pageOwnsAgentChrome below), so these
+  // events are the only writers and cannot race the header controls.
+  useEffect(() => {
+    const onStepSelect = (e) => {
+      const { uc, stepNumber, opts } = e.detail || {};
+      if (!uc) return;
+      setIsOpen(true);
+      // Defer one tick so the panel mounts before the step runs (same pattern
+      // as the showcase-drawer dispatch above).
+      setTimeout(() => demoStepSelectRef.current?.(uc, stepNumber, opts), 80);
+    };
+    const onFlowDetail = () => {
+      setIsOpen(true);
+      setShowTokenChain(true);
+    };
+    const onScope = (e) => {
+      if (typeof e.detail?.allowWrite === "boolean") setAgentAllowWrite(e.detail.allowWrite);
+    };
+    const onFallback = (e) => {
+      if (typeof e.detail?.enabled === "boolean") setHeuristicEnabled(e.detail.enabled);
+    };
+    window.addEventListener("agent-demo-step-select", onStepSelect);
+    window.addEventListener("agent-flow-detail-open", onFlowDetail);
+    window.addEventListener("agent-scope-write-changed", onScope);
+    window.addEventListener("agent-heuristic-fallback-changed", onFallback);
+    return () => {
+      window.removeEventListener("agent-demo-step-select", onStepSelect);
+      window.removeEventListener("agent-flow-detail-open", onFlowDetail);
+      window.removeEventListener("agent-scope-write-changed", onScope);
+      window.removeEventListener("agent-heuristic-fallback-changed", onFallback);
+    };
   }, []);
 
   // Run Intent Bypass attack demo from admin sidebar
@@ -7017,6 +7060,8 @@ export default function BankingAgent({
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
    */
+  demoStepSelectRef.current = handleDemoStepSelect;
+
   async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
@@ -8530,11 +8575,13 @@ export default function BankingAgent({
                 >
                 <div className="ba-hg-body">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
+                {!pageOwnsAgentChrome && (
                 <AgentModeSelector
                   compact
                   heuristicFallback={heuristicEnabled}
                   onHeuristicFallbackChange={setHeuristicEnabled}
                 />
+                )}
                 {/* Model advisory and provider-fallback chips stay inline. They are
                     transient alerts about a degraded provider, so hiding them behind
                     More would mean the presenter never sees them. */}
@@ -8575,6 +8622,7 @@ export default function BankingAgent({
                   </span>
                 )}
                 {/* Flow Detail modal button */}
+                {!pageOwnsAgentChrome && (
                 <button
                   type="button"
                   className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
@@ -8583,6 +8631,7 @@ export default function BankingAgent({
                 >
                   Flow Detail
                 </button>
+                )}
                 <div className="ba-header-more" ref={headerMoreRef}>
                   <button
                     type="button"
@@ -8679,7 +8728,9 @@ export default function BankingAgent({
                 {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions
                     dropdown removal deliberately moved header utility controls
                     out of a popout and inline; AIAgent.chips.test.js asserts
-                    Guide renders. It is not collapsed under More. */}
+                    Guide renders. It is not collapsed under More. On /admin the
+                    page's AdminDemoControlStrip hosts it instead. */}
+                {!pageOwnsAgentChrome && (
                 <button
                   type="button"
                   className={`ba-actions-trigger${showDemoGuide ? " active" : ""}`}
@@ -8688,10 +8739,12 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
+                )}
                 </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
                 {/* Demo steps — same scripted list as /use-cases Demo section */}
+                {!pageOwnsAgentChrome && (
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
                   disabled={consentBlocked}
@@ -8704,6 +8757,7 @@ export default function BankingAgent({
                     handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
+                )}
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
                 {splitChrome && (
                   <button
@@ -8779,7 +8833,7 @@ export default function BankingAgent({
                   />
                 )}
                 {/* Session controls — moved inline from the old Actions popout (Option A1) */}
-                {isLoggedIn && (
+                {isLoggedIn && !pageOwnsAgentChrome && (
                   <ScopePicker
                     allowWrite={agentAllowWrite}
                     disabled={agentToolsLoading}
@@ -8812,8 +8866,8 @@ export default function BankingAgent({
                     {isExpanded ? "⊟" : "⊞"}
                   </button>
                 )}
-                {/* System graph link — float mode only */}
-                {!isInline && (
+                {/* System graph link — float mode only; on /admin the strip has it */}
+                {!isInline && !pageOwnsAgentChrome && (
                   <button
                     type="button"
                     className="ba-icon-btn ba-graph-link-btn"
