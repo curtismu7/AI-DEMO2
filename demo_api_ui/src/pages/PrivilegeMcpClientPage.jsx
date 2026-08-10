@@ -70,6 +70,15 @@ export default function PrivilegeMcpClientPage() {
   // With a long granted-scope list, clicking a pill on the left jumps to its row.
   const [selectedScope, setSelectedScope] = useState(null);
   const scopeRowRef = useRef(null);
+  // Tool picked in the left rail — the right Tools table scrolls to and expands
+  // it. The nonce lets the same tool re-trigger the reveal on a second click.
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [toolSelectNonce, setToolSelectNonce] = useState(0);
+  const selectTool = useCallback((name) => {
+    setSelectedTool(name);
+    setToolSelectNonce((n) => n + 1);
+    setActiveTab('tools');
+  }, []);
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
@@ -687,7 +696,7 @@ export default function PrivilegeMcpClientPage() {
                   {filtered.map((t) => {
                     const n = Object.keys(t.inputSchema?.properties || {}).length;
                     return (
-                    <div key={t.name} className="cur-tool-row" onClick={() => setActiveTab('tools')} title={t.description || t.name}>
+                    <div key={t.name} className={`cur-tool-row${t.name === selectedTool ? ' cur-tool-row--selected' : ''}`} onClick={() => selectTool(t.name)} title={t.description || t.name}>
                       <span className="cur-tool-row-name">{t.name}</span>
                       <span className="cur-tool-row-meta">{n} param{n === 1 ? '' : 's'}</span>
                     </div>
@@ -765,6 +774,8 @@ export default function PrivilegeMcpClientPage() {
                 tools={tools}
                 onExecute={executeToolCall}
                 onPresent={() => setShowPresent(true)}
+                selectedTool={selectedTool}
+                selectNonce={toolSelectNonce}
               />
             )}
 

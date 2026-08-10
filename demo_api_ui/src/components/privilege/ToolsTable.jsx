@@ -2,7 +2,7 @@
 // Privilege MCP Client page. Columns: Tool / Description / Resources / Run.
 // Click a row to expand an inline args box + Execute + result. In presentMode
 // it is display-only (no Run, no expand) for projecting during a demo.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './ToolsTable.css';
 
 function paramsOf(tool) {
@@ -26,12 +26,31 @@ function seedArgs(tool) {
   return JSON.stringify(obj, null, 2);
 }
 
-export default function ToolsTable({ tools, presentMode = false, onExecute, onClose, onPresent }) {
+export default function ToolsTable({ tools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0 }) {
   const [filter, setFilter] = useState('');
   const [expanded, setExpanded] = useState('');
   const [argsByTool, setArgsByTool] = useState({});
   const [resultByTool, setResultByTool] = useState({});
   const [busyTool, setBusyTool] = useState('');
+  const scrollRef = useRef(null);
+
+  // A tool picked in the left rail reveals it here: clear any filter that would
+  // hide it, expand its detail (seeding args), and scroll it into view. Keyed on
+  // selectNonce so re-picking the same tool re-triggers the reveal.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally keyed on selectNonce only — the current selectedTool/tools are read at fire time, and adding them would re-scroll on unrelated renders.
+  useEffect(() => {
+    if (!selectedTool || presentMode) return;
+    setFilter('');
+    setExpanded(selectedTool);
+    const tool = tools.find((t) => t.name === selectedTool);
+    if (tool) setArgsByTool((m) => (m[selectedTool] === undefined ? { ...m, [selectedTool]: seedArgs(tool) } : m));
+    const raf = requestAnimationFrame(() => {
+      const el = scrollRef.current?.querySelector(`[data-tool-row="${selectedTool}"]`);
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectNonce]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -86,7 +105,7 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
         )}
       </div>
 
-      <div className="ptt-scroll">
+      <div className="ptt-scroll" ref={scrollRef}>
         <table className="ptt-table">
           <thead>
             <tr>
@@ -113,6 +132,7 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
                   tool={t}
                   params={params}
                   isOpen={isOpen}
+                  selected={t.name === selectedTool}
                   presentMode={presentMode}
                   onToggle={() => toggle(t.name, t)}
                   args={argsByTool[t.name] ?? '{}'}
@@ -130,10 +150,10 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
   );
 }
 
-function FragmentRow({ tool, params, isOpen, presentMode, onToggle, args, onArgs, result, busy, onRun }) {
+function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onToggle, args, onArgs, result, busy, onRun }) {
   return (
     <>
-      <tr className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
+      <tr data-tool-row={tool.name} className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${selected ? ' ptt-row--selected' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
         <td className="ptt-col-tool"><span className="ptt-name">{tool.name}</span></td>
         <td className="ptt-col-desc">{tool.description || ''}</td>
         <td className="ptt-col-res">
