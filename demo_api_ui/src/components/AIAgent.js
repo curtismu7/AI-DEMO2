@@ -8575,7 +8575,15 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
+                {/* Hidden on /admin: its most prominent control launching the
+                    CUSTOMER-act catalog next to the admin agent read as "admin
+                    is doing demo use cases" (reported 2026-08-10). The strip's
+                    Demo steps (ADMIN1-7) is this page's step control; the
+                    guided 9-step track stays on every other page and on
+                    /demo-track, where its Act 2 admin steps remain reachable. */}
+                {!pageOwnsAgentChrome && (
                 <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
+                )}
                 <div
                   className={
                     splitChrome
