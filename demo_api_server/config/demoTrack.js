@@ -15,9 +15,9 @@ const GAUNTLET_SIMS = [
 ];
 
 // Tool matchers: exact names cover passive observation from any surface; the
-// trailing '*' only fires for the ACTIVE step (demoTrackService wildcardOk),
+// trailing '*' fires only for the slot a run ARMED (demoTrackService armSlot),
 // so a page-run in any vertical (view_permits, view_coverage, list_orders, …)
-// stamps the step being run without loosening the other steps.
+// stamps the slot being run without letting passing traffic stamp anything.
 const TRACK_STEPS = [
   {
     stepId: 'delegated-access', act: 1, title: 'Delegated access — token exchange',
