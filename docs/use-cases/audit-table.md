@@ -62,6 +62,7 @@
 | UC14 | [PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
 | UC14b | [PAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
+| UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
 
 ## 🏗️ Needs build (`needs-build`)
 
@@ -75,7 +76,7 @@
 | Status | Count |
 |---|---|
 | ✅ Works | 41 |
-| 🚩 Flag-gated | 7 |
+| 🚩 Flag-gated | 8 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **50** |
+| **Total** | **51** |

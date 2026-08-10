@@ -1572,6 +1572,40 @@ const RAW_USE_CASES = [
       },
     },
   },
+
+  // --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
+  // Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed
+  // as a pair. UC36 (Protect) is not built yet — see docs/superpowers/plans/
+  // 2026-08-10-protect-agent-dispatch-risk.md Task 6; insert it above this comment,
+  // before UC37, when it lands.
+  {
+    id: 'UC37',
+    useCaseId: 'verified-trust-a2a-assertion',
+    track: 'controls',
+    title: 'Verified Trust — signed agent assertion on A2A delegation',
+    buyerStory: "When an agent hands off to another organization's agent, a bearer token alone doesn't let the receiving side verify the claim offline or prove it later without calling back to the issuer.",
+    pingOneSolution: 'PingOne Credentials issues a signed SD-JWT Verifiable Credential asserting which agent is acting for which user at A2A delegation start; the receiving specialist advertises it as a second security scheme alongside the existing bearer token.',
+    trigger: { type: 'chip', text: 'hand off to a specialist' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'verified-trust-issuance', 'a2a-agent2-actor', 'a2a-exchange2', 'tool-dispatched'], activity: ['token', 'delegate', 'verified-trust', 'authorize', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/services/verifiedTrustService.js',
+      'demo_api_server/services/a2aDelegationService.js',
+      'demo_api_server/services/a2aAgentCardService.js',
+    ],
+    maturity: 'flag:ff_verified_trust_a2a',
+    owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
+    whatToSay: 'Same specialist handoff as before — but now the chain carries a signed, independently-verifiable credential too, not just a bearer token the receiving side has to trust blindly.',
+    advanced: false,
+    whatLong: "A2A delegation already proves the chain via RFC 8693 nested-act tokens, but a bearer token only means something to a party that can call back to the issuer. This scenario adds a signed SD-JWT Verifiable Credential at chain start, asserting agent_id/acting_for/scope/chain_id — independently verifiable, portable across an org boundary. Issuance is fail-open: if Credentials issuance fails (no DaVinci flow is configured on this tenant yet), the existing bearer-token delegation still completes unaffected.",
+    businessValue: "Directly answers Coupa's cross-boundary trust ask: an external agent receiving a handoff doesn't have to trust a bearer token on faith or maintain a live connection to the issuing org — it can verify the credential's signature offline.",
+    productRoles: {
+      idp:   'Mints the nested-act delegated bearer token exactly as UC2 does.',
+      authz: 'Evaluates the act chain as usual — the credential is additive, not a replacement authorization signal.',
+    },
+    primaryTool: 'get_portfolio_summary',
+    perVertical: A2A_PER_VERTICAL,
+  },
 ];
 
 function deepFreeze(o) {
