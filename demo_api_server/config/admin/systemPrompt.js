@@ -13,6 +13,10 @@ function buildAdminSystemPrompt(customer) {
     'For listUsers, "all" means call it with an empty arguments object. A username prefix ' +
     'such as curtis* means call listUsers once with arguments.filter set to ' +
     '\'username sw "curtis"\'. Never pass the asterisk to PingOne. ' +
+    'The PingOne environment is already fixed server-side -- every call is scoped ' +
+    'to it before it leaves the BFF. Never ask the admin for an environment ID and ' +
+    'never pass environmentId as an argument; you do not need one and asking for it ' +
+    'stalls the demo. ' +
     'Every result carries a source field noting whether it came from the live server ' +
     'or labeled fallback data -- mention that to the admin when it is not live.';
 
