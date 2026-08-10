@@ -102,6 +102,53 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — PingOne Admin group gate now decided by real PingOne Authorize (two-hop exchange)
+
+**Files changed:** `demo_api_server/services/pingOneAdminAccessService.js`, its test
+
+**What was broken:** `checkAccess` decided PingOne Admin dashboard access
+itself in JS (`groups.includes(requiredGroup)`) after a live PingOne
+directory read — real and demoable (live read at decision time), but not a
+PingOne Authorize decision. Two prior same-day attempts to fix this both
+failed live-verify before merge (working as designed, not a process
+failure): (1) omitting `TokenAudience` denied every admin outright (see the
+"PingOne Admin group gate locked out every admin" entry below — same date,
+this entry supersedes it); (2) a single-hop token exchange fixed the
+audience but the deployed policy also requires a populated `act`
+(actor-chain) claim, which a single hop never carries — confirmed by
+reading the involved PingOne resources' actual attribute mappings via the
+Management API, not just their code:
+`mcpgateway.ping.demo`'s `act` attribute only propagates an existing `act`
+claim (`${#root.context.requestData.subjectToken.act}`); it never
+constructs one from a request-supplied `actor_token`.
+
+**What was fixed:** `checkAccess` now performs the same **two-hop** RFC 8693
+exchange banking's own agent flows use — hop 1 exchanges the admin's own
+session token, as the AI Agent Actor client, against the intermediate
+`agentgateway.ping.demo` audience (that resource's `act` attribute
+constructs a real claim from the subject token's `may_act`, which the
+signed-in admin's PingOne user record names the AI Agent Actor client for);
+hop 2 exchanges hop 1's result, as the Token Exchanger client, against the
+final `mcpgateway.ping.demo` audience (propagating `act` forward). The
+resulting token's real `aud` and `act.sub` are passed to
+`evaluateMcpToolDelegation` as `tokenAudience`/`actClientId`. No PingOne
+console changes were needed — every client and resource involved was
+already fully provisioned for banking's own use.
+
+**Do not break:** Do not collapse this back to a single hop, and do not
+attach an `actor_token` parameter to a single call as a shortcut — both
+were tried and live-tested; neither populates `act` for this resource pair.
+`routes/adminAgentRoutes.js`'s two `checkAccess` call sites are unaffected
+either way — the `{allowed, error, status, requiredGroup}` contract never
+changed.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+live: a confirmed `pingone-admin` group member gets `200`/access (real
+`PERMIT` from the decision endpoint, `[BFF→P1AZ]` log lines show
+`TokenAudience`/`ActClientId` both populated); removing the group gets a
+real `403` with a clean "Not In Required Group" decision, not an
+audience/actor-chain denial.
+
 ### 2026-08-10 — Kill switch's session-invalidate step was also Redis-only ("0 session key(s) removed", every time)
 
 **Files changed:** `demo_api_server/services/lmdb/sessionStore.js` (+ test),
