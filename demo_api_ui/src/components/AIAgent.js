@@ -9023,11 +9023,24 @@ export default function BankingAgent({
                           verticalMessage, null, { ...verticalOpts, consentGiven: true, hitlChallengeId: verticalChallengeId || null },
                         );
                         const consentParamHint = consentResp.needsParams?.hint || null;
+                        // Clickable account choices, mirroring the main needsParams
+                        // path (typeParams/enumChoices gate above): a post-consent
+                        // "which account?" ask was the one clarification that still
+                        // forced the customer to TYPE "checking"/"savings". Gated on
+                        // account-ish params so an amount ask never shows account chips.
+                        const consentTypeParams = new Set(['accounttype', 'portfoliotype', 'accountid', 'fromid', 'toid']);
+                        const consentFirstMissing = consentResp.needsParams?.missing?.[0];
+                        const consentEnumChoices = consentFirstMissing && consentResp.needsParams?.choices?.[consentFirstMissing];
+                        const consentClarifyOptions = consentEnumChoices
+                          ? consentEnumChoices
+                          : consentResp.needsParams?.missing?.some((k) => consentTypeParams.has(String(k).toLowerCase()))
+                            ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
+                            : null;
                         addMessage(
                           "assistant",
                           consentResp.reply || "\u2705 Done.",
                           null,
-                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint },
+                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint, clarifyOptions: consentClarifyOptions },
                         );
                         if (consentResp.needsParams?.action && consentResp.needsParams.missing?.length) {
                           setPendingClarification({
@@ -9037,6 +9050,7 @@ export default function BankingAgent({
                             partialParams: {},
                             asked: consentResp.reply,
                             hint: consentParamHint,
+                            clarifyOptions: consentClarifyOptions,
                             consentGiven: true,
                           });
                         }
