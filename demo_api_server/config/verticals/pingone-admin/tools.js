@@ -137,7 +137,13 @@ async function callPingOneTool(params) {
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
   }
-  const args = params?.arguments || {};
+  // Drop environmentId if the model sends one anyway. PingOneUserService.baseUrl
+  // and the hosted MCP session are both already scoped to the configured
+  // environment (PINGONE_ENVIRONMENT_ID), so an extra argument is at best
+  // redundant and at worst a validation error. The system prompt tells the
+  // model not to send it; this makes the behaviour independent of whether any
+  // particular model complies.
+  const { environmentId: _ignoredEnvId, ...args } = params?.arguments || {};
   try {
     const data = parseMcpResult(await adapter.callTool(name, args));
     return {

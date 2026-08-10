@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ThemeProvider } from '../../context/ThemeContext';
 import NewRelicDashboard from '../NewRelicDashboard';
 import apiClient from '../../services/apiClient';
@@ -142,6 +142,78 @@ describe('NewRelicDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: '24h' }));
     await waitFor(() =>
       expect(apiClient.get).toHaveBeenLastCalledWith('/api/newrelic/pipeline?window=24h'));
+  });
+
+  describe('search', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('typing filters: after the debounce settles, the request carries q', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      apiClient.get.mockResolvedValue({ data: PAYLOAD });
+      renderDash();
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+
+      fireEvent.change(screen.getByLabelText('Search events'), { target: { value: 'PingOne' } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/pipeline?window=1h&q=PingOne'));
+    });
+
+    it('debounces: several keystrokes before the request fires only send one extra request', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      apiClient.get.mockResolvedValue({ data: PAYLOAD });
+      renderDash();
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+      const callsBeforeTyping = apiClient.get.mock.calls.length;
+
+      const input = screen.getByLabelText('Search events');
+      fireEvent.change(input, { target: { value: 'P' } });
+      fireEvent.change(input, { target: { value: 'Pi' } });
+      fireEvent.change(input, { target: { value: 'Ping' } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+
+      // Only the settled value produces a fetch — not one per keystroke.
+      await waitFor(() =>
+        expect(apiClient.get.mock.calls.length).toBe(callsBeforeTyping + 1));
+      expect(apiClient.get).toHaveBeenLastCalledWith('/api/newrelic/pipeline?window=1h&q=Ping');
+    });
+
+    it('clearing restores the unsearched request', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      apiClient.get.mockResolvedValue({ data: PAYLOAD });
+      renderDash();
+      await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+
+      fireEvent.change(screen.getByLabelText('Search events'), { target: { value: 'PingOne' } });
+      await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+      await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/pipeline?window=1h&q=PingOne'));
+
+      fireEvent.click(screen.getByLabelText('Clear search'));
+      await waitFor(() => expect(apiClient.get).toHaveBeenLastCalledWith(
+        '/api/newrelic/pipeline?window=1h'));
+    });
+
+    it('shows a distinct "no matches" message for a search that returns nothing, not the generic no-traffic message', async () => {
+      apiClient.get.mockResolvedValue({
+        data: { ...PAYLOAD, q: 'zzz-does-not-exist', stream: [] },
+      });
+      renderDash();
+      await waitFor(() =>
+        expect(screen.getByText('No events match "zzz-does-not-exist".')).toBeInTheDocument());
+      expect(screen.queryByText(/No events in this window\. Run a use case/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the generic empty-stream message (not a "no matches" message) when there is no active search', async () => {
+      apiClient.get.mockResolvedValue({
+        data: { ...PAYLOAD, q: '', stream: [] },
+      });
+      renderDash();
+      await waitFor(() => expect(screen.getByText(/No events in this window\./i)).toBeInTheDocument());
+      expect(screen.queryByText(/No events match/i)).not.toBeInTheDocument();
+    });
   });
 });
 
