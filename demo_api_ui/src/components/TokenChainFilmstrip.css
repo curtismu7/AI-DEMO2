@@ -26,6 +26,23 @@
   width: auto;
   max-width: none;
   min-width: 0;
+
+  /* .ud-agent-column ships `overflow: clip`. That was harmless while the column
+     sized to its content, but this grid row bounds its height — so a reply
+     longer than the row was cut off with no way to reach the rest of it.
+     Scoped override: inside Focus Mode the column scrolls. */
+  overflow-y: auto;
+
+  /* Give the transcript real room, and let the page scroll rather than
+     squeezing it when the viewport is short. Without this the agent got
+     whatever the grid had left after the chain strip. */
+  min-height: min(74vh, 780px);
+}
+
+/* The host must be allowed to shrink inside the scrolling column, or it keeps
+   its own intrinsic height and the column never scrolls. */
+.dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-dashboard-inline-agent,
+.dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-dashboard-inline-agent-host {
   min-height: 0;
 }
 
@@ -41,7 +58,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 0;
+  /* Matches the agent column so the two halves stay the same height and the
+     step detail gets the same room the transcript does. */
+  min-height: min(74vh, 780px);
   overflow: hidden;
   border-left: 1px solid #e2e8f0;
   background: #ffffff;
@@ -218,7 +237,10 @@
 .tcfs-sheet {
   display: flex;
   flex-direction: column;
-  max-height: 78vh;
+  /* Fill the spotlight column and let .tcfs-sheet-body do the scrolling —
+     min-height:0 is what allows a flex child to shrink below its content. */
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
@@ -256,6 +278,8 @@
 .tcfs-sheet-close:hover { border-color: #1d4ed8; color: #1d4ed8; }
 
 .tcfs-sheet-body {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 10px 12px 12px;
 }
