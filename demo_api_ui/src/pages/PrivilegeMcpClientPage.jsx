@@ -61,6 +61,14 @@ export default function PrivilegeMcpClientPage() {
   const [activeTab, setActiveTab] = useState('chat');
   const [consoleCurl, setConsoleCurl] = useState('');
   const [consoleTokenInfo, setConsoleTokenInfo] = useState(null);
+  // Page-local light/dark, independent of the app theme. The page ships a fixed
+  // Cursor-IDE dark look; this lets it flip to light without touching app wiring.
+  const [pageTheme, setPageTheme] = useState(() => {
+    try { return localStorage.getItem('cur_priv_theme') || 'dark'; } catch { return 'dark'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
+  }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
@@ -279,7 +287,7 @@ export default function PrivilegeMcpClientPage() {
   };
 
   return (
-    <div className="cur-ide">
+    <div className="cur-ide" data-cur-theme={pageTheme}>
       {showBlockedModal && (
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
@@ -517,6 +525,14 @@ export default function PrivilegeMcpClientPage() {
         </div>
         <div className="cur-titlebar-right">
           <FootprintSkinPicker className="cur-skin-picker" />
+          <button
+            type="button"
+            className="cur-flow-trigger"
+            onClick={() => setPageTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={pageTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {pageTheme === 'dark' ? 'Light' : 'Dark'}
+          </button>
           <button className="cur-flow-trigger" onClick={() => navigate('/privilege-mcp-learning')} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
