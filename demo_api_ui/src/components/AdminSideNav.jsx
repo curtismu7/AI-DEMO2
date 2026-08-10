@@ -1216,45 +1216,41 @@ export default function AdminSideNav({ user }) {
     performLogout();
   };
 
+  // Returns the response body (scope + steps) instead of closing the modal
+  // itself, so KillSwitchConfirmModal can show what actually ran before the
+  // nav sends the admin to /logout — and throws on any real failure instead
+  // of swallowing it, so a network error or timeout shows the modal's error
+  // panel rather than vanishing with nothing in the UI (only a console.error).
   const handleKillSwitchConfirm = useCallback(
-    async (agentId, reason) => {
-      try {
-        const response = await fetch(
-          `/api/admin/agent/${agentId}/kill-switch`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reason }),
-          },
+    async (agentId, reason, scope = "instance") => {
+      const response = await fetch(`/api/admin/agent/${agentId}/kill-switch`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, scope }),
+      });
+      const body = await response.json().catch(() => ({}));
+      // 401 with agent_killed is the expected success response: session revoked at server
+      const killed = response.status === 401 && body.error === "agent_killed";
+      if (!killed && !response.ok) {
+        throw new Error(
+          body.error_description ||
+            body.message ||
+            `Kill switch failed: ${response.status}`,
         );
-        const body = await response.json().catch(() => ({}));
-        // 401 with agent_killed is the expected success response: session revoked at server
-        if (response.status === 401 && body.error === "agent_killed") {
-          setAgentRevoked(true);
-          setShowKillModal(false);
-          console.log(
-            "[AdminSideNav] Agent killed — navigating to logout page",
-          );
-          navigate("/logout");
-          return;
-        }
-        if (!response.ok)
-          throw new Error(
-            body.error_description ||
-              body.message ||
-              `Kill switch failed: ${response.status}`,
-          );
-        // Fallback for any 2xx
-        setAgentRevoked(true);
-        setShowKillModal(false);
-        navigate("/logout");
-      } catch (e) {
-        console.error("[AdminSideNav] Kill switch error:", e.message);
       }
+      setAgentRevoked(true);
+      return body;
     },
-    [navigate],
+    [],
   );
+
+  // Runs once the modal is dismissed (Cancel pre-confirm, or Done after
+  // showing the result) — navigate to /logout only if a kill actually ran.
+  const handleKillModalDismiss = useCallback(() => {
+    setShowKillModal(false);
+    if (agentRevoked) navigate("/logout");
+  }, [agentRevoked, navigate]);
 
   const NavIcon = ({ name }) => {
     const IconComponent = ICON_MAP[name];
@@ -1719,9 +1715,10 @@ export default function AdminSideNav({ user }) {
       {showKillModal && (
         <KillSwitchConfirmModal
           isOpen={showKillModal}
-          onCancel={() => setShowKillModal(false)}
-          onConfirm={(agentId, reason) =>
-            handleKillSwitchConfirm(agentId || "default-agent", reason)
+          agentId="default-agent"
+          onCancel={handleKillModalDismiss}
+          onConfirm={(agentId, reason, scope) =>
+            handleKillSwitchConfirm(agentId || "default-agent", reason, scope)
           }
         />
       )}
