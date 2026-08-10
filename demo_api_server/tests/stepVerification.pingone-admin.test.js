@@ -83,6 +83,15 @@ describe('step verification — pingone-admin chip routing (check 2: parse/route
   );
 });
 
+describe('pingone-admin tool-filter phrase (ADMIN7 modal output)', () => {
+  test('the matching-fragment phrase parses to list_pingone_tools WITH the filter', () => {
+    const ctx = resolveVerticalCtx(VERTICAL);
+    const parsed = parseHeuristic('Show me the PingOne tools matching "user"', VERTICAL, ctx, {});
+    expect(parsed?.action).toBe('list_pingone_tools');
+    expect(parsed?.params?.filter).toBe('user');
+  });
+});
+
 describe('step verification — pingone-admin prerequisites', () => {
   test('ADMIN steps require no feature flags or A2A credentials', () => {
     // Admin steps run against the PingOne MCP server directly — no

@@ -174,6 +174,7 @@ import {
   ParamHintCopy,
   ClarifyOptions,
   buildPingOneAppListMessage,
+  buildPingOneToolListMessage,
   buildPingOneUserListMessage,
   verticalSuggestionChips,
   HitlChipMark,
@@ -6023,10 +6024,10 @@ export default function BankingAgent({
       });
       return;
     }
-    if (action.queryPrompt === "userFilter" || action.queryPrompt === "appFilter") {
+    if (["userFilter", "appFilter", "toolFilter"].includes(action.queryPrompt)) {
       setUserFilter("");
       setUserFilterError("");
-      setFilterModalKind(action.queryPrompt === "appFilter" ? "app" : "user");
+      setFilterModalKind({ userFilter: "user", appFilter: "app", toolFilter: "tool" }[action.queryPrompt]);
       return;
     }
     if (action.message) sendAsNl(action.message);
@@ -7128,10 +7129,10 @@ export default function BankingAgent({
     // step's canned example text. Mirrors handleChipActivate's queryPrompt
     // handling; the modal's Run filter submits through sendAsNl like any
     // typed message.
-    if (uc.trigger?.queryPrompt === "userFilter" || uc.trigger?.queryPrompt === "appFilter") {
+    if (["userFilter", "appFilter", "toolFilter"].includes(uc.trigger?.queryPrompt)) {
       setUserFilter("");
       setUserFilterError("");
-      setFilterModalKind(uc.trigger.queryPrompt === "appFilter" ? "app" : "user");
+      setFilterModalKind({ userFilter: "user", appFilter: "app", toolFilter: "tool" }[uc.trigger.queryPrompt]);
       return;
     }
     markUseCaseCompleted(uc.id);
@@ -11130,10 +11131,44 @@ export default function BankingAgent({
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
       />
+      {(() => {
+        // Copy + builder per modal kind. 'tool' filters are case-insensitive
+        // substrings (no asterisk needed); the sw prefixes are case-sensitive.
+        const FILTER_COPY = {
+          user: {
+            title: "List PingOne users",
+            all: "All users",
+            intro: "Choose all users, or enter a username prefix filter.",
+            label: "Username filter",
+            placeholder: "curtis*",
+            invalid: "Enter a username prefix ending in *, for example curtis*.",
+            build: buildPingOneUserListMessage,
+          },
+          app: {
+            title: "List PingOne applications",
+            all: "All applications",
+            intro: "Choose all applications, or enter a name prefix filter. Prefixes are case-sensitive.",
+            label: "Application name filter",
+            placeholder: "Demo*",
+            invalid: "Enter an application-name prefix ending in *, for example Demo*.",
+            build: buildPingOneAppListMessage,
+          },
+          tool: {
+            title: "Show PingOne MCP server tools",
+            all: "All tools",
+            intro: "Choose all tools, or enter a fragment to match anywhere in a tool's name or description (not case-sensitive).",
+            label: "Tool filter",
+            placeholder: "user",
+            invalid: "Enter a tool name or description fragment, for example user.",
+            build: buildPingOneToolListMessage,
+          },
+        };
+        const copy = FILTER_COPY[filterModalKind] || FILTER_COPY.user;
+        return (
       <DraggableModal
         isOpen={filterModalKind != null}
         onClose={() => setFilterModalKind(null)}
-        title={filterModalKind === "app" ? "List PingOne applications" : "List PingOne users"}
+        title={copy.title}
         defaultWidth={460}
         defaultHeight={330}
         storageKey="pingone-admin-user-filter"
@@ -11150,31 +11185,19 @@ export default function BankingAgent({
               type="button"
               className="ba-user-filter-btn ba-user-filter-btn--secondary"
               onClick={() => {
-                const kind = filterModalKind;
                 setFilterModalKind(null);
-                sendAsNl(
-                  kind === "app"
-                    ? buildPingOneAppListMessage("all")
-                    : buildPingOneUserListMessage("all"),
-                );
+                sendAsNl(copy.build("all"));
               }}
             >
-              {filterModalKind === "app" ? "All applications" : "All users"}
+              {copy.all}
             </button>
             <button
               type="button"
               className="ba-user-filter-btn"
               onClick={() => {
-                const kind = filterModalKind;
-                const message = kind === "app"
-                  ? buildPingOneAppListMessage(userFilter)
-                  : buildPingOneUserListMessage(userFilter);
+                const message = copy.build(userFilter);
                 if (!message || !userFilter.trim() || userFilter.trim().toLowerCase() === "all") {
-                  setUserFilterError(
-                    kind === "app"
-                      ? "Enter an application-name prefix ending in *, for example Demo*."
-                      : "Enter a username prefix ending in *, for example curtis*.",
-                  );
+                  setUserFilterError(copy.invalid);
                   return;
                 }
                 setFilterModalKind(null);
@@ -11187,14 +11210,8 @@ export default function BankingAgent({
         }
       >
         <div className="ba-user-filter">
-          <p>
-            {filterModalKind === "app"
-              ? "Choose all applications, or enter a name prefix filter. Prefixes are case-sensitive."
-              : "Choose all users, or enter a username prefix filter."}
-          </p>
-          <label htmlFor="pingone-user-filter">
-            {filterModalKind === "app" ? "Application name filter" : "Username filter"}
-          </label>
+          <p>{copy.intro}</p>
+          <label htmlFor="pingone-user-filter">{copy.label}</label>
           <input
             id="pingone-user-filter"
             type="text"
@@ -11203,7 +11220,7 @@ export default function BankingAgent({
               setUserFilter(event.target.value);
               setUserFilterError("");
             }}
-            placeholder={filterModalKind === "app" ? "Demo*" : "curtis*"}
+            placeholder={copy.placeholder}
             autoComplete="off"
           />
           {userFilterError ? (
@@ -11211,6 +11228,8 @@ export default function BankingAgent({
           ) : null}
         </div>
       </DraggableModal>
+        );
+      })()}
       {showLoginModal && (
         <QuickLoginModal pathname={window.location.pathname} onClose={() => setShowLoginModal(false)} />
       )}
