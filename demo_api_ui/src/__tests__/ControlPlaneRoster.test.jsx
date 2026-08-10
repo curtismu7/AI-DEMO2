@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 vi.mock("../components/ControlPlaneRoster.css", () => ({}), { virtual: true });
-vi.mock("../components/KillSwitchConfirmModal", () => ({ default: () => null }));
 vi.mock("../components/ControlPlaneDemoGuideModal", () => ({ default: () => null }));
 vi.mock("../services/apiClient", () => ({ default: { post: vi.fn(() => Promise.resolve({ data: {} })) } }));
 vi.mock("../hooks/useAppEventsSSE", () => ({ useAppEventsSSE: vi.fn() }));
@@ -90,5 +89,39 @@ describe("ControlPlaneRoster", () => {
     render(<ControlPlaneRoster />);
     await waitFor(() => expect(screen.getByText(/Live Agent \(Super Banking\)/)).toBeInTheDocument());
     expect(screen.queryByText(/Demo Guide/i)).not.toBeInTheDocument();
+  });
+
+  // The live row's kill switch is opened via the App.js-owned shared modal
+  // (openKillSwitchModal), not a locally-rendered <KillSwitchConfirmModal> —
+  // that's what lets the result survive /ai-control-plane's own user-gated
+  // route redirect after the kill destroys the session. See App.js and
+  // REGRESSION_PLAN.md §4, 2026-08-10.
+  it("opens the shared kill-switch modal (not a local one) for the live row's instance scope", async () => {
+    const openKillSwitchModal = vi.fn();
+    render(<ControlPlaneRoster openKillSwitchModal={openKillSwitchModal} />);
+    await waitFor(() => expect(rosterRow("Live Agent (Super Banking)")).toBeTruthy());
+
+    fireEvent.click(screen.getByText("Stop this instance"));
+
+    expect(openKillSwitchModal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "demo-agent",
+        initialScope: "instance",
+        onConfirm: expect.any(Function),
+        onDismiss: expect.any(Function),
+      }),
+    );
+  });
+
+  it("opens the shared kill-switch modal with full scope for 'Stop entire agent'", async () => {
+    const openKillSwitchModal = vi.fn();
+    render(<ControlPlaneRoster openKillSwitchModal={openKillSwitchModal} />);
+    await waitFor(() => expect(rosterRow("Live Agent (Super Banking)")).toBeTruthy());
+
+    fireEvent.click(screen.getByText("Stop entire agent"));
+
+    expect(openKillSwitchModal).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "demo-agent", initialScope: "full" }),
+    );
   });
 });
