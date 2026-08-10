@@ -35,8 +35,13 @@ const ADMIN_DEMO_STEPS = [
   // row filtering) and the scope/role gating on the tool catalog.
   {
     id: 'ADMIN5',
-    title: 'Filter users (curt*)',
-    trigger: { type: 'chip', text: 'List the PingOne users whose username starts with curt' },
+    title: 'Search users by prefix',
+    // queryPrompt: the UI intercepts this step and opens the username-filter
+    // modal (AIAgent's userFilter prompt) instead of sending the text — the
+    // presenter chooses the prefix live rather than demoing a hardcoded one.
+    // The text remains the representative phrase the parse ledger verifies,
+    // and the fallback if a surface without the modal dispatches the step.
+    trigger: { type: 'chip', queryPrompt: 'userFilter', text: 'List the PingOne users whose username starts with curt' },
   },
   {
     id: 'ADMIN6',
