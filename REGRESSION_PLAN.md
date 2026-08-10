@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Privilege config lived in the container; stale .env would break it on recreate
+
+**Files changed:** `demo_api_server/services/startupConfigGuard.js` (+ test);
+local `.env` realigned (not committed — gitignored).
+
+**What was broken:** the working Privilege MCP config (SSO env `8d4d7a4c`, client
+`deff60f5`) lived only in the RUNNING `ai-demo-api-server` container (env frozen at
+create time). Root `.env` had drifted to a stale/broken state — `PRIVILEGE_SSO_ENV_ID`
+= the banking env `01d89b06` (whose issuer the gateway rejects) and a dead
+`PRIVILEGE_MCPGW_URL` host (`banking.mcpgw…`, which does not resolve). A
+`docker compose up`/recreate would have silently reverted Privilege to the broken
+config and killed console-token sign-in.
+
+**What was fixed:** realigned `.env` to the working runtime (SSO env/client/secret +
+`PRIVILEGE_MCPGW_URL` → `mcp-pingone-admin.mcpgw.local.ping-devops.com`, the nginx
+front the console-token path uses). Added a boot-time guard
+`warnIfPrivilegeConfigRegressed()` that WARNs (never fatal) on the two smoking guns:
+`PRIVILEGE_SSO_ENV_ID === PINGONE_ENVIRONMENT_ID`, and the dead `banking.mcpgw` host.
+
+**Do not break:** the guard is advisory only (`console.warn`, never `process.exit`)
+— a Privilege misconfig must not take down BFF boot. It fires only when a Privilege
+gateway is configured. `PRIVILEGE_MCPGW_URL` has one runtime consumer (the Privilege
+page's default `config.mcpUrl`); the console-token path overrides it, so the guard is
+a signal, not a hard dependency.
+
+**Verify:** `jest tests/services/privilegeConfigGuard.test.js` (4/4); live — after a
+BFF restart the boot log shows the `banking.mcpgw` warning (the current ghost).
+
+
 ### 2026-08-10 — Privilege open-access hop: banking data tools returned empty (no user identity)
 
 **Files changed:** `demo_api_server/routes/verticalTool.js`,
