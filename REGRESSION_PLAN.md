@@ -102,6 +102,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Kill switch's enforcement flag never actually enforced anything (Redis-only code, LMDB deployment)
+
+**Files changed:** `demo_api_server/services/killSwitchService.js` (+ test)
+
+**What was broken:** live-verified the kill-switch result checklist (after
+fixing it to survive the session teardown, same day) and its "Arm the
+next-request block" step reported "Skipped — the session store was
+unreachable." Traced it: this deployment has no Redis at all (checked the
+running container's env — nothing) — the real session store is
+`LmdbSessionStore` (`services/lmdb/sessionStore.js`), a standard
+`express-session` Store (`get`/`set`/`destroy`, callback-based) with no
+`.client` property. `isAgentRevoked()` and the flag-arm write in
+`killAgent()` both gated on `sessionStore.client` and called Redis-only
+methods (`.client.get`, `.client.setex`). That gate can never pass against
+LmdbSessionStore, so on this deployment (and any deployment without Redis
+configured) the flag was never written, and — more importantly —
+`isAgentRevoked()` (which `agentRateLimit.js` calls before every agent tool
+call) always returned `false`. The "next call gets rejected" claim this
+whole feature's copy makes was not actually true here.
+
+**What was fixed:** `isAgentRevoked()` and the flag-arm write now go through
+the generic `express-session` Store interface (`sessionStore.get(key, cb)` /
+`sessionStore.set(key, value, cb)`) instead of a Redis-specific client —
+works identically against `LmdbSessionStore` and a Redis-backed store (e.g.
+`connect-redis`, which implements the same Store interface). Verified
+against the real `LmdbSessionStore` class directly (not just a mock) — a
+round-trip `set`/`get` returns the written value correctly.
+
+**Known remaining gap, explicitly out of scope for this fix (user decision):**
+`agentRateLimit.js`'s actual rate-limiting counters (`checkAutoKill`, request/
+violation counting) are ALSO Redis-only (`sessionStore.client.set/incr/unlink`
+with Redis `NX`/`EX` semantics) — separately broken on this deployment. Real
+concurrency-sensitive counter logic, not a simple flag; needs its own pass,
+not a quick fix. `invalidateSessionsInRedis()` (the Redis `SCAN`-based bulk
+session-wipe, "0 session key(s) removed" in the checklist) is also
+Redis-only and was left alone per explicit scope decision — LMDB has no
+pattern-scan primitive, would need a small helper added to
+`LmdbSessionStore` itself.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/killSwitchService.test.js middleware/agentRateLimit` (18/18 + 17/17); direct sanity check against the real `LmdbSessionStore` class round-trips correctly.
+
 ### 2026-08-10 — Privilege config lived in the container; stale .env would break it on recreate
 
 **Files changed:** `demo_api_server/services/startupConfigGuard.js` (+ test);
