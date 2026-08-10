@@ -10,7 +10,37 @@
   border-radius: 8px;
   background: #ffffff;
   color: #1a1f2b;
-  max-width: 420px;
+  /* 640px, was 420px: the card now carries the demo's story copy
+     ("make it wider so you have room", 2026-08-10). */
+  max-width: 640px;
+}
+
+/* ── The story block — the narrative the presenter reads from the box.
+   Solid high-contrast ink per REGRESSION_PLAN §0 (no muted hint text). */
+.gmt-story {
+  border: 1px solid #c8ccd4;
+  border-left: 4px solid #1a4fa0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: #f4f7fc;
+}
+
+.gmt-story-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #16407f;
+  margin-bottom: 6px;
+}
+
+.gmt-story-beats {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #1a1f2b;
 }
 
 .gmt-panel--loading,
