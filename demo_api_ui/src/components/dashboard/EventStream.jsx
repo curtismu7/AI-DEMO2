@@ -1,5 +1,13 @@
 import React from 'react';
 
+/**
+ * columns: Array<{ key, label, className?, render?(row) }>
+ *
+ * A column is plain-value-only by default — the cell renders String(row[key]).
+ * `render` is an explicit, per-column opt-in for a caller that needs markup
+ * in a cell (e.g. a severity dot); omit it and the default plain-text
+ * guarantee holds for every other column and every other caller.
+ */
 export default function EventStream({ columns, rows }) {
   if (!rows || rows.length === 0) {
     return <div className="dash-msg" role="status">No events in this window.</div>;
@@ -13,11 +21,18 @@ export default function EventStream({ columns, rows }) {
         <tbody>
           {rows.map((r, i) => (
             <tr key={`${r.timestamp || 'row'}-${i}`}>
-              {columns.map((c) => (
-                <td key={c.key} className={c.className || ''}>
-                  {r[c.key] === null || r[c.key] === undefined ? '' : String(r[c.key])}
-                </td>
-              ))}
+              {columns.map((c) => {
+                let content;
+                if (c.render) {
+                  content = c.render(r);
+                } else {
+                  const val = r[c.key];
+                  content = val === null || val === undefined ? '' : String(val);
+                }
+                return (
+                  <td key={c.key} className={c.className || ''}>{content}</td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

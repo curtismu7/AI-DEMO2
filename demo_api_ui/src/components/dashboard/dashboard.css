@@ -1,8 +1,9 @@
-/* Shared dashboard tokens, consumed by P1AzDashboard.jsx. Sibling of
-   ../NewRelicDashboard.css, which NewRelicDashboard.jsx still uses directly —
-   pointing it at these shared tokens is deferred (see the status note in
-   docs/superpowers/plans/2026-08-09-p1az-dashboard.md), so the two files are
-   intentionally parallel for now.
+/* Shared dashboard tokens, consumed by both P1AzDashboard.jsx and
+   NewRelicDashboard.jsx — each composes DashboardShell/StatStrip/EventStream
+   and renders through the .dash-* classes defined here. NewRelicDashboard.css
+   now carries only page-specific rules (the severity dot) plus one dead block
+   kept solely to satisfy a pinned CSS-source test — see the note at the top
+   of that file.
    Dark is keyed to :root[data-theme="dark"] — the
    attribute ThemeProvider writes — never prefers-color-scheme, which this app
    deliberately ignores. .dash paints its own background: without it, dark-mode
@@ -74,6 +75,9 @@
 .dash-msg { padding: 22px; border: 1px solid var(--dash-line); border-radius: 8px; background: var(--dash-surface); color: var(--dash-ink-2); font-size: 13.5px; }
 .dash-msg code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; color: var(--dash-ink); }
 .dash-msg-err { border-color: var(--dash-bad); color: var(--dash-bad); }
+
+.dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 768px) { .dash-grid-2 { grid-template-columns: 1fr; } }
 
 .dash-card { background: var(--dash-surface); border: 1px solid var(--dash-line); border-radius: 8px; min-width: 0; }
 .dash-card-head { padding: 11px 15px; border-bottom: 1px solid var(--dash-line-soft); font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--dash-ink-2); }
