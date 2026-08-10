@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { resolveApiBaseUrl } from "../utils/resolveApiBaseUrl";
 import DraggableModal from "./DraggableModal";
 import "./KillSwitchConfirmModal.css";
 
@@ -7,15 +8,53 @@ export default function KillSwitchConfirmModal({
   agentId,
   onConfirm,
   onCancel,
+  initialScope = "instance",
 }) {
   const [selectedReason, setSelectedReason] = useState("misbehaving");
   const [customReason, setCustomReason] = useState("");
-  const [scope, setScope] = useState("instance");
+  const [scope, setScope] = useState(initialScope);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [liveSteps, setLiveSteps] = useState([]);
+  const esRef = useRef(null);
+
+  // Re-seed scope from the trigger that opened the modal (e.g. roster's
+  // "Stop this instance" vs "Stop entire agent" buttons) each time it opens.
+  useEffect(() => {
+    if (isOpen) setScope(initialScope);
+  }, [isOpen, initialScope]);
+
+  useEffect(() => () => esRef.current?.close(), []);
+
+  // Open the SSE stream just before the POST so each kill-switch step
+  // (token_revocation, enforcement_flag, ...) renders as it runs instead of
+  // only after the whole call resolves. A step arriving after the POST
+  // response is still applied to result.steps below.
+  const openStepStream = () => {
+    esRef.current?.close();
+    const base = resolveApiBaseUrl();
+    const es = new EventSource(`${base}/api/admin/agent/${agentId}/kill-switch/events`, {
+      withCredentials: true,
+    });
+    es.onmessage = (e) => {
+      let evt;
+      try { evt = JSON.parse(e.data); } catch { return; }
+      if (evt.type !== "step" || evt.agentId !== agentId || !evt.step) return;
+      setLiveSteps((prev) => {
+        const i = prev.findIndex((s) => s.key === evt.step.key);
+        if (i === -1) return [...prev, evt.step];
+        const next = [...prev];
+        next[i] = evt.step;
+        return next;
+      });
+    };
+    esRef.current = es;
+  };
 
   const handleConfirm = async () => {
     setIsLoading(true);
+    setLiveSteps([]);
+    openStepStream();
     try {
       const reason =
         selectedReason === "other"
@@ -31,15 +70,20 @@ export default function KillSwitchConfirmModal({
         handleCancel();
       }
     } finally {
+      esRef.current?.close();
+      esRef.current = null;
       setIsLoading(false);
     }
   };
 
   const handleCancel = () => {
+    esRef.current?.close();
+    esRef.current = null;
     setSelectedReason("misbehaving");
     setCustomReason("");
-    setScope("instance");
+    setScope(initialScope);
     setResult(null);
+    setLiveSteps([]);
     onCancel?.();
   };
 
@@ -47,7 +91,7 @@ export default function KillSwitchConfirmModal({
     <DraggableModal
       isOpen={isOpen}
       onClose={handleCancel}
-      title={result ? "Stop Agent — Result" : "Stop Agent — Confirm"}
+      title={result ? "Stop Agent — Result" : isLoading ? "Stop Agent — Running" : "Stop Agent — Confirm"}
       defaultWidth={480}
       defaultHeight={460}
       storageKey="kill-switch-modal"
@@ -92,8 +136,37 @@ export default function KillSwitchConfirmModal({
                 ? "Stopped this instance only — the agent's PingOne application stayed enabled, so other users of this agent are unaffected."
                 : "Stopped the entire agent identity — the PingOne application was disabled, blocking new tokens for every user of this agent client."}
             </div>
+            <p className="ksm-result-mechanism">
+              Enforcement point: the agent's next request to{" "}
+              <code>/api/agent/*</code> — <code>agentRateLimit</code> checks
+              the revocation flag set below before that call is allowed
+              through.
+            </p>
             <ul className="ksm-result-list">
               {(result.steps || []).map((step) => (
+                <li
+                  key={step.key}
+                  className={`ksm-result-step ${step.skipped ? "ksm-result-step--skipped" : "ksm-result-step--ran"}`}
+                >
+                  <span className="ksm-result-badge">
+                    {step.skipped ? "Skipped" : "Done"}
+                  </span>
+                  <div className="ksm-result-text">
+                    <strong>{step.label}</strong>
+                    <span>{step.detail}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : isLoading ? (
+          <>
+            <p className="ksm-result-mechanism">
+              Streaming each step as it runs at PingOne — a step already
+              done stays done even if a later one fails.
+            </p>
+            <ul className="ksm-result-list">
+              {liveSteps.map((step) => (
                 <li
                   key={step.key}
                   className={`ksm-result-step ${step.skipped ? "ksm-result-step--skipped" : "ksm-result-step--ran"}`}
@@ -113,9 +186,12 @@ export default function KillSwitchConfirmModal({
           <>
             <div className="ksm-instructions">
               <p className="ksm-instructions-lead">
-                This will immediately revoke the agent's OAuth token and freeze its
-                state for forensics. The agent cannot make any further API calls.
-                This action <strong>cannot be undone</strong>.
+                PingOne revokes the agent's OAuth token now (RFC 7009) and its
+                state is frozen for forensics. A call already in flight when
+                you confirm will still finish — the block takes effect on the
+                agent's <strong>next</strong> tool call, rejected by the
+                request-time revocation check. This action{" "}
+                <strong>cannot be undone</strong>.
               </p>
             </div>
 
