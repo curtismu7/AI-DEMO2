@@ -102,6 +102,46 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Privilege open-access hop: banking data tools returned empty (no user identity)
+
+**Files changed:** `demo_api_server/routes/verticalTool.js`,
+`demo_api_server/middleware/auth.js`, new
+`demo_api_server/services/openAccessDemoUser.js`,
+`oauth-mcp/src/tools/BankingToolProvider.ts`,
+`oauth-mcp/src/banking/BankingAPIClient.ts`, `docker-compose.yml`
+(+ tests: `demo_api_server/tests/routes/demoSubjectToken.test.js`,
+`demo_api_server/tests/services/openAccessDemoUser.test.js`).
+
+**What was broken:** on the Privilege MCP page (open-access mode,
+`MCP_AUTH_DISABLED=true`) banking DATA tools (`get_my_transactions`,
+`get_my_accounts`, `get_balance`) crashed Step 9 with "cannot parse
+subject_token" — the forwarded bearer is the un-exchangeable `'disabled'`
+placeholder. PingOne has no ROPC grant, so there is no way to mint a *user*
+token non-interactively.
+
+**What was fixed:**
+
+- BFF `POST /api/path/demo-subject-token` mints the agent's `client_credentials`
+  **worker** token (`agentCCTokenService.getAgentCCToken`), 404 unless
+  `MCP_AUTH_DISABLED`. The MCP server swaps `'disabled'` for it as the Step 9
+  `subject_token` on this hop only, so the exchange now succeeds.
+- A worker token has no user `sub`, so `/my` resolved to zero rows. New
+  `openAccessDemoUser.js` resolves a real demo user (env `DEMO_SUBJECT_USER_ID`,
+  else the richest seeded account owner) and `authenticateToken` binds a
+  **sub-less, non-admin** token to that user *only* under `MCP_AUTH_DISABLED`.
+  Data tools now return real rows with a real holder name.
+
+**Do not break:** the auth binding is gated on
+`MCP_AUTH_DISABLED === 'true' && !decoded.sub && derivedRole !== 'admin'` — a
+real user (always has a `sub`) or an admin token is **never** rebound, so
+`requireNotAdmin` on `/my` (admin → 403) and the 4-signal admin role check are
+unchanged. Off by default (flag absent → endpoint 404s, binding never fires).
+
+**Verify:** `cd demo_api_server && CI=true npm run test:unit` (91/91) +
+`jest tests/services/openAccessDemoUser.test.js tests/routes/demoSubjectToken.test.js`
+(7/7); live: `get_my_accounts` on the open-access hop returns 4 accounts, holder
+"Demo User".
+
 ### 2026-08-10 — Kill switch: explain the enforcement mechanism, stream steps live, split scope discoverability
 
 **Files changed:** `demo_api_server/services/killSwitchService.js`, new

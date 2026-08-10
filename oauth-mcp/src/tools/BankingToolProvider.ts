@@ -118,6 +118,10 @@ export class BankingToolProvider {
       //   direct MCP access). Skip session-based OAuth challenge detection — the
       //   delegated token is the credential.
       // - session path: run the challenge handler against session user tokens.
+      // The token actually used for execution/Step 9. Normally the agent token;
+      // on the open-access hop for a banking data tool it becomes a minted
+      // demo-user token (see below) so Step 9 has a real subject_token.
+      let effectiveAgentToken = agentToken;
       if (tool.requiresUserAuth && tool.requiredScopes.length > 0) {
         if (agentToken) {
           // Open-access hop (MCP_AUTH_DISABLED): a gateway in front of this
@@ -142,6 +146,19 @@ export class BankingToolProvider {
             this.logger.info(
               `[BankingToolProvider] open-access hop (MCP_AUTH_DISABLED) — the gateway owns authorization; skipping banking scope check for ${toolName}`
             );
+            // Banking DATA tools (not vertical) still need a real subject_token for
+            // Step 9 (the placeholder 'disabled' cannot be exchanged). Mint a demo
+            // user token from the BFF and run the tool as that user. Vertical tools
+            // execute server-side with no token, so they need nothing here.
+            if (!tool.vertical && agentToken === 'disabled') {
+              const demoToken = await this.apiClient.fetchDemoSubjectToken();
+              if (demoToken) {
+                effectiveAgentToken = demoToken;
+                this.logger.info(`[BankingToolProvider] open-access data tool — using demo-user subject token for Step 9 (${toolName})`);
+              } else {
+                this.logger.warn(`[BankingToolProvider] open-access data tool — demo subject token unavailable; ${toolName} will fail Step 9`);
+              }
+            }
           } else {
           // A2A-delegated tools: PingOne scope-name uniqueness forces the
           // specialist's Exchange #2 bearer to carry the per-vertical scope
@@ -225,7 +242,7 @@ export class BankingToolProvider {
       this.logger.debug(`[BankingToolProvider] Executing tool handler: ${tool.handler}`);
       this.apiClient.startTrace();  // keep started for error path in handleExecutionError
       callClient.startTrace();      // actual trace for this call
-      const result = await this.executeSpecificTool(tool, context, agentToken, callHandlerDeps);
+      const result = await this.executeSpecificTool(tool, context, effectiveAgentToken, callHandlerDeps);
       result.httpTrace = callClient.stopTrace();
       this.apiClient.stopTrace();   // clean up the base client's empty trace when callClient !== apiClient
 
@@ -233,7 +250,7 @@ export class BankingToolProvider {
       this.logger.info(`[BankingToolProvider] Tool execution completed: ${toolName} (${executionTime}ms) - Success: ${result.success}`);
 
       // Log token chain audit event (D-03, D-04)
-      await this.auditor.record({ toolName, tool, session, agentToken, result, executionTime, params: sanitizedParams });
+      await this.auditor.record({ toolName, tool, session, agentToken: effectiveAgentToken, result, executionTime, params: sanitizedParams });
 
       return result;
 
