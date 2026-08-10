@@ -30,8 +30,10 @@ const DEFAULT_WINDOW = '1h';
 
 // A free-text search term is the first caller-controlled VALUE (as opposed to
 // a fixed-map key) to reach query construction. It is bounded so a caller
-// can't push an arbitrarily large string upstream, and it never widens what
-// data is reachable — it only narrows the stream query's SINCE window further.
+// can't push an arbitrarily large string upstream. It never widens what data
+// is reachable — the stream query it's added to already scopes the view
+// (e.g. category='authorize'); a search can only narrow that result set
+// further, never remove or loosen an existing WHERE condition.
 const MAX_SEARCH_LEN = 200;
 
 // NRQL string literals are single-quoted; a raw apostrophe in the term would
@@ -42,11 +44,34 @@ function _escapeNrqlLiteral(raw) {
   return raw.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+// NRQL's LIKE takes '%' as a wildcard (confirmed against the live account),
+// and offers no ESCAPE clause to neutralize a literal '%' in caller input —
+// one was tried against the live account and NerdGraph rejected it outright
+// ("NRQL Syntax Error: ... unexpected 'ESCAPE'"). NRQL's position()/
+// substring() functions were also tried as a wildcard-free alternative, live
+// — they parse but evaluate to null/never match against Log data in this
+// account, so they're not a working substitute either. '_' was tested too:
+// live evidence shows NRQL's LIKE does NOT treat it as a single-char
+// wildcard (undocumented, and it didn't behave like one), but it's stripped
+// anyway since the alternative — leaving it in on the strength of one
+// account's observed behavior — is exactly the kind of unverified guess this
+// function exists to avoid. The honest fix, given no working escape/literal-
+// match construct exists: strip both metacharacters from the term before it
+// reaches LIKE. A caller can no longer search for a literal '%' or '_', but
+// one typed incidentally can no longer silently widen into a wildcard match.
+function _stripLikeMetacharacters(raw) {
+  return raw.replace(/[%_]/g, '');
+}
+
 // Applied to the stream query only — a search narrows the event list, it
-// does not rewrite the facet/timeseries summary panels above it.
-function _searchClause(search) {
+// does not rewrite the facet/timeseries summary panels above it. `fields` is
+// an array so a view can search every column its own stream table actually
+// renders (OR'd together) rather than one column blind to what's on screen.
+function _likeClause(fields, search) {
   if (!search) return '';
-  return ` AND message LIKE '%${_escapeNrqlLiteral(search)}%'`;
+  const literal = _escapeNrqlLiteral(search);
+  const comparisons = fields.map((f) => `${f} LIKE '%${literal}%'`).join(' OR ');
+  return ` AND (${comparisons})`;
 }
 
 // Anonymous callers hit this route with no rate limiting of their own; a short
@@ -65,9 +90,11 @@ function _pipelineQuery(accountId, since, bucket, search) {
     `SELECT count(*) FROM Log WHERE logtype='app_event' FACET category SINCE ${since}`;
   const timeseries =
     `SELECT count(*) FROM Log WHERE logtype='app_event' TIMESERIES ${bucket} SINCE ${since}`;
+  // Searches `message` — the only stream column this view's table renders
+  // as free text (the rest are enums/ids/numbers already visible verbatim).
   const stream =
     'SELECT timestamp, message, category, severity, correlationId ' +
-    `FROM Log WHERE logtype='app_event'${_searchClause(search)} SINCE ${since} LIMIT 50`;
+    `FROM Log WHERE logtype='app_event'${_likeClause(['message'], search)} SINCE ${since} LIMIT 50`;
 
   // JSON.stringify supplies the surrounding quotes and escapes the single
   // quotes inside each NRQL string. accountId is coerced to a number so it can
@@ -93,9 +120,12 @@ function _authorizeQuery(accountId, since, bucket, search) {
     `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL FACET ruleName SINCE ${since} LIMIT 10`;
   const timeseries =
     `SELECT count(*) FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL TIMESERIES ${bucket} SINCE ${since}`;
+  // Searches ruleName/decision/type — the free-text-ish columns this view's
+  // table actually renders (not `message`, which the table never displays;
+  // a match against a hidden field wouldn't be explainable from the row).
   const stream =
     'SELECT timestamp, tag, decision, ruleName, amount, stepUpRequired, type, engine, latencyMs, policyEvalMs ' +
-    `FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL${_searchClause(search)} SINCE ${since} LIMIT 50`;
+    `FROM Log WHERE logtype='app_event' AND category='authorize' AND decision IS NOT NULL${_likeClause(['ruleName', 'decision', 'type'], search)} SINCE ${since} LIMIT 50`;
 
   return `{ actor { account(id: ${Number(accountId)}) {
     decisions: nrql(query: ${JSON.stringify(decisions)}) { results }
@@ -152,10 +182,18 @@ async function _handleView(viewName, req, res) {
   }
 
   // A blank/absent q must behave exactly as before — falsy short-circuits to
-  // '', which _searchClause treats as "no filter". A present q is trimmed
-  // and capped at MAX_SEARCH_LEN before it ever reaches query construction.
+  // '', which _likeClause treats as "no filter". A present q is trimmed,
+  // stripped of LIKE metacharacters, and capped at MAX_SEARCH_LEN — in that
+  // order, so the cap is a guarantee on what actually reaches the query, not
+  // on the raw input (stripping can only shorten a term, never lengthen it).
+  // This is also the value reported back as `q`, so the client always sees
+  // what was actually applied, metacharacter-stripping included — a term
+  // that was ONLY metacharacters (e.g. "%%%") normalizes to '', which is
+  // indistinguishable from "no search", same as an all-whitespace term.
   const rawQ = req.query.q;
-  const search = rawQ ? String(rawQ).trim().slice(0, MAX_SEARCH_LEN) : '';
+  const search = rawQ
+    ? _stripLikeMetacharacters(String(rawQ).trim()).slice(0, MAX_SEARCH_LEN)
+    : '';
 
   // Cache key includes the view and search term — otherwise an authorize
   // request inside the TTL would be served the pipeline payload, or a
