@@ -81,3 +81,43 @@ Secondary signals: multi-cloud/platform-agnostic is important to them; cost-sens
 ## 5. Suggested next step for the SE follow-up
 
 Lead the next NIQ session with **Agent Lifecycle** end-to-end (registration → scoped token → CIBA step-up → kill switch) since it hits three of their four asks in one continuous flow, then layer in **Policy Decision Trace** for the audit/certification angle, explicitly positioned as "exports into whatever governs JML today" — not a SailPoint replacement.
+
+---
+
+## 6. Run instructions for the two gaps in §4 (2026-08-10)
+
+**Status: planned, not built.** Two of the five gaps in §4 have full implementation plans now — closing them updates the two `❌`/not-exercised lines in §4 to real, demoable behavior. Nothing below is live yet; this section documents how to run each one **once its plan is executed**, so the run steps don't have to be rediscovered later.
+
+### PingOne Protect — agent-dispatch risk evaluation
+
+Plan: [`docs/superpowers/plans/2026-08-10-protect-agent-dispatch-risk.md`](../superpowers/plans/2026-08-10-protect-agent-dispatch-risk.md)
+
+**Entitlement gate:** the plan opens with a live-probe step against Protect risk-evaluations on env `01d89b06` — not yet confirmed licensed. Do the probe before trusting the run steps below.
+
+Once implemented:
+
+1. Enable the flag: Admin → Feature Flags → `ff_protect_agent_dispatch` → ON (or `PATCH /api/admin/feature-flags/ff_protect_agent_dispatch`).
+2. Open the app on `local.ping-devops.com:4000`, pick the **Super Sports** vertical, sign in.
+3. Dispatch any agent chip action (e.g. "show my balance").
+4. Client collects a Protect device signal (`demo_api_ui/src/services/protectSignalService.js`) and sends it with the invoke request; the BFF gate (`demo_api_server/middleware/protectRiskGate.js`) risk-scores it before the agent runs.
+5. Verify: the **ProofStrip** evidence panel for that action shows a new `protect_risk_evaluation` row with a real `evaluationId` — not a placeholder.
+6. To see a `BLOCK`: use whatever risk-policy trigger condition was configured during setup (e.g. a known-bad test signal) — the request should return `403 agent_dispatch_blocked` before the agent dispatches at all.
+
+### Verified Trust — signed agent assertion on A2A delegation
+
+Plan: [`docs/superpowers/plans/2026-08-10-verified-trust-agent-assertion.md`](../superpowers/plans/2026-08-10-verified-trust-agent-assertion.md)
+
+**Entitlement gate:** near-certain to be blocked — this repo has zero existing DaVinci/Credentials automation, and the plan's own entitlement check expects to find DaVinci Advanced + PingOne Credentials missing on env `01d89b06`. Confirm before promising this to NIQ or Coupa live.
+
+Once implemented (and only if entitlement clears):
+
+1. Enable the flag: Admin → Feature Flags → `ff_verified_trust_a2a` → ON.
+2. Trigger an A2A delegation chain — Super Sports vertical, any use case that dispatches to a specialist agent (e.g. an investment-related ask that hands off to the Invest specialist).
+3. The chain start now also calls PingOne Credentials to issue a signed SD-JWT asserting `{agent_id, acting_for, scope, chain_id}` — check server logs / the delegation chain context for a `trustAssertion` field with a real `credentialId`.
+4. Verify the receiving specialist agent's **Agent Card** (`GET` the A2A discovery endpoint for that agent) now lists a second security scheme (`verified-trust-vc`) alongside the existing PingOne Bearer scheme — only when a `trustAssertion` was actually issued.
+5. If issuance fails (expected if entitlement is missing), the existing bearer-token delegation must still work unaffected — that's the fail-open behavior built into the plan, not a bug if you see it.
+6. Education panel: `demo_api_ui/src/components/education/IETFStandardsPanel.js` SD-JWT VC card should read "✅ Live (behind `ff_verified_trust_a2a`)" instead of "❌ Not implemented" once Task 4 of the plan lands — if it still says "Not implemented," the feature isn't actually wired yet regardless of what the flag list shows.
+
+### Note on the third original candidate — MCP gateway named filters
+
+No plan needed here: research on 2026-08-10 found `ping-gateway/` already runs the real McpProtectionFilter/McpAuditFilter/McpValidationFilter trio on all but the 3 JWKS-variant MCP routes (`docs/superpowers/plans/2026-07-22-mcp-protection-filter-gap.md` covers that narrower remainder). §4 above doesn't list this as a gap for exactly that reason — confirm via `ping-gateway/config/routes/*.json` and `audit/mcp.audit.json` rather than re-investigating from scratch.
