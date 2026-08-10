@@ -165,3 +165,27 @@ test('fails closed when live membership cannot be verified', async () => {
     status: 503,
   });
 });
+
+test('fails closed with 503 when the exchanged token has no audience claim — never calls evaluateMcpToolDelegation', async () => {
+  // Token without 'aud' in claims
+  const tokenWithoutAud = [
+    Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
+    Buffer.from(JSON.stringify({ sub: 'user-1' })).toString('base64url'),
+    'sig',
+  ].join('.');
+
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs.mockResolvedValue(tokenWithoutAud);
+
+  await expect(checkAccess({
+    username: 'demoAdmin',
+    pingOneUserId: 'user-1',
+    accessToken: 'admin-session-token',
+  })).resolves.toMatchObject({
+    allowed: false,
+    error: 'pingone_admin_group_lookup_unavailable',
+    status: 503,
+  });
+
+  expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
+});

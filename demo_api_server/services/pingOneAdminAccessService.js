@@ -87,6 +87,16 @@ async function checkAccess({ username, pingOneUserId, accessToken }) {
     };
   }
 
+  if (!tokenAudience) {
+    console.warn('[pingOneAdminAccessService] Exchanged token has no audience claim (denying)');
+    return {
+      allowed: false,
+      error: 'pingone_admin_group_lookup_unavailable',
+      status: 503,
+      requiredGroup,
+    };
+  }
+
   let decision;
   let policyNotFound;
   try {
