@@ -70,6 +70,7 @@ export default function PrivilegeMcpClientPage() {
   const [consoleTokenExpiresAt, setConsoleTokenExpiresAt] = useState(null);
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [showGrabHelper, setShowGrabHelper] = useState(false);
+  const [grabCopied, setGrabCopied] = useState(false);
   // Forward hook: BFF can mint/refresh the infra token headlessly once a
   // control-plane admin credential is configured (see /dev/auto-mint). Inert until then.
   const [autoMintConfigured, setAutoMintConfigured] = useState(false);
@@ -724,6 +725,18 @@ export default function PrivilegeMcpClientPage() {
                   <div className="cur-ct-grab">
                     <p>One-click grab: make a browser bookmark with the code below as its URL. On the Privilege console page, click it — your <code>auth_token</code> copies to the clipboard, then paste it above.</p>
                     <textarea className="cur-console-token-input" rows={3} readOnly value={GRAB_BOOKMARKLET} onFocus={(e) => e.target.select()} />
+                    <button
+                      type="button"
+                      className="cur-btn"
+                      style={{ marginTop: 6 }}
+                      onClick={() => {
+                        const done = () => { setGrabCopied(true); setTimeout(() => setGrabCopied(false), 1500); };
+                        if (navigator.clipboard?.writeText) navigator.clipboard.writeText(GRAB_BOOKMARKLET).then(done, done);
+                        else done();
+                      }}
+                    >
+                      {grabCopied ? '✓ Copied' : 'Copy bookmarklet'}
+                    </button>
                   </div>
                 )}
                 {consoleTokenInfo && (() => {
