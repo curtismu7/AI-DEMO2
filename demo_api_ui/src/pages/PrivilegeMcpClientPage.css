@@ -1320,3 +1320,68 @@ select.cur-input { cursor: pointer; }
 .cur-scopes-table tr { cursor: pointer; }
 .cur-scope-row--selected > td { background: rgba(109, 158, 235, 0.22); }
 .cur-ide[data-cur-theme="light"] .cur-scope-row--selected > td { background: rgba(37, 99, 235, 0.14); }
+
+/* RESULTS terminal tab — collects tool-call output; flashes on each new result. */
+.cur-terminal-tab-badge {
+  display: inline-block;
+  margin-left: 5px;
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #6d9eeb;
+  color: #0a0a0a;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 15px;
+}
+@keyframes curTabFlash {
+  0% { background: #6d9eeb; color: #0a0a0a; }
+  70% { background: #6d9eeb; color: #0a0a0a; }
+  100% { background: transparent; color: inherit; }
+}
+.cur-terminal-tab--flash { animation: curTabFlash 1.4s ease-out; }
+
+.cur-terminal-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  height: 100%;
+}
+.cur-result-item {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #0d0d0d;
+  overflow: hidden;
+}
+.cur-result-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #161616;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 11px;
+}
+.cur-result-item-badge--ok { color: #a8e6cf; }
+.cur-result-item-badge--err { color: #ff6b6b; }
+.cur-result-item-tool { font-weight: 700; color: #7ec8e3; font-family: monospace; }
+.cur-result-item-ts { margin-left: auto; color: #777; font-family: monospace; }
+.cur-result-item-body {
+  margin: 0;
+  padding: 8px;
+  color: #ddd;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 260px;
+  overflow: auto;
+}
+.cur-ide[data-cur-theme="light"] .cur-result-item { border-color: #e0e0e0; background: #ffffff; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
