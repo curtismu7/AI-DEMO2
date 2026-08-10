@@ -84,9 +84,9 @@ Lead the next NIQ session with **Agent Lifecycle** end-to-end (registration → 
 
 ---
 
-## 6. Run instructions for the two gaps in §4 (2026-08-10)
+## 6. Run instructions for the two gaps in §4 (2026-08-10, updated 2026-08-10)
 
-**Status: planned, not built.** Two of the five gaps in §4 have full implementation plans now — closing them updates the two `❌`/not-exercised lines in §4 to real, demoable behavior. Nothing below is live yet; this section documents how to run each one **once its plan is executed**, so the run steps don't have to be rediscovered later.
+**Status:** Protect is still planned, not built. **Verified Trust's code is now built and merged** (all 5 plan tasks, 2026-08-10) — but it's still a no-op on this tenant: no DaVinci flow is configured, so issuance fails `NOT_CONFIGURED` and the fail-open path keeps the demo working exactly as before. Don't demo it as "live" to NIQ or Coupa until a real flow + entitlement exists.
 
 ### PingOne Protect — agent-dispatch risk evaluation
 
@@ -106,19 +106,18 @@ Once implemented:
 
 ### Verified Trust — signed agent assertion on A2A delegation
 
-Plan: [`docs/superpowers/plans/2026-08-10-verified-trust-agent-assertion.md`](../superpowers/plans/2026-08-10-verified-trust-agent-assertion.md)
+Plan: [`docs/superpowers/plans/2026-08-10-verified-trust-agent-assertion.md`](../superpowers/plans/2026-08-10-verified-trust-agent-assertion.md) — **all 5 tasks built and merged 2026-08-10** (PRs #1557, #1559, #1563, #1567).
 
-**Entitlement gate:** near-certain to be blocked — this repo has zero existing DaVinci/Credentials automation, and the plan's own entitlement check expects to find DaVinci Advanced + PingOne Credentials missing on env `01d89b06`. Confirm before promising this to NIQ or Coupa live.
+**Entitlement gate — still open:** no DaVinci flow is configured on env `01d89b06`, and DaVinci Advanced + PingOne Credentials entitlement was never confirmed. The code is real; the flow it calls doesn't exist yet. Confirm before promising this to NIQ or Coupa as a working demo.
 
-Once implemented (and only if entitlement clears):
+Built, run steps (functional once a real flow + entitlement exist):
 
 1. Enable the flag: Admin → Feature Flags → `ff_verified_trust_a2a` → ON.
-2. Trigger an A2A delegation chain — Super Sports vertical, any use case that dispatches to a specialist agent (e.g. an investment-related ask that hands off to the Invest specialist).
-3. The chain start now also calls PingOne Credentials to issue a signed SD-JWT asserting `{agent_id, acting_for, scope, chain_id}` — check server logs / the delegation chain context for a `trustAssertion` field with a real `credentialId`.
-4. Verify the receiving specialist agent's **Agent Card** (`GET` the A2A discovery endpoint for that agent) now lists a second security scheme (`verified-trust-vc`) alongside the existing PingOne Bearer scheme — only when a `trustAssertion` was actually issued.
-5. If issuance fails (expected if entitlement is missing), the existing bearer-token delegation must still work unaffected — that's the fail-open behavior built into the plan, not a bug if you see it.
-6. Education panel: `demo_api_ui/src/components/education/IETFStandardsPanel.js` SD-JWT VC card should read "✅ Live (behind `ff_verified_trust_a2a`)" instead of "❌ Not implemented" once Task 4 of the plan lands — if it still says "Not implemented," the feature isn't actually wired yet regardless of what the flag list shows.
-7. Also registered as **UC37** in the use-case catalog (Task 5 of the plan) — reuses UC2's "hand off to a specialist" chip as the vehicle, dispatchable from the catalog UI.
+2. Trigger an A2A delegation chain — Super Sports vertical, any use case that dispatches to a specialist agent (e.g. an investment-related ask that hands off to the Invest specialist; also directly dispatchable as **UC37** from the use-case catalog).
+3. `a2aDelegationService.js` calls `verifiedTrustService.js` after Exchange #2, which POSTs to DaVinci's `orchestrate-api.pingone.com/v1/company/{id}/policy/{id}/start` — check `tokenEvents` for a `verified-trust-issuance` entry (`status: 'issued'` with a real `credentialId`, or `status: 'failed'` today since `NOT_CONFIGURED` fires — the bearer-token chain completes normally either way, fail-open).
+4. The receiving specialist's **Agent Card** advertises a second security scheme, `verifiedTrustCredential`, alongside `pingoneBearer` — but only when the flag is ON (it's a static capability declaration, not conditioned on any specific chain's outcome).
+5. Education panel: `demo_api_ui/src/components/education/IETFStandardsPanel.js` SD-JWT VC card now reads **"⚠️ Partial"**, not "✅ Live" — deliberately honest: the wiring exists, the flow doesn't.
+6. To actually see a real `credentialId`: author the DaVinci flow, set `PINGONE_DAVINCI_COMPANY_ID`/`PINGONE_DAVINCI_API_KEY`/`PINGONE_VERIFIED_TRUST_FLOW_ID`. Nobody has done this yet.
 
 ### Note on the third original candidate — MCP gateway named filters
 
