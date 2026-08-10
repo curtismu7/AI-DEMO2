@@ -318,6 +318,24 @@ describe('oauthService RFC 8693 token-exchange telemetry', () => {
       }
     }
 
+    // The dedicated-app path only reaches its own emit sites when the exchanger
+    // is enabled; with it disabled it delegates and is covered by the subject
+    // variant instead. Enable it so this describe covers all six for real.
+    function enableDedicatedExchanger() {
+      jest.spyOn(clientAssertionService, 'isExchangerPrivateKeyJwtEnabled').mockReturnValue(true);
+      jest.spyOn(clientAssertionService, 'buildExchangerClientAssertion').mockReturnValue('fake-assertion');
+      jest.spyOn(configStore, 'getEffective').mockImplementation((key) => {
+        if (String(key).toLowerCase() === 'pingone_private_key_jwt_exchanger_client_id') {
+          return 'dedicated-exchanger-client-id';
+        }
+        return jest.requireActual('../services/configStore').getEffective(key);
+      });
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('on every variant success path', async () => {
       axios.post.mockResolvedValue({ data: { access_token: SENTINEL_ISSUED } });
 
@@ -326,6 +344,8 @@ describe('oauthService RFC 8693 token-exchange telemetry', () => {
       await oauthService.performTokenExchangeWithActor(SENTINEL_SUBJECT, SENTINEL_ACTOR, 'https://api.example.com', ['read']);
       await oauthService.performTokenExchangeWithActorIdToken(SENTINEL_ID_TOKEN, SENTINEL_ACTOR, 'https://api.example.com', ['read']);
       await oauthService.performTokenExchangeAs(SENTINEL_SUBJECT, SENTINEL_ACTOR, 'cid', SENTINEL_CLIENT_SECRET, 'https://api.example.com', ['read']);
+      enableDedicatedExchanger();
+      await oauthService.performTokenExchangeWithDedicatedApp(SENTINEL_SUBJECT, 'https://api.example.com', ['read'], SENTINEL_ACTOR);
 
       assertNoSentinelLeak(logEventSpy);
     });
@@ -343,8 +363,25 @@ describe('oauthService RFC 8693 token-exchange telemetry', () => {
       await oauthService.performTokenExchangeWithActor(SENTINEL_SUBJECT, SENTINEL_ACTOR, 'https://api.example.com', ['read']).catch(() => {});
       await oauthService.performTokenExchangeWithActorIdToken(SENTINEL_ID_TOKEN, SENTINEL_ACTOR, 'https://api.example.com', ['read']).catch(() => {});
       await oauthService.performTokenExchangeAs(SENTINEL_SUBJECT, SENTINEL_ACTOR, 'cid', SENTINEL_CLIENT_SECRET, 'https://api.example.com', ['read']).catch(() => {});
+      enableDedicatedExchanger();
+      await oauthService.performTokenExchangeWithDedicatedApp(SENTINEL_SUBJECT, 'https://api.example.com', ['read'], SENTINEL_ACTOR).catch(() => {});
 
       assertNoSentinelLeak(logEventSpy);
+    });
+  });
+
+  describe('audience facet', () => {
+    // RFC 8707 multi-resource: an array audience must be joined, never emitted
+    // raw — a raw array would break the dashboard facet it feeds.
+    it('joins an array audience into a single string', async () => {
+      axios.post.mockResolvedValueOnce({ data: { access_token: SENTINEL_ISSUED } });
+
+      await oauthService.performTokenExchange(
+        SENTINEL_SUBJECT, ['https://a.example.com', 'https://b.example.com'], ['read']
+      );
+
+      const [, , , okOptions] = tokenExchangeCalls(logEventSpy)[1];
+      expect(okOptions.metadata.audience).toBe('https://a.example.com,https://b.example.com');
     });
   });
 
