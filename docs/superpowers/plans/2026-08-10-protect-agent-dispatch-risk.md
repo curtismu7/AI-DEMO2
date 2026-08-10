@@ -494,10 +494,16 @@ git commit -m "feat(protect): surface risk evaluation in ProofStrip evidence"
 
 This chip doesn't need a new tool — Protect risk evaluation wraps *every* `/api/agent/invoke` call when the flag is ON, so the demo vehicle is the same balance-check chip UC1 already uses (`show my balance` → `get_account_balance`). What's new is the evidence: with the flag ON, that same action now carries a live Protect risk decision in its ProofStrip trail.
 
+**Grouping:** UC36 and UC37 (from the companion Verified Trust plan) are a pair — both close gaps from the same Coupa comparison doc research and should sit together in the catalog, not scattered wherever each plan happens to land. Whichever of the two plans executes first creates the shared comment block below; whichever lands second inserts its entry inside that same block, immediately after the first, instead of appending elsewhere in the array.
+
 - [ ] **Step 1: Add the catalog entry**
+
+If the `// --- COUPA/NIQ GAP-CLOSURE DEMO` block already exists (Verified Trust's Task 5 landed first), insert UC36 inside it, immediately before UC37. Otherwise create it fresh:
 
 ```javascript
 // demo_api_server/config/useCases.js — append after the UC35 entry, before the closing `];`
+// --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
+// Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed as a pair.
 {
   id: 'UC36',
   useCaseId: 'protect-agent-dispatch-risk',

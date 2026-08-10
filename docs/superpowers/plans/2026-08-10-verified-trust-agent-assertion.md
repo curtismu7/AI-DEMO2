@@ -345,10 +345,16 @@ git commit -m "docs(verified-trust): flip education panel status to live"
 
 This chip reuses UC2's existing A2A vehicle (`hand off to a specialist` → `get_portfolio_summary`, same `A2A_PER_VERTICAL` mapping) rather than inventing a new one — what's new is the evidence step showing a signed credential was issued alongside the bearer-token chain, not a different action.
 
+**Grouping:** UC37 pairs with UC36 (Protect plan's Task 6) — same source research, meant to be browsed together in the catalog. Whichever plan lands first creates a `// --- COUPA/NIQ GAP-CLOSURE DEMO` comment block; whichever lands second inserts inside that same block, adjacent to the other entry, rather than appending elsewhere in the array.
+
 - [ ] **Step 1: Add the catalog entry**
+
+If the `// --- COUPA/NIQ GAP-CLOSURE DEMO` block already exists (Protect's Task 6 landed first), insert UC37 inside it, immediately after UC36. Otherwise create it fresh:
 
 ```javascript
 // demo_api_server/config/useCases.js — append after the last UC entry, before the closing `];`
+// --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
+// Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed as a pair.
 {
   id: 'UC37',
   useCaseId: 'verified-trust-a2a-assertion',
