@@ -1229,3 +1229,113 @@ Three local-only scripts, kept out of the repo (session scratchpad):
 The log-delta technique is what exposed `ValidateInfraJwt`: capture
 `wc -c` of `/var/log/procyon/cyonproxy.log` before and after each request and tail the
 difference. The HTTP response alone never revealed it.
+
+## 2026-08-10: corrected model of how this actually works
+
+The findings below supersede scattered claims earlier in this document. Each was
+established by test, and several overturn something stated confidently above.
+
+### The blocker, stated precisely
+
+`AuthzMiddleware.IssuerPublicKey` is `[]`, so the gateway has no issuer to validate
+against and falls back to comparing the token's `kid` with `infra-root-jwt`. Nothing
+PingOne can mint will match that. This is the whole problem; everything else works.
+
+### The token class was never the variable
+
+Every credential PingOne can issue was tried against the gateway. All fail identically:
+
+| Credential | Claims | Result |
+|---|---|---|
+| `client_credentials` (worker) | no `sub`, `aud: api.pingone.com` | `kid` mismatch |
+| **`authorization_code` user token** | **`sub`, MFA, `openid profile email`** | **`kid` mismatch** |
+| `id_token` | `sub`, `preferred_username`, `amr: [mfa, user]` | `kid` mismatch |
+| self-signed with `mcpgw-key.pem` | n/a | `kid` mismatch |
+
+An earlier section here reasoned that the worker token was the wrong class and that a
+real user token might behave differently. It does not. The gateway never inspects
+claims — it stops at the key id.
+
+### The PingOne half is fully working
+
+Verified end to end on 2026-08-10 against app `deff60f5` (`MCPGW-CMUIR`) in `8d4d7a4c`:
+
+```
+GET  /as/authorize  (PKCE S256)  -> login + MFA
+                                 -> redirect to /aidemo/callback?code=…
+POST /as/token      (code + verifier + client_secret)
+                                 -> access_token with sub, scope, amr:[mfa,user]
+                                 -> id_token, refresh_token
+```
+
+Diagram steps 3-6 are done. Only the gateway trusting the result is missing.
+
+### Two app-level facts that shape the config
+
+- `deff60f5` is `type: WORKER` but also serves as the OIDC client for user sign-in.
+  It carries `AUTHORIZATION_CODE`, `CODE`, and — importantly —
+  **`pkceEnforcement: S256_REQUIRED`**. The gateway must therefore send PKCE:
+  `--spec-mcp-app-config-resource-o-auth-use-pkce` is required, not optional.
+  Without it the gateway's authorize call fails `code_challenge is required`.
+- The environment also holds two **`AI_AGENT`** applications (`mcpgw` `fdd433c9`,
+  `MCPGW-Cmuir` `452e108e`), both **disabled with no redirect URIs** — created and
+  never finished. Unused; noted so nobody assumes they are load-bearing.
+- No custom PingOne **resources** exist (only `PingOne API` and `openid`), which is
+  why every token's audience is `https://api.pingone.com`.
+
+### Where the front-end OAuth config actually lives
+
+Not in the console UI — it is not exposed there. It is on the Application object and
+reachable through `cyctl`:
+
+```
+--spec-mcp-app-config-entry-path
+--spec-mcp-app-config-resource-o-auth-client-id
+--spec-mcp-app-config-resource-o-auth-client-secret
+--spec-mcp-app-config-resource-o-auth-auth-url
+--spec-mcp-app-config-resource-o-auth-token-url
+--spec-mcp-app-config-resource-o-auth-scopes
+--spec-mcp-app-config-resource-o-auth-use-pkce
+--spec-oidc-relying-party-redirect-ur-ls-elems
+--spec-mcp-app-config-front-end-name-elems     (settable here, read-only in the UI)
+```
+
+`cyctl` needs an **HS256** token: it rejects our PingOne token (`unexpected signing
+method: RS256`) and the proxy's own token (`ES256`) on algorithm alone, and
+`cyctl token jwt` cannot bootstrap because it requires a token itself. That means a
+Privilege console session token, and there is no way around it from this repo.
+
+### The URL model: one gateway host, per-app entry path
+
+Ping's flow diagram scopes endpoints under an app entry path — `/githubmcp/mcp`,
+`/githubmcp/authorize`, `/githubmcp/token`, `/githubmcp/callback` — with the
+`.well-known` documents at the root, on a single gateway host. Our per-app-hostname
+layout still works, but matching the documented model means:
+
+```
+https://mcpgw.local.ping-devops.com/aidemo/{mcp,authorize,token,callback}
+```
+
+Registered on PingOne app `deff60f5` on 2026-08-10:
+`https://mcpgw.local.ping-devops.com/aidemo/callback`.
+
+### proxy-token.data is NOT swapped for a long-lived token
+
+Stated repeatedly above and in the skill; wrong. Decoding the file shows the *same*
+enrollment JWT with `exp: 2026-08-04T18:44:28Z`, rewritten unchanged. The durable
+credential is the **mTLS cert pair** (`proxy-crt.pem`, `proxy-key.pem`,
+`proxy-ca.pem`), which refreshes on restart while the token stays frozen.
+
+Practical guidance is unaffected — an expired enrollment token is still harmless, and
+deleting the `mcpgw-ssl` volume is still unrecoverable — but for a different reason:
+it destroys a certificate, not a token.
+
+### Smaller corrections
+
+- **`GET /` returns `200 OK`** (3-byte liveness probe). It is the only unauthenticated
+  path; an earlier note claiming "no unauthenticated surface at all" was wrong.
+- **The backend requires `mcp-protocol-version` and `Mcp-Session-Id`** on every
+  non-initialize call. Omitting either produces errors that read like auth failures.
+  The gateway must forward both once client auth works.
+- **`/authorize` strings in the binary are vendored `ory/fosite` source paths**, not
+  registered routes. Do not read them as evidence the endpoint exists.

@@ -24,12 +24,19 @@ Every one of these was learned the expensive way. Check them before theorising.
    §2026-08-09.
 3. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
    with Privilege console access, and every required setting lives in that console.
-4. **An expired enrollment token is almost never the problem.** cyonproxy swaps the
-   wizard JWT for a long-lived one in the `mcpgw-ssl` volume on first boot. A token
-   that expired days ago still starts the container fine. Only a deleted volume, a
-   new cluster, or a new host needs a fresh one.
-5. **`pingone.env` is never read.** Zero log hits for its keys, on two tenants, in
-   both modes. Keep it correct; never debug through it.
+4. **An expired enrollment token is almost never the problem.** A token that expired
+   days ago still starts the container fine, because the durable credential is the
+   **mTLS cert pair** in `/procyon/ssl` (`proxy-crt.pem`, `proxy-key.pem`,
+   `proxy-ca.pem`) — not a token. Only a deleted volume, a new cluster, or a new host
+   needs a fresh one. (Earlier revisions here claimed cyonproxy swaps the wizard JWT
+   for a long-lived one. It does not — see the token section below.)
+5. **`pingone.env` is never read by cyonproxy.** Zero references to the filename or
+   any of its key names in the binary, any casing; verified across three builds.
+   Keep it correct; never debug through it.
+6. **No PingOne token of any kind can pass today.** Worker, user
+   (`authorization_code` with `sub` + MFA), `id_token`, and a self-signed JWT all
+   fail identically on `kid` vs `infra-root-jwt`. The token class is not the
+   variable — the missing issuer config is.
 
 ### Fast path for a fresh setup
 
@@ -301,9 +308,15 @@ curl -s -X POST "https://auth.pingone.com/$ENVID/as/token" \
 
 The enrollment token in `ping-mcpgw/config/proxy-token` (and `PRIVILEGE_PROXY_TOKEN`
 in the root `.env`) expired **2026-08-04**. The proxy does not care: verified again
-on 2026-08-08 across two container recreates, it starts, links to the control plane,
-and re-exchanges `proxy-token.data` — because cyonproxy already swapped the wizard
-JWT for a long-lived one inside the `mcpgw-ssl` volume.
+on 2026-08-08 across two container recreates, it starts and links to the control plane.
+
+**Why it still works, corrected 2026-08-10.** Not because the token was swapped for a
+long-lived one — decoding `/procyon/ssl/proxy-token.data` shows the *same* enrollment
+JWT, still carrying `exp: 2026-08-04T18:44:28Z`, rewritten unchanged. The durable
+credential is the **mTLS cert pair** issued at enrollment: `proxy-crt.pem`,
+`proxy-key.pem`, `proxy-ca.pem`, which refresh on restart while `proxy-token.data`
+stays frozen. The proxy authenticates to the control plane with a client certificate,
+not a bearer.
 
 Never diagnose "expired token" from a file's `exp`. Check whether the container is
 running and linked first.
@@ -382,8 +395,8 @@ export PRIVILEGE_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)"
 ```
 The file is **not** bind-mounted — it is a place to keep the JWT, and the value
 still reaches the container through `ENV_PROXY_TOKEN`. Do not add a single-file
-bind of it: cyonproxy rewrites `/procyon/ssl/proxy-token.data` at startup (it swaps
-the short-lived wizard JWT for a long-lived one), so a `:ro` bind makes the
+bind of it: cyonproxy rewrites `/procyon/ssl/proxy-token.data` at startup (same token,
+rewritten — not swapped for a long-lived one), so a `:ro` bind makes the
 container exit 1 with *"ProxyToken write to /procyon/ssl/proxy-token.data failed …
 read-only file system"*, and a `:rw` single-file bind breaks as soon as the proxy
 replaces rather than truncates the file.
@@ -553,7 +566,9 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | Session not persisting between requests | Session cookie not sent / saveUninitialized | Use browser (cookies auto-sent), or pass `Cookie` header in curl |
 | curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
 | gRPC `UNAVAILABLE` / proxy silent hang | Firewall blocking outbound to `grpc.privilege.pingone.com:443` | Allow outbound 443; no inbound holes needed |
-| `IssuerPublicKey:[]` in proxy logs | Controller never pushes JWKS keys to the local proxy | Known gap. The Cloud API is **not** the workaround — it 401s everything (see "Two deployment paths") |
+| `IssuerPublicKey:[]` in proxy logs | The application has no front-end OAuth config, so there is no issuer to validate against and the gateway falls back to comparing `kid` with `infra-root-jwt` | Set `--spec-mcp-app-config-resource-o-auth-*` on the Application via `cyctl` (not exposed in the console UI). Needs an HS256 console token. See `docs/PRIVILEGE-MCP.md` §2026-08-10 |
+| `code_challenge is required` from PingOne | App `deff60f5` enforces `pkceEnforcement: S256_REQUIRED` | Set `--spec-mcp-app-config-resource-o-auth-use-pkce`; it is mandatory, not optional |
+| `unexpected signing method: RS256` / `ES256` from `cyctl` | `cyctl` wants an HS256 console session token; it rejects PingOne (RS256) and proxy (ES256) tokens on algorithm alone | Grab `Authorization: Bearer …` from a console XHR. `cyctl token jwt` cannot bootstrap — it requires a token itself |
 | `curl https://…:8623/mcp` fails to connect | Wrong port — 8623 is the mesh port and speaks mTLS only | Use `http://…:8620` (see "Proxy ports") |
 | `has same NodeURL - this happens because of misconfigured Node` | Two node registrations claim the same `NodeURL local.ping-devops.com:8690` — the live node is linking to a stale twin of itself | **Cosmetic — ignore.** Command streams stay up and discovery still dispatches. The console offers no way to delete the stale row. Avoid making it worse: do not enroll a second node on the same Host IP |
 | BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | Pointing at a port that accepts TCP but serves no MCP | Use `8620` (see "Proxy ports") |

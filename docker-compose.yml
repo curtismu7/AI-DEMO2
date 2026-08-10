@@ -1251,8 +1251,10 @@ services:
     #
     #   printf 'ENV_PROXY_TOKEN=%s\n' 'eyJ...' > ping-mcpgw/procyon/config/proxy-token.env
     #
-    # Only needed for FIRST boot or re-enrollment — after that cyonproxy keeps a
-    # long-lived token in the mcpgw-ssl volume and ignores this entirely.
+    # Only needed for FIRST boot or re-enrollment. After that the proxy authenticates
+    # to the control plane with the mTLS cert pair in /procyon/ssl (proxy-crt.pem,
+    # proxy-key.pem, proxy-ca.pem) and ignores this entirely — which is why an
+    # enrollment token that expired days ago still starts the container fine.
     env_file:
       - path: ./ping-mcpgw/procyon/config/pingone.env
         required: false
@@ -1267,8 +1269,8 @@ services:
       - "8623:8623"
     volumes:
       # NO single-file bind of the enrollment token here. cyonproxy REWRITES
-      # /procyon/ssl/proxy-token.data at startup (it swaps the short-lived
-      # wizard JWT for a long-lived one), so a :ro bind made it exit 1 on every
+      # /procyon/ssl/proxy-token.data at startup (the SAME token, rewritten — it is
+      # not swapped for a long-lived one), so a :ro bind made it exit 1 on every
       # boot — "ProxyToken write to /procyon/ssl/proxy-token.data failed …
       # read-only file system" — and a :rw single-file bind breaks the same way
       # as soon as the proxy replaces rather than truncates the file.
