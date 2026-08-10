@@ -58,6 +58,40 @@
   min-height: 0;
 }
 
+/* ── Reclaim the agent's own chrome for the transcript ─────────────────────
+ *
+ * Measured on a 1000px viewport: the column is 641px and 373px of it is the
+ * agent's own furniture — header 61, composer 57, Start Over 41, token
+ * counters 20, plus padding — leaving 268px of actual conversation. That is
+ * the largest single consumer on the page, bigger than the config strip.
+ *
+ * What this actually buys is modest: +34px (268 -> 302). A header rule was
+ * dropped from this block because it lost a specificity fight and changed
+ * nothing — shipping dead CSS is worse than shipping less.
+ *
+ * The real lever is elsewhere and worth recording: the config strip is a CHILD
+ * of .ud-agent-column, so its 161px comes straight out of the transcript.
+ * Consolidating it to one bar is worth ~100px here, three times this change.
+ *
+ * The token counters are telemetry, not something read mid-sentence, and they
+ * remain in the Activity and Token Chain panels.
+ *
+ * Focus Mode only: the floating and bottom-dock agents are unchanged.
+ */
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-bottom-extra {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-start-over-btn {
+  padding: 3px 10px;
+}
+
+/* Token counters: available elsewhere, not worth 20px of the reply. */
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-token-footer {
+  display: none;
+}
+
 /* The transcript takes every pixel the column has left and scrolls itself. */
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .banking-agent-messages,
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .banking-agent-messages {
