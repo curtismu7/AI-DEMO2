@@ -58,7 +58,7 @@ const RenderFieldSchema = z.object({
 });
 
 const RenderDescriptorSchema = z.object({
-  type: z.enum(['card', 'fieldList', 'table', 'text', 'token', 'token-pair', 'productGrid']),
+  type: z.enum(['card', 'fieldList', 'table', 'text', 'token', 'token-pair', 'productGrid', 'seatMap']),
   title: z.string().optional(),
   fields: z.array(RenderFieldSchema).optional(),
   columns: z.array(z.object({
