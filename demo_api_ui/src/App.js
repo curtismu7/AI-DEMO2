@@ -610,6 +610,11 @@ function AppWithAuth() {
                   path="/configure"
                   element={<ConfigurePage user={user} logout={logout} />}
                 />
+                {/* Stakeholder preview page — accessible without login, same as /configure */}
+                <Route
+                  path="/agent-studio-preview"
+                  element={<AgentStudioPreviewPage />}
+                />
                 <Route
                   path="/demo-data"
                   element={
@@ -1491,10 +1496,6 @@ function AppWithAuth() {
                             <Route
                               path="/invest-dual-auth"
                               element={<InvestDualAuthDiagramPage />}
-                            />
-                            <Route
-                              path="/agent-studio-preview"
-                              element={<AgentStudioPreviewPage />}
                             />
                             <Route
                               path="/discovery-preview"
