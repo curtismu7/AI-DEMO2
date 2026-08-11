@@ -49,6 +49,7 @@ import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
+import { recordToolsListBackendOutage, clearToolsListBackendOutage } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 import { buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from './enterpriseMcpAuth';
 
@@ -464,6 +465,15 @@ async function handleMessage(
         failedBackends.push(backendLabels[i]);
         console.warn(`[GW] tools/list failed for backend=${backendLabels[i]}:`, r.reason instanceof Error ? r.reason.message : r.reason);
       }
+    }
+    // A TOTAL backend failure is not a partial outage: every live catalog entry
+    // is gone and what ships is the gateway-owned static list alone, which looks
+    // like a healthy tools/list to the UI. Record it for /health and say so once
+    // per window — the per-backend warns above scroll past unnoticed at this rate.
+    if (failedBackends.length === results.length) {
+      recordToolsListBackendOutage([...failedBackends]);
+    } else {
+      clearToolsListBackendOutage();
     }
 
     // Phase 266: append Gateway-owned tools (dispatched BY NAME in tools/call).
@@ -970,7 +980,9 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
   // PingOne to the olb audience when exchanging for invest; the invest backend
   // then rejects it and the existing failedBackends/_meta partial-results path
   // (Promise.allSettled below) reports it — acceptable by design.
-  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target);
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target, {
+    allowDiscoveryScopeFallback: true,
+  });
   return proxyJsonRpc(wsUrl, backendToken, {
     jsonrpc: '2.0',
     id: `gw-list-${target}`,
@@ -985,7 +997,9 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
 // side of this same HTTP backend.
 async function proxyToolsListJwtVerifier(inboundToken: string): Promise<JsonRpcResponse> {
   const httpUrl = backendHttpMcpUrl('jwtverifier', config);
-  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier');
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier', {
+    allowDiscoveryScopeFallback: true,
+  });
   return proxyJsonRpcHttp(httpUrl, backendToken, {
     jsonrpc: '2.0',
     id: 'gw-list-jwtverifier',

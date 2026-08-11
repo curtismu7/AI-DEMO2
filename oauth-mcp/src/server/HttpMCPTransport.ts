@@ -90,6 +90,14 @@ export interface HttpMCPTransportConfig {
 interface AuthenticatedBearer {
   token: string;
   tokenInfo: AgentTokenInfo;
+  /**
+   * True only when open-access mode admitted a request that carried no usable
+   * bearer — the Privilege gateway hop, which authorizes upstream. It means
+   * "someone else already decided", NOT "a token with an empty scope set".
+   * A validated bearer never sets it, so enforcement stays on for every other
+   * caller while the mode is enabled.
+   */
+  openAccess?: boolean;
 }
 
 /** In-memory HTTP session (maps MCP-Session-Id → banking session). */
@@ -452,11 +460,16 @@ export class HttpMCPTransport {
     // Only this one notification is exempt; all others still authenticate.
     let bearerToken: string | undefined;
     let tokenInfo: Awaited<ReturnType<typeof this.authManager.validateAgentToken>> | undefined;
+    // Set only for a request the open-access hop admitted without a usable
+    // bearer. Every downstream bypass keys off THIS, not off the env var, so
+    // turning the mode on for one gateway cannot disarm the other's enforcement.
+    let openAccess = false;
     if (!isDiscovery) {
       const authed = await this.authenticateBearer(req, res);
       if (!authed) return;
       bearerToken = authed.token;
       tokenInfo = authed.tokenInfo;
+      openAccess = authed.openAccess === true;
     } else {
       // Opportunistic: use the token if supplied, but don't reject without one.
       const optionalBearer = this.extractBearer(req);
@@ -478,9 +491,12 @@ export class HttpMCPTransport {
     }
 
     // 3a–3b: Security checks (TraT, upstream contract, delegation chain) only
-    // apply to authenticated requests — discovery is unauthenticated.
-    // Also skipped when MCP_AUTH_DISABLED=true (Privilege MCP open-access mode).
-    if (!isDiscovery && !this.authDisabled) {
+    // apply to authenticated requests — discovery is unauthenticated, and so is
+    // an open-access hop admitted without a usable bearer (there is no token to
+    // check them against). Keyed off this request's admission, not off the env
+    // var: a caller that presented a validated bearer still runs every check
+    // below even while open-access mode is on.
+    if (!isDiscovery && !openAccess) {
 
     // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract the
     // TraT context and BIND it to the request. A transaction token names the tool
@@ -618,6 +634,7 @@ export class HttpMCPTransport {
       mcpSessionId,
       bankingSession,
       bearerToken ?? (httpSession.agentToken || undefined),
+      openAccess,
     );
 
     // 7. Route message — wrapped in ALS correlation scope so all downstream
@@ -777,7 +794,8 @@ export class HttpMCPTransport {
   private makeContext(
     connectionId: string,
     bankingSession: any,
-    agentToken?: string
+    agentToken?: string,
+    openAccess?: boolean
   ): MessageHandlerContext {
     // connectionId for HTTP sessions equals the MCP-Session-Id, so we can route
     // server-initiated notifications to the client's open SSE stream (if any).
@@ -790,6 +808,7 @@ export class HttpMCPTransport {
       agentToken,
       session: bankingSession,
       sendNotification,
+      openAccess,
     };
   }
 
@@ -824,8 +843,16 @@ export class HttpMCPTransport {
           // placeholder rather than 401 — that is what the flag asks for.
         }
       }
+      // No usable bearer: this is the upstream-authorized hop the flag exists
+      // for. Flag it as such rather than letting it look like a token that
+      // simply has no scopes — the scope gate keys off openAccess, so the
+      // bypass reaches ONLY requests admitted here, never a validated token.
+      console.warn(
+        `[HttpMCPTransport] Open-access hop admitted a request with ${presented ? 'an unvalidatable' : 'no'} bearer — the upstream gateway owns authorization for it`
+      );
       return {
         token: 'disabled',
+        openAccess: true,
         tokenInfo: {
           tokenHash: 'disabled',
           clientId: 'anonymous',
