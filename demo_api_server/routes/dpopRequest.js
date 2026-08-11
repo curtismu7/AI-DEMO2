@@ -13,6 +13,7 @@ const router = express.Router();
  * Client sends a DPoP proof header to bind the token to a specific key pair.
  *
  * @flow dpop
+ * @name DPoP
  * @actor client-app
  * @to gateway
  * @step 1

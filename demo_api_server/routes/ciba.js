@@ -90,6 +90,7 @@ router.get('/status', (req, res) => {
  * }
  *
  * @flow ciba-hitl
+ * @name CIBA / HITL
  * @actor client-app
  * @to human-approver
  * @step 1

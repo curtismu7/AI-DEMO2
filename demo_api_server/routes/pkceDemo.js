@@ -28,6 +28,7 @@ function deriveCode(codeChallenge) {
  * Client sends its PKCE code_challenge to obtain an authorization code.
  *
  * @flow pkce
+ * @name PKCE
  * @actor client-app
  * @to auth-server
  * @step 1

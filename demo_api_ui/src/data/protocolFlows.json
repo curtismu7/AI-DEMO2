@@ -1,7 +1,7 @@
 {
   "ciba-hitl": {
     "id": "ciba-hitl",
-    "name": "Ciba Hitl",
+    "name": "CIBA / HITL",
     "description": "Protocol flow: ciba-hitl",
     "actors": [
       "client-app",
@@ -39,7 +39,7 @@
   },
   "dpop": {
     "id": "dpop",
-    "name": "Dpop",
+    "name": "DPoP",
     "description": "Protocol flow: dpop",
     "actors": [
       "client-app",
@@ -77,7 +77,7 @@
   },
   "rar": {
     "id": "rar",
-    "name": "Rar",
+    "name": "RAR",
     "description": "Protocol flow: rar",
     "actors": [
       "client-app",
@@ -106,7 +106,7 @@
   },
   "rfc8693-token-exchange": {
     "id": "rfc8693-token-exchange",
-    "name": "Rfc8693 Token Exchange",
+    "name": "RFC 8693 Token Exchange",
     "description": "Protocol flow: rfc8693-token-exchange",
     "actors": [
       "client-app",
@@ -144,7 +144,7 @@
   },
   "par": {
     "id": "par",
-    "name": "Par",
+    "name": "PAR",
     "description": "Protocol flow: par",
     "actors": [
       "client-app",
@@ -182,7 +182,7 @@
   },
   "pkce": {
     "id": "pkce",
-    "name": "Pkce",
+    "name": "PKCE",
     "description": "Protocol flow: pkce",
     "actors": [
       "client-app",
@@ -264,7 +264,7 @@
   },
   "spiffe": {
     "id": "spiffe",
-    "name": "Spiffe",
+    "name": "SPIFFE",
     "description": "Protocol flow: spiffe",
     "actors": [
       "workload-a",
@@ -308,7 +308,7 @@
   },
   "txn-tokens": {
     "id": "txn-tokens",
-    "name": "Txn Tokens",
+    "name": "TXN Tokens",
     "description": "Protocol flow: txn-tokens",
     "actors": [
       "edge-service",
@@ -357,7 +357,7 @@
   },
   "xaa": {
     "id": "xaa",
-    "name": "Xaa",
+    "name": "XAA / ID-JAG",
     "description": "Protocol flow: xaa",
     "actors": [
       "client-app",
