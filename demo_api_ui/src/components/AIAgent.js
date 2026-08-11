@@ -62,6 +62,7 @@ import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/e
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
+import ProductCardGrid from "./ProductCardGrid";
 import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
@@ -2912,6 +2913,15 @@ export default function BankingAgent({
       return {};
     }
     return { verticalResult: { descriptor, data: vr.data, terminology } };
+  }
+
+  // branch_hours (UC24 public catalog, cross-vertical) rides `.branches` +
+  // `.publicCatalog` on the raw response (demoAgentLangGraphService.js:298-311),
+  // outside the normal verticalResult/manifest-render pipeline — this is the
+  // parallel path for that one shape.
+  function locationCardsExtra(response) {
+    if (!response?.publicCatalog || !Array.isArray(response.branches)) return {};
+    return { locationCards: response.branches };
   }
 
   function markToolProgressOutcome(success, errorDetail = null) {
@@ -6400,6 +6410,32 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "branch_hours") {
+        // Heuristic parses "branches near me" / "clinics near me" / etc. to
+        // action branch_hours (cross-vertical UC24 public catalog — see
+        // nlIntentParser.js), but runAction had no case for it, so every
+        // version of this prompt threw "Unknown action: branch_hours" in
+        // every vertical. Same fix shape as the weather action below.
+        const cityQuery = p.city || "";
+        const branchPrompt = nlUserText || (cityQuery ? `branches near ${cityQuery}` : "branches near me");
+        try {
+          const response = await sendAgentMessage(branchPrompt, null, {
+            forceHeuristic: true,
+            vertical: effectiveVerticalId || "banking",
+            ...(useCaseId ? { useCaseId } : {}),
+          });
+          if (maybeHandleCustomerLogin(response, _source)) return;
+          await handleNlResumeResponse(response, branchPrompt, useCaseId);
+        } catch (e) {
+          addMessage(
+            "assistant",
+            e?.message || "Could not look up locations.",
+            null,
+            { source: _source },
+          );
+        }
+        return;
+      }
       if (action === "weather") {
         // Heuristic parses "weather in <city>" → action weather, but runAction
         // has no weather case (Unknown action: weather). Execute via /agent/invoke
@@ -6899,7 +6935,7 @@ export default function BankingAgent({
   async function addReplyRespectingGrounding(response, replyWithAgentBadge, promptText) {
     const grounded = response?.groundedAnswer;
     if (!grounded) {
-      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      addMessage("assistant", replyWithAgentBadge, null, { ...verticalResultExtra(response), ...locationCardsExtra(response) });
       return;
     }
 
@@ -10836,6 +10872,9 @@ export default function BankingAgent({
                                 data={msg.verticalResult.data}
                                 onAction={(tool, params) => runAction(tool, params, { skipUserLabel: true, vertical: effectiveVerticalId })}
                               />
+                            )}
+                            {msg.locationCards && (
+                              <ProductCardGrid kind="locations" items={msg.locationCards} />
                             )}
                             {msg.rawMcpResult != null && (
                               <JsonField
