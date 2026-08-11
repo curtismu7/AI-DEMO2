@@ -102,6 +102,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-11 — ProofStrip read "Run failed before authorize-decision" on a gateway-authoritative run that actually got a PERMIT
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`
+
+**What was broken:** on a gateway-authoritative run (`useGateway: true`), the
+BFF intentionally skips its own Authorize gate (`mcpAuthorizeEvaluationThisRequest`
+stays a skip-shaped object with no `.decision`), and the real PingOne Authorize
+decision only ever arrives client-side as a `gw-authorize` token event, not
+`trace.authorize`. `computeVerdict`'s `authorize-decision` step check and
+`decisionOf()` only looked at `trace.authorize`, so a call that the gateway
+actually PERMITted — and that ran the tool successfully — still scored as
+`incomplete`, showing "Run failed before authorize-decision" (e.g. UC1
+"Delegated access with proof" / `view_coverage` in healthcare).
+`buildTraceSteps.js` (the Token Chain rail) already had a `gw-authorize`
+fallback for this exact case (`findEvent(tokenEvents, "gw-authorize")`,
+around line 594) — `computeVerdict` was the one place missing it, so the rail
+could show the P1AZ card lit while the ProofStrip summary still read
+"Incomplete".
+
+**What was fixed:** added a `gwAuthorizeEvent(trace)` helper mirroring
+`buildTraceSteps.js`'s lookup, and used it as a fallback in both the
+`authorize-decision` step match and `decisionOf()`, so a `gw-authorize` token
+event with a decision satisfies the step and feeds the PERMIT/non-PERMIT
+comparison when `trace.authorize` is null.
+
+**Do not break:** don't remove the `gwAuthorizeEvent` fallback or make it
+`trace.authorize`-only again — gateway-authoritative PERMITs have no other
+signal on the client. Keep it in sync with `buildTraceSteps.js`'s
+`gw-authorize` lookup if that shape ever changes.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` — 330/330 files, 2935
+passed, 24 skipped; `npm run build` — exits 0.
+
 ### 2026-08-10 — Yellow "sign-in session has expired" banner fired on a fresh, never-authenticated page load
 
 **Files changed:** `demo_api_ui/src/utils/dashboardToast.js`
