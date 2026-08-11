@@ -107,6 +107,26 @@ describe('agentRun — UC24 public catalog short-circuit', () => {
     expect(agentCalls).toHaveLength(0);
   });
 
+  test('emits the Act 1 token events so the chain shows what was skipped', async () => {
+    // The teaching point of UC24 is that this turn deliberately skips PingOne
+    // Authorize AND the RFC 8693 exchange. The first cut of the short-circuit
+    // emitted no token events at all, so the chain rendered empty and the step
+    // looked untraced rather than intentionally cheap.
+    const res = await post(runBody('branches near me'));
+    const snap = frames(res.text).find((e) => e.type === 'STATE_SNAPSHOT');
+    expect(snap).toBeDefined();
+    const evts = snap.snapshot.tokenEvents || [];
+    const byId = Object.fromEntries(evts.map((e) => [e.id, e]));
+    expect(Object.keys(byId)).toEqual(
+      expect.arrayContaining(['token-exchange', 'authorize-decision', 'tool-dispatched']),
+    );
+    // The two that must read as deliberately skipped, not as failures.
+    expect(byId['token-exchange'].status).toBe('skipped');
+    expect(byId['authorize-decision'].status).toBe('skipped');
+    // The catalog read itself did happen.
+    expect(byId['tool-dispatched'].status).toBe('success');
+  });
+
   test('the reply text comes from the catalog, and never asks for an account', async () => {
     const res = await post(runBody('branches near me'));
     const content = frames(res.text).find((e) => e.type === 'TEXT_MESSAGE_CONTENT');

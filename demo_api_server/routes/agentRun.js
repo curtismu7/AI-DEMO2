@@ -288,6 +288,23 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
     const emit = (evt) => res.write('data: ' + JSON.stringify(evt) + '\n\n');
+    // The token chain must still show WHY this turn was cheap: Act 1 skips both
+    // PingOne Authorize and the RFC 8693 exchange, and that "skipped" pair is the
+    // teaching point of UC24. The sibling route builds the same events; without
+    // them here the chain rendered empty and the step looked untraced.
+    // Same STATE_SNAPSHOT shape the LLM path injects for initialTokenEvents below.
+    const { buildPublicCatalogTokenEvents } = require('../services/publicCatalogTokenEvents');
+    emit({
+      type: 'STATE_SNAPSHOT',
+      snapshot: {
+        tokenEvents: buildPublicCatalogTokenEvents('get_branch_hours'),
+        mcpTraffic: [],
+        authorizeDecisions: [],
+        archTrace: [],
+        auditEvents: [],
+        activeRun: null,
+      },
+    });
     // Same START/CONTENT/END burst a non-streaming provider produces, so the
     // existing useAgentState reducer builds the bubble with no new event type.
     emit({ type: 'RUN_STARTED', threadId, runId });

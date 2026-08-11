@@ -86,13 +86,13 @@ const BRANCHES = Object.freeze([
 
 const HEALTHCARE = Object.freeze([
   { id: 'clinic-austin', name: 'Wellspring Health Austin Clinic', city: 'Austin', state: 'TX', address: '1201 W 38th St, Austin, TX 78705', hours: 'Mon–Fri 8:00–18:00, Sat 9:00–13:00', atm: false, image: 'https://images.unsplash.com/photo-1769698678497-c41f0ab47c3e?w=400&h=300&fit=crop' },
-  { id: 'clinic-dallas', name: 'Wellspring Health Dallas Medical Center', city: 'Dallas', state: 'TX', address: '3500 Gaston Ave, Dallas, TX 75246', hours: 'Mon–Fri 7:00–19:00', atm: false, image: 'https://images.unsplash.com/photo-1596541223130-5d31a73fb6c6?w=400&h=300&fit=crop' },
+  { id: 'clinic-dallas', name: 'Wellspring Health Dallas Medical Center', city: 'Dallas', state: 'TX', address: '3500 Gaston Ave, Dallas, TX 75246', hours: 'Mon–Fri 7:00–19:00', atm: false, image: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=400&h=300&fit=crop' },
   { id: 'clinic-houston', name: 'Wellspring Health Houston Clinic', city: 'Houston', state: 'TX', address: '6560 Fannin St, Houston, TX 77030', hours: 'Mon–Fri 8:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1766454919271-aedfdfcb1861?w=400&h=300&fit=crop' },
   { id: 'clinic-denver', name: 'Wellspring Health Denver Clinic', city: 'Denver', state: 'CO', address: '1400 Jackson St, Denver, CO 80206', hours: 'Mon–Fri 8:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1764727291644-5dcb0b1a0375?w=400&h=300&fit=crop' },
 ]);
 
 const RETAIL = Object.freeze([
-  { id: 'store-austin', name: 'Super Retail Austin Store', city: 'Austin', state: 'TX', address: '2901 S Capital of Texas Hwy, Austin, TX 78746', hours: 'Daily 10:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1605513524006-063ed6ed31e7?w=400&h=300&fit=crop' },
+  { id: 'store-austin', name: 'Super Retail Austin Store', city: 'Austin', state: 'TX', address: '2901 S Capital of Texas Hwy, Austin, TX 78746', hours: 'Daily 10:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1516274626895-055a99214f08?w=400&h=300&fit=crop' },
   { id: 'store-dallas', name: 'Super Retail Dallas Store', city: 'Dallas', state: 'TX', address: '13350 Dallas Pkwy, Dallas, TX 75240', hours: 'Daily 10:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1705951504397-9fe0c883b57e?w=400&h=300&fit=crop' },
   { id: 'store-miami', name: 'Super Retail Miami Store', city: 'Miami', state: 'FL', address: '701 S Miami Ave, Miami, FL 33130', hours: 'Daily 10:00–22:00', atm: true, image: 'https://images.unsplash.com/photo-1654490960639-4170f6583da7?w=400&h=300&fit=crop' },
   { id: 'store-denver', name: 'Super Retail Denver Store', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1576354998198-99dc1d2c3d36?w=400&h=300&fit=crop' },
@@ -121,7 +121,7 @@ const UNIVERSITY = Object.freeze([
 
 const WORKFORCE = Object.freeze([
   { id: 'wf-austin', name: 'Northwind People Operations Office — Austin', city: 'Austin', state: 'TX', address: '500 W 2nd St, Austin, TX 78701', hours: 'Mon–Fri 8:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1718220268527-4477fd170775?w=400&h=300&fit=crop' },
-  { id: 'wf-dallas', name: 'Northwind People Operations Office — Dallas', city: 'Dallas', state: 'TX', address: '2200 Ross Ave, Dallas, TX 75201', hours: 'Mon–Fri 8:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1686100510540-4c29a46de6e9?w=400&h=300&fit=crop' },
+  { id: 'wf-dallas', name: 'Northwind People Operations Office — Dallas', city: 'Dallas', state: 'TX', address: '2200 Ross Ave, Dallas, TX 75201', hours: 'Mon–Fri 8:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1556761175-4b46a572b786?w=400&h=300&fit=crop' },
   { id: 'wf-miami', name: 'Northwind People Operations Office — Miami', city: 'Miami', state: 'FL', address: '78 SW 7th St, Miami, FL 33130', hours: 'Mon–Fri 9:00–18:00', atm: false, image: 'https://images.unsplash.com/photo-1565262353342-6e919eab5b58?w=400&h=300&fit=crop' },
   { id: 'wf-denver', name: 'Northwind People Operations Office — Denver', city: 'Denver', state: 'CO', address: '1144 15th St, Denver, CO 80202', hours: 'Mon–Fri 8:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1758448656987-cfae6bf225e4?w=400&h=300&fit=crop' },
 ]);
