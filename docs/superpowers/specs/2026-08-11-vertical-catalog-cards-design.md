@@ -78,12 +78,35 @@ following the existing `verticalResult` convention
    `` `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}` ``,
    `target="_blank" rel="noopener"` — no backend change for the URL.
 
-**`seatMap`**: fixed shape, not field-driven — cabin bands
-(business/premium/economy), 3-3 seat grid per row, seat states
-(available/selected/occupied), legend, and a summary bar with the
-`select_seat` action. One React component (`SeatMapPanel.jsx`), no generic
-descriptor fields, because a seat chart isn't a list of items — it's a fixed
-layout that colors itself from the tool's row/seat data.
+**`seatMap`**: fixed shape, not field-driven — cabin bands, 3-3 seat grid per
+row, seat states (available/selected/occupied), legend, and a summary bar.
+One React component (`SeatMapPanel.jsx`), no generic descriptor fields,
+because a seat chart isn't a list of items — it's a fixed layout that colors
+itself from the tool's row/seat data.
+
+**Corrected scope, found during implementation planning:** airlines is not a
+local-store vertical like sporting-goods — its data is real, in
+`demo_mcp_resource_server`'s SQLite `seats` table (`airlinesDb.ts:125-130`,
+`listSeats()` at `airlinesDb.ts:312`), reached through the full BFF → gateway
+(RFC 8693 exchange) → resource server chain (`airlines/index.js:1-14`
+explains this explicitly). The chip ("Available seats" →
+`check_seat_availability`, `airlines/manifest.json:117-124`) and the tool
+already exist and already return real per-flight seat data — **this pillar
+needs no new tool, no new store, no new chip.** The only gap is how the
+result renders (today: whatever the generic MCP-result fallback does — to be
+confirmed as the first step of that task). Cabin/class (business vs.
+premium vs. economy) isn't in the current `Seat` shape (`cabin`, `available`
+only per `airlinesDb.ts:47-48`) — `SeatMapPanel` bands seats by whatever
+`cabin` values the data actually returns, not the mockup's invented
+business/premium/economy split, confirmed against real data in the task
+below.
+
+There is no reservation/write function in `airlinesDb.ts` today — adding one
+means extending a separate TypeScript service's SQLite schema and MCP tool
+surface, confirmed out of proportion for this pass. **Decision: "Select
+Seat" is client-side-only for now** — clicking a seat updates the chart/
+summary bar in the browser; nothing is persisted. A real
+`reserve_seat`/write path is a follow-up, not part of this plan.
 
 ## Frontend
 
@@ -95,65 +118,58 @@ rather than the mockup's standalone palette):
 - **`ProductCardGrid.jsx`** — takes `descriptor` + `data` (array), renders
   the square-card grid, calls the vertical's tool (or renders the link) on
   the card button. Shared by sporting-goods and banking.
-- **`SeatMapPanel.jsx`** — takes the seat-map result shape, renders the
-  chart + summary bar, calls `select_seat` on the summary button.
+- **`SeatMapPanel.jsx`** — takes the real `check_seat_availability` result
+  shape, renders the chart + summary bar. Selecting a seat is local
+  component state only (no tool call — see below).
 
 `VerticalResult.jsx` grows two branches (`productGrid`, `seatMap`) alongside
 its existing `card`/`fieldList`/`table`/`token` branches.
 
-## Backend — one new tool + one mutating tool per vertical (products/seats only)
+## Backend — sporting-goods only
 
-Following the existing `execute()` switch + per-user store pattern
-(`sporting-goods/data.js` today has orders/rentals/loyalty; this adds a
-sibling collection, not a rename of those). Locations/branches need no new
-backend tool — see above, it's a dispatch fix + render wiring on data that
-already exists.
+Airlines needs zero backend work (chip, tool, real data all already exist —
+see above). Locations needs zero new backend work (data already exists; the
+fix is frontend dispatch + rendering — see above). Only sporting-goods gets
+new backend surface, following the existing `execute()` switch + per-user
+store pattern (`sporting-goods/data.js` today has orders/rentals/loyalty;
+this adds a sibling collection, not a rename of those):
 
-| Vertical | Store addition | Read tool | Write tool | Write effect |
-|---|---|---|---|---|
-| sporting-goods | `products` (seed), `cart` (per-user) | `browse_gear(category?)` | `add_to_cart(productId)` | pushes into `cart[]` |
-| airlines | `seats` (seed, per-flight) | `browse_seats(flightId?)` | `select_seat(seatId)` | flips that seat to `status:'selected'`, clears any other `selected` seat for the user |
+| Store addition | Read tool | Write tool | Write effect |
+|---|---|---|---|
+| `products` (seed), `cart` (per-user) | `browse_gear(category?)` | `add_to_cart(productId)` | pushes into `cart[]` |
 
-Airlines currently has no `data.js`/store — this pass adds a minimal one
-(`createAirlinesStore`), same shape as sporting-goods', scoped to only what
-seat selection needs. It does not touch airlines' existing manifest/index
-wiring beyond registering the new tools.
-
-Chip entries: one new fallback-chip for sporting-goods
-(`fallback-chips/sporting-goods.js` already exists, add one entry) and one
-for airlines (new `fallback-chips/airlines.js`, registered in `loader.js`).
-Locations needs no chip — it's reached by typing (e.g. "branches near me",
-"clinics near me"), matching the existing NL-only UC24 design.
+Chip entry: one new entry in sporting-goods' `chips10`
+(`sporting-goods/manifest.json:71`, same array `sg1`/`sg2`/etc. live in) —
+e.g. `{ "id": "sg-gear", "label": "Shop hiking gear", "message": "I need
+gear for a hiking trip", "tool": "browse_gear", ... }`. No new chip
+infrastructure; `fallback-chips/*.js` is a different system (no-match
+suggestion chips) and isn't touched.
 
 ## Mock data
 
-Small, hand-written seed lists (6 items each), matching the mockup's exact
-sample content:
-- sporting-goods: the 6 products from the mockup (boots, backpack, poles,
-  bottle, tent, base layer) with price/rating/stock.
-- airlines: one flight, 8 rows × 6 seats (2 business + 1 premium row + 5
-  economy rows), matching the mockup's seed pattern (a couple pre-occupied).
-- locations: none needed — `publicBranchCatalog.js` already has real seed
-  data for all 11 verticals.
+Sporting-goods only — the 6 products from the mockup (boots, backpack,
+poles, bottle, tent, base layer) with price/rating/stock, hand-written into
+`seed.json`. Airlines and locations use real existing data, no mock seed
+needed.
 
 ## Testing
 
-- Vitest: one render test per new component (`ProductCardGrid` in both
-  `kind="products"` and `kind="locations"` modes, `SeatMapPanel`) asserting
-  card/seat content renders and the action button fires the right tool call
-  or link; one test covering the `branch_hours` `runAction` wiring (mirrors
-  the existing `weather`-action test, if one exists — check
+- Vitest: render tests for `ProductCardGrid` (`kind="products"` and
+  `kind="locations"` modes) and `SeatMapPanel`, asserting card/seat content
+  renders and the action button fires the right tool call, link, or local
+  selection; one test covering the `branch_hours` `runAction` wiring (mirror
+  the existing `weather`-action test if one exists — check
   `AIAgent.*.test.js` for a `weather` case to follow) so "Unknown action:
   branch_hours" can't regress silently.
-- Jest (`demo_api_server`): one test per new/changed tool (`browse_gear`,
-  `add_to_cart`, `browse_seats`, `select_seat`) covering the happy path and
-  the "not found" error path, following the existing cancel_order-style test
-  pattern for that vertical.
-- Manual: exercise the sporting-goods and airlines chips, and type "branches
-  near me" while on banking/healthcare/sporting-goods to confirm the fix
-  covers more than one vertical; confirm cards render at the sizes/icons
-  from the approved mockup and the seat chart's summary bar updates on
-  click.
+- Jest (`demo_api_server`): one test per new sporting-goods tool
+  (`browse_gear`, `add_to_cart`) covering the happy path and the "not found"
+  error path, following the existing cancel_order-style test pattern for
+  that vertical.
+- Manual: exercise the new sporting-goods chip and the existing "Available
+  seats" airlines chip; type "branches near me" while on banking/healthcare/
+  sporting-goods to confirm the locations fix covers more than one vertical;
+  confirm cards/seat chart render at the sizes/icons from the approved
+  mockup.
 
 ## Out of scope (this pass)
 
