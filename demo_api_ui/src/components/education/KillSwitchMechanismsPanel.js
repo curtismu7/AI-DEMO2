@@ -47,6 +47,17 @@ export default function KillSwitchMechanismsPanel({ isOpen, onClose, initialTabI
             itself. A crashed process that never reaches <code>endRun</code> can&apos;t leak an entry forever: every
             row carries a 30-minute TTL, swept every 5 minutes, the same pattern the revoked flag itself uses.
           </p>
+          <p>
+            <strong>Known limitation (audit coverage gap):</strong> The registry is wired at three call sites in
+            <code>bffMcpToolExecutor.js</code> (the agent/A2A execution path) via <code>startRun</code>/<code>endRun</code>.
+            The two most direct tool-call routes — <code>POST /api/mcp/tool</code> and <code>POST /api/rpc</code> in
+            <code>server.js</code> — call <code>runMcpToolPipeline</code> directly and register nothing with
+            <code>agentRunRegistry</code>. This means the confirm modal&apos;s &quot;this will stop: X, started Ns
+            ago&quot; list can show &quot;nothing currently running&quot; for exactly the call a kill is about to
+            block, if that call came through one of those two routes. This is <em>informational</em> incompleteness
+            only — the kill check itself is relocated into <code>runMcpToolPipeline</code> and covers all callers, so
+            enforcement is not weakened; the pre-kill display is simply incomplete for those paths.
+          </p>
         </>
       ),
     },
@@ -109,6 +120,18 @@ export default function KillSwitchMechanismsPanel({ isOpen, onClose, initialTabI
             <code> agent:X#killer@user:alice</code>. Right now, any authenticated session can stop any agent it can
             see. A real deployment would want that gated, and SpiceDB is a defensible way to model it — a genuine
             future extension, not built here.
+          </p>
+          <p>
+            <strong>Known limitation (authorization gap):</strong> The kill-switch endpoint
+            <code>POST /api/admin/agent/:agentId/kill-switch</code> requires only <code>authenticateToken</code> and
+            performs no check that the caller and target user are the same identity, or that the caller has elevated
+            rights to target a different user. Because the endpoint accepts a real, non-placeholder user id (the
+            derived key) as <code>:agentId</code> and the write side honors it verbatim, any authenticated user can
+            revoke any other user&apos;s agent access — a cross-user denial of service. This is now consequential
+            because enforcement actually works (before this branch&apos;s fixes, the kill check was bypassed by certain
+            tool-call routes). This is exactly the scenario SpiceDB could address: modeling fine-grained
+            &quot;who may kill which agent&quot; rules instead of the current blanket &quot;any authenticated user may
+            kill any agent.&quot;
           </p>
         </>
       ),
