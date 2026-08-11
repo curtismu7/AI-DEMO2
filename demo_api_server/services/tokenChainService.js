@@ -344,7 +344,7 @@ async function getMCPToolCalls(userId, req = null) {
     if (!agentToken && req) {
       try {
         const agentTokenCache = require('./agentTokenCache');
-        const scopes = ['mcp:invoke'];
+        const scopes = ['mcp:invoke', 'admin:read'];
         let cc = agentTokenCache.get(req.session, undefined, scopes);
         if (!cc) {
           cc = await require('./agentCCTokenService').getAgentCCToken(req);
