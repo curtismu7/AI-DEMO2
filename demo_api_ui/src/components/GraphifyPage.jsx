@@ -1,7 +1,7 @@
 // demo_api_ui/src/components/GraphifyPage.jsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import HeroSection from './HeroSection';
+import { HeroSection } from './HeroSection';
 import { HERO_VARIANTS } from '../config/heroVariants';
 import { GRAPHIFY_DEMOS, GRAPHIFY_STATS } from './graphifyDemos';
 import './GraphifyPage.css';
