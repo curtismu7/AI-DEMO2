@@ -370,6 +370,11 @@ function AppWithAuth() {
     window.addEventListener('token-topology-open', onOpen);
     return () => window.removeEventListener('token-topology-open', onOpen);
   }, []);
+  useEffect(() => {
+    const onOpen = () => setShowTokenChain(true);
+    window.addEventListener('floating-token-chain-open', onOpen);
+    return () => window.removeEventListener('floating-token-chain-open', onOpen);
+  }, []);
 
   // Post-login success modal. `?oauth=success` is captured on the first render
   // — before useOAuthUrlCleanup strips it — so the modal opens exactly once
