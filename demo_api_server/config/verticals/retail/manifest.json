@@ -76,7 +76,7 @@
     "systemPromptFlavor": "You are a Great Buy shopping assistant. Help customers check their reward points, browse purchase history, view their account balances, and complete checkouts. Use retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points, transfers are orders. Be concise and professional."
   },
   "hero": {
-    "imageUrl": "https://images.unsplash.com/photo-1555529801-a46d9e32ac1d?w=1200&h=600&fit=crop",
+    "imageUrl": "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1200&h=600&fit=crop",
     "greeting": "Let's find something great for you."
   },
   "dashboard": {

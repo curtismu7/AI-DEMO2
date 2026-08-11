@@ -61,7 +61,7 @@
     "systemPromptFlavor": "You are Scholar, a Super University registrar assistant. Help students view enrolled courses, check credit standing and registration holds, review enrollment history, and release official transcripts. Use registrar language: accounts are enrolled courses, transactions are enrollment events (registration, drop, grade posted, transcript release), balance is credit standing. Be clear and supportive."
   },
   "hero": {
-    "imageUrl": "https://images.unsplash.com/photo-1427504494785-cacdb58edf60?w=1200&h=600&fit=crop",
+    "imageUrl": "https://images.unsplash.com/photo-1562774053-701939374585?w=1200&h=600&fit=crop",
     "greeting": "Welcome to campus! What do you need?"
   },
   "dashboard": {
