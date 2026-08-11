@@ -1067,11 +1067,7 @@ function AppWithAuth() {
                 <Route
                   path="*"
                   element={
-                    !user ? (
-                      loading ? null : (
-                        <TopNav user={null} onLogout={logout} />
-                      )
-                    ) : (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
@@ -1252,11 +1248,9 @@ function AppWithAuth() {
                             <Route
                               path="/themes"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AdminThemesPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1287,11 +1281,9 @@ function AppWithAuth() {
                             <Route
                               path="/demo-config"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DemoConfigPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1446,11 +1438,9 @@ function AppWithAuth() {
                             <Route
                               path="/agent-builder"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AgentBuilderPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1630,34 +1620,28 @@ function AppWithAuth() {
                             <Route
                               path="/delegation"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DelegationPage
                                     user={user}
                                     onLogout={logout}
                                   />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/agent-lifecycle"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AgentLifecyclePage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/delegated-commerce"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DelegatedCommercePage user={user} />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route

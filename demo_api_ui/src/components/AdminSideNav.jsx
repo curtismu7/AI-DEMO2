@@ -479,7 +479,7 @@ export default function AdminSideNav({
         { label: "Privilege MCP Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
       ],
     },
-    { label: "Themes", path: "/themes", icon: "cfg" },
+    { label: "Themes", path: "/themes", icon: "cfg", adminOnly: true },
     {
       // Customer-facing demo pages — visible to admins too ("there is no
       // reason to hide on admin dashboard", 2026-08-10): the presenter drives
@@ -492,6 +492,7 @@ export default function AdminSideNav({
           label: "Agent Lifecycle",
           path: "/agent-lifecycle",
           icon: "agt",
+          adminOnly: true,
         },
       ],
     },
@@ -503,6 +504,7 @@ export default function AdminSideNav({
           label: "Delegated Commerce",
           path: "/delegated-commerce",
           icon: "agt",
+          adminOnly: true,
         },
         { label: "Use Cases", path: "/use-cases", icon: "demo" },
         { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
@@ -513,8 +515,8 @@ export default function AdminSideNav({
           icon: "demo",
           action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
         },
-        { label: "Demo Config", path: "/demo-config", icon: "cfg" },
-        { label: "Family Delegation", path: "/delegation", icon: "usr" },
+        { label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true },
+        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
       ],
     },
     // Latest report — shown when agent run completes
@@ -544,6 +546,7 @@ export default function AdminSideNav({
           label: "PingOne Agent Builder",
           path: "/agent-builder",
           icon: "tool",
+          adminOnly: true,
         },
         {
           label: "Agent Flow Inspector",
@@ -1032,7 +1035,7 @@ export default function AdminSideNav({
   // Escape hatch: hiding the whole Demos group must never take the Demo Config
   // page's own link with it (the user could not undo the hide from the sidebar).
   if (hiddenNavLabels.includes("Demos")) {
-    filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg" });
+    filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true });
   }
 
   // Apply the user's saved child moves/reorder (Demo Config drag of the items
