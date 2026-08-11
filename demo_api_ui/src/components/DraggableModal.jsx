@@ -15,12 +15,15 @@ function getSingletonRegistry() {
 // Separate React root in the popup window so DOM events fire through their own
 // event-delegation tree. createPortal alone breaks because events in a foreign
 // window never reach the parent window's React root.
-function PopOutPortal({ win, children }) {
+// Exported so other hand-rolled floating panels (e.g. FloatingTokenChainPanel)
+// can pop out into a real browser window with the same live-portal mechanism,
+// without duplicating this window/root bookkeeping.
+export function PopOutPortal({ win, children, rootId = "dm-root" }) {
   const rootRef = React.useRef(null);
   const containerRef = React.useRef(null);
 
   React.useEffect(() => {
-    const container = win.document.getElementById("dm-root");
+    const container = win.document.getElementById(rootId);
     if (!container) return;
     containerRef.current = container;
     const root = createRoot(container);
@@ -33,7 +36,7 @@ function PopOutPortal({ win, children }) {
       setTimeout(() => { try { root.unmount(); } catch (_) {} }, 0);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [win]);
+  }, [win, rootId]);
 
   React.useEffect(() => {
     if (rootRef.current) rootRef.current.render(children);
