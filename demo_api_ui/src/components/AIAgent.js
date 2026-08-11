@@ -3083,6 +3083,14 @@ export default function BankingAgent({
             onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
           });
           break;
+        case "add_to_cart":
+          toast.update(toastId, { render: "Adding to cart…" });
+          response = await callMcpTool("add_to_cart", form, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
+          break;
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)
