@@ -724,6 +724,7 @@ function AppWithAuth() {
                     <GraphifyPageRoute user={user} logout={logout} />
                   }
                 />
+                {/* OAuth Academy educational tool — accessible without login */}
                 <Route
                   path="/oauth-academy"
                   element={
