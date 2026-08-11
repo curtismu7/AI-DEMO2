@@ -37,11 +37,11 @@ narrative end to end.
    `client.token.get()` JSON continues to display exactly as it does today.
 2. A new card appears below it: **"Decoded ID token claims — step-up
    required"**, locked, with a "Reveal decoded claims" button.
-3. Click → the page requests an email OTP (`POST /api/mfa/enroll/email`)
+3. Click → the page requests an email OTP (`POST /api/auth/mfa/enroll/email`)
    using the user's own SDK-issued access token as a Bearer credential.
    PingOne emails a live OTP.
 4. An OTP input appears. User enters the code → `POST
-   /api/mfa/enroll/email/verify`.
+   /api/auth/mfa/enroll/email/verify`.
 5. On success, the card unlocks and renders the decoded ID-token JWT
    payload (via the existing `JsonHighlight` component, same as the raw
    token blob above it).
@@ -56,8 +56,8 @@ narrative end to end.
 Browser (SdkLoginPage.jsx)
   │  Authorization: Bearer <SDK access token>
   ▼
-POST /api/mfa/enroll/email        (existing route, demo_api_server/routes/mfa.js)
-POST /api/mfa/enroll/email/verify (existing route)
+POST /api/auth/mfa/enroll/email        (existing route, demo_api_server/routes/mfa.js)
+POST /api/auth/mfa/enroll/email/verify (existing route)
   │
   ▼
 mfaService.js → PingOne MFA API (worker token, existing pattern)
@@ -110,7 +110,7 @@ single-file page — no new files needed given its current size and style).
 ```
 [Reveal decoded claims] click
   → mfaBusy = true
-  → POST /api/mfa/enroll/email
+  → POST /api/auth/mfa/enroll/email
       headers: { Authorization: `Bearer ${accessToken}` }
       body: { email: userInfo.email }
   → on success: mfaDeviceId = data.deviceId; show OTP input
@@ -118,7 +118,7 @@ single-file page — no new files needed given its current size and style).
 
 [Verify] click (with otpValue filled)
   → mfaBusy = true
-  → POST /api/mfa/enroll/email/verify
+  → POST /api/auth/mfa/enroll/email/verify
       headers: { Authorization: `Bearer ${accessToken}` }
       body: { deviceId: mfaDeviceId, otp: otpValue }
   → on success: claimsUnlocked = true; render decodeJwtPayload(tokens.idToken)
@@ -154,8 +154,8 @@ result) that the page holds for the signed-in view.
 
 ## Parked ideas (future specs, not designed here)
 
-- Device management panel: list (`GET /api/mfa/devices`) + revoke
-  (`DELETE /api/mfa/devices/:deviceId`).
+- Device management panel: list (`GET /api/auth/mfa/devices`) + revoke
+  (`DELETE /api/auth/mfa/devices/:deviceId`).
 - PingOne Protect risk signal display alongside login.
 - FIDO2/passkey enrollment demo (`enroll/fido2-init` / `-complete` already
   exist server-side).
