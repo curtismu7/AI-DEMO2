@@ -109,6 +109,27 @@
   }
 }
 
+/* Short viewport: same problem as the phone case above, on the vertical axis.
+   The agent column's own chrome (header, composer, Start Over) is ~350px
+   before a single message renders, and the chain map beneath it wants its own
+   room too — no amount of squeezing the fr row fits both in a locked box under
+   ~700px tall, and the parts that lose (the composer, Start Over) go past
+   .ud-agent-column's overflow:hidden edge and become unreachable. Give up the
+   one-page model here too and let the page scroll, same as the width case. */
+@media (max-height: 700px) {
+  .App:has(.user-dashboard--split3) {
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: visible;
+  }
+
+  .App:has(.user-dashboard--split3) main.main-content {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+  }
+}
+
 /* Quick nav (signed-in /, /admin, /dashboard only) — extra stack + content inset */
 .App.App--has-quick-nav {
   --float-edge: 12px;
