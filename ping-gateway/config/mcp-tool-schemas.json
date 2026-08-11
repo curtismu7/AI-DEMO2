@@ -16,6 +16,21 @@
         "additionalProperties": false
       }
     },
+    "add_to_cart": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "productId"
+        ],
+        "additionalProperties": false
+      }
+    },
     "add_to_wishlist": {
       "source": "olb",
       "inputSchema": {
@@ -143,6 +158,15 @@
         "required": [
           "query"
         ],
+        "additionalProperties": false
+      }
+    },
+    "browse_gear": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
         "additionalProperties": false
       }
     },

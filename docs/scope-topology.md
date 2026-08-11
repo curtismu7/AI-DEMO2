@@ -571,3 +571,5 @@ Granted scopes: `read`, `identity:read`
 | `request_spec_exception` | gateway | `write` | — |
 | `request_price_adjustment` | gateway | `write` | — |
 | `list_anf_orders` | gateway | `read` | — |
+| `add_to_cart` | gateway | `write` | — |
+| `browse_gear` | gateway | `read` | — |

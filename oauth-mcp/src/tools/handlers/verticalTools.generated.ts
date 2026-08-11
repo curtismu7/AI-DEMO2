@@ -132,6 +132,8 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"remove_price_alert","scope":"write","vertical":"retail","inputSchema":{"type":"object","properties":{"alertId":{"type":"string"}},"required":["alertId"],"additionalProperties":false}},
   {"name":"view_price_alerts","scope":"read","vertical":"retail"},
   {"name":"view_subscriptions","scope":"read","vertical":"retail"},
+  {"name":"add_to_cart","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"productId":{"type":"string"}},"required":["productId"],"additionalProperties":false}},
+  {"name":"browse_gear","scope":"read","vertical":"sporting-goods"},
   {"name":"cancel_coaching_session","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"sessionId":{"type":"string"}},"required":["sessionId"],"additionalProperties":false}},
   {"name":"cancel_rental","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"rentalId":{"type":"string"}},"required":["rentalId"],"additionalProperties":false}},
   {"name":"cancel_subscription","scope":"write","vertical":"sporting-goods","inputSchema":{"type":"object","properties":{"subscriptionId":{"type":"string"}},"required":["subscriptionId"],"additionalProperties":false}},
