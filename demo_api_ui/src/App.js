@@ -429,6 +429,13 @@ function AppWithAuth() {
       window.removeEventListener("missing-credentials", onMissingCreds);
   }, []);
 
+  // Listen for graceful logout event (no full page refresh)
+  useEffect(() => {
+    const onLogout = () => navigate('/logout', { replace: true });
+    window.addEventListener('navigateToLogout', onLogout);
+    return () => window.removeEventListener('navigateToLogout', onLogout);
+  }, [navigate]);
+
   /** Nav rail / layout flags — computed declaratively so React className is always in sync. */
   const isOnDashboard = pathname === "/dashboard";
 

@@ -179,7 +179,7 @@ export function useAuth() {
   }, [user]);
 
   const logout = useCallback(() => {
-    console.info("Starting logout — navigating to /api/auth/logout");
+    console.info("Starting logout — calling /api/auth/logout");
 
     // Store current path before clearing storage so LogoutPage can redirect there
     try {
@@ -211,7 +211,14 @@ export function useAuth() {
     }
     window.dispatchEvent(new CustomEvent("userLoggedOut"));
     localStorage.removeItem("tokenChainHistory");
-    window.location.href = "/api/auth/logout";
+
+    // Call logout endpoint without full page refresh, then navigate via window event
+    axios.post("/api/auth/logout", {}, { withCredentials: true })
+      .catch(() => {}) // ignore errors, still proceed to logout page
+      .finally(() => {
+        // Dispatch event so App can navigate to /logout without full page reload
+        window.dispatchEvent(new CustomEvent("navigateToLogout"));
+      });
   }, []);
 
   return { user, loading, logout, sessionReauth, setSessionReauth };
