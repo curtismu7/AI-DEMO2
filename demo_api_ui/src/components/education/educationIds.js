@@ -92,4 +92,6 @@ export const EDU = {
   AGENT_TECH_COMPARISON: "agent-tech-comparison",
   /** Gartner Machine IAM Survey — top 5 findings and how this demo answers them */
   MACHINE_IAM_SURVEY: "machine-iam-survey",
+  /** Session-scoped agent kill switch — real enforcement point, audit trail, and what's a concept vs. shipped */
+  KILL_SWITCH: "kill-switch",
 };
