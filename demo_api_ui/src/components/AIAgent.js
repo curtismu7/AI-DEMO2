@@ -65,6 +65,7 @@ import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import ProductCardGrid from "./ProductCardGrid";
 import JsonField from "./shared/JsonField";
+import HeroSection from "./HeroSection";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
@@ -1042,6 +1043,8 @@ export default function BankingAgent({
   // back down, making it impossible to read earlier messages mid-reply.
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [heroShown, setHeroShown] = useState(false);
+  const [heroData, setHeroData] = useState(null);
   // Last message count the user actually saw. The scroll effect below also runs
   // on loading/nlLoading transitions, so counting effect firings over-reports
   // ("2 new" for a single new message); count the real delta instead.
@@ -2138,6 +2141,25 @@ export default function BankingAgent({
       window.removeEventListener("cibaStepUpCancelled", onStepUpCancelled);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setHeroShown(false);
+  }, [effectiveVerticalId]);
+
+  useEffect(() => {
+    if (heroShown || !pageManifest?.hero) return;
+    const { imageUrl, greeting } = pageManifest.hero;
+    setHeroData({ imageUrl, greeting });
+    setHeroShown(true);
+    if (user) {
+      fetch(`/api/conversations/${user.sub}/${effectiveVerticalId}/hero-shown`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ greeting, imageUrl }),
+      }).catch(() => {});
+    }
+  }, [effectiveVerticalId, heroShown, pageManifest, user]);
 
   // Auto-retry after login (auth challenge path)
   useEffect(() => {
@@ -10620,6 +10642,15 @@ export default function BankingAgent({
                 ref={messagesContainerRef}
                 onScroll={handleTranscriptScroll}
               >
+                {heroData && (
+                  <div className="ba-hero-wrapper">
+                    <HeroSection
+                      greeting={heroData.greeting}
+                      imageUrl={heroData.imageUrl}
+                      isLoading={loading}
+                    />
+                  </div>
+                )}
                 {messages.length === 0 && (
                   <div className="ba-welcome">
                     <p>
