@@ -1045,6 +1045,8 @@ export default function BankingAgent({
   const [unreadCount, setUnreadCount] = useState(0);
   const [heroShown, setHeroShown] = useState(false);
   const [heroData, setHeroData] = useState(null);
+  // Vertical whose hero greeting was already written to conversation history.
+  const heroLoggedRef = useRef(null);
   // Last message count the user actually saw. The scroll effect below also runs
   // on loading/nlLoading transitions, so counting effect firings over-reports
   // ("2 new" for a single new message); count the real delta instead.
@@ -2144,34 +2146,47 @@ export default function BankingAgent({
 
   useEffect(() => {
     setHeroShown(false);
+    setHeroData(null);
   }, [effectiveVerticalId]);
 
   useEffect(() => {
-    if (heroShown) return;
-    const vertical = effectiveVerticalId || 'banking';
+    if (heroShown) return undefined;
+    const vertical = effectiveVerticalId || "banking";
+    let cancelled = false;
 
-    const loadHero = async () => {
-      try {
-        const manifest = pageManifest || await fetch(`/api/verticals/${vertical}`).then(r => r.json());
-        if (manifest?.hero) {
-          const { imageUrl, greeting } = manifest.hero;
-          setHeroData({ imageUrl, greeting });
-          setHeroShown(true);
-          if (user) {
-            fetch(`/api/conversations/${user.sub}/${vertical}/hero-shown`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ greeting, imageUrl }),
-            }).catch(() => {});
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load hero:', e);
+    const apply = (hero) => {
+      if (cancelled || !hero?.imageUrl || !hero?.greeting) return;
+      setHeroData({ imageUrl: hero.imageUrl, greeting: hero.greeting });
+      setHeroShown(true);
+      // Persist the greeting the user actually saw. Addressed as `me` — the UI
+      // never sees the token sub, and the route resolves the alias to it.
+      // Keyed by vertical in a ref so StrictMode's double-invoke (and the sync
+      // pageManifest path, which runs before cleanup) can't write twice.
+      if (user && heroLoggedRef.current !== vertical) {
+        heroLoggedRef.current = vertical;
+        fetch(`/api/conversations/me/${encodeURIComponent(vertical)}/hero-shown`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ greeting: hero.greeting, imageUrl: hero.imageUrl }),
+        }).catch(() => {});
       }
     };
 
-    loadHero();
+    if (pageManifest?.hero) {
+      apply(pageManifest.hero);
+      return undefined;
+    }
+
+    // Guest / pre-hydration: /api/verticals/me is 401 until sign-in, so read the
+    // hero from its own public endpoint rather than waiting on the manifest.
+    fetch(`/api/verticals/${vertical}/hero`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(apply)
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [effectiveVerticalId, heroShown, pageManifest, user]);
 
   // Auto-retry after login (auth challenge path)

@@ -1244,8 +1244,34 @@ const requireNotBankDelegate = (operationLabel = 'this operation') => (req, res,
   return next();
 };
 
+/**
+ * optionalAuthenticateToken — authenticate when the caller presents credentials,
+ * pass through as a guest when they don't.
+ *
+ * For mounts that mix public and protected routes. Dropping `authenticateToken`
+ * from such a mount is NOT equivalent: `req.user` is populated only by
+ * `authenticateToken`, so removing it makes every downstream `requireSession` /
+ * `requireAdmin` route 401/403 for signed-in users too.
+ *
+ * A present-but-invalid token still 401s — this widens who may reach the route,
+ * never what an unauthenticated caller is treated as.
+ */
+const optionalAuthenticateToken = (req, res, next) => {
+  const hasAuthHeader = !!req.headers['authorization']?.split(' ')[1];
+  const sessionToken = req.session?.oauthTokens?.accessToken;
+  // '_cookie_session' is a read-only identity stub carrying no OAuth token;
+  // authenticateToken rejects it, so treat it as "no credentials" here.
+  const hasSessionToken = !!sessionToken && sessionToken !== '_cookie_session';
+  if (!hasAuthHeader && !hasSessionToken) {
+    req.user = null;
+    return next();
+  }
+  return authenticateToken(req, res, next);
+};
+
 module.exports = {
   authenticateToken,
+  optionalAuthenticateToken,
   requireSession,
   requireAdmin,
   requireOwnershipOrAdmin,

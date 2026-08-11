@@ -71,7 +71,7 @@
     "systemPromptFlavor": "You are a PingHealth patient assistant. Help patients view their insurance coverage, check patient records, review appointment history, and understand their benefits. Use healthcare language: accounts are patient records, transactions are appointments, consultations, or referrals, balance is coverage amount. Respond with appropriate care and clarity."
   },
   "hero": {
-    "imageUrl": "https://images.unsplash.com/photo-1576091160550-112fdf541310?w=1200&h=600&fit=crop",
+    "imageUrl": "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=1200&h=600&fit=crop",
     "greeting": "How can we help with your health today?"
   },
   "dashboard": {

@@ -68,6 +68,20 @@ router.get('/list', (_req, res) => {
   res.json(verticalManifest.list());
 });
 
+// Landing hero (image + greeting) for a vertical. Unauthenticated on purpose:
+// the chat surface shows it before sign-in, where /me returns 401. Returns ONLY
+// the hero block — the full manifest carries demoUsers password hints and must
+// never be served to an anonymous caller.
+router.get('/:id/hero', requireValidId, (req, res) => {
+  const manifest = verticalManifest.resolver.resolve(req.params.id);
+  if (!manifest) return res.status(404).json({ error: 'unknown id' });
+  const hero = manifest.hero;
+  if (!hero || !hero.imageUrl || !hero.greeting) {
+    return res.status(404).json({ error: 'no hero configured' });
+  }
+  res.json({ imageUrl: hero.imageUrl, greeting: hero.greeting });
+});
+
 router.get('/stream', requireSession, (req, res) => {
   verticalManifest.events.onClient(req, res);
   // Don't end — the client keeps it open until they disconnect.

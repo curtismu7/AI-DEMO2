@@ -149,6 +149,13 @@ const ManifestSchema = z.object({
     systemPromptFlavor: z.string().optional(),
   }),
 
+  // Landing hero for the chat surface — full-bleed image + inviting greeting,
+  // shown before the first turn. Distinct from `dashboard.hero` (stat cards).
+  hero: z.object({
+    imageUrl: z.string().url(),
+    greeting: z.string().min(1),
+  }).optional(),
+
   dashboard: z.object({
     kind: z.string(),
     chips: z.array(z.object({ key: z.string(), label: z.string() })),

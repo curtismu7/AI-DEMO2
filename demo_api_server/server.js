@@ -227,6 +227,7 @@ const fallbackRoute = require('./routes/api/fallback');
 // Import middleware
 const {
     authenticateToken,
+    optionalAuthenticateToken,
     requireAdmin,
     requireSession
 } = require('./middleware/auth');
@@ -1388,7 +1389,13 @@ app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // its Telemetry/Tracing siblings above.
 app.use('/api/api-calls', authenticateToken, apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
-app.use('/api/verticals', verticalManifestRoutes);
+// Optional auth: this mount mixes public routes (/list, /:id/hero — the chat
+// surface reads them before sign-in) with session/admin routes (/me, /stream,
+// /active, the editor). Plain `authenticateToken` 401s the public ones; dropping
+// it entirely leaves req.user unset, which 401s the protected ones for
+// signed-in users too. optionalAuthenticateToken populates req.user when
+// credentials are present and lets requireSession/requireAdmin do the gating.
+app.use('/api/verticals', optionalAuthenticateToken, verticalManifestRoutes);
 app.use('/api/groups', authenticateToken, groupMembershipRoutes);
 app.use('/api/plugin/data', authenticateToken, require('./routes/pluginData'));
 app.use('/api/config/credentials', configCredentialsRoutes);
