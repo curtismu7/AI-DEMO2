@@ -849,6 +849,7 @@ const killSwitchService = require('../services/killSwitchService');
 const killSwitchSseHub = require('../services/killSwitchSseHub');
 const auditLogService = require('../services/auditLogService');
 const agentLifecycleEvents = require('../services/agentLifecycleEvents');
+const { deriveAgentKey } = require('../services/sessionKeyService');
 
 /**
  * GET /api/admin/agent/:agentId/kill-switch/events
@@ -873,7 +874,7 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
-      const { agentId } = req.params;
+      const agentId = deriveAgentKey(req, req.params.agentId);
       // Default instance: omitting scope must NEVER disable PingOne agent apps
       // (that used to brick the whole demo when a caller forgot to pass scope).
       const { reason = 'manual_red_button', scope = 'instance' } = req.body;
@@ -982,7 +983,7 @@ router.get(
   requireScopes(['admin']),
   async (req, res) => {
     try {
-      const { agentId } = req.params;
+      const agentId = deriveAgentKey(req, req.params.agentId);
 
       const isRevoked = await killSwitchService.isAgentRevoked(agentId);
 
