@@ -7147,16 +7147,24 @@ export default function BankingAgent({
     await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
 
     if (trigger.type === "chip" && trigger.text) {
-      if (!(isLoggedIn || marketingGuestChatEnabled)) {
-        addMessage("assistant", "Sign in to run demo steps.");
-        return;
-      }
       // Reset token chain trace so the proof strip shows this use case
       try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
       // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
       pendingUcIdRef.current = uc.useCaseId || null;
       pendingNlResumeRef.current = null;
-      addMessage("assistant", `Running ${stepLabel}…`);
+      // Not eligible to send yet (no session, no guest chat on this path) — queue
+      // the step anyway (below) and show an actionable sign-in prompt instead of
+      // returning with nothing; the resume effect fires it the moment login lands.
+      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+        addMessage(
+          "assistant",
+          `${stepLabel} needs you signed in — it'll run as soon as you do.`,
+          null,
+          { showLoginPromptAction: true, loginActionId: "login_user" },
+        );
+      } else {
+        addMessage("assistant", `Running ${stepLabel}…`);
+      }
       setNlResumeAfterAuth(trigger.text);
       return;
     }
@@ -7329,6 +7337,16 @@ export default function BankingAgent({
     // freeform text still reaches the LLM if the heuristic parser has no
     // match for it).
     pendingUcIdRef.current = null;
+    // Queued regardless (resume effect fires it once login lands) — but don't
+    // leave the user with only their own bubble and no reply while signed out.
+    if (!isLoggedIn) {
+      addMessage(
+        "assistant",
+        `${tool.title} needs you signed in — it'll run as soon as you do.`,
+        null,
+        { showLoginPromptAction: true, loginActionId: "login_admin" },
+      );
+    }
     setNlResumeAfterAuth(message);
   }
 
@@ -10688,6 +10706,24 @@ export default function BankingAgent({
                                 onClick={() => msg.replayFn && msg.replayFn()}
                               >
                                 Show the expected result (REPLAY)
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.showLoginPromptAction) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                onClick={() => handleLoginAction(msg.loginActionId || "login_user")}
+                              >
+                                Sign in to continue
                               </button>
                             </div>
                           </div>
