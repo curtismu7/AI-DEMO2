@@ -152,47 +152,47 @@
 
 .tcfs-spotlight-intro {
   text-align: left;
-  max-width: 360px;
+  max-width: 480px;
 }
 
 .tcfs-spotlight-intro-title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--th-text);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .tcfs-spotlight-intro-list {
-  margin: 0 0 12px;
-  padding-left: 18px;
+  margin: 0 0 16px;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-  line-height: 1.4;
+  gap: 9px;
+  font-size: 17px;
+  line-height: 1.45;
   color: var(--th-text-muted);
 }
 
 .tcfs-spotlight-intro-list code {
-  font-size: 13px;
+  font-size: 15px;
   background: var(--th-bg-inset);
   border-radius: 3px;
   padding: 1px 4px;
 }
 
 .tcfs-spotlight-intro-value {
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 17px;
+  line-height: 1.5;
   color: var(--th-text);
   background: var(--th-bg-inset);
   border-left: 3px solid #1d4ed8;
   border-radius: 4px;
-  padding: 8px 10px;
-  margin-bottom: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
 }
 
 .tcfs-spotlight-intro-cta {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--th-text-muted);
 }
