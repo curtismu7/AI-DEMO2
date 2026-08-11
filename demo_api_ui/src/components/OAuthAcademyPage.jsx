@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import HeroSection from "./HeroSection";
+import { HeroSection } from "./HeroSection";
 import { HERO_VARIANTS } from "../config/heroVariants";
 import "./OAuthAcademyPage.css";
 import { useTokenChainOptional } from "../context/TokenChainContext";

@@ -65,7 +65,7 @@ import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
 import ProductCardGrid from "./ProductCardGrid";
 import JsonField from "./shared/JsonField";
-import HeroSection from "./HeroSection";
+import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
@@ -10672,7 +10672,7 @@ export default function BankingAgent({
               >
                 {heroData && (
                   <div className="ba-hero-wrapper">
-                    <HeroSection
+                    <AgentGreetingHero
                       greeting={heroData.greeting}
                       imageUrl={heroData.imageUrl}
                       isLoading={loading}
