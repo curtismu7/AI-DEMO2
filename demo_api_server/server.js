@@ -1388,7 +1388,7 @@ app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // its Telemetry/Tracing siblings above.
 app.use('/api/api-calls', authenticateToken, apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
-app.use('/api/verticals', authenticateToken, verticalManifestRoutes);
+app.use('/api/verticals', verticalManifestRoutes);
 app.use('/api/groups', authenticateToken, groupMembershipRoutes);
 app.use('/api/plugin/data', authenticateToken, require('./routes/pluginData'));
 app.use('/api/config/credentials', configCredentialsRoutes);
