@@ -8,37 +8,60 @@ const SERVER_FILE = path.join(__dirname, '../server.js');
 const OUTPUT_FILE = path.join(__dirname, '../../demo_api_ui/src/data/protocolFlows.json');
 
 /**
- * Parse JSDoc comments for @flow, @name, @actor, @to, @step, @body, @expects, @branch tags
+ * Parse JSDoc comments for @flow, @name, @rfc, @actor, @to, @step, @title,
+ * @body, @expects, @branch tags, plus the leading prose paragraph (the
+ * sentence(s) written above the first @-tag) as a description.
  */
 function parseFlowAnnotation(jsdocComment) {
-  const lines = jsdocComment.split('\n');
+  const rawLines = jsdocComment.split('\n');
   const result = {};
+  const proseLines = [];
+  let proseDone = false;
 
-  for (const line of lines) {
+  for (const raw of rawLines) {
+    const line = raw.replace(/^\s*\*\s?/, '').trimEnd();
     const match = line.match(/@(\w+)\s+(.+)/);
-    if (!match) continue;
 
-    const [, tag, value] = match;
-    if (tag === 'flow') {
-      result.flowId = value.trim();
-    } else if (tag === 'name') {
-      result.displayName = value.trim();
-    } else if (tag === 'actor') {
-      result.actor = value.trim();
-    } else if (tag === 'to') {
-      result.toActor = value.trim();
-    } else if (tag === 'step') {
-      result.step = parseInt(value.trim(), 10);
-    } else if (tag === 'expects') {
-      result.expects = value.trim();
-    } else if (tag === 'body') {
-      result.body = value.trim();
-    } else if (tag === 'branch') {
-      if (!result.branches) result.branches = [];
-      result.branches.push(value.trim());
+    if (match) {
+      const [, tag, value] = match;
+      if (tag === 'flow') {
+        result.flowId = value.trim();
+      } else if (tag === 'name') {
+        result.displayName = value.trim();
+      } else if (tag === 'rfc') {
+        const trimmed = value.trim();
+        const spaceIdx = trimmed.indexOf(' ');
+        result.rfcUrl = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx);
+        result.rfcLabel = spaceIdx === -1 ? trimmed : trimmed.slice(spaceIdx + 1).trim();
+      } else if (tag === 'actor') {
+        result.actor = value.trim();
+      } else if (tag === 'to') {
+        result.toActor = value.trim();
+      } else if (tag === 'step') {
+        result.step = parseInt(value.trim(), 10);
+      } else if (tag === 'title') {
+        result.title = value.trim();
+      } else if (tag === 'expects') {
+        result.expects = value.trim();
+      } else if (tag === 'body') {
+        result.body = value.trim();
+      } else if (tag === 'branch') {
+        if (!result.branches) result.branches = [];
+        result.branches.push(value.trim());
+      }
+      proseDone = true;
+      continue;
     }
+
+    if (proseDone) continue;
+    if (line.trim() === '') {
+      if (proseLines.length > 0) proseDone = true;
+      continue;
+    }
+    proseLines.push(line.trim());
   }
 
+  if (proseLines.length > 0) result.description = proseLines.join(' ');
   return result;
 }
 
@@ -146,7 +169,10 @@ function buildFlowSpecs(routes) {
   const flows = {};
 
   for (const { annotation } of routes) {
-    const { flowId, displayName, actor, toActor, step, expects, body, branches, method, endpoint } = annotation;
+    const {
+      flowId, displayName, rfcUrl, rfcLabel, title, description,
+      actor, toActor, step, expects, body, branches, method, endpoint,
+    } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -163,6 +189,22 @@ function buildFlowSpecs(routes) {
     // (e.g. "ciba-hitl" -> "Ciba Hitl" instead of "CIBA / HITL").
     if (displayName) {
       flows[flowId].name = displayName;
+    }
+
+    // @rfc marks the flow's primary annotation (always step 1 by
+    // convention, same as @name). Only that one annotation sets spec /
+    // replaces the placeholder description — other steps' own prose stays
+    // scoped to their own step.description below.
+    if (rfcUrl && rfcLabel) {
+      flows[flowId].spec = {
+        url: rfcUrl,
+        label: rfcLabel,
+        title: displayName || flows[flowId].name,
+        why: description || '',
+      };
+      if (description) {
+        flows[flowId].description = description;
+      }
     }
 
     // Add actors in the order they appear (source first, then target)
@@ -184,6 +226,8 @@ function buildFlowSpecs(routes) {
           toActor: target,
           action,
           label: action,
+          title: title || action,
+          description: description || null,
           method: method || null,
           endpoint: endpoint || null,
           step,
@@ -251,4 +295,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main };
+module.exports = { main, parseFlowAnnotation, buildFlowSpecs };
