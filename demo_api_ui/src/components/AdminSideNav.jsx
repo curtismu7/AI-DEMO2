@@ -588,7 +588,6 @@ export default function AdminSideNav({
           path: "/ping-ai-test-lab",
           icon: "tst",
         },
-        { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
           label: "Agent Gateway Inspector",
           path: "/agent-gateway-inspector",
