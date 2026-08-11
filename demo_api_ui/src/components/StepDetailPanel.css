@@ -160,7 +160,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11.5px;
   line-height: 1.45;
-  color: #e2e8f0;
+  color: var(--th-text);
   background: var(--th-bg-card);
   border-radius: 6px;
   padding: 8px 10px;
