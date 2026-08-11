@@ -29,8 +29,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Family Delegation",
     ],
   },
-  { label: "AI Footprint" },
-  { label: "Footprint Gallery" },
   {
     label: "AI Agents",
     children: [
