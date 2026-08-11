@@ -8,7 +8,7 @@ const SERVER_FILE = path.join(__dirname, '../server.js');
 const OUTPUT_FILE = path.join(__dirname, '../../demo_api_ui/src/data/protocolFlows.json');
 
 /**
- * Parse JSDoc comments for @flow, @actor, @to, @step, @body, @expects, @branch tags
+ * Parse JSDoc comments for @flow, @name, @actor, @to, @step, @body, @expects, @branch tags
  */
 function parseFlowAnnotation(jsdocComment) {
   const lines = jsdocComment.split('\n');
@@ -21,6 +21,8 @@ function parseFlowAnnotation(jsdocComment) {
     const [, tag, value] = match;
     if (tag === 'flow') {
       result.flowId = value.trim();
+    } else if (tag === 'name') {
+      result.displayName = value.trim();
     } else if (tag === 'actor') {
       result.actor = value.trim();
     } else if (tag === 'to') {
@@ -144,7 +146,7 @@ function buildFlowSpecs(routes) {
   const flows = {};
 
   for (const { annotation } of routes) {
-    const { flowId, actor, toActor, step, expects, body, branches, method, endpoint } = annotation;
+    const { flowId, displayName, actor, toActor, step, expects, body, branches, method, endpoint } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -155,6 +157,12 @@ function buildFlowSpecs(routes) {
         steps: [],
         branches: []
       };
+    }
+
+    // @name overrides the naive title-caser, which mangles acronym flow IDs
+    // (e.g. "ciba-hitl" -> "Ciba Hitl" instead of "CIBA / HITL").
+    if (displayName) {
+      flows[flowId].name = displayName;
     }
 
     // Add actors in the order they appear (source first, then target)

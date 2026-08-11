@@ -21,6 +21,7 @@ const TRUST_DOMAIN = 'demo.local';
  * Workload fetches its JWT-SVID from the (simulated) SPIRE agent.
  *
  * @flow spiffe
+ * @name SPIFFE
  * @actor workload-a
  * @to spire-agent
  * @step 1

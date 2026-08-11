@@ -16,6 +16,7 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  * to the target (foreign) domain's authorization server.
  *
  * @flow xaa
+ * @name XAA / ID-JAG
  * @actor client-app
  * @to idp-a
  * @step 1

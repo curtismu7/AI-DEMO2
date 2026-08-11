@@ -38,6 +38,7 @@ function classifyParPushError(message) {
  * agent's declared $100 intent cap and returns PERMIT or DENY.
  *
  * @flow rar
+ * @name RAR
  * @actor client-app
  * @to auth-server
  * @step 1
