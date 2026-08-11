@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import JsonHighlight from './shared/JsonHighlight';
+import DraggableModal from './DraggableModal';
 import './PingAiTestLabPage.css';
 
 // Status glyphs restricted to the REGRESSION_PLAN §0 emoji allowlist.
@@ -21,6 +22,18 @@ function StatusBadge({ status }) {
 
 function ResultRow({ test, result, running, onRun }) {
   const [open, setOpen] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const needsAuth = result?.status === 'not_run' && result?.detail?.reason?.includes('requires a signed-in user session');
+
+  const handleLoginClick = () => {
+    setShowLoginModal(true);
+  };
+
+  const handleLoginConfirm = () => {
+    setShowLoginModal(false);
+    window.location.href = '/login';
+  };
+
   return (
     <div className={`patl-row ${result ? '' : 'patl-row-idle'}`}>
       <div className="patl-row-main">
@@ -37,14 +50,37 @@ function ResultRow({ test, result, running, onRun }) {
         <span className="patl-row-spacer" />
         {result?.latencyMs != null && <span className="patl-latency">{result.latencyMs} ms</span>}
         {result ? <StatusBadge status={result.status} /> : null}
-        <button type="button" className="patl-btn patl-btn-small" disabled={!!running} onClick={() => onRun(test.key)}>
-          Run
-        </button>
+        {needsAuth ? (
+          <button type="button" className="patl-btn patl-btn-small patl-btn-login" onClick={handleLoginClick}>
+            Sign in to run
+          </button>
+        ) : (
+          <button type="button" className="patl-btn patl-btn-small" disabled={!!running} onClick={() => onRun(test.key)}>
+            Run
+          </button>
+        )}
       </div>
       {open && result && (
         <div className="patl-row-detail">
           <pre className="patl-json"><JsonHighlight value={result.detail ?? result} deep /></pre>
         </div>
+      )}
+      {showLoginModal && (
+        <DraggableModal onClose={() => setShowLoginModal(false)}>
+          <div className="patl-login-modal">
+            <h2>Sign in required</h2>
+            <p>This demo step requires authentication to run.</p>
+            <p>You will be redirected to the login page. After signing in, return here to run the demo step and see the complete token chain.</p>
+            <div className="patl-modal-actions">
+              <button type="button" className="patl-btn patl-btn-primary" onClick={handleLoginConfirm}>
+                Go to sign in
+              </button>
+              <button type="button" className="patl-btn" onClick={() => setShowLoginModal(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </DraggableModal>
       )}
     </div>
   );
