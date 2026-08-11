@@ -30,8 +30,6 @@ const {
 const { getUseCaseStepUpMethod } = require('../config/useCases');
 const { verticalManifest } = require('./verticalManifest');
 const { resolveConsentContext } = require('./delegatedCommerceRuntime');
-const { deriveAgentKey } = require('./sessionKeyService');
-const killSwitchService = require('./killSwitchService');
 
 /**
  * Extract nested actor id from MCP JWT (RFC 8693 multi-hop) when PingOne issues act.act.
@@ -920,31 +918,6 @@ async function evaluateMcpFirstToolGate(opts) {
   const { req, tool, agentToken } = opts;
   if (!agentToken || typeof agentToken !== 'string') {
     return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
-  }
-
-  // Kill switch: block before any PDP/HITL work if this agent was stopped.
-  // Deliberately NOT decodeMcpTokenFacts (below) — that also does a JWKS
-  // hasKid lookup this check doesn't need, and it must run on every tool
-  // call, not just once per request already inside buildMcpFirstToolGateInputs.
-  const _killClaims = decodeJwtClaims(agentToken)?.claims || {};
-  const _actorId = _killClaims.act && typeof _killClaims.act === 'object'
-    ? String(_killClaims.act.client_id || _killClaims.act.sub || '')
-    : '';
-  const _agentIdentity = _actorId || (_killClaims.sub ? String(_killClaims.sub) : null);
-  const _agentKey = deriveAgentKey(req, _agentIdentity);
-  if (await killSwitchService.isAgentRevoked(_agentKey)) {
-    return {
-      ran: true,
-      block: {
-        status: 403,
-        body: {
-          error: 'agent_killed',
-          error_description: 'This agent was stopped via the kill switch and cannot make further tool calls.',
-          decisionContext: 'McpFirstTool',
-          agentId: _agentKey,
-        },
-      },
-    };
   }
 
   const delegatedConsent = resolveConsentContext(req, tool);
