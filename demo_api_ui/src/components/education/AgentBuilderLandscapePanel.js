@@ -98,7 +98,7 @@ function LangChainContent() {
         <strong>LangChain</strong> is the most widely adopted open-source
         framework for building LLM-powered applications and agents. It provides
         composable primitives — chains, agents, tools, memory — that work with
-        any LLM provider. The Super Banking demo's <code>langchain_agent/</code>{" "}
+        any LLM provider. The AI Demo's <code>langchain_agent/</code>{" "}
         uses LangChain 0.3.x to orchestrate the Banking Agent's tool calls via
         LCEL. The current stable release is <strong>LangChain 1.x</strong> (GA
         Oct 2025), which recommends <code>create_agent</code> / LangGraph as

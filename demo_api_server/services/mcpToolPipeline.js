@@ -477,6 +477,7 @@ async function runMcpToolPipeline(ctx) {
         const hitlChallengeId = params?.[HITL_CHALLENGE_ARG] || null;
         if (hitlChallengeId) { delete params[HITL_CHALLENGE_ARG]; }
 
+        console.log('[mcpToolPipeline] Before authorize-decision:', { tool: tool.name, userSub, tokenScopes: mcpAccessToken?.scope });
         const mcpAuthz = await deps.evaluateMcpFirstToolGate({
             req,
             tool,
@@ -486,6 +487,7 @@ async function runMcpToolPipeline(ctx) {
             toolParams: params,
             hitlChallengeId,
         });
+        console.log('[mcpToolPipeline] After authorize-decision:', { tool: tool.name, ran: mcpAuthz.ran, blocked: !!mcpAuthz.block, decision: mcpAuthz.block?.body?.decision });
         if (mcpAuthz.ran && mcpAuthz.block) {
             deps.emit({
                 phase: 'authorize_denied',

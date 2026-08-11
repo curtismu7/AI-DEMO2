@@ -68,6 +68,21 @@ router.get('/list', (_req, res) => {
   res.json(verticalManifest.list());
 });
 
+// Which vertical is active for THIS caller. Unauthenticated on purpose, and it
+// returns the id only — the full manifest from /me carries demoUsers password
+// hints and must never reach an anonymous caller.
+//
+// Guests had no way to READ this. /me is requireSession, so VerticalProvider
+// hydrated activeId=null for them and the UI fell back to its own default while
+// the server independently used the process-global. The two then disagreed:
+// the picker read "Super Banking" while the agent answered out of retail's
+// catalog, and an A&F picker returned a workforce office couch. Same asymmetry
+// as the write side (POST /active) — the read has to be public for the UI's
+// selection and the server's answer to describe the same vertical.
+router.get('/active', (req, res) => {
+  res.json({ id: verticalManifest.resolver.activeIdFor(req) || null });
+});
+
 // Landing hero (image + greeting) for a vertical. Unauthenticated on purpose:
 // the chat surface shows it before sign-in, where /me returns 401. Returns ONLY
 // the hero block — the full manifest carries demoUsers password hints and must

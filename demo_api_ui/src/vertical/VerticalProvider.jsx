@@ -39,6 +39,22 @@ export function VerticalProvider({ children }) {
           adminManifest: null,
           isAdmin: false,
         });
+        // Then learn WHICH vertical the server considers active. /me is session-only,
+        // so a guest hydrated activeId=null and the UI fell back to its own default
+        // while the server independently used the process-global — the two described
+        // different verticals, and an A&F picker returned a workforce office couch.
+        //
+        // Deliberately NOT awaited: hydration above must not block on a secondary
+        // lookup. Awaiting it wedged first render for 30s wherever this endpoint is
+        // unmocked (caught by App.structure.test.js), and a guest seeing the picker
+        // a tick later is far better than a page that will not paint.
+        fetch('/api/verticals/active', { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const id = d && d.id;
+            if (id) setState((cur) => (cur && !cur.activeId ? { ...cur, activeId: id } : cur));
+          })
+          .catch(() => { /* keep activeId null — same state as before this existed */ });
         return;
       }
       const data = await res.json();

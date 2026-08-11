@@ -145,7 +145,7 @@ response_type=code&client_id=...&code_challenge=...&code_challenge_method=S256&s
 
 GET /as/authorize?client_id=...&request_uri=...  // browser sees only the reference`;
 
-export const SNIP_RAR_MOCK = `// Example only — Super Banking does not send authorization_details today.
+export const SNIP_RAR_MOCK = `// Example only — AI Demo does not send authorization_details today.
 {
   "authorization_details": [
     { "type": "payment_initiation", "instructedAmount": { "currency": "USD", "amount": "250.00" } }

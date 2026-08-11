@@ -609,7 +609,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // defaulted to ALL the app's grants (which span 2 resources) → 502 on
   // every chip. mcp:invoke is the MCP/gateway resource scope the
   // actor token targets (matches the working [CC-As] actor mint).
-  pingone_mcp_token_exchanger_client_scopes: { public: true, default: 'mcp:invoke' },
+  pingone_mcp_token_exchanger_client_scopes: { public: true, default: 'read write mcp:invoke' },
 
   // Introspection (RFC 7662)
   pingone_introspection_endpoint:        { public: true,  default: '' },
