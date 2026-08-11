@@ -89,6 +89,7 @@ const TOOLS = [
     },
     scopes: ['airlines:read'],
     authz: {},
+    render: 'seatMap',
   },
   {
     name: 'sensitive_passenger_record',
