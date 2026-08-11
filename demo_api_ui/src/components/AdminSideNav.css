@@ -164,6 +164,18 @@
   grid-column: 1 / -1;
 }
 
+/* Collapsed: rail is 80px — a 2-col grid of text pills doesn't fit. Stack as
+   single-column icon buttons, matching the nav items below them. */
+.admin-side-nav--collapsed .admin-side-nav__quick-links {
+  grid-template-columns: 1fr;
+  padding: 14px 8px 16px;
+}
+
+.admin-side-nav--collapsed .admin-side-nav__quick-link {
+  padding: 8px;
+  font-size: 16px;
+}
+
 .admin-side-nav__quick-link--active {
   background: #2767d2;
   color: #fff !important;
