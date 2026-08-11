@@ -1,18 +1,10 @@
 {
   "ciba-hitl": {
     "id": "ciba-hitl",
-    "name": "CIBA Human-in-the-Loop",
-    "description": "Client-Initiated Backchannel Authentication with human approval",
-    "spec": {
-      "label": "OpenID CIBA Core 1.0",
-      "title": "Client-Initiated Backchannel Authentication",
-      "url": "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html",
-      "why": "Separates where a request starts from where a human approves it. No browser redirect and no popup — the app asks the authorization server, the user approves out of band on another device or inbox, and the app polls the token endpoint until that approval lands.",
-      "ai": "A server-side agent has no browser to redirect. CIBA is how a person approves one specific agent action before the token exists, and binding_message states exactly what is being approved — \"Approve $500 transfer\" — so consent is tied to the action rather than to a whole session."
-    },
+    "name": "Ciba Hitl",
+    "description": "Protocol flow: ciba-hitl",
     "actors": [
       "client-app",
-      "auth-server",
       "human-approver"
     ],
     "steps": [
@@ -20,42 +12,26 @@
         "id": "step-1",
         "actor": "client-app",
         "fromActor": "client-app",
-        "toActor": "auth-server",
+        "toActor": "human-approver",
         "action": "POST /api/auth/ciba/initiate",
         "label": "POST /api/auth/ciba/initiate",
         "method": "POST",
         "endpoint": "/api/auth/ciba/initiate",
-        "body": {
-          "binding_message": "Approve transfer"
-        },
         "step": 1,
-        "responseMap": {
-          "authReqId": "auth_req_id"
-        },
+        "body": null,
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "human-approver",
         "fromActor": "human-approver",
-        "toActor": "auth-server",
+        "toActor": "client-app",
         "action": "POST /api/auth/ciba/approve-now/:authReqId",
         "label": "POST /api/auth/ciba/approve-now/:authReqId",
         "method": "POST",
         "endpoint": "/api/auth/ciba/approve-now/:authReqId",
         "step": 2,
-        "expected": {}
-      },
-      {
-        "id": "step-3",
-        "actor": "client-app",
-        "fromActor": "client-app",
-        "toActor": "auth-server",
-        "action": "GET /api/auth/ciba/poll/:authReqId",
-        "label": "GET /api/auth/ciba/poll/:authReqId",
-        "method": "GET",
-        "endpoint": "/api/auth/ciba/poll/:authReqId",
-        "step": 3,
+        "body": null,
         "expected": {}
       }
     ],
@@ -63,15 +39,8 @@
   },
   "dpop": {
     "id": "dpop",
-    "name": "DPoP Sender-Constrained Token",
-    "description": "RFC 9449 — a token bound to the client's key, then replayed at the gateway. The demo routes require the DPoP header to be present; they do not verify the proof signature.",
-    "spec": {
-      "label": "RFC 9449",
-      "title": "Demonstrating Proof of Possession (DPoP)",
-      "url": "https://www.rfc-editor.org/rfc/rfc9449",
-      "why": "Binds an access token to a key the client holds. A bearer token works for anyone who steals it; a DPoP-bound token does not, because every request must carry a fresh proof signed by that key.",
-      "ai": "Agent tokens pass through more hands than a browser session ever does — gateways, tool servers, traces, logs. Sender-constraining means a token that leaks out of any of those cannot be replayed by whoever picked it up."
-    },
+    "name": "Dpop",
+    "description": "Protocol flow: dpop",
     "actors": [
       "client-app",
       "gateway"
@@ -83,22 +52,11 @@
         "fromActor": "client-app",
         "toActor": "gateway",
         "action": "POST /api/auth/oauth/token",
-        "label": "Request a DPoP-bound token",
+        "label": "POST /api/auth/oauth/token",
         "method": "POST",
         "endpoint": "/api/auth/oauth/token",
-        "headers": {
-          "DPoP": "demo-proof-jwt-not-verified"
-        },
-        "body": {
-          "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-          "scope": "transfer:write",
-          "subject_token": "demo-subject-token",
-          "resource": "https://mcpgateway.ping.demo"
-        },
         "step": 1,
-        "responseMap": {
-          "accessToken": "access_token"
-        },
+        "body": null,
         "expected": {}
       },
       {
@@ -107,92 +65,20 @@
         "fromActor": "gateway",
         "toActor": "client-app",
         "action": "POST /api/auth/gateway/verify-dpop",
-        "label": "Gateway verifies the proof binding",
+        "label": "POST /api/auth/gateway/verify-dpop",
         "method": "POST",
         "endpoint": "/api/auth/gateway/verify-dpop",
-        "headers": {
-          "DPoP": "demo-proof-jwt-not-verified"
-        },
-        "body": {
-          "access_token": ":accessToken"
-        },
         "step": 2,
+        "body": null,
         "expected": {}
       }
     ],
     "branches": []
   },
-  "rfc8693-token-exchange": {
-    "id": "rfc8693-token-exchange",
-    "name": "RFC 8693 Token Exchange",
-    "description": "Real PingOne token exchange driven by the signed-in session token — Exchange #1 on its own, then the two-exchange agent chain.",
-    "spec": {
-      "label": "RFC 8693",
-      "title": "OAuth 2.0 Token Exchange",
-      "url": "https://www.rfc-editor.org/rfc/rfc8693",
-      "why": "Trades one token for another with a narrower audience and fewer scopes, and records the delegation in the act claim so the new token still says who the original subject was.",
-      "ai": "This is what stops an agent from acting as itself with its own standing privileges. The user's token is exchanged for one that names the user as subject and the agent as actor, downscoped to the single call being made, so every downstream service can see who asked and who is carrying it out."
-    },
-    "decisionDiagram": "flowchart LR\n    T[Delegated token arrives] --> V{Signature and audience valid}\n    V -- no --> R1[401 invalid_token]\n    V -- yes --> S{Scope covers this tool}\n    S -- no --> R2[403 insufficient_scope]\n    S -- yes --> C{act claim present}\n    C -- no --> R3[403 broken actor chain]\n    C -- yes --> AZ{PingOne Authorize}\n    AZ -- DENY --> R4[403 with reason]\n    AZ -- PERMIT --> OK[Tool executes]",
-    "actors": [
-      "client-app",
-      "token-exchanger"
-    ],
-    "steps": [
-      {
-        "id": "step-1",
-        "actor": "client-app",
-        "fromActor": "client-app",
-        "toActor": "token-exchanger",
-        "action": "POST /api/tokens/exchange-test (single)",
-        "label": "Exchange #1 — session token to mcpgateway.ping.demo",
-        "method": "POST",
-        "endpoint": "/api/tokens/exchange-test",
-        "body": {
-          "mode": "single",
-          "audience": "mcpgateway.ping.demo",
-          "scopes": [
-            "read",
-            "write"
-          ]
-        },
-        "step": 1,
-        "expected": {}
-      },
-      {
-        "id": "step-2",
-        "actor": "token-exchanger",
-        "fromActor": "token-exchanger",
-        "toActor": "client-app",
-        "action": "POST /api/tokens/exchange-test (double)",
-        "label": "Two-exchange chain — user to agent to MCP resource",
-        "method": "POST",
-        "endpoint": "/api/tokens/exchange-test",
-        "body": {
-          "mode": "double",
-          "scopes": [
-            "read",
-            "write"
-          ]
-        },
-        "step": 2,
-        "expected": {}
-      }
-    ],
-    "branches": []
-  },
-  "par": {
-    "id": "par",
-    "name": "PAR Intent Binding",
-    "description": "RFC 9126 — pushes authorization_details to the real PingOne as/par endpoint, then enforces the $100 declared-intent cap against the returned request_uri.",
-    "spec": {
-      "label": "RFC 9126",
-      "title": "Pushed Authorization Requests (PAR)",
-      "url": "https://www.rfc-editor.org/rfc/rfc9126",
-      "why": "The client pushes the authorization request to the server over a back channel first and gets back a short-lived request_uri to use instead. The parameters never ride in a browser URL, so they cannot be read or tampered with in transit.",
-      "ai": "Intent binding. The agent declares what it intends to do — the action, the amount, the payee, carried as RFC 9396 authorization_details — before it does anything, and the authorization server holds that declaration. Policy then judges the stated intent, not just whether a token is valid."
-    },
-    "decisionDiagram": "flowchart LR\n    I[Agent declares intent] --> P[Push authorization_details to as/par]\n    P --> U{request_uri returned}\n    U -- no --> E[Push failed - nothing authorised]\n    U -- yes --> CAP{Amount within declared cap}\n    CAP -- over cap --> D[DENY intent_exceeded]\n    CAP -- within cap --> OK[PERMIT - transfer proceeds]",
+  "rar": {
+    "id": "rar",
+    "name": "Rar",
+    "description": "Protocol flow: rar",
     "actors": [
       "client-app",
       "auth-server"
@@ -203,36 +89,315 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "auth-server",
-        "action": "POST /api/demo/intent-binding/run ($80)",
-        "label": "Push $80 intent — within the declared cap",
+        "action": "POST /api/demo/intent-binding/run",
+        "label": "POST /api/demo/intent-binding/run",
         "method": "POST",
         "endpoint": "/api/demo/intent-binding/run",
+        "step": 1,
         "body": {
           "action": "permit",
-          "requestedAmount": 80,
-          "live": true
+          "requestedAmount": 50,
+          "live": false
         },
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "rfc8693-token-exchange": {
+    "id": "rfc8693-token-exchange",
+    "name": "Rfc8693 Token Exchange",
+    "description": "Protocol flow: rfc8693-token-exchange",
+    "actors": [
+      "client-app",
+      "token-exchanger"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "token-exchanger",
+        "action": "POST /api/oauth/token/token",
+        "label": "POST /api/oauth/token/token",
+        "method": "POST",
+        "endpoint": "/api/oauth/token/token",
         "step": 1,
-        "responseMap": {
-          "requestUri": "requestUri"
+        "body": null,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "token-exchanger",
+        "fromActor": "token-exchanger",
+        "toActor": "client-app",
+        "action": "POST /api/oauth/token/introspect",
+        "label": "POST /api/oauth/token/introspect",
+        "method": "POST",
+        "endpoint": "/api/oauth/token/introspect",
+        "step": 2,
+        "body": null,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "par": {
+    "id": "par",
+    "name": "Par",
+    "description": "Protocol flow: par",
+    "actors": [
+      "client-app",
+      "auth-server"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "POST /api/auth/par",
+        "label": "POST /api/auth/par",
+        "method": "POST",
+        "endpoint": "/api/auth/par",
+        "step": 1,
+        "body": null,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "auth-server",
+        "fromActor": "auth-server",
+        "toActor": "client-app",
+        "action": "GET /api/auth/authorize",
+        "label": "GET /api/auth/authorize",
+        "method": "GET",
+        "endpoint": "/api/auth/authorize",
+        "step": 2,
+        "body": null,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "pkce": {
+    "id": "pkce",
+    "name": "Pkce",
+    "description": "Protocol flow: pkce",
+    "actors": [
+      "client-app",
+      "auth-server"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "POST /api/demo/pkce/authorize",
+        "label": "POST /api/demo/pkce/authorize",
+        "method": "POST",
+        "endpoint": "/api/demo/pkce/authorize",
+        "step": 1,
+        "body": {
+          "code_challenge": "ewuOoauAc4HDP26uT55nbd_OX32mHAsIb1VtknVbfv8",
+          "code_challenge_method": "S256"
         },
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "auth-server",
+        "fromActor": "auth-server",
+        "toActor": "client-app",
+        "action": "POST /api/demo/pkce/token",
+        "label": "POST /api/demo/pkce/token",
+        "method": "POST",
+        "endpoint": "/api/demo/pkce/token",
+        "step": 2,
+        "body": {
+          "code": "vdA2j5Y2ifHKpWEK",
+          "code_verifier": "demo-pkce-verifier-9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c"
+        },
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "resource-metadata": {
+    "id": "resource-metadata",
+    "name": "Resource Metadata",
+    "description": "Protocol flow: resource-metadata",
+    "actors": [
+      "client-app",
+      "resource-server"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "resource-server",
+        "action": "GET /.well-known/oauth-protected-resource/metadata",
+        "label": "GET /.well-known/oauth-protected-resource/metadata",
+        "method": "GET",
+        "endpoint": "/.well-known/oauth-protected-resource/metadata",
+        "step": 1,
+        "body": null,
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "client-app",
         "fromActor": "client-app",
-        "toActor": "auth-server",
-        "action": "POST /api/demo/intent-binding/run ($500)",
-        "label": "Push $500 intent — exceeds the cap, expect DENY",
-        "method": "POST",
-        "endpoint": "/api/demo/intent-binding/run",
-        "body": {
-          "action": "permit",
-          "requestedAmount": 500,
-          "live": true
-        },
+        "toActor": "resource-server",
+        "action": "GET /.well-known/oauth-protected-resource/all",
+        "label": "GET /.well-known/oauth-protected-resource/all",
+        "method": "GET",
+        "endpoint": "/.well-known/oauth-protected-resource/all",
         "step": 2,
+        "body": null,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "spiffe": {
+    "id": "spiffe",
+    "name": "Spiffe",
+    "description": "Protocol flow: spiffe",
+    "actors": [
+      "workload-a",
+      "spire-agent",
+      "workload-b"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "workload-a",
+        "fromActor": "workload-a",
+        "toActor": "spire-agent",
+        "action": "POST /api/demo/spiffe/svid",
+        "label": "POST /api/demo/spiffe/svid",
+        "method": "POST",
+        "endpoint": "/api/demo/spiffe/svid",
+        "step": 1,
+        "body": {
+          "spiffe_id": "spiffe://demo.local/service/payments"
+        },
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "workload-b",
+        "fromActor": "workload-b",
+        "toActor": "workload-a",
+        "action": "POST /api/demo/spiffe/verify",
+        "label": "POST /api/demo/spiffe/verify",
+        "method": "POST",
+        "endpoint": "/api/demo/spiffe/verify",
+        "step": 2,
+        "body": {
+          "svid": "demo.placeholder.svid",
+          "expected_trust_domain": "demo.local"
+        },
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "txn-tokens": {
+    "id": "txn-tokens",
+    "name": "Txn Tokens",
+    "description": "Protocol flow: txn-tokens",
+    "actors": [
+      "edge-service",
+      "txn-token-service",
+      "downstream-service"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "edge-service",
+        "fromActor": "edge-service",
+        "toActor": "txn-token-service",
+        "action": "POST /api/demo/txn-tokens/request",
+        "label": "POST /api/demo/txn-tokens/request",
+        "method": "POST",
+        "endpoint": "/api/demo/txn-tokens/request",
+        "step": 1,
+        "body": {
+          "subject_token": "demo-subject-access-token",
+          "request_ctx": {
+            "method": "POST",
+            "path": "/transfer"
+          },
+          "purp": "issue"
+        },
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "downstream-service",
+        "fromActor": "downstream-service",
+        "toActor": "txn-token-service",
+        "action": "POST /api/demo/txn-tokens/propagate",
+        "label": "POST /api/demo/txn-tokens/propagate",
+        "method": "POST",
+        "endpoint": "/api/demo/txn-tokens/propagate",
+        "step": 2,
+        "body": {
+          "txn_token": "demo.placeholder.token",
+          "hop": "inventory-service"
+        },
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "xaa": {
+    "id": "xaa",
+    "name": "Xaa",
+    "description": "Protocol flow: xaa",
+    "actors": [
+      "client-app",
+      "idp-a",
+      "domain-b-as"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "idp-a",
+        "action": "POST /api/demo/xaa/id-jag",
+        "label": "POST /api/demo/xaa/id-jag",
+        "method": "POST",
+        "endpoint": "/api/demo/xaa/id-jag",
+        "step": 1,
+        "body": {
+          "subject_token": "demo-id-token",
+          "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
+          "requested_token_type": "urn:ietf:params:oauth:token-type:id-jag",
+          "audience": "domain-b-as"
+        },
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "domain-b-as",
+        "fromActor": "domain-b-as",
+        "toActor": "client-app",
+        "action": "POST /api/demo/xaa/token",
+        "label": "POST /api/demo/xaa/token",
+        "method": "POST",
+        "endpoint": "/api/demo/xaa/token",
+        "step": 2,
+        "body": {
+          "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          "assertion": "demo.placeholder.idjag",
+          "scope": "read"
+        },
         "expected": {}
       }
     ],

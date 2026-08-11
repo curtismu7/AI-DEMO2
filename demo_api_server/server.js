@@ -1479,6 +1479,16 @@ app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 const intentBindingRoutes = require('./routes/intentBinding');
 app.use('/api/demo/intent-binding', express.json(), intentBindingRoutes);
 
+// Protocol Playground mocks for specs PingOne does not natively implement.
+const pkceDemoRoutes = require('./routes/pkceDemo');
+app.use('/api/demo/pkce', pkceDemoRoutes);
+const txnTokenDemoRoutes = require('./routes/txnTokenDemo');
+app.use('/api/demo/txn-tokens', txnTokenDemoRoutes);
+const xaaIdJagDemoRoutes = require('./routes/xaaIdJagDemo');
+app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
+const spiffeDemoRoutes = require('./routes/spiffeDemo');
+app.use('/api/demo/spiffe', spiffeDemoRoutes);
+
 // Public CIMD well-known endpoint — no authentication required.
 // Mounted after session/auth middleware but before static files.
 app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
