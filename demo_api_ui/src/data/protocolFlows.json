@@ -21,7 +21,10 @@
         "title": null,
         "description": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email. Body: { scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token) binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci) acr_values?:      'Multi_factor'             — for step-up auth login_hint?:      'user@example.com'         — override from session email }",
         "body": null,
-        "expected": {}
+        "expected": {},
+        "responseMap": {
+          "authReqId": "auth_req_id"
+        }
       },
       {
         "id": "step-2",
