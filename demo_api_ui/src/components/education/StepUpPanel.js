@@ -17,7 +17,7 @@ export default function StepUpPanel({ isOpen, onClose, initialTabId }) {
             In this demo, transfers and withdrawals at or above the configured threshold can trigger PingOne step-up (see Security Settings).
           </p>
           <p>
-            The Super Banking demo supports <strong>two step-up methods</strong>:
+            The AI Demo supports <strong>two step-up methods</strong>:
           </p>
           <ul>
             <li><strong>deviceAuthentication API</strong> - Direct PingOne MFA with OTP, Push, or FIDO2/WebAuthn</li>

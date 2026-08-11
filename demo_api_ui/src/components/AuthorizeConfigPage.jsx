@@ -473,10 +473,10 @@ export default function AuthorizeConfigPage() {
           </div>
 
           <div className="azc-section">
-            <h4>Super Banking DaVinci Flow Export</h4>
+            <h4>AI Demo DaVinci Flow Export</h4>
             <p className="azc-description">
               Download this pre-built <strong>DaVinci flow</strong> and import it
-              into your PingOne environment. It drives the Super Banking
+              into your PingOne environment. It drives the AI Demo
               transaction authorization demo: it collects the transaction amount
               and type, authenticates the user via PingOne SSO, calls a PingOne
               Authorize decision endpoint with the Trust Framework parameters (

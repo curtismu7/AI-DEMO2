@@ -96,6 +96,33 @@ describe('GET /api/verticals/me', () => {
   });
 });
 
+describe('GET /api/verticals/active', () => {
+  // Public for the same reason /list is: the UI has to know which vertical the
+  // server considers active BEFORE sign-in. /me is session-only, so a guest used
+  // to hydrate activeId=null, fall back to the UI's own default, and then disagree
+  // with the server — an A&F picker returned a workforce office couch because the
+  // server was serving a different vertical's catalog entirely.
+  test('200 with the active id when unauthenticated', async () => {
+    verticalManifest.resolver.setActive('healthcare');
+    const res = await request(makeApp()).get('/api/verticals/active');
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe('healthcare');
+  });
+
+  test('reflects a later switch, so the UI cannot drift from the server', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const res = await request(makeApp()).get('/api/verticals/active');
+    expect(res.body.id).toBe('banking');
+  });
+
+  test('returns the id only — never the manifest with its demoUsers hints', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const res = await request(makeApp()).get('/api/verticals/active');
+    expect(Object.keys(res.body)).toEqual(['id']);
+    expect(JSON.stringify(res.body)).not.toMatch(/passwordHint/i);
+  });
+});
+
 describe('GET /api/verticals/list', () => {
   // Public since #1656 — the vertical switcher renders for guests, before sign-in.
   test('200 when unauthenticated (public switcher)', async () => {
