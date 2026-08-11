@@ -29,6 +29,10 @@ describe("KillSwitchConfirmModal — active runs", () => {
   });
 
   it("no longer claims agentRateLimit is the enforcement point", () => {
+    apiClient.get.mockResolvedValueOnce({ data: { runs: [] } });
+    render(
+      <KillSwitchConfirmModal isOpen agentId="default-agent" onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    );
     expect(screen.queryByText(/agentRateLimit/)).not.toBeInTheDocument();
   });
 });

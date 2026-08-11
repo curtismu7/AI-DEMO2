@@ -20,7 +20,7 @@ describe('bffMcpToolExecutor — active-run registry bracketing', () => {
     await executeBffTool({ name: 'reorder', args: {}, req, userToken: 't', sessionId: 'sess-1', tokenEvents: [] });
 
     expect(agentRunRegistry.startRun).toHaveBeenCalledWith(
-      expect.stringMatching(/^session:[0-9a-f]{16}$/),
+      'user:u1',
       { tool: 'reorder', userId: 'u1' },
     );
     expect(agentRunRegistry.endRun).toHaveBeenCalledWith('run-fixed-1');

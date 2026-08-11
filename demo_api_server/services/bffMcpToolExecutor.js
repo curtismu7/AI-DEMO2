@@ -237,7 +237,7 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     vertical,
   };
 
-  const _agentKey = deriveAgentKey(effectiveReq, null);
+  const _agentKey = deriveAgentKey(effectiveReq, null, effectiveReq.session?.user?.oauthId || effectiveReq.session?.user?.id || null);
   const _runId = agentRunRegistry.startRun(_agentKey, { tool: name, userId: effectiveReq.session?.user?.id || null });
   let outcome;
   try {
@@ -337,7 +337,7 @@ async function runPipelineForSim({ tool, params, req, useCaseId, vertical }) {
     useCaseId,
     vertical,
   };
-  const _agentKey = deriveAgentKey(req, null);
+  const _agentKey = deriveAgentKey(req, null, req.session?.user?.oauthId || req.session?.user?.id || null);
   const _runId = agentRunRegistry.startRun(_agentKey, { tool, userId: req.session?.user?.id || null });
   try {
     return await runMcpToolPipeline(ctx);
@@ -393,7 +393,7 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     // doesn't have rules for specialist tools at the BFF decision endpoint.
     skipBffAuthorize: true,
   };
-  const _agentKey = deriveAgentKey(effectiveReq, null);
+  const _agentKey = deriveAgentKey(effectiveReq, null, effectiveReq.session?.user?.oauthId || effectiveReq.session?.user?.id || null);
   const _runId = agentRunRegistry.startRun(_agentKey, { tool: name, userId: effectiveReq.session?.user?.id || null });
   let outcome;
   try {
