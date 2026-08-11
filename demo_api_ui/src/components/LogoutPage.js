@@ -6,20 +6,23 @@ import './LogoutPage.css';
 
 /**
  * LogoutPage — shown after successful logout from PingOne.
- * Navigates home automatically so users can continue browsing as a guest.
+ * Redirects to the dashboard user was on, or home if not on a dashboard.
  */
 export default function LogoutPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let returnTo = '/';
     try {
+      // Check if logout was initiated from a dashboard
+      returnTo = sessionStorage.getItem('logoutReturnTo') || '/';
       sessionStorage.clear();
       localStorage.removeItem('userLoggedOut');
     } catch (e) {
       // ignore storage errors
     }
 
-    navigate('/', { replace: true });
+    navigate(returnTo, { replace: true });
   }, [navigate]);
 
   return (
@@ -56,7 +59,7 @@ export default function LogoutPage() {
             </div>
             <div className="logout-field">
               <span className="logout-label">Next step</span>
-              <span className="logout-value">Returning to home</span>
+              <span className="logout-value">Returning to dashboard</span>
             </div>
           </div>
         </div>
