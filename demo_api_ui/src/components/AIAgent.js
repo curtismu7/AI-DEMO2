@@ -2147,18 +2147,31 @@ export default function BankingAgent({
   }, [effectiveVerticalId]);
 
   useEffect(() => {
-    if (heroShown || !pageManifest?.hero) return;
-    const { imageUrl, greeting } = pageManifest.hero;
-    setHeroData({ imageUrl, greeting });
-    setHeroShown(true);
-    if (user) {
-      fetch(`/api/conversations/${user.sub}/${effectiveVerticalId}/hero-shown`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ greeting, imageUrl }),
-      }).catch(() => {});
-    }
+    if (heroShown) return;
+    const vertical = effectiveVerticalId || 'banking';
+
+    const loadHero = async () => {
+      try {
+        const manifest = pageManifest || await fetch(`/api/verticals/${vertical}`).then(r => r.json());
+        if (manifest?.hero) {
+          const { imageUrl, greeting } = manifest.hero;
+          setHeroData({ imageUrl, greeting });
+          setHeroShown(true);
+          if (user) {
+            fetch(`/api/conversations/${user.sub}/${vertical}/hero-shown`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ greeting, imageUrl }),
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load hero:', e);
+      }
+    };
+
+    loadHero();
   }, [effectiveVerticalId, heroShown, pageManifest, user]);
 
   // Auto-retry after login (auth challenge path)
