@@ -388,6 +388,7 @@
    flight (App.js `loading`), so the content area isn't a blank flash. */
 .main-content--auth-loading {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
   width: 100%;
