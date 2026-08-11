@@ -82,7 +82,7 @@ export default function RARPanel({ isOpen, onClose, initialTabId }) {
       label: 'Banking use case',
       content: (
         <>
-          <h4 style={{ marginTop: 0 }}>RAR for Super Banking / Open Banking</h4>
+          <h4 style={{ marginTop: 0 }}>RAR for AI Demo / Open Banking</h4>
           <p>
             RAR is the backbone of <strong>Open Banking (PSD2 / Berlin Group)</strong> and
             <strong>FAPI 2.0</strong> APIs. Instead of granting broad "transfer" scope, a
@@ -105,7 +105,7 @@ export default function RARPanel({ isOpen, onClose, initialTabId }) {
             resource server enforces the <code>authorization_details</code> claim embedded in the JWT.
           </p>
           <p>
-            <strong>AI agent angle:</strong> when the Super Banking Banking Agent initiates a transfer,
+            <strong>AI agent angle:</strong> when the AI Demo Banking Agent initiates a transfer,
             a RAR-aware integration would encode the exact amount and accounts into the
             authorization request, giving the user and the AS a precise picture of what is being
             authorized — aligning with PingOne's "Enforce Least Privilege" best practice.
@@ -185,7 +185,7 @@ export default function RARPanel({ isOpen, onClose, initialTabId }) {
       label: 'In this repo',
       content: (
         <>
-          <h3 style={{ marginTop: 0 }}>RAR in Super Banking</h3>
+          <h3 style={{ marginTop: 0 }}>RAR in AI Demo</h3>
           <EduImplIntro mock>
             Authorization requests from this app do not send <code>authorization_details</code> today; use this shape when integrating a PingOne policy that expects RAR.
           </EduImplIntro>
