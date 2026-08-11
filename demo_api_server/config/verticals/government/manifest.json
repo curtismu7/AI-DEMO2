@@ -60,6 +60,10 @@
     "greeting": "Hi {name}! I'm Liberty. I can show your permits and licenses, check fees owed, review your filing history, and help you release permit records — I'll walk you through the consent steps. What do you need?",
     "systemPromptFlavor": "You are Liberty, a CivicPermit citizen-services assistant. Help residents view permits and licenses, check fees owed, review filing history, and release permit records. Use government permitting language: accounts are permits and licenses, transactions are filings (applications, inspections, renewals, records releases), balance is fees owed. Be clear and procedural."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1554224311-beee415c15c7?w=1200&h=600&fit=crop",
+    "greeting": "Welcome. How may we assist?"
+  },
   "dashboard": {
     "kind": "government",
     "chips": [

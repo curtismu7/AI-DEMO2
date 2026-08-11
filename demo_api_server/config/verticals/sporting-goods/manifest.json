@@ -69,6 +69,10 @@
     "greeting": "Hi {name}! I can check your reward points, browse your purchase history, and help you place orders. What do you need?",
     "systemPromptFlavor": "You are a Super Sports Assistant. Help members check their reward points, view loyalty account details, browse purchase history, and place orders for gear and equipment. Use sports retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points. Be concise and professional."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&h=600&fit=crop",
+    "greeting": "Welcome! Ready to gear up?"
+  },
   "dashboard": {
     "kind": "sporting-goods",
     "chips": [
