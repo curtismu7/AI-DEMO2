@@ -1428,8 +1428,9 @@ export default function AdminSideNav({
 
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
-        {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
-            Agent/Admin/Setup when expanded (Refresh lives next to search). */}
+        {/* Quick-access shortcuts — single column of icons when collapsed
+            (incl. Refresh); 2×2 of Agent/Admin/Setup when expanded (Refresh
+            lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
@@ -1447,7 +1448,7 @@ export default function AdminSideNav({
               navigate("/dashboard");
             }}
           >
-            {collapsed ? "Ag" : "Agent"}
+            {collapsed ? <MdDashboard size={16} aria-hidden="true" /> : "Agent"}
           </button>
           <button
             type="button"
@@ -1473,14 +1474,14 @@ export default function AdminSideNav({
                 );
             }}
           >
-            {collapsed ? "A" : "Admin"}
+            {collapsed ? <MdSecurity size={16} aria-hidden="true" /> : "Admin"}
           </button>
           <Link
             to="/configure"
             className={`admin-side-nav__quick-link${location.pathname.startsWith("/configure") ? " admin-side-nav__quick-link--active" : ""}`}
             title="Setup"
           >
-            {collapsed ? "S" : "Setup"}
+            {collapsed ? <MdSettings size={16} aria-hidden="true" /> : "Setup"}
           </Link>
           {collapsed && (
             <button
@@ -1490,7 +1491,7 @@ export default function AdminSideNav({
               aria-label="Refresh sidebar"
               onClick={loadNavConfig}
             >
-              R
+              <MdRefresh size={16} aria-hidden="true" />
             </button>
           )}
         </div>
