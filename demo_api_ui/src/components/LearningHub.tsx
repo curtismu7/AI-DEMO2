@@ -192,7 +192,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Agent Kill Switch",
         description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
-        icon: "🛑",
+        icon: "⚠️",
         action: () => {},
       },
     ],
