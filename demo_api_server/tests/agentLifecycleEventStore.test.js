@@ -1,6 +1,13 @@
 'use strict';
 const store = require('../services/lmdb/agentLifecycleEventStore.lmdb');
 
+// Clear BEFORE as well as after. This store is a real LMDB file shared by the
+// whole jest run, and services/agentLifecycleEvents.js appends to it from route
+// suites, so clearing only afterwards leaves the first test asserting absolute
+// counts against whatever another suite already wrote ("Expected: 2,
+// Received: 3"). The pollution was invisible until the suites that write those
+// events stopped crashing at load.
+beforeEach(() => store.clear());
 afterEach(() => store.clear());
 
 test('append stores an event and query returns it newest-first', () => {
