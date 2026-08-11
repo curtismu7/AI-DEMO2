@@ -33,15 +33,12 @@ function requireValidId(req, res, next) {
 
 // ---- Read endpoints ----
 
-router.get('/me', requireSession, (req, res) => {
+router.get('/me', (req, res) => {
   const scope = verticalManifest.scope.resolveForRequest(req);
-  // Pin the vertical to THIS session on first hydration. Without a pin,
-  // activeIdFor() falls back to the process-global forever, so any other
-  // session switching verticals (setActive → global + SSE broadcast to every
-  // client) yanked this screen to their vertical mid-demo. Pinning once makes
-  // the global a first-load default instead of a live channel between sessions.
-  // Fire-and-forget: a failed save just means we re-pin on the next /me.
-  if (scope && scope.activeId && req.session && !req.session.active_vertical) {
+  const isAuthenticated = !!req.user;
+  // Guests see minimal state; authenticated users see their full manifest.
+  // Never require session — guests need this to hydrate UI on landing pages.
+  if (req.session && scope && scope.activeId && !req.session.active_vertical) {
     req.session.active_vertical = scope.activeId;
     if (typeof req.session.save === 'function') req.session.save(() => {});
   }
@@ -61,6 +58,13 @@ router.get('/me', requireSession, (req, res) => {
       } catch { /* malformed blob — ignore, serve manifest defaults */ }
     }
   }
+  // Guests don't get demoUsers password hints or other sensitive manifest fields.
+  if (!isAuthenticated && scope && scope.pageManifest) {
+    scope.pageManifest = {
+      identity: scope.pageManifest.identity,
+      theme: scope.pageManifest.theme,
+    };
+  }
   res.json(scope);
 });
 
@@ -72,21 +76,17 @@ router.get('/list', (_req, res) => {
 // returns the id only — the full manifest from /me carries demoUsers password
 // hints and must never reach an anonymous caller.
 //
-// Guests had no way to READ this. /me is requireSession, so VerticalProvider
-// hydrated activeId=null for them and the UI fell back to its own default while
-// the server independently used the process-global. The two then disagreed:
-// the picker read "Super Banking" while the agent answered out of retail's
-// catalog, and an A&F picker returned a workforce office couch. Same asymmetry
-// as the write side (POST /active) — the read has to be public for the UI's
+// /me is also unauthenticated so guests hydrate minimal state and the UI agrees
+// with server on which vertical to display. Both must be public for the UI's
 // selection and the server's answer to describe the same vertical.
 router.get('/active', (req, res) => {
   res.json({ id: verticalManifest.resolver.activeIdFor(req) || null });
 });
 
 // Landing hero (image + greeting) for a vertical. Unauthenticated on purpose:
-// the chat surface shows it before sign-in, where /me returns 401. Returns ONLY
-// the hero block — the full manifest carries demoUsers password hints and must
-// never be served to an anonymous caller.
+// the chat surface shows it before sign-in. Returns ONLY the hero block — the
+// full manifest carries demoUsers password hints and must never reach an
+// anonymous caller.
 router.get('/:id/hero', requireValidId, (req, res) => {
   const manifest = verticalManifest.resolver.resolve(req.params.id);
   if (!manifest) return res.status(404).json({ error: 'unknown id' });
@@ -97,7 +97,9 @@ router.get('/:id/hero', requireValidId, (req, res) => {
   res.json({ imageUrl: hero.imageUrl, greeting: hero.greeting });
 });
 
-router.get('/stream', requireSession, (req, res) => {
+router.get('/stream', (req, res) => {
+  // Guests see no events (SSE will close for 401), but endpoint must not
+  // require auth — VerticalProvider falls back gracefully to /me after timeout.
   verticalManifest.events.onClient(req, res);
   // Don't end — the client keeps it open until they disconnect.
 });
