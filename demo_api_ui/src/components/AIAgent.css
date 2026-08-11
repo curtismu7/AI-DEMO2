@@ -5933,6 +5933,16 @@ body > .banking-agent-float-root .banking-agent-panel {
   box-shadow: 0 0 0 3px #dcfce7;
 }
 
+:root[data-theme="dark"] .banking-chips-dropdown__button--done {
+  background: rgba(22, 163, 74, 0.15);
+  border-color: #16a34a;
+}
+
+:root[data-theme="dark"] .banking-chips-dropdown__button--done:hover:not(:disabled) {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);
+}
+
 .banking-chips-dropdown__check {
   position: absolute;
   top: 8px;
