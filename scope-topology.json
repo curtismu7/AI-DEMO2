@@ -1341,6 +1341,14 @@
     "list_anf_orders": {
       "requiredScopes": ["read"],
       "surface": "gateway"
+    },
+    "add_to_cart": {
+      "requiredScopes": ["write"],
+      "surface": "gateway"
+    },
+    "browse_gear": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
     }
   },
   "policy": {

@@ -75,6 +75,8 @@ const INTENT_TO_PERMITTED_TOOLS = {
   gear_order:               ['gear_order_status', 'list_gear', 'show_gear_order'],
   view_gear_warranty:       ['show_gear_warranty'],
   request_price_match:      ['request_price_match', 'list_gear'],
+  browse_gear:              ['browse_gear', 'list_gear'],
+  add_to_cart:              ['add_to_cart', 'browse_gear'],
   // Workforce
   view_benefits:            ['view_benefits', 'pto_balance', 'show_expense_report'],
   pto_balance:              ['pto_balance', 'view_benefits', 'show_expense_report'],
@@ -127,7 +129,7 @@ const READ_ONLY_TOOLS = [
   'list_orders', 'list_anf_orders', 'order_status', 'rewards_balance', 'show_large_purchase',
   // Sporting-goods
   'list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order',
-  'show_gear_warranty',
+  'show_gear_warranty', 'browse_gear',
   // Workforce
   'view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report',
   // Mortgage
@@ -161,7 +163,7 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   healthcare: ['view_records', 'view_coverage', 'list_appointments', 'show_health_record', 'sequential_think'],
   retail: ['list_orders', 'order_status', 'rewards_balance', 'show_large_purchase', 'sequential_think'],
   'abercrombie-fitch': ['list_anf_orders', 'order_status', 'rewards_balance', 'sequential_think'],
-  'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'show_gear_warranty', 'sequential_think'],
+  'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'show_gear_warranty', 'browse_gear', 'sequential_think'],
   workforce: ['view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report', 'sequential_think'],
   mortgage: ['show_mortgage', 'sequential_think'],
   government: [

@@ -429,6 +429,12 @@ export function formatResult(result, terminology) {
   if (r.nickname !== undefined) {
     return `${termAccount} nickname: ${r.nickname}`;
   }
+  // Add-to-cart confirmation (sporting-goods cart entry: { productId, name, price, addedAt }).
+  // Checked before the generic transaction-id branch below, which would otherwise
+  // match on r.id and print a confusing "Transaction confirmed" with no amount.
+  if (r.productId && r.name && r.addedAt) {
+    return `Added ${r.name}${typeof r.price === "number" ? ` (${formatCurrency(r.price)})` : ""} to your cart.`;
+  }
   // Transaction confirmation (single transaction)
   if (r.transaction_id || r.transactionId || r.id) {
     return `Transaction confirmed\nTransaction ID: ${r.transaction_id || r.transactionId || r.id}\nAmount: ${formatCurrency(r.amount)}`;

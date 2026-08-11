@@ -222,8 +222,11 @@ function searchPublicBranches(params = {}) {
  * Format the location list for agent chat replies. The vertical rides on the
  * result object, so no caller's signature changes.
  * @param {ReturnType<typeof searchPublicBranches>} result
+ * @param {{ short?: boolean }} [options] - short: heading only, no per-branch
+ *   detail — for callers (e.g. branch_hours) that also render `result.branches`
+ *   as cards, so the full address/hours/ATM list isn't shown twice.
  */
-function formatBranchCatalogReply(result) {
+function formatBranchCatalogReply(result, { short = false } = {}) {
   const { branches, query, vertical } = result;
   const key = LABEL_BY_VERTICAL[vertical] ? vertical : 'banking';
   const label = LABEL_BY_VERTICAL[key];
@@ -236,6 +239,9 @@ function formatBranchCatalogReply(result) {
   const heading = query
     ? `${brand} ${label}s near **${query}**`
     : `${brand} ${label} locations`;
+  if (short) {
+    return `${heading} — found ${branches.length}:`;
+  }
   const lines = branches.map((b) => {
     const atm = b.atm ? ' · ATM available' : '';
     return `• **${b.name}** (${b.city}, ${b.state})\n  ${b.address}\n  Hours: ${b.hours}${atm}`;

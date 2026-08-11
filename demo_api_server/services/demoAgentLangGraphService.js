@@ -299,7 +299,11 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       const result = searchPublicBranches({ ...(params || {}), vertical: verticalId });
       const tokenEvents = buildPublicCatalogTokenEvents('get_branch_hours');
       return {
-        reply: formatBranchCatalogReply(result),
+        // short:true — AIAgent.js's locationCards rendering already shows the
+        // full per-branch detail (name/address/hours/ATM) as cards from
+        // `branches` below; the reply text is just the heading so the two
+        // don't duplicate the same information.
+        reply: formatBranchCatalogReply(result, { short: true }),
         success: true,
         toolsCalled: ['get_branch_hours'],
         tokensUsed: 0,

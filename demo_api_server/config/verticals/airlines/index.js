@@ -89,6 +89,7 @@ const TOOLS = [
     },
     scopes: ['airlines:read'],
     authz: {},
+    render: 'seatMap',
   },
   {
     name: 'sensitive_passenger_record',
@@ -129,7 +130,11 @@ const HEURISTICS = [
   // "cancel my reservation" must not fall into the generic bookings rule below.
   { re: /\b(cancel|refund)\b.*\b(reservation|booking|trip|flight)\b/i, action: 'cancel_airline_reservation' },
   { re: /\bsensitive\b.*\b(booking|bookings|reservation|reservations)\b/i, action: 'sensitive_airline_bookings' },
-  { re: /\b(seat|seats|seat\s*map|row)\b/i, action: 'check_seat_availability' },
+  // available_only defaults to true in airlinesToolHandler.ts (resource server),
+  // so the seat-map chip never showed occupied seats without this — the
+  // "Occupied" legend swatch + disabled seat styling could never be exercised.
+  // A seat MAP should show the whole plane, not just what's left to buy.
+  { re: /\b(seat|seats|seat\s*map|row)\b/i, action: 'check_seat_availability', defaultParams: { available_only: false } },
   { re: /\b(status|gate|boarding|delayed|on\s*time)\b/i, action: 'get_flight_status' },
   { re: /\b(reservation|reservations|booking|bookings|itinerar\w*|my\s+trips?|my\s+flights?)\b/i, action: 'get_airline_bookings' },
 ];

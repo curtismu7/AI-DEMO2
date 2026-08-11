@@ -63,6 +63,7 @@ import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/e
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
+import ProductCardGrid from "./ProductCardGrid";
 import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
@@ -2923,6 +2924,15 @@ export default function BankingAgent({
     return { verticalResult: { descriptor, data: vr.data, terminology } };
   }
 
+  // branch_hours (UC24 public catalog, cross-vertical) rides `.branches` +
+  // `.publicCatalog` on the raw response (demoAgentLangGraphService.js:298-311),
+  // outside the normal verticalResult/manifest-render pipeline — this is the
+  // parallel path for that one shape.
+  function locationCardsExtra(response) {
+    if (!response?.publicCatalog || !Array.isArray(response.branches)) return {};
+    return { locationCards: response.branches };
+  }
+
   function markToolProgressOutcome(success, errorDetail = null) {
     const tid = toolProgressIdRef.current;
     if (!tid) return;
@@ -3092,6 +3102,30 @@ export default function BankingAgent({
             onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
           });
           break;
+        case "add_to_cart": {
+          toast.update(toastId, { render: "Adding to cart…" });
+          response = await callMcpTool("add_to_cart", form, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
+          // The manifest declares a card descriptor for add_to_cart
+          // (sporting-goods/manifest.json render.add_to_cart), but a direct
+          // callMcpTool response carries no verticalResult — only the NL/chat
+          // dispatch path (dispatchVerticalIntent) attaches that automatically.
+          // Build the same shape here so the card renders instead of falling
+          // through formatResult's JSON.stringify fallback.
+          const cartOut = normalizeAgentToolResult(response.result);
+          if (cartOut && !isAgentToolErrorResult(cartOut) && cartOut.data) {
+            response = {
+              ...response,
+              result: cartOut.data,
+              verticalResult: { render: cartOut.render || "add_to_cart", data: cartOut.data },
+            };
+            Object.assign(resultExtra, verticalResultExtra(response));
+          }
+          break;
+        }
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)
@@ -6401,6 +6435,32 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "branch_hours") {
+        // Heuristic parses "branches near me" / "clinics near me" / etc. to
+        // action branch_hours (cross-vertical UC24 public catalog — see
+        // nlIntentParser.js), but runAction had no case for it, so every
+        // version of this prompt threw "Unknown action: branch_hours" in
+        // every vertical. Same fix shape as the weather action below.
+        const cityQuery = p.city || "";
+        const branchPrompt = nlUserText || (cityQuery ? `branches near ${cityQuery}` : "branches near me");
+        try {
+          const response = await sendAgentMessage(branchPrompt, null, {
+            forceHeuristic: true,
+            vertical: effectiveVerticalId || "banking",
+            ...(useCaseId ? { useCaseId } : {}),
+          });
+          if (maybeHandleCustomerLogin(response, _source)) return;
+          await handleNlResumeResponse(response, branchPrompt, useCaseId);
+        } catch (e) {
+          addMessage(
+            "assistant",
+            e?.message || "Could not look up locations.",
+            null,
+            { source: _source },
+          );
+        }
+        return;
+      }
       if (action === "weather") {
         // Heuristic parses "weather in <city>" → action weather, but runAction
         // has no weather case (Unknown action: weather). Execute via /agent/invoke
@@ -6900,7 +6960,7 @@ export default function BankingAgent({
   async function addReplyRespectingGrounding(response, replyWithAgentBadge, promptText) {
     const grounded = response?.groundedAnswer;
     if (!grounded) {
-      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      addMessage("assistant", replyWithAgentBadge, null, { ...verticalResultExtra(response), ...locationCardsExtra(response) });
       return;
     }
 
@@ -10904,7 +10964,11 @@ export default function BankingAgent({
                               <VerticalResult
                                 descriptor={msg.verticalResult.descriptor}
                                 data={msg.verticalResult.data}
+                                onAction={(tool, params) => runAction(tool, params, { skipUserLabel: true, vertical: effectiveVerticalId })}
                               />
+                            )}
+                            {msg.locationCards && (
+                              <ProductCardGrid kind="locations" items={msg.locationCards} />
                             )}
                             {msg.rawMcpResult != null && (
                               <JsonField

@@ -303,6 +303,8 @@ describe("CSS/JS monospace regression", () => {
         f.includes("TransactionTracePage.css") ||        // trace cid/phase/op code display (intentional)
         f.includes("DetailedStepsTabContent.css") ||     // step request/response code display (intentional)
         f.includes("ProtocolPlayground/ProtocolPlayground.css") || // protocol frame/code display (intentional)
+        f.includes("ProtocolPlayground/JSONViewer.css") || // JSON response display (intentional)
+        f.includes("ProtocolPlayground/StepCard.css") ||   // request/response code display (intentional)
         f.includes("ResourceServerInterstitial.css") ||  // RS token/scope code display (intentional)
         f.includes("TokenFlowDetailModal.css") ||        // token claim/JSON code display (intentional)
         f.includes("LiveUseCaseWorkbenchPage.css") ||    // workbench log/tool code display (intentional)
@@ -310,6 +312,8 @@ describe("CSS/JS monospace regression", () => {
         f.includes("agent-clinical/TokensPane.css") ||   // token claim/badge value display (intentional)
         f.includes("PingOneEventPanel.css") ||            // PingOne event JSON detail display (intentional)
         f.includes("NewRelicDashboard.css") ||             // pipeline stage counts/timestamps/correlation id/category chip display (intentional)
+        f.includes("ProductCardGrid.css") ||              // price tag tabular-nums display (intentional)
+        f.includes("SeatMapPanel.css") ||                 // seat label tabular-nums display (intentional)
         f.includes("dashboard/dashboard.css")              // shared dashboard tabular stat/timestamp/correlation id/chip display (intentional)
       )
         continue;

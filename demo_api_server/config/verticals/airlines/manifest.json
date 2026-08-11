@@ -134,6 +134,9 @@
       }
     ]
   },
+  "render": {
+    "check_seat_availability": { "type": "seatMap" }
+  },
   "scopes": {
     "read": "read",
     "write": "write",
