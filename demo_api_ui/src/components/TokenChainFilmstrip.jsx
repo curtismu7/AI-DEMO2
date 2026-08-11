@@ -240,24 +240,24 @@ export default function TokenChainFilmstrip() {
           // The spotlight is the right column, so it must never be empty — an
           // empty half-screen reads as broken. Say what to do instead.
           <div className="tcfs-spotlight-empty">
-            {steps.length === 0 ? (
-              <div className="tcfs-spotlight-intro">
-                <div className="tcfs-spotlight-intro-title">What this panel shows</div>
-                <ul className="tcfs-spotlight-intro-list">
-                  <li>Every hop's token — issuer, audience, scopes, and the nested <code>act</code> chain (RFC 8693)</li>
-                  <li>Who is acting on whose behalf, proven cryptographically at each step</li>
-                  <li>Live claims you can inspect, not just a diagram</li>
-                </ul>
-                <div className="tcfs-spotlight-intro-value">
-                  Token exchange means every downstream service gets proof of the
-                  original user AND every agent that acted on their behalf — no
-                  blanket credentials, no impersonation, full auditability end to end.
-                </div>
-                <div className="tcfs-spotlight-intro-cta">Run an agent request below to populate it.</div>
+            <div className="tcfs-spotlight-intro">
+              <div className="tcfs-spotlight-intro-title">What this panel shows</div>
+              <ul className="tcfs-spotlight-intro-list">
+                <li>Every hop's token — issuer, audience, scopes, and the nested <code>act</code> chain (RFC 8693)</li>
+                <li>Who is acting on whose behalf, proven cryptographically at each step</li>
+                <li>Live claims you can inspect, not just a diagram</li>
+              </ul>
+              <div className="tcfs-spotlight-intro-value">
+                Token exchange means every downstream service gets proof of the
+                original user AND every agent that acted on their behalf — no
+                blanket credentials, no impersonation, full auditability end to end.
               </div>
-            ) : (
-              "Pick a step on the chain below to see what it changed."
-            )}
+              <div className="tcfs-spotlight-intro-cta">
+                {steps.length === 0
+                  ? "Run an agent request below to populate it."
+                  : "Pick a step on the chain below to see what it changed."}
+              </div>
+            </div>
           </div>
         )}
       </div>
