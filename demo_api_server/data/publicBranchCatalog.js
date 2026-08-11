@@ -20,6 +20,7 @@ const BRANCHES = Object.freeze([
     address: '100 Congress Ave, Austin, TX 78701',
     hours: 'Mon–Fri 9:00–17:00, Sat 10:00–14:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=400&h=300&fit=crop',
   },
   {
     id: 'branch-austin-north',
@@ -29,6 +30,7 @@ const BRANCHES = Object.freeze([
     address: '4500 N Lamar Blvd, Austin, TX 78756',
     hours: 'Mon–Fri 9:00–18:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1554224311-beee415c15c7?w=400&h=300&fit=crop',
   },
   {
     id: 'branch-dallas',
@@ -38,6 +40,7 @@ const BRANCHES = Object.freeze([
     address: '2000 Ross Ave, Dallas, TX 75201',
     hours: 'Mon–Fri 9:00–17:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop',
   },
   {
     id: 'branch-houston',
@@ -47,6 +50,7 @@ const BRANCHES = Object.freeze([
     address: '910 Louisiana St, Houston, TX 77002',
     hours: 'Mon–Fri 9:00–17:00, Sat 9:00–13:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1560169897-fc0cdbdfa4d5?w=400&h=300&fit=crop',
   },
   {
     id: 'branch-dallas-uptown',
@@ -56,6 +60,7 @@ const BRANCHES = Object.freeze([
     address: '1445 Ross Ave, Dallas, TX 75202',
     hours: 'Mon–Fri 9:00–18:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1497206365907-3ff0a8b776e2?w=400&h=300&fit=crop',
   },
   {
     id: 'branch-miami',
@@ -65,6 +70,7 @@ const BRANCHES = Object.freeze([
     address: '200 S Biscayne Blvd, Miami, FL 33131',
     hours: 'Mon–Fri 9:00–17:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1512941691920-25bea6d26acb?w=400&h=300&fit=crop',
   },
   {
     id: 'branch-denver',
@@ -74,6 +80,7 @@ const BRANCHES = Object.freeze([
     address: '1700 Lincoln St, Denver, CO 80203',
     hours: 'Mon–Fri 9:00–17:00, Sat 10:00–14:00',
     atm: true,
+    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop',
   },
 ]);
 
@@ -120,10 +127,10 @@ const WORKFORCE = Object.freeze([
 ]);
 
 const SPORTING_GOODS = Object.freeze([
-  { id: 'sg-austin', name: 'Super Sports Austin Outfitter', city: 'Austin', state: 'TX', address: '9607 Research Blvd, Austin, TX 78759', hours: 'Mon–Sat 9:00–21:00, Sun 10:00–19:00', atm: true },
-  { id: 'sg-dallas', name: 'Super Sports Dallas Store', city: 'Dallas', state: 'TX', address: '7700 W Northwest Hwy, Dallas, TX 75225', hours: 'Mon–Sat 9:00–21:00', atm: true },
-  { id: 'sg-houston', name: 'Super Sports Houston Store', city: 'Houston', state: 'TX', address: '5000 Westheimer Rd, Houston, TX 77056', hours: 'Daily 10:00–20:00', atm: true },
-  { id: 'sg-denver', name: 'Super Sports Denver Outfitter', city: 'Denver', state: 'CO', address: '1000 Broadway, Denver, CO 80203', hours: 'Mon–Sat 9:00–20:00', atm: true },
+  { id: 'sg-austin', name: 'Super Sports Austin Outfitter', city: 'Austin', state: 'TX', address: '9607 Research Blvd, Austin, TX 78759', hours: 'Mon–Sat 9:00–21:00, Sun 10:00–19:00', atm: true, image: 'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=400&h=300&fit=crop' },
+  { id: 'sg-dallas', name: 'Super Sports Dallas Store', city: 'Dallas', state: 'TX', address: '7700 W Northwest Hwy, Dallas, TX 75225', hours: 'Mon–Sat 9:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=400&h=300&fit=crop' },
+  { id: 'sg-houston', name: 'Super Sports Houston Store', city: 'Houston', state: 'TX', address: '5000 Westheimer Rd, Houston, TX 77056', hours: 'Daily 10:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=300&fit=crop' },
+  { id: 'sg-denver', name: 'Super Sports Denver Outfitter', city: 'Denver', state: 'CO', address: '1000 Broadway, Denver, CO 80203', hours: 'Mon–Sat 9:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1525966222134-fcbd99220ae0?w=400&h=300&fit=crop' },
 ]);
 
 const MANUFACTURING = Object.freeze([
@@ -141,11 +148,11 @@ const INVESTMENT = Object.freeze([
 ]);
 
 const AIRLINES = Object.freeze([
-  { id: 'airport-austin', name: 'Austin-Bergstrom International Airport — United Terminal', city: 'Austin', state: 'TX', address: '3600 Presidential Blvd, Austin, TX 78719', hours: 'Ticket counter daily 4:00–20:00', atm: true },
-  { id: 'airport-dallas', name: 'Dallas/Fort Worth International Airport — United Terminal E', city: 'Dallas', state: 'TX', address: '2400 Aviation Dr, DFW Airport, TX 75261', hours: 'Ticket counter daily 4:00–22:00', atm: true },
-  { id: 'airport-houston', name: 'George Bush Intercontinental Airport — United Terminal C', city: 'Houston', state: 'TX', address: '2800 N Terminal Rd, Houston, TX 77032', hours: 'Ticket counter daily 4:00–23:00', atm: true },
-  { id: 'airport-denver', name: 'Denver International Airport — United Concourse B', city: 'Denver', state: 'CO', address: '8500 Peña Blvd, Denver, CO 80249', hours: 'Ticket counter daily 4:00–22:00', atm: true },
-  { id: 'airport-miami', name: 'Miami International Airport — United Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: true },
+  { id: 'airport-austin', name: 'Austin-Bergstrom International Airport — United Terminal', city: 'Austin', state: 'TX', address: '3600 Presidential Blvd, Austin, TX 78719', hours: 'Ticket counter daily 4:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1552066922-7fb28798e0c2?w=400&h=300&fit=crop' },
+  { id: 'airport-dallas', name: 'Dallas/Fort Worth International Airport — United Terminal E', city: 'Dallas', state: 'TX', address: '2400 Aviation Dr, DFW Airport, TX 75261', hours: 'Ticket counter daily 4:00–22:00', atm: true, image: 'https://images.unsplash.com/photo-1595952927430-8dfe62cc253e?w=400&h=300&fit=crop' },
+  { id: 'airport-houston', name: 'George Bush Intercontinental Airport — United Terminal C', city: 'Houston', state: 'TX', address: '2800 N Terminal Rd, Houston, TX 77032', hours: 'Ticket counter daily 4:00–23:00', atm: true, image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop' },
+  { id: 'airport-denver', name: 'Denver International Airport — United Concourse B', city: 'Denver', state: 'CO', address: '8500 Peña Blvd, Denver, CO 80249', hours: 'Ticket counter daily 4:00–22:00', atm: true, image: 'https://images.unsplash.com/photo-1556092674-9c02f6f1ee58?w=400&h=300&fit=crop' },
+  { id: 'airport-miami', name: 'Miami International Airport — United Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1567427282577-97fa5a850a62?w=400&h=300&fit=crop' },
 ]);
 
 const CATALOG_BY_VERTICAL = Object.freeze({

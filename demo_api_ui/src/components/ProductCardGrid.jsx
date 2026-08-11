@@ -91,7 +91,13 @@ function ProductCard({ item, onAction, action }) {
 function LocationCard({ item }) {
   return (
     <div className="pcg-card">
-      <div className="pcg-thumb pcg-thumb--location">{icon("location")}</div>
+      {item.image ? (
+        <div className="pcg-thumb pcg-thumb--location">
+          <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      ) : (
+        <div className="pcg-thumb pcg-thumb--location">{icon("location")}</div>
+      )}
       <div className="pcg-body">
         <div className="pcg-price-row">
           <span className="pcg-status">{item.hours}</span>
