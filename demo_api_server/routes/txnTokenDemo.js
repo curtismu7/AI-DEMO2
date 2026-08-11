@@ -17,6 +17,7 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  *
  * @flow txn-tokens
  * @name TXN Tokens
+ * @rfc https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-12 Transaction Tokens
  * @actor edge-service
  * @to txn-token-service
  * @step 1

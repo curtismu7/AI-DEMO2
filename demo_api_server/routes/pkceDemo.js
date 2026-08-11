@@ -29,6 +29,7 @@ function deriveCode(codeChallenge) {
  *
  * @flow pkce
  * @name PKCE
+ * @rfc https://datatracker.ietf.org/doc/html/rfc7636 RFC 7636
  * @actor client-app
  * @to auth-server
  * @step 1

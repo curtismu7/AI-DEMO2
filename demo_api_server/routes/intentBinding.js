@@ -39,6 +39,7 @@ function classifyParPushError(message) {
  *
  * @flow rar
  * @name RAR
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9396 RFC 9396
  * @actor client-app
  * @to auth-server
  * @step 1
