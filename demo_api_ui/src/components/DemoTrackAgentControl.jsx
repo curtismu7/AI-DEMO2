@@ -48,13 +48,31 @@ export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
           });
         }
       }
-    } catch { /* header control is best-effort; next poll retries */ }
+      return true;
+    } catch (err) {
+      // A 401 means the session is gone — every future poll would 401 too,
+      // forever, since this control stays mounted (host preserves chat state)
+      // even while collapsed. Stop instead of spamming the network/console
+      // every 5s for the rest of the page's life.
+      return err?.response?.status !== 401;
+    }
   }, []);
 
   useEffect(() => {
+    let stopped = false;
     load();
-    const t = setInterval(load, POLL_MS);
-    return () => clearInterval(t);
+    const t = setInterval(async () => {
+      if (stopped) return;
+      const ok = await load();
+      if (!ok) {
+        stopped = true;
+        clearInterval(t);
+      }
+    }, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
   }, [load]);
 
   const pick = useCallback(async (step, index, total) => {
