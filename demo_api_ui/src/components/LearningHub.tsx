@@ -321,7 +321,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       },
       {
         label: "WebMCP (Google)",
-        description: "Google's Web MCP implementation",
+        description: "Proposed web standard for exposing tools to AI agents",
         icon: "🌐",
         action: () => {},
       },
