@@ -17,6 +17,7 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  *
  * @flow xaa
  * @name XAA / ID-JAG
+ * @rfc https://datatracker.ietf.org/doc/html/draft-looker-app-driven-authorization-16 App-Driven AuthZ
  * @actor client-app
  * @to idp-a
  * @step 1

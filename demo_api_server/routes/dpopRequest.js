@@ -14,6 +14,7 @@ const router = express.Router();
  *
  * @flow dpop
  * @name DPoP
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9449 RFC 9449
  * @actor client-app
  * @to gateway
  * @step 1

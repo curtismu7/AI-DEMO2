@@ -14,6 +14,7 @@ const router = express.Router();
  *
  * @flow par
  * @name PAR
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9126 RFC 9126
  * @actor client-app
  * @to auth-server
  * @step 1

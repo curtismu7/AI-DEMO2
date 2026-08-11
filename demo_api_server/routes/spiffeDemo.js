@@ -22,6 +22,7 @@ const TRUST_DOMAIN = 'demo.local';
  *
  * @flow spiffe
  * @name SPIFFE
+ * @rfc https://datatracker.ietf.org/doc/html/draft-ietf-oauth-spiffe-bearer-token-09 SPIFFE Bearer Token
  * @actor workload-a
  * @to spire-agent
  * @step 1

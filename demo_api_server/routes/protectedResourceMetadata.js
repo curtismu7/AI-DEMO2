@@ -78,6 +78,7 @@ router.get('/', (req, res) => {
  * authorization server issues its tokens and which scopes it accepts.
  *
  * @flow resource-metadata
+ * @rfc https://datatracker.ietf.org/doc/html/rfc8414 RFC 8414
  * @actor client-app
  * @to resource-server
  * @step 1

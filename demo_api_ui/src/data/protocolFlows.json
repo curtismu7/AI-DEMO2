@@ -18,6 +18,8 @@
         "method": "POST",
         "endpoint": "/api/auth/ciba/initiate",
         "step": 1,
+        "title": null,
+        "description": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email. Body: { scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token) binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci) acr_values?:      'Multi_factor'             — for step-up auth login_hint?:      'user@example.com'         — override from session email }",
         "body": null,
         "expected": {}
       },
@@ -31,11 +33,19 @@
         "method": "POST",
         "endpoint": "/api/auth/ciba/approve-now/:authReqId",
         "step": 2,
+        "title": null,
+        "description": "Approve a pending transfer after human review via CIBA/HITL. Human approver grants permission for the client-initiated transfer.",
         "body": null,
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc9110",
+      "label": "RFC 9110",
+      "title": "CIBA / HITL",
+      "why": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email. Body: { scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token) binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci) acr_values?:      'Multi_factor'             — for step-up auth login_hint?:      'user@example.com'         — override from session email }"
+    }
   },
   "dpop": {
     "id": "dpop",
@@ -56,6 +66,8 @@
         "method": "POST",
         "endpoint": "/api/auth/oauth/token",
         "step": 1,
+        "title": null,
+        "description": "Request an access token with DPoP proof. Client sends a DPoP proof header to bind the token to a specific key pair.",
         "body": null,
         "expected": {}
       },
@@ -69,11 +81,19 @@
         "method": "POST",
         "endpoint": "/api/auth/gateway/verify-dpop",
         "step": 2,
+        "title": null,
+        "description": "Verify DPoP proof on gateway. Gateway validates that the DPoP proof is valid and matches the token being used.",
         "body": null,
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc9449",
+      "label": "RFC 9449",
+      "title": "DPoP",
+      "why": "Request an access token with DPoP proof. Client sends a DPoP proof header to bind the token to a specific key pair."
+    }
   },
   "rar": {
     "id": "rar",
@@ -94,6 +114,8 @@
         "method": "POST",
         "endpoint": "/api/demo/intent-binding/run",
         "step": 1,
+        "title": null,
+        "description": "Execute a transfer whose intent is declared via RAR authorization_details (RFC 9396) — PingOne Authorize evaluates the requested amount against the agent's declared $100 intent cap and returns PERMIT or DENY.",
         "body": {
           "action": "permit",
           "requestedAmount": 50,
@@ -102,7 +124,13 @@
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc9396",
+      "label": "RFC 9396",
+      "title": "RAR",
+      "why": "Execute a transfer whose intent is declared via RAR authorization_details (RFC 9396) — PingOne Authorize evaluates the requested amount against the agent's declared $100 intent cap and returns PERMIT or DENY."
+    }
   },
   "rfc8693-token-exchange": {
     "id": "rfc8693-token-exchange",
@@ -123,6 +151,8 @@
         "method": "POST",
         "endpoint": "/api/oauth/token/token",
         "step": 1,
+        "title": null,
+        "description": "Exchange delegated token via RFC 8693 token exchange. Client sends a subject token (typically an ID token) and requests an access token.",
         "body": null,
         "expected": {}
       },
@@ -136,11 +166,19 @@
         "method": "POST",
         "endpoint": "/api/oauth/token/introspect",
         "step": 2,
+        "title": null,
+        "description": "Validate and introspect delegated token via RFC 8693. Token exchanger verifies the subject token and returns token details.",
         "body": null,
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc8693",
+      "label": "RFC 8693",
+      "title": "RFC 8693 Token Exchange",
+      "why": "Exchange delegated token via RFC 8693 token exchange. Client sends a subject token (typically an ID token) and requests an access token."
+    }
   },
   "par": {
     "id": "par",
@@ -161,6 +199,8 @@
         "method": "POST",
         "endpoint": "/api/auth/par",
         "step": 1,
+        "title": null,
+        "description": "Push an authorization request for later retrieval. Client sends authorization parameters and receives a request_uri for later use.",
         "body": null,
         "expected": {}
       },
@@ -174,11 +214,19 @@
         "method": "GET",
         "endpoint": "/api/auth/authorize",
         "step": 2,
+        "title": null,
+        "description": "Authorize a pushed authorization request. Authorization server processes the request_uri and issues authorization code.",
         "body": null,
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc9126",
+      "label": "RFC 9126",
+      "title": "PAR",
+      "why": "Push an authorization request for later retrieval. Client sends authorization parameters and receives a request_uri for later use."
+    }
   },
   "pkce": {
     "id": "pkce",
@@ -199,6 +247,8 @@
         "method": "POST",
         "endpoint": "/api/demo/pkce/authorize",
         "step": 1,
+        "title": null,
+        "description": "Client sends its PKCE code_challenge to obtain an authorization code.",
         "body": {
           "code_challenge": "ewuOoauAc4HDP26uT55nbd_OX32mHAsIb1VtknVbfv8",
           "code_challenge_method": "S256"
@@ -215,6 +265,8 @@
         "method": "POST",
         "endpoint": "/api/demo/pkce/token",
         "step": 2,
+        "title": null,
+        "description": "Client redeems the code with its code_verifier — server recomputes the challenge from the verifier and only issues a token if the derived code matches the one step 1 returned for that challenge.",
         "body": {
           "code": "vdA2j5Y2ifHKpWEK",
           "code_verifier": "demo-pkce-verifier-9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c"
@@ -222,7 +274,13 @@
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc7636",
+      "label": "RFC 7636",
+      "title": "PKCE",
+      "why": "Client sends its PKCE code_challenge to obtain an authorization code."
+    }
   },
   "resource-metadata": {
     "id": "resource-metadata",
@@ -243,6 +301,8 @@
         "method": "GET",
         "endpoint": "/.well-known/oauth-protected-resource/metadata",
         "step": 1,
+        "title": null,
+        "description": "Client discovers this API's protected-resource metadata — which authorization server issues its tokens and which scopes it accepts.",
         "body": null,
         "expected": {}
       },
@@ -256,11 +316,19 @@
         "method": "GET",
         "endpoint": "/.well-known/oauth-protected-resource/all",
         "step": 2,
+        "title": null,
+        "description": "Client extends discovery to every downstream MCP resource server so it can see the full set of authorization servers and scopes across the chain before attempting a token request.",
         "body": null,
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc8414",
+      "label": "RFC 8414",
+      "title": "Resource Metadata",
+      "why": "Client discovers this API's protected-resource metadata — which authorization server issues its tokens and which scopes it accepts."
+    }
   },
   "spiffe": {
     "id": "spiffe",
@@ -282,6 +350,8 @@
         "method": "POST",
         "endpoint": "/api/demo/spiffe/svid",
         "step": 1,
+        "title": null,
+        "description": "Workload fetches its JWT-SVID from the (simulated) SPIRE agent.",
         "body": {
           "spiffe_id": "spiffe://demo.local/service/payments"
         },
@@ -297,6 +367,8 @@
         "method": "POST",
         "endpoint": "/api/demo/spiffe/verify",
         "step": 2,
+        "title": null,
+        "description": "Peer workload validates the presented SVID against the expected trust domain before accepting the call.",
         "body": {
           "svid": "demo.placeholder.svid",
           "expected_trust_domain": "demo.local"
@@ -304,7 +376,13 @@
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-spiffe-bearer-token-09",
+      "label": "SPIFFE Bearer Token",
+      "title": "SPIFFE",
+      "why": "Workload fetches its JWT-SVID from the (simulated) SPIRE agent."
+    }
   },
   "txn-tokens": {
     "id": "txn-tokens",
@@ -326,6 +404,8 @@
         "method": "POST",
         "endpoint": "/api/demo/txn-tokens/request",
         "step": 1,
+        "title": null,
+        "description": "Edge service requests a txn-token from the Transaction Token Service, carrying the caller's subject token and the request context to bind.",
         "body": {
           "subject_token": "demo-subject-access-token",
           "request_ctx": {
@@ -346,6 +426,8 @@
         "method": "POST",
         "endpoint": "/api/demo/txn-tokens/propagate",
         "step": 2,
+        "title": null,
+        "description": "A downstream microservice receives the txn-token on the next hop, validates it, and re-mints a fresh one to propagate further inward.",
         "body": {
           "txn_token": "demo.placeholder.token",
           "hop": "inventory-service"
@@ -353,7 +435,13 @@
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-12",
+      "label": "Transaction Tokens",
+      "title": "TXN Tokens",
+      "why": "Edge service requests a txn-token from the Transaction Token Service, carrying the caller's subject token and the request context to bind."
+    }
   },
   "xaa": {
     "id": "xaa",
@@ -375,6 +463,8 @@
         "method": "POST",
         "endpoint": "/api/demo/xaa/id-jag",
         "step": 1,
+        "title": null,
+        "description": "Client exchanges its home-domain ID token for an ID-JAG assertion scoped to the target (foreign) domain's authorization server.",
         "body": {
           "subject_token": "demo-id-token",
           "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
@@ -393,6 +483,8 @@
         "method": "POST",
         "endpoint": "/api/demo/xaa/token",
         "step": 2,
+        "title": null,
+        "description": "Foreign domain's AS trades the ID-JAG assertion for an access token scoped to its own resource server (JWT-bearer grant, RFC 7523 shape).",
         "body": {
           "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
           "assertion": "demo.placeholder.idjag",
@@ -401,6 +493,12 @@
         "expected": {}
       }
     ],
-    "branches": []
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/draft-looker-app-driven-authorization-16",
+      "label": "App-Driven AuthZ",
+      "title": "XAA / ID-JAG",
+      "why": "Client exchanges its home-domain ID token for an ID-JAG assertion scoped to the target (foreign) domain's authorization server."
+    }
   }
 }
