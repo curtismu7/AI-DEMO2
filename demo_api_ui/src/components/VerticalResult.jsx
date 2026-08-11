@@ -1,6 +1,7 @@
 import React from 'react';
 import TokenCard from './TokenCard';
 import ProductCardGrid from './ProductCardGrid';
+import SeatMapPanel from './SeatMapPanel';
 import { formatValue } from '../utils/formatters';
 
 function valueByPath(obj, path) {
@@ -44,8 +45,19 @@ function VerticalResult({ descriptor, data, onAction }) {
     );
   }
 
+  if (descriptor && descriptor.type === 'seatMap') {
+    const flightNumber = (data && data.flightNumber) || '';
+    const rawSeats = (data && (data.seats || data)) || [];
+    const seats = Array.isArray(rawSeats) ? rawSeats : [];
+    return (
+      <div className="vertical-result vertical-result-seat-map">
+        <SeatMapPanel flightNumber={flightNumber} seats={seats} />
+      </div>
+    );
+  }
+
   // Text fallback for null/undefined/unknown descriptor type
-  if (!descriptor || !descriptor.type || !['card', 'fieldList', 'table', 'productGrid'].includes(descriptor.type)) {
+  if (!descriptor || !descriptor.type || !['card', 'fieldList', 'table', 'productGrid', 'seatMap'].includes(descriptor.type)) {
     if (typeof data === 'string') {
       return <div className="vertical-result vertical-result-text">{data}</div>;
     }
