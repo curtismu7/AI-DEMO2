@@ -159,7 +159,8 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "demos", paths: ["/agent-lifecycle", "/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
+  { id: "customer-demos", paths: ["/agent-lifecycle"] },
+  { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
@@ -480,7 +481,10 @@ export default function AdminSideNav({
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
-      label: "Demos",
+      // Customer-facing demo pages. Its only child is customerOnly, so for
+      // admins the child filters away and the empty group is dropped by the
+      // no-dead-groups pass below — no admin-facing stub renders.
+      label: "Customer Demos",
       icon: "demo",
       children: [
         {
@@ -489,6 +493,12 @@ export default function AdminSideNav({
           icon: "agt",
           customerOnly: true,
         },
+      ],
+    },
+    {
+      label: "Demos",
+      icon: "demo",
+      children: [
         {
           label: "Delegated Commerce",
           path: "/delegated-commerce",
