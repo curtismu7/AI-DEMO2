@@ -7040,7 +7040,7 @@ button.ba-action-btn:hover {
   --ba-muted: var(--th-text-muted) !important;
   --ba-user-txt: #ffffff !important;
   --ba-user-bg: var(--brand-agent-request-bg, #ef4444) !important;
-  --ba-agent-bg: var(--brand-agent-response-bg, var(--app-primary-red, #3b82f6));
+  --ba-agent-bg: var(--brand-agent-response-bg, var(--app-primary-red, #3b82f6)) !important;
   --ba-agent-txt: var(--app-primary-btn-text, #ffffff) !important;
   --ba-accent: #3b82f6 !important;
   --ba-accent-h: #2563eb !important;
