@@ -16,7 +16,13 @@ resolved and covered by `topology:verify` (all 8 steps green):
 2. `scope-topology.json`/`intent-topology.json`/`mcp-tool-schemas.json`/
    `docs/scope-topology.md`/`verticalTools.generated.ts` had never been
    regenerated after Task 3 added `add_to_cart`/`browse_gear` — fixed via
-   `verticals:gen`/`intents:gen`/`scopes:doc`/`gen:tool-schemas`.
+   `verticals:gen`/`intents:gen`/`scopes:doc`/`gen:tool-schemas`. Once
+   `scope-topology.json` gained `add_to_cart` as a write tool, the P1AZ
+   snapshot (`snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`)
+   also needed resyncing to keep `snapshot:check` green — regenerated via
+   the repo's local, non-network `snapshot:generate` (reads
+   `scope-topology.json` + the banking manifest, writes the snapshot file;
+   no PingOne credentials or network calls involved).
 
 ## Problem
 
