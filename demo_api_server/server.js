@@ -227,10 +227,12 @@ const fallbackRoute = require('./routes/api/fallback');
 // Import middleware
 const {
     authenticateToken,
-    optionalAuthenticateToken,
     requireAdmin,
     requireSession
 } = require('./middleware/auth');
+// Separate module on purpose: suites that hand-mock middleware/auth would make
+// this undefined here and crash at the mount. See middleware/optionalAuth.js.
+const { optionalAuthenticateToken } = require('./middleware/optionalAuth');
 const {
     logActivity
 } = require('./middleware/activityLogger');
