@@ -20,7 +20,7 @@ Every one of these was learned the expensive way. Check them before theorising.
    failed" but **no signature was checked** — only a key id compared. Do not chase
    signature/JWKS problems from that string.
    The Ping-hosted frontend returns byte-identical errors without forwarding to our
-   proxy at all, so **no local change can fix this**. See `docs/PRIVILEGE-MCP.md`
+   proxy at all, so **no local change can fix this**. See `privilege/PRIVILEGE-MCP.md`
    §2026-08-09.
 3. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
    with Privilege console access, and every required setting lives in that console.
@@ -134,14 +134,14 @@ curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?Objec
 
 `McpAppConfig`, not `MCPAppConfig` — the wrong casing reads as `undefined` instead of
 failing. `TOK` and `SID` come from devtools and last ~60 minutes; full recipe and the
-other collections (`/v1/pacpolicys` for access policies) in `docs/PRIVILEGE-MCP.md`
+other collections (`/v1/pacpolicys` for access policies) in `privilege/PRIVILEGE-MCP.md`
 §"the console API reads the real config".
 
 Use a **variable** upstream plus `resolver 127.0.0.11`, or nginx refuses to start with
 `host not found in upstream` whenever the proxy is down.
 
 **Do not repoint `PRIVILEGE_MCPGW_URL` at the Cloud API.** That was tried and
-reverted; `docs/PRIVILEGE-MCP.md` §"4. The client pointed at the Privilege cloud
+reverted; `privilege/PRIVILEGE-MCP.md` §"4. The client pointed at the Privilege cloud
 API, not a gateway — RESOLVED 2026-08-02" is the record. No token from PingOne
 env `01d89b06` satisfies `privilege.pingone.com` — not the `6586d3de` app, not the
 dedicated `873cc9e4` "Privilege Cloud MCP Gateway" app (which mints
@@ -222,7 +222,7 @@ challenge is a **vendor-binary gap, not a config error** — never spend time ed
 this file to make a challenge appear. Deck file map, all three present in our
 container: `/var/lib/procyon/config/pingone.env` (bind mount of
 `ping-mcpgw/procyon/`), `/var/lib/procyon/ssl/mcpgw-{cert,key}.pem` (host copies;
-the runtime volume the deck refers to is `/procyon/ssl` — see `ping-mcpgw/README.md`).
+the runtime volume the deck refers to is `/procyon/ssl` — see `privilege/runbooks/ping-mcpgw.md`).
 
 ### Headers (Cloud API path only — kept for reference, that path is dead)
 
@@ -386,7 +386,7 @@ print({k:c.get(k) for k in ('clusterID','nodeId','tenantName')})
 print('exp', datetime.datetime.fromtimestamp(c['exp'],datetime.timezone.utc))" "eyJ..."
 ```
 
-See **[ping-mcpgw/RENEW-TOKEN.md](../../ping-mcpgw/RENEW-TOKEN.md)** for the
+See **[privilege/runbooks/renew-token.md](../../../privilege/runbooks/renew-token.md)** for the
 full step-by-step renewal procedure.
 
 ### MCP server requirements for Privilege gateway
@@ -602,7 +602,7 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | Session not persisting between requests | Session cookie not sent / saveUninitialized | Use browser (cookies auto-sent), or pass `Cookie` header in curl |
 | curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
 | gRPC `UNAVAILABLE` / proxy silent hang | Firewall blocking outbound to `grpc.privilege.pingone.com:443` | Allow outbound 443; no inbound holes needed |
-| `IssuerPublicKey:[]` in proxy logs | The application has no front-end OAuth config, so there is no issuer to validate against and the gateway falls back to comparing `kid` with `infra-root-jwt` | Set `--spec-mcp-app-config-resource-o-auth-*` on the Application via `cyctl` (not exposed in the console UI). Needs an HS256 console token. See `docs/PRIVILEGE-MCP.md` §2026-08-10 |
+| `IssuerPublicKey:[]` in proxy logs | The gateway compares the token's `kid` with `infra-root-jwt`, a key it fetches from Privilege's internal Notary PKI. No PingOne credential can match | ⚠️ **Not fixable from here — stop.** `IssuerPublicKey` belongs to `OidcServer` (`cyctl` gives `get`/`list` only), not to the Application. Setting `--spec-mcp-app-config-resource-o-auth-*` was tried live and changed nothing — that field is the *outbound* challenge + DCR config. Use a **console** token, whose `kid` does match. See `privilege/PRIVILEGE-MCP.md` §2026-08-11 |
 | `code_challenge is required` from PingOne | App `deff60f5` enforces `pkceEnforcement: S256_REQUIRED` | Set `--spec-mcp-app-config-resource-o-auth-use-pkce`; it is mandatory, not optional |
 | `unexpected signing method: RS256` / `ES256` from `cyctl` | `cyctl` wants an HS256 console session token; it rejects PingOne (RS256) and proxy (ES256) tokens on algorithm alone | Grab `Authorization: Bearer …` from a console XHR. `cyctl token jwt` cannot bootstrap — it requires a token itself |
 | `curl https://…:8623/mcp` fails to connect | Wrong port — 8623 is the mesh port and speaks mTLS only | Use `http://…:8620` (see "Proxy ports") |

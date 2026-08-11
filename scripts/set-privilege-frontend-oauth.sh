@@ -98,5 +98,5 @@ Next:
      POST /mcp with 401 AND a WWW-Authenticate header carrying authorization_uri
      and token_uri. No header means the config did not take.
   3. Read it back with the console API (never the console UI):
-       docs/PRIVILEGE-MCP.md, section "the console API reads the real config"
+       privilege/PRIVILEGE-MCP.md, section "the console API reads the real config"
 NEXT

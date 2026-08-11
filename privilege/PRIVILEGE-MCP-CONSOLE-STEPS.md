@@ -99,7 +99,7 @@ Once both steps are done I will:
 The enrollment token you pasted expires **2026-08-02T12:22:37Z**. The proxy holds it in a
 writable volume and can renew itself while running, but if it lapses before the gateway is
 fully wired, generate another from the console wizard
-([`ping-mcpgw/RENEW-TOKEN.md`](../ping-mcpgw/RENEW-TOKEN.md)) and I will reinstall it.
+([`privilege/runbooks/renew-token.md`](runbooks/renew-token.md)) and I will reinstall it.
 
 ## If the stack is down when you look
 

@@ -38,9 +38,9 @@ Postman collections and environments for testing the Super Banking demo applicat
 These live in [`postman/`](../../postman/), not `docs/`:
 - **`../../postman/PingOne Authorization Code — pi.flow.postman_collection.json`** - Standalone PingOne Authorization Code (PKCE) flow via pi.flow
 - **`../../postman/The-AI-Demo-PingOne-Test.postman_collection.json`** - PingOne connectivity / smoke-test requests
-- **`../../postman/Privilege-MCP-Gateway.postman_collection.json`** - Privilege MCP gateway, with its own `-environment` file
-- **`../../postman/Privilege-MCP-Simple.postman_collection.json`** - Minimal Privilege MCP relay path, with its own `-environment` file
-- **`../../postman/Privilege-MCP-Debug.postman_collection.json`** - Ordered probes that separate the two Privilege MCP failure modes: a Host/routing miss (empty `200`, `Domain not found`) versus an auth or policy denial (`401`, `403`). Requests 2 and 3 are a matched pair — same URL, Host header the only difference. Variables are inline; no environment file needed
+- **`../../privilege/postman/Privilege-MCP-Gateway.postman_collection.json`** - Privilege MCP gateway, with its own `-environment` file
+- **`../../privilege/postman/Privilege-MCP-Simple.postman_collection.json`** - Minimal Privilege MCP relay path, with its own `-environment` file
+- **`../../privilege/postman/Privilege-MCP-Debug.postman_collection.json`** - Ordered probes that separate the two Privilege MCP failure modes: a Host/routing miss (empty `200`, `Domain not found`) versus an auth or policy denial (`401`, `403`). Requests 2 and 3 are a matched pair — same URL, Host header the only difference. Variables are inline; no environment file needed
 
 ## Usage
 

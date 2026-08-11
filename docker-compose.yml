@@ -1206,7 +1206,7 @@ services:
     image: public.ecr.aws/s7q1z8z4/privilege-proxy:v1.260806
     pull_policy: always
     container_name: ai-demo-ping-mcpgw
-    # AGENTLESS (self-hosted frontend) MODE — see docs/PRIVILEGE-MCP.md.
+    # AGENTLESS (self-hosted frontend) MODE — see privilege/PRIVILEGE-MCP.md.
     #
     # There are two Privilege topologies and they behave completely differently:
     #
@@ -1250,7 +1250,7 @@ services:
     # does not set PRIVILEGE_PROXY_TOKEN it would blank the token to "".
     #
     # The enrollment token now travels in its own env file, which is the use
-    # ping-mcpgw/README.md has always described for proxy-token.env:
+    # privilege/runbooks/ping-mcpgw.md has always described for proxy-token.env:
     #
     #   printf 'ENV_PROXY_TOKEN=%s\n' 'eyJ...' > ping-mcpgw/procyon/config/proxy-token.env
     #
@@ -1328,7 +1328,7 @@ services:
   #
   # Requires /etc/hosts entries — a wildcard cert works, but /etc/hosts has no
   # wildcard, so add one 127.0.0.1 line per frontend host (see
-  # demo_mcpgw_nginx/README.md).
+  # privilege/runbooks/mcpgw-nginx.md).
   #
   # The wildcard cert pair is NOT the core stack's api.ping.demo+2 pair; it is
   # generated separately by scripts/ensure-mcpgw-certs.sh into the same certs/

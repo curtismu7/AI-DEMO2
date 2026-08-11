@@ -138,7 +138,7 @@ console session/bearer token, or whatever admin credential Privilege issues for 
 ## Known dead end — do not retry without new evidence
 
 `PRIVILEGE_MCPGW_URL=https://privilege.pingone.com/api/mcp` (the "Cloud API") is a dead
-end, recorded in `docs/PRIVILEGE-MCP.md` §4. It 401s every path including its own
+end, recorded in `privilege/PRIVILEGE-MCP.md` §4. It 401s every path including its own
 `.well-known/oauth-protected-resource` and sends no `WWW-Authenticate`. Enumerating all
 **25 resources** in env `01d89b06` confirms *why*: every one is a demo audience
 (`*.ping.demo`, `a2a-intermediate-*`, `agent`, `content`, `test`) plus the built-in
@@ -146,7 +146,7 @@ end, recorded in `docs/PRIVILEGE-MCP.md` §4. It 401s every path including its o
 environment can mint a token with a Privilege audience.
 
 The `privilege-cloud-mcp` skill used to recommend this endpoint. It was corrected in
-PR #1248. If the skill and `docs/PRIVILEGE-MCP.md` ever disagree again, the doc wins.
+PR #1248. If the skill and `privilege/PRIVILEGE-MCP.md` ever disagree again, the doc wins.
 
 ## Changes made today
 

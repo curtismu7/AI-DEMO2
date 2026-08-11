@@ -13,7 +13,7 @@
 #
 # A tokenless 401 that passes while the authenticated call 403s is NOT a gateway
 # regression — it is an expired/absent policy. That distinction is this script's
-# main value; see docs/PRIVILEGE-MCP.md §2026-08-10.
+# main value; see privilege/PRIVILEGE-MCP.md §2026-08-10.
 #
 # Usage:
 #   bash scripts/privilege-smoke.sh '<console-auth_token-JWT>' [app-name]

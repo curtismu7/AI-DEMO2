@@ -1,5 +1,5 @@
 // PrivilegeMcpDiagramPage.jsx — Architecture and sequence diagrams from
-// docs/PRIVILEGE-MCP.md rendered via Mermaid. Two tabs: Architecture (graph TB)
+// privilege/PRIVILEGE-MCP.md rendered via Mermaid. Two tabs: Architecture (graph TB)
 // and Sign-in + Tool Call (sequenceDiagram).
 import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
@@ -210,7 +210,7 @@ export default function PrivilegeMcpDiagramPage() {
       </div>
 
       <p className="pmd-footer">
-        Source: <a href="https://github.com" className="pmd-link">docs/PRIVILEGE-MCP.md</a>.
+        Source: <a href="https://github.com" className="pmd-link">privilege/PRIVILEGE-MCP.md</a>.
         Dashed lines indicate a path that is configured but not the intended one — the BFF
         still talks to the Privilege cloud API directly instead of routing that call through
         the gateway.

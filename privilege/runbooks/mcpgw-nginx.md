@@ -26,7 +26,7 @@ Privilege has two topologies and only one of them works for this demo.
 | `ping-mcpgw/config/pingone.env` | never read | the OIDC config |
 | Blocker | `IssuerPublicKey:[]` → `JWT signature validation failed` | **the same** — tested 2026-08-08, agentless does not avoid it |
 
-Full history in [`docs/PRIVILEGE-MCP.md`](../docs/PRIVILEGE-MCP.md).
+Full history in [`privilege/PRIVILEGE-MCP.md`](../PRIVILEGE-MCP.md).
 
 ## Host setup (one-time)
 
@@ -62,5 +62,5 @@ and to `PRIVILEGE_MCPGW_URL` in `demo_api_server/.env`.
 ## Kubernetes
 
 No counterpart file — ingress-nginx is the nginx engine there and
-[`k8s/aws/mcpgw-agentless-ingress.yaml`](../k8s/aws/mcpgw-agentless-ingress.yaml)
+[`k8s/aws/mcpgw-agentless-ingress.yaml`](../../k8s/aws/mcpgw-agentless-ingress.yaml)
 carries the same directives as annotations. Keep the two in sync.
