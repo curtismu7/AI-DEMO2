@@ -1,9 +1,18 @@
 # Vertical catalog cards — design
 
-Status: approved (visual mockup + scope + button semantics confirmed by user
-2026-08-11). Scope of THIS pass: **airlines, sporting-goods, banking only**.
-The remaining 13 verticals reuse the same component and get their own
-chip/tool/seed wiring in follow-up passes — not part of this plan.
+Status: pass 1 shipped 2026-08-11 — sporting-goods (product grid + real
+cart write via `add_to_cart`/`store.addToCart`), airlines (real seat chart,
+read-only/client-side selection — no reservation write), and locations
+(fixed for all 11 catalog verticals via `branch_hours`). Deferred:
+airlines' seat-reservation write path, and product/seat catalogs for the
+other 14 verticals. Known issue found in Task 7 verification: the airlines
+manifest's `render.check_seat_availability.type` is `"seatMap"`, but
+`services/verticalManifest/schema.js`'s render-type enum was never updated
+to include it — `ManifestSchema.safeParse` rejects the airlines manifest,
+`loader.js`'s `loadAll()` aborts on the first bad manifest, and **no
+vertical loads** until the enum is fixed. `demo_api_server`'s test suite,
+`topology:verify`, and the live seat-chart chip are all blocked by this
+until `schema.js` adds `'seatMap'` to the enum.
 
 ## Problem
 
