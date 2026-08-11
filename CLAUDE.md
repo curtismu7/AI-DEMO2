@@ -19,6 +19,8 @@ Litmus for new rules here: would removing the line cause a mistake the agent cou
 
 Always-on hard rule from `§0` — **emoji allowlist only:** `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚`. Everything else: plain text, CSS, or semantic HTML.
 
+**[TECH_DEBT.md](TECH_DEBT.md)** tracks known architectural gaps found while fixing something else — correct enough to ship, worth fixing properly later. Add an entry when you knowingly leave one behind; check it before re-deriving a gap someone already scoped.
+
 ## Working practice — worktree (required)
 
 Edit→test→commit only in an **isolated git worktree** — concurrent sessions share one index and collisions have wiped staged work.

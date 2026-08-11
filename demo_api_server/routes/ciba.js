@@ -90,6 +90,8 @@ router.get('/status', (req, res) => {
  * }
  *
  * @flow ciba-hitl
+ * @name CIBA / HITL
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9110 RFC 9110
  * @actor client-app
  * @to human-approver
  * @step 1

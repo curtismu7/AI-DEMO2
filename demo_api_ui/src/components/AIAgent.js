@@ -16,6 +16,7 @@ import { useThemeOptional } from "../context/ThemeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
+import SimpleStepperPanel from "./SimpleStepperPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -647,6 +648,13 @@ export default function BankingAgent({
       return false;
     }
   });
+  const [showSimpleStepper, setShowSimpleStepper] = useState(() => {
+    try {
+      return localStorage.getItem("ba_show_simple_stepper") === "1";
+    } catch {
+      return false;
+    }
+  });
   // Inspectors sub-group — same reasoning as the Configuration group above, but
   // scoped so Demo steps / Live Use Cases / Agent scope stay visible beside it.
   const [inspectorsOpen, setInspectorsOpen] = useState(() => {
@@ -775,6 +783,7 @@ export default function BankingAgent({
   /** Token chain visibility — always starts hidden on page load (not persisted). */
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
+  const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
     try {
@@ -7207,16 +7216,24 @@ export default function BankingAgent({
     await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
 
     if (trigger.type === "chip" && trigger.text) {
-      if (!(isLoggedIn || marketingGuestChatEnabled)) {
-        addMessage("assistant", "Sign in to run demo steps.");
-        return;
-      }
       // Reset token chain trace so the proof strip shows this use case
       try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
       // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
       pendingUcIdRef.current = uc.useCaseId || null;
       pendingNlResumeRef.current = null;
-      addMessage("assistant", `Running ${stepLabel}…`);
+      // Not eligible to send yet (no session, no guest chat on this path) — queue
+      // the step anyway (below) and show an actionable sign-in prompt instead of
+      // returning with nothing; the resume effect fires it the moment login lands.
+      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+        addMessage(
+          "assistant",
+          `${stepLabel} needs you signed in — it'll run as soon as you do.`,
+          null,
+          { showLoginPromptAction: true, loginActionId: "login_user" },
+        );
+      } else {
+        addMessage("assistant", `Running ${stepLabel}…`);
+      }
       setNlResumeAfterAuth(trigger.text);
       return;
     }
@@ -7389,6 +7406,16 @@ export default function BankingAgent({
     // freeform text still reaches the LLM if the heuristic parser has no
     // match for it).
     pendingUcIdRef.current = null;
+    // Queued regardless (resume effect fires it once login lands) — but don't
+    // leave the user with only their own bubble and no reply while signed out.
+    if (!isLoggedIn) {
+      addMessage(
+        "assistant",
+        `${tool.title} needs you signed in — it'll run as soon as you do.`,
+        null,
+        { showLoginPromptAction: true, loginActionId: "login_admin" },
+      );
+    }
     setNlResumeAfterAuth(message);
   }
 
@@ -7681,9 +7708,15 @@ export default function BankingAgent({
     }
   }
 
-  // After marketing OAuth return OR launcher deep-link: replay NL once logged in.
+  // After marketing OAuth return OR launcher deep-link: replay NL once logged in
+  // (or immediately for guest-chat-eligible paths — same gate as the chip/typed
+  // send paths above, so a chip that doesn't need auth doesn't wait for it).
   useEffect(() => {
-    if (!nlResumeAfterAuth || !isLoggedIn || pendingNlResumeRef.current === nlResumeAfterAuth) {
+    if (
+      !nlResumeAfterAuth ||
+      !(isLoggedIn || marketingGuestChatEnabled) ||
+      pendingNlResumeRef.current === nlResumeAfterAuth
+    ) {
       return;
     }
     const text = nlResumeAfterAuth;
@@ -7760,7 +7793,7 @@ export default function BankingAgent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
-  }, [nlResumeAfterAuth, isLoggedIn, effectiveVerticalId]);
+  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, effectiveVerticalId]);
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
@@ -8845,6 +8878,25 @@ export default function BankingAgent({
                           Side panel
                         </Check>
                       )}
+                      {/* Simple Stepper toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showSimpleStepper}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem(
+                              "ba_show_simple_stepper",
+                              newVal ? "1" : "0",
+                            );
+                          } catch {}
+                          setShowSimpleStepper(newVal);
+                        }}
+                        title="Show or hide the Simple Stepper token-chain table"
+                      >
+                        Simple step
+                      </Check>
                       <button
                         type="button"
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
@@ -8852,6 +8904,14 @@ export default function BankingAgent({
                         onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
                       >
                         Topology
+                      </button>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showFloatingTokenChain ? " active" : ""}`}
+                        title="Floating token chain — RFC 8693 delegation trace rail"
+                        onClick={() => { setShowFloatingTokenChain(v => !v); window.dispatchEvent(new CustomEvent('floating-token-chain-open')); }}
+                      >
+                        Floating token chain
                       </button>
                       {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
                       <button
@@ -10748,6 +10808,24 @@ export default function BankingAgent({
                         </div>
                       );
                     }
+                    if (msg.role === "assistant" && msg.showLoginPromptAction) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                onClick={() => handleLoginAction(msg.loginActionId || "login_user")}
+                              >
+                                Sign in to continue
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                     if (msg.role === "error" && msg.showCustomerLoginActions) {
                       return (
                         <div key={msg.id} className="banking-agent-msg error">
@@ -11200,6 +11278,10 @@ export default function BankingAgent({
       <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
+      />
+      <SimpleStepperPanel
+        isOpen={showSimpleStepper}
+        onClose={() => setShowSimpleStepper(false)}
       />
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive

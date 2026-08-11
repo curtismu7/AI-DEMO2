@@ -8,11 +8,31 @@ const SERVER_FILE = path.join(__dirname, '../server.js');
 const OUTPUT_FILE = path.join(__dirname, '../../demo_api_ui/src/data/protocolFlows.json');
 
 /**
- * Parse JSDoc comments for @flow, @actor, @to, @step, @expects, @branch tags
+ * Capture leading prose (lines before first @tag) for flow/step descriptions
+ */
+function captureLeadingProse(jsdocComment) {
+  const lines = jsdocComment.split('\n');
+  const prose = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const afterStar = trimmed.replace(/^\*\s?/, '').trim();
+    if (afterStar.startsWith('@')) break;
+    if (!afterStar) continue;
+    prose.push(afterStar);
+  }
+  return prose.join(' ').trim();
+}
+
+/**
+ * Parse JSDoc comments for @flow, @name, @rfc, @title, @actor, @to, @step, @body, @expects, @branch tags
  */
 function parseFlowAnnotation(jsdocComment) {
   const lines = jsdocComment.split('\n');
-  const result = {};
+  const result = {
+    prose: captureLeadingProse(jsdocComment)
+  };
+  let seenRfc = false;
+  let seenTitle = false;
 
   for (const line of lines) {
     const match = line.match(/@(\w+)\s+(.+)/);
@@ -21,6 +41,19 @@ function parseFlowAnnotation(jsdocComment) {
     const [, tag, value] = match;
     if (tag === 'flow') {
       result.flowId = value.trim();
+    } else if (tag === 'name') {
+      result.displayName = value.trim();
+    } else if (tag === 'rfc' && !seenRfc) {
+      const trimmedValue = value.trim();
+      const spaceIdx = trimmedValue.indexOf(' ');
+      if (spaceIdx > 0) {
+        result.rfcUrl = trimmedValue.substring(0, spaceIdx);
+        result.rfcLabel = trimmedValue.substring(spaceIdx + 1);
+        seenRfc = true;
+      }
+    } else if (tag === 'title' && !seenTitle) {
+      result.stepTitle = value.trim();
+      seenTitle = true;
     } else if (tag === 'actor') {
       result.actor = value.trim();
     } else if (tag === 'to') {
@@ -29,6 +62,8 @@ function parseFlowAnnotation(jsdocComment) {
       result.step = parseInt(value.trim(), 10);
     } else if (tag === 'expects') {
       result.expects = value.trim();
+    } else if (tag === 'body') {
+      result.body = value.trim();
     } else if (tag === 'branch') {
       if (!result.branches) result.branches = [];
       result.branches.push(value.trim());
@@ -81,7 +116,13 @@ function resolveMountPrefixes() {
     varToFile[match[1]] = `${match[2]}.js`;
   }
 
-  const useRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*(\w+)\s*\)/g;
+  // Tolerates extra middleware args between the mount path and the router
+  // identifier (e.g. app.use('/x', express.json(), router)). The middleware
+  // group is LAZY-OPTIONAL (`??`) so the simple two-arg case matches the
+  // very next identifier without ever trying to expand; it only engages when
+  // that direct match fails, and [^;] keeps it from tunneling past this
+  // statement's own semicolon into an unrelated later app.use() call.
+  const useRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*(?:[^;]*?,\s*)??(\w+)\s*\)/g;
   while ((match = useRegex.exec(content)) !== null) {
     const file = varToFile[match[2]];
     if (file && !prefixes[file]) prefixes[file] = match[1];
@@ -136,7 +177,7 @@ function buildFlowSpecs(routes) {
   const flows = {};
 
   for (const { annotation } of routes) {
-    const { flowId, actor, toActor, step, expects, branches, method, endpoint } = annotation;
+    const { flowId, displayName, prose, rfcUrl, rfcLabel, stepTitle, actor, toActor, step, expects, body, branches, method, endpoint } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -145,7 +186,24 @@ function buildFlowSpecs(routes) {
         description: `Protocol flow: ${flowId}`,
         actors: [],
         steps: [],
-        branches: []
+        branches: [],
+        spec: null
+      };
+    }
+
+    // @name overrides the naive title-caser, which mangles acronym flow IDs
+    // (e.g. "ciba-hitl" -> "Ciba Hitl" instead of "CIBA / HITL").
+    if (displayName) {
+      flows[flowId].name = displayName;
+    }
+
+    // Set flow-level spec from first annotation with @rfc (prose is captured from each annotation)
+    if (rfcUrl && rfcLabel && !flows[flowId].spec) {
+      flows[flowId].spec = {
+        url: rfcUrl,
+        label: rfcLabel,
+        title: displayName || toTitleCase(flowId),
+        why: prose
       };
     }
 
@@ -171,6 +229,9 @@ function buildFlowSpecs(routes) {
           method: method || null,
           endpoint: endpoint || null,
           step,
+          title: stepTitle || null,
+          description: prose || null,
+          body: body ? safeParseJson(body) : null,
           expected: expects ? safeParseJson(expects) : {}
         });
       }
@@ -189,6 +250,13 @@ function buildFlowSpecs(routes) {
   // Sort steps by order within each flow
   for (const flowId of Object.keys(flows)) {
     flows[flowId].steps.sort((a, b) => a.step - b.step);
+  }
+
+  // Add responseMap for flows that need to pass data between steps
+  if (flows['ciba-hitl'] && flows['ciba-hitl'].steps[0]) {
+    flows['ciba-hitl'].steps[0].responseMap = {
+      authReqId: 'auth_req_id'
+    };
   }
 
   return flows;

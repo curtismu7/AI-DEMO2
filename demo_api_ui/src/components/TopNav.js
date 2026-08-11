@@ -13,7 +13,6 @@ import {
   cameFromUseCases,
   clearCameFromUseCases,
 } from "../utils/fromUseCasesNav";
-import AgentUiModeToggle from "./AgentUiModeToggle";
 import ThresholdControls from "./ThresholdControls";
 import QuickFlagsPill from "./QuickFlagsPill";
 import UserMenu from "./UserMenu";
@@ -196,7 +195,6 @@ export default function TopNav({ user, onLogout }) {
             {/* Dashboard controls — only when viewing /dashboard. */}
             {location.pathname === '/dashboard' && (
               <div className="topnav-dashboard-controls" role="toolbar" aria-label="Dashboard actions">
-                <AgentUiModeToggle variant="config" />
                 <ThresholdControls />
                 <button
                   type="button"

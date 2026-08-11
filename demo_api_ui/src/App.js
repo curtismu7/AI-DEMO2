@@ -370,6 +370,11 @@ function AppWithAuth() {
     window.addEventListener('token-topology-open', onOpen);
     return () => window.removeEventListener('token-topology-open', onOpen);
   }, []);
+  useEffect(() => {
+    const onOpen = () => setShowTokenChain(true);
+    window.addEventListener('floating-token-chain-open', onOpen);
+    return () => window.removeEventListener('floating-token-chain-open', onOpen);
+  }, []);
 
   // Post-login success modal. `?oauth=success` is captured on the first render
   // — before useOAuthUrlCleanup strips it — so the modal opens exactly once
@@ -604,6 +609,11 @@ function AppWithAuth() {
                 <Route
                   path="/configure"
                   element={<ConfigurePage user={user} logout={logout} />}
+                />
+                {/* Stakeholder preview page — accessible without login, same as /configure */}
+                <Route
+                  path="/agent-studio-preview"
+                  element={<AgentStudioPreviewPage />}
                 />
                 <Route
                   path="/demo-data"
@@ -1057,11 +1067,7 @@ function AppWithAuth() {
                 <Route
                   path="*"
                   element={
-                    !user ? (
-                      loading ? null : (
-                        <TopNav user={null} onLogout={logout} />
-                      )
-                    ) : (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
@@ -1242,11 +1248,9 @@ function AppWithAuth() {
                             <Route
                               path="/themes"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AdminThemesPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1277,11 +1281,9 @@ function AppWithAuth() {
                             <Route
                               path="/demo-config"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DemoConfigPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1436,11 +1438,9 @@ function AppWithAuth() {
                             <Route
                               path="/agent-builder"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AgentBuilderPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1486,10 +1486,6 @@ function AppWithAuth() {
                             <Route
                               path="/invest-dual-auth"
                               element={<InvestDualAuthDiagramPage />}
-                            />
-                            <Route
-                              path="/agent-studio-preview"
-                              element={<AgentStudioPreviewPage />}
                             />
                             <Route
                               path="/discovery-preview"
@@ -1624,34 +1620,28 @@ function AppWithAuth() {
                             <Route
                               path="/delegation"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DelegationPage
                                     user={user}
                                     onLogout={logout}
                                   />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/agent-lifecycle"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AgentLifecyclePage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/delegated-commerce"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DelegatedCommercePage user={user} />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route

@@ -58,7 +58,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
     return v.theme?.cssVars?.['--app-primary-red'] || '#6b7280';
   };
 
-  if (verticals.length < 2) return null;
+  if (verticals.length === 0) return null;
 
   if (variant === 'config' || variant === 'pills') {
     return (

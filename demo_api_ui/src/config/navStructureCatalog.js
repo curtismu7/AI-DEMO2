@@ -29,8 +29,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Family Delegation",
     ],
   },
-  { label: "AI Footprint" },
-  { label: "Footprint Gallery" },
   {
     label: "AI Agents",
     children: [
@@ -54,7 +52,6 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "MCP & Gateways",
     children: [
       "Ping AI Test Lab",
-      "Web MCP",
       "Agent Gateway Inspector",
       "Capability Tour",
       "Weather MCP",

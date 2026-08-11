@@ -17,7 +17,13 @@
 # Exit 0 = synced or already up to date. Exit 1 = left alone, see log line.
 
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# Resolve the main checkout via git, not this script's own file location —
+# every worktree under .claude/worktrees/ has its own copy of this file, and
+# `dirname "${BASH_SOURCE[0]}"` used to resolve to whichever copy ran it. That
+# silently synced/diffed the WORKTREE instead of the main checkout Docker
+# bind-mounts when invoked from inside one. --git-common-dir always points at
+# the main checkout's .git regardless of which worktree's copy is running.
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 
 NOISE_PATHS=(demo_api_server/data setup-config.md)
 STASH_TAG="auto-sync-main-$(date +%Y%m%d-%H%M%S)"

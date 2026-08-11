@@ -27,6 +27,11 @@
   cursor: grabbing;
 }
 
+/* Popped-out window's title bar — not draggable (it's a real OS window). */
+.ftcp-header--static {
+  cursor: default;
+}
+
 .ftcp-icon {
   font-size: 1rem;
   line-height: 1;
@@ -169,4 +174,42 @@
 
 .ftcp-fab:hover .ftcp-fab__tooltip {
   opacity: 1;
+}
+
+/* ── Pop-out window root layout ─────────────────────────────────────────── */
+
+.ftcp-popout-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Pop-out placeholder (shown in the original window while content lives
+   in the popup) ───────────────────────────────────────────────────────── */
+
+.ftcp-popout-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 2px dashed var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: 0.8125rem;
+}
+
+.ftcp-placeholder-btn {
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 5px;
+  color: var(--th-text);
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.ftcp-placeholder-btn:hover {
+  background: var(--th-border);
 }
