@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import ReactDOM, { createPortal } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import "./DraggableModal.css";
 
@@ -22,7 +23,7 @@ function PopOutPortal({ win, children }) {
     const container = win.document.getElementById("dm-root");
     if (!container) return;
     containerRef.current = container;
-    const root = ReactDOM.createRoot(container);
+    const root = createRoot(container);
     rootRef.current = root;
     root.render(children);
     return () => {
