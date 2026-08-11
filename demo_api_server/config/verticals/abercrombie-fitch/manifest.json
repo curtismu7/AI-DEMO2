@@ -66,6 +66,10 @@
     "greeting": "Hi {name}! I can help with your A&F orders, myAbercrombie rewards, saved styles, deliveries, and returns. What would you like to do?",
     "systemPromptFlavor": "You are the Abercrombie & Fitch Style Assistant. Help customers review A&F orders, track deliveries, check myAbercrombie rewards, manage returns and saved items, and complete apparel purchases. Be concise and only use facts returned by tools."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1200&h=600&fit=crop",
+    "greeting": "Discover our latest collection."
+  },
   "dashboard": {
     "kind": "retail",
     "chips": [
