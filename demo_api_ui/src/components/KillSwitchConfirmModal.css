@@ -122,6 +122,37 @@
   margin-top: 1px;
 }
 
+/* ── Active runs ─────────────────────────────────────────────────────────── */
+
+/* This modal body renders inside DraggableModal's ".dm-panel", which is
+   always light regardless of app theme (see DraggableModal.css) — nothing
+   in this file uses th- or ba-prefixed custom properties, only literal hex
+   matching the surrounding rules (.ksm-result-scope's #f3f4f6 / #d1d5db,
+   .ksm-result-mechanism's #6b7280), so this block follows the same pattern
+   rather than introducing new token names. */
+.ksm-active-runs {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  font-size: 0.85rem;
+}
+.ksm-active-runs-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: #111827;
+}
+.ksm-active-runs-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #374151;
+}
+.ksm-active-runs-empty {
+  margin: 0;
+  color: #6b7280;
+}
+
 /* ── Reason field ────────────────────────────────────────────────────────── */
 
 .ksm-field {
