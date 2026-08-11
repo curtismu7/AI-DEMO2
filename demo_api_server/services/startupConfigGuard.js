@@ -208,7 +208,7 @@ function warnIfAuthorizeModeUnconfigured() {
 // container (env is frozen at create time), so a stale root .env silently
 // regresses it on the next `compose up`. Catch the two smoking guns of that
 // regression at boot so a broken recreate is loud, not a mystery 401.
-// See docs/PRIVILEGE-MCP.md + REGRESSION_PLAN §4 (2026-08-10).
+// See privilege/PRIVILEGE-MCP.md + REGRESSION_PLAN §4 (2026-08-10).
 function warnIfPrivilegeConfigRegressed() {
   try {
     const gwUrl = process.env.PRIVILEGE_MCPGW_URL || '';

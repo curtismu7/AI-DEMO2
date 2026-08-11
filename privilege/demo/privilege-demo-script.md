@@ -37,4 +37,4 @@ PingOne Privilege brokers federated AWS access, gateway tunnels to VPC resources
 
 ---
 
-_[Back to index](./README.md) · [Audit table](./audit-table.md)_
+_[Back to index](../../docs/use-cases/README.md) · [Audit table](../../docs/use-cases/audit-table.md)_

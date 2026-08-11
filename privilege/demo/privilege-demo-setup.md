@@ -37,4 +37,4 @@ PingOne Privilege shared MT environment with pre-provisioned AgentPrivilege and 
 
 ---
 
-_[Back to index](./README.md) · [Audit table](./audit-table.md)_
+_[Back to index](../../docs/use-cases/README.md) · [Audit table](../../docs/use-cases/audit-table.md)_

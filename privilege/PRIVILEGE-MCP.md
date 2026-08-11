@@ -14,12 +14,65 @@ This repo contains a **client** for that gateway (`/privilege-mcp-client`), a **
 that drives the OAuth and MCP protocol on the client's behalf, and Compose/K8s wiring for
 running the gateway itself.
 
-> Status as of 2026-08-03: the client, the relay and the protocol handling all work, and
-> `/api/privilege-mcp-simple` performs a real token-to-MCP call end to end. The **gateway**
-> path is blocked on two Privilege-side problems that no change in this repo can reach: the
-> enrolled node never dispatches a discovery to the backend, and the cloud frontend accepts
-> no token this PingOne environment can mint. See
-> [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03).
+> **Status as of 2026-08-11.** The **console-token chain works end to end** — auth, Host
+> routing, per-app policy, session recording, `tools/call` against the backend MCP server
+> (§[2026-08-10 final](#2026-08-10-final-end-to-end-success--and-what-it-proved)). What does
+> not work is a **PingOne-issued** client token: the gateway compares the token's `kid`
+> against an infra-root key it fetches from Privilege's internal Notary PKI, so no PingOne
+> credential can match. Two untested leads remain — the `privilege-mcpgw` image and
+> `cyctl object idprovider create`. Read
+> §[2026-08-11](#2026-08-11-independent-confirmation-and-five-corrections) **before** acting
+> on anything dated earlier; it supersedes several confident claims below.
+>
+> This document is dated **newest-last**. Later sections correct earlier ones on purpose —
+> the record of what was ruled out is the point, so nothing is deleted.
+
+---
+
+## Map — every Privilege artifact, and what to read when
+
+This document is the canonical record. Everything else about the Privilege MCP Gateway
+hangs off it.
+
+| Artifact | Read it when |
+|---|---|
+| **This file** | Anything. Architecture, protocol per hop, every blocker and how it was ruled out |
+| [`README.md`](README.md) | You want the one-screen orientation instead of 1700 lines |
+| [`PRIVILEGE-MCP-CONSOLE-STEPS.md`](PRIVILEGE-MCP-CONSOLE-STEPS.md) | Doing console work — these steps cannot be automated or tested from this repo |
+| [`SE1-Privilege-Shared-Demo.md`](SE1-Privilege-Shared-Demo.md) | Running against the shared SE environment |
+| [`PRIVILEGE-MCP-STATUS-2026-08-02.md`](PRIVILEGE-MCP-STATUS-2026-08-02.md) | Historical only — point-in-time snapshot, superseded by this file |
+| [`MCP Privilege Gateway Technical Summary v3.pdf`](MCP%20Privilege%20Gateway%20Technical%20Summary%20v3.pdf) | Ping's own summary of the feature |
+| [`demo/`](demo/) | Delivering the customer-facing demo (`privilege-demo-script.md`, `privilege-demo-setup.md`) |
+| [`design/`](design/) | Why the gateway and the tools table are built this way |
+| [`diagrams/`](diagrams/) | Slides and walkthroughs — four rendered flows plus mermaid source |
+| [`postman/`](postman/) | Probing by hand: Gateway, Simple relay, Debug collections |
+| [`runbooks/`](runbooks/) | Standing it up: `ping-mcpgw.md`, `mcpgw-nginx.md`, `renew-token.md` |
+| `../.claude/skills/privilege-cloud-mcp/` | The condensed operator version. ⚠️ If it disagrees with this file, **this file wins** |
+
+**Ping's SE enablement storyboards** are not committed — ~13 MB each of embedded images.
+Both live outside the repo at `~/Downloads/`:
+
+| Storyboard | What it teaches |
+|---|---|
+| `priv_for_ai_image_first_se_storyboard_v2_corrected.html` | *Priv for AI Gateway: Architecture, Flows, and Troubleshooting.* Control plane vs runtime gateway, where the gateway sits in a customer network, the challenge→browser→PingOne→token→retry auth flow, why the Frontend URL is not the backend URL, why tools appear/disappear/deny, and an SE troubleshooting order (auth → routing → policy → runtime) |
+| `priv_for_ai_specialist_training.html` | The earlier 10-diagram deck. Source of the `EvaluateHost` label-strip routing model — ⚠️ **disproven on build `v1.260726`**, see §[EvaluateHost — DISPROVEN](#how-the-gateway-resolves-an-application-evaluatehost--disproven-on-this-build) |
+
+Both describe a build whose OAuth challenge flow no image we can pull has ever emitted.
+That gap is the subject of §2026-08-10 (verdict) and §2026-08-11.
+
+**The code is deliberately not in this folder** — it is bind-mounted, deployed or
+imported from where it lives:
+
+| Path | What |
+|---|---|
+| [`../ping-mcpgw/procyon/`](../ping-mcpgw/procyon/) | Gateway config tree, bind-mounted to `/var/lib/procyon` |
+| [`../demo_mcpgw_nginx/nginx.conf`](../demo_mcpgw_nginx/nginx.conf) | Front door; rewrites `Host` to the registered Frontend Name |
+| `../demo_api_server/routes/privilegeMcp{Client,Simple}.js` | BFF relay — the actual MCP client |
+| `../demo_api_ui/src/pages/PrivilegeMcp*.jsx`, `../demo_api_ui/src/components/privilege/` | UI |
+| [`../scripts/privilege-smoke.sh`](../scripts/privilege-smoke.sh) | Five-assertion end-to-end check (manual — needs a console token) |
+| [`../scripts/set-privilege-frontend-oauth.sh`](../scripts/set-privilege-frontend-oauth.sh) | ⚠️ Ruled out. See §[2026-08-11 correction 4](#4-set-privilege-frontend-oauthsh-was-never-going-to-work) |
+| `../k8s/75-ping-mcpgw-deployment.yaml`, `../k8s/aws/mcpgw-agentless-ingress.yaml` | Cluster deploy |
+| [`../docker-compose.yml`](../docker-compose.yml) | `ping-mcpgw` + `mcpgw-nginx` services, profile `mcpgw` |
 
 ---
 
@@ -73,7 +126,7 @@ The demo can run the client role two ways:
 | Privilege MCP Gateway (MCPGW) | server **and** client | `ping-mcpgw` container (binds no public port; frontend is cloud-hosted) | enrollment JWT | image `public.ecr.aws/s7q1z8z4/privilege-proxy`, binary `/procyon/bin/cyonproxy`; Compose profile `mcpgw`; reads `pingone.env` from `/var/lib/procyon/config` |
 | PingOne authorization server | — | `auth.pingone.com/<envId>/as` | OAuth client | mints both the user and machine tokens |
 | PingOne Privilege control plane | — | `grpc.privilege.pingone.com:443` | enrollment JWT | the gateway dials **out**; no inbound firewall holes |
-| Privilege cloud API | — | `privilege.pingone.com/api/mcp` | Privilege session | tenant API — **not** the gateway frontend (see [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03)) |
+| Privilege cloud API | — | `privilege.pingone.com/api/mcp` | Privilege session | tenant API — **not** the gateway frontend (see [Current state](#current-state-verified-2026-08-02-re-verified-2026-08-03--superseded)) |
 | MCP server | **MCP server** | `mcp-server:8080/mcp` | audience `mcpserver.ping.demo` | the protected resource; Privilege-unaware |
 
 "Procyon" appears throughout the gateway's wire protocol and binary names — it is the
@@ -237,7 +290,7 @@ reason, not as an opaque server error.
 
 Same MCP client role, no human. Use it to prove the token-to-MCP path without any console
 prerequisite, and as the Postman target
-([`postman/Privilege-MCP-Simple.postman_collection.json`](../postman/Privilege-MCP-Simple.postman_collection.json)).
+([`postman/Privilege-MCP-Simple.postman_collection.json`](postman/Privilege-MCP-Simple.postman_collection.json)).
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -293,7 +346,7 @@ the scheme wrong and the relay fails with a TLS `EPROTO`, not a 4xx. See
 | `ping-mcpgw/config/pingone.env` | file, gitignored | `SERVER_URL` + the OIDC endpoints the gateway uses to authenticate MCP clients. Mounted at `/var/lib/procyon/config`. The BFF can author it via `PUT /api/privilege-mcp/env` |
 
 Gateway setup — registering it, attaching an MCP Server application, authoring the DENY
-rule, enabling recording — is in [`ping-mcpgw/README.md`](../ping-mcpgw/README.md). Those
+rule, enabling recording — is in [`privilege/runbooks/ping-mcpgw.md`](runbooks/ping-mcpgw.md). Those
 console steps cannot be covered by any test in this repo: every check here can pass while
 the demo still shows nothing.
 
@@ -332,7 +385,7 @@ A third would-be blocker is gone: `AuthMode` was found set to **static-token** o
 `mypingone` app (the doc's own trap warns mTLS must be off for the backend to work, and the
 static-token flip was never reverted). It is back on **OAuth** with the client secret
 populated. Read it yourself with the
-[console API recipe](#reading-privileges-real-config-use-the-console-api-not-cyctl) rather
+[console API recipe](#reading-privileges-real-config--use-the-console-api-not-cyctl) rather
 than trusting the console UI, which serves stale values once its session expires.
 
 ### How the frontend actually works
@@ -744,7 +797,7 @@ live in `01d89b06`, so that trades this blocker for a broken demo everywhere els
 | `Failed to discover OAuth metadata from MCP URL` | MCP URL unreachable and no OIDC fallback resolved | check `PRIVILEGE_MCPGW_URL` and the gateway |
 | `MCP gateway returned 502 Bad Gateway` | gateway up, upstream MCP server down or the user lacks tool entitlement | check `mcp-server`, then console policy |
 | Tools load but a call is denied | Privilege policy DENY — the demo working as intended | inspect the decision in the console |
-| Page shows nothing and no error | policy/recording never authored in the console | `ping-mcpgw/README.md` setup steps |
+| Page shows nothing and no error | policy/recording never authored in the console | `privilege/runbooks/ping-mcpgw.md` setup steps |
 | `500 write EPROTO … wrong version number` from `/api/privilege-mcp-simple` | an explicit `PRIVILEGE_SIMPLE_MCP_URL` whose scheme disagrees with `MCP_MTLS_ON` — `mcp-server` speaks TLS on 8080 only when mTLS is on | match the scheme, or unset the var and let the default follow the switch |
 | Console: `Gateway Unreachable — Showing Cached Data` | the console session (~60 min) expired; every value on screen is stale, including error modals | sign in again via `console.pingone.com/?env=8d4d7a4c-…`, then launch Privilege |
 | Console: `Error discovering MCP server: sending "notifications/initialized": Unauthorized` | if `mcp-server` predates the handshake fix, real; otherwise a stored string from an old attempt | verify with the tokenless handshake from inside the proxy container; if that returns 202, no new discovery has run |
@@ -1070,7 +1123,7 @@ Verified after the mount landed and the container was recreated: the files were 
 mTLS because it is the mesh port, full stop. The mount has been reverted — re-add it
 only with evidence that some listener reads those files.
 
-The one durable finding from #1465 stands: `ping-mcpgw/README.md` had documented that
+The one durable finding from #1465 stands: `privilege/runbooks/ping-mcpgw.md` had documented that
 mount as existing since the service was added, and it never did.
 
 **Still unresolved and console-side:** the 401 carries no `WWW-Authenticate` header, so
@@ -1208,6 +1261,11 @@ The handler on `-alp-port` compares the token's `kid` against a fixed
 **`infra-root-jwt`** and fails on mismatch. `infra-root-jwt` is not a literal in the
 binary, so it is runtime state from enrollment.
 
+> ⚠️ **Corrected 2026-08-11.** "Not a literal" holds — zero occurrences in either binary.
+> "From enrollment" does not: it is the `kid` of a key the proxy fetches from Privilege's
+> internal **Notary PKI** (`/rpc.NotaryService/GetInfraRoot`). See
+> §[correction 1](#1-infra-root-jwt-comes-from-the-notary-pki-not-from-enrollment).
+
 Consequences worth internalising:
 
 - **No PingOne token can ever match**, whatever the environment, audience or scope.
@@ -1262,6 +1320,11 @@ repeated.
 object types in the proxy binary, both with `create` verbs in `cyctl`, so a
 Privilege-issued identity token is the most likely answer. Nothing in this repo can
 mint one.
+
+> ⚠️ **Wrong — retracted 2026-08-11.** Neither object mints anything. `AppUserToken` is
+> the guest-agent metadata envelope; `AIAgentAccount` is a shadow-AI inventory connector.
+> Reference counts measured how widely a struct is passed, not what it does. See
+> §[correction 3](#3-appusertoken-and-aiagentaccount-mint-nothing--both-dead-ends).
 
 ### Reproducing all of this
 
@@ -1577,6 +1640,12 @@ existed by 12:0x — both authored with 1h/2h lifetimes.)
 [`scripts/set-privilege-frontend-oauth.sh`](../scripts/set-privilege-frontend-oauth.sh)
 with a console JWT. Two details in that script cost a day to find:
 
+> ⚠️ **Wrong on both counts — do not run this script.** `ResourceOAuth` was populated on
+> 2026-08-10 and changed nothing (§2026-08-10 verdict, step 4), and the structural reason
+> is that `IssuerPublicKey` lives on `OidcServer`, not on the Application. See
+> §[correction 4](#4-set-privilege-frontend-oauthsh-was-never-going-to-work). The two
+> details below are still accurate about the script itself.
+
 - **`--apigw` must be `https://console.privilege.pingone.com`**, not
   `https://privilege.pingone.com`. The latter is the data-plane host and fails in ways
   that look like auth errors.
@@ -1676,6 +1745,12 @@ any more time on "make PingOne tokens work against the gateway."
    bootstrap flow is not compiled into any build we can pull. The deck describes
    a newer or internal build (`cj-agentless-mcpgw.ping-devops.com`).
 
+   > ⚠️ **Narrowed 2026-08-11.** The `cyonproxy` measurement is correct and was
+   > independently reproduced — but it surveyed the wrong image. A second public ECR
+   > repo, `privilege-mcpgw`, ships `/procyon/bin/mcpgw`, which **does** contain every
+   > one of those strings. Untested live. See
+   > §[the second image](#the-second-image-privilege-mcpgw--procyonbinmcpgw--still-untested).
+
 ### Standing state
 
 - **Working and demonstrable:** the console-token chain, end to end, through
@@ -1693,3 +1768,121 @@ any more time on "make PingOne tokens work against the gateway."
 - The `Applications` create route accepts a full object — the working payload
   recipe is in this section's step 3; the collection endpoints and their
   list/create/none permissions are in the debug Postman collection.
+
+## 2026-08-11: independent confirmation, and five corrections
+
+An independent research pass over `cyonproxy` reproduced the central finding — the binary
+carries none of the OAuth challenge strings the SE deck teaches — and corrected five
+things this document, the skill, and `scripts/set-privilege-frontend-oauth.sh` had wrong.
+
+Nothing below was tested against a live gateway. The corrections are binary-content and
+`cyctl` flag-surface facts; the one new lever is labelled as inferred, and the one new
+image is labelled as untested. Treat the distinction as load-bearing — three of the five
+errors it corrects came from reasoning past exactly that line.
+
+### 1. `infra-root-jwt` comes from the Notary PKI, not from enrollment
+
+§2026-08-09 said the string "is not a literal in the binary, so it is runtime state from
+enrollment." The first half holds — zero occurrences in either binary, independently
+confirmed. The second is wrong: it is the **`kid` of a key the proxy fetches from
+Privilege's internal Notary PKI**. `/rpc.NotaryService/GetInfraRoot` sits immediately
+beside the `doesn't match InfraKid` error string in the binary.
+
+Consequence: the trusted key is minted by Privilege infrastructure and fetched at
+runtime. There is no enrollment artifact to swap, no file to replace, and no per-tenant
+knob — which is why every PingOne credential class failed identically and why
+re-enrolling the node was never going to help.
+
+### 2. The Priv Agent is not the missing piece
+
+Worth stating because the name invites the assumption. The **PingOne Privilege Agent** is
+a TPM / Secure-Enclave desktop application that mints a **device-bound mTLS identity**
+for SSH, RDP, Kubernetes and cloud CLIs. It is not a credential issuer for MCP clients.
+
+Adopting it would mean authenticating MCP clients as **Privilege-native devices** rather
+than as PingOne OAuth clients — a different architecture from the one this demo exists to
+show, and it would abandon the PingOne token chain that is the demo's whole point.
+
+It is also downloadable only from a tenant console (**Settings → App Downloads**); there
+is no public URL, so nothing about it can be scripted or pulled from this repo.
+
+### 3. `AppUserToken` and `AIAgentAccount` mint nothing — both dead ends
+
+§2026-08-09 closed with "a Privilege-issued identity token is the most likely answer,"
+resting on the reference counts of these two object types. Both are the wrong shape:
+
+| Object | What it actually is |
+|---|---|
+| `AppUserToken` | The **guest-agent metadata envelope**. Its only `cyctl` flags are `--guest-meta-*` |
+| `AIAgentAccount` | A **shadow-AI inventory connector** — Bedrock, Salesforce, Azure, Vertex, Copilot |
+
+Neither issues a credential. High reference counts in a binary measure how widely a
+struct is passed around, not what it does — that inference was the error. Stop reading
+them as a lead.
+
+### 4. `set-privilege-frontend-oauth.sh` was never going to work
+
+§2026-08-10 (verdict) step 4 found empirically that populating `ResourceOAuth` changed
+nothing. Here is the structural reason, which would have predicted it without the test:
+
+- **`IssuerPublicKey` belongs to `OidcServer`**, not to the Application — and
+  `cyctl object oidcserver` exposes only `get` and `list`. No `create`, no `update`.
+- **`authzmiddleware` is not a `cyctl` object type at all**, so the object that every
+  earlier section proposed editing cannot be addressed from the CLI in the first place.
+- **`ResourceOAuth` configures the challenge Privilege advertises**, plus dynamic client
+  registration (DCR). It is not the key the gateway validates inbound tokens against.
+
+The script's premise — that a per-app write populates inbound issuer trust — was wrong on
+three counts. It stays in the repo as the record of a ruled-out path. Do not re-run it
+expecting a different result.
+
+### 5. One untested lever left: `cyctl object idprovider create`
+
+Tenant-level IdP registration is the **only customer-authorable object in the chain**.
+
+```
+IDProvider  ->  OidcServer  ->  IssuerPublicKey
+```
+
+That path is **inferred from the object graph, not verified**. No live attempt has been
+made, and `cyctl` still needs an HS256 console token to attempt it (§2026-08-10).
+
+It is the entire remaining surface on the configuration side. The gate is unchanged: a
+tokenless `POST /mcp` answering `401` **with** a `WWW-Authenticate` header means inbound
+issuer trust now exists. Anything less proves nothing — and per §2026-08-10, a bare
+`401 Bearer Token not found.` proves nothing at all.
+
+### The second image: `privilege-mcpgw` / `/procyon/bin/mcpgw` — still untested
+
+§2026-08-10 (verdict) step 6 concluded that the challenge flow "is not compiled into any
+build we can pull," on the evidence of `privilege-proxy` / `cyonproxy`. That measurement
+is correct and was independently reproduced — but it surveyed the wrong repository. A
+second public ECR repo ships a purpose-built MCP gateway binary that was never tested:
+
+```
+public.ecr.aws/s7q1z8z4/privilege-mcpgw    ->  /procyon/bin/mcpgw
+```
+
+Its flag set is a strict superset of `cyonproxy`'s (it adds `-mcpconfpath` and `-mcpgw`),
+and it contains every challenge-emission string `cyonproxy` has **zero** of:
+
+```
+Bearer realm=        MCP OAuth Server     authorization_uri
+resource_metadata    /.well-known/oauth-protected-resource
+```
+
+`ValidateInfraJwt` is still present in it, so this is a **lead, not a fix** — the `kid`
+wall may well stand in this image too. Same gate as correction 5: a tokenless `POST`
+returning `WWW-Authenticate` means the wall is down.
+
+### Why there is no documentation to check any of this against
+
+The MCP gateway feature GA'd **2026-07-13** with **zero configuration documentation** in
+the Privilege table of contents. Every config fact in this document was recovered from
+the binary, the `cyctl` flag surface, the console API and gateway logs because there is
+nothing published to read.
+
+Practical import, and the reason this note belongs in the record: a config here that
+looks wrong is more likely undocumented than misconfigured. This repo is ahead of the
+documentation, not behind it — and that makes the `mcpgw` image above *more* plausible as
+the build the SE storyboards describe, since no published document contradicts it.
