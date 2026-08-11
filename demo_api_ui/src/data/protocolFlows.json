@@ -308,7 +308,7 @@
   },
   "txn-tokens": {
     "id": "txn-tokens",
-    "name": "Txn-Tokens",
+    "name": "TXN Tokens",
     "description": "Protocol flow: txn-tokens",
     "actors": [
       "edge-service",

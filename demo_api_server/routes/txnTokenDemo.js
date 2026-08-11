@@ -16,7 +16,7 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  * carrying the caller's subject token and the request context to bind.
  *
  * @flow txn-tokens
- * @name Txn-Tokens
+ * @name TXN Tokens
  * @actor edge-service
  * @to txn-token-service
  * @step 1
