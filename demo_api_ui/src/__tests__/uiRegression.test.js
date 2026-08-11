@@ -310,6 +310,8 @@ describe("CSS/JS monospace regression", () => {
         f.includes("agent-clinical/TokensPane.css") ||   // token claim/badge value display (intentional)
         f.includes("PingOneEventPanel.css") ||            // PingOne event JSON detail display (intentional)
         f.includes("NewRelicDashboard.css") ||             // pipeline stage counts/timestamps/correlation id/category chip display (intentional)
+        f.includes("ProductCardGrid.css") ||              // price tag tabular-nums display (intentional)
+        f.includes("SeatMapPanel.css") ||                 // seat label tabular-nums display (intentional)
         f.includes("dashboard/dashboard.css")              // shared dashboard tabular stat/timestamp/correlation id/chip display (intentional)
       )
         continue;
