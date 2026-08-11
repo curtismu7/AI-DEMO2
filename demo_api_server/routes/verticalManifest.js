@@ -273,14 +273,23 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
 // ---- Write endpoints ----
 // Specific paths first, parameterized paths last (express routes top-to-bottom).
 
-// Switching the active vertical is open to any authenticated user (not admin-only).
+// Switching the active vertical is open to ANY caller, signed in or not (not admin-only).
 // Session-scoped: the choice is ALWAYS stored on THIS session (req.session.active_vertical)
 // so another session switching can't change it. The process-global + SSE broadcast
 // (setActive) is admin-only (or body.global=true from an admin) — otherwise a
 // CareConnect / retail e2e (or casual end-user switch) left healthcare as the
 // first-load default for every new session and the room looked "stuck".
 // The id is validated against the loaded set; hidden verticals cannot be activated.
-router.post('/active', requireSession, (req, res) => {
+//
+// Guests are allowed BECAUSE this is session-scoped. This used to be requireSession,
+// but the SPA POSTs here whenever the vertical picker changes — including before
+// sign-in — so a rejected guest kept no pin and every downstream activeIdFor(req)
+// silently fell back to the process-global, i.e. whatever vertical another session
+// last selected. Observed live: a guest whose picker read "Super Banking" was served
+// retail's agent persona and asked for their "Great Buy" account. A guest still
+// cannot move the global (the isAdmin check below), so the blast radius is their
+// own session — which is exactly the scope of the choice they just made.
+router.post('/active', (req, res) => {
   const { id, global: wantGlobal } = req.body || {};
   if (!id) return res.status(400).json({ error: 'id required' });
   // Shared with the demo-agent `vertical` param — see verticalManifest.activationRefusal.
