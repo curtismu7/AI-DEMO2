@@ -353,6 +353,27 @@ async function isAgentRevoked(agentId) {
 }
 
 /**
+ * Inverse of the revoked-flag write in killAgent — clears agent:<agentId>:revoked
+ * so the kill check in runMcpToolPipeline stops rejecting this agent's calls
+ * before the flag's own 24h TTL would have expired it naturally.
+ * @param {string} agentId
+ * @returns {Promise<boolean>} true if the clear succeeded (or there was nothing to clear)
+ */
+async function unrevokeAgent(agentId) {
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore) return false;
+    await new Promise((resolve, reject) => {
+      sessionStore.destroy(`agent:${agentId}:revoked`, (err) => (err ? reject(err) : resolve()));
+    });
+    return true;
+  } catch (error) {
+    console.warn('[killSwitch] Error clearing revocation flag:', error.message);
+    return false;
+  }
+}
+
+/**
  * Get agent's refresh token from session store
  * @param {string} agentId 
  * @returns {Promise<string|null>}
@@ -585,6 +606,7 @@ module.exports = {
   killAgent,
   captureAgentState,
   isAgentRevoked,
+  unrevokeAgent,
   revokeTokenAtPingOne,
   disableAgentApplicationsAtPingOne,
   enableAgentApplicationsAtPingOne,

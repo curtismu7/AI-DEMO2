@@ -162,9 +162,9 @@ export default function KillSwitchConfirmModal({
                 : "Stopped the entire agent identity — the PingOne application was disabled, blocking new tokens for every user of this agent client."}
             </div>
             <p className="ksm-result-mechanism">
-              Enforcement point: the agent's next MCP tool call — PingOne
-              Authorize's <code>evaluateMcpFirstToolGate</code> checks the
-              revocation flag set below before that call is allowed through.
+              Enforcement point: the agent's next MCP tool call — the kill
+              check in <code>runMcpToolPipeline</code> checks the revocation
+              flag set below before that call is allowed through.
             </p>
             <ul className="ksm-result-list">
               {(result.steps || []).map((step) => (

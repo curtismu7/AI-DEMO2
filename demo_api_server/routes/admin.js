@@ -974,6 +974,9 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
+      const _reEnableUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _reEnableUserId);
+      await killSwitchService.unrevokeAgent(agentId);
       const applications = await killSwitchService.enableAgentApplicationsAtPingOne();
       agentLifecycleEvents.emit({
         eventType: 'mover',
