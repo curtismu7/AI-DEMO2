@@ -52,7 +52,6 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "MCP & Gateways",
     children: [
       "Ping AI Test Lab",
-      "Web MCP",
       "Agent Gateway Inspector",
       "Capability Tour",
       "Weather MCP",
