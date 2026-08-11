@@ -34,6 +34,23 @@ jest.mock('../../middleware/auth', () => ({
       return res.status(401).json({ error: 'invalid_token' });
     }
   },
+  // Mirrors the real middleware: no credentials presented -> guest pass-through
+  // (req.user null, no 401); credentials present -> same validation as above.
+  optionalAuthenticateToken: (req, res, next) => {
+    const h = req.headers['x-test-user'];
+    if (!h) {
+      req.user = null;
+      return next();
+    }
+    try {
+      req.user = JSON.parse(h);
+      req.session = req.session || {};
+      req.session.user = req.user;
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'invalid_token' });
+    }
+  },
   requireScopes: (requiredScopes) => (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'authentication_required', error_description: 'Access token is required' });
     if (req.user.role === 'admin') return next();
