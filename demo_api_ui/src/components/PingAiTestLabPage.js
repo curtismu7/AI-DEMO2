@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import JsonHighlight from './shared/JsonHighlight';
 import DraggableModal from './DraggableModal';
 import './PingAiTestLabPage.css';
@@ -29,9 +30,10 @@ function ResultRow({ test, result, running, onRun }) {
     setShowLoginModal(true);
   };
 
-  const handleLoginConfirm = () => {
+  const handleLoginConfirm = (testKey) => {
     setShowLoginModal(false);
-    window.location.href = '/login';
+    const returnTo = `/test-lab?retry=${encodeURIComponent(testKey)}`;
+    window.location.href = `/login?return_to=${encodeURIComponent(returnTo)}`;
   };
 
   return (
@@ -72,7 +74,7 @@ function ResultRow({ test, result, running, onRun }) {
             <p>This demo step requires authentication to run.</p>
             <p>You will be redirected to the login page. After signing in, return here to run the demo step and see the complete token chain.</p>
             <div className="patl-modal-actions">
-              <button type="button" className="patl-btn patl-btn-primary" onClick={handleLoginConfirm}>
+              <button type="button" className="patl-btn patl-btn-primary" onClick={() => handleLoginConfirm(test.key)}>
                 Go to sign in
               </button>
               <button type="button" className="patl-btn" onClick={() => setShowLoginModal(false)}>
@@ -87,6 +89,7 @@ function ResultRow({ test, result, running, onRun }) {
 }
 
 export default function PingAiTestLabPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [suites, setSuites] = useState([]);
   const [results, setResults] = useState({});
   const [running, setRunning] = useState(null); // null | 'all' | suiteKey | testKey
@@ -95,6 +98,7 @@ export default function PingAiTestLabPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const abortRef = useRef(null);
+  const retryRef = useRef(searchParams.get('retry'));
 
   useEffect(() => {
     fetch('/api/admin/ping-ai-test-lab/suites', { credentials: 'include' })
@@ -103,6 +107,35 @@ export default function PingAiTestLabPage() {
       .catch((err) => setError(`Failed to load test catalog: ${err.message}`));
     return () => { if (abortRef.current) abortRef.current.abort(); };
   }, []);
+
+  // Auto-retry demo step after login redirect
+  useEffect(() => {
+    const retryTestKey = retryRef.current;
+    if (!retryTestKey || running !== null) return;
+    const timer = setTimeout(async () => {
+      const params = new URLSearchParams(searchParams);
+      params.delete('retry');
+      setSearchParams(params, { replace: true });
+      setRunning(retryTestKey);
+      setError(null);
+      try {
+        const res = await fetch('/api/admin/ping-ai-test-lab/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ testKey: retryTestKey }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+        setResults((prev) => ({ ...prev, [retryTestKey]: body }));
+      } catch (err) {
+        setError(`${retryTestKey}: ${err.message}`);
+      } finally {
+        setRunning(null);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [running, searchParams, setSearchParams]);
 
   const runOne = async (testKey) => {
     if (running) return;
