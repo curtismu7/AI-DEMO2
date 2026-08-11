@@ -331,6 +331,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const handleInitiateOtpRef = useRef(null); // stays current — avoids stale closure
   const stepUpVerifyHrefRef = useRef(null); // stays current — avoids stale closure
   const fetchingRef = React.useRef(false);
+  const inFlightRef = React.useRef(null);
   const agentPlacementInitRef = React.useRef(true);
 
   const loadDemoFallback = useCallback(
@@ -348,8 +349,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   const fetchUserData = useCallback(
     async (silent = false) => {
-      if (fetchingRef.current) return;
+      if (fetchingRef.current) {
+        // Silent callers don't touch `loading` either way (see both `!silent`
+        // guards below), so no-op is fine for them. A non-silent caller does
+        // care, though — if it silently no-ops here because a silent fetch
+        // (e.g. the agentPlacement-change effect) won the race for
+        // fetchingRef first, nothing would ever clear the spinner it owns.
+        // Wait for the in-flight fetch to settle instead of leaving
+        // `loading` stuck true forever.
+        if (!silent) {
+          await inFlightRef.current?.catch(() => {});
+          setLoading(false);
+        }
+        return;
+      }
       fetchingRef.current = true;
+      const runPromise = (async () => {
       try {
         if (!silent) setLoading(true);
 
@@ -448,6 +463,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         if (!silent) setLoading(false);
         fetchingRef.current = false;
       }
+      })();
+      inFlightRef.current = runPromise;
+      return runPromise;
     },
     [loadDemoFallback],
   );
