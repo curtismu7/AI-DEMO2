@@ -189,6 +189,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "🏢",
         action: () => {},
       },
+      {
+        label: "Agent Kill Switch",
+        description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
+        icon: "⚠️",
+        action: () => {},
+      },
     ],
   },
   {
@@ -399,6 +405,7 @@ export default function LearningHub() {
         openEdu(EDU.PINGGATEWAY_MCP, "overview"),
       "Enterprise-Managed Auth (EMA)": () =>
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
+      "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),

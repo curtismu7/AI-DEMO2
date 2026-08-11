@@ -353,6 +353,27 @@ async function isAgentRevoked(agentId) {
 }
 
 /**
+ * Inverse of the revoked-flag write in killAgent — clears agent:<agentId>:revoked
+ * so the kill check in runMcpToolPipeline stops rejecting this agent's calls
+ * before the flag's own 24h TTL would have expired it naturally.
+ * @param {string} agentId
+ * @returns {Promise<boolean>} true if the clear succeeded (or there was nothing to clear)
+ */
+async function unrevokeAgent(agentId) {
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore) return false;
+    await new Promise((resolve, reject) => {
+      sessionStore.destroy(`agent:${agentId}:revoked`, (err) => (err ? reject(err) : resolve()));
+    });
+    return true;
+  } catch (error) {
+    console.warn('[killSwitch] Error clearing revocation flag:', error.message);
+    return false;
+  }
+}
+
+/**
  * Get agent's refresh token from session store
  * @param {string} agentId 
  * @returns {Promise<string|null>}
@@ -499,9 +520,10 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     });
 
     // 4. Mark agent as revoked in session store — this is the actual enforcement
-    //    point: agentRateLimit.js checks this flag before letting ANY new
-    //    tool call through, so it's what makes "stop this agent" real rather
-    //    than just a token-revoke that a cached/in-flight call could outrun.
+    //    point: the kill check in runMcpToolPipeline checks this flag before
+    //    letting ANY new tool call through, so it's what makes "stop this
+    //    agent" real rather than just a token-revoke that a cached/in-flight
+    //    call could outrun.
     //    Written through the generic express-session Store interface (not a
     //    Redis-specific client) so it works against this deployment's
     //    LmdbSessionStore as well as a Redis-backed store.
@@ -526,7 +548,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       key: 'enforcement_flag',
       label: 'Arm the next-request block',
       detail: revokedFlagSet
-        ? `agent:${agentId}:revoked set for 24h — agentRateLimit rejects the agent's NEXT tool call because of this flag. A call already in flight when this ran will still complete.`
+        ? `agent:${agentId}:revoked set for 24h — the kill check in runMcpToolPipeline rejects the agent's NEXT tool call because of this flag. A call already in flight when this ran will still complete.`
         : 'Could not set the revoked flag — the session store was unreachable. Token revocation above still applies once the agent needs a fresh token.',
       ran: revokedFlagSet,
       skipped: !revokedFlagSet,
@@ -584,6 +606,7 @@ module.exports = {
   killAgent,
   captureAgentState,
   isAgentRevoked,
+  unrevokeAgent,
   revokeTokenAtPingOne,
   disableAgentApplicationsAtPingOne,
   enableAgentApplicationsAtPingOne,

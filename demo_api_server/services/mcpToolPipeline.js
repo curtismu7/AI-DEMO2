@@ -402,6 +402,32 @@ async function runMcpToolPipeline(ctx) {
         return { kind: 'block', httpStatus: r.status, body: r.body };
     }
 
+    // Kill switch: the ONE point every real tool call passes through,
+    // regardless of whether PingOne Authorize runs locally
+    // (evaluateMcpFirstToolGate) or the call is gateway-authoritative
+    // (which skips that function entirely) — see the 2026-08-10 final
+    // review that found the prior location never ran under the default
+    // gateway-enabled deployment.
+    const { deriveAgentKey } = require('./sessionKeyService');
+    const killSwitchService = require('./killSwitchService');
+    const _killUserId = userSub || req.session?.user?.oauthId || req.session?.user?.id || null;
+    const _killAgentKey = deriveAgentKey(req, null, _killUserId);
+    if (await killSwitchService.isAgentRevoked(_killAgentKey)) {
+        deps.emit({ phase: 'kill_switch_blocked' });
+        deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+        return {
+            kind: 'block',
+            httpStatus: 403,
+            tokenEvents,
+            body: {
+                error: 'agent_killed',
+                error_description: 'This agent was stopped via the kill switch and cannot make further tool calls.',
+                agentId: _killAgentKey,
+                tokenEvents,
+            },
+        };
+    }
+
     // PingOne Authorize (or simulated) on every MCP tool call — docs/PINGONE_AUTHORIZE_PLAN.md §7
     /** @type {object|undefined} */
     let mcpAuthorizeEvaluationThisRequest;

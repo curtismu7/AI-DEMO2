@@ -8,6 +8,7 @@ jest.mock('../middleware/auth', () => ({
 
 jest.mock('../services/killSwitchService', () => ({
   enableAgentApplicationsAtPingOne: jest.fn(async () => ([{ id: 'app-1', enabled: true }])),
+  unrevokeAgent: jest.fn(async () => true),
 }));
 
 jest.mock('../services/agentLifecycleEvents', () => ({

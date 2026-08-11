@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import apiClient from "../services/apiClient";
 import { resolveApiBaseUrl } from "../utils/resolveApiBaseUrl";
 import DraggableModal from "./DraggableModal";
 import "./KillSwitchConfirmModal.css";
@@ -17,6 +18,8 @@ export default function KillSwitchConfirmModal({
   const [result, setResult] = useState(null);
   const [liveSteps, setLiveSteps] = useState([]);
   const [error, setError] = useState(null);
+  const [activeRuns, setActiveRuns] = useState([]);
+  const [activeRunsLoaded, setActiveRunsLoaded] = useState(false);
   const esRef = useRef(null);
 
   // Re-seed scope from the trigger that opened the modal (e.g. roster's
@@ -24,6 +27,18 @@ export default function KillSwitchConfirmModal({
   useEffect(() => {
     if (isOpen) setScope(initialScope);
   }, [isOpen, initialScope]);
+
+  // What the operator is about to stop, fetched fresh each time the modal opens.
+  useEffect(() => {
+    if (!isOpen) { setActiveRunsLoaded(false); return; }
+    let cancelled = false;
+    apiClient
+      .get(`/api/admin/agent/${agentId}/active-runs`)
+      .then((res) => { if (!cancelled) setActiveRuns(res.data?.runs || []); })
+      .catch(() => { if (!cancelled) setActiveRuns([]); })
+      .finally(() => { if (!cancelled) setActiveRunsLoaded(true); });
+    return () => { cancelled = true; };
+  }, [isOpen, agentId]);
 
   useEffect(() => () => esRef.current?.close(), []);
 
@@ -147,10 +162,9 @@ export default function KillSwitchConfirmModal({
                 : "Stopped the entire agent identity — the PingOne application was disabled, blocking new tokens for every user of this agent client."}
             </div>
             <p className="ksm-result-mechanism">
-              Enforcement point: the agent's next request to{" "}
-              <code>/api/agent/*</code> — <code>agentRateLimit</code> checks
-              the revocation flag set below before that call is allowed
-              through.
+              Enforcement point: the agent's next MCP tool call — the kill
+              check in <code>runMcpToolPipeline</code> checks the revocation
+              flag set below before that call is allowed through.
             </p>
             <ul className="ksm-result-list">
               {(result.steps || []).map((step) => (
@@ -217,6 +231,27 @@ export default function KillSwitchConfirmModal({
                 )}
               </div>
             )}
+            {activeRunsLoaded && (
+              <div className="ksm-active-runs">
+                {activeRuns.length > 0 ? (
+                  <>
+                    <p className="ksm-active-runs-title">This will stop:</p>
+                    <ul className="ksm-active-runs-list">
+                      {activeRuns.map((run) => (
+                        <li key={run.runId}>
+                          <strong>{run.tool}</strong>
+                          {" — started "}
+                          {Math.max(1, Math.round((Date.now() - run.startedAt) / 1000))}s ago
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="ksm-active-runs-empty">Nothing currently running for this agent.</p>
+                )}
+              </div>
+            )}
+
             <div className="ksm-instructions">
               <p className="ksm-instructions-lead">
                 PingOne revokes the agent's OAuth token now (RFC 7009) and its

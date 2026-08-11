@@ -24,7 +24,7 @@ jest.mock('../../middleware/sessionConfig', () => ({
     get: jest.fn((_key, cb) => cb(null, null)),
     set: jest.fn((_key, _value, cb) => cb(null)),
   },
-}), { virtual: true });
+}));
 jest.mock('../../services/configStore', () => {
   const actual = jest.requireActual('../../services/configStore');
   return {

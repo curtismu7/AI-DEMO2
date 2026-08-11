@@ -849,6 +849,26 @@ const killSwitchService = require('../services/killSwitchService');
 const killSwitchSseHub = require('../services/killSwitchSseHub');
 const auditLogService = require('../services/auditLogService');
 const agentLifecycleEvents = require('../services/agentLifecycleEvents');
+const { deriveAgentKey } = require('../services/sessionKeyService');
+const agentRunRegistry = require('../services/agentRunRegistry');
+
+/**
+ * GET /api/admin/agent/:agentId/active-runs
+ * What the kill-switch confirm modal shows before the operator commits.
+ * userId is deliberately stripped from the response.
+ */
+router.get(
+  '/agent/:agentId/active-runs',
+  authenticateToken,
+  (req, res) => {
+    const _activeRunsUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+    const agentId = deriveAgentKey(req, req.params.agentId, _activeRunsUserId);
+    const runs = agentRunRegistry.listActiveRuns(agentId).map(
+      ({ runId, tool, startedAt }) => ({ runId, tool, startedAt }),
+    );
+    return res.status(200).json({ runs });
+  },
+);
 
 /**
  * GET /api/admin/agent/:agentId/kill-switch/events
@@ -873,7 +893,8 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
-      const { agentId } = req.params;
+      const _killUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _killUserId);
       // Default instance: omitting scope must NEVER disable PingOne agent apps
       // (that used to brick the whole demo when a caller forgot to pass scope).
       const { reason = 'manual_red_button', scope = 'instance' } = req.body;
@@ -953,6 +974,9 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
+      const _reEnableUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _reEnableUserId);
+      await killSwitchService.unrevokeAgent(agentId);
       const applications = await killSwitchService.enableAgentApplicationsAtPingOne();
       agentLifecycleEvents.emit({
         eventType: 'mover',
@@ -982,7 +1006,8 @@ router.get(
   requireScopes(['admin']),
   async (req, res) => {
     try {
-      const { agentId } = req.params;
+      const _statusUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _statusUserId);
 
       const isRevoked = await killSwitchService.isAgentRevoked(agentId);
 
