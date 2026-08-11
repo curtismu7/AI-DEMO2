@@ -133,4 +133,32 @@ describe('runMcpToolPipeline — gateway DENY carries authorize evidence', () =>
     expect(out.body.error).toBe('gateway_misconfigured');
     expect(out.body.mcpAuthorizeEvaluation).toBeUndefined();
   });
+
+  test('PERMIT response with gwAuditTrail: gw-authorize event always added (#1656 catch-all)', async () => {
+    const permitTrail = {
+      introspection: { active: true, sub: 'u1' },
+      authorize: {
+        decision: 'PERMIT',
+        backend: 'real',
+        reason: null,
+        parameters: { ToolName: 'pay_fee', Amount: '2500' },
+        rawResponse: {
+          correlationId: 'corr-permit-1',
+          decision: 'PERMIT',
+        },
+      },
+    };
+    const deps = makeDeps({
+      callToolViaGateway: jest.fn(async () => ({
+        result: { content: [{ type: 'text', text: 'success' }] },
+        gwAuditTrail: permitTrail,
+      })),
+    });
+    const out = await runMcpToolPipeline(makeCtx({ deps }));
+
+    expect(out.httpStatus).toBe(200);
+    expect(out.body.result).toBeDefined();
+    // Key assertion: gw-authorize event must be in tokenEvents even on success path
+    expect(out.tokenEvents.some((e) => e && e.id === 'gw-authorize' && e.status === 'permit')).toBe(true);
+  });
 });
