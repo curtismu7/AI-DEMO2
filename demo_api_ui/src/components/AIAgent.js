@@ -2158,12 +2158,13 @@ export default function BankingAgent({
       if (cancelled || !hero?.imageUrl || !hero?.greeting) return;
       setHeroData({ imageUrl: hero.imageUrl, greeting: hero.greeting });
       setHeroShown(true);
-      // Persist the greeting the user actually saw. Keyed by vertical in a ref
-      // so StrictMode's double-invoke (and the sync pageManifest path, which
-      // runs before cleanup) can't write the same greeting to history twice.
-      if (user?.sub && heroLoggedRef.current !== vertical) {
+      // Persist the greeting the user actually saw. Addressed as `me` — the UI
+      // never sees the token sub, and the route resolves the alias to it.
+      // Keyed by vertical in a ref so StrictMode's double-invoke (and the sync
+      // pageManifest path, which runs before cleanup) can't write twice.
+      if (user && heroLoggedRef.current !== vertical) {
         heroLoggedRef.current = vertical;
-        fetch(`/api/conversations/${user.sub}/${vertical}/hero-shown`, {
+        fetch(`/api/conversations/me/${encodeURIComponent(vertical)}/hero-shown`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
