@@ -89,15 +89,21 @@ function ProductCard({ item, onAction, action }) {
 }
 
 function LocationCard({ item }) {
+  const [imgError, setImgError] = React.useState(false);
   return (
     <div className="pcg-card">
-      {item.image ? (
-        <div className="pcg-thumb pcg-thumb--location">
-          <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-      ) : (
-        <div className="pcg-thumb pcg-thumb--location">{icon("location")}</div>
-      )}
+      <div className="pcg-thumb pcg-thumb--location">
+        {item.image && !imgError ? (
+          <img
+            src={item.image}
+            alt={item.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          icon("location")
+        )}
+      </div>
       <div className="pcg-body">
         <div className="pcg-price-row">
           <span className="pcg-status">{item.hours}</span>
