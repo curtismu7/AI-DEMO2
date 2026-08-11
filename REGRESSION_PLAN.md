@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — Yellow "sign-in session has expired" banner fired on a fresh, never-authenticated page load
+
+**Files changed:** `demo_api_ui/src/utils/dashboardToast.js`
+
+**What was broken:** dashboard components fetch protected data as soon as they
+mount, with no page-load auth-check gate in front of them anymore. On a page
+load where the visitor was never signed in, that first fetch 401s; the error
+message matches `errorMessageSuggestsLogin`, and `toastCustomerError` /
+`toastAdminSessionError` dispatched `SESSION_REAUTH_EVENT`, which
+`SessionReauthBanner` (mounted in `App.js`) renders as a full-width "Your
+sign-in session has expired. Sign in again to continue." banner — even though
+no session had ever existed to expire.
+
+**What was fixed:** `toastCustomerError` / `toastAdminSessionError` no longer
+dispatch `SESSION_REAUTH_EVENT`; both now always show a normal
+`toast.error(message)`. `SessionReauthBanner`, `SESSION_REAUTH_EVENT`, and its
+listener/wiring in `useAuth.js` / `App.js` are unchanged and left in place —
+that same event/banner is still the on-page notice for the agent-triggered
+step-up (CIBA/OTP) HITL flow (`UserDashboard.js` / `UserDashboardPing2026.js`,
+`agentStepUpRequested` handler), which is unrelated to session expiry and must
+keep working.
+
+**Do not break:** don't re-wire `dashboardToast.js` back to
+`SESSION_REAUTH_EVENT`; don't remove `SessionReauthBanner` or its
+`useAuth.js`/`App.js` wiring — the HITL step-up banner still depends on it.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` — 329/329 files, 2931 passed,
+24 skipped; `npm run build` — exits 0.
+
 ### 2026-08-10 — Demo Steps panel 401'd on open, before any step ran
 
 **Files changed:** `demo_api_server/server.js`
