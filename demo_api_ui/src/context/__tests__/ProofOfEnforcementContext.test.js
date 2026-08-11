@@ -337,6 +337,31 @@ describe('a failed run is not reported as still waiting', () => {
   });
 });
 
+// Regression: gateway-authoritative runs (useGateway: true) never populate
+// trace.authorize — the BFF skips its own Authorize gate and PingOne's real
+// PERMIT only ever arrives as a 'gw-authorize' token event. Without a
+// fallback, a run the gateway actually permitted still read "Run failed
+// before authorize-decision" because computeVerdict only checked trace.authorize.
+describe('a gateway-authoritative PERMIT is not reported as incomplete', () => {
+  const ENTRY = {
+    useCaseId: 'delegated-access-with-proof',
+    title: 'Delegated access with proof',
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'authorize-decision', 'tool-dispatched'], activity: ['token'] },
+  };
+
+  test('gw-authorize token event fills the authorize-decision step', () => {
+    const v = computeVerdict({
+      tokenEvents: [{ id: 'user-token' }, { id: 'gw-authorize', decision: 'PERMIT' }],
+      authorize: null,
+      mcpResult: { tool: 'view_coverage' },
+      outcome: 'ok',
+    }, ENTRY);
+    expect(v.state).toBe('verified');
+    expect(v.missingSteps).toEqual([]);
+  });
+});
+
 // Regression: a deny-like expectation used to be satisfied by ANY non-PERMIT
 // decision. mcpToolPipeline collapses step-up and HITL to 'INDETERMINATE', so a
 // use case advertising a hard DENY rendered "Verified (denied as expected)" when
