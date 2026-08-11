@@ -24,8 +24,8 @@ untouched.
 
 ## New descriptor types
 
-**`productGrid`** (sporting-goods products, banking branches — same shape,
-different field semantics):
+**`productGrid`** (sporting-goods products — tool-driven, per the render
+pipeline above):
 ```json
 {
   "type": "productGrid",
@@ -35,11 +35,48 @@ different field semantics):
               "title": "name", "meta": ["rating", "stock"] }
 }
 ```
-Banking's branch grid uses the same type with `action.kind: "link"` instead
-of a tool — the button is `<a href={branch.mapUrl}>` (fake Google Maps
-search URL, `target="_blank" rel="noopener"`), not a store write. No
-`priceWas`; the price slot shows open/closed status instead (already how the
-mockup renders it).
+
+**Locations (branches/clinics/stores/…) — corrected scope, found during
+implementation planning:** this is NOT new backend data. `demo_api_server/data/publicBranchCatalog.js`
+already has location lists for 11 verticals (banking, healthcare, retail,
+abercrombie-fitch, government, university, workforce, sporting-goods,
+manufacturing, investment, airlines), served through `dispatchBankingAction`'s
+`branch_hours` action (`demoAgentLangGraphService.js:298-311`) — vertical-scoped
+already (`demoAgentLangGraphService.js:756-761`), catalogued cross-vertical in
+`config/useCases.js:786-818` (UC24 progressive-trust Act 1).
+
+**It's also currently broken**: the NL heuristic parser matches "branches near
+me" / "clinics near me" / etc. to `action: "branch_hours"`
+(`nlIntentParser.js:998-1017`), but `AIAgent.js`'s `runAction` switch has no
+`branch_hours` case, so it falls to `default` and throws `Unknown action:
+branch_hours` (`AIAgent.js:4461`) — every version of this prompt errors today
+in every vertical. Fixing the dispatch and adding card rendering are the same
+piece of work, and because the data and vertical-scoping already exist for 11
+verticals, **this fix is not scoped to 3 verticals — it lands for all 11 at
+once**, as a side effect of there being exactly one shared code path. Building
+a version that artificially only works for airlines/sporting-goods/banking
+would mean adding code to restrict it, not less code — not done.
+
+This does NOT use the descriptor/manifest pipeline above (no tool, no
+`render` key) — it's a legacy ad-hoc "extra" on the chat message object,
+following the existing `verticalResult` convention
+(`AIAgent.js:2898-2915`, consumed at `AIAgent.js:10825-10830`). Plan:
+1. Wire `branch_hours` in `runAction`, mirroring the existing `weather`
+   action's dispatch (`AIAgent.js:6395-6421`) — call `sendAgentMessage` +
+   `handleNlResumeResponse` instead of falling to `default`.
+2. At `AIAgent.js:6894` (inside `addReplyRespectingGrounding`, the call site
+   `handleNlResumeResponse`'s success path reaches), add a
+   `locationCardsExtra(response)` helper (parallel to `verticalResultExtra`)
+   that returns `{ locationCards: response.branches, locationVertical: response.vertical }`
+   when `response.branches` is present.
+3. Render `{msg.locationCards && <ProductCardGrid kind="locations" items={msg.locationCards} .../>}`
+   near `AIAgent.js:10825`, alongside the existing `msg.verticalResult` block.
+4. `ProductCardGrid` gets a `kind` prop (`"products"` | `"locations"`) since
+   the two need different field mapping and the locations kind needs no
+   `descriptor` (it builds its own card fields from the raw branch shape:
+   `name`, `address`, `hours`, `atm`). The maps link is built client-side:
+   `` `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}` ``,
+   `target="_blank" rel="noopener"` — no backend change for the URL.
 
 **`seatMap`**: fixed shape, not field-driven — cabin bands
 (business/premium/economy), 3-3 seat grid per row, seat states
@@ -64,28 +101,29 @@ rather than the mockup's standalone palette):
 `VerticalResult.jsx` grows two branches (`productGrid`, `seatMap`) alongside
 its existing `card`/`fieldList`/`table`/`token` branches.
 
-## Backend — one new tool + one mutating tool per vertical
+## Backend — one new tool + one mutating tool per vertical (products/seats only)
 
 Following the existing `execute()` switch + per-user store pattern
 (`sporting-goods/data.js` today has orders/rentals/loyalty; this adds a
-sibling collection, not a rename of those).
+sibling collection, not a rename of those). Locations/branches need no new
+backend tool — see above, it's a dispatch fix + render wiring on data that
+already exists.
 
 | Vertical | Store addition | Read tool | Write tool | Write effect |
 |---|---|---|---|---|
 | sporting-goods | `products` (seed), `cart` (per-user) | `browse_gear(category?)` | `add_to_cart(productId)` | pushes into `cart[]` |
 | airlines | `seats` (seed, per-flight) | `browse_seats(flightId?)` | `select_seat(seatId)` | flips that seat to `status:'selected'`, clears any other `selected` seat for the user |
-| banking | `branches` (seed, static — not per-user) | `find_branches(zip?)` | — (link only, no write tool) | n/a |
 
 Airlines currently has no `data.js`/store — this pass adds a minimal one
 (`createAirlinesStore`), same shape as sporting-goods', scoped to only what
 seat selection needs. It does not touch airlines' existing manifest/index
 wiring beyond registering the new tools.
 
-Chip entries: one new fallback-chip per vertical (`fallback-chips/sporting-goods.js`
-already exists, add one entry; airlines and banking get theirs added the
-same way), e.g. `{ label: 'Find hiking gear', message: 'I need gear for a
-hiking trip', tool: 'browse_gear' }`. Mirrors the existing chip shape
-exactly — no new chip infrastructure.
+Chip entries: one new fallback-chip for sporting-goods
+(`fallback-chips/sporting-goods.js` already exists, add one entry) and one
+for airlines (new `fallback-chips/airlines.js`, registered in `loader.js`).
+Locations needs no chip — it's reached by typing (e.g. "branches near me",
+"clinics near me"), matching the existing NL-only UC24 design.
 
 ## Mock data
 
@@ -95,25 +133,32 @@ sample content:
   bottle, tent, base layer) with price/rating/stock.
 - airlines: one flight, 8 rows × 6 seats (2 business + 1 premium row + 5
   economy rows), matching the mockup's seed pattern (a couple pre-occupied).
-- banking: the 6 branches from the mockup (name, address, distance, hours,
-  fake maps URL built as `https://www.google.com/maps/search/?api=1&query=<encoded address>`).
+- locations: none needed — `publicBranchCatalog.js` already has real seed
+  data for all 11 verticals.
 
 ## Testing
 
-- Vitest: one render test per new component (`ProductCardGrid`, `SeatMapPanel`)
-  asserting card/seat content renders and the action button fires the right
-  tool call or link.
+- Vitest: one render test per new component (`ProductCardGrid` in both
+  `kind="products"` and `kind="locations"` modes, `SeatMapPanel`) asserting
+  card/seat content renders and the action button fires the right tool call
+  or link; one test covering the `branch_hours` `runAction` wiring (mirrors
+  the existing `weather`-action test, if one exists — check
+  `AIAgent.*.test.js` for a `weather` case to follow) so "Unknown action:
+  branch_hours" can't regress silently.
 - Jest (`demo_api_server`): one test per new/changed tool (`browse_gear`,
-  `add_to_cart`, `browse_seats`, `select_seat`, `find_branches`) covering the
-  happy path and the "not found" error path, following the existing
-  cancel_order-style test pattern for that vertical.
-- Manual: exercise all three chips in the running demo, confirm cards render
-  at the sizes/icons from the approved mockup and the seat chart's summary
-  bar updates on click.
+  `add_to_cart`, `browse_seats`, `select_seat`) covering the happy path and
+  the "not found" error path, following the existing cancel_order-style test
+  pattern for that vertical.
+- Manual: exercise the sporting-goods and airlines chips, and type "branches
+  near me" while on banking/healthcare/sporting-goods to confirm the fix
+  covers more than one vertical; confirm cards render at the sizes/icons
+  from the approved mockup and the seat chart's summary bar updates on
+  click.
 
 ## Out of scope (this pass)
 
-- The other 13 verticals.
+- Product/seat catalogs for the other 14 verticals (locations already covers
+  11 of them for free, per above).
 - Real photography (icons stay hand-drawn SVG, per the mockup).
 - A real shopping cart UI (the `cart` store just needs to exist and be
   mutated — no cart page/checkout).
