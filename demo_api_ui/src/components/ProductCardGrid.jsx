@@ -58,7 +58,9 @@ function mapUrlFor(address) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
-function ProductCard({ item, onAction }) {
+function ProductCard({ item, onAction, action }) {
+  const actionLabel = action?.label || "Add to Cart";
+  const actionTool = action?.tool || "add_to_cart";
   return (
     <div className="pcg-card">
       <div className="pcg-thumb pcg-thumb--product">{icon(item.icon)}</div>
@@ -73,8 +75,12 @@ function ProductCard({ item, onAction }) {
           {item.stock}
         </div>
         <div className="pcg-btn">
-          <button type="button" onClick={() => onAction("add_to_cart", { productId: item.id })}>
-            Add to Cart
+          <button
+            type="button"
+            onClick={() => onAction?.(actionTool, { productId: item.id })}
+            disabled={!onAction}
+          >
+            {actionLabel}
           </button>
         </div>
       </div>
@@ -100,7 +106,7 @@ function LocationCard({ item }) {
   );
 }
 
-export default function ProductCardGrid({ kind, title, items, onAction }) {
+export default function ProductCardGrid({ kind, title, items, onAction, action }) {
   return (
     <div className="pcg">
       {title && <div className="pcg-title-bar">{title}</div>}
@@ -108,7 +114,7 @@ export default function ProductCardGrid({ kind, title, items, onAction }) {
         {items.map((item) =>
           kind === "locations"
             ? <LocationCard key={item.id} item={item} />
-            : <ProductCard key={item.id} item={item} onAction={onAction} />,
+            : <ProductCard key={item.id} item={item} onAction={onAction} action={action} />,
         )}
       </div>
     </div>

@@ -35,9 +35,13 @@
   padding: 0;
   cursor: pointer;
 }
-.smp-seat--business { background: #fde68a; border: 1px solid #7c4a03; }
-.smp-seat--premium { background: #e0f2fe; border: 1px solid #0284c7; }
+/* Cabin names from real data (demo_mcp_resource_server/seed/airlines.seed.json),
+   slugified: "Economy" -> economy, "Economy Plus" -> economy-plus,
+   "United First" -> united-first, "United Polaris" -> united-polaris. */
 .smp-seat--economy { background: var(--th-bg-inset, #eef0f8); border: 1px solid var(--th-border, #e0e3ee); }
+.smp-seat--economy-plus { background: #e0f2fe; border: 1px solid #0284c7; }
+.smp-seat--united-first { background: #fde68a; border: 1px solid #7c4a03; }
+.smp-seat--united-polaris { background: #ddd6fe; border: 1px solid #6d28d9; }
 .smp-seat--selected { background: #1d4ed8 !important; border-color: #1d4ed8 !important; box-shadow: 0 0 0 2px #e8edfd; }
 .smp-seat:disabled { background: var(--th-border, #e0e3ee) !important; border-color: var(--th-border, #e0e3ee) !important; opacity: 0.5; cursor: default; }
 .smp-legend {

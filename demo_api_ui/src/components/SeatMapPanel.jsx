@@ -6,6 +6,13 @@ function parseSeat(seat) {
   return m ? { row: Number(m[1]), col: m[2] } : { row: 0, col: seat };
 }
 
+// Real cabin values carry spaces (e.g. "Economy Plus", "United Polaris" — see
+// demo_mcp_resource_server/seed/airlines.seed.json) and can't be used directly
+// in a CSS class name.
+function slugifyCabin(cabin) {
+  return String(cabin).toLowerCase().trim().replace(/\s+/g, "-");
+}
+
 export default function SeatMapPanel({ flightNumber, seats }) {
   const [selected, setSelected] = useState(null);
 
@@ -42,7 +49,7 @@ export default function SeatMapPanel({ flightNumber, seats }) {
                   key={s.seat}
                   type="button"
                   data-testid="seat-cell"
-                  className={`smp-seat smp-seat--${cabin}${isSelected ? " smp-seat--selected" : ""}`}
+                  className={`smp-seat smp-seat--${slugifyCabin(cabin)}${isSelected ? " smp-seat--selected" : ""}`}
                   disabled={!s.available}
                   title={s.seat}
                   onClick={() => setSelected(s.seat)}

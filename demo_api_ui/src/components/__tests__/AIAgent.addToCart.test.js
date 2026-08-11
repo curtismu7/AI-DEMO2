@@ -251,4 +251,70 @@ describe("productGrid card renders from a real NL response and Add to Cart dispa
       );
     });
   });
+
+  // Critical fix-round-2: runAction's "add_to_cart" case dispatches via
+  // callMcpTool directly (not the NL/dispatchVerticalIntent path that
+  // auto-attaches verticalResult), so the raw MCP envelope response never
+  // populated response.verticalResult and formatResult fell through to a raw
+  // JSON.stringify dump. Assert the confirmation reads as text, not JSON.
+  it("shows a plain confirmation (not a JSON dump) after Add to Cart resolves", async () => {
+    // Real app: pageManifest is the active vertical's manifest.json, whose
+    // render.add_to_cart descriptor is what verticalResultExtra resolves the
+    // card from. Mirror that shape here instead of the default null manifest.
+    useVertical.mockReturnValue({
+      ...DEFAULT_VERTICAL_MOCK,
+      pageManifest: {
+        render: {
+          add_to_cart: {
+            type: "card",
+            title: "Added to Cart",
+            fields: [
+              { label: "Item", path: "name" },
+              { label: "Price", path: "price", format: "money" },
+            ],
+          },
+        },
+      },
+    });
+    demoAgentService.callMcpTool.mockResolvedValueOnce({
+      result: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              render: "add_to_cart",
+              data: {
+                id: "cart-1",
+                productId: "prod-boots",
+                name: "Trail Runner Hiking Boots",
+                price: 129.99,
+                addedAt: "2026-01-01T00:00:00.000Z",
+              },
+            }),
+          },
+        ],
+        isError: false,
+      },
+      tokenEvents: [],
+    });
+
+    renderAgent({ user: customerUser, mode: "inline", forceVertical: "sporting-goods" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "show me hiking gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Trail Runner Hiking Boots")).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add to Cart" }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Added Trail Runner Hiking Boots \(\$129\.99\) to your cart\./)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/"productId"/)).not.toBeInTheDocument();
+  });
 });

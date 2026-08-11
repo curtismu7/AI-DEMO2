@@ -42,7 +42,10 @@ describe('processAgentMessage — branch_hours follows the active vertical (regr
     expect(result.success).toBe(true);
     expect(result.toolsCalled).toContain('get_branch_hours');
     expect(result.reply).toContain('City & County office locations');
-    expect(result.reply).toContain('Austin City Permits Office');
+    // The per-branch name/address/hours detail renders as cards from
+    // `result.branches` (AIAgent.js locationCards), not duplicated in the reply
+    // text — see the "no duplicate detail" fix in publicBranchCatalog.js.
+    expect(result.branches.map((b) => b.name)).toContain('Austin City Permits Office');
     expect(result.reply).not.toContain('Super Banking');
   });
 

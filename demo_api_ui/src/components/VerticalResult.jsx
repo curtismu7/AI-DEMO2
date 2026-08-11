@@ -40,7 +40,7 @@ function VerticalResult({ descriptor, data, onAction }) {
     const items = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
     return (
       <div className="vertical-result vertical-result-product-grid">
-        <ProductCardGrid kind="products" title={descriptor.title} items={items} onAction={onAction} />
+        <ProductCardGrid kind="products" title={descriptor.title} items={items} onAction={onAction} action={descriptor.action} />
       </div>
     );
   }

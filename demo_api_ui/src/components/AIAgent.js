@@ -3093,14 +3093,30 @@ export default function BankingAgent({
             onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
           });
           break;
-        case "add_to_cart":
+        case "add_to_cart": {
           toast.update(toastId, { render: "Adding to cart…" });
           response = await callMcpTool("add_to_cart", form, {
             useCaseId,
             vertical,
             onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
           });
+          // The manifest declares a card descriptor for add_to_cart
+          // (sporting-goods/manifest.json render.add_to_cart), but a direct
+          // callMcpTool response carries no verticalResult — only the NL/chat
+          // dispatch path (dispatchVerticalIntent) attaches that automatically.
+          // Build the same shape here so the card renders instead of falling
+          // through formatResult's JSON.stringify fallback.
+          const cartOut = normalizeAgentToolResult(response.result);
+          if (cartOut && !isAgentToolErrorResult(cartOut) && cartOut.data) {
+            response = {
+              ...response,
+              result: cartOut.data,
+              verticalResult: { render: cartOut.render || "add_to_cart", data: cartOut.data },
+            };
+            Object.assign(resultExtra, verticalResultExtra(response));
+          }
           break;
+        }
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)

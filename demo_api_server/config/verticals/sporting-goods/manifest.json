@@ -319,7 +319,7 @@
     "list_store_credit": {"type":"table","columns":[{"label":"Credit ID","path":"id"},{"label":"Source","path":"source"},{"label":"Balance","path":"balance","format":"money"},{"label":"Expires","path":"expiresAt","format":"date"},{"label":"Status","path":"status"}]},
     "list_gear": { "type": "table", "columns": [ { "label": "Order #", "path": "id" }, { "label": "Product", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] },
     "list_rentals": { "type": "table", "columns": [ { "label": "Rental #", "path": "id" }, { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] },
-    "browse_gear": { "type": "productGrid", "title": "Gear for Your Next Hike" },
+    "browse_gear": { "type": "productGrid", "title": "Gear for Your Next Hike", "action": { "label": "Add to Cart", "tool": "add_to_cart" } },
     "add_to_cart": { "type": "card", "title": "Added to Cart", "fields": [ { "label": "Item", "path": "name" }, { "label": "Price", "path": "price", "format": "money" } ] },
     "gear_order_status": { "type": "card", "title": "Order Status", "fields": [ { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" } ] },
     "loyalty_balance": { "type": "fieldList", "title": "Loyalty", "fields": [ { "label": "Points", "path": "points", "format": "count" }, { "label": "Tier", "path": "tier" } ] },

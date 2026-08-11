@@ -21,6 +21,34 @@ describe("ProductCardGrid", () => {
     expect(onAction).toHaveBeenCalledWith("add_to_cart", { productId: "p1" });
   });
 
+  // Important fix: the floating Results Panel renders VerticalResult without an
+  // onAction prop (agentResultPanels.js). Clicking Add to Cart there used to throw
+  // ("onAction is not a function") — it must now degrade to a disabled button.
+  it("degrades gracefully (disabled button, no throw) when onAction is absent", () => {
+    render(<ProductCardGrid kind="products" title="Gear" items={PRODUCTS} />);
+    const button = screen.getAllByRole("button", { name: "Add to Cart" })[0];
+    expect(button).toBeDisabled();
+    expect(() => fireEvent.click(button)).not.toThrow();
+  });
+
+  // Lower-priority architecture fix: the button label + dispatched tool name are
+  // descriptor-driven (action: { label, tool }) instead of hardcoded, so a
+  // manifest can point "Add to Cart" at a different write tool.
+  it("uses the descriptor-provided action label and tool instead of the hardcoded default", () => {
+    const onAction = vi.fn();
+    render(
+      <ProductCardGrid
+        kind="products"
+        items={PRODUCTS}
+        onAction={onAction}
+        action={{ label: "Buy Now", tool: "quick_buy" }}
+      />,
+    );
+    const button = screen.getAllByRole("button", { name: "Buy Now" })[0];
+    fireEvent.click(button);
+    expect(onAction).toHaveBeenCalledWith("quick_buy", { productId: "p1" });
+  });
+
   it("renders a location card with a real maps link and no onAction call", () => {
     const onAction = vi.fn();
     render(<ProductCardGrid kind="locations" title="Branches" items={BRANCHES} onAction={onAction} />);
