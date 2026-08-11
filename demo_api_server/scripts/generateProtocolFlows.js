@@ -252,6 +252,13 @@ function buildFlowSpecs(routes) {
     flows[flowId].steps.sort((a, b) => a.step - b.step);
   }
 
+  // Add responseMap for flows that need to pass data between steps
+  if (flows['ciba-hitl'] && flows['ciba-hitl'].steps[0]) {
+    flows['ciba-hitl'].steps[0].responseMap = {
+      authReqId: 'auth_req_id'
+    };
+  }
+
   return flows;
 }
 
