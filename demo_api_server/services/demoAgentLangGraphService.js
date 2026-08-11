@@ -922,10 +922,6 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
 
   return JSON.stringify({
     delegated: true,
-    // Nested-act bearer token minted for this leg — exposed so callers (e.g.
-    // executeA2aGeneralistMismatch) can confirm leg 1 actually minted a token
-    // before running the mismatch probe on top of it.
-    token: result.token,
     specialist: result.specialist,
     vertical: result.vertical,
     specialistVertical: result.specialistVertical,
@@ -964,7 +960,7 @@ async function executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, 
   const leg1Json = await executeA2aDelegation(activeId, args, { req, tokenEvents: events, sessionId });
   let leg1;
   try { leg1 = JSON.parse(leg1Json); } catch (_) { leg1 = { delegated: false, error: leg1Json }; }
-  if (leg1.error || !leg1.token) {
+  if (leg1.error || !leg1.tool) {
     return JSON.stringify(leg1);
   }
   const mismatch = await a2a.probeGeneralistMismatch(req, {

@@ -28,7 +28,7 @@ describe('executeA2aGeneralistMismatch', () => {
     const json = await svc.executeA2aGeneralistMismatch('investment', {}, { req: {}, tokenEvents: [], sessionId: 's1' });
     const parsed = JSON.parse(json);
 
-    expect(parsed.token).toBe('fake-token');
+    expect(parsed.tool).toBe('get_portfolio_summary');
     expect(parsed.mismatchProbe.decision).toBe('DENY');
   });
 
