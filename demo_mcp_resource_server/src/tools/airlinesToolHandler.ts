@@ -251,6 +251,13 @@ function seatAvailability(args: Record<string, unknown>, subject: string): unkno
     availableOnly,
     seatCount: seats.length,
     seats: seats.map((s) => ({ seat: s.seat, cabin: s.cabin, available: s.available === 1 })),
+    // Same convention every other vertical's LOCAL tool uses (e.g. sporting-goods'
+    // browse_gear) — render keyed by the tool's own action name — so the BFF's
+    // parseMcpToolPayload (which otherwise defaults render to 'text') carries a
+    // real hint the UI's manifest lookup (pageManifest.render[vr.render]) can
+    // resolve. Airlines has no local plugin execute (see index.js), so nothing
+    // upstream of this resource-server response ever set one.
+    render: 'check_seat_availability',
   };
 }
 
