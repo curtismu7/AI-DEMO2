@@ -850,6 +850,24 @@ const killSwitchSseHub = require('../services/killSwitchSseHub');
 const auditLogService = require('../services/auditLogService');
 const agentLifecycleEvents = require('../services/agentLifecycleEvents');
 const { deriveAgentKey } = require('../services/sessionKeyService');
+const agentRunRegistry = require('../services/agentRunRegistry');
+
+/**
+ * GET /api/admin/agent/:agentId/active-runs
+ * What the kill-switch confirm modal shows before the operator commits.
+ * userId is deliberately stripped from the response.
+ */
+router.get(
+  '/agent/:agentId/active-runs',
+  authenticateToken,
+  (req, res) => {
+    const agentId = deriveAgentKey(req, req.params.agentId);
+    const runs = agentRunRegistry.listActiveRuns(agentId).map(
+      ({ runId, tool, startedAt }) => ({ runId, tool, startedAt }),
+    );
+    return res.status(200).json({ runs });
+  },
+);
 
 /**
  * GET /api/admin/agent/:agentId/kill-switch/events
