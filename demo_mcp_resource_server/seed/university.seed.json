@@ -1,0 +1,40 @@
+{
+  "courses": [
+    {
+      "id": "C-CS301",
+      "title": "Algorithms",
+      "courseType": "Core",
+      "credits": 4,
+      "term": "Spring 2026",
+      "grade": "In Progress",
+      "status": "Enrolled"
+    },
+    {
+      "id": "C-ENG210",
+      "title": "Technical Writing",
+      "courseType": "Elective",
+      "credits": 3,
+      "term": "Spring 2026",
+      "grade": "In Progress",
+      "status": "Enrolled"
+    },
+    {
+      "id": "C-PHY150",
+      "title": "Physics II Lab",
+      "courseType": "Lab",
+      "credits": 1,
+      "term": "Spring 2026",
+      "grade": "In Progress",
+      "status": "Enrolled"
+    },
+    {
+      "id": "C-HIS101",
+      "title": "World History",
+      "courseType": "Elective",
+      "credits": 3,
+      "term": "Fall 2025",
+      "grade": "A-",
+      "status": "Completed"
+    }
+  ]
+}
