@@ -7621,9 +7621,15 @@ export default function BankingAgent({
     }
   }
 
-  // After marketing OAuth return OR launcher deep-link: replay NL once logged in.
+  // After marketing OAuth return OR launcher deep-link: replay NL once logged in
+  // (or immediately for guest-chat-eligible paths — same gate as the chip/typed
+  // send paths above, so a chip that doesn't need auth doesn't wait for it).
   useEffect(() => {
-    if (!nlResumeAfterAuth || !isLoggedIn || pendingNlResumeRef.current === nlResumeAfterAuth) {
+    if (
+      !nlResumeAfterAuth ||
+      !(isLoggedIn || marketingGuestChatEnabled) ||
+      pendingNlResumeRef.current === nlResumeAfterAuth
+    ) {
       return;
     }
     const text = nlResumeAfterAuth;
@@ -7700,7 +7706,7 @@ export default function BankingAgent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
-  }, [nlResumeAfterAuth, isLoggedIn, effectiveVerticalId]);
+  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, effectiveVerticalId]);
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
