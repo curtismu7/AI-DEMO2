@@ -10,17 +10,22 @@ export default function KillSwitchMechanismsPanel({ isOpen, onClose, initialTabI
           <p>
             Clicking <strong>Stop Agent</strong> writes one flag — <code>agent:&lt;key&gt;:revoked</code> —
             through the same generic session-store interface every session already uses (no Redis in this
-            deployment). That flag is checked in exactly one place that matters: <code>evaluateMcpFirstToolGate</code>,
-            the real PingOne Authorize gate every MCP tool call passes through, right before the (comparatively
-            expensive) policy evaluation runs. A killed agent&apos;s <strong>next</strong> tool call gets a
+            deployment). That flag is checked in exactly one place that matters: <code>runMcpToolPipeline</code>,
+            the MCP tool dispatch handler, right before the branch that decides whether PingOne Authorize runs
+            locally or whether the call is gateway-authoritative. This placement covers both routing modes,
+            unlike earlier versions of this feature. A killed agent&apos;s <strong>next</strong> tool call gets a
             403 <code>agent_killed</code> — nothing in flight is interrupted, and nothing halts a loop, because
             there is no persistent loop in this codebase to halt: every agent action lives for one HTTP
             request/SSE response.
           </p>
           <p>
-            The key that flag is written and read under is session-scoped, not a shared label — two different
-            users clicking Stop Agent on the same UI button no longer collide. PingOne Authorize also revokes
-            the underlying OAuth token (RFC 7009) as a second, independent enforcement layer.
+            The key that flag is written and read under is the PingOne user id (<code>userSub</code> /
+            <code>session.user.oauthId</code>), not a per-agent-client identity. This means a kill stops
+            <em>this user&apos;s</em> agent access entirely, not a specific agent client instance — since no
+            real per-agent-client distinguishing id is currently plumbed through any UI surface
+            (<code>ControlPlaneRoster</code>&apos;s <code>live.id</code> resolves to a hardcoded label today).
+            PingOne Authorize also revokes the underlying OAuth token (RFC 7009) as a second, independent
+            enforcement layer.
           </p>
         </>
       ),
