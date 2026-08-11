@@ -1582,7 +1582,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // teaching surface). See isVerticalExemptFromAdminTokenGuard for the full
     // rationale. Money-moving tools stay protected by the per-tool guard in
     // bffMcpToolExecutor (isCustomerBankingTool + isAdminClientToken).
-    if (!isVerticalExemptFromAdminTokenGuard(vertical) && isAdminClientToken(userToken)) {
+    //
+    // Also exempt UC24/Act 1 public catalog (branch_hours) — it explicitly
+    // skips PingOne Authorize, the gateway, and token exchange (no customer
+    // identity involved), so a guard about missing customer identity must not
+    // block it.
+    const isPublicCatalogIntent = parseHeuristic(message)?.banking?.action === 'branch_hours';
+    if (!isPublicCatalogIntent && !isVerticalExemptFromAdminTokenGuard(vertical) && isAdminClientToken(userToken)) {
       console.warn('[processAgentMessage] Admin-client token on customer agent — requiring customer login (no tool calls)');
       appEventService.logEvent('agent', 'warning',
         'Admin token used on the customer agent — prompting customer sign-in',
