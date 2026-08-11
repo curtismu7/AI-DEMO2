@@ -1820,6 +1820,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .ba-rfc-card__entry--alt {
   background: #eff6ff;
+  color: #111827;
 }
 .ba-rfc-card__entry strong {
   color: #1d4ed8;
@@ -3271,15 +3272,16 @@ body > .banking-agent-float-root .banking-agent-panel {
   --ba-input-bd: #b0bac6;
   background: var(--ba-input-bg);
   border-color: var(--ba-input-bd);
-  color: var(--th-text);
+  color: #111827;
 }
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
   .ba-input::placeholder {
-  color: var(--th-text);
+  color: #4b5563;
 }
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock .ba-input:focus {
   border-color: #4169e1;
   background: #f1f4f8;
+  color: #111827;
 }
 
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
@@ -4439,7 +4441,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 16px;
   margin: 8px 0;
   background: #fff7ed;
-  color: var(--ba-text, var(--th-text));
+  color: #111827;
 }
 .ba-inline-consent-card--high-value {
   border-left: 5px solid #dc2626;
@@ -5054,6 +5056,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--th-bg-card);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+:root[data-theme="dark"] .ba-header-toggle-label {
+  border-color: var(--th-border);
+  background: rgba(255, 255, 255, 0.04);
+}
 
 .ba-actions-trigger:disabled {
   opacity: 0.5;
@@ -5654,10 +5660,12 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-demo-steps-popout__item:hover {
   background: var(--ba-chip-bg-hover, #eff6ff);
+  color: #111827;
 }
 
 .ba-demo-steps-popout__item--done {
   background: #f0fdf4;
+  color: #111827;
 }
 
 .ba-demo-steps-popout__item--next .ba-demo-steps-popout__rail {
@@ -5799,6 +5807,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item:hover) {
   background: var(--ba-chip-bg-hover, #eff6ff);
+  color: #111827;
 }
 
 .ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item--done):has(.ba-demo-steps-popout__item:hover) {
