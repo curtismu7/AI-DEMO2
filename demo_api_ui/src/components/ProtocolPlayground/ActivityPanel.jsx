@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import JSONViewer from './JSONViewer';
 import TokenChainEventCard from './TokenChainEventCard';
 import TokenInspector from './TokenInspector';
 
@@ -92,7 +93,7 @@ export default function ActivityPanel({ results, error }) {
         <div className="activity-details">
           <details className="raw-response-toggle">
             <summary>Raw response</summary>
-            <pre className="details-json">{JSON.stringify(lastResult.response, null, 2)}</pre>
+            <JSONViewer data={lastResult.response} />
           </details>
 
           {lastResult.decodedToken?.isValid && (
