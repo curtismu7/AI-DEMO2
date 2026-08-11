@@ -517,8 +517,6 @@ export default function AdminSideNav({
         { label: "Family Delegation", path: "/delegation", icon: "usr" },
       ],
     },
-    { label: "AI Footprint", path: "/demo/footprint-picks", icon: "demo" },
-    { label: "Footprint Gallery", path: "/demo/footprint-mocks", icon: "demo" },
     // Latest report — shown when agent run completes
     ...(latestRunId
       ? [
