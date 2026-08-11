@@ -813,14 +813,10 @@ select.cur-input { cursor: pointer; }
 .cur-modal h2 { color: #f87171; margin: 0 0 12px; font-size: 16px; }
 .cur-modal p { color: #ccc; margin: 0 0 20px; line-height: 1.5; }
 
-/* Responsive */
-@media (max-width: 1000px) {
-  .cur-sidebar { width: 220px; }
-}
-@media (max-width: 768px) {
-  .cur-activity-bar { display: none; }
-  .cur-sidebar { display: none; }
-}
+/* Responsive rules live at the end of this file (the max-width: 900px block).
+   The former rules here squeezed the sidebar to 220px and then HID it entirely
+   below 768px — which dropped the console-token box, tools list and scopes on
+   smaller displays. Replaced by the stack-and-scroll block. */
 
 /* ── Costume skin picker ────────────────────────────────────────────────── */
 
@@ -1411,3 +1407,30 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Responsive — on smaller displays the fixed IDE layout crushed the main pane
+   (sidebar is 440px and does not shrink) and clipped everything (overflow
+   hidden). Below 900px: stack sidebar above main, let the page grow and scroll,
+   and drop the chrome that only makes sense in the desktop split (the activity
+   bar duplicates the tabs; the drag handles have no axis to drag). The !important
+   rules beat the inline width/height the resize drags leave on the elements.
+   Desktop (>900px) is unchanged.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .cur-ide { height: auto; min-height: 0; overflow: visible; }
+  .cur-titlebar { height: auto; min-height: 38px; flex-wrap: wrap; gap: 6px; padding: 4px 10px; }
+  .cur-body { flex-direction: column; overflow: visible; }
+  .cur-activity-bar { display: none; }
+  .cur-sidebar {
+    width: 100% !important;
+    min-width: 0;
+    flex-shrink: 1;
+    max-height: 45vh;
+    border-bottom: 1px solid #2b2b2b;
+  }
+  .cur-ide[data-cur-theme="light"] .cur-sidebar { border-bottom-color: #e0e0e0; }
+  .cur-resize-handle { display: none; }
+  .cur-main { min-height: 78vh; overflow: visible; }
+  .cur-terminal { height: 240px !important; }
+}
