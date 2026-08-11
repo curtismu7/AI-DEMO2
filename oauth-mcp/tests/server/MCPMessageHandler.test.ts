@@ -622,7 +622,7 @@ describe('MCPMessageHandler', () => {
     it('should return server information', () => {
       const serverInfo = handler.getServerInfo();
 
-      expect(serverInfo.name).toBe('Banking MCP Server');
+      expect(serverInfo.name).toBe('AI Demo MCP Server');
       expect(serverInfo.version).toBe('1.0.0');
       expect(serverInfo.description).toContain('banking operations');
     });

@@ -1,5 +1,5 @@
 /**
- * Banking MCP Server
+ * AI Demo MCP Server
  * WebSocket server implementation for the Banking MCP protocol
  */
 
@@ -921,7 +921,7 @@ export class DemoMCPServer extends EventEmitter {
     const readOnlyTools = allTools.filter(t => t.readOnly).map(t => t.name);
     const authenticatedTools = allTools.filter(t => !t.readOnly).map(t => t.name);
     const manifest = {
-      name: 'Banking MCP Server',
+      name: 'AI Demo MCP Server',
       version: '1.0.0',
       description: 'Secure banking operations MCP server with PingOne authentication',
       protocolVersion: '2024-11-05',
