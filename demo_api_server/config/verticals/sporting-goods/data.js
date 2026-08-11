@@ -49,8 +49,16 @@ function createSportingGoodsStore() {
     c.status = 'cancelled';
     return c;
   }
+  function addToCart(userId, { productId }) {
+    const data = get(userId);
+    const product = (data.products || []).find((p) => p.id === productId);
+    if (!product) return null;
+    const entry = { id: `cart-${Date.now()}-${data.cart.length}`, productId, name: product.name, price: product.price, addedAt: new Date().toISOString() };
+    data.cart.push(entry);
+    return entry;
+  }
 
-  return { get, extendRental, cancelOrder, returnRental, resolveTicket, cancelCoaching };
+  return { get, extendRental, cancelOrder, returnRental, resolveTicket, cancelCoaching, addToCart };
 }
 
 module.exports = { createSportingGoodsStore };
