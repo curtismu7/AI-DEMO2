@@ -10826,6 +10826,7 @@ export default function BankingAgent({
                               <VerticalResult
                                 descriptor={msg.verticalResult.descriptor}
                                 data={msg.verticalResult.data}
+                                onAction={(tool, params) => runAction(tool, params, { skipUserLabel: true, vertical: effectiveVerticalId })}
                               />
                             )}
                             {msg.rawMcpResult != null && (
