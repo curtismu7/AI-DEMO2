@@ -192,7 +192,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
       label: 'In this repo',
       content: (
         <>
-          <h3 style={{ marginTop: 0 }}>JWT client auth in Super Banking</h3>
+          <h3 style={{ marginTop: 0 }}>JWT client auth in AI Demo</h3>
           <EduImplIntro mock>
             Token and exchange calls in this demo use <code>client_id</code> + <code>client_secret</code> (or public client + PKCE for users). Below is what a <code>private_key_jwt</code> upgrade would look like at <code>/as/token</code>.
           </EduImplIntro>

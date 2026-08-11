@@ -156,7 +156,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
           <p>
             PingOne defines five best practices for deploying AI agents securely. This demo
             implements all five — the tabs on this panel show exactly how each one maps to code,
-            tokens, and UX in Super Banking.
+            tokens, and UX in AI Demo.
           </p>
           <OverviewGrid />
           <p style={{ fontSize: '0.82rem', color: '#374151', borderTop: '1px solid #e5e7eb', paddingTop: 10 }}>
@@ -181,7 +181,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
           </p>
 
           <PracticeCard icon="🆔" title="Identify &amp; Classify AI Agents">
-            The Super Banking BFF registers a dedicated agent OAuth client separate from the user
+            The AI Demo BFF registers a dedicated agent OAuth client separate from the user
             client. Every MCP token carries a <code>client_id</code> that identifies the agent — not
             the user, not the BFF app — so audit logs can always attribute actions to the right
             principal.
@@ -201,7 +201,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
             refresh cycle.
           </PracticeCard>
 
-          <h4>How Super Banking implements this</h4>
+          <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="Dedicated agent OAuth client" detail="AGENT_OAUTH_CLIENT_ID env, oauthService.getAgentClientCredentialsToken()" />
             <ImplRow status="done" label="act claim in MCP token" detail="Every MCP call carries act: { client_id: <agent> } after RFC 8693 exchange" />
@@ -230,7 +230,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
           </p>
 
           <PracticeCard icon="🏷️" title="Identify When a Session is Agentic">
-            Super Banking marks every request that triggers an MCP tool call. The RFC 8693 exchange
+            AI Demo marks every request that triggers an MCP tool call. The RFC 8693 exchange
             produces a token with an <code>act</code> claim — any downstream service can inspect
             this claim to know the session is agentic <em>without</em> out-of-band signalling.
           </PracticeCard>
@@ -257,7 +257,7 @@ ws.initialize({
 // act claim inside agentToken:
 //   { "sub": "user-abc123", "act": { "client_id": "bx-agent" } }`}</pre>
 
-          <h4>How Super Banking implements this</h4>
+          <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="act claim detection" detail="act present in MCP token whenever AGENT_OAUTH_CLIENT_ID is configured" />
             <ImplRow status="done" label="Agent scope allow-list" detail="agentMcpScopePolicy.js + Config UI toggle per scope" />
@@ -323,7 +323,7 @@ scope=accounts:read
   "scope":  "accounts:read"
 }`}</pre>
 
-          <h4>How Super Banking implements this</h4>
+          <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="RFC 8693 always enforced" detail="mcp_resource_uri required or 503 thrown; no bypass possible" />
             <ImplRow status="done" label="USE_AGENT_ACTOR removed" detail="Always uses performTokenExchangeWithActor when AGENT_OAUTH_CLIENT_ID set" />
@@ -387,7 +387,7 @@ if (!isToolPermittedByAgentPolicy(toolScopes, agentAllowedSet)) {
   throw { code: 'agent_mcp_scope_denied', httpStatus: 403 };
 }`}</pre>
 
-          <h4>How Super Banking implements this</h4>
+          <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="Per-tool scope enforcement" detail="agentMcpScopePolicy.js — allow-list configurable in Config UI" />
             <ImplRow status="done" label="Token refresh middleware" detail="refreshIfExpiring applied to /api/mcp, /api/demo-agent, /api/accounts etc." />
@@ -455,7 +455,7 @@ POST /token { grant_type: urn:openid:params:grant-type:ciba, auth_req_id }
 //   sub = user, act = { client_id: "bx-agent" }
 // The transfer executes with that token — audit trail complete.`}</pre>
 
-          <h4>How Super Banking implements this</h4>
+          <h4>How AI Demo implements this</h4>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
             <ImplRow status="done" label="CIBA backchannel auth" detail="routes/ciba.js + CIBAPanel.js — full flow including CIMD simulator" />
             <ImplRow status="done" label="Transaction Consent Modal" detail="TransactionConsentModal.js — checkbox approval before high-value agent transfers" />
