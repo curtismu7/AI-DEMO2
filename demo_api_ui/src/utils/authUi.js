@@ -8,7 +8,7 @@ export const SESSION_REAUTH_EVENT = 'banking-session-reauth';
 
 /** Canonical user-facing copy for session/auth loss (banner + agent chat). */
 export const USER_SESSION_EXPIRED_MESSAGE =
-  'Your sign-in session has expired. Sign in again to continue.';
+  'For a more personalized experience, please sign in.';
 
 const DEFAULT_SESSION_EXPIRED_MESSAGE = USER_SESSION_EXPIRED_MESSAGE;
 
