@@ -642,14 +642,12 @@ function AppWithAuth() {
                   path="/authz-test"
                   element={<Navigate to="/pingone-authorize?tab=guided" replace />}
                 />
-                {/* Intent binding learning diagram — accessible without login */}
                 <Route
                   path="/intent-binding-learning"
                   element={
                     <IntentBindingLearningPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* Privilege MCP learning diagram — accessible without login */}
                 <Route
                   path="/privilege-mcp-learning"
                   element={
@@ -662,14 +660,13 @@ function AppWithAuth() {
                     <Navigate to="/agent-gateway-inspector?subtab=capabilities" replace />
                   }
                 />
-                {/* Token exchange tester — accessible without login */}
                 <Route
                   path="/token-exchange-tester"
                   element={
                     <TokenExchangeTesterPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* MCP Inspector — monitoring/inspection tool, accessible without login. Top-level (not auth catch-all). Guests under
+                {/* MCP Inspector — top-level (not auth catch-all). Guests under
                   path="*" only get TopNav; this page must remain reachable. */}
                 <Route
                   path="/mcp-inspector"
@@ -683,7 +680,7 @@ function AppWithAuth() {
                     <McpInspectorPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* Gateway Inspector — monitoring/inspection tool, accessible without login. Top-level (not auth catch-all). Guests under
+                {/* Gateway Inspector — top-level (not auth catch-all). Guests under
                   path="*" only get TopNav; this page must remain reachable. */}
                 <Route
                   path="/pinggateway-test"
@@ -709,40 +706,35 @@ function AppWithAuth() {
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
-                {/* Code explorer diagram — accessible without login */}
                 <Route
                   path="/code-explorer"
                   element={
                     <CodeExplorerPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* Code search exploration — accessible without login */}
                 <Route
                   path="/code-search"
                   element={
                     <CodeSearchPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* Code graph visualization — accessible without login */}
                 <Route
                   path="/graphify"
                   element={
                     <GraphifyPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* OAuth Academy learning diagram — accessible without login */}
+                {/* OAuth Academy educational tool — accessible without login */}
                 <Route
                   path="/oauth-academy"
                   element={
                     <OAuthAcademyPageRoute user={user} logout={logout} />
                   }
                 />
-                {/* OpenAPI schema demo — accessible without login */}
                 <Route
                   path="/oas-demo"
                   element={<OASDemoPageRoute user={user} logout={logout} />}
                 />
-                {/* Learning hub — accessible without login */}
                 <Route
                   path="/learning"
                   element={
