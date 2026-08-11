@@ -220,7 +220,7 @@
     "Super Banking AI Agent": {
       "type": "WEB_APP",
       "grantTypes": ["client_credentials", "token_exchange"],
-      "grantedScopes": ["agent:invoke"]
+      "grantedScopes": ["agent:invoke", "admin:read"]
     },
     "Super Banking Investment Advisor Agent": {
       "type": "WEB_APP",
