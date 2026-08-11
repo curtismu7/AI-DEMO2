@@ -236,7 +236,7 @@ Granted scopes: `read`, `write`, `mcp:invoke`
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `agent:invoke`
+Granted scopes: `agent:invoke`, `admin:read`
 
 ### Super Banking Investment Advisor Agent
 
