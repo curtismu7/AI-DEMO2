@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { spinner } from '../services/spinnerService';
-import { HeroSection } from './HeroSection';
+import HeroSection from './HeroSection';
 import { HERO_VARIANTS } from '../config/heroVariants';
 import './CodeExplorerPage.css';
 
