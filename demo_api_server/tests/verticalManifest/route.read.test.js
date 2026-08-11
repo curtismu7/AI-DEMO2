@@ -37,9 +37,13 @@ const min = (id) => ({
   theme: { cssVars: { '--x': '#000' } },
   agent: { persona: 'P' },
 });
+const HERO = { imageUrl: 'https://example.test/care.jpg', greeting: 'How can we help?' };
 for (const id of ['banking', 'healthcare', 'admin-console']) {
   fs.mkdirSync(path.join(FIXTURE_ROOT, id), { recursive: true });
-  fs.writeFileSync(path.join(FIXTURE_ROOT, id, 'manifest.json'), JSON.stringify(min(id)));
+  const manifest = min(id);
+  // Only healthcare ships a hero, so the "no hero configured" case stays covered.
+  if (id === 'healthcare') manifest.hero = { ...HERO };
+  fs.writeFileSync(path.join(FIXTURE_ROOT, id, 'manifest.json'), JSON.stringify(manifest));
   fs.writeFileSync(path.join(FIXTURE_ROOT, id, 'mock-data.json'), '{}');
 }
 process.env.VERTICAL_SEED_ROOT = FIXTURE_ROOT;
@@ -93,9 +97,11 @@ describe('GET /api/verticals/me', () => {
 });
 
 describe('GET /api/verticals/list', () => {
-  test('401 when unauthenticated', async () => {
+  // Public since #1656 — the vertical switcher renders for guests, before sign-in.
+  test('200 when unauthenticated (public switcher)', async () => {
     const res = await request(makeApp()).get('/api/verticals/list');
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body.map((v) => v.id)).not.toContain('admin-console');
   });
 
   test('returns user-visible verticals (excludes admin-console)', async () => {
@@ -104,6 +110,38 @@ describe('GET /api/verticals/list', () => {
     const ids = res.body.map((v) => v.id);
     expect(ids).toEqual(expect.arrayContaining(['banking', 'healthcare']));
     expect(ids).not.toContain('admin-console');
+  });
+});
+
+describe('GET /api/verticals/:id/hero', () => {
+  // Public on purpose: the chat surface renders the hero before sign-in, where
+  // /me is still 401.
+  test('200 unauthenticated when the vertical ships a hero', async () => {
+    const res = await request(makeApp()).get('/api/verticals/healthcare/hero');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(HERO);
+  });
+
+  // The full manifest carries demoUsers password hints — this endpoint must
+  // never become a manifest dump for anonymous callers.
+  test('returns ONLY imageUrl + greeting', async () => {
+    const res = await request(makeApp()).get('/api/verticals/healthcare/hero');
+    expect(Object.keys(res.body).sort()).toEqual(['greeting', 'imageUrl']);
+  });
+
+  test('404 when the vertical has no hero configured', async () => {
+    const res = await request(makeApp()).get('/api/verticals/banking/hero');
+    expect(res.status).toBe(404);
+  });
+
+  test('404 for an unknown vertical', async () => {
+    const res = await request(makeApp()).get('/api/verticals/nosuchvertical/hero');
+    expect(res.status).toBe(404);
+  });
+
+  test('400 for a malformed id', async () => {
+    const res = await request(makeApp()).get('/api/verticals/BAD_ID/hero');
+    expect(res.status).toBe(400);
   });
 });
 
