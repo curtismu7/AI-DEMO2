@@ -1817,17 +1817,21 @@
    These pages use position:fixed/100vw to fill the viewport when opened in a
    popup window. When navigated to in-app (with the sidebar present) we must
    offset them so the fixed sidebar does not cover their content.            */
+/* The page HOST sits inside main-content, which the shell already offsets by the
+   nav width — so it just fills its parent. (It used to re-apply the nav offset on
+   top, double-counting it and pushing the panel off the right edge.) The fixed
+   panel--page below is viewport-positioned, so it still needs the explicit offset. */
 .App:has(.admin-side-nav) .api-traffic-page-host {
-  width: calc(100vw - var(--sidebar-width));
-  margin-left: var(--sidebar-width);
+  width: 100%;
+  margin-left: 0;
 }
 .App:has(.admin-side-nav) .api-traffic-panel--page {
   left: var(--sidebar-width);
   width: calc(100vw - var(--sidebar-width));
 }
 .App:has(.admin-side-nav--collapsed) .api-traffic-page-host {
-  width: calc(100vw - var(--sidebar-collapsed-width));
-  margin-left: var(--sidebar-collapsed-width);
+  width: 100%;
+  margin-left: 0;
 }
 .App:has(.admin-side-nav--collapsed) .api-traffic-panel--page {
   left: var(--sidebar-collapsed-width);
