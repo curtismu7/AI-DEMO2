@@ -16,6 +16,7 @@ import { useThemeOptional } from "../context/ThemeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
+import SimpleStepperPanel from "./SimpleStepperPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -646,6 +647,13 @@ export default function BankingAgent({
       return false;
     }
   });
+  const [showSimpleStepper, setShowSimpleStepper] = useState(() => {
+    try {
+      return localStorage.getItem("ba_show_simple_stepper") === "1";
+    } catch {
+      return false;
+    }
+  });
   // Inspectors sub-group — same reasoning as the Configuration group above, but
   // scoped so Demo steps / Live Use Cases / Agent scope stay visible beside it.
   const [inspectorsOpen, setInspectorsOpen] = useState(() => {
@@ -774,6 +782,7 @@ export default function BankingAgent({
   /** Token chain visibility — always starts hidden on page load (not persisted). */
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
+  const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
     try {
@@ -8809,6 +8818,25 @@ export default function BankingAgent({
                           Side panel
                         </Check>
                       )}
+                      {/* Simple Stepper toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showSimpleStepper}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem(
+                              "ba_show_simple_stepper",
+                              newVal ? "1" : "0",
+                            );
+                          } catch {}
+                          setShowSimpleStepper(newVal);
+                        }}
+                        title="Show or hide the Simple Stepper token-chain table"
+                      >
+                        Simple step
+                      </Check>
                       <button
                         type="button"
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
@@ -8816,6 +8844,14 @@ export default function BankingAgent({
                         onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
                       >
                         Topology
+                      </button>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showFloatingTokenChain ? " active" : ""}`}
+                        title="Floating token chain — RFC 8693 delegation trace rail"
+                        onClick={() => { setShowFloatingTokenChain(v => !v); window.dispatchEvent(new CustomEvent('floating-token-chain-open')); }}
+                      >
+                        Floating token chain
                       </button>
                       {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
                       <button
@@ -11178,6 +11214,10 @@ export default function BankingAgent({
       <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
+      />
+      <SimpleStepperPanel
+        isOpen={showSimpleStepper}
+        onClose={() => setShowSimpleStepper(false)}
       />
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive
