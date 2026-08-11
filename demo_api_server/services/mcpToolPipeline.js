@@ -1164,6 +1164,30 @@ async function runMcpToolPipeline(ctx) {
         // call to PingOne Authorize failed (its worker credentials), not a real
         // policy verdict — that must read as "fix the gateway", not "you are denied"
         // (same distinction the gateway_misconfigured catch-block handler makes).
+        // Ensure gateway authorize decision is always surfaced, even on successful
+        // tool calls. When gwAuditTrail.authorize exists but wasn't added during the
+        // normal success flow (line 956-977), add it here to prevent "Run failed before
+        // authorize-decision" on calls that actually reached Authorize.
+        if (useGateway && gwAuditTrail?.authorize && !tokenEvents.some((e) => e && e.id === 'gw-authorize')) {
+            const authzRes = gwAuditTrail.authorize;
+            const decision = authzRes.decision; // PERMIT, DENY, INDETERMINATE
+            const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
+            tokenEvents.push(deps.buildTokenEvent(
+                'gw-authorize',
+                'PingGateway → PingOne Authorize',
+                status,
+                null,
+                `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
+                buildGwAuthorizeEventExtra({
+                    ...authzRes,
+                    denyingFilter: gwAuditTrail.denyingFilter || authzRes.denyingFilter,
+                    lastFilter: gwAuditTrail.lastFilter || authzRes.lastFilter,
+                    filterChain: gwAuditTrail.filterChain || authzRes.filterChain,
+                    policy: gwAuditTrail.policy || authzRes.policy,
+                })
+            ));
+        }
+
         if (useGateway && gwAuditTrail?.authorize?.decision === 'DENY') {
             const authzRes = gwAuditTrail.authorize;
             const isInfraFault = !authzRes.correlationId
@@ -1185,21 +1209,6 @@ async function runMcpToolPipeline(ctx) {
             // authorize-decision" on a DENY that actually fired (#1313 did this
             // for the 428 branches; this is the 403 counterpart).
             const gwDenyEval = gatewayBlockAuthEval(gwAuditTrail, 'DENY', ctx, 'DENY');
-            if (!tokenEvents.some((e) => e && e.id === 'gw-authorize')) {
-                tokenEvents.push(deps.buildTokenEvent(
-                    'gw-authorize',
-                    'PingGateway → PingOne Authorize',
-                    'deny',
-                    null,
-                    `PingOne Authorize decision: DENY${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra({
-                        ...authzRes,
-                        denyingFilter: gwAuditTrail.denyingFilter,
-                        lastFilter: gwAuditTrail.lastFilter,
-                        filterChain: gwAuditTrail.filterChain,
-                    })
-                ));
-            }
             return { kind: 'block', httpStatus: 403, tokenEvents, body: {
                 error: 'gateway_policy_denied',
                 tool,

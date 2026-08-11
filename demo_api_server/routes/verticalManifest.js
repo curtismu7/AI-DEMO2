@@ -64,7 +64,7 @@ router.get('/me', requireSession, (req, res) => {
   res.json(scope);
 });
 
-router.get('/list', requireSession, (_req, res) => {
+router.get('/list', (_req, res) => {
   res.json(verticalManifest.list());
 });
 
