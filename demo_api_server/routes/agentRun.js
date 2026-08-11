@@ -251,6 +251,53 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     return res.status(promptBlock.status).json(promptBlock.body);
   }
 
+  // UC24 / Act 1 public catalog — answer deterministically, never via the LLM.
+  //
+  // branch_hours was already in PUBLIC_GUEST_ACTIONS above, but that allowlist only
+  // decides AUTHORIZATION ("may a signed-out caller run this?"). Nothing here ever
+  // DISPATCHED it, so the prompt fell through to the LLM, which has no catalog and
+  // improvised: it asked the user for an account email and answered in whatever
+  // vertical's brand voice activeIdFor(req) resolved to. The deterministic handler
+  // lives on the other agent route (dispatchBankingAction), which this route never
+  // calls — so "branches near me" only ever produced cards in Heuristics mode.
+  //
+  // Short-circuits for EVERY caller, not just guests: the fall-through hit signed-in
+  // users too whenever an LLM provider was active. Placed after the auth gate and the
+  // injection guard, so neither is weakened. This action skips PingOne Authorize, the
+  // gateway and token exchange by definition (UC24), so no token path is bypassed
+  // that the action did not already bypass.
+  let catalogAction = '';
+  try {
+    const { parseHeuristic } = require('../services/nlIntentParser');
+    catalogAction = String(parseHeuristic((lastUserMessage?.content || '').trim())?.banking?.action || '');
+  } catch {
+    catalogAction = '';
+  }
+  if (PUBLIC_GUEST_ACTIONS.has(catalogAction)) {
+    const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
+    const catalogVertical = verticalManifest.resolver.activeIdFor(req) || 'banking';
+    const catalog = searchPublicBranches({ vertical: catalogVertical });
+    // short:true — the client renders each location as a card from `locationCards`,
+    // so the reply text is the heading only and the detail is not printed twice.
+    const catalogReply = formatBranchCatalogReply(catalog, { short: true });
+    const messageId = 'catalog-' + runId;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    const emit = (evt) => res.write('data: ' + JSON.stringify(evt) + '\n\n');
+    // Same START/CONTENT/END burst a non-streaming provider produces, so the
+    // existing useAgentState reducer builds the bubble with no new event type.
+    emit({ type: 'RUN_STARTED', threadId, runId });
+    emit({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' });
+    emit({ type: 'TEXT_MESSAGE_CONTENT', messageId, delta: catalogReply });
+    emit({ type: 'TEXT_MESSAGE_END', messageId, locationCards: catalog.branches });
+    emit({ type: 'RUN_FINISHED', threadId, runId, outcome: { type: 'complete' } });
+    return res.end();
+  }
+
   // flowTraceId binds this run to the browser's live MCP flow SSE subscription.
   // The agent service executes tools by calling back into the BFF at
   // /internal/agent-tool, which rebuilds a request from the STORED session — so
