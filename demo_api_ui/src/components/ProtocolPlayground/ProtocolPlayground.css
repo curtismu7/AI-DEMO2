@@ -517,6 +517,11 @@
 .activity-details {
   border-top: 1px solid var(--pp-border);
   padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .activity-details h5 {
@@ -536,14 +541,16 @@
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
-  max-height: 200px;
   overflow-y: auto;
 }
 
 .raw-response-toggle {
   cursor: pointer;
   user-select: none;
-  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .raw-response-toggle summary {
@@ -552,13 +559,14 @@
   color: var(--pp-text-muted);
   text-transform: uppercase;
   padding: 6px 0;
+  flex-shrink: 0;
 }
 
 .raw-response-toggle summary:hover {
   color: var(--pp-text);
 }
 
-.raw-response-toggle pre {
+.raw-response-toggle[open] > .json-viewer {
   margin-top: 8px;
 }
 
