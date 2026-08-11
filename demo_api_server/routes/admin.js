@@ -861,7 +861,8 @@ router.get(
   '/agent/:agentId/active-runs',
   authenticateToken,
   (req, res) => {
-    const agentId = deriveAgentKey(req, req.params.agentId);
+    const _activeRunsUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+    const agentId = deriveAgentKey(req, req.params.agentId, _activeRunsUserId);
     const runs = agentRunRegistry.listActiveRuns(agentId).map(
       ({ runId, tool, startedAt }) => ({ runId, tool, startedAt }),
     );
@@ -892,7 +893,8 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
-      const agentId = deriveAgentKey(req, req.params.agentId);
+      const _killUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _killUserId);
       // Default instance: omitting scope must NEVER disable PingOne agent apps
       // (that used to brick the whole demo when a caller forgot to pass scope).
       const { reason = 'manual_red_button', scope = 'instance' } = req.body;
@@ -1001,7 +1003,8 @@ router.get(
   requireScopes(['admin']),
   async (req, res) => {
     try {
-      const agentId = deriveAgentKey(req, req.params.agentId);
+      const _statusUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _statusUserId);
 
       const isRevoked = await killSwitchService.isAgentRevoked(agentId);
 

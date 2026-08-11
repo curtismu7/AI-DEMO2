@@ -41,7 +41,10 @@ function buildApp() {
 describe('POST /agent/:agentId/kill-switch uses the derived session key, not the raw placeholder', () => {
   test('the "default-agent" placeholder resolves to the same key the gate would derive', async () => {
     const { deriveAgentKey } = require('../services/sessionKeyService');
-    const expectedKey = deriveAgentKey({ sessionID: 'sess-fixed' }, 'default-agent');
+    // The route now passes the mock session's user id (Task 3: write side
+    // aligned with the userId-aware deriveAgentKey), so the key it derives
+    // is the userId tier ("user:u1"), not the session-hash fallback.
+    const expectedKey = deriveAgentKey({ sessionID: 'sess-fixed' }, 'default-agent', 'u1');
 
     await request(buildApp())
       .post('/api/admin/agent/default-agent/kill-switch')
