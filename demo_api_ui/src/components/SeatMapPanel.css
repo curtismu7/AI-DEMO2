@@ -1,0 +1,50 @@
+.smp-card {
+  background: var(--th-bg-card, #fff);
+  border: 1px solid var(--th-border, #e0e3ee);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(23,27,46,0.04), 0 6px 16px rgba(23,27,46,0.05);
+  padding: 18px 16px 16px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+.smp-nose {
+  width: 64px;
+  height: 20px;
+  margin: 0 auto 10px;
+  background: var(--th-bg-inset, #eef0f8);
+  border: 1px solid var(--th-border, #e0e3ee);
+  border-bottom: none;
+  border-radius: 40px 40px 0 0;
+}
+.smp-band { margin-bottom: 10px; }
+.smp-band:last-of-type { margin-bottom: 0; }
+.smp-cabin-label {
+  font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace);
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--th-text-muted, #5b6178);
+  text-align: center;
+  margin-bottom: 5px;
+}
+.smp-row { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-bottom: 3px; }
+.smp-seat {
+  width: 17px;
+  height: 17px;
+  border-radius: 4px 4px 2px 2px;
+  padding: 0;
+  cursor: pointer;
+}
+.smp-seat--business { background: #fde68a; border: 1px solid #7c4a03; }
+.smp-seat--premium { background: #e0f2fe; border: 1px solid #0284c7; }
+.smp-seat--economy { background: var(--th-bg-inset, #eef0f8); border: 1px solid var(--th-border, #e0e3ee); }
+.smp-seat--selected { background: #1d4ed8 !important; border-color: #1d4ed8 !important; box-shadow: 0 0 0 2px #e8edfd; }
+.smp-seat:disabled { background: var(--th-border, #e0e3ee) !important; border-color: var(--th-border, #e0e3ee) !important; opacity: 0.5; cursor: default; }
+.smp-legend {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center;
+  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--th-border, #e0e3ee);
+  font-size: 10px; color: var(--th-text-muted, #5b6178);
+}
+.smp-sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.smp-summary { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--th-border, #e0e3ee); font-size: 12.5px; }
+.smp-summary-info strong { font-family: var(--v2-font-mono, "IBM Plex Mono", ui-monospace, monospace); }
