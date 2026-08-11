@@ -1785,6 +1785,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   white-space: pre-wrap;
   max-width: 98%;
 }
+:root[data-theme="dark"] .banking-agent-msg.token-event .banking-agent-msg-bubble {
+  background: var(--th-bg-inset);
+  border-color: var(--th-border-strong);
+}
 
 /* ─── RFC annotation card ("what just happened") ───────────────────────── */
 .ba-rfc-card {
