@@ -31,11 +31,22 @@ jest.mock('../../services/lmdb/openEnv', () => {
 });
 
 const FIXTURE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'rdr-'));
+// demoUsers MUST be here. Four assertions in this file check that a public
+// endpoint never leaks password hints (`not.toMatch(/demoUsers|passwordHint/i)`),
+// and without the field in the fixture every one of them passes vacuously — with
+// the guest-trim branch in routes/verticalManifest.js deliberately disabled, only
+// 1 of 16 tests failed, and none of the leak assertions did. Shape per
+// ManifestSchema: an object with customer/admin, NOT an array (an array fails
+// validation and takes the whole suite down at init).
 const min = (id) => ({
   id, schemaVersion: 3,
   identity: { displayName: id },
   theme: { cssVars: { '--x': '#000' } },
   agent: { persona: 'P' },
+  demoUsers: {
+    customer: { hint: 'demo@example.test', passwordHint: 'SENTINEL-DO-NOT-LEAK' },
+    admin: { hint: 'admin@example.test', passwordHint: 'SENTINEL-DO-NOT-LEAK' },
+  },
 });
 const HERO = { imageUrl: 'https://example.test/care.jpg', greeting: 'How can we help?' };
 for (const id of ['banking', 'healthcare', 'admin-console']) {
@@ -154,8 +165,8 @@ describe('GET /api/verticals/list', () => {
 });
 
 describe('GET /api/verticals/:id/hero', () => {
-  // Public on purpose: the chat surface renders the hero before sign-in, where
-  // /me is still 401.
+  // Public on purpose: the chat surface renders the hero before sign-in. (Since
+  // #1699 /me is public too, trimmed — this endpoint stays narrower still.)
   test('200 unauthenticated when the vertical ships a hero', async () => {
     const res = await request(makeApp()).get('/api/verticals/healthcare/hero');
     expect(res.status).toBe(200);

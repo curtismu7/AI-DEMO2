@@ -102,6 +102,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-11 — The "guest gets no password hints" assertions were passing vacuously: the fixture had no demoUsers to leak
+
+**Files changed:** `demo_api_server/tests/verticalManifest/route.read.test.js` (test-only).
+
+**What was broken:** `route.read.test.js` carries four assertions of the form
+`expect(JSON.stringify(res.body)).not.toMatch(/demoUsers|passwordHint/i)` — across
+`/me`, `/active` and `/stream`. They are the only thing standing between a public
+endpoint and the manifest's `demoUsers` password hints, which #1699 made newly
+relevant by opening `/me` and `/stream` to guests (#1704 then rewrote the status
+assertions).
+
+The fixture manifest (`min()`) never contained a `demoUsers` field, so **all four
+passed by construction** — the string they search for did not exist in the test data
+at any point. Measured, not assumed: with the guest-trim branch in
+`routes/verticalManifest.js` deliberately disabled — an actual leak of the full
+manifest to anonymous callers — only **1 of 16** tests failed, and it was the
+`Object.keys(...)` shape assertion. Not one leak assertion noticed.
+
+**What was fixed:** added `demoUsers` to the fixture with a `SENTINEL-DO-NOT-LEAK`
+password hint for both `customer` and `admin`. Same mutation now fails **2** tests,
+the `/me` leak assertion among them. Also corrected a comment that still read
+"/me is still 401".
+
+**Do not break:** keep `demoUsers` in the fixture — removing it silently returns all
+four assertions to proving nothing, with no test failing to tell you. Shape must
+match `ManifestSchema`: an object with `customer`/`admin` keys, **not an array** — an
+array fails Zod validation in `loader.js` and takes down all 16 tests at `init()`
+with an error that points at the fixture path, not at the shape.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/verticalManifest --forceExit`
+(12 suites, 144 tests). To re-confirm the assertions are live, flip
+`if (!isAuthenticated && ...)` to `if (false && ...)` in `routes/verticalManifest.js`
+and expect 2 failures, not 1.
+
 ### 2026-08-11 — ProofStrip read "Run failed before authorize-decision" on a gateway-authoritative run that actually got a PERMIT
 
 **Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`
