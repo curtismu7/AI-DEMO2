@@ -8,7 +8,7 @@ const SERVER_FILE = path.join(__dirname, '../server.js');
 const OUTPUT_FILE = path.join(__dirname, '../../demo_api_ui/src/data/protocolFlows.json');
 
 /**
- * Parse JSDoc comments for @flow, @actor, @to, @step, @expects, @branch tags
+ * Parse JSDoc comments for @flow, @actor, @to, @step, @body, @expects, @branch tags
  */
 function parseFlowAnnotation(jsdocComment) {
   const lines = jsdocComment.split('\n');
@@ -29,6 +29,8 @@ function parseFlowAnnotation(jsdocComment) {
       result.step = parseInt(value.trim(), 10);
     } else if (tag === 'expects') {
       result.expects = value.trim();
+    } else if (tag === 'body') {
+      result.body = value.trim();
     } else if (tag === 'branch') {
       if (!result.branches) result.branches = [];
       result.branches.push(value.trim());
@@ -81,7 +83,13 @@ function resolveMountPrefixes() {
     varToFile[match[1]] = `${match[2]}.js`;
   }
 
-  const useRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*(\w+)\s*\)/g;
+  // Tolerates extra middleware args between the mount path and the router
+  // identifier (e.g. app.use('/x', express.json(), router)). The middleware
+  // group is LAZY-OPTIONAL (`??`) so the simple two-arg case matches the
+  // very next identifier without ever trying to expand; it only engages when
+  // that direct match fails, and [^;] keeps it from tunneling past this
+  // statement's own semicolon into an unrelated later app.use() call.
+  const useRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*(?:[^;]*?,\s*)??(\w+)\s*\)/g;
   while ((match = useRegex.exec(content)) !== null) {
     const file = varToFile[match[2]];
     if (file && !prefixes[file]) prefixes[file] = match[1];
@@ -136,7 +144,7 @@ function buildFlowSpecs(routes) {
   const flows = {};
 
   for (const { annotation } of routes) {
-    const { flowId, actor, toActor, step, expects, branches, method, endpoint } = annotation;
+    const { flowId, actor, toActor, step, expects, body, branches, method, endpoint } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -171,6 +179,7 @@ function buildFlowSpecs(routes) {
           method: method || null,
           endpoint: endpoint || null,
           step,
+          body: body ? safeParseJson(body) : null,
           expected: expects ? safeParseJson(expects) : {}
         });
       }
