@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./ProductCardGrid.css";
 
 // One hand-drawn line icon per product type this pass ships with. Unknown
@@ -89,7 +90,7 @@ function ProductCard({ item, onAction, action }) {
 }
 
 function LocationCard({ item }) {
-  const [imgError, setImgError] = React.useState(false);
+  const [imgError, setImgError] = useState(false);
   return (
     <div className="pcg-card">
       <div className="pcg-thumb pcg-thumb--location">
