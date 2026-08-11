@@ -248,12 +248,20 @@ export function errorMessageSuggestsLogin(message) {
 
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
- * @param {string} [returnTo] - app path to land on after login (BFF `return_to`)
+ * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
+ *   If not provided, defaults to current page unless on landing page (redirects to /dashboard).
  */
 export function navigateToCustomerOAuthLogin(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  const suffix = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : '';
+
+  let destination = returnTo;
+  if (!destination && typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    destination = currentPath === '/' ? '/dashboard' : currentPath;
+  }
+
+  const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
   window.location.href = `${apiUrl}/api/auth/oauth/user/login${suffix}`;
 }
 
