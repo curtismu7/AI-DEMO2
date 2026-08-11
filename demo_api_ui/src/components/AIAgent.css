@@ -650,18 +650,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   --ba-accent-h: #3158d3;
 }
 
-.banking-agent-panel:not(.ba-mode-inline):not(.ba-mode-light) {
-  --ba-user-bg: var(--brand-agent-request-bg, #ef4444);
-  --ba-user-txt: #ffffff;
-  --ba-agent-bg: var(--brand-agent-response-bg, var(--app-primary-red, #3b82f6));
-  --ba-agent-txt: var(--app-primary-btn-text, #ffffff);
-  --ba-chip-bg: rgba(65, 105, 225, 0.22);
-  --ba-chip-bd: #7c9cf5;
-  --ba-chip-txt: #111827;
-  --ba-accent: #4169e1;
-  --ba-accent-h: #3158d3;
-}
-
 .banking-agent-panel:not(.ba-mode-inline) .ba-suggestion,
 .banking-agent-panel:not(.ba-mode-inline) .ba-action-item {
   background: rgba(65, 105, 225, 0.18);
@@ -1796,6 +1784,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 14px 16px 12px;
   white-space: pre-wrap;
   max-width: 98%;
+}
+:root[data-theme="dark"] .banking-agent-msg.token-event .banking-agent-msg-bubble {
+  background: var(--th-bg-inset);
+  border-color: var(--th-border-strong);
 }
 
 /* ─── RFC annotation card ("what just happened") ───────────────────────── */
@@ -4385,96 +4377,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #666666;
 }
 
-/* ─── Marketing page: white site chrome → agents read as bold black/dark widgets ─ */
-.App--marketing-page .global-embedded-agent-dock-wrap {
-  background: var(--brand-light-gray) !important;
-  border-top: 3px solid #cccccc !important;
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.07);
-}
-
-.App--marketing-page .global-embedded-agent-dock-wrap--collapsed {
-  background: #dddddd !important;
-  border-top-color: #cccccc !important;
-}
-
-.App--marketing-page .embedded-agent-dock__toolbar {
-  background: #e8edf3 !important;
-  border-bottom-color: #cccccc !important;
-  border-left-color: var(--brand-navy) !important;
-}
-
-.App--marketing-page .embedded-agent-dock__title {
-  color: var(--brand-dark-gray) !important;
-  font-size: 0.8125rem !important;
-  letter-spacing: 0.08em !important;
-}
-
-.App--marketing-page .embedded-dock-collapse-btn,
-.App--marketing-page .embedded-dock-graph-link-btn {
-  color: #666666 !important;
-  border-color: #cccccc !important;
-}
-
-.App--marketing-page .embedded-dock-collapse-btn:hover,
-.App--marketing-page .embedded-dock-graph-link-btn:hover {
-  background: #dddddd !important;
-  color: var(--brand-dark-gray) !important;
-}
-
-.App--marketing-page .embedded-dock-resize-handle {
-  border-top-color: #cccccc !important;
-  background: linear-gradient(180deg, #e8edf3 0%, #dddddd 100%) !important;
-}
-
-.App--marketing-page .embedded-dock-resize-handle__label {
-  color: var(--th-text) !important;
-}
-
-.App--marketing-page .embedded-banking-agent.embedded-banking-agent--bottom {
-  background: #0a1628 !important;
-  border: 2px solid #0d2040 !important;
-  border-radius: 10px !important;
-}
-
-/* Force high-contrast dark chat on marketing (float + bottom) even if ba-mode-light */
-.App--marketing-page .banking-agent-panel {
-  --ba-bg: #0a1628;
-  --ba-surface: #0e1f38;
-  --ba-border: rgba(148, 163, 184, 0.35);
-  --ba-text: #fafafa;
-  --ba-muted: #a3a3a3;
-  --ba-user-bg: var(--brand-agent-request-bg, #dc2626);
-  --ba-user-txt: #ffffff;
-  --ba-agent-bg: var(--brand-agent-response-bg, var(--app-primary-red, #3b82f6));
-  --ba-agent-txt: var(--app-primary-btn-text, #ffffff);
-  --ba-accent: #dc2626;
-  --ba-accent-h: #b91c1c;
-  --ba-input-bg: #0a1628;
-  --ba-input-bd: #404040;
-  --ba-chip-bg: rgba(64, 64, 64, 0.55);
-  --ba-chip-bd: #525252;
-  --ba-chip-txt: #e5e5e5;
-  --ba-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
-}
-
-.App--marketing-page .banking-agent-fab {
-  background: #0a1628 !important;
-  color: #ffffff !important;
-  border: 2px solid #0d2040 !important;
-  box-shadow:
-    0 10px 36px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
-}
-
-.App--marketing-page .banking-agent-fab::before {
-  border-color: rgba(255, 255, 255, 0.35) !important;
-}
-
-.App--marketing-page .banking-agent-fab:hover,
-.App--marketing-page .banking-agent-fab.open {
-  background: #12274a !important;
-}
-
 /* ba-reasoning: sequential thinking */
 .ba-reasoning {
   border-left: 2px solid var(--th-border);
@@ -6893,29 +6795,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #1e3a8a !important;
 }
 
-/* 4. MESSAGE BUBBLES — Card style (user navy pill, agent white card) */
-.banking-agent-msg--user .ba-msg-body,
-.banking-agent-msg.ba-msg-user .ba-msg-body {
-  background: #1e3a8a !important;
-  color: #fff !important;
-  border-radius: 18px 18px 4px 18px !important;
-  padding: 9px 14px !important;
-  box-shadow: 0 1px 4px rgba(30, 58, 138, 0.18) !important;
-  max-width: 85% !important;
-  align-self: flex-end !important;
-  border: none !important;
-}
-.banking-agent-msg--agent .ba-msg-body,
-.banking-agent-msg.ba-msg-agent .ba-msg-body {
-  background: #dc2626 !important;
-  color: #fff !important;
-  border-radius: 18px 18px 18px 4px !important;
-  border: none !important;
-  padding: 9px 14px !important;
-  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.18) !important;
-  max-width: 88% !important;
-}
-
 /* 5. PROVIDER CHIPS — No wrap, compact */
 .ba-provider-chips {
   padding: 5px 12px 4px !important;
@@ -7040,7 +6919,7 @@ button.ba-action-btn:hover {
   --ba-muted: var(--th-text-muted) !important;
   --ba-user-txt: #ffffff !important;
   --ba-user-bg: var(--brand-agent-request-bg, #ef4444) !important;
-  --ba-agent-bg: var(--brand-agent-response-bg, var(--app-primary-red, #3b82f6));
+  --ba-agent-bg: var(--brand-agent-response-bg, var(--app-primary-red, #3b82f6)) !important;
   --ba-agent-txt: var(--app-primary-btn-text, #ffffff) !important;
   --ba-accent: #3b82f6 !important;
   --ba-accent-h: #2563eb !important;
@@ -7144,124 +7023,6 @@ button.ba-action-btn:hover {
 }
 .banking-agent-panel ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
-}
-
-/* ═══════════════════════════════════════════════════
-   MODERN DARK THEME OVERRIDES
-   ═══════════════════════════════════════════════════ */
-
-/* 1. Panel-level tokens — cascade to all children */
-.banking-agent-panel.dark-theme {
-  --ba-bg: #0f172a;
-  --ba-surface: rgba(30, 41, 59, 0.95);
-  --ba-border: rgba(148, 163, 184, 0.15);
-  --ba-text: #e2e8f0;
-  --ba-muted: #94a3b8;
-  --ba-user-txt: #ffffff;
-  --ba-agent-bg: rgba(148, 163, 184, 0.08);
-  --ba-agent-txt: #e2e8f0;
-  --ba-accent: #3b82f6;
-  --ba-accent-h: #2563eb;
-  --ba-input-bg: rgba(148, 163, 184, 0.05);
-  --ba-input-bd: rgba(148, 163, 184, 0.2);
-  --ba-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 100%);
-}
-
-/* 2. Header */
-.banking-agent-panel.dark-theme .ba-header {
-  background: rgba(15, 23, 42, 0.7);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  color: #f1f5f9;
-}
-.banking-agent-panel.dark-theme .ba-header-title,
-.banking-agent-panel.dark-theme .ba-header-name {
-  color: #f1f5f9;
-}
-
-/* 3. Messages area */
-.banking-agent-panel.dark-theme .ba-messages {
-  background: transparent;
-}
-
-/* 4. User bubble — gradient */
-.banking-agent-panel.dark-theme
-  .banking-agent-msg.user
-  .banking-agent-msg-bubble {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #ffffff;
-  border: none;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  border-bottom-right-radius: 4px;
-  border-bottom-left-radius: 16px;
-}
-
-/* 5. Assistant bubble — glass effect */
-.banking-agent-panel.dark-theme
-  .banking-agent-msg.assistant
-  .banking-agent-msg-bubble {
-  background: linear-gradient(135deg, var(--ba-agent-bg, #3b82f6) 0%, color-mix(in srgb, var(--ba-agent-bg, #3b82f6) 80%, black) 100%);
-  color: #ffffff;
-  border: none;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 16px;
-}
-
-/* 6. Input area */
-.banking-agent-panel.dark-theme .ba-bottom {
-  background: rgba(15, 23, 42, 0.7);
-  border-top: 1px solid rgba(148, 163, 184, 0.1);
-}
-.banking-agent-panel.dark-theme .ba-input {
-  background: rgba(148, 163, 184, 0.05);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  color: #f1f5f9;
-  border-radius: 12px;
-}
-.banking-agent-panel.dark-theme .ba-input:focus {
-  border-color: rgba(59, 130, 246, 0.5);
-  background: rgba(59, 130, 246, 0.05);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-.banking-agent-panel.dark-theme .ba-input::placeholder {
-  color: #cbd5e1;
-}
-
-/* 7. Send button — red */
-.banking-agent-panel.dark-theme .ba-send-btn {
-  background: #dc2626;
-  border: none;
-  box-shadow: none;
-  border-radius: 10px;
-}
-.banking-agent-panel.dark-theme .ba-send-btn:hover:not(:disabled) {
-  background: #b91c1c;
-  box-shadow: none;
-  transform: scale(1.03);
-}
-
-/* 8. Action chips */
-.banking-agent-panel.dark-theme .ba-action-chip {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #93c5fd;
-}
-.banking-agent-panel.dark-theme .ba-action-chip:hover {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.5);
-  color: #bfdbfe;
-}
-
-/* 9. Scrollbar — dark variant */
-.banking-agent-panel.dark-theme ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.3);
-}
-.banking-agent-panel.dark-theme ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-}
-.banking-agent-panel.dark-theme ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.35);
 }
 
 /* Token Teller — slim footer strip showing session + lifetime token counts */
