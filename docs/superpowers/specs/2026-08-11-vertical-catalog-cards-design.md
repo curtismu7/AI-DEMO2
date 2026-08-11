@@ -5,14 +5,18 @@ cart write via `add_to_cart`/`store.addToCart`), airlines (real seat chart,
 read-only/client-side selection — no reservation write), and locations
 (fixed for all 11 catalog verticals via `branch_hours`). Deferred:
 airlines' seat-reservation write path, and product/seat catalogs for the
-other 14 verticals. Known issue found in Task 7 verification: the airlines
-manifest's `render.check_seat_availability.type` is `"seatMap"`, but
-`services/verticalManifest/schema.js`'s render-type enum was never updated
-to include it — `ManifestSchema.safeParse` rejects the airlines manifest,
-`loader.js`'s `loadAll()` aborts on the first bad manifest, and **no
-vertical loads** until the enum is fixed. `demo_api_server`'s test suite,
-`topology:verify`, and the live seat-chart chip are all blocked by this
-until `schema.js` adds `'seatMap'` to the enum.
+other 14 verticals.
+
+Two regressions surfaced and fixed during Task 7 verification, both now
+resolved and covered by `topology:verify` (all 8 steps green):
+1. `services/verticalManifest/schema.js`'s render-type enum was missing
+   `'seatMap'` (added when the airlines manifest gained
+   `render.check_seat_availability.type: "seatMap"`), which crashed
+   manifest loading for every vertical, not just airlines — fixed.
+2. `scope-topology.json`/`intent-topology.json`/`mcp-tool-schemas.json`/
+   `docs/scope-topology.md`/`verticalTools.generated.ts` had never been
+   regenerated after Task 3 added `add_to_cart`/`browse_gear` — fixed via
+   `verticals:gen`/`intents:gen`/`scopes:doc`/`gen:tool-schemas`.
 
 ## Problem
 
