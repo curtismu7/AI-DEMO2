@@ -390,6 +390,8 @@ async function handleMessage(
   bffMayActSub?: string,
   xTratContext?: string,
   xIntentToken?: string,
+  tierMaxAmountUsd?: string,
+  tierRestrictedTools?: string,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -728,6 +730,8 @@ async function handleMessage(
       callVertical,
       hitlChallengeId,
       intentValidation,
+      tierMaxAmountUsd,
+      tierRestrictedTools,
     );
     if (!authz.permitted) {
       if (authz.reason === 'HITL_REQUIRED') {
@@ -1052,6 +1056,16 @@ wss.on('connection', (ws, req) => {
   const rawVertical = req.headers['x-active-vertical'];
   const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
 
+  // Tier (groupToTier) — BFF pre-resolves group->tier and forwards the
+  // resolved definition as headers (parity with the HTTP path in
+  // authorizeMcpRequest.ts). Read once at upgrade time, same as activeVertical.
+  const wsHdr = (n: string): string | undefined => {
+    const v = req.headers[n];
+    return (Array.isArray(v) ? v[0] : v || '').toString().trim() || undefined;
+  };
+  const tierMaxAmountUsd = wsHdr('x-tier-max-amount-usd');
+  const tierRestrictedTools = wsHdr('x-tier-restricted-tools');
+
   // X-Act-Client-Id / X-May-Act-Sub: BFF-provided actor identity headers.
   // Gate behind the internal gateway secret (parity with HTTP path in
   // authorizeMcpRequest.ts — same checkInternalSecret helper). Ignored when
@@ -1092,7 +1106,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));

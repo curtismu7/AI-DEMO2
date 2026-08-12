@@ -79,6 +79,33 @@ fi
 if grep -qE "rar_intent_violation|rar_intent_required" "$GROOVY"; then
   echo "  WARN local RAR DENY strings present — prefer PDP-only (check this is not primary)"
 fi
+# RAR payee local deny is a deliberate, narrow exception to "P1AZ decides" — allowed
+# ONLY when flag-gated (default off). An unconditional local RAR DENY is a violation.
+if grep -q "rar_payee_not_permitted" "$GROOVY"; then
+  if grep -q "PG_LOCAL_RAR_PAYEE_ENFORCE" "$GROOVY"; then
+    echo "  ok   rar_payee_not_permitted is flag-gated (PG_LOCAL_RAR_PAYEE_ENFORCE, default off)"
+  else
+    echo "  FAIL rar_payee_not_permitted present WITHOUT a gating flag — violates PDP-only convention"
+    missing=$((missing + 1))
+  fi
+fi
+
+echo ""
+echo "== Local enforcement backstops (P1AZ-unexpressable rules) =="
+for marker in invalid_iat token_too_old token_not_yet_valid bypass_attempt insufficient_scope tier_tool_not_allowed tier_amount_exceeded; do
+  if grep -q "'$marker'" "$GROOVY"; then
+    echo "  ok   $marker"
+  else
+    echo "  MISSING $marker"
+    missing=$((missing + 1))
+  fi
+done
+if grep -q "scope-topology.json" "$GROOVY"; then
+  echo "  ok   reads scope-topology.json for local scope backstop"
+else
+  echo "  MISSING scope-topology.json read"
+  missing=$((missing + 1))
+fi
 
 echo ""
 echo "Missing/violations: $missing"

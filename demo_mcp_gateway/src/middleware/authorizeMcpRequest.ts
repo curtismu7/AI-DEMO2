@@ -30,14 +30,15 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { PingOneAuthorizeClient, policySourceForEngine } from '../auth/PingOneAuthorizeClient';
+import { PingOneAuthorizeClient, policySourceForEngine, actChainDepth } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
 import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../config';
-import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
+import { getScopesForGatewayTool, getChallengeTypeForTool, evaluateScopeDecisionUnconditionally } from '../auth/toolScopes';
+import { evaluateTierDecision, parseRestrictedTools } from '../tierEnforce';
 import { teachLog } from '../teachLogger';
 import { routeTool } from '../router';
 import { selfBaseUrl } from '../selfBaseUrl';
@@ -157,7 +158,7 @@ function stampFilterTrail(
  * pipeline is bypassed and these functions are used instead.
  */
 export interface AuthorizeMcpRequestDeps {
-  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string }>;
+  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string; scope?: string; act?: { sub?: string } }>;
   authorize: (
     decoded: any,
     method: string,
@@ -421,7 +422,7 @@ export function buildAuthorizeMcpRequest(
         return;
       }
       auditTrail.policy = { passed: true };
-      decoded = { sub: introspResult.sub };
+      decoded = { sub: introspResult.sub, scope: introspResult.scope, act: introspResult.act };
       // Capture introspection result for passing to P1AZ (test path as well)
       introspectionResult = {
         active: introspResult.active,
@@ -804,13 +805,66 @@ export function buildAuthorizeMcpRequest(
       _audCtx.rar = 'observed';
     }
 
+    // ── Step 2f: Per-tool scope backstop (Rule 3 parity) ──────────────────────────
+    // Runs REGARDLESS of P1AZ state. Real P1AZ cannot express per-tool set-membership
+    // over TokenScopes (snapshots/gen-authorize-snapshot.js:36-39); this is the
+    // gateway's own enforcement of that rule, mirroring decision.js Rule 3. Shaped
+    // as an AuthzDecision (not a hand-rolled response) so it flows through the SAME
+    // C2 provenance-aware rendering (policy_source, degraded, required_scopes) as
+    // every other DENY — a raw short-circuit here would silently drop that contract.
+    let _localBackstopDenial: AuthzDecision | undefined;
+    if (method === 'tools/call' && toolName) {
+      const _scopeBackstop = evaluateScopeDecisionUnconditionally(
+        toolName, decoded.scope, actChainDepth(decoded.act),
+      );
+      if (_scopeBackstop.decision === 'DENY') {
+        teachLog.warn(`[GW] scope backstop DENY: ${_scopeBackstop.reason} (tool: ${toolName})`);
+        _localBackstopDenial = {
+          decision: 'DENY',
+          reason: `local-fallback: ${_scopeBackstop.reason}`,
+          engine: 'mock',
+          policySource: 'local-fallback',
+          degraded: true,
+        };
+      } else {
+        // ── Tier (groupToTier) local deny — mirrors decision.js Rule 3d ───────────
+        // BFF pre-resolves group->tier (neither gateway can do set-membership over a
+        // PingOne group array) and forwards the resolved definition as headers.
+        // Absent headers = PERMIT (no-op) — this never widens what the token's own
+        // scopes already earned, only narrows it further when tier data IS present.
+        const _tierMaxAmount = _hdr('x-tier-max-amount-usd');
+        const _tierRestricted = parseRestrictedTools(_hdr('x-tier-restricted-tools'));
+        const _tierDecision = evaluateTierDecision(
+          toolName,
+          getScopesForGatewayTool(toolName).includes('write'),
+          toolArgs?.amount !== undefined ? Number(toolArgs.amount) : undefined,
+          _tierMaxAmount !== undefined ? Number(_tierMaxAmount) : undefined,
+          _tierRestricted,
+        );
+        if (_tierDecision.decision === 'DENY') {
+          teachLog.warn(`[GW] tier backstop DENY: ${_tierDecision.reason} (tool: ${toolName})`);
+          _localBackstopDenial = {
+            decision: 'DENY',
+            reason: `local-fallback: ${_tierDecision.reason}`,
+            engine: 'mock',
+            policySource: 'local-fallback',
+            degraded: true,
+          };
+        }
+      }
+    }
+
     // ── Step 3: PingOne Authorize evaluation (D-06) ───────────────────────────────
     // Typed explicitly: inferring from the first assignment dropped `obligation`
     // (only the fail-closed literal below was in the union), so the statement-based
     // gate could not be read here.
     let authzDecision: AuthzDecision | undefined;
     try {
-      if (deps) {
+      if (_localBackstopDenial) {
+        // Already decided above — do not consult the PDP for a call the backstop
+        // already denied (nothing to gain, and it would waste a real PDP round-trip).
+        authzDecision = _localBackstopDenial;
+      } else if (deps) {
         authzDecision = await deps.authorize(
           decoded,
           method,
