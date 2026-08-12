@@ -14,6 +14,12 @@ Current state: **9/10** gateway-side backstops enforced (5 rules × 2 gateways).
 See `docs/superpowers/plans/2026-08-12-gateway-local-enforcement.md` for the
 implementation plan that closes the remaining gaps.
 
+**Reading the diagram:** the top row (P1AZ) is the cloud PDP — it structurally
+cannot check any of these 5 rules itself (DSL limits, see the table below). Each
+dashed arrow points from the rule to where it's enforced INSTEAD: the gateway box
+below it. A green gateway box means that backstop is live; the arrow doesn't mean
+"still needed," it means "this is where this rule actually gets checked."
+
 ```mermaid
 flowchart TB
   subgraph P1AZ["PingOne Authorize (cloud PDP) — DSL cannot express any of these 5"]
@@ -40,16 +46,16 @@ flowchart TB
     g_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
     g_tier["tiers.groupToTier mapping<br/>ENFORCED"]
   end
-  p_temporal -.needs a PEP backstop.-> n_temporal
-  p_temporal -.needs a PEP backstop.-> g_temporal
-  p_scope -.needs a PEP backstop.-> n_scope
-  p_scope -.needs a PEP backstop.-> g_scope
-  p_rar -.needs a PEP backstop.-> n_rar
-  p_rar -.needs a PEP backstop.-> g_rar
-  p_d05 -.needs a PEP backstop.-> n_d05
-  p_d05 -.needs a PEP backstop.-> g_d05
-  p_tier -.needs a PEP backstop.-> n_tier
-  p_tier -.needs a PEP backstop.-> g_tier
+  p_temporal -.-> n_temporal
+  p_temporal -.-> g_temporal
+  p_scope -.-> n_scope
+  p_scope -.-> g_scope
+  p_rar -.-> n_rar
+  p_rar -.-> g_rar
+  p_d05 -.-> n_d05
+  p_d05 -.-> g_d05
+  p_tier -.-> n_tier
+  p_tier -.-> g_tier
   classDef gap fill:#1a1535,color:#c4b5fd,stroke:#7c3aed,stroke-width:1px
   classDef done fill:#0a2418,color:#6ee7b7,stroke:#059669,stroke-width:1px
   classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4

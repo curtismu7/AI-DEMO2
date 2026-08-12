@@ -152,8 +152,8 @@ function buildMermaid() {
   lines.push('  end');
 
   for (const row of ROWS) {
-    lines.push(`  p_${row.id} -.needs a PEP backstop.-> n_${row.id}`);
-    lines.push(`  p_${row.id} -.needs a PEP backstop.-> g_${row.id}`);
+    lines.push(`  p_${row.id} -.-> n_${row.id}`);
+    lines.push(`  p_${row.id} -.-> g_${row.id}`);
   }
 
   lines.push('  classDef gap fill:#1a1535,color:#c4b5fd,stroke:#7c3aed,stroke-width:1px');
@@ -201,6 +201,12 @@ Scanned files: \`snapshots/gen-authorize-snapshot.js\`,
 Current state: **${doneCount}/10** gateway-side backstops enforced (5 rules × 2 gateways).
 See \`docs/superpowers/plans/2026-08-12-gateway-local-enforcement.md\` for the
 implementation plan that closes the remaining gaps.
+
+**Reading the diagram:** the top row (P1AZ) is the cloud PDP — it structurally
+cannot check any of these 5 rules itself (DSL limits, see the table below). Each
+dashed arrow points from the rule to where it's enforced INSTEAD: the gateway box
+below it. A green gateway box means that backstop is live; the arrow doesn't mean
+"still needed," it means "this is where this rule actually gets checked."
 
 \`\`\`mermaid
 ${mermaidSource}
