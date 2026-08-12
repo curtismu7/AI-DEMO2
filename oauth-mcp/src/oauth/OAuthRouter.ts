@@ -1,10 +1,12 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import * as crypto from 'crypto';
 import { URL } from 'url';
+import axios from 'axios';
 import { SigningKeyManager } from './SigningKeyManager';
 import { ClientRegistry } from './ClientRegistry';
 import { TokenStore } from './TokenStore';
 import { TokenIssuer } from './TokenIssuer';
+import { createJwksKeySet, getJose } from '../auth/jwks';
 
 /**
  * OAuth 2.0 Authorization Server HTTP router.
@@ -35,6 +37,8 @@ export class OAuthRouter {
         return this.handleJWKS(req, res);
       case '/authorize':
         return this.handleAuthorize(req, res, url);
+      case '/authorize/callback':
+        return this.handleAuthorizeCallback(req, res, url);
       case '/token':
         return this.handleToken(req, res);
       case '/introspect':
@@ -113,20 +117,108 @@ export class OAuthRouter {
       return true;
     }
 
-    // Auto-approve for demo — in production this would render a consent page
-    const subject = url.searchParams.get('login_hint') || 'demo-user';
-    const code = this.tokenStore.createCode({
-      clientId,
-      redirectUri,
-      scope,
-      codeChallenge,
-      codeChallengeMethod,
+    const pingOneClientId = process.env.OAUTH_MCP_PINGONE_CLIENT_ID;
+    const pingOneAuthEndpoint = process.env.PINGONE_AUTHORIZATION_ENDPOINT;
+    if (!pingOneClientId || !pingOneAuthEndpoint) {
+      this.json(res, 503, {
+        error: 'temporarily_unavailable',
+        error_description: 'PingOne federation is not configured (OAUTH_MCP_PINGONE_CLIENT_ID / PINGONE_AUTHORIZATION_ENDPOINT)',
+      });
+      return true;
+    }
+
+    // Bind this pending request to a state WE generate. The client's own
+    // `state` travels with it in TokenStore but is never sent to PingOne as
+    // the outbound state — a malicious redirect_uri must not be able to
+    // observe or replay it against PingOne.
+    const relayState = this.tokenStore.createPendingAuthorization({
+      clientId, redirectUri, scope, codeChallenge, codeChallengeMethod, clientState: state,
+    });
+
+    const callbackUri = `${this.issuer}/authorize/callback`;
+    const pingOneAuthorize = new URL(pingOneAuthEndpoint);
+    pingOneAuthorize.searchParams.set('client_id', pingOneClientId);
+    pingOneAuthorize.searchParams.set('redirect_uri', callbackUri);
+    pingOneAuthorize.searchParams.set('response_type', 'code');
+    pingOneAuthorize.searchParams.set('scope', 'openid profile email');
+    pingOneAuthorize.searchParams.set('state', relayState);
+
+    res.writeHead(302, { Location: pingOneAuthorize.toString() });
+    res.end();
+    return true;
+  }
+
+  // --- PingOne redirect-federation callback: exchanges PingOne's code, then
+  // mints THIS AS's own code for the original DCR-registered client. ---
+  private async handleAuthorizeCallback(_req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
+    const code = url.searchParams.get('code');
+    const relayState = url.searchParams.get('state');
+    const pingOneError = url.searchParams.get('error');
+
+    if (pingOneError) {
+      this.json(res, 400, { error: 'access_denied', error_description: `PingOne login failed: ${pingOneError}` });
+      return true;
+    }
+    if (!code || !relayState) {
+      this.json(res, 400, { error: 'invalid_request', error_description: 'Missing code or state from PingOne callback' });
+      return true;
+    }
+
+    const pending = this.tokenStore.consumePendingAuthorization(relayState);
+    if (!pending) {
+      this.json(res, 400, { error: 'invalid_grant', error_description: 'Unknown or expired authorization request' });
+      return true;
+    }
+
+    const pingOneClientId = process.env.OAUTH_MCP_PINGONE_CLIENT_ID;
+    const pingOneClientSecret = process.env.OAUTH_MCP_PINGONE_CLIENT_SECRET;
+    const pingOneTokenEndpoint = process.env.PINGONE_TOKEN_ENDPOINT;
+    if (!pingOneClientId || !pingOneClientSecret || !pingOneTokenEndpoint) {
+      this.json(res, 503, { error: 'temporarily_unavailable', error_description: 'PingOne federation is not configured' });
+      return true;
+    }
+
+    let subject: string;
+    try {
+      const callbackUri = `${this.issuer}/authorize/callback`;
+      const tokenResponse = await axios.post(
+        pingOneTokenEndpoint,
+        new URLSearchParams({
+          grant_type: 'authorization_code',
+          code,
+          redirect_uri: callbackUri,
+          client_id: pingOneClientId,
+          client_secret: pingOneClientSecret,
+        }).toString(),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+      );
+
+      const pingOneAccessToken = tokenResponse.data.access_token as string;
+      const jwks = await createJwksKeySet();
+      if (!jwks) {
+        throw new Error('PingOne JWKS not configured (PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL)');
+      }
+      const { jwtVerify } = await getJose();
+      const { payload } = await jwtVerify(pingOneAccessToken, jwks);
+      subject = (payload.sub as string) || 'unknown-pingone-user';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.json(res, 502, { error: 'server_error', error_description: `PingOne login verification failed: ${msg}` });
+      return true;
+    }
+
+    const ownCode = this.tokenStore.createCode({
+      clientId: pending.clientId,
+      redirectUri: pending.redirectUri,
+      scope: pending.scope,
+      codeChallenge: pending.codeChallenge,
+      codeChallengeMethod: pending.codeChallengeMethod,
       subject,
     });
 
-    const callback = new URL(redirectUri);
-    callback.searchParams.set('code', code);
-    if (state) callback.searchParams.set('state', state);
+    const callback = new URL(pending.redirectUri);
+    callback.searchParams.set('code', ownCode);
+    if (pending.clientState) callback.searchParams.set('state', pending.clientState);
 
     res.writeHead(302, { Location: callback.toString() });
     res.end();
