@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Health Check Script
- * Checks if the Banking MCP Server is running and healthy
+ * Checks if the AI Demo MCP Server is running and healthy
  */
 
 const http = require('http');

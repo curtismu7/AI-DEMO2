@@ -93,7 +93,7 @@ const NOTES = [
         cite: "TokenIntrospector.ts:104-165",
       },
       {
-        text: "Step 18 serverInfo reports “Banking MCP Server” - the one backend drawn here; demo_mcp_resource_server and demo_mcp_jwt_verifier sit behind the same gateway in the real topology and are omitted per scope.",
+        text: "Step 18 serverInfo reports “AI Demo MCP Server” - the one backend drawn here; demo_mcp_resource_server and demo_mcp_jwt_verifier sit behind the same gateway in the real topology and are omitted per scope.",
         cite: "MCPMessageHandler.ts:41-55, 152-213",
       },
     ],
@@ -155,7 +155,7 @@ export default function McpGatewayOauthFlowPage() {
         <h1>MCP Gateway OAuth Flow, As Built</h1>
         <p className="mgof-sub">
           The reference MCP OAuth handshake redrawn against the actual code path: HTTP
-          transport, one backend (demo_mcp_server, the mock Banking MCP Server), token
+          transport, one backend (demo_mcp_server, the mock AI Demo MCP Server), token
           introspection over local JWT checks, and the RFC 8693 exchange the reference
           diagram doesn't show.
         </p>
