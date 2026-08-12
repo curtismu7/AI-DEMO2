@@ -44,12 +44,34 @@ describe('TokenStore — pending PingOne-relay authorizations', () => {
     jest.useFakeTimers();
     try {
       const store = new TokenStore();
-      const relayState = store.createPendingAuthorization(baseParams);
+
+      // Create one that will expire
+      const expiredState = store.createPendingAuthorization(baseParams);
+
+      // Advance time so only the first expires (10 min + 1ms)
       jest.advanceTimersByTime(10 * 60_000 + 1);
+
+      // Create one that will NOT expire (created after time advance, so fresh 10-min window)
+      const validState = store.createPendingAuthorization({
+        ...baseParams,
+        clientState: 'valid-state',
+      });
+
+      // Call cleanup() — this must actually purge the expired entry
       store.cleanup();
-      // Consuming after cleanup still returns null either way, but this proves
-      // cleanup() doesn't throw on the new map and does visit it.
-      expect(store.consumePendingAuthorization(relayState)).toBeNull();
+
+      // The expired entry must be gone FROM THE MAP (not just return null from consumePendingAuthorization,
+      // which could mask a cleanup bug). Use private field inspection to verify.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((store as any).pending.has(expiredState)).toBe(false);
+
+      // The valid entry must still be in the map and consumable
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((store as any).pending.has(validState)).toBe(true);
+      expect(store.consumePendingAuthorization(validState)).toMatchObject({
+        ...baseParams,
+        clientState: 'valid-state',
+      });
     } finally {
       jest.useRealTimers();
     }
