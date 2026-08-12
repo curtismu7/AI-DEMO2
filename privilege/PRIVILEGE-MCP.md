@@ -2057,6 +2057,8 @@ resources (`Demo MCP JWT Verifier`, `Demo MCP Invest`, `Demo MCP Server`) — no
 Privilege-related. The §2026-08-02 entry earlier in this document had this right the
 whole time (*"not the `6586d3de` app... that one's in `01d89b06`"*); the wrong claim
 came from elsewhere and should have been checked against that entry before acting on
-it. Whatever is actually causing the "Redirect URI mismatch" the user hit remains
-**unexplained** — the client and the exact redirect URI it sent both check out against
-what's registered — and needs a live repro with BFF logs open to diagnose for real.
+it. **Resolved 2026-08-12, console-side** — the user added the missing redirect URI
+directly to `deff60f5`'s registered list. The exact value the BFF was sending vs. what
+was registered was never diagnosed from code or logs; if this recurs, don't assume the
+earlier "checks out" analysis still holds — the registered list is a live, editable
+target, not a fixed fact to reason from.
