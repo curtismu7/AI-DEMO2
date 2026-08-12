@@ -18,6 +18,26 @@ const pingOneUserService = require('./pingOneUserService');
 const killSwitchSseHub = require('./killSwitchSseHub');
 
 /**
+ * How long a kill holds before the agent comes back on its own.
+ *
+ * The local block is written with this as its cookie.maxAge, so the session
+ * store expires it without anything having to run — restart-safe by
+ * construction. The PingOne application disable has no TTL of its own, so a
+ * full-scope kill also leaves a due-at marker for sweepDueAppReenables().
+ */
+const AUTO_RESET_MS = 10 * 60 * 1000;
+
+/** Marker TTL. Must outlive AUTO_RESET_MS or the sweep can never see the record. */
+const REENABLE_MARKER_TTL_MS = 24 * 60 * 60 * 1000;
+
+const REENABLE_KEY_SUFFIX = ':app-reenable';
+
+/** @param {string} agentId */
+function appReenableKey(agentId) {
+  return `agent:${agentId}${REENABLE_KEY_SUFFIX}`;
+}
+
+/**
  * Revoke a single token at PingOne using the RFC 7009 revocation endpoint.
  * Uses application/x-www-form-urlencoded with token= only (PingOne requirement).
  * @param {string} token - access_token or id_token value
@@ -374,6 +394,93 @@ async function unrevokeAgent(agentId) {
 }
 
 /**
+ * Leave a marker saying "re-enable this agent's PingOne applications at dueAt".
+ * Written through the same generic Store interface as the revoked flag.
+ * @param {string} agentId
+ * @returns {Promise<boolean>} true when the marker was stored
+ */
+async function recordPendingAppReenable(agentId) {
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore) return false;
+    await new Promise((resolve, reject) => {
+      sessionStore.set(
+        appReenableKey(agentId),
+        {
+          agentId,
+          dueAt: Date.now() + AUTO_RESET_MS,
+          cookie: { maxAge: REENABLE_MARKER_TTL_MS },
+        },
+        (err) => (err ? reject(err) : resolve()),
+      );
+    });
+    return true;
+  } catch (error) {
+    console.warn('[killSwitch] Could not record pending app re-enable:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Re-enable the agent applications for every due marker, then clear it.
+ *
+ * Deliberately does NOT re-enable the PingOne user account: a disabled human
+ * account is re-enabled by an admin on purpose, not by a timer.
+ *
+ * A marker whose re-enable fails is left in place, so the next sweep retries
+ * rather than stranding the agent client disabled.
+ *
+ * @returns {Promise<string[]>} the store keys that were swept and cleared
+ */
+async function sweepDueAppReenables() {
+  const swept = [];
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore || typeof sessionStore.all !== 'function') return swept;
+
+    const entries = await new Promise((resolve) => {
+      sessionStore.all((err, value) => resolve(err ? {} : (value || {})));
+    });
+
+    const now = Date.now();
+    const due = Object.entries(entries).filter(
+      ([key, sess]) => key.endsWith(REENABLE_KEY_SUFFIX) && sess && sess.dueAt <= now,
+    );
+
+    for (const [key] of due) {
+      const results = await enableAgentApplicationsAtPingOne();
+      const allBack = results.every((r) => r.enabled);
+      if (!allBack) {
+        console.warn(`[killSwitch] Auto-reset for ${key} did not restore every application — leaving the marker for the next sweep`);
+        continue;
+      }
+      await new Promise((resolve) => {
+        sessionStore.destroy(key, () => resolve());
+      });
+      swept.push(key);
+      console.log(`[killSwitch] Auto-reset complete for ${key} — agent applications re-enabled`);
+    }
+  } catch (error) {
+    console.warn('[killSwitch] App re-enable sweep failed:', error.message);
+  }
+  return swept;
+}
+
+/**
+ * Run sweepDueAppReenables on an interval for the life of the process.
+ * unref'd so it never holds the process open (jest, CLI scripts).
+ * @param {number} [intervalMs]
+ * @returns {NodeJS.Timeout}
+ */
+function startAutoResetSweep(intervalMs = 30 * 1000) {
+  const timer = setInterval(() => {
+    sweepDueAppReenables().catch((e) => console.warn('[killSwitch] sweep error:', e.message));
+  }, intervalMs);
+  if (typeof timer.unref === 'function') timer.unref();
+  return timer;
+}
+
+/**
  * Get agent's refresh token from session store
  * @param {string} agentId 
  * @returns {Promise<string|null>}
@@ -491,6 +598,11 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     } else {
       applicationsDisabled = await disableAgentApplicationsAtPingOne();
       const anyDisabled = applicationsDisabled.some((a) => a.disabled);
+      // Unlike the revoked flag, a disabled PingOne application has no TTL —
+      // it stays disabled until something calls the Management API again.
+      // Leave a due-at marker so sweepDueAppReenables() can restore it. A
+      // setTimeout would not survive a BFF restart inside the 10-minute window.
+      if (anyDisabled) await recordPendingAppReenable(agentId);
       pushStep({
         key: 'app_disable',
         label: "Disable the agent's PingOne application",
@@ -531,11 +643,10 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     try {
       const sessionStore = require('../middleware/sessionConfig').store;
       if (sessionStore) {
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
         await new Promise((resolve, reject) => {
           sessionStore.set(
             `agent:${agentId}:revoked`,
-            { revoked: true, cookie: { maxAge: ONE_DAY_MS } },
+            { revoked: true, cookie: { maxAge: AUTO_RESET_MS } },
             (err) => (err ? reject(err) : resolve()),
           );
         });
@@ -548,7 +659,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       key: 'enforcement_flag',
       label: 'Arm the next-request block',
       detail: revokedFlagSet
-        ? `agent:${agentId}:revoked set for 24h — the kill check in runMcpToolPipeline rejects the agent's NEXT tool call because of this flag. A call already in flight when this ran will still complete.`
+        ? `agent:${agentId}:revoked set for 10 minutes — the kill check in runMcpToolPipeline rejects the agent's NEXT tool call because of this flag, then the flag expires and the agent resumes on its own. A call already in flight when this ran will still complete.`
         : 'Could not set the revoked flag — the session store was unreachable. Token revocation above still applies once the agent needs a fresh token.',
       ran: revokedFlagSet,
       skipped: !revokedFlagSet,
@@ -582,6 +693,10 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       time_to_revoke_ms: timeToRevoke,
       applications_disabled: applicationsDisabled,
       scope,
+      // When the block lifts on its own, so the Stop Agent modal can count down
+      // instead of leaving the audience wondering why the agent came back.
+      auto_reset_at: new Date(Date.now() + AUTO_RESET_MS).toISOString(),
+      auto_reset_in_ms: AUTO_RESET_MS,
       steps,
     };
 
@@ -607,6 +722,9 @@ module.exports = {
   captureAgentState,
   isAgentRevoked,
   unrevokeAgent,
+  sweepDueAppReenables,
+  startAutoResetSweep,
+  AUTO_RESET_MS,
   revokeTokenAtPingOne,
   disableAgentApplicationsAtPingOne,
   enableAgentApplicationsAtPingOne,

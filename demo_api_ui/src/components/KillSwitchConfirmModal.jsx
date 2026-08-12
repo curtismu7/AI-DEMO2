@@ -4,6 +4,14 @@ import { resolveApiBaseUrl } from "../utils/resolveApiBaseUrl";
 import DraggableModal from "./DraggableModal";
 import "./KillSwitchConfirmModal.css";
 
+/** ms -> m:ss, for the auto-reset countdown. */
+function formatCountdown(ms) {
+  const totalSeconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 export default function KillSwitchConfirmModal({
   isOpen,
   agentId,
@@ -18,6 +26,7 @@ export default function KillSwitchConfirmModal({
   const [result, setResult] = useState(null);
   const [liveSteps, setLiveSteps] = useState([]);
   const [error, setError] = useState(null);
+  const [nowTs, setNowTs] = useState(() => Date.now());
   const [activeRuns, setActiveRuns] = useState([]);
   const [activeRunsLoaded, setActiveRunsLoaded] = useState(false);
   const esRef = useRef(null);
@@ -100,6 +109,21 @@ export default function KillSwitchConfirmModal({
     }
   };
 
+  // A kill is time-boxed — the server sends back when the block lifts. Tick a
+  // clock so the agent coming back reads as designed, not as a glitch. The
+  // remaining time is DERIVED below rather than stored: holding it in state
+  // meant the very first render (before the effect's first tick) showed the
+  // "already reset" copy for a frame.
+  useEffect(() => {
+    if (!result?.auto_reset_at) return undefined;
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [result]);
+
+  const autoResetMsLeft = result?.auto_reset_at
+    ? Math.max(0, new Date(result.auto_reset_at).getTime() - nowTs)
+    : null;
+
   const handleCancel = () => {
     esRef.current?.close();
     esRef.current = null;
@@ -166,6 +190,21 @@ export default function KillSwitchConfirmModal({
               check in <code>runMcpToolPipeline</code> checks the revocation
               flag set below before that call is allowed through.
             </p>
+            {result.auto_reset_at && (
+              <p className="ksm-result-autoreset">
+                {autoResetMsLeft > 0 ? (
+                  <>
+                    Auto-resets in {formatCountdown(autoResetMsLeft)} — the block lifts
+                    on its own
+                    {result.scope === "full"
+                      ? ", and the agent's PingOne application is re-enabled. The disabled PingOne user account stays disabled until an admin re-enables it."
+                      : "."}
+                  </>
+                ) : (
+                  "Auto-reset time reached — the agent is no longer blocked."
+                )}
+              </p>
+            )}
             <ul className="ksm-result-list">
               {(result.steps || []).map((step) => (
                 <li
