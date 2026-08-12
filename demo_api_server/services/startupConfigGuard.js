@@ -102,10 +102,25 @@ function collectIssues() {
   // comma-separated accepted-audience list (RFC 8693 exchange rollout — e.g.
   // "mcpserver.ping.demo,mcpgateway.ping.demo"); both resolve to the mcpServer
   // role and are checked for list-containment rather than strict equality (see
-  // RESOURCE_URI_KEYS comment above). Every other key (including
-  // PINGONE_RESOURCE_TWO_EXCHANGE_URI, which per its own comment MUST equal
-  // the gateway audience) keeps strict equality.
-  const LIST_VALUED_KEYS = new Set(['MCP_SERVER_RESOURCE_URI', 'MCP_RESOURCE_URI']);
+  // RESOURCE_URI_KEYS comment above).
+  //
+  // MCP_GW_RESOURCE_URI is list-valued for the same reason: the real gateway
+  // (tokenValidator.ts) and the mock authz server (decision.js) both accept a
+  // comma-separated audience list, and docker-compose.yml APPENDS the A2A
+  // gateway audience to it (pingoneProvisionService.js gives A2A its own
+  // audience so the nested-`act` composer only fires on A2A calls). The live
+  // value is "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,
+  // mcpgateway-a2a.ping.demo" — strict equality against the single mcpGateway
+  // audience made this warn on every boot, which is a false positive, not drift.
+  //
+  // Every other key keeps strict equality — notably
+  // PINGONE_RESOURCE_TWO_EXCHANGE_URI, which per its own comment MUST equal the
+  // gateway audience, and PINGONE_RESOURCE_MCP_GATEWAY_URI, which is single-valued.
+  const LIST_VALUED_KEYS = new Set([
+    'MCP_SERVER_RESOURCE_URI',
+    'MCP_RESOURCE_URI',
+    'MCP_GW_RESOURCE_URI',
+  ]);
   for (const [key, role] of Object.entries(RESOURCE_URI_KEYS)) {
     const val = effective(key);
     if (!val) continue;

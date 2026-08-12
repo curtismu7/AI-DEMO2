@@ -102,6 +102,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-11 — Boot guard cried "token validation would 401" on every start, for a multi-audience value that is correct by design
+
+**Files changed:** `demo_api_server/services/startupConfigGuard.js`
+(+ `demo_api_server/tests/startupConfigGuard.mcpGatewayAud.test.js`).
+
+**What was broken:** every boot logged
+
+```text
+MCP_GW_RESOURCE_URI="mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+but scope-topology.json audience for mcpGateway is "mcpgateway.ping.demo" (token validation would 401)
+```
+
+Nothing was wrong. `MCP_GW_RESOURCE_URI` is legitimately an accepted-audience
+**list**: the real gateway (`tokenValidator.ts`) and the mock authz server
+(`decision.js`) both accept a comma-separated list, and `docker-compose.yml`
+appends the A2A gateway audience to it — A2A gets its own audience so the
+nested-`act` composer SPEL only fires on A2A calls, per
+`pingoneProvisionService.js`. `LIST_VALUED_KEYS` covered
+`MCP_SERVER_RESOURCE_URI` and `MCP_RESOURCE_URI` but not this key, so it fell
+through to strict equality, which a CSV can never satisfy.
+
+The cost is not the log line: a guard that always warns trains operators to
+scroll past it, and this guard's entire job is catching real audience drift — the
+class of bug that 401s every agent tool call.
+
+**What was fixed:** added `MCP_GW_RESOURCE_URI` to `LIST_VALUED_KEYS`, so it is
+checked for list-containment. The invariant is unchanged — the list must still
+contain the `mcpGateway` audience.
+
+**Do not break:** the containment rule applies to **exactly** these three keys.
+`PINGONE_RESOURCE_TWO_EXCHANGE_URI` keeps **strict** equality — it is the RFC 8693
+exchange-#2 final audience and must *equal* the gateway audience, not merely
+contain it. `PINGONE_RESOURCE_MCP_GATEWAY_URI` is single-valued today and also
+stays strict. No runtime audience-acceptance code was touched: `tokenValidator.ts`,
+`decision.js` and `middleware/auth.js` are unchanged — this is boot-time
+reporting only.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/startupConfigGuard.mcpGatewayAud.test.js src/__tests__/startupConfigGuard.mcpServerAud.test.js src/__tests__/startupConfigGuard.twoExchange.test.js --no-coverage --forceExit` (8/8). The new spec includes two
+never-inert assertions: a list that omits the `mcpGateway` audience, and a single
+wrong audience, must both still be flagged. Revert-to-RED checked — dropping the
+key from the Set fails the multi-audience case (1 failed / 3 passed).
+
 ### 2026-08-11 — The /verticals leak assertions were vacuous: the fixture had no `demoUsers` to leak
 
 **Files changed:** `demo_api_server/tests/verticalManifest/route.read.test.js` (test-only).
