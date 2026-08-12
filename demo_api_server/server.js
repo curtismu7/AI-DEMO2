@@ -2682,6 +2682,17 @@ if (require.main === module) {
             console.warn('[VERTICAL GUARD] unexpected error (non-fatal):', e.message);
         }
 
+        // Kill-switch auto-reset: the revoked flag expires itself, but a
+        // full-scope kill's PingOne application disable has no TTL. This sweep
+        // re-enables those applications once their marker is due, including
+        // markers left by a previous process — a restart inside the 10-minute
+        // window would otherwise leave the agent client disabled for good.
+        try {
+            require('./services/killSwitchService').startAutoResetSweep();
+        } catch (e) {
+            console.warn('[killSwitch] Could not start the auto-reset sweep (non-fatal):', e.message);
+        }
+
         const fs = require('fs');
         const certDir = path.join(__dirname, '../certs');
         // Prefer explicit env overrides, then mkcert dev names, then k8s secret names (tls.crt/tls.key).

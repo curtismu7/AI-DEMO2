@@ -947,6 +947,8 @@ router.post(
         time_to_revoke_ms: result.time_to_revoke_ms,
         scope: result.scope,
         steps: result.steps,
+        auto_reset_at: result.auto_reset_at,
+        auto_reset_in_ms: result.auto_reset_in_ms,
         message: `Agent stopped. Session revoked. Please sign in again.`,
       });
 

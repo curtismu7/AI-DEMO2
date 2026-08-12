@@ -102,6 +102,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-12 — A kill now expires itself after 10 minutes; the PingOne app disable had no TTL and needed a sweep
+
+**Files changed:** `demo_api_server/services/killSwitchService.js`,
+`demo_api_server/routes/admin.js`, `demo_api_server/server.js`
+(+ `demo_api_server/tests/killSwitchAutoReset.test.js`,
+`demo_api_ui/src/components/KillSwitchConfirmModal.{jsx,css}` + test).
+
+**What changed (deliberate behaviour change, not a bug fix):** a kill is now
+time-boxed to `AUTO_RESET_MS` = 10 minutes, with a countdown in the Stop Agent
+modal. Previously a kill held indefinitely until someone un-killed it.
+
+**Why it needed more than a TTL:** the two halves of a kill expire differently.
+The local block is written with `cookie: { maxAge: AUTO_RESET_MS }`, so the
+session store expires it with nothing running — restart-safe by construction. A
+**full-scope** kill also disables the agent's PingOne applications, and that has
+no TTL of its own. So a full-scope kill leaves a due-at marker and
+`startAutoResetSweep()` (registered in `server.js` under
+`require.main === module`, try/catch, non-fatal) re-enables them when due —
+including markers left by a previous process, so a restart inside the 10-minute
+window cannot leave the agent client disabled for good.
+
+**Do not break:**
+
+- **The sweep must never re-enable the PingOne *user* account.** A disabled human
+  account is re-enabled by an admin on purpose, never by a timer. There is a test
+  named for exactly this; keep it.
+- **An instance-scope kill records no marker** — it never disabled an
+  application, so it must not trigger a re-enable.
+- **A failed re-enable leaves the marker in place** so the next sweep retries.
+  Deleting the marker on failure strands the agent client disabled with nothing
+  scheduled to fix it.
+- `REENABLE_MARKER_TTL_MS` (24h) **must outlive** `AUTO_RESET_MS` (10m), or the
+  marker expires before the sweep can ever see it.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/killSwitchAutoReset.test.js`
+— 9 tests, 1 suite, including "blocked immediately, still blocked at 9 minutes,
+and free at 10", "the sweep never re-enables the PingOne user account", and "one
+failing application does not strand the record".
+
 ### 2026-08-12 — Customer dashboard painted its toolbar/chrome with an empty banking area for a beat before data arrived, read as a stale/old UI
 
 **Files changed:** `demo_api_ui/src/routes/CustomerRoutes.js`,
