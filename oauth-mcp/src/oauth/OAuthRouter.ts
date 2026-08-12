@@ -200,7 +200,10 @@ export class OAuthRouter {
       }
       const { jwtVerify } = await getJose();
       const { payload } = await jwtVerify(pingOneAccessToken, jwks);
-      subject = (payload.sub as string) || 'unknown-pingone-user';
+      if (!payload.sub) {
+        throw new Error('PingOne access token has no sub claim');
+      }
+      subject = payload.sub as string;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.json(res, 502, { error: 'server_error', error_description: `PingOne login verification failed: ${msg}` });

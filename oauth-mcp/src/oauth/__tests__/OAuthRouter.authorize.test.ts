@@ -99,4 +99,42 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     const ctx = call as any;
     expect(ctx.statusCode).toBe(503);
   });
+
+  it('/authorize/callback returns 503 when PingOne token-exchange env vars are not configured', async () => {
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+    expect(relayState).toBeTruthy();
+
+    // /authorize/callback has its own, separate 503 check (token-exchange vars),
+    // distinct from /authorize's own (authorize-endpoint vars).
+    delete process.env.OAUTH_MCP_PINGONE_CLIENT_SECRET;
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+    const ctx = callbackCall as any;
+    expect(ctx.statusCode).toBe(503);
+    expect(JSON.parse(ctx.body).error).toBe('temporarily_unavailable');
+  });
+
+  it('/authorize/callback returns 502 (not a 302 for a placeholder subject) when PingOne\'s verified token has no sub claim', async () => {
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+    expect(relayState).toBeTruthy();
+
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
+    const jwtVerify = jest.fn().mockResolvedValue({ payload: {} }); // verified, but no sub claim
+    mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
+    mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+    const ctx = callbackCall as any;
+    expect(ctx.statusCode).toBe(502);
+    expect(JSON.parse(ctx.body).error).toBe('server_error');
+    expect(ctx.headers.Location).toBeUndefined();
+  });
 });
