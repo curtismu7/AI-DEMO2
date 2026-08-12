@@ -27,6 +27,7 @@ import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage"
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
+import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
@@ -1498,6 +1499,10 @@ function AppWithAuth() {
                             <Route
                               path="/invest-dual-auth"
                               element={<InvestDualAuthDiagramPage />}
+                            />
+                            <Route
+                              path="/gateway-enforcement-map"
+                              element={<GatewayEnforcementMapPage />}
                             />
                             <Route
                               path="/discovery-preview"

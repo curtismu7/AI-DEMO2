@@ -148,6 +148,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "MCP Gateway OAuth Flow (MM)",
       "Invest Dual-Auth (MM)",
       "Privilege MCP (MM)",
+      "Gateway vs P1AZ Enforcement (MM)",
     ],
   },
   {

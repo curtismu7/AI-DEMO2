@@ -947,6 +947,7 @@ export default function AdminSideNav({
         { label: "MCP Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
         { label: "Privilege MCP (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
+        { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
       ],
     },
     {
