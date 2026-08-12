@@ -28,6 +28,7 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
+import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -1487,6 +1488,10 @@ function AppWithAuth() {
                             <Route
                               path="/demo-track"
                               element={<DemoTrackPage />}
+                            />
+                            <Route
+                              path="/delegation-chain-value"
+                              element={<DelegationChainValuePage />}
                             />
                             <Route
                               path="/invest-dual-auth"

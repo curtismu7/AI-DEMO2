@@ -61,7 +61,7 @@ export function isEmbeddedAgentDockRoute(pathname) {
 export function isTokenChainRoute(pathname) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
-  return p === '/' || p === '/dashboard' || p === '/admin' || p === '/agent-flow-inspector';
+  return p === '/' || p === '/dashboard' || p === '/admin' || p === '/agent-flow-inspector' || p === '/delegation-chain-value';
 }
 
 /**
