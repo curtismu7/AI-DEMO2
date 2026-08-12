@@ -219,6 +219,10 @@ done
 if [[ -n "$K8S_NAMESPACE" ]]; then
   info "Applying SE cluster ingress..."
   sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
+
+  info "Applying MCPGW wildcard certificate + agentless ingress..."
+  sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/mcpgw-wildcard-certificate.yaml" | kubectl apply -f -
+  sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/mcpgw-agentless-ingress.yaml" | kubectl apply -f -
 else
   info "Applying ALB ingress..."
   # ingress.yaml ships with a placeholder ACM cert ARN — substitute the real one

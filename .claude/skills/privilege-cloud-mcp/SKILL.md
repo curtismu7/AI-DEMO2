@@ -51,8 +51,18 @@ Every one of these was learned the expensive way. Check them before theorising.
    The Ping-hosted frontend returns byte-identical errors without forwarding to our
    proxy at all, so **no local change can fix this**. See `privilege/PRIVILEGE-MCP.md`
    §2026-08-09 and §2026-08-11.
-4. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
-   with Privilege console access, and every required setting lives in that console.
+4. **Corrected 2026-08-12: `01d89b06` now ALSO has Privilege console access** —
+   confirmed by a new OIDC client there, `PingOne Privilege`
+   (`a6219652-47af-4ed2-8dea-20e9940b3377`), console-verified with Resources and
+   Policies tabs populated like `deff60f5` in `8d4d7a4c`. Our BFF's
+   `PRIVILEGE_SSO_*` config was switched to this client (Docker `.env` and the
+   K8s `ai-demo-secrets` secret, both live-patched and restarted) since it's our
+   main demo tenant — one fewer cross-tenant hop. `8d4d7a4c`/`deff60f5` are not
+   decommissioned, just no longer the active client; the rest of this doc's
+   examples and findings (client-config table, redirect URIs, PKCE requirement,
+   etc.) were captured against `deff60f5` and are still accurate as history, but
+   verify against `a6219652` before treating a `deff60f5`-specific detail as
+   still current for the live client.
 5. **An expired enrollment token is almost never the problem — for a host that has
    already enrolled.** A token that expired days ago still starts the container
    fine, because the durable credential is the **mTLS cert pair** in
@@ -488,11 +498,17 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | Gateway OIDC config | `ping-mcpgw/procyon/config/pingone.env` (gitignored; `.example` is committed) |
 | Console | `https://console.pingone.com/?env=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` then launch Privilege |
 
-**Environment `01d89b06` (AI-Demo) is where the banking users live, and it is NOT
-usable here** — no Privilege console access, so the gateway cannot be configured
-at all. The gateway signs users in against `8d4d7a4c`, so `cmuir+sso*` are the
-identities that reach the MCP tools. Note this split is **not** what causes the
-signature failure — a token minted in `8d4d7a4c` itself is rejected the same way.
+**Corrected 2026-08-12 — `01d89b06` (AI-Demo, where the banking users live) now
+has Privilege console access too**, via OIDC client `a6219652-47af-4ed2-8dea-20e9940b3377`
+("PingOne Privilege"), which is what the BFF's `PRIVILEGE_SSO_*` config points
+at as of this date (Docker `.env` + K8s `ai-demo-secrets`, both live). The
+gateway's own enrollment/cluster/node identity (`Cluster ID`, `Node ID`, `gRPC
+controller` rows above) has not been confirmed to have moved off `8d4d7a4c` —
+only the BFF's user-facing SSO client did. Do not assume `cmuir+sso*` are still
+the only identities that can reach the MCP tools without re-verifying against
+the current client. This split was never what caused the `ValidateInfraJwt`
+signature failure either way — a token minted directly in `8d4d7a4c` is
+rejected the same way, and nothing here is expected to change that.
 
 Verify a credential belongs to the right environment before trusting a doc:
 
