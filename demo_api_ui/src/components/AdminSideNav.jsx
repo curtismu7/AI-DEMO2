@@ -1212,7 +1212,7 @@ export default function AdminSideNav({
         setShowResetModal(true);
         break;
       case "sign-in":
-        navigateToCustomerOAuthLogin("/dashboard");
+        navigateToCustomerOAuthLogin();
         break;
       default:
         break;
