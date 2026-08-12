@@ -21,6 +21,16 @@ export function resolveAudience(): string[] {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+/** The ONLY audience this embedded AS is entitled to assert: its own resource
+ *  URI — the first entry of MCP_SERVER_RESOURCE_URI. The remaining entries name
+ *  OTHER resource servers (the gateway, PingOne's API); this AS has no authority
+ *  to grant access to them, so a self-issued token must never claim them. The
+ *  full list stays the *accepted* set on the inbound side (see
+ *  TokenIntrospector.audienceAccepted), which is a different question. */
+export function resolveOwnAudience(): string {
+  return resolveAudience()[0] || 'mcpserver.ping.demo';
+}
+
 export class TokenIssuer {
   private issuer: string;
 
@@ -49,7 +59,7 @@ export class TokenIssuer {
       .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
       .setIssuer(this.issuer)
       .setSubject(client.client_id)
-      .setAudience(resolveAudience())
+      .setAudience(resolveOwnAudience())
       .setIssuedAt(now)
       .setExpirationTime(now + expiresIn)
       .setJti(jti)
@@ -71,8 +81,14 @@ export class TokenIssuer {
   async issueAuthorizationCode(
     client: OAuthClient,
     subject: string,
-    scope: string,
+    requestedScope: string,
   ): Promise<TokenResponse> {
+    // Same intersection issueClientCredentials does: the scope that travelled
+    // through /authorize is CLIENT-CONTROLLED input, so it must be clamped to
+    // what the client is actually registered for. Without this,
+    // `/authorize?...&scope=admin:read` mints an admin-scoped token for a client
+    // registered with only `mcp:invoke`.
+    const scope = this.resolveScope(client, requestedScope);
     const jti = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     const expiresIn = 3600;
@@ -84,7 +100,7 @@ export class TokenIssuer {
       .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
       .setIssuer(this.issuer)
       .setSubject(subject)
-      .setAudience(resolveAudience())
+      .setAudience(resolveOwnAudience())
       .setIssuedAt(now)
       .setExpirationTime(now + expiresIn)
       .setJti(jti)
