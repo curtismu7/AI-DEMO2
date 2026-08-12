@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-11 — The /verticals leak assertions were vacuous: the fixture had no `demoUsers` to leak
+
+**Files changed:** `demo_api_server/tests/verticalManifest/route.read.test.js` (test-only).
+
+**What was broken:** `cb4ba374e` (#1699) made `GET /api/verticals/me` and
+`/api/verticals/stream` public on purpose — guests need them to hydrate the UI before
+sign-in so the client and server agree on the active vertical — and strips the guest's
+`pageManifest` down to `identity` + `theme`. Two tests still asserted `401`, turning
+main red for every PR; #1704 replaced them. But the assertions that are supposed to
+prove password hints never reach an anonymous caller were checking for `demoUsers` /
+`passwordHint` in a fixture manifest (`min()`) that never contained either field.
+They passed vacuously — green, and proving nothing.
+
+**What was fixed:** `demoUsers` is now in the fixture (shape per `ManifestSchema`: an
+object with `customer`/`admin`, not an array) carrying a `SENTINEL-DO-NOT-LEAK`
+password hint, and the leak assertions check for the sentinel and the field name.
+
+**Do not break:** `/me` and `/stream` are public **on purpose** — do not "restore" the
+401s. The invariant is not the status code, it is that an anonymous caller gets
+identity + theme only and never `demoUsers`. `/pipeline` still has `requireAdmin`; the
+per-route guards are what protect this router now that the mount uses
+`optionalAuthenticateToken`. Keep `demoUsers` in the fixture — remove it and the leak
+assertions silently stop testing anything.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/verticalManifest --forceExit`
+(11 suites, 135 tests). Revert-to-RED: disabling the guest-strip branch in
+`routes/verticalManifest.js` fails **2** tests; before the fixture carried `demoUsers`
+it failed only 1, which is how the vacuity was caught.
+
 ### 2026-08-11 — ProofStrip read "Run failed before authorize-decision" on a gateway-authoritative run that actually got a PERMIT
 
 **Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`
