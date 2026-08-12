@@ -187,7 +187,11 @@ export default function RARPanel({ isOpen, onClose, initialTabId }) {
         <>
           <h3 style={{ marginTop: 0 }}>RAR in AI Demo</h3>
           <EduImplIntro mock>
-            Authorization requests from this app do not send <code>authorization_details</code> today; use this shape when integrating a PingOne policy that expects RAR.
+            The browser authorization request does not carry <code>authorization_details</code>. With <code>ff_rar</code> ON the
+            BFF builds them per tool call and carries them in the TraT <code>azd</code> envelope, where the MCP gateway enforces
+            that the executed call is a subset of the grant. On a human-approved (HITL) retry the grant is built from the
+            arguments the human approved rather than from the agent&apos;s own request. Use this shape when integrating a
+            PingOne policy that expects RAR in the authorization request itself.
           </EduImplIntro>
           <pre className="edu-code">{SNIP_RAR_MOCK}</pre>
         </>
