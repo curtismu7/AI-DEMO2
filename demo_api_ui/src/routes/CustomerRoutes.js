@@ -47,9 +47,24 @@ export function DashboardContent({ user, logout }) {
     };
   }, []);
 
-  // Flag unresolved — render nothing yet so only ONE dashboard ever mounts.
+  // Flag unresolved — show the spinner (not the mounted dashboard's toolbar/
+  // chrome) so only ONE dashboard ever mounts, and the visible sequence is
+  // spinner -> dashboard, not blank -> toolbar -> dashboard. Same markup as
+  // UserDashboard/UserDashboardPing2026's own `loading` spinner, so there's
+  // no visible seam between this phase and that one.
   if (ping2026 === null) {
-    return null;
+    return (
+      <div className="main-content--auth-loading">
+        <div className="auth-loading-card">
+          <div className="auth-loading-dots">
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+          </div>
+          <div className="auth-loading-title">Loading your dashboard</div>
+        </div>
+      </div>
+    );
   }
   if (ping2026) {
     return <UserDashboardPing2026 user={user} onLogout={logout} />;
