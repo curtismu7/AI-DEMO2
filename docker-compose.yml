@@ -434,6 +434,25 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # ── Privilege MCPGW (Procyon cyonproxy) ──────────────────────────────────────
+  mcpgw:
+    image: public.ecr.aws/s7q1z8z4/privilege-proxy:latest
+    container_name: ai-demo-mcpgw
+    ports:
+      - "8443:8443"
+    environment:
+      # Privilege gateway enrollment token (from Privilege console Setup > Gateways)
+      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN}"
+    volumes:
+      - /var/log/procyon:/var/log/procyon
+      - /var/lib/procyon/ssl:/procyon/ssl
+      - /var/lib/procyon/recordings:/procyon/recordings
+    networks:
+      - ai-demo
+    restart: unless-stopped
+    depends_on:
+      - mcp-server
+
   # ── LangChain Agent (Python / uvicorn) ───────────────────────────────────────
   langchain-agent:
     build:
