@@ -2023,18 +2023,15 @@ doc's checklist. Findings:
 | `SERVER_URL` "required in practice" | **Wrong for K8s** — `pingone.env`'s `SERVER_URL=https://mcpgw.local.ping-devops.com` is the local value, shipped into the K8s secret verbatim, no override anywhere |
 | `/var/lib/procyon/ssl/mcpgw-{cert,key}.pem` | **Not mounted at all in K8s.** These files exist locally (`ping-mcpgw/procyon/ssl/`) and ride along for free there because compose mounts the whole `/var/lib/procyon` tree; the K8s manifest only mounts `/var/lib/procyon/config`, never wiring in the `/ssl` half of that same directory |
 | Inbound 8690/TCP | **Not exposed anywhere** — K8s manifest declares only `containerPort: 8623` |
-| MCPGW OIDC app redirect URI (`<mcpgwdns>/callback`) | Console-side, unverifiable from here — but derived from `SERVER_URL`, which is wrong (above), so whatever's registered almost certainly doesn't match |
+| MCPGW OIDC app redirect URI (`<mcpgwdns>/callback`) | **Checked live against `deff60f5` (`MCPGW-CMUIR`)'s 7 registered Redirect URIs** — the BFF's user-facing callback is already correctly registered for both local and K8s (`.../api/privilege-mcp/auth/callback` on both `local.ping-devops.com:4000` and `ai-demo.ping-devops.com`). The gateway's *own* `${SERVER_URL}/callback` is not among them for the K8s value this PR computes (`https://ai-demo.ping-devops.com/mcpgw/callback`) — add it once `SERVER_URL`'s override above is live and its actual advertised value is confirmed |
 
-Plus two gaps found earlier the same day, same root cause: `PRIVILEGE_MCPGW_URL` (the
+Plus one gap found earlier the same day, same root cause: `PRIVILEGE_MCPGW_URL` (the
 BFF's target) is `https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp` — doesn't
 resolve inside the K8s cluster network at all, producing `{"scope":"tools_list",
-"message":"fetch failed"}` in the UI relay log — and `PRIVILEGE_SSO_CLIENT_ID` is set to
-the gateway's own OIDC client (`deff60f5`) rather than the dedicated user-facing SSO
-client (`6586d3de`), producing a PingOne `redirect_uri mismatch` on "Sign In with
-Privilege."
+"message":"fetch failed"}` in the UI relay log.
 
-**The pattern across all five gaps: one `.env`, no per-environment override, anywhere.**
-Every Privilege-related hostname in this repo assumes local. This is not five unrelated
+**The pattern across all four gaps: one `.env`, no per-environment override, anywhere.**
+Every Privilege-related hostname in this repo assumes local. This is not four unrelated
 bugs — it's that the K8s path for Privilege has never been exercised end to end before,
 at any layer, by anyone. Discovering the enrollment-token wall above is what finally
 forced the attempt.
@@ -2045,5 +2042,21 @@ exposed on the container/Service, and K8s-specific overrides for `SERVER_URL` an
 already established there for `PUBLIC_APP_URL`/redirect URIs — see
 `override_redirect_uris_for_public_origin`). **None of this is verified live** — the
 enrollment-token wall above still blocks getting a pod far enough to test any of it.
-`PRIVILEGE_SSO_CLIENT_ID`/secret was not fixed — it needs the `6586d3de` app's actual
-client secret, which isn't available in this repo or session.
+
+⚠️ **Correction, same day.** A `PRIVILEGE_SSO_CLIENT_ID` fix was proposed here — pointing
+it at `6586d3de` instead of `deff60f5` — and was **wrong**. `deff60f5` is correct; it is
+the demo's one and only Privilege OIDC client (console name `MCPGW-CMUIR`), confirmed
+live against the console with its registered Redirect URIs including both
+`https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback` and
+`https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback`. `6586d3de` ("Demo AI
+App - MCP Gateway") is a real app but unrelated to Privilege — per
+`docs/PINGONE_APP_REVIEW.md` it is `PINGONE_MCP_GATEWAY_CLIENT_ID`, this demo's own
+internal MCP-gateway token-exchange identity, and §"Reading Privilege's real config"
+above independently shows its three grants are all against this demo's own MCP
+resources (`Demo MCP JWT Verifier`, `Demo MCP Invest`, `Demo MCP Server`) — nothing
+Privilege-related. The §2026-08-02 entry earlier in this document had this right the
+whole time (*"not the `6586d3de` app... that one's in `01d89b06`"*); the wrong claim
+came from elsewhere and should have been checked against that entry before acting on
+it. Whatever is actually causing the "Redirect URI mismatch" the user hit remains
+**unexplained** — the client and the exact redirect URI it sent both check out against
+what's registered — and needs a live repro with BFF logs open to diagnose for real.
