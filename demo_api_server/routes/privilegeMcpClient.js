@@ -23,7 +23,13 @@ function getClientSession(req) {
         llmUrl: 'http://127.0.0.1:11434',
         llmModel: 'llama3.2:1b',
       },
-      oauth: { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null },
+      oauth: {
+        accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null,
+        // Set when login went through a self-advertising gateway (MCPGW acting as
+        // its own AS) via Dynamic Client Registration — refreshAccessToken must
+        // reuse this client, not the PingOne app id, or the token endpoint 400s.
+        dcrClientId: null, dcrClientSecret: null,
+      },
       tools: [],
       mcpSession: { initialized: false, protocolVersion: null, sessionId: null },
       pendingAuth: null,
@@ -170,9 +176,10 @@ async function refreshAccessToken(session) {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: session.oauth.refreshToken,
-    client_id: session.config.clientId,
+    client_id: session.oauth.dcrClientId || session.config.clientId,
   });
-  const clientSecret = process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
+  const clientSecret = session.oauth.dcrClientSecret
+    || process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
   if (clientSecret) body.set('client_secret', clientSecret);
 
   let response;
@@ -330,7 +337,11 @@ async function discoverAuth(session) {
   const authorizationUri = body.authorization_uri || (authUriMatch ? authUriMatch[1] : null);
   const tokenUri = body.token_uri || null;
 
-  if (authorizationUri && tokenUri) return { authorizationUri, tokenUri };
+  // selfAdvertised marks endpoints MCPGW minted for itself (RFC 9728) rather
+  // than PingOne's own. MCPGW is its own Authorization Server with its own
+  // client registry — a PingOne app id means nothing to it — so callers must
+  // run Dynamic Client Registration before using these endpoints.
+  if (authorizationUri && tokenUri) return { authorizationUri, tokenUri, selfAdvertised: true };
 
   // PingOne OIDC discovery fallback
   try {
@@ -367,6 +378,92 @@ async function discoverAuth(session) {
       + 'and no PRIVILEGE_SSO_ENV_ID / PINGONE_ENVIRONMENT_ID is set to fall back on. '
       + 'Start the MCP gateway (docker compose --profile mcpgw up -d ping-mcpgw) or fix PRIVILEGE_MCPGW_URL.'
     : `Failed to discover OAuth metadata from MCP URL. status=${response.status}`);
+}
+
+// One registration per gateway origin for the life of the process — MCPGW
+// mints a fresh client_id on every POST /register, so re-registering per
+// login would leak a new client on the gateway each time.
+const dcrClientCache = new Map();
+
+// Dynamic Client Registration (RFC 7591) against a self-advertising gateway.
+// MCPGW's own /authorize and /token don't recognize PingOne app ids — this is
+// the credential they actually expect.
+async function getOrRegisterDcrClient(authorizationUri, redirectUri) {
+  const registerUri = new URL(authorizationUri);
+  registerUri.pathname = registerUri.pathname.replace(/\/authorize$/, '/register');
+  const cacheKey = registerUri.toString();
+  if (dcrClientCache.has(cacheKey)) return dcrClientCache.get(cacheKey);
+
+  const response = await fetch(cacheKey, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      redirect_uris: [redirectUri],
+      client_name: 'ai-demo-bff',
+      token_endpoint_auth_method: 'client_secret_post',
+    }),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Dynamic Client Registration failed: ${response.status} ${text.slice(0, 300)}`);
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`DCR response non-JSON: ${text.slice(0, 300)}`); }
+  if (!data.client_id) throw new Error('DCR response missing client_id.');
+
+  const client = { clientId: data.client_id, clientSecret: data.client_secret || null };
+  dcrClientCache.set(cacheKey, client);
+  return client;
+}
+
+// Shared by /auth/start and /chat's inline re-auth path — discovers the auth
+// endpoints, registers a DCR client if the gateway is self-advertising, and
+// builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
+// callers that need it set it on the returned object's session afterward.
+async function beginOAuthFlow(session, req) {
+  const { authorizationUri, tokenUri, selfAdvertised } = await discoverAuth(session);
+  const verifier = randomString(48);
+  const challenge = sha256Base64Url(verifier);
+  const oauthState = randomString(24);
+
+  const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
+  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+  const redirectUri = `${protocol}://${host}/api/privilege-mcp/auth/callback`;
+
+  let clientId = session.config.clientId;
+  let dcrClientId = null;
+  let dcrClientSecret = null;
+  if (selfAdvertised) {
+    // Not every self-advertising gateway requires DCR — some already trust the
+    // configured client_id. Try DCR, but a gateway that doesn't support it (no
+    // /register, or a non-conforming response) must not break sign-in: fall
+    // back to the configured client_id exactly as before this feature existed.
+    try {
+      const dcr = await getOrRegisterDcrClient(authorizationUri, redirectUri);
+      clientId = dcr.clientId;
+      dcrClientId = dcr.clientId;
+      dcrClientSecret = dcr.clientSecret;
+    } catch (err) {
+      emitEvent(session, 'oauth', { phase: 'dcr_skipped', error: err.message });
+    }
+  }
+
+  const authUrl = new URL(authorizationUri);
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('code_challenge', challenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+  authUrl.searchParams.set('scope', session.config.scopes);
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('state', oauthState);
+  const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
+  if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
+
+  session.pendingAuth = {
+    oauthState, verifier, tokenUri, redirectUri,
+    dcrClientId,
+    dcrClientSecret,
+  };
+
+  return authUrl;
 }
 
 // ---------------------------------------------------------------------------
@@ -562,33 +659,11 @@ router.post('/auth/start', express.json(), async (req, res) => {
     if (!session.config.clientId) {
       return res.status(400).json({ error: 'Client ID is required before auth start.' });
     }
-    const { authorizationUri, tokenUri } = await discoverAuth(session);
-    const verifier = randomString(48);
-    const challenge = sha256Base64Url(verifier);
-    const oauthState = randomString(24);
-
-    // Build callback URL relative to the externally-visible host
-    const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
-    const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-    const redirectUri = `${protocol}://${host}/api/privilege-mcp/auth/callback`;
-
-    const authUrl = new URL(authorizationUri);
-    authUrl.searchParams.set('client_id', session.config.clientId);
-    authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('code_challenge', challenge);
-    authUrl.searchParams.set('code_challenge_method', 'S256');
-    authUrl.searchParams.set('scope', session.config.scopes);
-    authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('state', oauthState);
-    // Use the Privilege-configured user (may differ from main app user)
-    const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
-    if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
-
-    const returnTo = sanitizeReturnTo(req.body?.returnTo);
-    session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri, returnTo };
+    const authUrl = await beginOAuthFlow(session, req);
+    session.pendingAuth.returnTo = sanitizeReturnTo(req.body?.returnTo);
     // Force express-session to persist so connect.sid cookie survives the redirect
     req.session.privilegeOAuthStarted = true;
-    emitEvent(session, 'oauth', { phase: 'start', authorizationUri, tokenUri, authUrl: authUrl.toString() });
+    emitEvent(session, 'oauth', { phase: 'start', authUrl: authUrl.toString() });
     res.json({ authUrl: authUrl.toString() });
   } catch (err) {
     emitEvent(session, 'error', { scope: 'oauth_start', message: err.message });
@@ -624,8 +699,11 @@ router.get('/auth/callback', async (req, res) => {
       code_verifier: session.pendingAuth.verifier,
     });
     const tokenHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    tokenBody.set('client_id', session.config.clientId);
-    const clientSecret = process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
+    // A DCR client (self-advertising gateway, see beginOAuthFlow) is unrelated
+    // to the PingOne app id — the token endpoint only recognizes its own.
+    tokenBody.set('client_id', session.pendingAuth.dcrClientId || session.config.clientId);
+    const clientSecret = session.pendingAuth.dcrClientSecret
+      || process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
     if (clientSecret) tokenBody.set('client_secret', clientSecret);
 
     const tokenResponse = await fetch(session.pendingAuth.tokenUri, {
@@ -642,8 +720,11 @@ router.get('/auth/callback', async (req, res) => {
     session.oauth.refreshToken = tokenData.refresh_token || null;
     session.oauth.expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : null;
     session.oauth.scope = tokenData.scope || session.config.scopes || '';
-    // Keep the token endpoint so refresh can run after pendingAuth is cleared
+    // Keep the token endpoint and DCR client so refresh can run after
+    // pendingAuth is cleared.
     session.oauth.tokenUri = session.pendingAuth.tokenUri;
+    session.oauth.dcrClientId = session.pendingAuth.dcrClientId || null;
+    session.oauth.dcrClientSecret = session.pendingAuth.dcrClientSecret || null;
     session.pendingAuth = null;
     resetMcpState(session);
 
@@ -744,22 +825,7 @@ router.post('/chat', express.json(), async (req, res) => {
     }
     if (!session.oauth.accessToken) {
       // Need OAuth first — build auth URL for redirect
-      const { authorizationUri, tokenUri } = await discoverAuth(session);
-      const verifier = randomString(48);
-      const challenge = sha256Base64Url(verifier);
-      const oauthState = randomString(24);
-      const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
-      const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-      const redirectUri = `${protocol}://${host}/api/privilege-mcp/auth/callback`;
-      const authUrl = new URL(authorizationUri);
-      authUrl.searchParams.set('client_id', session.config.clientId);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('code_challenge', challenge);
-      authUrl.searchParams.set('code_challenge_method', 'S256');
-      authUrl.searchParams.set('scope', session.config.scopes);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('state', oauthState);
-      session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri };
+      const authUrl = await beginOAuthFlow(session, req);
       return res.json({ reply: 'Please complete OAuth login first.', authUrl: authUrl.toString(), steps: ['oauth_required'] });
     }
 
