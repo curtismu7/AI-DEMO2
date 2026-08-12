@@ -544,6 +544,37 @@ export PRIVILEGE_PROXY_TOKEN="eyJ..."
 docker logs ai-demo-ping-mcpgw 2>&1 | grep -i "enrolled\|connected\|ready"
 ```
 
+## Reading Ping's SE diagrams — three divergences from our deployment
+
+Ping's "Priv Networking" diagram is a K8s reference topology, not our deployment.
+Copying values off it sends requests to the wrong place. It is also worth noting
+that the diagram **documents its own failure**, and the cause is visible in the
+picture:
+
+```
+Ingress publishes    https://cj-mcpgw.ping-devops.com:443
+Gateway listens      http://mcpgw.ping-devops-cjmuir.svc.cluster.local:8680   (in-cluster only)
+Priv Agent dials     https://cj-mcpgw.ping-devops.com:8680   -> "Failed to connect"
+```
+
+External hostname, internal port — nothing public listens on 8680, the Ingress
+terminates 443. Stacked on that, `https://` against a listener the same diagram
+labels `http://`. Our agentless path (nginx :443 → proxy plain HTTP) is the same
+shape as their *working* leg, so this failure is not ours — but the three
+differences below are:
+
+| Their diagram | Ours | Trap |
+|---|---|---|
+| Gateway on `:8680` | MCP frontend on `:8620` | `8680` is `cyonproxy --help`'s documented `-listen` default (see `docker-compose.yml`); we run `-listen` on 8623 and the MCP frontend `-alp-port` on 8620. Their `:8680` box fills the role our 8620 does. **Settle ports by probing, never by reading their diagram** |
+| MCP server `http://…/sse`, no port | `http://mcp-server:8080/mcp` | Different MCP transport — SSE vs streamable HTTP. Pasting their URL shape into the console's MCP Server URL field breaks tool discovery |
+| gRPC to `proxy-us-west-2.privilege.pingone.com` | `grpc.privilege.pingone.com:443`; `CNTRLUrl=https://privilege.pingone.com` in `procyon-guest-agent.env` | Three different control-plane names in play. If egress is allowlisted to only one, a regional endpoint is blocked — and that presents exactly like the diagram's "Failed to connect" |
+
+The diagram also puts the **Priv Agent** in the client position. That is consistent
+with the Agent being a device-bound mTLS product (see "The PingOne token wall"):
+Ping's reference topology shows no PingOne-OAuth MCP client at all. Read that as
+evidence the token path is an unsupported topology, not as something we
+misconfigured.
+
 ## Proxy ports — 8620 is the MCP frontend, NOT 8623
 
 | Port | Flag | Purpose |
@@ -834,7 +865,17 @@ whole `ping-mcpgw/config` **directory** is mounted at `/var/lib/procyon/config` 
 a single-file bind goes stale when the host file is replaced. The BFF writes this
 file via `PUT /api/privilege-mcp/env`.
 
-There is no `guest-agent.env` — earlier revisions of this skill described one.
+**There is a `procyon-guest-agent.env`, and it is not the same thing.** Earlier
+revisions of this skill flatly denied a "guest-agent.env" existed. That literal
+filename does not, but `ping-mcpgw/procyon/procyon-guest-agent.env` does — and
+`./ping-mcpgw/procyon` is bind-mounted at `/var/lib/procyon`, so it is present
+inside the container. It is **not** an `env_file` entry: compose only loads
+`config/pingone.env` and `config/proxy-token.env`, so nothing injects its keys as
+environment variables. It carries `Tenant`, `APIKey`, `APISecret`, `CNTRLUrl`,
+`ProxyMode`, `ClusterName`, `HostIP`, `NodeType`, `MCPGwServer`, `MCPGwCertPath`
+and a full `Oidc*` set pointing at env `8d4d7a4c`. Treat it as an on-disk artifact
+of the guest-agent install path, not as live gateway config — but do not tell
+yourself it is absent.
 
 | Field | Purpose |
 |-------|---------|
