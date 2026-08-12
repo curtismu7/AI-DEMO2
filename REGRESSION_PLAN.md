@@ -68,7 +68,7 @@ minimal diff.
 | `3005` | MCP Gateway | `https://api.ping.demo:3005` |
 | `3006` | Agent Service | `http://localhost:3006` |
 | `3009` | HITL Service | `http://localhost:3009` |
-| `8080` | Banking MCP Server | `ws://localhost:8080` |
+| `8080` | AI Demo MCP Server | `ws://localhost:8080` |
 | `8081` | MCP Invest Server | `ws://localhost:8081` |
 | `8082` | Mortgage Service | `http://localhost:8082` |
 | `8888` | LangChain Agent (uvicorn main) | `http://localhost:8888` |
@@ -140,6 +140,110 @@ window cannot leave the agent client disabled for good.
 — 9 tests, 1 suite, including "blocked immediately, still blocked at 9 minutes,
 and free at 10", "the sweep never re-enables the PingOne user account", and "one
 failing application does not strand the record".
+
+### 2026-08-12 — Customer dashboard painted its toolbar/chrome with an empty banking area for a beat before data arrived, read as a stale/old UI
+
+**Files changed:** `demo_api_ui/src/routes/CustomerRoutes.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** on `/dashboard`, up to four components independently
+fired their own uncached `fetch("/api/admin/feature-flags", ...)` on mount —
+`DashboardContent`'s skin-flag check, `UserDashboardPing2026`'s
+`ff_show_agent_in_middle` and `ff_agent_clinical_split` checks, and
+`AIAgent`'s toggle sync — none sharing a cache. A live trace showed the same
+endpoint hit 10+ times on one load. The toolbar/chrome paints immediately
+(no data dependency), so users saw it sit over a mostly-empty banking area
+for a visible beat while these redundant round trips (plus `UserDashboard`'s
+own sequential session/account fetches) resolved, reading as a stale or
+cut-off "old" UI before the real dashboard "loaded in."
+
+**What was fixed:** swapped each raw `fetch("/api/admin/feature-flags")` call
+for the existing `getCachedJson`/`getCachedStatus` wrapper
+(`services/cachedStatusService.js`, already used for the auth-status
+endpoints) — in-flight requests within its 10s TTL now share one promise
+instead of firing separately. Same endpoint, same response shape, same flag
+semantics; only the transport is deduped.
+
+**Do not break:** flag defaults on fetch failure are unchanged (`ping2026`
+falls back to `false`, `showBankingInMiddle`/`clinicalSplitEnabled` keep
+their existing fallbacks). The tri-state `ping2026 === null` guard in
+`CustomerRoutes.js` (render nothing until the skin flag resolves, so only one
+dashboard ever mounts) is untouched — this fix only reduces how many
+redundant requests that resolution waits behind.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js "src/components/__tests__/AIAgent.*.test.*"` — 12/12 test files pass. `npm run build` exits 0.
+
+### 2026-08-11 — Boot guard cried "token validation would 401" on every start, for a multi-audience value that is correct by design
+
+**Files changed:** `demo_api_server/services/startupConfigGuard.js`
+(+ `demo_api_server/tests/startupConfigGuard.mcpGatewayAud.test.js`).
+
+**What was broken:** every boot logged
+
+```text
+MCP_GW_RESOURCE_URI="mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+but scope-topology.json audience for mcpGateway is "mcpgateway.ping.demo" (token validation would 401)
+```
+
+Nothing was wrong. `MCP_GW_RESOURCE_URI` is legitimately an accepted-audience
+**list**: the real gateway (`tokenValidator.ts`) and the mock authz server
+(`decision.js`) both accept a comma-separated list, and `docker-compose.yml`
+appends the A2A gateway audience to it — A2A gets its own audience so the
+nested-`act` composer SPEL only fires on A2A calls, per
+`pingoneProvisionService.js`. `LIST_VALUED_KEYS` covered
+`MCP_SERVER_RESOURCE_URI` and `MCP_RESOURCE_URI` but not this key, so it fell
+through to strict equality, which a CSV can never satisfy.
+
+The cost is not the log line: a guard that always warns trains operators to
+scroll past it, and this guard's entire job is catching real audience drift — the
+class of bug that 401s every agent tool call.
+
+**What was fixed:** added `MCP_GW_RESOURCE_URI` to `LIST_VALUED_KEYS`, so it is
+checked for list-containment. The invariant is unchanged — the list must still
+contain the `mcpGateway` audience.
+
+**Do not break:** the containment rule applies to **exactly** these three keys.
+`PINGONE_RESOURCE_TWO_EXCHANGE_URI` keeps **strict** equality — it is the RFC 8693
+exchange-#2 final audience and must *equal* the gateway audience, not merely
+contain it. `PINGONE_RESOURCE_MCP_GATEWAY_URI` is single-valued today and also
+stays strict. No runtime audience-acceptance code was touched: `tokenValidator.ts`,
+`decision.js` and `middleware/auth.js` are unchanged — this is boot-time
+reporting only.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/startupConfigGuard.mcpGatewayAud.test.js src/__tests__/startupConfigGuard.mcpServerAud.test.js src/__tests__/startupConfigGuard.twoExchange.test.js --no-coverage --forceExit` (8/8). The new spec includes two
+never-inert assertions: a list that omits the `mcpGateway` audience, and a single
+wrong audience, must both still be flagged. Revert-to-RED checked — dropping the
+key from the Set fails the multi-audience case (1 failed / 3 passed).
+
+### 2026-08-11 — The /verticals leak assertions were vacuous: the fixture had no `demoUsers` to leak
+
+**Files changed:** `demo_api_server/tests/verticalManifest/route.read.test.js` (test-only).
+
+**What was broken:** `cb4ba374e` (#1699) made `GET /api/verticals/me` and
+`/api/verticals/stream` public on purpose — guests need them to hydrate the UI before
+sign-in so the client and server agree on the active vertical — and strips the guest's
+`pageManifest` down to `identity` + `theme`. Two tests still asserted `401`, turning
+main red for every PR; #1704 replaced them. But the assertions that are supposed to
+prove password hints never reach an anonymous caller were checking for `demoUsers` /
+`passwordHint` in a fixture manifest (`min()`) that never contained either field.
+They passed vacuously — green, and proving nothing.
+
+**What was fixed:** `demoUsers` is now in the fixture (shape per `ManifestSchema`: an
+object with `customer`/`admin`, not an array) carrying a `SENTINEL-DO-NOT-LEAK`
+password hint, and the leak assertions check for the sentinel and the field name.
+
+**Do not break:** `/me` and `/stream` are public **on purpose** — do not "restore" the
+401s. The invariant is not the status code, it is that an anonymous caller gets
+identity + theme only and never `demoUsers`. `/pipeline` still has `requireAdmin`; the
+per-route guards are what protect this router now that the mount uses
+`optionalAuthenticateToken`. Keep `demoUsers` in the fixture — remove it and the leak
+assertions silently stop testing anything.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/verticalManifest --forceExit`
+(11 suites, 135 tests). Revert-to-RED: disabling the guest-strip branch in
+`routes/verticalManifest.js` fails **2** tests; before the fixture carried `demoUsers`
+it failed only 1, which is how the vacuity was caught.
 
 ### 2026-08-11 — ProofStrip read "Run failed before authorize-decision" on a gateway-authoritative run that actually got a PERMIT
 

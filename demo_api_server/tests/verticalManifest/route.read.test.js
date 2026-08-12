@@ -31,11 +31,15 @@ jest.mock('../../services/lmdb/openEnv', () => {
 });
 
 const FIXTURE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'rdr-'));
+// demoUsers is the field the public endpoints must never leak (it carries password
+// hints). It has to exist in the fixture or every leak assertion below passes
+// vacuously — green, and proving nothing.
 const min = (id) => ({
   id, schemaVersion: 3,
   identity: { displayName: id },
   theme: { cssVars: { '--x': '#000' } },
   agent: { persona: 'P' },
+  demoUsers: { customer: { hint: 'demo@example.test', passwordHint: 'SENTINEL-DO-NOT-LEAK' } },
 });
 const HERO = { imageUrl: 'https://example.test/care.jpg', greeting: 'How can we help?' };
 for (const id of ['banking', 'healthcare', 'admin-console']) {
@@ -86,8 +90,8 @@ describe('GET /api/verticals/me', () => {
   test('guest payload carries no demoUsers password hints', async () => {
     verticalManifest.resolver.setActive('banking');
     const res = await request(makeApp()).get('/api/verticals/me');
-    expect(JSON.stringify(res.body)).not.toMatch(/passwordHint/i);
-    expect(JSON.stringify(res.body)).not.toMatch(/demoUsers/i);
+    expect(JSON.stringify(res.body)).not.toContain('demoUsers');
+    expect(JSON.stringify(res.body)).not.toContain('SENTINEL-DO-NOT-LEAK');
   });
 
   test('customer: pageManifest only, adminManifest null', async () => {
@@ -205,7 +209,8 @@ describe('GET /api/verticals/stream', () => {
       });
     expect(res.headers['content-type']).toBe('text/event-stream');
     expect(res.body).toContain('"activeId":"healthcare"');
-    expect(res.body).not.toMatch(/passwordHint/i);
+    expect(res.body).not.toContain('demoUsers');
+    expect(res.body).not.toContain('SENTINEL-DO-NOT-LEAK');
   });
 
   test('SSE headers set; initial vertical-switched sent', async () => {

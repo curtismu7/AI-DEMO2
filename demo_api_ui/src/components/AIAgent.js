@@ -2288,8 +2288,7 @@ export default function BankingAgent({
       .then(setNlMeta)
       .catch(() => setNlMeta({ geminiConfigured: false }));
     // Load feature flags to sync UI-controlled toggles
-    fetch("/api/admin/feature-flags", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
+    getCachedStatus("/api/admin/feature-flags")
       .then((data) => {
         const heuristicFlag = data?.flags?.find((f) => f.id === "ff_heuristic_enabled");
         if (heuristicFlag != null) setHeuristicEnabled(Boolean(heuristicFlag.value));

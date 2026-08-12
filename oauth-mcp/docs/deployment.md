@@ -1,6 +1,6 @@
-# Banking MCP Server - Deployment Guide
+# AI Demo MCP Server - Deployment Guide
 
-This guide covers deployment options and environment setup for the Banking MCP Server.
+This guide covers deployment options and environment setup for the AI Demo MCP Server.
 
 ## Table of Contents
 

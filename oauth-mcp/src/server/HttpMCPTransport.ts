@@ -90,6 +90,14 @@ export interface HttpMCPTransportConfig {
 interface AuthenticatedBearer {
   token: string;
   tokenInfo: AgentTokenInfo;
+  /**
+   * True only when open-access mode admitted a request that carried no usable
+   * bearer — the Privilege gateway hop, which authorizes upstream. It means
+   * "someone else already decided", NOT "a token with an empty scope set".
+   * A validated bearer never sets it, so enforcement stays on for every other
+   * caller while the mode is enabled.
+   */
+  openAccess?: boolean;
 }
 
 /** In-memory HTTP session (maps MCP-Session-Id → banking session). */
@@ -185,13 +193,25 @@ export class HttpMCPTransport {
 
     // Internal audit endpoint (proxied by BFF /api/mcp/audit — admin-gated at BFF level).
     // Bearer + admin:read required: audit data contains PII and security-sensitive events.
+    // Under MCP_AUTH_DISABLED the scope gate must not fail closed (mirrors
+    // AuthenticationIntegration's tool-path fallback): PingOne refuses to mint
+    // admin:read alongside mcp:invoke in one client-credentials token ("May not
+    // request scopes for multiple resources"), so the BFF's token-chain poll can
+    // never present admin:read here and every /audit fetch answered 403 — the
+    // ProofStrip then reported "Run failed before authorize-decision" on runs
+    // that actually succeeded.
     if (pathname === '/audit' && req.method === 'GET') {
       const authed = await this.authenticateBearer(req, res);
       if (!authed) return;
       const hasAdmin = await this.authManager.validateTokenScopes(authed.token, ['admin:read']);
       if (!hasAdmin) {
-        this.sendInsufficientScope(res, ['admin:read']);
-        return;
+        if (process.env.MCP_AUTH_DISABLED !== 'true') {
+          this.sendInsufficientScope(res, ['admin:read']);
+          return;
+        }
+        console.warn(
+          '[HttpMCPTransport] MCP_AUTH_DISABLED=true — serving GET /audit despite missing admin:read; the caller in front of this server owns authorization'
+        );
       }
       await this.handleAuditQuery(req, res);
       return;
@@ -199,13 +219,20 @@ export class HttpMCPTransport {
 
     // Demo reset: clear in-memory audit log (BFF reset-demo route calls this).
     // Bearer + admin:write required — wiping the audit trail is privileged.
+    // Same open-access fallback as GET: the BFF cannot carry admin:write and
+    // mcp:invoke in one token either, so reset-demo 403s under MCP_AUTH_DISABLED.
     if (pathname === '/audit' && req.method === 'DELETE') {
       const authed = await this.authenticateBearer(req, res);
       if (!authed) return;
       const hasAdmin = await this.authManager.validateTokenScopes(authed.token, ['admin:write']);
       if (!hasAdmin) {
-        this.sendInsufficientScope(res, ['admin:write']);
-        return;
+        if (process.env.MCP_AUTH_DISABLED !== 'true') {
+          this.sendInsufficientScope(res, ['admin:write']);
+          return;
+        }
+        console.warn(
+          '[HttpMCPTransport] MCP_AUTH_DISABLED=true — allowing DELETE /audit despite missing admin:write; the caller in front of this server owns authorization'
+        );
       }
       AuditLogger.clearEvents();
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -452,11 +479,16 @@ export class HttpMCPTransport {
     // Only this one notification is exempt; all others still authenticate.
     let bearerToken: string | undefined;
     let tokenInfo: Awaited<ReturnType<typeof this.authManager.validateAgentToken>> | undefined;
+    // Set only for a request the open-access hop admitted without a usable
+    // bearer. Every downstream bypass keys off THIS, not off the env var, so
+    // turning the mode on for one gateway cannot disarm the other's enforcement.
+    let openAccess = false;
     if (!isDiscovery) {
       const authed = await this.authenticateBearer(req, res);
       if (!authed) return;
       bearerToken = authed.token;
       tokenInfo = authed.tokenInfo;
+      openAccess = authed.openAccess === true;
     } else {
       // Opportunistic: use the token if supplied, but don't reject without one.
       const optionalBearer = this.extractBearer(req);
@@ -478,9 +510,12 @@ export class HttpMCPTransport {
     }
 
     // 3a–3b: Security checks (TraT, upstream contract, delegation chain) only
-    // apply to authenticated requests — discovery is unauthenticated.
-    // Also skipped when MCP_AUTH_DISABLED=true (Privilege MCP open-access mode).
-    if (!isDiscovery && !this.authDisabled) {
+    // apply to authenticated requests — discovery is unauthenticated, and so is
+    // an open-access hop admitted without a usable bearer (there is no token to
+    // check them against). Keyed off this request's admission, not off the env
+    // var: a caller that presented a validated bearer still runs every check
+    // below even while open-access mode is on.
+    if (!isDiscovery && !openAccess) {
 
     // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract the
     // TraT context and BIND it to the request. A transaction token names the tool
@@ -618,6 +653,7 @@ export class HttpMCPTransport {
       mcpSessionId,
       bankingSession,
       bearerToken ?? (httpSession.agentToken || undefined),
+      openAccess,
     );
 
     // 7. Route message — wrapped in ALS correlation scope so all downstream
@@ -777,7 +813,8 @@ export class HttpMCPTransport {
   private makeContext(
     connectionId: string,
     bankingSession: any,
-    agentToken?: string
+    agentToken?: string,
+    openAccess?: boolean
   ): MessageHandlerContext {
     // connectionId for HTTP sessions equals the MCP-Session-Id, so we can route
     // server-initiated notifications to the client's open SSE stream (if any).
@@ -790,6 +827,7 @@ export class HttpMCPTransport {
       agentToken,
       session: bankingSession,
       sendNotification,
+      openAccess,
     };
   }
 
@@ -824,8 +862,16 @@ export class HttpMCPTransport {
           // placeholder rather than 401 — that is what the flag asks for.
         }
       }
+      // No usable bearer: this is the upstream-authorized hop the flag exists
+      // for. Flag it as such rather than letting it look like a token that
+      // simply has no scopes — the scope gate keys off openAccess, so the
+      // bypass reaches ONLY requests admitted here, never a validated token.
+      console.warn(
+        `[HttpMCPTransport] Open-access hop admitted a request with ${presented ? 'an unvalidatable' : 'no'} bearer — the upstream gateway owns authorization for it`
+      );
       return {
         token: 'disabled',
+        openAccess: true,
         tokenInfo: {
           tokenHash: 'disabled',
           clientId: 'anonymous',

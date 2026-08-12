@@ -161,7 +161,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 const AUTO_EXPAND_SECTIONS = [
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
-  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
+  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
@@ -541,7 +541,6 @@ export default function AdminSideNav({
           highlight: true,
           introGate: true,
         },
-        { label: "Copilot", path: "/copilot", icon: "ai" },
         {
           label: "PingOne Agent Builder",
           path: "/agent-builder",
@@ -754,7 +753,12 @@ export default function AdminSideNav({
         // been wrapped in RequireAdminLogin since PR #1473, but the nav was
         // never updated to match, so a non-admin got an ordinary-looking link
         // that dead-ends at the route-level login wall. /admin is the same.
-        { label: "Support Console", path: "/admin/sporting-goods", icon: "bld", adminOnly: true },
+        // "Support Console" used to sit here pointing at /admin. #1494 put
+        // /admin back on the PingOne dashboard and repointed the entry at
+        // /admin/sporting-goods, which is exactly where "Sporting Goods Ops"
+        // below already goes — same route, same component, duplicate React key.
+        // Removed rather than re-keyed: a second link to one destination is not
+        // a distinct nav item.
         { label: "Banking Ops", path: "/admin/banking", icon: "acc", adminOnly: true },
         { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg", adminOnly: true },
         { label: "Retail Ops", path: "/admin/retail", icon: "cfg", adminOnly: true },
@@ -885,6 +889,11 @@ export default function AdminSideNav({
         {
           label: "PingOne Authorize",
           path: "/monitoring/p1az",
+          icon: "log",
+        },
+        {
+          label: "Token Exchange",
+          path: "/monitoring/token-exchange",
           icon: "log",
         },
       ],
@@ -1203,7 +1212,7 @@ export default function AdminSideNav({
         setShowResetModal(true);
         break;
       case "sign-in":
-        navigateToCustomerOAuthLogin("/dashboard");
+        navigateToCustomerOAuthLogin();
         break;
       default:
         break;

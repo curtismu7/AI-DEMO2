@@ -12,6 +12,7 @@ import P1AzDashboard from "../components/P1AzDashboard";
 import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
+import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
 import WebMcpPanel from "../components/WebMcpPanel";
 
@@ -142,6 +143,17 @@ export function P1AzRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <P1AzDashboard />
+    </AppShell>
+  );
+}
+
+// RFC 8693 token-exchange telemetry. Public, matching the other monitoring
+// pages. Deliberately NOT in isNoChromeRoute(): with user null,
+// shellRendersSideNav() returns true and AppShell supplies the sidebar.
+export function TokenExchangeRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <TokenExchangeDashboard />
     </AppShell>
   );
 }

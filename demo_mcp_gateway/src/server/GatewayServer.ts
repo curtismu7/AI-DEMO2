@@ -42,6 +42,7 @@ import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
 import { buildAuthzHealth } from '../authzPosture';
+import { toolsListBackendOutage } from '../toolsListHealth';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -215,6 +216,10 @@ export class GatewayServer {
         // Contract C3 — the aggregate "is the gate armed" signal. `failOpen`
         // names every currently-active bypass; an empty array means fully armed.
         authz: buildAuthzHealth(this.config),
+        // Null unless the last tools/list read NO live backend and shipped the
+        // static gateway-owned registry instead — an outage the response itself
+        // looks perfectly healthy through.
+        toolsListBackendOutage: toolsListBackendOutage(),
       }));
       return;
     }

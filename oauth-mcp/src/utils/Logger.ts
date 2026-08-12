@@ -1,5 +1,5 @@
 /**
- * Security-aware logging system for the Banking MCP Server
+ * Security-aware logging system for the AI Demo MCP Server
  * Provides structured logging with sensitive data filtering
  */
 

@@ -157,6 +157,7 @@ import MonitoringRoutes, {
   P1AzRoute,
   PingOneEventsRoute,
   SequenceDiagramRoute,
+  TokenExchangeRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
   CibaApprovalPageRoute,
@@ -537,7 +538,7 @@ function AppWithAuth() {
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
-          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined}>
+          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined} enabled={!!user}>
           <ActivityNarrativeProvider>
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
@@ -604,6 +605,11 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/p1az"
                   element={<P1AzRoute user={user} logout={logout} />}
+                />
+                {/* RFC 8693 token exchange telemetry — public, same posture as the others */}
+                <Route
+                  path="/monitoring/token-exchange"
+                  element={<TokenExchangeRoute user={user} logout={logout} />}
                 />
                 {/* Demo config accessible without login */}
                 <Route
