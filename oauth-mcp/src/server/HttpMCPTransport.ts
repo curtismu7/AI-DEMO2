@@ -185,13 +185,25 @@ export class HttpMCPTransport {
 
     // Internal audit endpoint (proxied by BFF /api/mcp/audit — admin-gated at BFF level).
     // Bearer + admin:read required: audit data contains PII and security-sensitive events.
+    // Under MCP_AUTH_DISABLED the scope gate must not fail closed (mirrors
+    // AuthenticationIntegration's tool-path fallback): PingOne refuses to mint
+    // admin:read alongside mcp:invoke in one client-credentials token ("May not
+    // request scopes for multiple resources"), so the BFF's token-chain poll can
+    // never present admin:read here and every /audit fetch answered 403 — the
+    // ProofStrip then reported "Run failed before authorize-decision" on runs
+    // that actually succeeded.
     if (pathname === '/audit' && req.method === 'GET') {
       const authed = await this.authenticateBearer(req, res);
       if (!authed) return;
       const hasAdmin = await this.authManager.validateTokenScopes(authed.token, ['admin:read']);
       if (!hasAdmin) {
-        this.sendInsufficientScope(res, ['admin:read']);
-        return;
+        if (process.env.MCP_AUTH_DISABLED !== 'true') {
+          this.sendInsufficientScope(res, ['admin:read']);
+          return;
+        }
+        console.warn(
+          '[HttpMCPTransport] MCP_AUTH_DISABLED=true — serving GET /audit despite missing admin:read; the caller in front of this server owns authorization'
+        );
       }
       await this.handleAuditQuery(req, res);
       return;
@@ -199,13 +211,20 @@ export class HttpMCPTransport {
 
     // Demo reset: clear in-memory audit log (BFF reset-demo route calls this).
     // Bearer + admin:write required — wiping the audit trail is privileged.
+    // Same open-access fallback as GET: the BFF cannot carry admin:write and
+    // mcp:invoke in one token either, so reset-demo 403s under MCP_AUTH_DISABLED.
     if (pathname === '/audit' && req.method === 'DELETE') {
       const authed = await this.authenticateBearer(req, res);
       if (!authed) return;
       const hasAdmin = await this.authManager.validateTokenScopes(authed.token, ['admin:write']);
       if (!hasAdmin) {
-        this.sendInsufficientScope(res, ['admin:write']);
-        return;
+        if (process.env.MCP_AUTH_DISABLED !== 'true') {
+          this.sendInsufficientScope(res, ['admin:write']);
+          return;
+        }
+        console.warn(
+          '[HttpMCPTransport] MCP_AUTH_DISABLED=true — allowing DELETE /audit despite missing admin:write; the caller in front of this server owns authorization'
+        );
       }
       AuditLogger.clearEvents();
       res.writeHead(200, { 'Content-Type': 'application/json' });
