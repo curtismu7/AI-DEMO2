@@ -10,7 +10,7 @@ Scanned files: `snapshots/gen-authorize-snapshot.js`,
 `demo_mcp_gateway/src/tokenValidator.ts`, `demo_mcp_gateway/src/auth/toolScopes.ts`,
 `demo_mcp_gateway/src/tierEnforce.ts`, `ping-gateway/scripts/groovy/p1az-decision.groovy`.
 
-Current state: **2/10** gateway-side backstops enforced (5 rules × 2 gateways).
+Current state: **9/10** gateway-side backstops enforced (5 rules × 2 gateways).
 See `docs/superpowers/plans/2026-08-12-gateway-local-enforcement.md` for the
 implementation plan that closes the remaining gaps.
 
@@ -26,19 +26,19 @@ flowchart TB
   end
   subgraph NODE["Node Gateway (demo_mcp_gateway) — A2A path"]
     direction TB
-    n_temporal["Temporal exp/iat/nbf<br/>GAP"]
-    n_scope["Per-tool scope membership<br/>GAP"]
+    n_temporal["Temporal exp/iat/nbf<br/>ENFORCED"]
+    n_scope["Per-tool scope membership<br/>ENFORCED"]
     n_rar["RAR payee allow-list<br/>ENFORCED"]
     n_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
-    n_tier["tiers.groupToTier mapping<br/>GAP"]
+    n_tier["tiers.groupToTier mapping<br/>ENFORCED"]
   end
   subgraph GROOVY["IG Gateway (ping-gateway groovy) — default path"]
     direction TB
-    g_temporal["Temporal exp/iat/nbf<br/>GAP"]
-    g_scope["Per-tool scope membership<br/>GAP"]
-    g_rar["RAR payee allow-list<br/>GAP"]
-    g_d05["D-05 multi-aud anti-bypass<br/>GAP"]
-    g_tier["tiers.groupToTier mapping<br/>GAP"]
+    g_temporal["Temporal exp/iat/nbf<br/>ENFORCED"]
+    g_scope["Per-tool scope membership<br/>ENFORCED"]
+    g_rar["RAR payee allow-list<br/>BUILT, OFF BY DEFAULT"]
+    g_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
+    g_tier["tiers.groupToTier mapping<br/>ENFORCED"]
   end
   p_temporal -.needs a PEP backstop.-> n_temporal
   p_temporal -.needs a PEP backstop.-> g_temporal
@@ -55,16 +55,16 @@ flowchart TB
   classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4
   classDef flagged fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:1px,stroke-dasharray:2 2
   class p_temporal,p_scope,p_rar,p_d05,p_tier gap
-  class n_rar,n_d05 done
-  class n_temporal,g_temporal,n_scope,g_scope,g_rar,g_d05,n_tier,g_tier pending
+  class n_temporal,g_temporal,n_scope,g_scope,n_rar,n_d05,g_d05,n_tier,g_tier done
+  class g_rar flagged
 ```
 
 ## Detail
 
 | Rule | Why P1AZ can't | Node gateway | IG gateway (groovy) |
 |---|---|---|---|
-| Temporal exp/iat/nbf | Temporal exp/iat/nbf (mock Rules 0c-0f): the snapshot Timestamp attribute is an ISO 8601 STRING while token claims are epoch-second strings; without a verified CurrentEpoch attribute and confirmed numeric coercion the co | ❌ gap — iat max-age check in tokenValidator.ts | ❌ gap — local iat/nbf deny in p1az-decision.groovy (default olb route has no local temporal recheck otherwise) |
-| Per-tool scope membership | Per-tool scope membership (mock Rule 3): TokenScopes is a space-separated set and the DSL has no set/contains operator; enumerating scope x tool combinations as OR-of-equals would not survive multi-scope tokens. | ❌ gap — unconditional Rule-3-parity backstop (A2A-safe) in toolScopes.ts | ❌ gap — local scope backstop reading scope-topology.json in p1az-decision.groovy |
-| RAR payee allow-list | RAR payee allow-list (mock Rule 3c payee half): permitted payees are an array; same missing set-membership operator. | ✅ enforced — rarEnforce.ts — unconditional, gated on REQUIRE_RAR_INTENT | ❌ gap — opt-in only — check-groovy-params.sh:78-81 warns against a local RAR DENY here ("P1AZ decides") |
-| D-05 multi-aud anti-bypass | D-05 multi-aud: TokenAudTargetsUpstream compares a SINGLE aud string; a space-joined multi-aud value is only caught at the PEP (gateway) and mock. | ✅ enforced — GatewayTokenPolicy.ts — unconditional, every inbound token | ❌ gap — today only forwards TokenAudActual to the PDP — never locally denies |
-| tiers.groupToTier mapping | tiers.groupToTier (step 10): mapping a PingOne group ARRAY to a tier needs set membership. The BFF resolves it and sends the scalar UserTier, the same flattening precedent as InRequiredGroup / TokenKidKnown. The tier THR | ❌ gap — tierEnforce.ts, reads X-User-Tier/X-Tier-Max-Amount-Usd/X-Tier-Restricted-Tools headers from the BFF | ❌ gap — reads the same 3 headers the Node gateway does |
+| Temporal exp/iat/nbf | Temporal exp/iat/nbf (mock Rules 0c-0f): the snapshot Timestamp attribute is an ISO 8601 STRING while token claims are epoch-second strings; without a verified CurrentEpoch attribute and confirmed numeric coercion the co | ✅ enforced — iat max-age check in tokenValidator.ts | ✅ enforced — local iat/nbf deny in p1az-decision.groovy (default olb route has no local temporal recheck otherwise) |
+| Per-tool scope membership | Per-tool scope membership (mock Rule 3): TokenScopes is a space-separated set and the DSL has no set/contains operator; enumerating scope x tool combinations as OR-of-equals would not survive multi-scope tokens. | ✅ enforced — unconditional Rule-3-parity backstop (A2A-safe) in toolScopes.ts | ✅ enforced — local scope backstop reading scope-topology.json in p1az-decision.groovy |
+| RAR payee allow-list | RAR payee allow-list (mock Rule 3c payee half): permitted payees are an array; same missing set-membership operator. | ✅ enforced — rarEnforce.ts — unconditional, gated on REQUIRE_RAR_INTENT | ⚠️ built, default OFF — opt-in only — check-groovy-params.sh:78-81 warns against a local RAR DENY here ("P1AZ decides") |
+| D-05 multi-aud anti-bypass | D-05 multi-aud: TokenAudTargetsUpstream compares a SINGLE aud string; a space-joined multi-aud value is only caught at the PEP (gateway) and mock. | ✅ enforced — GatewayTokenPolicy.ts — unconditional, every inbound token | ✅ enforced — local deny using the forwarded TokenAudActual, mirroring GatewayTokenPolicy.ts |
+| tiers.groupToTier mapping | tiers.groupToTier (step 10): mapping a PingOne group ARRAY to a tier needs set membership. The BFF resolves it and sends the scalar UserTier, the same flattening precedent as InRequiredGroup / TokenKidKnown. The tier THR | ✅ enforced — tierEnforce.ts, reads X-User-Tier/X-Tier-Max-Amount-Usd/X-Tier-Restricted-Tools headers from the BFF | ✅ enforced — reads the same 3 headers the Node gateway does |

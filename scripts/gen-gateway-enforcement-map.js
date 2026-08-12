@@ -105,7 +105,7 @@ const ROWS = [
     },
     groovy: {
       done: has(p1azDecisionGroovy, "'bypass_attempt'"),
-      note: 'today only forwards TokenAudActual to the PDP — never locally denies',
+      note: 'local deny using the forwarded TokenAudActual, mirroring GatewayTokenPolicy.ts',
     },
   },
   {

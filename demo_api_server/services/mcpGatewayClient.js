@@ -210,6 +210,28 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts && opts.useCaseId) {
         headers['X-Use-Case-Id'] = String(opts.useCaseId);
     }
+    // Tier (groupToTier) — pre-resolved here because neither gateway can map a
+    // PingOne group array to a tier locally (no set-membership operator in either
+    // P1AZ's DSL or the gateways' own runtimes). Additive: gateways use this only
+    // to DENY, never to widen a decision a token's own scopes wouldn't otherwise earn.
+    if (opts && Array.isArray(opts.userGroups)) {
+        try {
+            const groupPolicy = require('./groupPolicy');
+            const verticalForTier = (opts && opts.vertical) || configStore.getEffective('active_vertical') || 'banking';
+            const tier = groupPolicy.resolveUserTier(opts.userGroups, verticalForTier);
+            const tierDefs = groupPolicy.getTierDefinitions(verticalForTier);
+            const tierDef = tierDefs[tier];
+            headers['X-User-Tier'] = tier;
+            if (tierDef) {
+                if (typeof tierDef.maxAmountUsd === 'number') {
+                    headers['X-Tier-Max-Amount-Usd'] = String(tierDef.maxAmountUsd);
+                }
+                if (Array.isArray(tierDef.restrictedTools) && tierDef.restrictedTools.length) {
+                    headers['X-Tier-Restricted-Tools'] = tierDef.restrictedTools.join(',');
+                }
+            }
+        } catch (_) { /* best-effort */ }
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.

@@ -916,7 +916,25 @@ async function runMcpToolPipeline(ctx) {
             // switched the global vertical. Still server-resolved: activeIdFor only
             // returns a vertical this session legitimately selected, falling back to
             // the global otherwise.
-            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
+            // Tier (groupToTier) — neither gateway can map a PingOne group array to a
+            // tier locally (no set-membership operator), so resolve it here the same
+            // way the McpFirstTool gate does and forward it as headers for the
+            // gateway's own local backstop (snapshots/gen-authorize-snapshot.js:44-47).
+            // Scoped to the main group-policy flag only — the UC9/UC21 demo-specific
+            // override paths that also feed the McpFirstTool gate are intentionally
+            // not replicated here to avoid duplicating that flag logic.
+            let gatewayUserGroups;
+            try {
+                const groupPolicy = require('./groupPolicy');
+                if (groupPolicy.isEnabled(require('./configStore'))) {
+                    gatewayUserGroups = await groupPolicy.groupsForUser(
+                        req.session?.user?.username,
+                        sessionVertical,
+                        { pingOneUserId: req.session?.user?.oauthId || req.session?.user?.sub || null },
+                    );
+                }
+            } catch (_) { /* best-effort */ }
+            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);

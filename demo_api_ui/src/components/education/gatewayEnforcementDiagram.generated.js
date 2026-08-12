@@ -13,19 +13,19 @@ export const GATEWAY_ENFORCEMENT_MERMAID = `flowchart TB
   end
   subgraph NODE["Node Gateway (demo_mcp_gateway) — A2A path"]
     direction TB
-    n_temporal["Temporal exp/iat/nbf<br/>GAP"]
-    n_scope["Per-tool scope membership<br/>GAP"]
+    n_temporal["Temporal exp/iat/nbf<br/>ENFORCED"]
+    n_scope["Per-tool scope membership<br/>ENFORCED"]
     n_rar["RAR payee allow-list<br/>ENFORCED"]
     n_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
-    n_tier["tiers.groupToTier mapping<br/>GAP"]
+    n_tier["tiers.groupToTier mapping<br/>ENFORCED"]
   end
   subgraph GROOVY["IG Gateway (ping-gateway groovy) — default path"]
     direction TB
-    g_temporal["Temporal exp/iat/nbf<br/>GAP"]
-    g_scope["Per-tool scope membership<br/>GAP"]
-    g_rar["RAR payee allow-list<br/>GAP"]
-    g_d05["D-05 multi-aud anti-bypass<br/>GAP"]
-    g_tier["tiers.groupToTier mapping<br/>GAP"]
+    g_temporal["Temporal exp/iat/nbf<br/>ENFORCED"]
+    g_scope["Per-tool scope membership<br/>ENFORCED"]
+    g_rar["RAR payee allow-list<br/>BUILT, OFF BY DEFAULT"]
+    g_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
+    g_tier["tiers.groupToTier mapping<br/>ENFORCED"]
   end
   p_temporal -.needs a PEP backstop.-> n_temporal
   p_temporal -.needs a PEP backstop.-> g_temporal
@@ -42,8 +42,8 @@ export const GATEWAY_ENFORCEMENT_MERMAID = `flowchart TB
   classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4
   classDef flagged fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:1px,stroke-dasharray:2 2
   class p_temporal,p_scope,p_rar,p_d05,p_tier gap
-  class n_rar,n_d05 done
-  class n_temporal,g_temporal,n_scope,g_scope,g_rar,g_d05,n_tier,g_tier pending`;
+  class n_temporal,g_temporal,n_scope,g_scope,n_rar,n_d05,g_d05,n_tier,g_tier done
+  class g_rar flagged`;
 
 export const GATEWAY_ENFORCEMENT_ROWS = [
   {
@@ -51,11 +51,11 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
     "label": "Temporal exp/iat/nbf",
     "p1az": "Temporal exp/iat/nbf (mock Rules 0c-0f): the snapshot Timestamp attribute is an ISO 8601 STRING while token claims are epoch-second strings; without a verified CurrentEpoch attribute and confirmed numeric coercion the co",
     "node": {
-      "status": "pending",
+      "status": "done",
       "note": "iat max-age check in tokenValidator.ts"
     },
     "groovy": {
-      "status": "pending",
+      "status": "done",
       "note": "local iat/nbf deny in p1az-decision.groovy (default olb route has no local temporal recheck otherwise)"
     }
   },
@@ -64,11 +64,11 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
     "label": "Per-tool scope membership",
     "p1az": "Per-tool scope membership (mock Rule 3): TokenScopes is a space-separated set and the DSL has no set/contains operator; enumerating scope x tool combinations as OR-of-equals would not survive multi-scope tokens.",
     "node": {
-      "status": "pending",
+      "status": "done",
       "note": "unconditional Rule-3-parity backstop (A2A-safe) in toolScopes.ts"
     },
     "groovy": {
-      "status": "pending",
+      "status": "done",
       "note": "local scope backstop reading scope-topology.json in p1az-decision.groovy"
     }
   },
@@ -81,7 +81,7 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
       "note": "rarEnforce.ts — unconditional, gated on REQUIRE_RAR_INTENT"
     },
     "groovy": {
-      "status": "pending",
+      "status": "flagged",
       "note": "opt-in only — check-groovy-params.sh:78-81 warns against a local RAR DENY here (\"P1AZ decides\")"
     }
   },
@@ -94,8 +94,8 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
       "note": "GatewayTokenPolicy.ts — unconditional, every inbound token"
     },
     "groovy": {
-      "status": "pending",
-      "note": "today only forwards TokenAudActual to the PDP — never locally denies"
+      "status": "done",
+      "note": "local deny using the forwarded TokenAudActual, mirroring GatewayTokenPolicy.ts"
     }
   },
   {
@@ -103,11 +103,11 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
     "label": "tiers.groupToTier mapping",
     "p1az": "tiers.groupToTier (step 10): mapping a PingOne group ARRAY to a tier needs set membership. The BFF resolves it and sends the scalar UserTier, the same flattening precedent as InRequiredGroup / TokenKidKnown. The tier THR",
     "node": {
-      "status": "pending",
+      "status": "done",
       "note": "tierEnforce.ts, reads X-User-Tier/X-Tier-Max-Amount-Usd/X-Tier-Restricted-Tools headers from the BFF"
     },
     "groovy": {
-      "status": "pending",
+      "status": "done",
       "note": "reads the same 3 headers the Node gateway does"
     }
   }
