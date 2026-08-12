@@ -68,7 +68,7 @@ minimal diff.
 | `3005` | MCP Gateway | `https://api.ping.demo:3005` |
 | `3006` | Agent Service | `http://localhost:3006` |
 | `3009` | HITL Service | `http://localhost:3009` |
-| `8080` | Banking MCP Server | `ws://localhost:8080` |
+| `8080` | AI Demo MCP Server | `ws://localhost:8080` |
 | `8081` | MCP Invest Server | `ws://localhost:8081` |
 | `8082` | Mortgage Service | `http://localhost:8082` |
 | `8888` | LangChain Agent (uvicorn main) | `http://localhost:8888` |

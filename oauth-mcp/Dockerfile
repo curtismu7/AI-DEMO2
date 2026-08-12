@@ -1,4 +1,4 @@
-# Banking MCP Server Dockerfile
+# AI Demo MCP Server Dockerfile
 # Multi-stage build for production optimization
 
 # Build stage
@@ -69,6 +69,6 @@ ENV MCP_SERVER_HOST=0.0.0.0
 CMD ["node", "dist/index.js"]
 
 # Labels for metadata
-LABEL maintainer="Banking MCP Server Team"
+LABEL maintainer="AI Demo MCP Server Team"
 LABEL version="1.0.0"
-LABEL description="Banking MCP Server for AI agent banking operations"
+LABEL description="AI Demo MCP Server for AI agent banking operations"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Banking MCP Server Stop Script
+# AI Demo MCP Server Stop Script
 
 set -e
 
@@ -36,7 +36,7 @@ log() {
 }
 
 stop_server() {
-    log "INFO" "Stopping Banking MCP Server..."
+    log "INFO" "Stopping AI Demo MCP Server..."
     
     # Check if PID file exists
     if [[ -f "$PID_FILE" ]]; then
@@ -86,7 +86,7 @@ stop_server() {
     # Check for any remaining processes (more comprehensive search)
     local remaining_pids=$(pgrep -f "banking.*mcp.*server\|banking_mcp_server.*dist/index\.js\|dist/index\.js.*banking" 2>/dev/null || true)
     if [[ -n "$remaining_pids" ]]; then
-        log "WARN" "Found additional Banking MCP Server processes: $remaining_pids"
+        log "WARN" "Found additional AI Demo MCP Server processes: $remaining_pids"
         log "INFO" "Stopping additional processes..."
         echo "$remaining_pids" | xargs -r kill 2>/dev/null || true
         sleep 2
@@ -128,13 +128,13 @@ stop_server() {
         log "INFO" "Port 8100 is now free"
     fi
     
-    log "INFO" "Banking MCP Server stopped successfully"
+    log "INFO" "AI Demo MCP Server stopped successfully"
 }
 
 # Show help
 show_help() {
     cat << EOF
-Banking MCP Server Stop Script
+AI Demo MCP Server Stop Script
 
 Usage: $0 [OPTIONS]
 
@@ -172,7 +172,7 @@ done
 
 # Main execution
 main() {
-    log "INFO" "Banking MCP Server stop script initiated"
+    log "INFO" "AI Demo MCP Server stop script initiated"
     
     if [[ "$FORCE_STOP" == "true" ]]; then
         log "WARN" "Force stop mode enabled"

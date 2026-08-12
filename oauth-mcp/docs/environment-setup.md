@@ -1,6 +1,6 @@
-# Banking MCP Server - Environment Setup Guide
+# AI Demo MCP Server - Environment Setup Guide
 
-This guide provides detailed instructions for setting up the Banking MCP Server in different environments.
+This guide provides detailed instructions for setting up the AI Demo MCP Server in different environments.
 
 ## Table of Contents
 
@@ -51,7 +51,7 @@ This guide provides detailed instructions for setting up the Banking MCP Server 
 
 ## Environment Types
 
-The Banking MCP Server supports four environment types:
+The AI Demo MCP Server supports four environment types:
 
 ### Development
 - **Purpose**: Local development and testing
