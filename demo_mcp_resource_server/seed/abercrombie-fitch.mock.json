@@ -1,0 +1,57 @@
+{
+  "heroStats": {
+    "cartValue": 170,
+    "pendingOrders": 2,
+    "rewardPoints": 2375,
+    "lastOrder": "2026-08-03"
+  },
+  "products": [
+    {
+      "id": "ANF-101",
+      "sku": "ANF-157-243",
+      "name": "Essential Popover Hoodie",
+      "price": 80,
+      "stock": "In Stock",
+      "category": "Fleece"
+    },
+    {
+      "id": "ANF-102",
+      "sku": "ANF-155-489",
+      "name": "Curve Love High Rise 90s Relaxed Jean",
+      "price": 90,
+      "stock": "In Stock",
+      "category": "Jeans"
+    },
+    {
+      "id": "ANF-103",
+      "sku": "ANF-156-772",
+      "name": "Sloane Tailored Pant",
+      "price": 90,
+      "stock": "Low Stock in Medium",
+      "category": "Pants"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ANF-10482",
+      "product": "Essential Popover Hoodie",
+      "amount": 80,
+      "status": "Delivered",
+      "date": "2026-07-28"
+    },
+    {
+      "id": "ANF-10519",
+      "product": "Curve Love High Rise 90s Relaxed Jean",
+      "amount": 90,
+      "status": "Shipped",
+      "date": "2026-08-01"
+    },
+    {
+      "id": "ANF-10544",
+      "product": "Sloane Tailored Pant",
+      "amount": 90,
+      "status": "Processing",
+      "date": "2026-08-03"
+    }
+  ]
+}
