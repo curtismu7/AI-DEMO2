@@ -21,6 +21,7 @@ import ComputerUseAgentPanel from "./ComputerUseAgentPanel";
 import ElicitationPanel from "./ElicitationPanel";
 import EnterpriseManagedAuthPanel from "./EnterpriseManagedAuthPanel";
 import FlowDiagramsPanel from "./FlowDiagramsPanel";
+import GatewayPolicySplitPanel from "./GatewayPolicySplitPanel";
 import GleanPanel from "./GleanPanel";
 import HumanInLoopPanel from "./HumanInLoopPanel";
 import IdJagPanel from "./IdJagPanel";
@@ -72,6 +73,7 @@ const PANEL_MAP = {
   [EDU.CIMD]: CimdPanel,
   [EDU.CUA]: ComputerUseAgentPanel,
   [EDU.FLOW_DIAGRAMS]: FlowDiagramsPanel,
+  [EDU.GATEWAY_POLICY_SPLIT]: GatewayPolicySplitPanel,
   [EDU.GLEAN]: GleanPanel,
   [EDU.HUMAN_IN_LOOP]: HumanInLoopPanel,
   [EDU.ID_JAG]: IdJagPanel,

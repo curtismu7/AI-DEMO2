@@ -244,6 +244,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "🔒",
         action: () => {},
       },
+      {
+        label: "Gateway vs P1AZ Decision Split",
+        description: "Coarse (PEP) vs fine (PDP), and the 5 rules P1AZ can't express",
+        icon: "🧭",
+        action: () => {},
+      },
     ],
   },
   {
@@ -418,6 +424,8 @@ export default function LearningHub() {
       "Token Chain (edu)": () => openEdu(EDU.TOKEN_CHAIN, "overview"),
       "Sensitive Data & Disclosure": () =>
         openEdu(EDU.SENSITIVE_DATA, "least-data"),
+      "Gateway vs P1AZ Decision Split": () =>
+        openEdu(EDU.GATEWAY_POLICY_SPLIT, "overview"),
     },
     "project-reference": {
       "Server Capabilities": () =>

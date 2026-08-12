@@ -94,4 +94,6 @@ export const EDU = {
   MACHINE_IAM_SURVEY: "machine-iam-survey",
   /** Session-scoped agent kill switch — real enforcement point, audit trail, and what's a concept vs. shipped */
   KILL_SWITCH: "kill-switch",
+  /** Gateway vs P1AZ decision split — coarse (PEP) vs fine (PDP), and where the 5 P1AZ-unexpressable rules fall back to the gateway */
+  GATEWAY_POLICY_SPLIT: "gateway-policy-split",
 };
