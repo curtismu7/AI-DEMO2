@@ -390,6 +390,45 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
   });
 });
 
+describe('a2aDelegationService.probeGeneralistMismatch', () => {
+  it('POSTs a fabricated NestedActClientId to the decision endpoint and records a DENY event', async () => {
+    const fakeAxios = {
+      post: jest.fn().mockResolvedValue({
+        data: { decision: 'DENY', reason: 'invalid_a2a_generalist: nested act.sub "unregistered-simulated-agent" is not the authorized generalist' },
+      }),
+    };
+    const tokenEvents = [];
+    const result = await a2a.probeGeneralistMismatch(
+      { session: { user: { id: 'user-1' } } },
+      { vertical: 'investment', tool: 'get_portfolio_summary', tokenEvents, deps: { axios: fakeAxios, configStore: makeConfig(), scopeTopology: makeScopeTopology() } },
+    );
+    expect(result.decision).toBe('DENY');
+    expect(result.simulated).toBe(true);
+    expect(fakeAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/governance/pap/alpha/policy/'),
+      expect.objectContaining({
+        parameters: expect.objectContaining({
+          ActChainDepth: '2',
+          NestedActClientId: 'unregistered-simulated-agent',
+          ToolName: 'get_portfolio_summary',
+        }),
+      }),
+      expect.any(Object),
+    );
+    expect(tokenEvents).toHaveLength(1);
+    expect(tokenEvents[0].id).toBe('a2a-mismatch-probe');
+    expect(tokenEvents[0].decision).toBe('DENY');
+  });
+
+  it('returns an error when no specialist is configured for the vertical', async () => {
+    const result = await a2a.probeGeneralistMismatch(
+      { session: { user: { id: 'user-1' } } },
+      { vertical: 'not-a-real-vertical', tokenEvents: [], deps: { axios: { post: jest.fn() }, configStore: makeConfig(), scopeTopology: makeScopeTopology() } },
+    );
+    expect(result.error).toMatch(/No A2A specialist configured/);
+  });
+});
+
 describe('a2aDelegationService.countActDepth', () => {
   test('counts nested actor depth', () => {
     expect(a2a.countActDepth(null)).toBe(0);

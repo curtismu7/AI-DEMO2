@@ -249,6 +249,17 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 
+/**
+ * UC2.6 reuses the SAME per-vertical specialist tool as UC2 (same delegation
+ * leg 1) but keeps ONE neutral trigger phrase across all verticals — the
+ * mismatch heuristic is vertical-agnostic (config/verticals/a2a/index.js), so
+ * unlike A2A_PER_VERTICAL there is no per-vertical trigger text to override.
+ * resolveUseCase falls back to the base `trigger` when an override omits it.
+ */
+const A2A_MISMATCH_PER_VERTICAL = Object.fromEntries(
+  Object.entries(A2A_PRIMARY_TOOL_BY_VERTICAL).map(([v, primaryTool]) => [v, { primaryTool }]),
+);
+
 const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
   chipOverrides(amountTriggerByVertical(amount), withPrimaryTool(AMOUNT_PRIMARY_TOOL_BY_VERTICAL, Object.fromEntries(
     Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
@@ -341,6 +352,38 @@ const RAW_USE_CASES = [
     perVertical: Object.fromEntries(
       Object.entries(A2A_PRIMARY_TOOL_BY_VERTICAL).map(([v, primaryTool]) => [v, { primaryTool }]),
     ),
+  },
+  {
+    id: 'UC2.6',
+    useCaseId: 'a2a-generalist-mismatch',
+    track: 'foundations',
+    title: 'A2A generalist mismatch',
+    buyerStory: 'A resource server must be able to tell WHICH agent is acting on the user\'s behalf, not just that some agent is — the same user with a different, unregistered agent must be denied.',
+    pingOneSolution: 'PingOne Authorize evaluates the nested act chain\'s actor identity, not just the subject — an unregistered generalist is denied even though the user and the delegation shape are otherwise valid.',
+    trigger: { type: 'chip', text: 'simulate an agent identity mismatch' },
+    expectedOutcome: 'PERMIT_THEN_DENY',
+    evidence: {
+      tokenChain: ['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'a2a-agent2-actor', 'a2a-exchange2', 'tool-dispatched', 'a2a-mismatch-probe'],
+      activity: ['token', 'delegate', 'authorize', 'mcp', 'authorize'],
+    },
+    codeRefs: [
+      'demo_api_server/services/a2aDelegationService.js',
+      'demo_api_server/services/demoAgentLangGraphService.js',
+      'demo_authz_server/routes/decision.js',
+    ],
+    maturity: 'flag:ff_a2a_delegation',
+    owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
+    whatToSay: 'Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for.',
+    advanced: false,
+    whatLong: 'Runs the same real, governed delegation as A2A delegation (a genuine PERMIT), then probes the same PingOne Authorize decision the gateway calls with a fabricated, unregistered actor identity in place of the real generalist. The result is a genuine invalid_a2a_generalist DENY from live policy — proof that authorization decisions account for the AGENT\'s identity, not only the user\'s. The probe does not mint a real second agent token; it demonstrates the policy branch directly.',
+    businessValue: 'A stolen or rogue agent credential cannot ride on a legitimate user\'s delegation shape — the policy engine denies based on actor identity even when the subject and act-chain depth look correct. This is the authorization half of the delegation-chain value proposition (the audit-trail half is UC2/UC2.5).',
+    productRoles: {
+      idp:   'Mints the real leg-1 delegated token exactly as UC2; the mismatch probe itself mints no token.',
+      gw:    'Not involved in the probe leg — the probe calls the decision endpoint directly, same contract the gateway uses.',
+      authz: 'Evaluates ActChainDepth and NestedActClientId; DENYs invalid_a2a_generalist when the actor does not match the registered generalist.',
+    },
+    primaryTool: 'sensitive_holdings',
+    perVertical: A2A_MISMATCH_PER_VERTICAL,
   },
   {
     id: 'UC3',

@@ -49,6 +49,12 @@ describe('demoStepPrerequisites', () => {
     );
   });
 
+  test('requiredFlagsForUseCaseId resolves a2a-generalist-mismatch slug', () => {
+    expect(requiredFlagsForUseCaseId('a2a-generalist-mismatch', USE_CASES)).toEqual(
+      expect.arrayContaining(['ff_a2a_delegation']),
+    );
+  });
+
   test('UC1 MCP balance chip requires PingGateway brokered-exchange flags', () => {
     const uc = resolveUseCase('UC1', 'banking');
     expect(requiredFlagsForUseCase(uc)).toEqual(

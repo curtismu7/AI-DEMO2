@@ -952,6 +952,32 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   });
 }
 
+/**
+ * a2a_generalist_mismatch: runs the real delegateToSpecialist leg (genuine
+ * PERMIT), then probes the decision endpoint with a fabricated actor identity
+ * to produce a genuine invalid_a2a_generalist DENY. See a2aDelegationService.
+ * probeGeneralistMismatch for why this is a probe, not a second live exchange.
+ */
+async function executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, sessionId }) {
+  const a2a = require('./a2aDelegationService');
+  const events = tokenEvents || [];
+  const leg1Json = await executeA2aDelegation(activeId, args, { req, tokenEvents: events, sessionId });
+  let leg1;
+  try { leg1 = JSON.parse(leg1Json); } catch (_) { leg1 = { delegated: false, error: leg1Json }; }
+  if (leg1.error || !leg1.tool) {
+    return JSON.stringify(leg1);
+  }
+  const mismatch = await a2a.probeGeneralistMismatch(req, {
+    vertical: activeId,
+    tool: leg1.tool,
+    tokenEvents: events,
+  });
+  return JSON.stringify({
+    ...leg1,
+    mismatchProbe: { decision: mismatch.decision, reason: mismatch.reason, error: mismatch.error },
+  });
+}
+
 // Shared reply/envelope builder for both delegate_to_specialist call sites (the
 // A2A fast-path and the explicit action). A minted token (`a2aResult.delegated`)
 // is proof of the chain, NOT proof the specialist's tool call succeeded — only
@@ -1024,6 +1050,13 @@ function stripChainFieldsForModel(out, collector) {
 
 function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false, a2aResultRef }) {
   return async (name, args) => {
+    if (name === 'a2a_generalist_mismatch') {
+      const json = await executeA2aGeneralistMismatch(activeId, args, { req, tokenEvents, sessionId });
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
+    }
     if (name === 'delegate_to_specialist') {
       const json = await executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
       // Captured so the reason-loop caller can replace the model's own phrasing
@@ -1235,7 +1268,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // a2aDelegated in scope-topology, skip the BFF preflight and route directly
   // through the RFC 8693 nested-act delegation service. Authorization happens at
   // the gateway using the specialist token — the generalist token alone is DENIED.
-  if (action !== 'delegate_to_specialist') {
+  if (action !== 'delegate_to_specialist' && action !== 'a2a_generalist_mismatch') {
     const { isA2aDelegatedTool } = require('./scopeTopology');
     const { isA2aEnabled } = require('./a2aDelegationService');
     if (isA2aEnabled() && isA2aDelegatedTool(action)) {
@@ -1369,6 +1402,13 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // Banking reaches here because nlIntentParser exempts this action from kind:'banking'.
   if (action === 'delegate_to_specialist') {
     const a2aJson = await executeA2aDelegation(vertical, params || {}, { req, tokenEvents, sessionId });
+    let a2a;
+    try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
+    return buildA2aReplyEnvelope(a2a, tokenEvents);
+  }
+
+  if (action === 'a2a_generalist_mismatch') {
+    const a2aJson = await executeA2aGeneralistMismatch(vertical, params || {}, { req, tokenEvents, sessionId });
     let a2a;
     try { a2a = JSON.parse(a2aJson); } catch (_) { a2a = { delegated: false, error: a2aJson }; }
     return buildA2aReplyEnvelope(a2a, tokenEvents);
@@ -2190,5 +2230,6 @@ module.exports = {
   // Public for routes/agentTool.js — external LLM agents' tool callback runs
   // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
   executeA2aDelegation,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor },
+  executeA2aGeneralistMismatch,
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, executeA2aGeneralistMismatch, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor },
 };
