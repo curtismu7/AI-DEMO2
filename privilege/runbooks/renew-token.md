@@ -38,10 +38,22 @@ This procedure applies when: the container crash-loops, enrollment genuinely fai
    node the token references no longer exists — see the 500 "not found" section below.
 5. Copy the `ENV_PROXY_TOKEN=eyJ...` JWT from the wizard
 
+⚠️ **If this is a genuinely first enrollment** (no prior `mcpgw-ssl`/`ping-mcpgw-ssl`
+volume or PVC for this node) — not a renewal of an already-enrolled proxy — a fresh
+token from the console may fail with `error Verifying siging cert x509: certificate
+signed by unknown authority ... "Root CA PingOne Privilege"`, on every currently
+published proxy image. This is a vendor-side gap, confirmed 2026-08-12 in four
+separate contexts; see `PRIVILEGE-MCP.md` §"2026-08-12: `mcpgw` confirmed live... and
+a new, separate enrollment-token trust wall". The rest of this runbook assumes that
+wall doesn't apply — if you hit it, stop here, this procedure will not get you past it.
+
 ## Step 2 — Save the token
 
+Env-file format — the `ENV_PROXY_TOKEN=` prefix is required, compose loads it via
+`env_file`:
+
 ```bash
-printf '%s' 'eyJ...<paste full JWT>' > ping-mcpgw/config/proxy-token
+printf 'ENV_PROXY_TOKEN=%s\n' 'eyJ...<paste full JWT>' > ping-mcpgw/procyon/config/proxy-token.env
 ```
 
 This file is gitignored — never commit it.
@@ -72,8 +84,12 @@ docker volume ls --format '{{.Name}}' | grep '^ai-demo_mcpgw-ssl$'
 
 ## Step 4 — Restart
 
+No `export`/shell step needed — compose reads `ENV_PROXY_TOKEN` straight from the
+env file above via `env_file`. Setting `PRIVILEGE_PROXY_TOKEN` in the shell or a
+compose `environment:` block would **shadow** it with an empty value on any checkout
+where that variable isn't already set; don't add one back.
+
 ```bash
-export PRIVILEGE_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)"
 ./run-docker.sh optional start mcpgw
 ```
 
@@ -194,7 +210,7 @@ Once tools are discovered:
 ## Check current token expiry
 
 ```bash
-cat ping-mcpgw/config/proxy-token | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "
+sed 's/^ENV_PROXY_TOKEN=//' ping-mcpgw/procyon/config/proxy-token.env | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "
 import sys, json, datetime
 d = json.loads(sys.stdin.read())
 exp = datetime.datetime.fromtimestamp(d['exp'], tz=datetime.timezone.utc)
