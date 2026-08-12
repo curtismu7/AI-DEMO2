@@ -17,20 +17,25 @@
 #
 # <<NAMESPACE>> is substituted by deploy.sh, matching se-ingress.yaml.
 #
-# HOSTS ARE ENUMERATED, NOT WILDCARDED, on purpose: a wildcard certificate needs
-# a DNS-01 solver, while one host per MCP Server application works with the
-# cluster's existing HTTP-01 issuer. Add a rule and a tls host per new app.
+# TLS is a wildcard, not enumerated hosts: see mcpgw-wildcard-certificate.yaml
+# (secretName mcpgw-agentless-tls, applied separately as an explicit
+# cert-manager Certificate — 2026-08-12). Corrected from an earlier revision
+# that assumed the cluster's issuer was HTTP-01-only and therefore needed one
+# enumerated host per app; letsencrypt-pdo is actually DNS-01/Route53
+# (`kubectl get clusterissuer letsencrypt-pdo -o yaml`), so wildcards work fine.
+# Do NOT add the `cert-manager.io/cluster-issuer` ingress-shim annotation here —
+# it would make cert-manager try to mint a second, competing Certificate for
+# the same secretName. Add a host rule (no new cert) per new app.
 #
 # The cluster's *.ping-devops.com certificate does NOT cover these names — a
 # wildcard matches one label only, and these are two labels deep. Hence the
-# explicit cert-manager annotation and tls block; se-ingress.yaml needs neither.
+# dedicated Certificate resource and tls block; se-ingress.yaml needs neither.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ai-demo-mcpgw-agentless-ingress
   namespace: <<NAMESPACE>>
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-pdo"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     # mcpgw's -mcpgw listener (8623) is plain HTTP. On the previous binary
