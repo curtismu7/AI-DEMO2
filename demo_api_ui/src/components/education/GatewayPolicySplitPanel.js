@@ -24,6 +24,7 @@ function EnforcementMapDiagram() {
       startOnLoad: false,
       theme: 'default',
       securityLevel: 'loose',
+      themeVariables: { fontSize: '20px' },
       flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' },
     });
     (async () => {
