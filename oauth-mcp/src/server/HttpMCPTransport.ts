@@ -36,6 +36,7 @@ import { emitHop } from '../utils/transactionHop';
 import { extractTratClaims } from '../auth/TratClaimsExtractor';
 import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
 import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastHopAuthorization';
+import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -899,13 +900,17 @@ export class HttpMCPTransport {
     }
     // RFC 9207 / SEP-2468: Validate 'iss' claim to prevent authorization server
     // mix-up attacks. Only check if signature was verified (claims are untrustworthy otherwise).
+    // Two issuers are legitimate here: PingOne (delegated/exchanged tokens) and
+    // oauth-mcp's own embedded AS (self-issued via /register + /token, Part A/B
+    // of the DCR work). Anything else is still rejected as a mix-up attack.
     if (tokenInfo.signatureVerified && tokenInfo.verifiedClaims) {
       const issFromToken = (tokenInfo.verifiedClaims as any)?.iss;
-      const expectedIssuer = process.env.PINGONE_ISSUER || this.config.authServerUrl;
-      if (issFromToken && expectedIssuer && issFromToken !== expectedIssuer) {
+      const pingOneIssuer = process.env.PINGONE_ISSUER || this.config.authServerUrl;
+      const acceptedIssuers = [pingOneIssuer, resolveEmbeddedIssuer()].filter(Boolean);
+      if (issFromToken && acceptedIssuers.length > 0 && !acceptedIssuers.includes(issFromToken)) {
         console.warn(
           `[HttpMCPTransport][RFC9207] Issuer mismatch: token iss="${issFromToken}" ` +
-          `does not match PINGONE_ISSUER="${expectedIssuer}" — rejecting token as potential mix-up attack`
+          `is not one of the accepted issuers (${acceptedIssuers.join(', ')}) — rejecting token as potential mix-up attack`
         );
         this.sendUnauthorized(res, 'Invalid token issuer (RFC 9207 check failed)');
         return null;
