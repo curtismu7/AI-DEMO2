@@ -363,13 +363,20 @@ secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        
 align_internal_secret                                                       # one internal secret across every consumer (must run after all four exist)
 
 # Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
-# ping-mcpgw/procyon/config/proxy-token (one line, the raw JWT).
-if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token" ]; then
+# ping-mcpgw/procyon/config/proxy-token.env — an ENV FILE (`ENV_PROXY_TOKEN=eyJ...`),
+# not a bare JWT. Source it (same convention as secret_from_envfile above) rather
+# than --from-file, which would store the literal string "ENV_PROXY_TOKEN=eyJ..."
+# as the value instead of just the JWT.
+if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token.env" ]; then
+  # shellcheck disable=SC1090,SC1091
+  ENV_PROXY_TOKEN="$(source "$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token.env" && echo "$ENV_PROXY_TOKEN")"
   # pingone.env carries the gateway's own OIDC client secret, so it belongs in
   # the Secret rather than a ConfigMap. It is only consulted in agentless
   # (self-hosted frontend) mode; the deployment mounts it optionally so a cluster
-  # still running mesh mode does not fail to start without it.
-  mcpgw_secret_args=(--from-file=ENV_PROXY_TOKEN="$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token")
+  # still running mesh mode does not fail to start without it. Kept as a single
+  # --from-file blob because the deployment mounts it back as a whole file at
+  # /var/lib/procyon/config/pingone.env, not individual env vars.
+  mcpgw_secret_args=(--from-literal=ENV_PROXY_TOKEN="$ENV_PROXY_TOKEN")
   if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/pingone.env" ]; then
     mcpgw_secret_args+=(--from-file=pingone.env="$ASSET_ROOT/ping-mcpgw/procyon/config/pingone.env")
   else
@@ -379,9 +386,9 @@ if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token" ]; then
     --namespace="$NS" \
     "${mcpgw_secret_args[@]}" \
     --dry-run=client -o yaml | kubectl apply -f -
-  info "  ping-mcpgw-secrets applied (ENV_PROXY_TOKEN from ping-mcpgw/procyon/config/proxy-token)"
+  info "  ping-mcpgw-secrets applied (ENV_PROXY_TOKEN from ping-mcpgw/procyon/config/proxy-token.env)"
 else
-  warn "  ping-mcpgw/procyon/config/proxy-token not found — skipping secret ping-mcpgw-secrets"
+  warn "  ping-mcpgw/procyon/config/proxy-token.env not found — skipping secret ping-mcpgw-secrets"
 fi
 
 # ── PingGateway config (ConfigMap from source files — single source of truth) ──
