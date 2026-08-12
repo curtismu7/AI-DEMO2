@@ -11,10 +11,11 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 53 use cases including UC1..UC32, UC33..UC35, UC37, and UC-NHI1/2', () => {
-    expect(USE_CASES).toHaveLength(53);
+  test('contains all 54 use cases including UC1..UC32, UC33..UC35, UC37, and UC-NHI1/2', () => {
+    // 54 since UC2.6 (a2a-generalist-mismatch) joined the catalog.
+    expect(USE_CASES).toHaveLength(54);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(53);
+    expect(new Set(ids).size).toBe(54);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -202,9 +203,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 53 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(53);
-    expect(listUseCases()).toHaveLength(53);
+  test('listUseCases returns all 54 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(54);
+    expect(listUseCases()).toHaveLength(54);
   });
 
   test('only UC14 and UC15 are advanced', () => {

@@ -7,6 +7,7 @@ import {
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
   isPingOneAdminAgentRoute,
+  isTokenChainRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -199,5 +200,25 @@ describe('isAgentLifecycleRoute', () => {
     expect(isAgentLifecycleRoute('/')).toBe(false);
     expect(isAgentLifecycleRoute(null)).toBe(false);
     expect(isAgentLifecycleRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isTokenChainRoute', () => {
+  it('covers the surfaces that host the token chain panel', () => {
+    expect(isTokenChainRoute('/')).toBe(true);
+    expect(isTokenChainRoute('/dashboard')).toBe(true);
+    expect(isTokenChainRoute('/admin')).toBe(true);
+    expect(isTokenChainRoute('/agent-flow-inspector')).toBe(true);
+  });
+
+  it('treats /delegation-chain-value as a token-chain route', () => {
+    expect(isTokenChainRoute('/delegation-chain-value')).toBe(true);
+    expect(isTokenChainRoute('/delegation-chain-value/')).toBe(true);
+  });
+
+  it('is false for unrelated routes and non-strings', () => {
+    expect(isTokenChainRoute('/use-cases')).toBe(false);
+    expect(isTokenChainRoute(null)).toBe(false);
+    expect(isTokenChainRoute(undefined)).toBe(false);
   });
 });

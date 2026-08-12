@@ -33,6 +33,22 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const NON_MCP_PRIMARY_TOOLS = new Set(['delegate_to_specialist']);
 /** A2A handoff chips are intentionally not heuristic-routable — the known baseline. */
 const A2A_UNROUTABLE = /specialist/i;
+/**
+ * The real reason those chips are unroutable here: their heuristics live in the
+ * A2A overlay, which verticalDispatch only merges when ff_a2a_delegation is on
+ * (a2aActiveFor), and this gate parses with the flag off. Matching on the word
+ * "specialist" happened to cover UC2/UC2.5 because their phrasing contains it —
+ * it is not the actual criterion, and UC2.6's deliberately neutral trigger
+ * ("simulate an agent identity mismatch") exposed that. Exempt by identity.
+ */
+const A2A_OVERLAY_USE_CASE_IDS = new Set([
+  'a2a-delegation',
+  'a2a-orchestrator-learning',
+  'a2a-generalist-mismatch',
+]);
+/** @param {object} uc resolved use case @param {string} text trigger text */
+const isA2aOverlayChip = (uc, text) =>
+  A2A_OVERLAY_USE_CASE_IDS.has(uc.useCaseId) || A2A_UNROUTABLE.test(text);
 /** UC34/UC35 are free-form LLM analysis chips with no single deterministic tool — the
  *  only other sanctioned exception besides A2A "specialist" handoffs. */
 const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
@@ -53,7 +69,7 @@ function chipEntries() {
       const uc = resolveUseCase(u.id, vertical) || u;
       const t = uc.trigger || {};
       if (t.type !== 'chip' || !t.text) continue;
-      if (A2A_UNROUTABLE.test(t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
+      if (isA2aOverlayChip(uc, t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
       if (!uc.primaryTool || NON_MCP_PRIMARY_TOOLS.has(uc.primaryTool)) continue;
       out.push({ vertical, id: u.id, text: t.text, primaryTool: uc.primaryTool });
     }
@@ -140,7 +156,7 @@ describe('every vertical chip routes to its OWN stored primaryTool', () => {
       for (const u of USE_CASES) {
         const uc = resolveUseCase(u.id, vertical) || u;
         const t = uc.trigger || {};
-        if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
+        if (t.type !== 'chip' || !t.text || isA2aOverlayChip(uc, t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
         if (!uc.primaryTool) naked.push(`${vertical} ${u.id} "${t.text}"`);
       }
     }
