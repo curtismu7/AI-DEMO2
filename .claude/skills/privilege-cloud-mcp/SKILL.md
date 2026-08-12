@@ -727,8 +727,20 @@ Route prefix: `/api/privilege-mcp/`
 
 The BFF requires a **Privilege-specific OAuth token** — the main banking app's
 SSO token will NOT work (wrong audience). The user must authenticate via the
-Privilege SSO client (`6586d3de-b916-454c-84e5-6d21b572a534`) through the
-"Sign In with Privilege" button.
+Privilege OIDC client (`deff60f5-5a67-4a6e-b283-47252856c89c`, console name
+`MCPGW-CMUIR`) through the "Sign In with Privilege" button.
+
+⚠️ **Corrected 2026-08-12.** Earlier revisions of this skill named a *separate*
+"Privilege SSO client", `6586d3de-b916-454c-84e5-6d21b572a534`. That app is real
+but has nothing to do with Privilege — per `docs/PINGONE_APP_REVIEW.md` it is
+`PINGONE_MCP_GATEWAY_CLIENT_ID`, this demo's own internal MCP-gateway
+token-exchange identity (RFC 8693, the Two-Exchange flow). The name "Demo AI
+App - MCP Gateway" invited the confusion. There has only ever been one
+Privilege-related OIDC client: `deff60f5`, which is also what `pingone.env`
+already correctly uses for the gateway's own agentless OIDC dance. Confirmed
+directly against the console — `deff60f5`'s registered Redirect URIs include
+both `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback` and
+`https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback`.
 
 ### Auth flow
 
@@ -762,17 +774,15 @@ issues tokens for custom resources. The ONLY working path is authorization_code.
 | `PRIVILEGE_SSO_ENV_ID` | PingOne env ID (for OIDC discovery fallback) |
 | `PRIVILEGE_LOGIN_HINT` | Email pre-filled in PingOne login (`cmuir+ssoEndUser@pingone.com`) |
 
-### PingOne OIDC app config (Privilege SSO client)
+### PingOne OIDC app config (Privilege client)
 
 | Setting | Value |
 |---------|-------|
-| App ID | `6586d3de-b916-454c-84e5-6d21b572a534` |
-| Name | Demo AI App - MCP Gateway |
-| Type | WEB_APP |
-| Grant Types | AUTHORIZATION_CODE, CLIENT_CREDENTIALS |
-| PKCE | S256_REQUIRED |
-| Token Endpoint Auth | CLIENT_SECRET_POST |
-| Redirect URI | `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback` |
+| App ID | `deff60f5-5a67-4a6e-b283-47252856c89c` |
+| Name | `MCPGW-CMUIR` |
+| Type | OIDC application |
+| Redirect URIs (confirmed live, `Allow Redirect URI Patterns: False` — exact match only) | `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`, `https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback`, plus five others for the gateway's own agentless callback and Postman testing |
+| Grant Types / PKCE / Token Endpoint Auth | Not re-confirmed against this app specifically since the 2026-08-12 correction — verify in console before trusting the values an earlier revision of this skill listed here (they were recorded against the wrong app) |
 
 ## UI — PrivilegeMcpClientPage
 

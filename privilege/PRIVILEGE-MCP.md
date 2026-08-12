@@ -42,6 +42,7 @@ hangs off it.
 | [`SE1-Privilege-Shared-Demo.md`](SE1-Privilege-Shared-Demo.md) | Running against the shared SE environment |
 | [`PRIVILEGE-MCP-STATUS-2026-08-02.md`](PRIVILEGE-MCP-STATUS-2026-08-02.md) | Historical only — point-in-time snapshot, superseded by this file |
 | [`MCP Privilege Gateway Technical Summary v3.pdf`](MCP%20Privilege%20Gateway%20Technical%20Summary%20v3.pdf) | Ping's own summary of the feature |
+| [`PingOne-Privilege-MCP-Gateway-Configuration.md`](PingOne-Privilege-MCP-Gateway-Configuration.md) | Official Ping config reference (received 2026-08-12) — the checklist this repo's K8s setup was audited against. First doc source that explicitly calls out K8s ingress 443→8623 and the 8690 mesh port |
 | [`demo/`](demo/) | Delivering the customer-facing demo (`privilege-demo-script.md`, `privilege-demo-setup.md`) |
 | [`design/`](design/) | Why the gateway and the tools table are built this way |
 | [`diagrams/`](diagrams/) | Slides and walkthroughs — four rendered flows plus mermaid source |
@@ -1979,3 +1980,85 @@ node (ours included) is unaffected only because it never re-verifies a token onc
 enrolled — this blocks **first enrollment only**, which is exactly what a fresh K8s
 deployment needs. Escalate to Ping with: the decoded token claims, the four-context
 test matrix above, and the extracted cert chain.
+
+**Retested after creating a brand-new gateway/cluster** (`ai-demo-done`, distinct from
+`ai-demo-fresh` and `ai-demo-se`) on the theory that a stale gateway/cluster object was
+the cause, not token-minting time. Identical failure, fourth token now. This rules out
+"stale gateway object" completely — the differentiator remains purely *when* the token
+was minted, not which cluster/gateway it belongs to. (One false start along the way: a
+run using the console's raw `--net=host` docker command appeared to succeed because the
+container died in ~5s with zero log output on macOS/Docker Desktop, where that flag and
+host-absolute-path volume mounts don't behave like they do on the Linux host the command
+template assumes — always verify with `docker ps -a` before trusting a `docker run -d`
+exit code, and prefer a named Docker volume over host-path mounts when testing these
+commands off a Mac.)
+
+Compared against three other engineers' namespaces on the same shared cluster
+(`ping-devops-{cjmuir,paulbrady,tarunmadiraju}`) for a live counter-example. None
+qualify: every pod found predates the regression window (63–67 day old PVCs, or no PVC
+at all with 8+ days uptime) and, like our own long-running local container, never
+re-verifies `ENV_PROXY_TOKEN` because persisted enrollment state already exists.
+paulbrady's `mcpgw` pod is the closest near-miss — enrolled successfully
+**2026-08-11T19:22:08Z**, running the exact same `cyonproxy` image digest
+(`sha256:91b69caf...`) that fails for us now — which is what narrows the regression
+window to between that timestamp and `2026-08-12T11:39Z` (our first failed attempt).
+tarunmadiraju's `mcpgw` pod is a useful independent confirmation of the `mcpgw` binary's
+correct invocation (`-hostname`, `-mcpconfpath` only, no port flags) — three separate
+namespaces now use that identical minimal command.
+
+## 2026-08-12 (later): official config doc arrives — K8s deployment audited against it, several gaps found
+
+Received `PingOne-Privilege-MCP-Gateway-Configuration.md` (see Map) — the first source
+with explicit official guidance, including two facts this repo had only reverse-engineered
+before: **"Kubernetes ingress may need 443 → 8623 mapping"** (confirms the port-8623
+decision from earlier today independently) and **inbound 8690/TCP "for gateway-to-gateway
+communication and mesh cluster creation."**
+
+Audited `k8s/75-ping-mcpgw-deployment.yaml` and the surrounding K8s config against the
+doc's checklist. Findings:
+
+| Doc requirement | K8s status |
+|---|---|
+| Ingress 443→8623 | Confirmed correct — `se-ingress.yaml` targets 8623, ALB terminates TLS externally |
+| `SERVER_URL` "required in practice" | **Wrong for K8s** — `pingone.env`'s `SERVER_URL=https://mcpgw.local.ping-devops.com` is the local value, shipped into the K8s secret verbatim, no override anywhere |
+| `/var/lib/procyon/ssl/mcpgw-{cert,key}.pem` | **Not mounted at all in K8s.** These files exist locally (`ping-mcpgw/procyon/ssl/`) and ride along for free there because compose mounts the whole `/var/lib/procyon` tree; the K8s manifest only mounts `/var/lib/procyon/config`, never wiring in the `/ssl` half of that same directory |
+| Inbound 8690/TCP | **Not exposed anywhere** — K8s manifest declares only `containerPort: 8623` |
+| MCPGW OIDC app redirect URI (`<mcpgwdns>/callback`) | **Checked live against `deff60f5` (`MCPGW-CMUIR`)'s 7 registered Redirect URIs** — the BFF's user-facing callback is already correctly registered for both local and K8s (`.../api/privilege-mcp/auth/callback` on both `local.ping-devops.com:4000` and `ai-demo.ping-devops.com`). The gateway's *own* `${SERVER_URL}/callback` is not among them for the K8s value this PR computes (`https://ai-demo.ping-devops.com/mcpgw/callback`) — add it once `SERVER_URL`'s override above is live and its actual advertised value is confirmed |
+
+Plus one gap found earlier the same day, same root cause: `PRIVILEGE_MCPGW_URL` (the
+BFF's target) is `https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp` — doesn't
+resolve inside the K8s cluster network at all, producing `{"scope":"tools_list",
+"message":"fetch failed"}` in the UI relay log.
+
+**The pattern across all four gaps: one `.env`, no per-environment override, anywhere.**
+Every Privilege-related hostname in this repo assumes local. This is not four unrelated
+bugs — it's that the K8s path for Privilege has never been exercised end to end before,
+at any layer, by anyone. Discovering the enrollment-token wall above is what finally
+forced the attempt.
+
+Fixed in the same PR as this section: `mcpgw-cert.pem`/`mcpgw-key.pem` mount, port 8690
+exposed on the container/Service, and K8s-specific overrides for `SERVER_URL` and
+`PRIVILEGE_MCPGW_URL` added to `create-secrets.sh` (same `kubectl patch secret` pattern
+already established there for `PUBLIC_APP_URL`/redirect URIs — see
+`override_redirect_uris_for_public_origin`). **None of this is verified live** — the
+enrollment-token wall above still blocks getting a pod far enough to test any of it.
+
+⚠️ **Correction, same day.** A `PRIVILEGE_SSO_CLIENT_ID` fix was proposed here — pointing
+it at `6586d3de` instead of `deff60f5` — and was **wrong**. `deff60f5` is correct; it is
+the demo's one and only Privilege OIDC client (console name `MCPGW-CMUIR`), confirmed
+live against the console with its registered Redirect URIs including both
+`https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback` and
+`https://ai-demo.ping-devops.com/api/privilege-mcp/auth/callback`. `6586d3de` ("Demo AI
+App - MCP Gateway") is a real app but unrelated to Privilege — per
+`docs/PINGONE_APP_REVIEW.md` it is `PINGONE_MCP_GATEWAY_CLIENT_ID`, this demo's own
+internal MCP-gateway token-exchange identity, and §"Reading Privilege's real config"
+above independently shows its three grants are all against this demo's own MCP
+resources (`Demo MCP JWT Verifier`, `Demo MCP Invest`, `Demo MCP Server`) — nothing
+Privilege-related. The §2026-08-02 entry earlier in this document had this right the
+whole time (*"not the `6586d3de` app... that one's in `01d89b06`"*); the wrong claim
+came from elsewhere and should have been checked against that entry before acting on
+it. **Resolved 2026-08-12, console-side** — the user added the missing redirect URI
+directly to `deff60f5`'s registered list. The exact value the BFF was sending vs. what
+was registered was never diagnosed from code or logs; if this recurs, don't assume the
+earlier "checks out" analysis still holds — the registered list is a live, editable
+target, not a fixed fact to reason from.

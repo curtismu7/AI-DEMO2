@@ -71,6 +71,11 @@ spec:
         ports:
         - containerPort: 8623
           name: http
+        # Official Ping doc ("PingOne-Privilege-MCP-Gateway-Configuration.md", received
+        # 2026-08-12): "8690/TCP for gateway-to-gateway communication and mesh cluster
+        # creation." Not previously exposed here — added on audit against that doc.
+        - containerPort: 8690
+          name: medusa
         env:
         - name: ENV_PROXY_TOKEN
           valueFrom:
@@ -97,6 +102,16 @@ spec:
         # if the ping-mcpgw-secrets object hasn't been created yet at all.
         - name: pingone-env
           mountPath: /var/lib/procyon/config
+          readOnly: true
+        # Official Ping doc lists /var/lib/procyon/ssl/mcpgw-{cert,key}.pem under
+        # "Required host configuration" — a DIFFERENT path from ssl-certs above
+        # (/procyon/ssl, the proxy's own enrollment-identity cert store). Local
+        # docker-compose gets these for free by mounting the whole /var/lib/procyon
+        # tree; this manifest only ever mounted /config, never /ssl. optional: true
+        # for the same reason as pingone-env — don't fail pod admission if the files
+        # don't exist locally at deploy time.
+        - name: mcpgw-tls
+          mountPath: /var/lib/procyon/ssl
           readOnly: true
         resources:
           requests:
@@ -139,6 +154,15 @@ spec:
           items:
           - key: pingone.env
             path: pingone.env
+      - name: mcpgw-tls
+        secret:
+          secretName: ping-mcpgw-secrets
+          optional: true
+          items:
+          - key: mcpgw-cert.pem
+            path: mcpgw-cert.pem
+          - key: mcpgw-key.pem
+            path: mcpgw-key.pem
       restartPolicy: Always
 ---
 # Holds the long-lived proxy token the proxy writes after enrollment. Losing this
@@ -174,6 +198,12 @@ spec:
     targetPort: 8623
     protocol: TCP
     name: http
+  # Mesh cluster creation / gateway-to-gateway per the official config doc — see
+  # the containerPort comment above.
+  - port: 8690
+    targetPort: 8690
+    protocol: TCP
+    name: medusa
   sessionAffinity: ClientIP
   sessionAffinityConfig:
     clientIP:
