@@ -36,6 +36,10 @@ spec:
         # Mirrors docker-compose: the bootstrap script is mounted at /otel from
         # the otel-instrument ConfigMap (created by the deploy scripts).
         env:
+        # Mirrors docker-compose: SKIP_TOKEN_SIGNATURE_VALIDATION=true in
+        # mcp-secrets is a fatal boot guard outside development (validator.ts).
+        - name: NODE_ENV
+          value: "development"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://jaeger:4317"
         - name: OTEL_SERVICE_NAME
