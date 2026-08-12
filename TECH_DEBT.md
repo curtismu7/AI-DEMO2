@@ -7,6 +7,65 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-12 — oauth-mcp encrypted-storage CBC mode has no integrity check
+
+**Where:** `oauth-mcp/src/utils/encryption.ts` — uses `aes-256-cbc`.
+
+**What's wrong:** CBC is unauthenticated. Decrypting with the wrong key
+doesn't reliably fail — it produces garbage that happens to pass PKCS#7
+padding validation roughly 1 run in 256, so `decipher.final()` succeeds and
+returns corrupted plaintext instead of throwing. Surfaced as an
+intermittent failure in `tests/utils/encryption.test.ts` ("should fail to
+decrypt with wrong password") while reviewing an unrelated branch —
+untouched by that branch's actual changes.
+
+**Why not fixed now:** found while verifying oauth-mcp's DCR work
+(`docs/superpowers/plans/2026-08-12-oauth-mcp-dcr.md`), which never touches
+this file. A migration to an authenticated mode changes the on-disk/at-rest
+ciphertext format, which is a real migration concern (existing encrypted
+data, if any persists across restarts) — bigger than a drive-by fix
+belongs in.
+
+**Real fix:** migrate to `aes-256-gcm` (or another AEAD mode), which
+fails deterministically — and cryptographically meaningfully — on a wrong
+key/tampered ciphertext instead of a ~1-in-256 chance of silent corruption.
+Needs a decision on migrating already-encrypted data vs. accepting a
+one-time invalidation.
+
+### 2026-08-12 — oauth-mcp DCR: two follow-ups from the final review
+
+**Where:** `oauth-mcp/src/oauth/OAuthRouter.ts`, `oauth-mcp/src/oauth/TokenIssuer.ts`.
+
+**What's wrong:**
+1. `resolveOwnAudience()` (`TokenIssuer.ts`) takes the first entry of
+   `MCP_SERVER_RESOURCE_URI` positionally to decide this AS's own audience.
+   Every other resolver answering "what is MY resource URI" in this service
+   (`lastHopAuthorization.ts`, `JwtClaimVerifier.ts`) instead prefers a
+   dedicated `PINGONE_RESOURCE_MCP_SERVER_URI`-shaped var first, specifically
+   so a stale/reordered `MCP_SERVER_RESOURCE_URI` can't silently shadow the
+   real audience. Correct in every shipped config today (`mcpserver.ping.demo`
+   is always first in `docker-compose.yml`/`k8s/02-configmap.yaml`), but the
+   positional dependency is fragile if that list is ever reordered.
+2. `POST /register`'s new `DCR_INITIAL_ACCESS_TOKEN` gate (added closing a
+   Critical finding — unauthenticated DCR with unbounded scope) isn't wired
+   into any deployment yet: not in `docker-compose.yml`'s `environment:`
+   block, not in `k8s/02-configmap.yaml`. `/register` therefore 503s
+   everywhere until an operator sets it, which is the safe default but means
+   DCR is not actually reachable outside unit tests yet.
+
+**Why not fixed now:** (1) is correct behavior today, just a fragility
+worth naming, not a bug to chase without a live misconfiguration to fix
+against. (2) is deployment/config wiring, not application code, and doing
+it blind (no PingOne app exists yet for Part B's redirect-federation half
+either — see the design spec's explicit "out of scope for this
+implementation pass") risks wiring a secret nobody's ready to rotate.
+
+**Real fix:** (1) switch `resolveOwnAudience()` to prefer a dedicated env
+var (e.g. `PINGONE_RESOURCE_MCP_SERVER_URI`, matching sibling resolvers'
+precedence) before falling back to `MCP_SERVER_RESOURCE_URI[0]`. (2) once
+DCR is meant to be exercised for real, set `DCR_INITIAL_ACCESS_TOKEN` in
+the deployment's env and document the value's provenance/rotation.
+
 ### 2026-08-11 — gw-authorize fallback duplicated across two client consumers
 
 **Where:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
