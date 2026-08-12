@@ -31,6 +31,11 @@ export interface PendingAuthorization {
   /** The ORIGINAL client's own `state` param — relayed back to it once the
    *  PingOne hop completes. Never sent to PingOne itself (see OAuthRouter). */
   clientState: string;
+  /** PKCE verifier oauth-mcp generated for its OWN outbound hop to PingOne
+   *  (distinct from `codeChallenge`, which belongs to the downstream client's
+   *  PKCE against this AS). Held here so /authorize/callback can present
+   *  `code_verifier` on the PingOne token exchange. */
+  pingOneCodeVerifier: string;
   expiresAt: number;
 }
 

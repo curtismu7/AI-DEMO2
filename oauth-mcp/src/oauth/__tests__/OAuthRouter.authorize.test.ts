@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as crypto from 'crypto';
 import { IncomingMessage, ServerResponse } from 'http';
 import { OAuthRouter } from '../OAuthRouter';
 import { SigningKeyManager } from '../SigningKeyManager';
@@ -68,6 +69,14 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(relayState).toBeTruthy();
     expect(relayState).not.toBe('client-state-1'); // never leaks the client's own state to PingOne
 
+    // PKCE on OUR outbound hop to PingOne — the setup docs tell the operator to
+    // create the PingOne app with PKCE enabled, so omitting it would make a
+    // correctly-configured live app reject the authorize request.
+    const pingOneChallenge = location.searchParams.get('code_challenge')!;
+    expect(pingOneChallenge).toBeTruthy();
+    expect(pingOneChallenge).not.toBe('abc'); // ours, not the downstream client's
+    expect(location.searchParams.get('code_challenge_method')).toBe('S256');
+
     mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
     const jwtVerify = jest.fn().mockResolvedValue({ payload: { sub: 'real-pingone-user' } });
     mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
@@ -81,6 +90,13 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(callbackLocation.origin + callbackLocation.pathname).toBe('http://localhost:6274/oauth/callback');
     expect(callbackLocation.searchParams.get('code')).toBeTruthy();
     expect(callbackLocation.searchParams.get('state')).toBe('client-state-1'); // original client's state, relayed back
+
+    // ...and the token exchange must present the verifier matching the challenge
+    // sent above, or PingOne rejects the exchange.
+    const postedBody = new URLSearchParams(mockedAxios.post.mock.calls[0][1] as string);
+    const codeVerifier = postedBody.get('code_verifier')!;
+    expect(codeVerifier).toBeTruthy();
+    expect(crypto.createHash('sha256').update(codeVerifier).digest('base64url')).toBe(pingOneChallenge);
   });
 
   it('/authorize/callback rejects an unknown/expired relay state', async () => {
@@ -136,5 +152,93 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(ctx.statusCode).toBe(502);
     expect(JSON.parse(ctx.body).error).toBe('server_error');
     expect(ctx.headers.Location).toBeUndefined();
+  });
+
+  it('/authorize/callback binds verification to PINGONE_ISSUER when configured', async () => {
+    process.env.PINGONE_ISSUER = 'https://auth.pingone.com/env-abc/as';
+
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
+    const jwtVerify = jest.fn().mockResolvedValue({ payload: { sub: 'real-pingone-user' } });
+    mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
+    mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+
+    expect(jwtVerify).toHaveBeenCalledWith(
+      'pingone.access.token',
+      expect.anything(),
+      { issuer: 'https://auth.pingone.com/env-abc/as' },
+    );
+  });
+
+  it('/authorize/callback omits the options object entirely when PINGONE_ISSUER is unset', async () => {
+    delete process.env.PINGONE_ISSUER;
+
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
+    const jwtVerify = jest.fn().mockResolvedValue({ payload: { sub: 'real-pingone-user' } });
+    mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
+    mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+
+    // NOT `{ issuer: undefined }` — some jose versions treat a present-but-undefined
+    // option differently from an absent one.
+    expect(jwtVerify.mock.calls[0]).toHaveLength(2);
+  });
+
+  it('/authorize/callback returns 502 when PingOne\'s token fails issuer verification', async () => {
+    process.env.PINGONE_ISSUER = 'https://auth.pingone.com/env-abc/as';
+
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
+    const jwtVerify = jest.fn().mockRejectedValue(
+      new Error('unexpected "iss" claim value'), // jose's ERR_JWT_CLAIM_VALIDATION_FAILED shape
+    );
+    mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
+    mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+    const ctx = callbackCall as any;
+    expect(ctx.statusCode).toBe(502);
+    expect(JSON.parse(ctx.body).error).toBe('server_error');
+    expect(ctx.headers.Location).toBeUndefined();
+  });
+
+  it('/authorize/callback returns 502 when PingOne\'s token has a bad signature', async () => {
+    const authorizeCall = fakeReqRes('GET',
+      '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');
+    await router.handle(authorizeCall.req, authorizeCall.res);
+    const relayState = new URL((authorizeCall as any).headers.Location).searchParams.get('state')!;
+
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'forged.pingone.token' } });
+    const jwtVerify = jest.fn().mockRejectedValue(
+      new Error('signature verification failed'), // jose JWSSignatureVerificationFailed
+    );
+    mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
+    mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
+
+    const callbackCall = fakeReqRes('GET', `/authorize/callback?code=pingone-auth-code&state=${relayState}`);
+    await router.handle(callbackCall.req, callbackCall.res);
+    const ctx = callbackCall as any;
+    expect(ctx.statusCode).toBe(502);
+    expect(JSON.parse(ctx.body).error).toBe('server_error');
+    expect(ctx.headers.Location).toBeUndefined(); // never a 302 into the client on a failed login
   });
 });

@@ -127,12 +127,21 @@ export class OAuthRouter {
       return true;
     }
 
+    // oauth-mcp is a PUBLIC-shaped RP on this outbound hop and the setup docs
+    // tell the operator to create the PingOne app with PKCE enabled, so send a
+    // fresh S256 challenge of our own. This is entirely separate from the
+    // downstream client's PKCE (`codeChallenge` above) — two independent
+    // exchanges, two independent verifiers.
+    const pingOneCodeVerifier = crypto.randomBytes(32).toString('base64url');
+    const pingOneCodeChallenge = crypto.createHash('sha256').update(pingOneCodeVerifier).digest('base64url');
+
     // Bind this pending request to a state WE generate. The client's own
     // `state` travels with it in TokenStore but is never sent to PingOne as
     // the outbound state — a malicious redirect_uri must not be able to
     // observe or replay it against PingOne.
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod, clientState: state,
+      pingOneCodeVerifier,
     });
 
     const callbackUri = `${this.issuer}/authorize/callback`;
@@ -142,6 +151,8 @@ export class OAuthRouter {
     pingOneAuthorize.searchParams.set('response_type', 'code');
     pingOneAuthorize.searchParams.set('scope', 'openid profile email');
     pingOneAuthorize.searchParams.set('state', relayState);
+    pingOneAuthorize.searchParams.set('code_challenge', pingOneCodeChallenge);
+    pingOneAuthorize.searchParams.set('code_challenge_method', 'S256');
 
     res.writeHead(302, { Location: pingOneAuthorize.toString() });
     res.end();
@@ -189,6 +200,7 @@ export class OAuthRouter {
           redirect_uri: callbackUri,
           client_id: pingOneClientId,
           client_secret: pingOneClientSecret,
+          code_verifier: pending.pingOneCodeVerifier,
         }).toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
       );
@@ -199,7 +211,15 @@ export class OAuthRouter {
         throw new Error('PingOne JWKS not configured (PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL)');
       }
       const { jwtVerify } = await getJose();
-      const { payload } = await jwtVerify(pingOneAccessToken, jwks);
+      // Bind the verification to the expected issuer when one is configured. A
+      // valid signature alone only proves "some key in that JWKS signed this";
+      // the `iss` check is what makes it "PingOne, the tenant we federate to".
+      // Passing `{ issuer: undefined }` is NOT equivalent to omitting the
+      // options object across jose versions, so branch rather than pass it in.
+      const expectedIssuer = process.env.PINGONE_ISSUER;
+      const { payload } = expectedIssuer
+        ? await jwtVerify(pingOneAccessToken, jwks, { issuer: expectedIssuer })
+        : await jwtVerify(pingOneAccessToken, jwks);
       if (!payload.sub) {
         throw new Error('PingOne access token has no sub claim');
       }
@@ -352,6 +372,29 @@ export class OAuthRouter {
       return true;
     }
 
+    // RFC 7591 §3.1 initial access token. Open registration would let any caller
+    // mint a client and name its own `scope`, which /token then honours — so the
+    // endpoint stays CLOSED until an operator provisions the secret, mirroring
+    // how /authorize refuses to run without its PingOne federation env vars.
+    const initialAccessToken = process.env.DCR_INITIAL_ACCESS_TOKEN;
+    if (!initialAccessToken) {
+      this.json(res, 503, {
+        error: 'temporarily_unavailable',
+        error_description: 'Dynamic client registration is not configured (DCR_INITIAL_ACCESS_TOKEN)',
+      });
+      return true;
+    }
+
+    const authHeader = req.headers['authorization'] || '';
+    const presented = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!presented || !this.secretEquals(presented, initialAccessToken)) {
+      this.json(res, 401, {
+        error: 'invalid_token',
+        error_description: 'Registration requires a valid initial access token (Authorization: Bearer <DCR_INITIAL_ACCESS_TOKEN>)',
+      });
+      return true;
+    }
+
     const body = await this.readBody(req);
     let meta: Record<string, unknown>;
     try {
@@ -391,6 +434,15 @@ export class OAuthRouter {
   }
 
   // --- Helpers ---
+
+  /** Constant-time compare for a shared secret — length is compared first
+   *  because timingSafeEqual throws on mismatched buffer lengths. */
+  private secretEquals(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+  }
 
   private verifyPKCE(verifier: string, challenge: string, method: string): boolean {
     if (method !== 'S256') return false;

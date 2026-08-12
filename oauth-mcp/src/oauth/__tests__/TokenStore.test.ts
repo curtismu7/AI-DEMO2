@@ -8,6 +8,7 @@ describe('TokenStore — pending PingOne-relay authorizations', () => {
     codeChallenge: 'challenge',
     codeChallengeMethod: 'S256',
     clientState: 'client-supplied-state',
+    pingOneCodeVerifier: 'pingone-pkce-verifier',
   };
 
   it('creates a pending authorization and consumes it exactly once', () => {
