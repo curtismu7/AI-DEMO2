@@ -8,16 +8,34 @@ Privilege MCP Client UI page, or the K8s deployment.
 
 Every one of these was learned the expensive way. Check them before theorising.
 
-1. **The MCP frontend is port `8620`, not `8623`.** `8623` is the mesh port; it
-   speaks mTLS and answers everything else with `tlsv13 alert certificate required`,
-   which nginx reports as a bare `502`. Probe: `POST http://localhost:8620/mcp` must
-   return `401 Bearer Token not found.`
-2. **The chain works end to end with a console token.** Proven 2026-08-10 on build
-   `v1.260726`: initialize → `tools/list` (238 tools) → `tools/call`, with per-app
-   policy enforced. Auth, routing, policy, proxy all work. What does *not* work is a
-   **PingOne-issued** client token. Re-run it: `bash scripts/privilege-smoke.sh
-   '<console-auth_token>' [app]` (manual only — the console token cannot be minted
-   programmatically, so this is never a CI test).
+0. **We run `privilege-mcpgw` (binary `mcpgw`) as of 2026-08-12, not
+   `privilege-proxy` (binary `cyonproxy`).** Everything below that names a port,
+   an image, or a command reflects the CURRENT binary unless a note says
+   otherwise. The two binaries have overlapping-but-different port models — do
+   not assume a fact from one carries to the other. Reason for the swap:
+   `cyonproxy`'s binary contains zero of the OAuth-challenge strings
+   (`authorization_uri`, `MCP OAuth Server`, `oauth-protected-resource`);
+   `mcpgw`'s binary contains all of them, and a live probe of this exact image
+   (by digest) running in another engineer's cluster confirmed it emits the
+   challenge for real: a tokenless request returned
+   `401` with `www-authenticate: Bearer realm="MCP OAuth Server",
+   authorization_uri="..."`. `ValidateInfraJwt` (item 3 below) is present in
+   `mcpgw` too, so **this is not confirmed to unblock PingOne-issued client
+   tokens** — only the discovery/challenge layer is proven. See "The PingOne
+   token wall" below.
+1. **The MCP+OAuth frontend is port `8623` (`-mcpgw` on this binary), not
+   `8620`.** This is the **opposite** of the pre-2026-08-12 fact for `cyonproxy`,
+   where 8620 was correct and 8623 was the mTLS mesh port. On `mcpgw`, `-listen`
+   (mesh) defaults to `:8680` instead, and `-alp-port` (8620) is **untested** on
+   this binary — do not assume it still behaves like the old frontend. Probe,
+   don't assume: `POST http://localhost:8623/mcp` should return `401` with a
+   `www-authenticate` header present.
+2. **The console-token chain (initialize → `tools/list` → `tools/call`,
+   per-app policy enforced) was proven end to end 2026-08-10 — on `cyonproxy`
+   build `v1.260726`.** That proof has **not** been re-run against `mcpgw`.
+   Treat it as unverified on the current binary until `scripts/privilege-smoke.sh`
+   is re-run post-swap. Do not cite this as current-state evidence without
+   re-running it.
 3. **The rejection is `ValidateInfraJwt`, and it reproduces on Ping's own cloud.**
    The gateway compares the token's `kid` against `infra-root-jwt`
    (`graph.go:282`, via `AgentlessRestAPIService.forwardReq`, `agentless_api.go:98`).
@@ -35,19 +53,23 @@ Every one of these was learned the expensive way. Check them before theorising.
    §2026-08-09 and §2026-08-11.
 4. **Use env `8d4d7a4c`**, not `01d89b06`. Not a preference — it is the only tenant
    with Privilege console access, and every required setting lives in that console.
-5. **An expired enrollment token is almost never the problem.** A token that expired
-   days ago still starts the container fine, because the durable credential is the
-   **mTLS cert pair** in `/procyon/ssl` (`proxy-crt.pem`, `proxy-key.pem`,
-   `proxy-ca.pem`) — not a token. Only a deleted volume, a new cluster, or a new host
-   needs a fresh one. (Earlier revisions here claimed cyonproxy swaps the wizard JWT
-   for a long-lived one. It does not — see the token section below.)
-6. **Never debug through `pingone.env`.** Compose *does* inject its values, but no
-   published build acts on them — see "`pingone.env` — loaded as env vars" below for
-   the precise claim. Keep it correct; never make it the suspect.
-7. **No PingOne token of any kind can pass today.** Worker, user
+5. **An expired enrollment token is almost never the problem — for a host that has
+   already enrolled.** A token that expired days ago still starts the container
+   fine, because the durable credential is the **mTLS cert pair** in
+   `/procyon/ssl` (`proxy-crt.pem`, `proxy-key.pem`, `proxy-ca.pem`) — not a
+   token. Only a deleted volume, a new cluster, or a new host needs a fresh one.
+   Verified on `cyonproxy`; not independently re-verified on `mcpgw`, though the
+   mechanism (mTLS cert pair, not the token) is a proxy-family behavior rather
+   than something specific to one binary.
+6. **Never debug through `pingone.env`.** On `cyonproxy` it was loaded as env vars
+   but the binary never read the file itself. **On `mcpgw` this is different** —
+   the binary requires `-mcpconfpath` pointing at this exact file and reads it
+   directly; a missing or invalid file is now a **fatal, crash-looping** error,
+   not a soft degradation. See "`pingone.env` — loaded as env vars" below.
+7. **No PingOne token of any kind passed on `cyonproxy`.** Worker, user
    (`authorization_code` with `sub` + MFA), `id_token`, and a self-signed JWT all
-   fail identically on `kid` vs `infra-root-jwt`. The token class is not the
-   variable — the missing issuer config is.
+   failed identically on `kid` vs `infra-root-jwt`. The token class was not the
+   variable — the missing issuer config was. Not yet re-tested against `mcpgw`.
 
 ### Fast path for a fresh setup
 
@@ -59,11 +81,11 @@ Every one of these was learned the expensive way. Check them before theorising.
 sudo sh -c 'printf "127.0.0.1\tmcpgw.local.ping-devops.com\n127.0.0.1\taidemo.mcpgw.local.ping-devops.com\n" >> /etc/hosts'
 
 # 3. Prove the gateway answers BEFORE touching the console
-curl -i -X POST http://localhost:8620/mcp \
+curl -i -X POST http://localhost:8623/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
-# expect: 401 "Bearer Token not found."
+# expect: 401, with a www-authenticate header present
 
 # 4. Prove the full chain (nginx -> gateway)
 curl -i -X POST https://aidemo.mcpgw.local.ping-devops.com/mcp -d '...'
@@ -104,7 +126,7 @@ SSO client — the main banking app token has the wrong audience for Privilege C
 
 | Path | Endpoint | Status |
 |------|----------|--------|
-| **Agentless / self-hosted frontend** (use this) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` → nginx :443 → proxy :8620 | Reaches the gateway directly, bypassing Ping's cloud. Proven end to end with a console token: auth, routing, policy, backend, discovery |
+| **Agentless / self-hosted frontend** (use this) | `https://aidemo.mcpgw.local.ping-devops.com/mcp` → nginx :443 → proxy :8623 | Reaches the gateway directly, bypassing Ping's cloud. Proven end to end with a console token **on the previous binary (`cyonproxy`)**: auth, routing, policy, backend, discovery. Not yet re-proven on `mcpgw` (current binary as of 2026-08-12) |
 | **Mesh / cloud frontend** | `https://<app>-app-default.applications.privilege.pingone.com:8643/mcp` | Ping-assigned FQDN, routed through Ping's cloud and back over the mesh |
 | **Cloud API** | `https://privilege.pingone.com/api/mcp` | DEAD END — 401s every request including its own `.well-known/oauth-protected-resource`, sends no `WWW-Authenticate` |
 
@@ -137,10 +159,21 @@ Agentless mode needs customer-owned DNS + TLS in front of the proxy:
 
 **The gateway matches `Host` against the full registered Frontend Name**
 (`<app-name>.default.applications.procyon.ai:8643`) — nothing else. Proven end to end
-2026-08-10 on build `v1.260726`: with that Host, initialize → tools/list (238 tools) →
-tools/call all completed. Anything else gets `Domain not found` in the proxy log and an
-empty `200` — which reads like a broken backend. (Ping's SE deck describes a label-strip
-"EvaluateHost"; that was tested and does NOT hold on this build.)
+2026-08-10 on build `v1.260726` (`cyonproxy`, the previous binary): with that Host,
+initialize → tools/list (238 tools) → tools/call all completed. Anything else gets
+`Domain not found` in the proxy log and an empty `200` — which reads like a broken
+backend. (Ping's SE deck describes a label-strip "EvaluateHost"; that was tested and
+does NOT hold on `cyonproxy`.)
+
+⚠️ **Unverified on `mcpgw` (current binary).** The one live routing evidence we have
+for `mcpgw` is a *different* shape entirely: another engineer's cluster registers
+per-app MCP servers as **path prefixes on a single base host**
+(`cj-agentless-mcpgw.ping-devops.com/opensearch-mcp-server`,
+`.../pingone-mcp-server-2`) rather than as separate Host-rewritten FQDNs, and their
+per-app **subdomains** (`opensearch-mcp-server.cj-agentless-mcpgw...`) all returned
+a plain `404`. Do not assume the Host-rewrite trick documented above still applies to
+`mcpgw` — settle this by probing our own deployment once it is enrolled, not by
+carrying this section's cyonproxy-era facts forward.
 
 `demo_mcpgw_nginx/nginx.conf` therefore carries **one map line per application**,
 client host → registered name; the k8s ingress does it with
@@ -174,23 +207,31 @@ dedicated `873cc9e4` "Privilege Cloud MCP Gateway" app (which mints
 `aud: mcpserver.ping.demo`, the demo's own audience). The 401 arrives before any
 policy runs, so it looks like an authorization problem and is not one.
 
-**Port: `8620`.** Earlier revisions of this skill said `8680`, then `8623`. Both
-were wrong — see "Proxy ports" below for the probe that settles it. `8680` and
-`8623` accept a TCP connection without serving MCP, which is why each looked
-plausible for a while.
+**Port on `cyonproxy`: `8620`.** Earlier revisions of this skill said `8680`, then
+`8623`. Both were wrong for that binary — see "Proxy ports" below for the probe that
+settles it. On `mcpgw` (current binary) the correct port is `8623` instead — see
+item 1 in "Read this first". Do not let this historical correction confuse you into
+using 8620 on the current binary.
 
-### Standing state (2026-08-10 end-to-end success, 2026-08-11 corrections)
+### Standing state on `cyonproxy` (2026-08-10 end-to-end success, 2026-08-11
+corrections) — historical, not the current binary
 
-**Working and demonstrable:** the console-token chain, end to end, through nginx —
-auth, `Host` routing, per-application policy, backend proxy, session recording. The
-entire Privilege value proposition minus PingOne-issued client tokens.
+⚠️ Everything in this subsection describes `cyonproxy`, replaced 2026-08-12 by
+`mcpgw`. Kept as a historical record of what was proven, and as the bar the current
+binary still needs to clear (nothing below has been re-verified against `mcpgw`).
 
-**Blocked on the vendor:** a tokenless 401 challenge, and inbound trust for a PingOne
-issuer. Nothing in this repo, the console, the console API, or either published image
-changes `IssuerPublicKey:[]`. See "The PingOne token wall" below before spending time
-here.
+**Working and demonstrable on `cyonproxy`:** the console-token chain, end to end,
+through nginx — auth, `Host` routing, per-application policy, backend proxy, session
+recording. The entire Privilege value proposition minus PingOne-issued client tokens.
 
-Supporting detail, still current:
+**Blocked on the vendor, on `cyonproxy`:** a tokenless 401 challenge, and inbound
+trust for a PingOne issuer. Nothing in this repo, the console, the console API, or
+`cyonproxy` changed `IssuerPublicKey:[]`. **Partially superseded** — `mcpgw` does emit
+the tokenless `WWW-Authenticate` challenge (see item 0 above and "The PingOne token
+wall" below), though inbound PingOne-issuer trust (`IssuerPublicKey:[]`) is still
+unconfirmed either way on the new binary.
+
+Supporting detail for `cyonproxy`, kept for history:
 
 - Container `ai-demo-ping-mcpgw` up, node `1cf90baf-2a83-45db-830f-581ea98110d1`
   `Active` in cluster **`ai-demo-fresh`**, command streams established,
@@ -229,7 +270,13 @@ Supporting detail, still current:
 - **Diagnose from the gateway's log delta, not the HTTP response.** Capture
   `wc -c < /var/log/procyon/cyonproxy.log` before and after a request and tail the
   difference. That is the only way `ValidateInfraJwt` / `InfraKid` becomes visible;
-  the 401 body actively misdirects.
+  the 401 body actively misdirects. **This filename transfers to `mcpgw`** —
+  confirmed independently twice: another engineer's live `agentless-mcpgw` pod
+  runs a log-tailer sidecar waiting on this exact path, and our own scratch
+  container (same image, no `/var/log/procyon` mounted) logged
+  `error opening file: open /var/log/procyon/cyonproxy.log: no such file or
+  directory` on startup. Apparently a shared internal name across both binaries —
+  do not go looking for an `mcpgw.log` that doesn't exist.
 - **Duplicate node registration.** `has same NodeURL - this happens because of
   misconfigured Node`: a stale row claims the same `NodeURL local.ping-devops.com:8690`.
   Cosmetic — confirmed the command stream stays up and discovery still dispatches.
@@ -260,19 +307,40 @@ registration is the only customer-authorable object in the chain
 object graph, not verified** — no live attempt has been made, and `cyctl` still needs
 an HS256 console token to try it.
 
-**The one untested image: `privilege-mcpgw`.** The "no build we can pull emits a
-challenge" measurement is correct but surveyed the wrong repository:
+**`privilege-mcpgw` — now our binary, and the challenge is confirmed live, not just
+by string search.** The original "no build we can pull emits a challenge" measurement
+surveyed the wrong repository:
 
 ```
-public.ecr.aws/s7q1z8z4/privilege-proxy    -> /procyon/bin/cyonproxy   (in use; zero challenge strings)
-public.ecr.aws/s7q1z8z4/privilege-mcpgw    -> /procyon/bin/mcpgw       (never tested)
+public.ecr.aws/s7q1z8z4/privilege-proxy    -> /procyon/bin/cyonproxy   (previous binary; zero challenge strings)
+public.ecr.aws/s7q1z8z4/privilege-mcpgw    -> /procyon/bin/mcpgw       (current binary, since 2026-08-12)
 ```
 
-`mcpgw`'s flag set is a strict superset (adds `-mcpconfpath`, `-mcpgw`) and it
-contains every string `cyonproxy` lacks: `Bearer realm=`, `MCP OAuth Server`,
-`authorization_uri`, `resource_metadata`,
-`/.well-known/oauth-protected-resource`. But `ValidateInfraJwt` is present in it too,
-so this is a **lead, not a fix**.
+`mcpgw`'s flag set is a strict superset of `cyonproxy`'s (adds `-mcpconfpath`,
+`-mcpgw`) and its binary contains every string `cyonproxy` lacks: `Bearer realm=`,
+`MCP OAuth Server`, `authorization_uri`, `resource_metadata`,
+`/.well-known/oauth-protected-resource`. **This is no longer just a string-search
+finding** — a live probe of this exact image (digest
+`sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d`) running in
+another engineer's cluster returned, on a tokenless request:
+
+```
+401
+www-authenticate: Bearer realm="MCP OAuth Server", resource_metadata="...", authorization_uri="https://.../.well-known/authorize"
+{"authorization_uri":"...","error":"unauthorized","error_description":"Bearer token required",...}
+```
+
+One vendor bug worth knowing before relying on it: `resource_metadata` doubles its
+own path (`.../.well-known/oauth-protected-resource/.well-known/oauth-protected-resource`)
+— don't copy that shape.
+
+`ValidateInfraJwt` is present in `mcpgw` too, and both `.well-known` documents on
+that live probe were *themselves* gated behind the same 401 (non-compliant — they
+must be public per spec, same gap `cyonproxy` had). **So: the discovery/challenge
+layer is proven; whether a PingOne token subsequently passes `kid` comparison on
+this binary is not** — that requires a live token test we have not run against our
+own enrollment. Do not describe this as "the wall is down" without that follow-up
+test.
 
 **The gate for both, and it is the same one:** a tokenless `POST /mcp` that answers
 `401` **with** a `WWW-Authenticate` header. Anything less proves nothing — a bare
@@ -286,24 +354,30 @@ A config that looks wrong here is more likely undocumented than misconfigured.
 
 ### `pingone.env` — loaded as env vars, but no build acts on them yet
 
-Precision matters here; the old heading ("never read — do not debug it") overstated.
-Three facts, each verified 2026-08-10:
+⚠️ **This subsection describes `cyonproxy`, the previous binary.** As of the
+2026-08-12 swap to `mcpgw`, item 2 below is **reversed**: `mcpgw` requires
+`-mcpconfpath` pointing at this exact file and reads it directly — see item 6 in
+"Read this first". The three facts below remain accurate as history for `cyonproxy`.
+
+Precision matters here; the old heading ("never read — do not debug it") overstated
+even for `cyonproxy`. Three facts, each verified 2026-08-10, **for `cyonproxy`**:
 
 1. Compose `env_file` **does** inject its values — `OIDC_CLIENT_ID`, `SERVER_URL`,
    etc. are present in the `cyonproxy` process environment (`docker inspect … .Config.Env`).
 2. The **binary never references the file itself** — proxy-log grep for
    `SERVER_URL`/`authorize`/`oidc` after clean restart: zero hits, both tenants,
-   both modes.
-3. **The build we run does not implement the OIDC challenge those values exist for**
-   — `grep -a` over `/procyon/bin/cyonproxy` v1.260806 finds zero occurrences of
-   `authorization_uri` / `MCP OAuth Server` / `oauth-protected-resource`. (Narrowed
-   2026-08-11: the separate `privilege-mcpgw` image's `/procyon/bin/mcpgw` *does*
-   contain them — untested. See "The PingOne token wall".)
+   both modes. (Confirmed reversed on `mcpgw` — see above.)
+3. **`cyonproxy` does not implement the OIDC challenge those values exist for** —
+   `grep -a` over `/procyon/bin/cyonproxy` v1.260806 finds zero occurrences of
+   `authorization_uri` / `MCP OAuth Server` / `oauth-protected-resource`. **Confirmed
+   live on `mcpgw` (our current binary) that it does emit this challenge** — see
+   "The PingOne token wall".
 
-So: keep the file correct (the deck's slide-2 file list names it, and a capable
-build will presumably consume the env vars), but a missing `WWW-Authenticate`
-challenge is a **vendor-binary gap, not a config error** — never spend time editing
-this file to make a challenge appear. Deck file map, all three present in our
+So, for `cyonproxy`: keeping the file correct did not make a missing
+`WWW-Authenticate` challenge appear — that was a vendor-binary gap, not a config
+error, for that binary. On `mcpgw` the file's correctness matters much more
+directly: it is read eagerly and a missing/invalid file is now a fatal, crash-looping
+error, not a silently-ignored one. Deck file map, all three present in our
 container: `/var/lib/procyon/config/pingone.env` (bind mount of
 `ping-mcpgw/procyon/`), `/var/lib/procyon/ssl/mcpgw-{cert,key}.pem` (host copies;
 the runtime volume the deck refers to is `/procyon/ssl` — see `privilege/runbooks/ping-mcpgw.md`).
@@ -396,12 +470,12 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 |------|-------|
 | PingOne Env | `8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b` — **the only tenant we hold Privilege console access in**, which is what decides it |
 | OIDC Client (gateway) | `deff60f5-5a67-4a6e-b283-47252856c89c` (in `8d4d7a4c`) |
-| Proxy Image | `public.ecr.aws/s7q1z8z4/privilege-proxy`. **Registry `latest` points at `v1.260726` (July)** — `v1.260806` exists only under its version tag, so "always pull latest" quietly pins you to the older build. Compose `pull_policy: always` drags a locally-retagged `latest` back to the registry's on the next recreate; pin the version tag if the newer build matters |
-| Proxy Binary | `/procyon/bin/cyonproxy` |
-| Second image (untested) | `public.ecr.aws/s7q1z8z4/privilege-mcpgw` → `/procyon/bin/mcpgw` — the only binary containing the OAuth challenge strings. See "The PingOne token wall" |
-| Manual smoke test | `scripts/privilege-smoke.sh '<console-auth_token>' [app]` — five assertions, needs a live console token **and** a live policy |
+| Proxy Image (current, since 2026-08-12) | `public.ecr.aws/s7q1z8z4/privilege-mcpgw`, pinned by digest `sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d` (multi-arch manifest list). No public tag-listing access to confirm a stable version tag exists — this digest is the exact build verified live. Bump by re-pulling `:latest` and updating the digest |
+| Proxy Binary (current) | `/procyon/bin/mcpgw` |
+| Previous image/binary | `public.ecr.aws/s7q1z8z4/privilege-proxy` → `/procyon/bin/cyonproxy`. **Registry `latest` points at `v1.260726` (July)** — `v1.260806` exists only under its version tag, so "always pull latest" quietly pins you to the older build; irrelevant now unless reverting to this binary |
+| Manual smoke test | `scripts/privilege-smoke.sh '<console-auth_token>' [app]` — five assertions, needs a live console token **and** a live policy. Last proven against `cyonproxy`; not yet re-run against `mcpgw` |
 | Cluster ID | `ai-demo-fresh` |
-| Node ID (current) | `1cf90baf-2a83-45db-830f-581ea98110d1`, `ProxyURL local.ping-devops.com:8623` |
+| Node ID (current) | `1cf90baf-2a83-45db-830f-581ea98110d1`, `ProxyURL local.ping-devops.com:8623` as registered under `cyonproxy`. The node identity (mTLS cert pair) survives the binary swap, but the advertised `ProxyURL` may change after `mcpgw` reconnects on its own `-listen` default (`:8680`) — unconfirmed, re-check after enrollment |
 | MCP Server app | `mcp-pingone-admin` / `MCP-aidemo`, backend `http://mcp-server:8080/mcp`. A third, `mcp-aidemo`, is a harmless leftover from the 2026-08-10 create-instead-of-update test — fully OAuth-configured, ready if a capable build arrives |
 | Frontend host (local) | `aidemo.mcpgw.local.ping-devops.com` |
 | Frontend host (SE) | `aidemo.mcpgw.ai-demo.ping-devops.com` |
@@ -583,41 +657,34 @@ Ping's reference topology shows no PingOne-OAuth MCP client at all. Read that as
 evidence the token path is an unsupported topology, not as something we
 misconfigured.
 
-## Proxy ports — 8620 is the MCP frontend, NOT 8623
+## Proxy ports — 8623 is the MCP+OAuth frontend on `mcpgw` (current binary)
+
+⚠️ **This flipped with the 2026-08-12 binary swap.** On the previous binary
+(`cyonproxy`) 8620 was correct and 8623 was the mTLS mesh port — that table is kept
+below for history. Do not mix the two tables up.
+
+### Current binary: `mcpgw`
 
 | Port | Flag | Purpose |
 |------|------|---------|
-| **8620** | `-alp-port` | **The MCP frontend. Plain HTTP.** Point nginx / the BFF / k8s Service here |
-| 8623 | `-listen` | Mesh. Speaks **mTLS** and rejects everything else |
+| **8623** | `-mcpgw` | **The MCP+OAuth frontend. Plain HTTP, emits the WWW-Authenticate challenge.** Point nginx / the BFF / k8s Service here |
+| 8680 | `-listen` | Mesh, by default on this binary (differs from `cyonproxy`'s `:8680` *-alp-port* default — a coincidence of the same number meaning something else) |
+| 8620 | `-alp-port` | Untested on `mcpgw`. Was the frontend on `cyonproxy`; do not assume it still is |
 | 8690 | `-medusa` | gRPC tunnel (also the node's `NodeURL`) |
 | 8090 | `-debug-port` | Debug API, loopback only |
 
-Settle it by probing, never by reading vendor material:
+Settle it by probing, never by reading vendor material or by carrying over the
+`cyonproxy` table below:
 
 ```bash
-curl -i -X POST http://localhost:8620/mcp -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+curl -i -X POST http://localhost:8623/mcp -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 # HTTP/1.1 401 Unauthorized
-# Bearer Token not found.          <- the gateway. This is the frontend.
-
-curl -ik -X POST https://localhost:8623/mcp -d '...'
-# TLS: tlsv13 alert certificate required   <- the mesh port demanding a client cert
+# www-authenticate: Bearer realm="MCP OAuth Server", ...      <- the gateway. This is the frontend.
 ```
 
-`Bearer Token not found.` is the gateway's tokenless response and is the positive
-signal you are on the right port.
-
-**This table was wrong until 2026-08-08 and cost hours twice.** Two traps:
-
-- Ping's SE deck says *"proxy forwards to MCPGW runtime, often 8623 in field
-  examples."* Not true here.
-- Pointing nginx at 8623 yields a bare **502** with the real cause only in the nginx
-  error log (`SSL_read() failed … tlsv13 alert certificate required`). The response
-  body says nothing.
-
-Do **not** try to fix the 8623 alert by giving it a server certificate. That was
-tried (PR #1465, reverted by #1466): `/procyon/ssl/mcpgw-cert.pem` + `mcpgw-key.pem`
-were mounted, the container recreated, and 8623 returned the identical alert. It
-requires mTLS because it is the mesh port, full stop.
+A `www-authenticate` header on that 401 is the positive signal you are on the right
+port. (Verified live against another engineer's cluster running this same image by
+digest — not yet re-verified against our own enrollment.)
 
 Listing what actually binds (busybox has no `ss`/`netstat`, and `awk` here lacks
 `strtonum`, so parse the hex on the host):
@@ -627,8 +694,32 @@ docker exec ai-demo-ping-mcpgw cat /proc/net/tcp /proc/net/tcp6 > /tmp/t.txt
 python3 -c "
 print(sorted({int(f[1].rsplit(':',1)[1],16) for f in
   (l.split() for l in open('/tmp/t.txt')) if len(f)>3 and f[3]=='0A'}))"
-# [8090, 8620, 8623, 8690]
 ```
+
+### Previous binary: `cyonproxy` — kept for history, do not use for `mcpgw`
+
+| Port | Flag | Purpose |
+|------|------|---------|
+| 8620 | `-alp-port` | The MCP frontend on `cyonproxy`. Plain HTTP |
+| 8623 | `-listen` | Mesh on `cyonproxy`. Speaks **mTLS** and rejects everything else |
+| 8690 | `-medusa` | gRPC tunnel (also the node's `NodeURL`) |
+| 8090 | `-debug-port` | Debug API, loopback only |
+
+This table was wrong until 2026-08-08 and cost hours twice, for the same reason a
+naive port-number carryover from `cyonproxy` to `mcpgw` would cost hours now. Two
+traps that applied to `cyonproxy`:
+
+- Ping's SE deck says *"proxy forwards to MCPGW runtime, often 8623 in field
+  examples."* Not true of `cyonproxy`.
+- Pointing nginx at 8623 (on `cyonproxy`) yielded a bare **502** with the real cause
+  only in the nginx error log (`SSL_read() failed … tlsv13 alert certificate
+  required`). The response body said nothing.
+
+Do **not** try to fix a `tlsv13 alert certificate required` response by giving the
+port a server certificate. That was tried on `cyonproxy`'s mesh port (PR #1465,
+reverted by #1466): mounting `/procyon/ssl/mcpgw-cert.pem` + `mcpgw-key.pem` changed
+nothing. A mesh/`-listen` port requires mTLS by design, full stop — on whichever
+binary is running.
 
 ## BFF MCP client (privilegeMcpClient.js)
 
@@ -665,7 +756,7 @@ issues tokens for custom resources. The ONLY working path is authorization_code.
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | Frontend host through nginx: `https://aidemo.mcpgw.local.ping-devops.com/mcp`. nginx forwards to the proxy on **8620** |
+| `PRIVILEGE_MCPGW_URL` | Frontend host through nginx: `https://aidemo.mcpgw.local.ping-devops.com/mcp`. nginx forwards to the proxy on **8623** (was 8620 before the 2026-08-12 binary swap) |
 | `PRIVILEGE_SSO_CLIENT_ID` | PingOne OIDC client for Privilege auth |
 | `PRIVILEGE_SSO_CLIENT_SECRET` | Client secret (client_secret_post for code exchange) |
 | `PRIVILEGE_SSO_ENV_ID` | PingOne env ID (for OIDC discovery fallback) |
@@ -701,6 +792,17 @@ Manifest: `k8s/75-ping-mcpgw-deployment.yaml`
 - Reads `ENV_PROXY_TOKEN` from K8s secret `ping-mcpgw-secrets`
 - Hostname: `ai-demo.ping-devops.com`
 - Persists SSL state via `ssl-certs` volume
+- Runs `mcpgw` on `:8623`, matching the local docker-compose swap (see "Read this
+  first" item 0)
+
+⚠️ **Was never actually deployed on the SE cluster until fixed.** The manifest
+existed but `k8s/aws/deploy.sh` (the real SE deployer — not the local-only
+`k8s/deploy.sh`) never included it in its apply loop, and `create-secrets.sh`
+checked a pre-move token path, so `ping-mcpgw-secrets` was silently never created
+either. An `ai-demo-mcpgw-ingress` routed `/mcpgw` to a service that didn't exist —
+`503` end to end. Both fixed; deploying still needs a **fresh, unexpired**
+enrollment token, since this cluster has no prior `ping-mcpgw-ssl` PVC (first
+enrollment on a new host, unlike a restart on an already-enrolled one).
 
 ## Docker startup
 
@@ -708,12 +810,14 @@ Manifest: `k8s/75-ping-mcpgw-deployment.yaml`
 # Local dev (compose optional group):
 ./run-docker.sh optional start mcpgw
 
-# Standalone (host network, proven approach):
+# Standalone (host network; --net=host itself was proven on the previous binary,
+# not re-verified on mcpgw):
 docker run -d --name ai-demo-ping-mcpgw \
   --net=host \
   --env-file ping-mcpgw/procyon/config/proxy-token.env \
-  public.ecr.aws/s7q1z8z4/privilege-proxy \
-  /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8623
+  -v ./ping-mcpgw/procyon:/var/lib/procyon \
+  public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d \
+  /procyon/bin/mcpgw -hostname local.ping-devops.com -mcpconfpath /var/lib/procyon/config/pingone.env
 ```
 
 Never drive `docker compose up` directly — a hook blocks it. Parallel sessions
@@ -737,17 +841,17 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | `IssuerPublicKey:[]` in proxy logs | The gateway compares the token's `kid` with `infra-root-jwt`, a key it fetches from Privilege's internal Notary PKI. No PingOne credential can match | ⚠️ **Not fixable from here — stop.** `IssuerPublicKey` belongs to `OidcServer` (`cyctl` gives `get`/`list` only), not to the Application. Setting `--spec-mcp-app-config-resource-o-auth-*` was tried live and changed nothing — that field is the *outbound* challenge + DCR config. Use a **console** token, whose `kid` does match. See `privilege/PRIVILEGE-MCP.md` §2026-08-11 |
 | `code_challenge is required` from PingOne | App `deff60f5` enforces `pkceEnforcement: S256_REQUIRED` | Set `--spec-mcp-app-config-resource-o-auth-use-pkce`; it is mandatory, not optional |
 | `unexpected signing method: RS256` / `ES256` from `cyctl` | `cyctl` wants an HS256 console session token; it rejects PingOne (RS256) and proxy (ES256) tokens on algorithm alone | Grab `Authorization: Bearer …` from a console XHR. `cyctl token jwt` cannot bootstrap — it requires a token itself |
-| `curl https://…:8623/mcp` fails to connect | Wrong port — 8623 is the mesh port and speaks mTLS only | Use `http://…:8620` (see "Proxy ports") |
+| `curl https://…:8623/mcp` fails to connect (`mcpgw`, current binary) | Are you sure this is the current binary? On `mcpgw` 8623 IS the correct frontend — a connection failure here means something else (container down, wrong host) | Check the container is up before assuming the port is wrong. (On the previous binary, `cyonproxy`, this row's original advice — 8623 is mesh/mTLS-only, use 8620 — was correct; it is not for `mcpgw`.) |
 | `has same NodeURL - this happens because of misconfigured Node` | Two node registrations claim the same `NodeURL local.ping-devops.com:8690` — the live node is linking to a stale twin of itself | **Cosmetic — ignore.** Command streams stay up and discovery still dispatches. The console offers no way to delete the stale row. Avoid making it worse: do not enroll a second node on the same Host IP |
-| BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | Pointing at a port that accepts TCP but serves no MCP | Use `8620` (see "Proxy ports") |
-| nginx returns a bare `502`, body says nothing | Upstream is `8623` (mesh, mTLS). Check the nginx error log for `tlsv13 alert certificate required` | Point the upstream at `http://…:8620` |
+| BFF gets `UND_ERR_SOCKET` / connection refused to the gateway | Pointing at a port that accepts TCP but serves no MCP | Use `8623` on `mcpgw` (see "Proxy ports"; was 8620 on the previous binary) |
+| nginx returns a bare `502`, body says nothing | On `mcpgw`, upstream is likely `8680` (mesh, mTLS) instead of `8623`. Check the nginx error log for `tlsv13 alert certificate required` | Point the upstream at `http://…:8623` |
 | `401 Bearer Token not found.` | Normal — the gateway with no token. This is the **success** signal for "am I on the right port" | Nothing to fix |
 | `Domain not found` in the proxy log, **empty `200`** to the client | `Host` is not the Frontend Name registered on the application object. Reads like a broken backend; it is the gateway matching no application | Rewrite `Host` — nginx `map $host $mcpgw_frontend`, k8s `upstream-vhost`. See "The nginx front door" |
 | Host tried matches what the console shows, still `Domain not found` | The console UI displays a different domain than the object holds (`…privilege.pingone.com` vs `…procyon.ai`) | Read `FrontEndName.Elems` from the console applications API, never from the UI |
 | `403 User <id> doesn't have access to MCP app <name>` | **Progress, not a regression.** Auth passed and routing matched; Privilege is enforcing policy | Author a policy binding that user to that MCP application resource |
 | A previously working call goes back to `403 … doesn't have access` | Console policies can be created **time-boxed** (1h, 2h). An expired policy fails exactly like a missing one | Check the policy is still live before debugging anything else |
-| `401` with **no** `WWW-Authenticate` header | **Vendor-binary gap, not a config error.** `grep -a` over the running `cyonproxy` finds zero occurrences of `authorization_uri` / `MCP OAuth Server` / `oauth-protected-resource` — the challenge flow is not compiled in | Nothing to fix here. Do **not** run `scripts/set-privilege-frontend-oauth.sh` (structurally incapable — see "The PingOne token wall"), and do not edit `pingone.env` to make a challenge appear. Use a console token for the working path |
-| A bare `401 Bearer Token not found.` treated as proof of routing | On `:8620` the bearer check runs **before** host evaluation — `garbage.nowhere.example.com` returns the same 401 (verified 2026-08-10) | Only a request carrying a token exercises routing. Do not use a tokenless 401 as a routing signal |
+| `401` with **no** `WWW-Authenticate` header, on `mcpgw` (current binary) | Unexpected — the binary should emit one (confirmed live on another cluster). Check `-mcpconfpath`/`pingone.env` are actually mounted and readable; a crash-looped container answering through a stale connection can look like this too | Verify the container is actually running `mcpgw`, not a leftover `cyonproxy` container. `cyonproxy` never emitted this header — that gap is historical, not current |
+| A bare `401 Bearer Token not found.` treated as proof of routing | On `cyonproxy`'s `:8620` the bearer check ran **before** host evaluation — `garbage.nowhere.example.com` returned the same 401 (verified 2026-08-10). Not re-verified on `mcpgw`'s `:8623` | Only a request carrying a token exercises routing. Do not use a tokenless 401 as a routing signal, on either binary |
 | `cyctl` fails in ways that look like auth errors | `--apigw` pointed at `https://privilege.pingone.com` — the data-plane host | Use `https://console.privilege.pingone.com` |
 | `401 User is not authorized` on a console-API write | Object ownership, **not** header shape. Application objects do not list the console user under `WrOwners.ObjectRef`; `/v1/userpreferences/...` does, which is why one PUT succeeds and the rest 401 | The API is list + create only for these objects. Copying the working PUT's headers does not help — that was tried |
 | Server crash: `EACCES: permission denied, mkdir './dev-data'` | Dev mode needs writable dir but container runs as non-root (uid 1001) | Add `tmpfs: /app/dev-data:uid=1001,gid=1001` to docker-compose.yml |

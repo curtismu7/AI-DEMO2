@@ -7,8 +7,13 @@
 #
 #   https://aidemo.mcpgw.ai-demo.ping-devops.com/mcp
 #     -> ingress-nginx :443
-#     -> ping-mcpgw :8620        (agentless API port; Frontend Name in the console)
+#     -> ping-mcpgw :8623        (mcpgw's -mcpgw listener; Frontend Name in the console)
 #     -> mcp-server :8080        (Backend Name in the Privilege console)
+#
+# Port 8623 as of the 2026-08-12 binary swap (privilege-proxy/cyonproxy ->
+# privilege-mcpgw/mcpgw) — a different port role than under the old binary,
+# where 8623 was the mTLS mesh port and 8620 was correct. See
+# 75-ping-mcpgw-deployment.yaml and the skill's port section.
 #
 # <<NAMESPACE>> is substituted by deploy.sh, matching se-ingress.yaml.
 #
@@ -28,10 +33,11 @@ metadata:
     cert-manager.io/cluster-issuer: "letsencrypt-pdo"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    # The agentless API port (8620) is plain HTTP. Do not switch this to HTTPS
-    # and aim at 8623: that is the mesh port, it speaks mTLS, and it answers with
-    # "tlsv13 alert certificate required" — surfacing as a bare 502 whose real
-    # cause appears only in the ingress controller log.
+    # mcpgw's -mcpgw listener (8623) is plain HTTP. On the previous binary
+    # (cyonproxy) 8623 was the mTLS mesh port and this warning pointed at 8620
+    # instead — the port roles inverted with the 2026-08-12 binary swap. Settle
+    # by probing, not by reading this comment: curl -i POST .../mcp and check for
+    # a clean 401 with WWW-Authenticate vs. a bare 502 (mTLS wall).
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     # Host rewrite, the annotation form of the $mcpgw_frontend map in
     # demo_mcpgw_nginx/nginx.conf. The gateway routes ONLY on the full
@@ -54,8 +60,8 @@ spec:
     secretName: mcpgw-agentless-tls
   rules:
   # Gateway base host: /authorize and /callback, the OIDC dance MCPGW runs itself.
-  # Must equal SERVER_URL in ping-mcpgw/config/pingone.env and be registered as
-  # <SERVER_URL>/callback on the PingOne OIDC application.
+  # Must equal SERVER_URL in ping-mcpgw/procyon/config/pingone.env and be
+  # registered as <SERVER_URL>/callback on the PingOne OIDC application.
   - host: mcpgw.ai-demo.ping-devops.com
     http:
       paths:
@@ -65,7 +71,7 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8620
+              number: 8623
   # One host per Privilege MCP Server application.
   - host: aidemo.mcpgw.ai-demo.ping-devops.com
     http:
@@ -76,4 +82,4 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8620
+              number: 8623

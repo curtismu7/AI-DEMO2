@@ -1192,18 +1192,28 @@ services:
   # ── PingOne Privilege MCPGW (commercial) ───────────────────────────────────
   # PingOne Privilege proxy: just-in-time least-privilege plus full session
   # recording. Policy is authored in the PingOne Privilege console, NOT in this
-  # repo. ENV_PROXY_TOKEN comes from the gateway wizard; store the JWT in
-  # ping-mcpgw/config/proxy-token (gitignored).
+  # repo. ENV_PROXY_TOKEN comes from the gateway wizard; store it in
+  # ping-mcpgw/procyon/config/proxy-token.env (gitignored).
   ping-mcpgw:
     profiles: ["mcpgw"]
-    # PINNED to the newest published build — reversing the earlier "never pin"
-    # rule, because the registry's `latest` tag is itself stale: as of 2026-08-10
-    # `latest` still pointed at v1.260726 (July) while v1.260806 had shipped under
-    # its version tag eleven days earlier. "Always pull latest" therefore silently
-    # DOWNGRADES on every recreate. The goal (run the newest build) is unchanged;
-    # the mechanism is now: bump this tag when the vendor publishes a new version.
-    # Check with:  aws ecr-public describe-images … or docker pull by tag.
-    image: public.ecr.aws/s7q1z8z4/privilege-proxy:v1.260806
+    # BINARY SWAP 2026-08-12, from privilege-proxy/cyonproxy to
+    # privilege-mcpgw/mcpgw. Reason: cyonproxy never emits a WWW-Authenticate
+    # challenge on a tokenless request (verified by grep -a over the binary —
+    # zero occurrences of authorization_uri / MCP OAuth Server /
+    # oauth-protected-resource). mcpgw's binary contains every one of those
+    # strings, and a live probe of another engineer's cluster running this same
+    # image confirmed it emits the challenge for real:
+    #   401, www-authenticate: Bearer realm="MCP OAuth Server", authorization_uri="..."
+    # ValidateInfraJwt (the kid-vs-infra-root-jwt wall) is present in this binary
+    # too, so this is NOT confirmed to unblock PingOne-issued client tokens —
+    # only the discovery/challenge layer is proven. See privilege/PRIVILEGE-MCP.md
+    # and the skill's "The PingOne token wall" section.
+    #
+    # Pinned by digest (multi-arch manifest list, works on both Apple Silicon and
+    # amd64) rather than a tag — no public tag-listing access to confirm a stable
+    # version tag exists, and this is the exact build verified above. Bump by
+    # re-pulling :latest and updating the digest when re-verifying.
+    image: public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d
     pull_policy: always
     container_name: ai-demo-ping-mcpgw
     # AGENTLESS (self-hosted frontend) MODE — see privilege/PRIVILEGE-MCP.md.
@@ -1219,29 +1229,23 @@ services:
     #                          failed" wall this demo hit for weeks.
     #
     #   agentless / self-hosted frontend  (this config) the console's Frontend Name
-    #                          is OUR domain, the proxy binds -listen locally, and
-    #                          the gateway runs the OIDC dance itself against the
-    #                          endpoints in ping-mcpgw/config/pingone.env. No issuer
-    #                          trust is required, so the JWT-signature wall does not
-    #                          apply.
+    #                          is OUR domain, the proxy binds locally, and the
+    #                          gateway runs the OIDC dance itself against the
+    #                          endpoints in ping-mcpgw/procyon/config/pingone.env.
     #
-    # The earlier "listener that never exists" comment here was true of mesh mode
-    # only. `cyonproxy --help` documents `-listen` (default ":8680"); 8623 is the
-    # value the vendor's own SE material uses, so it is what nginx forwards to.
-    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8623
-    # pingone.env is an ENV FILE — load its contents as environment variables, which
-    # is what its name and KEY=value format say it is. Until now it was only ever
-    # bind-mounted as a file on disk (see volumes below), so SERVER_URL and the
-    # OIDC_* values never reached the process environment at all.
-    #
-    # Ping's SE material lists /var/lib/procyon/config/pingone.env among the files a
-    # gateway host carries, and its slide-8 troubleshooting puts SERVER_URL under
-    # *auth* failures — so these values are what let the gateway emit its
-    # WWW-Authenticate challenge and validate the PingOne-issued bearer the client
-    # returns with (slide 4: GET /callback -> POST /as/token -> POST /mcp).
+    # -mcpconfpath is REQUIRED on this binary (fatal "MCP Config path not
+    # specified" without it) — unlike cyonproxy, which only ever read pingone.env
+    # via env_file-injected environment variables and never touched the file
+    # itself. Confirmed by running --help and a scratch container.
+    command: /procyon/bin/mcpgw -hostname local.ping-devops.com -mcpconfpath /var/lib/procyon/config/pingone.env
+    # pingone.env is an ENV FILE — load its contents as environment variables, AND
+    # (per the command above) mcpgw reads the file directly via -mcpconfpath.
     #
     # required: false on both so the profile still starts on a checkout that has not
     # created them yet (both gitignored — copy pingone.env.example for the first).
+    # Unlike under cyonproxy, a genuinely missing pingone.env is no longer a soft
+    # degradation here — mcpgw reads -mcpconfpath eagerly at startup and exits
+    # fatally if the path doesn't resolve.
     #
     # NO `environment:` block here. It used to carry
     # ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}", which the compose-env-shadow
@@ -1249,8 +1253,7 @@ services:
     # over env_file unconditionally, so on any checkout where the shell or root .env
     # does not set PRIVILEGE_PROXY_TOKEN it would blank the token to "".
     #
-    # The enrollment token now travels in its own env file, which is the use
-    # privilege/runbooks/ping-mcpgw.md has always described for proxy-token.env:
+    # The enrollment token travels in its own env file, ENV_PROXY_TOKEN=eyJ...:
     #
     #   printf 'ENV_PROXY_TOKEN=%s\n' 'eyJ...' > ping-mcpgw/procyon/config/proxy-token.env
     #
@@ -1266,12 +1269,13 @@ services:
     ports:
       - "8620:8620"
       - "8690:8690"
-      # Published for direct-probe troubleshooting only (curl -vk
-      # https://localhost:8623/mcp). Real traffic arrives via mcpgw-nginx, which
-      # reaches this over the compose network, not this published port.
+      # -mcpgw's own listener (default :8623) — the port that actually answers MCP
+      # requests and emits the OAuth challenge on this binary. mcpgw-nginx targets
+      # this port; the published host port is for direct-probe troubleshooting only
+      # (curl -i https://localhost:8623/mcp).
       - "8623:8623"
     volumes:
-      # NO single-file bind of the enrollment token here. cyonproxy REWRITES
+      # NO single-file bind of the enrollment token here. The proxy REWRITES
       # /procyon/ssl/proxy-token.data at startup (the SAME token, rewritten — it is
       # not swapped for a long-lived one), so a :ro bind made it exit 1 on every
       # boot — "ProxyToken write to /procyon/ssl/proxy-token.data failed …
@@ -1281,13 +1285,6 @@ services:
       # exchanged copy into this writable volume, which is what the vendor's own
       # `docker run` does with -v /var/lib/procyon/ssl:/procyon/ssl.
       - mcpgw-ssl:/procyon/ssl
-      # NO mcpgw-cert.pem / mcpgw-key.pem mount here. It was added in #1465 on the
-      # theory that 8623 demanded a client certificate because it had no server
-      # certificate of its own. Mounting the pair changed nothing — 8623 returned
-      # the identical "tlsv13 alert certificate required" alert with the files in
-      # place. 8623 is the mesh port and mTLS is simply what it does; the MCP
-      # frontend is 8620 (plain HTTP), which nginx now targets. Re-add only with
-      # evidence that some listener actually reads these files.
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
       # The WHOLE /var/lib/procyon tree, same path on both sides. This mirrors the
