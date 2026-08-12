@@ -1,0 +1,20 @@
+{{- if .Values.certificate.enabled }}
+# A wildcard *.<baseDomain> never covers its own apex — .Values.hostname (used
+# for the gateway's own /authorize and /callback) must be listed explicitly
+# alongside the wildcard, not assumed covered by it.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ping-mcpgw-tls
+  namespace: {{ required "namespace is required" .Values.namespace }}
+  labels:
+    {{- include "mcpgw.labels" . | nindent 4 }}
+spec:
+  secretName: ping-mcpgw-tls-certmanager
+  issuerRef:
+    name: {{ .Values.certificate.issuerName }}
+    kind: {{ .Values.certificate.issuerKind }}
+  dnsNames:
+    - {{ .Values.hostname }}
+    - "*.{{ .Values.hostname }}"
+{{- end }}

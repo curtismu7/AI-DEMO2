@@ -1,0 +1,20 @@
+# Holds the long-lived proxy token / mesh identity the proxy writes after
+# enrollment. Deleting this PVC forces re-enrollment — get a fresh
+# ENV_PROXY_TOKEN from the Privilege console BEFORE ever deleting it, and scale
+# the Deployment to 0 first (RWO, can't detach from a running pod).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ping-mcpgw-ssl
+  namespace: {{ required "namespace is required" .Values.namespace }}
+  labels:
+    {{- include "mcpgw.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.persistence.storageClassName }}
+  storageClassName: {{ .Values.persistence.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
