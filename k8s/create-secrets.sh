@@ -294,6 +294,50 @@ override_redirect_uris_for_public_origin() {
   info "  PUBLIC_APP_URL/PINGONE_PUBLIC_APP_URL/PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
 }
 
+# ── Privilege gateway URLs: same public-origin problem, two more places ─────
+# PRIVILEGE_MCPGW_URL (the BFF's target) and pingone.env's SERVER_URL (the
+# gateway's own front door, which it advertises in its WWW-Authenticate
+# challenge and its /callback redirect) both shipped from demo_api_server/.env
+# and ping-mcpgw/procyon/config/pingone.env as-is — local values
+# (mcp-pingone-admin.mcpgw.local.ping-devops.com, mcpgw.local.ping-devops.com)
+# that don't resolve from inside the cluster. Found 2026-08-12: the K8s-hosted
+# UI's relay log showed "fetch failed" trying to reach the local hostname.
+#
+# Both need the SAME public origin as override_redirect_uris_for_public_origin
+# above, with /mcpgw appended — that's the only path se-ingress.yaml actually
+# routes to the gateway (nginx.ingress.kubernetes.io/rewrite-target strips it
+# before the container sees the request, so SERVER_URL must include it for the
+# round trip to work: https://<origin>/mcpgw/callback -> ingress strips /mcpgw
+# -> container sees /callback). The dedicated-subdomain agentless ingress
+# (k8s/aws/mcpgw-agentless-ingress.yaml) is NOT applied by any deploy script —
+# do not point these at that subdomain, it has no ingress behind it.
+override_privilege_urls_for_public_origin() {
+  local origin="${CALLER_PUBLIC_APP_URL:-}"
+  if [ -z "$origin" ]; then
+    origin=$(kubectl get configmap ai-demo-config --namespace="$NS" -o jsonpath='{.data.PUBLIC_APP_URL}' 2>/dev/null || true)
+  fi
+  if [ -z "$origin" ]; then
+    warn "  PUBLIC_APP_URL not set and no existing configmap origin found — PRIVILEGE_MCPGW_URL/SERVER_URL shipped as-is (local values; Privilege sign-in and tool calls will fail with fetch/DNS errors in-cluster)"
+    return
+  fi
+  origin="${origin%/}"
+  local mcpgw_base="${origin}/mcpgw"
+
+  local ai_patch
+  ai_patch=$(printf '{"stringData":{"PRIVILEGE_MCPGW_URL":"%s/mcp"}}' "$mcpgw_base")
+  printf '%s' "$ai_patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  info "  PRIVILEGE_MCPGW_URL overridden to match ${mcpgw_base}/mcp"
+
+  if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/pingone.env" ]; then
+    local patched_pingone_env
+    patched_pingone_env=$(sed -E "s#^SERVER_URL=.*#SERVER_URL=${mcpgw_base}#" "$ASSET_ROOT/ping-mcpgw/procyon/config/pingone.env")
+    local mcpgw_patch
+    mcpgw_patch=$(printf '{"stringData":{"pingone.env":%s}}' "$(printf '%s' "$patched_pingone_env" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')")
+    printf '%s' "$mcpgw_patch" | kubectl patch secret ping-mcpgw-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+    info "  ping-mcpgw-secrets pingone.env SERVER_URL overridden to match $mcpgw_base"
+  fi
+}
+
 # ── Demo service API key (apikey-dispatch path) ──────────────────────────────
 # The gateway pulls DEMO_API_RESOURCE_SERVER_KEY / DEMO_MCP_RESOURCE_SERVER_KEY from the
 # BFF vault bridge and presents it to api-resource-server as X-API-Key. In-cluster
@@ -382,11 +426,23 @@ if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/proxy-token.env" ]; then
   else
     warn "  ping-mcpgw/procyon/config/pingone.env not found — agentless mode will have no OIDC config"
   fi
+  # Official Ping doc ("PingOne-Privilege-MCP-Gateway-Configuration.md") lists these
+  # under "Required host configuration". Local docker-compose gets them for free via
+  # a whole-tree mount; the K8s manifest mounts them explicitly at
+  # /var/lib/procyon/ssl (see 75-ping-mcpgw-deployment.yaml), so they must ride in
+  # this same secret. Optional, same reasoning as pingone.env above.
+  if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/ssl/mcpgw-cert.pem" ] && [ -f "$ASSET_ROOT/ping-mcpgw/procyon/ssl/mcpgw-key.pem" ]; then
+    mcpgw_secret_args+=(--from-file=mcpgw-cert.pem="$ASSET_ROOT/ping-mcpgw/procyon/ssl/mcpgw-cert.pem")
+    mcpgw_secret_args+=(--from-file=mcpgw-key.pem="$ASSET_ROOT/ping-mcpgw/procyon/ssl/mcpgw-key.pem")
+  else
+    warn "  ping-mcpgw/procyon/ssl/mcpgw-{cert,key}.pem not found — /var/lib/procyon/ssl will be empty in the pod"
+  fi
   kubectl create secret generic ping-mcpgw-secrets \
     --namespace="$NS" \
     "${mcpgw_secret_args[@]}" \
     --dry-run=client -o yaml | kubectl apply -f -
   info "  ping-mcpgw-secrets applied (ENV_PROXY_TOKEN from ping-mcpgw/procyon/config/proxy-token.env)"
+  override_privilege_urls_for_public_origin
 else
   warn "  ping-mcpgw/procyon/config/proxy-token.env not found — skipping secret ping-mcpgw-secrets"
 fi
