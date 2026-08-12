@@ -22,7 +22,7 @@ import { correlationFromMessage } from './correlationFromMessage';
 import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
-import { SigningKeyManager, ClientRegistry, TokenStore, OAuthRouter } from '../oauth';
+import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager } from '../oauth';
 
 export interface ServerConfig {
   host: string;
@@ -119,8 +119,7 @@ export class DemoMCPServer extends EventEmitter {
 
     try {
       // Initialize OAuth Authorization Server
-      const signingKeyManager = new SigningKeyManager();
-      await signingKeyManager.initialize();
+      const signingKeyManager = await getEmbeddedSigningKeyManager();
       const clientRegistry = new ClientRegistry();
       clientRegistry.initialize();
       const tokenStore = new TokenStore();

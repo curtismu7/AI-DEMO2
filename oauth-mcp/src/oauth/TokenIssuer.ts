@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { SigningKeyManager } from './SigningKeyManager';
 import { ClientRegistry, OAuthClient } from './ClientRegistry';
 import { TokenStore } from './TokenStore';
+import { resolveEmbeddedIssuer } from './embeddedIssuer';
 
 export interface TokenResponse {
   access_token: string;
@@ -20,8 +21,7 @@ export class TokenIssuer {
     private clientRegistry: ClientRegistry,
     private tokenStore: TokenStore,
   ) {
-    this.issuer = process.env.OAUTH_ISSUER
-      || `https://${process.env.OAUTH_HOSTNAME || 'localhost'}:${process.env.MCP_SERVER_PORT || '8080'}`;
+    this.issuer = resolveEmbeddedIssuer();
   }
 
   getIssuer(): string {
