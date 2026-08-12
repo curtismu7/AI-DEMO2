@@ -13,6 +13,14 @@ export interface TokenResponse {
   id_token?: string;
 }
 
+/** MCP_SERVER_RESOURCE_URI may be a comma-separated list (rollout: own backend
+ *  URI + gateway URI while both token shapes are live) — jose needs an array
+ *  to emit a multi-value `aud` claim, not the raw comma-joined string. */
+export function resolveAudience(): string[] {
+  const raw = process.env.MCP_SERVER_RESOURCE_URI || 'mcpserver.ping.demo';
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 export class TokenIssuer {
   private issuer: string;
 
@@ -41,7 +49,7 @@ export class TokenIssuer {
       .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
       .setIssuer(this.issuer)
       .setSubject(client.client_id)
-      .setAudience(process.env.MCP_SERVER_RESOURCE_URI || 'mcpserver.ping.demo')
+      .setAudience(resolveAudience())
       .setIssuedAt(now)
       .setExpirationTime(now + expiresIn)
       .setJti(jti)
@@ -76,7 +84,7 @@ export class TokenIssuer {
       .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
       .setIssuer(this.issuer)
       .setSubject(subject)
-      .setAudience(process.env.MCP_SERVER_RESOURCE_URI || 'mcpserver.ping.demo')
+      .setAudience(resolveAudience())
       .setIssuedAt(now)
       .setExpirationTime(now + expiresIn)
       .setJti(jti)
