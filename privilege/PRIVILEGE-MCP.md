@@ -2062,3 +2062,35 @@ directly to `deff60f5`'s registered list. The exact value the BFF was sending vs
 was registered was never diagnosed from code or logs; if this recurs, don't assume the
 earlier "checks out" analysis still holds — the registered list is a live, editable
 target, not a fixed fact to reason from.
+
+## 2026-08-12 (still later): binary swap forces re-enrollment — `mcpgw` does not read `cyonproxy`'s persisted state
+
+K8s config gaps fixed and applied live (`create-secrets.sh` + `deploy.sh`, both with
+`PUBLIC_APP_URL=https://ai-demo.ping-devops.com` explicitly passed — omitting it let
+the stale `ai-demo-config` configmap value win again, the exact regression
+`deploy.sh`'s own comments warn about). Confirmed live: port 8690, the
+`mcpgw-tls` mount, `PRIVILEGE_MCPGW_URL`, `SERVER_URL`, and the configmap's
+`PUBLIC_APP_URL` itself all now hold the correct K8s values.
+
+Then the same binary swap (`cyonproxy` → `mcpgw`) was applied to the **local**
+docker-compose container, which had been deliberately left untouched until now
+because it was the one thing "still working" — up 13 hours on `cyonproxy`'s original
+enrollment, never re-verifying a token because `proxy-config.data` already existed in
+its volume. Recreating it onto `mcpgw`, **same volume**, immediately crash-looped on
+the identical `error Verifying siging cert x509` wall.
+
+**New fact this establishes: `mcpgw` does not recognize or reuse `cyonproxy`'s
+persisted `proxy-config.data`.** The two binaries do not share an enrollment-state
+format — swapping binaries is not a config toggle, it forces a fresh enrollment
+attempt regardless of what the volume already holds. Since fresh enrollment is
+universally blocked right now, this means **the binary swap took down the one proxy
+that was still running**, local included. Both local and K8s now show the identical,
+correctly-diagnosed failure; neither is worse off functionally (neither was passing
+PingOne tokens either way), but there is now zero running Privilege proxy anywhere in
+this repo's infrastructure.
+
+Left stopped rather than rolled back (`docker stop ai-demo-ping-mcpgw` — `restart:
+unless-stopped` respects a manual stop, so it will not restart-loop). Restart it with
+`./run-docker.sh optional start mcpgw` once the CA trust wall clears; expect it to
+need a **fresh, valid** enrollment token at that point, same as K8s, since the old
+volume's `cyonproxy`-era state is now moot for this binary.
