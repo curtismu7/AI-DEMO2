@@ -7,7 +7,8 @@ import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 import DiagramExportBar from "./DiagramExportBar";
 import {
-  GATEWAY_ENFORCEMENT_MERMAID,
+  GATEWAY_ENFORCEMENT_JOURNEY_MERMAID,
+  GATEWAY_ENFORCEMENT_STAKES,
   GATEWAY_ENFORCEMENT_ROWS,
 } from "./education/gatewayEnforcementDiagram.generated";
 
@@ -17,9 +18,15 @@ const STATUS_LABEL = {
   pending: "❌ gap",
 };
 
+const VERDICT_STYLE = {
+  done: { bg: "#0a2418", fg: "#6ee7b7", border: "#059669", icon: "✅" },
+  flagged: { bg: "#2a1a00", fg: "#fbbf24", border: "#d97706", icon: "⚠️" },
+  pending: { bg: "#2d0a0a", fg: "#fca5a5", border: "#dc2626", icon: "❌" },
+};
+
 export default function GatewayEnforcementMapPage() {
   const containerRef = useRef(null);
-  const [source, setSource] = useState(GATEWAY_ENFORCEMENT_MERMAID);
+  const [source, setSource] = useState(GATEWAY_ENFORCEMENT_JOURNEY_MERMAID);
   const [renderError, setRenderError] = useState(null);
   const renderIdRef = useRef(0);
 
@@ -56,11 +63,9 @@ export default function GatewayEnforcementMapPage() {
         page updates with it.
       </p>
       <p style={{ opacity: 0.7, maxWidth: 760, fontSize: 13 }}>
-        <strong>Reading the diagram:</strong> the top row (P1AZ) is the cloud PDP — it
-        structurally cannot check any of these 5 rules itself. Each dashed arrow points from
-        the rule to where it's enforced instead: the gateway box below it. A green box means
-        that backstop is live — the arrow means "this is where it's actually checked," not
-        "still needed."
+        <strong>Reading the diagram:</strong> P1AZ (the cloud PDP) structurally can't check
+        any of these 5 rules — each one branches off, then reconverges at the gateway that
+        checks it instead. Box color shows whether that backstop is live today.
       </p>
 
       <DiagramExportBar
@@ -72,8 +77,53 @@ export default function GatewayEnforcementMapPage() {
       {renderError ? (
         <p style={{ color: "#dc2626" }}>Diagram failed to render: {renderError}</p>
       ) : (
-        <div ref={containerRef} role="img" aria-label="Gateway enforcement map" style={{ overflow: "auto", margin: "12px 0" }} />
+        <div ref={containerRef} role="img" aria-label="Gateway enforcement journey" style={{ overflow: "auto", margin: "12px 0" }} />
       )}
+
+      <h2 style={{ fontSize: 16, marginTop: 32 }}>What's at stake</h2>
+      <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
+        {GATEWAY_ENFORCEMENT_STAKES.map((s) => {
+          const style = VERDICT_STYLE[s.verdictTier];
+          return (
+            <div
+              key={s.id}
+              style={{
+                background: "var(--th-bg-card)",
+                border: "1px solid var(--th-border)",
+                borderRadius: 10,
+                padding: 18,
+                minWidth: 260,
+                maxWidth: 260,
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--th-text)" }}>{s.label}</div>
+              <div style={{ fontSize: 12.5, color: "var(--th-text-muted)", lineHeight: 1.5, fontStyle: "italic" }}>
+                {s.scenario}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 12,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  background: style.bg,
+                  color: style.fg,
+                  border: `1px solid ${style.border}`,
+                }}
+              >
+                <span>{style.icon}</span>
+                <span>{s.verdictText}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <table className="edu-table" style={{ marginTop: 8 }}>
         <thead>
