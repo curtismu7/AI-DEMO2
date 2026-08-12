@@ -58,6 +58,7 @@ const ROWS = [
   {
     id: 'temporal',
     label: 'Temporal exp/iat/nbf',
+    scenario: 'A token minted hours ago, past the demo\'s replay window, gets replayed against a tool call — exp alone doesn\'t catch this, only iat max-age does.',
     p1az: p1azReasonFor('Temporal exp/iat/nbf', 'Timestamp attr is ISO 8601 string vs epoch-second token claims'),
     node: {
       done: has(tokenValidator, 'token_too_old') && has(tokenValidator, 'invalid_iat'),
@@ -71,6 +72,7 @@ const ROWS = [
   {
     id: 'scope',
     label: 'Per-tool scope membership',
+    scenario: 'A token carries the coarse gateway:mcp:invoke scope but never earned transfer — and tries to call create_transfer anyway.',
     p1az: p1azReasonFor('Per-tool scope membership', 'TokenScopes is a space-separated set; DSL has no set/contains operator'),
     node: {
       done: has(toolScopes, 'evaluateScopeDecisionUnconditionally'),
@@ -84,6 +86,7 @@ const ROWS = [
   {
     id: 'rar',
     label: 'RAR payee allow-list',
+    scenario: 'A transfer\'s granted intent named one payee — the actual call sends the funds somewhere else.',
     p1az: p1azReasonFor('RAR payee allow-list', 'permitted payees are an array; same missing set-membership operator'),
     node: {
       done: has(rarEnforce, 'is not the granted payee'),
@@ -98,6 +101,7 @@ const ROWS = [
   {
     id: 'd05',
     label: 'D-05 multi-aud anti-bypass',
+    scenario: 'An agent presents a token whose aud already targets the banking resource server directly — skipping the gateway hop entirely.',
     p1az: p1azReasonFor('D-05 multi-aud', 'TokenAudTargetsUpstream compares a SINGLE aud string'),
     node: {
       done: has(gatewayTokenPolicy, 'bypass_attempt'),
@@ -111,6 +115,7 @@ const ROWS = [
   {
     id: 'tier',
     label: 'tiers.groupToTier mapping',
+    scenario: 'A Standard-tier caller invokes a PrivateBanking-only tool, or tries to move more than their tier\'s ceiling.',
     p1az: p1azReasonFor('tiers.groupToTier', 'mapping a PingOne group ARRAY to a tier needs set membership'),
     node: {
       done: fs.existsSync(path.join(REPO, 'demo_mcp_gateway/src/tierEnforce.ts')) && has(tierEnforceNode, 'evaluateTierDecision'),
@@ -128,48 +133,51 @@ function status(cell) {
   return cell.done ? 'done' : 'pending';
 }
 
-function mermaidNodeLabel(row, layer, cell) {
-  const s = status(cell);
-  const tag = s === 'done' ? 'ENFORCED' : s === 'flagged' ? 'BUILT, OFF BY DEFAULT' : 'GAP';
-  return `${layer}_${row.id}["${row.label}<br/>${tag}"]`;
+/** The worse of the two gateways' status for a rule — reuses the existing
+ * done/flagged/pending vocabulary, no new tier names. */
+function worstTier(row) {
+  const n = status(row.node);
+  const g = status(row.groovy);
+  if (n === 'pending' || g === 'pending') return 'pending';
+  if (n === 'flagged' || g === 'flagged') return 'flagged';
+  return 'done';
 }
 
-function buildMermaid() {
-  const lines = ['flowchart TB'];
-  lines.push('  subgraph P1AZ["PingOne Authorize (cloud PDP) — DSL cannot express any of these 5"]');
-  lines.push('    direction TB');
-  for (const row of ROWS) lines.push(`    p_${row.id}["${row.label}"]`);
-  lines.push('  end');
+function verdictTextFor(row, tier) {
+  if (tier === 'done') return 'Caught locally — both gateways';
+  if (tier === 'pending') return 'Would slip through — see the table below';
+  const nodeOk = status(row.node) === 'done';
+  const groovyOk = status(row.groovy) === 'done';
+  if (nodeOk && !groovyOk) return 'Node catches it — IG ships this off by default';
+  if (groovyOk && !nodeOk) return 'IG catches it — Node does not yet';
+  return 'Partially covered — see the table below';
+}
 
-  lines.push('  subgraph NODE["Node Gateway (demo_mcp_gateway) — A2A path"]');
-  lines.push('    direction TB');
-  for (const row of ROWS) lines.push(`    ${mermaidNodeLabel(row, 'n', row.node)}`);
-  lines.push('  end');
-
-  lines.push('  subgraph GROOVY["IG Gateway (ping-gateway groovy) — default path"]');
-  lines.push('    direction TB');
-  for (const row of ROWS) lines.push(`    ${mermaidNodeLabel(row, 'g', row.groovy)}`);
-  lines.push('  end');
-
+function buildJourneyMermaid() {
+  const lines = ['flowchart LR'];
+  lines.push('  REQ["Tool call arrives"] --> P1AZ["P1AZ evaluates"]');
   for (const row of ROWS) {
-    lines.push(`  p_${row.id} -.-> n_${row.id}`);
-    lines.push(`  p_${row.id} -.-> g_${row.id}`);
+    lines.push(`  P1AZ -.->|can't check| b_${row.id}["${row.label}"]`);
   }
-
-  lines.push('  classDef gap fill:#1a1535,color:#c4b5fd,stroke:#7c3aed,stroke-width:1px');
+  for (const row of ROWS) {
+    lines.push(`  b_${row.id} --> GW["Gateway backstops"]`);
+  }
+  lines.push('  GW --> DEC["Final decision"]');
   lines.push('  classDef done fill:#0a2418,color:#6ee7b7,stroke:#059669,stroke-width:1px');
-  lines.push('  classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4');
   lines.push('  classDef flagged fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:1px,stroke-dasharray:2 2');
-  lines.push(`  class ${ROWS.map((r) => `p_${r.id}`).join(',')} gap`);
-  for (const s of ['done', 'pending', 'flagged']) {
-    const ids = [];
-    for (const row of ROWS) {
-      if (status(row.node) === s) ids.push(`n_${row.id}`);
-      if (status(row.groovy) === s) ids.push(`g_${row.id}`);
-    }
+  lines.push('  classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4');
+  for (const s of ['done', 'flagged', 'pending']) {
+    const ids = ROWS.filter((r) => worstTier(r) === s).map((r) => `b_${r.id}`);
     if (ids.length) lines.push(`  class ${ids.join(',')} ${s}`);
   }
   return lines.join('\n');
+}
+
+function buildStakes() {
+  return ROWS.map((r) => {
+    const tier = worstTier(r);
+    return { id: r.id, label: r.label, scenario: r.scenario, verdictTier: tier, verdictText: verdictTextFor(r, tier) };
+  });
 }
 
 function buildMarkdownTable() {
@@ -182,9 +190,15 @@ function buildMarkdownTable() {
   return `| Rule | Why P1AZ can't | Node gateway | IG gateway (groovy) |\n|---|---|---|---|\n${rows}`;
 }
 
-const mermaidSource = buildMermaid();
+const journeyMermaid = buildJourneyMermaid();
+const stakes = buildStakes();
 const markdownTable = buildMarkdownTable();
 const doneCount = ROWS.reduce((n, r) => n + (status(r.node) === 'done' ? 1 : 0) + (status(r.groovy) === 'done' ? 1 : 0), 0);
+
+const stakesMarkdown = stakes.map((s) => {
+  const icon = s.verdictTier === 'done' ? '✅' : s.verdictTier === 'flagged' ? '⚠️' : '❌';
+  return `**${s.label}**\n> ${s.scenario}\n\n${icon} ${s.verdictText}`;
+}).join('\n\n');
 
 const docOut = `# Gateway Local Enforcement Map
 
@@ -204,13 +218,15 @@ implementation plan that closes the remaining gaps.
 
 **Reading the diagram:** the top row (P1AZ) is the cloud PDP — it structurally
 cannot check any of these 5 rules itself (DSL limits, see the table below). Each
-dashed arrow points from the rule to where it's enforced INSTEAD: the gateway box
-below it. A green gateway box means that backstop is live; the arrow doesn't mean
-"still needed," it means "this is where this rule actually gets checked."
+rule branches off, then reconverges at the gateway that checks it instead.
 
 \`\`\`mermaid
-${mermaidSource}
+${journeyMermaid}
 \`\`\`
+
+## What's at stake
+
+${stakesMarkdown}
 
 ## Detail
 
@@ -221,7 +237,9 @@ const uiOut = `// GENERATED by scripts/gen-gateway-enforcement-map.js — do not
 // Re-run that script after any change to the files it scans (see the script's
 // header comment) and this file regenerates in lockstep with docs/gateway-enforcement-map.md.
 
-export const GATEWAY_ENFORCEMENT_MERMAID = \`${mermaidSource}\`;
+export const GATEWAY_ENFORCEMENT_JOURNEY_MERMAID = \`${journeyMermaid}\`;
+
+export const GATEWAY_ENFORCEMENT_STAKES = ${JSON.stringify(stakes, null, 2)};
 
 export const GATEWAY_ENFORCEMENT_ROWS = ${JSON.stringify(
   ROWS.map((r) => ({
