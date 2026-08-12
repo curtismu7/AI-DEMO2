@@ -19,7 +19,7 @@
         "endpoint": "/api/auth/ciba/initiate",
         "step": 1,
         "title": null,
-        "description": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email. Body: { scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token) binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci) acr_values?:      'Multi_factor'             — for step-up auth login_hint?:      'user@example.com'         — override from session email }",
+        "description": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email.",
         "body": null,
         "expected": {},
         "responseMap": {
@@ -47,7 +47,7 @@
       "url": "https://datatracker.ietf.org/doc/html/rfc9110",
       "label": "RFC 9110",
       "title": "CIBA / HITL",
-      "why": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email. Body: { scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token) binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci) acr_values?:      'Multi_factor'             — for step-up auth login_hint?:      'user@example.com'         — override from session email }"
+      "why": "Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval. Client initiates a transfer that requires human review via separate device or email."
     }
   },
   "dpop": {

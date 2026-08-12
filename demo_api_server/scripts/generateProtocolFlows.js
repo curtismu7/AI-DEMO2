@@ -17,7 +17,15 @@ function captureLeadingProse(jsdocComment) {
     const trimmed = line.trim();
     const afterStar = trimmed.replace(/^\*\s?/, '').trim();
     if (afterStar.startsWith('@')) break;
-    if (!afterStar) continue;
+    if (!afterStar) {
+      // A blank line ENDS the leading paragraph. Skipping blanks instead swept
+      // up everything between the prose and the first @tag — the `Body: {...}`
+      // block that many annotations carry leaked into spec.why and
+      // steps[].description, so the Playground rendered JSON fragments inside
+      // its explanatory copy. Leading blanks (before any prose) are still skipped.
+      if (prose.length > 0) break;
+      continue;
+    }
     prose.push(afterStar);
   }
   return prose.join(' ').trim();
@@ -302,4 +310,7 @@ if (require.main === module) {
   });
 }
 
-module.exports = { main };
+// parseFlowAnnotation / captureLeadingProse / buildFlowSpecs are exported for
+// tests only — they are pure (string in, object out; no fs, no network), so the
+// suite can exercise the parser without scanning the real routes/ directory.
+module.exports = { main, parseFlowAnnotation, captureLeadingProse, buildFlowSpecs };
