@@ -453,7 +453,7 @@ router.get('/demo-status', async (_req, res) => {
   const directProbe = await probeMcpHealth(process.env.MCP_SERVER_URL);
   const mcpProbe = (gatewayProbe?.up && gatewayProbe) || directProbe;
   servers.push({
-    name: 'Banking MCP Server',
+    name: 'AI Demo MCP Server',
     key: 'mcp_server',
     up: mcpProbe.up,
     startCmd: 'cd oauth-mcp && npm run dev',

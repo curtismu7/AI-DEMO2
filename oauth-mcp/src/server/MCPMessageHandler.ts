@@ -39,7 +39,7 @@ export interface MessageHandlerContext {
 
 export class MCPMessageHandler {
   private readonly serverInfo: ServerInfo = {
-    name: 'Banking MCP Server',
+    name: 'AI Demo MCP Server',
     version: '1.0.0',
     description: 'Secure banking operations MCP server with PingOne authentication'
   };

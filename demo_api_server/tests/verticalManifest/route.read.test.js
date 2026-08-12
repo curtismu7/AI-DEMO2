@@ -31,11 +31,15 @@ jest.mock('../../services/lmdb/openEnv', () => {
 });
 
 const FIXTURE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'rdr-'));
+// demoUsers is the field the public endpoints must never leak (it carries password
+// hints). It has to exist in the fixture or every leak assertion below passes
+// vacuously — green, and proving nothing.
 const min = (id) => ({
   id, schemaVersion: 3,
   identity: { displayName: id },
   theme: { cssVars: { '--x': '#000' } },
   agent: { persona: 'P' },
+  demoUsers: { customer: { hint: 'demo@example.test', passwordHint: 'SENTINEL-DO-NOT-LEAK' } },
 });
 const HERO = { imageUrl: 'https://example.test/care.jpg', greeting: 'How can we help?' };
 for (const id of ['banking', 'healthcare', 'admin-console']) {
@@ -72,9 +76,22 @@ afterAll(() => {
 });
 
 describe('GET /api/verticals/me', () => {
-  test('401 when unauthenticated', async () => {
+  // Public since #1699 — a guest has to hydrate the active vertical before
+  // sign-in, or the UI falls back to its own default and disagrees with the
+  // server about which vertical is live. The guest payload is trimmed instead:
+  // identity + theme only, never the manifest's demoUsers password hints.
+  test('200 when unauthenticated, trimmed to identity + theme', async () => {
+    verticalManifest.resolver.setActive('banking');
     const res = await request(makeApp()).get('/api/verticals/me');
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body.pageManifest).sort()).toEqual(['identity', 'theme']);
+  });
+
+  test('guest payload carries no demoUsers password hints', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const res = await request(makeApp()).get('/api/verticals/me');
+    expect(JSON.stringify(res.body)).not.toContain('demoUsers');
+    expect(JSON.stringify(res.body)).not.toContain('SENTINEL-DO-NOT-LEAK');
   });
 
   test('customer: pageManifest only, adminManifest null', async () => {
@@ -173,9 +190,27 @@ describe('GET /api/verticals/:id/hero', () => {
 });
 
 describe('GET /api/verticals/stream', () => {
-  test('401 when unauthenticated', async () => {
-    const res = await request(makeApp()).get('/api/verticals/stream');
-    expect(res.status).toBe(401);
+  // Public since #1699, for the same reason /me is: a guest's VerticalProvider
+  // subscribes before sign-in. The stream only ever carries the active vertical
+  // id — no manifest, no user data — so there is nothing to withhold from a guest.
+  test('200 SSE when unauthenticated; carries the active id only', async () => {
+    verticalManifest.resolver.setActive('healthcare');
+    const res = await request(makeApp())
+      .get('/api/verticals/stream')
+      .buffer(true)
+      .parse((r, cb) => {
+        let body = '';
+        r.on('data', (chunk) => {
+          body += chunk;
+          if (body.includes('vertical-switched')) r.destroy();
+        });
+        r.on('close', () => cb(null, body));
+        r.on('error', () => cb(null, body));
+      });
+    expect(res.headers['content-type']).toBe('text/event-stream');
+    expect(res.body).toContain('"activeId":"healthcare"');
+    expect(res.body).not.toContain('demoUsers');
+    expect(res.body).not.toContain('SENTINEL-DO-NOT-LEAK');
   });
 
   test('SSE headers set; initial vertical-switched sent', async () => {
