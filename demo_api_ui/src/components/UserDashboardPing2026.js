@@ -173,9 +173,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/feature-flags", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    getCachedJson("/api/admin/feature-flags")
+      .then(({ data }) => {
         if (cancelled) return;
         const flag = data?.flags?.find(
           (f) => f.id === "ff_show_agent_in_middle",
@@ -221,9 +220,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   });
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/admin/feature-flags', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    getCachedJson('/api/admin/feature-flags')
+      .then(({ data }) => {
         if (cancelled) return;
         const f = data?.flags?.find((x) => x.id === 'ff_agent_clinical_split');
         if (f != null) setClinicalSplitEnabled((cur) => cur || Boolean(f.value));

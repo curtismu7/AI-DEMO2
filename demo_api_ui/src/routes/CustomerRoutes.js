@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import UserDashboard from "../components/UserDashboard";
 import UserDashboardPing2026 from "../components/UserDashboardPing2026";
+import { getCachedJson } from "../services/cachedStatusService";
 
 const FLAG_ID = "ff_customer_skin_ping2026";
 
@@ -32,9 +33,8 @@ export function DashboardContent({ user, logout }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/feature-flags", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    getCachedJson("/api/admin/feature-flags")
+      .then(({ data }) => {
         if (cancelled) return;
         const flag = data && (data.flags || []).find((f) => f.id === FLAG_ID);
         setPing2026(flag != null ? Boolean(flag.value) : false);

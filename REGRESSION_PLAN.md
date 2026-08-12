@@ -102,6 +102,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-12 — Customer dashboard painted its toolbar/chrome with an empty banking area for a beat before data arrived, read as a stale/old UI
+
+**Files changed:** `demo_api_ui/src/routes/CustomerRoutes.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** on `/dashboard`, up to four components independently
+fired their own uncached `fetch("/api/admin/feature-flags", ...)` on mount —
+`DashboardContent`'s skin-flag check, `UserDashboardPing2026`'s
+`ff_show_agent_in_middle` and `ff_agent_clinical_split` checks, and
+`AIAgent`'s toggle sync — none sharing a cache. A live trace showed the same
+endpoint hit 10+ times on one load. The toolbar/chrome paints immediately
+(no data dependency), so users saw it sit over a mostly-empty banking area
+for a visible beat while these redundant round trips (plus `UserDashboard`'s
+own sequential session/account fetches) resolved, reading as a stale or
+cut-off "old" UI before the real dashboard "loaded in."
+
+**What was fixed:** swapped each raw `fetch("/api/admin/feature-flags")` call
+for the existing `getCachedJson`/`getCachedStatus` wrapper
+(`services/cachedStatusService.js`, already used for the auth-status
+endpoints) — in-flight requests within its 10s TTL now share one promise
+instead of firing separately. Same endpoint, same response shape, same flag
+semantics; only the transport is deduped.
+
+**Do not break:** flag defaults on fetch failure are unchanged (`ping2026`
+falls back to `false`, `showBankingInMiddle`/`clinicalSplitEnabled` keep
+their existing fallbacks). The tri-state `ping2026 === null` guard in
+`CustomerRoutes.js` (render nothing until the skin flag resolves, so only one
+dashboard ever mounts) is untouched — this fix only reduces how many
+redundant requests that resolution waits behind.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js "src/components/__tests__/AIAgent.*.test.*"` — 12/12 test files pass. `npm run build` exits 0.
+
 ### 2026-08-11 — Boot guard cried "token validation would 401" on every start, for a multi-audience value that is correct by design
 
 **Files changed:** `demo_api_server/services/startupConfigGuard.js`
