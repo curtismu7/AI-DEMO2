@@ -34,7 +34,7 @@ export default function RFC8693Panel({ isOpen, onClose, initialTabId }) {
             <li><strong>Security Boundary</strong> - Original tokens never leave trusted boundaries</li>
           </ul>
 
-          <h4>Use Cases in Super Banking</h4>
+          <h4>Use Cases in AI Demo</h4>
           <ul>
             <li><strong>MCP Server Access</strong> - Exchange user token for MCP-specific token</li>
             <li><strong>AI Agent Delegation</strong> - Agent acts on user's behalf with audit trail</li>
@@ -323,7 +323,7 @@ Content-Type: application/json
             </tbody>
           </table>
 
-          <h4>Super Banking Security Measures</h4>
+          <h4>AI Demo Security Measures</h4>
           <ul>
             <li><strong>JWKS Validation</strong> - All tokens validated against PingOne signing keys</li>
             <li><strong>Policy Integration</strong> - PingOne Authorize policies enforce delegation rules</li>
@@ -339,7 +339,7 @@ Content-Type: application/json
       label: 'Real-World Examples',
       content: (
         <>
-          <h3>RFC 8693 in Super Banking - Code Examples</h3>
+          <h3>RFC 8693 in AI Demo - Code Examples</h3>
           
           <h4>Simple Delegation (No Actor Token)</h4>
           <p>
@@ -399,7 +399,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
   }
 }`}</pre>
 
-          <h4>Implementation in Super Banking</h4>
+          <h4>Implementation in AI Demo</h4>
           <pre className="edu-code">{`// From: demo_api_server/services/oauthService.js
 
 // Simple exchange (1-exchange)
@@ -466,10 +466,10 @@ async performTokenExchangeWithActor(subjectToken, actorToken, audience, scopes) 
             <li><strong>Check Token Claims</strong>: Use jwt.io to decode and verify token contents</li>
             <li><strong>Verify Policy</strong>: Ensure may_act policy allows the actor-client relationship</li>
             <li><strong>Audit Logs</strong>: Check PingOne logs for detailed error information</li>
-            <li><strong>Token Events</strong>: Use Super Banking Token Chain panel for debugging</li>
+            <li><strong>Token Events</strong>: Use AI Demo Token Chain panel for debugging</li>
           </ul>
 
-          <h4>Super Banking Debug Features</h4>
+          <h4>AI Demo Debug Features</h4>
           <ul>
             <li><strong>Token Events Panel</strong>: Shows complete token exchange flow with decoded claims</li>
             <li><strong>Live Token Inspection</strong>: Real-time token validation and claim analysis</li>

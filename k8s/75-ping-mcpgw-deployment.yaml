@@ -6,7 +6,7 @@
 # Exposed externally at https://ai-demo.ping-devops.com/mcpgw via se-ingress.yaml,
 # and per-application at https://<app>.mcpgw.ai-demo.ping-devops.com/mcp via
 # aws/mcpgw-agentless-ingress.yaml (agentless / self-hosted frontend mode — see
-# docs/PRIVILEGE-MCP.md for why that mode sidesteps the JWT issuer-trust wall).
+# privilege/PRIVILEGE-MCP.md for why that mode sidesteps the JWT issuer-trust wall).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

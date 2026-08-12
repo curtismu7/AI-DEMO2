@@ -161,7 +161,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       expect(response.result).toBeDefined();
       expect(response.result!.protocolVersion).toBe('2024-11-05');
       expect(response.result!.serverInfo).toMatchObject({
-        name: 'Banking MCP Server',
+        name: 'AI Demo MCP Server',
         version: '1.0.0',
         description: expect.stringContaining('banking operations')
       });

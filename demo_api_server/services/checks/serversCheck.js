@@ -44,16 +44,33 @@ async function run() {
   // readiness blocker. Only a required service being down fails the check.
   const requiredDown = down.filter((s) => !s.optional);
   const optionalDown = down.filter((s) => s.optional);
-  const upCount = services.filter((s) => s.up === true).length;
-  const probed = services.filter((s) => s.up !== null).length;
+  // Headline counts REQUIRED services only. Counting the optional ones in the
+  // denominator rendered "18/21 up" while this check's own status was warn and
+  // its detail named the three as expected-absent — three failures to anyone
+  // glancing at it. Optional services are reported beside the count, not inside it.
+  const probedServices = services.filter((s) => s.up !== null);
+  const requiredProbed = probedServices.filter((s) => !s.optional);
+  const requiredUp = requiredProbed.filter((s) => s.up === true).length;
+  const optionalUp = probedServices.filter((s) => s.optional && s.up === true).length;
+  const optionalProbed = probedServices.length - requiredProbed.length;
   const status = requiredDown.length ? 'fail' : optionalDown.length ? 'warn' : 'pass';
-  const parts = [];
+  const headline = `${requiredUp}/${requiredProbed.length} required up`
+    + (optionalProbed ? ` (optional ${optionalUp}/${optionalProbed})` : '');
+  const parts = [headline];
   if (requiredDown.length) parts.push(`Down: ${requiredDown.map((s) => s.name).join(', ')}`);
   if (optionalDown.length) parts.push(`Not started (optional): ${optionalDown.map((s) => s.name).join(', ')}`);
   return {
     status,
-    detail: parts.length ? parts.join(' — ') : `${upCount}/${probed} up`,
-    meta: { services },
+    detail: parts.join(' — '),
+    meta: {
+      services,
+      counts: {
+        requiredUp,
+        requiredProbed: requiredProbed.length,
+        optionalUp,
+        optionalProbed,
+      },
+    },
   };
 }
 

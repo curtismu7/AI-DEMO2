@@ -100,7 +100,7 @@ export default function LangChainPage() {
           ← Back
         </Link>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>
-          LangChain in Super Banking
+          LangChain in AI Demo
         </h1>
       </div>
 

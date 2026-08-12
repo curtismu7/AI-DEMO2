@@ -388,7 +388,7 @@ router.get('/state', (req, res) => {
 
 // POST /dev/console-token — DEV ONLY. Inject a Privilege console token as the
 // client bearer, so the UI can drive the real gateway without the PingOne OAuth
-// flow (which fails the kid wall — see docs/PRIVILEGE-MCP.md). Accepts either a
+// flow (which fails the kid wall — see privilege/PRIVILEGE-MCP.md). Accepts either a
 // raw token or a whole "Copy as cURL" blob and parses auth_token out of it.
 //
 // Disabled in production: the console token is a short-lived operator credential,
@@ -496,7 +496,7 @@ router.get('/dev/auto-mint/status', (req, res) => {
 // POST the mint params to PRIVILEGE_MINT_URL with the admin bearer, take the
 // returned identity token, and set it as this session's gateway credential — the
 // same effect as pasting a fresh console token, but scriptable. Inert (501) until
-// PRIVILEGE_ADMIN_TOKEN + PRIVILEGE_MINT_URL are set. See docs/PRIVILEGE-MCP.md.
+// PRIVILEGE_ADMIN_TOKEN + PRIVILEGE_MINT_URL are set. See privilege/PRIVILEGE-MCP.md.
 router.post('/dev/auto-mint', express.json(), async (req, res) => {
   if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
   const adminToken = process.env.PRIVILEGE_ADMIN_TOKEN;

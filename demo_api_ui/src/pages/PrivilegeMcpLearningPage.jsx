@@ -369,7 +369,7 @@ OIDC_SCOPES=openid profile email`}
               <li>Click <strong>Add Application &gt; MCP Server</strong></li>
               <li>Fill in:
                 <ul>
-                  <li><strong>Application Name</strong> — descriptive name (e.g. &quot;Banking MCP Server&quot;)</li>
+                  <li><strong>Application Name</strong> — descriptive name (e.g. &quot;AI Demo MCP Server&quot;)</li>
                   <li><strong>Frontend URL</strong> — client-facing gateway URL</li>
                   <li><strong>MCP Server URL</strong> — backend endpoint (e.g. <code>http://host.docker.internal:8080/mcp</code>)</li>
                   <li><strong>Optional Headers</strong> — static headers to inject on upstream calls</li>

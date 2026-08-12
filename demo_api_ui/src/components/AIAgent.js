@@ -2288,8 +2288,7 @@ export default function BankingAgent({
       .then(setNlMeta)
       .catch(() => setNlMeta({ geminiConfigured: false }));
     // Load feature flags to sync UI-controlled toggles
-    fetch("/api/admin/feature-flags", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
+    getCachedStatus("/api/admin/feature-flags")
       .then((data) => {
         const heuristicFlag = data?.flags?.find((f) => f.id === "ff_heuristic_enabled");
         if (heuristicFlag != null) setHeuristicEnabled(Boolean(heuristicFlag.value));
@@ -2321,15 +2320,19 @@ export default function BankingAgent({
     // Shape must match the chat renderer: { role, content } — it filters on
     // msg.role and renders msg.content, so a { sender, text } message is
     // silently invisible.
+    // locationCards rides the AG-UI message for the UC24 public catalog (see
+    // useAgentState TEXT_MESSAGE_END). Without carrying it here the renderer below
+    // never sees it and the AG-UI path shows the heading with no cards.
+    const cards = Array.isArray(lastMsg.locationCards) ? { locationCards: lastMsg.locationCards } : {};
     setMessages((prev) => {
       const existing = prev.findIndex((m) => m.id === lastMsg.id);
       if (existing !== -1) {
         const next = [...prev];
-        next[existing] = { ...next[existing], content: lastMsg.content, streaming: lastMsg.streaming };
+        next[existing] = { ...next[existing], content: lastMsg.content, streaming: lastMsg.streaming, ...cards };
         return next;
       }
       // New message: append
-      return [...prev, { id: lastMsg.id, role: 'assistant', content: lastMsg.content, streaming: lastMsg.streaming }];
+      return [...prev, { id: lastMsg.id, role: 'assistant', content: lastMsg.content, streaming: lastMsg.streaming, ...cards }];
     });
   }, [aguiEnabled, aguiState.messages]);
 

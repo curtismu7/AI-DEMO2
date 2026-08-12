@@ -1203,10 +1203,11 @@ cmd_optional_start() {
   fi
 
   if [[ " ${groups[*]} " == *" mcpgw "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
-    local token_file="${BASEDIR}/ping-mcpgw/config/proxy-token"
-    if [[ -z "${PRIVILEGE_PROXY_TOKEN:-}" && ! -f "${token_file}" ]]; then
-      warn "Privilege proxy has no enrollment token."
-      warn "  Set PRIVILEGE_PROXY_TOKEN env or create ${token_file}"
+    local token_file="${BASEDIR}/ping-mcpgw/procyon/config/proxy-token.env"
+    if [[ -z "${PRIVILEGE_PROXY_TOKEN:-}" && ! -f "${token_file}" ]] \
+       && ! docker volume inspect "${COMPOSE_PROJECT_NAME}_mcpgw-ssl" >/dev/null 2>&1; then
+      warn "Privilege proxy has no enrollment token and no prior enrollment volume."
+      warn "  Set PRIVILEGE_PROXY_TOKEN env or create ${token_file} (ENV_PROXY_TOKEN=eyJ...)"
       warn "  (Get the JWT from Privilege Cloud → Gateway wizard)"
     fi
   fi

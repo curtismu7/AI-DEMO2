@@ -8,7 +8,7 @@
 
 **Tech Stack:** Docker Compose, Kubernetes + nginx ingress, Node 22 CommonJS BFF (Express), Jest 29 + supertest.
 
-Design spec: [`docs/superpowers/specs/2026-07-29-ping-mcpgw-design.md`](../specs/2026-07-29-ping-mcpgw-design.md)
+Design spec: [`privilege/design/2026-07-29-ping-mcpgw-design.md`](2026-07-29-ping-mcpgw-design.md)
 
 ## Global Constraints
 

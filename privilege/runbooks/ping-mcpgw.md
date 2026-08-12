@@ -23,7 +23,7 @@ routes on, proven end to end 2026-08-10 (initialize → 238 tools → tools/call
 per-app client hosts in the table are named after their app purely for readability;
 each one has a map line in `nginx.conf` doing the rewrite. Anything unmapped gets
 `Domain not found` and an empty `200`. Adding an MCP application = one map line + one
-`/etc/hosts` line. Full account: `docs/PRIVILEGE-MCP.md` §2026-08-10 (final).
+`/etc/hosts` line. Full account: `privilege/PRIVILEGE-MCP.md` §2026-08-10 (final).
 
 ## Prerequisite that no test can cover
 
@@ -91,7 +91,7 @@ the container as files *and* as environment variables.
 > `--spec-oidc-relying-party-redirect-ur-ls-elems`) — not exposed in the console UI.
 > Keep this file correct anyway; the native-install guest agent reads the same settings.
 > Note `use-pkce` is mandatory: PingOne app `deff60f5` enforces `S256_REQUIRED`.
-> See `docs/PRIVILEGE-MCP.md` §2026-08-10.
+> See `privilege/PRIVILEGE-MCP.md` §2026-08-10.
 
 > **Open issue (2026-08-09):** with all of the above in place the gateway still returns
 > `401 Bearer Token not found.` and emits no `WWW-Authenticate`. The proxy binary
@@ -99,7 +99,7 @@ the container as files *and* as environment variables.
 > reproduces on Ping's own hosted frontend. The component that consumes this config
 > appears to be the **guest agent**, which ships only with the native installer and is
 > not in the Docker image (`/procyon/bin/` has just `cyctl` and `cyonproxy`). See
-> `docs/PRIVILEGE-MCP.md` §2026-08-09 and `procyon-guest-agent.env`, which carries the
+> `privilege/PRIVILEGE-MCP.md` §2026-08-09 and `procyon-guest-agent.env`, which carries the
 > same settings under different key names plus the `APIKey`/`APISecret` the agent uses
 > to register them with the control plane.
 
@@ -149,7 +149,7 @@ does not cover the `*.mcpgw.` frontend hosts.
 4. In **Mesh Cluster**, select the gateway you registered in step 1.
 5. There is **no Frontend field in the create modal.** The console assigns
    `<app>-app-default.applications.privilege.pingone.com:8643` on save, which is
-   mesh mode. See `docs/PRIVILEGE-MCP.md` for why mesh cannot work here.
+   mesh mode. See `privilege/PRIVILEGE-MCP.md` for why mesh cannot work here.
 6. Configure tool/prompt/resource policy and bind to PingOne identities. Author the
    rule that produces the DENY here, and enable session recording.
 
@@ -160,7 +160,7 @@ does not cover the `*.mcpgw.` frontend hosts.
 - **Token**: `ENV_PROXY_TOKEN` env var, or file at `/procyon/ssl/proxy-token.data` (file preferred — the proxy writes back to it)
 - **Proxy phones home** outbound to `grpc.privilege.pingone.com:443` — no inbound firewall holes needed
 - **MCP frontend port**: `:8620` (flag `-alp-port`). `-listen` (default `:8680`, we
-  set `:8623`) is the **mesh** port and speaks mTLS — see `docs/PRIVILEGE-MCP.md`
+  set `:8623`) is the **mesh** port and speaks mTLS — see `privilege/PRIVILEGE-MCP.md`
 - **Token expiry**: decode the JWT `exp` claim to check. An expired token does not
   stop an already-enrolled proxy — see `RENEW-TOKEN.md`
 
@@ -203,4 +203,4 @@ mount entirely, so a proxy enrolled straight from that command never sees this t
 | `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `procyon/config/proxy-token` + `procyon/config/pingone.env` |
 | `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend port 8620 |
 | `demo_api_server/routes/privilegeMcpClient.js` | seeds the client page's default MCP URL from `PRIVILEGE_MCPGW_URL` |
-| `docs/PRIVILEGE-MCP.md` | end-to-end explainer: protocols per hop, flow diagrams, BFF endpoint reference, current known gaps |
+| `privilege/PRIVILEGE-MCP.md` | end-to-end explainer: protocols per hop, flow diagrams, BFF endpoint reference, current known gaps |
