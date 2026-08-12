@@ -60,6 +60,7 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 - **Sign-in only works on `local.ping-devops.com:4000`** (passkey rp.id must match the serving host). `api.ping.demo:4000` serves the app but the session cookie lives on the other host, so it shows "Please sign in." Point `E2E_BASE_URL` there too, or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Match existing conventions (error shapes, date handling, import paths) — don't invent.
 - After code edits, run `graphify update .` (AST-only). Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
+- **Ping product docs: start from <https://docs.pingidentity.com/llms.txt>.** Fetch that index first, then follow it to the specific page — don't guess a docs.pingidentity.com URL directly or fall back to general web search.
 
 ## Knowledge bundles
 
