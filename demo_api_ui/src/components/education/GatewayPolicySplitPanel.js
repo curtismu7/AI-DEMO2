@@ -2,12 +2,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import EducationDrawer from '../shared/EducationDrawer';
-import { GATEWAY_ENFORCEMENT_MERMAID, GATEWAY_ENFORCEMENT_ROWS } from './gatewayEnforcementDiagram.generated';
+import { GATEWAY_ENFORCEMENT_JOURNEY_MERMAID, GATEWAY_ENFORCEMENT_STAKES, GATEWAY_ENFORCEMENT_ROWS } from './gatewayEnforcementDiagram.generated';
 
 const STATUS_LABEL = {
   done: '✅ enforced',
   flagged: '⚠️ built, default OFF',
   pending: '❌ gap',
+};
+
+const VERDICT_STYLE = {
+  done: { bg: '#0a2418', fg: '#6ee7b7', border: '#059669', icon: '✅' },
+  flagged: { bg: '#2a1a00', fg: '#fbbf24', border: '#d97706', icon: '⚠️' },
+  pending: { bg: '#2d0a0a', fg: '#fca5a5', border: '#dc2626', icon: '❌' },
 };
 
 /** Renders the generated Mermaid source once on mount. Static, not live-trace —
@@ -29,7 +35,7 @@ function EnforcementMapDiagram() {
     });
     (async () => {
       try {
-        const { svg } = await mermaid.render('gw-enforcement-map-svg', GATEWAY_ENFORCEMENT_MERMAID);
+        const { svg } = await mermaid.render('gw-enforcement-map-svg', GATEWAY_ENFORCEMENT_JOURNEY_MERMAID);
         if (!cancelled && containerRef.current) containerRef.current.innerHTML = svg;
       } catch (err) {
         if (!cancelled) setRenderError(err?.message || 'Mermaid render failed');
@@ -111,12 +117,25 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
             and <code>docs/gateway-enforcement-map.md</code> together, from the same scan.
           </p>
           <p style={{ fontSize: 13, opacity: 0.8 }}>
-            <strong>Reading the diagram:</strong> the top row (P1AZ) structurally cannot check
-            any of these 5 rules itself — each dashed arrow points to where it's enforced
-            instead. A green box means that backstop is live; the arrow isn't a "still needed"
-            marker, it's showing which gateway owns the check.
+            <strong>Reading the diagram:</strong> P1AZ structurally can't check any of these 5
+            rules — each one branches off, then reconverges at the gateway that checks it
+            instead. Box color shows whether that backstop is live today.
           </p>
           <EnforcementMapDiagram />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginTop: 16 }}>
+            {GATEWAY_ENFORCEMENT_STAKES.map((s) => {
+              const style = VERDICT_STYLE[s.verdictTier];
+              return (
+                <div key={s.id} style={{ border: '1px solid var(--th-border)', borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{s.label}</div>
+                  <div style={{ fontSize: 11.5, opacity: 0.75, fontStyle: 'italic', lineHeight: 1.4 }}>{s.scenario}</div>
+                  <div style={{ fontSize: 11, padding: '5px 8px', borderRadius: 5, background: style.bg, color: style.fg, border: `1px solid ${style.border}` }}>
+                    {style.icon} {s.verdictText}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <table className="edu-table" style={{ marginTop: 16 }}>
             <thead>
               <tr><th>Rule</th><th>Node gateway</th><th>IG gateway (groovy)</th></tr>

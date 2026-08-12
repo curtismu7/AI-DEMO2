@@ -16,54 +16,55 @@ implementation plan that closes the remaining gaps.
 
 **Reading the diagram:** the top row (P1AZ) is the cloud PDP — it structurally
 cannot check any of these 5 rules itself (DSL limits, see the table below). Each
-dashed arrow points from the rule to where it's enforced INSTEAD: the gateway box
-below it. A green gateway box means that backstop is live; the arrow doesn't mean
-"still needed," it means "this is where this rule actually gets checked."
+rule branches off, then reconverges at the gateway that checks it instead.
 
 ```mermaid
-flowchart TB
-  subgraph P1AZ["PingOne Authorize (cloud PDP) — DSL cannot express any of these 5"]
-    direction TB
-    p_temporal["Temporal exp/iat/nbf"]
-    p_scope["Per-tool scope membership"]
-    p_rar["RAR payee allow-list"]
-    p_d05["D-05 multi-aud anti-bypass"]
-    p_tier["tiers.groupToTier mapping"]
-  end
-  subgraph NODE["Node Gateway (demo_mcp_gateway) — A2A path"]
-    direction TB
-    n_temporal["Temporal exp/iat/nbf<br/>ENFORCED"]
-    n_scope["Per-tool scope membership<br/>ENFORCED"]
-    n_rar["RAR payee allow-list<br/>ENFORCED"]
-    n_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
-    n_tier["tiers.groupToTier mapping<br/>ENFORCED"]
-  end
-  subgraph GROOVY["IG Gateway (ping-gateway groovy) — default path"]
-    direction TB
-    g_temporal["Temporal exp/iat/nbf<br/>ENFORCED"]
-    g_scope["Per-tool scope membership<br/>ENFORCED"]
-    g_rar["RAR payee allow-list<br/>BUILT, OFF BY DEFAULT"]
-    g_d05["D-05 multi-aud anti-bypass<br/>ENFORCED"]
-    g_tier["tiers.groupToTier mapping<br/>ENFORCED"]
-  end
-  p_temporal -.-> n_temporal
-  p_temporal -.-> g_temporal
-  p_scope -.-> n_scope
-  p_scope -.-> g_scope
-  p_rar -.-> n_rar
-  p_rar -.-> g_rar
-  p_d05 -.-> n_d05
-  p_d05 -.-> g_d05
-  p_tier -.-> n_tier
-  p_tier -.-> g_tier
-  classDef gap fill:#1a1535,color:#c4b5fd,stroke:#7c3aed,stroke-width:1px
+flowchart LR
+  REQ["Tool call arrives"] --> P1AZ["P1AZ evaluates"]
+  P1AZ -.->|can't check| b_temporal["Temporal exp/iat/nbf"]
+  P1AZ -.->|can't check| b_scope["Per-tool scope membership"]
+  P1AZ -.->|can't check| b_rar["RAR payee allow-list"]
+  P1AZ -.->|can't check| b_d05["D-05 multi-aud anti-bypass"]
+  P1AZ -.->|can't check| b_tier["tiers.groupToTier mapping"]
+  b_temporal --> GW["Gateway backstops"]
+  b_scope --> GW["Gateway backstops"]
+  b_rar --> GW["Gateway backstops"]
+  b_d05 --> GW["Gateway backstops"]
+  b_tier --> GW["Gateway backstops"]
+  GW --> DEC["Final decision"]
   classDef done fill:#0a2418,color:#6ee7b7,stroke:#059669,stroke-width:1px
-  classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4
   classDef flagged fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:1px,stroke-dasharray:2 2
-  class p_temporal,p_scope,p_rar,p_d05,p_tier gap
-  class n_temporal,g_temporal,n_scope,g_scope,n_rar,n_d05,g_d05,n_tier,g_tier done
-  class g_rar flagged
+  classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4
+  class b_temporal,b_scope,b_d05,b_tier done
+  class b_rar flagged
 ```
+
+## What's at stake
+
+**Temporal exp/iat/nbf**
+> A token minted hours ago, past the demo's replay window, gets replayed against a tool call — exp alone doesn't catch this, only iat max-age does.
+
+✅ Caught locally — both gateways
+
+**Per-tool scope membership**
+> A token carries the coarse gateway:mcp:invoke scope but never earned transfer — and tries to call create_transfer anyway.
+
+✅ Caught locally — both gateways
+
+**RAR payee allow-list**
+> A transfer's granted intent named one payee — the actual call sends the funds somewhere else.
+
+⚠️ Node catches it — IG ships this off by default
+
+**D-05 multi-aud anti-bypass**
+> An agent presents a token whose aud already targets the banking resource server directly — skipping the gateway hop entirely.
+
+✅ Caught locally — both gateways
+
+**tiers.groupToTier mapping**
+> A Standard-tier caller invokes a PrivateBanking-only tool, or tries to move more than their tier's ceiling.
+
+✅ Caught locally — both gateways
 
 ## Detail
 
