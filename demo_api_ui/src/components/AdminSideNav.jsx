@@ -161,7 +161,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 const AUTO_EXPAND_SECTIONS = [
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
-  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
+  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
@@ -541,7 +541,6 @@ export default function AdminSideNav({
           highlight: true,
           introGate: true,
         },
-        { label: "Copilot", path: "/copilot", icon: "ai" },
         {
           label: "PingOne Agent Builder",
           path: "/agent-builder",
