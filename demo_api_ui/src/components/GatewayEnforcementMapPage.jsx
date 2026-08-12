@@ -55,6 +55,13 @@ export default function GatewayEnforcementMapPage() {
         <code>node scripts/gen-gateway-enforcement-map.js</code> after a code change and this
         page updates with it.
       </p>
+      <p style={{ opacity: 0.7, maxWidth: 760, fontSize: 13 }}>
+        <strong>Reading the diagram:</strong> the top row (P1AZ) is the cloud PDP — it
+        structurally cannot check any of these 5 rules itself. Each dashed arrow points from
+        the rule to where it's enforced instead: the gateway box below it. A green box means
+        that backstop is live — the arrow means "this is where it's actually checked," not
+        "still needed."
+      </p>
 
       <DiagramExportBar
         source={source}

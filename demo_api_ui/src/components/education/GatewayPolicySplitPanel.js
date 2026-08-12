@@ -110,6 +110,12 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
             <code>node scripts/gen-gateway-enforcement-map.js</code> after a code change updates this diagram
             and <code>docs/gateway-enforcement-map.md</code> together, from the same scan.
           </p>
+          <p style={{ fontSize: 13, opacity: 0.8 }}>
+            <strong>Reading the diagram:</strong> the top row (P1AZ) structurally cannot check
+            any of these 5 rules itself — each dashed arrow points to where it's enforced
+            instead. A green box means that backstop is live; the arrow isn't a "still needed"
+            marker, it's showing which gateway owns the check.
+          </p>
           <EnforcementMapDiagram />
           <table className="edu-table" style={{ marginTop: 16 }}>
             <thead>
