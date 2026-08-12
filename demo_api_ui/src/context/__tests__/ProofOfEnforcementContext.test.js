@@ -51,6 +51,17 @@ beforeEach(() => {
   global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ useCases: CATALOG }) }));
 });
 
+test('does not fetch the use-case catalog when there is no session', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking" enabled={false}>
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  // /api/use-cases 401s for a signed-out visitor — don't make the request.
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(getByTestId('verdict').textContent).toBe('none');
+});
+
 test('a fully-matched PERMIT trace verdicts as verified', async () => {
   const { getByTestId } = render(
     <ProofOfEnforcementProvider vertical="banking">

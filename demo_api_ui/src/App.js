@@ -537,7 +537,7 @@ function AppWithAuth() {
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
-          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined}>
+          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined} enabled={!!user}>
           <ActivityNarrativeProvider>
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}

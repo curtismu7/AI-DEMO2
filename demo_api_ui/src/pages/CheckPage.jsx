@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import './CheckPage.css';
 import { useCheckRun } from '../hooks/useCheckRun';
+import { useVertical } from '../vertical/useVertical';
 import { runChipTest } from './check/chipTest';
 import CardsView from './check/CardsView';
 import StepperView from './check/StepperView';
@@ -15,6 +16,14 @@ const VERTICALS = ['banking', 'healthcare', 'retail', 'government', 'university'
 const VIEWS = { cards: CardsView, stepper: StepperView, checklist: ChecklistView, rail: RailDetailView };
 const VIEW_LABELS = { cards: 'Cards', stepper: 'Stepper', checklist: 'Checklist', rail: 'Rail + Detail' };
 const VERDICT_TEXT = { ready: 'Ready for demo', ready_with_warnings: 'Ready — with warnings', not_ready: 'Not ready' };
+// Fallback only — the project's default vertical for manual validation. The
+// selector starts on whatever vertical the app is actually showing, so a chip
+// test run from a retail session doesn't silently target banking.
+const DEFAULT_VERTICAL = 'sporting-goods';
+
+export function initialVertical(activeId) {
+  return VERTICALS.includes(activeId) ? activeId : DEFAULT_VERTICAL;
+}
 
 export default function CheckPage() {
   const { catalog, results, verdict, running, loadCatalog, runAll, setResult } = useCheckRun();
@@ -33,7 +42,11 @@ export default function CheckPage() {
       })
       .catch(() => {});
   }, []);
-  const [vertical, setVertical] = useState('banking');
+  // `picked` is the operator's explicit override; until they choose, the
+  // selector tracks the vertical the app is actually on.
+  const { activeId } = useVertical();
+  const [picked, setPicked] = useState(null);
+  const vertical = picked || initialVertical(activeId);
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
   const ViewComp = VIEWS[view];
@@ -70,7 +83,7 @@ export default function CheckPage() {
 
       <div className="check-actions">
         <label className="chk-select-label">Vertical
-          <select className="chk-select" value={vertical} disabled={running} onChange={(e) => setVertical(e.target.value)}>
+          <select className="chk-select" value={vertical} disabled={running} onChange={(e) => setPicked(e.target.value)}>
             {VERTICALS.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
         </label>

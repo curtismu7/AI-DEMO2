@@ -106,12 +106,19 @@
   flex-direction: column;
   box-shadow: -6px 0 40px rgba(0, 0, 0, 0.18);
   transform: translateX(105%);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  /* The drawer stays mounted so it can slide, but `aria-hidden` alone left its
+     role="dialog" and full body copy in the accessibility snapshot. A
+     visibility-hidden subtree is excluded from the a11y tree outright; the
+     delay keeps it visible for the length of the slide-out. */
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
   overflow: hidden;
 }
 
 .ciba-drawer--open {
   transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
 }
 
 /* Left-edge drag handle for resizing */
