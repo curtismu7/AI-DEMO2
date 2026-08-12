@@ -1886,3 +1886,96 @@ Practical import, and the reason this note belongs in the record: a config here 
 looks wrong is more likely undocumented than misconfigured. This repo is ahead of the
 documentation, not behind it — and that makes the `mcpgw` image above *more* plausible as
 the build the SE storyboards describe, since no published document contradicts it.
+
+## 2026-08-12: `mcpgw` confirmed live (the challenge is real) — and a new, separate enrollment-token trust wall
+
+Two independent findings today. The first confirms the previous section's lead; the
+second is a brand-new blocker, unrelated to it.
+
+### 1. The `mcpgw` challenge is confirmed live, not just by string search
+
+A tokenless `POST /mcp` against `privilege-mcpgw` (a live deployment in a different SE
+engineer's namespace — not ours, running the same image by digest) returned:
+
+```
+401
+www-authenticate: Bearer realm="MCP OAuth Server", resource_metadata="...", authorization_uri="https://.../.well-known/authorize"
+{"authorization_uri":"...","error":"unauthorized","error_description":"Bearer token required",...}
+```
+
+Every string the previous section flagged as a lead, confirmed live. One vendor bug
+worth recording: `resource_metadata` doubles its own path
+(`.../.well-known/oauth-protected-resource/.well-known/oauth-protected-resource`) — a
+bug in their build, not something to copy. Both `.well-known` documents on that same
+probe were themselves gated behind an identical 401 (non-compliant — same gap
+`cyonproxy` has, must be publicly readable per spec).
+
+**This does not touch `ValidateInfraJwt`.** The discovery/challenge layer is proven;
+whether a PingOne-issued client token subsequently passes `kid` comparison on `mcpgw`
+is not — that needs a live token test against our own enrollment, which the second
+finding below made impossible today.
+
+Consequence: this repo's own `docker-compose.yml` and `k8s/75-ping-mcpgw-deployment.yaml`
+were switched from `privilege-proxy`/`cyonproxy` to `privilege-mcpgw`/`mcpgw`, pinned by
+the digest verified above. See the PR that shipped this and the skill's "Read this
+first" item 0.
+
+### 2. New wall: fresh enrollment tokens fail signing-cert verification, on every binary
+
+Requested a fresh `ENV_PROXY_TOKEN` to actually deploy `ping-mcpgw` on the SE K8s
+cluster (`ping-devops-cmuir` — first enrollment there, no prior `ping-mcpgw-ssl` PVC).
+Two tokens were issued from the console minutes apart, `clusterID: ai-demo-se` then
+`clusterID: ai-demo-fresh` (the one actually used — matches the cluster our existing
+console-side app registrations expect). Decoded, valid, correct tenant
+(`8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b`), ~2h `exp` window, unremarkable.
+
+Every attempt to enroll a **fresh** node with it fails identically:
+
+```
+level=error msg="error Verifying siging cert x509: certificate signed by unknown authority
+(possibly because of \"crypto/rsa: verification error\" while trying to verify candidate
+authority certificate \"Root CA PingOne Privilege\")"
+level=error msg="Error building proxy config: error Verifying siging cer"
+level=fatal msg="Error creating edge proxy: error Verifying siging cer"
+```
+
+**Confirmed in four separate contexts, all on the same laptop, same token:**
+
+1. `privilege-proxy:v1.260806` (the image this repo ran before today)
+2. `privilege-proxy:latest` (freshly pulled, different digest — rules out a stale image)
+3. `privilege-mcpgw` (the new binary — rules out the binary swap as the cause)
+4. `privilege-proxy:v1.260806` again, with a brand-new empty Docker volume mimicking
+   the real compose service's mount shape exactly (rules out any volume/mount
+   confusion)
+
+**This is not the K8s deployment's fault, and it is not a Docker-vs-K8s difference.**
+The one thing that looked like a counter-example — `ai-demo-ping-mcpgw` running fine
+locally, 11+ hours uptime — is not one: its logs show it operating as node
+`1cf90baf-...`, the same node enrolled weeks ago, and it never once attempts to verify
+`ENV_PROXY_TOKEN` because `proxy-config.data` already exists in its volume (the
+documented "persisted state wins" behavior — see `renew-token.md`). It was never
+exercising the code path that fails. A clean, fresh-volume run of the exact same image
+reproduces the failure every time.
+
+**The cert chain itself is real, not malformed.** `openssl s_client -showcerts`
+against `grpc.privilege.pingone.com:443` (the live control-plane endpoint) presents a
+3-certificate chain, leaf → `PingPAM prod-na-privilege-cluster Intermediate CA` →
+self-signed `Root CA PingOne Privilege` — the exact same intermediate CA embedded in
+the token's JWT header (`signingCert`, NotBefore 2026-01-28, NotAfter 2036-01-26, not
+expired, not future-dated). `openssl` itself doesn't trust this root either
+(`verify error:num=19:self signed certificate in certificate chain`) — expected, it's
+Ping's private internal PKI, not a public CA. The proxy binaries are supposed to trust
+it out of the box; none of the four tested do.
+
+No `mcpgw --help` flag exists for supplying a trust anchor (`-certpath` is documented
+as "folder to store certificates" — output, not input). This is not a config gap this
+repo can work around.
+
+**Conclusion: vendor-side gap, not a code or deployment bug.** Either Ping rotated the
+root CA that signs enrollment tokens more recently than any currently-published proxy
+image's baked-in trust store, or this tenant's Privilege instance sits on
+infrastructure the published images don't yet know how to trust. Every already-enrolled
+node (ours included) is unaffected only because it never re-verifies a token once
+enrolled — this blocks **first enrollment only**, which is exactly what a fresh K8s
+deployment needs. Escalate to Ping with: the decoded token claims, the four-context
+test matrix above, and the extracted cert chain.
