@@ -644,7 +644,11 @@ export default function PrivilegeMcpClientPage() {
               </div>
             ) : (
               <div className="cur-btn-row">
-                <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+                {mainAppAuthenticated ? (
+                  <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
+                ) : (
+                  <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+                )}
               </div>
             )}
 
