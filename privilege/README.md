@@ -31,7 +31,7 @@ privilege/
 ├── demo/         customer-facing demo script + setup
 ├── design/       plan + specs (2026-07-29 gateway, 2026-08-10 tools table)
 ├── diagrams/     mermaid source + rendered SVG/PNG flows
-├── postman/      collections: Gateway, Simple relay, Debug probes
+├── postman/      collections: Gateway, Gateway-SE (tokenless), Simple relay, Debug probes
 └── runbooks/     ping-mcpgw, renew-token, mcpgw-nginx
 ```
 
@@ -99,5 +99,6 @@ Deliberately **not** moved here — these are bind-mounted, deployed, or importe
 | `demo_api_ui/src/pages/PrivilegeMcp*.jsx`, `src/components/privilege/` | UI |
 | `scripts/privilege-smoke.sh` | Five-assertion end-to-end check (manual — needs a console token) |
 | `scripts/set-privilege-frontend-oauth.sh` | Writes `ResourceOAuth` via `cyctl` |
-| `k8s/75-ping-mcpgw-deployment.yaml`, `k8s/aws/mcpgw-agentless-ingress.yaml` | Cluster deploy |
+| `k8s/helm/mcpgw`, `k8s/aws/deploy.sh` | SE cluster deploy (Helm, verified 2026-08-13) — see [`deploy-whole-stack.prompt.md`](deploy-whole-stack.prompt.md) |
+| `k8s/75-ping-mcpgw-deployment.yaml`, `k8s/aws/mcpgw-agentless-ingress.yaml` | Untested `mcpgw`-binary path — not applied by `deploy.sh` |
 | `docker-compose.yml` | `ping-mcpgw` + `mcpgw-nginx` services, profile `mcpgw` |

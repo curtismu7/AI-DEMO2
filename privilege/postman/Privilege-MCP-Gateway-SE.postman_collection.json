@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "Privilege MCP Gateway — SE cluster (tokenless)",
+    "_postman_id": "priv-mcpgw-se-001",
+    "description": "Tests the cyonproxy gateway deployed via k8s/helm/mcpgw in ping-devops-cmuir on the SE AWS cluster (see privilege/deploy-whole-stack.prompt.md). Unlike Privilege-MCP-Gateway.postman_collection.json (agentless mcpgw binary, PingOne OAuth challenge) and Privilege-MCP-Debug.postman_collection.json (local docker, console-token flows), cyonproxy has NO OAuth challenge and needs NO PingOne token, NO console token, NO client_id/secret — every request in this collection is tokenless (auth: noauth at the collection level).\n\nRouting/authorization for cyonproxy is entirely mesh-based: which backend MCP server a request reaches is decided by policy authored in the Privilege console (Cloud > Applications), not by anything in the request itself. As of 2026-08-13 no MCP application has been registered against this cluster's node (297a919a-8395-4754-a9cd-107b8ae7b3d9) — see '0. Gateway liveness' below, which currently returns 502 for exactly that reason. Registering a backend is the one step this collection cannot do for you: PingOne Privilege console > AI Security > Agentic Apps > Add Application > MCP Server tile, Mesh Cluster = the gateway enrolled here.\n\nOnce a backend is registered, requests 1-3 exercise the standard MCP JSON-RPC surface with no auth headers at all.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "noauth" },
+  "event": [],
+  "variable": [],
+  "item": [
+    {
+      "name": "0. Gateway liveness — GET /mcpgw/ (expect 502 until a backend is registered in console)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{gateway_url}}/",
+          "host": ["{{gateway_url}}"],
+          "path": [""]
+        }
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text().slice(0,200));",
+        "console.log('502 here means the proxy itself is reachable but has no backend MCP server');",
+        "console.log('registered against this cluster in the Privilege console yet — expected until');",
+        "console.log('someone completes Cloud > Applications > Add Application > MCP Server there.');",
+        "console.log('A connection error (not 502) instead means the proxy pod itself is down —');",
+        "console.log('check: kubectl get pods -n ping-devops-cmuir | grep ping-mcpgw');",
+        "pm.test('gateway reachable (502 = up, no backend yet; 200 = up, backend registered)', () => [200, 502].includes(pm.response.code));"
+      ], "type": "text/javascript" }}]
+    },
+    {
+      "name": "MCP Protocol (tokenless)",
+      "item": [
+        {
+          "name": "1. Initialize",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.test('MCP initialized', () => pm.expect(json.result).to.have.property('serverInfo'));",
+            "  const sessionId = pm.response.headers.get('MCP-Session-Id') || pm.response.headers.get('Mcp-Session-Id');",
+            "  if (sessionId) { pm.environment.set('mcp_session_id', sessionId); console.log('captured session:', sessionId); }",
+            "} else {",
+            "  console.log('502 = no backend registered in console yet, see request 0.');",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "2. List Tools",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.test('Tools returned', () => pm.expect(json.result.tools).to.be.an('array'));",
+            "  if (json.result && json.result.tools) console.log('Available tools:', json.result.tools.map(t => t.name).join(', '));",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "3. Call Tool (edit name/arguments to match a registered tool)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"REPLACE_WITH_TOOL_NAME\",\n    \"arguments\": {}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));"
+          ], "type": "text/javascript" }}]
+        }
+      ]
+    },
+    {
+      "name": "Kubernetes — reference (not runnable from Postman)",
+      "item": [],
+      "description": "Direct-to-Service access bypasses the SE ingress entirely — useful when {{gateway_url}} 502s and you need to tell 'proxy down' from 'no backend registered' apart, or when testing before an Ingress/cert exists.\n\nPort-forward:\n  kubectl port-forward -n {{namespace}} svc/{{helm_release}}-mcpgw 8680:80\n\nThen point gateway_url at http://localhost:8680 (no TLS) for the same requests above.\n\nPod/log check:\n  kubectl get pods -n {{namespace}} | grep {{helm_release}}\n  kubectl logs -n {{namespace}} deployment/{{helm_release}}-mcpgw -c log-tailer --tail=30\n(-c mcpgw is normally empty even when healthy — cyonproxy logs to a file, log-tailer is the sidecar tailing it.)"
+    }
+  ]
+}
