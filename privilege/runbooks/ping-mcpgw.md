@@ -199,7 +199,7 @@ mount entirely, so a proxy enrolled straight from that command never sees this t
 | file | what it does |
 |---|---|
 | `docker-compose.yml` | `ping-mcpgw` service (profile `mcpgw`), mounts proxy-token as `/procyon/ssl/proxy-token.data` |
-| `k8s/helm/mcpgw`, `k8s/aws/deploy.sh` | SE cluster: Helm-deployed cyonproxy, verified 2026-08-13 — see [`../deploy-whole-stack.prompt.md`](../deploy-whole-stack.prompt.md). `k8s/75-ping-mcpgw-deployment.yaml` (the untested `mcpgw` binary) is no longer applied |
+| `k8s/helm/mcpgw`, `k8s/aws/deploy.sh` | SE cluster: Helm-deployed `privilege-mcpgw` binary (mcpgw), swapped from cyonproxy 2026-08-13. mcpgw emits `WWW-Authenticate` OAuth challenge; cyonproxy did not. `k8s/75-ping-mcpgw-deployment.yaml` is the reference manifest the Helm chart mirrors |
 | `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `procyon/config/proxy-token` + `procyon/config/pingone.env` — the SE Helm deploy reads `ENV_PROXY_TOKEN` back out of this same Secret |
 | `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend `ping-mcpgw-mcpgw:80` (the Helm chart's Service) |
 | `demo_api_server/routes/privilegeMcpClient.js` | seeds the client page's default MCP URL from `PRIVILEGE_MCPGW_URL` |
