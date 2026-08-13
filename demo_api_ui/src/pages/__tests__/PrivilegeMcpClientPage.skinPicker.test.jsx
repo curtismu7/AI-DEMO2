@@ -1,10 +1,10 @@
 // demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.skinPicker.test.jsx
-// The costume picker must persist the pick and navigate straight to that
-// costume's live shell — from the client page AND from inside a shell, so a
-// skin can be swapped without backing out first.
+// The costume picker persists the pick and navigates to that shell's route.
+// The client page itself no longer carries the picker (it navigates to
+// protected /demo/* routes which require a logged-in user; removed to prevent
+// the redirect-to-home crash). Only the live shells host the picker now.
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
 import FootprintLiveShellPage from "../FootprintLiveShellPage";
 import { readMockSelection } from "../../components/aiFootprintMocks/mockSelection";
 
@@ -31,15 +31,6 @@ beforeEach(() => {
   };
 });
 
-function renderClientPage() {
-  render(
-    <MemoryRouter initialEntries={["/privilege-mcp-client"]}>
-      <PrivilegeMcpClientPage />
-    </MemoryRouter>,
-  );
-  return screen.getByRole("combobox");
-}
-
 function renderShell(category = "coding") {
   render(
     <MemoryRouter initialEntries={[`/demo/${category}`]}>
@@ -48,24 +39,6 @@ function renderShell(category = "coding") {
   );
   return screen.getByRole("combobox");
 }
-
-describe("costume picker on the Privilege client page", () => {
-  it("defaults to the client page and lists every costume variant", () => {
-    const select = renderClientPage();
-    expect(select).toHaveValue("");
-    // 4 categories x 3 variants + the client-page option
-    expect(screen.getAllByRole("option")).toHaveLength(13);
-  });
-
-  it("selecting a costume persists the pick and loads that shell immediately", () => {
-    fireEvent.change(renderClientPage(), { target: { value: "chatgpt:web" } });
-    expect(readMockSelection().chatgpt).toBe("web");
-    // Variant rides in the URL (?v=) so switching within a group re-renders — see
-    // FootprintSkinPicker (#1560). Only variant picks carry it; the client-page
-    // default navigates bare.
-    expect(navigate).toHaveBeenCalledWith("/demo/chatgpt-desktop?v=web");
-  });
-});
 
 describe("costume picker inside a live shell", () => {
   it("shows the costume currently being worn", () => {
