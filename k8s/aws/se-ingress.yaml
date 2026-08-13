@@ -60,6 +60,9 @@ spec:
         pathType: ImplementationSpecific
         backend:
           service:
-            name: ping-mcpgw
+            # ping-mcpgw-mcpgw = Helm release "ping-mcpgw" + chart's mcpgw
+            # service template ({{ .Release.Name }}-mcpgw). Port 80 -> targetPort
+            # 8680, cyonproxy's plain reverse-proxy listener (see k8s/helm/mcpgw).
+            name: ping-mcpgw-mcpgw
             port:
-              number: 8623
+              number: 80

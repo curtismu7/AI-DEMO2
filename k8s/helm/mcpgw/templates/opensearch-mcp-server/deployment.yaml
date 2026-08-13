@@ -1,0 +1,55 @@
+{{- if .Values.opensearchMcpServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-opensearch-mcp-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: opensearch-mcp-server
+    {{- include "privgateway.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: opensearch-mcp-server
+  template:
+    metadata:
+      labels:
+        app: opensearch-mcp-server
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.opensearchMcpServer.imagePullSecretName }}
+      containers:
+        - name: opensearch-mcp-server
+          image: {{ .Values.opensearchMcpServer.image }}
+          args:
+            - "--transport"
+            - "stream"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "9900"
+          ports:
+            - containerPort: 9900
+          env:
+            - name: OPENSEARCH_URL
+              value: "http://{{ .Release.Name }}-opensearch:9200"
+            - name: OPENSEARCH_NO_AUTH
+              value: "true"
+          resources:
+            {{- toYaml .Values.opensearchMcpServer.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: 9900
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 9900
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+{{- end }}

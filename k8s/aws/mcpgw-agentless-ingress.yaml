@@ -1,4 +1,11 @@
 ---
+# NOT CURRENTLY APPLIED — k8s/aws/deploy.sh skips this file as of 2026-08-13.
+# The deployed gateway is cyonproxy (k8s/helm/mcpgw, Helm), which has no
+# agentless-mode/upstream-vhost/Frontend-Name mechanism to route through; this
+# manifest targets the untested privilege-mcpgw binary (75-ping-mcpgw-deployment.yaml)
+# exclusively. Kept for whenever that binary gets verified — do not repoint at
+# cyonproxy's Service, it would apply cleanly and 502 forever.
+#
 # Per-application frontend hosts for PingOne Privilege MCPGW in agentless
 # (self-hosted frontend) mode. This is the Kubernetes equivalent of the
 # mcpgw-nginx service in docker-compose.yml — ingress-nginx IS the nginx engine

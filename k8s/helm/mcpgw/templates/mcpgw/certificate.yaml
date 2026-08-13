@@ -1,0 +1,18 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Release.Name }}-mcpgw-ssl
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: mcpgw
+    {{- include "privgateway.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Release.Name }}-mcpgw-ssl-cert
+  issuerRef:
+    name: {{ .Values.ingress.certIssuer }}
+    kind: ClusterIssuer
+  dnsNames:
+    - {{ .Values.mcpgw.hostname }}
+    - "*.{{ .Values.mcpgw.hostname }}"
+{{- end }}
