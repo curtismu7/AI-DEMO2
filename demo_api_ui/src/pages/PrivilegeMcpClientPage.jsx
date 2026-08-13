@@ -57,17 +57,6 @@ export default function PrivilegeMcpClientPage() {
   const jumpedToToolsRef = useRef(false);
   const silentAuthAttempted = useRef(false);
   const [silentAuthPending, setSilentAuthPending] = useState(false);
-  const [consoleCurl, setConsoleCurl] = useState('');
-  const [consoleTokenInfo, setConsoleTokenInfo] = useState(null);
-  // Console tokens live ~60 min; track the expiry so the UI can count down and
-  // flip to an unmistakable "expired — paste a fresh one" state instead of
-  // letting tool calls silently 401.
-  const [consoleTokenExpiresAt, setConsoleTokenExpiresAt] = useState(null);
-  const [nowTs, setNowTs] = useState(() => Date.now());
-  const [showGrabHelper, setShowGrabHelper] = useState(false);
-  // Forward hook: BFF can mint/refresh the infra token headlessly once a
-  // control-plane admin credential is configured (see /dev/auto-mint). Inert until then.
-  const [autoMintConfigured, setAutoMintConfigured] = useState(false);
   // Page-local light/dark, independent of the app theme. The page ships a fixed
   // Cursor-IDE dark look; this lets it flip to light without touching app wiring.
   const [pageTheme, setPageTheme] = useState(() => {
@@ -151,13 +140,6 @@ export default function PrivilegeMcpClientPage() {
       setUser(s.user || null);
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
-      // Rehydrate the console-token expiry countdown on reload — the BFF session
-      // still holds the token even though the paste-time client state is gone, so
-      // without this the timer only ever showed right after pasting.
-      if (s.oauth?.authenticated && s.oauth?.expiresAt && s.oauth?.scope === 'console-token') {
-        setConsoleTokenExpiresAt(s.oauth.expiresAt);
-        setConsoleTokenInfo({ user: s.user?.email || s.user?.id || 'console token', kidMatchesGateway: true });
-      }
       // Auto-discover tools only after Privilege auth completes
       if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
@@ -247,51 +229,6 @@ export default function PrivilegeMcpClientPage() {
       appendChat('system', `OAuth start failed: ${err.message}`);
     }
   };
-
-  // DEV: use a Privilege console token as the gateway bearer. Paste a whole
-  // "Copy as cURL" from the console's DevTools; the BFF parses auth_token out.
-  const useConsoleToken = async () => {
-    try {
-      const data = await api('/dev/console-token', { method: 'POST', body: { curl: consoleCurl } });
-      setConsoleTokenInfo(data);
-      setConsoleTokenExpiresAt(Number.isFinite(data.expiresInMinutes) ? Date.now() + data.expiresInMinutes * 60000 : null);
-      setAuthenticated(true);
-      appendChat('system',
-        `Console token set for ${data.user || 'user'} — ${data.expiresInMinutes} min left, kid ${data.kidMatchesGateway ? 'matches gateway' : data.kid}. Target: ${data.mcpUrl}`);
-      await refreshTools();
-    } catch (err) {
-      setConsoleTokenInfo(null);
-      setConsoleTokenExpiresAt(null);
-      appendChat('system', `Console token rejected: ${err.message}`);
-    }
-  };
-
-  // Ask the BFF whether headless auto-mint is configured (a control-plane admin
-  // credential is present). Off by default — the button only appears when set.
-  useEffect(() => {
-    api('/dev/auto-mint/status').then((s) => setAutoMintConfigured(Boolean(s?.configured))).catch(() => {});
-  }, []);
-
-  // Mint/refresh the infra token headlessly via the BFF (only when configured).
-  const autoMintToken = async () => {
-    try {
-      const data = await api('/dev/auto-mint', { method: 'POST' });
-      setConsoleTokenInfo(data);
-      setConsoleTokenExpiresAt(Number.isFinite(data.expiresInMinutes) ? Date.now() + data.expiresInMinutes * 60000 : null);
-      setAuthenticated(true);
-      appendChat('system', `Minted a fresh gateway token — ${data.expiresInMinutes} min left.`);
-      await refreshTools();
-    } catch (err) {
-      appendChat('system', `Auto-mint failed: ${err.message}`);
-    }
-  };
-
-  // Tick once a second while a console token is live, to drive the countdown.
-  useEffect(() => {
-    if (!consoleTokenExpiresAt) return undefined;
-    const id = setInterval(() => setNowTs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [consoleTokenExpiresAt]);
 
   const refreshTools = async (silent = false) => {
     try {
@@ -685,16 +622,6 @@ export default function PrivilegeMcpClientPage() {
             <div><span className="cur-cd-k">clientId: </span><span className="cur-cd-v cur-cd-v--id">{config.clientId || '—'}</span></div>
             <div><span className="cur-cd-k">scopes: </span><span className="cur-cd-v cur-cd-v--scope">{config.scopes || '—'}</span></div>
             <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
-            {consoleTokenExpiresAt && (() => {
-              const left = consoleTokenExpiresAt - nowTs;
-              const expired = left <= 0;
-              const mm = Math.max(0, Math.floor(left / 60000));
-              const ss = Math.max(0, Math.floor((left % 60000) / 1000));
-              const cls = expired ? 'cur-cd-v--bad' : left < 5 * 60000 ? 'cur-cd-v--scope' : 'cur-cd-v--ok';
-              return (
-                <div><span className="cur-cd-k">token: </span><span className={`cur-cd-v ${cls}`}>{expired ? 'EXPIRED — paste a fresh one' : `${mm}:${String(ss).padStart(2, '0')} left`}</span></div>
-              );
-            })()}
           </div>
           <div className="cur-sidebar-content">
             {authenticated ? (
@@ -708,8 +635,6 @@ export default function PrivilegeMcpClientPage() {
                     setAuthenticated(false);
                     setGrantedScopes([]);
                     setTools([]);
-                    setConsoleTokenInfo(null);
-                    setConsoleTokenExpiresAt(null);
                   }}>Sign Out</button>
                 </div>
               </div>
@@ -720,66 +645,6 @@ export default function PrivilegeMcpClientPage() {
             ) : (
               <div className="cur-btn-row">
                 <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
-              </div>
-            )}
-
-            {import.meta.env.DEV && (
-              <div className="cur-console-token">
-                <div className="cur-sidebar-header">
-                  <span className="cur-sidebar-title">CONSOLE TOKEN (DEV)</span>
-                </div>
-                <p className="cur-console-token-hint">
-                  Privilege console &gt; DevTools &gt; Network &gt; any request &gt; Copy as cURL
-                  (or Copy request headers), paste below. The bearer PingOne mints is rejected by
-                  the gateway (kid wall); a console token is accepted.
-                </p>
-                <textarea
-                  className="cur-console-token-input"
-                  rows={4}
-                  placeholder="curl 'https://console.privilege.pingone.com/...' -b 'auth_token=eyJ...'"
-                  value={consoleCurl}
-                  onChange={(e) => setConsoleCurl(e.target.value)}
-                />
-                <div className="cur-ct-actions">
-                  <button type="button" className="cur-btn cur-btn--primary" onClick={useConsoleToken} disabled={!consoleCurl.trim()}>
-                    Use console token
-                  </button>
-                  <button type="button" className="cur-btn" onClick={() => setShowGrabHelper((v) => !v)}>
-                    {showGrabHelper ? 'Hide how-to' : 'How to grab'}
-                  </button>
-                  {autoMintConfigured && (
-                    <button type="button" className="cur-btn" onClick={autoMintToken} title="Mint a fresh gateway token via the configured admin credential">
-                      Mint fresh token
-                    </button>
-                  )}
-                </div>
-                {showGrabHelper && (
-                  <div className="cur-ct-grab">
-                    <p>The <code>auth_token</code> cookie is HttpOnly, so a script can&apos;t read it. Grab it from a request the browser already sent:</p>
-                    <ol className="cur-ct-steps">
-                      <li>On the Privilege console tab, open DevTools &gt; <strong>Network</strong>.</li>
-                      <li>Click any request &gt; right-click &gt; <strong>Copy &gt; Copy as cURL</strong>.</li>
-                      <li>Paste the whole cURL into the box above &gt; <strong>Use console token</strong>.</li>
-                    </ol>
-                    <p>The cURL carries the <code>cookie:</code> header the browser sent (HttpOnly included), and the server pulls <code>auth_token</code> out of it.</p>
-                  </div>
-                )}
-                {consoleTokenInfo && (() => {
-                  const left = consoleTokenExpiresAt ? consoleTokenExpiresAt - nowTs : null;
-                  const expired = left != null && left <= 0;
-                  const warn = left != null && !expired && left < 5 * 60000;
-                  const mm = left != null ? Math.max(0, Math.floor(left / 60000)) : 0;
-                  const ss = left != null ? Math.max(0, Math.floor((left % 60000) / 1000)) : 0;
-                  const cls = expired ? 'cur-ct-status--dead' : warn ? 'cur-ct-status--warn' : 'cur-ct-status--ok';
-                  return (
-                    <div className={`cur-console-token-status ${cls}`}>
-                      <span>{consoleTokenInfo.kidMatchesGateway ? '✓' : '⚠️'} {consoleTokenInfo.user}</span>
-                      <span className="cur-ct-timer">
-                        {left == null ? '' : expired ? 'expired — paste a fresh one' : `${mm}:${String(ss).padStart(2, '0')} left`}
-                      </span>
-                    </div>
-                  );
-                })()}
               </div>
             )}
 
