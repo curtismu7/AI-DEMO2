@@ -2,6 +2,7 @@
 // Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import ToolsTable from '../components/privilege/ToolsTable';
 import './PrivilegeMcpClientPage.css';
 
@@ -581,6 +582,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
         <div className="cur-titlebar-right">
+          <FootprintSkinPicker className="cur-skin-picker" />
           <button
             type="button"
             className="cur-flow-trigger"

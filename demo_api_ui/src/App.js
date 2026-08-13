@@ -860,15 +860,13 @@ function AppWithAuth() {
                 <Route
                   path="/demo/:shellSlug"
                   element={
-                    loading ? null : user ? (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <FootprintLiveShellPage />
                         </main>
                       </>
-                    ) : (
-                      <Navigate to="/" replace />
                     )
                   }
                 />
