@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openai-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: openai-agent
+spec:
+  # Off by default to conserve namespace quota. langchain-agent is the always-on
+  # runtime; bring this one up on demand via `./k8s/deploy.sh agent openai`.
+  replicas: 0
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: openai-agent
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: openai-agent
+    spec:
+      containers:
+      - name: openai-agent
+        image: "{{ .Values.imageRegistry }}/ai-demo-openai-agent:{{ .Values.imageTag }}"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8891
+          name: http
+        env:
+        - name: ENVIRONMENT
+          value: "development"
+        - name: BFF_BASE_URL
+          value: "https://demo-api-server:3001"
+        - name: MCP_SERVER_URL
+          value: "ws://mcp-server:8080"
+        envFrom:
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        readinessProbe:
+          tcpSocket:
+            port: 8891
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openai-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: openai-agent
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8891
+    targetPort: 8891
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: openai-agent

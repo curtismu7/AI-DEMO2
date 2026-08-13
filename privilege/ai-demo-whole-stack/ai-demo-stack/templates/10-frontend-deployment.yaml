@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: frontend
+spec:
+  replicas: 1
+  # Surge one pod during rollout so the site never has zero frontend pods
+  # (previously maxSurge:0/maxUnavailable:1 caused a brief 503 window on every
+  # restart). Frontend's request footprint (50m CPU/64Mi mem) is negligible
+  # against the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: "{{ .Values.imageRegistry }}/ai-demo-frontend:{{ .Values.imageTag }}"
+        imagePullPolicy: Always   # use locally-built image (OrbStack/minikube)
+        ports:
+        - containerPort: 3000
+          name: http
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        - name: tls-certs
+          mountPath: /etc/nginx/certs
+          readOnly: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          tcpSocket:
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 60
+        readinessProbe:
+          tcpSocket:
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 30
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: tls-certs
+        secret:
+          secretName: tls-certs
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101    # nginx non-root UID
+        fsGroup: 101
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: frontend
+spec:
+  type: NodePort
+  ports:
+  - port: 4000
+    targetPort: 3000
+    nodePort: 30400   # access at https://api.ping.demo:30400 (or use port-forward)
+    protocol: TCP
+    name: https
+  selector:
+    app: ai-demo
+    component: frontend
