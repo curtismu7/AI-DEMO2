@@ -442,7 +442,7 @@ services:
       - "8443:8443"
     environment:
       # Privilege gateway enrollment token (from Privilege console Setup > Gateways)
-      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN}"
+      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     volumes:
       - /var/log/procyon:/var/log/procyon
       - /var/lib/procyon/ssl:/procyon/ssl
@@ -1600,29 +1600,6 @@ services:
       - ai-demo
     restart: unless-stopped
 
-  # ── Privilege MCPGW Gateway (self-hosted agentless frontend) ────────────────
-  mcpgw:
-    image: public.ecr.aws/s7q1z8z4/privilege-mcpgw:latest
-    container_name: ai-demo-mcpgw
-    ports:
-      - "8443:8443"
-      - "8080:8080"
-    environment:
-      SERVER_URL: "https://mcpgw.local:8443"
-      OIDC_CLIENT_ID: "a6219652-47af-4ed2-8dea-20e9940b3377"
-      OIDC_CLIENT_SECRET: "m196.1Zj1Phw8IA8bRE~duFYbBKwDXyq4rnnT9Y~iOIh3ycCkTYnUTsBPn~~XxuH"
-      OIDC_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
-      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN}"
-      MCP_CONFIG_PATH: "/var/lib/procyon/config"
-    volumes:
-      - ./certs/mcpgw-cert.pem:/var/lib/procyon/ssl/mcpgw-cert.pem:ro
-      - ./certs/mcpgw-key.pem:/var/lib/procyon/ssl/mcpgw-key.pem:ro
-      - mcpgw-ssl:/var/lib/procyon/data
-      - mcpgw-logs:/var/log/procyon
-    networks:
-      - ai-demo
-    restart: unless-stopped
-
 networks:
   ai-demo:
     driver: bridge
@@ -1634,6 +1611,4 @@ volumes:
   weaviate-data:
   embed-models:
   # Privilege proxy ephemeral data
-  mcpgw-ssl:
-  mcpgw-logs:
   mcpgw-recordings:

@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-mcpgw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: mcpgw
+    {{- include "privgateway.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mcpgw
+  template:
+    metadata:
+      labels:
+        app: mcpgw
+    spec:
+      containers:
+        - name: mcpgw
+          image: {{ .Values.mcpgw.image }}
+          command:
+            - /procyon/bin/cyonproxy
+            - -hostname
+            - {{ .Values.mcpgw.hostname | quote }}
+          env:
+            - name: ENV_PROXY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mcpgw-secret
+                  key: ENV_PROXY_TOKEN
+            - name: SERVER_URL
+              value: {{ .Values.mcpgw.serverUrl | quote }}
+            {{- if .Values.mcpgw.oidc.enabled }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.mcpgw.oidc.clientId | quote }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mcpgw-secret
+                  key: OIDC_CLIENT_SECRET
+            - name: OIDC_AUTH_URL
+              value: {{ .Values.mcpgw.oidc.authUrl | quote }}
+            - name: OIDC_TOKEN_URL
+              value: {{ .Values.mcpgw.oidc.tokenUrl | quote }}
+            - name: OIDC_USER_URL
+              value: {{ .Values.mcpgw.oidc.userUrl | quote }}
+            - name: OIDC_SCOPES
+              value: {{ .Values.mcpgw.oidc.scopes | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.mcpgw.resources | nindent 12 }}
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/procyon
+            - name: ssl
+              mountPath: /procyon/ssl
+            - name: recordings
+              mountPath: /procyon/recordings
+        - name: log-tailer
+          image: busybox
+          command: ["sh", "-c", "until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done; tail -F /var/log/procyon/cyonproxy.log"]
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/procyon
+      volumes:
+        - name: logs
+          hostPath:
+            path: /var/log/procyon/{{ .Release.Name }}
+            type: DirectoryOrCreate
+        - name: ssl
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-mcpgw-ssl
+        - name: recordings
+          hostPath:
+            path: /var/lib/procyon/recordings/{{ .Release.Name }}
+            type: DirectoryOrCreate

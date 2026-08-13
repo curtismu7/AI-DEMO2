@@ -1,79 +1,66 @@
-# Default values for the mcpgw chart.
-# Secrets below (envProxyToken, pingoneEnv, mcpgwCert/mcpgwKey) are intentionally
-# empty — do not commit real values into this file. Supply them per-install via
-# --set-file/--set, or a separate untracked values file, e.g.:
-#
-#   helm install ping-mcpgw ./k8s/helm/mcpgw \
-#     --namespace ping-devops-cmuir \
-#     --set hostname=mcpgw.ai-demo.ping-devops.com \
-#     --set-file secrets.envProxyToken=./proxy-token.jwt \
-#     --set-file secrets.pingoneEnv=./pingone.env \
-#     --set-file secrets.mcpgwCert=./mcpgw-cert.pem \
-#     --set-file secrets.mcpgwKey=./mcpgw-key.pem
+# Deploy namespace via --namespace flag on helm install.
+# All sensitive values (proxyToken, oidc.clientSecret) must be supplied
+# via --set or a separate --values secrets.yaml — never committed to source control.
 
-namespace: ""   # required — no default, so a bare `helm install` without -n fails loudly
-
-# -hostname flag arg and the wildcard cert's apex SAN. Must equal pingone.env's
-# SERVER_URL host (no scheme, no path) or the gateway's own OIDC callback breaks.
-hostname: mcpgw.ai-demo.ping-devops.com
-
-image:
-  # Pinned by digest (multi-arch manifest list), not a tag — no public
-  # tag-listing access to confirm a stable version tag exists. Bump by
-  # re-pulling :latest from the registry below and updating this digest.
-  repository: public.ecr.aws/s7q1z8z4/privilege-mcpgw
-  digest: sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d
-  pullPolicy: Always
-
-resources:
-  requests:
-    memory: 256Mi
-    cpu: 100m
-  limits:
-    memory: 512Mi
-    cpu: 500m
-
-persistence:
-  # Holds the long-lived proxy token/mesh identity the proxy writes after
-  # enrollment. Losing this volume forces re-enrollment (a fresh ENV_PROXY_TOKEN
-  # from the Privilege console) — get a new token BEFORE ever deleting it.
-  size: 1Gi
-  storageClassName: ""   # cluster default if empty
-
-secrets:
-  # Enrollment JWT from Privilege console → Setup Gateways → generate token.
-  # Only consumed on first boot / re-enrollment; the proxy persists its own
-  # long-lived credential into the ssl-certs PVC afterward.
-  envProxyToken: ""
-  # Full contents of ping-mcpgw/procyon/config/pingone.env — SERVER_URL must
-  # match .Values.hostname (scheme https://, no path), OIDC_CLIENT_ID/SECRET
-  # from the PingOne app the gateway itself chains to for user login.
-  pingoneEnv: ""
-  # /var/lib/procyon/ssl/mcpgw-{cert,key}.pem per the vendor's official config
-  # doc. A wildcard covering *.<baseDomain> (and the bare hostname, which a
-  # wildcard never covers on its own) works — see the certificate block below
-  # for one way to obtain that pair automatically via cert-manager.
-  mcpgwCert: ""
-  mcpgwKey: ""
-
-certificate:
-  # If true, this chart requests its own cert-manager Certificate for
-  # .Values.hostname (apex) + *.<hostname> (wildcard, covers every per-app
-  # subdomain under it) and uses the resulting secret to populate
-  # secrets.mcpgwCert/mcpgwKey automatically — leave those empty in that case.
-  # If false, supply
-  # secrets.mcpgwCert/mcpgwKey yourself (e.g. an existing wildcard, or mkcert
-  # for local-only testing) and this chart won't touch cert-manager at all.
-  enabled: true
-  issuerName: letsencrypt-pdo
-  issuerKind: ClusterIssuer
+mcpgw:
+  hostname: "cj-mcpgw.ping-devops.com"
+  image: "public.ecr.aws/s7q1z8z4/privilege-proxy"
+  serverUrl: "https://cj-mcpgw.ping-devops.com"
+  # required — provide via: --set mcpgw.proxyToken=<token>
+  proxyToken: ""
+  ssl:
+    storage: "50Mi"
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+  oidc:
+    # Set enabled: true to enable OIDC browser login flow
+    enabled: false
+    clientId: "c95ca731-7202-45b6-9c3f-a9c1b378d35e"
+    # required only if oidc.enabled=true — provide via: --set mcpgw.oidc.clientSecret=<secret>
+    clientSecret: ""
+    authUrl: "https://auth.pingone.com/5f4badd1-7d97-48e9-84aa-9f15d72ad84f/as/authorize"
+    tokenUrl: "https://auth.pingone.com/5f4badd1-7d97-48e9-84aa-9f15d72ad84f/as/token"
+    userUrl: "https://auth.pingone.com/5f4badd1-7d97-48e9-84aa-9f15d72ad84f/as/userinfo"
+    scopes: "openid profile email"
 
 ingress:
-  # Agentless-mode front door: DNS + TLS in front of the proxy, one Ingress
-  # object per registered MCP Server application host isn't required here —
-  # mcpgw resolves the application by URL PATH (/<app-slug>/mcp), not by Host,
-  # confirmed 2026-08-12 — so a single wildcard-backed Ingress covers every
-  # current and future app.
-  enabled: true
-  ingressClassName: nginx-public
-  annotations: {}
+  # This app owns hostname/cert/ingress routing centrally (k8s/aws/se-ingress.yaml,
+  # mcpgw-agentless-ingress.yaml, mcpgw-wildcard-certificate.yaml) since mcpgw.hostname
+  # here is the app's shared external host, not a chart-dedicated subdomain. Enabling
+  # this would create a second Ingress + Certificate for the same host/path the app's
+  # own ingress already serves — leave disabled.
+  enabled: false
+  className: "nginx-public"
+  certIssuer: "letsencrypt-pdo"
+
+opensearch:
+  # This app has its own MCP servers; the reference chart's OpenSearch/OpenSearch-MCP
+  # sample backend is unused here.
+  enabled: false
+  image: "opensearchproject/opensearch:2"
+  storage: "10Gi"
+  javaOpts: "-Xms512m -Xmx512m"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+opensearchMcpServer:
+  enabled: false
+  image: "cjmuir710/opensearch-mcp-server:latest"
+  imagePullSecretName: "dockerhub-creds"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

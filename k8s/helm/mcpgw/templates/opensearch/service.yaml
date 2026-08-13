@@ -1,0 +1,18 @@
+{{- if .Values.opensearch.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-opensearch
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: opensearch
+    {{- include "privgateway.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: opensearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+{{- end }}
