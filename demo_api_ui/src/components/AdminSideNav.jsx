@@ -700,7 +700,7 @@ export default function AdminSideNav({
           icon: "file",
         },
         {
-          label: "PingCLI Demo",
+          label: "Headless Identity Demo",
           path: "/pingcli",
           icon: "tool",
         },
