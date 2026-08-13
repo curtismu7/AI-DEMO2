@@ -56,7 +56,7 @@
               "console.log('config.mcpUrl:', s.config?.mcpUrl);",
               "console.log('mainAppAuthenticated:', s.mainAppAuthenticated);",
               "console.log('tools count:', s.tools?.length ?? 0);",
-              "pm.test('state shape OK', () => pm.expect(s).to.have.all.keys('config', 'oauth', 'mainAppAuthenticated', 'tools'));"
+              "pm.test('state shape OK', () => pm.expect(s).to.have.all.keys('config', 'oauth', 'mainAppAuthenticated', 'user', 'tools'));"
             ]
           }
         }
