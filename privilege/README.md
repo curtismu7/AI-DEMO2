@@ -31,7 +31,7 @@ privilege/
 ├── demo/         customer-facing demo script + setup
 ├── design/       plan + specs (2026-07-29 gateway, 2026-08-10 tools table)
 ├── diagrams/     mermaid source + rendered SVG/PNG flows
-├── postman/      collections: Gateway, Simple relay, Debug probes
+├── postman/      collections: Gateway, Gateway-SE (tokenless), Simple relay, Debug probes
 └── runbooks/     ping-mcpgw, renew-token, mcpgw-nginx
 ```
 
