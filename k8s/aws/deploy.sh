@@ -140,7 +140,9 @@ if command -v gh &>/dev/null; then
 fi
 
 info "Creating secrets from demo_api_server/.env..."
-K8S_NAMESPACE="$NS" bash "$K8S_DIR/create-secrets.sh"
+# MCPGW_APP_NAME: Privilege console app name (AI Security > Agentic Apps).
+# mcpgw binary routes /mcpgw/<app-name>/mcp — set to match the registered name.
+K8S_NAMESPACE="$NS" MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
 
 # OTel bootstrap script mounted at /otel in every instrumented Node service
 # (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
