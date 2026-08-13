@@ -1385,6 +1385,43 @@ services:
           - mcp-pingone-admin.mcpgw.local.ping-devops.com
     restart: unless-stopped
 
+  # OpenSearch + its MCP server — sample backend for the Privilege MCP gateway.
+  # Not this app's own MCP servers; useful only when testing against an
+  # OpenSearch-backed MCP application registered in the Privilege console
+  # (app name: cmuir-opensearch, backend: http://opensearch-mcp-server:9900/mcp).
+  opensearch:
+    profiles: ["mcpgw"]
+    image: opensearchproject/opensearch:2
+    container_name: ai-demo-opensearch
+    environment:
+      discovery.type: "single-node"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  opensearch-mcp-server:
+    profiles: ["mcpgw"]
+    image: cjmuir710/opensearch-mcp-server:latest
+    container_name: ai-demo-opensearch-mcp-server
+    command: ["--transport", "stream", "--host", "0.0.0.0", "--port", "9900"]
+    environment:
+      OPENSEARCH_URL: "http://opensearch:9200"
+      OPENSEARCH_NO_AUTH: "true"
+    ports:
+      - "9900:9900"
+    depends_on:
+      opensearch:
+        condition: service_started
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
   # ── RAG Code Search Services ──────────────────────────────────────────────
   weaviate:
     profiles: ["rag"]
@@ -1616,4 +1653,7 @@ volumes:
   weaviate-data:
   embed-models:
   # Privilege proxy ephemeral data
+  mcpgw-ssl:
+  mcpgw-logs:
   mcpgw-recordings:
+  opensearch-data:

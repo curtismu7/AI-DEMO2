@@ -206,6 +206,58 @@ mount entirely, so a proxy enrolled straight from that command never sees this t
 
 **Operational rule:** whenever mcpgw is restarted (upgrade, config change, crash), also restart the BFF. MCPgw holds DCR client registrations in memory only — any restart invalidates all clients, and the BFF cache won't know.
 
+## Adding a second MCP application — OpenSearch example
+
+The mcpgw binary routes to whichever backend each Privilege MCP Application declares.
+Steps below use `cmuir-opensearch` as the app name (path becomes `/cmuir-opensearch/mcp`).
+
+### 1. Start the OpenSearch MCP server
+
+**Docker:**
+```sh
+docker compose --profile mcpgw up -d opensearch opensearch-mcp-server
+# Accessible inside Docker network at http://opensearch-mcp-server:9900/mcp
+```
+
+**K8s (SE cluster):** already deployed — `deploy.sh` sets `opensearch.enabled=true` and
+`opensearchMcpServer.enabled=true` when `PUBLIC_APP_URL` is provided. Service name:
+`ping-mcpgw-opensearch-mcp-server` (port 80 → 9900). URL: `http://ping-mcpgw-opensearch-mcp-server/mcp`
+
+### 2. Register the app in the Privilege console
+
+Privilege console → **AI Security > Agentic Apps > Add Application > MCP Server**:
+
+| Field | Value |
+|---|---|
+| **App name** | `cmuir-opensearch` |
+| **MCP Server URL** (K8s) | `http://ping-mcpgw-opensearch-mcp-server/mcp` |
+| **MCP Server URL** (Docker) | `http://opensearch-mcp-server:9900/mcp` |
+| **Auth Mode** | Static Token — leave token **empty** (opensearch-mcp-server is unauthenticated) |
+| **Mesh Cluster** | your enrolled gateway |
+
+After save, mcpgw exposes the new path: `/<app-name>/mcp`.
+
+### 3. Configure the BFF or Postman
+
+The BFF's `/api/privilege-mcp/config` endpoint accepts `mcpUrl` to switch apps per session:
+
+```json
+POST /api/privilege-mcp/config
+{ "mcpUrl": "https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp",
+  "clientId": "a6219652-47af-4ed2-8dea-20e9940b3377" }
+```
+
+Or set `PRIVILEGE_MCPGW_URL=https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp` in
+`demo_api_server/.env` and restart the BFF to make it the default.
+
+Use the Postman collections in `privilege/postman/Privilege-MCP-Client-{Docker,K8s}.postman_collection.json` —
+each has an **OpenSearch app** folder with preconfigured requests.
+
+### 4. Author Privilege policy
+
+Add the same policy/record/deny rules in the Privilege console for `cmuir-opensearch` that
+you set up for `cmuir2`. Privilege enforces per-app, not globally — a new app has no rules until you add them.
+
 ## Where the wiring lives
 
 | file | what it does |
