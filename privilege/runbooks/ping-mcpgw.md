@@ -215,8 +215,8 @@ Steps below use `cmuir-opensearch` as the app name (path becomes `/cmuir-opensea
 
 **Docker:**
 ```sh
-docker compose --profile mcpgw up -d opensearch opensearch-mcp-server
-# Accessible inside Docker network at http://opensearch-mcp-server:9900/mcp
+./run-docker.sh optional start mcpgw
+# opensearch-mcp-server accessible inside Docker network at http://opensearch-mcp-server:9900/mcp
 ```
 
 **K8s (SE cluster):** already deployed — `deploy.sh` sets `opensearch.enabled=true` and
@@ -257,6 +257,7 @@ each has an **OpenSearch app** folder with preconfigured requests.
 
 Add the same policy/record/deny rules in the Privilege console for `cmuir-opensearch` that
 you set up for `cmuir2`. Privilege enforces per-app, not globally — a new app has no rules until you add them.
+
 
 ## Where the wiring lives
 

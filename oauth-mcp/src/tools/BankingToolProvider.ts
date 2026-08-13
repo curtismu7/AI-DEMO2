@@ -150,7 +150,7 @@ export class BankingToolProvider {
             // Step 9 (the placeholder 'disabled' cannot be exchanged). Mint a demo
             // user token from the BFF and run the tool as that user. Vertical tools
             // execute server-side with no token, so they need nothing here.
-            if (!tool.vertical && agentToken === 'disabled') {
+            if (!tool.vertical && openAccessHop) {
               const demoToken = await this.apiClient.fetchDemoSubjectToken();
               if (demoToken) {
                 effectiveAgentToken = demoToken;
