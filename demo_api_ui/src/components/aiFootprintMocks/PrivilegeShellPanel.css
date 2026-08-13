@@ -202,48 +202,6 @@
 .pvs-actions button:hover { background: rgba(128, 128, 128, 0.26); }
 .pvs-actions button:disabled { opacity: 0.5; cursor: default; }
 
-/* Console-token box — available on every skin (kid wall: only the console
-   cookie is accepted by the gateway). */
-.pvs-console-token {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  border: 1px solid rgba(128, 128, 128, 0.35);
-  border-radius: 4px;
-  padding: 8px;
-  background: rgba(128, 128, 128, 0.08);
-}
-.pvs-ct-title {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-.pvs-console-token textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid rgba(128, 128, 128, 0.4);
-  background: rgba(128, 128, 128, 0.12);
-  color: inherit;
-  border-radius: 4px;
-  padding: 6px;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 10.5px;
-  resize: vertical;
-}
-.pvs-console-token button {
-  align-self: flex-start;
-  border: 1px solid #3d6a52;
-  background: #1f3a2d;
-  color: #bfe3cf;
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-size: 11px;
-  cursor: pointer;
-}
-.pvs-console-token button:disabled { opacity: 0.5; cursor: default; }
-.pvs-ct-status { font-size: 10.5px; opacity: 0.85; }
-
 /* Coding (Claude Code terminal) — monospace all the way. */
 .pvs--coding {
   font-family: "SF Mono", ui-monospace, Menlo, monospace;
