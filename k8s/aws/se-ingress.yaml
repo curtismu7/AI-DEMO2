@@ -31,38 +31,13 @@ spec:
             port:
               number: 4000
 ---
-# Separate Ingress object, same host. rewrite-target is an Ingress-LEVEL
-# annotation: putting it on ai-demo-ingress above would also rewrite the "/"
-# frontend rule and break the app. Kubernetes allows multiple Ingress objects
-# per host and nginx merges them.
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ai-demo-mcpgw-ingress
-  namespace: <<NAMESPACE>>
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    # Strip the /mcpgw prefix so the container sees /mcp, not /mcpgw/mcp.
-    # pathType: Prefix forwards the FULL path, so without this it 404s.
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
-spec:
-  ingressClassName: nginx-public
-  rules:
-  - host: ai-demo.ping-devops.com
-    http:
-      paths:
-      - path: /mcpgw(/|$)(.*)
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            # ping-mcpgw-mcpgw = Helm release "ping-mcpgw" + chart's mcpgw
-            # service template ({{ .Release.Name }}-mcpgw). Port 80 -> targetPort
-            # 8680, cyonproxy's plain reverse-proxy listener (see k8s/helm/mcpgw).
-            name: ping-mcpgw-mcpgw
-            port:
-              number: 80
+# The /mcpgw path-based Ingress that used to live here (ai-demo-mcpgw-ingress,
+# on this same shared host) is REMOVED as of 2026-08-13 — proven live to be
+# categorically incompatible with cyonproxy's TLS-native proxy port (8680):
+# it negotiates HTTP/2 via ALPN and presents its own certificate, so nginx
+# terminating+re-encrypting (backend-protocol HTTP/HTTPS/GRPCS, all tried
+# live) hits TLS handshake failures no matter how it's configured — the fix
+# is SSL passthrough, which routes purely by SNI and therefore CANNOT share
+# a host+path with the app's own ingress above. See
+# k8s/aws/mcpgw-passthrough-ingress.yaml (dedicated hostname, separate
+# LoadBalancer) and privilege/PRIVILEGE-MCP.md for the full investigation.

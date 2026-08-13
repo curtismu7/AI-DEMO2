@@ -233,6 +233,8 @@ if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
       --namespace "$NS" \
       --set mcpgw.hostname="$mcpgw_host" \
       --set mcpgw.serverUrl="$PUBLIC_APP_URL" \
+      --set opensearch.enabled=true \
+      --set opensearchMcpServer.enabled=true \
       --set-file mcpgw.proxyToken=/tmp/mcpgw-token.txt
     rm -f /tmp/mcpgw-token.txt
   else
@@ -246,6 +248,19 @@ fi
 if [[ -n "$K8S_NAMESPACE" ]]; then
   info "Applying SE cluster ingress..."
   sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
+
+  # SSL-passthrough ingress for the Privilege gateway, on its own dedicated
+  # hostname (see mcpgw-passthrough-ingress.yaml's header comment for why it
+  # can't share the app's host/path). Requires DNS already pointed at the
+  # nginx-public-passthrough LoadBalancer — set MCPGW_HOSTNAME once that's
+  # done; skipped with a warning otherwise, rest of the stack still deploys.
+  if [[ -n "${MCPGW_HOSTNAME:-}" ]]; then
+    info "Applying Privilege gateway passthrough ingress: $MCPGW_HOSTNAME"
+    sed -e "s|<<NAMESPACE>>|$NS|g" -e "s|<<MCPGW_HOSTNAME>>|$MCPGW_HOSTNAME|g" \
+      "$SCRIPT_DIR/mcpgw-passthrough-ingress.yaml" | kubectl apply -f -
+  else
+    info "MCPGW_HOSTNAME not set — skipping Privilege gateway ingress (gateway itself still deploys)"
+  fi
 
   # mcpgw-agentless-ingress.yaml + mcpgw-wildcard-certificate.yaml route via the
   # mcpgw binary's agentless-mode upstream-vhost/Frontend-Name mechanism, which
