@@ -1,0 +1,193 @@
+{
+  "info": {
+    "name": "Privilege MCP Gateway — SE cluster (console token)",
+    "_postman_id": "priv-mcpgw-se-001",
+    "description": "Tests the cyonproxy gateway deployed via k8s/helm/mcpgw in ping-devops-cmuir on the SE AWS cluster (see privilege/deploy-whole-stack.prompt.md). Confirmed live end-to-end 2026-08-13.\n\nEarlier revisions of this collection assumed cyonproxy's mesh port (8680, reached via our own ingress) was the client entry point and needed no token — both wrong. The real entry point is Privilege's OWN publicly-hosted frontend, NOT anything in our cluster:\n\n  https://<app-name>-app-default.applications.privilege.pingone.com:8643/mcp\n\n(for this deployment, app-name = cmuir). This resolves via Ping's own DNS (CNAME to privilege.idaas.pingone.com) and requires a console-issued Bearer token — see the 'Get Console Token' folder to obtain one. Direct access to our own ingress (mcpgw.ai-demo.ping-devops.com or the raw ELB) resets at the TLS layer for real MCP clients; this Privilege-hosted URL is the one that actually works.\n\nExpected response progression as auth completes: 401 'Bearer Token not found.' (no token) -> 403 'User ... doesn't have access to MCP app <name>' (token valid, no policy grant yet) -> 200 with real MCP results (token valid + policy granted). A 403 is progress, not failure — it means auth AND routing both passed and Privilege is enforcing console-authored policy, which is the actual point of this demo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{console_token}}", "type": "string" }]
+  },
+  "event": [],
+  "variable": [],
+  "item": [
+    {
+      "name": "Get Console Token",
+      "item": [
+        {
+          "name": "1. Fetch session ID (needs auth_token cookie set manually below first)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "auth_token={{console_auth_token}}" }
+            ],
+            "url": {
+              "raw": "https://console.privilege.pingone.com/session-token",
+              "protocol": "https",
+              "host": ["console", "privilege", "pingone", "com"],
+              "path": ["session-token"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text());",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('console_session_id', json.session_id);",
+            "  console.log('captured console_session_id:', json.session_id);",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "2. Read applications (verify token + get FrontEndName/status)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "auth_token={{console_auth_token}}" },
+              { "key": "x-procyon-session-id", "value": "{{console_session_id}}" }
+            ],
+            "url": {
+              "raw": "https://console.privilege.pingone.com/api/{{env_id}}/v1/applications?ObjectMeta.Namespace=default",
+              "protocol": "https",
+              "host": ["console", "privilege", "pingone", "com"],
+              "path": ["api", "{{env_id}}", "v1", "applications"],
+              "query": [{ "key": "ObjectMeta.Namespace", "value": "default" }]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code);",
+            "if (pm.response.code === 200) {",
+            "  const apps = pm.response.json().Applications || [];",
+            "  apps.forEach(a => {",
+            "    const cfg = a.Spec.McpAppConfig;",
+            "    console.log(a.ObjectMeta.Name, '-> FrontEndName:', JSON.stringify(cfg.FrontEndName.Elems));",
+            "    console.log('  Backends:', JSON.stringify(cfg.Backends.Elems), 'EntryPath:', cfg.EntryPath);",
+            "    console.log('  McpServerStatus:', a.Status.McpServerStatus.Status || '(clean)');",
+            "  });",
+            "} else { console.log(pm.response.text().slice(0,300)); }"
+          ], "type": "text/javascript" }}]
+        }
+      ],
+      "description": "console_auth_token (the browser's auth_token cookie value) must be pasted into the environment manually — it's a short-lived PingOne SSO session token, not something these requests can mint. Get it from browser devtools (Application/Storage > Cookies) while logged into the Privilege console. console_token (used by the MCP Protocol folder below) is the SAME value as console_auth_token — the gateway accepts the raw auth_token JWT as its Bearer token directly, confirmed live 2026-08-13."
+    },
+    {
+      "name": "MCP Protocol",
+      "item": [
+        {
+          "name": "0. Tokenless probe (expect 401 Bearer Token not found.)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,200));",
+            "pm.test('gateway reachable, wants a token', () => pm.response.code === 401);"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "1. Initialize (with console token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.test('MCP initialized', () => pm.expect(json.result).to.have.property('serverInfo'));",
+            "  const sessionId = pm.response.headers.get('MCP-Session-Id') || pm.response.headers.get('Mcp-Session-Id');",
+            "  if (sessionId) { pm.environment.set('mcp_session_id', sessionId); console.log('captured session:', sessionId); }",
+            "} else if (pm.response.code === 403) {",
+            "  console.log('403 = auth+routing OK, no policy grant yet — see console: grant this user access to the MCP app.');",
+            "} else if (pm.response.code === 401) {",
+            "  console.log('401 = console_token missing/expired — re-run Get Console Token folder.');",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "2. List Tools",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.test('Tools returned', () => pm.expect(json.result.tools).to.be.an('array'));",
+            "  if (json.result && json.result.tools) console.log('Available tools:', json.result.tools.map(t => t.name).join(', '));",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "3. Call Tool (edit name/arguments to match a registered tool)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_my_accounts\",\n    \"arguments\": {}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));"
+          ], "type": "text/javascript" }}]
+        }
+      ]
+    },
+    {
+      "name": "Kubernetes — reference (not runnable from Postman)",
+      "item": [],
+      "description": "This is now only useful for checking the gateway pod/backend health, not for reaching it as a client — direct access to our own ingress/Service resets for real MCP clients (TLS-layer, confirmed live 2026-08-13); Privilege's own hosted frontend (see collection description) is the only path that works.\n\nPod/log check:\n  kubectl get pods -n {{namespace}} | grep {{helm_release}}\n  kubectl logs -n {{namespace}} deployment/{{helm_release}}-mcpgw -c log-tailer --tail=30\n(-c mcpgw is normally empty even when healthy — cyonproxy logs to a file, log-tailer is the sidecar tailing it.)\n\nBackend health (what the gateway forwards permitted calls to):\n  kubectl run mcp-probe -n {{namespace}} --image=curlimages/curl --rm -i --restart=Never --command -- curl -X POST http://mcp-server.{{namespace}}.svc.cluster.local:8080/mcp -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"probe\",\"version\":\"1.0\"}}}'"
+    }
+  ]
+}
