@@ -457,10 +457,19 @@ async function beginOAuthFlow(session, req) {
   const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
   if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
+  // Reuse the active PingOne browser session when the main app is already logged in.
+  // prompt=none tells PingOne to complete the flow silently using the existing session
+  // cookie — no login page shown. Falls back to interactive on login_required.
+  const promptNoneAttempted = Boolean(
+    req.session?.oauthTokens?.accessToken && !req.session?.privilegePromptNoneFailed,
+  );
+  if (promptNoneAttempted) authUrl.searchParams.set('prompt', 'none');
+
   session.pendingAuth = {
     oauthState, verifier, tokenUri, redirectUri,
     dcrClientId,
     dcrClientSecret,
+    promptNoneAttempted,
   };
 
   return authUrl;
@@ -686,6 +695,14 @@ router.get('/auth/callback', async (req, res) => {
     if (error) {
       const reason = error_description ? `${error}: ${error_description}` : error;
       emitEvent(session, 'oauth', { phase: 'callback_error', error: reason });
+      // prompt=none was attempted (main app session existed) but PingOne had no
+      // active session to reuse — mark it so the next attempt skips prompt=none
+      // and falls through to the interactive login page instead of looping.
+      if (error === 'login_required' && session.pendingAuth?.promptNoneAttempted) {
+        req.session.privilegePromptNoneFailed = true;
+        session.pendingAuth = null;
+        return res.redirect(`${returnBase}?auth=silent_failed`);
+      }
       return redirectWithError(reason);
     }
     if (!session.pendingAuth || incomingState !== session.pendingAuth.oauthState) {
@@ -727,6 +744,7 @@ router.get('/auth/callback', async (req, res) => {
     session.oauth.dcrClientSecret = session.pendingAuth.dcrClientSecret || null;
     session.pendingAuth = null;
     resetMcpState(session);
+    if (req.session) req.session.privilegePromptNoneFailed = false;
 
     emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
     res.redirect(`${returnBase}?auth=success`);

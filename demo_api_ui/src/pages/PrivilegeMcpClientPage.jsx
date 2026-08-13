@@ -55,6 +55,8 @@ export default function PrivilegeMcpClientPage() {
   const [activeTab, setActiveTab] = useState('chat');
   const [showPresent, setShowPresent] = useState(false);
   const jumpedToToolsRef = useRef(false);
+  const silentAuthAttempted = useRef(false);
+  const [silentAuthPending, setSilentAuthPending] = useState(false);
   const [consoleCurl, setConsoleCurl] = useState('');
   const [consoleTokenInfo, setConsoleTokenInfo] = useState(null);
   // Console tokens live ~60 min; track the expiry so the UI can count down and
@@ -160,6 +162,18 @@ export default function PrivilegeMcpClientPage() {
       if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
       }
+      // Auto-connect Privilege using the active PingOne session when the main app
+      // is already logged in — prompt=none on the BFF means PingOne returns silently.
+      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
+        const authParam = new URLSearchParams(window.location.search).get('auth');
+        if (authParam !== 'silent_failed' && !silentAuthAttempted.current) {
+          silentAuthAttempted.current = true;
+          setSilentAuthPending(true);
+          api('/auth/start', { method: 'POST' })
+            .then((data) => { window.location.href = data.authUrl; })
+            .catch(() => setSilentAuthPending(false));
+        }
+      }
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -191,6 +205,9 @@ export default function PrivilegeMcpClientPage() {
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
     }
+    // silent_failed: prompt=none couldn't reuse a PingOne session — show the
+    // manual Sign In button without an error message.
+    // (no-op here; the /state effect already guards on authParam !== 'silent_failed')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -695,6 +712,10 @@ export default function PrivilegeMcpClientPage() {
                     setConsoleTokenExpiresAt(null);
                   }}>Sign Out</button>
                 </div>
+              </div>
+            ) : silentAuthPending ? (
+              <div className="cur-btn-row">
+                <span className="cur-auth-badge">Connecting...</span>
               </div>
             ) : (
               <div className="cur-btn-row">
