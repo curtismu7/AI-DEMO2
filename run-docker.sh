@@ -147,7 +147,7 @@ _optional_group_services() {
     agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
     tracing)   echo "jaeger" ;;
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
-    mcpgw)     echo "ping-mcpgw mcpgw-nginx" ;;
+    mcpgw)     echo "ping-mcpgw mcpgw-nginx opensearch opensearch-mcp-server" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -167,7 +167,7 @@ _optional_group_desc() {
     agents)    echo "Alternate agent frameworks (OpenAI / Mastra / Pydantic)" ;;
     tracing)   echo "Jaeger OTLP tracing backend" ;;
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
-    mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording)" ;;
+    mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording) + OpenSearch sample backend" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac
