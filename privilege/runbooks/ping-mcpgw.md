@@ -194,6 +194,18 @@ ping-mcpgw/
 Note: the console's **Get Docker Command** output omits the `/var/lib/procyon`
 mount entirely, so a proxy enrolled straight from that command never sees this tree.
 
+## Troubleshooting — auth failures
+
+| Error (in BFF log or UI) | Root cause | Fix |
+|---|---|---|
+| `JWT signature validation failed` | `PRIVILEGE_MCPGW_URL` points at Privilege Cloud hosted frontend or PingOne directly. Neither emits `WWW-Authenticate`, so `discoverAuth()` falls back to PingOne OIDC → BFF exchanges at PingOne → PingOne-signed token → mcpgw rejects it | Set `PRIVILEGE_MCPGW_URL=https://ai-demo.ping-devops.com/mcpgw/<app-name>/mcp` (K8s mcpgw URL, which emits `WWW-Authenticate`) |
+| `Token exchange failed: 401 invalid_client` | `OIDC_CLIENT_SECRET` in `pingone.env` is wrong. mcpgw tries to exchange the PingOne auth code at PingOne's token endpoint and PingOne rejects it. Confirm in mcpgw log: `Token exchange failed with status 401: {"error":"invalid_client",...}` | Copy `PRIVILEGE_SSO_CLIENT_SECRET` from `demo_api_server/.env` into `pingone.env` exactly. Watch for `l` (lowercase L) vs `I` (uppercase I) — visually identical in most fonts. Run `create-secrets.sh`, restart mcpgw. |
+| `Unknown client` | MCPgw pod restarted and lost in-memory DCR client state. BFF still has the old cached `client_id` from before the restart. | Restart the BFF (`kubectl rollout restart deployment/demo-api-server -n <ns>`) to flush the DCR cache. Next `auth/start` registers a fresh DCR client with the new mcpgw instance. |
+| `404 /mcp` (no WWW-Authenticate) | No MCP application registered in the Privilege console for this cluster. | Privilege console → AI Security > Agentic Apps > Add Application > MCP Server. Set backend to `http://mcp-server.<ns>.svc.cluster.local:8080/mcp`, Mesh Cluster = your gateway. The path mcpgw exposes becomes `/<app-name>/mcp`. |
+| `502` on `/mcpgw/*` | Service `targetPort` mismatch, or mcpgw pod not ready. | Verify `service.yaml` has `targetPort: 8623` (not 8680). Check `kubectl get pods -n <ns> \| grep mcpgw` and startup probe. |
+
+**Operational rule:** whenever mcpgw is restarted (upgrade, config change, crash), also restart the BFF. MCPgw holds DCR client registrations in memory only — any restart invalidates all clients, and the BFF cache won't know.
+
 ## Where the wiring lives
 
 | file | what it does |
