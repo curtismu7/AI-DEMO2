@@ -442,7 +442,7 @@ services:
       - "8443:8443"
     environment:
       # Privilege gateway enrollment token (from Privilege console Setup > Gateways)
-      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN}"
+      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     volumes:
       - /var/log/procyon:/var/log/procyon
       - /var/lib/procyon/ssl:/procyon/ssl
