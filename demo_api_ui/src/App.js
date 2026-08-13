@@ -190,6 +190,7 @@ import PublicRoutes, {
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
+import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
@@ -957,18 +958,10 @@ function AppWithAuth() {
                 <Route
                   path="/pingcli"
                   element={
-                    // Keep PingCliPage mounted across auth `loading` flickers so a
-                    // finished terminal run is not wiped mid-view.
-                    loading && !user ? null : user ? (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          <PingCliPage />
-                        </main>
-                      </>
-                    ) : (
-                      <Navigate to="/" replace />
-                    )
+                    // Public route — no login required.
+                    <AppShell user={user} logout={logout}>
+                      <PingCliPage />
+                    </AppShell>
                   }
                 />
                 {/* Legacy Test Lab URL → unified Demo check */}
