@@ -37,6 +37,12 @@ function getClientSession(req) {
   }
   const session = clientSessions.get(sid);
   session._sid = sid;
+  // Allow MCP clients that already hold a PingOne token to pass it directly
+  // via Authorization: Bearer instead of going through the /auth/login flow.
+  const auth = req.headers?.authorization;
+  if (auth && auth.startsWith('Bearer ')) {
+    session.oauth.accessToken = auth.slice(7);
+  }
   return session;
 }
 
