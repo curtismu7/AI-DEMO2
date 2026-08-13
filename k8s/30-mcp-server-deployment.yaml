@@ -49,6 +49,11 @@ spec:
         # the same way. Confirmed live 2026-08-13 against ping-devops-cmuir.
         - name: TOKEN_STORAGE_PATH
           value: "/app/data/tokens"
+        # Wide-open mode for Privilege MCP Gateway: the gateway itself
+        # enforces authz, so the MCP server trusts all callers on the
+        # internal hop (mirrors docker-compose.yml's mcp-server default).
+        - name: MCP_AUTH_DISABLED
+          value: "true"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://jaeger:4317"
         - name: OTEL_SERVICE_NAME
