@@ -60,10 +60,10 @@
               { "key": "x-procyon-session-id", "value": "{{console_session_id}}" }
             ],
             "url": {
-              "raw": "https://console.privilege.pingone.com/api/{{env_id}}/v1/applications?ObjectMeta.Namespace=default",
+              "raw": "https://console.privilege.pingone.com/api/01d89b06-66d5-430e-9f28-65636843788b/v1/applications?ObjectMeta.Namespace=default",
               "protocol": "https",
               "host": ["console", "privilege", "pingone", "com"],
-              "path": ["api", "{{env_id}}", "v1", "applications"],
+              "path": ["api", "01d89b06-66d5-430e-9f28-65636843788b", "v1", "applications"],
               "query": [{ "key": "ObjectMeta.Namespace", "value": "default" }]
             }
           },

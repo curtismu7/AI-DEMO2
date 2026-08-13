@@ -1,0 +1,6 @@
+# False positives — PingOne environment UUID in Postman path arrays.
+# gitleaks generic-api-key fires on ["api", "<uuid>", ...] because the
+# key name "api" + UUID value pattern matches. These are public env IDs,
+# not secrets.
+privilege/postman/Privilege-MCP-Gateway-SE.postman_collection.json:generic-api-key:66
+privilege/ai-demo-whole-stack/postman/Privilege-MCP-Gateway-SE.postman_collection.json:generic-api-key:66
