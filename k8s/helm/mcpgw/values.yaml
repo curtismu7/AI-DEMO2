@@ -3,29 +3,34 @@
 # via --set or a separate --values secrets.yaml — never committed to source control.
 
 mcpgw:
-  hostname: "cj-mcpgw.ping-devops.com"
-  image: "public.ecr.aws/s7q1z8z4/privilege-proxy"
-  serverUrl: "https://cj-mcpgw.ping-devops.com"
-  # required — provide via: --set mcpgw.proxyToken=<token>
+  hostname: "ai-demo.ping-devops.com"
+  # privilege-mcpgw binary (mcpgw). Pinned digest for the verified build is in
+  # k8s/75-ping-mcpgw-deployment.yaml; :latest is safe here because deploy.sh
+  # uses imagePullPolicy: Always (via patch_images).
+  image: "public.ecr.aws/s7q1z8z4/privilege-mcpgw:latest"
+  # SERVER_URL is read from pingone.env (via -mcpconfpath), not from this value.
+  # create-secrets.sh patches pingone.env with the correct public origin including
+  # the /mcpgw path prefix. This field is kept for reference only.
+  serverUrl: "https://ai-demo.ping-devops.com/mcpgw"
+  # required — provide via: --set-file mcpgw.proxyToken=<path>
   proxyToken: ""
   ssl:
     storage: "50Mi"
   resources:
     requests:
-      memory: "2Gi"
-      cpu: "1"
+      memory: "256Mi"
+      cpu: "100m"
     limits:
-      memory: "4Gi"
-      cpu: "2"
+      memory: "512Mi"
+      cpu: "500m"
   oidc:
-    # Set enabled: true to enable OIDC browser login flow
-    enabled: false
-    clientId: "c95ca731-7202-45b6-9c3f-a9c1b378d35e"
-    # required only if oidc.enabled=true — provide via: --set mcpgw.oidc.clientSecret=<secret>
-    clientSecret: ""
-    authUrl: "https://auth.pingone.com/5f4badd1-7d97-48e9-84aa-9f15d72ad84f/as/authorize"
-    tokenUrl: "https://auth.pingone.com/5f4badd1-7d97-48e9-84aa-9f15d72ad84f/as/token"
-    userUrl: "https://auth.pingone.com/5f4badd1-7d97-48e9-84aa-9f15d72ad84f/as/userinfo"
+    # OIDC config is read by the mcpgw binary from pingone.env (via -mcpconfpath)
+    # mounted from ping-mcpgw-secrets. These values are kept for reference only —
+    # they are no longer injected as env vars (mcpgw ignores env vars for OIDC).
+    clientId: "a6219652-47af-4ed2-8dea-20e9940b3377"
+    authUrl: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/authorize"
+    tokenUrl: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token"
+    userUrl: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/userinfo"
     scopes: "openid profile email"
 
 ingress:
