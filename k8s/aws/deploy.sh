@@ -233,6 +233,8 @@ if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
       --namespace "$NS" \
       --set mcpgw.hostname="$mcpgw_host" \
       --set mcpgw.serverUrl="$PUBLIC_APP_URL" \
+      --set opensearch.enabled=true \
+      --set opensearchMcpServer.enabled=true \
       --set-file mcpgw.proxyToken=/tmp/mcpgw-token.txt
     rm -f /tmp/mcpgw-token.txt
   else
