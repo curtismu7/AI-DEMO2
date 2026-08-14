@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * toolAnnotations.ts — derives tool metadata (readOnly, destructive, idempotent)
  * from the gateway's scope-topology.json SSOT.
@@ -22,7 +20,7 @@ export interface ToolAnnotation {
 /**
  * Derives tool annotations from required scopes:
  *   - readOnly: true if the tool requires only 'read'-like scopes
- *   - destructive: true if the tool requires 'write', 'transfer', or any admin scopes
+ *   - destructive: true if the tool requires 'write' or 'write' suffixed scopes
  *   - idempotent: true if the tool is read-only (no state mutation)
  *
  * For unknown tools, returns all false (fail-safe: unknown tools are assumed unsafe).
@@ -38,9 +36,9 @@ export function getToolAnnotations(toolName: string): ToolAnnotation {
     return { readOnly: false, destructive: false, idempotent: false };
   }
 
-  // Check for destructive scopes (write/transfer/admin actions)
+  // Check for destructive scopes: 'write' or any scope ending in ':write'
   const requiresWrite = scopes.some(
-    (s) => s === 'write' || s === 'transfer' || s.startsWith('admin:'),
+    (s) => s === 'write' || s.endsWith(':write'),
   );
 
   const readOnly = !requiresWrite;
