@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import { useAgentUiMode } from '../context/AgentUiModeContext';
 import './ThresholdControls.css';
 
 const FLAG_LABELS = {
@@ -26,12 +27,13 @@ const FLAG_DESCRIPTIONS = {
 const IMPORTANT_FLAG_IDS = Object.keys(FLAG_LABELS);
 
 export default function ThresholdControls() {
+  const { placement, fab, setAgentUi } = useAgentUiMode();
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
   const [confirm, setConfirm] = useState('');
   const [mfa, setMfa] = useState('');
   const [flags, setFlags] = useState([]);
-  const [openSections, setOpenSections] = useState({ thresholds: true, verticalThresholds: false, flags: true });
+  const [openSections, setOpenSections] = useState({ thresholds: true, verticalThresholds: false, agentView: true, flags: true });
   const btnRef = useRef(null);
   const panelRef = useRef(null);
 
@@ -250,6 +252,32 @@ export default function ThresholdControls() {
           )}
         </div>
       )}
+
+      {/* Agent View — placement toggle (Embedded vs Float only) */}
+      <div className="thresh-ctrl__section">
+        <button type="button" className="thresh-ctrl__section-toggle" onClick={() => toggleSection('agentView')}>
+          <span className="thresh-ctrl__section-title">Agent View</span>
+          <span className="thresh-ctrl__chevron">{openSections.agentView ? '▲' : '▼'}</span>
+        </button>
+        {openSections.agentView && (
+          <div className="thresh-ctrl__placement-row">
+            <button
+              type="button"
+              className={`thresh-ctrl__placement-btn${placement === 'middle' ? ' thresh-ctrl__placement-btn--active' : ''}`}
+              onClick={() => setAgentUi({ placement: 'middle', fab })}
+            >
+              Embedded
+            </button>
+            <button
+              type="button"
+              className={`thresh-ctrl__placement-btn${placement === 'none' ? ' thresh-ctrl__placement-btn--active' : ''}`}
+              onClick={() => setAgentUi({ placement: 'none', fab: true })}
+            >
+              Float only
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Feature Flags — important flags only, read-only (edit at /feature-flags) */}
       {flags.filter((f) => IMPORTANT_FLAG_IDS.includes(f.id)).length > 0 && (
