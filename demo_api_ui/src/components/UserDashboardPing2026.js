@@ -167,6 +167,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     () => agentPlacement === "middle",
   );
 
+  const [showFilmstrip, setShowFilmstrip] = useState(() => {
+    try { return localStorage.getItem("ba_show_filmstrip") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    const handler = (e) => setShowFilmstrip(!!e.detail?.on);
+    window.addEventListener("agent-filmstrip-toggle", handler);
+    return () => window.removeEventListener("agent-filmstrip-toggle", handler);
+  }, []);
+
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
   // pop-out). Floating mode is unaffected. Mirrors the cookie-
@@ -3713,8 +3722,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </div>
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
-            {/* Filmstrip below the grid, full-width — same role as the chain row in embedded mode */}
-            <TokenChainFilmstrip />
+            {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
+            {showFilmstrip && (
+              <div className="tcfs-float-host">
+                <TokenChainFilmstrip />
+              </div>
+            )}
           </div>
         )
       )}
