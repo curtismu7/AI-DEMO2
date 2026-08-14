@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "sensitive_membership_details",
-  "checkedAt": "2026-08-11",
+  "checkedAt": "2026-08-14",
   "requiredFlags": [
     "ff_verified_trust_a2a",
     "ff_mcp_gateway_pinggateway"

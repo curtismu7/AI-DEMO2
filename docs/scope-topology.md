@@ -573,3 +573,5 @@ Granted scopes: `read`, `identity:read`
 | `list_anf_orders` | gateway | `read` | — |
 | `add_to_cart` | gateway | `write` | — |
 | `browse_gear` | gateway | `read` | — |
+| `get_loyalty_status` | gateway | `airlines:read` | — |
+| `redeem_miles` | gateway | `airlines:read` `airlines:write` | — |

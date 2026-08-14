@@ -42,6 +42,7 @@ const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
+const agentBuilderService = require('../services/agentBuilderService');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
 const router = express.Router();
@@ -171,6 +172,74 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     const runId = crypto.randomUUID();
     const runStartedAt = new Date().toISOString();
     const intentAuthorizationEnabled = configStore.getEffective('ff_intent_authorization_enabled') === 'true';
+
+    // ── PERSONAL AGENT CONCIERGE PRE-CHECK (UC38) ──────────────────────────────
+    // Must run before intent gating: the checks are identity-layer (MFA + agent
+    // registration), not intent-layer. If either fails we return immediately
+    // without running the agent, so we don't burn LLM calls on an invalid setup.
+    const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : null;
+    if (requestedUseCaseId === 'personal-agent-concierge') {
+      if (!req.user) {
+        return res.status(401).json({ error: 'authentication_required', message: 'Sign in to use the personal agent concierge.' });
+      }
+
+      // Require MFA — acr claim set by PingOne when acr_values was honoured.
+      const tokenAcr = req.user.acr || '';
+      const hasMfa = /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
+      if (!hasMfa) {
+        const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
+        appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',
+          { tag: 'personal_agent/step_up_required', metadata: { userId, tokenAcr } });
+        return res.status(200).json({
+          reply: 'Your personal agent needs to verify your identity before acting on your behalf. Please complete multi-factor authentication.',
+          success: false,
+          toolsCalled: [],
+          agentConfigured: true,
+          error: 'step_up_required',
+          step_up_required: true,
+          step_up_method: 'p1mfa',
+          step_up_acr: stepUpAcr,
+          tokenEvents: req.tokenEvents || [],
+        });
+      }
+
+      // Require a registered personal agent.
+      let personalAgent = null;
+      try {
+        personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user) : null;
+      } catch (_err) {
+        // Treat lookup failure as unregistered rather than a hard 502.
+        personalAgent = null;
+      }
+
+      if (!personalAgent) {
+        appEventService.logEvent('personal_agent', 'warning', 'UC38: no personal agent registered for user',
+          { tag: 'personal_agent/not_registered', metadata: { userId } });
+        return res.status(200).json({
+          reply: 'No personal agent is registered for your account. Visit the Agent Builder page to create your personal agent, then try again.',
+          success: false,
+          toolsCalled: [],
+          agentConfigured: false,
+          error: 'agent_not_registered',
+          tokenEvents: req.tokenEvents || [],
+        });
+      }
+
+      // Surface the personal agent identity in the Flow Inspector.
+      req.tokenEvents.push(buildTokenEvent(
+        'personal-agent-lookup',
+        `Personal Agent — ${personalAgent.name} (${personalAgent.type}) registered`,
+        'active',
+        null,
+        `BFF verified that a personal agent "${personalAgent.name}" (PingOne application ${personalAgent.id}) is registered for this user. ` +
+          'The agent\'s scope grants were configured on the Agent Builder page. RFC 8693 token exchange will mint a delegated token with sub=user and act=agent, \'  ' +
+          'scoped to airlines:read airlines:write — giving the agent authority to act on the premium flyer account on the user\'s behalf.',
+        { agentId: personalAgent.id, agentName: personalAgent.name, agentType: personalAgent.type },
+      ));
+      appEventService.logEvent('personal_agent', 'info', `UC38: personal agent "${personalAgent.name}" verified`,
+        { tag: 'personal_agent/verified', metadata: { userId, agentId: personalAgent.id } });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // ── PHASE 1: PRE-EXECUTION INTENT GATING ──
     // Extract intent from prompt BEFORE calling agent
