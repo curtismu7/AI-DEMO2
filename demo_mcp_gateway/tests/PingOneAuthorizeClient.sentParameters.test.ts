@@ -181,11 +181,12 @@ describe('buildAuthorizeParameters — Tool annotations and elicitation', () => 
     expect(p.ElicitationConfirmed).toBe('false');
   });
 
-  it('omits tool annotations when toolName is not provided (tools/list context)', () => {
+  it('includes tool annotations with all-false for tools/list (no toolName)', () => {
     const p = buildAuthorizeParameters(tok(), 'tools/list', GW);
-    expect(p).not.toHaveProperty('ToolReadOnly');
-    expect(p).not.toHaveProperty('ToolDestructive');
-    expect(p).not.toHaveProperty('ToolIdempotent');
+    // Annotation fields always present: unknown toolName returns all-false (fail-safe)
+    expect(p.ToolReadOnly).toBe('false');
+    expect(p.ToolDestructive).toBe('false');
+    expect(p.ToolIdempotent).toBe('false');
     // ElicitationConfirmed is always sent as it is tool-agnostic
     expect(p.ElicitationConfirmed).toBe('false');
   });

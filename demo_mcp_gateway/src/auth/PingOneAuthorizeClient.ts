@@ -188,13 +188,12 @@ export function buildAuthorizeParameters(
     Timestamp: new Date().toISOString(),
   };
 
-  // Tool annotations (readOnly, destructive, idempotent) for P1AZ context
-  if (toolName) {
-    const ann = getToolAnnotations(toolName);
-    base.ToolReadOnly = ann.readOnly ? 'true' : 'false';
-    base.ToolDestructive = ann.destructive ? 'true' : 'false';
-    base.ToolIdempotent = ann.idempotent ? 'true' : 'false';
-  }
+  // Tool annotations (readOnly, destructive, idempotent) for P1AZ context.
+  // Always included: unknown/empty toolName returns all-false (fail-safe).
+  const ann = getToolAnnotations(toolName ?? '');
+  base.ToolReadOnly = ann.readOnly ? 'true' : 'false';
+  base.ToolDestructive = ann.destructive ? 'true' : 'false';
+  base.ToolIdempotent = ann.idempotent ? 'true' : 'false';
 
   // ElicitationConfirmed flag from args if present
   base.ElicitationConfirmed = toolArgs?._elicitation_confirmed === true ? 'true' : 'false';
