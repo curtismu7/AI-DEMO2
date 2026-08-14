@@ -36,6 +36,7 @@ import {
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
+import SimpleStepperBar from "./SimpleStepperBar";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -3678,10 +3679,39 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
+                <SimpleStepperBar />
+                <div className="ud-float-chain-actions">
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Real-time token topology — RFC 8693 delegation chain"
+                    onClick={() => window.dispatchEvent(new CustomEvent('token-topology-open'))}
+                  >
+                    Topology
+                  </button>
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Floating token chain — RFC 8693 delegation trace rail"
+                    onClick={() => window.dispatchEvent(new CustomEvent('floating-token-chain-open'))}
+                  >
+                    Token chain
+                  </button>
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Open 15-Min Security Demo Script"
+                    onClick={() => window.dispatchEvent(new CustomEvent('demo-script-toggle'))}
+                  >
+                    Script
+                  </button>
+                </div>
               </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
+            {/* Filmstrip below the grid, full-width — same role as the chain row in embedded mode */}
+            <TokenChainFilmstrip />
           </div>
         )
       )}
