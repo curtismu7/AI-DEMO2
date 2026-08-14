@@ -581,6 +581,56 @@ select.cur-input { cursor: pointer; }
   margin-top: 16px;
 }
 
+.cur-sessions-panel {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cur-sessions-error,
+.cur-sessions-empty {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #888;
+}
+
+.cur-sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cur-session-card {
+  background: #252526;
+  border: 1px solid #2b2b2b;
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cur-session-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.cur-session-ttl,
+.cur-session-status {
+  font-size: 12px;
+  color: #888;
+}
+
+.cur-session-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #aaa;
+}
+
 .cur-tool-detail {
   background: #252526;
   border: 1px solid #2b2b2b;
