@@ -7,6 +7,9 @@
 #   ./run-docker.sh                       start core + Code Search (rag) — stop first
 #   ./run-docker.sh start full            start every compose service (~2.3GB Docker)
 #   ./run-docker.sh all                   same as `start full`
+#   ./run-docker.sh mode demo             stop all, start only dashboards + token-chain services
+#   ./run-docker.sh mode mcpgw            stop all, start only mcpgw + mcp-server
+#   ./run-docker.sh mode full             stop all, start every compose service
 #   ./run-docker.sh demo-sync             align demo-auth containers with admin FF toggles
 #   ./run-docker.sh optional start <grp>  start optional group(s) on a running stack
 #   ./run-docker.sh optional stop <grp>   stop optional group(s); core keeps running
@@ -1535,6 +1538,38 @@ cmd_promptfoo() {
     promptfoo eval -c promptfoo/step-narration.config.yaml --filter-providers phi-4-mini-instruct
 }
 
+# Switch between predefined container subsets without a full rebuild.
+#   mode demo   — stop all, start only: ui, demo-api-server, mcp-server, mcp-gateway, ping-gateway
+#   mode mcpgw  — stop all, start only: mcpgw, mcp-server
+#   mode full   — same as 'start full'
+cmd_mode() {
+  local target="${1:-}"
+  case "$target" in
+    demo)
+      echo -e "${CYAN}${BOLD}   [DOCKER]  Switching to demo mode (dashboards + token chain)...${RESET}"
+      cmd_stop
+      # Full stack stopped first; only then the demo containers come up.
+      docker compose "${COMPOSE_FILES[@]}" up -d \
+        ui demo-api-server mcp-server mcp-gateway ping-gateway
+      ok "Demo mode active (ui + BFF + mcp-server + mcp-gateway + ping-gateway)."
+      ;;
+    mcpgw)
+      echo -e "${CYAN}${BOLD}   [DOCKER]  Switching to mcpgw-only mode...${RESET}"
+      cmd_stop
+      # Full stack stopped first; only then the two containers come up.
+      docker compose "${COMPOSE_FILES[@]}" up -d mcpgw mcp-server
+      ok "mcpgw-only mode active."
+      ;;
+    full)
+      cmd_start full
+      ;;
+    *)
+      err "Usage: ./run-docker.sh mode <demo|mcpgw|full>"
+      exit 1
+      ;;
+  esac
+}
+
 cmd_help() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1550,6 +1585,9 @@ cmd_help() {
   echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
   echo "    optional stop <grp>   Stop optional group(s); core keeps running"
   echo "    optional status       Show which optional groups are up"
+  echo "    mode demo             Stop all, start only: ui + BFF + mcp-server + mcp-gateway + ping-gateway"
+  echo "    mode mcpgw            Stop all, start only: mcpgw + mcp-server"
+  echo "    mode full             Stop all, start every compose service"
   echo "    demo-sync             Start/stop demo-auth containers to match Quick Flag toggles"
   echo "    stop                  Stop and remove all containers (+ host model tiers)"
   echo "    stop <svc>...         Stop only the named service(s); others keep running"
@@ -1698,6 +1736,9 @@ case "${COMMAND}" in
     ;;
   status)
     cmd_status
+    ;;
+  mode)
+    cmd_mode "${1:-}"
     ;;
   demo-sync)
     cmd_demo_sync

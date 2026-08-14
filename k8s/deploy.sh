@@ -576,11 +576,22 @@ stop_cluster() {
 }
 
 # Switch between predefined pod subsets without a full redeploy.
+#   mode demo   — minimal set for dashboard + token-chain demos:
+#                 frontend, demo-api-server, mcp-server, mcp-gateway, ping-gateway
 #   mode mcpgw  — only ping-mcpgw + mcp-server (mcpgw proxies to mcp-server)
 #   mode full   — redeploy everything (same as 'deploy')
 mode_cmd() {
   local target="${1:-}"
   case "$target" in
+    demo)
+      info "Switching to demo mode (dashboards + token chain)..."
+      # Full stack scaled to 0 first; only then the demo pods come up.
+      kubectl scale deployment --all -n "$NS" --replicas=0 2>/dev/null || true
+      kubectl scale deployment/frontend deployment/demo-api-server \
+        deployment/mcp-server deployment/mcp-gateway deployment/ping-gateway \
+        -n "$NS" --replicas=1
+      success "Demo mode active (frontend + BFF + mcp-server + mcp-gateway + ping-gateway)."
+      ;;
     mcpgw)
       info "Switching to mcpgw-only mode (ping-mcpgw + mcp-server)..."
       # Full stack scaled to 0 first; only then the two pods come up.
@@ -593,7 +604,7 @@ mode_cmd() {
       deploy
       ;;
     *)
-      die "Usage: mode <mcpgw|full>"
+      die "Usage: mode <demo|mcpgw|full>"
       ;;
   esac
 }

@@ -13,6 +13,7 @@
 #   ./run-k8.sh forward-bg [api|core]    # detached supervisor (survives terminal close)
 #   ./run-k8.sh kill                     # kill ai-demo port-forwards + stray demo-port listeners
 #   ./run-k8.sh stop                     # clear forwards + scale all workloads to 0 (keep config; frees memory)
+#   ./run-k8.sh mode demo                # minimal set for dashboard demos (frontend + BFF + gateways)
 #   ./run-k8.sh mode mcpgw               # scale down to ping-mcpgw + mcp-server only
 #   ./run-k8.sh mode full                # scale back up to full stack (no rebuild)
 #   ./run-k8.sh extras off               # stop just the investment + mortgage backends (frees memory; 'extras on' restores)
