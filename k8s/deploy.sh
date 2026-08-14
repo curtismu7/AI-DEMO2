@@ -583,6 +583,7 @@ mode_cmd() {
   case "$target" in
     mcpgw)
       info "Switching to mcpgw-only mode (ping-mcpgw + mcp-server)..."
+      # Full stack scaled to 0 first; only then the two pods come up.
       kubectl scale deployment --all -n "$NS" --replicas=0 2>/dev/null || true
       kubectl scale deployment/ping-mcpgw deployment/mcp-server -n "$NS" --replicas=1
       success "mcpgw-only mode active."
