@@ -275,6 +275,20 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
+  const selectSession = async (app) => {
+    const frontEnd = app.Spec?.McpAppConfig?.FrontEndName?.Elems?.[0];
+    if (!frontEnd) return;
+    const mcpUrl = `https://${frontEnd}:8643/mcp`;
+    const next = { ...config, mcpUrl };
+    setConfig(next);
+    try {
+      await api('/config', { method: 'POST', body: next });
+      appendChat('system', `Switched to policy: ${app.ObjectMeta?.Name || frontEnd}`);
+    } catch (err) {
+      appendChat('system', `Failed to switch policy: ${err.message}`);
+    }
+  };
+
   const sendChat = async () => {
     const prompt = chatInput.trim();
     if (!prompt) return;
@@ -850,9 +864,20 @@ export default function PrivilegeMcpClientPage() {
                     const principalCount = cfg.Policies?.Elems?.length ?? cfg.Principals?.Elems?.length ?? '?';
                     const endsAt = app.Spec?.TTL || app.Metadata?.ExpiresAt || null;
                     const status = app.Status?.McpServerStatus?.Status || '';
+                    const frontEnd = cfg.FrontEndName?.Elems?.[0];
+                    const appMcpUrl = frontEnd ? `https://${frontEnd}:8643/mcp` : null;
+                    const isActive = appMcpUrl && config.mcpUrl === appMcpUrl;
                     return (
-                      <div key={name} className="cur-session-card">
-                        <div className="cur-session-name">{name}</div>
+                      <div
+                        key={name}
+                        className={`cur-session-card${isActive ? ' cur-session-card--active' : ''}${appMcpUrl ? ' cur-session-card--selectable' : ''}`}
+                        onClick={appMcpUrl ? () => selectSession(app) : undefined}
+                        title={appMcpUrl ? `Use policy: ${name}` : 'No frontend URL available'}
+                      >
+                        <div className="cur-session-name">
+                          {name}
+                          {isActive && <span className="cur-session-active-badge"> ✓ Active</span>}
+                        </div>
                         {endsAt && <div className="cur-session-ttl">Ends {endsAt}</div>}
                         {status && <div className="cur-session-status">{status}</div>}
                         <div className="cur-session-meta">
