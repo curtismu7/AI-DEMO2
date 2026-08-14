@@ -54,6 +54,9 @@ export default function PrivilegeMcpClientPage() {
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
   const [showPresent, setShowPresent] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState(null);
   const jumpedToToolsRef = useRef(false);
   const silentAuthAttempted = useRef(false);
   const [silentAuthPending, setSilentAuthPending] = useState(false);
@@ -115,6 +118,10 @@ export default function PrivilegeMcpClientPage() {
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   };
+
+  useEffect(() => {
+    if (activeTab === 'sessions' && authenticated) loadSessions();
+  }, [activeTab, authenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll the message list itself, never the window: scrollIntoView() walked up
   // to the document and pushed the title bar (and its Skin picker) off-screen on
@@ -252,6 +259,19 @@ export default function PrivilegeMcpClientPage() {
         return;
       }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
+    }
+  };
+
+  const loadSessions = async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
+    try {
+      const data = await api('/sessions');
+      setSessions(data.applications || []);
+    } catch (err) {
+      setSessionsError(err.message);
+    } finally {
+      setSessionsLoading(false);
     }
   };
 
@@ -728,6 +748,7 @@ export default function PrivilegeMcpClientPage() {
             <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
             <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
+            <button className={`cur-tab ${activeTab === 'sessions' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('sessions')}>Access</button>
           </div>
 
           <div className="cur-editor-area">
@@ -802,6 +823,46 @@ export default function PrivilegeMcpClientPage() {
                     <pre className="cur-code-output">{rawRpcResult}</pre>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'sessions' && (
+              <div className="cur-sessions-panel">
+                <div className="cur-tools-header">
+                  <h3>Access Sessions</h3>
+                  <button className="cur-btn" onClick={loadSessions} disabled={sessionsLoading}>
+                    {sessionsLoading ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+                {sessionsError && (
+                  <div className="cur-sessions-error">
+                    <span style={{color:'#ff6b6b'}}>{sessionsError}</span>
+                  </div>
+                )}
+                {!sessionsLoading && !sessionsError && sessions.length === 0 && (
+                  <div className="cur-sessions-empty">No access sessions found.</div>
+                )}
+                <div className="cur-sessions-grid">
+                  {sessions.map((app) => {
+                    const name = app.ObjectMeta?.Name || '—';
+                    const cfg = app.Spec?.McpAppConfig || {};
+                    const backendCount = cfg.Backends?.Elems?.length ?? 0;
+                    const principalCount = cfg.Policies?.Elems?.length ?? cfg.Principals?.Elems?.length ?? '?';
+                    const endsAt = app.Spec?.TTL || app.Metadata?.ExpiresAt || null;
+                    const status = app.Status?.McpServerStatus?.Status || '';
+                    return (
+                      <div key={name} className="cur-session-card">
+                        <div className="cur-session-name">{name}</div>
+                        {endsAt && <div className="cur-session-ttl">Ends {endsAt}</div>}
+                        {status && <div className="cur-session-status">{status}</div>}
+                        <div className="cur-session-meta">
+                          <span title="Backends">🗄️ {backendCount}</span>
+                          <span title="Principals">👥 {principalCount}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

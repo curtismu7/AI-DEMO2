@@ -690,6 +690,32 @@ router.post('/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /sessions — list Privilege console applications using the stored PingOne token
+router.get('/sessions', async (req, res) => {
+  const session = getClientSession(req);
+  if (!session.oauth.accessToken) {
+    return res.status(401).json({ error: 'Not authenticated.' });
+  }
+  const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
+  if (!envId) {
+    return res.status(500).json({ error: 'PRIVILEGE_SSO_ENV_ID not configured.' });
+  }
+  try {
+    const url = `https://console.privilege.pingone.com/api/${envId}/v1/applications?ObjectMeta.Namespace=default`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ error: `Console API ${response.status}: ${text.slice(0, 300)}` });
+    }
+    const data = await response.json();
+    res.json({ applications: data.Applications || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /chat — demo chat with optional LLM routing
 router.post('/chat', express.json(), async (req, res) => {
   const session = getClientSession(req);
