@@ -2178,8 +2178,8 @@ export default function BankingAgent({
       return undefined;
     }
 
-    // Guest / pre-hydration: /api/verticals/me is 401 until sign-in, so read the
-    // hero from its own public endpoint rather than waiting on the manifest.
+    if (!isLoggedIn) return undefined;
+
     fetch(`/api/verticals/${vertical}/hero`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then(apply)
@@ -2187,7 +2187,7 @@ export default function BankingAgent({
     return () => {
       cancelled = true;
     };
-  }, [effectiveVerticalId, heroShown, pageManifest, user]);
+  }, [effectiveVerticalId, heroShown, pageManifest, user, isLoggedIn]);
 
   // Auto-retry after login (auth challenge path)
   useEffect(() => {

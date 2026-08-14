@@ -166,7 +166,15 @@ export default function DemoTrackPage() {
   const slotFlashRef = useRef(null);
   useEffect(() => () => { if (slotFlashRef.current) clearTimeout(slotFlashRef.current); }, []);
 
+  const [authed, setAuthed] = useState(false);
   useEffect(() => {
+    const onAuth = () => setAuthed(true);
+    window.addEventListener('userAuthenticated', onAuth);
+    return () => window.removeEventListener('userAuthenticated', onAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
     let cancelled = false;
     (async () => {
       try {
@@ -179,7 +187,7 @@ export default function DemoTrackPage() {
       } catch { /* runner degrades to config chip text */ }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [authed]);
 
   // Vertical-resolved prompt for a step's green chip: the catalog trigger of the
   // step's primary backing UC wins; config chipText is the fallback.
