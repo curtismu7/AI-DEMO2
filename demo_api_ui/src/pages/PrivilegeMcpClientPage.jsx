@@ -357,7 +357,10 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
-            <p>You are blocked per policy — please login to Ping Identity AI Gateway to request access.</p>
+            <p>You are blocked per policy — please login to{' '}
+              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Ping Identity AI Gateway</a>
+              {' '}to request access.
+            </p>
             <div className="cur-btn-row">
               <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
               <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
