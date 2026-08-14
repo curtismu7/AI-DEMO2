@@ -618,8 +618,8 @@ router.post('/tools/list', express.json(), async (req, res) => {
     try {
       data = await fetchMcp(session, null, rpc, true);
     } catch (err) {
-      if (err.message.includes('invalid during session initialization')) {
-        session.mcpSession.initialized = false;
+      if (err.message.includes('invalid during session initialization') || err.message.includes('Unknown or expired MCP-Session-Id')) {
+        resetMcpState(session);
         await ensureMcpSessionInitialized(session);
         data = await fetchMcp(session, null, rpc, true);
       } else throw err;
@@ -641,7 +641,16 @@ router.post('/tools/call', express.json(), async (req, res) => {
     await ensureMcpSessionInitialized(session);
     const { name, arguments: args } = req.body || {};
     const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args || {} } };
-    const data = await fetchMcp(session, null, rpc, true);
+    let data;
+    try {
+      data = await fetchMcp(session, null, rpc, true);
+    } catch (err) {
+      if (err.message.includes('Unknown or expired MCP-Session-Id')) {
+        resetMcpState(session);
+        await ensureMcpSessionInitialized(session);
+        data = await fetchMcp(session, null, rpc, true);
+      } else throw err;
+    }
     res.json(data);
   } catch (err) {
     emitEvent(session, 'error', { scope: 'tools_call', message: err.message });
