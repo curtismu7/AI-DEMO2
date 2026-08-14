@@ -13,6 +13,8 @@
 #   ./run-k8.sh forward-bg [api|core]    # detached supervisor (survives terminal close)
 #   ./run-k8.sh kill                     # kill ai-demo port-forwards + stray demo-port listeners
 #   ./run-k8.sh stop                     # clear forwards + scale all workloads to 0 (keep config; frees memory)
+#   ./run-k8.sh mode mcpgw               # scale down to ping-mcpgw + mcp-server only
+#   ./run-k8.sh mode full                # scale back up to full stack (no rebuild)
 #   ./run-k8.sh extras off               # stop just the investment + mortgage backends (frees memory; 'extras on' restores)
 #   ./run-k8.sh rag on                     # start Code Search / RAG stack on demand
 #   ./run-k8.sh yotuo on                   # mount YOTUO host GGUFs into llama tiers (OrbStack)
@@ -637,6 +639,7 @@ case "${1:-all}" in
   forward-bg)   check_prereqs; forward_bg "${2:-api}" ;;
   kill)       kill_all ;;
   stop)       check_prereqs; stop ;;
+  mode)       check_prereqs; bash "$K8S_DIR/deploy.sh" mode "${2:-}" ;;
   extras)     check_prereqs; extras "${2:-}" ;;
   rag)        check_prereqs; bash "$K8S_DIR/deploy.sh" rag "${2:-on}" ;;
   yotuo)      check_prereqs; bash "$K8S_DIR/deploy.sh" yotuo "${2:-on}" "${3:-}" ;;

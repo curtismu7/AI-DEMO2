@@ -575,6 +575,28 @@ stop_cluster() {
   success "All $NS workloads stopped. Restart with './k8s/deploy.sh deploy' or scale back up."
 }
 
+# Switch between predefined pod subsets without a full redeploy.
+#   mode mcpgw  — only ping-mcpgw + mcp-server (mcpgw proxies to mcp-server)
+#   mode full   — redeploy everything (same as 'deploy')
+mode_cmd() {
+  local target="${1:-}"
+  case "$target" in
+    mcpgw)
+      info "Switching to mcpgw-only mode (ping-mcpgw + mcp-server)..."
+      kubectl scale deployment --all -n "$NS" --replicas=0 2>/dev/null || true
+      kubectl scale deployment/ping-mcpgw deployment/mcp-server -n "$NS" --replicas=1
+      success "mcpgw-only mode active."
+      ;;
+    full)
+      info "Switching to full-stack mode..."
+      deploy
+      ;;
+    *)
+      die "Usage: mode <mcpgw|full>"
+      ;;
+  esac
+}
+
 # Stop or start just the optional feature backends ($EXTRA_SERVICES) to shed or
 # restore memory on demand. `extras off` scales them to 0; `extras` (or
 # `extras on`) brings them back and waits for the rollout.
@@ -815,6 +837,7 @@ case "${1:-deploy}" in
   forward-status) [ -n "$(find_forward_sessions)" ] ;;
   stop-forward)  stop_forward ;;
   stop)          stop_cluster ;;
+  mode)          check_prereqs; mode_cmd "$2" ;;
   extras)        extras_cmd "$2" ;;
   rag)           rag_cmd "${2:-on}" ;;
   yotuo)         yotuo_cmd "${2:-on}" "$3" ;;
