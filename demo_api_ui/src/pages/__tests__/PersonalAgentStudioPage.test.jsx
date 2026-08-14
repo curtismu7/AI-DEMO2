@@ -14,10 +14,11 @@ describe('PersonalAgentStudioPage', () => {
     expect(screen.getByText('Personal Agent')).toBeTruthy();
   });
 
-  it('renders all four skin tabs', () => {
+  it('renders all skin tabs', () => {
     render(<PersonalAgentStudioPage />);
     expect(screen.getByText('Privilege')).toBeTruthy();
     expect(screen.getByText('Claude')).toBeTruthy();
+    expect(screen.getByText('Terminal')).toBeTruthy();
     expect(screen.getByText('ChatGPT')).toBeTruthy();
     expect(screen.getByText('Gemini')).toBeTruthy();
   });

@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
 import SecurityRail from '../components/SecurityRail';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 
-const SKINS = ['privilege', 'claude', 'gpt', 'gemini'];
-const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', gpt: 'ChatGPT', gemini: 'Gemini' };
-const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', gpt: '#10a37f', gemini: '#4285f4' };
+const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini'];
+const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini' };
+const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4' };
 
 const INITIAL_MESSAGES = [
   { role: 'agent', text: "Hello! I'm your personal agent. I can access your MileagePlus account and help manage your upcoming flights. What would you like to do today?" },
@@ -64,6 +64,8 @@ export default function PersonalAgentStudioPage() {
   const [activeSkin, setActiveSkin] = useState('privilege');
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [replayGates, setReplayGates] = useState(null);
+  const replayTimer = useRef(null);
 
   const tokenChain = useTokenChainOptional();
   const events = tokenChain?.events || [];
@@ -88,8 +90,21 @@ export default function PersonalAgentStudioPage() {
   }
 
   function handleReplay() {
-    // Trigger visual replay by briefly cycling gate statuses
-    // (no-op in this implementation — SecurityRail's onReplay is wired for presenter use)
+    if (replayTimer.current) clearTimeout(replayTimer.current);
+    const base = DEFAULT_GATES.map((g) => ({ ...g, status: 'waiting' }));
+    setReplayGates(base);
+    [0, 1, 2].forEach((idx) => {
+      replayTimer.current = setTimeout(() => {
+        setReplayGates((prev) => {
+          if (!prev) return null;
+          const next = prev.map((g, i) => i === idx ? { ...g, status: 'permit' } : g);
+          if (idx === 2) {
+            setTimeout(() => setReplayGates(null), 1200);
+          }
+          return next;
+        });
+      }, 400 + idx * 400);
+    });
   }
 
   const layout = LAYOUT_STYLES[layoutState] || LAYOUT_STYLES.full;
@@ -170,7 +185,7 @@ export default function PersonalAgentStudioPage() {
         {/* Security rail */}
         {layout.railVisible && (
           <SecurityRail
-            gates={gates}
+            gates={replayGates || gates}
             actClaim={actClaim}
             tokenEvents={events}
             onReplay={handleReplay}
