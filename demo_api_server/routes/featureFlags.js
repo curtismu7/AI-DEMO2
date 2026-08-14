@@ -290,6 +290,22 @@ const FLAG_REGISTRY = [
   },
 
   {
+    id:           'ff_personal_agent_studio',
+    name:         'Personal Agent Studio — dedicated /personal-agent page',
+    category:     'Personal Agent',
+    description:
+      'Enables the /personal-agent route, the side-nav entry under Customer Demos, ' +
+      'and the "Launch Studio" button on the UC38 tile. The studio shows four AI-client ' +
+      'skins (Privilege, Claude-look, ChatGPT-look, Gemini-look) with a live security ' +
+      'rail (MFA gate, Gateway token check, P1AZ Authorize) and a real pop-out window.',
+    impact:
+      'ON = Personal Agent nav item visible; UC38 tile shows "Launch Studio" button. ' +
+      'OFF (default) = nav item hidden; UC38 chip still works via ff_personal_agent_concierge.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
+  {
     id:           'ff_a2a_delegation',
     name:         'A2A — Agent-to-Agent specialist delegation (RFC 8693 nested-act)',
     category:     'A2A Delegation',
