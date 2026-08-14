@@ -1201,13 +1201,9 @@ class OAuthService {
    */
   async revokeToken(token, tokenType) {
     if (!token) return;
-    // PingOne revocation endpoint: replace /token with /token/revoke in the token endpoint URL
-    // PingOne AI IAM Core exposes: POST /{envId}/as/revoke
-    const revocationEndpoint = this.config.tokenEndpoint
-      ? this.config.tokenEndpoint.replace(/\/as\/token$/, '/as/revoke')
-      : null;
+    const revocationEndpoint = this.config.revocationEndpoint || null;
     if (!revocationEndpoint) {
-      console.warn('[RFC7009] Cannot revoke token: tokenEndpoint not configured');
+      console.warn('[RFC7009] Cannot revoke token: revocationEndpoint not configured');
       return;
     }
     const body = new URLSearchParams({ token, client_id: this.config.clientId });
