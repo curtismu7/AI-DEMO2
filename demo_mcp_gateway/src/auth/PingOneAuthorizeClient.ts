@@ -22,6 +22,7 @@ import type { IntentValidationResult } from '../intentTokenValidator';
 import { type DecodedGatewayToken, isJwksVerificationEnabled } from '../tokenValidator';
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
 import { classifyStatements, type ObligationKind } from './authorizeObligations';
+import { getToolAnnotations } from '../utils/toolAnnotations';
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
 
@@ -186,6 +187,17 @@ export function buildAuthorizeParameters(
     // Framework defines Timestamp but nothing was sending it.
     Timestamp: new Date().toISOString(),
   };
+
+  // Tool annotations (readOnly, destructive, idempotent) for P1AZ context
+  if (toolName) {
+    const ann = getToolAnnotations(toolName);
+    base.ToolReadOnly = ann.readOnly ? 'true' : 'false';
+    base.ToolDestructive = ann.destructive ? 'true' : 'false';
+    base.ToolIdempotent = ann.idempotent ? 'true' : 'false';
+  }
+
+  // ElicitationConfirmed flag from args if present
+  base.ElicitationConfirmed = toolArgs?._elicitation_confirmed === true ? 'true' : 'false';
 
   // C1 rule 1 — TokenAudience is the token's REAL aud, never the expected URI.
   // Both keys used to be hardcoded to gatewayResourceUri, which made the cloud
