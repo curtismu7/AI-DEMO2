@@ -173,8 +173,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     if (!token) {
       res.writeHead(401, {
         'Content-Type': 'application/json',
-        // RFC 9728: point an unauthenticated caller at the metadata document.
-        'WWW-Authenticate': `Bearer resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+        'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", error_description="Bearer token required", resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
       });
       res.end(JSON.stringify({ error: 'invalid_token', error_description: 'Bearer token required' }));
       return;
@@ -198,7 +197,27 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       const send = (s: string): void => {
         if (replied) return;
         replied = true;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // RFC 6750 §3.1: scope violations on HTTP MUST return 403, not 200.
+        // WebSocket callers get the JSON-RPC error body unchanged (no HTTP status after handshake).
+        let isInsufficientScope = false;
+        let scopeHint = '';
+        try {
+          const parsed = JSON.parse(s);
+          if (parsed?.error?.code === -32005) {
+            isInsufficientScope = true;
+            const d = parsed.error.data;
+            const scopes: string[] = d?.requiredScopes ?? (d?.requiredScope ? [d.requiredScope] : []);
+            if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
+          }
+        } catch { /* ok — malformed body goes through as 200 */ }
+        if (isInsufficientScope) {
+          res.writeHead(403, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+          });
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+        }
         res.end(s);
       };
       handleMessage(body, token, send)

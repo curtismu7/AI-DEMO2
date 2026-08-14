@@ -70,9 +70,11 @@ const callTool = (name: string, args: Record<string, unknown> = {}) =>
   ({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
 
 describe('POST /mcp', () => {
-  it('401s without a bearer, and points at the RFC 9728 metadata', async () => {
+  it('401s without a bearer with RFC 6750 §3.1 WWW-Authenticate', async () => {
     const r = await post(callTool('get_airline_bookings'));
     expect(r.status).toBe(401);
+    expect(r.wwwAuth).toMatch(/realm="/);
+    expect(r.wwwAuth).toMatch(/error="invalid_token"/);
     expect(r.wwwAuth).toContain('resource_metadata=');
   });
 
@@ -84,8 +86,13 @@ describe('POST /mcp', () => {
 
   // The gate that matters: the new transport must not become a way around the
   // per-tool scope check the WebSocket path enforces.
-  it('enforces the per-tool scope gate', async () => {
+  // RFC 6750 §3.1: scope violations on HTTP MUST be 403, not 200.
+  it('enforces the per-tool scope gate with HTTP 403', async () => {
     const r = await post(callTool('get_airline_bookings'), token('invest:read'));
+    expect(r.status).toBe(403);
+    expect(r.wwwAuth).toMatch(/error="insufficient_scope"/);
+    expect(r.wwwAuth).toMatch(/scope="airlines:read"/);
+    expect(r.wwwAuth).toContain('resource_metadata=');
     expect(r.json.error.code).toBe(-32005);
     expect(r.json.error.data.requiredScopes).toEqual(['airlines:read']);
   });
