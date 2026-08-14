@@ -2950,6 +2950,9 @@ export default function BankingAgent({
         { id, role, content: contentString ?? "", tool, proofRunId, ...rest },
       ];
     });
+    if (role === "assistant") {
+      window.dispatchEvent(new CustomEvent("agent-last-response", { detail: { text: contentString } }));
+    }
   }
 
   // Route an agent response's verticalResult to its renderer and return the
