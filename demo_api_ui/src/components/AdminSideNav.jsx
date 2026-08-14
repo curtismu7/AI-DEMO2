@@ -494,6 +494,12 @@ export default function AdminSideNav({
           icon: "agt",
           adminOnly: true,
         },
+        {
+          label: "Personal Agent",
+          path: "/personal-agent",
+          icon: "agt",
+          adminOnly: true,
+        },
       ],
     },
     {

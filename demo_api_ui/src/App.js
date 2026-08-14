@@ -146,6 +146,8 @@ import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PingCliPage from "./components/PingCliPage";
+import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
@@ -960,6 +962,22 @@ function AppWithAuth() {
                     <AppShell user={user} logout={logout}>
                       <PingCliPage />
                     </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent"
+                  element={
+                    // Public route — no login required (same pattern as /pingcli).
+                    <AppShell user={user} logout={logout}>
+                      <PersonalAgentStudioPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent/client"
+                  element={
+                    // Bare route for pop-out window — no nav shell.
+                    <PersonalAgentClientWindow />
                   }
                 />
                 {/* Legacy Test Lab URL → unified Demo check */}
