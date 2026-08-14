@@ -47,7 +47,7 @@ function ToolResultBlock({ toolName, data, colors }) {
 
 const SKIN_CONFIG = {
   privilege: {
-    title: 'Privilege AI',
+    title: 'Privilege AI Agent',
     subtitle: 'PingOne Authorize · Delegated Identity',
     placeholder: 'Message Privilege AI…',
     hint: 'Ping Identity · Privileged access enforced',
