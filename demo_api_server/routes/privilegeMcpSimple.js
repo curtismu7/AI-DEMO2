@@ -22,6 +22,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const { getTokenEndpoint } = require('../services/oauthEndpointResolver');
 
 const router = express.Router();
 
@@ -125,7 +126,7 @@ async function getAccessToken() {
     throw new Error('Missing client credentials: need PRIVILEGE_SSO_CLIENT_ID/_SECRET and an environment id.');
   }
 
-  const tokenUrl = `https://auth.pingone.com/${envId}/as/token`;
+  const tokenUrl = getTokenEndpoint();
   const response = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
