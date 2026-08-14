@@ -656,6 +656,13 @@ export default function BankingAgent({
       return false;
     }
   });
+  const [showFilmstrip, setShowFilmstrip] = useState(() => {
+    try {
+      return localStorage.getItem("ba_show_filmstrip") === "1";
+    } catch {
+      return false;
+    }
+  });
   // Inspectors sub-group — same reasoning as the Configuration group above, but
   // scoped so Demo steps / Live Use Cases / Agent scope stay visible beside it.
   const [inspectorsOpen, setInspectorsOpen] = useState(() => {
@@ -8952,6 +8959,22 @@ export default function BankingAgent({
                         title="Show or hide the Simple Stepper token-chain table"
                       >
                         Simple step
+                      </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showFilmstrip}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0");
+                          } catch {}
+                          setShowFilmstrip(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Show or hide the token chain movie reel at the bottom of the page"
+                      >
+                        Movie reel
                       </Check>
                       <button
                         type="button"
