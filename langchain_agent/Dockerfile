@@ -43,25 +43,21 @@ COPY --from=builder /root/.guardrailsrc /home/appuser/.guardrailsrc
 # Copy application code
 COPY langchain_agent/src/ ./src/
 # .codegraph/demo-codegraph.db is built by setup:fresh / scripts/build-codegraph.py.
-# Image bake still uses /app/codegraph.db; compose overrides to demo-codegraph.db
-# on the live-repo mount so the host CodeGraph CLI (codegraph.db) cannot collide.
-# Copy it into the image; if it doesn't exist in the build context the COPY
-# below would fail, so we first touch a placeholder via the builder stage and
-# then let a host-side docker compose volume override it at runtime.
-# The agent handles a missing/empty db gracefully (returns [] for all queries).
-RUN touch /app/codegraph.db
+# index_guard.py rejects the filename codegraph.db (host CodeGraph product guard),
+# so the baked file and CODEGRAPH_DB_PATH must both use demo-codegraph.db.
+# A zero-byte placeholder keeps the COPY from failing in a clean build context.
+RUN touch /app/demo-codegraph.db
 # Prefer a pre-built index from the build context when present
-# (host .codegraph/codegraph.db copied to langchain_agent/codegraph.db by
-# setup:fresh / se-update-code.sh). A zero-byte placeholder makes Code Explorer
-# return 503 "index not available" until Refresh index succeeds.
+# (host .codegraph/demo-codegraph.db copied to langchain_agent/codegraph.db by
+# setup:fresh / se-update-code.sh, then baked here as demo-codegraph.db).
 COPY langchain_agent/codegraph.db* /tmp/codegraph-build/
 RUN if [ -f /tmp/codegraph-build/codegraph.db ] && [ -s /tmp/codegraph-build/codegraph.db ]; then \
-      cp /tmp/codegraph-build/codegraph.db /app/codegraph.db; \
-      echo "CodeGraph DB baked: $(wc -c < /app/codegraph.db) bytes"; \
+      cp /tmp/codegraph-build/codegraph.db /app/demo-codegraph.db; \
+      echo "CodeGraph DB baked: $(wc -c < /app/demo-codegraph.db) bytes"; \
     else \
       echo "WARNING: langchain_agent/codegraph.db missing/empty — Code Explorer will 503 until Refresh index"; \
     fi && rm -rf /tmp/codegraph-build
-ENV CODEGRAPH_DB_PATH=/app/codegraph.db
+ENV CODEGRAPH_DB_PATH=/app/demo-codegraph.db
 # Always ship the current indexer (with --out) so Refresh does not depend on a
 # stale copy under repo-src/scripts from an older image stage.
 COPY scripts/build-codegraph.py /app/indexer/build-codegraph.py
