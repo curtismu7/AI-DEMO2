@@ -4008,6 +4008,33 @@
   border-left: 1px solid var(--brand-medium-gray);
 }
 
+/* Float mode: token chain shortcut buttons inside the token rail */
+.ud-float-chain-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--brand-medium-gray, #e5e7eb);
+  margin-top: 8px;
+}
+
+.ud-float-chain-btn {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  text-align: left;
+  background: var(--th-bg-card, #fff);
+  border: 1px solid var(--brand-medium-gray, #e5e7eb);
+  border-radius: 5px;
+  color: var(--th-text-primary, #1e293b);
+  cursor: pointer;
+}
+
+.ud-float-chain-btn:hover {
+  background: var(--th-bg-hover, #f1f5f9);
+  border-color: #94a3b8;
+}
+
 /* ── 2026 skin: ud-middle-collapsed variants ──────────────────────────────
  * These carry one more class than the plain split3 rules above (4/5 vs
  * 3/4), so they need their own same-specificity, later-in-source override
