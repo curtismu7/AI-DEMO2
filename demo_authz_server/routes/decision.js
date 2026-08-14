@@ -933,6 +933,26 @@ module.exports = async function decisionHandler(req, res) {
     }
   }
 
+  // ── Rule 4.5: Elicitation — require confirmation for destructive tool calls ──────
+  // When the gateway marks a tool as destructive (ToolDestructive='true') and the
+  // caller has not yet confirmed (ElicitationConfirmed!='true'), return INDETERMINATE
+  // with an ELICITATION statement so the client can prompt the user for confirmation.
+  // HITL/STEP_UP rules above take precedence; this fires only when those don't apply.
+  if (params.ToolDestructive === 'true' && params.ElicitationConfirmed !== 'true') {
+    log(`[AuthzServer/decision] INDETERMINATE — ELICITATION: tool="${ToolName}" is destructive, confirmation absent`);
+    auditDecision('INDETERMINATE', 'ELICITATION');
+    _emitDecisionHop('n/a', 'ELICITATION');
+    return res.json({
+      decision: 'INDETERMINATE',
+      reason: 'ELICITATION',
+      statements: statementsFor('ELICITATION'),
+      advice: [{ id: 'elicitation-prompt', value: `Confirm ${ToolName}?` }],
+      policy_source: POLICY_SOURCE,
+      decision_id: randomId(),
+      policy_version: 'mock-v1',
+    });
+  }
+
   // ── Rule 4a: Intent token — deny if a token was PRESENTED but is TAMPERED ──────
   // IntentTokenValid='false' means the gateway received an intent token and
   // validation failed. A tampered/forged token (bad signature, malformed) must
