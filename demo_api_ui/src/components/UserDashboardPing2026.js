@@ -37,6 +37,7 @@ import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import SimpleStepperBar from "./SimpleStepperBar";
+import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -3710,6 +3711,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
+            {/* Response mirror — shows last agent reply on main page when toggled on */}
+            <AgentResponseMirror />
             {/* Filmstrip below the grid, full-width — same role as the chain row in embedded mode */}
             <TokenChainFilmstrip />
           </div>
