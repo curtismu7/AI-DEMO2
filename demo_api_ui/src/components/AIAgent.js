@@ -8322,15 +8322,35 @@ export default function BankingAgent({
         }
       }
       // Trigger the approval modal. Two shapes, both required here:
-      //   - banking transfers/deposits/withdrawals carry transactionAmount
-      //     → monetary consent intent (unchanged).
-      //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
-      //     carry NO amount → the isVerticalConsent shape, same as the
-      //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
-      //     open it too; without this, Demo Steps UC7/UC8 printed the gate
-      //     text and never prompted the user.
+      //   - step_up_required / mcp_step_up_required (UC7): go directly to P1MFA —
+      //     no consent modal. Identity verification IS the gate; consent is not.
+      //   - banking transfers with transactionAmount (UC8): create a server-side
+      //     challenge and show TransactionConsentModal (drives consent-only vs MFA
+      //     by amount).
+      //   - vertical plugin tools with no amount → isVerticalConsent shape, same
+      //     as the kind:'vertical' handler.
       if (isApprovalGate) {
-        if (response.transactionAmount != null) {
+        const isStepUpGate =
+          response.error === "step_up_required" ||
+          response.error === "mcp_step_up_required";
+        if (isStepUpGate) {
+          // UC7: skip consent — go straight to P1MFA. Store the original NL
+          // message so the transfer re-fires once identity is verified.
+          const retryMsg = text;
+          const retryOpts = { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId };
+          pendingStepUpCallbackRef.current = async () => {
+            setNlLoading(true);
+            try {
+              const resp = await sendAgentMessage(retryMsg, null, retryOpts);
+              addMessage("assistant", resp.reply || "✅ Done.", null, { source: "heuristic", ...verticalResultExtra(resp) });
+            } catch (err) {
+              addMessage("error", `Failed: ${err.message}`);
+            } finally {
+              setNlLoading(false);
+            }
+          };
+          openStepUpModal("Verify your identity to complete this action");
+        } else if (response.transactionAmount != null) {
           const fromAccountId = response.fromAccountId || response.from_account_id;
           const toAccountId = response.toAccountId || response.to_account_id;
           const intentPayload = {
