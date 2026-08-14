@@ -241,8 +241,15 @@ export default function PrivilegeMcpClientPage() {
       setTools([]);
       if (err.message?.toLowerCase().includes('not authenticated')) {
         setAuthenticated(false);
-      } else if (err.message?.toLowerCase().includes('not authorized')) {
+      } else if (
+        err.message?.toLowerCase().includes('not authorized') ||
+        err.message?.includes('403') ||
+        err.message?.toLowerCase().includes("doesn't have access") ||
+        err.message?.toLowerCase().includes('does not have access')
+      ) {
         setShowBlockedModal(true);
+        if (!silent) appendChat('system', 'Access blocked by policy.');
+        return;
       }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
     }
@@ -350,7 +357,7 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
-            <p>User blocked — please request access from your Privilege Cloud administrator.</p>
+            <p>You are blocked per policy — please login to Ping Identity AI Gateway to request access.</p>
             <div className="cur-btn-row">
               <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
               <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
