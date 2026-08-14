@@ -1726,6 +1726,7 @@ const RAW_USE_CASES = [
       authz: 'Can extend this pattern: add a P1AZ policy that further constrains the personal agent\'s allowed actions based on the user\'s loyalty tier.',
     },
     primaryTool: 'redeem_miles',
+    studioPath: '/personal-agent',
     perVertical: {
       airlines: {
         trigger: { type: 'chip', text: 'have my agent use my miles for an upgrade' },
