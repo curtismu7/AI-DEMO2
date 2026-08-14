@@ -112,4 +112,32 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     requiredScopes: ['pnr:read'],
     readOnly: true,
   },
+  {
+    // UC38 — Personal Agent Concierge. Reads loyalty_tier and loyalty_points from
+    // the passengers table. The delegated token's act claim proves the personal
+    // agent is acting on the user's behalf; airlines:read is all that's needed here.
+    name: 'get_loyalty_status',
+    description: "Return the authenticated passenger's MileagePlus tier and points balance.",
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiredScopes: ['airlines:read'],
+    readOnly: true,
+  },
+  {
+    // UC38 — Personal Agent Concierge write action. Deducts loyalty points and
+    // upgrades the cabin on an upcoming booking. airlines:write reflects that
+    // this mutates a row — scope-topology already has airlines:write with
+    // may_act/delegated_to/is_delegate so delegation is supported.
+    name: 'redeem_miles',
+    description: "Redeem loyalty points to upgrade cabin class on an upcoming reservation. Requires a delegated token with the personal agent's act claim.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        confirmation_number: { type: 'string', description: 'Reservation to upgrade. Omit for the next upcoming trip.' },
+        target_cabin: { type: 'string', description: "Target cabin: 'Business' or 'First'. Defaults to next class up from current cabin." },
+      },
+      required: [],
+    },
+    requiredScopes: ['airlines:read', 'airlines:write'],
+    readOnly: false,
+  },
 ];

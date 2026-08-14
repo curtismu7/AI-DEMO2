@@ -15,6 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   airlinesDatabaseName,
+  deductLoyaltyPoints,
   getFlight,
   getPassengerRecord,
   listBookings,
@@ -22,6 +23,7 @@ import {
   nextFlightFor,
   recordFeePayment,
   resolvePassenger,
+  upgradeCabinOnBooking,
 } from '../db/airlinesDb';
 
 const SOURCE = 'sqlite';
@@ -308,6 +310,80 @@ function sensitivePassengerRecord(subject: string): unknown {
   };
 }
 
+const CABIN_LADDER: Record<string, string> = {
+  economy: 'Business',
+  'economy plus': 'Business',
+  business: 'First',
+};
+const POINTS_PER_UPGRADE = 25000;
+
+function getLoyaltyStatus(subject: string): unknown {
+  const match = resolvePassenger(subject);
+  if (!match) {
+    return { source: SOURCE, found: false, note: 'No passenger records in the airlines database.' };
+  }
+  return {
+    source: SOURCE,
+    matchedBy: match.matchedBy,
+    loyaltyTier: match.passenger.loyalty_tier,
+    loyaltyPoints: match.passenger.loyalty_points,
+    passengerRef: match.passenger.passenger_ref,
+    name: match.passenger.full_name,
+  };
+}
+
+function redeemMiles(args: Record<string, unknown>, subject: string): unknown {
+  const match = resolvePassenger(subject);
+  if (!match) {
+    return { source: SOURCE, redeemed: false, note: 'No passenger records in the airlines database.' };
+  }
+  const { passenger, matchedBy } = match;
+
+  const bookings = listBookings(passenger.passenger_ref);
+  const wanted = typeof args.confirmation_number === 'string' ? args.confirmation_number.trim().toUpperCase() : '';
+  const booking = wanted ? bookings.find((b) => b.confirmation_number.toUpperCase() === wanted) : bookings[0];
+
+  if (!booking) {
+    return { source: SOURCE, matchedBy, redeemed: false, note: wanted ? `No reservation ${wanted} found.` : 'No upcoming reservations to upgrade.' };
+  }
+
+  const rawTarget = typeof args.target_cabin === 'string' ? args.target_cabin.trim() : '';
+  const targetCabin = rawTarget || CABIN_LADDER[booking.cabin.toLowerCase()] || 'Business';
+
+  if (booking.cabin.toLowerCase() === targetCabin.toLowerCase()) {
+    return { source: SOURCE, matchedBy, redeemed: false, note: `Already in ${booking.cabin} cabin — no upgrade available.` };
+  }
+
+  if (passenger.loyalty_points < POINTS_PER_UPGRADE) {
+    return {
+      source: SOURCE,
+      matchedBy,
+      redeemed: false,
+      pointsRequired: POINTS_PER_UPGRADE,
+      pointsAvailable: passenger.loyalty_points,
+      note: `Insufficient miles. ${POINTS_PER_UPGRADE.toLocaleString()} required, ${passenger.loyalty_points.toLocaleString()} available.`,
+    };
+  }
+
+  deductLoyaltyPoints(passenger.passenger_ref, POINTS_PER_UPGRADE);
+  upgradeCabinOnBooking(booking.confirmation_number, targetCabin);
+
+  return {
+    source: SOURCE,
+    matchedBy,
+    redeemed: true,
+    confirmationNumber: booking.confirmation_number,
+    flightNumber: booking.flight_number,
+    route: `${booking.origin} to ${booking.destination}`,
+    departureTime: booking.departure_time,
+    previousCabin: booking.cabin,
+    upgradedToCabin: targetCabin,
+    pointsRedeemed: POINTS_PER_UPGRADE,
+    pointsRemaining: passenger.loyalty_points - POINTS_PER_UPGRADE,
+    redemptionId: randomUUID(),
+  };
+}
+
 export const AIRLINES_TOOL_NAMES = new Set([
   'pay_airline_fee',
   'get_airline_bookings',
@@ -316,6 +392,8 @@ export const AIRLINES_TOOL_NAMES = new Set([
   'get_flight_status',
   'check_seat_availability',
   'sensitive_passenger_record',
+  'get_loyalty_status',
+  'redeem_miles',
 ]);
 
 export async function dispatchAirlinesTool(
@@ -338,6 +416,10 @@ export async function dispatchAirlinesTool(
       return seatAvailability(args, subject);
     case 'sensitive_passenger_record':
       return sensitivePassengerRecord(subject);
+    case 'get_loyalty_status':
+      return getLoyaltyStatus(subject);
+    case 'redeem_miles':
+      return redeemMiles(args, subject);
     default:
       throw new Error(`Unknown airlines tool: ${toolName}`);
   }

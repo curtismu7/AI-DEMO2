@@ -1699,6 +1699,41 @@ const RAW_USE_CASES = [
     primaryTool: 'get_portfolio_summary',
     perVertical: A2A_PER_VERTICAL,
   },
+  {
+    id: 'UC38',
+    useCaseId: 'personal-agent-concierge',
+    track: 'foundations',
+    title: 'Personal Agent Concierge',
+    buyerStory: "Users want a trusted agent acting on their behalf — but delegation must require proof of identity and be scoped to what the user explicitly registered.",
+    pingOneSolution: 'User authenticates with MFA; BFF verifies the registered personal agent (Agent Builder); RFC 8693 exchange mints a delegated token (sub=user, act=agent) scoped to airlines:read airlines:write.',
+    trigger: { type: 'link', path: '/airlines', label: 'Airlines vertical only — switch vertical to demo' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/routes/agentInvokeRoute.js',
+      'demo_api_server/services/agentBuilderService.js',
+      'demo_mcp_resource_server/src/tools/airlinesToolHandler.ts',
+    ],
+    maturity: 'flag:ff_personal_agent_concierge',
+    owasp: { threats: ['T1', 'T9'], sections: ['§4.1', '§4.2'] },
+    whatToSay: 'User proves identity with MFA, their registered personal agent is looked up, RFC 8693 delegates authority — the agent redeems miles for a seat upgrade.',
+    advanced: false,
+    whatLong: 'A user triggers the premium flyer concierge. The BFF requires a multi-factor authentication claim before delegation — a token without the MFA acr causes a step-up prompt. Once MFA is proved, the BFF looks up the user\'s registered personal agent (created on the Agent Builder page). An RFC 8693 token exchange mints a delegated token where the user remains the subject and the agent carries the act claim, scoped to airlines:read airlines:write. The agent then calls get_loyalty_status to check the miles balance and redeem_miles to upgrade the cabin on the next upcoming booking.',
+    businessValue: 'End users get personalized agentic services that act on their behalf — but delegation is always gated on explicit identity proof (MFA) and pre-registered agent authorization, not implied by session context alone.',
+    productRoles: {
+      idp:   'Issues the high-assurance (MFA-satisfied) user token; serves as the source of truth for the personal agent identity registered via the Agent Builder.',
+      gw:    'Passes the delegated token to the MCP resource server; the act claim is visible in every tool call.',
+      authz: 'Can extend this pattern: add a P1AZ policy that further constrains the personal agent\'s allowed actions based on the user\'s loyalty tier.',
+    },
+    primaryTool: 'redeem_miles',
+    perVertical: {
+      airlines: {
+        trigger: { type: 'chip', text: 'have my agent use my miles for an upgrade' },
+        primaryTool: 'redeem_miles',
+        whatToSay: 'MFA proved, personal agent verified, miles redeemed — cabin upgraded.',
+      },
+    },
+  },
 ];
 
 function deepFreeze(o) {
