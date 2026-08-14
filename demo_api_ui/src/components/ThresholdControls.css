@@ -22,6 +22,8 @@
   padding: 12px 14px;
   min-width: 520px;
   max-width: 85vw;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(10, 20, 50, 0.45);
   animation: thresh-ctrl-slide-in 0.15s ease;
 }
