@@ -23,14 +23,19 @@ function deriveGates(events) {
   const statuses = Object.fromEntries(events.map((e) => [e.id, e.status]));
 
   // Gate 0 — MFA
-  if (ids.has('personal-agent-lookup') || events.some((e) => e.id === 'user-token' && /mfa|multi/i.test(e.description || ''))) {
+  if (events.some((e) => (e.id === 'personal-agent-lookup' || e.id === 'mfa') && (e.status === 'success' || e.status === 'valid'))) {
     gates[0].status = 'permit';
   }
   // Gate 1 — Gateway
   if (ids.has('mcp-tool-invoked')) gates[1].status = 'checking';
   if (ids.has('gw-introspection') || ids.has('gw-authorize')) {
     const azStatus = statuses['gw-authorize'];
-    gates[1].status = azStatus === 'deny' ? 'deny' : 'permit';
+    const intrStatus = statuses['gw-introspection'];
+    if (azStatus === 'deny') {
+      gates[1].status = 'deny';
+    } else if (azStatus === 'permit' || azStatus === 'active' || intrStatus === 'permit' || intrStatus === 'active') {
+      gates[1].status = 'permit';
+    }
   }
   // Gate 2 — Authz / result
   if (ids.has('resource-server-reply') || ids.has('mcp-tool-result')) {
