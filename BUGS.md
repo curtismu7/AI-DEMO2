@@ -300,6 +300,71 @@ setTokenData({ accessToken: decodeToken(response.data.accessToken), ... });
 
 ---
 
+## Pass 5 — 2026-08-15 (BFF-focused, demo_api_server)
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 29 | Critical | 🔴 Open | `/api/self-service/users` POST has no admin check — any customer can self-grant `role: "admin"` | `demo_api_server/routes/selfServiceUsers.js:90-175` |
+| 30 | Critical | 🔴 Open | A2A auth accepts unsigned/forged JWTs — sole gate never verifies signature | `demo_api_server/middleware/a2aPingOneBearer.js:24-26` |
+| 31 | Critical | 🔴 Open | JWT algorithm confusion — verification `alg` read from attacker-controlled header (RS256→HS256 forgery) | `demo_api_server/services/tokenValidationService.js:139-141` |
+| 32 | High | 🔴 Open | Plaintext passwords written to activity log — `Authorization` header redacted but request body isn't | `demo_api_server/middleware/activityLogger.js:112` |
+| 33 | High | 🔴 Open | RFC 8707 resource-format validator regex rejects every resource the service itself defines | `demo_api_server/services/resourceIndicatorService.js:100-107` |
+
+### 29. `/api/self-service/users` missing admin gate — Critical
+```js
+app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
+// POST handler accepts `role` from body, validated only as isIn(['customer','admin']) — no req.user.role check
+```
+Sibling handlers in the same file (`DELETE /:userId`, `GET /`) both explicitly gate on `req.user.role !== 'admin'`. The `POST /` handler doesn't, and forwards `role` straight into `pingOneUserService.createPingOneUser(...)` + `ensureAdminRoleAssignments(user.id)`.
+**Trigger:** any logged-in customer POSTs `{email, username, ..., role: "admin"}` → gets back a new PingOne user with admin role assignments granted, no admin session involved.
+**Fix:** add the same `req.user.role !== 'admin'` gate used by the sibling DELETE/GET handlers, or drop `role`/`ensureAdminRoleAssignments` from the self-service path entirely.
+
+### 30. A2A auth accepts unsigned/forged JWTs — Critical
+```js
+const decoded = decodeJwt(token);   // base64-decodes header+payload, NEVER checks signature
+const clientId = claims.client_id || claims.cid || claims.sub || null;
+req.a2aPingOne = { token, claims, clientId: String(clientId) };
+```
+This is the sole auth gate on the live A2A JSON-RPC route (mounted without session `authenticateToken`). `decodeJwt` never verifies against PingOne's JWKS, unlike `middleware/auth.js`'s `authenticateToken`.
+**Trigger:** anyone crafts `header.payload.signature` with an arbitrary `client_id`/`sub` in the payload (signature bytes can be garbage), POSTs it as `Authorization: Bearer <forged>` → marked `isAuthenticated: true` under that identity. Full identity spoofing on A2A specialist endpoints.
+**Fix:** verify the JWT signature/issuer (JWKS or PingOne introspection) before trusting any claim, matching `authenticateToken`'s pattern.
+
+### 31. JWT algorithm confusion (RS256→HS256 forgery) — Critical
+```js
+const { kid, alg } = decoded.header;   // UNVERIFIED header the caller sent
+const verifyOptions = { algorithms: [alg || 'RS256'] };
+```
+Classic CWE-347: the verification algorithm allow-list is derived from attacker-controlled token content instead of being server-fixed. Backs `validatePingOneCoreToken` in JWT-signature-verification mode (an alt to introspection mode).
+**Trigger:** attacker knows a valid `kid` (public via JWKS by design), crafts a token `{alg:"HS256", kid:"<real-kid>"}`, HMAC-signs it using the RSA public key's PEM string (also public) as the HMAC secret. `algorithms` becomes `['HS256']` from the forged header, and the "key" passed to `jwt.verify` is that same PEM — `jsonwebtoken` HMAC-verifies successfully. Full auth bypass with a self-forged token for any subject/claims.
+**Fix:** hard-code `algorithms: ['RS256']` (or an explicit server-controlled allow-list of asymmetric algorithms only) — never read `alg` from the token header.
+
+### 32. Plaintext passwords in activity log — High
+```js
+requestBody: method === 'POST' || method === 'PUT' ? req.body : null,
+```
+Globally mounted. `Authorization` header is explicitly redacted two lines above — showing password exposure wasn't intended — but the request body isn't.
+**Trigger:** user logs in / registers / changes password → activity log entry persists the plaintext password field, later viewable via the admin activity-log surface.
+**Fix:** redact known sensitive fields (`password`, `newPassword`, etc.) from `requestBody` before storing, same treatment as the auth header.
+
+### 33. RFC 8707 resource validator rejects every real resource — High
+```js
+const validPatterns = [
+  /^https:\/\/.*\.pingdemo\.com\/$/,
+  /^https:\/\/pingone\.com\/.*\/$/,
+  /^https:\/\/auth\.pingone\..*\/.*\/$/
+];
+```
+`RESOURCE_DEFINITIONS` defines the actual resource URIs on domain `ping.demo` (`enduser.ping.demo/`, `mcpserver.ping.demo/`, `https://admin-api.ping.demo/`, `https://config-api.ping.demo/`). None of the three regexes match any of them (wrong domain, two aren't even `https://`).
+**Trigger:** `oauthService.exchangeCodeForToken` filters caller-supplied `resources` through this validator before appending RFC 8707 `resource` params — the filter always empties the list, silently dropping resource indicators from every code-exchange request. `routes/oauth.js`'s `validateResourceSelection` likewise rejects every legitimate resource.
+**Fix:** correct the regex allow-list to match the actual `*.ping.demo` domains, and normalize the bare-hostname entries to include a scheme or drop the hard `https://` requirement for them.
+
+### Also found in pass 5, not in top 5 (verified, logged for awareness)
+- `demo_api_server/routes/complianceAgentRoutes.js:16-42`, `routes/supportAgentRoutes.js:16-45` — identity taken from `req.body.userId` instead of the authenticated `req.agentContext.userId`; an authenticated user can act under a spoofed identity on the compliance/support agent init/message endpoints (Medium).
+- `demo_api_server/routes/investment.js:16-28` — `accountId` path param is echoed back unvalidated; `GET /accounts/:accountId/portfolio` returns the caller's real portfolio mislabeled under whatever `accountId` was requested (Low/Medium).
+- `demo_api_server/middleware/tokenErrorMiddleware.js:43-46` — operator-precedence bug misclassifies token type (`||`/`&&` bind tighter than `?:`); currently unmounted/unexploitable but would defeat a `system`-only gate if wired into a route (Medium).
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
