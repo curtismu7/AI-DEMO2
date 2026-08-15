@@ -71,6 +71,45 @@ const apiSource = (reason) => `api — hosted PingOne MCP unavailable, used dire
 const mockSource = (reason) => `mock — PingOne MCP unavailable: ${reason}`;
 const mockAfterApiSource = (reason) => `mock — PingOne MCP and Management API both unavailable: ${reason}`;
 
+function _trimWildcard(value) {
+  return String(value || '').trim().replace(/[*%]+$/, '');
+}
+
+function normalizeListUsersArgs(args = {}) {
+  const normalized = {};
+  const rawLimit = Number(args?.limit);
+  if (Number.isFinite(rawLimit) && rawLimit > 0) {
+    normalized.limit = Math.min(100, Math.floor(rawLimit));
+  }
+
+  const rawFilter = typeof args?.filter === 'string' ? args.filter.trim() : '';
+  const prefix =
+    typeof args?.usernamePrefix === 'string' ? args.usernamePrefix
+      : typeof args?.prefix === 'string' ? args.prefix
+        : typeof args?.startsWith === 'string' ? args.startsWith
+          : typeof args?.usernameStartsWith === 'string' ? args.usernameStartsWith
+            : typeof args?.query === 'string' ? args.query
+              : '';
+  const exactUsername = typeof args?.username === 'string' ? args.username.trim() : '';
+
+  if (rawFilter) {
+    normalized.filter = rawFilter;
+    if (!/\b(sw|eq|co|ne|lt|gt|le|ge)\b/i.test(rawFilter)) {
+      const wildcardMatch = rawFilter.match(/^(.+?)[*%]$/);
+      if (wildcardMatch) {
+        normalized.filter = `username sw "${_trimWildcard(wildcardMatch[1])}"`;
+      }
+    }
+  } else if (prefix) {
+    const trimmed = _trimWildcard(prefix);
+    if (trimmed) normalized.filter = `username sw "${trimmed}"`;
+  } else if (exactUsername) {
+    normalized.filter = `username eq "${exactUsername}"`;
+  }
+
+  return normalized;
+}
+
 const tools = [
   {
     name: 'list_pingone_tools',
@@ -194,6 +233,11 @@ function summaryForResponse(tool, data) {
       return `${arr.length} ${noun} found`;
     }
     switch (tool) {
+      case 'listUsers':
+        // collectionFor already handled the array-shaped response above;
+        // this only fires for a count-only response with no embedded array.
+        if (typeof data?.count === 'number') return `${data.count} users found`;
+        break;
       case 'getUser':
         if (data?.username) return `User: ${data.username}${data.email ? ` (${data.email})` : ''}`;
         break;
@@ -205,6 +249,15 @@ function summaryForResponse(tool, data) {
   } catch (_) {
     return String(data).slice(0, 200);
   }
+}
+
+function buildDebugSummary({ backend, transport, tool, args = {}, reason = null }) {
+  const parts = [`backend=${backend}`, `transport=${transport}`, `tool=${tool}`];
+  if (args.environmentId) parts.push(`environmentId=${args.environmentId}`);
+  if (args.filter) parts.push(`filter=${args.filter}`);
+  if (args.limit != null) parts.push(`limit=${args.limit}`);
+  if (reason) parts.push(`reason=${reason}`);
+  return parts.join(' · ');
 }
 
 async function listPingOneTools(params) {
@@ -247,6 +300,8 @@ async function callPingOneTool(params) {
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
   }
+  const rawArgs = params?.arguments || {};
+  const normalizedArgs = name === 'listUsers' ? normalizeListUsersArgs(rawArgs) : rawArgs;
   // Pin environmentId to the configured environment. The hosted MCP tool
   // schemas REQUIRE it as an argument (listUsers et al fail -32602 without
   // it — verified live 2026-08-10), so dropping it outright broke every live
@@ -254,11 +309,15 @@ async function callPingOneTool(params) {
   // model still never needs to supply it (the system prompt says not to),
   // and a model-supplied value is discarded so a call can never be pointed
   // at another environment.
-  const { environmentId: _ignoredEnvId, ...args } = params?.arguments || {};
+  const { environmentId: _ignoredEnvId, ...args } = normalizedArgs;
   if (process.env.PINGONE_ENVIRONMENT_ID) {
     args.environmentId = process.env.PINGONE_ENVIRONMENT_ID;
   }
+  // Alias kept for the fallback/mock paths below, which predate (and are
+  // unaffected by) the environmentId-pinning/case-retry logic above.
+  const liveArgs = args;
   try {
+    console.info('[pingone-admin] call_pingone_tool live request', { name, args });
     let data = parseMcpResult(await adapter.callTool(name, args));
     // Case-tolerant prefix ("so we do not fail on case, for demo"): when the
     // exact-case sw filter finds nothing, retry ONCE with the first letter's
@@ -282,15 +341,45 @@ async function callPingOneTool(params) {
       fields.responseSummary = `${fields.responseSummary} (no matches for ${args.filter}; matched with ${effectiveFilter})`;
     }
     return {
-      result: { tool: name, ...fields, source: LIVE_SOURCE },
+      result: {
+        tool: name,
+        ...fields,
+        source: LIVE_SOURCE,
+        debug: {
+          backend: 'hosted-mcp',
+          transport: 'live',
+          tool: name,
+          args,
+          summary: buildDebugSummary({ backend: 'hosted-mcp', transport: 'live', tool: name, args }),
+        },
+      },
       render: 'call_pingone_tool',
     };
   } catch (err) {
     // A JSON-RPC error is PingOne answering (e.g. validation) — render it as
     // the real response. Only transport/auth failures trigger the mock fallback.
     if (err.code === 'pingone_mcp_rpc_error') {
+      console.warn('[pingone-admin] call_pingone_tool live RPC error for %s: %s', name, err.message);
       return {
-        result: { tool: name, responseSummary: `PingOne error: ${err.message}`, source: LIVE_SOURCE },
+        result: {
+          tool: name,
+          responseSummary: `PingOne error: ${err.message}`,
+          source: LIVE_SOURCE,
+          debug: {
+            backend: 'hosted-mcp',
+            transport: 'rpc-error',
+            tool: name,
+            args: liveArgs,
+            reason: err.message,
+            summary: buildDebugSummary({
+              backend: 'hosted-mcp',
+              transport: 'rpc-error',
+              tool: name,
+              args: liveArgs,
+              reason: err.message,
+            }),
+          },
+        },
         render: 'call_pingone_tool',
       };
     }
@@ -299,10 +388,25 @@ async function callPingOneTool(params) {
       const summary = CORE_TOOLS.includes(name)
         ? summaryForResponse(name, getMockResponse(name, args))
         : `Tool unavailable: ${err.message}`;
-      return { result: { tool: name, responseSummary: summary, source }, render: 'call_pingone_tool' };
+      return {
+        result: {
+          tool: name,
+          responseSummary: summary,
+          source,
+          debug: {
+            backend: 'mock',
+            transport: 'mock',
+            tool: name,
+            args: liveArgs,
+            reason: err.message,
+            summary: buildDebugSummary({ backend: 'mock', transport: 'mock', tool: name, args: liveArgs, reason: err.message }),
+          },
+        },
+        render: 'call_pingone_tool',
+      };
     };
 
-    const restReq = REST_FALLBACK[name]?.(args);
+    const restReq = REST_FALLBACK[name]?.(liveArgs);
     if (restReq) {
       try {
         pingOneUserService.initialize();
@@ -310,7 +414,25 @@ async function callPingOneTool(params) {
         console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
         await enrichResourceScopes(name, data);
         return {
-          result: { tool: name, ...resultFields(name, data), source: apiSource(err.message) },
+          result: {
+            tool: name,
+            ...resultFields(name, data),
+            source: apiSource(err.message),
+            debug: {
+              backend: 'management-api',
+              transport: 'fallback',
+              tool: name,
+              args: liveArgs,
+              reason: err.message,
+              summary: buildDebugSummary({
+                backend: 'management-api',
+                transport: 'fallback',
+                tool: name,
+                args: liveArgs,
+                reason: err.message,
+              }),
+            },
+          },
           render: 'call_pingone_tool',
         };
       } catch (restErr) {
