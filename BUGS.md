@@ -161,6 +161,64 @@ but `exchangeAuditStore.js` declares `writeExchangeEvent(event)` — **one** par
 
 ---
 
+## Pass 3 — 2026-08-15
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 11 | Critical | 🔴 Open | Tool-call name/args/id discarded on every real tool call (openai_agent) | `openai_agent/src/run_handler.py:234-240` |
+| 12 | High | 🔴 Open | `/api/admin/scope-audit` missing `requireAdmin` — any logged-in user can read/write PingOne scopes | `demo_api_server/routes/scopeAudit.js:42,118` |
+| 13 | High | 🔴 Open | UC18 rate limiting enforced on HTTP only — WebSocket transport (primary ingress) bypasses it entirely | `demo_mcp_gateway/src/index.ts` (WS `tools/call`) vs `middleware/authorizeMcpRequest.ts:249-308` |
+| 14 | High | 🔴 Open | `tool-error` stream chunk unhandled — UI hangs, run reports false success after a failed tool call | `mastra_agent/src/runHandler.ts:111-141` |
+| 15 | High | 🔴 Open | JWT decode crashes on base64url `-`/`_` chars — silently hides decoded-token panel for real tokens | `demo_api_ui/src/services/tokenInspector.js:17-26` |
+
+### 11. Tool-call name/args/id discarded on every real tool call — Critical
+```python
+raw = getattr(item, "raw_item", {})
+tc_id = raw.get("call_id", uuid.uuid4().hex[:12]) if isinstance(raw, dict) else uuid.uuid4().hex[:12]
+name = raw.get("name", "unknown") if isinstance(raw, dict) else "unknown"
+args = raw.get("arguments", "{}") if isinstance(raw, dict) else "{}"
+```
+`item.raw_item` for a real function-tool call is a pydantic `ResponseFunctionToolCall`/`FunctionCallOutput` model, never a plain dict — confirmed against the installed `openai-agents` SDK internals. `isinstance(raw, dict)` is always `False` in practice, so every BFF tool call gets `toolCallName="unknown"`, empty args, and a random UUID as `toolCallId` on start, but empty string `""` on end.
+**Trigger:** any turn where the model calls a BFF tool (e.g. `transfer_funds`). Start/end IDs never match → `AGUIEmitter._pending_tool_calls.pop()` returns `None` → call dropped from `_turn_tool_calls`, blinding the commitment-grounding guardrail → UI tool-call entry stuck at `status: 'running'` forever, labeled "unknown", no visible arguments. Happens on every single tool call in `openai_agent` mode.
+**Fix:** extract `call_id`/`name`/`arguments` via `getattr(raw, "call_id", None)` with a dict fallback, mirroring the SDK's own `_extract_call_id` pattern.
+
+### 12. `/api/admin/scope-audit` missing `requireAdmin` — High
+```js
+app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudit'));
+// router.get('/resources', ...) and router.post('/scopes', ...) — neither gated by requireAdmin
+```
+Every other `/api/admin/*` route pairs `authenticateToken` with `requireAdmin` (confirmed in `admin.js`, `adminAgentTools.js`, `groupMembership.js`). This route is the outlier.
+**Trigger:** any logged-in customer (not just an admin) can call `GET /api/admin/scope-audit/resources` (dumps every PingOne resource server + scopes via the Management API worker token) and `POST /api/admin/scope-audit/scopes` (creates a new OAuth scope on any PingOne resource — a live tenant write).
+**Fix:** add `requireAdmin` at the mount point or per-route, matching the pattern used everywhere else under `/api/admin`.
+
+### 13. UC18 rate limiting bypassed entirely over WebSocket — High
+The HTTP middleware's `tools/call` path checks `config.rateLimitEnabled` and calls the `SlidingWindowLimiter`, returning 429 on burst. The WS `tools/call` handler in `index.ts` (the gateway's documented primary ingress — "Accepts JSON-RPC over WebSocket from agent") runs straight from token validation into tool dispatch with zero rate-limit references anywhere in the file.
+**Trigger:** an agent connects over WebSocket and sends `tools/call` bursts. The same calls over HTTP get throttled at `GATEWAY_RATE_LIMIT_MAX_REQUESTS`; over WS they're never throttled — full UC18 resource-exhaustion/cost-runaway protection is void for the primary channel.
+**Fix:** add the same `SlidingWindowLimiter` check (keyed `sub:toolName`) to the WS `tools/call` branch, before `guardToolCall`.
+
+### 14. `tool-error` stream chunk unhandled in mastra_agent — High
+`runHandler.ts`'s `fullStream` switch only handles `'text-delta' | 'tool-call' | 'tool-result' | 'error'`. A failed tool `execute()` (BFF timeout/non-2xx/abort) emits a distinct `'tool-error'` chunk per the underlying `ai` SDK — never `'tool-result'` — which this switch silently drops.
+**Trigger:** a BFF tool call fails mid-run. `onToolStart` already set `anyVisibleOutput = true`; the dropped `tool-error` chunk means `onToolEnd` never fires for that call, so the UI entry (`useAgentState.js`) hangs at `status: 'running'` forever, AND `onRunEnd()` still emits `RUN_FINISHED` (not an error) since `anyVisibleOutput` is already true — a failed tool call (potentially a transfer) is reported as a successful run.
+**Fix:** add an `else if (part.type === 'tool-error')` branch that calls `emitter.onToolEnd()` with an error so the UI entry resolves instead of hanging.
+
+### 15. JWT decode crashes on base64url characters — High
+```js
+header: JSON.parse(atob(parts[0])),
+payload: JSON.parse(atob(parts[1])),
+```
+`atob()` only accepts standard base64 (`+`/`/`); JWTs use base64url (`-`/`_`). Verified directly: `atob('YWJjZGVmZ2hpams-_')` throws `Invalid character`.
+**Trigger:** any real PingOne-issued token whose header/payload segment contains `-` or `_` (near-certain at typical token length) throws inside `decodeJWT`'s try block, returning `{isValid:false}` for a perfectly valid token — silently hiding the decoded-token panel in Protocol Playground's `TokenInspector.jsx` and `ExecutionEngine.executeStep`. The existing test suite only uses a hand-crafted token that happens to avoid `-`/`_`, masking the bug. Same pattern also exists in `Dashboard.js`, `UserDashboard.js`, `UserDashboardPing2026.js`, `TokenInspectModal.jsx`, `TokenExchangePanel.js` (flagged for awareness, not filed separately).
+**Fix:** replace `-`/`_` with `+`/`/` (and pad) before calling `atob`, or use a base64url-safe decode helper.
+
+### Also found in pass 3, not in top 5 (verified, logged for awareness)
+- `demo_api_server/services/rfc9728ComplianceAuditService.js:366,405,462,500,704` — server-side `fetch('/.well-known/...')` with a relative URL throws immediately under Node's `fetch`; every RFC 9728 compliance audit run reports false-negative non-compliance regardless of real endpoint health (Medium).
+- `demo_api_ui/src/components/ProtocolPlayground/ProtocolViewer.jsx:106-119` — StepCard "Execute" enabled-check reads the step's own completion instead of the previous step's; per-step execute buttons past step 1 are permanently disabled (Medium).
+- `demo_mcp_gateway/src/authzPosture.ts:108` — `/health` posture check only inspects the legacy singular `authorizedActorClientId` field, not the newer plural `authorizedActorClientIds` array that real enforcement (`GatewayTokenPolicy`) prefers — false-positive "fail open" reported on a correctly-configured gateway (Medium, misreport only, not an actual PEP weakness).
+- `demo_hitl_service/src/routes/challenges.js:30` — auth-bypass dev-mode warning uses raw `console.warn` instead of `teachLog`, skipping correlation-id/structured logging for the one signal that HITL auth was skipped (Medium; has a currently-failing repo test as proof: `hitl-teachlog-migration.test.js`).
+- `demo_hitl_service/src/routes/challenges.js:127-139` — `respondedBy` is documented and store-supported (`challengeStore.resolve`'s 3rd arg) but never destructured/forwarded on `/respond`; approval records for money-transfer consent can never carry who approved it (Medium; not live-exploited today, no caller sends it yet).
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
