@@ -92,9 +92,15 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
   }
 
   let granted = null;
+  let priorMayAct = null;
+  let wroteMayAct = false;
   try {
     pingOneUserService.initialize();
+    // Capture pre-request mayAct so failed consent restores it instead of wiping
+    // a still-valid authorization for another (or prior) agent.
+    priorMayAct = await pingOneUserService.getMayActAttribute(userId);
     await pingOneUserService.setMayActAttribute(userId, { sub: registration.applicationId });
+    wroteMayAct = true;
     granted = delegationStore.grantDelegation({
       delegator_user_id: userId,
       delegator_email: req.user?.email || req.session?.user?.email || '',
@@ -115,7 +121,9 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
   } catch (err) {
     try {
       pingOneUserService.initialize();
-      await pingOneUserService.setMayActAttribute(userId, null);
+      if (wroteMayAct) {
+        await pingOneUserService.setMayActAttribute(userId, priorMayAct);
+      }
       if (typeof granted?.id === 'string') {
         await delegationService.revokeDelegation(granted.id, userId);
       }
@@ -155,7 +163,7 @@ router.post('/revoke', requireNotAdmin, async (req, res) => {
   }
   try {
     pingOneUserService.initialize();
-    await pingOneUserService.setMayActAttribute(userId, null);
+    await pingOneUserService.clearMayActIfMatches(userId, registration.applicationId);
     await revokeActiveDelegations(registration.applicationId, userId);
     const revoked = delegatedCommerceService.revoke(registration.id);
     req.session.agentTokens = {};

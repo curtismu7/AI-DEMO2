@@ -204,6 +204,7 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
   const [selectedToken, setSelectedToken] = useState(null);
   const [activeRightTab, setActiveRightTab] = useState('claims');
   const [showFlowDiagram, setShowFlowDiagram] = useState(false);
+  const [tokenChainSyncFailed, setTokenChainSyncFailed] = useState(false);
   const { mode } = useExchangeMode();
   const tokenChainCtx = useTokenChainOptional();
 
@@ -213,9 +214,13 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
       if (res.ok) {
         const data = await res.json();
         setTokenChain(data.currentTokens || []);
+        setTokenChainSyncFailed(false);
+      } else {
+        setTokenChainSyncFailed(true);
       }
     } catch (err) {
       console.error('Failed to load token chain:', err);
+      setTokenChainSyncFailed(true);
     }
   }, []);
 
@@ -271,6 +276,11 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
 
   const left = (
     <div className="inspector-shell-tree-body">
+      {tokenChainSyncFailed && (
+        <div className="utfi-sync-error" role="status">
+          ⚠️ Token sync failed — retrying…
+        </div>
+      )}
       {tree.length === 0 && (
         <div className="utfi-empty-state">
           <p className="utfi-empty-msg">{hint || 'Ready for agent requests…'}</p>
@@ -699,7 +709,10 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
             <div className="utfi-error-icon">⚠️</div>
             <div>
               <h4>Failed to Load Token Data</h4>
-              <p>Could not retrieve token information from the server. Please try again.</p>
+              <p>Could not retrieve token information from the server.</p>
+              <button type="button" className="utfi-btn utfi-btn-primary" onClick={() => fetchTokenData()}>
+                Try again
+              </button>
             </div>
           </div>
         </div>
