@@ -102,6 +102,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-10 — AG-UI /api/agent/run never minted Intent Tokens
+
+**Files changed:** `demo_api_server/routes/agentRun.js`,
+`demo_api_server/tests/agentRun.intentTokenMint.regression.test.js`
+
+**What was broken:** The Intent Token mint block on `POST /api/agent/run`
+destructured `extractIntentFromPrompt` from `nlIntentParser`. That name is a
+local helper inside `agentInvokeRoute.js` and is **not** exported — the call
+threw `TypeError`, the surrounding try/catch logged "non-fatal", and AG-UI
+never wrote `session.intentToken` or the Token Chain `intent-token` event.
+`ff_intent_token_enabled` defaults on, so the primary composer path silently
+skipped intent binding while `/api/agent/invoke` still minted correctly.
+
+**What was fixed:** Call the exported `extractIntentAndConfidence` (same API
+`agentInvokeRoute` wraps). Regression locks the export + the call site.
+
+**Do not break:** Guest `PUBLIC_GUEST_ACTIONS` gate, `agentGuestSessionMiddleware`,
+RFC 8693 exchange, or the invoke-route local helper of the same name.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4 tests/agentRun.intentTokenMint.regression.test.js`
+
 ### 2026-08-07 — Clarification amount presets transferred $1 instead of $1,000
 
 **Files changed:** `demo_api_ui/src/components/agentChrome.js`,
