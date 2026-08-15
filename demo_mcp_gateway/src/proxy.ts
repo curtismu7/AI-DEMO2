@@ -57,12 +57,33 @@ export function proxyJsonRpc(
   // `id` and would otherwise never match the final-response check below and
   // be silently dropped). Not called for the final response.
   onProgress?: (params: unknown) => void,
+  // MCP spec: notifications/cancelled. Aborting terminates the backend
+  // connection and rejects with a distinguishable { code: 'cancelled' }
+  // error instead of waiting out CALL_TIMEOUT_MS.
+  signal?: AbortSignal,
 ): Promise<JsonRpcResponse> {
   return new Promise((resolve, reject) => {
+    // Guards every settle path against acting twice (e.g. an abort() that
+    // races the final response) — resolve/reject themselves are idempotent,
+    // but ws.terminate() on an already-closed socket is not something to do
+    // twice, and the abort listener must know not to fire post-settle.
+    let settled = false;
+
     const timer = setTimeout(() => {
+      settled = true;
       ws.terminate();
       reject(new Error(`Proxy timeout after ${CALL_TIMEOUT_MS}ms for ${request.method}`));
     }, CALL_TIMEOUT_MS);
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(handshakeTimer);
+      ws.terminate();
+      reject(Object.assign(new Error('Cancelled'), { code: 'cancelled' }));
+    };
+    signal?.addEventListener('abort', onAbort);
 
     const wsOptions: WebSocket.ClientOptions = {
       headers: buildUpstreamHeaders(backendToken, xTratContext),
@@ -84,8 +105,10 @@ export function proxyJsonRpc(
     let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
 
     ws.on('error', (err) => {
+      settled = true;
       clearTimeout(timer);
       clearTimeout(handshakeTimer);
+      signal?.removeEventListener('abort', onAbort);
       reject(err);
     });
 
@@ -109,6 +132,8 @@ export function proxyJsonRpc(
       // Handshake timeout guard
       handshakeTimer = setTimeout(() => {
         if (!initialized) {
+          settled = true;
+          signal?.removeEventListener('abort', onAbort);
           ws.terminate();
           reject(new Error('MCP handshake timeout'));
         }
@@ -150,8 +175,10 @@ export function proxyJsonRpc(
 
       // Step 2: match the real request's id
       if (msg.id === request.id) {
+        settled = true;
         clearTimeout(timer);
         clearTimeout(handshakeTimer);
+        signal?.removeEventListener('abort', onAbort);
         ws.close();
         resolve(msg);
       }
