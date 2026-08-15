@@ -15,7 +15,7 @@ export default function TokenChainEventCard({ event }) {
       permit: '✓',
       deny: '✕',
       error: '❌',
-      pending: '⏳'
+      pending: '⚠️'
     };
     const icon = icons[event.status] || event.status;
     return <span className={`event-status event-status--${event.status}`}>{icon}</span>;

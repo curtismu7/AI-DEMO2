@@ -296,6 +296,41 @@ const PRESETS = [
   { id: 'real-policy', label: 'Real Agent Gateway policy (simulated authz)' },
 ];
 
+/**
+ * A left-tree action row that's more than a color change while busy: shows a
+ * real spinner in place of its status dot, and is genuinely inert (not just
+ * guarded in the click handler) while busy or its precondition isn't met.
+ */
+function BusyTreeItem({ busy, disabled, onClick, dotColor, label, busyLabel }) {
+  const isInert = busy || disabled;
+  return (
+    <div
+      className="inspector-shell-tree-item"
+      role="button"
+      tabIndex={isInert ? -1 : 0}
+      aria-disabled={isInert}
+      aria-busy={busy}
+      onClick={() => { if (!isInert) onClick(); }}
+      onKeyDown={(e) => {
+        if (!isInert && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); }
+      }}
+      style={{
+        color: isInert ? '#475569' : '#3b82f6',
+        fontSize: 11,
+        cursor: isInert ? 'default' : 'pointer',
+        pointerEvents: isInert ? 'none' : 'auto',
+      }}
+    >
+      {busy ? (
+        <InlineSpinner size="sm" />
+      ) : (
+        <span className="inspector-shell-tree-item__dot" style={{ background: dotColor }} />
+      )}
+      <span>{busy ? busyLabel : label}</span>
+    </div>
+  );
+}
+
 export default function AgentGatewayTester() {
   const [tools, setTools] = useState(FALLBACK_TOOLS);
   const [toolsSource, setToolsSource] = useState('static');
@@ -318,6 +353,7 @@ export default function AgentGatewayTester() {
   const [burstResp, setBurstResp] = useState(null);
   const [toolSearch, setToolSearch] = useState('');
   const [outputTab, setOutputTab] = useState('result');
+  const [refreshing, setRefreshing] = useState(false);
   const [treeSection, setTreeSection] = useState('tools');
 
   const fetchActive = useCallback(async () => {
@@ -381,6 +417,15 @@ export default function AgentGatewayTester() {
     fetchTools();
     fetchRules();
     fetchRateStatus();
+  }, [fetchActive, fetchTools, fetchRules, fetchRateStatus]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchActive(), fetchTools(), fetchRules(), fetchRateStatus()]);
+    } finally {
+      setRefreshing(false);
+    }
   }, [fetchActive, fetchTools, fetchRules, fetchRateStatus]);
 
   const toggleFlag = useCallback(async (id, current) => {
@@ -607,9 +652,10 @@ export default function AgentGatewayTester() {
         <>
           <button
             className="inspector-shell-topbar__btn"
-            onClick={() => { fetchActive(); fetchTools(); fetchRules(); fetchRateStatus(); }}
+            disabled={refreshing}
+            onClick={handleRefresh}
           >
-            Refresh
+            {refreshing ? <InlineSpinner size="sm" /> : 'Refresh'}
           </button>
           <button
             className="inspector-shell-topbar__btn"
@@ -718,58 +764,55 @@ export default function AgentGatewayTester() {
                     </div>
                   </>
                 )}
-                <div
-                  className="inspector-shell-tree-item"
+                <BusyTreeItem
+                  busy={uc18Busy}
                   onClick={toggleUc18Demo}
-                  style={{ color: uc18Busy ? '#475569' : '#3b82f6', fontSize: 11 }}
-                >
-                  <span className="inspector-shell-tree-item__dot" style={{ background: '#3b82f6' }} />
-                  <span>{uc18Busy ? 'Updating...' : (rateStatus?.aligned ? 'Disable UC18' : 'Enable UC18')}</span>
-                </div>
-                <div
-                  className="inspector-shell-tree-item"
-                  onClick={() => !bursting && selectedTool && rateStatus?.aligned && runBurst()}
-                  style={{ color: (!selectedTool || !rateStatus?.aligned || bursting) ? '#475569' : '#3b82f6', fontSize: 11 }}
-                >
-                  <span className="inspector-shell-tree-item__dot" style={{ background: '#f59e0b' }} />
-                  <span>{bursting ? 'Running...' : 'Burst test (5 calls)'}</span>
-                </div>
+                  dotColor="#3b82f6"
+                  label={rateStatus?.aligned ? 'Disable UC18' : 'Enable UC18'}
+                  busyLabel="Updating..."
+                />
+                <BusyTreeItem
+                  busy={bursting}
+                  disabled={!selectedTool || !rateStatus?.aligned}
+                  onClick={runBurst}
+                  dotColor="#f59e0b"
+                  label="Burst test (5 calls)"
+                  busyLabel="Running..."
+                />
               </div>
               <div className="inspector-shell-tree-group">
                 <div className="inspector-shell-tree-group__label">Sequential Chain</div>
-                <div
-                  className="inspector-shell-tree-item"
-                  onClick={() => !chainRunning && runChain()}
-                  style={{ color: chainRunning ? '#475569' : '#3b82f6', fontSize: 11 }}
-                >
-                  <span className="inspector-shell-tree-item__dot" style={{ background: '#6366f1' }} />
-                  <span>{chainRunning ? 'Running chain…' : 'Run chain (accounts → balance → sensitive)'}</span>
-                </div>
+                <BusyTreeItem
+                  busy={chainRunning}
+                  onClick={runChain}
+                  dotColor="#6366f1"
+                  label="Run chain (accounts → balance → sensitive)"
+                  busyLabel="Running chain…"
+                />
               </div>
               <div className="inspector-shell-tree-group">
                 <div className="inspector-shell-tree-group__label">Demo Presets</div>
                 {PRESETS.map(p => (
-                  <div
+                  <BusyTreeItem
                     key={p.id}
-                    className="inspector-shell-tree-item"
-                    onClick={() => !presetBusy && runPreset(p.id)}
-                    style={{ color: presetBusy ? '#475569' : '#3b82f6', fontSize: 11 }}
-                  >
-                    <span className="inspector-shell-tree-item__dot" style={{ background: '#8b5cf6' }} />
-                    <span>{presetBusy === p.id ? 'Applying...' : p.label}</span>
-                  </div>
+                    busy={presetBusy === p.id}
+                    disabled={!!presetBusy}
+                    onClick={() => runPreset(p.id)}
+                    dotColor="#8b5cf6"
+                    label={p.label}
+                    busyLabel="Applying..."
+                  />
                 ))}
               </div>
               <div className="inspector-shell-tree-group">
                 <div className="inspector-shell-tree-group__label">RFC 9728 Metadata</div>
-                <div
-                  className="inspector-shell-tree-item"
-                  onClick={() => !metadataLoading && fetchMetadata()}
-                  style={{ color: metadataLoading ? '#475569' : '#3b82f6', fontSize: 11 }}
-                >
-                  <span className="inspector-shell-tree-item__dot" style={{ background: '#06b6d4' }} />
-                  <span>{metadataLoading ? 'Fetching...' : 'Fetch live metadata'}</span>
-                </div>
+                <BusyTreeItem
+                  busy={metadataLoading}
+                  onClick={fetchMetadata}
+                  dotColor="#06b6d4"
+                  label="Fetch live metadata"
+                  busyLabel="Fetching..."
+                />
                 {metadata && Object.entries(metadata).map(([key, data]) => (
                   <div key={key} className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 10 }}>
                     <span className="inspector-shell-tree-item__dot" style={{ background: data?._status === 'ok' ? '#22c55e' : '#ef4444' }} />
@@ -892,7 +935,9 @@ export default function AgentGatewayTester() {
               <pre className="inspector-shell-output-code">
                 {chainResults.length === 0 ? (
                   <div style={{ padding: 16, color: '#64748b', fontSize: 12 }}>
-                    {chainRunning ? 'Running chain…' : 'Click "Run chain" (Config tab) to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
+                    {chainRunning
+                      ? 'Running chain…'
+                      : 'Toggle the left panel to "Config" (above the tool tree), then click "Run chain (accounts → balance → sensitive)" to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
                   </div>
                 ) : (
                   chainResults.map((step, i) => (
