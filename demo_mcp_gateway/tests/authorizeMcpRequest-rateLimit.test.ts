@@ -6,7 +6,7 @@
  * introspection. Uses the injectable deps pattern to stub out auth.
  */
 
-import { buildAuthorizeMcpRequest } from '../src/middleware/authorizeMcpRequest';
+import { buildAuthorizeMcpRequest, getRateLimiter, resetRateLimiterForTest } from '../src/middleware/authorizeMcpRequest';
 import { _resetLimiterForTest } from '../src/rateLimit';
 import type { GatewayConfig } from '../src/config';
 
@@ -197,5 +197,56 @@ describe('UC18 rate-limiting in buildAuthorizeMcpRequest', () => {
     const auditTrailArg = fakeRes.setHeader.mock.calls.find((c: any[]) => c[0] === 'X-Gw-Audit-Trail')[1];
     const auditTrail = JSON.parse(auditTrailArg);
     expect(auditTrail.rateLimit).toEqual({ limited: true, retryAfterMs: expect.any(Number) });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// UC18 gap fix: the WS transport (index.ts) previously had no rate-limit check
+// at all. The fix makes it call getRateLimiter(config).check(sub:toolName) —
+// the SAME exported singleton-returning function the HTTP path above uses —
+// rather than a second, independent limiter. These tests exercise that shared
+// function directly (index.ts itself has top-level side effects — it loads
+// config and binds a real listener on import — so it cannot be imported here;
+// getRateLimiter is the piece both transports share, and is what this fix adds).
+describe('UC18 rate-limiting — getRateLimiter is shared across HTTP and WS transports', () => {
+  afterEach(() => {
+    resetRateLimiterForTest();
+    delete process.env.GATEWAY_RATE_LIMIT_ENABLED;
+    delete process.env.GATEWAY_RATE_LIMIT_MAX_REQUESTS;
+    delete process.env.GATEWAY_RATE_LIMIT_WINDOW_MS;
+  });
+
+  it('getRateLimiter(config) returns the same singleton instance on repeated calls', () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 3, rateLimitWindowMs: 10000 });
+    expect(getRateLimiter(config)).toBe(getRateLimiter(config));
+  });
+
+  it('a burst consumed via the HTTP middleware exhausts the bucket a WS-style getRateLimiter().check() call would also see', async () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 2, rateLimitWindowMs: 10000 });
+
+    // Two HTTP tools/call requests for sub=user-123, tool=get_balance — consumes the bucket.
+    await callMiddleware(config, TOOL_CALL_BODY);
+    await callMiddleware(config, TOOL_CALL_BODY);
+
+    // The WS handler in index.ts computes the identical key convention
+    // (`${sub}:${toolName}`) and calls getRateLimiter(config).check(key) before
+    // dispatching. Simulate that call directly: it must be blocked, proving
+    // WS and HTTP share one bucket rather than each transport getting its own
+    // independent (and thus bypassable) allowance.
+    const wsStyleResult = getRateLimiter(config).check('user-123:get_balance');
+    expect(wsStyleResult.allowed).toBe(false);
+    expect(wsStyleResult.retryAfterMs).toBeGreaterThan(0);
+  });
+
+  it('a WS-style burst against getRateLimiter directly is then also blocked on the HTTP path for the same sub+tool', async () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 2, rateLimitWindowMs: 10000 });
+
+    // Simulate two WS tools/call bursts (what index.ts's new check does).
+    getRateLimiter(config).check('user-123:get_balance');
+    getRateLimiter(config).check('user-123:get_balance');
+
+    // HTTP middleware call for the same sub+tool must now see the bucket exhausted.
+    const { fakeRes } = await callMiddleware(config, TOOL_CALL_BODY);
+    expect(fakeRes.statusCode).toBe(429);
   });
 });
