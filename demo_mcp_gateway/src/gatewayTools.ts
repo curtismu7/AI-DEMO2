@@ -77,4 +77,37 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     credentialPath: 'api_key',
   },
+  // Weather/Brave showcase tools — passthrough (oauth_bearer) targets forwarded to
+  // demo_mcp_weather / demo_mcp_brave with NO RFC 8693 exchange, gated by
+  // scopePolicies.ts (Texas-only geofence / blocked-terms filter). Mirrors
+  // ping-gateway's 00-mcp-weather.json / 00-mcp-brave.json routes.
+  {
+    name: 'get_weather',
+    description: 'Demo: weather showcase — current conditions for a location. Gateway enforces a Texas-only geofence (demo policy).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        city_name: { type: 'string', description: 'City name, optionally with state, e.g. "Austin, TX"' },
+        latitude: { type: 'number', description: 'Decimal latitude, e.g. 30.2672' },
+        longitude: { type: 'number', description: 'Decimal longitude, e.g. -97.7431' },
+        location_name: { type: 'string', description: 'A saved location name (not scope-verifiable; denied by policy)' },
+      },
+      additionalProperties: true,
+    },
+    credentialPath: 'oauth_bearer',
+  },
+  {
+    name: 'brave_news_search',
+    description: 'Demo: Brave News search showcase. Gateway blocks queries containing certain terms (demo content policy).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query string' },
+        count: { type: 'number', description: 'Number of results to return (default 5)' },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+    credentialPath: 'oauth_bearer',
+  },
 ];

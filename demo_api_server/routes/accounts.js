@@ -19,16 +19,13 @@ async function restoreAccountsFromSnapshot(userId) {
   try {
     const scenario = await demoScenarioStore.load(userId);
     if (!Array.isArray(scenario.accountSnapshot) || scenario.accountSnapshot.length === 0) return [];
-    const restored = [];
-    for (const snap of scenario.accountSnapshot) {
-      const existing = dataStore.getAccountById(snap.id);
-      if (existing) {
-        restored.push(existing);
-      } else {
-        const acct = await dataStore.createAccount({ ...snap, userId, createdAt: new Date() });
-        restored.push(acct);
-      }
-    }
+    const restored = await Promise.all(
+      scenario.accountSnapshot.map((snap) => {
+        const existing = dataStore.getAccountById(snap.id);
+        if (existing) return existing;
+        return dataStore.createAccount({ ...snap, userId, createdAt: new Date() });
+      })
+    );
     return restored;
   } catch (e) {
     console.warn('[accounts] restoreAccountsFromSnapshot failed:', e.message);
@@ -104,19 +101,15 @@ async function provisionDemoAccounts(userId) {
   // Remove existing accounts for this user so we can reset balances cleanly
   const existing = dataStore.getAccountsByUserId(userId);
   const deletedAccountIds = new Set(existing.map((a) => a.id));
-  for (const acct of existing) {
-    await dataStore.deleteAccount(acct.id);
-  }
+  await Promise.all(existing.map((acct) => dataStore.deleteAccount(acct.id)));
   // Remove only transactions tied to deleted accounts (do not wipe all user txns when existing.length === 0)
   const existingTxns = dataStore.getTransactionsByUserId(userId);
-  for (const txn of existingTxns) {
-    const touchesDeleted =
+  const txnsToDelete = existingTxns.filter(
+    (txn) =>
       (txn.fromAccountId && deletedAccountIds.has(txn.fromAccountId)) ||
-      (txn.toAccountId && deletedAccountIds.has(txn.toAccountId));
-    if (touchesDeleted) {
-      await dataStore.deleteTransaction(txn.id);
-    }
-  }
+      (txn.toAccountId && deletedAccountIds.has(txn.toAccountId))
+  );
+  await Promise.all(txnsToDelete.map((txn) => dataStore.deleteTransaction(txn.id)));
 
   // Build the full 4-account set from the shared specs (single source of truth;
   // the agent's mcpLocalTools.ensureAccounts builds from the same specs).
@@ -151,9 +144,7 @@ async function provisionDemoAccounts(userId) {
     { fromAccountId: checkingId,  toAccountId: creditId,   amount:  300.00, type: 'payment',    description: 'Credit card payment',        createdAt: new Date('2024-03-12T08:00:00Z') },
     { fromAccountId: creditId,    toAccountId: null,       amount:  129.99, type: 'purchase',   description: 'Online purchase',            createdAt: new Date('2024-03-16T19:20:00Z') },
   ];
-  for (const txn of sampleTxns) {
-    await dataStore.createTransaction({ ...txn, userId, status: 'completed' });
-  }
+  await Promise.all(sampleTxns.map((txn) => dataStore.createTransaction({ ...txn, userId, status: 'completed' })));
 
   return [checking, savings, carLoan, creditCard];
 }
@@ -284,17 +275,15 @@ router.post('/reset-all-demo', authenticateToken, requireScopes(['write']), asyn
     const demoAccounts = allAccounts.filter(a => a.id.startsWith('chk-') || a.id.startsWith('sav-'));
     // Collect the userIds so we can also clear their transactions
     const demoUserIds = [...new Set(demoAccounts.map(a => a.userId))];
-    for (const acct of demoAccounts) {
-      await dataStore.deleteAccount(acct.id);
-    }
-    for (const uid of demoUserIds) {
-      const txns = dataStore.getTransactionsByUserId(uid);
-      for (const txn of txns) {
-        await dataStore.deleteTransaction(txn.id);
-      }
-      // Save empty snapshot for cold-start recovery
-      await saveAccountSnapshot(uid);
-    }
+    await Promise.all(demoAccounts.map((acct) => dataStore.deleteAccount(acct.id)));
+    await Promise.all(
+      demoUserIds.map(async (uid) => {
+        const txns = dataStore.getTransactionsByUserId(uid);
+        await Promise.all(txns.map((txn) => dataStore.deleteTransaction(txn.id)));
+        // Save empty snapshot for cold-start recovery
+        await saveAccountSnapshot(uid);
+      })
+    );
     res.json({ message: `Reset ${demoUserIds.length} demo user(s). Fresh accounts will be provisioned on next login.` });
   } catch (error) {
     console.error('Error resetting all demo accounts:', error);

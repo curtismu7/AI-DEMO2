@@ -42,6 +42,7 @@ const crypto = require('crypto');
 const configStore = require('./configStore');
 const { classifyObligations } = require('./authorizeObligations');
 const { CircuitBreaker } = require('../utils/circuitBreaker');
+const nrSegments = require('./nrSegments');
 const { buildTestCasesForRule } = require('./policyTestCaseSolver');
 
 // Bounded fetch: every outbound PingOne Authorize call gets a timeout so a
@@ -338,11 +339,11 @@ function _resetAuthorizeRuntimeState() {
  *   bulk-decision media type explicitly.
  */
 async function _postDecisionWithAuth(url, body, contentType = 'application/json') {
-  const doFetch = (tok) => fetchRetryable(url, {
+  const doFetch = (tok) => nrSegments.p1azAuthorize(() => fetchRetryable(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tok}`, 'Content-Type': contentType },
     body,
-  });
+  }));
 
   let workerToken = await getWorkerToken();
   let response = await doFetch(workerToken);
@@ -425,6 +426,29 @@ function _decisionError(status, text, label) {
   return err;
 }
 
+// Pure mapper from a raw PingOne Authorize decision-endpoint response to the
+// four fields the dashboard needs. Exported as a test seam so extraction
+// correctness is verified against the real function, not a copy of it.
+function _mapDecisionFields(raw) {
+  return {
+    // PingOne sends `correlationId`; it sends neither `id` nor `decisionId`,
+    // which is why this was always null. The other two are kept as fallbacks
+    // in case a different decision path returns them.
+    decisionId: raw.correlationId || raw.id || raw.decisionId || null,
+    // PingOne's own policy-evaluation time, distinct from the wall-clock the
+    // caller measures — that one includes the network round trip.
+    policyEvalMs:
+      typeof raw.elapsedMicroseconds === 'number'
+        ? raw.elapsedMicroseconds / 1000
+        : null,
+    // Which policy fired, e.g. "Transaction Denied" / "transaction-denied".
+    // Only the first statement is captured; multi-statement decisions are out
+    // of scope until a policy here actually returns more than one.
+    ruleName: raw.statements?.[0]?.name || null,
+    ruleCode: raw.statements?.[0]?.code || null,
+  };
+}
+
 /**
  * POST a Trust Framework parameters object to a decision endpoint (Phase 2).
  * @param {string} endpointId
@@ -455,13 +479,13 @@ async function _postDecisionEndpoint(endpointId, parameters) {
     });
     const policyNotFound = _isPolicyNotFoundEffect(raw);
 
-    const decisionId = raw.id || raw.decisionId || null;
+    const { decisionId, policyEvalMs, ruleName, ruleCode } = _mapDecisionFields(raw);
 
     const _debug = {
       request: { method: 'POST', url, contentType: 'application/json', body: { parameters } },
       response: raw,
     };
-    return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, path: 'decision-endpoint', _debug };
+    return { decision, policyNotFound, stepUpRequired, hitlRequired, consentRequired, raw, decisionId, policyEvalMs, ruleName, ruleCode, path: 'decision-endpoint', _debug };
   });
 }
 
@@ -736,6 +760,9 @@ function buildMcpDelegationParameters({
   // precedent as InRequiredGroup / UserTier. null → key OMITTED (C1 rule 3).
   tokenKid = null,
   tokenKidKnown = null,
+  delegatedAgentId = null,
+  consentScopes = null,
+  requiredConsentScopes = null,
 }) {
   // Depth of the RFC 8693 actor chain, derived from the actor ids above so it
   // can never disagree with them: no act ⇒ 0, act ⇒ 1, act.act (A2A) ⇒ 2.
@@ -782,6 +809,11 @@ function buildMcpDelegationParameters({
     ...(tokenIss ? { TokenIss: tokenIss } : {}),
     ...(tokenKid ? { TokenKid: tokenKid } : {}),
     ...(tokenKidKnown != null ? { TokenKidKnown: tokenKidKnown } : {}),
+    ...(delegatedAgentId ? { DelegatedAgentId: delegatedAgentId } : {}),
+    ...(Array.isArray(consentScopes) ? { ConsentScopes: consentScopes.join(' ') } : {}),
+    ...(Array.isArray(requiredConsentScopes)
+      ? { RequiredConsentScopes: requiredConsentScopes.join(' ') }
+      : {}),
     ...(userRole ? { UserRole: userRole } : {}),
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
@@ -789,7 +821,12 @@ function buildMcpDelegationParameters({
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(userTier ? { UserTier: userTier } : {}),
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),
-    ...(amount != null ? { Amount: amount, TransactionAmount: String(amount) } : {}),
+    // Always send Amount (0 for read tools). If omitted entirely, P1AZ tier-cap
+    // comparison has a missing operand and returns INDETERMINATE — which the
+    // fail-closed gate (#1310) collapses to DENY, blocking every read for
+    // PrivateBanking users. Sends the real amount for write tools unchanged.
+    Amount: amount != null ? amount : 0,
+    TransactionAmount: amount != null ? String(amount) : '0',
     ...(transactionType ? { TransactionType: transactionType } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(rarMaxAmount != null ? { RarMaxAmount: rarMaxAmount } : {}),
@@ -1204,7 +1241,7 @@ const WARMUP_THROTTLE_MS = 60_000;
  */
 async function warmup({ force = false } = {}) {
   // The simulated engine runs in-process — nothing live to warm.
-  if (configStore.getEffective('ff_authorize_simulated') === 'true') {
+  if (configStore.getEffective('ff_authorize_real') !== 'true') {
     return { ok: false, skipped: 'simulated' };
   }
   if (!isWorkerCredentialReady()) {
@@ -1577,6 +1614,7 @@ module.exports = {
   _normalizeDecision,
   _isPolicyNotFoundEffect,
   _decisionError,
+  _mapDecisionFields,
   _invalidateWorkerToken,
   _resetAuthorizeRuntimeState,
   _fetchRetryable: fetchRetryable,

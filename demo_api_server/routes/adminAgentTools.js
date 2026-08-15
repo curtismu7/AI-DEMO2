@@ -33,7 +33,7 @@ router.get('/lookup', requireAdmin, requireScopes(['admin:read']), async (req, r
     res.json({ users: matches, count: matches.length });
   } catch (err) {
     console.error('[adminAgentTools] GET /lookup error:', err.message);
-    res.status(500).json({ error: 'lookup_error', message: err.message });
+    res.status(500).json({ error: 'lookup_error' });
   }
 });
 
@@ -46,7 +46,7 @@ router.get('/users/:userId', requireAdmin, requireScopes(['admin:read']), async 
     res.json({ user: safeUser });
   } catch (err) {
     console.error('[adminAgentTools] GET /users/:userId error:', err.message);
-    res.status(500).json({ error: 'get_user_error', message: err.message });
+    res.status(500).json({ error: 'get_user_error' });
   }
 });
 
@@ -57,7 +57,7 @@ router.get('/users/:userId/accounts', requireAdmin, requireScopes(['admin:read']
     res.json({ accounts, count: accounts.length });
   } catch (err) {
     console.error('[adminAgentTools] GET /users/:userId/accounts error:', err.message);
-    res.status(500).json({ error: 'get_accounts_error', message: err.message });
+    res.status(500).json({ error: 'get_accounts_error' });
   }
 });
 
@@ -73,7 +73,7 @@ router.get('/users/:userId/transactions', requireAdmin, requireScopes(['admin:re
     res.json({ transactions: sorted, count: sorted.length });
   } catch (err) {
     console.error('[adminAgentTools] GET /users/:userId/transactions error:', err.message);
-    res.status(500).json({ error: 'get_transactions_error', message: err.message });
+    res.status(500).json({ error: 'get_transactions_error' });
   }
 });
 
@@ -97,7 +97,7 @@ router.patch('/accounts/:accountId/freeze', requireAdmin, requireScopes(['admin:
     });
   } catch (err) {
     console.error('[adminAgentTools] PATCH /accounts/:accountId/freeze error:', err.message);
-    res.status(500).json({ error: 'freeze_error', message: err.message });
+    res.status(500).json({ error: 'freeze_error' });
   }
 });
 
@@ -112,7 +112,7 @@ router.post('/users/:userId/reset-password', requireAdmin, requireScopes(['admin
     res.json({ success: true, userId: req.params.userId, passwordResetRequired: true });
   } catch (err) {
     console.error('[adminAgentTools] POST /users/:userId/reset-password error:', err.message);
-    res.status(500).json({ error: 'reset_password_error', message: err.message });
+    res.status(500).json({ error: 'reset_password_error' });
   }
 });
 
@@ -150,7 +150,7 @@ router.post('/accounts/:accountId/adjust', requireAdmin, requireScopes(['admin:w
     res.json({ success: true, accountId: updated.id, newBalance: updated.balance, transaction: tx });
   } catch (err) {
     console.error('[adminAgentTools] POST /accounts/:accountId/adjust error:', err.message);
-    res.status(500).json({ error: 'adjust_error', message: err.message });
+    res.status(500).json({ error: 'adjust_error' });
   }
 });
 
@@ -187,7 +187,7 @@ router.delete('/users/:userId', requireAdmin, requireScopes(['admin:delete']), a
     res.json({ success: true, deleted: { userId: req.params.userId } });
   } catch (err) {
     console.error('[adminAgentTools] DELETE /users/:userId error:', err.message);
-    res.status(500).json({ error: 'delete_error', message: err.message });
+    res.status(500).json({ error: 'delete_error' });
   }
 });
 

@@ -41,7 +41,8 @@
     "agent": "Banking Agent",
     "dashboard": "Dashboard",
     "highValueAction": "Transfer",
-    "highValueLabel": "High-value transfer"
+    "highValueLabel": "High-value transfer",
+    "amountPresets": [100, 500, 1000, 2500]
   },
   "tiers": {
     "default": "Standard",
@@ -87,6 +88,10 @@
     "persona": "Banking Agent",
     "greeting": "Hi {name}! I can check your balances, move money between accounts, and explain the OAuth flows happening behind the scenes. What would you like to do?",
     "systemPromptFlavor": "You are a Super Banking agent. Help customers check account balances, view transaction history, transfer funds, and manage their accounts. Use banking language: accounts are checking, savings, or loan accounts, transactions are deposits, withdrawals, or transfers, balance is account balance. Be professional and clear."
+  },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1556740738-b6a63e27c4df?w=1200&h=600&fit=crop",
+    "greeting": "Great to see you. Let's manage your finances."
   },
   "dashboard": {
     "kind": "banking",

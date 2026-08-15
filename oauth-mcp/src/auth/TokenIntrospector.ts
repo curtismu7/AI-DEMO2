@@ -10,6 +10,7 @@ import { detectTokenMode, enrichAgentTokenInfo } from '../services/tokenValidati
 import { teachLog } from '../utils/teachLogger';
 import { sanitizeAxiosCause } from '../utils/sanitizeAxiosCause';
 import { getJose, createJwksKeySet, JoseModule } from './jwks';
+import { getEmbeddedSigningKeyManager, resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 
 /**
  * True when a jose verification error is a JWKS *availability/fetch* failure (the
@@ -318,6 +319,36 @@ export class TokenIntrospector {
    */
   private async verifyTokenSignature(token: string): Promise<boolean> {
     const skip = process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
+
+    // Peek `iss` (unverified — just routing which key to check against, not
+    // trusting the claim yet). A self-issued token from oauth-mcp's own
+    // embedded AS verifies against its local RSA key, no network involved.
+    let peekedIss: unknown;
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        peekedIss = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8')).iss;
+      }
+    } catch { /* malformed — fall through to the existing PingOne path, which will reject it */ }
+
+    if (peekedIss && peekedIss === resolveEmbeddedIssuer()) {
+      const { jwtVerify } = await getJose();
+      try {
+        const embedded = await getEmbeddedSigningKeyManager();
+        await jwtVerify(token, embedded.getPublicKey());
+        teachLog.info('agent token signature verified (embedded issuer, local key)');
+        return true;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (skip) {
+          teachLog.warn(`embedded-issuer token signature verification FAILED but SKIP_TOKEN_SIGNATURE_VALIDATION=true — accepting: ${msg}`);
+          return false;
+        }
+        teachLog.error('embedded-issuer token signature verification failed', undefined, { operation: 'jwks_verify', detail: msg });
+        throw new AuthenticationError('Agent token signature verification failed', AuthErrorCodes.INVALID_AGENT_TOKEN);
+      }
+    }
+
     const jwks = await this.getJwksKeySet();
     if (!jwks) {
       // STRICT_AUTH must not accept an unverifiable token: no JWKS = no way to detect

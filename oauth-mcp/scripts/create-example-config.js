@@ -222,7 +222,7 @@ function main() {
   const generateKeys = args.includes('--generate-keys');
   const dockerFormat = args.includes('--docker');
   
-  console.log('🏦 Banking MCP Server - Configuration Generator\n');
+  console.log('🏦 AI Demo MCP Server - Configuration Generator\n');
   console.log('===============================================\n');
   
   if (!ENVIRONMENTS[environment]) {

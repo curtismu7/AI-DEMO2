@@ -149,7 +149,6 @@ vi.mock("../../utils/dashboardToast", () => ({
 // (no mock needed — isDashboardQuickNavRoute uses real path matching)
 
 // Sub-component stubs
-vi.mock("../AgentUiModeToggle", () => ({ default: () => null }));
 vi.mock("../BrandLogo", () => ({ default: () => null }));
 vi.mock("../shared/LoadingOverlay", () => ({ default: () => null }));
 vi.mock("../TokenChainDisplay", () => ({ default: () => null }));

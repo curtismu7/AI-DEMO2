@@ -1,7 +1,7 @@
 // One pipeline step — a native <details> card. Dumb renderer over the neutral
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
 import React from "react";
-import { tokenize, formatJson } from "./shared/JsonHighlight";
+import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { stageReplay } from "../services/inspectorReplay";
 import "./shared/JsonHighlight.css";
@@ -15,33 +15,68 @@ export const EVIDENCE_POPOUT_CHARS = 1200;
 // narrative prefix line + embedded JSON, not pure JSON) — tokenize() colors
 // the JSON portions and leaves the rest as plain text, so it's safe to run
 // over the whole string as-is rather than re-parsing it as a JSON value.
-function HighlightedText({ text }) {
-  return tokenize(text).map((t, i) => (
-    <span key={i} className={t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`}>{t.text}</span>
-  ));
+function claimDiffs(beforeText, afterText) {
+  try {
+    const before = JSON.parse(beforeText);
+    const after = JSON.parse(afterText);
+    return new Set(
+      ["aud", "scope"].filter((claim) =>
+        JSON.stringify(before?.[claim]) !== JSON.stringify(after?.[claim])),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function HighlightedText({ text, changedClaims = new Set(), side }) {
+  let activeClaim = null;
+  return tokenize(text).map((t, i) => {
+    if (t.type === "key") {
+      const match = t.text.match(/"([^"]+)"\s*:/);
+      activeClaim = match && changedClaims.has(match[1]) ? match[1] : null;
+    }
+    const classes = [
+      `jh-${t.type}`,
+      t.critical ? "jh-critical" : null,
+      t.focused ? "jh-focus" : null,
+    ];
+    if (activeClaim) classes.push(`tctr-claim-diff tctr-claim-diff--${side}`);
+    return <span key={i} className={classes.filter(Boolean).join(" ")}>{t.text}</span>;
+  });
 }
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function textToHtml(text) {
+function textToHtml(text, changedClaims = new Set(), side) {
   if (text == null || text === "") return "";
+  let activeClaim = null;
   return tokenize(String(text))
     .map((t) => {
-      const cls = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
-      return `<span class="${cls}">${escapeHtml(t.text)}</span>`;
+      if (t.type === "key") {
+        const match = t.text.match(/"([^"]+)"\s*:/);
+        activeClaim = match && changedClaims.has(match[1]) ? match[1] : null;
+      }
+      const cls = [
+        `jh-${t.type}`,
+        t.critical ? "jh-critical" : null,
+        t.focused ? "jh-focus" : null,
+      ].filter(Boolean).join(" ");
+      const claimClass = activeClaim ? ` claim-diff claim-diff--${side}` : "";
+      return `<span class="${cls}${claimClass}">${escapeHtml(t.text)}</span>`;
     })
     .join("");
 }
 
 function renderBeforeAfterBlock(beforeAfter) {
   if (!beforeAfter?.before?.text && !beforeAfter?.after?.text) return "";
+  const changedClaims = claimDiffs(beforeAfter?.before?.text, beforeAfter?.after?.text);
   const beforeHtml = beforeAfter?.before?.text
-    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.before.title || "Before")}</h3><pre class="pre">${textToHtml(beforeAfter.before.text)}</pre></div>`
+    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.before.title || "Before")}</h3><pre class="pre">${textToHtml(beforeAfter.before.text, changedClaims, "before")}</pre></div>`
     : "";
   const afterHtml = beforeAfter?.after?.text
-    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.after.title || "After")}</h3><pre class="pre">${textToHtml(beforeAfter.after.text)}</pre></div>`
+    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.after.title || "After")}</h3><pre class="pre">${textToHtml(beforeAfter.after.text, changedClaims, "after")}</pre></div>`
     : "";
   return `<div class="before-after">${beforeHtml}${afterHtml}</div>`;
 }
@@ -167,7 +202,7 @@ export function openStepTeachingWindow(step, useCase) {
     : "";
   const kvHtml = Array.isArray(d.kv) && d.kv.length
     ? `<h2>Proof</h2><table>${d.kv.map(([k, v]) =>
-      `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v) || String(v))}</pre></td></tr>`).join("")}</table>`
+      `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v, true) || String(v))}</pre></td></tr>`).join("")}</table>`
     : "";
 
   const html = `<!DOCTYPE html>
@@ -213,6 +248,10 @@ export function openStepTeachingWindow(step, useCase) {
   .jh-key{color:#79c0ff}.jh-string{color:#7ee787}.jh-number{color:#ffa657}
   .jh-keyword{color:#d2a8ff;font-weight:600}.jh-punct{color:#8b949e}
   .jh-critical{color:#ff6b6b;font-weight:600}
+  .jh-focus{background:rgba(251,191,36,.28);color:#fde68a;font-weight:700;border-radius:3px}
+  .claim-diff{border-radius:3px}
+  .claim-diff--before{background:rgba(251,191,36,.24)}
+  .claim-diff--after{background:rgba(45,212,191,.24)}
 </style></head>
 <body>
   <h1>${escapeHtml(title)}</h1>
@@ -305,7 +344,9 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
             {d.kv.map(([k, v]) => (
               <React.Fragment key={k}>
                 <span className="tctr-kv-k">{k}</span>
-                <span className="tctr-kv-v">{v}</span>
+                {v && typeof v === "object"
+                  ? <pre className="tctr-kv-v tctr-kv-v--json"><JsonHighlight value={v} deep /></pre>
+                  : <span className="tctr-kv-v">{v}</span>}
               </React.Fragment>
             ))}
           </div>
@@ -347,11 +388,19 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
               <div className="tctr-before-after">
                 <div className="tctr-before-after__column">
                   <h4>{d.beforeAfter.before?.title || "Before"}</h4>
-                  <pre className="tctr-code jh-dark"><HighlightedText text={d.beforeAfter.before?.text || "—"} /></pre>
+                  <pre className="tctr-code jh-dark"><HighlightedText
+                    text={d.beforeAfter.before?.text || "—"}
+                    changedClaims={claimDiffs(d.beforeAfter.before?.text, d.beforeAfter.after?.text)}
+                    side="before"
+                  /></pre>
                 </div>
                 <div className="tctr-before-after__column">
                   <h4>{d.beforeAfter.after?.title || "After"}</h4>
-                  <pre className="tctr-code jh-dark"><HighlightedText text={d.beforeAfter.after?.text || "—"} /></pre>
+                  <pre className="tctr-code jh-dark"><HighlightedText
+                    text={d.beforeAfter.after?.text || "—"}
+                    changedClaims={claimDiffs(d.beforeAfter.before?.text, d.beforeAfter.after?.text)}
+                    side="after"
+                  /></pre>
                 </div>
               </div>
             )}

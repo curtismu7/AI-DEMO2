@@ -7,6 +7,7 @@ import {
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
   isPingOneAdminAgentRoute,
+  isTokenChainRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -25,7 +26,17 @@ describe('isBankingAgentDashboardRoute', () => {
 });
 
 describe('isPingOneAdminAgentRoute', () => {
-  it('matches only the /admin console (not vertical ops or customer dash)', () => {
+  it('matches both dashboard paths, not the vertical consoles or customer dash', () => {
+    // The PingOne admin content moved from /admin to /admin/pingone when the
+    // support console took /admin; this predicate moved with it. If it ever
+    // points at a page that does not hold Demo Steps, the agent falls back to
+    // the theme vertical and running a step hits customerTokenGuard — the
+    // 2026-07-22 regression in REGRESSION_PLAN §4.
+    expect(isPingOneAdminAgentRoute('/admin/pingone')).toBe(true);
+    expect(isPingOneAdminAgentRoute('/admin/pingone/')).toBe(true);
+    // /admin renders the dashboard again after the #1486 repoint was reverted,
+    // and /admin/pingone still resolves to the same component, so the admin
+    // agent must mount on both.
     expect(isPingOneAdminAgentRoute('/admin')).toBe(true);
     expect(isPingOneAdminAgentRoute('/admin/')).toBe(true);
     expect(isPingOneAdminAgentRoute('/admin/banking')).toBe(false);
@@ -176,9 +187,11 @@ describe('isLiveWorkbenchRoute', () => {
 });
 
 describe('isAgentLifecycleRoute', () => {
-  it('is true only for /agent-lifecycle', () => {
+  it('is true for the guided lifecycle surfaces', () => {
     expect(isAgentLifecycleRoute('/agent-lifecycle')).toBe(true);
     expect(isAgentLifecycleRoute('/agent-lifecycle/')).toBe(true);
+    expect(isAgentLifecycleRoute('/delegated-commerce')).toBe(true);
+    expect(isAgentLifecycleRoute('/delegated-commerce/')).toBe(true);
   });
 
   it('is false for unrelated routes', () => {
@@ -187,5 +200,25 @@ describe('isAgentLifecycleRoute', () => {
     expect(isAgentLifecycleRoute('/')).toBe(false);
     expect(isAgentLifecycleRoute(null)).toBe(false);
     expect(isAgentLifecycleRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isTokenChainRoute', () => {
+  it('covers the surfaces that host the token chain panel', () => {
+    expect(isTokenChainRoute('/')).toBe(true);
+    expect(isTokenChainRoute('/dashboard')).toBe(true);
+    expect(isTokenChainRoute('/admin')).toBe(true);
+    expect(isTokenChainRoute('/agent-flow-inspector')).toBe(true);
+  });
+
+  it('treats /delegation-chain-value as a token-chain route', () => {
+    expect(isTokenChainRoute('/delegation-chain-value')).toBe(true);
+    expect(isTokenChainRoute('/delegation-chain-value/')).toBe(true);
+  });
+
+  it('is false for unrelated routes and non-strings', () => {
+    expect(isTokenChainRoute('/use-cases')).toBe(false);
+    expect(isTokenChainRoute(null)).toBe(false);
+    expect(isTokenChainRoute(undefined)).toBe(false);
   });
 });

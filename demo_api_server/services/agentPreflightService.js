@@ -8,7 +8,7 @@
  * DENY / HITL + challengeId) in one response.
  *
  * Replaces the simulated-only checkLocalAuthzGate (verticalMcpExecution.js:77)
- * which never called PingOne Authorize and only ran in dev (ff_authorize_simulated=true).
+ * which never called PingOne Authorize and only ran in dev (ff_authorize_real=false).
  *
  * Exported: evaluate({ req, tool, params, hitlChallengeId? })
  *   → { decision: 'PERMIT'|'DENY'|'HITL'|'STEP_UP', ... }
@@ -80,6 +80,19 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
     agentToken = resolved.token;
     userSub = resolved.userSub || null;
     tokenEvents = resolved.tokenEvents || [];
+    // Explicit deny (e.g. ff_skip_token_exchange blocking raw user-token
+    // forwarding). Without this check a null token here would fall through
+    // to the gate call below, which — if the gate doesn't run — returns
+    // PERMIT via the `!gate.ran` fallback. Never let a blocked resolution
+    // reach that fallback.
+    if (resolved.blocked) {
+      return {
+        decision: 'DENY',
+        reason: resolved.blockCode || 'user_token_forwarding_disabled',
+        message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+        tokenEvents,
+      };
+    }
   } catch (err) {
     console.warn('[AgentPreflight] Token exchange failed for tool=%s: %s', tool, err.message);
     if (FAIL_OPEN) {
@@ -266,7 +279,7 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
  * RequiredGroup / InRequiredGroup stay per-tool (tool-specific).
  *
  * No simulated-engine path — the bulk decision API has no mock/simulated
- * counterpart in this repo (see plan). When ff_authorize_simulated is on, or
+ * counterpart in this repo (see plan). When ff_authorize_real is on, or
  * the MCP decision endpoint isn't configured, this returns ok:false with a
  * reason instead of silently calling live PingOne or fabricating a verdict.
  *
@@ -299,14 +312,25 @@ async function evaluateBatch({ req, tools }) {
   let agentToken = null;
   let userSub = null;
   let tokenEvents = [];
+  let blockedResolution = null;
   try {
     const resolved = await resolveMcpAccessTokenWithEvents(req, tools[0].tool);
     agentToken = resolved.token;
     userSub = resolved.userSub || null;
     tokenEvents = resolved.tokenEvents || [];
+    if (resolved.blocked) blockedResolution = resolved;
   } catch (err) {
     console.warn('[AgentPreflight] evaluateBatch token exchange failed: %s', err.message);
     return { ok: false, reason: 'token_exchange_failed', results: [], tokenEvents };
+  }
+  if (blockedResolution) {
+    return {
+      ok: false,
+      reason: blockedResolution.blockCode || 'user_token_forwarding_disabled',
+      message: blockedResolution.blockMessage,
+      results: [],
+      tokenEvents,
+    };
   }
   if (!agentToken) {
     return { ok: false, reason: 'no_agent_token', results: [], tokenEvents };

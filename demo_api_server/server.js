@@ -1,3 +1,7 @@
+// New Relic APM must be the absolute first require — before Sentry, before dotenv.
+// No-op when NR_LICENSE_KEY is absent (agent_enabled: false in newrelic.js).
+require('newrelic');
+
 // Sentry must be required before anything else so it can auto-instrument the app.
 // No-op unless SENTRY_DSN is set (see instrument.js).
 require('./instrument');
@@ -161,6 +165,7 @@ const demoAgentRoutes = require('./routes/demoAgentRoutes');
 const agentRunRoutes = require('./routes/agentRun');
 const demoAgentNlRoutes = require('./routes/demoAgentNl');
 const agentInvokeRoutes = require('./routes/agentInvokeRoute');
+const webhookPingOneRoutes = require('./routes/webhookPingOne');
 const intentAuthRoutes = require('./routes/intentAuthRoute');
 const langchainConfigRoutes = require('./routes/langchainConfig');
 const lmstudioRoutes = require('./routes/lmstudio');
@@ -170,6 +175,7 @@ const tokenRoutes = require('./routes/tokens');
 const logsRoutes = require('./routes/logs');
 const delegationRoutes = require('./routes/delegation');
 const agentAuthorizationRoutes = require('./routes/agentAuthorization');
+const delegatedCommerceRoutes = require('./routes/delegatedCommerce');
 const tokenChainRoutes = require('./routes/tokenChain');
 const tokenExchangeLogRouter = require('./routes/tokenExchangeLog');
 const {
@@ -224,6 +230,9 @@ const {
     requireAdmin,
     requireSession
 } = require('./middleware/auth');
+// Separate module on purpose: suites that hand-mock middleware/auth would make
+// this undefined here and crash at the mount. See middleware/optionalAuth.js.
+const { optionalAuthenticateToken } = require('./middleware/optionalAuth');
 const {
     logActivity
 } = require('./middleware/activityLogger');
@@ -493,6 +502,12 @@ app.use(sessionMiddleware);
     }
 }());
 
+// PingOne webhook — mounted ahead of the global parser so it keeps its own
+// limit. The rawBody capture that used to live here existed only for the HMAC
+// check, which is gone: PingOne cannot sign a request body. See
+// docs/PINGONE-WEBHOOK.md. Batches of 500 events exceed the default 100kb.
+app.use('/webhook', express.json({ limit: '5mb' }), webhookPingOneRoutes);
+
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({
@@ -614,6 +629,7 @@ app.use(
         '/api/demo/attack-sim',
         '/api/tokens',
         '/api/demo-scenario',
+        '/api/delegated-commerce',
         '/api/auth/oauth',
         '/api/mfa/test',
     ],
@@ -1080,8 +1096,8 @@ app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
-app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
-app.use('/api/demo-track', authenticateToken, require('./routes/demoTrack'));
+app.use('/api/use-cases', require('./routes/useCases')); // read-only catalog is public; step-run routes self-gate with authenticateToken
+app.use('/api/demo-track', optionalAuthenticateToken, require('./routes/demoTrack'));
 app.use('/api/admin-tools', authenticateToken, require('./routes/adminTools'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes
@@ -1245,6 +1261,35 @@ app.get('/api/app-events/stream', (req, res) => {
 // agent-cc-preview fetches the agent's own CC token — no user OAuth token needed.
 // Register before the authenticateToken block so customers with a valid session can access it.
 app.get('/api/tokens/agent-cc-preview', requireSession, tokenRoutes.agentCcPreviewHandler);
+
+app.get('/api/pingone-events', (req, res) => {
+    const { limit, eventType, actorId } = req.query;
+    const filters = {};
+    if (eventType) filters.eventType = eventType;
+    if (actorId) filters.actorId = actorId;
+    if (limit) filters.limit = Math.min(Number(limit) || 50, 200);
+    const events = require('./services/lmdb/pingoneEventStore.lmdb').query(filters);
+    return res.json({ events });
+});
+
+// POST /api/nr-log — proxy for UI-originated New Relic log entries.
+// No auth required (session check omitted intentionally — used on login page too).
+// No-op when NR_LICENSE_KEY is absent.
+app.post('/api/nr-log', express.json({ limit: '16kb' }), (req, res) => {
+    const { message, attributes } = req.body || {};
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: 'message required' });
+    }
+    require('./services/newRelicForwarder')
+        .forwardUIEvent(String(message).slice(0, 512), attributes || {})
+        .catch(() => {});
+    return res.json({ ok: true });
+});
+
+// New Relic read proxy — public, same posture as /api/nr-log above.
+// Named queries only; see routes/newRelicQuery.js.
+app.use('/api/newrelic', require('./routes/newRelicQuery'));
+
 app.use('/api/tokens', authenticateToken, tokenRoutes);
 // /api/token-exchanges is mounted once below with authenticateToken +
 // tokenExchangeLogRouter (hashes tokens, session-scopes reads). Do NOT add an
@@ -1333,6 +1378,7 @@ app.use('/api/oauth/token', oauthTokenRoutes);
 app.use('/api/oauth/jwks', require('./routes/oauthJwks'));
 app.use('/api/delegation', authenticateToken, delegationRoutes);
 app.use('/api/agent-authorization', authenticateToken, agentAuthorizationRoutes);
+app.use('/api/delegated-commerce', authenticateToken, delegatedCommerceRoutes);
 app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
 app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the
@@ -1345,7 +1391,13 @@ app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // its Telemetry/Tracing siblings above.
 app.use('/api/api-calls', authenticateToken, apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
-app.use('/api/verticals', authenticateToken, verticalManifestRoutes);
+// Optional auth: this mount mixes public routes (/list, /:id/hero — the chat
+// surface reads them before sign-in) with session/admin routes (/me, /stream,
+// /active, the editor). Plain `authenticateToken` 401s the public ones; dropping
+// it entirely leaves req.user unset, which 401s the protected ones for
+// signed-in users too. optionalAuthenticateToken populates req.user when
+// credentials are present and lets requireSession/requireAdmin do the gating.
+app.use('/api/verticals', optionalAuthenticateToken, verticalManifestRoutes);
 app.use('/api/groups', authenticateToken, groupMembershipRoutes);
 app.use('/api/plugin/data', authenticateToken, require('./routes/pluginData'));
 app.use('/api/config/credentials', configCredentialsRoutes);
@@ -1435,6 +1487,16 @@ app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 
 const intentBindingRoutes = require('./routes/intentBinding');
 app.use('/api/demo/intent-binding', express.json(), intentBindingRoutes);
+
+// Protocol Playground mocks for specs PingOne does not natively implement.
+const pkceDemoRoutes = require('./routes/pkceDemo');
+app.use('/api/demo/pkce', pkceDemoRoutes);
+const txnTokenDemoRoutes = require('./routes/txnTokenDemo');
+app.use('/api/demo/txn-tokens', txnTokenDemoRoutes);
+const xaaIdJagDemoRoutes = require('./routes/xaaIdJagDemo');
+app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
+const spiffeDemoRoutes = require('./routes/spiffeDemo');
+app.use('/api/demo/spiffe', spiffeDemoRoutes);
 
 // Public CIMD well-known endpoint — no authentication required.
 // Mounted after session/auth middleware but before static files.
@@ -1645,7 +1707,15 @@ app.get('/api/mcp/tool/events', (req, res) => {
 // Stores the resulting write-scoped token in session.mcpWriteToken for subsequent tool calls.
 app.post('/api/mcp/scope-upgrade', express.json(), requireSession, async (req, res) => {
     try {
-        const { token, tokenEvents } = await resolveMcpAccessTokenWithEvents(req, 'create_transfer');
+        const resolved = await resolveMcpAccessTokenWithEvents(req, 'create_transfer');
+        const { token, tokenEvents } = resolved;
+        if (resolved.blocked) {
+            return res.status(resolved.blockHttpStatus || 403).json({
+                error: resolved.blockCode || 'user_token_forwarding_disabled',
+                message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+                tokenEvents,
+            });
+        }
         if (!token) {
             return res.status(403).json({
                 error: 'scope_upgrade_failed',
@@ -1985,6 +2055,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
           gear_order_status: 'gear_order', loyalty_balance: 'view_rewards',
           extend_rental: 'extend_rental', show_gear_order: 'list_gear',
           show_gear_warranty: 'view_gear_warranty', request_price_match: 'request_price_match',
+          browse_gear: 'browse_gear', add_to_cart: 'add_to_cart',
           // Workforce
           view_benefits: 'view_benefits', pto_balance: 'pto_balance',
           list_expenses: 'view_expenses', submit_expense: 'submit_expense',
@@ -2609,6 +2680,17 @@ if (require.main === module) {
             require('./services/verticalConsistencyGuard').runVerticalConsistencyGuard();
         } catch (e) {
             console.warn('[VERTICAL GUARD] unexpected error (non-fatal):', e.message);
+        }
+
+        // Kill-switch auto-reset: the revoked flag expires itself, but a
+        // full-scope kill's PingOne application disable has no TTL. This sweep
+        // re-enables those applications once their marker is due, including
+        // markers left by a previous process — a restart inside the 10-minute
+        // window would otherwise leave the agent client disabled for good.
+        try {
+            require('./services/killSwitchService').startAutoResetSweep();
+        } catch (e) {
+            console.warn('[killSwitch] Could not start the auto-reset sweep (non-fatal):', e.message);
         }
 
         const fs = require('fs');

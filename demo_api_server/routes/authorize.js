@@ -240,8 +240,8 @@ router.post('/bootstrap-demo-endpoints', authenticateToken, async (req, res) => 
         authorize_mcp_decision_endpoint_id: result.mcpEndpointId,
       };
       if (enableLiveAuthorize) {
-        // Authorization is always enabled; just switch from simulated to live PingOne
-        patch.ff_authorize_simulated = 'false';
+        // Authorization is always enabled; switch from simulated to live PingOne.
+        patch.ff_authorize_real = 'true';
       }
       if (enableMcpFirstTool) {
         patch.ff_authorize_mcp_first_tool = 'true';
@@ -391,11 +391,13 @@ router.post('/test-evaluate', async (req, res) => {
       });
     }
     try {
+      const _t0 = Date.now();
       const result = await evaluatePingOneTransaction({ userId, amount: numAmount, type, acr: acr || undefined });
+      const latencyMs = Date.now() - _t0;
       logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
         `Authorize [pingone/force-live] ${result.decision} — ${type} $${numAmount}`,
         { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-          metadata: { engine: 'pingone', forced: true, decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, path: result.path, ...(useCaseId ? { useCaseId } : {}) } });
+          metadata: { engine: 'pingone', forced: true, decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, path: result.path, latencyMs, ...(useCaseId ? { useCaseId } : {}) } });
       const pingConsent = result.hitlRequired || result.consentRequired || false;
       return res.json({
         ok: true,
@@ -471,11 +473,13 @@ router.post('/test-evaluate', async (req, res) => {
     }
 
     // PingOne Authorize (live)
+    const _t0 = Date.now();
     result = await evaluatePingOneTransaction({ userId, amount: numAmount, type, acr: acr || undefined });
+    const latencyMs = Date.now() - _t0;
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [pingone] ${result.decision} — ${type} $${numAmount}`,
       { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-        metadata: { engine: 'pingone', decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, path: result.path } });
+        metadata: { engine: 'pingone', decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, path: result.path, latencyMs } });
     // F7: normalize both field names — consentRequired (canonical) and
     // hitlRequired (alias) always present so callers don't need engine-specific
     // field name knowledge. Both are identical values.
@@ -786,7 +790,7 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [console] ${result.decision} — endpoint ${endpointId}`,
       { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-        metadata: { engine: 'pingone', console: true, endpointId, decision: result.decision, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ...(useCaseId ? { useCaseId } : {}) } });
+        metadata: { engine: 'pingone', console: true, endpointId, decision: result.decision, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, ...(useCaseId ? { useCaseId } : {}) } });
     return res.json({
       ok: true,
       decision: result.decision,
@@ -1121,7 +1125,7 @@ router.post('/pre-flight', authenticateToken, express.json(), async (req, res) =
     return res.json(result);
   } catch (err) {
     console.error('[authorize/pre-flight] Unexpected error for tool=%s: %s', tool, err.message);
-    return res.status(500).json({ error: 'preflight_error', message: err.message });
+    return res.status(500).json({ error: 'preflight_error' });
   }
 });
 
@@ -1169,7 +1173,7 @@ router.post('/pre-flight-bulk', authenticateToken, express.json(), async (req, r
     return res.json(result);
   } catch (err) {
     console.error('[authorize/pre-flight-bulk] Unexpected error: %s', err.message);
-    return res.status(500).json({ error: 'preflight_bulk_error', message: err.message });
+    return res.status(500).json({ error: 'preflight_bulk_error' });
   }
 });
 

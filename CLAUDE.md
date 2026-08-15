@@ -19,6 +19,8 @@ Litmus for new rules here: would removing the line cause a mistake the agent cou
 
 Always-on hard rule from `§0` — **emoji allowlist only:** `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚`. Everything else: plain text, CSS, or semantic HTML.
 
+**[TECH_DEBT.md](TECH_DEBT.md)** tracks known architectural gaps found while fixing something else — correct enough to ship, worth fixing properly later. Add an entry when you knowingly leave one behind; check it before re-deriving a gap someone already scoped.
+
 ## Working practice — worktree (required)
 
 Edit→test→commit only in an **isolated git worktree** — concurrent sessions share one index and collisions have wiped staged work.
@@ -58,12 +60,15 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 - **Sign-in only works on `local.ping-devops.com:4000`** (passkey rp.id must match the serving host). `api.ping.demo:4000` serves the app but the session cookie lives on the other host, so it shows "Please sign in." Point `E2E_BASE_URL` there too, or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Match existing conventions (error shapes, date handling, import paths) — don't invent.
 - After code edits, run `graphify update .` (AST-only). Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
+- **Ping product docs: start from <https://docs.pingidentity.com/llms.txt>.** Fetch that index first, then follow it to the specific page — don't guess a docs.pingidentity.com URL directly or fall back to general web search.
 
 ## Knowledge bundles
 
 Citable facts live in `graphify-out/*.kb.json`: `repo-topology` (service boundaries, token exchange, scope topology, feature-flag wiring, MCP tools) and `banking-domain` (balances, transfer limits, fraud holds the demo agent enforces). Check these before re-deriving a documented fact; add new assertions (`id`, `claim`, `source`, `confidence`) per `schemas/knowledge-bundle.schema.json`. `banking-domain` grounds the demo agent when `ff_knowledge_grounding` is ON — this is the demo's citable-facts feature, not Google's Open Knowledge Format.
 
 ## Before claiming done
+
+Use **Super Sports** as the default vertical for manual validation and tests that select a vertical. Keep another vertical only when that test explicitly verifies vertical-specific behavior.
 
 1. Run the checks for what you touched and paste the result line: server → `cd demo_api_server && CI=true npm test -- --forceExit`; UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify`.
 2. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.

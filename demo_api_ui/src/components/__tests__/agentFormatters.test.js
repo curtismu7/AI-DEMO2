@@ -51,4 +51,32 @@ describe('buildTokenEventMsg', () => {
     expect(message).not.toContain('may_act');
     expect(message).toContain('Token Exchange grant');
   });
+
+  // The pingone-admin vertical runs on a worker client_credentials token —
+  // deliberately NO RFC 8693 exchange — so the builder used to return null
+  // and the RFC info toggle was a silent no-op there ("RFC info not
+  // working", 2026-08-10). Non-exchange activity must still render.
+  it('summarizes non-exchange token activity instead of returning null', () => {
+    const message = buildTokenEventMsg([
+      {
+        id: 'pingone-worker-token',
+        title: 'PingOne Worker Token (client_credentials)',
+        status: 'active',
+        extra: { rfc: 'RFC 6749 §4.4' },
+      },
+      {
+        id: 'pingone-admin-api:call_pingone_tool',
+        title: 'PingOne Admin API — call_pingone_tool',
+        status: 'failed',
+      },
+    ]);
+
+    expect(message).toContain('no RFC 8693 exchange this turn');
+    expect(message).toContain('✅ PingOne Worker Token (client_credentials)  (RFC 6749 §4.4)');
+    expect(message).toContain('❌ PingOne Admin API — call_pingone_tool');
+  });
+
+  it('still returns null for a genuinely empty event list', () => {
+    expect(buildTokenEventMsg([])).toBeNull();
+  });
 });

@@ -575,6 +575,40 @@ stop_cluster() {
   success "All $NS workloads stopped. Restart with './k8s/deploy.sh deploy' or scale back up."
 }
 
+# Switch between predefined pod subsets without a full redeploy.
+#   mode demo   — minimal set for dashboard + token-chain demos:
+#                 frontend, demo-api-server, mcp-server, mcp-gateway, ping-gateway
+#   mode mcpgw  — only ping-mcpgw + mcp-server (mcpgw proxies to mcp-server)
+#   mode full   — redeploy everything (same as 'deploy')
+mode_cmd() {
+  local target="${1:-}"
+  case "$target" in
+    demo)
+      info "Switching to demo mode (dashboards + token chain)..."
+      # Full stack scaled to 0 first; only then the demo pods come up.
+      kubectl scale deployment --all -n "$NS" --replicas=0 2>/dev/null || true
+      kubectl scale deployment/frontend deployment/demo-api-server \
+        deployment/mcp-server deployment/mcp-gateway deployment/ping-gateway \
+        -n "$NS" --replicas=1
+      success "Demo mode active (frontend + BFF + mcp-server + mcp-gateway + ping-gateway)."
+      ;;
+    mcpgw)
+      info "Switching to mcpgw-only mode (ping-mcpgw + mcp-server)..."
+      # Full stack scaled to 0 first; only then the two pods come up.
+      kubectl scale deployment --all -n "$NS" --replicas=0 2>/dev/null || true
+      kubectl scale deployment/ping-mcpgw deployment/mcp-server -n "$NS" --replicas=1
+      success "mcpgw-only mode active."
+      ;;
+    full)
+      info "Switching to full-stack mode..."
+      deploy
+      ;;
+    *)
+      die "Usage: mode <demo|mcpgw|full>"
+      ;;
+  esac
+}
+
 # Stop or start just the optional feature backends ($EXTRA_SERVICES) to shed or
 # restore memory on demand. `extras off` scales them to 0; `extras` (or
 # `extras on`) brings them back and waits for the rollout.
@@ -725,7 +759,7 @@ _wait_bff_healthy_k8() {
   return 1
 }
 
-# Read ff_authorize_simulated + ff_mcp_gateway_pinggateway from the BFF LMDB store.
+# Read ff_authorize_real + ff_mcp_gateway_pinggateway from the BFF LMDB store.
 # Prints "sim pgw" as 0/1 tokens. Falls back to 0 1 (real P1AZ + PingGateway).
 _read_demo_stack_flags_k8() {
   if ! kubectl get deploy demo-api-server -n "$NS" &>/dev/null; then
@@ -738,7 +772,7 @@ _read_demo_stack_flags_k8() {
   kubectl exec -n "$NS" deploy/demo-api-server -- node -e "
     const cs = require('./services/configStore');
     const t = (v) => (v === true || v === 'true') ? '1' : '0';
-    const sim = t(cs.getEffective('ff_authorize_simulated'));
+    const sim = t(cs.getEffective('ff_authorize_real')) === '1' ? '0' : '1';
     const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
     process.stdout.write(sim + ' ' + pgw);
   " 2>/dev/null || echo "0 1"
@@ -815,6 +849,7 @@ case "${1:-deploy}" in
   forward-status) [ -n "$(find_forward_sessions)" ] ;;
   stop-forward)  stop_forward ;;
   stop)          stop_cluster ;;
+  mode)          check_prereqs; mode_cmd "$2" ;;
   extras)        extras_cmd "$2" ;;
   rag)           rag_cmd "${2:-on}" ;;
   yotuo)         yotuo_cmd "${2:-on}" "$3" ;;

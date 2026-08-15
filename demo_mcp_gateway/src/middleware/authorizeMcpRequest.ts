@@ -30,20 +30,22 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { PingOneAuthorizeClient, policySourceForEngine } from '../auth/PingOneAuthorizeClient';
+import { PingOneAuthorizeClient, policySourceForEngine, actChainDepth } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
 import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../config';
-import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
+import { getScopesForGatewayTool, getChallengeTypeForTool, evaluateScopeDecisionUnconditionally } from '../auth/toolScopes';
+import { evaluateTierDecision, parseRestrictedTools } from '../tierEnforce';
 import { teachLog } from '../teachLogger';
 import { routeTool } from '../router';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { buildApiKeyToolResult } from '../apiKeyDispatch';
 import { buildDualTokenToolResult } from '../dualTokenDispatch';
 import { buildBankingDataToolResult } from '../bankingDataDispatch';
+import { checkWeatherScope, checkBraveScope } from '../scopePolicies';
 import { validateIntentToken } from '../intentTokenValidator';
 import { validateMethodAndShape, validateToolArgs } from '../validation/mcpRequestValidation';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
@@ -156,7 +158,7 @@ function stampFilterTrail(
  * pipeline is bypassed and these functions are used instead.
  */
 export interface AuthorizeMcpRequestDeps {
-  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string }>;
+  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string; scope?: string; act?: { sub?: string } }>;
   authorize: (
     decoded: any,
     method: string,
@@ -420,7 +422,7 @@ export function buildAuthorizeMcpRequest(
         return;
       }
       auditTrail.policy = { passed: true };
-      decoded = { sub: introspResult.sub };
+      decoded = { sub: introspResult.sub, scope: introspResult.scope, act: introspResult.act };
       // Capture introspection result for passing to P1AZ (test path as well)
       introspectionResult = {
         active: introspResult.active,
@@ -803,13 +805,66 @@ export function buildAuthorizeMcpRequest(
       _audCtx.rar = 'observed';
     }
 
+    // ── Step 2f: Per-tool scope backstop (Rule 3 parity) ──────────────────────────
+    // Runs REGARDLESS of P1AZ state. Real P1AZ cannot express per-tool set-membership
+    // over TokenScopes (snapshots/gen-authorize-snapshot.js:36-39); this is the
+    // gateway's own enforcement of that rule, mirroring decision.js Rule 3. Shaped
+    // as an AuthzDecision (not a hand-rolled response) so it flows through the SAME
+    // C2 provenance-aware rendering (policy_source, degraded, required_scopes) as
+    // every other DENY — a raw short-circuit here would silently drop that contract.
+    let _localBackstopDenial: AuthzDecision | undefined;
+    if (method === 'tools/call' && toolName) {
+      const _scopeBackstop = evaluateScopeDecisionUnconditionally(
+        toolName, decoded.scope, actChainDepth(decoded.act),
+      );
+      if (_scopeBackstop.decision === 'DENY') {
+        teachLog.warn(`[GW] scope backstop DENY: ${_scopeBackstop.reason} (tool: ${toolName})`);
+        _localBackstopDenial = {
+          decision: 'DENY',
+          reason: `local-fallback: ${_scopeBackstop.reason}`,
+          engine: 'mock',
+          policySource: 'local-fallback',
+          degraded: true,
+        };
+      } else {
+        // ── Tier (groupToTier) local deny — mirrors decision.js Rule 3d ───────────
+        // BFF pre-resolves group->tier (neither gateway can do set-membership over a
+        // PingOne group array) and forwards the resolved definition as headers.
+        // Absent headers = PERMIT (no-op) — this never widens what the token's own
+        // scopes already earned, only narrows it further when tier data IS present.
+        const _tierMaxAmount = _hdr('x-tier-max-amount-usd');
+        const _tierRestricted = parseRestrictedTools(_hdr('x-tier-restricted-tools'));
+        const _tierDecision = evaluateTierDecision(
+          toolName,
+          getScopesForGatewayTool(toolName).includes('write'),
+          toolArgs?.amount !== undefined ? Number(toolArgs.amount) : undefined,
+          _tierMaxAmount !== undefined ? Number(_tierMaxAmount) : undefined,
+          _tierRestricted,
+        );
+        if (_tierDecision.decision === 'DENY') {
+          teachLog.warn(`[GW] tier backstop DENY: ${_tierDecision.reason} (tool: ${toolName})`);
+          _localBackstopDenial = {
+            decision: 'DENY',
+            reason: `local-fallback: ${_tierDecision.reason}`,
+            engine: 'mock',
+            policySource: 'local-fallback',
+            degraded: true,
+          };
+        }
+      }
+    }
+
     // ── Step 3: PingOne Authorize evaluation (D-06) ───────────────────────────────
     // Typed explicitly: inferring from the first assignment dropped `obligation`
     // (only the fail-closed literal below was in the union), so the statement-based
     // gate could not be read here.
     let authzDecision: AuthzDecision | undefined;
     try {
-      if (deps) {
+      if (_localBackstopDenial) {
+        // Already decided above — do not consult the PDP for a call the backstop
+        // already denied (nothing to gain, and it would waste a real PDP round-trip).
+        authzDecision = _localBackstopDenial;
+      } else if (deps) {
         authzDecision = await deps.authorize(
           decoded,
           method,
@@ -900,18 +955,26 @@ export function buildAuthorizeMcpRequest(
       // `!hitlApproved` matters: an INDETERMINATE that survives an already-verified
       // receipt is the anti-loop case below (policy misconfiguration), which is
       // terminal — answering 428 there would invite the agent to retry forever.
-      const nonPermitStatus =
-        authzDecision.decision === 'INDETERMINATE' && !hitlApproved ? 428 : 403;
-      res.writeHead(nonPermitStatus, {
-        'Content-Type': 'application/json',
-        'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
-      });
+      // MCP Authorization spec §4.3 — the required scopes for this tool are
+      // always published in WWW-Authenticate regardless of WHY the PDP denied
+      // (scope gap, tier ceiling, group membership). The `scope=` parameter
+      // describes what the resource requires, not the denial reason. The body's
+      // `required_scopes` field is separately guarded by `deniedLocally` because
+      // that field IS a diagnosis (F8 reasoning below).
+      const toolRequiredScopesForHeader = getScopesForGatewayTool(toolName ?? '').join(' ');
 
       // Step-up is a different precondition from consent: MFA, not a human. It
       // gets its own code so the agent drives the right flow, and no HITL
       // challenge is minted (a receipt cannot satisfy MFA). Parity with
       // PingGateway's p1az-decision.groovy.
+      // RFC 6750 §3.1 + MCP Authorization spec §4.3: 403 with
+      // error="insufficient_scope" and scope= so the MCP client can trigger
+      // step-up re-authentication to obtain the required permissions.
       if (authzDecision.obligation === 'stepUp' && !hitlApproved) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="PingOne", error="insufficient_scope", scope="${toolRequiredScopesForHeader}", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+        });
         res.end(JSON.stringify({
           error: 'step_up_required',
           message: 'Step-up authentication required',
@@ -925,10 +988,18 @@ export function buildAuthorizeMcpRequest(
       }
 
       if (authzDecision.decision === 'INDETERMINATE') {
-        // HITL obligation. Anti-loop: a verified-approved receipt that still
-        // yields INDETERMINATE means a misconfigured policy — fail distinctly
-        // instead of re-issuing a challenge (mirrors index.ts WS path).
+        // HITL obligation — consent from a human, not a scope gap. 428 status
+        // signals "precondition required" (the precondition being an approved
+        // consent receipt). WWW-Authenticate carries realm + resource_metadata
+        // but NOT error="insufficient_scope" — the client cannot resolve this
+        // by requesting additional scopes.
+        // Anti-loop: a verified-approved receipt that still yields INDETERMINATE
+        // means misconfigured policy — fail distinctly instead of re-issuing.
         if (hitlApproved) {
+          res.writeHead(403, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+          });
           res.end(JSON.stringify({
             error: 'hitl_receipt_rejected',
             message: 'HITL receipt accepted but policy still requires approval',
@@ -958,6 +1029,10 @@ export function buildAuthorizeMcpRequest(
             teachLog.error('[GW] HTTP path failed to create HITL challenge', hitlErr);
           }
         }
+        res.writeHead(428, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+        });
         res.end(JSON.stringify({
           error: 'hitl_required',
           message: 'Human approval required',
@@ -980,11 +1055,17 @@ export function buildAuthorizeMcpRequest(
         return;
       }
 
-      // F8 — `required_scopes` is a hint derived from the LOCAL scope topology.
-      // It only describes the decision when the local scope engine IS what
-      // denied. Attaching it to a P1AZ denial for an unrelated reason (tier
-      // ceiling, group membership, actor chain) tells the operator to fix scopes
-      // that were never the problem — and can directly contradict the PDP.
+      // Generic DENY — RFC 6750 §3.1 + MCP Authorization spec §4.3:
+      // 403 with error="insufficient_scope" and scope= so MCP clients can
+      // trigger step-up re-authentication to obtain the missing permissions.
+      // F8 — `required_scopes` in the body is still guarded by `deniedLocally`
+      // because that field is a DIAGNOSIS (scope gap vs policy decision). The
+      // header's scope= is informational about what the resource requires and
+      // is always correct regardless of the denial reason.
+      res.writeHead(403, {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `Bearer realm="PingOne", error="insufficient_scope", scope="${toolRequiredScopesForHeader}", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+      });
       res.end(JSON.stringify({
         error: 'insufficient_scope',
         message: authzDecision.reason ?? 'Request denied by policy',
@@ -1055,6 +1136,27 @@ export function buildAuthorizeMcpRequest(
           error: { code: outcome.code, message: outcome.message, data: outcome.data },
         }));
       }
+      return;
+    }
+
+    // ── Step 3.6: weather/brave showcase — mirrors ping-gateway's
+    // tx-weather-scope.groovy / tx-brave-scope.groovy ScriptableFilters, which
+    // run just before ReverseProxyHandler with NO RFC 8693 exchange (rsFilter
+    // only admits; the original bearer token reaches the backend unchanged).
+    // Same posture here: skip Step 4's exchange entirely for these two targets
+    // and forward the original bearerToken once the scope check permits.
+    if (method === 'tools/call' && toolName && (routeTool(toolName) === 'weather' || routeTool(toolName) === 'brave')) {
+      const rpcId = parsedBody.id ?? null;
+      const scopeCheck = routeTool(toolName) === 'weather'
+        ? await checkWeatherScope(toolArgs, config.bffWeatherFlagUrl, config.bffInternalSecret)
+        : await checkBraveScope(toolArgs, config.bffBraveFlagUrl, config.bffInternalSecret);
+      if (scopeCheck.denied) {
+        sendRpcError(403, rpcId, { code: -32000, message: scopeCheck.message || 'Forbidden' });
+        return;
+      }
+      setAuditHeader(res);
+      teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
+      await forward(bearerToken, outBody);
       return;
     }
 

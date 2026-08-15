@@ -20,6 +20,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Demos",
     children: [
       "Agent Lifecycle",
+      "Delegated Commerce",
       "Use Cases",
       "Use Cases (Live)",
       "Guided Demo Track",
@@ -28,8 +29,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Family Delegation",
     ],
   },
-  { label: "AI Footprint" },
-  { label: "Footprint Gallery" },
   {
     label: "AI Agents",
     children: [
@@ -53,7 +52,6 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "MCP & Gateways",
     children: [
       "Ping AI Test Lab",
-      "Web MCP",
       "Agent Gateway Inspector",
       "Capability Tour",
       "Weather MCP",
@@ -85,7 +83,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Scope Audit",
       "Scope Reference",
       "Snapshot Import",
-      "PingCLI Demo",
+      "Headless Identity Demo",
     ],
   },
   {
@@ -150,6 +148,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "MCP Gateway OAuth Flow (MM)",
       "Invest Dual-Auth (MM)",
       "Privilege MCP (MM)",
+      "Gateway vs P1AZ Enforcement (MM)",
     ],
   },
   {

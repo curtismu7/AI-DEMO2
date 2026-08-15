@@ -72,6 +72,72 @@ describe('McpTokenExchangeClient', () => {
 });
 
 /**
+ * A gateway-audience token legitimately carries ONLY the gateway's own invocation
+ * scope, and no caller token ever carries `jwt:verify`. The subject ∩ resource
+ * intersection is then empty, the exchange went out with no `scope` at all, and
+ * PingOne answered every one of them:
+ *
+ *   400 {"error":"invalid_scope","error_description":"... May not request scopes
+ *        for multiple resources ..."}
+ *
+ * — so tools/list read ZERO live backends and silently served the static
+ * gateway-owned registry instead. Reproduced live against PingOne 2026-08-10.
+ */
+describe('McpTokenExchangeClient — discovery scope fallback', () => {
+  // Real shape of the failing token: aud = the gateway, one gateway-only scope.
+  const gatewayOnlyToken = [
+    Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
+    Buffer.from(JSON.stringify({ sub: 'u1', scope: 'gateway:mcp:invoke' })).toString('base64url'),
+    '',
+  ].join('.');
+
+  const jwtVerifierConfig = { ...config, mcpJwtVerifierResourceUri: 'mcp-jwt-verifier.ping.demo' } as GatewayConfig;
+
+  it('sends no scope without the flag — the tools/call path is unchanged', async () => {
+    const client = new McpTokenExchangeClient(config);
+    await client.exchangeForBackend(gatewayOnlyToken, 'olb');
+    expect(new URLSearchParams(String(mockedPost.mock.calls[1][1])).get('scope')).toBeNull();
+  });
+
+  it.each([
+    ['olb', 'mcp:invoke'],
+    ['invest', 'invest:read'],
+    ['jwtverifier', 'jwt:verify'],
+  ] as const)('requests the %s backend scope %s for discovery', async (backend, scope) => {
+    const client = new McpTokenExchangeClient(jwtVerifierConfig);
+    await client.exchangeForBackend(gatewayOnlyToken, backend, { allowDiscoveryScopeFallback: true });
+    expect(new URLSearchParams(String(mockedPost.mock.calls[1][1])).get('scope')).toBe(scope);
+  });
+
+  it('leaves a subject that DOES hold backend scopes narrowed to its own', async () => {
+    const client = new McpTokenExchangeClient(config);
+    await client.exchangeForBackend(subjectToken, 'olb', { allowDiscoveryScopeFallback: true });
+    const scopes = (new URLSearchParams(String(mockedPost.mock.calls[1][1])).get('scope') || '').split(' ');
+    expect(scopes.sort()).toEqual(['invest:read', 'mcp:invoke', 'read']);
+  });
+
+  it('does not serve a discovery-scoped token to a later call-path exchange', async () => {
+    const client = new McpTokenExchangeClient(config);
+    await client.exchangeForBackend(gatewayOnlyToken, 'olb', { allowDiscoveryScopeFallback: true });
+    const second = await client.exchangeForBackend(gatewayOnlyToken, 'olb');
+    expect(second.cached).toBe(false);
+  });
+
+  it('carries the PingOne error body into the thrown message', async () => {
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    mockedPost
+      .mockResolvedValueOnce({ data: { access_token: 'gw-cc-token', expires_in: 300 } })
+      .mockRejectedValueOnce({
+        response: { status: 400, data: { error: 'invalid_scope', error_description: 'May not request scopes for multiple resources' } },
+      });
+    const client = new McpTokenExchangeClient(config);
+    await expect(client.exchangeForBackend(gatewayOnlyToken, 'olb'))
+      .rejects.toThrow(/backend=olb.*HTTP 400.*invalid_scope: May not request scopes for multiple resources/);
+    (axios.isAxiosError as unknown as jest.Mock).mockReset();
+  });
+});
+
+/**
  * F10 — the actor chain was asserted at the gateway and then DROPPED at the last
  * hop. Exchange #3 sent no `actor_token`, so whatever `act` reached the MCP server
  * was only whatever the AS chose to copy: the gateway proved the delegation chain

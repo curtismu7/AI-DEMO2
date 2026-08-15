@@ -19,7 +19,11 @@
 #   scripts/deploy-live.sh <old> <new>          deploy an explicit git range (no sync)
 
 set -euo pipefail
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve the main checkout via git, not this script's own file location — see
+# sync-main-checkout.sh for why: every worktree has its own copy of this file,
+# and resolving via BASH_SOURCE silently diffed/restarted against whichever
+# worktree ran it instead of the main checkout Docker bind-mounts.
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 
 DRY_RUN=0
 OLD="" NEW=""
@@ -62,11 +66,22 @@ while IFS= read -r f; do
     # ── bind-mounted: recreate/restart picks up the new files ────────────────
     demo_api_server/Dockerfile|demo_api_server/package.json|demo_api_server/package-lock.json)
       add_build demo-api-server ;;
+    demo_api_server/promptfoo/*)
+      add_build promptfoo-step-narration ;;
     demo_api_server/*)            add_restart demo-api-server ;;
     demo_api_ui/src/*)            add_restart ui ;;
     demo_api_ui/*)                add_build ui ;;
     ping-gateway/*)               add_restart ping-gateway ;;
     ping-mcpgw/*)                 add_restart ping-mcpgw ;;
+    scripts/otel-instrument.js)
+      add_restart demo-api-server
+      add_restart mcp-server
+      add_restart langchain-agent
+      add_restart agent-service
+      add_restart hitl-service
+      add_restart mcp-resource-server
+      add_restart mcp-gateway
+      add_restart authz-server ;;
     LLM2.json|llm-timeouts.json|.env)
       add_restart demo-api-server ;;
     # ── baked images: restart serves the OLD code — must rebuild ─────────────
@@ -92,7 +107,7 @@ while IFS= read -r f; do
     # ── needs a human decision ───────────────────────────────────────────────
     docker-compose.yml|docker-compose.*.yml)
       note "compose file changed ($f) — decide the blast radius yourself (./run-docker.sh restart <svc> or full restart)" ;;
-    *) : ;; # docs, tests, scripts, snapshots — nothing to deploy
+    *) : ;; # docs, tests, host-only scripts, snapshots — nothing to deploy
   esac
 done <<<"$CHANGED"
 

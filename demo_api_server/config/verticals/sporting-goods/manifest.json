@@ -69,6 +69,10 @@
     "greeting": "Hi {name}! I can check your reward points, browse your purchase history, and help you place orders. What do you need?",
     "systemPromptFlavor": "You are a Super Sports Assistant. Help members check their reward points, view loyalty account details, browse purchase history, and place orders for gear and equipment. Use sports retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points. Be concise and professional."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=1200&h=600&fit=crop",
+    "greeting": "Welcome! Ready to gear up?"
+  },
   "dashboard": {
     "kind": "sporting-goods",
     "chips": [
@@ -121,6 +125,7 @@
       { "id": "sg-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg1", "label": "My gear", "message": "my gear", "mode": "both", "tool": "list_gear", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg2", "label": "My rentals", "message": "my rentals", "mode": "both", "tool": "list_rentals", "useCaseId": "delegated-access-with-proof" },
+      { "id": "sg-gear", "label": "Shop hiking gear", "message": "I need gear for a hiking trip", "mode": "both", "tool": "browse_gear", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "extend_rental", "useCaseId": "hitl-consent" },
       { "id": "sg-mfa", "label": "Transfer membership", "message": "transfer my membership", "mode": "both", "challenge": "step_up", "tool": "transfer_membership", "useCaseId": "step-up-required" },
       { "id": "sg4", "label": "Order status", "message": "order status", "mode": "both", "tool": "gear_order_status", "useCaseId": "delegated-access-with-proof" },
@@ -318,6 +323,8 @@
     "list_store_credit": {"type":"table","columns":[{"label":"Credit ID","path":"id"},{"label":"Source","path":"source"},{"label":"Balance","path":"balance","format":"money"},{"label":"Expires","path":"expiresAt","format":"date"},{"label":"Status","path":"status"}]},
     "list_gear": { "type": "table", "columns": [ { "label": "Order #", "path": "id" }, { "label": "Product", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" } ] },
     "list_rentals": { "type": "table", "columns": [ { "label": "Rental #", "path": "id" }, { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] },
+    "browse_gear": { "type": "productGrid", "title": "Gear for Your Next Hike", "action": { "label": "Add to Cart", "tool": "add_to_cart" } },
+    "add_to_cart": { "type": "card", "title": "Added to Cart", "fields": [ { "label": "Item", "path": "name" }, { "label": "Price", "path": "price", "format": "money" } ] },
     "gear_order_status": { "type": "card", "title": "Order Status", "fields": [ { "label": "Product", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" } ] },
     "loyalty_balance": { "type": "fieldList", "title": "Loyalty", "fields": [ { "label": "Points", "path": "points", "format": "count" }, { "label": "Tier", "path": "tier" } ] },
     "extend_rental": { "type": "card", "title": "Rental Extended", "fields": [ { "label": "Item", "path": "item" }, { "label": "Due", "path": "dueDate", "format": "date" }, { "label": "Status", "path": "status" } ] },

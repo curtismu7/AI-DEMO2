@@ -1,39 +1,29 @@
 // banking_api_ui/src/components/LogoutPage.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import './LogoutPage.css';
 
 /**
  * LogoutPage — shown after successful logout from PingOne.
- * Split-hero layout matching LoginSuccessModal (vertical brand colors).
- * Redirects to PingOne login after 3s with prompt=login so SSO cannot
- * silently restore the session.
+ * Redirects to the dashboard user was on, or home if not on a dashboard.
  */
 export default function LogoutPage() {
   const navigate = useNavigate();
-  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
+    let returnTo = '/';
     try {
+      // Check if logout was initiated from a dashboard
+      returnTo = sessionStorage.getItem('logoutReturnTo') || '/';
       sessionStorage.clear();
       localStorage.removeItem('userLoggedOut');
     } catch (e) {
       // ignore storage errors
     }
 
-    const timer = setInterval(() => {
-      setCountdown((c) => (c <= 1 ? 0 : c - 1));
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    if (countdown === 0) {
-      navigateToCustomerOAuthForceLogin();
-    }
-  }, [countdown, navigate]);
+    navigate(returnTo, { replace: true });
+  }, [navigate]);
 
   return (
     <div className="logout-page">
@@ -69,9 +59,7 @@ export default function LogoutPage() {
             </div>
             <div className="logout-field">
               <span className="logout-label">Next step</span>
-              <span className="logout-value">
-                Redirecting to sign in in {countdown}s
-              </span>
+              <span className="logout-value">Returning to dashboard</span>
             </div>
           </div>
         </div>

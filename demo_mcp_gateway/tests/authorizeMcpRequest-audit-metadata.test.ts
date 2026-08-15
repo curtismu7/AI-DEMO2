@@ -22,7 +22,7 @@ describe('authorizeMcpRequest — audit trail carries P1AZ metadata', () => {
     } as any;
 
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({
         decision: 'PERMIT' as const,
         decisionId: 'dec-xyz',

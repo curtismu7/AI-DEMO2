@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import PageNav from './PageNav';
 import './PostmanCollectionsPage.css';
+import { notifyError } from '../utils/appToast';
 
 // Collection metadata with descriptions and audience
 const POSTMAN_COLLECTIONS = [
@@ -155,7 +156,7 @@ export default function PostmanCollectionsPage({ user, onLogout }) {
       }));
     } catch (error) {
       console.error('Download failed:', error);
-      alert(`Failed to download ${filename}. Please try again.`);
+      notifyError(`Failed to download ${filename}. Please try again.`);
     }
   };
 

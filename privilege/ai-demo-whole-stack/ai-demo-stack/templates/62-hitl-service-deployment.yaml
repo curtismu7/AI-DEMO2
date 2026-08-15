@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hitl-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: hitl-service
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: hitl-service
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: hitl-service
+    spec:
+      containers:
+      - name: hitl-service
+        image: "{{ .Values.imageRegistry }}/ai-demo-hitl-service:{{ .Values.imageTag }}"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3009
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3009"
+        # Browser origins allowed to call HITL. demo_hitl_service fails OPEN when
+        # this is empty but CLOSED once set, so every real origin must be listed —
+        # including the cluster's own host, which was previously missing.
+        - name: HITL_ALLOWED_ORIGINS
+          value: "https://ai-demo.ping-devops.com,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3005"
+        # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
+        # Mirrors docker-compose: the bootstrap script is mounted at /otel from
+        # the otel-instrument ConfigMap (created by the deploy scripts).
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "hitl-service"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
+        envFrom:
+        - configMapRef:
+            name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3009
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hitl-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: hitl-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3009
+    targetPort: 3009
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: hitl-service

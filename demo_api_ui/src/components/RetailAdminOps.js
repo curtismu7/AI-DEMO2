@@ -1,6 +1,6 @@
 import React from 'react';
-import VerticalOpsConsole from './verticalOps/VerticalOpsConsole';
+import SupportConsole from './supportConsole/SupportConsole';
 
 export default function RetailAdminOps({ user, onLogout }) {
-  return <VerticalOpsConsole vertical="retail" user={user} onLogout={onLogout} />;
+  return <SupportConsole vertical="retail" user={user} onLogout={onLogout} />;
 }

@@ -4,6 +4,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { buildA2aChainDetail } from '../utils/a2aChainDetail';
+import { useTheme } from '../context/ThemeContext';
 import './TokenTopologyPanel.css';
 
 // Coerce any value to a renderable string — trace data can contain {message} objects
@@ -15,17 +17,109 @@ function str(v) {
   return JSON.stringify(v);
 }
 
-const NODES = [
-  { id: 'website',   icon: '🪟', name: 'Website',           lane: 'BROWSER',  connLabel: null,         desc: 'Browser / UI App' },
-  { id: 'signin',    icon: '🔐', name: 'PingOne AS',        lane: 'PINGONE',  connLabel: 'auth code',  desc: 'OIDC Auth Code + PKCE' },
-  { id: 'prompt',    icon: 'CH', name: 'Chatbot',           lane: 'CHAT',     connLabel: null,         desc: 'Browser → BFF message' },
-  { id: 'agent',     icon: '👤', name: 'Agent Service',     lane: 'AGENT',    connLabel: 'request',    desc: 'LLM reasoning & tool catalog' },
-  { id: 'llm',       icon: 'ML', name: 'LLM Model',         lane: 'LLM',      connLabel: 'reasoning',  desc: 'Tool choice & reasoning' },
-  { id: 'exchange',  icon: 'TX', name: 'BFF Token Exchange', lane: 'BFF',     connLabel: 'user token', desc: 'RFC 8693 subject + actor' },
-  { id: 'authorize', icon: 'AZ', name: 'PingOne Authorize', lane: 'AUTHZ',   connLabel: 'delegated token', desc: 'Policy decision point' },
-  { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'decision',   desc: 'Token validation + routing' },
-  { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'validated',  desc: 'Tool execution' },
-];
+const STEP_ICONS = {
+  website: '🪟',
+  signin: '🔐',
+  prompt: 'CH',
+  agent: '👤',
+  llm: 'ML',
+  'agent-token': 'AT',
+  exchange: 'TX',
+  authorize: 'AZ',
+  stepup: '🔑',
+  'intent-binding': 'IB',
+  gateway: 'GW',
+  'api-key-swap': 'KS',
+  mcp: 'M',
+  api: 'API',
+  reply: 'CH',
+};
+
+export function buildObservedTopology(steps) {
+  return (Array.isArray(steps) ? steps : [])
+    .filter((step) => ['active', 'done', 'error'].includes(step?.status))
+    .map((step) => {
+      const baseId = step.baseId || step.id;
+      const [name, ...descriptionParts] = str(step.title || step.id).split(' — ');
+      return {
+        id: step.id,
+        icon: STEP_ICONS[baseId] || str(step.lane).slice(0, 2),
+        name,
+        lane: step.lane || 'FLOW',
+        desc: descriptionParts.join(' — ') || `${step.lane || 'Flow'} hop observed in this run`,
+        step,
+      };
+    });
+}
+
+function eventById(events, id) {
+  return (Array.isArray(events) ? events : []).find((event) => event?.id === id) || null;
+}
+
+function evidenceStatus(event) {
+  if (!event) return 'pending';
+  const status = String(event.status || '').toLowerCase();
+  return ['error', 'failed', 'failure', 'denied'].includes(status) ? 'error' : 'done';
+}
+
+function audience(event) {
+  const value = event?.claims?.aud;
+  if (Array.isArray(value)) return value[value.length - 1] || null;
+  return value || null;
+}
+
+export function buildA2aTopology(events) {
+  const detail = buildA2aChainDetail(events);
+  if (!detail.present) return null;
+
+  const exchange1 = eventById(events, 'a2a-exchange1');
+  const exchange2 = eventById(events, 'a2a-exchange2');
+  const wireBearer = eventById(events, 'a2a-protocol-bearer');
+  const agentCard = eventById(events, 'a2a-agent-card');
+  const message = eventById(events, 'a2a-protocol-message');
+  const specialist = detail.specialist || 'Specialist agent';
+
+  return {
+    identity: [
+      { id: 'a2a-main-identity', name: 'Main agent', desc: str(detail.generalist) || 'Generalist', status: exchange1 ? 'done' : 'pending' },
+      { id: 'a2a-exchange1', name: 'Exchange #1', desc: `RFC 8693 · user + main actor${audience(exchange1) ? ` · aud ${audience(exchange1)}` : ''}`, status: evidenceStatus(exchange1) },
+      { id: 'a2a-exchange2', name: 'Exchange #2', desc: `RFC 8693 · nested act${audience(exchange2) ? ` · aud ${audience(exchange2)}` : ''}`, status: evidenceStatus(exchange2) },
+      { id: 'a2a-specialist-identity', name: specialist, desc: 'Specialist identity used for delegated MCP authorization', status: evidenceStatus(exchange2) },
+    ],
+    wire: [
+      { id: 'a2a-main-wire', name: 'Main agent', desc: 'A2A client', status: wireBearer ? 'done' : 'pending' },
+      { id: 'a2a-wire-bearer', name: 'PingOne wire bearer', desc: `Separate client-credentials token${audience(wireBearer) ? ` · aud ${audience(wireBearer)}` : ''}`, status: evidenceStatus(wireBearer) },
+      { id: 'a2a-agent-card', name: 'Agent Card', desc: 'Specialist discovery', status: evidenceStatus(agentCard) },
+      { id: 'a2a-send-message', name: 'A2A SendMessage', desc: 'JSON-RPC handoff', status: evidenceStatus(message) },
+      { id: 'a2a-specialist-wire', name: specialist, desc: 'Specialist agent called by main agent', status: evidenceStatus(message) },
+    ],
+  };
+}
+
+function EvidenceFlow({ label, nodes }) {
+  return (
+    <section className="ttp-evidence-flow" aria-label={label}>
+      <div className="ttp-evidence-label">{label}</div>
+      <div className="ttp-evidence-row">
+        {nodes.map((node, index) => (
+          <React.Fragment key={node.id}>
+            {index > 0 && (
+              <div className="ttp-evidence-conn" aria-hidden="true">
+                <div className="ttp-line" />
+                <span className="ttp-arrowhead">▶</span>
+              </div>
+            )}
+            <div className={`ttp-evidence-node ttp-evidence-node--${node.status}`}>
+              <span className="ttp-evidence-status">{node.status === 'done' ? '✓' : node.status === 'error' ? 'FAILED' : 'WAITING'}</span>
+              <strong>{node.name}</strong>
+              <span>{node.desc}</span>
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function claimsFromStep(step, options = {}) {
   const { truncateReason = false } = options;
@@ -154,7 +248,7 @@ function NodeBox({ node, step, selected, onClick, animateIn }) {
   );
 }
 
-function Inspector({ step, onClose }) {
+function Inspector({ step, topologyNodes, onClose }) {
   const [tab, setTab] = useState('details');
   useEffect(() => { setTab('details'); }, [step?.id]);
 
@@ -179,10 +273,10 @@ function Inspector({ step, onClose }) {
   const spec = detail.spec || {};
 
   // Build the Interaction Map sequence
-  const activeNodeIdx = NODES.findIndex(n => n.id === step.id);
-  const activeNode = NODES[activeNodeIdx];
-  const prevNode = activeNodeIdx > 0 ? NODES[activeNodeIdx - 1] : null;
-  const nextNode = activeNodeIdx < NODES.length - 1 ? NODES[activeNodeIdx + 1] : null;
+  const activeNodeIdx = topologyNodes.findIndex(n => n.id === step.id);
+  const activeNode = topologyNodes[activeNodeIdx];
+  const prevNode = activeNodeIdx > 0 ? topologyNodes[activeNodeIdx - 1] : null;
+  const nextNode = activeNodeIdx < topologyNodes.length - 1 ? topologyNodes[activeNodeIdx + 1] : null;
 
   return (
     <div className="ttp-insp">
@@ -327,9 +421,9 @@ function Inspector({ step, onClose }) {
 }
 
 export default function TokenTopologyPanel({ isOpen, onClose }) {
+  const { darkMode, setDarkMode } = useTheme();
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
   const [expandedId, setExpandedId] = useState(null);
-  const [selectedStep, setSelectedStep] = useState(null);
   const prevRunId = useRef(null);
   const [inspWidth, setInspWidth] = useState(320);
   const dragging = useRef(false);
@@ -363,35 +457,35 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
     if (trace.runId && trace.runId !== prevRunId.current) {
       prevRunId.current = trace.runId;
       setExpandedId(null);
-      setSelectedStep(null);
     }
   }, [trace.runId]);
 
-  const handleNodeClick = useCallback((nodeId, step) => {
+  const handleNodeClick = useCallback((nodeId) => {
     if (expandedId === nodeId) {
       setExpandedId(null);
-      setSelectedStep(null);
     } else {
       setExpandedId(nodeId);
-      setSelectedStep(step || null);
     }
   }, [expandedId]);
 
   const handleClear = useCallback(() => {
-    tokenChainTraceStore.beginTrace({ prompt: null });
+    tokenChainTraceStore.reset();
     setExpandedId(null);
-    setSelectedStep(null);
   }, []);
 
   const routingMode = trace.routingMode || (trace.llmDetail ? 'llm' : trace.phases?.length ? 'heuristic' : null);
   const prompt = trace.prompt || null;
+  const a2aTopology = buildA2aTopology(trace.tokenEvents);
 
-  // Only show nodes that have been reached
-  const visibleNodes = NODES.filter((node) => {
-    const step = steps.find(s => s.id === node.id);
-    return step && step.status !== 'pending';
-  });
-  const hasActivity = visibleNodes.length > 0;
+  const hasActivity = Boolean(
+    trace.startedAt || trace.prompt || trace.tokenEvents?.length || trace.phases?.length ||
+    trace.mcpResult || trace.authorize || trace.llmDetail || trace.llmReply ||
+    trace.outcome || trace.routingMode || a2aTopology,
+  );
+  const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
+  const selectedStep = expandedId
+    ? topologyNodes.find((node) => node.id === expandedId)?.step || null
+    : null;
 
   return (
     <DraggableModal
@@ -406,79 +500,98 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
       zIndex={10001}
       minWidth={580}
       minHeight={360}
+      className={`ttp-modal ttp-modal--${darkMode ? 'dark' : 'light'}`}
     >
-      <div className="ttp-root">
+      <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'}>
         {/* Toolbar */}
         <div className="ttp-toolbar">
           <div className="ttp-toolbar-left">
             {prompt && <><span className="ttp-ctx-lbl">Prompt</span><span className="ttp-ctx-prompt">{str(prompt)}</span></>}
             {routingMode && <span className="ttp-ctx-mode">{str(routingMode)}</span>}
           </div>
-          <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
-            <span className="ttp-clear-icon">↺</span> Clear
-          </button>
+          <div className="ttp-toolbar-actions">
+            <div className="ttp-theme-control" aria-label="Token topology color theme">
+              <span className={!darkMode ? 'active' : ''}>Light</span>
+              <button
+                type="button"
+                className="ttp-theme-switch"
+                role="switch"
+                aria-checked={darkMode}
+                aria-label="Dark mode"
+                title={`Switch to ${darkMode ? 'light' : 'dark'} mode`}
+                onClick={() => setDarkMode(!darkMode)}
+              >
+                <span className="ttp-theme-switch-thumb" />
+              </button>
+              <span className={darkMode ? 'active' : ''}>Dark</span>
+            </div>
+            <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
+              <span className="ttp-clear-icon">↺</span> Clear
+            </button>
+          </div>
         </div>
 
         {/* Main: topology + inspector side-by-side */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
           <div className="ttp-diagram">
-            {!hasActivity && (
-              <div className="ttp-idle">
-                <div className="ttp-idle-icon">⟡</div>
-                <div>Waiting for agent flow — nodes appear as each server is called</div>
-              </div>
-            )}
-            {hasActivity && (
+            {hasActivity ? (
               <>
-                <div className="ttp-label">RFC 8693 delegation chain — click a node to inspect token details</div>
+                <div className="ttp-label">Live delegated pipeline — nodes appear as evidence arrives</div>
                 <div className="ttp-row">
-                  {visibleNodes.map((node, i) => {
-                    const step = steps.find(s => s.id === node.id);
+                  {topologyNodes.map((node, i) => {
+                    const { step } = node;
                     return (
                       <React.Fragment key={node.id}>
                         {i > 0 && (
-                          <div className={`ttp-conn${step?.status === 'error' ? ' blocked' : ''}`}>
+                          <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}`}>
                             <div className="ttp-line" />
                             <span className="ttp-arrowhead">▶</span>
-                            {node.connLabel && <div className="ttp-conn-label">{node.connLabel}</div>}
                           </div>
                         )}
                         <NodeBox
                           node={node}
                           step={step}
                           selected={expandedId === node.id}
-                          animateIn={true}
-                          onClick={() => handleNodeClick(node.id, step)}
+                          animateIn
+                          onClick={() => handleNodeClick(node.id)}
                         />
                       </React.Fragment>
                     );
                   })}
-                  {/* Next pending node shown as ghost */}
-                  {visibleNodes.length < NODES.length && (
-                    <>
-                      <div className="ttp-conn ghost">
-                        <div className="ttp-line" />
-                        <span className="ttp-arrowhead">▶</span>
-                      </div>
-                      <div className="ttp-node ghost">
-                        <div className="ttp-box pulsing">
-                          <div className="ttp-status pend"><span className="ttp-pulse-dot" /></div>
-                          <div className="ttp-icon">{NODES[visibleNodes.length].icon}</div>
-                          <div className="ttp-name">{NODES[visibleNodes.length].name}</div>
-                          <div className="ttp-desc">{NODES[visibleNodes.length].desc}</div>
-                        </div>
-                      </div>
-                    </>
-                  )}
                 </div>
               </>
+            ) : (
+              <div className="ttp-idle">
+                <div>Run an agent flow to build the topology.</div>
+                <div>Nodes will appear as each hop produces evidence.</div>
+              </div>
+            )}
+            {a2aTopology && (
+              <div className="ttp-a2a-topology">
+                <div className="ttp-a2a-heading">
+                  <strong>A2A: main agent calling specialist agent</strong>
+                  <span>Identity and wire-protocol evidence are separate paths.</span>
+                </div>
+                <EvidenceFlow
+                  label="Identity path — RFC 8693 token exchanges for MCP authorization"
+                  nodes={a2aTopology.identity}
+                />
+                <EvidenceFlow
+                  label="Wire path — Agent Card and JSON-RPC handoff"
+                  nodes={a2aTopology.wire}
+                />
+              </div>
             )}
           </div>
 
           {selectedStep ? (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}>
               <div className="ttp-resize-handle" onMouseDown={handleResizeStart} />
-              <Inspector step={selectedStep} onClose={() => { setSelectedStep(null); setExpandedId(null); }} />
+              <Inspector
+                step={selectedStep}
+                topologyNodes={topologyNodes}
+                onClose={() => setExpandedId(null)}
+              />
             </div>
           ) : hasActivity && (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}>

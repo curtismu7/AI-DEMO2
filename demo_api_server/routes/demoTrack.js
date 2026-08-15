@@ -23,4 +23,9 @@ router.post('/active-step', (req, res) => {
   res.json({ run: svc.setActiveStep(req.body && req.body.stepId) });
 });
 
+router.post('/arm', (req, res) => {
+  const { stepId, color } = req.body || {};
+  res.json({ run: svc.armSlot({ stepId, color }) });
+});
+
 module.exports = router;

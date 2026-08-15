@@ -1,0 +1,11 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-gate-pdp",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "extend_rental",
+  "checkedAt": "2026-08-14",
+  "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy — PingOne Authorize Transaction obligation"
+}

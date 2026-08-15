@@ -6,7 +6,7 @@
 
 const express = require('express');
 const crypto = require('crypto');
-const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
+const { agentGuestSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const {
   storeConsentRequest,
   recordConsentDecision,
@@ -22,7 +22,7 @@ const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { requestEventEmitterMiddleware } = require('../services/requestEventEmitter');
 
 const router = express.Router();
-router.use(agentSessionMiddleware);
+router.use(agentGuestSessionMiddleware);
 router.use(requestEventEmitterMiddleware);
 
 // POST /init - Initialize agent session
@@ -31,12 +31,16 @@ router.post('/init', async (req, res) => {
   try {
     const { userId, accessToken } = req.agentContext || {};
     if (!userId || !accessToken) {
-      return res.status(401).json({
-        error: 'session_expired',
-        message: 'Your sign-in session has expired. Sign in again to continue.',
-        agentInitRequired: true,
-        need_auth: true,
-        requiresLogin: true,
+      // Guest mode: no session — return an initialized-but-empty agent state.
+      // The frontend can send messages; protected tool calls return need_auth.
+      return res.json({
+        sessionId: null,
+        initialized: true,
+        agentReady: true,
+        agentConfigured: true,
+        guestMode: true,
+        availableTools: [],
+        tokenEvents: [],
       });
     }
 
@@ -136,13 +140,8 @@ router.post('/tools', express.json(), async (req, res) => {
   try {
     const { userId, accessToken } = req.agentContext || {};
     if (!userId || !accessToken) {
-      return res.status(401).json({
-        error: 'session_expired',
-        message: 'Your sign-in session has expired. Sign in again to continue.',
-        agentInitRequired: true,
-        need_auth: true,
-        requiresLogin: true,
-      });
+      // Guest mode: return empty tool list — no auth-gated chips available.
+      return res.json({ availableTools: [], tokenEvents: [], degraded: false, degradedReason: null, guestMode: true });
     }
     const configStore = require('../services/configStore');
     const vertical = (typeof req.body?.vertical === 'string' && req.body.vertical)
@@ -217,16 +216,7 @@ router.post('/message', async (req, res) => {
     console.log('[demo-agent/message] accessToken length:', accessToken?.length || 0);
     console.log('[demo-agent/message] tokenEvents count:', tokenEvents?.length || 0);
 
-    if (!userId || !accessToken) {
-      console.error('[demo-agent/message] ERROR: Session expired - userId:', userId, 'accessToken present:', !!accessToken);
-      return res.status(401).json({
-        error: 'session_expired',
-        message: 'Your sign-in session has expired. Sign in again to continue.',
-        agentInitRequired: true,
-        need_auth: true,
-        requiresLogin: true,
-      });
-    }
+    const isGuest = !userId || !accessToken;
 
     // Bookend for Activity Log demos — same correlationId on start + end.
     const messagePreview = message.length > 72 ? `${message.slice(0, 72)}…` : message;
@@ -273,11 +263,12 @@ router.post('/message', async (req, res) => {
     const response = await processAgentMessage({
       message,
       vertical,
-      userId,
-      userToken: accessToken,
-      sessionId: req.session.id,
+      userId: userId || null,
+      userToken: accessToken || null,
+      sessionId: req.session?.id || null,
       tokenEvents: tokenEvents || [],
       langchainConfig,
+      isGuest,
       req,
     });
     console.log('[demo-agent/message] processAgentMessage response received');

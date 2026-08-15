@@ -6,17 +6,25 @@
 
 const killSwitchService = require('../../services/killSwitchService');
 const auditLogService = require('../../services/auditLogService');
+const agentLifecycleEvents = require('../../services/agentLifecycleEvents');
 
 // Mock dependencies
 jest.mock('../../services/auditLogService');
+jest.mock('../../services/agentLifecycleEvents');
 jest.mock('axios');
 jest.mock('../../middleware/sessionConfig', () => ({
   store: {
     client: {
       get: jest.fn().mockResolvedValue('mock-refresh-token-for-agent'),
     },
+    // Generic express-session Store interface (get/set, callback-based) —
+    // what isAgentRevoked() and the killAgent() enforcement-flag write
+    // actually use, since this deployment's real store (LmdbSessionStore)
+    // has no `.client`. Defaults to "nothing stored" (not revoked).
+    get: jest.fn((_key, cb) => cb(null, null)),
+    set: jest.fn((_key, _value, cb) => cb(null)),
   },
-}), { virtual: true });
+}));
 jest.mock('../../services/configStore', () => {
   const actual = jest.requireActual('../../services/configStore');
   return {
@@ -88,6 +96,27 @@ describe('killSwitchService', () => {
 
       expect(typeof isRevoked).toBe('boolean');
       expect(isRevoked).toBe(false);
+    });
+
+    test('should return true once killAgent has armed the flag — proves the generic Store get/set round-trip works (not just a mocked return)', async () => {
+      const agentId = 'mcp-agent-002';
+      // A tiny in-memory store backing .get/.set, standing in for
+      // LmdbSessionStore's real behavior — proves the write killAgent()
+      // makes is the same one isAgentRevoked() reads back.
+      const backing = new Map();
+      const sessionConfigMock = require('../../middleware/sessionConfig');
+      sessionConfigMock.store.get.mockImplementation((key, cb) => cb(null, backing.get(key) || null));
+      sessionConfigMock.store.set.mockImplementation((key, value, cb) => {
+        backing.set(key, value);
+        cb(null);
+      });
+
+      expect(await killSwitchService.isAgentRevoked(agentId)).toBe(false);
+
+      axios.post.mockResolvedValue({ status: 200, data: {} });
+      await killSwitchService.killAgent(agentId, 'test_flag_roundtrip');
+
+      expect(await killSwitchService.isAgentRevoked(agentId)).toBe(true);
     });
   });
 
@@ -237,6 +266,18 @@ describe('killSwitchService', () => {
       expect(result).toBeDefined();
       expect(result).toHaveProperty('invalidated');
       expect(typeof result.invalidated).toBe('number');
+    });
+
+    test('uses deleteByPrefix when the store provides it (LmdbSessionStore path), not the Redis client', async () => {
+      const sessionConfigMock = require('../../middleware/sessionConfig');
+      sessionConfigMock.store.deleteByPrefix = jest.fn().mockReturnValue(3);
+
+      const result = await killSwitchService.invalidateSessionsInRedis('mcp-agent-003');
+
+      expect(sessionConfigMock.store.deleteByPrefix).toHaveBeenCalledWith('agent:mcp-agent-003:');
+      expect(result).toEqual({ invalidated: 3 });
+
+      delete sessionConfigMock.store.deleteByPrefix;
     });
   });
 

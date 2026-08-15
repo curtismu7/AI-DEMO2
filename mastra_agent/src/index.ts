@@ -13,3 +13,12 @@ const cfg = getConfig();
 app.listen(cfg.port, cfg.host, () => {
   console.log(`[mastra] listening on ${cfg.host}:${cfg.port}`);
 });
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[mastra] unhandledRejection', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[mastra] uncaughtException', err);
+  process.exit(1);
+});

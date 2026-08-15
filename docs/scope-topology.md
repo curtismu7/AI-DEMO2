@@ -69,7 +69,7 @@ Audience: `mcpserver.ping.demo`
 
 Native scopes: `mcp:invoke`, `code:search`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`, `code:search`
 
 ### Super Banking MCP Invest
 
@@ -236,7 +236,7 @@ Granted scopes: `read`, `write`, `mcp:invoke`
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `agent:invoke`
+Granted scopes: `agent:invoke`, `admin:read`
 
 ### Super Banking Investment Advisor Agent
 
@@ -570,3 +570,8 @@ Granted scopes: `read`, `identity:read`
 | `request_fee_tier_review` | gateway | `write` | — |
 | `request_spec_exception` | gateway | `write` | — |
 | `request_price_adjustment` | gateway | `write` | — |
+| `list_anf_orders` | gateway | `read` | — |
+| `add_to_cart` | gateway | `write` | — |
+| `browse_gear` | gateway | `read` | — |
+| `get_loyalty_status` | gateway | `airlines:read` | — |
+| `redeem_miles` | gateway | `airlines:read` `airlines:write` | — |

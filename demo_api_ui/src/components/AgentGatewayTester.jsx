@@ -11,9 +11,10 @@ import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
+import InlineSpinner from './shared/InlineSpinner';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
-const AUTHZ_FLAG = 'ff_authorize_simulated';
+const AUTHZ_FLAG = 'ff_authorize_real';
 
 const FALLBACK_TOOLS = [
   {
@@ -908,6 +909,10 @@ export default function AgentGatewayTester() {
                   ))
                 )}
               </pre>
+            </div>
+          ) : sending ? (
+            <div className="inspector-shell-output-empty">
+              <InlineSpinner label="Calling gateway…" />
             </div>
           ) : resp ? (
             <>

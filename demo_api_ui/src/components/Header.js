@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import BrandLogo from './BrandLogo';
 import './Header.css';
 
@@ -54,13 +54,22 @@ async function callSwitchRole(targetRole) {
 
 const Header = ({ user, onLogout }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
   const [switching, setSwitching] = useState(false);
 
+  // Asymmetric by design. "Customer view" is a view change — the customer
+  // dashboard renders without authentication (demo data when the token cannot
+  // read customer records), so it must not sign the admin out. "Admin view" is
+  // a real identity change and still re-authenticates.
   const handleSwitchRole = async () => {
+    if (isAdmin) {
+      navigate('/dashboard');
+      return;
+    }
     setSwitching(true);
     try {
-      await callSwitchRole(isAdmin ? 'customer' : 'admin');
+      await callSwitchRole('admin');
     } catch (e) {
       console.error('[Header] Role switch failed:', e.message);
       setSwitching(false);

@@ -840,7 +840,7 @@ describe('resolveMcpAccessTokenWithEvents — ff_inject_audience', () => {
   });
 });
 
-// ─── ff_skip_token_exchange — direct user token bypass ────────────────────────
+// ─── ff_skip_token_exchange — raw user-token forwarding blocked ─────────────
 
 describe('resolveMcpAccessTokenWithEvents — ff_skip_token_exchange', () => {
   const origClientId = process.env.AGENT_OAUTH_CLIENT_ID;
@@ -862,14 +862,14 @@ describe('resolveMcpAccessTokenWithEvents — ff_skip_token_exchange', () => {
     else delete process.env.AGENT_OAUTH_CLIENT_SECRET;
   });
 
-  it('returns user token directly when flag ON (no exchange)', async () => {
+  it('does not return the user token when flag ON', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri')         return 'https://mcp.example.com/api';
       if (key === 'ff_skip_token_exchange')   return 'true';
       return null;
     });
     const { token } = await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
-    expect(token).toBe(sampleJwtUserAccessToken);
+    expect(token).toBeNull();
   });
 
   it('does NOT call performTokenExchange or getMcpExchangerToken when flag ON', async () => {
@@ -885,7 +885,7 @@ describe('resolveMcpAccessTokenWithEvents — ff_skip_token_exchange', () => {
     expect(mockGetMcpExchangerToken).not.toHaveBeenCalled();
   });
 
-  it('emits exchange-skipped event with status skipped when flag ON', async () => {
+  it('emits exchange-skipped event with status failed when flag ON', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri')         return 'https://mcp.example.com/api';
       if (key === 'ff_skip_token_exchange')   return 'true';
@@ -894,8 +894,8 @@ describe('resolveMcpAccessTokenWithEvents — ff_skip_token_exchange', () => {
     const { tokenEvents } = await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
     const ev = tokenEvents.find(e => e.id === 'exchange-skipped');
     expect(ev).toBeDefined();
-    expect(ev.status).toBe('skipped');
-    expect(ev.bypass).toBe(true);
+    expect(ev.status).toBe('failed');
+    expect(ev.blocked).toBe(true);
   });
 
   it('still returns user-token event in chain when flag ON', async () => {
@@ -1300,17 +1300,15 @@ describe('Security properties', () => {
     expect(ev.actPresent).toBe(true);
   });
 
-  it('ff_skip_token_exchange=true returns user token directly — explicit security opt-out', async () => {
-    // SECURITY OPT-OUT: ff_skip_token_exchange bypasses RFC 8693.
-    // Only valid for dev/demo environments where PingOne token exchange is NOT configured.
-    // In production with a real MCP resource server, this flag MUST be false.
+  it('ff_skip_token_exchange=true blocks raw user-token forwarding', async () => {
+    // Demo-only deny path: the flag must not forward the user token to MCP.
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri')       return 'mcp-resource-uri';
       if (key === 'ff_skip_token_exchange') return 'true';
       return null;
     });
     const { token } = await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
-    expect(token).toBe(sampleJwtUserAccessToken);
+    expect(token).toBeNull();
     expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
     expect(mockPerformTokenExchangeAs).not.toHaveBeenCalled();
     expect(mockPerformTokenExchange).not.toHaveBeenCalled();

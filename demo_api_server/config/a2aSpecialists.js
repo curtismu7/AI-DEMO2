@@ -104,15 +104,22 @@ const A2A_SPECIALISTS = {
   },
 };
 
-/** All verticals that have an A2A specialist. */
+// White-label verticals can share the underlying domain specialist without
+// provisioning a duplicate PingOne app or duplicating its appKey.
+const A2A_SPECIALIST_ALIASES = {
+  'abercrombie-fitch': 'retail',
+};
+
+/** All verticals that have an A2A specialist, including white-label aliases. */
 function verticalsWithSpecialist() {
-  return Object.keys(A2A_SPECIALISTS);
+  return [...Object.keys(A2A_SPECIALISTS), ...Object.keys(A2A_SPECIALIST_ALIASES)];
 }
 
 /** Resolve the specialist for a vertical (null if none). */
 function specialistForVertical(vertical) {
   if (!vertical) return null;
-  return A2A_SPECIALISTS[vertical] || null;
+  const canonical = A2A_SPECIALIST_ALIASES[vertical] || vertical;
+  return A2A_SPECIALISTS[canonical] || null;
 }
 
 /** configStore key (lowercase) for a specialist's client id, derived from appKey. */

@@ -1,0 +1,164 @@
+{
+  "id": "abercrombie-fitch",
+  "schemaVersion": 3,
+  "identity": {
+    "displayName": "Abercrombie & Fitch",
+    "headerTitle": "Abercrombie & Fitch",
+    "documentTitle": "Abercrombie & Fitch | Effortless Classics, Quality Clothing",
+    "logoAlt": "Abercrombie & Fitch logo",
+    "tagline": "Effortless Classics, Quality Clothing",
+    "logoPath": "/branding/abercrombie-fitch-logo.svg"
+  },
+  "theme": {
+    "cssVars": {
+      "--app-primary-red": "#111111",
+      "--app-primary-red-hover": "#2b2b2b",
+      "--app-primary-red-mid": "#3d3d3d",
+      "--app-primary-red-border": "#000000",
+      "--app-primary-btn-text": "#ffffff",
+      "--brand-dashboard-header-start": "#111111",
+      "--brand-dashboard-header-end": "#35312d",
+      "--brand-app-shell-hero-start": "#111111",
+      "--brand-app-shell-hero-end": "#35312d",
+      "--theme-accent": "#b49a7a",
+      "--brand-navy": "#111111",
+      "--brand-dashboard-header-text": "#ffffff",
+      "--brand-topnav-bg-start": "#111111",
+      "--brand-topnav-bg-end": "#35312d",
+      "--brand-topnav-text": "#ffffff"
+    }
+  },
+  "terminology": {
+    "account": "myAbercrombie Account",
+    "accounts": "myAbercrombie Accounts",
+    "accountTypes": ["myAbercrombie Rewards", "Merchandise Credit", "Gift Card"],
+    "transaction": "Purchase",
+    "transactions": "Purchases",
+    "transactionTypes": ["Purchase", "Return", "Exchange", "Reward Redemption"],
+    "balance": "Rewards Balance",
+    "agent": "Style Assistant",
+    "dashboard": "My A&F",
+    "highValueAction": "High-Value Purchase",
+    "highValueLabel": "High-value apparel purchase"
+  },
+  "groups": {
+    "categories": {
+      "privileged": {
+        "name": "AI_Demo_Privileged",
+        "description": "Users permitted to reach the active vertical's sensitive tool (UC9). One group serves every vertical."
+      },
+      "delegates": {
+        "name": "AI_Demo_Delegates",
+        "description": "Users authorized as delegated agents. One group serves every vertical."
+      }
+    },
+    "restrictedTools": {
+      "sensitive_order_history": "privileged"
+    },
+    "userMemberships": {
+      "demoUser": ["privileged"],
+      "demoAdmin": ["privileged"],
+      "demoDelegate": []
+    }
+  },
+  "agent": {
+    "persona": "A&F Style Assistant",
+    "greeting": "Hi {name}! I can help with your A&F orders, myAbercrombie rewards, saved styles, deliveries, and returns. What would you like to do?",
+    "systemPromptFlavor": "You are the Abercrombie & Fitch Style Assistant. Help customers review A&F orders, track deliveries, check myAbercrombie rewards, manage returns and saved items, and complete apparel purchases. Be concise and only use facts returned by tools."
+  },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=1200&h=600&fit=crop",
+    "greeting": "Discover our latest collection."
+  },
+  "dashboard": {
+    "kind": "retail",
+    "chips": [
+      { "key": "balance", "label": "myAbercrombie Rewards" },
+      { "key": "accounts", "label": "My A&F Orders" },
+      { "key": "transactions", "label": "Purchase History" },
+      { "key": "transfer", "label": "Checkout" }
+    ],
+    "chips10": [
+      { "id": "anf1", "label": "My A&F orders", "message": "show my A&F orders", "mode": "both", "tool": "list_anf_orders", "useCaseId": "delegated-access-with-proof" },
+      { "id": "anf2", "label": "Track my latest order", "message": "track my order at A&F", "mode": "both", "tool": "order_status", "useCaseId": "delegated-access-with-proof" },
+      { "id": "anf3", "label": "myAbercrombie rewards", "message": "show my reward points at A&F", "mode": "both", "tool": "rewards_balance", "useCaseId": "delegated-access-with-proof" },
+      { "id": "anf4", "label": "My saved styles", "message": "show my saved items at A&F", "mode": "both", "tool": "view_wishlist", "useCaseId": "delegated-access-with-proof" },
+      { "id": "anf5", "label": "My returns", "message": "show my A&F returns", "mode": "both", "tool": "view_returns", "useCaseId": "delegated-access-with-proof" },
+      { "id": "anf-checkout", "label": "Buy a $300 wool-blend coat", "message": "checkout wool-blend coat for $300", "mode": "both", "challenge": "consent", "tool": "checkout", "useCaseId": "consent-required" },
+      { "id": "anf-mfa", "label": "Buy a $600 leather jacket", "message": "checkout leather jacket for $600", "mode": "both", "challenge": "step_up", "tool": "checkout", "useCaseId": "step-up-required" },
+      { "id": "anf-a2a", "label": "Sensitive purchase history", "message": "show my sensitive A&F order history", "mode": "both", "challenge": "consent", "tool": "sensitive_order_history", "useCaseId": "a2a-delegation", "group": "advanced" }
+    ],
+    "hero": {
+      "cards": [
+        { "label": "Cart Value", "dataKey": "heroStats.cartValue", "format": "money" },
+        { "label": "Pending Orders", "dataKey": "heroStats.pendingOrders", "format": "count" },
+        { "label": "Reward Points", "dataKey": "heroStats.rewardPoints", "format": "count" },
+        { "label": "Last Order", "dataKey": "heroStats.lastOrder", "format": "date" }
+      ]
+    },
+    "llmChipGroups": {
+      "Orders": [
+        { "id": "anf_recent", "label": "Recent order status", "message": "Where is my most recent A&F order?" },
+        { "id": "anf_compare", "label": "Compare purchases", "message": "Compare my last two A&F purchases" }
+      ],
+      "Styles": [
+        { "id": "anf_saved", "label": "Saved styles", "message": "What's in my A&F saved styles?" },
+        { "id": "anf_viewed", "label": "Recently viewed", "message": "Show the A&F styles I viewed recently" }
+      ],
+      "Returns": [
+        { "id": "anf_returns", "label": "Return status", "message": "Show my A&F return status" },
+        { "id": "anf_exchange", "label": "Exchange size", "message": "Help me exchange my pants for petite length" }
+      ],
+      "Rewards": [
+        { "id": "anf_points", "label": "myAbercrombie points", "message": "How many myAbercrombie points do I have?" },
+        { "id": "anf_credit", "label": "Merchandise credit", "message": "Show my A&F merchandise credit" }
+      ]
+    }
+  },
+  "scopes": {
+    "read": "read",
+    "write": "write",
+    "transfer": "transfer"
+  },
+  "delegation": {
+    "pageTitle": "A&F Account Sharing",
+    "pageDescription": "Share selected A&F account access with a family member using RFC 8693 token exchange.",
+    "granteeLabel": "family member",
+    "scopeLabels": {
+      "view_accounts": { "label": "View Orders", "description": "See order details and saved styles" },
+      "view_balances": { "label": "View Rewards", "description": "See myAbercrombie points and merchandise credit" },
+      "create_deposit": { "label": "Make Purchases", "description": "Buy A&F items on this account" },
+      "create_withdrawal": { "label": "Process Returns", "description": "Return or exchange A&F items" },
+      "create_transfer": { "label": "Transfer Credit", "description": "Move merchandise credit to another account" }
+    }
+  },
+  "render": {
+    "request_price_adjustment": { "type": "card", "title": "A&F Price-Adjustment Request", "fields": [{ "label": "Request #", "path": "requestId" }, { "label": "Order #", "path": "orderId" }, { "label": "Status", "path": "status" }, { "label": "Note", "path": "note" }] },
+    "initiate_return": { "type": "card", "title": "A&F Return Initiated", "fields": [{ "label": "Return #", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Status", "path": "status" }] },
+    "add_to_wishlist": { "type": "card", "title": "Saved to My A&F", "fields": [{ "label": "Style #", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Status", "path": "status" }] },
+    "reorder": { "type": "card", "title": "A&F Order Resubmitted", "fields": [{ "label": "Order #", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Status", "path": "status" }] },
+    "view_payment_methods": { "type": "table", "title": "A&F Payment Methods", "columns": [{ "label": "Card #", "path": "id" }, { "label": "Type", "path": "type" }, { "label": "Last 4", "path": "last4" }, { "label": "Expiry", "path": "expiry" }, { "label": "Default", "path": "is_default" }] },
+    "remove_payment_method": { "type": "card", "title": "Payment Method Removed", "fields": [{ "label": "Card #", "path": "id" }, { "label": "Type", "path": "type" }, { "label": "Status", "path": "status" }] },
+    "view_addresses": { "type": "table", "title": "A&F Saved Addresses", "columns": [{ "label": "Address #", "path": "id" }, { "label": "Label", "path": "label" }, { "label": "Street", "path": "street" }, { "label": "City", "path": "city" }, { "label": "Default", "path": "is_default" }] },
+    "view_subscriptions": { "type": "table", "title": "A&F Style Subscriptions", "columns": [{ "label": "Subscription #", "path": "id" }, { "label": "Edit", "path": "product" }, { "label": "Frequency", "path": "frequency" }, { "label": "Next", "path": "next_date", "format": "date" }, { "label": "Status", "path": "status" }] },
+    "pause_subscription": { "type": "card", "title": "A&F Subscription Paused", "fields": [{ "label": "Subscription #", "path": "id" }, { "label": "Edit", "path": "product" }, { "label": "Status", "path": "status" }] },
+    "view_support_tickets": { "type": "table", "title": "A&F Support Requests", "columns": [{ "label": "Ticket #", "path": "id" }, { "label": "Subject", "path": "subject" }, { "label": "Category", "path": "category" }, { "label": "Status", "path": "status" }, { "label": "Created", "path": "created_date", "format": "date" }] },
+    "close_support_ticket": { "type": "card", "title": "A&F Support Request Closed", "fields": [{ "label": "Ticket #", "path": "id" }, { "label": "Subject", "path": "subject" }, { "label": "Status", "path": "status" }] },
+    "view_gift_cards": { "type": "table", "title": "A&F Gift Cards", "columns": [{ "label": "Card #", "path": "id" }, { "label": "Last 4", "path": "last4" }, { "label": "Balance", "path": "balance", "format": "money" }, { "label": "Expires", "path": "expiry", "format": "date" }, { "label": "Status", "path": "status" }] },
+    "view_price_alerts": { "type": "table", "title": "A&F Price Alerts", "columns": [{ "label": "Alert #", "path": "id" }, { "label": "Style", "path": "product" }, { "label": "Target", "path": "target_price", "format": "money" }, { "label": "Current", "path": "current_price", "format": "money" }, { "label": "Status", "path": "status" }] },
+    "remove_price_alert": { "type": "card", "title": "A&F Price Alert Removed", "fields": [{ "label": "Alert #", "path": "id" }, { "label": "Style", "path": "product" }, { "label": "Status", "path": "status" }] },
+    "view_recently_viewed": { "type": "table", "title": "Recently Viewed at A&F", "columns": [{ "label": "Style #", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Price", "path": "price", "format": "money" }, { "label": "Viewed", "path": "viewed_date", "format": "date" }, { "label": "Category", "path": "category" }] },
+    "redeem_store_credit": { "type": "card", "title": "A&F Credit Redeemed", "fields": [{ "label": "Reward #", "path": "id" }, { "label": "Tier", "path": "tier" }, { "label": "Status", "path": "status" }] },
+    "cancel_order": { "type": "card", "title": "A&F Order Cancelled", "fields": [{ "label": "Item", "path": "product" }, { "label": "Status", "path": "status" }] },
+    "view_wishlist": { "type": "table", "title": "My Saved A&F Styles", "columns": [{ "label": "Style #", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Size", "path": "size" }, { "label": "Color", "path": "color" }, { "label": "Price", "path": "price", "format": "money" }] },
+    "view_returns": { "type": "table", "title": "My A&F Returns", "columns": [{ "label": "Return #", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Reason", "path": "reason" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" }] },
+    "list_anf_orders": { "type": "table", "title": "My A&F Orders", "columns": [{ "label": "Order ID", "path": "id" }, { "label": "Item", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" }] },
+    "order_status": { "type": "card", "title": "A&F Order Status", "fields": [{ "label": "Item", "path": "product" }, { "label": "Status", "path": "status" }, { "label": "Date", "path": "date", "format": "date" }] },
+    "rewards_balance": { "type": "fieldList", "title": "myAbercrombie Rewards", "fields": [{ "label": "Points", "path": "points", "format": "count" }, { "label": "Tier", "path": "tier" }, { "label": "Merchandise credit", "path": "storeCredit", "format": "money" }] },
+    "checkout": { "type": "card", "title": "A&F Order Placed", "fields": [{ "label": "Item", "path": "product" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Status", "path": "status" }] }
+  },
+  "demoUsers": {
+    "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
+    "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  }
+}

@@ -32,7 +32,7 @@ function makeToken(sub: string, aud: string | string[], extra: Record<string, un
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({
     sub, aud, exp: Math.floor(Date.now() / 1000) + 3600,
-    iss: 'https://auth.example.com', scope: 'banking:read', act: { sub: 'agent-id' }, ...extra,
+    iss: 'https://auth.example.com', scope: 'read write transfer', act: { sub: 'agent-id' }, ...extra,
   })).toString('base64url');
   return `${header}.${payload}.fakesig`;
 }
@@ -80,6 +80,10 @@ const stubConfig: GatewayConfig = {
   mtlsCertPath: '/tmp/gw-client.crt',
   mcpJwtVerifierHttpUrl: 'http://localhost:8083',
   mcpJwtVerifierResourceUri: 'mcp-jwt-verifier.ping.demo',
+  mcpWeatherHttpUrl: 'http://localhost:8896',
+  mcpBraveHttpUrl: 'http://localhost:8897',
+  bffWeatherFlagUrl: '',
+  bffBraveFlagUrl: '',
   allowLocalScopeFallback: false,
   introspectionEnabled: false,
   introspectionProvider: 'pinggateway',
@@ -252,7 +256,7 @@ describe('PingAuthorize WS/HTTP parity (WR-02)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('guardToolCall (WS) sends the SAME request body as evaluate (HTTP) for an over-threshold create_transfer', async () => {
-    const decoded = decodedToken({ scope: 'banking:read banking:write' });
+    const decoded = decodedToken({ scope: 'read write transfer' });
     const toolArgs = { amount: 750, transaction_type: 'transfer', to_account_id: 'acct-999' };
 
     // HTTP path
@@ -582,6 +586,10 @@ describe('authorizeMcpRequest — RFC 9728 WWW-Authenticate header', () => {
     expect(wwwAuth).toMatch(/Bearer realm="PingOne"/);
     expect(wwwAuth).toMatch(/resource_metadata=/);
     expect(wwwAuth).toMatch(/\/\.well-known\/oauth-protected-resource/);
+    // MCP Authorization spec §4.3 — insufficient_scope denials must carry
+    // error= and scope= so MCP clients can drive step-up re-authentication.
+    expect(wwwAuth).toMatch(/error="insufficient_scope"/);
+    expect(wwwAuth).toMatch(/scope="/);
     expect(forwardSpy).not.toHaveBeenCalled();
   });
 });

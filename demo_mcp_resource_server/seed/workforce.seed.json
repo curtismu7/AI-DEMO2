@@ -1,0 +1,52 @@
+{
+  "expenses": [
+    {
+      "id": "201",
+      "category": "Travel",
+      "description": "Q2 Sales Summit",
+      "amount": 1847.5,
+      "status": "Approved",
+      "submittedDate": "2026-05-02"
+    },
+    {
+      "id": "202",
+      "category": "Meals",
+      "description": "Client dinner - May board meeting",
+      "amount": 214.75,
+      "status": "Reimbursed",
+      "submittedDate": "2026-05-14"
+    },
+    {
+      "id": "203",
+      "category": "Equipment",
+      "description": "External monitor for home office",
+      "amount": 429.99,
+      "status": "Approved",
+      "submittedDate": "2026-04-22"
+    },
+    {
+      "id": "204",
+      "category": "Training",
+      "description": "AWS Certified Solutions Architect course",
+      "amount": 349,
+      "status": "Pending",
+      "submittedDate": "2026-05-28"
+    },
+    {
+      "id": "205",
+      "category": "Travel",
+      "description": "Flight + hotel - Chicago conference",
+      "amount": 1123.4,
+      "status": "Submitted",
+      "submittedDate": "2026-06-01"
+    },
+    {
+      "id": "206",
+      "category": "Meals",
+      "description": "Team lunch - sprint retrospective",
+      "amount": 187.6,
+      "status": "Pending",
+      "submittedDate": "2026-06-02"
+    }
+  ]
+}

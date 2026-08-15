@@ -95,7 +95,7 @@ function buildAgentToken({ amount, payee, aud = 'https://mcp.example' } = {}) {
 function configWithRarOn(k) {
   if (k === 'ff_authorize_mcp_first_tool') return 'true';
   if (k === 'ff_rar') return 'true';
-  if (k === 'ff_authorize_simulated') return 'true';
+  if (k === 'ff_authorize_real') return 'true';
   if (k === 'mcp_resource_uri') return 'https://mcp.example';
   if (k === 'authorize_mode') return 'simulated';
   return null;
@@ -211,7 +211,7 @@ describe('RAR end-to-end: mcpToolAuthorizationService → simulatedAuthorizeServ
     configStore.get.mockImplementation((k) => {
       if (k === 'ff_authorize_mcp_first_tool') return 'true';
       if (k === 'ff_rar') return 'false';
-      if (k === 'ff_authorize_simulated') return 'true';
+      if (k === 'ff_authorize_real') return 'true';
       if (k === 'mcp_resource_uri') return 'https://mcp.example';
       if (k === 'authorize_mode') return 'simulated';
       return null;

@@ -34,17 +34,16 @@ const FLAG_REGISTRY = [
   // ── PingOne Authorize (ALWAYS ON — no toggle) ──────────────────────────────
   // Authorization is mandatory for security. See transactionAuthorizationService.js for details.
   {
-    id:           'ff_authorize_simulated',
-    name:         'Simulated Authorize (education)',
+    id:           'ff_authorize_real',
+    name:         'Real PingOne Authorize',
     category:     'PingOne Authorize',
     description:
-      'When **Transaction authorization** is ON, evaluate with an in-process policy that mimics PingOne Authorize outcomes (PERMIT, DENY, policy step-up → 428). No worker token or PingOne API call. ' +
-      'Turn **OFF** to use real PingOne Authorize (requires decision endpoint or policy ID + worker credentials).',
+      'When **ON** (default), evaluate with real PingOne Authorize. Turn **OFF** only during an outage to use the local mock policy engine.',
     impact:
-      'ON = education mode: deny above $50k (configurable via SIMULATED_AUTHORIZE_DENY_AMOUNT); policy step-up for large transfers/withdrawals without strong ACR (see simulatedAuthorizeService.js). OFF (default) = live PingOne only.',
+      'ON (default) = live PingOne Authorize. OFF = outage fallback using the local mock; no PingOne decision API call.',
     type:         'boolean',
-    defaultValue: false,
-    warnIfEnabled: true,
+    defaultValue: true,
+    warnIfDisabled: true,
   },
   {
     id:           'ff_authorize_fail_open',
@@ -273,6 +272,40 @@ const FLAG_REGISTRY = [
 
   // ── A2A Delegation ──────────────────────────────────────────────────────────
   {
+    id:           'ff_personal_agent_concierge',
+    name:         'Personal Agent Concierge (UC38) — MFA-gated RFC 8693 delegation via Agent Builder',
+    category:     'Personal Agent',
+    description:
+      'Enables the UC38 Personal Agent Concierge use case for the airlines vertical. ' +
+      'Requires the user to have a registered personal agent (Agent Builder page). ' +
+      'BFF gates delegation on MFA acr claim, looks up the agent identity, emits a ' +
+      'personal-agent-lookup token event, then passes through to processAgentMessage ' +
+      'which performs the RFC 8693 exchange (sub=user, act=agent) scoped to ' +
+      'airlines:read airlines:write. Agent calls get_loyalty_status + redeem_miles.',
+    impact:
+      'ON = UC38 chip active; BFF pre-checks MFA and personal agent registration before delegation. ' +
+      'OFF (default) = UC38 chip shows "flag off" state; pre-checks are bypassed.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
+  {
+    id:           'ff_personal_agent_studio',
+    name:         'Personal Agent Studio — dedicated /personal-agent page',
+    category:     'Personal Agent',
+    description:
+      'Enables the /personal-agent route, the side-nav entry under Customer Demos, ' +
+      'and the "Launch Studio" button on the UC38 tile. The studio shows four AI-client ' +
+      'skins (Privilege, Claude-look, ChatGPT-look, Gemini-look) with a live security ' +
+      'rail (MFA gate, Gateway token check, P1AZ Authorize) and a real pop-out window.',
+    impact:
+      'ON/OFF = reserved for the UC38 "Launch Studio" button (not yet implemented). ' +
+      'The /personal-agent route and nav item are always visible to admin users.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
+  {
     id:           'ff_a2a_delegation',
     name:         'A2A — Agent-to-Agent specialist delegation (RFC 8693 nested-act)',
     category:     'A2A Delegation',
@@ -286,6 +319,24 @@ const FLAG_REGISTRY = [
       'ON = heuristic A2A tools (e.g. sensitive_patient_records) route through executeA2aDelegation, producing a ' +
       '"Delegation complete" response with act-chain depth. ' +
       'OFF (default) = A2A tools fall through to the standard BFF preflight.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
+  {
+    id:           'ff_verified_trust_a2a',
+    name:         'Verified Trust — signed agent assertion on A2A delegation',
+    category:     'A2A Delegation',
+    description:
+      'Reserved for the upcoming Verified Trust integration — issuing a signed SD-JWT ' +
+      'credential (via a PingOne DaVinci flow, see services/verifiedTrustService.js) at ' +
+      'A2A delegation chain start, asserting which agent is acting for which user. ' +
+      'Not yet wired into any call path: the DaVinci flow itself does not exist on this ' +
+      'tenant yet, and delegateToSpecialist() does not call verifiedTrustService.js. ' +
+      'Turning this ON today has no effect.',
+    impact:
+      'OFF (default, and currently the only meaningful state) = no behavior change. ' +
+      'ON = no-op until a2aDelegationService.js is wired to call verifiedTrustService.js.',
     type:         'boolean',
     defaultValue: false,
   },
@@ -717,20 +768,20 @@ const FLAG_REGISTRY = [
   },
   {
     id:           'ff_mcp_gateway_pinggateway',
-    name:         'Use PingOne Agent Gateway',
+    name:         'Real PingOne Agent Gateway',
     category:     'MCP / Agent',
     description:
-      'When **ON**, the BFF routes MCP traffic through the **PingOne Agent Gateway** (Ping Identity ' +
-      'Gateway / IG) instead of the **Demo Agent Gateway** (the homegrown Node gateway). The PingOne ' +
+      'When **ON** (`true`), the BFF routes MCP traffic through the **real PingOne Agent Gateway** (Ping Identity ' +
+      'Gateway / IG) instead of the **mock Demo Agent Gateway** (the homegrown Node gateway). The PingOne ' +
       'Agent Gateway performs inbound token introspection via McpProtectionFilter, mirrors the Demo ' +
       'Agent Gateway PingOneAuthorizeClient decision, and performs an IG-native RFC 8693 token exchange ' +
       'to the backend MCP servers. Its authorize backend is live-switchable (mock demo_authz_server vs ' +
-      'real PingOne Authorize) and follows the same **Simulated Authorize** (ff_authorize_simulated) ' +
-      'toggle, carried via the X-Authz-Simulated request header. When **OFF**, traffic goes ' +
-      'through the Demo Agent Gateway as normal.',
+      'real PingOne Authorize) and follows the same **Real PingOne Authorize** (ff_authorize_real) ' +
+      'toggle. Its inverse is carried via the X-Authz-Simulated request header. When **OFF** (`false`), traffic goes ' +
+      'through the mock Demo Agent Gateway as an outage fallback.',
     impact:
-      'OFF = Demo Agent Gateway path unchanged. ' +
-      'ON (default) = the PingOne Agent Gateway is the MCP enforcement point; the Demo Agent Gateway P1AZ flag should be OFF to avoid double-evaluation.',
+      'OFF = mock Demo Agent Gateway outage fallback. ' +
+      'ON (default) = the real PingOne Agent Gateway is the MCP enforcement point; the Demo Agent Gateway P1AZ flag should be OFF to avoid double-evaluation.',
     type:         'boolean',
     defaultValue: true,
   },
@@ -953,7 +1004,7 @@ const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
-  ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',
+  ff_authorize_real:     'FF_AUTHORIZE_REAL',
   ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
   ff_helix_lmstudio_fallback: 'FF_HELIX_LMSTUDIO_FALLBACK',
   ciba_enabled:               'CIBA_ENABLED',

@@ -9,7 +9,10 @@
  * The BFF returns { logoutUrl } (JSON) when Accept does not include text/html.
  * We then navigate to the PingOne signoff URL directly.
  */
+import { nrLog } from '../utils/nrLog';
+
 export function performLogout() {
+  nrLog('ui.logout', { page: window.location.pathname });
   fetch('/api/auth/logout', { credentials: 'include' })
     .then((r) => r.json())
     .then(({ logoutUrl }) => {

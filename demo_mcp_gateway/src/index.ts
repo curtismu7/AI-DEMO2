@@ -49,6 +49,7 @@ import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
+import { recordToolsListBackendOutage, clearToolsListBackendOutage } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 import { buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from './enterpriseMcpAuth';
 
@@ -389,6 +390,8 @@ async function handleMessage(
   bffMayActSub?: string,
   xTratContext?: string,
   xIntentToken?: string,
+  tierMaxAmountUsd?: string,
+  tierRestrictedTools?: string,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -464,6 +467,15 @@ async function handleMessage(
         failedBackends.push(backendLabels[i]);
         console.warn(`[GW] tools/list failed for backend=${backendLabels[i]}:`, r.reason instanceof Error ? r.reason.message : r.reason);
       }
+    }
+    // A TOTAL backend failure is not a partial outage: every live catalog entry
+    // is gone and what ships is the gateway-owned static list alone, which looks
+    // like a healthy tools/list to the UI. Record it for /health and say so once
+    // per window — the per-backend warns above scroll past unnoticed at this rate.
+    if (failedBackends.length === results.length) {
+      recordToolsListBackendOutage([...failedBackends]);
+    } else {
+      clearToolsListBackendOutage();
     }
 
     // Phase 266: append Gateway-owned tools (dispatched BY NAME in tools/call).
@@ -718,6 +730,8 @@ async function handleMessage(
       callVertical,
       hitlChallengeId,
       intentValidation,
+      tierMaxAmountUsd,
+      tierRestrictedTools,
     );
     if (!authz.permitted) {
       if (authz.reason === 'HITL_REQUIRED') {
@@ -970,7 +984,9 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
   // PingOne to the olb audience when exchanging for invest; the invest backend
   // then rejects it and the existing failedBackends/_meta partial-results path
   // (Promise.allSettled below) reports it — acceptable by design.
-  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target);
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target, {
+    allowDiscoveryScopeFallback: true,
+  });
   return proxyJsonRpc(wsUrl, backendToken, {
     jsonrpc: '2.0',
     id: `gw-list-${target}`,
@@ -985,7 +1001,9 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
 // side of this same HTTP backend.
 async function proxyToolsListJwtVerifier(inboundToken: string): Promise<JsonRpcResponse> {
   const httpUrl = backendHttpMcpUrl('jwtverifier', config);
-  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier');
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier', {
+    allowDiscoveryScopeFallback: true,
+  });
   return proxyJsonRpcHttp(httpUrl, backendToken, {
     jsonrpc: '2.0',
     id: 'gw-list-jwtverifier',
@@ -1038,6 +1056,16 @@ wss.on('connection', (ws, req) => {
   const rawVertical = req.headers['x-active-vertical'];
   const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
 
+  // Tier (groupToTier) — BFF pre-resolves group->tier and forwards the
+  // resolved definition as headers (parity with the HTTP path in
+  // authorizeMcpRequest.ts). Read once at upgrade time, same as activeVertical.
+  const wsHdr = (n: string): string | undefined => {
+    const v = req.headers[n];
+    return (Array.isArray(v) ? v[0] : v || '').toString().trim() || undefined;
+  };
+  const tierMaxAmountUsd = wsHdr('x-tier-max-amount-usd');
+  const tierRestrictedTools = wsHdr('x-tier-restricted-tools');
+
   // X-Act-Client-Id / X-May-Act-Sub: BFF-provided actor identity headers.
   // Gate behind the internal gateway secret (parity with HTTP path in
   // authorizeMcpRequest.ts — same checkInternalSecret helper). Ignored when
@@ -1078,7 +1106,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));

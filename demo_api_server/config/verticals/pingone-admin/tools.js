@@ -1,7 +1,6 @@
 'use strict';
 const adapter = require('../../../services/mcpPingOneHttpAdapter');
 const pingOneUserService = require('../../../services/pingOneUserService');
-const configStore = require('../../../services/configStore');
 const { getMockResponse } = require('../../../services/oasDiscovery');
 
 // Hosted-MCP tool names that have offline mock payloads in oasDiscovery.
@@ -18,8 +17,15 @@ const CORE_TOOLS = ['listUsers', 'getUser', 'listPopulations', 'listApplications
 // PingOneUserService.baseUrl already ends in /environments/{envId}, so
 // getEnvironment's path is the empty string.
 const REST_FALLBACK = {
-  listUsers:        () => ({ method: 'GET', path: '/users' }),
+  listUsers: (args) => {
+    const query = new URLSearchParams();
+    if (args?.filter) query.set('filter', String(args.filter));
+    if (args?.limit) query.set('limit', String(args.limit));
+    const suffix = query.toString();
+    return { method: 'GET', path: `/users${suffix ? `?${suffix}` : ''}` };
+  },
   listApplications: () => ({ method: 'GET', path: '/applications' }),
+  listResources:    () => ({ method: 'GET', path: '/resources' }),
   listPopulations:  () => ({ method: 'GET', path: '/populations' }),
   getEnvironment:   () => ({ method: 'GET', path: '' }),
   getUser: (args) => {
@@ -32,6 +38,33 @@ const REST_FALLBACK = {
     return null;
   },
 };
+
+/**
+ * "Resources with their scopes" (ADMIN8): the hosted MCP exposes
+ * listResources but NO scope tool (probed live 2026-08-10), so scopes come
+ * per-resource from the Management API and are attached as `_scopes` for
+ * rowsForResponse. Capped to ROW_CAP resources (the rows cap anyway) and
+ * fetched in parallel; a failed scope read leaves that row scope-less rather
+ * than failing the listing.
+ */
+async function enrichResourceScopes(name, data) {
+  if (name !== 'listResources') return;
+  const arr = collectionFor('listResources', data);
+  if (!Array.isArray(arr) || arr.length === 0) return;
+  try {
+    pingOneUserService.initialize();
+  } catch (_) {
+    return; // no worker creds — rows render without scopes
+  }
+  await Promise.all(arr.slice(0, ROW_CAP).map(async (r) => {
+    try {
+      const s = await pingOneUserService.makeRequest('GET', `/resources/${encodeURIComponent(r.id)}/scopes`);
+      r._scopes = (s?._embedded?.scopes || s?.scopes || []).map((x) => x.name);
+    } catch (_) {
+      r._scopes = undefined;
+    }
+  }));
+}
 
 const LIVE_SOURCE = 'live — hosted PingOne MCP';
 const apiSource = (reason) => `api — hosted PingOne MCP unavailable, used direct Management API: ${reason}`;
@@ -92,7 +125,7 @@ const tools = [
   },
   {
     name: 'call_pingone_tool',
-    description: 'Call a hosted PingOne MCP tool by name (e.g. listUsers, createUser, listApplications, getEnvironment) with camelCase arguments.',
+    description: 'Call a hosted PingOne MCP tool by name (e.g. listUsers, createUser, listApplications, getEnvironment) with camelCase arguments. List tools accept arguments.filter in PingOne SCIM syntax for prefix requests: username sw "curt" (listUsers), name sw "Demo" (listApplications, listPopulations).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -118,20 +151,92 @@ function parseMcpResult(raw) {
   return raw;
 }
 
+// The hosted MCP and the direct Management API disagree on envelope shape:
+// REST wraps collections in HAL (`_embedded.users`), the hosted MCP returns
+// some of them bare (`{ applications: [...] }` — verified live 2026-08-10).
+// Accept both so neither transport degrades to a JSON.stringify blob.
+function collectionFor(tool, data) {
+  const key = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations', listResources: 'resources' }[tool];
+  if (!key) return null;
+  const arr = data?._embedded?.[key] ?? data?.[key];
+  return Array.isArray(arr) ? arr : null;
+}
+
+// Compact object rows for the LLM (and anything else reading the tool
+// result). Without these the model only ever saw "87 users found" and could
+// not name a single user — a count is not an answer to "list the users
+// starting with curt". Capped and field-trimmed: the admin LLM is llama.cpp
+// with a frozen context budget, so the full PingOne records (which carry
+// _links, lifecycle blocks, etc.) must never be forwarded verbatim.
+const ROW_CAP = 20;
+function rowsForResponse(tool, data) {
+  try {
+    const arr = collectionFor(tool, data);
+    if (!arr) {
+      if (tool === 'getUser' && data?.username) {
+        return [{ username: data.username, email: data.email || undefined, enabled: data.enabled }];
+      }
+      if (tool === 'getEnvironment' && data?.name) {
+        return [{ name: data.name, type: data.type, region: data.region, id: data.id }];
+      }
+      return null;
+    }
+    const rows = arr.slice(0, ROW_CAP).map((item) => {
+      if (tool === 'listUsers') {
+        return { username: item.username, email: item.email || undefined, enabled: item.enabled };
+      }
+      if (tool === 'listApplications') {
+        return { name: item.name, type: item.type, enabled: item.enabled };
+      }
+      if (tool === 'listResources') {
+        // _scopes is attached by the enrichment in callPingOneTool (the
+        // hosted MCP has no scope tool; scopes come per-resource from REST).
+        return {
+          name: item.name,
+          type: item.type,
+          scopes: Array.isArray(item._scopes)
+            ? (item._scopes.length ? item._scopes.join(', ') : '(no scopes)')
+            : undefined,
+        };
+      }
+      return { name: item.name, description: (item.description || '').slice(0, 80) || undefined };
+    });
+    return rows.length ? rows : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// The result fields the model reasons over. totalCount/rowsTruncated exist so
+// a capped rows array cannot masquerade as the full collection — without them
+// the model answers "here are the applications" from 20 rows of 46 and the
+// audience never learns the list was cut.
+function resultFields(tool, data) {
+  const fields = {
+    responseSummary: summaryForResponse(tool, data),
+    rows: rowsForResponse(tool, data) || undefined,
+  };
+  const arr = collectionFor(tool, data);
+  if (arr) {
+    fields.totalCount = arr.length;
+    if (arr.length > ROW_CAP) fields.rowsTruncated = true;
+  }
+  return fields;
+}
+
 function summaryForResponse(tool, data) {
   if (typeof data === 'string') return data.slice(0, 200);
   try {
+    const arr = collectionFor(tool, data);
+    if (arr) {
+      const noun = { listUsers: 'users', listApplications: 'applications', listPopulations: 'populations', listResources: 'resources' }[tool];
+      return `${arr.length} ${noun} found`;
+    }
     switch (tool) {
       case 'listUsers':
-        if (Array.isArray(data?._embedded?.users)) return `${data._embedded.users.length} users found`;
-        if (Array.isArray(data?.users)) return `${data.users.length} users found`;
+        // collectionFor already handled the array-shaped response above;
+        // this only fires for a count-only response with no embedded array.
         if (typeof data?.count === 'number') return `${data.count} users found`;
-        break;
-      case 'listApplications':
-        if (Array.isArray(data?._embedded?.applications)) return `${data._embedded.applications.length} applications found`;
-        break;
-      case 'listPopulations':
-        if (Array.isArray(data?._embedded?.populations)) return `${data._embedded.populations.length} populations found`;
         break;
       case 'getUser':
         if (data?.username) return `User: ${data.username}${data.email ? ` (${data.email})` : ''}`;
@@ -153,15 +258,6 @@ function buildDebugSummary({ backend, transport, tool, args = {}, reason = null 
   if (args.limit != null) parts.push(`limit=${args.limit}`);
   if (reason) parts.push(`reason=${reason}`);
   return parts.join(' · ');
-}
-
-function enrichToolArgs(tool, args = {}) {
-  const normalized = { ...(args || {}) };
-  const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
-  if (envId && !Object.prototype.hasOwnProperty.call(normalized, 'environmentId')) {
-    normalized.environmentId = envId;
-  }
-  return normalized;
 }
 
 async function listPingOneTools(params) {
@@ -186,28 +282,75 @@ async function listPingOneTools(params) {
   }
 }
 
+// If an sw prefix filter has a letter as its first character, return the same
+// filter with that letter's case flipped, else null. PingOne SCIM sw is
+// case-sensitive and rejects `or` filters (400, probed live 2026-08-10), so
+// case tolerance has to be a second call, not a smarter filter.
+function flippedCaseFilter(filter) {
+  const m = /^(username|name) sw "(.)(.*)"$/.exec(String(filter || ''));
+  if (!m) return null;
+  const [, field, first, rest] = m;
+  const flipped = first === first.toLowerCase() ? first.toUpperCase() : first.toLowerCase();
+  if (flipped === first) return null; // digit or symbol — nothing to flip
+  return `${field} sw "${flipped}${rest}"`;
+}
+
 async function callPingOneTool(params) {
   const name = params?.name;
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
   }
   const rawArgs = params?.arguments || {};
-  const args = name === 'listUsers' ? normalizeListUsersArgs(rawArgs) : rawArgs;
-  const liveArgs = enrichToolArgs(name, args);
+  const normalizedArgs = name === 'listUsers' ? normalizeListUsersArgs(rawArgs) : rawArgs;
+  // Pin environmentId to the configured environment. The hosted MCP tool
+  // schemas REQUIRE it as an argument (listUsers et al fail -32602 without
+  // it — verified live 2026-08-10), so dropping it outright broke every live
+  // call and the RPC validation error masqueraded as a real answer. The
+  // model still never needs to supply it (the system prompt says not to),
+  // and a model-supplied value is discarded so a call can never be pointed
+  // at another environment.
+  const { environmentId: _ignoredEnvId, ...args } = normalizedArgs;
+  if (process.env.PINGONE_ENVIRONMENT_ID) {
+    args.environmentId = process.env.PINGONE_ENVIRONMENT_ID;
+  }
+  // Alias kept for the fallback/mock paths below, which predate (and are
+  // unaffected by) the environmentId-pinning/case-retry logic above.
+  const liveArgs = args;
   try {
-    console.info('[pingone-admin] call_pingone_tool live request', { name, args: liveArgs });
-    const data = parseMcpResult(await adapter.callTool(name, liveArgs));
+    console.info('[pingone-admin] call_pingone_tool live request', { name, args });
+    let data = parseMcpResult(await adapter.callTool(name, args));
+    // Case-tolerant prefix ("so we do not fail on case, for demo"): when the
+    // exact-case sw filter finds nothing, retry ONCE with the first letter's
+    // case flipped ("demo" ⇄ "Demo") and report which prefix matched. Only on
+    // an empty result — a non-empty exact match is never second-guessed.
+    let effectiveFilter = args.filter;
+    const emptyCollection = collectionFor(name, data)?.length === 0;
+    if (emptyCollection) {
+      const flipped = flippedCaseFilter(args.filter);
+      if (flipped) {
+        const retryData = parseMcpResult(await adapter.callTool(name, { ...args, filter: flipped }));
+        if ((collectionFor(name, retryData) || []).length > 0) {
+          data = retryData;
+          effectiveFilter = flipped;
+        }
+      }
+    }
+    await enrichResourceScopes(name, data);
+    const fields = resultFields(name, data);
+    if (effectiveFilter && effectiveFilter !== args.filter) {
+      fields.responseSummary = `${fields.responseSummary} (no matches for ${args.filter}; matched with ${effectiveFilter})`;
+    }
     return {
       result: {
         tool: name,
-        responseSummary: summaryForResponse(name, data),
+        ...fields,
         source: LIVE_SOURCE,
         debug: {
           backend: 'hosted-mcp',
           transport: 'live',
           tool: name,
-          args: liveArgs,
-          summary: buildDebugSummary({ backend: 'hosted-mcp', transport: 'live', tool: name, args: liveArgs }),
+          args,
+          summary: buildDebugSummary({ backend: 'hosted-mcp', transport: 'live', tool: name, args }),
         },
       },
       render: 'call_pingone_tool',
@@ -302,10 +445,11 @@ async function callPingOneTool(params) {
         pingOneUserService.initialize();
         const data = await pingOneUserService.makeRequest(restReq.method, restReq.path);
         console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
+        await enrichResourceScopes(name, data);
         return {
           result: {
             tool: name,
-            responseSummary: summaryForResponse(name, data),
+            ...resultFields(name, data),
             source: apiSource(err.message),
             debug: {
               backend: 'management-api',

@@ -4,16 +4,6 @@ import { useTokenChainOptional } from '../context/TokenChainContext';
 import SimpleStepperPanel from './SimpleStepperPanel';
 import './SimpleStepperBar.css';
 
-const LS_KEY = 'ba_simple_stepper_open';
-
-function loadOpen() {
-  try {
-    return localStorage.getItem(LS_KEY) === 'true';
-  } catch (_) {
-    return false;
-  }
-}
-
 /**
  * Compact Simple Stepper bar — replaces the old wrapping InlineTokenChainView
  * pill flow. Shows title + live step count; the toggle pops out
@@ -22,13 +12,10 @@ function loadOpen() {
  */
 export default function SimpleStepperBar() {
   const ctx = useTokenChainOptional();
-  const [open, setOpen] = useState(loadOpen);
+  const [open, setOpen] = useState(false);
 
   const setOpenPersist = useCallback((next) => {
     setOpen(next);
-    try {
-      localStorage.setItem(LS_KEY, String(next));
-    } catch (_) {}
   }, []);
 
   if (!ctx) return null;

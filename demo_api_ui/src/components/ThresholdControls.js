@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import { useAgentUiMode } from '../context/AgentUiModeContext';
 import './ThresholdControls.css';
 
 const FLAG_LABELS = {
-  ff_authorize_simulated: 'Simulated Authorization',
+  ff_authorize_real: 'Real PingOne Authorize',
   ff_authorize_fail_open: 'Allow Transactions if Auth Unavailable',
   step_up_enabled: 'MFA Step-up',
   ff_hitl_enabled: 'Human-in-the-Loop Consent',
@@ -15,7 +16,7 @@ const FLAG_LABELS = {
 };
 
 const FLAG_DESCRIPTIONS = {
-  ff_authorize_simulated: 'Use simulated (offline) auth responses instead of live PingOne',
+  ff_authorize_real: 'Use live PingOne Authorize; turn off only for mock outage fallback',
   ff_authorize_fail_open: 'Allow operations to proceed when authorization service is unavailable',
   step_up_enabled: 'Prompt for MFA on transactions above the step-up threshold',
   ff_hitl_enabled: 'Show a consent challenge before executing sensitive operations',
@@ -26,12 +27,16 @@ const FLAG_DESCRIPTIONS = {
 const IMPORTANT_FLAG_IDS = Object.keys(FLAG_LABELS);
 
 export default function ThresholdControls() {
+  const { placement, fab, setAgentUi } = useAgentUiMode();
   const [open, setOpen] = useState(false);
+  const [showMirror, setShowMirror] = useState(() => {
+    try { return localStorage.getItem('ba_show_response_mirror') === '1'; } catch { return false; }
+  });
   const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
   const [confirm, setConfirm] = useState('');
   const [mfa, setMfa] = useState('');
   const [flags, setFlags] = useState([]);
-  const [openSections, setOpenSections] = useState({ thresholds: true, verticalThresholds: false, flags: true });
+  const [openSections, setOpenSections] = useState({ thresholds: true, verticalThresholds: false, agentView: true, flags: true });
   const btnRef = useRef(null);
   const panelRef = useRef(null);
 
@@ -151,6 +156,53 @@ export default function ThresholdControls() {
       style={{ top: panelPos.top, right: panelPos.right }}
     >
       <div className="thresh-ctrl__title">Demo Controls</div>
+
+      {/* Agent View — placement toggle (Embedded vs Float only) */}
+      <div className="thresh-ctrl__section">
+        <button type="button" className="thresh-ctrl__section-toggle" onClick={() => toggleSection('agentView')}>
+          <span className="thresh-ctrl__section-title">Agent View</span>
+          <span className="thresh-ctrl__chevron">{openSections.agentView ? '▲' : '▼'}</span>
+        </button>
+        {openSections.agentView && (
+          <>
+            <div className="thresh-ctrl__placement-row">
+              <button
+                type="button"
+                className={`thresh-ctrl__placement-btn${placement === 'middle' ? ' thresh-ctrl__placement-btn--active' : ''}`}
+                onClick={() => setAgentUi({ placement: 'middle', fab })}
+              >
+                Embedded
+              </button>
+              <button
+                type="button"
+                className={`thresh-ctrl__placement-btn${placement === 'none' ? ' thresh-ctrl__placement-btn--active' : ''}`}
+                onClick={() => setAgentUi({ placement: 'none', fab: true })}
+              >
+                Float only
+              </button>
+            </div>
+            <div className="thresh-ctrl__flag-item" style={{ marginTop: 6 }}>
+              <div className="thresh-ctrl__flag-row">
+                <span>Response box</span>
+                <button
+                  type="button"
+                  className={`thresh-ctrl__placement-btn${showMirror ? ' thresh-ctrl__placement-btn--active' : ''}`}
+                  style={{ width: 'auto', padding: '2px 10px', fontSize: 12 }}
+                  onClick={() => {
+                    const next = !showMirror;
+                    setShowMirror(next);
+                    try { localStorage.setItem('ba_show_response_mirror', next ? '1' : '0'); } catch {}
+                    window.dispatchEvent(new CustomEvent('agent-mirror-toggle', { detail: { on: next } }));
+                  }}
+                >
+                  {showMirror ? 'On' : 'Off'}
+                </button>
+              </div>
+              <span className="thresh-ctrl__help">Mirror latest response on main page</span>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Thresholds */}
       <div className="thresh-ctrl__section">

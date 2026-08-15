@@ -62,7 +62,7 @@ router.get('/config', authenticateToken, async (_req, res) => {
 
     const flags = {
       authorize_enabled: true, // Always enabled for security — no toggle
-      ff_authorize_simulated: configStore.get('ff_authorize_simulated') === 'true',
+      ff_authorize_real: configStore.getEffective('ff_authorize_real') === 'true',
       ff_authorize_fail_open: configStore.get('ff_authorize_fail_open') === 'true',
       ff_authorize_deposits: configStore.get('ff_authorize_deposits') === 'true',
       ff_authorize_mcp_first_tool: configStore.get('ff_authorize_mcp_first_tool') === 'true',

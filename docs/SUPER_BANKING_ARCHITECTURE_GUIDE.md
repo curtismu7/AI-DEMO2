@@ -272,7 +272,7 @@ The MCP Gateway is the inline per-tool security enforcement point that sits betw
 
 ### Authorize Engine Selector (`authorize_mode`)
 
-The `AUTHORIZE_MODE` env/configStore key selects the policy decision engine: `pingone` (strict, Docker default), `simulated` (fully offline), or `pingone-with-simulated-fallback`. The simulated `demo_authz_server` is held parity-equal to PingOne Authorize — any change to decision params, contexts, or response shape must be mirrored in both. The `ff_authorize_simulated` admin toggle switches the mode at runtime without a restart.
+The `AUTHORIZE_MODE` env/configStore key selects the policy decision engine: `pingone` (strict, Docker default), `simulated` (fully offline), or `pingone-with-simulated-fallback`. The simulated `demo_authz_server` is held parity-equal to PingOne Authorize — any change to decision params, contexts, or response shape must be mirrored in both. The `ff_authorize_real` admin toggle switches the mode at runtime without a restart.
 
 ### PingGateway (Alternative MCP Gateway, port 3036)
 

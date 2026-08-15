@@ -57,10 +57,13 @@ function _cibaEnabled(res) {
 // ---------------------------------------------------------------------------
 
 router.get('/status', (req, res) => {
+  const failoverMode = configStore.getEffective('ciba_failover_mode') || 'fallback_simulated';
   res.json({
     enabled:      cibaService.isEnabled(),
     deliveryMode: configStore.getEffective('ciba_token_delivery_mode') || 'poll',
     bindingMessage: configStore.getEffective('ciba_binding_message') || 'Banking App Authentication',
+    engine: cibaService.isEnabled() ? 'pingone' : 'unavailable',
+    failoverMode,
     // Show PingOne admin steps needed if not enabled
     setupRequired: !cibaService.isEnabled(),
     setupSteps: !cibaService.isEnabled() ? [
@@ -87,6 +90,8 @@ router.get('/status', (req, res) => {
  * }
  *
  * @flow ciba-hitl
+ * @name CIBA / HITL
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9110 RFC 9110
  * @actor client-app
  * @to human-approver
  * @step 1
@@ -218,6 +223,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       expires_in:  result.expires_in,
       interval:    result.interval,
       login_hint_display: loginHint.replace(/(.{2}).*@/, '$1***@'), // mask for display only
+      engine: simulated ? 'simulated' : 'pingone',
     });
   } catch (err) {
     console.error('[CIBA] initiate failed:', err.response?.data || err.message);
@@ -304,7 +310,11 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
 
   // Idempotent: prior poll already applied step-up — do not 404 late pollers.
   if (pending.pollOutcome === 'approved') {
-    return res.json({ status: 'approved', scope: pending.scope });
+    return res.json({
+      status: 'approved',
+      scope: pending.scope,
+      engine: pending.simulated ? 'simulated' : 'pingone',
+    });
   }
 
   if (pending.simulated) {
@@ -350,7 +360,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     }
 
     if (approvalStatus !== 'approved') {
-      return res.json({ status: 'pending' });
+      return res.json({ status: 'pending', engine: 'simulated' });
     }
 
     _markCibaApproved(pending);
@@ -399,6 +409,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       res.json({
         status: 'approved',
         scope:  pending.scope,
+        engine: 'simulated',
       });
     });
   }
@@ -448,16 +459,17 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       res.json({
         status: 'approved',
         scope:  pending.scope,
+        engine: 'pingone',
       });
     });
   } catch (err) {
     const errorCode = err.response?.data?.error;
 
     if (errorCode === 'authorization_pending') {
-      return res.json({ status: 'pending' });
+      return res.json({ status: 'pending', engine: 'pingone' });
     }
     if (errorCode === 'slow_down') {
-      return res.json({ status: 'pending', slow_down: true, retry_after: 10 });
+      return res.json({ status: 'pending', slow_down: true, retry_after: 10, engine: 'pingone' });
     }
 
     // User denied or request expired at PingOne

@@ -88,6 +88,95 @@ export function ParamHintCopy({ hint }) {
   );
 }
 
+// Clickable option buttons for clarification messages — replaces typing "checking"
+// with a tap. Calls onSelect(value) when clicked. Disabled once the question is no
+// longer active (active=false).
+// Options may be plain strings or { label, value } objects. For plain strings the
+// label is the string itself and onSelect receives the lowercased string.
+export function ClarifyOptions({ options, amountOptions, onSelect, active, onDismiss }) {
+  if ((!options || options.length === 0) && (!amountOptions || amountOptions.length === 0)) return null;
+
+  function getLabel(opt) {
+    return typeof opt === 'object' && opt !== null ? opt.label : opt;
+  }
+  function getValue(opt) {
+    if (typeof opt === 'object' && opt !== null) return opt.value;
+    return opt.charAt(0).toLowerCase() + opt.slice(1);
+  }
+
+  function fmtAmount(n) {
+    return `$${Number(n).toLocaleString('en-US')}`;
+  }
+
+  function handleKeyDown(e) {
+    const container = e.currentTarget.closest('.clarify-options-wrapper');
+    const btns = container
+      ? Array.from(container.querySelectorAll('button:not(:disabled)'))
+      : [];
+    const idx = btns.indexOf(e.currentTarget);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = (idx + 1) % btns.length;
+      btns[next]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = (idx - 1 + btns.length) % btns.length;
+      btns[prev]?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      e.currentTarget.click();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onDismiss?.();
+    }
+  }
+
+  return (
+    <div className="clarify-options-wrapper">
+      {options && options.length > 0 && (
+        <div className="clarify-options" role="listbox">
+          {options.map((opt) => {
+            const label = getLabel(opt);
+            const value = getValue(opt);
+            return (
+              <button
+                key={value}
+                type="button"
+                role="option"
+                aria-selected="false"
+                className="clarify-options__btn"
+                disabled={!active}
+                onClick={() => active && onSelect(value)}
+                onKeyDown={handleKeyDown}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {amountOptions && amountOptions.length > 0 && (
+        <div className="clarify-amounts" role="listbox" aria-label="Amount presets">
+          {amountOptions.map((amt) => (
+            <button
+              key={amt}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className="clarify-amounts__btn"
+              disabled={!active}
+              onClick={() => active && onSelect(fmtAmount(amt))}
+              onKeyDown={handleKeyDown}
+            >
+              {fmtAmount(amt)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Map a vertical manifest's `chips10` into discovery-chip shape. Each carries a
 // `message` so the click routes through the NL pipeline (the vertical service)
 // rather than a banking action ID. Shared by the popout and the left-rail so
@@ -113,7 +202,50 @@ export function verticalSuggestionChips(pageManifest) {
     mode: c.mode || null,
     tool: c.tool || null,
     denyTool: c.denyTool || null,
+    queryPrompt: c.queryPrompt || null,
   }));
+}
+
+export function buildPingOneUserListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'List all users in my PingOne environment. Call listUsers with no filter.';
+  }
+  if (!/^[A-Za-z0-9._@+-]+\*$/.test(input)) return null;
+  const prefix = input.slice(0, -1);
+  return `List PingOne users whose username starts with "${prefix}". Call listUsers with arguments.filter exactly username sw "${prefix}".`;
+}
+
+// Tool variant (queryPrompt "toolFilter"). Unlike the sw prefixes this is a
+// case-insensitive substring over tool name/description (applied client-side
+// in tools.js listPingOneTools), so no asterisk and no case trap. "all" (or
+// empty) lists the whole role-gated catalog via the proven fallback phrase —
+// the chip title's literal wording ("...MCP server") must NOT be sent as a
+// message: "MCP" matches an earlier banking heuristic and dispatches the
+// wrong tool.
+export function buildPingOneToolListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'What PingOne tools can I use right now?';
+  }
+  if (!/^[A-Za-z0-9._-]+\*?$/.test(input)) return null;
+  const fragment = input.endsWith('*') ? input.slice(0, -1) : input;
+  return `Show me the PingOne tools matching "${fragment}"`;
+}
+
+// App variant of the prefix prompt (queryPrompt "appFilter"). Same contract:
+// "all"/"*" lists everything, "<prefix>*" filters, anything else is invalid.
+// The prefix charset stays space-free to match the heuristic parser's
+// PREFIX_RE — a spaced prefix would silently lose its filter in Fallback
+// routing, which is exactly the failure the filter steps exist to disprove.
+export function buildPingOneAppListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'List all applications in my PingOne environment. Call listApplications with no filter.';
+  }
+  if (!/^[A-Za-z0-9._@+-]+\*$/.test(input)) return null;
+  const prefix = input.slice(0, -1);
+  return `List PingOne applications whose name starts with "${prefix}". Call listApplications with arguments.filter exactly name sw "${prefix}".`;
 }
 
 // Chip challenge marker (REGRESSION_PLAN §0 allows 👤 and 🔑), so a demo

@@ -24,14 +24,20 @@ const gen = require('../scripts/gen-intent-topology');
  * manufacturing, retail, sporting-goods, university and workforce each gained
  * their `*-dpop` / `*-deny` / `*-bad-scope` trio (banking already had all three),
  * taking the total from 134 to 158.
+ * The Abercrombie & Fitch Retail clone adds eight A&F-specific chips, taking the
+ * total to 166 across 14 verticals.
+ *
+ * sporting-goods gained `sg-gear` (browse_gear catalog chip), taking the total
+ * to 167.
  */
 const EXPECTED_CHIP_COUNTS = {
+  'abercrombie-fitch': 8,
       banking: 16,
       retail: 19,
   'oauth-teaching': 12,
   workforce: 14,
   healthcare: 13,
-  'sporting-goods': 15,
+  'sporting-goods': 16,
   government: 12,
   investment: 12,
   manufacturing: 12,
@@ -68,9 +74,9 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 158 chips across 13 verticals', () => {
-    expect(rows).toHaveLength(158);
-    expect(new Set(rows.map((r) => r.vertical)).size).toBe(13);
+  it('covers 167 chips across 14 verticals', () => {
+    expect(rows).toHaveLength(167);
+    expect(new Set(rows.map((r) => r.vertical)).size).toBe(14);
   });
 
   it('reproduces the per-vertical chip counts exactly', () => {
@@ -111,8 +117,8 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(158);
-    expect(topology.counts.verticals).toBe(13);
+    expect(topology.counts.chips).toBe(167);
+    expect(topology.counts.verticals).toBe(14);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });
 });

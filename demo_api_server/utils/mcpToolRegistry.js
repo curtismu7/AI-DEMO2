@@ -320,12 +320,41 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
       });
       return JSON.stringify({
         error: isStepUp ? 'step_up_required' : 'hitl_required',
+        isError: false,
         hitl: { type: isStepUp ? 'step_up' : 'consent' },
         hitlChallengeId: d.challengeId || null,
         challenge_type: d.challenge_type || 'consent',
         message: d.instructions || (isStepUp
           ? 'This action requires step-up verification.'
           : 'This action requires your approval.'),
+      });
+    }
+
+    // Gateway step-up obligation (dedicated 428 code, no HITL challenge minted —
+    // mcpGatewayClient throws { stepUp:true } for this, distinct from the
+    // { hitl:true, rpcData } shape above). Same non-failure treatment: MFA is a
+    // valid precondition, not a tool error, so this must not fall through to the
+    // generic re-throw below (that previously surfaced step-up as a failure).
+    if (error && error.stepUp) {
+      if (tokenEvents) {
+        tokenEvents.push(buildTokenEvent(
+          'tool-hitl',
+          'Gateway — Step-up Required',
+          'indeterminate',
+          null,
+          'PingOne Authorize returned INDETERMINATE — step-up MFA is required before this tool call can proceed.',
+          { toolName, actor: 'agent' }
+        ));
+      }
+      emitTrace({
+        result: { isError: false, hitl: true, challenge_type: 'step_up', detail: 'step_up_required' },
+      });
+      return JSON.stringify({
+        error: 'step_up_required',
+        isError: false,
+        hitl: { type: 'step_up' },
+        challenge_type: 'step_up',
+        message: error.message || 'This action requires step-up verification.',
       });
     }
 
@@ -423,6 +452,23 @@ async function callMcpTool(toolName, params, agentToken, userId, tokenEvents = [
         // Retry exactly once with upgraded token — share the same events array so the
         // upgrade and result appear as a continuous chain, not two separate lists.
         return callMcpTool(toolName, params, upgradedToken, userId, [...tokenEvents], true);
+      }
+
+      // HTTP 428 Precondition Required: step-up MFA or HITL consent — not a tool
+      // failure, but a valid authorization precondition. Return the response so the
+      // caller can prompt the user for MFA / consent.
+      if (response.status === 428 && data && (data.error === 'mcp_step_up_required' || data.error === 'hitl_required')) {
+        if (tokenEvents) {
+          tokenEvents.push(buildTokenEvent(
+            'tool-call-precondition-required',
+            `Authorization Precondition: ${toolName}`,
+            'indeterminate',
+            null,
+            `"${toolName}" requires ${data.error === 'mcp_step_up_required' ? 'step-up authentication' : 'human approval'} (HTTP 428).`,
+            { toolName, statusCode: response.status, precondition: data.error, actor: 'agent' }
+          ));
+        }
+        return { ...data, isError: false, isPrecondition: true };
       }
 
       if (tokenEvents) {

@@ -9,10 +9,35 @@ const { buildAdminToolSchemas } = require('../config/admin/tools');
 const appEventService = require('../services/appEventService');
 const { prependRefreshEvent } = require('../services/agentMcpTokenService');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
+const pingOneAdminAccessService = require('../services/pingOneAdminAccessService');
 
 const router = express.Router();
 router.use(agentSessionMiddleware);
 router.use(requestEventEmitterMiddleware);
+
+async function requirePingOneAdminGroup(req, res, response = {}) {
+  const access = await pingOneAdminAccessService.checkAccess({
+    username: req.session?.user?.username || null,
+    pingOneUserId: req.agentContext?.userId || null,
+    accessToken: req.agentContext?.accessToken || null,
+  });
+  if (access.allowed) return true;
+
+  const lookupUnavailable = access.status === 503;
+  res.status(access.status).json({
+    ...response,
+    error: access.error,
+    message: lookupUnavailable
+      ? `Could not verify membership in '${access.requiredGroup}'.`
+      : `Membership in '${access.requiredGroup}' is required to use the PingOne Admin Assistant.`,
+    reply: lookupUnavailable
+      ? `I could not verify your '${access.requiredGroup}' group membership. Try again after PingOne is available.`
+      : `Access denied. Add the signed-in user to '${access.requiredGroup}', then run the query again.`,
+    requiredGroup: access.requiredGroup,
+    success: false,
+  });
+  return false;
+}
 
 // POST /init — Validate admin session and return available PingOne tools.
 // Admin uses the worker client_credentials token (no CC token exchange needed).
@@ -22,6 +47,13 @@ router.post('/init', async (req, res) => {
     if (!userId || !accessToken) {
       return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
     }
+    if (!await requirePingOneAdminGroup(req, res, {
+      initialized: true,
+      agentConfigured: true,
+      agentReady: false,
+      availableTools: [],
+      tokenEvents: prependRefreshEvent(req, req.tokenEvents || []),
+    })) return;
 
     let availableTools = [];
     let toolsError = null;
@@ -86,6 +118,11 @@ router.post('/message', async (req, res) => {
     if (!userId || !accessToken) {
       return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
     }
+    if (!await requirePingOneAdminGroup(req, res, {
+      agentConfigured: true,
+      toolsCalled: [],
+      tokenEvents: tokenEvents || [],
+    })) return;
 
     const langchainConfig = req.session?.langchain_config || {};
     const runId = crypto.randomUUID();

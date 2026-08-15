@@ -9,8 +9,9 @@
  */
 import React from "react";
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { AccountsTable, buildClarificationQuestions, buildResultsPanelTitle, formatResult, MessageContent, ResultsPanel, TransactionsTable } from "../AIAgent";
+import { UnitedDatabasePulse } from "../agentResultPanels";
 
 describe("buildResultsPanelTitle", () => {
   test("returns terminology.accounts for accounts type when terminology provided", () => {
@@ -57,6 +58,96 @@ describe("MessageContent", () => {
     expect(screen.getByRole("columnheader", { name: /reward points/i })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /^account$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /^balance$/i })).not.toBeInTheDocument();
+  });
+
+  test("formats an embedded United bookings payload as reservation cards", () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = "America/Chicago";
+    const onRefresh = vi.fn();
+    const text = `[CUSTOMER AGENT]
+Here are your airline bookings:
+${JSON.stringify({
+  source: "sqlite",
+  passenger: {
+    name: "Jordan A. Rivera",
+    loyaltyTier: "Premier Gold",
+    loyaltyPoints: 45320,
+  },
+  bookings: [
+    {
+      confirmationNumber: "K7XR2M",
+      flightNumber: "UA328",
+      route: "ORD to SFO",
+      departureTime: "2026-08-15T08:40:00-05:00",
+      gate: "C12",
+      seat: "14A",
+      cabin: "Economy Plus",
+      checkedBags: 1,
+      status: "Confirmed",
+      flightStatus: "On Time",
+    },
+  ],
+  provenance: {
+    backend: "United Reservations DB",
+    engine: "SQLite",
+    database: "airlines.db",
+    tool: "get_airline_bookings",
+    queryId: "2a3984a1-e4fc-40b8-a129-53ef4bd09bd9",
+    queriedAt: new Date().toISOString(),
+    durationMs: 1.23,
+    recordCount: 1,
+    tables: ["passengers", "bookings", "flights"],
+  },
+})}`;
+
+    const { container } = render(
+      <MessageContent
+        text={text}
+        proofRunId="run-united-123"
+        onAirlineRefresh={onRefresh}
+      />,
+    );
+
+    expect(screen.getByText("Jordan A. Rivera")).toBeInTheDocument();
+    expect(screen.getByText(/45,320 miles/)).toBeInTheDocument();
+    expect(screen.getAllByText("UA328")).toHaveLength(2);
+    expect(screen.getAllByText("K7XR2M")).toHaveLength(2);
+    expect(screen.getByText("Economy Plus")).toBeInTheDocument();
+    expect(screen.getAllByText(/08:40/)).toHaveLength(2);
+    expect(screen.getByText("LIVE · UNITED DB")).toBeInTheDocument();
+    expect(screen.getByText("Retrieved just now")).toBeInTheDocument();
+    expect(screen.getByText("View database proof")).toBeInTheDocument();
+    expect(screen.getByText("United Reservations DB")).toBeInTheDocument();
+    expect(screen.getByText("run-united-123")).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "United database rows" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh from United DB" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(container.textContent).not.toContain('"confirmationNumber"');
+    if (originalTimezone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimezone;
+    }
+  });
+
+  test("shows a United-specific live database query pulse", () => {
+    render(<UnitedDatabasePulse />);
+    expect(
+      screen.getByRole("status", { name: "Querying United Reservations Database" }),
+    ).toHaveTextContent("Querying United Reservations DB...");
+  });
+
+  test("does not claim legacy booking payloads came from the live database", () => {
+    const legacyPayload = {
+      passenger: { name: "Jordan A. Rivera" },
+      bookings: [{ flightNumber: "UA328", confirmationNumber: "K7XR2M" }],
+    };
+
+    render(<MessageContent text={JSON.stringify(legacyPayload)} />);
+
+    expect(screen.getByText("UA328")).toBeInTheDocument();
+    expect(screen.queryByText("LIVE · UNITED DB")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("United data provenance")).not.toBeInTheDocument();
   });
 });
 

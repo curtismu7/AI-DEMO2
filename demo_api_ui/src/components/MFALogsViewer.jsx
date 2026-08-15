@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "./MFALogsViewer.css";
+import { notifySuccess } from '../utils/appToast';
 
 export default function MFALogsViewer() {
   const [logs, setLogs] = useState([]);
@@ -31,7 +32,7 @@ export default function MFALogsViewer() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setLogs([]);
       setSelectedLog(null);
-      alert("Logs cleared");
+      notifySuccess("Logs cleared");
     } catch (err) {
       setError(err.message);
     }

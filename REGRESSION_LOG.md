@@ -5,6 +5,99 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-08-05 — Token Chain could not distinguish live hops from possible steps
+
+**Symptom**: Token Chain rendered the full possible pipeline before the agent
+ran, making skipped token exchange or PingOne Authorize look like pending work
+and reducing the visual impact of a live demo.
+
+**Root cause**: `TokenChainTraceRail` mapped the complete `buildTraceSteps`
+catalog directly for every trace state. The catalog correctly knew every
+possible hop, but the UI had no run-aware projection over it.
+
+**Fix**: Added a Live projection that starts empty, reveals active/completed/
+failed steps as evidence arrives, and reconciles all possible steps when the run
+completes. Any still-pending possibility becomes an explicit `notinpath` step
+with a reason, including skipped token exchange and PingOne Authorize. A2A token
+events inject distinct main-agent, specialist-agent, exchange, Agent Card, and
+SendMessage steps into the live sequence. Observed backend results add separate
+Resource Server and Database cards, with United Airlines completing the database
+hop only when the result reports its real SQLite source. The unchanged Classic
+projection remains selectable and persisted as the immediate demo fallback.
+
+**Do not break**: Classic must always remain available without a redeploy; Live
+must not show future steps mid-run; completed Live runs must explain applicable
+skips; database completion must require runtime SQL-source evidence; Clear must
+empty either projection and reject stale tagged evidence.
+
+**Tests**: `demo_api_ui/src/components/__tests__/TokenChainTraceRail.test.jsx`
+(empty Live start, observed-step reveal, completed skip reconciliation,
+conditional/repeated steps, persisted Classic fallback, Clear);
+`demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+(reset and late-event rejection); full UI unit suite and production build.
+
+---
+
+## 2026-08-05 — Token Topology showed a fixed route and could repaint after Clear
+
+**Symptom**: Token Topology pre-rendered a fixed set of boxes rather than showing
+the route the agent actually took. Clear did not visibly remove those boxes, and
+late tagged evidence or a retained inspector selection could repaint stale run
+details after another surface reset the trace.
+
+**Root cause**: The panel rendered a static node list and Clear called
+`beginTrace()`, which created another run and retained session evidence. After
+switching Clear to `reset()`, the store had no active flow identity against which
+to reject a late event from the cleared run, while the inspector resolved its
+selection against the always-populated step model rather than the observed
+topology.
+
+**Fix**: `TokenTopologyPanel` now derives boxes and arrows from active, completed,
+or failed trace steps and enriches those nodes as evidence arrives. Clear uses a
+full store reset; the store treats that reset as an explicit run boundary that
+rejects late tagged evidence until the next `beginTrace`; inspector selection is
+resolved only from currently observed topology nodes.
+
+**Do not break**: pending and not-in-path steps must remain absent, conditional
+and repeated observed steps must render in trace order, and Clear must leave an
+empty topology that cannot be repainted by tagged evidence from the cleared run.
+
+**Tests**: `demo_api_ui/src/components/__tests__/TokenTopologyPanel.a2a.test.jsx`
+(observed live topology, detail enrichment, full clear, external-reset inspector
+cleanup); `demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`
+(late tagged token/SSE evidence rejected after reset); full UI unit suite and
+production build.
+
+---
+
+## 2026-08-04 — Blocked-token resolution wasn't checked by direct callers of resolveMcpAccessTokenWithEvents (follow-up to the raw-user-token-forwarding fix)
+
+**Symptom**: Code review (Greptile) flagged that the `blocked` result added to `resolveMcpAccessTokenWithEvents` (see the entry above) was only handled by `mcpToolPipeline.js`. Other direct callers destructured `token` and either surfaced a generic 401/502 instead of the intended 403, or — in `agentPreflightService.evaluate()` — continued past the null token into the P1AZ gate call, where a gate that doesn't run (`!gate.ran`) falls back to `PERMIT`. A blocked resolution could therefore still end up PERMITted.
+
+**Root cause**: `blocked`/`blockCode`/`blockMessage`/`blockHttpStatus` were only added to the return shape; no caller besides `mcpToolPipeline.js` was updated to check for them.
+
+**Fix**: Added `resolved.blocked` checks (short-circuiting to DENY/403 before any downstream gate/gateway/MCP call) to: `services/agentPreflightService.js` (`evaluate()` and `evaluateBatch()` — the real fail-open risk), `services/agentToolsResolver.js`, `services/bffMcpToolExecutor.js` (`callMcpToolAsAgent` and the direct `tool.invoke` fallback), `server.js` (`/api/mcp/scope-upgrade`), and `routes/mcpGatewayConfig.js` (both direct tool-call routes). Added a shared `describeBlockedToken()` helper export in `agentMcpTokenService.js` for future callers.
+
+**Do not break**: `agentPreflightService.evaluate()` must return DENY on a blocked resolution before the gate is ever called, regardless of `ff_authorize_fail_open` — a blocked token must never fall through to the gate's own `!gate.ran → PERMIT` fallback.
+
+**Tests**: `demo_api_server/tests/agentPreflight.regression.test.js` (new blocked-resolution case), `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js` (2 new blocked-resolution pipeline cases)
+
+---
+
+## 2026-08-04 — MCP tool calls forwarded the raw user token when `ff_skip_token_exchange` was enabled
+
+**Symptom**: `create_transfer` reached the MCP server with `aud=enduser.ping.demo` instead of a delegated MCP audience, so the gateway/MCP hop failed with an audience mismatch instead of exercising the intended exchange path.
+
+**Root cause**: The `ff_skip_token_exchange` branch in `resolveMcpAccessTokenWithEvents` returned the session user token unchanged. That meant the BFF could hand the MCP hop a raw end-user bearer instead of a delegated token, which is exactly the case the demo should never allow except to demonstrate that it is blocked.
+
+**Fix**: `demo_api_server/services/agentMcpTokenService.js` now treats `ff_skip_token_exchange` as a deny path: it emits an `exchange-skipped` failure event, returns a blocked result, and never forwards the user token. `demo_api_server/services/mcpToolPipeline.js` now surfaces that blocked result as a 403 before any MCP call, and the config comment / unit tests were updated to match.
+
+**Do not break**: keep the normal RFC 8693 exchange path intact, including delegated MCP tokens and token-chain events; only the raw user-token forwarding path is blocked.
+
+**Tests**: `demo_api_server/src/__tests__/agentMcpTokenService.test.js` (`ff_skip_token_exchange` cases)
+
+---
+
 ## 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
 
 **Symptom**: The consent modal rendered too tall relative to the reference screenshot, with oversized vertical padding and spacing that made the dialog feel stretched.

@@ -22,7 +22,7 @@ Agent steps use mocked NL + `user_profile_card` MCP response; architecture and `
 Same stack as the PERMIT banking guide, plus:
 
 - Customer token includes **`openid profile banking:read`** scopes
-- Feature flags: `ff_mcp_gateway_pinggateway=true`, real P1AZ (`ff_authorize_simulated=false`)
+- Feature flags: `ff_mcp_gateway_pinggateway=true`, real P1AZ (`ff_authorize_real=true`)
 
 **Trigger:** chip **Access + ID-Token Path Demo** or banking action `dual_token_demo`
 

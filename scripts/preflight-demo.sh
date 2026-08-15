@@ -13,7 +13,7 @@
 #                             asserts each resolves to a non-none intent and, when the
 #                             chip declares a tool, to that action.
 #   6. Demo feature flags     gen-demo-flag-map.js --live — fails only when an AMBIENT
-#                             flag is wrong (ff_use_cases_launcher, ff_heuristic_enabled).
+#                             flag is wrong (including real Gateway + real P1AZ posture).
 #                             Per-step flags off is fine: they arm when the step runs.
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
@@ -369,8 +369,8 @@ done
 # copy is exactly how the requiredDemoFlags mirror drifted and took 22 use cases
 # down (#886).
 #
-# It exits non-zero ONLY for AMBIENT flags (ff_use_cases_launcher,
-# ff_heuristic_enabled) — the ones nothing arms for you. Per-step flags reading
+# It exits non-zero ONLY for AMBIENT flags — including the real PingOne Agent
+# Gateway + real P1AZ posture — the ones nothing arms for you. Per-step flags reading
 # off is expected: /api/use-cases/demo/run arms them when the step executes, so
 # failing on those would cry wolf on every run.
 FLAGMAP_OUT="$(node "$ROOT/scripts/gen-demo-flag-map.js" --live --base "$BASE" 2>&1)"
@@ -486,7 +486,7 @@ echo
 echo "— fallback ladder —"
 node scripts/check-goldens.js 2>/dev/null | head -1 || echo "  (goldens check unavailable)"
 echo "  L1 heuristics: always available (mode switch)"
-echo "  L2 simulated authorize: PATCH ff_authorize_simulated=true (+ authz-server)"
+echo "  L2 outage only — mock authorize: PATCH ff_authorize_real=false (+ authz-server)"
 echo "  L3 REPLAY: button on any chip-failure message (needs goldens above)"
 echo
 if [[ $FAIL -eq 0 ]]; then

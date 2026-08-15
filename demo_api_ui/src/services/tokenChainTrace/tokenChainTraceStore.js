@@ -35,6 +35,10 @@ let runSeq = 0;
 // its id (beginTrace / bindFlowTrace). Used to reject late evidence from a run
 // that is no longer current.
 let activeFlowTraceId = null;
+// A full presenter reset is an explicit boundary, not another run. Tagged
+// evidence from the cleared run must stay rejected until beginTrace starts the
+// next run, even though there is temporarily no activeFlowTraceId to compare.
+let explicitlyReset = false;
 const listeners = new Set();
 
 // True when `flowTraceId` identifies a DIFFERENT run than the one that owns the
@@ -42,11 +46,38 @@ const listeners = new Set();
 // before a run binds its id are accepted — this only drops evidence that a
 // prior run positively stamped with its own id, which is the cross-run leak.
 function isForeignRun(flowTraceId) {
+  if (flowTraceId == null) return false;
+  if (explicitlyReset) return true;
   return (
-    flowTraceId != null &&
     activeFlowTraceId != null &&
     flowTraceId !== activeFlowTraceId
   );
+}
+
+// Synthesize a standard authorize shape from a gw-authorize token event so
+// consumers that read trace.authorize don't need per-site fallback logic.
+function _gwAuthorizeToAuthorize(ev) {
+  return {
+    engine: ev.authorizeEngine || ev.backend || 'pingone',
+    decision: ev.decision || ev.authorizeDecision || null,
+    decisionId: ev.decisionId || null,
+    decisionContext: ev.tool ? `tool:${ev.tool}` : null,
+    path: ev.url || null,
+    request: ev.authorizeRequest
+      || (ev.parameters ? { method: 'POST', url: ev.url || '', parameters: ev.parameters } : null),
+    response: ev.authorizeResponse || ev.rawResponse || null,
+    source: 'gw-authorize',
+  };
+}
+
+// If a gw-authorize event exists in trace.tokenEvents and trace.authorize has
+// not been set by ingestAuthorize (which owns the non-gateway path), synthesize
+// trace.authorize from the event. Called after every tokenEvents mutation so
+// downstream consumers only need to read trace.authorize, never scan tokenEvents.
+function _syncGwAuthorize() {
+  if (trace.authorize) return;
+  const gwEv = trace.tokenEvents.find((e) => e && e.id === 'gw-authorize');
+  if (gwEv) trace.authorize = _gwAuthorizeToAuthorize(gwEv);
 }
 
 const GATE_OUTCOMES = new Set(["STEP_UP", "HITL_REQUIRED"]);
@@ -110,6 +141,7 @@ export const tokenChainTraceStore = {
     const carried = gateToCarry(trace, prompt);
 
     trace = EMPTY_TRACE();
+    explicitlyReset = false;
     trace.startedAt = Date.now();
     trace.runId = ++runSeq;
     trace.prompt = prompt ? { message: String(prompt) } : null;
@@ -131,7 +163,7 @@ export const tokenChainTraceStore = {
    * any late evidence from a prior run is dropped by isForeignRun.
    */
   bindFlowTrace(flowTraceId) {
-    if (!flowTraceId) return;
+    if (!flowTraceId || explicitlyReset) return;
     activeFlowTraceId = flowTraceId;
     trace.flowTraceId = flowTraceId;
   },
@@ -150,12 +182,15 @@ export const tokenChainTraceStore = {
   },
   ingestTokenEvents(events) {
     if (!Array.isArray(events) || !events.length) return;
+    const acceptedEvents = events.filter((event) => !isForeignRun(event?.flowTraceId));
+    if (!acceptedEvents.length) return;
     ensureTrace();
-    const incoming = new Set(events.map((e) => e && e.id));
+    const incoming = new Set(acceptedEvents.map((e) => e && e.id));
     const carried = trace.tokenEvents.filter(
       (e) => e && SESSION_EVENT_IDS.includes(e.id) && !incoming.has(e.id),
     );
-    trace.tokenEvents = [...carried, ...events];
+    trace.tokenEvents = [...carried, ...acceptedEvents];
+    _syncGwAuthorize();
     emit();
   },
   ingestTokenEvent(event) {
@@ -174,6 +209,7 @@ export const tokenChainTraceStore = {
     } else {
       trace.tokenEvents = [...trace.tokenEvents, event];
     }
+    _syncGwAuthorize();
     emit();
   },
   ingestAuthorize(evaluation) {
@@ -246,6 +282,7 @@ export const tokenChainTraceStore = {
   reset() {
     trace = EMPTY_TRACE();
     activeFlowTraceId = null;
+    explicitlyReset = true;
     try {
       agentFlowDiagram.clearServerEvents();
     } catch { /* display-only */ }

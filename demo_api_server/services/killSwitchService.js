@@ -13,7 +13,29 @@ const crypto = require('crypto');
 const oauthConfig = require('../config/oauth');
 const configStore = require('./configStore');
 const auditLogService = require('./auditLogService');
+const agentLifecycleEvents = require('./agentLifecycleEvents');
 const pingOneUserService = require('./pingOneUserService');
+const killSwitchSseHub = require('./killSwitchSseHub');
+
+/**
+ * How long a kill holds before the agent comes back on its own.
+ *
+ * The local block is written with this as its cookie.maxAge, so the session
+ * store expires it without anything having to run — restart-safe by
+ * construction. The PingOne application disable has no TTL of its own, so a
+ * full-scope kill also leaves a due-at marker for sweepDueAppReenables().
+ */
+const AUTO_RESET_MS = 10 * 60 * 1000;
+
+/** Marker TTL. Must outlive AUTO_RESET_MS or the sweep can never see the record. */
+const REENABLE_MARKER_TTL_MS = 24 * 60 * 60 * 1000;
+
+const REENABLE_KEY_SUFFIX = ':app-reenable';
+
+/** @param {string} agentId */
+function appReenableKey(agentId) {
+  return `agent:${agentId}${REENABLE_KEY_SUFFIX}`;
+}
 
 /**
  * Revoke a single token at PingOne using the RFC 7009 revocation endpoint.
@@ -118,27 +140,27 @@ async function disableAgentApplicationsAtPingOne() {
     return [];
   }
 
-  const results = [];
-  for (const app of apps) {
-    try {
-      pingOneUserService.initialize();
-      const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
-      if (current.enabled === false) {
-        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already disabled`);
-        results.push({ key: app.key, applicationId: app.id, disabled: true, reason: 'already_disabled' });
-        continue;
+  const results = await Promise.all(
+    apps.map(async (app) => {
+      try {
+        pingOneUserService.initialize();
+        const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
+        if (current.enabled === false) {
+          console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already disabled`);
+          return { key: app.key, applicationId: app.id, disabled: true, reason: 'already_disabled' };
+        }
+        const body = { ...current, enabled: false };
+        for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
+        await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
+        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) disabled — no new agent tokens can be issued`);
+        return { key: app.key, applicationId: app.id, disabled: true };
+      } catch (err) {
+        // Non-fatal: token revocation + user disable still apply
+        console.error(`[killSwitch] Failed to disable PingOne application ${app.id} (${app.key}):`, err.message);
+        return { key: app.key, applicationId: app.id, disabled: false, reason: err.message };
       }
-      const body = { ...current, enabled: false };
-      for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
-      await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
-      console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) disabled — no new agent tokens can be issued`);
-      results.push({ key: app.key, applicationId: app.id, disabled: true });
-    } catch (err) {
-      // Non-fatal: token revocation + user disable still apply
-      console.error(`[killSwitch] Failed to disable PingOne application ${app.id} (${app.key}):`, err.message);
-      results.push({ key: app.key, applicationId: app.id, disabled: false, reason: err.message });
-    }
-  }
+    })
+  );
   return results;
 }
 
@@ -161,47 +183,59 @@ async function enableAgentApplicationsAtPingOne() {
     return [];
   }
 
-  const results = [];
-  for (const app of apps) {
-    try {
-      pingOneUserService.initialize();
-      const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
-      if (current.enabled === true) {
-        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already enabled`);
-        results.push({ key: app.key, applicationId: app.id, enabled: true, reason: 'already_enabled' });
-        continue;
+  const results = await Promise.all(
+    apps.map(async (app) => {
+      try {
+        pingOneUserService.initialize();
+        const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
+        if (current.enabled === true) {
+          console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already enabled`);
+          return { key: app.key, applicationId: app.id, enabled: true, reason: 'already_enabled' };
+        }
+        const body = { ...current, enabled: true };
+        for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
+        await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
+        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) re-enabled`);
+        return { key: app.key, applicationId: app.id, enabled: true };
+      } catch (err) {
+        console.error(`[killSwitch] Failed to re-enable PingOne application ${app.id} (${app.key}):`, err.message);
+        return { key: app.key, applicationId: app.id, enabled: false, reason: err.message };
       }
-      const body = { ...current, enabled: true };
-      for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
-      await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
-      console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) re-enabled`);
-      results.push({ key: app.key, applicationId: app.id, enabled: true });
-    } catch (err) {
-      console.error(`[killSwitch] Failed to re-enable PingOne application ${app.id} (${app.key}):`, err.message);
-      results.push({ key: app.key, applicationId: app.id, enabled: false, reason: err.message });
-    }
-  }
+    })
+  );
   return results;
 }
 
 /**
- * Invalidate all agent sessions in Redis/session store
+ * Invalidate all agent-scoped keys (agent:<id>:*) in the session store —
+ * the revoked flag, rate-limit counters, refresh-token cache, etc.
  * @param {string} agentId
  * @returns {Promise<{invalidated: number}>}
  */
 async function invalidateSessionsInRedis(agentId) {
   try {
-    // Access session store (Upstash Redis or local Redis)
     const sessionStore = require('../middleware/sessionConfig').store;
-    
-    if (!sessionStore || !sessionStore.client) {
+
+    if (!sessionStore) {
+      console.warn('[killSwitch] Session store not available');
+      return { invalidated: 0 };
+    }
+
+    // LmdbSessionStore path — direct range-scan delete, no Redis needed.
+    if (typeof sessionStore.deleteByPrefix === 'function') {
+      const invalidated = sessionStore.deleteByPrefix(`agent:${agentId}:`);
+      console.log(`[killSwitch] Invalidated ${invalidated} sessions for agent ${agentId}`);
+      return { invalidated };
+    }
+
+    if (!sessionStore.client) {
       console.warn('[killSwitch] Session store not available');
       return { invalidated: 0 };
     }
 
     // Pattern: agent:agentId:* — find all sessions for this agent
     const pattern = `agent:${agentId}:*`;
-    
+
     // Use Redis SCAN to find matching keys (non-blocking)
     let cursor = 0;
     let invalidatedCount = 0;
@@ -313,27 +347,137 @@ async function captureAgentState(agentId) {
 }
 
 /**
- * Check if agent is revoked
- * @param {string} agentId 
+ * Check if agent is revoked. Reads through the generic express-session Store
+ * interface (get/set, callback-based) rather than a Redis-specific client —
+ * this deployment's default store is LmdbSessionStore, which has no `.client`.
+ * Works identically against a Redis-backed store (e.g. connect-redis), which
+ * implements the same Store interface.
+ * @param {string} agentId
  * @returns {Promise<boolean>}
  */
 async function isAgentRevoked(agentId) {
   try {
     const sessionStore = require('../middleware/sessionConfig').store;
-    
-    if (!sessionStore || !sessionStore.client) {
-      return false;
-    }
+    if (!sessionStore) return false;
 
-    // Check if revoked flag is set
     const revokedKey = `agent:${agentId}:revoked`;
-    const revoked = await sessionStore.client.get(revokedKey);
-    
-    return revoked === 'true';
+    const entry = await new Promise((resolve) => {
+      sessionStore.get(revokedKey, (err, value) => resolve(err ? null : value));
+    });
+
+    return !!(entry && entry.revoked === true);
   } catch (error) {
     console.warn('[killSwitch] Error checking revocation:', error.message);
     return false;
   }
+}
+
+/**
+ * Inverse of the revoked-flag write in killAgent — clears agent:<agentId>:revoked
+ * so the kill check in runMcpToolPipeline stops rejecting this agent's calls
+ * before the flag's own 24h TTL would have expired it naturally.
+ * @param {string} agentId
+ * @returns {Promise<boolean>} true if the clear succeeded (or there was nothing to clear)
+ */
+async function unrevokeAgent(agentId) {
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore) return false;
+    await new Promise((resolve, reject) => {
+      sessionStore.destroy(`agent:${agentId}:revoked`, (err) => (err ? reject(err) : resolve()));
+    });
+    return true;
+  } catch (error) {
+    console.warn('[killSwitch] Error clearing revocation flag:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Leave a marker saying "re-enable this agent's PingOne applications at dueAt".
+ * Written through the same generic Store interface as the revoked flag.
+ * @param {string} agentId
+ * @returns {Promise<boolean>} true when the marker was stored
+ */
+async function recordPendingAppReenable(agentId) {
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore) return false;
+    await new Promise((resolve, reject) => {
+      sessionStore.set(
+        appReenableKey(agentId),
+        {
+          agentId,
+          dueAt: Date.now() + AUTO_RESET_MS,
+          cookie: { maxAge: REENABLE_MARKER_TTL_MS },
+        },
+        (err) => (err ? reject(err) : resolve()),
+      );
+    });
+    return true;
+  } catch (error) {
+    console.warn('[killSwitch] Could not record pending app re-enable:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Re-enable the agent applications for every due marker, then clear it.
+ *
+ * Deliberately does NOT re-enable the PingOne user account: a disabled human
+ * account is re-enabled by an admin on purpose, not by a timer.
+ *
+ * A marker whose re-enable fails is left in place, so the next sweep retries
+ * rather than stranding the agent client disabled.
+ *
+ * @returns {Promise<string[]>} the store keys that were swept and cleared
+ */
+async function sweepDueAppReenables() {
+  const swept = [];
+  try {
+    const sessionStore = require('../middleware/sessionConfig').store;
+    if (!sessionStore || typeof sessionStore.all !== 'function') return swept;
+
+    const entries = await new Promise((resolve) => {
+      sessionStore.all((err, value) => resolve(err ? {} : (value || {})));
+    });
+
+    const now = Date.now();
+    const due = Object.entries(entries).filter(
+      ([key, sess]) => key.endsWith(REENABLE_KEY_SUFFIX) && sess && sess.dueAt <= now,
+    );
+
+    for (const [key] of due) {
+      const results = await enableAgentApplicationsAtPingOne();
+      const allBack = results.every((r) => r.enabled);
+      if (!allBack) {
+        console.warn(`[killSwitch] Auto-reset for ${key} did not restore every application — leaving the marker for the next sweep`);
+        continue;
+      }
+      await new Promise((resolve) => {
+        sessionStore.destroy(key, () => resolve());
+      });
+      swept.push(key);
+      console.log(`[killSwitch] Auto-reset complete for ${key} — agent applications re-enabled`);
+    }
+  } catch (error) {
+    console.warn('[killSwitch] App re-enable sweep failed:', error.message);
+  }
+  return swept;
+}
+
+/**
+ * Run sweepDueAppReenables on an interval for the life of the process.
+ * unref'd so it never holds the process open (jest, CLI scripts).
+ * @param {number} [intervalMs]
+ * @returns {NodeJS.Timeout}
+ */
+function startAutoResetSweep(intervalMs = 30 * 1000) {
+  const timer = setInterval(() => {
+    sweepDueAppReenables().catch((e) => console.warn('[killSwitch] sweep error:', e.message));
+  }, intervalMs);
+  if (typeof timer.unref === 'function') timer.unref();
+  return timer;
 }
 
 /**
@@ -368,11 +512,18 @@ async function getAgentRefreshToken(agentId) {
  * @param {'full'|'instance'} [scope] - 'instance' (default) skips disableAgentApplicationsAtPingOne
  *   and disableUserAtPingOne so only THIS caller's tokens/session are stopped.
  *   'full' also disables the agent's PingOne application(s) and the user account.
+ * @param {string} [sessionId] - req.sessionID of the caller, if present. When set, each
+ *   step is also pushed to killSwitchSseHub so KillSwitchConfirmModal can render it live
+ *   instead of waiting for the whole call to finish.
  * @returns {Promise<{success: boolean, revoked_at: string, state_snapshot_id: string, time_to_revoke_ms: number, scope: string, steps: Array}>}
  */
-async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'instance') {
+async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'instance', sessionId = null) {
   const startTime = Date.now();
   const steps = [];
+  const pushStep = (step) => {
+    steps.push(step);
+    killSwitchSseHub.publishStep(sessionId, { agentId, step });
+  };
 
   try {
     console.log(`[killSwitch] Executing kill switch for agent ${agentId}. Reason: ${reason}. Scope: ${scope}`);
@@ -385,11 +536,11 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     if (!revokeResult.revoked) {
       console.warn(`[killSwitch] Token revocation returned revoked=false — proceeding with session invalidation`);
     }
-    steps.push({
+    pushStep({
       key: 'token_revocation',
       label: 'Revoke OAuth tokens at PingOne',
       detail: revokeResult.revoked
-        ? 'Access/ID token revoked (RFC 7009) — already-issued tokens are now invalid.'
+        ? 'Access/ID token revoked (RFC 7009) — already-issued tokens are now invalid. This does not interrupt a call already in progress; it stops the token being reused on the next one.'
         : 'No valid access/ID token found on this session to revoke.',
       ran: true,
       skipped: false,
@@ -400,7 +551,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     let userDisableResult = null;
     if (scope === 'instance') {
       killAgent._userId = null;
-      steps.push({
+      pushStep({
         key: 'user_disable',
         label: 'Disable the PingOne user account',
         detail: 'Skipped — instance-only scope. The human account stays enabled for re-login.',
@@ -413,7 +564,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
         userDisableResult = await disableUserAtPingOne(killAgent._userId);
         killAgent._userId = null;
       }
-      steps.push({
+      pushStep({
         key: 'user_disable',
         label: 'Disable the PingOne user account',
         detail: userDisableResult
@@ -436,7 +587,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     //     for everyone else.
     let applicationsDisabled = [];
     if (scope === 'instance') {
-      steps.push({
+      pushStep({
         key: 'app_disable',
         label: "Disable the agent's PingOne application",
         detail: 'Skipped — instance-only scope. The agent client stays enabled so other users are unaffected.',
@@ -447,7 +598,12 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     } else {
       applicationsDisabled = await disableAgentApplicationsAtPingOne();
       const anyDisabled = applicationsDisabled.some((a) => a.disabled);
-      steps.push({
+      // Unlike the revoked flag, a disabled PingOne application has no TTL —
+      // it stays disabled until something calls the Management API again.
+      // Leave a due-at marker so sweepDueAppReenables() can restore it. A
+      // setTimeout would not survive a BFF restart inside the 10-minute window.
+      if (anyDisabled) await recordPendingAppReenable(agentId);
+      pushStep({
         key: 'app_disable',
         label: "Disable the agent's PingOne application",
         detail: applicationsDisabled.length === 0
@@ -467,7 +623,7 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
 
     // 3. Invalidate sessions in Redis
     const sessionResult = await invalidateSessionsInRedis(agentId);
-    steps.push({
+    pushStep({
       key: 'session_invalidate',
       label: "Invalidate this agent's local sessions",
       detail: `${sessionResult.invalidated} session key(s) removed from the local session store.`,
@@ -475,24 +631,59 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       skipped: false,
     });
 
-    // 4. Mark agent as revoked in session store
+    // 4. Mark agent as revoked in session store — this is the actual enforcement
+    //    point: the kill check in runMcpToolPipeline checks this flag before
+    //    letting ANY new tool call through, so it's what makes "stop this
+    //    agent" real rather than just a token-revoke that a cached/in-flight
+    //    call could outrun.
+    //    Written through the generic express-session Store interface (not a
+    //    Redis-specific client) so it works against this deployment's
+    //    LmdbSessionStore as well as a Redis-backed store.
+    let revokedFlagSet = false;
     try {
       const sessionStore = require('../middleware/sessionConfig').store;
-      if (sessionStore && sessionStore.client) {
-        await sessionStore.client.setex(`agent:${agentId}:revoked`, 86400, 'true'); // 24 hour expiry
+      if (sessionStore) {
+        await new Promise((resolve, reject) => {
+          sessionStore.set(
+            `agent:${agentId}:revoked`,
+            { revoked: true, cookie: { maxAge: AUTO_RESET_MS } },
+            (err) => (err ? reject(err) : resolve()),
+          );
+        });
+        revokedFlagSet = true;
       }
     } catch (e) {
       console.warn('[killSwitch] Could not set revoked flag:', e.message);
     }
+    pushStep({
+      key: 'enforcement_flag',
+      label: 'Arm the next-request block',
+      detail: revokedFlagSet
+        ? `agent:${agentId}:revoked set for 10 minutes — the kill check in runMcpToolPipeline rejects the agent's NEXT tool call because of this flag, then the flag expires and the agent resumes on its own. A call already in flight when this ran will still complete.`
+        : 'Could not set the revoked flag — the session store was unreachable. Token revocation above still applies once the agent needs a fresh token.',
+      ran: revokedFlagSet,
+      skipped: !revokedFlagSet,
+      skipReason: revokedFlagSet ? undefined : 'session_store_unreachable',
+    });
 
     // 5. Record kill event in audit log
-    await auditLogService.recordKillEvent(agentId, reason, stateSnapshot, timeToRevoke, stateSnapshotId);
-    steps.push({
+    const killAuditId = await auditLogService.recordKillEvent(agentId, reason, stateSnapshot, timeToRevoke, stateSnapshotId);
+    pushStep({
       key: 'audit_log',
       label: 'Write immutable audit record',
       detail: 'Kill event recorded with reason, timing, and the state snapshot for forensic review.',
       ran: true,
       skipped: false,
+    });
+
+    agentLifecycleEvents.emit({
+      eventType: 'leaver',
+      agentId,
+      source: 'this-app',
+      kind: 'live',
+      reason,
+      auditId: killAuditId,
+      metadata: { scope },
     });
 
     const result = {
@@ -502,6 +693,10 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       time_to_revoke_ms: timeToRevoke,
       applications_disabled: applicationsDisabled,
       scope,
+      // When the block lifts on its own, so the Stop Agent modal can count down
+      // instead of leaving the audience wondering why the agent came back.
+      auto_reset_at: new Date(Date.now() + AUTO_RESET_MS).toISOString(),
+      auto_reset_in_ms: AUTO_RESET_MS,
       steps,
     };
 
@@ -526,6 +721,10 @@ module.exports = {
   killAgent,
   captureAgentState,
   isAgentRevoked,
+  unrevokeAgent,
+  sweepDueAppReenables,
+  startAutoResetSweep,
+  AUTO_RESET_MS,
   revokeTokenAtPingOne,
   disableAgentApplicationsAtPingOne,
   enableAgentApplicationsAtPingOne,

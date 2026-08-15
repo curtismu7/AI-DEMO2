@@ -11,7 +11,7 @@ const mode = {
   id: 'authorize.mode', name: 'Authorize mode', category: 'PingOne Authorize',
   severity: 'advisory',
   async run({ flags }) {
-    const simulated = flags.ff_authorize_simulated === true;
+    const simulated = flags.ff_authorize_real === false;
     return {
       status: 'pass',
       detail: simulated ? 'Demo / simulated mode active' : 'Real PingOne Authorize',
@@ -44,7 +44,7 @@ const realDecision = {
       return { status: 'fail', detail: 'PingOne returned no decision', meta: { decisions } };
     }
     const discriminates = decisions[0].decision !== decisions[1].decision;
-    const note = flags.ff_authorize_simulated ? ' (simulated active for demo; real path verified)' : '';
+    const note = flags.ff_authorize_real === false ? ' (mock outage fallback active; real path verified)' : '';
     return {
       status: discriminates ? 'pass' : 'warn',
       detail: discriminates

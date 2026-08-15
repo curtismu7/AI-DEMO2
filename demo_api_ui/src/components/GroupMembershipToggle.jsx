@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import DraggableModal from "./DraggableModal";
+import apiClient from "../services/apiClient";
 import "./GroupMembershipToggle.css";
 
 /**
@@ -15,7 +16,7 @@ import "./GroupMembershipToggle.css";
  * found. A write that silently no-ops therefore shows as unchanged here rather
  * than as success.
  */
-export default function GroupMembershipToggle({ onChange = null }) {
+export default function GroupMembershipToggle({ onChange = null, verticalId = null }) {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -26,17 +27,18 @@ export default function GroupMembershipToggle({ onChange = null }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/groups/membership", { credentials: "include" });
-      if (!res.ok) throw new Error(`membership lookup failed (${res.status})`);
-      const data = await res.json();
-      setState(data);
+      const res = await apiClient.get("/api/groups/membership", {
+        params: verticalId ? { verticalId } : {},
+        _silent: true,
+      });
+      setState(res.data);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
       setState(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [verticalId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -48,14 +50,14 @@ export default function GroupMembershipToggle({ onChange = null }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/groups/membership/toggle", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inGroup: !inGroup, category: "privileged" }),
+      const res = await apiClient.post("/api/groups/membership/toggle", {
+        inGroup: !inGroup,
+        category: "privileged",
+        ...(verticalId ? { verticalId } : {}),
+      }, {
+        _silent: true,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || `toggle failed (${res.status})`);
+      const data = res.data;
 
       await load();
       setModal({
@@ -71,11 +73,11 @@ export default function GroupMembershipToggle({ onChange = null }) {
       });
       if (onChange) onChange(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     } finally {
       setBusy(false);
     }
-  }, [privilegedGroup, inGroup, busy, load, onChange]);
+  }, [privilegedGroup, inGroup, busy, load, onChange, verticalId]);
 
   if (loading) {
     return <div className="gmt-panel gmt-panel--loading">Checking group membership…</div>;
@@ -115,6 +117,20 @@ export default function GroupMembershipToggle({ onChange = null }) {
           </span>
         </div>
 
+        {/* The demo's story, told where the control lives: scopes are not
+            entitlements. Wording is deliberately what the CODE does — a live
+            directory read per call, enforced before the tool runs — and NOT
+            "PingOne Authorize decides", which this gate cannot back (see
+            docs/superpowers/specs/2026-08-10-admin-demo-stories-design.md). */}
+        <div className="gmt-story">
+          <div className="gmt-story-title">The story: scopes are not entitlements</div>
+          <ol className="gmt-story-beats">
+            <li>The agent's token already holds every scope it needs — and it never changes during this demo.</li>
+            <li>What decides access is membership in this group, re-read live from the PingOne directory on every tool call.</li>
+            <li>Remove the user, and the very next call is refused — same token, no logout, no waiting for expiry. Add them back and it is permitted again.</li>
+          </ol>
+        </div>
+
         <dl className="gmt-facts">
           <div>
             <dt>User</dt>
@@ -144,7 +160,7 @@ export default function GroupMembershipToggle({ onChange = null }) {
           disabled={busy}
           aria-pressed={inGroup}
         >
-          {busy ? "Applying…" : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
+          {busy ? <><span className="gmt-spinner" aria-hidden="true" /> Applying…</> : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
         </button>
 
         {error ? <div className="gmt-inline-error">⚠️ {error}</div> : null}
@@ -172,10 +188,15 @@ export default function GroupMembershipToggle({ onChange = null }) {
               </span>
             </div>
 
+            {/* Accuracy: the gate is a live PingOne directory read enforced
+                before the tool runs — NOT a PingOne Authorize decision. The
+                earlier copy credited P1AZ, a claim this demo cannot back
+                (spec 2026-08-10-admin-demo-stories-design.md, "What the gate
+                actually is"). */}
             <p className="gmt-modal-body">
               {modal.inGroup
-                ? `The group-gated tool for ${modal.verticalId} will now be permitted. PingOne Authorize sees the membership and returns PERMIT.`
-                : `The group-gated tool for ${modal.verticalId} will now be denied. PingOne Authorize sees no membership and returns DENY, regardless of the token's scopes.`}
+                ? `The group-gated tools for ${modal.verticalId} are now permitted. The authorization check re-reads this membership from the PingOne directory on the next call.`
+                : `The group-gated tools for ${modal.verticalId} are now denied. The authorization check re-reads the PingOne directory on the next call and finds no membership — regardless of the token's scopes.`}
             </p>
 
             {modal.userTier ? (

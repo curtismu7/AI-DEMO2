@@ -29,6 +29,7 @@ const {
 } = require('./useCaseDemoBehaviors');
 const { getUseCaseStepUpMethod } = require('../config/useCases');
 const { verticalManifest } = require('./verticalManifest');
+const { resolveConsentContext } = require('./delegatedCommerceRuntime');
 
 /**
  * Extract nested actor id from MCP JWT (RFC 8693 multi-hop) when PingOne issues act.act.
@@ -383,7 +384,13 @@ async function _applyTransactionPolicy(
         transactionPolicyDenied: true,
       }, r, { source: 'transaction-policy', decision: 'DENY', decisionId: t.decisionId || null, raw: t.raw || null });
     }
-    if (forceStepUp || (t && t.stepUpRequired)) {
+    // Transaction-policy step-up is only valid when the amount is at or above the
+    // MFA threshold. Without this guard a PingOne policy that returns a step-up
+    // obligation for amounts in the HITL band (e.g. $300) would incorrectly route
+    // UC8 (consent-only) to MFA. Use-case-declared step-up (forceStepUp, UC7) is
+    // always honoured regardless of amount.
+    const _mfaThreshold = Number(configStore.getEffective('mfa_threshold_usd') || runtimeSettings.get('mfa_threshold_usd') || 500);
+    if (forceStepUp || (t && t.stepUpRequired && Number.isFinite(amount) && amount >= _mfaThreshold)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
       // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
       // Clear hitlRequired so the gate's HITL obligation doesn't bleed through.
@@ -919,6 +926,28 @@ async function evaluateMcpFirstToolGate(opts) {
     return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
   }
 
+  const delegatedConsent = resolveConsentContext(req, tool);
+  if (delegatedConsent && !delegatedConsent.sufficient) {
+    return {
+      ran: true,
+      block: {
+        status: 403,
+        body: {
+          error: delegatedConsent.status === 'revoked'
+            ? 'delegated_agent_revoked'
+            : 'delegated_consent_scope_denied',
+          error_description: delegatedConsent.status === 'revoked'
+            ? 'The customer revoked this delegated agent.'
+            : 'The customer did not grant every scope required by this tool.',
+          decisionContext: 'DelegatedConsent',
+          agentId: delegatedConsent.agentId,
+          consentScopes: delegatedConsent.consentScopes,
+          requiredScopes: delegatedConsent.requiredScopes,
+        },
+      },
+    };
+  }
+
   const inputs = await buildMcpFirstToolGateInputs(opts);
   if (inputs.earlyExit) {
     return inputs.earlyExit;
@@ -939,6 +968,14 @@ async function evaluateMcpFirstToolGate(opts) {
     hitlApproved,
     hitlAlreadyVerified,
   } = inputs;
+  if (delegatedConsent) {
+    liveDelegationArgs.delegatedAgentId = delegatedConsent.agentId;
+    liveDelegationArgs.consentScopes = delegatedConsent.consentScopes;
+    liveDelegationArgs.requiredConsentScopes = delegatedConsent.requiredScopes;
+    simParams.delegatedAgentId = delegatedConsent.agentId;
+    simParams.consentScopes = delegatedConsent.consentScopes;
+    simParams.requiredConsentScopes = delegatedConsent.requiredScopes;
+  }
   const userAcr = opts.userAcr;
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {

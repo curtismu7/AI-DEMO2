@@ -2,7 +2,7 @@
  * simulatedAuthorizeService.js
  *
  * Local "policy decision" that mimics PingOne Authorize **response shape** for demos and
- * user education when PingOne Authorize is not configured (or `ff_authorize_simulated` is on).
+ * user education when PingOne Authorize is not configured (or `ff_authorize_real` is on).
  *
  * Does **not** call PingOne. Returns the same fields as `pingOneAuthorizeService.evaluateTransaction`:
  *   { decision, stepUpRequired, path, decisionId, raw }
@@ -28,7 +28,7 @@ const { classifyObligations } = require('./authorizeObligations');
 const scopeTopology = require('./scopeTopology');
 
 // Guard: prevent accidental use in production without an explicit opt-in.
-// The feature-flag check (ff_authorize_simulated) at the caller layer is the primary gate,
+// The feature-flag check (ff_authorize_real) at the caller layer is the primary gate,
 // but a direct import of this module would bypass it. This secondary guard makes that impossible.
 if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SIMULATED_AUTHORIZE !== 'true') {
   throw new Error(
@@ -324,7 +324,7 @@ async function evaluateMcpFirstTool({
   //
   // Both the simulated AS (this file) and the PingOne PingAuthorize policy
   // enforce this rule — they receive the same inputs and must agree on the
-  // same outputs (parity is a design requirement; ff_authorize_simulated
+  // same outputs (parity is a design requirement; ff_authorize_real
   // picks which one runs at runtime).
   if (mcpResourceUri && tokenAudience) {
     const tokenAudList = String(tokenAudience).split(/[\s,]+/).filter(Boolean);
@@ -1099,7 +1099,7 @@ const AUTHORIZE_MODES = Object.freeze(['pingone', 'simulated', 'pingone_fallback
  * "which engine evaluates" and "what to do when PingOne is unreachable".
  *
  * `authorize_mode` (when explicitly set to one of AUTHORIZE_MODES) wins. When it
- * is unset, the mode is derived from the legacy ff_authorize_simulated +
+ * is unset, the mode is derived from ff_authorize_real +
  * authorize_failover_mode flags so existing deployments keep their behaviour.
  *
  * @param {object} configStore
@@ -1110,15 +1110,15 @@ function resolveAuthorizeMode(configStore) {
   // Legacy ff_authorize_fail_open=true maps to failover_mode=permit (back-compat).
   const legacyFailOpen = read('ff_authorize_fail_open') === 'true' || read('ff_authorize_fail_open') === true;
 
-  // ff_authorize_simulated is a DIRECT operator override: the QuickFlagsPill
-  // "Authorize Engine → Simulated" switch writes it, and the PingGateway
-  // X-Authz-Simulated header reads it directly per request. When it is explicitly
-  // true, force the simulated engine for the BFF transaction path too — otherwise
+  // ff_authorize_real is a DIRECT operator override: the QuickFlagsPill writes
+  // it, and the PingGateway X-Authz-Simulated header receives its inverse per
+  // request. When it is explicitly false, force the simulated engine for the
+  // BFF transaction path too — otherwise
   // authorize_mode's FIELD_DEFS default ('pingone') always won the explicit branch
   // below and this flag was dead for the BFF, so flipping the pill left dashboard
   // transfers on real P1AZ while MCP calls went to the mock (split brain).
-  const simOverride = read('ff_authorize_simulated');
-  if (simOverride === true || simOverride === 'true') {
+  const realOverride = read('ff_authorize_real');
+  if (realOverride === false || realOverride === 'false') {
     return {
       mode: 'simulated',
       useSimulated: true,
@@ -1138,7 +1138,7 @@ function resolveAuthorizeMode(configStore) {
 
   // Legacy derivation — reached only when authorize_mode resolves to a value NOT
   // in AUTHORIZE_MODES (a test store double, a bogus stored value, or a caller
-  // that still drives ff_authorize_simulated directly). Against the real
+  // that still drives ff_authorize_real directly). Against the real
   // configStore this branch is effectively dead: FIELD_DEFS defaults authorize_mode
   // to 'pingone_fallback_simulated', so getEffective() returns that on a
   // fresh/unset config and the explicit branch above wins.
@@ -1149,8 +1149,8 @@ function resolveAuthorizeMode(configStore) {
   // instead of 503-blocking the demo — the gate still RUNS, it never silently
   // degrades to ungated. Store authorize_mode='pingone' for strict fail-closed
   // (503 on outage), or authorize_mode='simulated' for the demo engine only.
-  const sim = read('ff_authorize_simulated');
-  const useSimulated = sim === true || sim === 'true';
+  const real = read('ff_authorize_real');
+  const useSimulated = real === false || real === 'false';
   const failoverMode = legacyFailOpen ? 'permit' : (read('authorize_failover_mode') || 'fallback_simulated');
   const mode = useSimulated
     ? 'simulated'

@@ -12,6 +12,10 @@
 .jh-punct { color: #57606a; }
 .jh-plain { color: inherit; }
 .jh-empty { color: #94a3b8; font-style: italic; }
+/* Bright red, not amber-on-amber: the old #92400e ink on the #fef3c7 wash was
+   unreadable in the token-claims blocks ("look for this yellow text, you can
+   not read it. Make bright red", 2026-08-10). */
+.jh-focus { background: rgba(220, 38, 38, 0.10); color: #dc2626; font-weight: 700; border-radius: 3px; }
 
 /* Critical fields (decision, outcome, error, status, result) — red */
 .jh-critical { color: #dc2626; font-weight: 600; }
@@ -24,6 +28,7 @@
 .jh-dark .jh-punct { color: #8b949e; }
 .jh-dark .jh-plain { color: inherit; }
 .jh-dark .jh-empty { color: #8b949e; }
+.jh-dark .jh-focus { background: rgba(255, 82, 82, 0.18); color: #ff5252; }
 
 /* Critical fields in dark mode */
 .jh-dark .jh-critical { color: #ff6b6b; font-weight: 600; }

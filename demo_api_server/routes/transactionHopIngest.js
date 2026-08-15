@@ -15,15 +15,9 @@
  *   403  forbidden    — missing or wrong x-internal-gateway-secret
  */
 const express = require('express');
-const crypto = require('crypto');
 const router = express.Router();
 const ledger = require('../services/lmdb/transactionLedger.lmdb');
-
-// Must match demo_mcp_gateway/src/config.ts DEFAULT_BFF_INTERNAL_SECRET and
-// routes/agentIdToken.js. Production startup refuses this literal elsewhere.
-const DEFAULT_INTERNAL_SECRET = 'dev-shared-secret-change-me';
-const INTERNAL_SECRET = process.env.BFF_INTERNAL_SECRET || DEFAULT_INTERNAL_SECRET;
-const INTERNAL_SECRET_BUF = Buffer.from(INTERNAL_SECRET);
+const { internalSecretMatches } = require('../utils/internalSecret');
 
 const VALID_PHASES = new Set([
   'ui.request',
@@ -54,17 +48,8 @@ function stripTokens(obj, depth = 0) {
   return out;
 }
 
-function _secretOk(presented) {
-  const buf = typeof presented === 'string' ? Buffer.from(presented) : null;
-  return (
-    !!buf &&
-    buf.length === INTERNAL_SECRET_BUF.length &&
-    crypto.timingSafeEqual(buf, INTERNAL_SECRET_BUF)
-  );
-}
-
 router.post('/transaction-hop', express.json({ limit: '64kb' }), (req, res) => {
-  if (!_secretOk(req.headers['x-internal-gateway-secret'])) {
+  if (!internalSecretMatches(req.headers['x-internal-gateway-secret'])) {
     return res.status(403).json({ error: 'forbidden' });
   }
 

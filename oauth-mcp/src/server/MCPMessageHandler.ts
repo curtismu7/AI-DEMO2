@@ -35,11 +35,18 @@ export interface MessageHandlerContext {
   userEmail?: string;
   /** Send a non-response notification to the connected client (e.g. CIBA progress). */
   sendNotification?: (notification: object) => void;
+  /**
+   * True when the transport admitted this request through the tokenless
+   * open-access hop (PingOne Privilege MCP Gateway, which authorizes upstream).
+   * There is no token to scope-check, so the per-tool scope gate is skipped.
+   * Never set for a caller that presented a validated bearer.
+   */
+  openAccess?: boolean;
 }
 
 export class MCPMessageHandler {
   private readonly serverInfo: ServerInfo = {
-    name: 'Banking MCP Server',
+    name: 'AI Demo MCP Server',
     version: '1.0.0',
     description: 'Secure banking operations MCP server with PingOne authentication'
   };
@@ -366,6 +373,15 @@ export class MCPMessageHandler {
 
       let authResult: AuthenticationResult;
       if (isPublicCatalogTool) {
+        authResult = { success: true, session: context.session };
+      } else if (context.openAccess) {
+        // Tokenless open-access hop: the gateway in front of this server made
+        // the decision and there is no token here to scope-check. Skipping is
+        // the mode's whole contract — running the gate against a tokenless
+        // request denied EVERY tool as "Insufficient scope ... availableScopes: []",
+        // which reads on the ProofStrip as policy working rather than as a
+        // deployment switch being on.
+        console.warn(`[MCPMessageHandler] Open-access hop: scope gate skipped for '${toolName}' (upstream gateway authorized this request)`);
         authResult = { success: true, session: context.session };
       } else {
       console.log(`[MCPMessageHandler] Validating authentication for scopes:`, requiredScopes);

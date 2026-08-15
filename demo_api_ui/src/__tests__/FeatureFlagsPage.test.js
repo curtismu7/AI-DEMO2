@@ -39,10 +39,10 @@ const MOCK_FLAGS = [
     category: "Security",
   },
   {
-    id: "ff_authorize_simulated",
-    name: "Simulated Authorize",
+    id: "ff_authorize_real",
+    name: "Real PingOne Authorize",
     value: false,
-    description: "Use mock rules instead of PingOne Authorize",
+    description: "Use real PingOne Authorize",
     category: "Security",
   },
 ];
@@ -117,7 +117,7 @@ describe("FeatureFlagsPage — loaded state", () => {
     render(<FeatureFlagsPage />);
     await screen.findByText("HITL Consent");
     expect(screen.getByText("HITL Consent")).toBeInTheDocument();
-    expect(screen.getByText("Simulated Authorize")).toBeInTheDocument();
+    expect(screen.getByText("Real PingOne Authorize")).toBeInTheDocument();
   });
 
   it("shows correct enabled/disabled counts", async () => {
@@ -146,7 +146,7 @@ describe("FeatureFlagsPage — loaded state", () => {
 describe("FeatureFlagsPage — flag toggle", () => {
   it("sends PATCH with correct body when toggled", async () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
-      f.id === "ff_authorize_simulated" ? { ...f, value: true } : f,
+      f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
     global.fetch = jest
       .fn()
@@ -158,10 +158,10 @@ describe("FeatureFlagsPage — flag toggle", () => {
       });
 
     render(<FeatureFlagsPage />);
-    await screen.findByText("Simulated Authorize");
+    await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable simulated authorize/i }),
+      screen.getByRole("button", { name: /enable real pingone authorize/i }),
     );
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
@@ -169,7 +169,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     const [patchUrl, patchInit] = global.fetch.mock.calls[2];
     expect(patchInit.method).toBe("PATCH");
     expect(JSON.parse(patchInit.body)).toEqual({
-      updates: { ff_authorize_simulated: true },
+      updates: { ff_authorize_real: true },
     });
     void patchUrl; // path tested by method alone
   });
@@ -186,25 +186,25 @@ describe("FeatureFlagsPage — flag toggle", () => {
       });
 
     render(<FeatureFlagsPage />);
-    await screen.findByText("Simulated Authorize");
+    await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable simulated authorize/i }),
+      screen.getByRole("button", { name: /enable real pingone authorize/i }),
     );
 
     // After rollback the flag reverts to false → button label returns to "Enable"
     await screen.findByRole("alert");
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "ff_authorize_simulated",
+      "ff_authorize_real",
     );
     expect(
-      screen.getByRole("button", { name: /enable simulated authorize/i }),
+      screen.getByRole("button", { name: /enable real pingone authorize/i }),
     ).toBeInTheDocument();
   });
 
   it("shows lastSaved toast after successful toggle", async () => {
     const confirmedFlags = MOCK_FLAGS.map((f) =>
-      f.id === "ff_authorize_simulated" ? { ...f, value: true } : f,
+      f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
     global.fetch = jest
       .fn()
@@ -216,20 +216,20 @@ describe("FeatureFlagsPage — flag toggle", () => {
       });
 
     render(<FeatureFlagsPage />);
-    await screen.findByText("Simulated Authorize");
+    await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable simulated authorize/i }),
+      screen.getByRole("button", { name: /enable real pingone authorize/i }),
     );
 
-    await screen.findByText(/ff_authorize_simulated/);
-    expect(screen.getAllByText(/ff_authorize_simulated/).length).toBeGreaterThan(0);
+    await screen.findByText(/ff_authorize_real/);
+    expect(screen.getAllByText(/ff_authorize_real/).length).toBeGreaterThan(0);
   });
 
   it("auto-dismisses lastSaved toast after 2.5 s", async () => {
     jest.useFakeTimers();
     const confirmedFlags = MOCK_FLAGS.map((f) =>
-      f.id === "ff_authorize_simulated" ? { ...f, value: true } : f,
+      f.id === "ff_authorize_real" ? { ...f, value: true } : f,
     );
     global.fetch = jest
       .fn()
@@ -243,13 +243,13 @@ describe("FeatureFlagsPage — flag toggle", () => {
     render(<FeatureFlagsPage />);
 
     // MutationObserver still works with fake timers — waitFor resolves via DOM mutations
-    await screen.findByText("Simulated Authorize");
+    await screen.findByText("Real PingOne Authorize");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /enable simulated authorize/i }),
+      screen.getByRole("button", { name: /enable real pingone authorize/i }),
     );
 
-    await screen.findByText(/ff_authorize_simulated/);
+    await screen.findByText(/ff_authorize_real/);
 
     // Fire the 2500ms auto-dismiss timer
     act(() => {

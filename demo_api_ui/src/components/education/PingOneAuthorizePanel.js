@@ -401,7 +401,7 @@ function AuthorizePolicyEducationDiagram() {
         </text>
       </svg>
       <figcaption style={{ fontSize: '0.78rem', color: '#374151', marginTop: 10, lineHeight: 1.5 }}>
-        Super Banking maps these ideas to <strong>Trust Framework parameters</strong> for PingOne Authorize (transactions and optional MCP first-tool
+        AI Demo maps these ideas to <strong>Trust Framework parameters</strong> for PingOne Authorize (transactions and optional MCP first-tool
         gate) and to <strong>token validation</strong> on the Banking API and MCP server. The diagram is a mental model — configure attribute names
         in PingOne to match what the BFF sends.
       </figcaption>
@@ -426,7 +426,7 @@ export default function PingOneAuthorizePanel({ isOpen, onClose, initialTabId })
             permitted — in real time, for every transaction.
           </p>
           <p>
-            In Super Banking, PingOne Authorize gates every <strong>transfer</strong> and{' '}
+            In AI Demo, PingOne Authorize gates every <strong>transfer</strong> and{' '}
             <strong>withdrawal</strong> for non-admin users. The response is one of:
           </p>
           <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
@@ -472,7 +472,7 @@ export default function PingOneAuthorizePanel({ isOpen, onClose, initialTabId })
    POST /api/transactions  { type: "transfer", amount: 500 }
 
 2. BFF checks configStore: authorize_enabled = "true"
-   If ff_authorize_simulated = "true" → in-process simulatedAuthorizeService (no PingOne call)
+   If ff_authorize_real = "false" → in-process simulatedAuthorizeService (no PingOne call)
    Else selects API path:
      • authorize_decision_endpoint_id set → Decision Endpoints API (Phase 2)
      • authorize_policy_id set            → Legacy PDP API (Phase 1 fallback)
@@ -777,7 +777,7 @@ export default function PingOneAuthorizePanel({ isOpen, onClose, initialTabId })
             </li>
           </ol>
 
-          <h3>Super Banking config fields</h3>
+          <h3>AI Demo config fields</h3>
           <p>Set these in <strong>Admin → Config → PingOne Authorize</strong>:</p>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>

@@ -38,14 +38,14 @@ the single resolver every tool-call path uses.
 
 ## Live-switchable authorize backend (mock vs real)
 
-PingGateway's decision backend follows the same **Simulated Authorize**
-(`ff_authorize_simulated`) toggle as the rest of the demo, carried per request via the
+PingGateway's decision backend follows the same **Real PingOne Authorize**
+(`ff_authorize_real`) toggle as the rest of the demo, carried per request via the
 `X-Authz-Simulated` header the BFF stamps:
 
-- `ff_authorize_simulated` **ON** -> `X-Authz-Simulated: true` -> `P1AZ_MOCK_BASE`
-  (`demo_authz_server`, no worker token).
-- **OFF** -> `X-Authz-Simulated: false` -> `P1AZ_REAL_BASE` (real PingOne Authorize; the
+- `ff_authorize_real` **ON** -> `X-Authz-Simulated: false` -> `P1AZ_REAL_BASE` (real PingOne Authorize; the
   Groovy filter fetches a worker token via `client_credentials`).
+- **OFF** -> `X-Authz-Simulated: true` -> `P1AZ_MOCK_BASE`
+  (`demo_authz_server`, no worker token; outage fallback only).
 - Header absent -> mock (default).
 
 Security note (demo): the header is trusted because the BFF is the sole intended caller.
@@ -167,7 +167,7 @@ Full working values (steps, error messages, request/response schemas) are record
 
 AAM has the same mock/real split as the decision endpoint. The BFF's
 `GET /api/aam/probe` sends `X-Authz-Simulated` (mirroring the effective
-`ff_authorize_simulated`) together with `X-BFF-Internal`; the gateway trusts
+`ff_authorize_real`) together with `X-BFF-Internal`; the gateway trusts
 the header only alongside that secret, so a gateway-audience token cannot force
 the mock. `true` retargets the Sideband call to `AAM_MOCK_BASE`
 (`demo_authz_server`'s `POST /sideband/request` and `/sideband/response`);

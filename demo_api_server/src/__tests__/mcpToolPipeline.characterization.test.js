@@ -192,6 +192,57 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome).toMatchObject({ kind: 'block', httpStatus: 401, body: { error: 'no_bearer' } });
   });
 
+  test('blocked resolution (ff_skip_token_exchange deny) → 403 block, no gate/gateway/MCP call', async () => {
+    const tokenEvents = [{ id: 'exchange-skipped', status: 'failed' }];
+    const deps = makeDeps({
+      resolveMcpAccessTokenWithEvents: jest.fn(async () => ({
+        token: null,
+        tokenEvents,
+        userSub: null,
+        blocked: true,
+        blockCode: 'user_token_forwarding_disabled',
+        blockMessage: 'Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.',
+        blockHttpStatus: 403,
+      })),
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome).toMatchObject({
+      kind: 'block',
+      httpStatus: 403,
+      body: {
+        error: 'user_token_forwarding_disabled',
+        message: 'Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.',
+        tokenEvents,
+      },
+    });
+    expect(deps.publishTokenEventsToSse).toHaveBeenCalledWith(expect.anything(), tokenEvents);
+    expect(deps.evaluateMcpFirstToolGate).not.toHaveBeenCalled();
+    expect(deps.callToolViaGateway).not.toHaveBeenCalled();
+    expect(deps.mcpCallTool).not.toHaveBeenCalled();
+    expect(deps.callToolLocal).not.toHaveBeenCalled();
+  });
+
+  test('blocked resolution falls back to default 403/code/message when resolver omits them', async () => {
+    const deps = makeDeps({
+      resolveMcpAccessTokenWithEvents: jest.fn(async () => ({
+        token: null,
+        tokenEvents: [],
+        userSub: null,
+        blocked: true,
+      })),
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome).toMatchObject({
+      kind: 'block',
+      httpStatus: 403,
+      body: {
+        error: 'user_token_forwarding_disabled',
+        message: 'Raw user-token forwarding to MCP is disabled.',
+      },
+    });
+    expect(deps.evaluateMcpFirstToolGate).not.toHaveBeenCalled();
+  });
+
   test('Authorize gate runs BEFORE the remote call on the permit path (ADR-0003/T-2)', async () => {
     const order = [];
     const deps = makeDeps();
@@ -426,7 +477,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   // Task 7 (docs/superpowers/sdd — token-chain dynamic steps plan): the
-  // BFF-simulated authorize decision (ff_authorize_simulated=true, engine
+  // BFF-simulated authorize decision (ff_authorize_real=false, engine
   // 'simulated') must produce a gw-authorize Token Chain event with the SAME
   // id/status contract as the real-gateway path (gwAuditTrail.authorize,
   // tested above) — so TokenChainDisplay renders identically regardless of

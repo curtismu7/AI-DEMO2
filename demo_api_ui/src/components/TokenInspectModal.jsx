@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
+import JsonHighlight from './shared/JsonHighlight';
 
 function decodeJwt(token) {
   try {
@@ -85,7 +86,9 @@ export function TokenInspectModal({ exchange, isOpen, onClose }) {
         <div style={{ marginBottom: 16 }}>
           <h4 style={{ margin: '0 0 8px 0' }}>Subject Token:</h4>
           <pre style={{ background: '#f9fafb', padding: 12, borderRadius: 4, overflow: 'auto', fontSize: '0.8rem', maxHeight: 150, margin: 0 }}>
-            {activeTab === 'decoded' ? (subjectDecoded ? JSON.stringify(subjectDecoded, null, 2) : '(Unable to decode)') : (exchange.subjectToken || '(none)')}
+            {activeTab === 'decoded'
+              ? (subjectDecoded ? <JsonHighlight value={subjectDecoded} /> : '(Unable to decode)')
+              : (exchange.subjectToken || '(none)')}
           </pre>
           <button onClick={() => copyToClipboard(exchange.subjectToken, 'subject token')} style={{
             marginTop: 8,
@@ -102,7 +105,9 @@ export function TokenInspectModal({ exchange, isOpen, onClose }) {
         <div style={{ marginBottom: 16 }}>
           <h4 style={{ margin: '0 0 8px 0' }}>Result Token:</h4>
           <pre style={{ background: '#f9fafb', padding: 12, borderRadius: 4, overflow: 'auto', fontSize: '0.8rem', maxHeight: 150, margin: 0 }}>
-            {activeTab === 'decoded' ? (resultDecoded ? JSON.stringify(resultDecoded, null, 2) : '(Unable to decode)') : (exchange.resultToken || '(none)')}
+            {activeTab === 'decoded'
+              ? (resultDecoded ? <JsonHighlight value={resultDecoded} /> : '(Unable to decode)')
+              : (exchange.resultToken || '(none)')}
           </pre>
           <button onClick={() => copyToClipboard(exchange.resultToken, 'result token')} style={{
             marginTop: 8,

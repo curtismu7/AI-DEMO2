@@ -26,6 +26,7 @@ const axios = require('axios');
 const https = require('node:https');
 const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
+const nrSegments = require('./nrSegments');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -77,19 +78,22 @@ const BANKINGDATA_TOOLS = new Set([
     'demo_show_transactions',
 ]);
 
-// weather-mcp showcase: PingGateway (IG) only — 00-mcp-weather.json fronts a
-// third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy.
-// No Node mcp-gateway equivalent exists. Only applied when the gateway base
-// IS PingGateway (base === pgUrl below).
+// weather-mcp showcase: fronted by PingGateway's 00-mcp-weather.json (a
+// third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy)
+// via the dedicated /mcp/weather route when the base IS PingGateway. The Node
+// mock gateway (demo_mcp_gateway) mirrors the same Texas-only geofence
+// (src/scopePolicies.ts checkWeatherScope) and takes this tool over its
+// single /mcp endpoint (routeTool() -> 'weather') — no dedicated path needed.
 const WEATHER_TOOLS = new Set([
     'get_weather',
 ]);
 
-// brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
+// brave-mcp showcase: fronted by PingGateway's 00-mcp-brave.json (a
 // hand-written MCP server that calls the real Brave Search News API, gated
-// by tx-brave-scope.groovy (crypto-term content blocklist). No
-// Node mcp-gateway equivalent exists. Only applied when the gateway base IS
-// PingGateway (base === pgUrl below) — same conditional weather uses.
+// by tx-brave-scope.groovy's crypto-term content blocklist) via the
+// dedicated /mcp/brave route when the base IS PingGateway. The Node mock
+// gateway mirrors the same blocklist (src/scopePolicies.ts checkBraveScope)
+// and takes this tool over its single /mcp endpoint (routeTool() -> 'brave').
 const BRAVE_TOOLS = new Set([
     'brave_news_search',
 ]);
@@ -206,6 +210,28 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts && opts.useCaseId) {
         headers['X-Use-Case-Id'] = String(opts.useCaseId);
     }
+    // Tier (groupToTier) — pre-resolved here because neither gateway can map a
+    // PingOne group array to a tier locally (no set-membership operator in either
+    // P1AZ's DSL or the gateways' own runtimes). Additive: gateways use this only
+    // to DENY, never to widen a decision a token's own scopes wouldn't otherwise earn.
+    if (opts && Array.isArray(opts.userGroups)) {
+        try {
+            const groupPolicy = require('./groupPolicy');
+            const verticalForTier = (opts && opts.vertical) || configStore.getEffective('active_vertical') || 'banking';
+            const tier = groupPolicy.resolveUserTier(opts.userGroups, verticalForTier);
+            const tierDefs = groupPolicy.getTierDefinitions(verticalForTier);
+            const tierDef = tierDefs[tier];
+            headers['X-User-Tier'] = tier;
+            if (tierDef) {
+                if (typeof tierDef.maxAmountUsd === 'number') {
+                    headers['X-Tier-Max-Amount-Usd'] = String(tierDef.maxAmountUsd);
+                }
+                if (Array.isArray(tierDef.restrictedTools) && tierDef.restrictedTools.length) {
+                    headers['X-Tier-Restricted-Tools'] = tierDef.restrictedTools.join(',');
+                }
+            }
+        } catch (_) { /* best-effort */ }
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
@@ -272,7 +298,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     // When routing through PingGateway (IG), tell it which authorize backend to use,
-    // mirroring the BFF's ff_authorize_simulated (live-switchable mock demo_authz_server
+    // mirroring the inverse of the BFF's ff_authorize_real (live-switchable mock demo_authz_server
     // vs real PingOne Authorize). PingGateway's Groovy decision filter reads this header
     // per-request; the Node gateway never sees it (header added only on the PG path), so
     // the Node-gateway request shape is unchanged.
@@ -285,7 +311,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // secret + header the Node gateway checks (checkInternalSecret).
         const gwSecret = configStore.getEffective('bff_internal_secret') || process.env.BFF_INTERNAL_SECRET || '';
         if (gwSecret) headers['x-internal-gateway-secret'] = gwSecret;
-        const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+        const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
         headers['X-Authz-Simulated'] = simulated ? 'true' : 'false';
         if (shouldStampIgRateLimitHeader()) {
             headers['X-UC18-Rate-Limit'] = 'true';
@@ -315,13 +341,15 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     let response;
     try {
-        response = await axios.post(url, body, {
-            headers,
-            timeout: timeoutMs,
-            // Handle error status codes ourselves so we can emit structured errors
-            validateStatus: () => true,
-            httpsAgent: _httpsAgent,
-        });
+        response = await nrSegments.mcpToolCall(() =>
+            axios.post(url, body, {
+                headers,
+                timeout: timeoutMs,
+                // Handle error status codes ourselves so we can emit structured errors
+                validateStatus: () => true,
+                httpsAgent: _httpsAgent,
+            })
+        );
     } catch (axErr) {
         console.error(
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',

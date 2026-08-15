@@ -1,7 +1,7 @@
 'use strict';
 
 // Unit test for the X-Authz-Simulated header that callToolViaGateway stamps on
-// PingGateway-bound requests. The BFF carries the effective ff_authorize_simulated
+// PingGateway-bound requests. The BFF carries the effective ff_authorize_real
 // value to PingGateway so its Groovy decision filter picks the live authorize
 // backend (mock demo_authz_server vs real PingOne Authorize). The header is added
 // ONLY when ff_mcp_gateway_pinggateway is ON, so the Node-gateway request shape
@@ -47,24 +47,24 @@ describe('callToolViaGateway X-Authz-Simulated header', () => {
     axios.post.mockResolvedValue(okResponse());
   });
 
-  test('flag ON + ff_authorize_simulated true -> X-Authz-Simulated: true', async () => {
-    stubConfig({ ff_mcp_gateway_pinggateway: 'true', ff_authorize_simulated: 'true' });
-
-    await callToolViaGateway('http://ping-gateway:8080', 'tok', 'get_accounts', {});
-
-    expect(lastHeaders()['X-Authz-Simulated']).toBe('true');
-  });
-
-  test('flag ON + ff_authorize_simulated false -> X-Authz-Simulated: false', async () => {
-    stubConfig({ ff_mcp_gateway_pinggateway: 'true', ff_authorize_simulated: 'false' });
+  test('PingGateway ON + ff_authorize_real true -> X-Authz-Simulated: false', async () => {
+    stubConfig({ ff_mcp_gateway_pinggateway: 'true', ff_authorize_real: 'true' });
 
     await callToolViaGateway('http://ping-gateway:8080', 'tok', 'get_accounts', {});
 
     expect(lastHeaders()['X-Authz-Simulated']).toBe('false');
   });
 
+  test('PingGateway ON + ff_authorize_real false -> X-Authz-Simulated: true', async () => {
+    stubConfig({ ff_mcp_gateway_pinggateway: 'true', ff_authorize_real: 'false' });
+
+    await callToolViaGateway('http://ping-gateway:8080', 'tok', 'get_accounts', {});
+
+    expect(lastHeaders()['X-Authz-Simulated']).toBe('true');
+  });
+
   test('flag OFF -> no X-Authz-Simulated header (Node path unchanged)', async () => {
-    stubConfig({ ff_mcp_gateway_pinggateway: 'false', ff_authorize_simulated: 'true' });
+    stubConfig({ ff_mcp_gateway_pinggateway: 'false', ff_authorize_real: 'false' });
 
     await callToolViaGateway('http://mcp-gateway:3005', 'tok', 'get_accounts', {});
 

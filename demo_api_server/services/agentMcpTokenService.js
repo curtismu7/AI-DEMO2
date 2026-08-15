@@ -33,6 +33,7 @@ function warnLog(...args) {
 }
 
 const configStore = require('./configStore');
+const hitlServiceClient = require('./hitlServiceClient');
 const oauthService = require('./oauthService');
 const clientAssertionService = require('./clientAssertionService');
 const { writeExchangeEvent } = require('./exchangeAuditStore');
@@ -56,6 +57,7 @@ const oauthConfig = require('../config/oauth');
 const { validateToken: jwksValidateUserToken } = require('./tokenValidationService');
 const { getSessionDpopKey } = require('./dpopKeyService');
 const scopeTopology = require('./scopeTopology');
+const { resolveAgentRuntime } = require('./delegatedCommerceRuntime');
 const enterpriseMcpPolicy = require('./enterpriseMcpPolicyService');
 const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 const {
@@ -101,29 +103,85 @@ function buildRarAuthorizationDetails(tool, params, userSub) {
 }
 
 /**
+ * Resolve the values the RAR grant is built FROM.
+ *
+ * RFC 9396 constraints are only meaningful when they originate from a source the
+ * agent does not control. Building the grant from the same `req.body.params` the
+ * gateway later checks the call against is circular — it proves the call was not
+ * mutated in transit (BFF → TraT → gateway) but says nothing about whether the
+ * requested action matches what was actually authorized.
+ *
+ * When the agent retries after human approval it echoes the approved challenge id
+ * as the reserved `_hitl_challenge_id` tool arg. That challenge's `context` is the
+ * snapshot of arguments the human saw and approved, held in the HITL store — a
+ * source outside the agent. Prefer it.
+ *
+ * Fail-safe, never fail-open: any missing / unapproved / mismatched / unreachable
+ * challenge falls back to today's behaviour (grant from request params). The
+ * fallback grant is never wider than the one it replaces, and the gateway's own
+ * receipt verification (`verifyHitlReceipt`) is unaffected either way.
+ *
+ * @returns {Promise<{ source: object|undefined, provenance: 'human_approval'|'request_params' }>}
+ */
+async function _resolveRarGrantSource(req, tool, userSub) {
+  const params = req?.body?.params;
+  const fallback = { source: params, provenance: 'request_params' };
+  // Literal fallback so a test double of hitlServiceClient that omits the constant
+  // degrades to the fallback path instead of reading params[undefined].
+  const hitlArg = hitlServiceClient.HITL_CHALLENGE_ARG || '_hitl_challenge_id';
+  const challengeId = params && typeof params === 'object' ? params[hitlArg] : null;
+  if (!challengeId) return fallback;
+
+  try {
+    const challenge = await hitlServiceClient.getChallengeStatus(String(challengeId));
+    if (!challenge || challenge.status !== 'approved') return fallback;
+    // Bind the receipt to this caller and tool before trusting its context — an
+    // approved challenge for another user/agent/tool is not a grant source here.
+    if (challenge.tool && tool && challenge.tool !== tool) return fallback;
+    if (userSub && challenge.userId && challenge.userId !== userSub) return fallback;
+    const ctx = challenge.context;
+    if (!ctx || typeof ctx !== 'object') return fallback;
+    return { source: ctx, provenance: 'human_approval' };
+  } catch (err) {
+    console.warn('[agentMcpTokenService] HITL grant source lookup failed, using request params:', err.message);
+    return fallback;
+  }
+}
+
+/**
  * Compute the RAR (RFC 9396) + DPoP (RFC 9449) extras to fold into the TraT envelope,
  * and emit the matching Token Chain events. Returns { ffDpop, ffRar, extras } where
  * extras = { rarDetails, cnfJkt } (either may be undefined). Shared by both the
  * single-exchange and two-exchange paths so they stay in sync.
  */
-function _buildAgenticExtras(req, tool, userSub, tokenEvents) {
+async function _buildAgenticExtras(req, tool, userSub, tokenEvents) {
   const ffDpop = _flagOn('ff_dpop');
   const ffRar = _flagOn('ff_rar');
   const extras = {};
   if (ffRar) {
-    const rarDetails = buildRarAuthorizationDetails(tool, req?.body?.params, userSub);
+    const { source, provenance } = await _resolveRarGrantSource(req, tool, userSub);
+    const rarDetails = buildRarAuthorizationDetails(tool, source, userSub);
     if (rarDetails) {
       extras.rarDetails = rarDetails;
+      extras.rarProvenance = provenance;
       if (Array.isArray(tokenEvents)) {
         tokenEvents.push(buildTokenEvent(
           'rar-authorization',
           'Rich Authorization Request (RAR) — Intent-bound',
           'active',
           null,
-          'ff_rar is ON. The BFF built authorization_details from the tool + parameters and carries them in the ' +
-            'TraT azd envelope + the PingAuthorize decision context. The agent is authorized for THIS specific action, ' +
-            'not a broad scope. Simulated on PingOne SaaS; native on AIC / PingFederate 11.2+.',
-          { rfc: 'RFC 9396', authorization_details: rarDetails }
+          provenance === 'human_approval'
+            ? 'ff_rar is ON. The BFF built authorization_details from the arguments a human approved in the HITL ' +
+              'challenge — a source the agent does not control — and carries them in the TraT azd envelope + the ' +
+              'PingAuthorize decision context. The gateway then enforces that the executed call is a subset of that ' +
+              'grant, so an agent that changes the amount or payee after approval is denied. Simulated on PingOne ' +
+              'SaaS; native on AIC / PingFederate 11.2+.'
+            : 'ff_rar is ON. The BFF built authorization_details from the tool + parameters of THIS request and ' +
+              'carries them in the TraT azd envelope + the PingAuthorize decision context. Note the grant and the ' +
+              'call share one source, so this proves the call was not mutated between authorization and execution — ' +
+              'it does not independently attest the intent. A grant sourced from human approval (HITL) or a native ' +
+              'PingAuthorize mint does. Simulated on PingOne SaaS; native on AIC / PingFederate 11.2+.',
+          { rfc: 'RFC 9396', authorization_details: rarDetails, grant_source: provenance }
         ));
       }
     }
@@ -1130,28 +1188,33 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     await resolveMcpTokenEnterpriseManaged(req, tokenEvents);
   }
 
-  // ── ff_skip_token_exchange — direct user token path (no RFC 8693) ────────
-  // When ON the user access token is forwarded to MCP unchanged. No actor token
-  // is acquired and no exchange is performed. Useful when PingOne is not yet
-  // configured for token exchange. The alternative (OFF) is the full on-behalf-of
-  // exchange: agent client-credentials token + RFC 8693 → scoped MCP token + act claim.
+  // ── ff_skip_token_exchange — deny raw user-token forwarding ───────────────
+  // When ON we still do NOT forward the user access token to MCP. Instead we
+  // surface an explicit block so demos can show that raw user tokens are not
+  // allowed on the MCP hop.
   const ffSkipExchange =
     configStore.getEffective('ff_skip_token_exchange') === true ||
     configStore.getEffective('ff_skip_token_exchange') === 'true';
   if (ffSkipExchange) {
     tokenEvents.push(buildTokenEvent(
       'exchange-skipped',
-      'Token Exchange (RFC 8693) — Bypassed',
-      'skipped',
+      'Token Exchange (RFC 8693) — Raw user token blocked',
+      'failed',
       null,
-      'ff_skip_token_exchange is ON. The user access token is passed directly to the MCP server without RFC 8693 exchange. ' +
-        'The MCP server receives the user\'s original token (no act claim, no audience narrowing). ' +
-        'Alternative — turn this flag OFF: the BFF performs a full RFC 8693 on-behalf-of exchange, ' +
-        'minting a scoped MCP token with act: { client_id: <agent> } for audit provenance. ' +
-        'In production always use token exchange.',
-      { rfc: 'RFC 8693', bypass: true }
+      'ff_skip_token_exchange is ON. The BFF will not forward the user token to MCP; raw user-token forwarding is denied by design. ' +
+        'Turn this flag OFF to use RFC 8693 token exchange and mint a scoped MCP token with act: { client_id: <agent> }.',
+      { rfc: 'RFC 8693', blocked: true }
     ));
-    return { token: userToken, tokenEvents, userSub, tratContextHeader: null };
+    return {
+      token: null,
+      tokenEvents,
+      userSub,
+      tratContextHeader: null,
+      blocked: true,
+      blockCode: 'user_token_forwarding_disabled',
+      blockMessage: 'Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.',
+      blockHttpStatus: 403,
+    };
   }
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1420,9 +1483,12 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       // only the actor_token identity is fixed to the AI Agent so PingOne's
       // resource SPEL (act ← subject's may_act) has a consistent actor to
       // compare against when may_act is present.
-      actorToken = await oauthService.getAiAgentClientCredentialsToken();
+      const agentRuntime = resolveAgentRuntime(req, { fallbackToDefault: true });
+      actorToken = await oauthService.getAiAgentClientCredentialsToken(agentRuntime);
       const a0Decoded = decodeJwtClaims(actorToken);
-      const actorClientId = configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID;
+      const actorClientId = agentRuntime?.clientId ||
+        configStore.getEffective('pingone_ai_agent_client_id') ||
+        process.env.PINGONE_AI_AGENT_CLIENT_ID;
       tokenEvents.push(buildTokenEvent(
         'agent-actor-token',
         'Agent access token (client credentials)',
@@ -1750,7 +1816,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       const _tratRaw = configStore.getEffective('ff_trat_mode');
       const ffTratMode = _tratRaw === true || _tratRaw === 'true';
 
-      const { ffDpop, ffRar, extras } = _buildAgenticExtras(req, tool, userSub, tokenEvents);
+      const { ffDpop, ffRar, extras } = await _buildAgenticExtras(req, tool, userSub, tokenEvents);
       if ((ffTratMode || ffDpop || ffRar) && exchangedToken) {
         const agentClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || '';
         const gatewayClientId =
@@ -2059,7 +2125,8 @@ async function _performTwoExchangeDelegation(
   }
 
   // Extract validated configuration - no hard-coded defaults
-  const aiAgentClientId       = configResult.credentials.aiAgentClientId;
+  const agentRuntime = resolveAgentRuntime(req, { fallbackToDefault: true });
+  const aiAgentClientId       = agentRuntime?.clientId || configResult.credentials.aiAgentClientId;
   const mcpExchangerClient    = configResult.credentials.mcpClientId;
   const agentGatewayAud       = configResult.audiences.agentGatewayAud;
   const intermediateAud       = configResult.audiences.intermediateAud;
@@ -2070,12 +2137,12 @@ async function _performTwoExchangeDelegation(
   const twoExFinalAud = opts.forceDirectMcpAudience
     ? mcpServerAudForFallback
     : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
-  const aiAgentClientSecret   = configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
+  const aiAgentClientSecret   = agentRuntime?.clientSecret || configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
   const mcpExchangerSecret    = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   // ARCHITECTURE TRUTH: all PingOne client connections use client_secret_post.
   // Only the Worker Token CC client (oauthService.getAgentClientCredentialsToken*)
   // stays 'basic'. These are non-worker (AI agent / MCP exchanger) → default 'post'.
-  const aiAgentAuthMethod     = (configStore.get('ai_agent_token_endpoint_auth_method') || process.env.AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
+  const aiAgentAuthMethod     = (agentRuntime?.authMethod || configStore.get('ai_agent_token_endpoint_auth_method') || process.env.AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
   const mcpExchangerAuthMethod = (configStore.get('mcp_exchanger_token_endpoint_auth_method') || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD || process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD || process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
 
   // ─ Step 1: AI Agent Actor Token (Client Credentials) ───────────────────────────
@@ -2462,7 +2529,7 @@ async function _performTwoExchangeDelegation(
     try {
       const _tratRaw = configStore.getEffective('ff_trat_mode');
       const ffTratMode = _tratRaw === true || _tratRaw === 'true';
-      const { ffDpop, ffRar, extras } = _buildAgenticExtras(req || {}, opts.tool || toolTrigger, userSub, tokenEvents);
+      const { ffDpop, ffRar, extras } = await _buildAgenticExtras(req || {}, opts.tool || toolTrigger, userSub, tokenEvents);
       if ((ffTratMode || ffDpop || ffRar) && finalToken) {
         const agentClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || '';
         const gatewayClientId = configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID || '';
@@ -2594,9 +2661,28 @@ async function runTwoExchangeInteractiveTest(req, userToken, scopes = ['read', '
   }
 }
 
+/**
+ * Shared helper for callers of resolveMcpAccessTokenWithEvents: turns a
+ * `blocked` resolution (e.g. ff_skip_token_exchange denying raw user-token
+ * forwarding) into the { httpStatus, body } an HTTP route should send, so the
+ * specific 403 user_token_forwarding_disabled reaches the client instead of
+ * a generic 401/502 from a caller's own `!token` fallback.
+ */
+function describeBlockedToken(resolved, tokenEvents) {
+  return {
+    httpStatus: resolved.blockHttpStatus || 403,
+    body: {
+      error: resolved.blockCode || 'user_token_forwarding_disabled',
+      message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+      tokenEvents: tokenEvents || resolved.tokenEvents || [],
+    },
+  };
+}
+
 module.exports = {
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
+  describeBlockedToken,
   buildSessionPreviewTokenEvents,
   decodeJwtClaims,
   buildTokenEvent,
@@ -2608,6 +2694,7 @@ module.exports = {
   MIN_USER_SCOPES_FOR_MCP,
   buildTratContext,
   buildRarAuthorizationDetails,
+  _buildAgenticExtras,
   runTwoExchangeInteractiveTest,
   firstHttpResourceUri,
 };

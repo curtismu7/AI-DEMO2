@@ -449,7 +449,7 @@ curl -X PATCH http://localhost:3001/api/admin/feature-flags \
 | Flag | Needed for full enforcement |
 | --- | --- |
 | `PINGONE_AUTHORIZE_ENABLED` | Set `true` to stop all simulated policy decisions |
-| `ff_authorize_simulated` | Set `false` once a real Decision Endpoint is configured |
+| `ff_authorize_real` | Set `true` once a real Decision Endpoint is configured |
 | `authorize_failover_mode` | Change to `deny` to fail-closed instead of falling back to simulation |
 
 ---

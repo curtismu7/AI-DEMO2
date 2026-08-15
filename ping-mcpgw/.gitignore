@@ -1,9 +1,29 @@
-# Real OIDC config — contains client secret; keep example committed, ignore real file
-config/pingone.env
+# The whole /var/lib/procyon tree is bind-mounted from ping-mcpgw/procyon/ so the
+# container sees the same layout the vendor's own `docker run` produces
+# (-v /var/lib/procyon:/var/lib/procyon). Keep the committed examples; ignore
+# anything the proxy writes and anything holding a secret.
+
+# Real OIDC config — contains a client secret; the .example stays committed
+procyon/config/pingone.env
 
 # Privilege proxy token from the gateway wizard — never commit
+procyon/config/proxy-token
+procyon/config/proxy-token.env
 config/proxy-token
 config/proxy-token.env
+
+# Guest agent env — written per host
+procyon/procyon-guest-agent.env
+config/procyon-guest-agent.env
+
+# Session recordings the proxy writes
+procyon/recordings/*
+!procyon/recordings/.gitkeep
+
+# Gateway serving certs, copied in by scripts/ensure-mcpgw-certs.sh — these are the
+# /var/lib/procyon/ssl/mcpgw-{cert,key}.pem files Ping's SE material names. Generated,
+# never committed (the key is private).
+procyon/ssl/
 
 # TLS certs — *.pem is also caught by the repo-root rule but be explicit
 ssl/

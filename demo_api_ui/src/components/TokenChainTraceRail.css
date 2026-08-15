@@ -1,20 +1,21 @@
 /* TokenChainTraceRail — portal-brand styling, single-column by construction.
  * Dark header bars match ExchangeModeToggle (#16325c). */
 .tctr {
-  --tctr-bg: #ffffff;
-  --tctr-text: #0f172a;
-  --tctr-muted: #64748b;
-  --tctr-border: #e8eef7;
-  --tctr-header-bg: #16325c;
-  --tctr-header-text: #ffffff;
-  --tctr-row-hover: #f1f5f9;
-  --tctr-step-body-bg: #f8fafc;
-  --tctr-tab-active: #16325c;
-  --tctr-pill-bg: #eef2f9;
+  /* Routed through the semantic --th-* palette (index.css) so the rail shares
+     the one dashboard vocabulary in both modes. */
+  --tctr-bg: var(--th-bg-card);
+  --tctr-text: var(--th-text);
+  --tctr-muted: var(--th-text-muted);
+  --tctr-border: var(--th-border);
+  --tctr-header-bg: var(--th-bg-band);
+  --tctr-header-text: var(--th-text-invert);
+  --tctr-row-hover: var(--th-bg-inset);
+  --tctr-step-body-bg: var(--th-bg-inset);
+  --tctr-pill-bg: var(--th-bg-inset);
 
-  background: #fff;
+  background: var(--th-bg-card);
   font-size: 13.5px;
-  color: #0f172a;
+  color: var(--th-text);
   border-radius: 0;
   box-shadow: none;
 }
@@ -33,9 +34,90 @@
   justify-content: space-between;
 }
 .tctr-title { font-size: 14px; font-weight: 700; }
-.tctr-head-actions {
+.tctr-title-group {
+  display: flex; align-items: center; gap: 10px;
+}
+.tctr-view-mode {
+  display: flex; padding: 2px; border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px; background: rgba(15, 23, 42, 0.2);
+}
+.tctr-view-mode button {
+  border: 0; border-radius: 4px; padding: 2px 7px; background: transparent;
+  color: #cbd5e1; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.tctr-view-mode button.active {
+  color: #16325c; background: var(--th-bg-card);
+}
+/* ── Chain-view tabs — one rendering at a time (Step Detail default).
+   Replaced the stacked map+list, which doubled the column height. ── */
+.tctr-chain-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--th-border, #dbe2ea);
+  border-radius: 8px;
+  background: var(--th-bg-inset, #f1f5f9);
+  width: fit-content;
+}
+.tctr-chain-tabs button {
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--th-text-muted, #556070);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tctr-chain-tabs button.active {
+  background: var(--th-bg-card, #ffffff);
+  color: var(--th-text, #0f172a);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+
+/* Visible toolbar. Everything that used to sit here — Live/Classic, the zoom
+   trio, Clear and Legend — moved into .tctr-more-pop; Run and the speed select
+   live in TokenChainNodeRail below. What is left visible is Views, More, and a
+   way back to the chain when a view has replaced it. */
+.tctr-toolbar {
   display: flex; align-items: center; gap: 6px;
 }
+.tctr-back-btn {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #e2e8f0; font: inherit; font-size: 12.5px; font-weight: 600;
+  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+}
+.tctr-back-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+
+.tctr-more { position: relative; display: inline-block; }
+.tctr-more-trigger {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #e2e8f0; font: inherit; font-size: 12.5px; font-weight: 600;
+  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+}
+.tctr-more-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.tctr-more-pop {
+  position: absolute; top: calc(100% + 5px); right: 0; z-index: 30;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 9px; min-width: 190px;
+  border: 1px solid var(--tctr-border); border-radius: 8px;
+  background: var(--tctr-card-bg, #ffffff);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+}
+/* Inside the tray the header's white-on-dark treatment no longer applies. */
+.tctr-more-pop .tctr-view-mode {
+  border-color: var(--tctr-border); background: var(--tctr-pill-bg);
+}
+.tctr-more-pop .tctr-view-mode button { color: var(--tctr-muted); }
+.tctr-more-pop .tctr-view-mode button.active { color: #ffffff; background: #1d4ed8; }
+.tctr-more-pop .tctr-zoom { margin-right: 0; padding-right: 0; border-right: 0; }
+.tctr-more-pop .tctr-legend-btn,
+.tctr-more-pop .tctr-clear-btn {
+  border-color: var(--tctr-border); color: var(--tctr-text);
+}
+.tctr-more-pop .tctr-clear-btn { color: #b91c1c; border-color: rgba(185, 28, 28, 0.4); }
+.tctr-more-pop .tctr-clear-btn:hover:not(:disabled) { background: rgba(185, 28, 28, 0.1); color: #991b1b; }
 .tctr-theme-btn,
 .tctr-legend-btn,
 .tctr-clear-btn {
@@ -54,6 +136,10 @@
 }
 .tctr-clear-btn:disabled {
   opacity: 0.4; cursor: default;
+}
+.tctr-live-empty {
+  margin: 10px 12px; padding: 16px; border: 1px dashed var(--tctr-border);
+  border-radius: 6px; color: var(--tctr-text); text-align: center; font-size: 12px;
 }
 
 /* Presenter text size — steps the rail's `zoom` (see TokenChainTraceRail.jsx). */
@@ -87,7 +173,7 @@
 .tctr-dot--user { background: #f472b6; }
 .tctr-dot--agent { background: #c084fc; }
 .tctr-dot--mcp { background: #34d399; }
-.tctr-arrow { color: #94a3b8; font-weight: 400; }
+.tctr-arrow { color: var(--th-text-muted); font-weight: 400; }
 .tctr-badge {
   margin-left: auto; background: var(--brand-navy, #1d4ed8); color: #fff;
   font-size: 12px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
@@ -112,7 +198,7 @@
 .tctr-ic--active { color: var(--brand-navy, #1d4ed8); }
 .tctr-ic--pending { color: #cbd5e1; }
 .tctr-ic--error { color: #dc2626; }
-.tctr-ic--notinpath { color: #94a3b8; }
+.tctr-ic--notinpath { color: var(--th-text-muted); }
 .tctr-step-title { flex: 1; min-width: 0; }
 .tctr-step[data-status="error"] > summary { color: #b91c1c; }
 /* Light shading on completed steps to show progress at a glance */
@@ -121,20 +207,20 @@
 /* Not-in-path — the step was never applicable to this run: struck-through
    title, muted/dashed row. Distinct from "pending" (still coming) and
    "error" (should have run, didn't). Mirrors TokenChainDisplay's notinpath bucket. */
-.tctr-step[data-status="notinpath"] { background: #f8fafc; }
+.tctr-step[data-status="notinpath"] { background: var(--th-bg-inset); }
 .tctr-step-title--notinpath {
-  text-decoration: line-through; text-decoration-thickness: 1.5px; color: #64748b;
+  text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--th-text-muted);
 }
 .tctr-lane--notinpath {
-  background: #f8fafc; color: #64748b; border: 1px dashed #94a3b8;
+  background: var(--th-bg-inset); color: var(--th-text-muted); border: 1px dashed #94a3b8;
 }
 /* Disclosure caret — signals each step is expandable */
 .tctr-step-chev {
-  flex: 0 0 auto; font-size: 11px; color: #94a3b8; margin-left: 2px;
+  flex: 0 0 auto; font-size: 11px; color: var(--th-text-muted); margin-left: 2px;
   transition: transform 0.15s;
 }
-.tctr-step[open] > summary .tctr-step-chev { transform: rotate(90deg); color: #64748b; }
-.tctr-step > summary:hover .tctr-step-chev { color: #475569; }
+.tctr-step[open] > summary .tctr-step-chev { transform: rotate(90deg); color: var(--th-text-muted); }
+.tctr-step > summary:hover .tctr-step-chev { color: var(--th-text-muted); }
 
 .tctr-lane {
   font-size: 11px; font-weight: 800; letter-spacing: 0.04em; border-radius: 4px;
@@ -145,7 +231,7 @@
 .tctr-lane--agent { background: #e9d5ff; color: #7e22ce; }
 .tctr-lane--llm { background: #ede9fe; color: #5b21b6; }
 .tctr-lane--heuristics { background: #ffedd5; color: #9a3412; }
-.tctr-lane--bff { background: #f1f5f9; color: #334155; }
+.tctr-lane--bff { background: var(--th-bg-inset); color: var(--th-text); }
 .tctr-lane--authz { background: #fef3c7; color: #92400e; }
 .tctr-lane--gateway { background: #cffafe; color: #0e7490; }
 .tctr-lane--mcp { background: #d1fae5; color: #047857; }
@@ -154,12 +240,12 @@
 .tctr-lane--invest { background: #a7f3d0; color: #065f46; }
 
 .tctr-step-body {
-  padding: 10px 12px 12px 24px; font-size: 13px; color: #334155;
+  padding: 10px 12px 12px 24px; font-size: 13px; color: var(--th-text);
   background: var(--tctr-step-body-bg); border-top: 1px solid var(--tctr-border);
 }
 .tctr-step-body h4 {
   font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
-  color: #64748b; margin: 10px 0 4px; font-weight: 700;
+  color: var(--th-text-muted); margin: 10px 0 4px; font-weight: 700;
 }
 .tctr-narrative { margin: 0 0 4px; }
 .tctr-why {
@@ -174,8 +260,8 @@
 .tctr-story--ok { border-color: #86efac; background: #f0fdf4; }
 .tctr-story--error { border-color: #fca5a5; background: #fef2f2; }
 .tctr-story--active { border-color: #93c5fd; background: #eff6ff; }
-.tctr-story-headline { font-size: 13.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-.tctr-story-bits { margin: 6px 0 0 16px; padding: 0; color: #334155; font-size: 12.5px; }
+.tctr-story-headline { font-size: 13.5px; font-weight: 700; color: var(--th-text); margin-bottom: 4px; }
+.tctr-story-bits { margin: 6px 0 0 16px; padding: 0; color: var(--th-text); font-size: 12.5px; }
 .tctr-story-bits li { margin: 2px 0; }
 .tctr-evidence-inline { margin: 8px 0 4px; }
 .tctr-evidence-hint {
@@ -189,13 +275,24 @@
 }
 .tctr-step-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
 .tctr-code {
-  background: #0f172a; color: #bae6fd; font-size: 12px; padding: 8px;
+  background: var(--th-bg-card); color: #bae6fd; font-size: 12px; padding: 8px;
   border-radius: 6px; margin: 4px 0; overflow-x: auto; line-height: 1.5;
   font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word;
 }
+.tctr-claim-diff {
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.tctr-claim-diff--before { background: rgba(251, 191, 36, 0.24); }
+.tctr-claim-diff--after { background: rgba(45, 212, 191, 0.24); }
 .tctr-kv { display: grid; grid-template-columns: 92px 1fr; gap: 3px 8px; font-size: 12.5px; margin: 4px 0; }
-.tctr-kv-k { color: #64748b; font-weight: 600; }
+.tctr-kv-k { color: var(--th-text-muted); font-weight: 600; }
 .tctr-kv-v { font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+.tctr-kv-v--json {
+  margin: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--th-border-strong);
+  border-radius: 6px; background: var(--th-bg-inset); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+}
 .tctr-rfc {
   display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 4px;
   font-size: 11px; font-weight: 700; padding: 1px 5px; margin: 4px 3px 0 0;
@@ -206,9 +303,9 @@
 .tctr-decision--step_up { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 .tctr-scope-diff { display: flex; gap: 6px; align-items: center; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; flex-wrap: wrap; margin: 4px 0; }
 .tctr-sc { border-radius: 4px; padding: 1px 6px; background: #e2e8f0; }
-.tctr-sc--gone { text-decoration: line-through; color: #94a3b8; }
+.tctr-sc--gone { text-decoration: line-through; color: var(--th-text-muted); }
 .tctr-sc--kept { background: #dcfce7; color: #166534; font-weight: 700; }
-.tctr-sc-note { color: #64748b; font-size: 12px; }
+.tctr-sc-note { color: var(--th-text-muted); font-size: 12px; }
 /* Scoped with .tctr on purpose — do NOT flatten to a bare `.tctr-inspect`.
    PingOne's end-user-nano sheet ships
    `.end-user-nano button { font-size: inherit }`, and (0,1,1) outranks a lone
@@ -229,11 +326,11 @@
   padding: 10px 12px; cursor: pointer; font-size: 13.5px; font-weight: 700; color: #16325c;
 }
 .tctr-acc > summary::-webkit-details-marker { display: none; }
-.tctr-chev { transition: transform 0.15s; font-size: 11.5px; color: #64748b; }
+.tctr-chev { transition: transform 0.15s; font-size: 11.5px; color: var(--th-text-muted); }
 .tctr-acc[open] .tctr-chev { transform: rotate(90deg); }
 .tctr-count {
-  margin-left: auto; font-size: 12px; font-weight: 600; color: #64748b;
-  background: #eef2f9; border-radius: 999px; padding: 1px 7px;
+  margin-left: auto; font-size: 12px; font-weight: 600; color: var(--th-text-muted);
+  background: var(--th-bg-inset); border-radius: 999px; padding: 1px 7px;
 }
 .tctr-acc-body { padding: 2px 12px 12px; }
 
@@ -247,38 +344,21 @@
 .tctr-tok--user .tctr-tok-name { color: #be185d; }
 .tctr-tok--agent .tctr-tok-name { color: #7e22ce; }
 .tctr-tok--mcp .tctr-tok-name { color: #047857; }
-.tctr-tok-role { font-size: 11.5px; color: #475569; background: rgba(255, 255, 255, 0.6); padding: 1px 6px; border-radius: 4px; }
-.tctr-tok-claims { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #334155; line-height: 1.5; }
+.tctr-tok-role { font-size: 11.5px; color: var(--th-text-muted); background: rgba(255, 255, 255, 0.6); padding: 1px 6px; border-radius: 4px; }
+.tctr-tok-claims { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--th-text); line-height: 1.5; }
 .tctr-tok-inspect {
-  float: right; background: #fff; border: 1px solid #cbd5e1; border-radius: 5px;
+  float: right; background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-radius: 5px;
   font-size: 12px; font-weight: 600; padding: 2px 8px; cursor: pointer; color: var(--brand-navy, #1d4ed8);
 }
 .tctr-tok-changes { margin-top: 6px; border-top: 1px dashed rgba(15, 23, 42, 0.15); padding-top: 5px; }
 .tctr-tok-change { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: 12px; }
-.tctr-tok-empty { padding: 10px 12px; font-size: 13px; color: #64748b; font-style: italic; }
+.tctr-tok-empty { padding: 10px 12px; font-size: 13px; color: var(--th-text-muted); font-style: italic; }
 
 /* MCP tab panel */
 .tctr-mcp .tctr-sec-label { padding-top: 12px; }
 .tctr-mcp-empty {
-  padding: 10px 12px; font-size: 13px; color: #64748b; font-style: italic;
+  padding: 10px 12px; font-size: 13px; color: var(--th-text-muted); font-style: italic;
 }
-
-/* Tab strip */
-.tctr-tabs {
-  display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--tctr-border);
-}
-.tctr-tab {
-  background: none; border: none; border-bottom: 2px solid transparent;
-  padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--tctr-muted);
-  cursor: pointer; display: flex; align-items: center; gap: 5px;
-}
-.tctr-tab:hover { color: var(--tctr-tab-active); }
-.tctr-tab--active { color: var(--tctr-tab-active); border-bottom-color: var(--tctr-tab-active); }
-.tctr-tab-count {
-  font-size: 12px; font-weight: 700; color: var(--tctr-muted);
-  background: var(--tctr-pill-bg); border-radius: 999px; padding: 0 6px;
-}
-.tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: var(--tctr-tab-active); }
 
 /* Trust tab — DPoP / RAR posture (shown when ff_dpop / ff_rar or evidence) */
 .tctr-trust {
@@ -286,13 +366,13 @@
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  color: #0f172a;
+  color: var(--th-text);
   line-height: 1.5;
 }
 .tctr-trust > p {
   margin: 0;
   font-size: 13px;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 .tctr-trust__row {
   display: flex;
@@ -308,8 +388,8 @@
   border-color: #86efac;
 }
 .tctr-trust__row--off {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
 }
 .tctr-trust__badge {
   flex-shrink: 0;
@@ -330,9 +410,9 @@
   color: #14532d;
 }
 .tctr-trust__row--off .tctr-trust__badge {
-  background: #fff;
-  border-color: #d1d5db;
-  color: #64748b;
+  background: var(--th-bg-card);
+  border-color: var(--th-border-strong);
+  color: var(--th-text-muted);
 }
 .tctr-trust__row strong {
   display: block;
@@ -353,16 +433,10 @@
    data-theme on the document root. NOT keyed to the OS preference: nothing else
    in the app has dark styling, so an OS-keyed rail went dark unbidden (#1212).*/
 :root[data-theme="dark"] .tctr {
-  --tctr-bg: #0f172a;
-  --tctr-text: #e2e8f0;
-  --tctr-muted: #94a3b8;
-  --tctr-border: #22324a;
-  --tctr-header-bg: #102847;
+  /* The semantic --th-* tokens flip at :root[data-theme="dark"], so the light
+     block above already resolves dark. Only rail-specific deviations remain. */
   --tctr-header-text: #f8fafc;
-  --tctr-row-hover: #17253a;
-  --tctr-step-body-bg: #111b2d;
-  --tctr-tab-active: #bfdbfe;
-  --tctr-pill-bg: #1e293b;
+  --tctr-row-hover: var(--th-bg-inset);
 }
 
 :root[data-theme="dark"] .tctr .tctr-step > summary,
@@ -383,12 +457,12 @@
 :root[data-theme="dark"] .tctr .tctr-tok-role,
 :root[data-theme="dark"] .tctr .tctr-tok-empty,
 :root[data-theme="dark"] .tctr .tctr-mcp-empty {
-  color: #94a3b8;
+  color: var(--th-text-muted);
 }
 
 :root[data-theme="dark"] .tctr .tctr-tok-inspect {
   background: #17253a;
-  border-color: #334155;
+  border-color: var(--th-text);
   color: #bfdbfe;
 }
 
@@ -433,7 +507,7 @@
 
 :root[data-theme="dark"] .tctr .tctr-lane--api       { background: rgba(185, 28, 28, 0.35); color: #fca5a5; }
 
-:root[data-theme="dark"] .tctr .tctr-lane--notinpath { background: rgba(100, 116, 139, 0.15); color: #64748b; border-color: #475569; }
+:root[data-theme="dark"] .tctr .tctr-lane--notinpath { background: rgba(100, 116, 139, 0.15); color: var(--th-text-muted); border-color: var(--th-text-muted); }
 
 /* Story/run-result banners */
 :root[data-theme="dark"] .tctr .tctr-story--ok     { border-color: rgba(134, 239, 172, 0.4); background: rgba(22, 163, 74, 0.1); }
@@ -477,13 +551,11 @@
 /* Token summary accordion */
 :root[data-theme="dark"] .tctr .tctr-acc { border-top-color: var(--tctr-border); }
 
-:root[data-theme="dark"] .tctr .tctr-count { background: #1e293b; color: #94a3b8; }
-
-:root[data-theme="dark"] .tctr .tctr-tab--active .tctr-tab-count { background: rgba(191, 219, 254, 0.15); }
+:root[data-theme="dark"] .tctr .tctr-count { background: #1e293b; color: var(--th-text-muted); }
 
 :root[data-theme="dark"] .tctr .tctr-tok-inspect {
   background: #17253a;
-  border-color: #334155;
+  border-color: var(--th-text);
   color: #bfdbfe;
 }
 
@@ -492,13 +564,13 @@
 
 :root[data-theme="dark"] .tctr .tctr-trust__row--ok .tctr-trust__badge { background: rgba(22, 163, 74, 0.15); border-color: rgba(134, 239, 172, 0.35); color: #86efac; }
 
-:root[data-theme="dark"] .tctr .tctr-trust__row--off { background: #111b2d; border-color: #334155; }
+:root[data-theme="dark"] .tctr .tctr-trust__row--off { background: var(--th-bg-inset); border-color: var(--th-text); }
 
-:root[data-theme="dark"] .tctr .tctr-trust__row--off .tctr-trust__badge { background: #1e293b; border-color: #334155; color: #94a3b8; }
+:root[data-theme="dark"] .tctr .tctr-trust__row--off .tctr-trust__badge { background: #1e293b; border-color: var(--th-text); color: var(--th-text-muted); }
 
 :root[data-theme="dark"] .tctr .tctr-trust { color: #dbeafe; }
 
-:root[data-theme="dark"] .tctr .tctr-trust > p { color: #94a3b8; }
+:root[data-theme="dark"] .tctr .tctr-trust > p { color: var(--th-text-muted); }
 
 :root[data-theme="dark"] .tctr .tctr-trust__row strong { color: #e2e8f0; }
 

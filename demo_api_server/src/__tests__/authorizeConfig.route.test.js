@@ -79,7 +79,7 @@ function setupDefaultMocks() {
       PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID: 'ep-123',
       PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID: '',
       PINGONE_AUTHORIZE_POLICY_ID: '',
-      ff_authorize_simulated: 'true',
+      ff_authorize_real: 'true',
       ff_authorize_fail_open: 'false',
       ff_authorize_deposits: 'false',
       ff_authorize_mcp_first_tool: 'false',
@@ -98,6 +98,7 @@ function setupDefaultMocks() {
       authorize_decision_endpoint_id: 'ep-123',
       authorize_mcp_decision_endpoint_id: '',
       authorize_policy_id: '',
+      ff_authorize_real: 'true',
     };
     return vals[key] ?? null;
   });
@@ -156,7 +157,7 @@ describe('GET /api/admin/authorize/config', () => {
 
   it('flags section reflects configStore boolean values', async () => {
     const res = await request(buildApp()).get('/api/admin/authorize/config');
-    expect(res.body.flags.ff_authorize_simulated).toBe(true);
+    expect(res.body.flags.ff_authorize_real).toBe(true);
     expect(res.body.flags.ff_authorize_fail_open).toBe(false);
   });
 

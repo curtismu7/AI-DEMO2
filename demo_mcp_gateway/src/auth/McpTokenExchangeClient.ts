@@ -40,10 +40,15 @@ export interface ExchangeResult {
 const _cache = new Map<string, { token: string; expiresAt: number }>();
 const MCP_EXCHANGE_CACHE_MAX = 1000;
 
-function cacheKey(subjectToken: string, targetAud: string): string {
+function cacheKey(subjectToken: string, targetAud: string, requestScopes: string[]): string {
   // Full SHA-256 hex — no truncation in token-isolation primitives.
+  // The requested scope set is part of the key: the same (subject, audience) pair
+  // can be exchanged with different scopes (discovery fallback below vs. a
+  // tools/call), and a scope-blind key would hand one path the other's token.
   const { createHash } = require('crypto');
-  return createHash('sha256').update(`${subjectToken}:${targetAud}`).digest('hex');
+  return createHash('sha256')
+    .update(`${subjectToken}:${targetAud}:${[...requestScopes].sort().join(' ')}`)
+    .digest('hex');
 }
 
 function _cacheInsertWithEviction(key: string, value: { token: string; expiresAt: number }): void {
@@ -54,6 +59,36 @@ function _cacheInsertWithEviction(key: string, value: { token: string; expiresAt
 // shortly before it expires. This is the gateway's MACHINE identity — the actor
 // that performs Exchange #3 — not any user's credential.
 let _actorToken: { token: string; expiresAt: number } | null = null;
+
+// The ONE scope this gateway's client is granted on each backend resource, used
+// only as the tools/list fallback below. One scope per resource is required, not
+// stylistic: twoExchangeReconciler.js partitions the MCP Gateway app's grants
+// per backend, so a set spanning two resources (e.g. `mcp:invoke invest:read`)
+// is rejected with 400 invalid_scope, and `mcp:invoke` alone against the invest
+// resource is silently retargeted to the olb audience. Verified live 2026-08-10.
+const BACKEND_DISCOVERY_SCOPE: Record<'olb' | 'invest' | 'jwtverifier', string> = {
+  olb: 'mcp:invoke',
+  invest: 'invest:read',
+  jwtverifier: 'jwt:verify',
+};
+
+/**
+ * PingOne answers a rejected exchange with `{ error, error_description }`, but
+ * axios throws "Request failed with status code 400" and drops it — which is
+ * exactly how a total tools/list outage stayed unreadable in the logs. Re-throw
+ * with the reason attached. Never includes the request body (it carries tokens).
+ */
+function exchangeError(err: unknown, backend: string, targetAud: string): Error {
+  if (axios.isAxiosError(err) && err.response) {
+    const data = err.response.data as { error?: string; error_description?: string } | undefined;
+    const detail = [data?.error, data?.error_description].filter(Boolean).join(': ');
+    return new Error(
+      `RFC 8693 exchange to backend=${backend} (resource=${targetAud}) rejected with ` +
+      `HTTP ${err.response.status}${detail ? ` — ${detail}` : ''}`,
+    );
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
 
 export class McpTokenExchangeClient {
   constructor(private readonly config: GatewayConfig) {}
@@ -132,15 +167,19 @@ export class McpTokenExchangeClient {
   /**
    * Exchange for an explicit backend — used by tools/list proxying and by
    * `exchange()` after tool→backend routing.
+   *
+   * @param opts.allowDiscoveryScopeFallback — tools/list only. See
+   *        BACKEND_DISCOVERY_SCOPE: use the backend's own single-resource scope
+   *        when the subject token carries none, instead of sending a scope-less
+   *        exchange PingOne always rejects. NEVER set on the tools/call path —
+   *        a call must run on scopes the caller actually holds.
    */
-  async exchangeForBackend(subjectToken: string, backend: 'olb' | 'invest' | 'jwtverifier'): Promise<ExchangeResult> {
+  async exchangeForBackend(
+    subjectToken: string,
+    backend: 'olb' | 'invest' | 'jwtverifier',
+    opts: { allowDiscoveryScopeFallback?: boolean } = {},
+  ): Promise<ExchangeResult> {
     const targetAud = backendResourceUri(backend, this.config);
-
-    const key = cacheKey(subjectToken, targetAud);
-    const cached = _cache.get(key);
-    if (cached && cached.expiresAt > Date.now() + 5000) {
-      return { token: cached.token, targetAud, cached: true };
-    }
 
     // RFC 8707: PingOne requires `resource=` to narrow to ONE resource server
     // when the client has grants on several — `audience=` alone is silently
@@ -151,7 +190,26 @@ export class McpTokenExchangeClient {
     const decoded = jwt.decode(subjectToken) as { scope?: string } | null;
     const subjectScopes = (decoded?.scope || '').split(' ').filter(Boolean);
     const allowed = new Set(resourceScopesForBackend(backend));
-    const requestScopes = subjectScopes.filter((s) => allowed.has(s));
+    let requestScopes = subjectScopes.filter((s) => allowed.has(s));
+
+    // Empty intersection = a scope-less exchange, which PingOne rejects outright
+    // (400 invalid_scope "May not request scopes for multiple resources") because
+    // this client holds grants on several resources. That is not a hypothetical:
+    // a gateway-audience token legitimately carries only the gateway's own
+    // invocation scope (`gateway:mcp:invoke` on the PingGateway MCP resource,
+    // `mcp:invoke` on the Node one), and NO caller token ever carries
+    // `jwt:verify` — so tools/list could never read those backends' catalogs.
+    // For discovery, fall back to the backend's own scope, the same fixed
+    // per-backend scope PingGateway's routes use (PG_OLB_SCOPE / PG_INVEST_SCOPE).
+    if (requestScopes.length === 0 && opts.allowDiscoveryScopeFallback) {
+      requestScopes = [BACKEND_DISCOVERY_SCOPE[backend]];
+    }
+
+    const key = cacheKey(subjectToken, targetAud, requestScopes);
+    const cached = _cache.get(key);
+    if (cached && cached.expiresAt > Date.now() + 5000) {
+      return { token: cached.token, targetAud, cached: true };
+    }
 
     // F10 — preserve the delegation chain into the last hop. Without an
     // actor_token the gateway drops out of the chain it just finished verifying,
@@ -184,14 +242,19 @@ export class McpTokenExchangeClient {
       exchangeHeaders['Authorization'] = `Basic ${credentials}`;
     }
 
-    const response = await axios.post(
-      this.config.tokenEndpoint,
-      params.toString(),
-      {
-        headers: exchangeHeaders,
-        timeout: 10000,
-      },
-    );
+    let response: { data: unknown };
+    try {
+      response = await axios.post(
+        this.config.tokenEndpoint,
+        params.toString(),
+        {
+          headers: exchangeHeaders,
+          timeout: 10000,
+        },
+      );
+    } catch (err) {
+      throw exchangeError(err, backend, targetAud);
+    }
 
     const { access_token, expires_in } = response.data as { access_token?: string; expires_in?: number };
     if (!access_token) {

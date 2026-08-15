@@ -11,6 +11,7 @@ const express = require('express');
 const http = require('http');
 const https = require('https');
 const configStore = require('../services/configStore');
+const { getTokenEndpoint, getIntrospectionEndpoint } = require('../services/oauthEndpointResolver');
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -349,7 +350,7 @@ router.get('/config', async (req, res) => {
             : configStore.getEffective('mcp_gw_public_url') || 'https://ig.example.com:8443',
         mcpScope: configStore.getEffective('mcp_scope') || 'mcp:invoke',
     };
-    cfg.introspectEndpoint = `${cfg.pingOneEnvUrl}/as/introspect`;
+    cfg.introspectEndpoint = getIntrospectionEndpoint();
 
     // Env tab is labeled "Required (gateway service)" — those vars live on the
     // Demo Agent Gateway (demo_mcp_gateway/.env + compose), not necessarily on
@@ -361,13 +362,7 @@ router.get('/config', async (req, res) => {
     const live = liveConfig.ok ? liveConfig.config : null;
     const demoLive = demoLiveConfig.ok ? demoLiveConfig.config : null;
     const gatewayServiceUp = !!demoHealth.running;
-    const derivedTokenEndpoint = (() => {
-      if (process.env.PINGONE_TOKEN_ENDPOINT) return process.env.PINGONE_TOKEN_ENDPOINT;
-      if (envId && !String(envId).includes('<')) {
-        return `https://auth.pingone.${region}/${envId}/as/token`;
-      }
-      return '';
-    })();
+    const derivedTokenEndpoint = getTokenEndpoint();
     const maskSet = (...vals) => (
       vals.some((v) => v != null && String(v).trim() !== '') ? '••••' : 'NOT SET'
     );
@@ -517,7 +512,7 @@ router.post('/config', async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/active', (req, res) => {
     const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
     let url = null;
     try { url = require('../services/mcpGatewayClient').getMcpGatewayHttpUrl(); } catch { /* not configured */ }
     res.json({
@@ -544,7 +539,7 @@ router.post('/test', express.json(), async (req, res) => {
     }
 
     const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
     const gateway = {
         flag:        'ff_mcp_gateway_pinggateway',
         usePingGateway: usePing,
@@ -565,11 +560,19 @@ router.post('/test', express.json(), async (req, res) => {
     }
 
     const t0 = Date.now();
-    let token, tokenEvents = [];
+    let token, tokenEvents = [], resolved;
     try {
-        ({ token, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool));
+        resolved = await resolveMcpAccessTokenWithEvents(req, tool);
+        ({ token, tokenEvents = [] } = resolved);
     } catch (e) {
         return res.status(401).json({ gateway, error: 'token_resolution_failed', message: e.message });
+    }
+    if (resolved.blocked) {
+        return res.status(resolved.blockHttpStatus || 403).json({
+            gateway, error: resolved.blockCode || 'user_token_forwarding_disabled',
+            message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+            tokenEvents,
+        });
     }
     if (!token) {
         return res.status(401).json({
@@ -750,7 +753,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
         try {
             await configStore.setRaw({
                 ff_mcp_gateway_pinggateway: 'false',
-                ff_authorize_simulated: 'true',
+                ff_authorize_real: 'false',
                 ff_mcp_rate_limit: 'true',
             });
         } catch (e) {
@@ -786,7 +789,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
                 // engine is exactly the config drift that broke the live site.
                 // The burst presets (uc18-throttle / real-throttle-ig) stay
                 // simulated deliberately: they hammer the decision endpoint.
-                ff_authorize_simulated: 'false',
+                ff_authorize_real: 'true',
                 ff_mcp_rate_limit: 'false',
             });
         } catch (e) {
@@ -807,7 +810,7 @@ router.post('/demo-presets', express.json(), async (req, res) => {
         try {
             await configStore.setRaw({
                 ff_mcp_gateway_pinggateway: 'true',
-                ff_authorize_simulated: 'true',
+                ff_authorize_real: 'false',
                 ff_mcp_rate_limit: 'true',
             });
         } catch (e) {
@@ -847,7 +850,7 @@ router.post('/test/burst', express.json(), async (req, res) => {
     }
 
     const usePing   = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-    const simulated = configStore.getEffective('ff_authorize_simulated') === 'true';
+    const simulated = configStore.getEffective('ff_authorize_real') !== 'true';
     const gateway = {
         flag: 'ff_mcp_gateway_pinggateway',
         usePingGateway: usePing,
@@ -867,11 +870,19 @@ router.post('/test/burst', express.json(), async (req, res) => {
         return res.status(500).json({ gateway, error: 'gateway_not_configured', message: e.message });
     }
 
-    let token;
+    let token, resolved;
     try {
-        ({ token } = await resolveMcpAccessTokenWithEvents(req, tool));
+        resolved = await resolveMcpAccessTokenWithEvents(req, tool);
+        ({ token } = resolved);
     } catch (e) {
         return res.status(401).json({ gateway, error: 'token_resolution_failed', message: e.message });
+    }
+    if (resolved.blocked) {
+        return res.status(resolved.blockHttpStatus || 403).json({
+            gateway,
+            error: resolved.blockCode || 'user_token_forwarding_disabled',
+            message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+        });
     }
     if (!token) {
         return res.status(401).json({

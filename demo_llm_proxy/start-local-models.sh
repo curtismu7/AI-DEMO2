@@ -13,6 +13,13 @@ LOG_DIR="/tmp/llama-models"
 # Demo-oriented defaults: smaller ctx than 16k loads faster and uses less RAM;
 # prompt cache + slot similarity keep agent system-prefix hits warm across turns.
 CTX_SIZE="${LLM_CTX_SIZE:-8192}"
+# Per-tier override. gpt-oss (:8096) backs Code Explorer, whose retrieved source
+# alone can reach ~4k tokens (retrieve.py _CONTEXT_CAP is 14000 CHARS); at 8192
+# the prompt hit 8479 tokens and llama-server refused it with
+# exceed_context_size_error before any answer could be generated. 16384 leaves
+# room for the prompt plus LLAMACPP_MAX_TOKENS of output. :8091 keeps the
+# smaller window on purpose — it loads faster and uses less RAM.
+CTX_SIZE_8096="${LLM_CTX_SIZE_8096:-16384}"
 N_GPU_LAYERS="${LLM_N_GPU_LAYERS:-33}"
 N_PARALLEL="${LLM_N_PARALLEL:-1}"
 SLOT_SIM="${LLM_SLOT_PROMPT_SIMILARITY:-0.50}"
@@ -57,6 +64,15 @@ start_model() {
     return 1
   }
 
+  # Context window is per-tier (see CTX_SIZE_8096 above), not one global value.
+  # `if` rather than `[ … ] && …`: this script runs under `set -e`, where a
+  # bare AND-list that tests false returns non-zero and aborts the run — which
+  # would kill tier startup for every port that is not 8096, :8091 included.
+  local ctx_size="$CTX_SIZE"
+  if [ "$port" = "8096" ]; then
+    ctx_size="$CTX_SIZE_8096"
+  fi
+
   local pid_file="$LOG_DIR/llama-$port.pid"
   local log_file="$LOG_DIR/llama-$port.log"
 
@@ -79,7 +95,7 @@ start_model() {
     --port "$port" \
     --threads "$threads" \
     --n-gpu-layers "$N_GPU_LAYERS" \
-    --ctx-size "$CTX_SIZE" \
+    --ctx-size "$ctx_size" \
     --parallel "$N_PARALLEL" \
     --cache-prompt \
     --slot-prompt-similarity "$SLOT_SIM" \

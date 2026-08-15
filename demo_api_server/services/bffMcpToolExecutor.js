@@ -14,6 +14,8 @@ const verticalDispatch = require('./verticalDispatch');
 const { isAdminClientToken, isCustomerBankingTool, ADMIN_TOKEN_ON_CUSTOMER } = require('./customerTokenGuard');
 const { deriveUseCaseId, isValidUseCaseId } = require('../config/useCases');
 const { stampUseCaseId, stampVertical } = require('./useCaseTagging');
+const { deriveAgentKey } = require('./sessionKeyService');
+const agentRunRegistry = require('./agentRunRegistry');
 
 // Server-level pipeline deps injected at startup via setPipelineDeps().
 // When set, executeBffTool routes all banking tool calls through runMcpToolPipeline
@@ -47,10 +49,20 @@ async function callMcpToolAsAgent({ name, args, userId, userToken, sessionId, to
     session: { oauthTokens: { accessToken: userToken }, id: sessionId },
     sessionID: sessionId,
   };
-  const { token: agentToken, tokenEvents: exchangeEvents } =
-    await resolveMcpAccessTokenWithEvents(mockReq, name);
+  const resolved = await resolveMcpAccessTokenWithEvents(mockReq, name);
+  const { token: agentToken, tokenEvents: exchangeEvents } = resolved;
   if (exchangeEvents && exchangeEvents.length > 0) {
     tokenEvents.push(...exchangeEvents);
+  }
+  if (resolved.blocked) {
+    // ff_skip_token_exchange denied raw user-token forwarding. Without this
+    // check, callMcpToolInternal's own null-token guard would still fail
+    // closed, but with a generic 401 login_required instead of the specific
+    // 403 the block represents.
+    throw Object.assign(
+      new Error(resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.'),
+      { code: resolved.blockCode || 'user_token_forwarding_disabled', httpStatus: resolved.blockHttpStatus || 403 },
+    );
   }
   return callMcpToolInternal(name, args || {}, agentToken, userId, tokenEvents);
 }
@@ -159,10 +171,19 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
       session: { oauthTokens: { accessToken: userToken }, id: sessionId },
       sessionID: sessionId,
     };
-    const { token: agentToken, tokenEvents: exchangeEvents } =
-      await resolveMcpAccessTokenWithEvents(mockReq, name);
+    const resolved = await resolveMcpAccessTokenWithEvents(mockReq, name);
+    const { token: agentToken, tokenEvents: exchangeEvents } = resolved;
     if (exchangeEvents && exchangeEvents.length > 0) {
       tokenEvents.push(...exchangeEvents);
+    }
+    if (resolved.blocked) {
+      // Never invoke the tool with a blocked (denied) token — tool.invoke does
+      // not itself guard against a null/blocked agentToken the way
+      // callMcpToolInternal's choke point does.
+      return JSON.stringify({
+        error: resolved.blockCode || 'user_token_forwarding_disabled',
+        message: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled.',
+      });
     }
     const _toolStart = Date.now();
     const result = await tool.invoke(args, { configurable: { agentContext: { agentToken, userId, tokenEvents } } });
@@ -216,7 +237,14 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     vertical,
   };
 
-  const outcome = await runMcpToolPipeline(ctx);
+  const _agentKey = deriveAgentKey(effectiveReq, null, effectiveReq.session?.user?.oauthId || effectiveReq.session?.user?.id || null);
+  const _runId = agentRunRegistry.startRun(_agentKey, { tool: name, userId: effectiveReq.session?.user?.id || null });
+  let outcome;
+  try {
+    outcome = await runMcpToolPipeline(ctx);
+  } finally {
+    agentRunRegistry.endRun(_runId);
+  }
 
   // Surface the PingOne Authorize evaluation to the caller. On the agent path the
   // tool result flows back as a plain string (the LLM tool message), so the
@@ -309,7 +337,13 @@ async function runPipelineForSim({ tool, params, req, useCaseId, vertical }) {
     useCaseId,
     vertical,
   };
-  return runMcpToolPipeline(ctx);
+  const _agentKey = deriveAgentKey(req, null, req.session?.user?.oauthId || req.session?.user?.id || null);
+  const _runId = agentRunRegistry.startRun(_agentKey, { tool, userId: req.session?.user?.id || null });
+  try {
+    return await runMcpToolPipeline(ctx);
+  } finally {
+    agentRunRegistry.endRun(_runId);
+  }
 }
 
 /**
@@ -359,7 +393,14 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     // doesn't have rules for specialist tools at the BFF decision endpoint.
     skipBffAuthorize: true,
   };
-  const outcome = await runMcpToolPipeline(ctx);
+  const _agentKey = deriveAgentKey(effectiveReq, null, effectiveReq.session?.user?.oauthId || effectiveReq.session?.user?.id || null);
+  const _runId = agentRunRegistry.startRun(_agentKey, { tool: name, userId: effectiveReq.session?.user?.id || null });
+  let outcome;
+  try {
+    outcome = await runMcpToolPipeline(ctx);
+  } finally {
+    agentRunRegistry.endRun(_runId);
+  }
 
   if (Array.isArray(outcome.tokenEvents)) {
     stampUseCaseId(outcome.tokenEvents, useCaseId);

@@ -40,7 +40,7 @@ const Section = ({ title, hint, status, defaultOpen = true, children }) => (
 // Admin tool for sending REAL decision requests to ANY decision endpoint in the
 // configured PingOne environment, inspecting the verbatim verdict, and viewing
 // recent decisions. This console always calls live PingOne Authorize; it does
-// NOT change the app-wide enforcement engine (ff_authorize_simulated).
+// NOT change the app-wide enforcement engine (ff_authorize_real).
 // ---------------------------------------------------------------------------
 
 const S = {

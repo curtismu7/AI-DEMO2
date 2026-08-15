@@ -13,6 +13,8 @@ const router = express.Router();
  * Client sends a DPoP proof header to bind the token to a specific key pair.
  *
  * @flow dpop
+ * @name DPoP
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9449 RFC 9449
  * @actor client-app
  * @to gateway
  * @step 1

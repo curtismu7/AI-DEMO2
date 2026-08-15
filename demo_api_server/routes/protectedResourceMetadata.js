@@ -73,15 +73,33 @@ router.get('/', (req, res) => {
   res.json(buildMetadata(req));
 });
 
-// GET /metadata — served at /api/rfc9728/metadata
+/**
+ * Client discovers this API's protected-resource metadata — which
+ * authorization server issues its tokens and which scopes it accepts.
+ *
+ * @flow resource-metadata
+ * @rfc https://datatracker.ietf.org/doc/html/rfc8414 RFC 8414
+ * @actor client-app
+ * @to resource-server
+ * @step 1
+ */
 router.get('/metadata', (req, res) => {
   res.json(buildMetadata(req));
 });
 
 /**
- * GET /all — served at /api/rfc9728/all
- * Fetches RFC 9728 metadata from BFF (self) and all downstream MCP services.
- * Each entry includes a _status field: "ok" | "unreachable" | "error"
+ * Client extends discovery to every downstream MCP resource server so it can
+ * see the full set of authorization servers and scopes across the chain
+ * before attempting a token request.
+ *
+ * @flow resource-metadata
+ * @actor client-app
+ * @to resource-server
+ * @step 2
+ *
+ * GET /all — served at /api/rfc9728/all. Fetches RFC 9728 metadata from BFF
+ * (self) and all downstream MCP services. Each entry includes a _status
+ * field: "ok" | "unreachable" | "error"
  */
 router.get('/all', async (req, res) => {
   const TIMEOUT_MS = 3000;

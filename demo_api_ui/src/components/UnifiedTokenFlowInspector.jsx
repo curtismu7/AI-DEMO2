@@ -832,8 +832,8 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                   <>
                     <p className="utfi-exchange-desc">Real-time token lifecycle — scopes and claims as tokens are exchanged</p>
                     <div className="utfi-exchange-timeline">
-                      {tokenExchangeEvents.map((evt, idx) => (
-                        <div key={idx} className="utfi-exchange-event">
+                      {tokenExchangeEvents.map((evt) => (
+                        <div key={evt.id || evt.timestamp || evt.label} className="utfi-exchange-event">
                           <div className="utfi-event-header">
                             <span className="utfi-event-time">{evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : 'N/A'}</span>
                             <span className={`utfi-event-status utfi-event-status--${evt.status || 'info'}`}>{evt.label || evt.id || 'Event'}</span>
@@ -855,7 +855,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                                     <span className="utfi-event-label">Scopes:</span>
                                     <div className="utfi-scopes-inline">
                                       {typeof evt.decoded.payload.scope === 'string'
-                                        ? evt.decoded.payload.scope.split(' ').map((s, i) => <span key={i} className="utfi-scope-badge">{s}</span>)
+                                        ? evt.decoded.payload.scope.split(' ').map((s) => <span key={s} className="utfi-scope-badge">{s}</span>)
                                         : <span className="utfi-scope-badge">{evt.decoded.payload.scope}</span>}
                                     </div>
                                   </div>
