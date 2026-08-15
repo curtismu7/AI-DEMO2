@@ -24,6 +24,11 @@
   --ctl-radius: 10px;
   --ctl-ring: 0 0 0 3px rgba(11, 105, 163, 0.35);
 }
+:root[data-theme="dark"] {
+  --ctl-ink: #e2e8f0;
+  --ctl-line: #34405e;
+  --ctl-line-strong: #4b5875;
+}
 
 /* ── Global checkbox sweep — native <input type="checkbox"> → box variant ──
  * body-scoped (0,0,1,2) so it beats the legacy bare input[type=checkbox]

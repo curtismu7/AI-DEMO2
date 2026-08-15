@@ -26,7 +26,11 @@ function MermaidBlock({ source, dark, caption }) {
       startOnLoad: false,
       theme: dark ? 'dark' : 'default',
       securityLevel: 'strict',
-      sequence: { useMaxWidth: true, wrap: true },
+      // wrap: false — mermaid's auto-wrap hard-hyphenates long unbroken
+      // tokens (e.g. "authReqId" split as "aut-/hReqId") since endpoint
+      // labels have no internal spaces to wrap on. useMaxWidth scales the
+      // whole SVG down to fit instead, so long labels shrink, not mangle.
+      sequence: { useMaxWidth: true, wrap: false },
       flowchart: { useMaxWidth: true, htmlLabels: false },
     });
 

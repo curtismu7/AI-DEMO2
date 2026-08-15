@@ -1,0 +1,103 @@
+/* demo_api_ui/src/components/ChainViewMenu.css
+ *
+ * The "Views" trigger and its popover in the Token Chain rail toolbar.
+ *
+ * Two rules inherited from REGRESSION_PLAN §4 and deliberately followed here:
+ *   - dark styling is keyed to :root[data-theme="dark"], NEVER
+ *     @media (prefers-color-scheme: dark)
+ *   - no declaration below 11px
+ */
+
+.cvm {
+  position: relative;
+  display: inline-block;
+}
+
+/* The trigger sits on the rail's dark header bar (#16325c), so it matches the
+   header's outline-button treatment rather than a light-surface button. */
+.cvm-trigger {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: none;
+  color: #e2e8f0;
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.cvm-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+
+.cvm-pop {
+  /* Fixed + portaled to <body>: the token card is an overflow-y:auto scroll
+     container in split layout, which clipped an absolutely-positioned popover
+     mid-list on the short views. Coordinates come inline from the trigger's
+     rect at open time. */
+  position: fixed;
+  z-index: 1000;
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+  padding: 5px;
+}
+
+.cvm-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.cvm-item:hover { background: var(--th-bg-inset); }
+
+.cvm-item-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.cvm-item-count {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #047857;
+  background: #d1fae5;
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+.cvm-item-hint {
+  font-size: 11px;
+  color: var(--th-text-muted);
+}
+
+.cvm-note {
+  margin: 4px 9px 3px;
+  font-size: 11px;
+  color: var(--th-text-muted);
+  border-top: 1px solid var(--th-border);
+  padding-top: 6px;
+}
+
+/* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
+:root[data-theme="dark"] .cvm-pop { background: var(--th-bg-card); border-color: var(--th-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+:root[data-theme="dark"] .cvm-item:hover { background: var(--th-bg-inset); }
+:root[data-theme="dark"] .cvm-item-label { color: #eaf0fb; }
+:root[data-theme="dark"] .cvm-item-count { background: #10331f; color: #5fe39c; }
+:root[data-theme="dark"] .cvm-item-hint { color: #90a0c2; }
+:root[data-theme="dark"] .cvm-note { color: #90a0c2; border-top-color: #26304a; }

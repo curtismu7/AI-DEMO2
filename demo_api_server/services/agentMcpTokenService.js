@@ -33,6 +33,7 @@ function warnLog(...args) {
 }
 
 const configStore = require('./configStore');
+const hitlServiceClient = require('./hitlServiceClient');
 const oauthService = require('./oauthService');
 const clientAssertionService = require('./clientAssertionService');
 const { writeExchangeEvent } = require('./exchangeAuditStore');
@@ -102,29 +103,85 @@ function buildRarAuthorizationDetails(tool, params, userSub) {
 }
 
 /**
+ * Resolve the values the RAR grant is built FROM.
+ *
+ * RFC 9396 constraints are only meaningful when they originate from a source the
+ * agent does not control. Building the grant from the same `req.body.params` the
+ * gateway later checks the call against is circular — it proves the call was not
+ * mutated in transit (BFF → TraT → gateway) but says nothing about whether the
+ * requested action matches what was actually authorized.
+ *
+ * When the agent retries after human approval it echoes the approved challenge id
+ * as the reserved `_hitl_challenge_id` tool arg. That challenge's `context` is the
+ * snapshot of arguments the human saw and approved, held in the HITL store — a
+ * source outside the agent. Prefer it.
+ *
+ * Fail-safe, never fail-open: any missing / unapproved / mismatched / unreachable
+ * challenge falls back to today's behaviour (grant from request params). The
+ * fallback grant is never wider than the one it replaces, and the gateway's own
+ * receipt verification (`verifyHitlReceipt`) is unaffected either way.
+ *
+ * @returns {Promise<{ source: object|undefined, provenance: 'human_approval'|'request_params' }>}
+ */
+async function _resolveRarGrantSource(req, tool, userSub) {
+  const params = req?.body?.params;
+  const fallback = { source: params, provenance: 'request_params' };
+  // Literal fallback so a test double of hitlServiceClient that omits the constant
+  // degrades to the fallback path instead of reading params[undefined].
+  const hitlArg = hitlServiceClient.HITL_CHALLENGE_ARG || '_hitl_challenge_id';
+  const challengeId = params && typeof params === 'object' ? params[hitlArg] : null;
+  if (!challengeId) return fallback;
+
+  try {
+    const challenge = await hitlServiceClient.getChallengeStatus(String(challengeId));
+    if (!challenge || challenge.status !== 'approved') return fallback;
+    // Bind the receipt to this caller and tool before trusting its context — an
+    // approved challenge for another user/agent/tool is not a grant source here.
+    if (challenge.tool && tool && challenge.tool !== tool) return fallback;
+    if (userSub && challenge.userId && challenge.userId !== userSub) return fallback;
+    const ctx = challenge.context;
+    if (!ctx || typeof ctx !== 'object') return fallback;
+    return { source: ctx, provenance: 'human_approval' };
+  } catch (err) {
+    console.warn('[agentMcpTokenService] HITL grant source lookup failed, using request params:', err.message);
+    return fallback;
+  }
+}
+
+/**
  * Compute the RAR (RFC 9396) + DPoP (RFC 9449) extras to fold into the TraT envelope,
  * and emit the matching Token Chain events. Returns { ffDpop, ffRar, extras } where
  * extras = { rarDetails, cnfJkt } (either may be undefined). Shared by both the
  * single-exchange and two-exchange paths so they stay in sync.
  */
-function _buildAgenticExtras(req, tool, userSub, tokenEvents) {
+async function _buildAgenticExtras(req, tool, userSub, tokenEvents) {
   const ffDpop = _flagOn('ff_dpop');
   const ffRar = _flagOn('ff_rar');
   const extras = {};
   if (ffRar) {
-    const rarDetails = buildRarAuthorizationDetails(tool, req?.body?.params, userSub);
+    const { source, provenance } = await _resolveRarGrantSource(req, tool, userSub);
+    const rarDetails = buildRarAuthorizationDetails(tool, source, userSub);
     if (rarDetails) {
       extras.rarDetails = rarDetails;
+      extras.rarProvenance = provenance;
       if (Array.isArray(tokenEvents)) {
         tokenEvents.push(buildTokenEvent(
           'rar-authorization',
           'Rich Authorization Request (RAR) — Intent-bound',
           'active',
           null,
-          'ff_rar is ON. The BFF built authorization_details from the tool + parameters and carries them in the ' +
-            'TraT azd envelope + the PingAuthorize decision context. The agent is authorized for THIS specific action, ' +
-            'not a broad scope. Simulated on PingOne SaaS; native on AIC / PingFederate 11.2+.',
-          { rfc: 'RFC 9396', authorization_details: rarDetails }
+          provenance === 'human_approval'
+            ? 'ff_rar is ON. The BFF built authorization_details from the arguments a human approved in the HITL ' +
+              'challenge — a source the agent does not control — and carries them in the TraT azd envelope + the ' +
+              'PingAuthorize decision context. The gateway then enforces that the executed call is a subset of that ' +
+              'grant, so an agent that changes the amount or payee after approval is denied. Simulated on PingOne ' +
+              'SaaS; native on AIC / PingFederate 11.2+.'
+            : 'ff_rar is ON. The BFF built authorization_details from the tool + parameters of THIS request and ' +
+              'carries them in the TraT azd envelope + the PingAuthorize decision context. Note the grant and the ' +
+              'call share one source, so this proves the call was not mutated between authorization and execution — ' +
+              'it does not independently attest the intent. A grant sourced from human approval (HITL) or a native ' +
+              'PingAuthorize mint does. Simulated on PingOne SaaS; native on AIC / PingFederate 11.2+.',
+          { rfc: 'RFC 9396', authorization_details: rarDetails, grant_source: provenance }
         ));
       }
     }
@@ -1759,7 +1816,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       const _tratRaw = configStore.getEffective('ff_trat_mode');
       const ffTratMode = _tratRaw === true || _tratRaw === 'true';
 
-      const { ffDpop, ffRar, extras } = _buildAgenticExtras(req, tool, userSub, tokenEvents);
+      const { ffDpop, ffRar, extras } = await _buildAgenticExtras(req, tool, userSub, tokenEvents);
       if ((ffTratMode || ffDpop || ffRar) && exchangedToken) {
         const agentClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || '';
         const gatewayClientId =
@@ -2472,7 +2529,7 @@ async function _performTwoExchangeDelegation(
     try {
       const _tratRaw = configStore.getEffective('ff_trat_mode');
       const ffTratMode = _tratRaw === true || _tratRaw === 'true';
-      const { ffDpop, ffRar, extras } = _buildAgenticExtras(req || {}, opts.tool || toolTrigger, userSub, tokenEvents);
+      const { ffDpop, ffRar, extras } = await _buildAgenticExtras(req || {}, opts.tool || toolTrigger, userSub, tokenEvents);
       if ((ffTratMode || ffDpop || ffRar) && finalToken) {
         const agentClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id') || '';
         const gatewayClientId = configStore.getEffective('pingone_ai_agent_client_id') || process.env.PINGONE_AI_AGENT_CLIENT_ID || '';
@@ -2637,6 +2694,7 @@ module.exports = {
   MIN_USER_SCOPES_FOR_MCP,
   buildTratContext,
   buildRarAuthorizationDetails,
+  _buildAgenticExtras,
   runTwoExchangeInteractiveTest,
   firstHttpResourceUri,
 };

@@ -38,7 +38,7 @@ function makeToken(overrides: Partial<DecodedGatewayToken> = {}): DecodedGateway
     aud: 'https://mcpgateway.ping.demo',
     exp: Math.floor(Date.now() / 1000) + 3600,
     iat: Math.floor(Date.now() / 1000),
-    scope: 'read write',
+    scope: 'read write transfer',
     ...overrides,
   } as DecodedGatewayToken;
 }

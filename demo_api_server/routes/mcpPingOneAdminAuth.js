@@ -26,6 +26,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
+const { getAuthorizationEndpoint, getTokenEndpoint } = require('../services/oauthEndpointResolver');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
@@ -37,14 +38,6 @@ let _appCache = null;
 
 function base64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function authorizeEndpoint(region, environmentId) {
-  return `https://auth.pingone.${region}/${environmentId}/as/authorize`;
-}
-
-function tokenEndpoint(region, environmentId) {
-  return `https://auth.pingone.${region}/${environmentId}/as/token`;
 }
 
 function callbackUrl(req) {
@@ -188,7 +181,7 @@ router.get('/login', requireAdminSession, async (req, res) => {
         console.error('[mcpPingOneAdminAuth] session save error:', err.message);
         return res.status(500).json({ error: 'login_init_failed', message: err.message });
       }
-      res.redirect(`${authorizeEndpoint(app.region, app.environmentId)}?${params.toString()}`);
+      res.redirect(`${getAuthorizationEndpoint()}?${params.toString()}`);
     });
   } catch (err) {
     console.error('[mcpPingOneAdminAuth] /login error:', err.message);
@@ -219,7 +212,7 @@ router.get('/callback', async (req, res) => {
       client_id: app.clientId,
       code_verifier: pending.codeVerifier,
     });
-    const resp = await axios.post(tokenEndpoint(app.region, app.environmentId), body.toString(), {
+    const resp = await axios.post(getTokenEndpoint(), body.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       timeout: 15000,
     });

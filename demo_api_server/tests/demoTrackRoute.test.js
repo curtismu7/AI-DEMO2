@@ -40,4 +40,12 @@ describe('demo track route', () => {
     expect(res.status).toBe(200);
     expect(res.body.run.activeStepId).toBe('step-up');
   });
+
+  test('POST /arm arms one slot for the wildcard and makes its step active', async () => {
+    const a = app();
+    const res = await request(a).post('/api/demo-track/arm').send({ stepId: 'mcp-gateway', color: 'green' });
+    expect(res.status).toBe(200);
+    expect(res.body.run.activeStepId).toBe('mcp-gateway');
+    expect(res.body.run.arm).toMatchObject({ stepId: 'mcp-gateway', color: 'green' });
+  });
 });

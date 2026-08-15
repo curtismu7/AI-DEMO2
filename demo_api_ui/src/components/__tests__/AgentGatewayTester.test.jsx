@@ -35,6 +35,74 @@ test('renders the topbar title and status text once the gateway loads', async ()
   expect(await screen.findByText('Demo Agent Gateway | Authz: simulated')).toBeInTheDocument();
 });
 
+test('Refresh button shows a spinner and disables itself while its fetches are in flight', async () => {
+  render(<AgentGatewayTester />);
+  await screen.findByText('Demo Agent Gateway | Authz: simulated');
+
+  let resolveActive;
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') {
+      return new Promise((resolve) => { resolveActive = resolve; });
+    }
+    if (url === '/api/mcp-gateway/rate-limit-status') return Promise.resolve({ data: { aligned: false, rateLimitLayer: 'off', bffFlag: false } });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({ data: { tools: [], _source: 'static' } });
+    if (url === '/api/authorize/rules') return Promise.resolve({ data: {} });
+    return Promise.resolve({ data: {} });
+  });
+
+  const refreshBtn = screen.getByRole('button', { name: /Refresh/i });
+  fireEvent.click(refreshBtn);
+
+  await waitFor(() => expect(refreshBtn).toBeDisabled());
+  expect(refreshBtn.querySelector('[role="status"]')).toBeInTheDocument();
+
+  resolveActive({ data: ACTIVE_GATEWAY });
+  await waitFor(() => expect(refreshBtn).not.toBeDisabled());
+});
+
+test('Run chain is inert (not just re-colored) while already running', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  let resolveFirstCall;
+  apiClient.post.mockImplementation(() => new Promise((resolve) => { resolveFirstCall = resolve; }));
+
+  render(<AgentGatewayTester />);
+  await screen.findByText('Demo Agent Gateway | Authz: simulated');
+  // Wait for the live tools fetch to actually land in state before switching
+  // to Config — otherwise runChain's `tools.find(...)` can still see the
+  // pre-fetch empty list and skip the step instead of calling apiClient.post.
+  await screen.findByText('get_my_accounts');
+  fireEvent.click(screen.getByText('Config'));
+
+  fireEvent.click(screen.getByText(/Run chain \(accounts/));
+
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalled());
+  // The busy label also appears in the right output panel's Chain-tab empty
+  // state (runChain switches to it) — scope to the left tree item specifically.
+  const findRunningItem = () => screen
+    .queryAllByText(/Running chain/)
+    .map((el) => el.closest('[role="button"]'))
+    .find(Boolean);
+  await waitFor(() => expect(findRunningItem()).toBeTruthy());
+  const runningItem = findRunningItem();
+  expect(runningItem).toHaveAttribute('aria-disabled', 'true');
+  expect(runningItem).toHaveAttribute('aria-busy', 'true');
+  expect(runningItem.querySelector('[role="status"]')).toBeInTheDocument();
+
+  resolveFirstCall({ data: { ok: true, result: { success: true, accounts: [] }, durationMs: 1 } });
+  await waitFor(() => expect(findRunningItem()).toBeFalsy());
+});
+
 test('toggles between Tools and Config sub-tabs in the left column', async () => {
   render(<AgentGatewayTester />);
   await screen.findByText('Demo Agent Gateway | Authz: simulated');
@@ -209,6 +277,23 @@ test('Run chain executes the three tools in order, carrying the account id forwa
   expect(apiClient.post).toHaveBeenNthCalledWith(1, '/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} });
   expect(apiClient.post).toHaveBeenNthCalledWith(2, '/api/mcp-gateway/test', { tool: 'get_account_balance', args: { account_id: 'acct-1' } });
   expect(apiClient.post).toHaveBeenNthCalledWith(3, '/api/mcp-gateway/test', { tool: 'get_sensitive_account_details', args: { account_id: 'acct-1' } });
+});
+
+test('Chain tab empty state points to the actual "Run chain" control, not a nonexistent button', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({ data: { tools: [], _source: 'live' } });
+    return Promise.resolve({ data: {} });
+  });
+
+  render(<AgentGatewayTester />);
+  await screen.findByText('Demo Agent Gateway | Authz: simulated');
+  fireEvent.click(screen.getByText('Chain'));
+
+  // The guidance must reference the real toggle + real button label so a
+  // reader can actually find them, not a "Run Chain" button that doesn't exist.
+  expect(screen.getByText(/Toggle the left panel to "Config"/)).toBeInTheDocument();
+  expect(screen.getByText(/Run chain \(accounts → balance → sensitive\)/)).toBeInTheDocument();
 });
 
 test('order badges mark the chained tools 1, 2, 3 in the tool tree', async () => {

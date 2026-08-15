@@ -9,8 +9,6 @@ export const NAV_ITEM_CATALOG = [
   "Dashboard",
   "Themes",
   "Demos",
-  "AI Footprint",
-  "Footprint Gallery",
   "AI Agents",
   "PingOne MCP",
   "MCP & Gateways",

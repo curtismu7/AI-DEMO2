@@ -1,0 +1,52 @@
+{
+  "patientRecords": [
+    {
+      "id": "101",
+      "recordType": "Primary Care",
+      "provider": "Dr. Sarah Mitchell, MD",
+      "facility": "Springfield Family Health",
+      "lastVisit": "2026-04-18",
+      "status": "Active"
+    },
+    {
+      "id": "102",
+      "recordType": "Cardiology",
+      "provider": "Dr. Alan Greene, MD",
+      "facility": "Springfield Heart Center",
+      "lastVisit": "2026-03-02",
+      "status": "Active"
+    },
+    {
+      "id": "103",
+      "recordType": "Dermatology",
+      "provider": "Dr. Lisa Park, MD",
+      "facility": "ClearSkin Dermatology Clinic",
+      "lastVisit": "2026-01-15",
+      "status": "Active"
+    },
+    {
+      "id": "104",
+      "recordType": "Orthopedics",
+      "provider": "Dr. James Okafor, MD",
+      "facility": "Midwest Bone & Joint",
+      "lastVisit": "2025-11-20",
+      "status": "Released"
+    },
+    {
+      "id": "105",
+      "recordType": "Neurology",
+      "provider": "Dr. Priya Nair, MD",
+      "facility": "Neuro Care Associates",
+      "lastVisit": "2026-02-28",
+      "status": "Active"
+    },
+    {
+      "id": "106",
+      "recordType": "Endocrinology",
+      "provider": "Dr. Marcus Webb, MD",
+      "facility": "Diabetes & Thyroid Center",
+      "lastVisit": "2026-05-07",
+      "status": "Active"
+    }
+  ]
+}

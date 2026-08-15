@@ -297,8 +297,14 @@
   display: flex;
   border-bottom: 1px solid #cbd5e1;
   padding: 0;
+  /* The parent clips overflow (overflow: hidden); on smaller displays the tab row
+     exceeded the width and got cut off. Let it scroll horizontally instead. */
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 .inspector-shell-output-tab {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
   color: #64748b;

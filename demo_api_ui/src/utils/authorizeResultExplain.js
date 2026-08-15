@@ -67,7 +67,7 @@ function resolvePolicyContext(roots, { isMcp, ruleLikely }) {
 }
 
 /**
- * Infer which Super Banking transaction rule most likely drove the verdict.
+ * Infer which AI Demo transaction rule most likely drove the verdict.
  * Uses thresholds from the provisioned snapshot; statements refine the headline.
  */
 function explainTransaction(parameters, result) {

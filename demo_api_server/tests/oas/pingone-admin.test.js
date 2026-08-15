@@ -7,6 +7,7 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
 jest.mock('../../services/pingOneUserService', () => ({
   initialize: jest.fn(),
   makeRequest: jest.fn(),
+  listUsers: jest.fn(),
 }));
 const adapter = require('../../services/mcpPingOneHttpAdapter');
 const pingOneUserService = require('../../services/pingOneUserService');
@@ -78,6 +79,30 @@ test('call_pingone_tool listUsers parses MCP envelope and summarizes live data',
   expect(result.tool).toBe('listUsers');
   expect(result.responseSummary).toBe('2 users found');
   expect(result.source).toBe('live — hosted PingOne MCP');
+  expect(result.debug.summary).toContain('transport=live');
+});
+
+test('call_pingone_tool listUsers normalizes prefix filters and uses the Management API fallback when MCP is down', async () => {
+  adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
+  pingOneUserService.makeRequest.mockResolvedValue({
+    _embedded: { users: [{ id: 'u1', username: 'curtis.one' }, { id: 'u2', username: 'curtis.two' }] },
+  });
+  const { result } = await plugin.executeTool(
+    'call_pingone_tool',
+    { name: 'listUsers', arguments: { usernamePrefix: 'curtis*', limit: 25 } },
+    {},
+  );
+  expect(adapter.callTool).toHaveBeenCalledWith('listUsers', {
+    filter: 'username sw "curtis"',
+    limit: 25,
+  });
+  expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
+    'GET',
+    '/users?filter=username+sw+%22curtis%22&limit=25',
+  );
+  expect(result.responseSummary).toBe('2 users found');
+  expect(result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: connect ECONNREFUSED');
+  expect(result.debug.summary).toContain('filter=username sw "curtis"');
 });
 
 test('call_pingone_tool tolerates non-JSON text content', async () => {

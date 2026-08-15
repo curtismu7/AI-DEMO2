@@ -78,20 +78,30 @@ describe('SimpleStepperBar', () => {
     expect(screen.getByRole('button', { name: /show/i })).toBeTruthy();
   });
 
-  it('persists open state under ba_simple_stepper_open', () => {
+  // #1661 deliberately dropped the localStorage persistence: the panel should
+  // not reopen itself on the next page load. These two used to assert the old
+  // behaviour and went red when that shipped.
+  it('toggles open and closed within the session', () => {
     _mockCtx = { events: [makeEvent()] };
     render(<SimpleStepperBar />);
     fireEvent.click(screen.getByRole('button', { name: /show/i }));
-    expect(localStorage.getItem('ba_simple_stepper_open')).toBe('true');
+    expect(screen.getByTestId('ssp-panel')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /hide/i }));
-    expect(localStorage.getItem('ba_simple_stepper_open')).toBe('false');
+    expect(screen.queryByTestId('ssp-panel')).toBeNull();
   });
 
-  it('restores open state from localStorage on mount', () => {
+  it('does not write the open state to localStorage', () => {
+    _mockCtx = { events: [makeEvent()] };
+    render(<SimpleStepperBar />);
+    fireEvent.click(screen.getByRole('button', { name: /show/i }));
+    expect(localStorage.getItem('ba_simple_stepper_open')).toBeNull();
+  });
+
+  it('starts closed even when a stale localStorage value says otherwise', () => {
     localStorage.setItem('ba_simple_stepper_open', 'true');
     _mockCtx = { events: [makeEvent()] };
     render(<SimpleStepperBar />);
-    expect(screen.getByTestId('ssp-panel')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /hide/i })).toBeTruthy();
+    expect(screen.queryByTestId('ssp-panel')).toBeNull();
+    expect(screen.getByRole('button', { name: /show/i })).toBeTruthy();
   });
 });

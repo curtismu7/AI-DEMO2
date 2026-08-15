@@ -19,7 +19,7 @@
  * stops gating on one transport and not the other.
  */
 
-export type ObligationKind = 'stepUp' | 'consent' | 'hitl';
+export type ObligationKind = 'stepUp' | 'consent' | 'hitl' | 'elicitation';
 
 /** A statement/obligation as it arrives on a decision response. */
 export interface AuthorizeStatement {
@@ -43,6 +43,7 @@ export function classifyStatement(st: AuthorizeStatement | string | null | undef
   if (!key) return null;
   if (key.includes('HITLCONSENT')) return 'consent';
   if (key.includes('STEPUP')) return 'stepUp';
+  if (key.includes('ELICITATION')) return 'elicitation';
   if (key.includes('HITL') || key.includes('HUMANAPPROVAL')) return 'hitl';
   return null;
 }
@@ -64,5 +65,6 @@ export function classifyStatements(statements: unknown): ObligationKind | null {
   if (kinds.has('stepUp')) return 'stepUp';
   if (kinds.has('consent')) return 'consent';
   if (kinds.has('hitl')) return 'hitl';
+  if (kinds.has('elicitation')) return 'elicitation';
   return null;
 }

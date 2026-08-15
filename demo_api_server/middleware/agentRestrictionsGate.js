@@ -1,6 +1,7 @@
 'use strict';
 
 const configStore = require('../services/configStore');
+const { getTokenEndpoint } = require('../services/oauthEndpointResolver');
 const { getRequiredTier, isAgentRestricted } = require('../services/agentRestrictionsService');
 const { cache: attrCache } = require('./agentRestrictionsCache');
 const { createPendingDecision } = require('../routes/mcpDecisionPolling');
@@ -36,7 +37,6 @@ async function getWorkerToken() {
   if (_workerToken && Date.now() < _workerTokenExpiry) return _workerToken;
 
   const envId = process.env.PINGONE_ENVIRONMENT_ID;
-  const region = process.env.PINGONE_REGION || 'com';
   const clientId = configStore.get('pingone_management_client_id') || process.env.PINGONE_MANAGEMENT_CLIENT_ID;
   const clientSecret = configStore.get('pingone_management_client_secret') || process.env.PINGONE_MANAGEMENT_CLIENT_SECRET;
 
@@ -50,7 +50,7 @@ async function getWorkerToken() {
       client_secret: clientSecret,
     });
     const res = await axios.post(
-      `https://auth.pingone.${region}/${envId}/as/token`,
+      getTokenEndpoint(),
       params.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000, validateStatus: () => true }
     );
@@ -107,7 +107,15 @@ async function fetchAgentRestrictions(userId) {
 async function agentRestrictionsGate(req, res, next) {
   if (configStore.get('ff_agent_restrictions') !== 'true') return next();
 
-  const agentSub = req.headers['x-agent-sub'];
+  // Trust boundary: "is this an agent-originated request" must come from the
+  // VERIFIED token's RFC 8693 `act` claim (req.user.actor, populated by
+  // authenticateToken — which now runs before this gate, see server.js route
+  // mounting), never from the raw, unauthenticated X-Agent-Sub client header.
+  // A request that simply omits/forges that header must not be able to skip
+  // the restriction-tier check. Same actor-identity idiom as requireDelegation
+  // in middleware/auth.js.
+  const actor = req.user?.actor;
+  const agentSub = actor?.sub || actor?.client_id || null;
   if (!agentSub) return next();
 
   const toolName = req.headers['x-mcp-tool'] || '';

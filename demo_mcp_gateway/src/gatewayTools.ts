@@ -12,6 +12,11 @@ export interface GatewayToolDescriptor {
   description: string;
   inputSchema: Record<string, unknown>;
   credentialPath: string;
+  // MCP spec (2025-06-18+) structured tool output — declared on tools whose
+  // dispatch builder (apiKeyDispatch.ts / dualTokenDispatch.ts) returns a
+  // structuredContent field. Absent on tools with no backend data (e.g.
+  // special_offers, a gateway-only marker result).
+  outputSchema?: Record<string, unknown>;
 }
 
 export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
@@ -25,6 +30,7 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
     name: 'user_profile_card',
     description: 'Demo: Access + ID-Token credential path — gateway forwards both tokens to banking_resource_server /identity, returns decoded claims.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'dual_token',
   },
   // Per-vertical API-key feature tools. Each is routed by APIKEY_TOOLS in router.ts;
@@ -33,48 +39,56 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
     name: 'show_health_record',
     description: 'Demo: API-key path — fetch the patient health record from the CareConnect backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_gear_order',
     description: 'Demo: API-key path — fetch the most recent gear order from the Super Sports backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_gear_warranty',
     description: 'Demo: API-key path — fetch the gear warranty record from the Super Sports backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_enrollment',
     description: 'Demo: API-key path — fetch the student enrollment record from the Super University backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_large_purchase',
     description: 'Demo: API-key path — fetch a large purchase record from the Great Buy retail backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_expense_report',
     description: 'Demo: API-key path — fetch the expense report from the WX Workforce backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_permit',
     description: 'Demo: API-key path — fetch a permit record from the CivicPermit backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   {
     name: 'show_work_order',
     description: 'Demo: API-key path — fetch a work order from the Precision Works manufacturing backend via service API key.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object' },
     credentialPath: 'api_key',
   },
   // Weather/Brave showcase tools — passthrough (oauth_bearer) targets forwarded to
@@ -88,8 +102,8 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
       type: 'object',
       properties: {
         city_name: { type: 'string', description: 'City name, optionally with state, e.g. "Austin, TX"' },
-        latitude: { type: 'number' },
-        longitude: { type: 'number' },
+        latitude: { type: 'number', description: 'Decimal latitude, e.g. 30.2672' },
+        longitude: { type: 'number', description: 'Decimal longitude, e.g. -97.7431' },
         location_name: { type: 'string', description: 'A saved location name (not scope-verifiable; denied by policy)' },
       },
       additionalProperties: true,
@@ -102,8 +116,8 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string' },
-        count: { type: 'number' },
+        query: { type: 'string', description: 'Search query string' },
+        count: { type: 'number', description: 'Number of results to return (default 5)' },
       },
       required: ['query'],
       additionalProperties: false,

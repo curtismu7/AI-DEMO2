@@ -16,6 +16,21 @@
         "additionalProperties": false
       }
     },
+    "add_to_cart": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "productId"
+        ],
+        "additionalProperties": false
+      }
+    },
     "add_to_wishlist": {
       "source": "olb",
       "inputSchema": {
@@ -132,15 +147,26 @@
         "type": "object",
         "properties": {
           "query": {
-            "type": "string"
+            "type": "string",
+            "description": "Search query string"
           },
           "count": {
-            "type": "number"
+            "type": "number",
+            "description": "Number of results to return (default 5)"
           }
         },
         "required": [
           "query"
         ],
+        "additionalProperties": false
+      }
+    },
+    "browse_gear": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -649,7 +675,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "portfolioType"
         ],
         "additionalProperties": false
       }
@@ -1003,6 +1030,14 @@
         ]
       }
     },
+    "get_loyalty_status": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
     "get_my_accounts": {
       "source": "olb",
       "inputSchema": {
@@ -1112,10 +1147,12 @@
             "description": "City name, optionally with state, e.g. \"Austin, TX\""
           },
           "latitude": {
-            "type": "number"
+            "type": "number",
+            "description": "Decimal latitude, e.g. 30.2672"
           },
           "longitude": {
-            "type": "number"
+            "type": "number",
+            "description": "Decimal longitude, e.g. -97.7431"
           },
           "location_name": {
             "type": "string",
@@ -1562,6 +1599,23 @@
           "shipmentId"
         ],
         "additionalProperties": false
+      }
+    },
+    "redeem_miles": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confirmation_number": {
+            "type": "string",
+            "description": "Reservation to upgrade. Omit for the next upcoming trip."
+          },
+          "target_cabin": {
+            "type": "string",
+            "description": "Target cabin: 'Business' or 'First'. Defaults to next class up from current cabin."
+          }
+        },
+        "required": []
       }
     },
     "redeem_points": {
@@ -3132,7 +3186,8 @@
           }
         },
         "required": [
-          "amount"
+          "amount",
+          "portfolioType"
         ],
         "additionalProperties": false
       }

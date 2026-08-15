@@ -1044,7 +1044,9 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
                   <p>
                     By continuing, you authorize {preset.shortName} to process
                     this one-time transaction for the amount and accounts shown.
-                    A one-time verification code will be sent to your email.
+                    {Number(snapshot.amount) >= mfaThreshold
+                      ? " A one-time verification code will be sent to your email."
+                      : " Your approval is all that is needed to proceed."}
                   </p>
                 </div>
 
@@ -1160,8 +1162,8 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
         footer={null}
         className="transaction-consent-popup"
         defaultWidth={460}
-        defaultHeight={600}
-        storageKey="transaction-consent-modal"
+        defaultHeight={720}
+        storageKey="transaction-consent-modal-v2"
       >
         <div className="drp-body">{stepContent}</div>
       </DraggableModal>

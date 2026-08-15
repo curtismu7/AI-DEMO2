@@ -140,7 +140,9 @@ if command -v gh &>/dev/null; then
 fi
 
 info "Creating secrets from demo_api_server/.env..."
-K8S_NAMESPACE="$NS" bash "$K8S_DIR/create-secrets.sh"
+# MCPGW_APP_NAME: Privilege console app name (AI Security > Agentic Apps).
+# mcpgw binary routes /mcpgw/<app-name>/mcp — set to match the registered name.
+K8S_NAMESPACE="$NS" MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
 
 # OTel bootstrap script mounted at /otel in every instrumented Node service
 # (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
@@ -215,9 +217,60 @@ for manifest in \
   apply_patched "$K8S_DIR/$manifest"
 done
 
+# Privilege MCPGW gateway: deployed via Helm (k8s/helm/mcpgw), not a plain
+# manifest — see the chart's own comments for why. Uses the privilege-mcpgw
+# binary (mcpgw), which emits WWW-Authenticate OAuth challenges on tokenless
+# requests. OIDC config is read from pingone.env mounted from ping-mcpgw-secrets
+# (written + patched with the correct SERVER_URL by create-secrets.sh above).
+# Reuses ENV_PROXY_TOKEN from ping-mcpgw-secrets via --set-file (NOT
+# --set-string, which corrupts long JWTs during Helm's own CLI arg parsing).
+if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
+  if kubectl get secret ping-mcpgw-secrets -n "$NS" -o jsonpath='{.data.ENV_PROXY_TOKEN}' >/tmp/mcpgw-token.b64 2>/dev/null && [[ -s /tmp/mcpgw-token.b64 ]]; then
+    base64 -d </tmp/mcpgw-token.b64 >/tmp/mcpgw-token.txt
+    rm -f /tmp/mcpgw-token.b64
+    mcpgw_host="${PUBLIC_APP_URL#https://}"
+    mcpgw_host="${mcpgw_host#http://}"
+    info "Deploying Privilege MCPGW gateway (Helm) — host: $mcpgw_host"
+    helm upgrade --install ping-mcpgw "$K8S_DIR/helm/mcpgw" \
+      --namespace "$NS" \
+      --set mcpgw.hostname="$mcpgw_host" \
+      --set mcpgw.serverUrl="${PUBLIC_APP_URL}/mcpgw" \
+      --set opensearch.enabled=true \
+      --set opensearchMcpServer.enabled=true \
+      --set-file mcpgw.proxyToken=/tmp/mcpgw-token.txt
+    rm -f /tmp/mcpgw-token.txt
+  else
+    warn "  Secret ping-mcpgw-secrets (or its ENV_PROXY_TOKEN key) not found — skipping Privilege MCPGW gateway deploy"
+    rm -f /tmp/mcpgw-token.b64
+  fi
+elif [[ -n "${PUBLIC_APP_URL:-}" ]]; then
+  warn "  helm not installed — skipping Privilege MCPGW gateway deploy"
+fi
+
 if [[ -n "$K8S_NAMESPACE" ]]; then
   info "Applying SE cluster ingress..."
   sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
+
+  # SSL-passthrough ingress for the Privilege gateway, on its own dedicated
+  # hostname (see mcpgw-passthrough-ingress.yaml's header comment for why it
+  # can't share the app's host/path). Requires DNS already pointed at the
+  # nginx-public-passthrough LoadBalancer — set MCPGW_HOSTNAME once that's
+  # done; skipped with a warning otherwise, rest of the stack still deploys.
+  if [[ -n "${MCPGW_HOSTNAME:-}" ]]; then
+    info "Applying Privilege gateway passthrough ingress: $MCPGW_HOSTNAME"
+    sed -e "s|<<NAMESPACE>>|$NS|g" -e "s|<<MCPGW_HOSTNAME>>|$MCPGW_HOSTNAME|g" \
+      "$SCRIPT_DIR/mcpgw-passthrough-ingress.yaml" | kubectl apply -f -
+  else
+    info "MCPGW_HOSTNAME not set — skipping Privilege gateway ingress (gateway itself still deploys)"
+  fi
+
+  # mcpgw-agentless-ingress.yaml + mcpgw-wildcard-certificate.yaml route via the
+  # mcpgw binary's agentless-mode upstream-vhost/Frontend-Name mechanism, which
+  # only exists on the untested privilege-mcpgw binary — cyonproxy (what's
+  # actually deployed, via Helm above) has no equivalent and would just 502
+  # forever behind a real-looking Ingress + cert-manager Certificate. Skipped
+  # until agentless mode is verified against the mcpgw binary; see
+  # k8s/helm/mcpgw and 75-ping-mcpgw-deployment.yaml's header comment.
 else
   info "Applying ALB ingress..."
   # ingress.yaml ships with a placeholder ACM cert ARN — substitute the real one

@@ -304,6 +304,129 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(calls.exchanges[0].audience).toBe('custom-intermediate.ping.demo');
     expect(calls.exchanges[1].audience).toBe('custom-a2a-gw.ping.demo');
   });
+
+  // ── Verified Trust — additive, fail-open, must never touch the bearer chain ──
+  describe('Verified Trust assertion (additive, fail-open)', () => {
+    test('verifiedTrustService.isEnabled() false: no call, no trustAssertion, bearer chain unaffected', async () => {
+      const { oauthService } = makeOauth();
+      const verifiedTrustService = {
+        isEnabled: jest.fn(() => false),
+        issueAgentTrustAssertion: jest.fn(),
+      };
+      const result = await a2a.delegateToSpecialist(reqWithToken(), {
+        vertical: 'banking',
+        deps: { ...bankingDeps(), oauthService, verifiedTrustService },
+      });
+
+      expect(verifiedTrustService.isEnabled).toHaveBeenCalled();
+      expect(verifiedTrustService.issueAgentTrustAssertion).not.toHaveBeenCalled();
+      expect(result.trustAssertion).toBeUndefined();
+      expect(result.error).toBeUndefined();
+      expect(result.claims.act.sub).toBe(AGENT2); // bearer chain still correct
+    });
+
+    test('enabled + issuance succeeds: trustAssertion attached, evidence event pushed, bearer chain unaffected', async () => {
+      const { oauthService } = makeOauth();
+      const verifiedTrustService = {
+        isEnabled: jest.fn(() => true),
+        issueAgentTrustAssertion: jest.fn(async () => ({
+          credential: 'eyJhbGciOi...mockSdJwt',
+          credentialId: 'cred-789',
+          expiresAt: '2026-08-10T13:00:00Z',
+        })),
+      };
+      const tokenEvents = [];
+      const result = await a2a.delegateToSpecialist(reqWithToken(), {
+        vertical: 'banking',
+        tokenEvents,
+        deps: { ...bankingDeps(), oauthService, verifiedTrustService },
+      });
+
+      expect(result.trustAssertion).toEqual({
+        credential: 'eyJhbGciOi...mockSdJwt',
+        credentialId: 'cred-789',
+        expiresAt: '2026-08-10T13:00:00Z',
+      });
+      expect(verifiedTrustService.issueAgentTrustAssertion).toHaveBeenCalledWith({
+        agentId: AGENT2,
+        actingForUserId: USER,
+        scope: 'invest:read',
+        chainId: expect.stringContaining(`${USER}:investment:`),
+      });
+      const vtEvent = tokenEvents.find((e) => e.id === 'verified-trust-issuance');
+      expect(vtEvent.status).toBe('issued');
+      // Bearer chain fully intact regardless of the additive assertion.
+      expect(result.claims.act.sub).toBe(AGENT2);
+      expect(result.claims.act.act.sub).toBe(AGENT1);
+      expect(result.actChainDepth).toBe(2);
+    });
+
+    test('enabled + issuance throws NOT_CONFIGURED: bearer chain still completes, trustAssertion undefined, failure recorded as evidence not an error', async () => {
+      const { oauthService } = makeOauth();
+      const notConfigured = new Error('verifiedTrustService not configured');
+      notConfigured.code = 'NOT_CONFIGURED';
+      const verifiedTrustService = {
+        isEnabled: jest.fn(() => true),
+        issueAgentTrustAssertion: jest.fn(async () => { throw notConfigured; }),
+      };
+      const tokenEvents = [];
+      const result = await a2a.delegateToSpecialist(reqWithToken(), {
+        vertical: 'banking',
+        tokenEvents,
+        deps: { ...bankingDeps(), oauthService, verifiedTrustService },
+      });
+
+      // The whole point of fail-open: no top-level error, token/claims still present.
+      expect(result.error).toBeUndefined();
+      expect(result.token).toBeTruthy();
+      expect(result.claims.act.sub).toBe(AGENT2);
+      expect(result.claims.act.act.sub).toBe(AGENT1);
+      expect(result.trustAssertion).toBeUndefined();
+
+      const vtEvent = tokenEvents.find((e) => e.id === 'verified-trust-issuance');
+      expect(vtEvent.status).toBe('failed');
+      expect(vtEvent.explanation).toMatch(/Bearer-token delegation unaffected/i);
+    });
+  });
+});
+
+describe('a2aDelegationService.probeGeneralistMismatch', () => {
+  it('POSTs a fabricated NestedActClientId to the decision endpoint and records a DENY event', async () => {
+    const fakeAxios = {
+      post: jest.fn().mockResolvedValue({
+        data: { decision: 'DENY', reason: 'invalid_a2a_generalist: nested act.sub "unregistered-simulated-agent" is not the authorized generalist' },
+      }),
+    };
+    const tokenEvents = [];
+    const result = await a2a.probeGeneralistMismatch(
+      { session: { user: { id: 'user-1' } } },
+      { vertical: 'investment', tool: 'get_portfolio_summary', tokenEvents, deps: { axios: fakeAxios, configStore: makeConfig(), scopeTopology: makeScopeTopology() } },
+    );
+    expect(result.decision).toBe('DENY');
+    expect(result.simulated).toBe(true);
+    expect(fakeAxios.post).toHaveBeenCalledWith(
+      expect.stringContaining('/governance/pap/alpha/policy/'),
+      expect.objectContaining({
+        parameters: expect.objectContaining({
+          ActChainDepth: '2',
+          NestedActClientId: 'unregistered-simulated-agent',
+          ToolName: 'get_portfolio_summary',
+        }),
+      }),
+      expect.any(Object),
+    );
+    expect(tokenEvents).toHaveLength(1);
+    expect(tokenEvents[0].id).toBe('a2a-mismatch-probe');
+    expect(tokenEvents[0].decision).toBe('DENY');
+  });
+
+  it('returns an error when no specialist is configured for the vertical', async () => {
+    const result = await a2a.probeGeneralistMismatch(
+      { session: { user: { id: 'user-1' } } },
+      { vertical: 'not-a-real-vertical', tokenEvents: [], deps: { axios: { post: jest.fn() }, configStore: makeConfig(), scopeTopology: makeScopeTopology() } },
+    );
+    expect(result.error).toMatch(/No A2A specialist configured/);
+  });
 });
 
 describe('a2aDelegationService.countActDepth', () => {

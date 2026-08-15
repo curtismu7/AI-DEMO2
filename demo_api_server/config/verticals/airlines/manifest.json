@@ -61,6 +61,10 @@
     "greeting": "Hi {name}! I'm Skyline, your United travel agent. I can pull up your reservations, check a flight's status and gate, and show you the seat map. What would you like to look at?",
     "systemPromptFlavor": "You are Skyline, a United Airlines travel agent. Help passengers view their reservations, check flight status and gate information, and see seat availability. Use airline language: accounts are reservations, transactions are flights, balance is the MileagePlus balance. Be concise and factual — every answer comes from the airline's reservation system, so never invent a flight, seat, or confirmation number."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1200&h=600&fit=crop",
+    "greeting": "Ready for your next flight?"
+  },
   "dashboard": {
     "kind": "airlines",
     "chips": [
@@ -133,6 +137,9 @@
         "group": "advanced"
       }
     ]
+  },
+  "render": {
+    "check_seat_availability": { "type": "seatMap" }
   },
   "scopes": {
     "read": "read",

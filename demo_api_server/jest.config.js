@@ -9,8 +9,12 @@ module.exports = {
     '^uuid$': '<rootDir>/src/__tests__/__mocks__/uuid-cjs.js',
     '^jose$': '<rootDir>/src/__tests__/__mocks__/jose-cjs.js',
   },
-  // CI runs many suites in parallel across packages; cap workers to reduce flaky supertest/socket errors.
-  ...(process.env.CI === 'true' ? { maxWorkers: 2 } : {}),
+  // Persist the babel-jest transform cache across runs. Cold run unchanged; warm
+  // reruns skip retransforming ESM shims (jose, @a2a-js, @modelcontextprotocol).
+  cacheDirectory: '/tmp/jest-cache-demo-api-server',
+  // CI: raised from 2→4 — original cap was conservative; 4 workers still avoids
+  // supertest port collisions while cutting wall-clock time ~40%.
+  ...(process.env.CI === 'true' ? { maxWorkers: 4 } : {}),
   // Runs setup.js before each test file so env vars (SKIP_TOKEN_SIGNATURE_VALIDATION,
   // DEBUG_TOKENS, etc.) are set before any module is require()'d by the test.
   // globalSetup runs once before all suites. Loads .env.test-tokens if present
@@ -78,6 +82,5 @@ module.exports = {
     // (the default reporter only prints on completion). No-op locally.
     '<rootDir>/src/__tests__/setup/ciFileStartReporter.js',
   ],
-  verbose: true,
   silent: true // Suppress console output during tests
 };

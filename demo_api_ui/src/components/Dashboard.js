@@ -18,7 +18,12 @@ import { navigateToAdminOAuthLogin } from "../utils/authUi";
 import { toastAdminSessionError } from "../utils/dashboardToast";
 import "../styles/appShellPages.css";
 import "./Dashboard.css";
+// Console visual language for this page — additive CSS only, scoped to
+// .admin-dashboard-page. See the file header for why the look moved here
+// rather than the features moving to the console.
+import "./AdminDashboardSkin.css";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
+import { useTheme } from "../context/ThemeContext";
 import { useSessionToken } from '../context/SessionTokenContext';
 import { useEventStream } from "../context/EventStreamContext";
 import EventStreamPanel from "./EventStreamPanel";
@@ -28,8 +33,10 @@ import ApiCallsModal from "./ApiCallsModal";
 import FloatingPanel from "./FloatingPanel";
 import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import ConfirmModal from "./ConfirmModal";
+import DraggableModal from "./DraggableModal";
 import ThresholdControls from "./ThresholdControls";
 import AdminCustomerPanel from "./AdminCustomerPanel";
+import AdminDemoControlStrip from "./AdminDemoControlStrip";
 import GroupMembershipToggle from "./GroupMembershipToggle";
 
 // Decode a JWT into { header, payload, raw } — no component deps
@@ -55,6 +62,7 @@ const Dashboard = ({ user, onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { placement: agentPlacement } = useAgentUiMode();
+  const { darkMode, toggleDarkMode } = useTheme();
   const { addEvent } = useEventStream();
   const [stats, setStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -66,14 +74,6 @@ const Dashboard = ({ user, onLogout }) => {
   const [resettingDemo, setResettingDemo] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmWriteSeed, setConfirmWriteSeed] = useState(false);
-  const [txLookupUsername, setTxLookupUsername] = useState("demoUser");
-  const [txLookupTx, setTxLookupTx] = useState([]);
-  const [txLookupMeta, setTxLookupMeta] = useState(null);
-  const [txLookupAccounts, setTxLookupAccounts] = useState([]);
-  const [txLookupPingOne, setTxLookupPingOne] = useState(null);
-  const [txLookupTotalTx, setTxLookupTotalTx] = useState(0);
-  const [txLookupLoading, setTxLookupLoading] = useState(false);
-  const [txLookupHints, setTxLookupHints] = useState([]);
   const [apiCallsModalOpen, setApiCallsModalOpen] = useState(false);
   const [showEventStream, setShowEventStream] = useState(false);
   const fetchingRef = React.useRef(false);
@@ -378,6 +378,25 @@ const Dashboard = ({ user, onLogout }) => {
     },
     [user],
   );
+  // Scope-injection flag. This used to share an effect with the customer
+  // lookup card's config/hints fetches; that card is gone, but
+  // setScopeInjectionEnabled is not — it drives the scope-injection banner.
+  // Removing the effect wholesale took this with it until the parity guard
+  // caught the missing /api/admin/config call.
+  useEffect(() => {
+    bffAxios
+      .get("/api/admin/config")
+      .then((res) => {
+        const cfg = res.data;
+        setScopeInjectionEnabled(
+          cfg.ff_inject_scopes === "true" || cfg.ff_inject_scopes === true,
+        );
+      })
+      .catch(() => {
+        /* non-critical */
+      });
+  }, []);
+
 
   useEffect(() => {
     mountedRef.current = true;
@@ -392,42 +411,6 @@ const Dashboard = ({ user, onLogout }) => {
     fetchDashboardData();
   }, [location.state, location.pathname, navigate, fetchDashboardData]);
 
-  const handleLookupUserTransactions = useCallback(
-    async (e) => {
-      e.preventDefault();
-      setTxLookupLoading(true);
-      setTxLookupTx([]);
-      setTxLookupMeta(null);
-      setTxLookupAccounts([]);
-      setTxLookupPingOne(null);
-      setTxLookupTotalTx(0);
-      try {
-        const { data } = await bffAxios.post("/api/admin/transactions/lookup", {
-          username: txLookupUsername.trim(),
-        });
-        setTxLookupTx(data.transactions || []);
-        setTxLookupMeta(data.user || null);
-        setTxLookupAccounts(data.accounts || []);
-        setTxLookupPingOne(data.pingOne || null);
-        setTxLookupTotalTx(
-          typeof data.totalTransactions === "number"
-            ? data.totalTransactions
-            : (data.transactions || []).length,
-        );
-        const n = data.count ?? data.transactions?.length ?? 0;
-        const ac = (data.accounts || []).length;
-        notifySuccess(
-          `Loaded profile, ${ac} account(s), ${n} recent transaction row(s)`,
-        );
-      } catch (err) {
-        const msg = err.response?.data?.error || err.message || "Lookup failed";
-        notifyError(msg);
-      } finally {
-        setTxLookupLoading(false);
-      }
-    },
-    [txLookupUsername],
-  );
 
   // Function to decode JWT token
   // Function to fetch current OAuth tokens
@@ -486,25 +469,6 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
   // Check if scope injection is enabled (Phase 146 — D-04)
-  useEffect(() => {
-    bffAxios
-      .get("/api/admin/config")
-      .then((res) => {
-        const cfg = res.data;
-        setScopeInjectionEnabled(
-          cfg.ff_inject_scopes === "true" || cfg.ff_inject_scopes === true,
-        );
-        const configuredUsername = cfg.config?.demo_username;
-        if (configuredUsername) setTxLookupUsername(configuredUsername);
-      })
-      .catch(() => {
-        /* non-critical */
-      });
-    bffAxios
-      .get("/api/admin/users/hints")
-      .then((res) => setTxLookupHints(res.data.hints || []))
-      .catch(() => {/* non-critical */});
-  }, []);
 
   if (loading) {
     return (
@@ -573,6 +537,19 @@ const Dashboard = ({ user, onLogout }) => {
                 />
                 What's Happening:
               </label>
+              {/* Page-level theme control. The only other dark-mode switch in
+                  the app lives in the agent header's More tray, and the agent
+                  starts collapsed on this page — without this button the
+                  dashboard's dark mode is unreachable on sight. */}
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="app-page-toolbar-btn"
+                title="Switch the dashboard between light and dark"
+                aria-pressed={darkMode}
+              >
+                {darkMode ? "Light mode" : "Dark mode"}
+              </button>
               <button
                 type="button"
                 onClick={() => setApiCallsModalOpen(true)}
@@ -626,6 +603,10 @@ const Dashboard = ({ user, onLogout }) => {
                 {resettingDemo ? "Resetting…" : "Reset Demo"}
               </button>
             </div>
+            {/* Demo controls — the agent-header controls that only matter while
+                presenting this page. The agent hides its own copies here (see
+                pageOwnsAgentChrome in AIAgent.js). */}
+            <AdminDemoControlStrip />
             <main
               id="admin-dashboard-main"
               tabIndex={-1}
@@ -652,352 +633,12 @@ const Dashboard = ({ user, onLogout }) => {
                 <GroupMembershipToggle verticalId="pingone-admin" />
               </section>
               <AdminCustomerPanel />
-              <section
-                className="dash-shell-card"
-                aria-labelledby="tx-lookup-heading"
-              >
-                <h2 id="tx-lookup-heading" className="dash-shell-card__title">
-                  Customer lookup
-                </h2>
-                <p
-                  style={{
-                    margin: "0 0 0.5rem",
-                    fontSize: "0.9rem",
-                    color: "var(--dash-muted, #64748b)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Enter a username to look up their profile, accounts, and transactions.
-                </p>
-                {txLookupHints.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1rem" }}>
-                    {txLookupHints.map((h) => (
-                      <button
-                        key={h.username}
-                        type="button"
-                        onClick={() => setTxLookupUsername(h.username)}
-                        style={{
-                          padding: "0.2rem 0.6rem",
-                          fontSize: "0.8rem",
-                          background: "var(--dash-surface2, #f1f5f9)",
-                          border: "1px solid var(--dash-border, #e2e8f0)",
-                          borderRadius: "4px",
-                          cursor: "pointer",
-                          color: "var(--dash-text, #1e293b)",
-                        }}
-                      >
-                        {h.username}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <form
-                  onSubmit={handleLookupUserTransactions}
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "0.75rem",
-                    alignItems: "flex-end",
-                    marginBottom: "1rem",
-                  }}
-                >
-                  <div>
-                    <label
-                      htmlFor="tx-lookup-username"
-                      style={{
-                        display: "block",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        marginBottom: "0.25rem",
-                      }}
-                    >
-                      Username
-                    </label>
-                    <input
-                      id="tx-lookup-username"
-                      type="text"
-                      autoComplete="username"
-                      value={txLookupUsername}
-                      onChange={(ev) => setTxLookupUsername(ev.target.value)}
-                      className="form-control"
-                      style={{
-                        minWidth: "160px",
-                        padding: "0.5rem 0.65rem",
-                        borderRadius: "8px",
-                        border: "1px solid #e2e8f0",
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={txLookupLoading}
-                  >
-                    {txLookupLoading ? "Loading…" : "Look up customer"}
-                  </button>
-                </form>
-                {txLookupMeta && (
-                  <div style={{ marginBottom: "1.25rem" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        gap: "0.5rem",
-                        marginBottom: "0.75rem",
-                      }}
-                    >
-                      <h3
-                        style={{ margin: 0, fontSize: "1rem", fontWeight: 700 }}
-                      >
-                        Customer profile
-                      </h3>
-                      {txLookupPingOne?.linked ? (
-                        <span
-                          style={{
-                            fontSize: "0.7rem",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.04em",
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                            background: "rgba(34, 197, 94, 0.15)",
-                            color: "#15803d",
-                          }}
-                        >
-                          PingOne linked
-                        </span>
-                      ) : (
-                        <span
-                          title={txLookupPingOne?.reason || ""}
-                          style={{
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                            background: "rgba(148, 163, 184, 0.2)",
-                            color: "var(--dash-muted, #64748b)",
-                          }}
-                        >
-                          PingOne profile not linked
-                        </span>
-                      )}
-                    </div>
-                    <dl
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fill, minmax(200px, 1fr))",
-                        gap: "0.65rem 1.25rem",
-                        margin: 0,
-                        fontSize: "0.875rem",
-                      }}
-                    >
-                      <div>
-                        <dt
-                          style={{
-                            margin: 0,
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                            color: "var(--dash-muted, #64748b)",
-                          }}
-                        >
-                          Full name
-                        </dt>
-                        <dd style={{ margin: "0.15rem 0 0" }}>
-                          {txLookupMeta.fullName || "—"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt
-                          style={{
-                            margin: 0,
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                            color: "var(--dash-muted, #64748b)",
-                          }}
-                        >
-                          Username
-                        </dt>
-                        <dd style={{ margin: "0.15rem 0 0" }}>
-                          {txLookupMeta.username}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt
-                          style={{
-                            margin: 0,
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                            color: "var(--dash-muted, #64748b)",
-                          }}
-                        >
-                          Email
-                        </dt>
-                        <dd style={{ margin: "0.15rem 0 0" }}>
-                          {txLookupMeta.email || "—"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt
-                          style={{
-                            margin: 0,
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                            color: "var(--dash-muted, #64748b)",
-                          }}
-                        >
-                          Phone on record
-                        </dt>
-                        <dd style={{ margin: "0.15rem 0 0" }}>
-                          {txLookupMeta.phoneOnRecord ||
-                            txLookupMeta.phone ||
-                            "—"}
-                        </dd>
-                      </div>
-                      {txLookupPingOne?.linked && (
-                        <div>
-                          <dt
-                            style={{
-                              margin: 0,
-                              fontSize: "0.7rem",
-                              fontWeight: 600,
-                              color: "var(--dash-muted, #64748b)",
-                            }}
-                          >
-                            PingOne user ID
-                          </dt>
-                          <dd
-                            style={{
-                              margin: "0.15rem 0 0",
-                              wordBreak: "break-all",
-                              fontSize: "0.8rem",
-                            }}
-                          >
-                            {txLookupPingOne.userId}
-                          </dd>
-                        </div>
-                      )}
-                    </dl>
-                  </div>
-                )}
-                {txLookupMeta && txLookupAccounts.length > 0 && (
-                  <div style={{ marginBottom: "1.25rem" }}>
-                    <h3
-                      style={{
-                        margin: "0 0 0.65rem",
-                        fontSize: "1rem",
-                        fontWeight: 700,
-                      }}
-                    >
-                      Accounts
-                    </h3>
-                    <div className="table-container">
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>Type</th>
-                            <th>Account number</th>
-                            <th>Balance</th>
-                            <th>Currency</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {txLookupAccounts.map((a) => (
-                            <tr key={a.id}>
-                              <td>{a.accountType}</td>
-                              <td style={{ fontSize: "0.85rem" }}>
-                                {a.accountNumber}
-                              </td>
-                              <td>
-                                $
-                                {Number(a.balance).toLocaleString(undefined, {
-                                  minimumFractionDigits: 2,
-                                })}
-                              </td>
-                              <td>{a.currency || "USD"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-                {txLookupMeta && txLookupTx.length > 0 && (
-                  <div>
-                    <h3
-                      style={{
-                        margin: "0 0 0.65rem",
-                        fontSize: "1rem",
-                        fontWeight: 700,
-                      }}
-                    >
-                      Recent transactions
-                      {txLookupTotalTx > txLookupTx.length ? (
-                        <span
-                          style={{
-                            fontWeight: 400,
-                            fontSize: "0.85rem",
-                            color: "var(--dash-muted, #64748b)",
-                            marginLeft: "0.35rem",
-                          }}
-                        >
-                          (showing {txLookupTx.length} of {txLookupTotalTx})
-                        </span>
-                      ) : null}
-                    </h3>
-                    <div className="table-container">
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>Date</th>
-                            <th>Type</th>
-                            <th>Amount</th>
-                            <th>Description</th>
-                            <th>Account</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {txLookupTx.map((tx) => (
-                            <tr key={tx.id}>
-                              <td>
-                                {format(
-                                  new Date(tx.createdAt),
-                                  "MMM dd, yyyy HH:mm",
-                                )}
-                              </td>
-                              <td>{tx.type}</td>
-                              <td>
-                                $
-                                {Number(tx.amount).toLocaleString(undefined, {
-                                  minimumFractionDigits: 2,
-                                })}
-                              </td>
-                              <td>{tx.description || "—"}</td>
-                              <td style={{ fontSize: "0.85rem" }}>
-                                {tx.accountInfo || "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-                {!txLookupLoading &&
-                  txLookupMeta &&
-                  txLookupTx.length === 0 && (
-                    <p
-                      style={{
-                        margin: "0.75rem 0 0",
-                        color: "var(--dash-muted, #64748b)",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      No transactions on file for this user.
-                    </p>
-                  )}
-              </section>
+              {/* The Customer lookup card lived here. It duplicated the
+                  search, profile, accounts and transactions of the
+                  Customer lookup & admin panel below, which now also
+                  renders the PingOne record via
+                  /api/admin/transactions/lookup. One search on the page,
+                  nothing removed. */}
 
               {/* Statistics Cards */}
               {stats ? (
@@ -1272,128 +913,40 @@ const Dashboard = ({ user, onLogout }) => {
         />
 
         {/* Metric Details Modal */}
-        {selectedMetric && metricDetails && (
-          <button
-            type="button"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000,
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-            }}
-            onClick={() => setSelectedMetric(null)}
-            aria-label="Close metric details"
-          >
-            <div
-              role="dialog"
-              aria-labelledby="metric-details-title"
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: "8px",
-                padding: "2rem",
-                maxWidth: "500px",
-                width: "90%",
-                boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)",
-                cursor: "default",
-              }}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.key === "Escape" && setSelectedMetric(null)}
-            >
-              <h2
-                style={{
-                  marginTop: 0,
-                  marginBottom: "0.5rem",
-                  fontSize: "1.5rem",
-                  fontWeight: 600,
-                }}
-              >
-                {metricDetails.title}
-              </h2>
-              <p style={{ marginTop: 0, color: "#666", fontSize: "0.95rem" }}>
-                {metricDetails.description}
-              </p>
-              <div
-                style={{
-                  backgroundColor: "#f3f4f6",
-                  padding: "1.5rem",
-                  borderRadius: "6px",
-                  marginBottom: "1.5rem",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "2.5rem",
-                    fontWeight: 700,
-                    color: "#1e293b",
-                  }}
-                >
-                  {metricDetails.value}
-                </div>
+        {/* Metric details — DraggableModal per the standing modal rule (was a
+            hand-rolled fixed overlay). The default footer supplies Close.
+            Styled via .dash-metric-detail classes (Dashboard.css): the modal
+            portals to document.body, OUTSIDE .admin-dashboard-page, so the
+            --admin-* tokens do not resolve here — those classes carry their
+            own dark block. */}
+        <DraggableModal
+          isOpen={Boolean(selectedMetric && metricDetails)}
+          onClose={() => setSelectedMetric(null)}
+          title={metricDetails?.title || "Metric details"}
+          defaultWidth={500}
+          defaultHeight={430}
+          storageKey="admin-metric-details"
+        >
+          {metricDetails && (
+            <div className="dash-metric-detail">
+              <p className="dash-metric-detail__desc">{metricDetails.description}</p>
+              <div className="dash-metric-detail__value-box">
+                <div className="dash-metric-detail__value">{metricDetails.value}</div>
               </div>
-
               {metricDetails.details && metricDetails.details.length > 0 && (
                 <div>
-                  <h3
-                    style={{
-                      marginBottom: "1rem",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Related Metrics
-                  </h3>
-                  {metricDetails.details.map((detail, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "0.75rem 0",
-                        borderBottom: "1px solid #e5e7eb",
-                      }}
-                    >
-                      <span style={{ color: "#666", fontWeight: 500 }}>
-                        {detail.label}
-                      </span>
-                      <span style={{ fontWeight: 600, color: "#1e293b" }}>
-                        {detail.value}
-                      </span>
+                  <h3 className="dash-metric-detail__h">Related Metrics</h3>
+                  {metricDetails.details.map((detail) => (
+                    <div key={detail.label} className="dash-metric-detail__row">
+                      <span className="dash-metric-detail__label">{detail.label}</span>
+                      <span className="dash-metric-detail__val">{detail.value}</span>
                     </div>
                   ))}
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => setSelectedMetric(null)}
-                style={{
-                  width: "100%",
-                  padding: "0.75rem",
-                  marginTop: "1.5rem",
-                  backgroundColor: "#2563eb",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
             </div>
-          </button>
-        )}
+          )}
+        </DraggableModal>
       </div>
     </div>
   );

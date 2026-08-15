@@ -1,10 +1,10 @@
-# Banking MCP Server systemd service file
+# AI Demo MCP Server systemd service file
 # Copy this file to /etc/systemd/system/ and enable with:
 # sudo systemctl enable banking-mcp-server
 # sudo systemctl start banking-mcp-server
 
 [Unit]
-Description=Banking MCP Server
+Description=AI Demo MCP Server
 Documentation=https://github.com/your-org/banking-mcp-server
 After=network.target
 Wants=network.target

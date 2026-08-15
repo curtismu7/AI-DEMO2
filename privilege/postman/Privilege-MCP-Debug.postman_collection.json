@@ -1,0 +1,257 @@
+{
+  "info": {
+    "name": "PingOne Privilege MCPGW — debug",
+    "description": "End-to-end probes for the Privilege MCP gateway. Run in order. Each request's Tests tab prints the decisive line to the Postman console (View > Show Postman Console).\n\nTwo gates sit in front of a successful tool call, and they fail in ways that look alike:\n\n1. ROUTING. MCPGW routes strictly on Host and only recognises the Frontend Name registered on the application object — {{frontEndName}}, which is NOT what the console UI displays. Wrong Host = 'Domain not found' in the proxy log and an empty 200 to the client. nginx rewrites Host for us (map $host $mcpgw_frontend), so requests through {{front}} are already correct; requests straight at {{gwDirect}} are not, and must set Host by hand.\n\n2. AUTH + POLICY. The gateway compares the token's kid against infra-root-jwt. No PingOne-minted token matches until the application carries front-end OAuth config. A console token does match — and then Privilege answers 403 unless a policy grants that user the MCP application. Console policies can be created time-boxed (1h, 2h); an expired one fails exactly like a missing one.\n\nFull account: privilege/PRIVILEGE-MCP.md §2026-08-10 (later): Host routing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "envId", "value": "8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b" },
+    { "key": "clientId", "value": "deff60f5-5a67-4a6e-b283-47252856c89c" },
+    { "key": "clientSecret", "value": "" },
+    { "key": "front", "value": "https://aidemo.mcpgw.local.ping-devops.com" },
+    { "key": "gwBase", "value": "https://mcpgw.local.ping-devops.com" },
+    { "key": "gwDirect", "value": "http://localhost:8620" },
+    { "key": "backend", "value": "http://localhost:8080" },
+    { "key": "frontEndName", "value": "MCP-aidemo.default.applications.procyon.ai:8643" },
+    { "key": "mcpAppName", "value": "MCP-aidemo" },
+    { "key": "token", "value": "" },
+    { "key": "consoleToken", "value": "" },
+    { "key": "consoleSession", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Gateway liveness  GET /  (expect 200 OK)",
+      "request": { "method": "GET", "url": "{{gwDirect}}/" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text());",
+        "pm.test('gateway is up', () => pm.response.code === 200);"
+      ]}}]
+    },
+    {
+      "name": "1. MCP initialize — NO auth  (expect 401 Bearer Token not found.)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"postman\",\"version\":\"1.0\"}}}" },
+        "url": "{{front}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const w = pm.response.headers.get('WWW-Authenticate');",
+        "console.log('status', pm.response.code);",
+        "console.log('WWW-Authenticate:', w || '(absent)');",
+        "console.log('body:', pm.response.text());",
+        "console.log('401 Bearer Token not found. = the gateway wants a token.');",
+        "console.log('It does NOT prove routing: on the :8620 agentless API path the bearer check');",
+        "console.log('runs BEFORE any host evaluation, so a garbage Host 401s identically.');",
+        "console.log('Routing is only exercised once a token is present — see #6.');",
+        "pm.test('gateway answers the auth challenge', () => pm.response.code === 401);"
+      ]}}]
+    },
+    {
+      "name": "2. MCP initialize — direct :8620, Host NOT rewritten  (expect the routing miss)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"postman\",\"version\":\"1.0\"}}}" },
+        "url": "{{gwDirect}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '| body length', pm.response.text().length);",
+        "console.log('nginx is NOT transparent — it rewrites Host to the Frontend Name.');",
+        "console.log('Bypassing it sends Host: localhost:8620, which matches no application.');",
+        "console.log('Expect an empty 200 here, and Domain not found in: docker logs ai-demo-ping-mcpgw');"
+      ]}}]
+    },
+    {
+      "name": "3. MCP initialize — direct :8620, Host SET by hand  (the control for #2)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Host", "value": "{{frontEndName}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"postman\",\"version\":\"1.0\"}}}" },
+        "url": "{{gwDirect}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text().slice(0,120));",
+        "console.log('Expect the same 401 as #1 and #2 — on :8620 the token check precedes routing,');",
+        "console.log('so this pair does NOT isolate a routing miss without a token. Verified 2026-08-10:');",
+        "console.log('garbage.nowhere.example.com also returns 401 Bearer Token not found.');",
+        "console.log('Postman must be allowed to send Host: Settings > General > turn OFF the restricted-headers guard.');",
+        "pm.test('reaches the gateway', () => pm.response.code === 401);"
+      ]}}]
+    },
+    {
+      "name": "4. PingOne token (client_credentials)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+        "body": { "mode": "urlencoded", "urlencoded": [
+          { "key": "grant_type", "value": "client_credentials" },
+          { "key": "client_id", "value": "{{clientId}}" },
+          { "key": "client_secret", "value": "{{clientSecret}}" }
+        ]},
+        "url": "https://auth.pingone.com/{{envId}}/as/token"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const j = pm.response.json();",
+        "if (j.access_token) {",
+        "  pm.collectionVariables.set('token', j.access_token);",
+        "  const p = JSON.parse(atob(j.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));",
+        "  const h = JSON.parse(atob(j.access_token.split('.')[0].replace(/-/g,'+').replace(/_/g,'/')));",
+        "  console.log('kid:', h.kid, ' alg:', h.alg);",
+        "  console.log('iss:', p.iss);",
+        "  console.log('aud:', JSON.stringify(p.aud), ' env:', p.env);",
+        "} else { console.log('ERROR', pm.response.text()); }",
+        "pm.test('token minted', () => pm.response.code === 200);"
+      ]}}]
+    },
+    {
+      "name": "5. MCP initialize — WITH PingOne bearer  (expect kid mismatch)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"postman\",\"version\":\"1.0\"}}}" },
+        "url": "{{front}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code);",
+        "console.log(pm.response.text().slice(0,120));",
+        "console.log('The gateway compares token kid against InfraKid=infra-root-jwt.');",
+        "console.log('A PingOne kid cannot match until the application carries front-end OAuth');",
+        "console.log('config (cyctl --spec-mcp-app-config-resource-o-auth-*). Routing is NOT the issue here.');",
+        "pm.test('MCP initialize succeeded (currently expected to FAIL)', () => pm.response.code === 200);"
+      ]}}]
+    },
+    {
+      "name": "6. MCP initialize — WITH console token  (kid matches; expect 403 or 200)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{consoleToken}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"postman\",\"version\":\"1.0\"}}}" },
+        "url": "{{front}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text().slice(0,200));",
+        "console.log('403 \"doesn\\'t have access to MCP app {{mcpAppName}}\" = auth and routing both passed;');",
+        "console.log('Privilege is enforcing POLICY. Grant the user rights on the app in the console.');",
+        "console.log('If this worked earlier and now 403s, check the policy has not expired — they can be time-boxed.');",
+        "pm.test('reached the authorization layer, not a routing miss', () => [200,403].includes(pm.response.code));"
+      ]}}]
+    },
+    {
+      "name": "7. MCP tools/list — WITH console token",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{consoleToken}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" },
+          { "key": "mcp-protocol-version", "value": "2024-11-05" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}" },
+        "url": "{{front}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text().slice(0,200));",
+        "console.log('Non-initialize calls need mcp-protocol-version AND Mcp-Session-Id (from #6).');",
+        "console.log('Omitting either produces errors that read like auth failures.');"
+      ]}}]
+    },
+    {
+      "name": "8. OAuth discovery sweep — protected resource",
+      "request": { "method": "GET", "url": "{{front}}/.well-known/oauth-protected-resource" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text().slice(0,80));",
+        "console.log('MCP spec expects this to be public. 401 here = no bootstrap path.');"
+      ]}}]
+    },
+    {
+      "name": "9. OAuth discovery sweep — authorization server",
+      "request": { "method": "GET", "url": "{{front}}/.well-known/oauth-authorization-server" }
+    },
+    {
+      "name": "10. Gateway /authorize (is the OAuth endpoint itself gated?)",
+      "request": { "method": "GET", "url": "{{gwBase}}/authorize" },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code, '|', pm.response.text().slice(0,80));",
+        "console.log('The /authorize strings in the binary are vendored ory/fosite source paths,');",
+        "console.log('not proof the route exists.');"
+      ]}}]
+    },
+    {
+      "name": "11. CONTROL — backend MCP server direct (proves MCP layer is healthy)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json, text/event-stream" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"postman\",\"version\":\"1.0\"}}}" },
+        "url": "{{backend}}/mcp"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code);",
+        "console.log(pm.response.text().slice(0,200));",
+        "pm.test('backend healthy', () => pm.response.code === 200);"
+      ]}}]
+    },
+    {
+      "name": "12. Console API — read the REAL Frontend Name",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "auth_token={{consoleToken}}" },
+          { "key": "x-procyon-session-id", "value": "{{consoleSession}}" }
+        ],
+        "url": "https://console.privilege.pingone.com/api/{{envId}}/v1/applications?ObjectMeta.Namespace=default"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code);",
+        "if (pm.response.code === 200) {",
+        "  const apps = pm.response.json().Applications || [];",
+        "  apps.forEach(a => console.log(a.ObjectMeta && a.ObjectMeta.Name, '->',",
+        "    JSON.stringify(((a.Spec||{}).McpAppConfig||{}).FrontEndName)));",
+        "  console.log('Key is McpAppConfig, not MCPAppConfig — wrong casing reads as undefined.');",
+        "  console.log('Use FrontEndName.Elems as the Host header / $mcpgw_frontend map value.');",
+        "  console.log('It will NOT match what the console UI displays.');",
+        "} else { console.log(pm.response.text().slice(0,300)); }"
+      ]}}]
+    },
+    {
+      "name": "13. Console API — is a policy still granting access?",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Cookie", "value": "auth_token={{consoleToken}}" },
+          { "key": "x-procyon-session-id", "value": "{{consoleSession}}" }
+        ],
+        "url": "https://console.privilege.pingone.com/api/{{envId}}/v1/pacpolicys"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "console.log('status', pm.response.code);",
+        "if (pm.response.code === 200) {",
+        "  const body = pm.response.json();",
+        "  const list = body.PacPolicys || body.Items || body.items || [];",
+        "  console.log('policies:', list.length);",
+        "  list.forEach(p => console.log(' -', JSON.stringify((p.ObjectMeta||{}).Name), JSON.stringify(p.Spec||{}).slice(0,300)));",
+        "  console.log('An EMPTY list is why tool calls answer \"User … doesn\\'t have access to MCP app\".');",
+        "  console.log('Policies can be created time-boxed (1h, 2h) — an expired one fails the same way.');",
+        "} else { console.log(pm.response.text().slice(0,300)); }"
+      ]}}]
+    }
+  ]
+}

@@ -22,6 +22,7 @@ import type { IntentValidationResult } from '../intentTokenValidator';
 import { type DecodedGatewayToken, isJwksVerificationEnabled } from '../tokenValidator';
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
 import { classifyStatements, type ObligationKind } from './authorizeObligations';
+import { getToolAnnotations } from '../utils/toolAnnotations';
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
 
@@ -80,6 +81,9 @@ export interface AuthzDecision {
   // so the Agent Gateway Tester can show WHAT was evaluated. Undefined on the
   // no-P1AZ local-scope fallback path (no decision call is made).
   sentParameters?: Record<string, string>;
+  // Advice items from the PDP — used by the elicitation handler to surface the
+  // elicitation prompt returned by the policy (id: 'elicitation-prompt').
+  advice?: Array<{ id: string; value?: string }>;
 }
 
 export interface ToolArgs {
@@ -186,6 +190,16 @@ export function buildAuthorizeParameters(
     // Framework defines Timestamp but nothing was sending it.
     Timestamp: new Date().toISOString(),
   };
+
+  // Tool annotations (readOnly, destructive, idempotent) for P1AZ context.
+  // Always included: unknown/empty toolName returns all-false (fail-safe).
+  const ann = getToolAnnotations(toolName ?? '');
+  base.ToolReadOnly = ann.readOnly ? 'true' : 'false';
+  base.ToolDestructive = ann.destructive ? 'true' : 'false';
+  base.ToolIdempotent = ann.idempotent ? 'true' : 'false';
+
+  // ElicitationConfirmed flag from args if present
+  base.ElicitationConfirmed = toolArgs?._elicitation_confirmed === true ? 'true' : 'false';
 
   // C1 rule 1 — TokenAudience is the token's REAL aud, never the expected URI.
   // Both keys used to be hardcoded to gatewayResourceUri, which made the cloud
@@ -411,12 +425,17 @@ export class PingOneAuthorizeClient {
       // Real-first: a live PERMIT can still carry a gate in `statements[]`.
       // Reading only the label forwarded exactly the calls the PDP held.
       const obligation = classifyStatements(data?.statements);
+      // Elicitation advice: surfaced so the handler can include the prompt in -32003.
+      const elicitationAdvice = obligation === 'elicitation'
+        ? (Array.isArray(data?.advice) ? data.advice as Array<{ id: string; value?: string }> : [])
+        : undefined;
       if (outcome === 'PERMIT') {
         if (obligation) {
           return {
             decision: 'INDETERMINATE',
             reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
             obligation,
+            ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
             ...meta,
           };
         }
@@ -430,26 +449,21 @@ export class PingOneAuthorizeClient {
             decision: 'INDETERMINATE',
             reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
             obligation,
+            ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
             ...meta,
           };
         }
         // INDETERMINATE with NO classifiable obligation is not a legitimate
         // step-up/consent ask — it means the PDP could not produce a real
         // verdict (no rule fired, an unrecognized statement code, or a live
-        // PDP returning its "could not evaluate" outcome, which per the
-        // module doc above should never happen). That is a policy engine
-        // fault, not a business decision, so it must not silently masquerade
-        // as a HITL challenge the agent would then loop on. Resolve it to a
-        // concrete PERMIT/DENY instead: PERMIT by default (fail open on
-        // ambiguity), unless the response carries an explicit deny reason.
+        // PDP returning its "could not evaluate" outcome). That is a policy
+        // engine fault, not a business decision. Fail closed: an unknown
+        // outcome must never widen access.
         console.warn(
           `[GW] PingAuthorize returned INDETERMINATE with no classifiable obligation (engine=${engine}) — ` +
-          'treating as a policy engine fault, not a step-up/consent ask.',
+          'fail-closed: treating as DENY.',
         );
-        if (typeof data?.reason === 'string' && /deny/i.test(data.reason)) {
-          return { decision: 'DENY', reason: `indeterminate_no_obligation: ${data.reason}`, ...meta };
-        }
-        return { decision: 'PERMIT', reason: 'indeterminate_no_obligation: defaulted to permit', ...meta };
+        return { decision: 'DENY', reason: `indeterminate_no_obligation: ${data?.reason ?? 'unknown'}`, ...meta };
       }
       // Preserve the engine's specific DENY reason (e.g. the mock's
       // 'unknown_tool: no policy defined' = policy drift) instead of flattening

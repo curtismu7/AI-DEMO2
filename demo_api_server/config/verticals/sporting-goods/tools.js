@@ -115,6 +115,20 @@ function buildSportingGoodsTools(store) {
       scopes: ['read'],
       authz: {},
     },
+    {
+      name: 'browse_gear',
+      description: 'Browse gear products available to buy.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['read'],
+      authz: {},
+    },
+    {
+      name: 'add_to_cart',
+      description: 'Add a product to the shopping cart by product id.',
+      inputSchema: { type: 'object', properties: { productId: { type: 'string' } }, required: ['productId'] },
+      scopes: ['write'],
+      authz: {},
+    },
   ];
 
   async function execute(name, params, ctx) {
@@ -216,6 +230,13 @@ function buildSportingGoodsTools(store) {
         return { result: { orders: store.get(userId).orders }, render: 'list_gear' };
       case 'list_rentals':
         return { result: { rentals: store.get(userId).rentals }, render: 'list_rentals' };
+      case 'browse_gear':
+        return { result: { products: store.get(userId).products }, render: 'browse_gear' };
+      case 'add_to_cart': {
+        const entry = store.addToCart(userId, { productId: params && params.productId });
+        if (!entry) return { result: { error: 'product not found' }, render: 'text' };
+        return { result: entry, render: 'add_to_cart' };
+      }
       case 'gear_order_status': {
         // One-click "Track my order" chip carries no orderId — default to the
         // member's most recent gear order rather than dead-ending on a missing param.

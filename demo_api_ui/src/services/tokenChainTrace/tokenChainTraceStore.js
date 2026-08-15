@@ -54,6 +54,32 @@ function isForeignRun(flowTraceId) {
   );
 }
 
+// Synthesize a standard authorize shape from a gw-authorize token event so
+// consumers that read trace.authorize don't need per-site fallback logic.
+function _gwAuthorizeToAuthorize(ev) {
+  return {
+    engine: ev.authorizeEngine || ev.backend || 'pingone',
+    decision: ev.decision || ev.authorizeDecision || null,
+    decisionId: ev.decisionId || null,
+    decisionContext: ev.tool ? `tool:${ev.tool}` : null,
+    path: ev.url || null,
+    request: ev.authorizeRequest
+      || (ev.parameters ? { method: 'POST', url: ev.url || '', parameters: ev.parameters } : null),
+    response: ev.authorizeResponse || ev.rawResponse || null,
+    source: 'gw-authorize',
+  };
+}
+
+// If a gw-authorize event exists in trace.tokenEvents and trace.authorize has
+// not been set by ingestAuthorize (which owns the non-gateway path), synthesize
+// trace.authorize from the event. Called after every tokenEvents mutation so
+// downstream consumers only need to read trace.authorize, never scan tokenEvents.
+function _syncGwAuthorize() {
+  if (trace.authorize) return;
+  const gwEv = trace.tokenEvents.find((e) => e && e.id === 'gw-authorize');
+  if (gwEv) trace.authorize = _gwAuthorizeToAuthorize(gwEv);
+}
+
 const GATE_OUTCOMES = new Set(["STEP_UP", "HITL_REQUIRED"]);
 
 /**
@@ -127,6 +153,10 @@ export const tokenChainTraceStore = {
     trace.flowTraceId = activeFlowTraceId;
     try {
       agentFlowDiagram.clearServerEvents();
+      // Wipe compliance-step "done" bits from the prior run so the flow
+      // diagram doesn't render an old run's lit nodes until the new run's
+      // first STATE_SNAPSHOT lands.
+      agentFlowDiagram.resetComplianceSteps(null, null);
     } catch { /* display-only */ }
     emit();
   },
@@ -164,6 +194,7 @@ export const tokenChainTraceStore = {
       (e) => e && SESSION_EVENT_IDS.includes(e.id) && !incoming.has(e.id),
     );
     trace.tokenEvents = [...carried, ...acceptedEvents];
+    _syncGwAuthorize();
     emit();
   },
   ingestTokenEvent(event) {
@@ -182,6 +213,7 @@ export const tokenChainTraceStore = {
     } else {
       trace.tokenEvents = [...trace.tokenEvents, event];
     }
+    _syncGwAuthorize();
     emit();
   },
   ingestAuthorize(evaluation) {
@@ -257,6 +289,7 @@ export const tokenChainTraceStore = {
     explicitlyReset = true;
     try {
       agentFlowDiagram.clearServerEvents();
+      agentFlowDiagram.resetComplianceSteps(null, null);
     } catch { /* display-only */ }
     emit();
   },

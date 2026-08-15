@@ -16,6 +16,7 @@ import { useThemeOptional } from "../context/ThemeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
+import SimpleStepperPanel from "./SimpleStepperPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -48,6 +49,7 @@ import {
   warmupAuthz,
 } from "../services/demoAgentService";
 import bffAxios from "../services/bffAxios";
+import { nrLog } from "../utils/nrLog";
 import { getCachedStatus } from "../services/cachedStatusService";
 import { loadPublicConfig } from "../services/configService";
 import { spinner } from "../services/spinnerService";
@@ -57,11 +59,13 @@ import {
   notifySuccess,
   toast,
 } from "../utils/appToast";
-import { isPublicMarketingAgentPath } from "../utils/embeddedAgentFabVisibility";
+import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
+import ProductCardGrid from "./ProductCardGrid";
 import JsonField from "./shared/JsonField";
+import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
@@ -75,6 +79,7 @@ import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
 import GatewayConsentModal from "./GatewayConsentModal";
+import ElicitationModal from "./ElicitationModal";
 import { EDU } from "./education/educationIds";
 import FidoStepUpModal from "./FidoStepUpModal";
 import MCPToolsListModal from "./MCPToolsListModal";
@@ -171,6 +176,9 @@ import {
 import {
   SessionExpiryTimer,
   ParamHintCopy,
+  ClarifyOptions,
+  buildPingOneAppListMessage,
+  buildPingOneToolListMessage,
   buildPingOneUserListMessage,
   verticalSuggestionChips,
   HitlChipMark,
@@ -246,6 +254,10 @@ const NL_FAILURE_MESSAGES = {
     "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway, then retry.",
   a2a_delegation_disabled:
     "A2A delegation isn't enabled — turning it on automatically. Try the step again in a moment.",
+  pingone_admin_group_required:
+    "PingOne Authorize denied this — its group-membership policy requires the signed-in user to be in the 'pingone-admin' group, which this session isn't. Add the user to that group, then try again.",
+  pingone_admin_group_lookup_unavailable:
+    "PingOne Authorize couldn't verify the 'pingone-admin' group membership needed for this policy check right now. Try again in a moment.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
@@ -286,6 +298,7 @@ export default function BankingAgent({
   onPopout,
   surfaceHostEl = null,
   forceVertical = null,
+  onStopAgentClick = null,
 }) {
   const isInline = mode === "inline";
   const isBottomDock = isInline && embeddedDockBottom;
@@ -304,6 +317,38 @@ export default function BankingAgent({
   const { addEvent } = useEventStream();
   const { pageManifest, agentManifest, activeId: activeVerticalId } = useVertical();
   const effectiveVerticalId = forceVertical || activeVerticalId;
+  // Secondary header controls live in a "More" popout. The header had ~16
+  // controls across five rows, which buries the ones actually used to drive a
+  // demo. Kept inline: Demo Track, Routing + Wiring, Flow Detail, Guide, Demo
+  // steps, agent scope, close. A popout rather than an inline expansion so the
+  // header's height never changes when it opens.
+  const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
+  const headerMoreRef = useRef(null);
+  // Freshest handleDemoStepSelect for the strip's event bridge (the listener
+  // is registered once with [] deps, so it must read through a ref).
+  const demoStepSelectRef = useRef(null);
+  // Same pattern for the guided Demo Track picks arriving from the /admin
+  // page strip's DemoTrackAgentControl (agent-track-step-pick/-complete).
+  const trackStepPickRef = useRef(null);
+  const trackStepCompleteRef = useRef(null);
+  // Same interaction contract as the Token Chain rail's More tray: outside
+  // click and Escape close it, an item click does NOT — several entries are
+  // switches a presenter flips in sequence.
+  useEffect(() => {
+    if (!headerMoreOpen) return undefined;
+    const onDocClick = (e) => {
+      if (!headerMoreRef.current?.contains(e.target)) setHeaderMoreOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setHeaderMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [headerMoreOpen]);
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
@@ -512,7 +557,10 @@ export default function BankingAgent({
   // MCP tools list modal state
   const [showMcpToolsModal, setShowMcpToolsModal] = useState(false);
   const [mcpToolsList, setMcpToolsList] = useState([]);
-  const [showUserFilterModal, setShowUserFilterModal] = useState(false);
+  // Shared prefix-filter modal: 'user' (ADMIN5 / List Users chip) or 'app'
+  // (ADMIN6 / List Apps chip); null = closed. userFilter holds the typed
+  // prefix for whichever kind is open.
+  const [filterModalKind, setFilterModalKind] = useState(null);
   const [userFilter, setUserFilter] = useState("");
   const [userFilterError, setUserFilterError] = useState("");
   // Demo guide modal state
@@ -602,12 +650,16 @@ export default function BankingAgent({
       return false;
     }
   });
-  // Split-column Configuration group starts collapsed: expanded it costs ~250px
-  // of header, which on a short viewport leaves the transcript a ~60px sliver.
-  // Opening it is remembered, so a demo that needs the controls keeps them.
-  const [configGroupOpen, setConfigGroupOpen] = useState(() => {
+  const [showSimpleStepper, setShowSimpleStepper] = useState(() => {
     try {
-      return localStorage.getItem("ba_config_group_open") === "1";
+      return localStorage.getItem("ba_show_simple_stepper") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [showFilmstrip, setShowFilmstrip] = useState(() => {
+    try {
+      return localStorage.getItem("ba_show_filmstrip") === "1";
     } catch {
       return false;
     }
@@ -676,15 +728,6 @@ export default function BankingAgent({
     };
   });
 
-  /** Persist the Configuration group's open/closed state to localStorage. */
-  useEffect(() => {
-    try {
-      localStorage.setItem("ba_config_group_open", configGroupOpen ? "1" : "0");
-    } catch (e) {
-      console.warn("Failed to save ba_config_group_open to localStorage:", e);
-    }
-  }, [configGroupOpen]);
-
   /** Persist the Inspectors sub-group's open/closed state to localStorage. */
   useEffect(() => {
     try {
@@ -749,6 +792,7 @@ export default function BankingAgent({
   /** Token chain visibility — always starts hidden on page load (not persisted). */
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
+  const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
     try {
@@ -814,12 +858,16 @@ export default function BankingAgent({
     reset: activityReset,
   } = activity;
   const { run: aguiRun, abort: aguiAbort } = useAgentRun(aguiHandlers);
+
   // Refs for stable thread ID and active run ID (needed by HITL resume)
   const aguiThreadIdRef = React.useRef(null);
   const aguiActiveRunIdRef = React.useRef(null);
 
   // Guided Demo Track (Plan C): picked step drives a banner + swapped chip row.
   const [trackStep, setTrackStep] = useState(null); // { step, index, total, completed?, next? } | null
+  trackStepPickRef.current = handleTrackStepPick;
+  trackStepCompleteRef.current = handleTrackStepComplete;
+
   async function handleTrackStepPick({ step, index, total }) {
     setTrackStep({ step, index, total, completed: false, next: null });
     addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
@@ -1003,6 +1051,10 @@ export default function BankingAgent({
   // back down, making it impossible to read earlier messages mid-reply.
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [heroShown, setHeroShown] = useState(false);
+  const [heroData, setHeroData] = useState(null);
+  // Vertical whose hero greeting was already written to conversation history.
+  const heroLoggedRef = useRef(null);
   // Last message count the user actually saw. The scroll effect below also runs
   // on loading/nlLoading transitions, so counting effect firings over-reports
   // ("2 new" for a single new message); count the real delta instead.
@@ -1019,6 +1071,15 @@ export default function BankingAgent({
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  // Current pathname reachable from effects that must not list it as a dep.
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
+  // On the PingOne admin dashboard the page renders the demo controls itself
+  // (AdminDemoControlStrip) and this header hides its copies: Routing/Wiring,
+  // Flow Detail, Guide, Demo steps, agent scope, Graph. Everywhere else the
+  // header is unchanged — which is also what keeps the 2026-07-24
+  // Actions-dropdown-removal contract test (float mode, banking route) green.
+  const pageOwnsAgentChrome = isPingOneAdminAgentRoute(location.pathname);
   // On the /agent route the inline/full-page instance is shown — hide duplicate float
   const isAgentPage = location.pathname === "/agent";
   /** Landing `/`: agent success/info/error toasts use longer autoClose (readable for guests). */
@@ -1162,6 +1223,70 @@ export default function BankingAgent({
     const handler = () => setShowDemoGuide(true);
     window.addEventListener("agent-demo-guide-open", handler);
     return () => window.removeEventListener("agent-demo-guide-open", handler);
+  }, []);
+
+  // Open the agent WITH the Demo steps dropdown, from a page-level launcher
+  // (admin dashboard toolbar). Exists because the agent starts collapsed on
+  // /admin — Demo steps lives in this header, so a closed agent left no
+  // visible path to it.
+  useEffect(() => {
+    const handler = () => {
+      setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
+      setShowDemoSteps(true);
+      setShowDiscovery(false);
+    };
+    window.addEventListener("agent-demo-steps-open", handler);
+    return () => window.removeEventListener("agent-demo-steps-open", handler);
+  }, []);
+
+  // AdminDemoControlStrip bridge — on /admin the strip owns the demo controls
+  // and the agent's own copies are hidden (pageOwnsAgentChrome below), so these
+  // events are the only writers and cannot race the header controls.
+  useEffect(() => {
+    const onStepSelect = (e) => {
+      const { uc, stepNumber, opts } = e.detail || {};
+      if (!uc) return;
+      setIsOpen(true);
+      // Defer one tick so the panel mounts before the step runs (same pattern
+      // as the showcase-drawer dispatch above).
+      setTimeout(() => demoStepSelectRef.current?.(uc, stepNumber, opts), 80);
+    };
+    const onFlowDetail = () => {
+      setIsOpen(true);
+      setShowTokenChain(true);
+    };
+    const onScope = (e) => {
+      if (typeof e.detail?.allowWrite === "boolean") setAgentAllowWrite(e.detail.allowWrite);
+    };
+    const onFallback = (e) => {
+      if (typeof e.detail?.enabled === "boolean") setHeuristicEnabled(e.detail.enabled);
+    };
+    // Guided Demo Track picked from the /admin page strip: open the agent so
+    // the step's story line lands in a visible transcript, then run the same
+    // handler the header control uses. Completion toasts need no open panel.
+    const onTrackPick = (e) => {
+      if (!e.detail?.step) return;
+      setIsOpen(true);
+      setTimeout(() => trackStepPickRef.current?.(e.detail), 80);
+    };
+    const onTrackComplete = (e) => {
+      if (!e.detail?.step) return;
+      trackStepCompleteRef.current?.(e.detail);
+    };
+    window.addEventListener("agent-demo-step-select", onStepSelect);
+    window.addEventListener("agent-flow-detail-open", onFlowDetail);
+    window.addEventListener("agent-scope-write-changed", onScope);
+    window.addEventListener("agent-heuristic-fallback-changed", onFallback);
+    window.addEventListener("agent-track-step-pick", onTrackPick);
+    window.addEventListener("agent-track-step-complete", onTrackComplete);
+    return () => {
+      window.removeEventListener("agent-demo-step-select", onStepSelect);
+      window.removeEventListener("agent-flow-detail-open", onFlowDetail);
+      window.removeEventListener("agent-scope-write-changed", onScope);
+      window.removeEventListener("agent-heuristic-fallback-changed", onFallback);
+      window.removeEventListener("agent-track-step-pick", onTrackPick);
+      window.removeEventListener("agent-track-step-complete", onTrackComplete);
+    };
   }, []);
 
   // Run Intent Bypass attack demo from admin sidebar
@@ -1512,7 +1637,17 @@ export default function BankingAgent({
       // command is intentionally dropped, not retained for a later page load.
       const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
 
-      setIsOpen(true);
+      // The admin console opens with its own content (group membership, customer
+      // lookup, metrics); auto-expanding the agent over it buries the page the
+      // admin just logged in to see. Every other vertical still opens the agent,
+      // which is the intended first beat of those demos. The rest of this effect
+      // (param stripping, pending-NL replay) must still run on admin routes.
+      // Read through a ref so pathname stays out of the dep array — this effect
+      // must fire once on the OAuth return, not again on every later navigation
+      // (the oauth param is stripped from window.location below, but the
+      // router's searchParams do not necessarily follow, so a re-run would
+      // re-open the panel).
+      if (!isPingOneAdminAgentRoute(pathnameRef.current)) setIsOpen(true);
       // Strip oauth params from URL so they don't re-trigger on navigation
       const url = new URL(window.location.href);
       url.searchParams.delete("oauth");
@@ -2017,6 +2152,51 @@ export default function BankingAgent({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    setHeroShown(false);
+    setHeroData(null);
+  }, [effectiveVerticalId]);
+
+  useEffect(() => {
+    if (heroShown) return undefined;
+    const vertical = effectiveVerticalId || "banking";
+    let cancelled = false;
+
+    const apply = (hero) => {
+      if (cancelled || !hero?.imageUrl || !hero?.greeting) return;
+      setHeroData({ imageUrl: hero.imageUrl, greeting: hero.greeting });
+      setHeroShown(true);
+      // Persist the greeting the user actually saw. Addressed as `me` — the UI
+      // never sees the token sub, and the route resolves the alias to it.
+      // Keyed by vertical in a ref so StrictMode's double-invoke (and the sync
+      // pageManifest path, which runs before cleanup) can't write twice.
+      if (user && heroLoggedRef.current !== vertical) {
+        heroLoggedRef.current = vertical;
+        fetch(`/api/conversations/me/${encodeURIComponent(vertical)}/hero-shown`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ greeting: hero.greeting, imageUrl: hero.imageUrl }),
+        }).catch(() => {});
+      }
+    };
+
+    if (pageManifest?.hero) {
+      apply(pageManifest.hero);
+      return undefined;
+    }
+
+    if (!isLoggedIn) return undefined;
+
+    fetch(`/api/verticals/${vertical}/hero`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(apply)
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveVerticalId, heroShown, pageManifest, user, isLoggedIn]);
+
   // Auto-retry after login (auth challenge path)
   useEffect(() => {
     const onAuthChallengeLogin = () => {
@@ -2116,8 +2296,7 @@ export default function BankingAgent({
       .then(setNlMeta)
       .catch(() => setNlMeta({ geminiConfigured: false }));
     // Load feature flags to sync UI-controlled toggles
-    fetch("/api/admin/feature-flags", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
+    getCachedStatus("/api/admin/feature-flags")
       .then((data) => {
         const heuristicFlag = data?.flags?.find((f) => f.id === "ff_heuristic_enabled");
         if (heuristicFlag != null) setHeuristicEnabled(Boolean(heuristicFlag.value));
@@ -2149,15 +2328,19 @@ export default function BankingAgent({
     // Shape must match the chat renderer: { role, content } — it filters on
     // msg.role and renders msg.content, so a { sender, text } message is
     // silently invisible.
+    // locationCards rides the AG-UI message for the UC24 public catalog (see
+    // useAgentState TEXT_MESSAGE_END). Without carrying it here the renderer below
+    // never sees it and the AG-UI path shows the heading with no cards.
+    const cards = Array.isArray(lastMsg.locationCards) ? { locationCards: lastMsg.locationCards } : {};
     setMessages((prev) => {
       const existing = prev.findIndex((m) => m.id === lastMsg.id);
       if (existing !== -1) {
         const next = [...prev];
-        next[existing] = { ...next[existing], content: lastMsg.content, streaming: lastMsg.streaming };
+        next[existing] = { ...next[existing], content: lastMsg.content, streaming: lastMsg.streaming, ...cards };
         return next;
       }
       // New message: append
-      return [...prev, { id: lastMsg.id, role: 'assistant', content: lastMsg.content, streaming: lastMsg.streaming }];
+      return [...prev, { id: lastMsg.id, role: 'assistant', content: lastMsg.content, streaming: lastMsg.streaming, ...cards }];
     });
   }, [aguiEnabled, aguiState.messages]);
 
@@ -2361,7 +2544,11 @@ export default function BankingAgent({
         // back to its 'anthropic' default — an LLM call even in Heuristics.
         provider: activeLlmProvider,
         mode: agentProviderMode,
-        resume: [{ interruptId: interrupt.id, status: 'approved' }],
+        // reason/toolName: echoed straight back from the interrupt the BFF
+        // emitted (routes/agentTool.js's hitlRequired envelope) so the agent
+        // service's resume message can name the exact retry argument
+        // (_elicitation_confirmed vs _hitl_challenge_id) instead of guessing.
+        resume: [{ interruptId: interrupt.id, status: 'approved', reason: interrupt.reason, toolName: interrupt.toolName }],
       }).finally(() => setNlLoading(false));
     };
 
@@ -2775,6 +2962,9 @@ export default function BankingAgent({
         { id, role, content: contentString ?? "", tool, proofRunId, ...rest },
       ];
     });
+    if (role === "assistant") {
+      window.dispatchEvent(new CustomEvent("agent-last-response", { detail: { text: contentString } }));
+    }
   }
 
   // Route an agent response's verticalResult to its renderer and return the
@@ -2800,6 +2990,15 @@ export default function BankingAgent({
       return {};
     }
     return { verticalResult: { descriptor, data: vr.data, terminology } };
+  }
+
+  // branch_hours (UC24 public catalog, cross-vertical) rides `.branches` +
+  // `.publicCatalog` on the raw response (demoAgentLangGraphService.js:298-311),
+  // outside the normal verticalResult/manifest-render pipeline — this is the
+  // parallel path for that one shape.
+  function locationCardsExtra(response) {
+    if (!response?.publicCatalog || !Array.isArray(response.branches)) return {};
+    return { locationCards: response.branches };
   }
 
   function markToolProgressOutcome(success, errorDetail = null) {
@@ -2971,6 +3170,30 @@ export default function BankingAgent({
             onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
           });
           break;
+        case "add_to_cart": {
+          toast.update(toastId, { render: "Adding to cart…" });
+          response = await callMcpTool("add_to_cart", form, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
+          // The manifest declares a card descriptor for add_to_cart
+          // (sporting-goods/manifest.json render.add_to_cart), but a direct
+          // callMcpTool response carries no verticalResult — only the NL/chat
+          // dispatch path (dispatchVerticalIntent) attaches that automatically.
+          // Build the same shape here so the card renders instead of falling
+          // through formatResult's JSON.stringify fallback.
+          const cartOut = normalizeAgentToolResult(response.result);
+          if (cartOut && !isAgentToolErrorResult(cartOut) && cartOut.data) {
+            response = {
+              ...response,
+              result: cartOut.data,
+              verticalResult: { render: cartOut.render || "add_to_cart", data: cartOut.data },
+            };
+            Object.assign(resultExtra, verticalResultExtra(response));
+          }
+          break;
+        }
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)
@@ -3751,9 +3974,12 @@ export default function BankingAgent({
           break;
         }
         case "transfer_600_test": {
-          // Test HITL consent + MFA flow with a realistic $600 transfer
+          // UC7: $600 triggers step-up obligation — route through MCP pipeline so
+          // forceStepUp fires (useCaseId 'step-up-required'). callMcpTool throws
+          // mcp_step_up_required → outer catch opens P1MFA device picker directly.
+          // Never show the consent modal for this chip.
           toast.update(toastId, {
-            render: "Initiating $600 transfer to test HITL consent + MFA flow…",
+            render: "Initiating $600 transfer — step-up MFA required (UC7)…",
           });
           const testAccounts =
             liveAccounts && liveAccounts.length >= 2 ? liveAccounts : null;
@@ -3796,80 +4022,26 @@ export default function BankingAgent({
           addMessage(
             "token-event",
             [
-              "Testing HITL Consent + MFA Flow",
+              "Testing Step-Up MFA Flow (UC7)",
               "",
               `Attempting transfer of $${APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER} from ${testFrom.name || testFrom.type} → ${testTo.name || testTo.type}`,
               "",
               "Expected flow:",
-              "  1. Consent modal appears (HITL gate triggers at $250+)",
-              "  2. Review transaction details and check 'I agree'",
-              "  3. Click 'Agree & send code'",
-              "  4. Device selection modal appears (select OTP or FIDO2)",
-              "  5. Complete MFA challenge (OTP: enter 123456 or code from email)",
-              "  6. Transaction completes",
+              "  1. PingOne Authorize returns step-up obligation ($600 >= $500 threshold)",
+              "  2. Device selection modal appears (select SMS, email, or FIDO2)",
+              "  3. Complete MFA challenge",
+              "  4. Transaction completes",
             ].join("\n"),
             actionId,
           );
-          try {
-            // Call HTTP endpoint directly (not MCP) to trigger authorization + HITL
-            const httpRes = await fetch("/api/transactions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                fromAccountId: testFrom.id,
-                toAccountId: testTo.id,
-                amount: APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER,
-                type: "transfer",
-                description: "HITL + MFA test",
-              }),
-            });
-            const httpBody = await httpRes.json();
-            console.log(
-              "[Transfer600Test] HTTP Transfer status:",
-              httpRes.status,
-            );
-            console.log("[Transfer600Test] HTTP Transfer body:", httpBody);
-            response = { result: httpBody, status: httpRes.status };
-
-            // If 428 (HITL), show consent modal
-            if (httpRes.status === 428) {
-              toast.dismiss(toastId);
-              setLoading(false);
-              setHitlPendingIntent({
-                actionId: "transfer_600_test",
-                form: {
-                  fromId: testFrom.id,
-                  toId: testTo.id,
-                  amount: String(APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER),
-                  note: "HITL + MFA test",
-                },
-                intentPayload: {
-                  type: "transfer",
-                  description: `Transfer $${APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER}`,
-                  amount: APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER,
-                },
-                threshold: 250,
-              });
-              return;
-            }
-
-            // If 403 (deny), format as error result
-            if (httpRes.status === 403) {
-              response.result = {
-                ok: false,
-                error: httpBody.error,
-                ...httpBody,
-              };
-            }
-          } catch (err) {
-            console.error("[Transfer600Test] Transfer failed:", err);
-            addMessage("assistant", `Error: ${err.message}`);
-            toast.dismiss(toastId);
-            setLoading(false);
-            return;
-          }
-          // Falls through to normalizeAgentToolResult for 200/other responses
+          response = await createTransfer(
+            testFrom.id,
+            testTo.id,
+            APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER,
+            "Step-up MFA test",
+            undefined,
+            { useCaseId: "step-up-required", vertical },
+          );
           break;
         }
         case "demo_intent_delegation": {
@@ -5645,6 +5817,7 @@ export default function BankingAgent({
   }
 
   function sendAsNlInner(text, useCaseId) {
+    nrLog('ui.agent_message', { useCaseId: useCaseId || null, length: text ? text.length : 0 });
     // A typed message is a new turn: start a fresh token-chain trace with the
     // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
     // the prompt step lights up (demoAgentService's chip path only begins a
@@ -5658,7 +5831,13 @@ export default function BankingAgent({
     // BFF's provider fallback would silently send the message to the default
     // LLM (agentRun.js resolves null → llm_provider config → 'anthropic'),
     // violating the agentModes.js contract that Heuristics needs no provider.
-    if (aguiEnabled && activeLlmProvider) {
+    // pingone-admin must not either: /api/agent/run drives the CUSTOMER
+    // LangGraph agent, which has no PingOne admin tools — an admin message
+    // streamed there gets a model refusal ("I don't have permission to
+    // retrieve user lists", reported live on ADMIN5). The vertical's own
+    // route (sendAgentMessage → sendToAdminAgent) carries the admin toolset
+    // and the heuristic-first gate.
+    if (aguiEnabled && activeLlmProvider && effectiveVerticalId !== "pingone-admin") {
       // Stable thread ID for the session (persists across HITL resumes).
       // runId is per-message so each turn is distinct.
       if (!aguiThreadIdRef.current) {
@@ -5724,7 +5903,7 @@ export default function BankingAgent({
       if (!merged) {
         // Couldn't extract — re-ask once. After that, give up and let
         // the parser try a normal interpretation.
-        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification(pc);
         nlSendGuardRef.current.release();
         return;
@@ -5738,7 +5917,7 @@ export default function BankingAgent({
         if (!merged.toId) still.push('destination account (e.g. "to savings")');
         if (merged.amount == null) still.push('amount (e.g. "$100")');
         const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
-        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null });
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification({
           ...pc,
           partialParams: merged,
@@ -5910,10 +6089,10 @@ export default function BankingAgent({
       });
       return;
     }
-    if (action.queryPrompt === "userFilter") {
+    if (["userFilter", "appFilter", "toolFilter"].includes(action.queryPrompt)) {
       setUserFilter("");
       setUserFilterError("");
-      setShowUserFilterModal(true);
+      setFilterModalKind({ userFilter: "user", appFilter: "app", toolFilter: "tool" }[action.queryPrompt]);
       return;
     }
     if (action.message) sendAsNl(action.message);
@@ -6273,6 +6452,32 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "branch_hours") {
+        // Heuristic parses "branches near me" / "clinics near me" / etc. to
+        // action branch_hours (cross-vertical UC24 public catalog — see
+        // nlIntentParser.js), but runAction had no case for it, so every
+        // version of this prompt threw "Unknown action: branch_hours" in
+        // every vertical. Same fix shape as the weather action below.
+        const cityQuery = p.city || "";
+        const branchPrompt = nlUserText || (cityQuery ? `branches near ${cityQuery}` : "branches near me");
+        try {
+          const response = await sendAgentMessage(branchPrompt, null, {
+            forceHeuristic: true,
+            vertical: effectiveVerticalId || "banking",
+            ...(useCaseId ? { useCaseId } : {}),
+          });
+          if (maybeHandleCustomerLogin(response, _source)) return;
+          await handleNlResumeResponse(response, branchPrompt, useCaseId);
+        } catch (e) {
+          addMessage(
+            "assistant",
+            e?.message || "Could not look up locations.",
+            null,
+            { source: _source },
+          );
+        }
+        return;
+      }
       if (action === "weather") {
         // Heuristic parses "weather in <city>" → action weather, but runAction
         // has no weather case (Unknown action: weather). Execute via /agent/invoke
@@ -6400,20 +6605,38 @@ export default function BankingAgent({
         // this works for all verticals that use the account model — not just
         // banking. parseClarificationReply matches on account type, so we list
         // the distinct types (e.g. "Checking, Savings").
-        const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-        const acctTypes = [
-          ...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean)),
-        ];
-        const optionsHint = acctTypes.length
-          ? ` Options: ${acctTypes.map(cap).join(", ")}.`
-          : "";
+        function last4(num) {
+          const digits = String(num || '').replace(/\D/g, '');
+          return digits.length >= 4 ? digits.slice(-4) : null;
+        }
+        // Deduplicate by type. If two accounts share a type, both appear with masked numbers.
+        const acctTypes = (liveAccounts || [])
+          .filter((a) => a.type)
+          .reduce((acc, a) => {
+            const type = a.type;
+            const l4 = last4(a.accountNumber);
+            const label = l4 ? `${type} ••${l4}` : type;
+            const value = type.toLowerCase();
+            // If same type already added without a number, upgrade it; otherwise add.
+            const existing = acc.findIndex((o) => o.value === value && !o.label.includes('••'));
+            if (existing >= 0 && l4) {
+              acc[existing] = { label, value };
+            } else if (!acc.some((o) => o.label === label)) {
+              acc.push({ label, value });
+            }
+            return acc;
+          }, []);
         const questions = {
-          balance:  `Which ${termAccount} would you like to check the ${termBalance} for?${optionsHint}`,
-          deposit:  `How much would you like to deposit, and to which ${termAccount}?${optionsHint}`,
-          withdraw: `How much would you like to withdraw, and from which ${termAccount}?${optionsHint}`,
-          transfer: `Which ${termAccounts} would you like to ${termHighValue.toLowerCase()} between, and how much?${optionsHint}`,
+          balance:  `Which ${termAccount} would you like to check the ${termBalance} for?`,
+          deposit:  `How much would you like to deposit, and to which ${termAccount}?`,
+          withdraw: `How much would you like to withdraw, and from which ${termAccount}?`,
+          transfer: `Which ${termAccounts} would you like to ${termHighValue.toLowerCase()} between, and how much?`,
         };
-        addMessage("assistant", questions[action], null, { source: _source });
+        const AMOUNT_ACTIONS = new Set(['deposit', 'withdraw', 'transfer']);
+        const amountOptions = AMOUNT_ACTIONS.has(action) && !p?.amount
+          ? (terminology?.amountPresets || null)
+          : null;
+        addMessage("assistant", questions[action], null, { source: _source, clarifyOptions: acctTypes, amountOptions });
         // Remember WHAT we asked so the next user message can fill the slot.
         // sendAsNl() inspects this on the next turn and skips re-parsing
         // when we already know the intent. We also remember any partial
@@ -6423,6 +6646,8 @@ export default function BankingAgent({
           action,
           partialParams: p || {},
           asked: questions[action],
+          clarifyOptions: acctTypes,
+          amountOptions,
         });
       } else {
         await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
@@ -6453,14 +6678,31 @@ export default function BankingAgent({
         verticalId === "airlines" && result.action === "get_airline_bookings";
       if (isUnitedDatabaseQuery) setUnitedDatabaseQueryLoading(true);
       try {
+        // PingOne MCP tool intents must reach the ADMIN agent route. The parser
+        // returns vertical:'admin' for these (its admin-overlay vocabulary), but
+        // sendAgentMessage routes on 'pingone-admin' — so "list users starting
+        // with demo" fell through to the customer path, where LangGraph ran
+        // listUsers UNFILTERED over all 55+ directory users (reported live
+        // 2026-08-10). Route on the ACTION, and send the user's original text:
+        // the reconstructed "call pingone tool listusers …" form re-parses to
+        // the wrong tool (list_pingone_tools) and loses the sw filter.
+        const isPingOneAdminTool =
+          result.action === "call_pingone_tool" || result.action === "list_pingone_tools";
         // When clarification already filled the missing params, reconstruct a
         // message the heuristic can re-parse with the complete params intact
         // (e.g. "order status 1003" so orderId extraction fires).
         const hasFilledParams = result.params && Object.keys(result.params).length > 0;
-        const agentMessage = hasFilledParams
-          ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
-          : (nlUserText || result.action);
-        const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven, ...(useCaseId ? { useCaseId } : {}) };
+        const agentMessage = isPingOneAdminTool
+          ? (nlUserText || result.action)
+          : hasFilledParams
+            ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
+            : (nlUserText || result.action);
+        const verticalOpts = {
+          forceHeuristic: true,
+          vertical: isPingOneAdminTool ? "pingone-admin" : verticalId,
+          consentGiven: !!result.consentGiven,
+          ...(useCaseId ? { useCaseId } : {}),
+        };
         const response = await sendAgentMessage(agentMessage, null, {
           ...verticalOpts,
           onTokenEvent: (ev) => tokenChain?.appendTokenEvent(result.action || "agent", ev),
@@ -6477,6 +6719,19 @@ export default function BankingAgent({
         ingestActivity(response, nlUserText || result.action);
         if (response?.reply) {
           const paramHint = response.needsParams?.hint || null;
+          // Compute clarifyOptions once for both addMessage and setPendingClarification.
+          // Surfaces account/portfolio type buttons when the missing param is type-ish.
+          const typeParams = new Set(['accounttype', 'portfoliotype', 'accountid', 'fromid', 'toid']);
+          const firstMissing = response.needsParams?.missing?.[0];
+          const enumChoices = firstMissing && response.needsParams?.choices?.[firstMissing];
+          const hasTypeParam = response.needsParams?.missing?.some(
+            (k) => typeParams.has(String(k).toLowerCase()),
+          );
+          const needsClarifyOptions = enumChoices
+            ? enumChoices
+            : hasTypeParam
+              ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
+              : null;
           // HITL/step-up blocks: don't echo the raw error_description as chat text —
           // it duplicates the approval modal opened below and reads as a canned
           // refusal ("no tool ran") rather than a pending-approval state.
@@ -6495,10 +6750,13 @@ export default function BankingAgent({
             !isHitlBlock && response.success === false && !response.needsParams
               ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
               : null;
+          // The badge must name the agent that actually answered — an admin-
+          // routed reply labeled CUSTOMER misreads as the wrong agent running.
+          const agentBadge = isPingOneAdminTool ? "[ADMIN AGENT]" : "[CUSTOMER AGENT - LangGraph]";
           const replyWithAgentBadge = isHitlBlock
-            ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
-            : `[CUSTOMER AGENT - LangGraph]\n${failureSentence || response.reply}`;
-          addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
+            ? `${agentBadge}\nThis action needs your approval before it can run — check the approval prompt.`
+            : `${agentBadge}\n${failureSentence || response.reply}`;
+          addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint, clarifyOptions: needsClarifyOptions });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
           if (response.education?.panel) {
@@ -6561,6 +6819,7 @@ export default function BankingAgent({
               partialParams: result.params || {},
               asked: response.reply,
               hint: paramHint,
+              clarifyOptions: needsClarifyOptions,
             });
           }
           return;
@@ -6718,7 +6977,7 @@ export default function BankingAgent({
   async function addReplyRespectingGrounding(response, replyWithAgentBadge, promptText) {
     const grounded = response?.groundedAnswer;
     if (!grounded) {
-      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      addMessage("assistant", replyWithAgentBadge, null, { ...verticalResultExtra(response), ...locationCardsExtra(response) });
       return;
     }
 
@@ -6843,7 +7102,7 @@ export default function BankingAgent({
   }
 
   /** NL API errors: 401 is session missing on server — not a parse failure. */
-  function reportNlFailure(err, retry) {
+  function reportNlFailure(err, retry, originalText) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
     // out") — distinct from a user/cancel AbortError, so isAbortError() does NOT
     // swallow it and we land here. A slow local model (e.g. an Ollama reasoning
@@ -6902,7 +7161,7 @@ export default function BankingAgent({
     notifyError(`❌ ${friendly}`, {
       autoClose: agentToastMs.errShort,
     });
-    addMessage("assistant", friendly);
+    addMessage("assistant", friendly, null, originalText ? { retryText: originalText } : undefined);
   }
 
   /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
@@ -6946,12 +7205,25 @@ export default function BankingAgent({
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
    */
+  demoStepSelectRef.current = handleDemoStepSelect;
+
   async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
     setShowDiscovery(false);
     if (isAgentBlockedByConsentDecline()) {
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
+      return;
+    }
+    // Prompt-first steps (ADMIN5 users, ADMIN6 apps): open the shared prefix
+    // modal so the presenter picks the prefix live, instead of sending the
+    // step's canned example text. Mirrors handleChipActivate's queryPrompt
+    // handling; the modal's Run filter submits through sendAsNl like any
+    // typed message.
+    if (["userFilter", "appFilter", "toolFilter"].includes(uc.trigger?.queryPrompt)) {
+      setUserFilter("");
+      setUserFilterError("");
+      setFilterModalKind({ userFilter: "user", appFilter: "app", toolFilter: "tool" }[uc.trigger.queryPrompt]);
       return;
     }
     markUseCaseCompleted(uc.id);
@@ -6961,16 +7233,24 @@ export default function BankingAgent({
     await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
 
     if (trigger.type === "chip" && trigger.text) {
-      if (!(isLoggedIn || marketingGuestChatEnabled)) {
-        addMessage("assistant", "Sign in to run demo steps.");
-        return;
-      }
       // Reset token chain trace so the proof strip shows this use case
       try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
       // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
       pendingUcIdRef.current = uc.useCaseId || null;
       pendingNlResumeRef.current = null;
-      addMessage("assistant", `Running ${stepLabel}…`);
+      // Not eligible to send yet (no session, no guest chat on this path) — queue
+      // the step anyway (below) and show an actionable sign-in prompt instead of
+      // returning with nothing; the resume effect fires it the moment login lands.
+      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+        addMessage(
+          "assistant",
+          `${stepLabel} needs you signed in — it'll run as soon as you do.`,
+          null,
+          { showLoginPromptAction: true, loginActionId: "login_user" },
+        );
+      } else {
+        addMessage("assistant", `Running ${stepLabel}…`);
+      }
       setNlResumeAfterAuth(trigger.text);
       return;
     }
@@ -7143,6 +7423,16 @@ export default function BankingAgent({
     // freeform text still reaches the LLM if the heuristic parser has no
     // match for it).
     pendingUcIdRef.current = null;
+    // Queued regardless (resume effect fires it once login lands) — but don't
+    // leave the user with only their own bubble and no reply while signed out.
+    if (!isLoggedIn) {
+      addMessage(
+        "assistant",
+        `${tool.title} needs you signed in — it'll run as soon as you do.`,
+        null,
+        { showLoginPromptAction: true, loginActionId: "login_admin" },
+      );
+    }
     setNlResumeAfterAuth(message);
   }
 
@@ -7196,7 +7486,7 @@ export default function BankingAgent({
       );
       if (!merged) {
         // Couldn't extract — re-ask once, then let a normal interpretation try.
-        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
+        addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification(pc);
         return;
       }
@@ -7209,7 +7499,7 @@ export default function BankingAgent({
         if (!merged.toId) still.push('destination account (e.g. "to savings")');
         if (merged.amount == null) still.push('amount (e.g. "$100")');
         const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
-        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null });
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null, clarifyOptions: pc.clarifyOptions || null, amountOptions: pc.amountOptions || null });
         setPendingClarification({
           ...pc,
           partialParams: merged,
@@ -7371,7 +7661,9 @@ export default function BankingAgent({
       // BFF's provider fallback would silently send the message to the default
       // LLM (agentRun.js resolves null → llm_provider config → 'anthropic'),
       // violating the agentModes.js contract that Heuristics needs no provider.
-      if (aguiEnabled && activeLlmProvider) {
+      // pingone-admin also skips it — same reason as the sendAsNlInner branch:
+      // the AG-UI run endpoint has no admin tools; the admin route does.
+      if (aguiEnabled && activeLlmProvider && effectiveVerticalId !== "pingone-admin") {
         if (!aguiThreadIdRef.current) aguiThreadIdRef.current = "ba-" + Date.now();
         aguiActiveRunIdRef.current = "run-" + Date.now();
         if (activityNarrationEnabled) activityStartRequest(text);
@@ -7427,15 +7719,21 @@ export default function BankingAgent({
       await dispatchNlResult(_nlResult, _nlSource || "heuristic", text);
     } catch (err) {
       if (isAbortError(err)) return;
-      reportNlFailure(err, () => handleNaturalLanguageInner(text));
+      reportNlFailure(err, () => handleNaturalLanguageInner(text), text);
     } finally {
       setNlLoading(false);
     }
   }
 
-  // After marketing OAuth return OR launcher deep-link: replay NL once logged in.
+  // After marketing OAuth return OR launcher deep-link: replay NL once logged in
+  // (or immediately for guest-chat-eligible paths — same gate as the chip/typed
+  // send paths above, so a chip that doesn't need auth doesn't wait for it).
   useEffect(() => {
-    if (!nlResumeAfterAuth || !isLoggedIn || pendingNlResumeRef.current === nlResumeAfterAuth) {
+    if (
+      !nlResumeAfterAuth ||
+      !(isLoggedIn || marketingGuestChatEnabled) ||
+      pendingNlResumeRef.current === nlResumeAfterAuth
+    ) {
       return;
     }
     const text = nlResumeAfterAuth;
@@ -7512,7 +7810,7 @@ export default function BankingAgent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
-  }, [nlResumeAfterAuth, isLoggedIn, effectiveVerticalId]);
+  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, effectiveVerticalId]);
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
@@ -7985,15 +8283,39 @@ export default function BankingAgent({
         }
       }
       // Trigger the approval modal. Two shapes, both required here:
-      //   - banking transfers/deposits/withdrawals carry transactionAmount
-      //     → monetary consent intent (unchanged).
-      //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
-      //     carry NO amount → the isVerticalConsent shape, same as the
-      //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
-      //     open it too; without this, Demo Steps UC7/UC8 printed the gate
-      //     text and never prompted the user.
+      //   - step_up_required / mcp_step_up_required (UC7): go directly to P1MFA —
+      //     no consent modal. Identity verification IS the gate; consent is not.
+      //   - banking transfers with transactionAmount (UC8): create a server-side
+      //     challenge and show TransactionConsentModal (drives consent-only vs MFA
+      //     by amount).
+      //   - vertical plugin tools with no amount → isVerticalConsent shape, same
+      //     as the kind:'vertical' handler.
       if (isApprovalGate) {
-        if (response.transactionAmount != null) {
+        // Always treat step_up_required as MFA — never demote to consent by amount.
+        // Demoting sub-threshold step-up to TransactionConsentModal + createTransferWithConsent
+        // completed the transfer via REST without MFA (consent satisfies the $300 HITL
+        // band). Sub-threshold MCP-gate step-up is demoted to HITL on the BFF instead.
+        const isStepUpGate =
+          response.error === "step_up_required" ||
+          response.error === "mcp_step_up_required";
+        if (isStepUpGate) {
+          // UC7: skip consent — go straight to P1MFA. Store the original NL
+          // message so the transfer re-fires once identity is verified.
+          const retryMsg = text;
+          const retryOpts = { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId };
+          pendingStepUpCallbackRef.current = async () => {
+            setNlLoading(true);
+            try {
+              const resp = await sendAgentMessage(retryMsg, null, retryOpts);
+              addMessage("assistant", resp.reply || "✅ Done.", null, { source: "heuristic", ...verticalResultExtra(resp) });
+            } catch (err) {
+              addMessage("error", `Failed: ${err.message}`);
+            } finally {
+              setNlLoading(false);
+            }
+          };
+          openStepUpModal("Verify your identity to complete this action");
+        } else if (response.transactionAmount != null) {
           const fromAccountId = response.fromAccountId || response.from_account_id;
           const toAccountId = response.toAccountId || response.to_account_id;
           const intentPayload = {
@@ -8449,59 +8771,34 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
+                {/* Hidden on /admin: its most prominent control launching the
+                    CUSTOMER-act catalog next to the admin agent read as "admin
+                    is doing demo use cases" (reported 2026-08-10). The strip's
+                    Demo steps (ADMIN1-7) is this page's step control; the
+                    guided 9-step track stays on every other page and on
+                    /demo-track, where its Act 2 admin steps remain reachable. */}
+                {!pageOwnsAgentChrome && (
                 <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
+                )}
                 <div
                   className={
                     splitChrome
-                      ? `ba-hg ba-hg--collapsible${configGroupOpen ? "" : " ba-hg--collapsed"}`
+                      ? "ba-hg ba-hg--strip"
                       : "ba-hg--flat"
                   }
                 >
-                {/* Collapsed by default so the transcript keeps the vertical space.
-                    Controls below stay mounted (hidden via CSS, not unmounted) so
-                    toggling never resets in-flight agent state. */}
-                {splitChrome && (
-                  <button
-                    type="button"
-                    className="ba-hg-label ba-hg-label--toggle"
-                    aria-expanded={configGroupOpen}
-                    title={configGroupOpen ? "Hide agent configuration" : "Show agent configuration"}
-                    onClick={() => setConfigGroupOpen((open) => !open)}
-                  >
-                    <span className="ba-hg-label__chev" aria-hidden>
-                      {configGroupOpen ? "▾" : "▸"}
-                    </span>
-                    Configuration
-                  </button>
-                )}
                 <div className="ba-hg-body">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
+                {!pageOwnsAgentChrome && (
                 <AgentModeSelector
                   compact
                   heuristicFallback={heuristicEnabled}
                   onHeuristicFallbackChange={setHeuristicEnabled}
                 />
-                {/* RFC info toggle — standard switch control, always visible in header */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={showRfcInfo}
-                  onChange={(e) => setShowRfcInfo(e.target.checked)}
-                  title="Show or hide RFC token-event messages in the chat"
-                >
-                  RFC info
-                </Check>
-                {/* Dark mode switch — drives data-theme on the document root, which the
-                    dark-capable panels (Token Chain rail) key off. */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={darkMode}
-                  onChange={(e) => setDarkMode(e.target.checked)}
-                  title="Switch the Token Chain panel between light and dark"
-                >
-                  Dark mode
-                </Check>
+                )}
+                {/* Model advisory and provider-fallback chips stay inline. They are
+                    transient alerts about a degraded provider, so hiding them behind
+                    More would mean the presenter never sees them. */}
                 {modelAdvisory && (
                   <span
                     className="ams-degraded-chip ba-model-advisory-chip"
@@ -8538,46 +8835,8 @@ export default function BankingAgent({
                     >×</button>
                   </span>
                 )}
-                {/* Compliance 12-step toggle */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={showCompliancePanel}
-                  onChange={(e) => {
-                    const newVal = e.target.checked;
-                    try {
-                      localStorage.setItem(
-                        "ba_show_compliance_panel",
-                        newVal ? "1" : "0",
-                      );
-                    } catch {}
-                    if (newVal) setComplianceSlideout(true);
-                    setShowCompliancePanel(newVal);
-                  }}
-                  title="Show or hide the 12-step compliance status"
-                >
-                  Compliance
-                </Check>
-                {showCompliancePanel && (
-                  <Check
-                    variant="switch"
-                    className="ba-header-toggle-label"
-                    checked={complianceSlideout}
-                    onChange={(e) => {
-                      try {
-                        localStorage.setItem(
-                          "ba_compliance_slideout",
-                          e.target.checked ? "1" : "0",
-                        );
-                      } catch {}
-                      setComplianceSlideout(e.target.checked);
-                    }}
-                    title="Show compliance as side-panel overlay"
-                  >
-                    Side panel
-                  </Check>
-                )}
                 {/* Flow Detail modal button */}
+                {!pageOwnsAgentChrome && (
                 <button
                   type="button"
                   className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
@@ -8586,15 +8845,149 @@ export default function BankingAgent({
                 >
                   Flow Detail
                 </button>
-                <button
-                  type="button"
-                  className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
-                  title="Real-time token topology — RFC 8693 delegation chain"
-                  onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
-                >
-                  Topology
-                </button>
-                {/* Demo Guide trigger — visible to all users */}
+                )}
+                <div className="ba-header-more" ref={headerMoreRef}>
+                  <button
+                    type="button"
+                    className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
+                    aria-haspopup="true"
+                    aria-expanded={headerMoreOpen}
+                    title="Secondary header controls"
+                    onClick={() => setHeaderMoreOpen((v) => !v)}
+                  >
+                    More
+                  </button>
+                  {headerMoreOpen && (
+                    <div className="ba-header-more-pop">
+                      {/* RFC info toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showRfcInfo}
+                        onChange={(e) => setShowRfcInfo(e.target.checked)}
+                        title="Show or hide RFC token-event messages in the chat"
+                      >
+                        RFC info
+                      </Check>
+                      {/* Dark mode switch — drives data-theme on the document root, which the
+                          dark-capable panels (Token Chain rail) key off. */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={darkMode}
+                        onChange={(e) => setDarkMode(e.target.checked)}
+                        title="Switch the dashboard between light and dark"
+                      >
+                        Dark mode
+                      </Check>
+                      {/* Compliance 12-step toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showCompliancePanel}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem(
+                              "ba_show_compliance_panel",
+                              newVal ? "1" : "0",
+                            );
+                          } catch {}
+                          if (newVal) setComplianceSlideout(true);
+                          setShowCompliancePanel(newVal);
+                        }}
+                        title="Show or hide the 12-step compliance status"
+                      >
+                        Compliance
+                      </Check>
+                      {showCompliancePanel && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={complianceSlideout}
+                          onChange={(e) => {
+                            try {
+                              localStorage.setItem(
+                                "ba_compliance_slideout",
+                                e.target.checked ? "1" : "0",
+                              );
+                            } catch {}
+                            setComplianceSlideout(e.target.checked);
+                          }}
+                          title="Show compliance as side-panel overlay"
+                        >
+                          Side panel
+                        </Check>
+                      )}
+                      {/* Simple Stepper toggle */}
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showSimpleStepper}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem(
+                              "ba_show_simple_stepper",
+                              newVal ? "1" : "0",
+                            );
+                          } catch {}
+                          setShowSimpleStepper(newVal);
+                        }}
+                        title="Show or hide the Simple Stepper token-chain table"
+                      >
+                        Simple step
+                      </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showFilmstrip}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0");
+                          } catch {}
+                          setShowFilmstrip(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Show or hide the token chain movie reel at the bottom of the page"
+                      >
+                        Movie reel
+                      </Check>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
+                        title="Real-time token topology — RFC 8693 delegation chain"
+                        onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
+                      >
+                        Topology
+                      </button>
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${showFloatingTokenChain ? " active" : ""}`}
+                        title="Floating token chain — RFC 8693 delegation trace rail"
+                        onClick={() => { setShowFloatingTokenChain(v => !v); window.dispatchEvent(new CustomEvent('floating-token-chain-open')); }}
+                      >
+                        Floating token chain
+                      </button>
+                      {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        title="Open 15-Min Security Demo Script (teleprompter)"
+                        onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
+                      >
+                        Script
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions
+                    dropdown removal deliberately moved header utility controls
+                    out of a popout and inline; AIAgent.chips.test.js asserts
+                    Guide renders. It is not collapsed under More. On /admin the
+                    page's AdminDemoControlStrip hosts it instead. */}
+                {!pageOwnsAgentChrome && (
                 <button
                   type="button"
                   className={`ba-actions-trigger${showDemoGuide ? " active" : ""}`}
@@ -8603,22 +8996,19 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
-                {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
-                <button
-                  type="button"
-                  className="ba-actions-trigger"
-                  title="Open 15-Min Security Demo Script (teleprompter)"
-                  onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
-                >
-                  Script
-                </button>
+                )}
                 </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
-                {/* Demo steps — same scripted list as /use-cases Demo section */}
+                {/* Demo steps — same scripted list as /use-cases Demo section.
+                    Deliberately NOT gated on pageOwnsAgentChrome: on /admin this
+                    shows ADMIN1-7 (forceVertical pingone-admin), which belongs
+                    WITH the admin agent — the page strip carries the guided
+                    Demo Track instead (2026-08-10 layout decision). */}
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
                   disabled={consentBlocked}
+                  onStopAgentClick={onStopAgentClick}
                   open={showDemoSteps}
                   onOpenChange={(next) => {
                     setShowDemoSteps(next);
@@ -8703,7 +9093,7 @@ export default function BankingAgent({
                   />
                 )}
                 {/* Session controls — moved inline from the old Actions popout (Option A1) */}
-                {isLoggedIn && (
+                {isLoggedIn && !pageOwnsAgentChrome && (
                   <ScopePicker
                     allowWrite={agentAllowWrite}
                     disabled={agentToolsLoading}
@@ -8736,8 +9126,8 @@ export default function BankingAgent({
                     {isExpanded ? "⊟" : "⊞"}
                   </button>
                 )}
-                {/* System graph link — float mode only */}
-                {!isInline && (
+                {/* System graph link — float mode only; on /admin the strip has it */}
+                {!isInline && !pageOwnsAgentChrome && (
                   <button
                     type="button"
                     className="ba-icon-btn ba-graph-link-btn"
@@ -8893,11 +9283,24 @@ export default function BankingAgent({
                           verticalMessage, null, { ...verticalOpts, consentGiven: true, hitlChallengeId: verticalChallengeId || null },
                         );
                         const consentParamHint = consentResp.needsParams?.hint || null;
+                        // Clickable account choices, mirroring the main needsParams
+                        // path (typeParams/enumChoices gate above): a post-consent
+                        // "which account?" ask was the one clarification that still
+                        // forced the customer to TYPE "checking"/"savings". Gated on
+                        // account-ish params so an amount ask never shows account chips.
+                        const consentTypeParams = new Set(['accounttype', 'portfoliotype', 'accountid', 'fromid', 'toid']);
+                        const consentFirstMissing = consentResp.needsParams?.missing?.[0];
+                        const consentEnumChoices = consentFirstMissing && consentResp.needsParams?.choices?.[consentFirstMissing];
+                        const consentClarifyOptions = consentEnumChoices
+                          ? consentEnumChoices
+                          : consentResp.needsParams?.missing?.some((k) => consentTypeParams.has(String(k).toLowerCase()))
+                            ? [...new Set((liveAccounts || []).map((a) => a.type).filter(Boolean))]
+                            : null;
                         addMessage(
                           "assistant",
                           consentResp.reply || "\u2705 Done.",
                           null,
-                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint },
+                          { source: "heuristic", ...verticalResultExtra(consentResp), paramHint: consentParamHint, clarifyOptions: consentClarifyOptions },
                         );
                         if (consentResp.needsParams?.action && consentResp.needsParams.missing?.length) {
                           setPendingClarification({
@@ -8907,6 +9310,7 @@ export default function BankingAgent({
                             partialParams: {},
                             asked: consentResp.reply,
                             hint: consentParamHint,
+                            clarifyOptions: consentClarifyOptions,
                             consentGiven: true,
                           });
                         }
@@ -9270,7 +9674,7 @@ export default function BankingAgent({
                   position: "fixed",
                   inset: 0,
                   zIndex: 9999,
-                  background: "rgba(0,0,0,0.55)",
+                  background: "var(--v2-overlay, rgba(0,0,0,0.55))",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -9285,7 +9689,7 @@ export default function BankingAgent({
                     padding: "28px 32px",
                     maxWidth: "540px",
                     width: "100%",
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+                    boxShadow: "0 8px 40px rgba(0,0,0,0.5)",  /* intentional deep shadow for modal depth */
                     color: "var(--color-text, #e2e4ef)",
                     fontFamily: "inherit",
                   }}
@@ -9322,7 +9726,7 @@ export default function BankingAgent({
                         This action requires{"  "}
                         <code
                           style={{
-                            background: "rgba(255,200,80,0.15)",
+                            background: "var(--v2-highlight-warn, rgba(255,200,80,0.15))",
                             padding: "1px 6px",
                             borderRadius: "4px",
                           }}
@@ -9336,8 +9740,8 @@ export default function BankingAgent({
                       </p>
                       <div
                         style={{
-                          background: "rgba(255,80,80,0.08)",
-                          border: "1px solid rgba(255,80,80,0.25)",
+                          background: "var(--v2-highlight-error, rgba(255,80,80,0.08))",
+                          border: "1px solid var(--v2-highlight-error-border, rgba(255,80,80,0.25))",
                           borderRadius: "8px",
                           padding: "12px 14px",
                           marginBottom: "16px",
@@ -9354,7 +9758,7 @@ export default function BankingAgent({
                             <code
                               key={s}
                               style={{
-                                background: "rgba(255,80,80,0.15)",
+                                background: "var(--v2-highlight-error-strong, rgba(255,80,80,0.15))",
                                 borderRadius: "4px",
                                 padding: "1px 6px",
                                 marginLeft: "4px",
@@ -9824,14 +10228,26 @@ export default function BankingAgent({
             />
 
             {/* AG-UI Step 7 — HITL interrupt consent modal */}
-            <GatewayConsentModal
-              show={!!aguiHitlPending}
-              challengeId={aguiHitlPending?.id || ""}
-              challengeType="consent"
-              expiresAt={aguiHitlPending?.expiresAt || ""}
-              onApprove={handleAguiHitlApprove}
-              onDismiss={handleAguiHitlDismiss}
-            />
+            {aguiHitlPending?.reason === 'elicitation_required' ? (
+              <ElicitationModal
+                show={!!aguiHitlPending}
+                prompt={aguiHitlPending?.message || ""}
+                toolName={aguiHitlPending?.toolName || ""}
+                elicitationId={aguiHitlPending?.id || ""}
+                expiresAt={aguiHitlPending?.expiresAt || ""}
+                onApprove={handleAguiHitlApprove}
+                onDismiss={handleAguiHitlDismiss}
+              />
+            ) : (
+              <GatewayConsentModal
+                show={!!aguiHitlPending}
+                challengeId={aguiHitlPending?.id || ""}
+                challengeType="consent"
+                expiresAt={aguiHitlPending?.expiresAt || ""}
+                onApprove={handleAguiHitlApprove}
+                onDismiss={handleAguiHitlDismiss}
+              />
+            )}
 
             {/* Transaction failure modal — replaces auto-closing toast for write actions */}
             {txErrorModal && (
@@ -10065,13 +10481,21 @@ export default function BankingAgent({
                       <div className="ba-track-chips">
                         {trackStep.step.slots.green?.chipText && (
                           <button type="button" className="ba-track-chip ba-track-chip--g"
-                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-green`, label: trackStep.step.slots.green.chipText, message: trackStep.step.slots.green.chipText })}>
+                            onClick={async () => {
+                              // Arm this slot so the track's '*' matcher accepts whatever tool
+                              // this vertical's chip dispatches — armed slot only, one fill.
+                              await apiClient.post("/api/demo-track/arm", { stepId: trackStep.step.stepId, color: "green" }).catch(() => {});
+                              handleChipActivate({ id: `track-${trackStep.step.stepId}-green`, label: trackStep.step.slots.green.chipText, message: trackStep.step.slots.green.chipText });
+                            }}>
                             ✓ {trackStep.step.slots.green.chipText}
                           </button>
                         )}
                         {trackStep.step.slots.red?.chipText && (
                           <button type="button" className="ba-track-chip ba-track-chip--r"
-                            onClick={() => handleChipActivate({ id: `track-${trackStep.step.stepId}-red`, label: trackStep.step.slots.red.chipText, message: trackStep.step.slots.red.chipText })}>
+                            onClick={async () => {
+                              await apiClient.post("/api/demo-track/arm", { stepId: trackStep.step.stepId, color: "red" }).catch(() => {});
+                              handleChipActivate({ id: `track-${trackStep.step.stepId}-red`, label: trackStep.step.slots.red.chipText, message: trackStep.step.slots.red.chipText });
+                            }}>
                             ✕ {trackStep.step.slots.red.chipText}
                           </button>
                         )}
@@ -10265,6 +10689,15 @@ export default function BankingAgent({
                 ref={messagesContainerRef}
                 onScroll={handleTranscriptScroll}
               >
+                {heroData && (
+                  <div className="ba-hero-wrapper">
+                    <AgentGreetingHero
+                      greeting={heroData.greeting}
+                      imageUrl={heroData.imageUrl}
+                      isLoading={loading}
+                    />
+                  </div>
+                )}
                 {messages.length === 0 && (
                   <div className="ba-welcome">
                     <p>
@@ -10374,6 +10807,27 @@ export default function BankingAgent({
                         </div>
                       );
                     }
+                    if (msg.role === "assistant" && msg.retryText && !msg.showPrewarmRetryAction) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                onClick={() => {
+                                  setNlInput(msg.retryText);
+                                  setTimeout(() => nlInputRef.current?.focus(), 0);
+                                }}
+                              >
+                                Retry
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                     if (msg.role === "assistant" && msg.showPrewarmRetryAction) {
                       const isWarming = prewarming === msg.id;
                       return (
@@ -10426,6 +10880,24 @@ export default function BankingAgent({
                                 onClick={() => msg.replayFn && msg.replayFn()}
                               >
                                 Show the expected result (REPLAY)
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.showLoginPromptAction) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                onClick={() => handleLoginAction(msg.loginActionId || "login_user")}
+                              >
+                                Sign in to continue
                               </button>
                             </div>
                           </div>
@@ -10558,11 +11030,23 @@ export default function BankingAgent({
                               refreshing={refreshingAirlineMessageId === msg.id && nlLoading}
                             />
                             {msg.paramHint && <ParamHintCopy hint={msg.paramHint} />}
+                            {(msg.clarifyOptions?.length > 0 || msg.amountOptions?.length > 0) && (
+                              <ClarifyOptions
+                                options={msg.clarifyOptions}
+                                amountOptions={msg.amountOptions || null}
+                                active={pendingClarification != null && msg.id === messages[messages.length - 1]?.id}
+                                onSelect={(opt) => sendAsNl(opt)}
+                              />
+                            )}
                             {msg.verticalResult && (
                               <VerticalResult
                                 descriptor={msg.verticalResult.descriptor}
                                 data={msg.verticalResult.data}
+                                onAction={(tool, params) => runAction(tool, params, { skipUserLabel: true, vertical: effectiveVerticalId })}
                               />
+                            )}
+                            {msg.locationCards && (
+                              <ProductCardGrid kind="locations" items={msg.locationCards} />
                             )}
                             {msg.rawMcpResult != null && (
                               <JsonField
@@ -10873,10 +11357,48 @@ export default function BankingAgent({
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
       />
+      <SimpleStepperPanel
+        isOpen={showSimpleStepper}
+        onClose={() => setShowSimpleStepper(false)}
+      />
+      {(() => {
+        // Copy + builder per modal kind. 'tool' filters are case-insensitive
+        // substrings (no asterisk needed); the sw prefixes are case-sensitive.
+        const FILTER_COPY = {
+          user: {
+            title: "List PingOne users",
+            all: "All users",
+            intro: "Choose all users, or enter a username prefix filter.",
+            label: "Username filter",
+            placeholder: "curtis*",
+            invalid: "Enter a username prefix ending in *, for example curtis*.",
+            build: buildPingOneUserListMessage,
+          },
+          app: {
+            title: "List PingOne applications",
+            all: "All applications",
+            intro: "Choose all applications, or enter a name prefix filter. Prefixes are case-sensitive.",
+            label: "Application name filter",
+            placeholder: "Demo*",
+            invalid: "Enter an application-name prefix ending in *, for example Demo*.",
+            build: buildPingOneAppListMessage,
+          },
+          tool: {
+            title: "Show PingOne MCP server tools",
+            all: "All tools",
+            intro: "Choose all tools, or enter a fragment to match anywhere in a tool's name or description (not case-sensitive).",
+            label: "Tool filter",
+            placeholder: "user",
+            invalid: "Enter a tool name or description fragment, for example user.",
+            build: buildPingOneToolListMessage,
+          },
+        };
+        const copy = FILTER_COPY[filterModalKind] || FILTER_COPY.user;
+        return (
       <DraggableModal
-        isOpen={showUserFilterModal}
-        onClose={() => setShowUserFilterModal(false)}
-        title="List PingOne users"
+        isOpen={filterModalKind != null}
+        onClose={() => setFilterModalKind(null)}
+        title={copy.title}
         defaultWidth={460}
         defaultHeight={330}
         storageKey="pingone-admin-user-filter"
@@ -10885,7 +11407,7 @@ export default function BankingAgent({
             <button
               type="button"
               className="ba-user-filter-btn ba-user-filter-btn--secondary"
-              onClick={() => setShowUserFilterModal(false)}
+              onClick={() => setFilterModalKind(null)}
             >
               Cancel
             </button>
@@ -10893,22 +11415,22 @@ export default function BankingAgent({
               type="button"
               className="ba-user-filter-btn ba-user-filter-btn--secondary"
               onClick={() => {
-                setShowUserFilterModal(false);
-                sendAsNl(buildPingOneUserListMessage("all"));
+                setFilterModalKind(null);
+                sendAsNl(copy.build("all"));
               }}
             >
-              All users
+              {copy.all}
             </button>
             <button
               type="button"
               className="ba-user-filter-btn"
               onClick={() => {
-                const message = buildPingOneUserListMessage(userFilter);
+                const message = copy.build(userFilter);
                 if (!message || !userFilter.trim() || userFilter.trim().toLowerCase() === "all") {
-                  setUserFilterError("Enter a username prefix ending in *, for example curtis*.");
+                  setUserFilterError(copy.invalid);
                   return;
                 }
-                setShowUserFilterModal(false);
+                setFilterModalKind(null);
                 sendAsNl(message);
               }}
             >
@@ -10918,8 +11440,8 @@ export default function BankingAgent({
         }
       >
         <div className="ba-user-filter">
-          <p>Choose all users, or enter a username prefix filter.</p>
-          <label htmlFor="pingone-user-filter">Username filter</label>
+          <p>{copy.intro}</p>
+          <label htmlFor="pingone-user-filter">{copy.label}</label>
           <input
             id="pingone-user-filter"
             type="text"
@@ -10928,7 +11450,7 @@ export default function BankingAgent({
               setUserFilter(event.target.value);
               setUserFilterError("");
             }}
-            placeholder="curtis*"
+            placeholder={copy.placeholder}
             autoComplete="off"
           />
           {userFilterError ? (
@@ -10936,6 +11458,8 @@ export default function BankingAgent({
           ) : null}
         </div>
       </DraggableModal>
+        );
+      })()}
       {showLoginModal && (
         <QuickLoginModal pathname={window.location.pathname} onClose={() => setShowLoginModal(false)} />
       )}

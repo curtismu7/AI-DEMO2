@@ -31,8 +31,6 @@ export default function SdkLoginCallback() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let cancelled = false;
-
     (async () => {
       try {
         const params = new URLSearchParams(window.location.search);
@@ -64,22 +62,19 @@ export default function SdkLoginCallback() {
             // usually a stale or replayed callback.
             throw new Error(result.error || "Token exchange failed.");
           }
-          // navigate() is safe inside try — it does not throw, and finally still
-          // runs. NOT gated on `cancelled`: under StrictMode the first mount's
-          // cleanup sets cancelled=true before the second mount's exchange resolves,
-          // so gating on !cancelled would leave the callback page stuck.
           navigate("/sdk-login", { replace: true });
         } finally {
           exchangedCodes.delete(code);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        // Under StrictMode the first mount's cleanup fires before this settles;
+        // gating on a `cancelled` flag (as the old code did) silently dropped
+        // the error and left the page stuck on "Completing sign-in..." forever.
+        // The dedupe on `exchangedCodes` above already prevents a duplicate
+        // exchange, so it's safe to always report the outcome here.
+        setError(err.message);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [navigate]);
 
   if (error) {

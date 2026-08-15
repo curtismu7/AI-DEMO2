@@ -7,11 +7,11 @@ function OverviewContent() {
   return (
     <div>
       <p>
-        <strong>WebMCP</strong> is the pattern of exposing MCP (Model Context
-        Protocol) tools to a browser-based UI through a{" "}
-        <strong>Backend-for-Frontend (BFF) proxy</strong>. The browser never
-        touches the MCP server directly — all tool calls are forwarded through
-        the BFF, which holds OAuth tokens securely server-side.
+        <strong>WebMCP (Web Model Context Protocol)</strong> is a proposed web
+        standard by Google Chrome that allows websites to expose structured
+        tools directly to AI agents. Instead of agents scraping HTML or using
+        vision models to understand UI, WebMCP tells them clearly what actions
+        exist, what inputs they need, and what outputs they return.
       </p>
 
       <h4
@@ -21,26 +21,14 @@ function OverviewContent() {
           color: "#1e293b",
         }}
       >
-        Why it matters
+        The Problem WebMCP Solves
       </h4>
-      <ul style={{ paddingLeft: "1.2rem", lineHeight: 1.7, color: "#374151" }}>
-        <li>
-          <strong>Tokens stay server-side.</strong> The browser never receives
-          the OAuth access token or the RFC 8693 exchanged MCP token — only tool
-          results are returned.
-        </li>
-        <li>
-          <strong>Uniform security boundary.</strong> Every tool call passes
-          through the same BFF middleware that enforces session validation,
-          scope checking, and HITL consent.
-        </li>
-        <li>
-          <strong>Live introspection without a CLI.</strong> Developers and demo
-          audiences can browse available tools, inspect schemas, call tools, and
-          see streaming results directly in the browser without installing any
-          local tooling.
-        </li>
-      </ul>
+      <p style={{ color: "#374151", lineHeight: 1.7, fontSize: "0.84rem" }}>
+        Traditional web automation relies on AI agents reading HTML, guessing button
+        functions, parsing dynamic selectors. This is fragile — a small DOM change
+        breaks everything. WebMCP shifts from <strong>implicit (guessing)</strong> to{" "}
+        <strong>explicit (structured contracts)</strong>.
+      </p>
 
       <h4
         style={{
@@ -49,36 +37,73 @@ function OverviewContent() {
           color: "#1e293b",
         }}
       >
-        What this page shows
+        Two APIs: Imperative & Declarative
       </h4>
-      <p style={{ color: "#374151", lineHeight: 1.7 }}>
-        The Tool Inspector connects to the live MCP server via the BFF and lists
-        all registered tools. Select a tool to see its input schema, fill in
-        parameters, and call it — the same execution path used by the AI Banking
-        Agent.
-      </p>
-
       <div
         style={{
-          background: "#eff6ff",
-          border: "1px solid #bfdbfe",
-          borderRadius: 6,
-          padding: "0.75rem 1rem",
-          marginTop: "1rem",
           fontSize: "0.84rem",
-          color: "#1e3a5f",
+          color: "#374151",
+          lineHeight: 1.6,
+          marginTop: "0.6rem",
         }}
       >
-        <strong>MCP requires the server to be running.</strong> If the tool list
-        is empty, the MCP WebSocket server at <code>banking_mcp_server/</code>{" "}
-        is not reachable. The Banking Agent still works via the static fallback
-        path.
+        <strong style={{ display: "block", marginBottom: "0.3rem" }}>
+          Imperative API (JavaScript-driven)
+        </strong>
+        Explicitly register tools in code. Useful for complex execution logic.
+        Example: <code>navigator.webMCP.registerTool({"{"}name, description, inputSchema, execute{"}"})</code>
+        <br />
+        <br />
+        <strong style={{ display: "block", marginBottom: "0.3rem" }}>
+          Declarative API (HTML-first)
+        </strong>
+        Annotate HTML forms with <code>webmcp-tool</code> attributes. WebMCP
+        auto-converts forms into structured tools. Perfect for existing apps —
+        minimal changes required.
       </div>
+
+      <h4
+        style={{
+          marginTop: "1.2rem",
+          marginBottom: "0.5rem",
+          color: "#1e293b",
+        }}
+      >
+        Key Benefits
+      </h4>
+      <ul style={{ paddingLeft: "1.2rem", lineHeight: 1.7, color: "#374151", fontSize: "0.84rem" }}>
+        <li>
+          <strong>Speed & Reliability.</strong> No DOM guessing. Structured
+          execution reduces errors by orders of magnitude.
+        </li>
+        <li>
+          <strong>Precision for AI.</strong> Agents understand intent better when
+          schemas and names are explicit.
+        </li>
+        <li>
+          <strong>Backward compatible.</strong> Sites can expose WebMCP tools
+          alongside traditional HTML — existing users unaffected.
+        </li>
+      </ul>
     </div>
   );
 }
 
 function ArchitectureContent() {
+  return (
+    <div>
+      <p style={{ color: "#374151", lineHeight: 1.7, fontSize: "0.84rem", marginBottom: "1rem" }}>
+        This demo implements a <strong>BFF (Backend-for-Frontend) pattern</strong> for exposing
+        MCP tools to the browser. It shows how web apps can make tools available to AI agents
+        while keeping tokens secure server-side.
+      </p>
+
+      <ArchitectureFlowContent />
+    </div>
+  );
+}
+
+function ArchitectureFlowContent() {
   const row = (label, detail, accent) => (
     <div
       key={label}
@@ -214,7 +239,177 @@ function ArchitectureContent() {
   );
 }
 
-function InRepoContent() {
+function UseCasesContent() {
+  return (
+    <div>
+      <p style={{ color: "#374151", lineHeight: 1.7, fontSize: "0.84rem" }}>
+        Real-world scenarios where WebMCP dramatically improves AI agent capabilities.
+      </p>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        E-commerce
+      </h4>
+      <p style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6, margin: "0 0 1rem" }}>
+        User says: "Find me running shoes under $120 and checkout." Agent uses
+        WebMCP tools: <code>searchProducts()</code>, <code>filterProducts()</code>,{" "}
+        <code>addToCart()</code>, <code>applyCoupon()</code>, <code>checkout()</code>.
+        Conversion rates spike — no UI friction.
+      </p>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        Travel Booking
+      </h4>
+      <p style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6, margin: "0 0 1rem" }}>
+        Agents handle multi-step workflows: search flights, compare hotels, book
+        cabs, add insurance — all via structured tools, not browser automation.
+      </p>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        SaaS Dashboards
+      </h4>
+      <p style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6, margin: "0 0 1rem" }}>
+        Analytics dashboard exposing: <code>generateReport()</code>, <code>downloadCSV()</code>,{" "}
+        <code>inviteMember()</code>, <code>changeBillingPlan()</code>. AI copilots
+        become insanely powerful.
+      </p>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        CRM Systems
+      </h4>
+      <p style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6, margin: "0 0 1rem" }}>
+        Instead of clicking 10 screens: <code>createLead()</code>, <code>assignSalesRep()</code>,{" "}
+        <code>scheduleFollowUp()</code>. Faster workflows, less human friction.
+      </p>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        Customer Support
+      </h4>
+      <p style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6 }}>
+        AI agent can cancel subscriptions, raise refunds, track shipments — without
+        parsing random pages.
+      </p>
+    </div>
+  );
+}
+
+function BestPracticesContent() {
+  const practice = (title, bad, good) => (
+    <div
+      key={title}
+      style={{
+        marginBottom: "1rem",
+        borderLeft: "3px solid #3b82f6",
+        paddingLeft: "1rem",
+      }}
+    >
+      <strong style={{ display: "block", marginBottom: "0.4rem", color: "#1e293b" }}>
+        {title}
+      </strong>
+      <div style={{ fontSize: "0.82rem", color: "#374151", lineHeight: 1.5 }}>
+        <span style={{ color: "#dc2626" }}>❌ Bad:</span> {bad}
+        <br />
+        <span style={{ color: "#16a34a" }}>✅ Good:</span> {good}
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      {practice(
+        "Keep tools single-purpose",
+        "manageEverything()",
+        "createInvoice(), sendInvoice(), downloadInvoice() — specificity improves AI accuracy",
+      )}
+      {practice(
+        "Use clear names",
+        "doTask()",
+        "submitExpenseClaim() — agents understand intent better",
+      )}
+      {practice(
+        "Reduce cognitive load",
+        "durationInMinutes",
+        "startTime, endTime — let your app compute, not the AI",
+      )}
+      {practice(
+        "Handle failures gracefully",
+        "Assume perfect execution",
+        "Support retries safely, implement idempotency",
+      )}
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        Semantic Clarity
+      </h4>
+      <p style={{ fontSize: "0.84rem", color: "#374151", lineHeight: 1.6 }}>
+        Strong schemas, clear naming, and explicit tool purposes avoid ambiguity.
+        When schemas and descriptions match the actual behavior, AI agents rarely
+        hallucinate or misuse tools.
+      </p>
+    </div>
+  );
+}
+
+function SecurityContent() {
+  return (
+    <div>
+      <p style={{ color: "#374151", lineHeight: 1.7, fontSize: "0.84rem" }}>
+        WebMCP unlocks powerful agent capabilities. Security requires proactive design.
+      </p>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        Risks
+      </h4>
+      <ul style={{ paddingLeft: "1.2rem", lineHeight: 1.7, color: "#374151", fontSize: "0.84rem" }}>
+        <li>
+          <strong>Runtime tool injection.</strong> Malicious scripts could inject
+          fake tools and trick agents into executing them.
+        </li>
+        <li>
+          <strong>Cross-origin attacks.</strong> Agents must validate tool origin
+          and refuse tools from untrusted sources.
+        </li>
+      </ul>
+
+      <h4 style={{ marginTop: "1.2rem", marginBottom: "0.6rem", color: "#1e293b" }}>
+        Mitigations
+      </h4>
+      <ul style={{ paddingLeft: "1.2rem", lineHeight: 1.7, color: "#374151", fontSize: "0.84rem" }}>
+        <li>
+          <strong>Origin validation.</strong> Only trust tools registered from
+          known, HTTPS origins.
+        </li>
+        <li>
+          <strong>Tool registration auditing.</strong> Log all tool registrations
+          for security review.
+        </li>
+        <li>
+          <strong>Permission boundaries.</strong> Scope tool access by user role,
+          session, or data classification.
+        </li>
+        <li>
+          <strong>User confirmations.</strong> For sensitive operations (transfers,
+          deletions), require explicit human approval.
+        </li>
+      </ul>
+
+      <div
+        style={{
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          borderRadius: 6,
+          padding: "0.75rem 1rem",
+          marginTop: "1rem",
+          fontSize: "0.84rem",
+          color: "#7f1d1d",
+        }}
+      >
+        <strong>Never trust blindly.</strong> Even with WebMCP's structured contract,
+        validate inputs, sanitize outputs, and enforce the principle of least privilege.
+      </div>
+    </div>
+  );
+}
+
+function DemoImplementationContent() {
   const { open } = useEducationUI();
   return (
     <div>
@@ -288,18 +483,33 @@ export default function WebMcpEduPanel({ isOpen, onClose, initialTabId }) {
   const tabs = [
     { id: "overview", label: "Overview", content: <OverviewContent /> },
     {
-      id: "architecture",
-      label: "Architecture",
+      id: "usecases",
+      label: "Use Cases",
+      content: <UseCasesContent />,
+    },
+    {
+      id: "bestpractices",
+      label: "Best Practices",
+      content: <BestPracticesContent />,
+    },
+    {
+      id: "security",
+      label: "Security",
+      content: <SecurityContent />,
+    },
+    {
+      id: "demoarch",
+      label: "Demo Implementation",
       content: <ArchitectureContent />,
     },
-    { id: "inrepo", label: "In this repo", content: <InRepoContent /> },
+    { id: "inrepo", label: "In this repo", content: <DemoImplementationContent /> },
   ];
 
   return (
     <EducationDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="WebMCP — Browser-Native MCP Access"
+      title="WebMCP (Google Standard) & Implementation"
       tabs={tabs}
       initialTabId={initialTabId}
     />

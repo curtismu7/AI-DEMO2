@@ -1,0 +1,16 @@
+# Pass at install time (install.sh does this for you):
+#   --set imageRegistry=ghcr.io/<owner> --set imageTag=<tag>
+imageRegistry: "ghcr.io/curtismu7"
+imageTag: "latest"
+
+# Double-nested (privgateway.mcpgw.*) because the vendored subchart's own
+# templates reference .Values.mcpgw.* internally — see Chart.yaml comment.
+privgateway:
+  enabled: true
+  mcpgw:
+    hostname: "ai-demo.ping-devops.com"
+    serverUrl: "https://ai-demo.ping-devops.com"
+    # required — provide via: --set-file privgateway.mcpgw.proxyToken=/path/to/token/file
+    # (never --set-string: corrupts long JWTs during Helm's own CLI arg parsing,
+    # see privilege/deploy-whole-stack.prompt.md and PRIVILEGE-MCP.md)
+    proxyToken: ""

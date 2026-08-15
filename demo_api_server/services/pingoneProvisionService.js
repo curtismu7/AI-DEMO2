@@ -915,6 +915,31 @@ class PingOneProvisionService {
   }
 
   /**
+   * Set mappedClaims configuration on a custom resource (scope-to-attributes gating).
+   * Maps requested scopes to which attributes are included in the token.
+   * Idempotent — re-setting the same mappings is safe.
+   */
+  async setMappedClaims(resourceId, mappingsList) {
+    // mappingsList format: [ { scope: 'read', attributes: ['attr1', 'attr2'] }, ... ]
+    // PingOne mappedClaims shape:
+    // {
+    //   enabled: true,
+    //   mappings: [
+    //     { scope: 'read', attributes: ['attr1', 'attr2'] },
+    //     ...
+    //   ]
+    // }
+    const payload = {
+      enabled: true,
+      mappings: mappingsList,
+    };
+    const response = await this.makeRequest('PATCH', `/resources/${resourceId}`, {
+      mappedClaims: payload,
+    });
+    return response.data;
+  }
+
+  /**
    * Idempotently ensure a group exists, return its id.
    */
   async _ensureGroup(name, description = '') {
@@ -2039,6 +2064,22 @@ class PingOneProvisionService {
       const scopeResults = await this.createScopes(resourceResult.resource.id, scopes);
       pushScopeResultStep(steps, 'scopes', 'Banking scopes', scopeResults);
       onStep(steps[steps.length - 1]);
+
+      // Step 5.5: Configure mappedClaims (scope-to-attributes gating)
+      // P14C-83315: Map scopes to attributes for stricter token composition.
+      const topologyManifest = scopeTopology._manifest();
+      const mappedClaimsConfig = topologyManifest.mappedClaims?.['Super Banking API'];
+      if (mappedClaimsConfig && mappedClaimsConfig.length > 0) {
+        steps.push({ step: 'mapped-claims', icon: '🔒', message: 'Configuring scope-to-attributes mappings (P14C-83315)...' });
+        onStep(steps[steps.length - 1]);
+        try {
+          await this.setMappedClaims(resourceResult.resource.id, mappedClaimsConfig);
+          steps.push({ step: 'mapped-claims', icon: '✅', message: `Scope-to-attributes mappings configured (${mappedClaimsConfig.length} scopes)` });
+        } catch (mcErr) {
+          steps.push({ step: 'mapped-claims', icon: '⚠️', message: `MappedClaims config failed (non-fatal): ${mcErr.message}` });
+        }
+        onStep(steps[steps.length - 1]);
+      }
 
       // Step 5: Create Admin Application
       steps.push({ step: 'admin-app', icon: '🔧', message: 'Creating admin application...' });

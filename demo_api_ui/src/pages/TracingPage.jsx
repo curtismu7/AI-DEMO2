@@ -234,6 +234,11 @@ export default function TracingPage() {
   };
 
   const jaegerUiUrl = status?.jaegerUiUrl || "http://localhost:16686";
+  // nginx only defines location /jaeger/ (trailing slash) — a bare /jaeger
+  // link 301s through the SPA fallback to an unreachable internal port
+  // instead of proxying to Jaeger. Only the plain "open UI" link needs this;
+  // traceUrl's /trace/:id suffix already lands inside /jaeger/ either way.
+  const jaegerUiRootUrl = jaegerUiUrl.endsWith("/") ? jaegerUiUrl : `${jaegerUiUrl}/`;
   const traceUrl = (traceId) => `${jaegerUiUrl}/trace/${traceId}`;
   const showFullEmpty =
     !loading && !error && traces.length === 0 && (selectionSource === "manual" || selectionSource === "stored");
@@ -258,7 +263,7 @@ export default function TracingPage() {
           )}
           <a
             className="tracing-btn tracing-btn--secondary"
-            href={jaegerUiUrl}
+            href={jaegerUiRootUrl}
             target="_blank"
             rel="noopener noreferrer"
           >

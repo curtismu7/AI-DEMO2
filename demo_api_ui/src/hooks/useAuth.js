@@ -4,6 +4,7 @@ import { getCachedJson } from "../services/cachedStatusService";
 import { savePublicConfig } from "../services/configService";
 import { SESSION_REAUTH_EVENT } from "../utils/authUi";
 import { clearStatusCache } from "../services/cachedStatusService";
+import { nrLog } from "../utils/nrLog";
 
 // Module-level flag mirrors the _didLogOut pattern — survives React
 // re-renders, reset only on explicit logout.
@@ -22,6 +23,7 @@ export function useAuth() {
       if (!sessionEstablishedRef.current) {
         sessionEstablishedRef.current = true;
         window.dispatchEvent(new CustomEvent("userAuthenticated"));
+        nrLog('ui.login', { username: u?.username || u?.email || 'unknown' });
       }
       setLoading(false);
     };
@@ -178,6 +180,17 @@ export function useAuth() {
 
   const logout = useCallback(() => {
     console.info("Starting logout — navigating to /api/auth/logout");
+
+    // Store current path before clearing storage so LogoutPage can redirect there
+    try {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+      if (pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
+        sessionStorage.setItem("logoutReturnTo", pathname);
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+
     localStorage.setItem("userLoggedOut", "true");
     // NOTE: These removals are legacy cleanup. The BFF pattern means tokens
     // should never be stored client-side. We remove them defensively in case
@@ -186,7 +199,16 @@ export function useAuth() {
     localStorage.removeItem("user");
     localStorage.removeItem("authToken");
     localStorage.removeItem("refreshToken");
-    sessionStorage.clear();
+    // Don't clear sessionStorage yet — we need logoutReturnTo to survive until LogoutPage reads it
+    try {
+      Object.keys(sessionStorage).forEach(key => {
+        if (key !== "logoutReturnTo") {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      // ignore storage errors
+    }
     window.dispatchEvent(new CustomEvent("userLoggedOut"));
     localStorage.removeItem("tokenChainHistory");
     window.location.href = "/api/auth/logout";

@@ -1,0 +1,606 @@
+<title>New Relic Dashboard — UI Mock</title>
+<style>
+  :root {
+    --nav-start: #1e293b;
+    --nav-end: #334155;
+    --nav-ink: #ffffff;
+    --nav-ink-dim: #94a3b8;
+
+    --accent: #1d4ed8;
+    --accent-soft: #dbeafe;
+    --accent-line: #93c5fd;
+
+    --ground: #eef2f7;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --line: #d8e0ea;
+    --line-soft: #e8edf3;
+
+    --ink: #0f172a;
+    --ink-2: #475569;
+    --ink-3: #64748b;
+
+    --ok: #3d9142;
+    --warn: #b26a00;
+    --err: #d13c31;
+
+    --new: #7c3aed;
+    --new-soft: #f1e9fe;
+
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --nav-start: #0b1220;
+      --nav-end: #16202f;
+      --nav-ink: #f1f5f9;
+      --nav-ink-dim: #7d8ca1;
+
+      --accent: #7aa2f7;
+      --accent-soft: #172554;
+      --accent-line: #2c4a8a;
+
+      --ground: #0a0f18;
+      --surface: #111823;
+      --surface-2: #161f2c;
+      --line: #253244;
+      --line-soft: #1c2634;
+
+      --ink: #e8eef7;
+      --ink-2: #a5b4c8;
+      --ink-3: #7d8ca1;
+
+      --ok: #6cc46c;
+      --warn: #e0a145;
+      --err: #f0776c;
+
+      --new: #b794f6;
+      --new-soft: #2a1f47;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --nav-start: #0b1220;
+    --nav-end: #16202f;
+    --nav-ink: #f1f5f9;
+    --nav-ink-dim: #7d8ca1;
+
+    --accent: #7aa2f7;
+    --accent-soft: #172554;
+    --accent-line: #2c4a8a;
+
+    --ground: #0a0f18;
+    --surface: #111823;
+    --surface-2: #161f2c;
+    --line: #253244;
+    --line-soft: #1c2634;
+
+    --ink: #e8eef7;
+    --ink-2: #a5b4c8;
+    --ink-3: #7d8ca1;
+
+    --ok: #6cc46c;
+    --warn: #e0a145;
+    --err: #f0776c;
+
+    --new: #b794f6;
+    --new-soft: #2a1f47;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .mockbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 18px;
+    background: var(--new-soft);
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .mockbar strong { color: var(--new); font-weight: 700; letter-spacing: .04em; }
+  .mockbar .sep { color: var(--ink-3); }
+  .key-new {
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .key-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--new); flex: none;
+  }
+
+  /* ---------- app frame ---------- */
+  .app { display: grid; grid-template-columns: 240px 1fr; min-height: 720px; }
+
+  .side {
+    background: linear-gradient(180deg, var(--nav-start), var(--nav-end));
+    padding: 14px 0 24px;
+    border-right: 1px solid var(--line);
+  }
+  .side-brand {
+    padding: 4px 18px 16px;
+    color: var(--nav-ink);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: .01em;
+  }
+  .side-group {
+    padding: 14px 18px 6px;
+    color: var(--nav-ink-dim);
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+  }
+  .side-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 18px;
+    color: #cbd5e1;
+    font-size: 13px;
+    border-left: 3px solid transparent;
+  }
+  .side-item.is-active {
+    color: #fff;
+    background: rgba(255,255,255,.09);
+    border-left-color: var(--accent-line);
+    font-weight: 600;
+  }
+  .side-item.is-new { color: #e9d5ff; }
+  .tag-new {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+    color: #fff; background: var(--new);
+    padding: 1px 5px; border-radius: 3px; flex: none;
+  }
+
+  .main { display: flex; flex-direction: column; min-width: 0; }
+
+  .topnav {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 20px; height: 52px;
+    background: linear-gradient(90deg, var(--nav-start), var(--nav-end));
+    color: var(--nav-ink);
+    border-bottom: 1px solid var(--line);
+  }
+  .topnav-title { font-weight: 700; font-size: 14.5px; }
+  .topnav-spacer { flex: 1; }
+  .pill {
+    font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,255,255,.14); color: #e2e8f0; font-weight: 600;
+  }
+  .pill-guest { background: rgba(255,255,255,.09); color: var(--nav-ink-dim); }
+
+  .content { padding: 18px 22px 30px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  .page-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .page-title { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+  .page-sub { margin: 2px 0 0; color: var(--ink-3); font-size: 12.5px; }
+  .head-spacer { flex: 1; }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+  .seg button {
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    padding: 6px 13px; border: 0; background: transparent; color: var(--ink-2); cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.is-on { background: var(--accent); color: #fff; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .btn {
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    padding: 6px 13px; border-radius: var(--radius);
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer;
+  }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* theme switch — mirrors the .ttp-theme-switch idiom in TokenTopologyPanel */
+  .theme-ctl {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 11px 4px 12px;
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .theme-lab {
+    font-size: 11.5px; font-weight: 600; color: var(--ink-3);
+    letter-spacing: .02em; user-select: none;
+  }
+  .theme-lab.is-on { color: var(--ink); }
+  .theme-switch {
+    position: relative; width: 34px; height: 18px; flex: none;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--surface-2); cursor: pointer; padding: 0;
+  }
+  .theme-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .theme-switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+  .theme-thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--line);
+    transition: transform .16s ease;
+  }
+  .theme-switch[aria-checked="true"] .theme-thumb {
+    transform: translateX(16px); background: #fff; border-color: transparent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .theme-thumb { transition: none; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    min-width: 0;
+  }
+  .card-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 15px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .card-title { font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--ink-2); }
+  .card-note { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+  .card-body { padding: 15px; }
+
+  /* ---------- pipeline strip ---------- */
+  .pipe { display: flex; align-items: stretch; gap: 0; overflow-x: auto; }
+  .stage {
+    flex: 1 1 0; min-width: 128px;
+    padding: 13px 14px;
+    border-right: 1px solid var(--line-soft);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .stage:last-child { border-right: 0; }
+  .stage-name {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+    letter-spacing: .02em; white-space: nowrap;
+  }
+  .stage-count {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 25px; font-weight: 700; color: var(--ink); line-height: 1.15;
+  }
+  .stage-bar { height: 3px; border-radius: 2px; background: var(--accent); margin-top: 5px; }
+  .stage.is-zero .stage-count,
+  .stage.is-zero .stage-name { color: var(--ink-3); opacity: .55; }
+  .stage.is-zero .stage-bar { background: var(--line); }
+  .stage-meta { font-size: 11px; color: var(--ink-3); }
+
+  /* ---------- split ---------- */
+  .split { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .split { grid-template-columns: minmax(0, 1fr); } }
+
+  .chart-wrap { overflow-x: auto; }
+  svg { display: block; max-width: 100%; height: auto; }
+
+  .rank { display: flex; flex-direction: column; gap: 9px; }
+  .rank-row { display: grid; grid-template-columns: 1fr 40px; align-items: center; gap: 10px; }
+  .rank-name { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+  .rank-num {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    font-size: 12.5px; font-weight: 700; text-align: right; color: var(--ink);
+  }
+  .rank-track { grid-column: 1 / -1; height: 5px; background: var(--line-soft); border-radius: 3px; overflow: hidden; margin-top: -4px; }
+  .rank-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+  /* ---------- table ---------- */
+  .tbl-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  th {
+    text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--ink-3);
+    padding: 9px 15px; border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 15px; border-bottom: 1px solid var(--line-soft);
+    font-size: 13px; vertical-align: top;
+  }
+  tr:last-child td { border-bottom: 0; }
+  .c-time, .c-corr { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+  .chip {
+    display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 2px 7px; border-radius: 4px;
+    background: var(--accent-soft); color: var(--accent);
+    white-space: nowrap;
+  }
+  .sev { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .sev::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--ok); }
+  .sev.is-warn::before { background: var(--warn); }
+  .sev.is-err::before { background: var(--err); }
+
+  .newmark { border-left: 3px solid var(--new); }
+
+  .foot {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    font-size: 12px; color: var(--ink-3);
+    padding: 2px 2px 0;
+  }
+  .foot code { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+</style>
+
+<div class="mockbar">
+  <strong>MOCK</strong>
+  <span class="sep">·</span>
+  <span>Proposed <code>/monitoring/new-relic</code> — not a screenshot of the running app</span>
+  <span class="sep">·</span>
+  <span class="key-new"><span class="key-dot"></span> purple marks what this change adds</span>
+  <span class="sep">·</span>
+  <span>counts are real, pulled from account 8369622</span>
+</div>
+
+<div class="app">
+  <nav class="side">
+    <div class="side-brand">AI Demo</div>
+
+    <div class="side-group">Telemetry</div>
+    <div class="side-item">Tracing</div>
+    <div class="side-item">Health Check</div>
+
+    <div class="side-group">Monitoring</div>
+    <div class="side-item">Token Chain</div>
+    <div class="side-item">MCP Traffic</div>
+    <div class="side-item">Activity Log</div>
+    <div class="side-item">API Activity</div>
+    <div class="side-item is-active">New Relic</div>
+    <div class="side-item is-new">PingOne Events <span class="tag-new">NEW</span></div>
+  </nav>
+
+  <div class="main">
+    <header class="topnav">
+      <span class="topnav-title">AI Demo</span>
+      <span class="topnav-spacer"></span>
+      <span class="pill">Super Sports</span>
+      <span class="pill pill-guest">Not signed in</span>
+    </header>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">New Relic</h1>
+          <p class="page-sub">Identity pipeline as observed telemetry &middot; account 8369622</p>
+        </div>
+        <span class="head-spacer"></span>
+        <div class="seg" role="group" aria-label="Time window">
+          <button type="button">30m</button>
+          <button type="button" class="is-on" aria-pressed="true">1h</button>
+          <button type="button">24h</button>
+        </div>
+        <div class="theme-ctl">
+          <span class="theme-lab is-on" id="lab-light">Light</span>
+          <button type="button" class="theme-switch" role="switch" aria-checked="false"
+                  aria-label="Dark mode" title="Switch to dark mode" id="themeSwitch">
+            <span class="theme-thumb"></span>
+          </button>
+          <span class="theme-lab" id="lab-dark">Dark</span>
+        </div>
+        <button type="button" class="btn">Refresh</button>
+      </div>
+
+      <section class="card newmark">
+        <div class="card-head">
+          <span class="card-title">Identity pipeline</span>
+          <span class="card-note">last 24h</span>
+        </div>
+        <div class="pipe">
+          <div class="stage">
+            <span class="stage-name">oauth</span>
+            <span class="stage-count">13</span>
+            <span class="stage-meta">sign-in</span>
+            <div class="stage-bar" style="width:81%"></div>
+          </div>
+          <div class="stage">
+            <span class="stage-name">token_exchange</span>
+            <span class="stage-count">4</span>
+            <span class="stage-meta">RFC 8693</span>
+            <div class="stage-bar" style="width:25%"></div>
+          </div>
+          <div class="stage">
+            <span class="stage-name">introspection</span>
+            <span class="stage-count">8</span>
+            <span class="stage-meta">gateway</span>
+            <div class="stage-bar" style="width:50%"></div>
+          </div>
+          <div class="stage">
+            <span class="stage-name">intent_auth</span>
+            <span class="stage-count">16</span>
+            <span class="stage-meta">P1AZ decision</span>
+            <div class="stage-bar" style="width:100%"></div>
+          </div>
+          <div class="stage">
+            <span class="stage-name">mcp</span>
+            <span class="stage-count">11</span>
+            <span class="stage-meta">tool call</span>
+            <div class="stage-bar" style="width:69%"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="split">
+        <section class="card newmark">
+          <div class="card-head">
+            <span class="card-title">Event volume</span>
+            <span class="card-note">1h buckets &middot; 12h</span>
+          </div>
+          <div class="card-body chart-wrap">
+            <svg viewBox="0 0 600 172" role="img" aria-label="Event volume by hour: flat near zero for ten hours, then a spike to 93 and 29.">
+              <defs>
+                <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--accent)" stop-opacity=".28"/>
+                  <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+
+              <g stroke="var(--line-soft)" stroke-width="1">
+                <line x1="40" y1="140" x2="580" y2="140"/>
+                <line x1="40" y1="106" x2="580" y2="106"/>
+                <line x1="40" y1="72"  x2="580" y2="72"/>
+                <line x1="40" y1="38"  x2="580" y2="38"/>
+              </g>
+              <g font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ink-3)" text-anchor="end">
+                <text x="34" y="143">0</text>
+                <text x="34" y="109">30</text>
+                <text x="34" y="75">60</text>
+                <text x="34" y="41">90</text>
+              </g>
+
+              <path fill="url(#fill)"
+                d="M40,140 L87,137 L135,140 L182,140 L229,140 L276,140 L324,140 L371,140 L418,140 L466,140 L513,38 L560,108 L560,140 L40,140 Z"/>
+              <polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                points="40,140 87,137 135,140 182,140 229,140 276,140 324,140 371,140 418,140 466,140 513,38 560,108"/>
+
+              <circle cx="513" cy="38" r="3.5" fill="var(--accent)"/>
+              <text x="513" y="28" font-family="ui-monospace, monospace" font-size="10.5" font-weight="700" fill="var(--ink)" text-anchor="middle">93</text>
+              <circle cx="560" cy="108" r="3.5" fill="var(--accent)"/>
+
+              <g font-family="ui-monospace, monospace" font-size="9.5" fill="var(--ink-3)" text-anchor="middle">
+                <text x="40" y="160">-12h</text>
+                <text x="229" y="160">-8h</text>
+                <text x="418" y="160">-4h</text>
+                <text x="560" y="160">now</text>
+              </g>
+            </svg>
+          </div>
+        </section>
+
+        <section class="card newmark">
+          <div class="card-head"><span class="card-title">By category</span></div>
+          <div class="card-body rank">
+            <div class="rank-row"><span class="rank-name">agent</span><span class="rank-num">38</span>
+              <div class="rank-track"><div class="rank-fill" style="width:100%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">startup</span><span class="rank-num">22</span>
+              <div class="rank-track"><div class="rank-fill" style="width:58%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">agent_prompt</span><span class="rank-num">19</span>
+              <div class="rank-track"><div class="rank-fill" style="width:50%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">intent_auth</span><span class="rank-num">16</span>
+              <div class="rank-track"><div class="rank-fill" style="width:42%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">intent_token</span><span class="rank-num">14</span>
+              <div class="rank-track"><div class="rank-fill" style="width:37%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">oauth</span><span class="rank-num">13</span>
+              <div class="rank-track"><div class="rank-fill" style="width:34%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">mcp</span><span class="rank-num">11</span>
+              <div class="rank-track"><div class="rank-fill" style="width:29%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">introspection</span><span class="rank-num">8</span>
+              <div class="rank-track"><div class="rank-fill" style="width:21%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">token_exchange</span><span class="rank-num">4</span>
+              <div class="rank-track"><div class="rank-fill" style="width:11%"></div></div></div>
+            <div class="rank-row"><span class="rank-name">auth_lifecycle</span><span class="rank-num">1</span>
+              <div class="rank-track"><div class="rank-fill" style="width:3%"></div></div></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card newmark">
+        <div class="card-head">
+          <span class="card-title">Recent events</span>
+          <span class="card-note">50 most recent</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th><th>Category</th><th>Severity</th><th>Message</th><th>Correlation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="c-time">13:13:44</td>
+                <td><span class="chip">intent_auth</span></td>
+                <td><span class="sev is-warn">warn</span></td>
+                <td>Post-execution intent deviation detected</td>
+                <td class="c-corr">a3f1c9e2</td>
+              </tr>
+              <tr>
+                <td class="c-time">13:13:44</td>
+                <td><span class="chip">agent_prompt</span></td>
+                <td><span class="sev">info</span></td>
+                <td>Heuristic tool dispatch: balance</td>
+                <td class="c-corr">a3f1c9e2</td>
+              </tr>
+              <tr>
+                <td class="c-time">13:13:44</td>
+                <td><span class="chip">agent</span></td>
+                <td><span class="sev">info</span></td>
+                <td>Heuristic: balance</td>
+                <td class="c-corr">a3f1c9e2</td>
+              </tr>
+              <tr>
+                <td class="c-time">13:13:43</td>
+                <td><span class="chip">mcp</span></td>
+                <td><span class="sev">info</span></td>
+                <td>MCP tool call &rarr; get_my_accounts</td>
+                <td class="c-corr">a3f1c9e2</td>
+              </tr>
+              <tr>
+                <td class="c-time">13:13:41</td>
+                <td><span class="chip">token_exchange</span></td>
+                <td><span class="sev">info</span></td>
+                <td>RFC 8693 exchange &rarr; aud: mcp-server</td>
+                <td class="c-corr">a3f1c9e2</td>
+              </tr>
+              <tr>
+                <td class="c-time">13:13:40</td>
+                <td><span class="chip">introspection</span></td>
+                <td><span class="sev">info</span></td>
+                <td>Gateway introspection: active</td>
+                <td class="c-corr">a3f1c9e2</td>
+              </tr>
+              <tr>
+                <td class="c-time">12:58:02</td>
+                <td><span class="chip">oauth</span></td>
+                <td><span class="sev">info</span></td>
+                <td>User sign-in complete</td>
+                <td class="c-corr">7b2e04d1</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="foot">
+        <span>Data via <code>GET /api/newrelic/pipeline?window=1h</code> &mdash; named server-side queries, no client NRQL.</span>
+      </div>
+      <div class="foot">
+        <span>Theme via the app's existing <code>useTheme()</code> &mdash; stamps <code>data-theme</code> on the root, persists to <code>ba_dark_mode</code>.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var sw = document.getElementById('themeSwitch');
+    var labLight = document.getElementById('lab-light');
+    var labDark = document.getElementById('lab-dark');
+    var root = document.documentElement;
+
+    // Seed from whatever the viewer is actually resolving to, so the switch
+    // never claims "Light" while the page renders dark.
+    var startsDark = root.getAttribute('data-theme') === 'dark'
+      || (!root.hasAttribute('data-theme')
+          && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    function apply(dark) {
+      root.setAttribute('data-theme', dark ? 'dark' : 'light');
+      sw.setAttribute('aria-checked', String(dark));
+      sw.title = 'Switch to ' + (dark ? 'light' : 'dark') + ' mode';
+      labLight.classList.toggle('is-on', !dark);
+      labDark.classList.toggle('is-on', dark);
+    }
+
+    apply(startsDark);
+    sw.addEventListener('click', function () {
+      apply(sw.getAttribute('aria-checked') !== 'true');
+    });
+  })();
+</script>

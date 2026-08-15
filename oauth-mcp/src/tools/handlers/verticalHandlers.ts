@@ -11,10 +11,17 @@ import { GENERATED_VERTICAL_TOOLS, type VerticalToolDef } from './verticalTools.
  *
  * See docs/specs/SPEC-vertical-tools-through-mcp.md.
  */
-function makeVerticalHandler(toolName: string): HandlerFn {
+function makeVerticalHandler(toolName: string, vertical?: string): HandlerFn {
   return async (deps, token, params) => {
-    deps.logger.debug(`[VerticalTool] Calling BFF vertical-tool: ${toolName}`);
-    const out = await deps.apiClient.callVerticalTool(token, toolName, params || {});
+    // Pass the tool's OWN vertical as a hint so the BFF runs that vertical's
+    // agent, not the caller's selected/active vertical. This matters on the
+    // Privilege MCP client page, which is vertical-agnostic: a tool listed there
+    // (e.g. a records tool) must execute against its own vertical even when the
+    // app-wide selector points elsewhere. resolveVertical() honours the hint
+    // only when that vertical legitimately owns the tool, so this cannot
+    // misroute a shared name.
+    deps.logger.debug(`[VerticalTool] Calling BFF vertical-tool: ${toolName} (vertical: ${vertical || 'unset'})`);
+    const out = await deps.apiClient.callVerticalTool(token, toolName, params || {}, vertical);
     if (!out || out.ok === false) {
       const msg = (out && (out.result as { error?: string })?.error) || `${toolName} failed`;
       return createErrorResult(msg);
@@ -45,7 +52,7 @@ function handlerNameFor(toolName: string): string {
 
 export const verticalHandlerMap: Record<string, HandlerFn> = VERTICAL_TOOLS.reduce(
   (acc, t) => {
-    acc[handlerNameFor(t.name)] = makeVerticalHandler(t.name);
+    acc[handlerNameFor(t.name)] = makeVerticalHandler(t.name, t.vertical);
     return acc;
   },
   {} as Record<string, HandlerFn>,

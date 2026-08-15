@@ -442,6 +442,15 @@ export class AuthenticationIntegration {
         (await this.authManager.validateTokenScopes(agentToken, requiredScopes)) ||
         (!!alternativeScopes?.length &&
           (await this.authManager.validateTokenScopes(agentToken, alternativeScopes)));
+      // NOTE: open-access mode does NOT get an escape hatch here any more.
+      // Reading the env var at this point applied the bypass to whoever asked,
+      // including a fully validated bearer that genuinely lacked the scope — so
+      // enabling the mode for the Privilege gateway silently disarmed scope
+      // enforcement for the banking path too. One env var, two gateways.
+      // The bypass now lives at the only place that can tell them apart:
+      // HttpMCPTransport marks the tokenless upstream-authorized hop as
+      // openAccess, and MCPMessageHandler skips this call entirely for it.
+      // Anything that reaches here presented a token and is enforced on it.
       if (!hasScopes) {
         console.log(
           `[AuthenticationIntegration] agentToken missing required scopes [${requiredScopes.join(', ')}]`

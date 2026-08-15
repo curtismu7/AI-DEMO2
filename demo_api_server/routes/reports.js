@@ -127,7 +127,8 @@ function formatFilename(vertical, ext) {
     .replace('T', '_')
     .replace(/:/g, '-')
     .slice(0, 19);
-  return `${vertical}_${date}.${ext}`;
+  const safeVertical = String(vertical).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 64);
+  return `${safeVertical}_${date}.${ext}`;
 }
 
 // POST /generate — Generate all 3 formats and write to disk

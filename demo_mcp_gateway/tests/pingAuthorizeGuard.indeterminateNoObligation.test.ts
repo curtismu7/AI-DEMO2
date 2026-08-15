@@ -64,7 +64,7 @@ function makeToken(overrides: Partial<DecodedGatewayToken> = {}): DecodedGateway
     aud: 'https://mcpgateway.ping.demo',
     exp: Math.floor(Date.now() / 1000) + 3600,
     iat: Math.floor(Date.now() / 1000),
-    scope: 'read write',
+    scope: 'read write transfer',
     ...overrides,
   } as DecodedGatewayToken;
 }
@@ -82,23 +82,27 @@ describe('guardToolCall — INDETERMINATE with no obligation', () => {
     expect(result.obligation).toBe('stepUp');
   });
 
-  it('resolves to PERMIT (fail open) when INDETERMINATE carries no statements', async () => {
+  it('resolves to DENY (fail closed) when INDETERMINATE carries no statements', async () => {
+    // P1AZ "could not evaluate" = missing operand or no rule fired.
+    // Fail-closed: unknown outcome must never widen access.
     const config = makeConfig();
     mockedAxios.post.mockResolvedValue({
       data: { decision: 'INDETERMINATE', reason: 'policy could not evaluate' },
     } as never);
     const result = await guardToolCall('get_my_accounts', makeToken(), config);
-    expect(result.permitted).toBe(true);
+    expect(result.permitted).toBe(false);
     expect(result.obligation).toBeUndefined();
   });
 
-  it('resolves to PERMIT when INDETERMINATE statements do not classify to a known obligation', async () => {
+  it('resolves to DENY when INDETERMINATE statements do not classify to a known obligation', async () => {
+    // Unrecognised statement code = PDP gave an answer we cannot parse.
+    // Fail-closed: ambiguous ≠ permitted.
     const config = makeConfig();
     mockedAxios.post.mockResolvedValue({
       data: { decision: 'INDETERMINATE', reason: 'n/a', statements: [{ code: 'unrelated-statement' }] },
     } as never);
     const result = await guardToolCall('get_my_accounts', makeToken(), config);
-    expect(result.permitted).toBe(true);
+    expect(result.permitted).toBe(false);
   });
 
   it('resolves to DENY when INDETERMINATE carries an explicit deny reason', async () => {

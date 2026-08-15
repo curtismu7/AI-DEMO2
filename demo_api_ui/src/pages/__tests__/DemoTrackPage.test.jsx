@@ -160,6 +160,7 @@ describe("DemoTrackPage", () => {
 
   it("shows the active vertical and dispatches the catalog-resolved chip through the agent", async () => {
     render(<DemoTrackPage />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     await screen.findByText("Delegated access");
     await waitFor(() => expect(screen.getByText("Vertical: healthcare")).toBeInTheDocument());
     // catalog trigger text (per-vertical) replaces the config chip text
@@ -173,9 +174,9 @@ describe("DemoTrackPage", () => {
         vertical: "healthcare",
       })
     );
-    // The run makes its step active first — the matcher wildcard (any vertical's
-    // tool) only fires on the active step.
-    expect(apiClient.post).toHaveBeenCalledWith("/api/demo-track/active-step", { stepId: "delegated-access" });
+    // The run arms its own slot first — the matcher wildcard (any vertical's
+    // tool) fires only for the armed slot, not for whatever step is active.
+    expect(apiClient.post).toHaveBeenCalledWith("/api/demo-track/arm", { stepId: "delegated-access", color: "green" });
     // gateway runtime flag armed before dispatch (launcher contract)
     expect(apiClient.patch).toHaveBeenCalledWith("/api/admin/feature-flags", expect.objectContaining({
       updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }),

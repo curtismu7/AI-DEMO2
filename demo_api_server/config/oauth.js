@@ -20,6 +20,8 @@ const config = {
   get tokenEndpoint()          { return endpointResolver.getTokenEndpoint(); },
   get userInfoEndpoint()       { return endpointResolver.getUserInfoEndpoint(); },
   get jwksEndpoint()           { return endpointResolver.getJwksUri(); },
+  get introspectionEndpoint()  { return endpointResolver.getIntrospectionEndpoint(); },
+  get revocationEndpoint()     { return endpointResolver.getRevocationEndpoint(); },
   get issuer()                 { return endpointResolver.getIssuer(); },
 
   // Admin OAuth2 client

@@ -1,0 +1,71 @@
+# Deploy namespace via --namespace flag on helm install.
+# All sensitive values (proxyToken, oidc.clientSecret) must be supplied
+# via --set or a separate --values secrets.yaml — never committed to source control.
+
+mcpgw:
+  hostname: "ai-demo.ping-devops.com"
+  # privilege-mcpgw binary (mcpgw). Pinned digest for the verified build is in
+  # k8s/75-ping-mcpgw-deployment.yaml; :latest is safe here because deploy.sh
+  # uses imagePullPolicy: Always (via patch_images).
+  image: "public.ecr.aws/s7q1z8z4/privilege-mcpgw:latest"
+  # SERVER_URL is read from pingone.env (via -mcpconfpath), not from this value.
+  # create-secrets.sh patches pingone.env with the correct public origin including
+  # the /mcpgw path prefix. This field is kept for reference only.
+  serverUrl: "https://ai-demo.ping-devops.com/mcpgw"
+  # required — provide via: --set-file mcpgw.proxyToken=<path>
+  proxyToken: ""
+  ssl:
+    storage: "50Mi"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  oidc:
+    # OIDC config is read by the mcpgw binary from pingone.env (via -mcpconfpath)
+    # mounted from ping-mcpgw-secrets. These values are kept for reference only —
+    # they are no longer injected as env vars (mcpgw ignores env vars for OIDC).
+    clientId: "a6219652-47af-4ed2-8dea-20e9940b3377"
+    authUrl: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/authorize"
+    tokenUrl: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token"
+    userUrl: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/userinfo"
+    scopes: "openid profile email"
+
+ingress:
+  # This app owns hostname/cert/ingress routing centrally (k8s/aws/se-ingress.yaml,
+  # mcpgw-agentless-ingress.yaml, mcpgw-wildcard-certificate.yaml) since mcpgw.hostname
+  # here is the app's shared external host, not a chart-dedicated subdomain. Enabling
+  # this would create a second Ingress + Certificate for the same host/path the app's
+  # own ingress already serves — leave disabled.
+  enabled: false
+  className: "nginx-public"
+  certIssuer: "letsencrypt-pdo"
+
+opensearch:
+  # This app has its own MCP servers; the reference chart's OpenSearch/OpenSearch-MCP
+  # sample backend is unused here.
+  enabled: false
+  image: "opensearchproject/opensearch:2"
+  storage: "10Gi"
+  javaOpts: "-Xms512m -Xmx512m"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+
+opensearchMcpServer:
+  enabled: false
+  image: "cjmuir710/opensearch-mcp-server:latest"
+  imagePullSecretName: "dockerhub-creds"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

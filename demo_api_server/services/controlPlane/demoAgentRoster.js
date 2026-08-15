@@ -4,11 +4,11 @@
 // PingOne apps — stopping them writes a real audit record but does not call
 // PingOne disable (there is no real user/app behind them).
 const DEMO_AGENTS = [
-  { id: 'chatgpt', platform: 'ChatGPT', label: 'ChatGPT' },
-  { id: 'copilot', platform: 'Copilot Studio', label: 'Copilot Studio' },
-  { id: 'glean', platform: 'Glean', label: 'Glean' },
-  { id: 'agentforce', platform: 'Agentforce', label: 'Agentforce' },
-  { id: 'servicenow', platform: 'ServiceNow', label: 'ServiceNow' },
+  { id: 'chatgpt', platform: 'ChatGPT', label: 'ChatGPT', source: 'azure', sourceLabel: 'Azure' },
+  { id: 'copilot', platform: 'Copilot Studio', label: 'Copilot Studio', source: 'azure', sourceLabel: 'Azure' },
+  { id: 'glean', platform: 'Glean', label: 'Glean', source: 'gcp', sourceLabel: 'GCP' },
+  { id: 'agentforce', platform: 'Agentforce', label: 'Agentforce', source: 'aws', sourceLabel: 'AWS' },
+  { id: 'servicenow', platform: 'ServiceNow', label: 'ServiceNow', source: 'on-prem', sourceLabel: 'On-Prem' },
 ];
 
 function seed() {

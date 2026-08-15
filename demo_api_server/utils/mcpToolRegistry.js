@@ -289,6 +289,42 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
     console.log('[MCP_TOOL] Returning result as-is');
     return result;
   } catch (error) {
+    // Gateway ELICITATION obligation: PingAuthorize required agent confirmation
+    // and the gateway returned 428 elicitation_required with a one-time,
+    // session-bound elicitation_id (demo_mcp_gateway/src/elicitationStore.ts).
+    // Distinct from HITL (a human at the dashboard) and step-up (MFA) — checked
+    // first since it shares the same non-failure treatment but a different
+    // result shape (no challengeId; the agent retries with
+    // _elicitation_confirmed + _elicitation_id, not _hitl_challenge_id).
+    if (error && error.elicitation && error.rpcData) {
+      const d = error.rpcData;
+      if (tokenEvents) {
+        tokenEvents.push(buildTokenEvent(
+          'tool-elicitation',
+          'Gateway — Confirmation Required',
+          'indeterminate',
+          null,
+          'PingOne Authorize returned INDETERMINATE — the agent must confirm intent before this tool call can proceed.',
+          { toolName, elicitationId: d.elicitationId || null, actor: 'agent' }
+        ));
+      }
+      emitTrace({
+        result: {
+          isError: false,
+          elicitation: true,
+          detail: 'elicitation_required',
+        },
+      });
+      return JSON.stringify({
+        error: 'elicitation_required',
+        isError: false,
+        elicitationId: d.elicitationId || null,
+        prompt: d.prompt || 'This action requires your confirmation.',
+        toolName: d.toolName || toolName,
+        message: d.prompt || 'This action requires your confirmation.',
+      });
+    }
+
     // Gateway HITL obligation: PingAuthorize required human approval and the
     // gateway returned -32002 with data { hitl:true, challengeId, challenge_type }.
     // This is NOT a failure — translate it into a structured hitl_required /

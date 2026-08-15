@@ -1,0 +1,30 @@
+.cnotes {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.9rem 1rem;
+}
+.cnotes__title { margin: 0 0 0.6rem; font-size: 0.95rem; font-weight: 650; }
+.cnotes__list { list-style: none; margin: 0 0 0.75rem; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.cnotes__meta { font-size: 0.75rem; color: #64748b; font-weight: 600; }
+.cnotes__body { font-size: 0.875rem; color: #334155; }
+.cnotes__empty { font-size: 0.85rem; color: #94a3b8; }
+.cnotes__compose { display: flex; gap: 0.5rem; }
+.cnotes__compose input {
+  flex: 1;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+.cnotes__compose button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #0f172a;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cnotes__compose button[disabled] { opacity: 0.45; cursor: not-allowed; }

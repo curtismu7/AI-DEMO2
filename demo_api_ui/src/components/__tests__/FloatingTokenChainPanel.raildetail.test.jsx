@@ -31,7 +31,9 @@ describe("FloatingTokenChainPanel", () => {
 
     render(<FloatingTokenChainPanel isOpen onClose={() => {}} />);
 
-    // Real rail chrome, absent from the old illustrative panel.
+    // Real rail chrome, absent from the old illustrative panel. Legend moved
+    // into the rail's More tray when the toolbar was consolidated.
+    fireEvent.click(screen.getByRole("button", { name: /^More$/ }));
     expect(screen.getByText("Legend")).toBeTruthy();
     expect(screen.getByText(/Pipeline/)).toBeTruthy();
 

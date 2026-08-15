@@ -1,6 +1,6 @@
 # PingOne AI IAM Core OAuth Client Setup
 
-This document provides detailed instructions for configuring an OAuth 2.0 client in PingOne AI IAM Core for the Banking MCP Server.
+This document provides detailed instructions for configuring an OAuth 2.0 client in PingOne AI IAM Core for the AI Demo MCP Server.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This document provides detailed instructions for configuring an OAuth 2.0 client
 
 ## Overview
 
-The Banking MCP Server uses a **dual-token authentication model**:
+The AI Demo MCP Server uses a **dual-token authentication model**:
 
 1. **Agent Token**: Authenticates the MCP server itself (machine-to-machine)
 2. **User Token**: Authenticates end users for banking operations (authorization code flow)
@@ -27,7 +27,7 @@ This setup requires **two separate OAuth clients** in PingOne AIC.
 
 ### 1. Agent Client (Machine-to-Machine)
 
-This client authenticates the Banking MCP Server itself.
+This client authenticates the AI Demo MCP Server itself.
 
 #### **Client Type**
 - **Application Type**: `Machine to Machine` / `Service Account`
@@ -123,7 +123,7 @@ email                          # User email address
 
 ### Scope Hierarchy
 
-The Banking MCP Server supports hierarchical scopes:
+The AI Demo MCP Server supports hierarchical scopes:
 
 ```
 banking:read
@@ -162,7 +162,7 @@ https://banking-mcp.example.com/auth/callback
 
 ### **Special Considerations**
 
-1. **No Redirect URI Required**: The Banking MCP Server supports **out-of-band authorization** where users complete authorization in a separate browser and provide the authorization code manually.
+1. **No Redirect URI Required**: The AI Demo MCP Server supports **out-of-band authorization** where users complete authorization in a separate browser and provide the authorization code manually.
 
 2. **Flexible Redirect Handling**: If no redirect URI is configured, the authorization flow will display the authorization code for manual entry.
 
@@ -172,7 +172,7 @@ https://banking-mcp.example.com/auth/callback
 
 ### **Recommended: client_secret_post**
 
-The Banking MCP Server sends client credentials in the request body:
+The AI Demo MCP Server sends client credentials in the request body:
 
 ```http
 POST /oauth2/token
@@ -254,7 +254,7 @@ sequenceDiagram
 
 ### **PKCE Implementation**
 
-The Banking MCP Server automatically implements PKCE for enhanced security:
+The AI Demo MCP Server automatically implements PKCE for enhanced security:
 
 ```typescript
 // Automatic PKCE implementation
@@ -411,4 +411,4 @@ For additional support with PingOne AI IAM Core configuration:
 1. **PingOne Documentation**: [PingOne Developer Portal](https://docs.pingidentity.com/)
 2. **OAuth 2.0 Specification**: [RFC 6749](https://tools.ietf.org/html/rfc6749)
 3. **PKCE Specification**: [RFC 7636](https://tools.ietf.org/html/rfc7636)
-4. **Banking MCP Server Issues**: Check server logs and configuration validation output
+4. **AI Demo MCP Server Issues**: Check server logs and configuration validation output
