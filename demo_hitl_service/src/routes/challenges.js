@@ -27,7 +27,7 @@ function requireSecret(req, res, next) {
     const allowUnsecured = process.env.HITL_ALLOW_UNSECURED === 'true' &&
       process.env.NODE_ENV !== 'production';
     if (allowUnsecured) {
-      console.warn('[HITL] WARNING: HITL_INTERNAL_SECRET is unset and HITL_ALLOW_UNSECURED=true — skipping auth (dev only)');
+      teachLog.warn('[HITL] WARNING: HITL_INTERNAL_SECRET is unset and HITL_ALLOW_UNSECURED=true — skipping auth (dev only)');
       return next();
     }
     return res.status(503).json({
@@ -125,7 +125,7 @@ router.post('/:id/verify', requireSecret, (req, res) => {
 // Body: { decision: 'approved' | 'denied', respondedBy? }
 // Called by HITL dashboard UI or webhook (via BFF, which supplies the secret)
 router.post('/:id/respond', requireSecret, (req, res) => {
-  const { decision } = req.body || {};
+  const { decision, respondedBy } = req.body || {};
 
   if (!decision) {
     return res.status(400).json({ error: 'decision required (approved|denied)' });
@@ -136,7 +136,7 @@ router.post('/:id/respond', requireSecret, (req, res) => {
 
   let challenge;
   try {
-    challenge = store.resolve(req.params.id, decision);
+    challenge = store.resolve(req.params.id, decision, respondedBy);
   } catch (err) {
     return res.status(409).json({ error: err.message });
   }
