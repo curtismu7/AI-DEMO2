@@ -643,13 +643,15 @@ export class GatewayServer {
     // Invest tools live on the mcp-resource-server WS backend — the HTTP upstream
     // (mcp-server) does not serve them. Mirror the WS ingress routing here;
     // the middleware already exchanged upstreamToken for the invest audience.
-    // MCP Resources capability is served by the same backend (only implementer
-    // of resources/*) — same routing rule, not tool-name-based.
+    // MCP Resources and Prompts capabilities are served by the same backend
+    // (only implementer of either) — same routing rule, not tool-name-based.
     const rpcToolName = jsonRpc.method === 'tools/call' ? jsonRpc.params?.name : undefined;
-    const isResourcesMethod = jsonRpc.method === 'resources/list'
+    const isResourceServerOnlyMethod = jsonRpc.method === 'resources/list'
       || jsonRpc.method === 'resources/read'
-      || jsonRpc.method === 'resources/templates/list';
-    if ((rpcToolName && routeTool(rpcToolName) === 'invest') || isResourcesMethod) {
+      || jsonRpc.method === 'resources/templates/list'
+      || jsonRpc.method === 'prompts/list'
+      || jsonRpc.method === 'prompts/get';
+    if ((rpcToolName && routeTool(rpcToolName) === 'invest') || isResourceServerOnlyMethod) {
       try {
         const rpcResult = await proxyJsonRpc(
           backendWsUrl('invest', this.config),

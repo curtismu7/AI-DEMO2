@@ -148,3 +148,43 @@ describe('POST /mcp', () => {
     expect(res.headers.get('mcp-session-id')).toBeNull();
   });
 });
+
+// MCP Prompts capability — real, usable templates referencing this server's
+// own tools, not a stub. No live consumer exists in the banking demo (the
+// chat UI has no prompt picker), built anyway per explicit request to close
+// every gap the spec-compliance audit found.
+describe('Prompts capability', () => {
+  it('lists summarize_airline_booking with its argument schema', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'prompts/list', params: {} }, token('airlines:read'));
+    const prompt = r.json.result.prompts.find((p: { name: string }) => p.name === 'summarize_airline_booking');
+    expect(prompt).toBeDefined();
+    expect(prompt.arguments).toEqual([
+      { name: 'bookingId', description: expect.any(String), required: true },
+    ]);
+  });
+
+  it('prompts/get fills the booking id into a real instruction referencing this server\'s own tools', async () => {
+    const r = await post(
+      { jsonrpc: '2.0', id: 2, method: 'prompts/get', params: { name: 'summarize_airline_booking', arguments: { bookingId: 'K7XR2M' } } },
+      token('airlines:read'),
+    );
+    expect(r.json.result.messages).toHaveLength(1);
+    const text = r.json.result.messages[0].content.text;
+    expect(text).toContain('K7XR2M');
+    expect(text).toContain('get_airline_bookings');
+    expect(text).toContain('get_flight_status');
+  });
+
+  it('prompts/get on an unknown prompt name is -32602, not a crash', async () => {
+    const r = await post(
+      { jsonrpc: '2.0', id: 3, method: 'prompts/get', params: { name: 'not_a_real_prompt', arguments: {} } },
+      token('airlines:read'),
+    );
+    expect(r.json.error.code).toBe(-32602);
+  });
+
+  it('declares the prompts capability on initialize', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 4, method: 'initialize', params: {} }, token('airlines:read'));
+    expect(r.json.result.capabilities.prompts).toBeDefined();
+  });
+});

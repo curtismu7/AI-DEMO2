@@ -593,11 +593,16 @@ async function handleMessage(
     return;
   }
 
-  // MCP Resources capability — proxied to demo_mcp_resource_server (the
-  // 'invest' backend target), the only backend that implements it. No
-  // per-resource policy dimension here: the resource server enforces its
-  // own requiredScope per catalog entry, same as it does for tools.
-  if (method === 'resources/list' || method === 'resources/read' || method === 'resources/templates/list') {
+  // MCP Resources + Prompts capabilities — both proxied to
+  // demo_mcp_resource_server (the 'invest' backend target), the only backend
+  // that implements either. No per-call policy dimension here: the resource
+  // server enforces its own requiredScope per catalog entry (Resources) and
+  // has no scope gate on Prompts (matches its own design — see its
+  // prompts/list handler), same as it does for tools.
+  const RESOURCE_SERVER_ONLY_METHODS = new Set([
+    'resources/list', 'resources/read', 'resources/templates/list', 'prompts/list', 'prompts/get',
+  ]);
+  if (RESOURCE_SERVER_ONLY_METHODS.has(method)) {
     try {
       await validateInboundToken(token, config.gatewayResourceUri);
     } catch (err) {
@@ -619,8 +624,8 @@ async function handleMessage(
       send(JSON.stringify(result));
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      console.error(`[GW] Resources proxy error for ${method}:`, errMsg);
-      if (loggingState) emitLogMessage(send, loggingState, 'error', { method, message: errMsg }, 'gateway.resources');
+      console.error(`[GW] Resource-server proxy error for ${method}:`, errMsg);
+      if (loggingState) emitLogMessage(send, loggingState, 'error', { method, message: errMsg }, 'gateway.resource-server-proxy');
       send(jsonRpcError(id, -32500, 'Backend error'));
     }
     return;
@@ -1092,7 +1097,12 @@ async function handleMessage(
       id,
       result: {
         protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: { tools: {}, logging: {}, resources: { subscribe: false, listChanged: false } },
+        capabilities: {
+          tools: {},
+          logging: {},
+          resources: { subscribe: false, listChanged: false },
+          prompts: { listChanged: false },
+        },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },
     }));

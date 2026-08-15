@@ -58,6 +58,47 @@ import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registr
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 
+// ---------------------------------------------------------------------------
+// MCP Prompts capability — real, usable templates referencing this server's
+// own tools. No live consumer in the banking demo (the chat UI has no
+// prompt picker) — built for a client that connects to this server directly,
+// same as any other MCP host would.
+// ---------------------------------------------------------------------------
+
+interface PromptArgDef {
+  name: string;
+  description: string;
+  required?: boolean;
+}
+
+interface PromptDef {
+  name: string;
+  description: string;
+  argsDef: PromptArgDef[];
+  build: (args: Record<string, unknown>) => { description: string; messages: Array<{ role: string; content: { type: 'text'; text: string } }> };
+}
+
+const PROMPTS: PromptDef[] = [
+  {
+    name: 'summarize_airline_booking',
+    description: 'Summarize an airline booking and current flight status in plain language for the customer.',
+    argsDef: [{ name: 'bookingId', description: 'The booking confirmation number', required: true }],
+    build: (args) => {
+      const bookingId = typeof args.bookingId === 'string' && args.bookingId ? args.bookingId : '(unspecified booking)';
+      return {
+        description: 'Summarize an airline booking and current flight status in plain language for the customer.',
+        messages: [{
+          role: 'user',
+          content: {
+            type: 'text',
+            text: `Look up airline booking ${bookingId} using get_airline_bookings, then check its flight with get_flight_status. Summarize the itinerary and current flight status in plain, customer-friendly language — no raw field names.`,
+          },
+        }],
+      };
+    },
+  },
+];
+
 // Security guard: SKIP_TOKEN_SIGNATURE_VALIDATION downgrades JWT signature
 // verification to a warning (tokenValidator.ts) and must never run in production.
 // Fail fast at startup so a misconfigured deploy can't silently accept forged
@@ -330,6 +371,7 @@ async function handleMessage(
         tools: {},
         resources: { subscribe: false, listChanged: false },
         logging: {},
+        prompts: { listChanged: false },
       },
       serverInfo: { name: 'banking-mcp-resource-server', version: '1.0.0' },
     }));
@@ -337,6 +379,23 @@ async function handleMessage(
   }
 
   if (method === 'notifications/initialized') return;
+
+  if (method === 'prompts/list') {
+    send(rpcResult(id, { prompts: PROMPTS.map(({ name, description, argsDef }) => ({ name, description, arguments: argsDef })) }));
+    return;
+  }
+
+  if (method === 'prompts/get') {
+    const name = msg.params?.name;
+    const promptArgs: Record<string, unknown> = msg.params?.arguments || {};
+    const prompt = PROMPTS.find((p) => p.name === name);
+    if (!prompt) {
+      send(rpcError(id, -32602, `Unknown prompt: ${name}`));
+      return;
+    }
+    send(rpcResult(id, prompt.build(promptArgs)));
+    return;
+  }
 
   if (method === 'logging/setLevel') {
     const level = msg.params?.level;
