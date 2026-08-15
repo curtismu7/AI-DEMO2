@@ -12,7 +12,7 @@
  * @typedef {Object} UseCase
  * @property {string} id            e.g. 'UC7'
  * @property {string} useCaseId     slug, e.g. 'step-up-required'
- * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'|'demo'} track
+ * @property {'foundations'|'controls'|'attacks'|'hitl'|'tools'|'learn'|'demo'|'nhi'} track
  * @property {string} title
  * @property {string} buyerStory
  * @property {string} pingOneSolution
@@ -249,6 +249,17 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 
+/**
+ * UC2.6 reuses the SAME per-vertical specialist tool as UC2 (same delegation
+ * leg 1) but keeps ONE neutral trigger phrase across all verticals — the
+ * mismatch heuristic is vertical-agnostic (config/verticals/a2a/index.js), so
+ * unlike A2A_PER_VERTICAL there is no per-vertical trigger text to override.
+ * resolveUseCase falls back to the base `trigger` when an override omits it.
+ */
+const A2A_MISMATCH_PER_VERTICAL = Object.fromEntries(
+  Object.entries(A2A_PRIMARY_TOOL_BY_VERTICAL).map(([v, primaryTool]) => [v, { primaryTool }]),
+);
+
 const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
   chipOverrides(amountTriggerByVertical(amount), withPrimaryTool(AMOUNT_PRIMARY_TOOL_BY_VERTICAL, Object.fromEntries(
     Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
@@ -341,6 +352,38 @@ const RAW_USE_CASES = [
     perVertical: Object.fromEntries(
       Object.entries(A2A_PRIMARY_TOOL_BY_VERTICAL).map(([v, primaryTool]) => [v, { primaryTool }]),
     ),
+  },
+  {
+    id: 'UC2.6',
+    useCaseId: 'a2a-generalist-mismatch',
+    track: 'foundations',
+    title: 'A2A generalist mismatch',
+    buyerStory: 'A resource server must be able to tell WHICH agent is acting on the user\'s behalf, not just that some agent is — the same user with a different, unregistered agent must be denied.',
+    pingOneSolution: 'PingOne Authorize evaluates the nested act chain\'s actor identity, not just the subject — an unregistered generalist is denied even though the user and the delegation shape are otherwise valid.',
+    trigger: { type: 'chip', text: 'simulate an agent identity mismatch' },
+    expectedOutcome: 'PERMIT_THEN_DENY',
+    evidence: {
+      tokenChain: ['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'a2a-agent2-actor', 'a2a-exchange2', 'tool-dispatched', 'a2a-mismatch-probe'],
+      activity: ['token', 'delegate', 'authorize', 'mcp', 'authorize'],
+    },
+    codeRefs: [
+      'demo_api_server/services/a2aDelegationService.js',
+      'demo_api_server/services/demoAgentLangGraphService.js',
+      'demo_authz_server/routes/decision.js',
+    ],
+    maturity: 'flag:ff_a2a_delegation',
+    owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
+    whatToSay: 'Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for.',
+    advanced: false,
+    whatLong: 'Runs the same real, governed delegation as A2A delegation (a genuine PERMIT), then probes the same PingOne Authorize decision the gateway calls with a fabricated, unregistered actor identity in place of the real generalist. The result is a genuine invalid_a2a_generalist DENY from live policy — proof that authorization decisions account for the AGENT\'s identity, not only the user\'s. The probe does not mint a real second agent token; it demonstrates the policy branch directly.',
+    businessValue: 'A stolen or rogue agent credential cannot ride on a legitimate user\'s delegation shape — the policy engine denies based on actor identity even when the subject and act-chain depth look correct. This is the authorization half of the delegation-chain value proposition (the audit-trail half is UC2/UC2.5).',
+    productRoles: {
+      idp:   'Mints the real leg-1 delegated token exactly as UC2; the mismatch probe itself mints no token.',
+      gw:    'Not involved in the probe leg — the probe calls the decision endpoint directly, same contract the gateway uses.',
+      authz: 'Evaluates ActChainDepth and NestedActClientId; DENYs invalid_a2a_generalist when the actor does not match the registered generalist.',
+    },
+    primaryTool: 'sensitive_holdings',
+    perVertical: A2A_MISMATCH_PER_VERTICAL,
   },
   {
     id: 'UC3',
@@ -1253,6 +1296,56 @@ const RAW_USE_CASES = [
     primaryTool: null,
   },
 
+  // --- NHI GOVERNANCE --- (link-type cards; AI Control Plane's own pages own the actual behavior)
+  {
+    id: 'UC-NHI1',
+    useCaseId: 'nhi-inventory',
+    track: 'nhi',
+    title: 'Multi-source NHI inventory',
+    buyerStory: 'Security teams managing agents across AWS, GCP, Azure, and on-prem have no single place to see them all, tagged by source, in one governed roster.',
+    pingOneSolution: 'The AI Control Plane roster tags every agent identity — demo and live — with its source platform and lets you filter the governed view by source, all revocable from the same place.',
+    trigger: { type: 'link', path: '/ai-control-plane', label: 'Open AI Control Plane' },
+    expectedOutcome: 'SOURCE_TAGGED_ROSTER',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_server/services/controlPlane/demoAgentRoster.js',
+      'demo_api_server/services/controlPlane/liveAgentInfo.js',
+      'demo_api_ui/src/components/ControlPlaneRoster.jsx',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Every agent here is tagged by source — AWS, GCP, Azure, on-prem, or this app — filter the roster the same way you\'d triage a real multi-cloud agent fleet.',
+    advanced: false,
+    whatLong: 'An NHI governance utility (not a per-vertical banking scenario): the roster aggregates the live agent plus the demo platform identities (ChatGPT, Copilot, Glean, Agentforce, ServiceNow) into one view, each tagged with an illustrative source (aws/gcp/azure/on-prem/this-app). Filter chips narrow the roster to a single source, and every stop/revoke works identically regardless of source.',
+    businessValue: 'A centralized, filterable inventory is the first thing security and platform teams ask for when they don\'t know the full scope of their AI ecosystem — this makes that inventory concrete instead of a slide.',
+    productRoles: {},
+    primaryTool: null,
+  },
+  {
+    id: 'UC-NHI2',
+    useCaseId: 'nhi-lifecycle-export',
+    track: 'nhi',
+    title: 'Agent lifecycle export (JML)',
+    buyerStory: 'Teams governing agents through an existing IGA tool (like SailPoint) need agent join/move/leave events in a shape that tool can consume — not a competing identity store.',
+    pingOneSolution: 'Agent register/kill-switch/re-enable actions emit joiner/mover/leaver events, queryable live at GET /api/control-plane/lifecycle-events and optionally forwarded to an external webhook — illustrating how Ping would feed an existing IGA process rather than replace it.',
+    trigger: { type: 'link', path: '/agent-lifecycle', label: 'Open Agent Lifecycle' },
+    expectedOutcome: 'JML_EVENT_FEED',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_server/services/agentLifecycleEvents.js',
+      'demo_api_server/services/lmdb/agentLifecycleEventStore.lmdb.js',
+      'demo_api_server/services/sailpointForwarder.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'Run the self-service revoke below, then open the lifecycle export feed — that\'s the same joiner/mover/leaver shape an IGA system like SailPoint would pull to certify this agent the way it certifies a human.',
+    advanced: false,
+    whatLong: 'An NHI governance utility (not a per-vertical banking scenario): every demo-roster reset emits a joiner event per re-seeded agent, every kill-switch (demo or live) emits a leaver event, and every re-enable emits a mover event. Each event carries complianceTags, an auditId linking back to the immutable kill-switch audit record, and the agent\'s source tag. Illustrative-only — this is a generic webhook/pollable-JSON shape, not a real SailPoint API integration.',
+    businessValue: 'Teams locked into an existing IGA tool don\'t want Ping to replace it — they want agent lifecycle events shaped so that tool can certify agents the way it already certifies humans. This proves the export pattern without overclaiming an integration that doesn\'t exist.',
+    productRoles: {},
+    primaryTool: null,
+  },
+
   // --- LEARN --- (link-type cards that open an existing learning page; no scenario run)
   {
     id: 'UC-LEARN1',
@@ -1569,6 +1662,76 @@ const RAW_USE_CASES = [
       'sporting-goods': {
         ...REQUEST_ONLY_PER_VERTICAL['sporting-goods'],
         whatToSay: 'The agent can only submit a price-match request for human review — it has no tool that actually approves one, so it cannot hallucinate a discount into existence.',
+      },
+    },
+  },
+
+  // --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
+  // Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed
+  // as a pair. UC36 (Protect) is not built yet — see docs/superpowers/plans/
+  // 2026-08-10-protect-agent-dispatch-risk.md Task 6; insert it above this comment,
+  // before UC37, when it lands.
+  {
+    id: 'UC37',
+    useCaseId: 'verified-trust-a2a-assertion',
+    track: 'controls',
+    title: 'Verified Trust — signed agent assertion on A2A delegation',
+    buyerStory: "When an agent hands off to another organization's agent, a bearer token alone doesn't let the receiving side verify the claim offline or prove it later without calling back to the issuer.",
+    pingOneSolution: 'PingOne Credentials issues a signed SD-JWT Verifiable Credential asserting which agent is acting for which user at A2A delegation start; the receiving specialist advertises it as a second security scheme alongside the existing bearer token.',
+    trigger: { type: 'chip', text: 'hand off to a specialist' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'verified-trust-issuance', 'a2a-agent2-actor', 'a2a-exchange2', 'tool-dispatched'], activity: ['token', 'delegate', 'verified-trust', 'authorize', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/services/verifiedTrustService.js',
+      'demo_api_server/services/a2aDelegationService.js',
+      'demo_api_server/services/a2aAgentCardService.js',
+    ],
+    maturity: 'flag:ff_verified_trust_a2a',
+    owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
+    whatToSay: 'Same specialist handoff as before — but now the chain carries a signed, independently-verifiable credential too, not just a bearer token the receiving side has to trust blindly.',
+    advanced: false,
+    whatLong: "A2A delegation already proves the chain via RFC 8693 nested-act tokens, but a bearer token only means something to a party that can call back to the issuer. This scenario adds a signed SD-JWT Verifiable Credential at chain start, asserting agent_id/acting_for/scope/chain_id — independently verifiable, portable across an org boundary. Issuance is fail-open: if Credentials issuance fails (no DaVinci flow is configured on this tenant yet), the existing bearer-token delegation still completes unaffected.",
+    businessValue: "Directly answers Coupa's cross-boundary trust ask: an external agent receiving a handoff doesn't have to trust a bearer token on faith or maintain a live connection to the issuing org — it can verify the credential's signature offline.",
+    productRoles: {
+      idp:   'Mints the nested-act delegated bearer token exactly as UC2 does.',
+      authz: 'Evaluates the act chain as usual — the credential is additive, not a replacement authorization signal.',
+    },
+    primaryTool: 'get_portfolio_summary',
+    perVertical: A2A_PER_VERTICAL,
+  },
+  {
+    id: 'UC38',
+    useCaseId: 'personal-agent-concierge',
+    track: 'foundations',
+    title: 'Personal Agent Concierge',
+    buyerStory: "Users want a trusted agent acting on their behalf — but delegation must require proof of identity and be scoped to what the user explicitly registered.",
+    pingOneSolution: 'User authenticates with MFA; BFF verifies the registered personal agent (Agent Builder); RFC 8693 exchange mints a delegated token (sub=user, act=agent) scoped to airlines:read airlines:write.',
+    trigger: { type: 'link', path: '/airlines', label: 'Airlines vertical only — switch vertical to demo' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/routes/agentInvokeRoute.js',
+      'demo_api_server/services/agentBuilderService.js',
+      'demo_mcp_resource_server/src/tools/airlinesToolHandler.ts',
+    ],
+    maturity: 'flag:ff_personal_agent_concierge',
+    owasp: { threats: ['T1', 'T9'], sections: ['§4.1', '§4.2'] },
+    whatToSay: 'User proves identity with MFA, their registered personal agent is looked up, RFC 8693 delegates authority — the agent redeems miles for a seat upgrade.',
+    advanced: false,
+    whatLong: 'A user triggers the premium flyer concierge. The BFF requires a multi-factor authentication claim before delegation — a token without the MFA acr causes a step-up prompt. Once MFA is proved, the BFF looks up the user\'s registered personal agent (created on the Agent Builder page). An RFC 8693 token exchange mints a delegated token where the user remains the subject and the agent carries the act claim, scoped to airlines:read airlines:write. The agent then calls get_loyalty_status to check the miles balance and redeem_miles to upgrade the cabin on the next upcoming booking.',
+    businessValue: 'End users get personalized agentic services that act on their behalf — but delegation is always gated on explicit identity proof (MFA) and pre-registered agent authorization, not implied by session context alone.',
+    productRoles: {
+      idp:   'Issues the high-assurance (MFA-satisfied) user token; serves as the source of truth for the personal agent identity registered via the Agent Builder.',
+      gw:    'Passes the delegated token to the MCP resource server; the act claim is visible in every tool call.',
+      authz: 'Can extend this pattern: add a P1AZ policy that further constrains the personal agent\'s allowed actions based on the user\'s loyalty tier.',
+    },
+    primaryTool: 'redeem_miles',
+    studioPath: '/personal-agent',
+    perVertical: {
+      airlines: {
+        trigger: { type: 'chip', text: 'have my agent use my miles for an upgrade' },
+        primaryTool: 'redeem_miles',
+        whatToSay: 'MFA proved, personal agent verified, miles redeemed — cabin upgraded.',
       },
     },
   },

@@ -1,0 +1,46 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-mcpgw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: mcpgw
+    {{- include "privgateway.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.certIssuer }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ .Values.mcpgw.hostname }}
+      secretName: {{ .Release.Name }}-mcpgw-tls
+    - hosts:
+        - opensearch.{{ .Values.mcpgw.hostname }}
+      secretName: {{ .Release.Name }}-mcpgw-ssl-cert
+  rules:
+    - host: {{ .Values.mcpgw.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-mcpgw
+                port:
+                  name: http
+    - host: opensearch.{{ .Values.mcpgw.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-mcpgw
+                port:
+                  name: http
+{{- end }}

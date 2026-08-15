@@ -26,6 +26,7 @@ const axios = require('axios');
 const https = require('node:https');
 const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
+const nrSegments = require('./nrSegments');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -209,6 +210,28 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts && opts.useCaseId) {
         headers['X-Use-Case-Id'] = String(opts.useCaseId);
     }
+    // Tier (groupToTier) — pre-resolved here because neither gateway can map a
+    // PingOne group array to a tier locally (no set-membership operator in either
+    // P1AZ's DSL or the gateways' own runtimes). Additive: gateways use this only
+    // to DENY, never to widen a decision a token's own scopes wouldn't otherwise earn.
+    if (opts && Array.isArray(opts.userGroups)) {
+        try {
+            const groupPolicy = require('./groupPolicy');
+            const verticalForTier = (opts && opts.vertical) || configStore.getEffective('active_vertical') || 'banking';
+            const tier = groupPolicy.resolveUserTier(opts.userGroups, verticalForTier);
+            const tierDefs = groupPolicy.getTierDefinitions(verticalForTier);
+            const tierDef = tierDefs[tier];
+            headers['X-User-Tier'] = tier;
+            if (tierDef) {
+                if (typeof tierDef.maxAmountUsd === 'number') {
+                    headers['X-Tier-Max-Amount-Usd'] = String(tierDef.maxAmountUsd);
+                }
+                if (Array.isArray(tierDef.restrictedTools) && tierDef.restrictedTools.length) {
+                    headers['X-Tier-Restricted-Tools'] = tierDef.restrictedTools.join(',');
+                }
+            }
+        } catch (_) { /* best-effort */ }
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
@@ -318,13 +341,15 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     let response;
     try {
-        response = await axios.post(url, body, {
-            headers,
-            timeout: timeoutMs,
-            // Handle error status codes ourselves so we can emit structured errors
-            validateStatus: () => true,
-            httpsAgent: _httpsAgent,
-        });
+        response = await nrSegments.mcpToolCall(() =>
+            axios.post(url, body, {
+                headers,
+                timeout: timeoutMs,
+                // Handle error status codes ourselves so we can emit structured errors
+                validateStatus: () => true,
+                httpsAgent: _httpsAgent,
+            })
+        );
     } catch (axErr) {
         console.error(
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',

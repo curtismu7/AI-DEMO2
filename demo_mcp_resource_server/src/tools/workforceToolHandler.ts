@@ -1,21 +1,18 @@
 'use strict';
-import { loadMockData } from '../shared/mockData';
-
-const data = loadMockData('workforce') as {
-  expenses: Array<{ id: string; [k: string]: unknown }>;
-  benefits: Array<{ id: string; [k: string]: unknown }>;
-};
+import { getExpense, listExpenses } from '../db/workforceDb';
 
 export async function dispatchWorkforceTool(
   toolName: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_expenses':
-      return { expenses: data.expenses, count: data.expenses.length };
+    case 'list_expenses': {
+      const expenses = listExpenses();
+      return { expenses, count: expenses.length };
+    }
     case 'get_expense': {
       const id = args.expense_id as string;
-      const expense = data.expenses.find((e) => e.id === id);
+      const expense = getExpense(id);
       if (!expense) return { found: false, expense_id: id };
       return { found: true, expense };
     }

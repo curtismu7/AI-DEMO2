@@ -50,7 +50,6 @@ import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 import AgentIdentityCard from "./AgentIdentityCard";
-import StaleSessionBanner from "./StaleSessionBanner";
 
 /** Format a number as USD currency — $1,234.56 */
 const fmt = (n) =>
@@ -392,6 +391,13 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               sessionStorage.getItem(REAUTH_KEY),
             );
             if (!silent) {
+              // Only redirect when App.js has confirmed a session (propUser non-null).
+              // If we mounted as a guest (propUser=null, lazy-auth), a 401 on accounts
+              // means the user hasn't logged in yet — show demo data, don't redirect.
+              if (!propUser) {
+                loadDemoFallback("guest 401 — not yet authenticated");
+                return;
+              }
               // Token expired or cold-start stub. Redirect to re-auth.
               // PingOne's SSO session usually makes this seamless (no credentials needed).
               // Guard: only auto-redirect once — if a redirect already happened and we still
@@ -409,9 +415,18 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             }
             // silent refresh 401 — ignore; next explicit load will handle it
           } else if (dataErr.response?.status === 403) {
-            notifyError(
-              "You do not have permission to access this information.",
-            );
+            // admin_token_forbidden: an admin is viewing the customer dashboard.
+            // requireNotAdmin refuses admin tokens on customer data by design, so
+            // there is nothing to re-authenticate *for* — show the same demo data a
+            // guest sees rather than an error the admin cannot act on. Signing in as
+            // a customer stays available from the header.
+            if (dataErr.response?.data?.error === "admin_token_forbidden") {
+              if (!silent) loadDemoFallback("admin token — customer data not available");
+            } else {
+              notifyError(
+                "You do not have permission to access this information.",
+              );
+            }
           } else if (!silent) {
             // API unreachable or 5xx — fall back to demo without blocking the user
             loadDemoFallback("could not reach banking API");
@@ -2672,6 +2687,21 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="main-content--auth-loading">
+        <div className="auth-loading-card">
+          <div className="auth-loading-dots">
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+            <span className="auth-loading-dot" />
+          </div>
+          <div className="auth-loading-title">Loading your dashboard</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`user-dashboard user-dashboard--2026${
@@ -2682,7 +2712,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       data-refined-surface="customer"
       data-rd-v2
     >
-      <StaleSessionBanner />
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div
@@ -2710,18 +2739,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                 className="ud-dashboard-inline-agent-host"
                 ref={middleHostRefCb}
               />
-              {!user && (
-                <div className="ud-dashboard-inline-agent-login-prompt" role="status">
-                  <span>Please sign in to use the Agent</span>
-                  <button
-                    type="button"
-                    className="ud-dashboard-inline-agent-login-btn"
-                    onClick={navigateToCustomerOAuthLogin}
-                  >
-                    Sign In
-                  </button>
-                </div>
-              )}
             </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag; height handle remains keyboard-reachable. */}
             <div

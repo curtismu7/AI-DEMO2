@@ -15,7 +15,13 @@ export const LANES = {
 // LANES (exchange shares the BFF lane with agent-token), so declared explicitly
 // here alongside the rest of the step-model vocabulary — the MCP tab and the
 // rail's MCP-step badge both consume it, so a step-id rename stays a one-file fix.
-export const MCP_STEP_IDS = ["exchange", "gateway", "api-key-swap", "mcp", "api", "database"];
+// The MCP route as a viewer means it: the hops that carry or serve the tool
+// call. `exchange` was in this list because the RFC 8693 exchange mints the
+// MCP-audience token — true, but it made the MCP view open with a token
+// exchange rather than a tool call, which is not what "MCP" says on the tab.
+// The exchange still has its own step, its own card and its own place in the
+// chain; it is just not counted as an MCP call.
+export const MCP_STEP_IDS = ["gateway", "api-key-swap", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -585,10 +591,8 @@ export function buildTraceSteps(trace) {
   const azBegun = hasPhase(phases, "authorize_gate_begin");
   const azUnavailable = hasPhase(phases, "authorize_unavailable");
   const azEvent = findEvent(tokenEvents, "authorize-decision");
-  const gwAzForAuthorize = findEvent(tokenEvents, "gw-authorize");
   const azPermitted = hasPhase(phases, "authorize_permitted")
-    || (authorize && authorize.decision === "PERMIT")
-    || String(gwAzForAuthorize?.decision || gwAzForAuthorize?.authorizeDecision || "").toUpperCase() === "PERMIT";
+    || (authorize && authorize.decision === "PERMIT");
   const azEval = authorize || (azEvent ? {
     engine: azEvent.authorizeEngine,
     decision: azEvent.authorizeDecision || azEvent.decision,
@@ -598,18 +602,6 @@ export function buildTraceSteps(trace) {
     request: azEvent.authorizeRequest || azEvent.request,
     response: azEvent.authorizeResponse || azEvent.response || azEvent.rawResponse,
     publicCatalog: azEvent.publicCatalog === true,
-  } : null) || (gwAzForAuthorize ? {
-    engine: gwAzForAuthorize.authorizeEngine || gwAzForAuthorize.backend || "pingone",
-    decision: gwAzForAuthorize.decision || gwAzForAuthorize.authorizeDecision,
-    decisionId: gwAzForAuthorize.decisionId || null,
-    decisionContext: gwAzForAuthorize.tool ? `tool:${gwAzForAuthorize.tool}` : null,
-    path: gwAzForAuthorize.url || null,
-    request: gwAzForAuthorize.authorizeRequest
-      || (gwAzForAuthorize.parameters
-        ? { method: "POST", url: gwAzForAuthorize.url || "", parameters: gwAzForAuthorize.parameters }
-        : null),
-    response: gwAzForAuthorize.authorizeResponse || gwAzForAuthorize.rawResponse || null,
-    source: "gw-authorize",
   } : null);
   const azDecision = azEval && azEval.decision != null
     ? String(azEval.decision).toUpperCase()

@@ -453,7 +453,7 @@ router.get('/demo-status', async (_req, res) => {
   const directProbe = await probeMcpHealth(process.env.MCP_SERVER_URL);
   const mcpProbe = (gatewayProbe?.up && gatewayProbe) || directProbe;
   servers.push({
-    name: 'Banking MCP Server',
+    name: 'AI Demo MCP Server',
     key: 'mcp_server',
     up: mcpProbe.up,
     startCmd: 'cd oauth-mcp && npm run dev',
@@ -672,6 +672,11 @@ router.get('/inventory', async (_req, res) => {
         hostPort: entry.hostPort, internalPort: entry.internalPort,
         lang: entry.lang, purpose: entry.purpose, category: entry.category,
         probe: entry.probe,
+        // Compose-profile services (agents/demo-auth/rag) are off by default in
+        // lean-core, so their absence is expected. Without this flag the payload
+        // gave every consumer no way to tell an expected-absent service from a
+        // real outage, and the header count read them as failures.
+        optional: !!entry.optional,
       };
       if (entry.probe === 'self') return { ...meta, up: true };
       if (entry.probe !== true) return { ...meta, up: null };

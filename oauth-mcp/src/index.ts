@@ -1,5 +1,5 @@
 /**
- * Main entry point for the Banking MCP Server
+ * Main entry point for the AI Demo MCP Server
  */
 
 import dotenv from 'dotenv';
@@ -47,7 +47,7 @@ let server: DemoMCPServer | null = null;
 
 async function main(): Promise<void> {
   try {
-    console.log('Banking MCP Server starting...');
+    console.log('AI Demo MCP Server starting...');
 
     // Load allowlisted secrets from the encrypted vault into process.env
     // BEFORE loadConfiguration() reads it. No-op (logs + continues) when
@@ -158,7 +158,7 @@ async function main(): Promise<void> {
     console.log('Starting MCP server...');
     await server.startServer();
     
-    console.log(`✅ Banking MCP Server is running on ${config.server.host}:${config.server.port}`);
+    console.log(`✅ AI Demo MCP Server is running on ${config.server.host}:${config.server.port}`);
     console.log('Server is ready to accept MCP connections.');
     
     // Keep the process running

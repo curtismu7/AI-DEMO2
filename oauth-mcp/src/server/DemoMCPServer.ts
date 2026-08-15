@@ -1,5 +1,5 @@
 /**
- * Banking MCP Server
+ * AI Demo MCP Server
  * WebSocket server implementation for the Banking MCP protocol
  */
 
@@ -22,7 +22,7 @@ import { correlationFromMessage } from './correlationFromMessage';
 import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
-import { SigningKeyManager, ClientRegistry, TokenStore, OAuthRouter } from '../oauth';
+import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager } from '../oauth';
 
 export interface ServerConfig {
   host: string;
@@ -119,8 +119,7 @@ export class DemoMCPServer extends EventEmitter {
 
     try {
       // Initialize OAuth Authorization Server
-      const signingKeyManager = new SigningKeyManager();
-      await signingKeyManager.initialize();
+      const signingKeyManager = await getEmbeddedSigningKeyManager();
       const clientRegistry = new ClientRegistry();
       clientRegistry.initialize();
       const tokenStore = new TokenStore();
@@ -921,7 +920,7 @@ export class DemoMCPServer extends EventEmitter {
     const readOnlyTools = allTools.filter(t => t.readOnly).map(t => t.name);
     const authenticatedTools = allTools.filter(t => !t.readOnly).map(t => t.name);
     const manifest = {
-      name: 'Banking MCP Server',
+      name: 'AI Demo MCP Server',
       version: '1.0.0',
       description: 'Secure banking operations MCP server with PingOne authentication',
       protocolVersion: '2024-11-05',

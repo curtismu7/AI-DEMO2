@@ -1,6 +1,6 @@
 import React from 'react';
-import VerticalOpsConsole from './verticalOps/VerticalOpsConsole';
+import SupportConsole from './supportConsole/SupportConsole';
 
 export default function WorkforceAdminOps({ user, onLogout }) {
-  return <VerticalOpsConsole vertical="workforce" user={user} onLogout={onLogout} />;
+  return <SupportConsole vertical="workforce" user={user} onLogout={onLogout} />;
 }

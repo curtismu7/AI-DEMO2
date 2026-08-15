@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import TokenChainDisplay, { getTokenChainProgress } from '../TokenChainDisplay';
 
 const EVENTS = [
@@ -25,9 +25,16 @@ const EVENTS = [
   },
 ];
 
+// Swapped for a single test. Kept out of EVENTS because the progress
+// assertions depend on EVENTS ending in a completed chain — adding a denied
+// event to the shared array would flip 'completed' to 'failed'. This must stay
+// a STABLE reference: returning a freshly spread array on every call re-renders
+// TokenChainDisplay forever and the run dies with an OOM, not an assertion.
+let CURRENT_EVENTS = EVENTS;
+
 vi.mock('../../context/TokenChainContext', () => ({
   useTokenChainOptional: () => ({
-    events: EVENTS,
+    events: CURRENT_EVENTS,
     history: [],
     mcpToolCalls: [],
     mcpAuthMode: null,
@@ -70,5 +77,43 @@ describe('Token Chain A2A progress controls', () => {
     expect(screen.getByText('Identity path')).toBeInTheDocument();
     expect(screen.getByText('Wire-protocol path')).toBeInTheDocument();
     expect(screen.getByText(/separate PingOne bearer authenticates/i)).toBeInTheDocument();
+  });
+});
+
+describe('A2A mismatch-probe event', () => {
+  afterEach(() => {
+    CURRENT_EVENTS = EVENTS;
+  });
+
+  // The label shape a2aDelegationService.probeGeneralistMismatch actually emits.
+  const PROBE_LABEL = 'A2A — Simulated actor-mismatch probe (Investment Advisor)';
+
+  const withProbe = () => {
+    CURRENT_EVENTS = [
+      ...EVENTS,
+      {
+        id: 'a2a-mismatch-probe',
+        label: PROBE_LABEL,
+        status: 'denied',
+        decision: 'DENY',
+        reason: 'invalid_a2a_generalist: actor is not the registered generalist',
+      },
+    ];
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+  };
+
+  it('renders the probe event', () => {
+    withProbe();
+    render(<TokenChainDisplay />);
+
+    expect(screen.getByText(PROBE_LABEL)).toBeInTheDocument();
+  });
+
+  it('keeps the probe in chain order, after Exchange #2', () => {
+    withProbe();
+    const { container } = render(<TokenChainDisplay />);
+
+    const labels = [...container.querySelectorAll('.tcd-event-label')].map((el) => el.textContent);
+    expect(labels.indexOf(PROBE_LABEL)).toBeGreaterThan(labels.indexOf('Exchange #2'));
   });
 });

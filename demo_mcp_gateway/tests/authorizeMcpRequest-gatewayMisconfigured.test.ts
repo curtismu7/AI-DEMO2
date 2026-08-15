@@ -65,7 +65,7 @@ describe('authorizeMcpRequest — gateway-vs-policy failure distinction', () => 
 
   it('a PingOne user-lookup infra failure (DENY reason=user_lookup_failed) responds 503 gateway_misconfigured, not 403 policy denied', async () => {
     const { status, body, forwarded } = await run({
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'DENY' as const, reason: 'user_lookup_failed: unable to verify user status' }),
     }, toolCall);
 
@@ -76,7 +76,7 @@ describe('authorizeMcpRequest — gateway-vs-policy failure distinction', () => 
 
   it('a genuine policy DENY (e.g. unknown tool) still responds 403 policy denied (unchanged)', async () => {
     const { status, body } = await run({
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'DENY' as const, reason: 'unknown_tool: no policy for "get_my_accounts"' }),
     }, toolCall);
 

@@ -1,26 +1,22 @@
 'use strict';
 
-import { loadMockData } from '../shared/mockData';
-
-const data = loadMockData('manufacturing') as {
-  heroStats: Record<string, unknown>;
-};
+import { getWorkOrder, listWorkOrders } from '../db/manufacturingDb';
 
 export async function dispatchManufacturingTool(
   toolName: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_work_orders':
-      return {
-        workOrders: [],
-        count: 0,
-        summary: data.heroStats,
-      };
+    case 'list_work_orders': {
+      const workOrders = listWorkOrders();
+      return { workOrders, count: workOrders.length };
+    }
 
     case 'get_work_order': {
       const id = args.order_id as string;
-      return { found: false, order_id: id };
+      const workOrder = getWorkOrder(id);
+      if (!workOrder) return { found: false, order_id: id };
+      return { found: true, workOrder };
     }
 
     default:

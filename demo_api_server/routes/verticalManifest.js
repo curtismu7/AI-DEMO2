@@ -33,15 +33,12 @@ function requireValidId(req, res, next) {
 
 // ---- Read endpoints ----
 
-router.get('/me', requireSession, (req, res) => {
+router.get('/me', (req, res) => {
   const scope = verticalManifest.scope.resolveForRequest(req);
-  // Pin the vertical to THIS session on first hydration. Without a pin,
-  // activeIdFor() falls back to the process-global forever, so any other
-  // session switching verticals (setActive → global + SSE broadcast to every
-  // client) yanked this screen to their vertical mid-demo. Pinning once makes
-  // the global a first-load default instead of a live channel between sessions.
-  // Fire-and-forget: a failed save just means we re-pin on the next /me.
-  if (scope && scope.activeId && req.session && !req.session.active_vertical) {
+  const isAuthenticated = !!req.user;
+  // Guests see minimal state; authenticated users see their full manifest.
+  // Never require session — guests need this to hydrate UI on landing pages.
+  if (req.session && scope && scope.activeId && !req.session.active_vertical) {
     req.session.active_vertical = scope.activeId;
     if (typeof req.session.save === 'function') req.session.save(() => {});
   }
@@ -61,14 +58,48 @@ router.get('/me', requireSession, (req, res) => {
       } catch { /* malformed blob — ignore, serve manifest defaults */ }
     }
   }
+  // Guests don't get demoUsers password hints or other sensitive manifest fields.
+  if (!isAuthenticated && scope && scope.pageManifest) {
+    scope.pageManifest = {
+      identity: scope.pageManifest.identity,
+      theme: scope.pageManifest.theme,
+    };
+  }
   res.json(scope);
 });
 
-router.get('/list', requireSession, (_req, res) => {
+router.get('/list', (_req, res) => {
   res.json(verticalManifest.list());
 });
 
-router.get('/stream', requireSession, (req, res) => {
+// Which vertical is active for THIS caller. Unauthenticated on purpose, and it
+// returns the id only — the full manifest from /me carries demoUsers password
+// hints and must never reach an anonymous caller.
+//
+// /me is also unauthenticated so guests hydrate minimal state and the UI agrees
+// with server on which vertical to display. Both must be public for the UI's
+// selection and the server's answer to describe the same vertical.
+router.get('/active', (req, res) => {
+  res.json({ id: verticalManifest.resolver.activeIdFor(req) || null });
+});
+
+// Landing hero (image + greeting) for a vertical. Unauthenticated on purpose:
+// the chat surface shows it before sign-in. Returns ONLY the hero block — the
+// full manifest carries demoUsers password hints and must never reach an
+// anonymous caller.
+router.get('/:id/hero', requireValidId, (req, res) => {
+  const manifest = verticalManifest.resolver.resolve(req.params.id);
+  if (!manifest) return res.status(404).json({ error: 'unknown id' });
+  const hero = manifest.hero;
+  if (!hero || !hero.imageUrl || !hero.greeting) {
+    return res.status(404).json({ error: 'no hero configured' });
+  }
+  res.json({ imageUrl: hero.imageUrl, greeting: hero.greeting });
+});
+
+router.get('/stream', (req, res) => {
+  // Guests see no events (SSE will close for 401), but endpoint must not
+  // require auth — VerticalProvider falls back gracefully to /me after timeout.
   verticalManifest.events.onClient(req, res);
   // Don't end — the client keeps it open until they disconnect.
 });
@@ -259,14 +290,23 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
 // ---- Write endpoints ----
 // Specific paths first, parameterized paths last (express routes top-to-bottom).
 
-// Switching the active vertical is open to any authenticated user (not admin-only).
+// Switching the active vertical is open to ANY caller, signed in or not (not admin-only).
 // Session-scoped: the choice is ALWAYS stored on THIS session (req.session.active_vertical)
 // so another session switching can't change it. The process-global + SSE broadcast
 // (setActive) is admin-only (or body.global=true from an admin) — otherwise a
 // CareConnect / retail e2e (or casual end-user switch) left healthcare as the
 // first-load default for every new session and the room looked "stuck".
 // The id is validated against the loaded set; hidden verticals cannot be activated.
-router.post('/active', requireSession, (req, res) => {
+//
+// Guests are allowed BECAUSE this is session-scoped. This used to be requireSession,
+// but the SPA POSTs here whenever the vertical picker changes — including before
+// sign-in — so a rejected guest kept no pin and every downstream activeIdFor(req)
+// silently fell back to the process-global, i.e. whatever vertical another session
+// last selected. Observed live: a guest whose picker read "Super Banking" was served
+// retail's agent persona and asked for their "Great Buy" account. A guest still
+// cannot move the global (the isAdmin check below), so the blast radius is their
+// own session — which is exactly the scope of the choice they just made.
+router.post('/active', (req, res) => {
   const { id, global: wantGlobal } = req.body || {};
   if (!id) return res.status(400).json({ error: 'id required' });
   // Shared with the demo-agent `vertical` param — see verticalManifest.activationRefusal.

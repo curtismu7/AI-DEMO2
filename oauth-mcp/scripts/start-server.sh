@@ -1,5 +1,5 @@
 #!/bin/bash
-# Banking MCP Server Startup Script
+# AI Demo MCP Server Startup Script
 # Handles environment setup, validation, and server startup
 
 set -e  # Exit on any error
@@ -60,7 +60,7 @@ log() {
 # Help function
 show_help() {
     cat << EOF
-Banking MCP Server Startup Script
+AI Demo MCP Server Startup Script
 
 Usage: $0 [OPTIONS]
 
@@ -238,7 +238,7 @@ create_directories() {
 
 # Start server
 start_server() {
-    log "INFO" "Starting Banking MCP Server..."
+    log "INFO" "Starting AI Demo MCP Server..."
     log "INFO" "Environment: $ENVIRONMENT"
     log "INFO" "PID file: $PID_FILE"
     
@@ -305,7 +305,7 @@ cleanup() {
 
 # Main execution
 main() {
-    log "INFO" "Banking MCP Server startup initiated"
+    log "INFO" "AI Demo MCP Server startup initiated"
     log "INFO" "Script: $0"
     log "INFO" "Arguments: $*"
     log "INFO" "Working directory: $(pwd)"

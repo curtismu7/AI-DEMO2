@@ -98,6 +98,8 @@ function extractRequestMetadata(req, res, next) {
  * Client sends a subject token (typically an ID token) and requests an access token.
  *
  * @flow rfc8693-token-exchange
+ * @name RFC 8693 Token Exchange
+ * @rfc https://datatracker.ietf.org/doc/html/rfc8693 RFC 8693
  * @actor client-app
  * @to token-exchanger
  * @step 1

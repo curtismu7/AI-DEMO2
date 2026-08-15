@@ -145,4 +145,53 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
     );
     expect(out.hitlRequired).toBe(true);
   });
+
+  // ── UC7 / UC8 routing regression guards ──────────────────────────────────────
+  // These two tests lock in the boundary that caused a reported regression:
+  // a PingOne policy returned stepUpRequired for $300 (HITL band), and the BFF
+  // promoted it to mcp_step_up_required, making UC8 show P1MFA instead of the
+  // consent modal.
+
+  test('UC8 regression: $300 PingOne stepUpRequired is NOT promoted when amount is below MFA threshold', async () => {
+    // PingOne Authorize may return stepUpRequired even for $300 (a policy that
+    // didn't distinguish HITL vs step-up bands). Without the threshold guard the
+    // BFF promoted this to mcp_step_up_required and UC8 showed P1MFA.
+    pingOneAuthorizeService.evaluateTransaction.mockResolvedValueOnce({
+      decision: 'PERMIT',
+      stepUpRequired: true,
+      consentRequired: false,
+      hitlRequired: false,
+    });
+    const out = await _applyTransactionPolicy(base, {
+      amount: 300,
+      transactionType: 'transfer',
+      userId: 'user-1',
+      acr: 'Password',
+      // No useCaseId — UC8 has no declared stepUpMethod, so forceStepUp = false
+    });
+    expect(out.stepUpRequired).toBeFalsy();
+    expect(out.transactionPolicyStepUp).toBeFalsy();
+    expect(out.decision).toBe('PERMIT');
+  });
+
+  test('UC7: forceStepUp always fires step-up regardless of PingOne answer or amount', async () => {
+    // UC7 declares stepUpMethod: 'p1mfa' in useCases.js. That declaration is
+    // amount-independent — forceStepUp must win even when PingOne returns bare PERMIT.
+    pingOneAuthorizeService.evaluateTransaction.mockResolvedValueOnce({
+      decision: 'PERMIT',
+      stepUpRequired: false,
+      consentRequired: false,
+      hitlRequired: false,
+    });
+    const out = await _applyTransactionPolicy(base, {
+      amount: 600,
+      transactionType: 'transfer',
+      userId: 'user-1',
+      acr: 'Password',
+      useCaseId: 'step-up-required', // UC7's useCaseId field
+    });
+    expect(out.stepUpRequired).toBe(true);
+    expect(out.hitlRequired).toBeFalsy();
+    expect(out.transactionPolicyStepUp).toBe(true);
+  });
 });

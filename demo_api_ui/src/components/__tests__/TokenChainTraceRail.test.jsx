@@ -40,6 +40,17 @@ function mockFeatureFlags(flags = {}) {
   });
 }
 
+/** Live/Classic, the zoom trio, Clear and Legend moved into the More tray. */
+function openMore() {
+  fireEvent.click(screen.getByRole("button", { name: /^More$/ }));
+}
+
+/** The six non-inline views moved into the Views menu. */
+function openView(name) {
+  fireEvent.click(screen.getByRole("button", { name: "Views" }));
+  fireEvent.click(screen.getByRole("button", { name }));
+}
+
 beforeEach(() => {
   tokenChainTraceStore.reset();
   localStorage.clear();
@@ -49,6 +60,7 @@ beforeEach(() => {
 test("Live starts empty and Classic keeps the complete fixed catalog as fallback", () => {
   render(<TokenChainTraceRail />);
   expect(document.querySelector(".tctr-title")).toHaveTextContent("Token Chain");
+  openMore();
   expect(screen.getByRole("button", { name: /legend/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /clear token chain/i })).toBeDisabled();
   expect(screen.getByText(/Run an agent flow to build the token chain/)).toBeInTheDocument();
@@ -75,6 +87,7 @@ test("steps update from the store and expand to show detail", () => {
 
 test("legend button opens the legend modal; inspect opens claims modal", () => {
   render(<TokenChainTraceRail />);
+  openMore();
   fireEvent.click(screen.getByRole("button", { name: /legend/i }));
   expect(screen.getByTestId("legend-modal")).toBeInTheDocument();
 
@@ -89,7 +102,7 @@ test("legend button opens the legend modal; inspect opens claims modal", () => {
 
 test("MCP tab shows the MCP panel and hides the full step list; chain line stays", () => {
   render(<TokenChainTraceRail />);
-  fireEvent.click(screen.getByRole("tab", { name: /^MCP/ }));
+  openView("MCP");
   expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
   expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
   expect(screen.queryByText(/LLM composes reply/)).not.toBeInTheDocument();
@@ -99,6 +112,7 @@ test("MCP tab shows the MCP panel and hides the full step list; chain line stays
 
 test("Classic selection persists as the emergency fallback", () => {
   render(<TokenChainTraceRail />);
+  openMore();
   fireEvent.click(screen.getByRole("button", { name: "Classic" }));
   expect(screen.getByText(/Sign-in — User Token acquired/)).toBeInTheDocument();
   expect(screen.getByText(/Exchange Mode Details/)).toBeInTheDocument();
@@ -246,6 +260,7 @@ test("Clear resets the rail to awaiting state for the next demo run", () => {
   act(() => tokenChainTraceStore.beginTrace({ prompt: "transfer $250 to savings" }));
   act(() => tokenChainTraceStore.completeTrace(true));
   expect(screen.getByText(/Live Pipeline — "transfer \$250 to savings"/)).toBeInTheDocument();
+  openMore();
   expect(screen.getByRole("button", { name: /clear token chain/i })).toBeEnabled();
 
   fireEvent.click(screen.getByRole("button", { name: /clear token chain/i }));
@@ -259,11 +274,12 @@ test("Clear resets the rail to awaiting state for the next demo run", () => {
 test("Trust tab is hidden by default and appears when ff_dpop is on", async () => {
   mockFeatureFlags({ ff_dpop: true });
   render(<TokenChainTraceRail />);
-  expect(screen.queryByRole("tab", { name: /^Trust$/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Views" }));
+  expect(screen.queryByRole("button", { name: "Trust" })).not.toBeInTheDocument();
   await waitFor(() => {
-    expect(screen.getByRole("tab", { name: /^Trust$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Trust" })).toBeInTheDocument();
   });
-  fireEvent.click(screen.getByRole("tab", { name: /^Trust$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Trust" }));
   expect(screen.getByTestId("trace-trust-panel")).toBeInTheDocument();
   expect(screen.getByText(/Sender-constrained/)).toBeInTheDocument();
   expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
@@ -271,15 +287,29 @@ test("Trust tab is hidden by default and appears when ff_dpop is on", async () =
 
 test("Trust tab appears from live DPoP evidence without flags", async () => {
   render(<TokenChainTraceRail />);
-  expect(screen.queryByRole("tab", { name: /^Trust$/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Views" }));
+  expect(screen.queryByRole("button", { name: "Trust" })).not.toBeInTheDocument();
   act(() => tokenChainTraceStore.ingestTokenEvents([
     { id: "dpop-binding", status: "active", claims: { cnf: { jkt: "thumbprint0123456789" } } },
   ]));
   await waitFor(() => {
-    expect(screen.getByRole("tab", { name: /^Trust$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Trust" })).toBeInTheDocument();
   });
-  fireEvent.click(screen.getByRole("tab", { name: /^Trust$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Trust" }));
   expect(screen.getByText("BOUND")).toBeInTheDocument();
+});
+
+test("keeps the visible toolbar to four controls with everything else reachable", () => {
+  render(<TokenChainTraceRail />);
+  const bar = document.querySelector(".tctr-toolbar");
+  const visible = Array.from(bar.querySelectorAll("button, select"))
+    .filter((e) => !e.closest(".tctr-more-pop") && !e.closest(".cvm-pop"));
+  expect(visible.length).toBeLessThanOrEqual(4);
+
+  fireEvent.click(screen.getByRole("button", { name: /^More$/ }));
+  for (const name of [/^Live$/, /^Classic$/, /clear token chain/i, /^Legend$/]) {
+    expect(screen.getByRole("button", { name })).toBeInTheDocument();
+  }
 });
 
 test("Demo Track tab renders the guided track content", async () => {
@@ -299,7 +329,7 @@ test("Demo Track tab renders the guided track content", async () => {
     },
   });
   render(<TokenChainTraceRail />);
-  fireEvent.click(screen.getByRole("tab", { name: /^Demo Track$/ }));
+  openView("Demo Track");
   await waitFor(() => {
     expect(screen.getByText(/Delegated access/)).toBeInTheDocument();
   });

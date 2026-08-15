@@ -21,6 +21,24 @@ export interface IssuedToken {
   revoked: boolean;
 }
 
+export interface PendingAuthorization {
+  state: string;
+  clientId: string;
+  redirectUri: string;
+  scope: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  /** The ORIGINAL client's own `state` param — relayed back to it once the
+   *  PingOne hop completes. Never sent to PingOne itself (see OAuthRouter). */
+  clientState: string;
+  /** PKCE verifier oauth-mcp generated for its OWN outbound hop to PingOne
+   *  (distinct from `codeChallenge`, which belongs to the downstream client's
+   *  PKCE against this AS). Held here so /authorize/callback can present
+   *  `code_verifier` on the PingOne token exchange. */
+  pingOneCodeVerifier: string;
+  expiresAt: number;
+}
+
 /**
  * In-memory store for authorization codes and issued tokens.
  * Codes expire after 60s. Tokens tracked for introspection/revocation.
@@ -28,6 +46,7 @@ export interface IssuedToken {
 export class TokenStore {
   private codes: Map<string, AuthorizationCode> = new Map();
   private tokens: Map<string, IssuedToken> = new Map();
+  private pending: Map<string, PendingAuthorization> = new Map();
 
   createCode(params: Omit<AuthorizationCode, 'code' | 'expiresAt'>): string {
     const code = crypto.randomBytes(32).toString('base64url');
@@ -43,6 +62,24 @@ export class TokenStore {
     const entry = this.codes.get(code);
     if (!entry) return null;
     this.codes.delete(code);
+    if (Date.now() > entry.expiresAt) return null;
+    return entry;
+  }
+
+  createPendingAuthorization(params: Omit<PendingAuthorization, 'state' | 'expiresAt'>): string {
+    const state = crypto.randomBytes(32).toString('base64url');
+    this.pending.set(state, {
+      ...params,
+      state,
+      expiresAt: Date.now() + 600_000, // 10 minutes — a real PingOne login takes longer than a code exchange
+    });
+    return state;
+  }
+
+  consumePendingAuthorization(state: string): PendingAuthorization | null {
+    const entry = this.pending.get(state);
+    if (!entry) return null;
+    this.pending.delete(state);
     if (Date.now() > entry.expiresAt) return null;
     return entry;
   }
@@ -67,11 +104,14 @@ export class TokenStore {
     return token?.revoked ?? false;
   }
 
-  /** Purge expired codes periodically */
+  /** Purge expired codes and pending authorizations periodically */
   cleanup(): void {
     const now = Date.now();
     for (const [k, v] of this.codes) {
       if (now > v.expiresAt) this.codes.delete(k);
+    }
+    for (const [k, v] of this.pending) {
+      if (now > v.expiresAt) this.pending.delete(k);
     }
   }
 }

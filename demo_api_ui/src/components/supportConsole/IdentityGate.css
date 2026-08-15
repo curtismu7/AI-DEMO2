@@ -1,0 +1,40 @@
+.idgate {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  margin: 0 0 1rem;
+  border-radius: 10px;
+  border: 1px solid #fcd34d;
+  background: #fef3c7;
+  color: #78350f;
+  font-size: 0.875rem;
+}
+.idgate[data-verified='true'] {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #14532d;
+}
+.idgate__badge {
+  flex: none;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+}
+.idgate__text { flex: 1; }
+.idgate__btn {
+  flex: none;
+  padding: 0.35rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.idgate__btn[disabled] { opacity: 0.5; cursor: not-allowed; }

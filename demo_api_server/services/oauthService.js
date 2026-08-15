@@ -2,6 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const oauthConfig = require('../config/oauth');
+const nrSegments = require('./nrSegments');
 const appEventService = require('./appEventService');
 const { isOAuthVerboseDebug } = require('../utils/oauthDebugFlags');
 const { verboseOAuthLog } = require('../utils/oauthVerboseLogger');
@@ -115,6 +116,58 @@ function applyAudienceParam(body, audience) {
     for (const r of audience) { body.append('resource', r); }
   } else {
     body.set('audience', audience);
+  }
+}
+
+/**
+ * Emit RFC 8693 token-exchange telemetry for the New Relic dashboard.
+ * Never throws — a logging failure must never mask the real PingOne error
+ * or change the exchange's control flow (callers may invoke this from a
+ * `catch` block that is about to (re)throw).
+ *
+ * @param {'request'|'ok'|'fail'} outcome
+ * @param {object} fields
+ * @param {string} fields.exchangeVariant - stable per-method slug (see brief)
+ * @param {string|string[]} fields.audience - as passed to PingOne; arrays are joined, never emitted raw
+ * @param {string} fields.scope - joined scope string
+ * @param {string} fields.exchangeClientId - the client_id that performed the exchange
+ * @param {boolean} fields.hasActorToken - whether an actor token was actually sent (runtime value, not method name)
+ * @param {'access_token'|'id_token'} fields.subjectTokenType
+ * @param {number} [fields.latencyMs] - wall-clock around the POST (ok/fail only)
+ * @param {number} [fields.httpStatus] - fail only
+ * @param {string} [fields.pingoneError] - fail only
+ */
+function _emitTokenExchangeEvent(outcome, fields) {
+  try {
+    const {
+      exchangeVariant, audience, scope, exchangeClientId, hasActorToken,
+      subjectTokenType, latencyMs, httpStatus, pingoneError,
+    } = fields;
+    // RFC 8707 multi-resource audience arrives as an array — join it so the
+    // facet is a single string, never a raw array.
+    const audienceStr = Array.isArray(audience) ? audience.join(',') : audience;
+    const metadata = {
+      exchangeVariant,
+      audience: audienceStr,
+      scope,
+      exchangeClientId,
+      hasActorToken: !!hasActorToken,
+      subjectTokenType,
+    };
+    if (outcome !== 'request') metadata.latencyMs = latencyMs;
+    if (outcome === 'fail') {
+      metadata.httpStatus = httpStatus;
+      metadata.pingoneError = pingoneError;
+    }
+    const messages = {
+      request: `RFC 8693 token exchange (${exchangeVariant}) → POST audience=${audienceStr}`,
+      ok: `RFC 8693 token exchange (${exchangeVariant}) ← PingOne OK audience=${audienceStr}`,
+      fail: `RFC 8693 token exchange (${exchangeVariant}) ← PingOne FAILED audience=${audienceStr}`,
+    };
+    appEventService.logEvent('token_exchange', outcome === 'fail' ? 'error' : 'info', messages[outcome],
+      { tag: `token-exchange/${outcome}`, metadata });
+  } catch (_e) {
+    // Telemetry must never break token exchange.
   }
 }
 
@@ -319,16 +372,23 @@ class OAuthService {
       audience,
       scopeStr
     );
-    appEventService.logEvent('token_exchange', 'info',
-      `POST ${this.config.tokenEndpoint} (RFC 8693 token exchange → ${audience})`,
-      { tag: 'token-exchange', metadata: { audience, scope: scopeStr } });
+    const telemetry = {
+      exchangeVariant: 'subject',
+      audience,
+      scope: scopeStr,
+      exchangeClientId: this.config.clientId,
+      hasActorToken: false,
+      subjectTokenType: 'access_token',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = await nrSegments.tokenExchangeSubject(() =>
+        axios.post(this.config.tokenEndpoint, body.toString(), { headers })
+      );
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
-      appEventService.logEvent('token_exchange', 'info',
-        `Token exchange ← PingOne OK (audience=${audience})`,
-        { tag: 'token-exchange', metadata: { audience } });
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       console.log(`[TokenExchange] Issued delegated token for audience=${audience} scope="${scopeStr}"`);
       return exchanged;
     } catch (error) {
@@ -350,6 +410,12 @@ class OAuthService {
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
       richErr.requestContext          = { audience, scope: scopeStr, client_id: this.config.clientId };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus,
+        pingoneError: pingoneData.error,
+      });
       throw richErr;
     }
   }
@@ -384,10 +450,21 @@ class OAuthService {
       audience,
       scopeStr
     );
+    const telemetry = {
+      exchangeVariant: 'id-token',
+      audience,
+      scope: scopeStr,
+      exchangeClientId: this.config.clientId,
+      hasActorToken: false,
+      subjectTokenType: 'id_token',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('ID token exchange response missing access_token');
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       console.log(`[TokenExchange:ID_TOKEN] Issued delegated token for audience=${audience} scope="${scopeStr}"`);
       return exchanged;
     } catch (error) {
@@ -407,6 +484,12 @@ class OAuthService {
       richErr.pingoneError            = pingoneData.error;
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.requestContext          = { audience, scope: scopeStr };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus,
+        pingoneError: pingoneData.error,
+      });
       throw richErr;
     }
   }
@@ -437,10 +520,23 @@ class OAuthService {
     applyAudienceParam(body, audience);
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     applyAdminTokenEndpointClientAuth(this.config, body, headers);
+    const telemetry = {
+      exchangeVariant: 'subject+actor',
+      audience,
+      scope: scopeStr,
+      exchangeClientId: this.config.clientId,
+      hasActorToken: !!actorToken,
+      subjectTokenType: 'access_token',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = await nrSegments.tokenExchangeActor(() =>
+        axios.post(this.config.tokenEndpoint, body.toString(), { headers })
+      );
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       console.log(`[TokenExchange+Actor] Delegated token audience=${audience} scope="${scopeStr}"`);
       return exchanged;
     } catch (error) {
@@ -455,6 +551,12 @@ class OAuthService {
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
       richErr.requestContext          = { audience, scope: scopeStr, client_id: this.config.clientId };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus,
+        pingoneError: pingoneData.error,
+      });
       throw richErr;
     }
   }
@@ -492,10 +594,21 @@ class OAuthService {
       audience,
       scopeStr
     );
+    const telemetry = {
+      exchangeVariant: 'id-token+actor',
+      audience,
+      scope: scopeStr,
+      exchangeClientId: this.config.clientId,
+      hasActorToken: !!actorToken,
+      subjectTokenType: 'id_token',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('ID token + actor exchange response missing access_token');
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       console.log(`[TokenExchange:ID_TOKEN+Actor] Delegated token audience=${audience} scope="${scopeStr}"`);
       return exchanged;
     } catch (error) {
@@ -514,6 +627,12 @@ class OAuthService {
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
       richErr.requestContext          = { audience, scope: scopeStr, client_id: this.config.clientId };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus,
+        pingoneError: pingoneData.error,
+      });
       throw richErr;
     }
   }
@@ -857,10 +976,24 @@ class OAuthService {
     }
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
     applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+    // exchangeClientId is the parameter clientId (the exchanger performing this
+    // hop), not this.config.clientId — that distinction is the whole point of
+    // the 2-exchange chain. clientSecret itself must never reach telemetry.
+    const telemetry = {
+      exchangeVariant: 'exchange-as',
+      audience,
+      scope: scopeStr,
+      exchangeClientId: clientId,
+      hasActorToken: !!actorToken,
+      subjectTokenType: 'access_token',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       console.log(`[Exchange-As] client=${clientId} audience=${audience} scope="${scopeStr}"`);
       return exchanged;
     } catch (error) {
@@ -875,6 +1008,12 @@ class OAuthService {
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
       richErr.requestContext          = { audience, scope: scopeStr, client_id: clientId };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus,
+        pingoneError: pingoneData.error,
+      });
       throw richErr;
     }
   }
@@ -919,10 +1058,21 @@ class OAuthService {
     body.set('client_assertion_type', clientAssertionService.CLIENT_ASSERTION_TYPE);
     body.set('client_assertion', clientAssertionService.buildExchangerClientAssertion(exchangerClientId, this.config.tokenEndpoint));
 
+    const telemetry = {
+      exchangeVariant: 'dedicated-app',
+      audience,
+      scope: scopeStr,
+      exchangeClientId: exchangerClientId,
+      hasActorToken: !!actorToken,
+      subjectTokenType: 'access_token',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       console.log(`[Exchange-With-DedicatedApp] client=${exchangerClientId} audience=${audience} scope="${scopeStr}"`);
       return exchanged;
     } catch (error) {
@@ -937,6 +1087,12 @@ class OAuthService {
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
       richErr.requestContext          = { audience, scope: scopeStr, client_id: exchangerClientId };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus,
+        pingoneError: pingoneData.error,
+      });
       throw richErr;
     }
   }
@@ -1045,13 +1201,9 @@ class OAuthService {
    */
   async revokeToken(token, tokenType) {
     if (!token) return;
-    // PingOne revocation endpoint: replace /token with /token/revoke in the token endpoint URL
-    // PingOne AI IAM Core exposes: POST /{envId}/as/revoke
-    const revocationEndpoint = this.config.tokenEndpoint
-      ? this.config.tokenEndpoint.replace(/\/as\/token$/, '/as/revoke')
-      : null;
+    const revocationEndpoint = this.config.revocationEndpoint || null;
     if (!revocationEndpoint) {
-      console.warn('[RFC7009] Cannot revoke token: tokenEndpoint not configured');
+      console.warn('[RFC7009] Cannot revoke token: revocationEndpoint not configured');
       return;
     }
     const body = new URLSearchParams({ token, client_id: this.config.clientId });

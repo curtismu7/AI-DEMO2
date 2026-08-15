@@ -50,14 +50,41 @@ describe('demoTrackService', () => {
     expect(run.slots['fine-grained-authz:green']).toMatchObject({ verdict: 'PERMIT', decisionId: 'd-permit-1' });
   });
 
-  test('wildcard slots only fill on the active step', () => {
-    svc.setActiveStep('fine-grained-authz');
-    svc.observeToolCall({ toolName: 'some_unknown_tool', success: true, timestamp: '2026-08-03T10:01:00Z' });
-    const { run } = svc.getState();
-    expect(run.slots['pingone-mcp-admin:green']).toBeUndefined();
+  test('wildcard slots need an armed slot — the active step alone is not enough', () => {
     svc.setActiveStep('pingone-mcp-admin');
+    svc.observeToolCall({ toolName: 'some_unknown_tool', success: true, timestamp: '2026-08-03T10:01:00Z' });
+    expect(svc.getState().run.slots['pingone-mcp-admin:green']).toBeUndefined();
+    svc.armSlot({ stepId: 'pingone-mcp-admin', color: 'green' });
     svc.observeToolCall({ toolName: 'some_unknown_tool', success: true, timestamp: '2026-08-03T10:02:00Z' });
     expect(svc.getState().run.slots['pingone-mcp-admin:green'].verdict).toBe('PERMIT');
+  });
+
+  test('an arm is consumed by the fill it caused — the next call cannot walk down the track', () => {
+    svc.armSlot({ stepId: 'delegated-access', color: 'green' });
+    svc.observeToolCall({ toolName: 'list_orders', success: true, timestamp: '2026-08-03T10:01:00Z' });
+    expect(svc.getState().run.slots['delegated-access:green'].via).toBe('list_orders');
+    // step 1 green filled and the pointer advanced, but nothing is armed now
+    svc.observeToolCall({ toolName: 'list_orders', success: true, timestamp: '2026-08-03T10:02:00Z' });
+    expect(svc.getState().run.slots['a2a-delegation:green']).toBeUndefined();
+  });
+
+  test('an arm is scoped to one color — arming green does not let a failure fill red', () => {
+    svc.armSlot({ stepId: 'fine-grained-authz', color: 'green' });
+    svc.observeToolCall({ toolName: 'get_account_balance', success: false, timestamp: '2026-08-03T10:01:00Z', errorCode: 'mcp_authorize_denied' });
+    expect(svc.getState().run.slots['fine-grained-authz:red']).toBeUndefined();
+  });
+
+  test('an expired arm does not fire the wildcard', () => {
+    svc.armSlot({ stepId: 'lifecycle-killswitch', color: 'green', ttlMs: -1 });
+    svc.observeToolCall({ toolName: 'some_unknown_tool', success: true, timestamp: '2026-08-03T10:01:00Z' });
+    expect(svc.getState().run.slots['lifecycle-killswitch:green']).toBeUndefined();
+  });
+
+  test('armSlot rejects an unknown step or color without arming anything', () => {
+    svc.armSlot({ stepId: 'nope', color: 'green' });
+    svc.armSlot({ stepId: 'delegated-access', color: 'purple' });
+    svc.observeToolCall({ toolName: 'some_unknown_tool', success: true, timestamp: '2026-08-03T10:01:00Z' });
+    expect(svc.getState().run.slots['delegated-access:green']).toBeUndefined();
   });
 
   test('auto-advances active step when both slots fill', () => {

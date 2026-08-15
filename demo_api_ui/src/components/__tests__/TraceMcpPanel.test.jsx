@@ -10,17 +10,21 @@ const STEPS = [
   { id: "reply", title: "LLM composes reply", lane: "LLM", status: "pending", detail: {} },
 ];
 
-test("renders only the exchange/gateway/mcp/api steps, expanded", () => {
+// The MCP view lists the hops that carry or serve the tool call. The RFC 8693
+// exchange mints the MCP-audience token, but showing it here opened the MCP view
+// with a token exchange rather than a tool call — it keeps its own step and card
+// in the chain, it is just not an MCP call.
+test("renders the gateway/mcp/api steps, expanded, and not the token exchange", () => {
   const { container } = render(
     <TraceMcpPanel steps={STEPS} trace={{ tokenEvents: [], mcpResult: null }} onInspect={() => {}} />
   );
-  expect(screen.getByText(/Token exchange — delegation/)).toBeInTheDocument();
   expect(screen.getByText(/Agent Gateway — token validated/)).toBeInTheDocument();
   expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
   expect(screen.getByText(/Resource server — API call/)).toBeInTheDocument();
+  expect(screen.queryByText(/Token exchange — delegation/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Sign-in/)).not.toBeInTheDocument();
   expect(screen.queryByText(/LLM composes reply/)).not.toBeInTheDocument();
-  expect(container.querySelectorAll("details.tctr-step[open]")).toHaveLength(4);
+  expect(container.querySelectorAll("details.tctr-step[open]")).toHaveLength(3);
 });
 
 test("shows empty state when no tool call yet", () => {

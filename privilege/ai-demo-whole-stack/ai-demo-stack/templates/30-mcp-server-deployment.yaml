@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: mcp-server
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-server
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: "{{ .Values.imageRegistry }}/ai-demo-mcp-server:{{ .Values.imageTag }}"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: ws
+        # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
+        # Mirrors docker-compose: the bootstrap script is mounted at /otel from
+        # the otel-instrument ConfigMap (created by the deploy scripts).
+        env:
+        # Mirrors docker-compose: SKIP_TOKEN_SIGNATURE_VALIDATION=true in
+        # mcp-secrets is a fatal boot guard outside development (validator.ts).
+        - name: NODE_ENV
+          value: "development"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://jaeger:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "mcp-server"
+        - name: NODE_OPTIONS
+          value: "-r /otel/otel-instrument.js"
+        # secret first, configmap last → cluster URLs in the configmap win
+        envFrom:
+        - secretRef:
+            name: mcp-secrets
+        - configMapRef:
+            name: ai-demo-config
+        volumeMounts:
+        - name: otel-instrument
+          mountPath: /otel
+          readOnly: true
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /.well-known/mcp-server
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /.well-known/mcp-server
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: otel-instrument
+        configMap:
+          name: otel-instrument
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: ws
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+  selector:
+    app: ai-demo
+    component: mcp-server

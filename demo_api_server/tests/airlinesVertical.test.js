@@ -48,6 +48,18 @@ describe('airlines vertical', () => {
     expect(plugin.getDataStore().get('any-user')).toEqual({});
   });
 
+  // Important fix: demo_mcp_resource_server/tests/airlinesTools.test.ts asserts
+  // check_seat_availability's result.render matches this manifest's render key,
+  // but nothing asserted the other side — that every render key actually names a
+  // real declared tool. A rename on either side would silently break the seat-map
+  // card (fall back to the plain-text card) with every test still green.
+  test('every render block key matches a real declared tool name', () => {
+    const toolNames = new Set(plugin.getTools().map((t) => t.name));
+    for (const key of Object.keys(manifest.render || {})) {
+      expect(toolNames.has(key)).toBe(true);
+    }
+  });
+
   test('every chip tool is declared in scope-topology and routed at the gateway', () => {
     const chipTools = manifest.dashboard.chips10.map((c) => c.tool);
     expect(chipTools).toEqual(ALL_TOOLS);
@@ -173,6 +185,16 @@ describe('airlines vertical', () => {
     expect(hit && hit.action).toBe('pay_airline_fee');
   });
 
+  // Important fix: airlinesToolHandler.ts defaults available_only to true, and
+  // nothing else in the dispatch path ever set it to false, so occupied seats
+  // (and the "Occupied" legend swatch) could never actually be exercised by a
+  // real chip click. The seat-map heuristic must request the whole cabin.
+  test('the seat-map heuristic requests available_only:false so occupied seats show up too', () => {
+    const hit = plugin.getHeuristics().find((h) => h.action === 'check_seat_availability');
+    expect(hit).toBeDefined();
+    expect(hit.defaultParams).toEqual({ available_only: false });
+  });
+
   // "refund fee" contains `refund`, which the cancel rule also matches.
   test('a refund fee is a fee payment, not a cancellation', () => {
     const hit = plugin.getHeuristics().find((h) => h.re.test('pay the $75 refund fee'));
@@ -191,6 +213,10 @@ describe('airlines vertical', () => {
     expect(scopeTopology.toolSurface('pay_airline_fee')).toBe('gateway');
   });
 
+  // pay_airline_fee declares step_up so live P1AZ includes it in RequiresMcpStepUp
+  // (the MCP Delegation policy condition). The amount ladder still decides for
+  // amount-bearing calls: declaresStepUp in decision.js only fires when !hasAmount,
+  // so UC6 ($2500 DENY) and UC8 ($300 HITL) are unaffected.
   test('pay_airline_fee has no challengeType (amount-ladder gates it instead)', () => {
     const topology = require('../../scope-topology.json');
     expect(topology.tools.pay_airline_fee.challengeType).toBeUndefined();

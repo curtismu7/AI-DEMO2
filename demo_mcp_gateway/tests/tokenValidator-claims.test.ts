@@ -133,6 +133,53 @@ describe('validateInboundToken — F7 iss / nbf parity with the IG JWKS filter',
   });
 });
 
+describe('validateInboundToken — iat max-age (mirrors decision.js Rule 0d)', () => {
+  const OLD = { ...process.env };
+  beforeEach(() => {
+    delete process.env.PINGONE_JWKS_ENDPOINT;
+    delete process.env.STRICT_AUTH;
+    delete process.env.PINGONE_ISSUER_URI;
+    delete process.env.MCP_GW_IAT_MAX_AGE_SECONDS;
+    process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
+  });
+  afterAll(() => { process.env = OLD; });
+
+  test('rejects a token whose iat is in the future beyond 30s skew', async () => {
+    const { validateInboundToken } = freshValidator();
+    const iat = Math.floor(Date.now() / 1000) + 600;
+    await expect(validateInboundToken(makeUnsignedToken({ iat }), GW_AUD))
+      .rejects.toThrow(/issued in the future/i);
+  });
+
+  test('rejects a token older than the default 7200s max age', async () => {
+    const { validateInboundToken } = freshValidator();
+    const iat = Math.floor(Date.now() / 1000) - 7300;
+    await expect(validateInboundToken(makeUnsignedToken({ iat }), GW_AUD))
+      .rejects.toThrow(/too old/i);
+  });
+
+  test('accepts a token within the default max age', async () => {
+    const { validateInboundToken } = freshValidator();
+    const iat = Math.floor(Date.now() / 1000) - 100;
+    const decoded = await validateInboundToken(makeUnsignedToken({ iat }), GW_AUD);
+    expect(decoded.sub).toBe('user-1');
+  });
+
+  test('honors MCP_GW_IAT_MAX_AGE_SECONDS override', async () => {
+    process.env.MCP_GW_IAT_MAX_AGE_SECONDS = '60';
+    const { validateInboundToken } = freshValidator();
+    const iat = Math.floor(Date.now() / 1000) - 120;
+    await expect(validateInboundToken(makeUnsignedToken({ iat }), GW_AUD))
+      .rejects.toThrow(/too old/i);
+  });
+
+  test('skips the check when the token carries no iat', async () => {
+    const { validateInboundToken } = freshValidator();
+    const decoded = await validateInboundToken(makeUnsignedToken({}), GW_AUD);
+    expect(decoded.sub).toBe('user-1');
+  });
+});
+
 describe('validateInboundToken — kid-less token key selection (tokenValidator.ts:181)', () => {
   const OLD = { ...process.env };
   let server: http.Server;

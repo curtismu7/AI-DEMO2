@@ -147,7 +147,7 @@ async function exchangeWithActor(userAccessToken, actorToken, mcpResourceUri) {
 
 ```json
 {
-  "name": "Banking MCP Server",
+  "name": "AI Demo MCP Server",
   "audience": "https://mcp-server.pingdemo.com",
   "scopes": [
     {

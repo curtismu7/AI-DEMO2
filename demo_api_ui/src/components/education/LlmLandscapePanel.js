@@ -802,7 +802,7 @@ function ComparisonContent() {
           Azure EU regions) or open-source Mistral on EU infra.
         </li>
         <li>
-          <strong>This demo:</strong> The Super Banking LangChain agent is
+          <strong>This demo:</strong> The AI Demo LangChain agent is
           model-agnostic — configurable via <code>OPENAI_MODEL</code> env var in{" "}
           <code>langchain_agent/</code>.
         </li>
