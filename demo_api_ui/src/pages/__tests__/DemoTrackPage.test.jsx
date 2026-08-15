@@ -160,6 +160,7 @@ describe("DemoTrackPage", () => {
 
   it("shows the active vertical and dispatches the catalog-resolved chip through the agent", async () => {
     render(<DemoTrackPage />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     await screen.findByText("Delegated access");
     await waitFor(() => expect(screen.getByText("Vertical: healthcare")).toBeInTheDocument());
     // catalog trigger text (per-vertical) replaces the config chip text

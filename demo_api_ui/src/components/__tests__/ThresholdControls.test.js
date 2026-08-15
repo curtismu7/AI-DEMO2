@@ -76,7 +76,7 @@ describe('ThresholdControls', () => {
     await openPanel();
     await waitFor(() => screen.getByText('Human-in-the-Loop Consent'));
     expect(screen.getByText('On')).toBeInTheDocument();
-    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     const link = screen.getByRole('link', { name: /edit in feature flags/i });
     expect(link).toHaveAttribute('href', '/feature-flags');
