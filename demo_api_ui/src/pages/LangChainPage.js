@@ -5,22 +5,29 @@ import { Link } from "react-router-dom";
 
 const LCEL_CODE = `# LangChain / LangGraph agent — tools via BFF (AG-UI)
 from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage
 
 # llm_factory resolves provider from BFF session (google / llamacpp / helix / …)
 llm = get_llm(provider=cfg.provider, model=cfg.model)
 
-agent = create_react_agent(
-    llm=llm,
+# ONE checkpointer for the agent's lifetime — rebuilding it on every
+# refresh_tools() call would wipe every session's history.
+checkpointer = MemorySaver()
+
+graph = create_react_agent(
+    model=llm,
     tools=mcp_tools,           # banking tools through BFF /internal/agent-tool
-    checkpointer=MemorySaver(),
+    pre_model_hook=trim_history_hook,
+    checkpointer=checkpointer,
 )
 
 async def run(user_msg: str, thread_id: str):
     config = {"configurable": {"thread_id": thread_id}}
-    async for event in agent.astream(
+    async for event in graph.astream_events(
         {"messages": [HumanMessage(content=user_msg)]},
         config=config,
+        version="v2",
     ):
         yield event  # mapped to AG-UI SSE by the FastAPI /run handler
 `;
@@ -39,7 +46,7 @@ const DEMO_BRAINS = [
     id: "gemini",
     label: "Google Gemini",
     provider: "google",
-    package: "langchain-google-genai",
+    package: "langchain-openai (Gemini's OpenAI-compat endpoint)",
     defaultModel: "gemini-2.0-flash",
     notes: "Fast cloud LLM for SE demos — GOOGLE / Gemini key",
   },
