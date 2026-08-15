@@ -219,6 +219,23 @@ payload: JSON.parse(atob(parts[1])),
 
 ---
 
+## Carryover — pass 2 & 3 extras, now tracked
+
+Previously logged as "found but not in top 5" (see full detail in the pass 2 / pass 3 sections above). Now assigned numbers so every verified bug gets fixed and tracked.
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 16 | Medium | 🔴 Open | `fetchLiveAccounts` has no staleness guard — rapid vertical-switching can apply an older vertical's accounts last | `demo_api_ui/src/components/AIAgent.js:1856-1911` |
+| 17 | Medium | 🔴 Open | Stale OAuth/HITL challenge has no expiry check, hijacks every subsequent reply in a session | `langchain_agent/src/agent/langchain_mcp_agent.py:1109-1149` |
+| 18 | Medium | 🔴 Open | Admin-editable `hitlThresholdUsd` persisted and shown live-overridden but never actually read by the PDP | `demo_authz_server/ruleStore.js:66-68` |
+| 19 | Medium | 🔴 Open | Server-side relative `fetch()` throws immediately — every RFC 9728 compliance audit reports false-negative | `demo_api_server/services/rfc9728ComplianceAuditService.js:366,405,462,500,704` |
+| 20 | Medium | 🔴 Open | StepCard "Execute" enabled-check reads the wrong step's completion — per-step buttons past step 1 permanently disabled | `demo_api_ui/src/components/ProtocolPlayground/ProtocolViewer.jsx:106-119` |
+| 21 | Medium | 🔴 Open | `/health` posture check inspects only the legacy singular actor-client field, false-positive "fail open" report | `demo_mcp_gateway/src/authzPosture.ts:108` |
+| 22 | Medium | 🔴 Open | Auth-bypass dev-mode warning uses raw `console.warn` instead of `teachLog`, skips correlation-id logging | `demo_hitl_service/src/routes/challenges.js:30` |
+| 23 | Medium | 🔴 Open | `respondedBy` documented and store-supported but never captured on HITL approval | `demo_hitl_service/src/routes/challenges.js:127-139` |
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
