@@ -22,6 +22,7 @@ import type { IntentValidationResult } from '../intentTokenValidator';
 import { type DecodedGatewayToken, isJwksVerificationEnabled } from '../tokenValidator';
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
 import { classifyStatements, type ObligationKind } from './authorizeObligations';
+import { getToolAnnotations } from '../utils/toolAnnotations';
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
 
@@ -80,6 +81,9 @@ export interface AuthzDecision {
   // so the Agent Gateway Tester can show WHAT was evaluated. Undefined on the
   // no-P1AZ local-scope fallback path (no decision call is made).
   sentParameters?: Record<string, string>;
+  // Advice items from the PDP — used by the elicitation handler to surface the
+  // elicitation prompt returned by the policy (id: 'elicitation-prompt').
+  advice?: Array<{ id: string; value?: string }>;
 }
 
 export interface ToolArgs {
@@ -186,6 +190,16 @@ export function buildAuthorizeParameters(
     // Framework defines Timestamp but nothing was sending it.
     Timestamp: new Date().toISOString(),
   };
+
+  // Tool annotations (readOnly, destructive, idempotent) for P1AZ context.
+  // Always included: unknown/empty toolName returns all-false (fail-safe).
+  const ann = getToolAnnotations(toolName ?? '');
+  base.ToolReadOnly = ann.readOnly ? 'true' : 'false';
+  base.ToolDestructive = ann.destructive ? 'true' : 'false';
+  base.ToolIdempotent = ann.idempotent ? 'true' : 'false';
+
+  // ElicitationConfirmed flag from args if present
+  base.ElicitationConfirmed = toolArgs?._elicitation_confirmed === true ? 'true' : 'false';
 
   // C1 rule 1 — TokenAudience is the token's REAL aud, never the expected URI.
   // Both keys used to be hardcoded to gatewayResourceUri, which made the cloud
@@ -411,12 +425,17 @@ export class PingOneAuthorizeClient {
       // Real-first: a live PERMIT can still carry a gate in `statements[]`.
       // Reading only the label forwarded exactly the calls the PDP held.
       const obligation = classifyStatements(data?.statements);
+      // Elicitation advice: surfaced so the handler can include the prompt in -32003.
+      const elicitationAdvice = obligation === 'elicitation'
+        ? (Array.isArray(data?.advice) ? data.advice as Array<{ id: string; value?: string }> : [])
+        : undefined;
       if (outcome === 'PERMIT') {
         if (obligation) {
           return {
             decision: 'INDETERMINATE',
             reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
             obligation,
+            ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
             ...meta,
           };
         }
@@ -430,6 +449,7 @@ export class PingOneAuthorizeClient {
             decision: 'INDETERMINATE',
             reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
             obligation,
+            ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
             ...meta,
           };
         }

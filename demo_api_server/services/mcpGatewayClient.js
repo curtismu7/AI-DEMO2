@@ -533,6 +533,33 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (status === 428) {
         const body428 = response.data || {};
 
+        // Elicitation is a third, distinct 428 precondition: P1AZ's ELICITATION
+        // obligation asks the agent to confirm intent, minted as a one-time,
+        // session-bound record (demo_mcp_gateway/src/elicitationStore.ts) — not
+        // a HITL consent challenge and not step-up MFA. Checked first so it
+        // does not fall into the generic HITL branch below (both share
+        // decision:INDETERMINATE / reason:HITL_REQUIRED upstream; only the
+        // gateway's error code distinguishes them on the wire).
+        if (body428.error === 'elicitation_required') {
+            console.warn('[mcpGatewayClient] 428 elicitation required: tool=%s elicitationId=%s', body428.tool_name || '(?)', body428.elicitation_id || '(none)');
+            throw Object.assign(
+                new Error(body428.message || 'Confirmation required'),
+                {
+                    code: 'mcp_tool_error',
+                    httpStatus: 428,
+                    gatewayErrorCode: 'elicitation_required',
+                    elicitation: true,
+                    rpcData: {
+                        elicitationId: body428.elicitation_id || null,
+                        prompt: body428.prompt || body428.message || '',
+                        toolName: body428.tool_name || null,
+                        expiresIn: body428.expires_in,
+                    },
+                    gwAuditTrail: _parseGwAuditTrail(response),
+                },
+            );
+        }
+
         // Two different preconditions arrive as 428 and they drive different UI:
         // step-up needs MFA (no challenge, no human), consent needs a human at the
         // dashboard. Distinguish by the gateway's error code, not by presence of a

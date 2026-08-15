@@ -64,6 +64,11 @@ export interface AuthzDecision {
    */
   deniedTools?: Array<{ name: string; reason: string }>;
   /**
+   * Advice items from the PDP — used by the elicitation handler to surface the
+   * prompt returned by the policy (id: 'elicitation-prompt').
+   */
+  advice?: Array<{ id: string; value?: string }>;
+  /**
    * Which authorization backend produced this decision. Surfaced in tools/list
    * _meta.authzEngine so the BFF/UI can signal real vs. mock mode.
    */
@@ -426,12 +431,17 @@ export async function guardToolCall(
     // mock says INDETERMINATE. Branching on the label alone let a live consent
     // obligation through this transport (parity with PingOneAuthorizeClient).
     const obligation = classifyStatements(response.data?.statements);
+    // Elicitation advice: surfaced so the WS handler can include the prompt in -32003.
+    const elicitationAdvice = obligation === 'elicitation'
+      ? (Array.isArray(response.data?.advice) ? response.data.advice as Array<{ id: string; value?: string }> : [])
+      : undefined;
     if (decision === 'PERMIT') {
       if (obligation) {
         return {
           permitted: false,
           reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
           obligation,
+          ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
           engine,
           policySource,
         };
@@ -444,6 +454,7 @@ export async function guardToolCall(
           permitted: false,
           reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
           obligation,
+          ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
           engine,
           policySource,
         };
