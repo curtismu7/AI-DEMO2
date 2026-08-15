@@ -4,14 +4,19 @@
 'use strict';
 
 const http = require('node:http');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 const { URL } = require('node:url');
 
 const MCP_BASE = (process.env.MCP_GATEWAY_HTTP_URL || 'http://127.0.0.1:3005').replace(/\/$/, '');
 const PORT = parseInt(process.env.PORT || '8895', 10);
 
-// Tool list cache — cleared on any MCP error so it refresfishes on next request.
-let _toolCache = null;
+// Tool list cache — keyed per caller (tools/list is scope/vertical-dependent),
+// cleared for that caller on any MCP error so it refreshes on next request.
+const _toolCacheByCaller = new Map();
+
+function cacheKeyFor(bearerToken) {
+  return bearerToken ? createHash('sha256').update(bearerToken).digest('hex') : '';
+}
 
 // ---------------------------------------------------------------------------
 // Minimal MCP JSON-RPC over Streamable HTTP
@@ -107,14 +112,16 @@ const server = http.createServer(async (req, res) => {
 
   // 2. GET /tools
   if (method === 'GET' && url === '/tools') {
+    const bearer = bearerFrom(req);
+    const cacheKey = cacheKeyFor(bearer);
     try {
-      if (!_toolCache) {
-        const result = await mcpRpc('tools/list', {}, bearerFrom(req));
-        _toolCache = result.tools || [];
+      if (!_toolCacheByCaller.has(cacheKey)) {
+        const result = await mcpRpc('tools/list', {}, bearer);
+        _toolCacheByCaller.set(cacheKey, result.tools || []);
       }
-      return send(res, 200, { tools: _toolCache });
+      return send(res, 200, { tools: _toolCacheByCaller.get(cacheKey) });
     } catch (err) {
-      _toolCache = null;
+      _toolCacheByCaller.delete(cacheKey);
       return send(res, err.status || 502, { error: err.message });
     }
   }
