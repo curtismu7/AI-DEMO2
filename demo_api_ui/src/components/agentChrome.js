@@ -104,8 +104,17 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
     return opt.charAt(0).toLowerCase() + opt.slice(1);
   }
 
+  /** Display label — locale commas OK (e.g. "$1,000"). */
   function fmtAmount(n) {
     return `$${Number(n).toLocaleString('en-US')}`;
+  }
+  /**
+   * Value passed to onSelect / clarification parse — must NOT use locale commas.
+   * parseClarificationReply matches /\$?\s*(\d+(?:\.\d{1,2})?)/ so "$1,000"
+   * would otherwise capture "1" and transfer $1 instead of $1000.
+   */
+  function amountSelectValue(n) {
+    return `$${Number(n)}`;
   }
 
   function handleKeyDown(e) {
@@ -165,7 +174,7 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
               aria-selected="false"
               className="clarify-amounts__btn"
               disabled={!active}
-              onClick={() => active && onSelect(fmtAmount(amt))}
+              onClick={() => active && onSelect(amountSelectValue(amt))}
               onKeyDown={handleKeyDown}
             >
               {fmtAmount(amt)}

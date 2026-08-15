@@ -102,6 +102,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-07 — Clarification amount presets transferred $1 instead of $1,000
+
+**Files changed:** `demo_api_ui/src/components/agentChrome.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/agentChrome.test.jsx`
+
+**What was broken:** Amount quick-pick buttons labeled `$1,000` / `$2,500` /
+`$10,000` passed the locale-formatted string into clarification parsing. The
+regex stopped at the first comma, so clicking `$1,000` ran a $1 deposit,
+withdrawal, or transfer.
+
+**What was fixed:** Buttons still display locale labels, but `onSelect` receives
+an unformatted value (`$1000`). `parseClarificationReply` also strips grouping
+commas so typed `$1,000` parses correctly.
+
+**Do not break:** Amount presets must pass a parse-safe dollar string (no
+grouping commas). Display formatting may keep `toLocaleString`.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- src/components/__tests__/agentChrome.test.jsx && npm run build`
+
 ### 2026-08-15 — Agent restrictions gate trusted a raw client header instead of the verified `act` claim
 
 **Files changed:** `demo_api_server/middleware/agentRestrictionsGate.js`,
