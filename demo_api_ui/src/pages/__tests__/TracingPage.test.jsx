@@ -101,6 +101,28 @@ describe("TracingPage", () => {
     expect(screen.queryByText(/Try another service/i)).not.toBeInTheDocument();
   });
 
+  it("appends a trailing slash to the Open Jaeger UI link so nginx's /jaeger/ location matches", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        const u = String(url);
+        if (u.includes("/tracing/status")) {
+          // Backend's jaegerUiBase() strips trailing slashes — the raw value
+          // reaching the page never has one.
+          return jsonOk({ ok: true, jaegerUiUrl: "https://ai-demo.ping-devops.com/jaeger" });
+        }
+        if (u.includes("/tracing/services")) {
+          return jsonOk({ services: ["quiet-svc"] });
+        }
+        return jsonOk({ traces: [] });
+      }),
+    );
+
+    render(<TracingPage />);
+    const link = await screen.findByRole("link", { name: "Open Jaeger UI" });
+    expect(link).toHaveAttribute("href", "https://ai-demo.ping-devops.com/jaeger/");
+  });
+
   it("honors a stored service even when another has newer traces", async () => {
     store.setItem(TRACING_SERVICE_STORAGE_KEY, "quiet-svc");
     vi.stubGlobal(
