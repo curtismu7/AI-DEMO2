@@ -165,11 +165,11 @@ but `exchangeAuditStore.js` declares `writeExchangeEvent(event)` — **one** par
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 11 | Critical | 🔴 Open | Tool-call name/args/id discarded on every real tool call (openai_agent) | `openai_agent/src/run_handler.py:234-240` |
-| 12 | High | 🔴 Open | `/api/admin/scope-audit` missing `requireAdmin` — any logged-in user can read/write PingOne scopes | `demo_api_server/routes/scopeAudit.js:42,118` |
-| 13 | High | 🔴 Open | UC18 rate limiting enforced on HTTP only — WebSocket transport (primary ingress) bypasses it entirely | `demo_mcp_gateway/src/index.ts` (WS `tools/call`) vs `middleware/authorizeMcpRequest.ts:249-308` |
-| 14 | High | 🔴 Open | `tool-error` stream chunk unhandled — UI hangs, run reports false success after a failed tool call | `mastra_agent/src/runHandler.ts:111-141` |
-| 15 | High | 🔴 Open | JWT decode crashes on base64url `-`/`_` chars — silently hides decoded-token panel for real tokens | `demo_api_ui/src/services/tokenInspector.js:17-26` |
+| 11 | Critical | 🟢 Fixed | Tool-call name/args/id discarded on every real tool call (openai_agent) | `openai_agent/src/run_handler.py:234-240` |
+| 12 | High | 🟢 Fixed | `/api/admin/scope-audit` missing `requireAdmin` — any logged-in user can read/write PingOne scopes | `demo_api_server/routes/scopeAudit.js:42,118` |
+| 13 | High | 🟢 Fixed | UC18 rate limiting enforced on HTTP only — WebSocket transport (primary ingress) bypasses it entirely | `demo_mcp_gateway/src/index.ts` (WS `tools/call`) vs `middleware/authorizeMcpRequest.ts:249-308` |
+| 14 | High | 🟢 Fixed | `tool-error` stream chunk unhandled — UI hangs, run reports false success after a failed tool call | `mastra_agent/src/runHandler.ts:111-141` |
+| 15 | High | 🟢 Fixed | JWT decode crashes on base64url `-`/`_` chars — silently hides decoded-token panel for real tokens | `demo_api_ui/src/services/tokenInspector.js:17-26` |
 
 ### 11. Tool-call name/args/id discarded on every real tool call — Critical
 ```python
@@ -181,6 +181,7 @@ args = raw.get("arguments", "{}") if isinstance(raw, dict) else "{}"
 `item.raw_item` for a real function-tool call is a pydantic `ResponseFunctionToolCall`/`FunctionCallOutput` model, never a plain dict — confirmed against the installed `openai-agents` SDK internals. `isinstance(raw, dict)` is always `False` in practice, so every BFF tool call gets `toolCallName="unknown"`, empty args, and a random UUID as `toolCallId` on start, but empty string `""` on end.
 **Trigger:** any turn where the model calls a BFF tool (e.g. `transfer_funds`). Start/end IDs never match → `AGUIEmitter._pending_tool_calls.pop()` returns `None` → call dropped from `_turn_tool_calls`, blinding the commitment-grounding guardrail → UI tool-call entry stuck at `status: 'running'` forever, labeled "unknown", no visible arguments. Happens on every single tool call in `openai_agent` mode.
 **Fix:** extract `call_id`/`name`/`arguments` via `getattr(raw, "call_id", None)` with a dict fallback, mirroring the SDK's own `_extract_call_id` pattern.
+**Fixed:** PR [#1824](https://github.com/curtismu7/AI-DEMO2/pull/1824) — verified against the real pinned `openai-agents` SDK internals, not mocked. 38/39 pass (1 pre-existing unrelated failure).
 
 ### 12. `/api/admin/scope-audit` missing `requireAdmin` — High
 ```js
@@ -190,16 +191,19 @@ app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudi
 Every other `/api/admin/*` route pairs `authenticateToken` with `requireAdmin` (confirmed in `admin.js`, `adminAgentTools.js`, `groupMembership.js`). This route is the outlier.
 **Trigger:** any logged-in customer (not just an admin) can call `GET /api/admin/scope-audit/resources` (dumps every PingOne resource server + scopes via the Management API worker token) and `POST /api/admin/scope-audit/scopes` (creates a new OAuth scope on any PingOne resource — a live tenant write).
 **Fix:** add `requireAdmin` at the mount point or per-route, matching the pattern used everywhere else under `/api/admin`.
+**Fixed:** PR [#1826](https://github.com/curtismu7/AI-DEMO2/pull/1826). Verified: full suite 9505/9505 pass (1 pre-existing unrelated flake in isolation).
 
 ### 13. UC18 rate limiting bypassed entirely over WebSocket — High
 The HTTP middleware's `tools/call` path checks `config.rateLimitEnabled` and calls the `SlidingWindowLimiter`, returning 429 on burst. The WS `tools/call` handler in `index.ts` (the gateway's documented primary ingress — "Accepts JSON-RPC over WebSocket from agent") runs straight from token validation into tool dispatch with zero rate-limit references anywhere in the file.
 **Trigger:** an agent connects over WebSocket and sends `tools/call` bursts. The same calls over HTTP get throttled at `GATEWAY_RATE_LIMIT_MAX_REQUESTS`; over WS they're never throttled — full UC18 resource-exhaustion/cost-runaway protection is void for the primary channel.
 **Fix:** add the same `SlidingWindowLimiter` check (keyed `sub:toolName`) to the WS `tools/call` branch, before `guardToolCall`.
+**Fixed:** PR [#1825](https://github.com/curtismu7/AI-DEMO2/pull/1825) — HTTP and WS now share one `SlidingWindowLimiter` singleton. 23/23 scoped pass, `tsc --noEmit` clean. No harness exists to spin up the real WS server in a unit test; verified the load-bearing shared-singleton mechanism instead (noted in PR).
 
 ### 14. `tool-error` stream chunk unhandled in mastra_agent — High
 `runHandler.ts`'s `fullStream` switch only handles `'text-delta' | 'tool-call' | 'tool-result' | 'error'`. A failed tool `execute()` (BFF timeout/non-2xx/abort) emits a distinct `'tool-error'` chunk per the underlying `ai` SDK — never `'tool-result'` — which this switch silently drops.
 **Trigger:** a BFF tool call fails mid-run. `onToolStart` already set `anyVisibleOutput = true`; the dropped `tool-error` chunk means `onToolEnd` never fires for that call, so the UI entry (`useAgentState.js`) hangs at `status: 'running'` forever, AND `onRunEnd()` still emits `RUN_FINISHED` (not an error) since `anyVisibleOutput` is already true — a failed tool call (potentially a transfer) is reported as a successful run.
 **Fix:** add an `else if (part.type === 'tool-error')` branch that calls `emitter.onToolEnd()` with an error so the UI entry resolves instead of hanging.
+**Fixed:** PR [#1828](https://github.com/curtismu7/AI-DEMO2/pull/1828). Also found and logged (in TECH_DEBT.md, not fixed — out of scope) a pre-existing unrelated flake in the request-abort test harness. 29/32 pass on touched files (3 pre-existing unrelated), `tsc --noEmit` clean.
 
 ### 15. JWT decode crashes on base64url characters — High
 ```js
@@ -209,6 +213,7 @@ payload: JSON.parse(atob(parts[1])),
 `atob()` only accepts standard base64 (`+`/`/`); JWTs use base64url (`-`/`_`). Verified directly: `atob('YWJjZGVmZ2hpams-_')` throws `Invalid character`.
 **Trigger:** any real PingOne-issued token whose header/payload segment contains `-` or `_` (near-certain at typical token length) throws inside `decodeJWT`'s try block, returning `{isValid:false}` for a perfectly valid token — silently hiding the decoded-token panel in Protocol Playground's `TokenInspector.jsx` and `ExecutionEngine.executeStep`. The existing test suite only uses a hand-crafted token that happens to avoid `-`/`_`, masking the bug. Same pattern also exists in `Dashboard.js`, `UserDashboard.js`, `UserDashboardPing2026.js`, `TokenInspectModal.jsx`, `TokenExchangePanel.js` (flagged for awareness, not filed separately).
 **Fix:** replace `-`/`_` with `+`/`/` (and pad) before calling `atob`, or use a base64url-safe decode helper.
+**Fixed:** PR [#1827](https://github.com/curtismu7/AI-DEMO2/pull/1827) — open, not yet merged.
 
 ### Also found in pass 3, not in top 5 (verified, logged for awareness)
 - `demo_api_server/services/rfc9728ComplianceAuditService.js:366,405,462,500,704` — server-side `fetch('/.well-known/...')` with a relative URL throws immediately under Node's `fetch`; every RFC 9728 compliance audit run reports false-negative non-compliance regardless of real endpoint health (Medium).
@@ -225,14 +230,16 @@ Previously logged as "found but not in top 5" (see full detail in the pass 2 / p
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 16 | Medium | 🔴 Open | `fetchLiveAccounts` has no staleness guard — rapid vertical-switching can apply an older vertical's accounts last | `demo_api_ui/src/components/AIAgent.js:1856-1911` |
-| 17 | Medium | 🔴 Open | Stale OAuth/HITL challenge has no expiry check, hijacks every subsequent reply in a session | `langchain_agent/src/agent/langchain_mcp_agent.py:1109-1149` |
-| 18 | Medium | 🔴 Open | Admin-editable `hitlThresholdUsd` persisted and shown live-overridden but never actually read by the PDP | `demo_authz_server/ruleStore.js:66-68` |
-| 19 | Medium | 🔴 Open | Server-side relative `fetch()` throws immediately — every RFC 9728 compliance audit reports false-negative | `demo_api_server/services/rfc9728ComplianceAuditService.js:366,405,462,500,704` |
-| 20 | Medium | 🔴 Open | StepCard "Execute" enabled-check reads the wrong step's completion — per-step buttons past step 1 permanently disabled | `demo_api_ui/src/components/ProtocolPlayground/ProtocolViewer.jsx:106-119` |
-| 21 | Medium | 🔴 Open | `/health` posture check inspects only the legacy singular actor-client field, false-positive "fail open" report | `demo_mcp_gateway/src/authzPosture.ts:108` |
-| 22 | Medium | 🔴 Open | Auth-bypass dev-mode warning uses raw `console.warn` instead of `teachLog`, skips correlation-id logging | `demo_hitl_service/src/routes/challenges.js:30` |
-| 23 | Medium | 🔴 Open | `respondedBy` documented and store-supported but never captured on HITL approval | `demo_hitl_service/src/routes/challenges.js:127-139` |
+| 16 | Medium | 🟢 Fixed | `fetchLiveAccounts` has no staleness guard — rapid vertical-switching can apply an older vertical's accounts last | `demo_api_ui/src/components/AIAgent.js:1856-1911` |
+| 17 | Medium | 🟢 Fixed | Stale OAuth/HITL challenge has no expiry check, hijacks every subsequent reply in a session | `langchain_agent/src/agent/langchain_mcp_agent.py:1109-1149` |
+| 18 | Medium | 🟢 Fixed | Admin-editable `hitlThresholdUsd` persisted and shown live-overridden but never actually read by the PDP | `demo_authz_server/ruleStore.js:66-68` |
+| 19 | Medium | 🟢 Fixed | Server-side relative `fetch()` throws immediately — every RFC 9728 compliance audit reports false-negative | `demo_api_server/services/rfc9728ComplianceAuditService.js:366,405,462,500,704` |
+| 20 | Medium | 🟢 Fixed | StepCard "Execute" enabled-check reads the wrong step's completion — per-step buttons past step 1 permanently disabled | `demo_api_ui/src/components/ProtocolPlayground/ProtocolViewer.jsx:106-119` |
+| 21 | Medium | 🟢 Fixed | `/health` posture check inspects only the legacy singular actor-client field, false-positive "fail open" report | `demo_mcp_gateway/src/authzPosture.ts:108` |
+| 22 | Medium | 🟢 Fixed | Auth-bypass dev-mode warning uses raw `console.warn` instead of `teachLog`, skips correlation-id logging | `demo_hitl_service/src/routes/challenges.js:30` |
+| 23 | Medium | 🟢 Fixed | `respondedBy` documented and store-supported but never captured on HITL approval | `demo_hitl_service/src/routes/challenges.js:127-139` |
+
+**Fixed:** #16 PR [#1836](https://github.com/curtismu7/AI-DEMO2/pull/1836) (full suite 3053/3053 pass) · #17 PR [#1834](https://github.com/curtismu7/AI-DEMO2/pull/1834) (105+ pass) · #18 PR [#1832](https://github.com/curtismu7/AI-DEMO2/pull/1832) (wired to HITL_CONSENT tier only, STEP_UP left untouched; red-green verified) · #19 PR [#1837](https://github.com/curtismu7/AI-DEMO2/pull/1837) (71/71 scoped, 9510/9636 full) · #20 PR [#1833](https://github.com/curtismu7/AI-DEMO2/pull/1833) (6/6, red-green, build clean) · #21 PR [#1830](https://github.com/curtismu7/AI-DEMO2/pull/1830) (32/32, red-green, tsc clean) · #22+#23 PR [#1831](https://github.com/curtismu7/AI-DEMO2/pull/1831) (46/46 full `demo_hitl_service` suite).
 
 ---
 
@@ -240,11 +247,11 @@ Previously logged as "found but not in top 5" (see full detail in the pass 2 / p
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 24 | High | 🔴 Open | atob() crashes on base64url JWT payloads in Token Exchange Inspector modal | `demo_api_ui/src/components/TokenInspectModal.jsx:5-14` |
-| 25 | High | 🔴 Open | Same atob() crash — decoded-token section silently vanishes in Learning Hub | `demo_api_ui/src/components/education/TokenExchangePanel.js:251` |
-| 26 | High | 🔴 Open | `useNewItems` stops detecting new items after any array reset (e.g. new agent run) | `demo_api_ui/src/hooks/useNewItems.js:14-26` |
-| 27 | Medium | 🔴 Open | `useAgentCCTokenPrefetch` re-fetches every poll/SSE tick instead of once on mount | `demo_api_ui/src/hooks/useAgentCCTokenPrefetch.js:15,69` |
-| 28 | Medium | 🔴 Open | Dead `tokenData` state — decoded token discarded, wasted fetch/decode work, live landmine | `demo_api_ui/src/components/Dashboard.js:72,417-451` |
+| 24 | High | 🟢 Fixed | atob() crashes on base64url JWT payloads in Token Exchange Inspector modal | `demo_api_ui/src/components/TokenInspectModal.jsx:5-14` |
+| 25 | High | 🟢 Fixed | Same atob() crash — decoded-token section silently vanishes in Learning Hub | `demo_api_ui/src/components/education/TokenExchangePanel.js:251` |
+| 26 | High | 🟢 Fixed | `useNewItems` stops detecting new items after any array reset (e.g. new agent run) | `demo_api_ui/src/hooks/useNewItems.js:14-26` |
+| 27 | Medium | 🟢 Fixed | `useAgentCCTokenPrefetch` re-fetches every poll/SSE tick instead of once on mount | `demo_api_ui/src/hooks/useAgentCCTokenPrefetch.js:15,69` |
+| 28 | Medium | 🟢 Fixed | Dead `tokenData` state — decoded token discarded, wasted fetch/decode work, live landmine | `demo_api_ui/src/components/Dashboard.js:72,417-451` |
 
 ### 24. atob() crashes on base64url JWT payloads — TokenInspectModal — High
 ```js
@@ -268,6 +275,7 @@ try { payload = JSON.parse(atob(parts[1])); } catch (_) {}
 Feeds `live.userToken.payload` in the Learning Hub's "Live Session Token" tab, gated by `live.userToken?.payload &&`.
 **Trigger:** payload with base64url chars → `payload` stays `null` → the entire decoded-token block (including the `may_act` delegation sub-view) silently vanishes from the panel, no error, no fallback.
 **Fix:** same base64url conversion.
+**Fixed:** #24+#25 PR [#1840](https://github.com/curtismu7/AI-DEMO2/pull/1840) — noted `tokenInspector.js`'s earlier PR #1192 fixed a different bug (return shape), not base64url; PR #1827 (bug #15) covers that separately. 2/2 scoped pass, full suite 3055/3055 pass, build clean.
 
 ### 26. `useNewItems` stops detecting new items after any array reset — High
 ```js
@@ -282,11 +290,13 @@ useEffect(() => {
 `prevLenRef` only advances on growth; never resets when the array is replaced by a shorter one. `demo_api_server/routes/agentRun.js` injects a fresh `STATE_SNAPSHOT` with empty `mcpTraffic`/`authorizeDecisions` arrays at the start of every new run, and `useAgentState.onStateSnapshot` does a full replace.
 **Trigger:** run 1 accumulates 5 mcpTraffic entries (`prevLenRef=5`). Run 2 resets the array to `[]` then grows to 3 by the time it finishes → `newCount = 3-5 = -2` every tick → `onNew` never fires. MCP Traffic panel, Authorize Decision panel, and activity narration silently stop updating for run 2 (or any later run whose peak stays below the prior run's peak) — looks like the agent made no tool calls even though it did.
 **Fix:** detect a shrink (`items.length < prevLenRef.current`) and treat it as a reset (`prevLenRef.current = 0`) before computing `newCount`, or compare array identity instead of length.
+**Fixed:** PR [#1835](https://github.com/curtismu7/AI-DEMO2/pull/1835) — red-green verified (new test fails on pre-fix code with "Number of calls: 0"). 68 hook tests + 38 consumer tests pass, build clean.
 
 ### 27. `useAgentCCTokenPrefetch` re-fetches on every poll/SSE tick — Medium
 Effect depends on `[tokenChain]`, but `tokenChain` (from `TokenChainContext`'s `useMemo`) gets a new identity on nearly every provider state change (15s poll, SSE events, history writes). The duplicate-prevention check runs only after fetch completes, not before.
 **Trigger:** on any token-chain route, each poll/SSE tick re-renders the provider, giving `tokenChain` a new reference, re-running the effect and firing another `GET /api/tokens/agent-cc-preview` — indefinitely, contradicting the hook's own doc comment ("prefetch ... once on component mount").
 **Fix:** depend on a stable reference (e.g. `tokenChain?.setTokenEvents`) instead of the whole context object, matching the pattern already used in `useCurrentUserTokenEvent.js`.
+**Fixed:** PR [#1838](https://github.com/curtismu7/AI-DEMO2/pull/1838) — red-green verified (new test fails on pre-fix code). 11/11 pass, full suite 3052/3078 pass (2 pre-existing unrelated, confirmed via stash), build clean.
 
 ### 28. Dead `tokenData` state in Dashboard.js — Medium
 ```js
@@ -297,6 +307,7 @@ setTokenData({ accessToken: decodeToken(response.data.accessToken), ... });
 `tokenData` (the state value) is destructured away — only the setter kept — and never read anywhere else in the file. `fetchTokenData()` still does a real network round-trip and JWT decode on every dashboard mount and every token-modal open, thrown into the void; the modal actually shown fetches its own data independently.
 **Trigger:** no current visible break (output is discarded), but wasted API calls + decode work on every mount, and the same unconverted-base64url `atob` bug exists here too — currently harmless only because its output is discarded; becomes a live landmine the moment someone wires `tokenData` back into the render (e.g. "fixing" the unused-state lint warning).
 **Fix:** either delete the dead `fetchTokenData`/`decodeToken`/`setTokenData` plumbing, or wire `tokenData` into the modal it was clearly meant to feed.
+**Fixed:** PR [#1839](https://github.com/curtismu7/AI-DEMO2/pull/1839) — deleted the dead plumbing; found and confirmed server-side that the fetched endpoints never return `accessToken` anyway (BFF pattern), so `decodeToken`'s branch was unreachable even before this fix. Full suite 3051/3075 pass, build clean.
 
 ---
 
@@ -304,11 +315,11 @@ setTokenData({ accessToken: decodeToken(response.data.accessToken), ... });
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 29 | Critical | 🔴 Open | `/api/self-service/users` POST has no admin check — any customer can self-grant `role: "admin"` | `demo_api_server/routes/selfServiceUsers.js:90-175` |
-| 30 | Critical | 🔴 Open | A2A auth accepts unsigned/forged JWTs — sole gate never verifies signature | `demo_api_server/middleware/a2aPingOneBearer.js:24-26` |
-| 31 | Critical | 🔴 Open | JWT algorithm confusion — verification `alg` read from attacker-controlled header (RS256→HS256 forgery) | `demo_api_server/services/tokenValidationService.js:139-141` |
-| 32 | High | 🔴 Open | Plaintext passwords written to activity log — `Authorization` header redacted but request body isn't | `demo_api_server/middleware/activityLogger.js:112` |
-| 33 | High | 🔴 Open | RFC 8707 resource-format validator regex rejects every resource the service itself defines | `demo_api_server/services/resourceIndicatorService.js:100-107` |
+| 29 | Critical | 🟢 Fixed | `/api/self-service/users` POST has no admin check — any customer can self-grant `role: "admin"` | `demo_api_server/routes/selfServiceUsers.js:90-175` |
+| 30 | Critical | 🟢 Fixed | A2A auth accepts unsigned/forged JWTs — sole gate never verifies signature | `demo_api_server/middleware/a2aPingOneBearer.js:24-26` |
+| 31 | Critical | 🟢 Fixed | JWT algorithm confusion — verification `alg` read from attacker-controlled header (RS256→HS256 forgery) | `demo_api_server/services/tokenValidationService.js:139-141` |
+| 32 | High | 🟢 Fixed | Plaintext passwords written to activity log — `Authorization` header redacted but request body isn't | `demo_api_server/middleware/activityLogger.js:112` |
+| 33 | High | 🟢 Fixed | RFC 8707 resource-format validator regex rejects every resource the service itself defines | `demo_api_server/services/resourceIndicatorService.js:100-107` |
 
 ### 29. `/api/self-service/users` missing admin gate — Critical
 ```js
@@ -318,6 +329,7 @@ app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 Sibling handlers in the same file (`DELETE /:userId`, `GET /`) both explicitly gate on `req.user.role !== 'admin'`. The `POST /` handler doesn't, and forwards `role` straight into `pingOneUserService.createPingOneUser(...)` + `ensureAdminRoleAssignments(user.id)`.
 **Trigger:** any logged-in customer POSTs `{email, username, ..., role: "admin"}` → gets back a new PingOne user with admin role assignments granted, no admin session involved.
 **Fix:** add the same `req.user.role !== 'admin'` gate used by the sibling DELETE/GET handlers, or drop `role`/`ensureAdminRoleAssignments` from the self-service path entirely.
+**Fixed:** PR [#1849](https://github.com/curtismu7/AI-DEMO2/pull/1849) — targeted gate (only blocks non-admin callers requesting `role:"admin"`; admin callers and normal customer signup unaffected). 5/5 scoped pass, full suite 9524/9650 pass (4 pre-existing unrelated, confirmed via isolation rerun).
 
 ### 30. A2A auth accepts unsigned/forged JWTs — Critical
 ```js
@@ -328,6 +340,7 @@ req.a2aPingOne = { token, claims, clientId: String(clientId) };
 This is the sole auth gate on the live A2A JSON-RPC route (mounted without session `authenticateToken`). `decodeJwt` never verifies against PingOne's JWKS, unlike `middleware/auth.js`'s `authenticateToken`.
 **Trigger:** anyone crafts `header.payload.signature` with an arbitrary `client_id`/`sub` in the payload (signature bytes can be garbage), POSTs it as `Authorization: Bearer <forged>` → marked `isAuthenticated: true` under that identity. Full identity spoofing on A2A specialist endpoints.
 **Fix:** verify the JWT signature/issuer (JWKS or PingOne introspection) before trusting any claim, matching `authenticateToken`'s pattern.
+**Fixed:** PR [#1845](https://github.com/curtismu7/AI-DEMO2/pull/1845) — now verifies RS256 signature/issuer/expiry via the same JWKS helper `authenticateToken` uses; no new JWKS logic written. Logged in REGRESSION_PLAN.md §4. 10/10 scoped pass, full suite 756/760 pass (4 pre-existing unrelated, confirmed via isolation rerun).
 
 ### 31. JWT algorithm confusion (RS256→HS256 forgery) — Critical
 ```js
@@ -337,6 +350,7 @@ const verifyOptions = { algorithms: [alg || 'RS256'] };
 Classic CWE-347: the verification algorithm allow-list is derived from attacker-controlled token content instead of being server-fixed. Backs `validatePingOneCoreToken` in JWT-signature-verification mode (an alt to introspection mode).
 **Trigger:** attacker knows a valid `kid` (public via JWKS by design), crafts a token `{alg:"HS256", kid:"<real-kid>"}`, HMAC-signs it using the RSA public key's PEM string (also public) as the HMAC secret. `algorithms` becomes `['HS256']` from the forged header, and the "key" passed to `jwt.verify` is that same PEM — `jsonwebtoken` HMAC-verifies successfully. Full auth bypass with a self-forged token for any subject/claims.
 **Fix:** hard-code `algorithms: ['RS256']` (or an explicit server-controlled allow-list of asymmetric algorithms only) — never read `alg` from the token header.
+**Fixed:** PR [#1847](https://github.com/curtismu7/AI-DEMO2/pull/1847). Honest finding: `jsonwebtoken@9.0.3` already type-checks key material against algorithm family, so the literal RSA-PEM-as-HMAC-secret exploit was already blocked by the library in this version — the attacker-controlled allow-list was still a real CWE-347 defect fixed as defense-in-depth regardless. 3/3 scoped pass (regression-proof spy assertion confirmed failing on pre-fix code), full suite 759/763 pass (2 pre-existing unrelated).
 
 ### 32. Plaintext passwords in activity log — High
 ```js
@@ -345,6 +359,7 @@ requestBody: method === 'POST' || method === 'PUT' ? req.body : null,
 Globally mounted. `Authorization` header is explicitly redacted two lines above — showing password exposure wasn't intended — but the request body isn't.
 **Trigger:** user logs in / registers / changes password → activity log entry persists the plaintext password field, later viewable via the admin activity-log surface.
 **Fix:** redact known sensitive fields (`password`, `newPassword`, etc.) from `requestBody` before storing, same treatment as the auth header.
+**Fixed:** PR [#1844](https://github.com/curtismu7/AI-DEMO2/pull/1844) — redacts `password`/`currentPassword`/`newPassword`/`clientSecret`/`client_secret`/`workerClientSecret` (verified real field names via grep of auth/vault/setup routes, not guessed). 3/3 scoped pass, full suite also green.
 
 ### 33. RFC 8707 resource validator rejects every real resource — High
 ```js
@@ -357,6 +372,7 @@ const validPatterns = [
 `RESOURCE_DEFINITIONS` defines the actual resource URIs on domain `ping.demo` (`enduser.ping.demo/`, `mcpserver.ping.demo/`, `https://admin-api.ping.demo/`, `https://config-api.ping.demo/`). None of the three regexes match any of them (wrong domain, two aren't even `https://`).
 **Trigger:** `oauthService.exchangeCodeForToken` filters caller-supplied `resources` through this validator before appending RFC 8707 `resource` params — the filter always empties the list, silently dropping resource indicators from every code-exchange request. `routes/oauth.js`'s `validateResourceSelection` likewise rejects every legitimate resource.
 **Fix:** correct the regex allow-list to match the actual `*.ping.demo` domains, and normalize the bare-hostname entries to include a scheme or drop the hard `https://` requirement for them.
+**Fixed:** PR [#1843](https://github.com/curtismu7/AI-DEMO2/pull/1843) — no prior test coverage existed for this function, added 9 new tests. 9/9 pass, full suite 9529/9654 pass (2 pre-existing unrelated).
 
 ### Also found in pass 5, not in top 5 (verified, logged for awareness)
 - `demo_api_server/routes/complianceAgentRoutes.js:16-42`, `routes/supportAgentRoutes.js:16-45` — identity taken from `req.body.userId` instead of the authenticated `req.agentContext.userId`; an authenticated user can act under a spoofed identity on the compliance/support agent init/message endpoints (Medium).
