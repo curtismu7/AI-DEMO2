@@ -26,6 +26,23 @@ describe('UnifiedTokenFlowInspector — Token Transform tab', () => {
   });
 });
 
+describe('UnifiedTokenFlowInspector — OAuth Token Inspector error handling', () => {
+  it('offers a retry button when the token fetch fails, instead of a dead end', async () => {
+    // bffAxios has no server to talk to in this test environment, so
+    // fetchTokenData's real request genuinely fails and lands in the
+    // fetch_failed branch — exercising the real error path, not a mock.
+    renderInspector();
+    const retryBtn = await screen.findByRole('button', { name: 'Try again' });
+    expect(screen.getByText(/Failed to Load Token Data/i)).toBeInTheDocument();
+
+    // Clicking it re-triggers the fetch without throwing.
+    fireEvent.click(retryBtn);
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to Load Token Data/i)).toBeInTheDocument();
+    });
+  });
+});
+
 describe('UnifiedTokenFlowInspector — Flow & Tokens tab (hybrid tree)', () => {
   beforeEach(() => {
     agentFlowDiagram.reset();
