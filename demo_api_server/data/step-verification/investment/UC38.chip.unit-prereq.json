@@ -1,0 +1,20 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC38",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
+  "primaryTool": "redeem_miles",
+  "checkedAt": "2026-08-14",
+  "requiredFlags": [
+    "ff_personal_agent_concierge",
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_personal_agent_concierge",
+    "ff_mcp_gateway_pinggateway"
+  ]
+}

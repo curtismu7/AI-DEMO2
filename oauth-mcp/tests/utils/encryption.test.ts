@@ -19,20 +19,30 @@ describe('EncryptionUtils', () => {
       expect(encrypted1).not.toBe(encrypted2);
     });
 
+    // GCM auth tag provides deterministic rejection on wrong key — no longer flaky.
     it('should fail to decrypt with wrong password', async () => {
       const encrypted = await EncryptionUtils.encrypt(testData, testPassword);
-      
+
       await expect(
-        EncryptionUtils.decrypt(encrypted, 'wrong-password')
+        EncryptionUtils.decrypt(encrypted, 'wrong-password-xxxxxxxxxxxxxxxx')
       ).rejects.toThrow('Decryption failed');
     });
 
     it('should fail to decrypt corrupted data', async () => {
       const encrypted = await EncryptionUtils.encrypt(testData, testPassword);
       const corrupted = encrypted.slice(0, -10) + 'corrupted';
-      
+
       await expect(
         EncryptionUtils.decrypt(corrupted, testPassword)
+      ).rejects.toThrow('Decryption failed');
+    });
+
+    it('GCM authTag catches single-bit corruption without depending on padding', async () => {
+      const buf = Buffer.from(await EncryptionUtils.encrypt(testData, testPassword), 'base64');
+      // Flip a bit in the ciphertext body (after version+salt+iv+authTag = 1+32+12+16 = 61 bytes)
+      buf[62] ^= 0x01;
+      await expect(
+        EncryptionUtils.decrypt(buf.toString('base64'), testPassword)
       ).rejects.toThrow('Decryption failed');
     });
 

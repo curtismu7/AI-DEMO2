@@ -1,6 +1,7 @@
 'use strict';
 
 const nrSegments = require('./nrSegments');
+const { gwAuthorizeEventFrom } = require('../utils/gwAuthorizeUtils');
 
 /**
  * Attack Simulator Service — A6.1 + A6.2
@@ -311,8 +312,7 @@ function _authorizeFromPipelineOutcome(outcome, useCaseId) {
     };
   }
   const events = (outcome && outcome.tokenEvents) || [];
-  const gwEvent = events.find((e) => e && e.id === 'gw-authorize');
-  return _normalizeAuthorizeDecision(gwEvent, useCaseId);
+  return _normalizeAuthorizeDecision(gwAuthorizeEventFrom(events), useCaseId);
 }
 
 /**

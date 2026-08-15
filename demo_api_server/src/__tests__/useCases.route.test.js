@@ -15,8 +15,8 @@ describe('GET /api/use-cases', () => {
     const res = await request(makeApp()).get('/api/use-cases');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('banking');
-    // 54 since UC2.6 (a2a-generalist-mismatch) joined the catalog.
-    expect(res.body.useCases).toHaveLength(54);
+    // 55 since UC38 (personal-agent-concierge) joined the catalog.
+    expect(res.body.useCases).toHaveLength(55);
   });
 
   test('resolves per-vertical when ?vertical= is given', async () => {

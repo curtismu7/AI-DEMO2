@@ -362,9 +362,11 @@ describe('a gateway-authoritative PERMIT is not reported as incomplete', () => {
   };
 
   test('gw-authorize token event fills the authorize-decision step', () => {
+    // tokenChainTraceStore synthesizes trace.authorize from the gw-authorize event
+    // before computeVerdict is ever called, so authorize is never null on these runs.
     const v = computeVerdict({
       tokenEvents: [{ id: 'user-token' }, { id: 'gw-authorize', decision: 'PERMIT' }],
-      authorize: null,
+      authorize: { decision: 'PERMIT', source: 'gw-authorize' },
       mcpResult: { tool: 'view_coverage' },
       outcome: 'ok',
     }, ENTRY);

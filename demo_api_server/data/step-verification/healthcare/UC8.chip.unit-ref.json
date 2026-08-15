@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_bill",
-  "checkedAt": "2026-08-10",
+  "checkedAt": "2026-08-14",
   "verifiedBy": "demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js + tokenChainTraceStore ingestAuthorize outcome preservation (#769)"
 }
