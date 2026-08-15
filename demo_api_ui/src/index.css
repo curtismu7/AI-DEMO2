@@ -201,6 +201,38 @@ tt {
   --line-height-relaxed: 1.7;
 }
 
+/* ── Semantic surface tokens (customer-dashboard theming, 2026-08-10) ──────
+   One vocabulary for every dashboard surface. Light values are the neutral
+   unification of the old cool-slate and warm-paper families; dark values are
+   the navies the dark-capable components (tctr/dash) already converged on.
+   Dark is keyed to :root[data-theme="dark"] ONLY — never prefers-color-scheme
+   (REGRESSION_PLAN §4, incident #1212). ThemeContext stamps the attribute.
+   Prefixed --th- because --text-muted et al. are already referenced elsewhere
+   with per-file fallbacks; defining those names globally would repaint
+   unrelated pages. */
+:root {
+  --th-bg-page: #f6f7f9;
+  --th-bg-card: #ffffff;
+  --th-bg-inset: #f1f5f9;
+  --th-bg-band: #16325c;
+  --th-text: #0f172a;
+  --th-text-muted: #556070;
+  --th-text-invert: #ffffff;
+  --th-border: #dbe2ea;
+  --th-border-strong: #c3cdd9;
+}
+:root[data-theme="dark"] {
+  --th-bg-page: #0b1220;
+  --th-bg-card: #131c2e;
+  --th-bg-inset: #1b2540;
+  --th-bg-band: #102847;
+  --th-text: #e2e8f0;
+  --th-text-muted: #94a3b8;
+  --th-text-invert: #ffffff;
+  --th-border: #26304a;
+  --th-border-strong: #34405e;
+}
+
 html {
   height: 100%;
 }

@@ -68,7 +68,7 @@ minimal diff.
 | `3005` | MCP Gateway | `https://api.ping.demo:3005` |
 | `3006` | Agent Service | `http://localhost:3006` |
 | `3009` | HITL Service | `http://localhost:3009` |
-| `8080` | Banking MCP Server | `ws://localhost:8080` |
+| `8080` | AI Demo MCP Server | `ws://localhost:8080` |
 | `8081` | MCP Invest Server | `ws://localhost:8081` |
 | `8082` | Mortgage Service | `http://localhost:8082` |
 | `8888` | LangChain Agent (uvicorn main) | `http://localhost:8888` |
@@ -122,6 +122,602 @@ skipped intent binding while `/api/agent/invoke` still minted correctly.
 RFC 8693 exchange, or the invoke-route local helper of the same name.
 
 **Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4 tests/agentRun.intentTokenMint.regression.test.js`
+
+### 2026-08-15 — Agent restrictions gate trusted a raw client header instead of the verified `act` claim
+
+**Files changed:** `demo_api_server/middleware/agentRestrictionsGate.js`,
+`demo_api_server/server.js` (+ `demo_api_server/tests/agentRestrictionsGate.test.js`).
+
+**What was broken:** `agentRestrictionsGate` decided whether a request was
+agent-originated by reading `req.headers['x-agent-sub']` — an unauthenticated,
+client-supplied header — and was mounted on `/api/accounts` /
+`/api/transactions` **before** `authenticateToken` ran. Every other failure
+mode in the gate is fail-closed by design (worker-token fetch fails → restrict,
+PingOne lookup errors → restrict, unexpected exception → restrict), but the
+primary trigger condition itself trusted an untrusted header and never
+cross-checked it against the verified token's RFC 8693 `act` claim. A request
+that simply omitted the `X-Agent-Sub` header skipped the entire
+restriction-tier check, giving an agent that should be restricted full write
+access to accounts/transactions.
+
+**What was fixed:** the gate now derives `agentSub` from `req.user?.actor`
+(`actor.sub || actor.client_id`) — the verified `act` claim populated by
+`authenticateToken` — using the same actor-identity idiom as
+`requireDelegation` in `middleware/auth.js`. To make that claim available, the
+gate's mount points in `server.js` were reordered to run **after**
+`authenticateToken` on all three routes (`accountRoutes`,
+`sensitiveBankingRoutes`, `transactionRoutes`) instead of once, globally,
+before auth.
+
+**Do not break:**
+
+- Every fail-closed branch inside the gate (worker-token fetch failure,
+  non-2xx/error PingOne lookup, unexpected exception) is untouched — only the
+  entry condition changed.
+- The gate must keep running strictly after `authenticateToken` on all three
+  mount points; moving it back before auth (or in front of a route the
+  header-based check didn't previously cover) reintroduces the trust gap.
+- A request with no `act` claim (ordinary human/browser session) must still
+  no-op through the gate exactly as before — `X-Agent-Sub` alone, forged or
+  not, must never trigger the restriction check.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentRestrictionsGate.test.js --forceExit`
+— 9 tests, 1 suite, including "a forged X-Agent-Sub header with no verified act
+claim does NOT trigger the gate"; full suite `CI=true npm test -- --forceExit --maxWorkers=4`
+— 747 suites passed, 9474 tests passed, 0 failed.
+
+### 2026-08-12 — A kill now expires itself after 10 minutes; the PingOne app disable had no TTL and needed a sweep
+
+**Files changed:** `demo_api_server/services/killSwitchService.js`,
+`demo_api_server/routes/admin.js`, `demo_api_server/server.js`
+(+ `demo_api_server/tests/killSwitchAutoReset.test.js`,
+`demo_api_ui/src/components/KillSwitchConfirmModal.{jsx,css}` + test).
+
+**What changed (deliberate behaviour change, not a bug fix):** a kill is now
+time-boxed to `AUTO_RESET_MS` = 10 minutes, with a countdown in the Stop Agent
+modal. Previously a kill held indefinitely until someone un-killed it.
+
+**Why it needed more than a TTL:** the two halves of a kill expire differently.
+The local block is written with `cookie: { maxAge: AUTO_RESET_MS }`, so the
+session store expires it with nothing running — restart-safe by construction. A
+**full-scope** kill also disables the agent's PingOne applications, and that has
+no TTL of its own. So a full-scope kill leaves a due-at marker and
+`startAutoResetSweep()` (registered in `server.js` under
+`require.main === module`, try/catch, non-fatal) re-enables them when due —
+including markers left by a previous process, so a restart inside the 10-minute
+window cannot leave the agent client disabled for good.
+
+**Do not break:**
+
+- **The sweep must never re-enable the PingOne *user* account.** A disabled human
+  account is re-enabled by an admin on purpose, never by a timer. There is a test
+  named for exactly this; keep it.
+- **An instance-scope kill records no marker** — it never disabled an
+  application, so it must not trigger a re-enable.
+- **A failed re-enable leaves the marker in place** so the next sweep retries.
+  Deleting the marker on failure strands the agent client disabled with nothing
+  scheduled to fix it.
+- `REENABLE_MARKER_TTL_MS` (24h) **must outlive** `AUTO_RESET_MS` (10m), or the
+  marker expires before the sweep can ever see it.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/killSwitchAutoReset.test.js`
+— 9 tests, 1 suite, including "blocked immediately, still blocked at 9 minutes,
+and free at 10", "the sweep never re-enables the PingOne user account", and "one
+failing application does not strand the record".
+
+### 2026-08-12 — Customer dashboard painted its toolbar/chrome with an empty banking area for a beat before data arrived, read as a stale/old UI
+
+**Files changed:** `demo_api_ui/src/routes/CustomerRoutes.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/AIAgent.js`.
+
+**What was broken:** on `/dashboard`, up to four components independently
+fired their own uncached `fetch("/api/admin/feature-flags", ...)` on mount —
+`DashboardContent`'s skin-flag check, `UserDashboardPing2026`'s
+`ff_show_agent_in_middle` and `ff_agent_clinical_split` checks, and
+`AIAgent`'s toggle sync — none sharing a cache. A live trace showed the same
+endpoint hit 10+ times on one load. The toolbar/chrome paints immediately
+(no data dependency), so users saw it sit over a mostly-empty banking area
+for a visible beat while these redundant round trips (plus `UserDashboard`'s
+own sequential session/account fetches) resolved, reading as a stale or
+cut-off "old" UI before the real dashboard "loaded in."
+
+**What was fixed:** swapped each raw `fetch("/api/admin/feature-flags")` call
+for the existing `getCachedJson`/`getCachedStatus` wrapper
+(`services/cachedStatusService.js`, already used for the auth-status
+endpoints) — in-flight requests within its 10s TTL now share one promise
+instead of firing separately. Same endpoint, same response shape, same flag
+semantics; only the transport is deduped.
+
+**Do not break:** flag defaults on fetch failure are unchanged (`ping2026`
+falls back to `false`, `showBankingInMiddle`/`clinicalSplitEnabled` keep
+their existing fallbacks). The tri-state `ping2026 === null` guard in
+`CustomerRoutes.js` (render nothing until the skin flag resolves, so only one
+dashboard ever mounts) is untouched — this fix only reduces how many
+redundant requests that resolution waits behind.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.test.js "src/components/__tests__/AIAgent.*.test.*"` — 12/12 test files pass. `npm run build` exits 0.
+
+### 2026-08-11 — Boot guard cried "token validation would 401" on every start, for a multi-audience value that is correct by design
+
+**Files changed:** `demo_api_server/services/startupConfigGuard.js`
+(+ `demo_api_server/tests/startupConfigGuard.mcpGatewayAud.test.js`).
+
+**What was broken:** every boot logged
+
+```text
+MCP_GW_RESOURCE_URI="mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+but scope-topology.json audience for mcpGateway is "mcpgateway.ping.demo" (token validation would 401)
+```
+
+Nothing was wrong. `MCP_GW_RESOURCE_URI` is legitimately an accepted-audience
+**list**: the real gateway (`tokenValidator.ts`) and the mock authz server
+(`decision.js`) both accept a comma-separated list, and `docker-compose.yml`
+appends the A2A gateway audience to it — A2A gets its own audience so the
+nested-`act` composer SPEL only fires on A2A calls, per
+`pingoneProvisionService.js`. `LIST_VALUED_KEYS` covered
+`MCP_SERVER_RESOURCE_URI` and `MCP_RESOURCE_URI` but not this key, so it fell
+through to strict equality, which a CSV can never satisfy.
+
+The cost is not the log line: a guard that always warns trains operators to
+scroll past it, and this guard's entire job is catching real audience drift — the
+class of bug that 401s every agent tool call.
+
+**What was fixed:** added `MCP_GW_RESOURCE_URI` to `LIST_VALUED_KEYS`, so it is
+checked for list-containment. The invariant is unchanged — the list must still
+contain the `mcpGateway` audience.
+
+**Do not break:** the containment rule applies to **exactly** these three keys.
+`PINGONE_RESOURCE_TWO_EXCHANGE_URI` keeps **strict** equality — it is the RFC 8693
+exchange-#2 final audience and must *equal* the gateway audience, not merely
+contain it. `PINGONE_RESOURCE_MCP_GATEWAY_URI` is single-valued today and also
+stays strict. No runtime audience-acceptance code was touched: `tokenValidator.ts`,
+`decision.js` and `middleware/auth.js` are unchanged — this is boot-time
+reporting only.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/startupConfigGuard.mcpGatewayAud.test.js src/__tests__/startupConfigGuard.mcpServerAud.test.js src/__tests__/startupConfigGuard.twoExchange.test.js --no-coverage --forceExit` (8/8). The new spec includes two
+never-inert assertions: a list that omits the `mcpGateway` audience, and a single
+wrong audience, must both still be flagged. Revert-to-RED checked — dropping the
+key from the Set fails the multi-audience case (1 failed / 3 passed).
+
+### 2026-08-11 — The /verticals leak assertions were vacuous: the fixture had no `demoUsers` to leak
+
+**Files changed:** `demo_api_server/tests/verticalManifest/route.read.test.js` (test-only).
+
+**What was broken:** `cb4ba374e` (#1699) made `GET /api/verticals/me` and
+`/api/verticals/stream` public on purpose — guests need them to hydrate the UI before
+sign-in so the client and server agree on the active vertical — and strips the guest's
+`pageManifest` down to `identity` + `theme`. Two tests still asserted `401`, turning
+main red for every PR; #1704 replaced them. But the assertions that are supposed to
+prove password hints never reach an anonymous caller were checking for `demoUsers` /
+`passwordHint` in a fixture manifest (`min()`) that never contained either field.
+They passed vacuously — green, and proving nothing.
+
+**What was fixed:** `demoUsers` is now in the fixture (shape per `ManifestSchema`: an
+object with `customer`/`admin`, not an array) carrying a `SENTINEL-DO-NOT-LEAK`
+password hint, and the leak assertions check for the sentinel and the field name.
+
+**Do not break:** `/me` and `/stream` are public **on purpose** — do not "restore" the
+401s. The invariant is not the status code, it is that an anonymous caller gets
+identity + theme only and never `demoUsers`. `/pipeline` still has `requireAdmin`; the
+per-route guards are what protect this router now that the mount uses
+`optionalAuthenticateToken`. Keep `demoUsers` in the fixture — remove it and the leak
+assertions silently stop testing anything.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/verticalManifest --forceExit`
+(11 suites, 135 tests). Revert-to-RED: disabling the guest-strip branch in
+`routes/verticalManifest.js` fails **2** tests; before the fixture carried `demoUsers`
+it failed only 1, which is how the vacuity was caught.
+
+### 2026-08-11 — ProofStrip read "Run failed before authorize-decision" on a gateway-authoritative run that actually got a PERMIT
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`
+
+**What was broken:** on a gateway-authoritative run (`useGateway: true`), the
+BFF intentionally skips its own Authorize gate (`mcpAuthorizeEvaluationThisRequest`
+stays a skip-shaped object with no `.decision`), and the real PingOne Authorize
+decision only ever arrives client-side as a `gw-authorize` token event, not
+`trace.authorize`. `computeVerdict`'s `authorize-decision` step check and
+`decisionOf()` only looked at `trace.authorize`, so a call that the gateway
+actually PERMITted — and that ran the tool successfully — still scored as
+`incomplete`, showing "Run failed before authorize-decision" (e.g. UC1
+"Delegated access with proof" / `view_coverage` in healthcare).
+`buildTraceSteps.js` (the Token Chain rail) already had a `gw-authorize`
+fallback for this exact case (`findEvent(tokenEvents, "gw-authorize")`,
+around line 594) — `computeVerdict` was the one place missing it, so the rail
+could show the P1AZ card lit while the ProofStrip summary still read
+"Incomplete".
+
+**What was fixed:** added a `gwAuthorizeEvent(trace)` helper mirroring
+`buildTraceSteps.js`'s lookup, and used it as a fallback in both the
+`authorize-decision` step match and `decisionOf()`, so a `gw-authorize` token
+event with a decision satisfies the step and feeds the PERMIT/non-PERMIT
+comparison when `trace.authorize` is null.
+
+**Do not break:** don't remove the `gwAuthorizeEvent` fallback or make it
+`trace.authorize`-only again — gateway-authoritative PERMITs have no other
+signal on the client. Keep it in sync with `buildTraceSteps.js`'s
+`gw-authorize` lookup if that shape ever changes.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` — 330/330 files, 2935
+passed, 24 skipped; `npm run build` — exits 0.
+
+### 2026-08-10 — Yellow "sign-in session has expired" banner fired on a fresh, never-authenticated page load
+
+**Files changed:** `demo_api_ui/src/utils/dashboardToast.js`
+
+**What was broken:** dashboard components fetch protected data as soon as they
+mount, with no page-load auth-check gate in front of them anymore. On a page
+load where the visitor was never signed in, that first fetch 401s; the error
+message matches `errorMessageSuggestsLogin`, and `toastCustomerError` /
+`toastAdminSessionError` dispatched `SESSION_REAUTH_EVENT`, which
+`SessionReauthBanner` (mounted in `App.js`) renders as a full-width "Your
+sign-in session has expired. Sign in again to continue." banner — even though
+no session had ever existed to expire.
+
+**What was fixed:** `toastCustomerError` / `toastAdminSessionError` no longer
+dispatch `SESSION_REAUTH_EVENT`; both now always show a normal
+`toast.error(message)`. `SessionReauthBanner`, `SESSION_REAUTH_EVENT`, and its
+listener/wiring in `useAuth.js` / `App.js` are unchanged and left in place —
+that same event/banner is still the on-page notice for the agent-triggered
+step-up (CIBA/OTP) HITL flow (`UserDashboard.js` / `UserDashboardPing2026.js`,
+`agentStepUpRequested` handler), which is unrelated to session expiry and must
+keep working.
+
+**Do not break:** don't re-wire `dashboardToast.js` back to
+`SESSION_REAUTH_EVENT`; don't remove `SessionReauthBanner` or its
+`useAuth.js`/`App.js` wiring — the HITL step-up banner still depends on it.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` — 329/329 files, 2931 passed,
+24 skipped; `npm run build` — exits 0.
+
+### 2026-08-10 — Demo Steps panel 401'd on open, before any step ran
+
+**Files changed:** `demo_api_server/server.js`
+
+**What was broken:** opening the Demo Steps dropdown (or any read of the
+use-case catalog) immediately showed "Request failed with status code 401",
+even though nothing step-specific — like a step-up MFA prompt — had run
+yet. `server.js` mounted the whole `/api/use-cases` router behind a blanket
+`authenticateToken`: `app.use('/api/use-cases', authenticateToken,
+require('./routes/useCases'))`. That 401'd the plain catalog reads
+(`GET /`, `GET /:id`, `GET /golden/:vertical/:useCaseId`) for any visitor
+without a full OAuth session — including the `_cookie_session` stub used
+for lightweight sessions, which `authenticateToken` explicitly rejects.
+
+**What was fixed:** dropped `authenticateToken` from the router mount.
+`routes/useCases.js` was already designed for route-level gating — its own
+docstring calls the catalog "read-only" — and every state-changing route
+(`POST /demo/run`, `/conformance/run`, `/uc20/audit`, `/uc15/initiate`,
+`/uc15/poll`, `/uc10/scope-check`) already declares `authenticateToken`
+itself. The blanket mount was overriding that per-route design, not
+enforcing it.
+
+**Do not break:** keep `authenticateToken` on the individual POST/mutating
+routes inside `routes/useCases.js` — those still must require a real OAuth
+session. Don't restore the blanket mount.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit
+--maxWorkers=4` — 726/728 suites passed; the 2 failures
+(`demoSubjectToken.test.js`, `resourceServer.identity.regression.test.js`)
+are the known rotating live-integration flakes, unrelated to this route.
+
+### 2026-08-10 — Kill switch's own result modal couldn't survive /ai-control-plane's auth-gated route redirect
+
+**Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/pages/AiControlPlanePage.jsx`,
+`demo_api_ui/src/components/ControlPlaneRoster.jsx` (+ test)
+
+**What was broken:** live-verified a kill from `/ai-control-plane`'s roster
+"Stop this instance" button — the browser landed on `/` before
+`ControlPlaneRoster`'s own `<KillSwitchConfirmModal>` result could render,
+same *class* of bug as the AdminSideNav fix earlier today (a kill's own
+side effect — clearing `user` — races the UI trying to show its result) but
+a different trigger: `/ai-control-plane`'s route element is
+`user ? <AiControlPlanePage/> : <Navigate to="/" replace/>`
+(`App.js`) — a standard protected-route guard, present on essentially every
+authenticated route in this file (confirmed the identical pattern on
+`/agent-lifecycle` too). The instant `user` clears, React Router redirects
+away and unmounts the whole page — including `ControlPlaneRoster`'s local
+modal instance and its `showLiveModal`/result state — before anything can
+render.
+
+**What was fixed:** generalized the App.js-level kill-switch modal built for
+AdminSideNav (see the entry below) from a single hardcoded instance into a
+shared service: `openKillSwitchModal({ agentId, initialScope, onConfirm,
+onDismiss })`, stored in one `killModal` state object, rendering one
+`<KillSwitchConfirmModal>` that outlives any page/component gated on `user`.
+`AdminSideNav`'s trigger now calls it via `openAdminStopAgent` (same
+navigate-to-/logout-on-dismiss behavior, using a fresh per-open local flag
+instead of the shared `agentRevoked` state to avoid an open/dismiss
+closure-timing mismatch). `openKillSwitchModal` is threaded down through
+`AiControlPlanePage` to `ControlPlaneRoster`, whose "Stop this instance" /
+"Stop entire agent" buttons now call it directly instead of owning a local
+modal — `confirmLiveKill` (the POST + `setLive(...)` update) stays local and
+is passed as that open's `onConfirm`.
+
+**Known remaining gap, not fixed:** `/agent-lifecycle` has the identical
+`user ? <Page/> : <Navigate/>` gate and its own local
+`<KillSwitchConfirmModal>` usage (`AgentLifecyclePage.jsx`) — same
+structural risk. Not touched here: that page's flow already shows its own
+inline `retryResult` message after revoke (a different, already-working
+proof mechanism — see `project-killswitch-instance-scope` memory), so
+whether it's actually affected in practice wasn't verified live, and fixing
+it needs the same lift-to-App.js treatment if it is. This is likely a
+systemic pattern across other protected routes too — no full audit done.
+
+**Verify:** `cd demo_api_ui && npx vitest run ControlPlaneRoster.test.jsx adminSideNav.test.jsx AdminSideNav.telemetry.test.jsx AgentLifecyclePage.test.jsx` (36/36); `npm run build` exit 0.
+
+### 2026-08-10 — PingOne Admin group gate now decided by real PingOne Authorize (two-hop exchange)
+
+**Files changed:** `demo_api_server/services/pingOneAdminAccessService.js`, its test
+
+**What was broken:** `checkAccess` decided PingOne Admin dashboard access
+itself in JS (`groups.includes(requiredGroup)`) after a live PingOne
+directory read — real and demoable (live read at decision time), but not a
+PingOne Authorize decision. Two prior same-day attempts to fix this both
+failed live-verify before merge (working as designed, not a process
+failure): (1) omitting `TokenAudience` denied every admin outright (see the
+"PingOne Admin group gate locked out every admin" entry below — same date,
+this entry supersedes it); (2) a single-hop token exchange fixed the
+audience but the deployed policy also requires a populated `act`
+(actor-chain) claim, which a single hop never carries — confirmed by
+reading the involved PingOne resources' actual attribute mappings via the
+Management API, not just their code:
+`mcpgateway.ping.demo`'s `act` attribute only propagates an existing `act`
+claim (`${#root.context.requestData.subjectToken.act}`); it never
+constructs one from a request-supplied `actor_token`.
+
+**What was fixed:** `checkAccess` now performs the same **two-hop** RFC 8693
+exchange banking's own agent flows use — hop 1 exchanges the admin's own
+session token, as the AI Agent Actor client, against the intermediate
+`agentgateway.ping.demo` audience (that resource's `act` attribute
+constructs a real claim from the subject token's `may_act`, which the
+signed-in admin's PingOne user record names the AI Agent Actor client for);
+hop 2 exchanges hop 1's result, as the Token Exchanger client, against the
+final `mcpgateway.ping.demo` audience (propagating `act` forward). The
+resulting token's real `aud` and `act.sub` are passed to
+`evaluateMcpToolDelegation` as `tokenAudience`/`actClientId`. No PingOne
+console changes were needed — every client and resource involved was
+already fully provisioned for banking's own use.
+
+**Do not break:** Do not collapse this back to a single hop, and do not
+attach an `actor_token` parameter to a single call as a shortcut — both
+were tried and live-tested; neither populates `act` for this resource pair.
+`routes/adminAgentRoutes.js`'s two `checkAccess` call sites are unaffected
+either way — the `{allowed, error, status, requiredGroup}` contract never
+changed.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+live: a confirmed `pingone-admin` group member gets `200`/access (real
+`PERMIT` from the decision endpoint, `[BFF→P1AZ]` log lines show
+`TokenAudience`/`ActClientId` both populated); removing the group gets a
+real `403` with a clean "Not In Required Group" decision, not an
+audience/actor-chain denial.
+
+### 2026-08-10 — Kill switch's session-invalidate step was also Redis-only ("0 session key(s) removed", every time)
+
+**Files changed:** `demo_api_server/services/lmdb/sessionStore.js` (+ test),
+`demo_api_server/services/killSwitchService.js` (+ test)
+
+**What was broken:** follow-up to the enforcement-flag fix below —
+`invalidateSessionsInRedis()` (the "Invalidate this agent's local sessions"
+checklist step) was left Redis-only on purpose at the time, since it needs a
+pattern-scan the generic `express-session` Store interface doesn't have.
+Live-verified it always reported "0 session key(s) removed" on this
+deployment, same root cause as the enforcement flag: no Redis, no `.client`.
+
+**What was fixed:** added `LmdbSessionStore.deleteByPrefix(prefix)` — not
+part of the standard `express-session` Store interface, a small addition
+alongside the class's existing internal `_cleanup()` range-scan — bulk
+deletes every entry whose key starts with `prefix` via `_db.getRange()` +
+`removeSync()`. `invalidateSessionsInRedis()` now calls
+`sessionStore.deleteByPrefix('agent:<id>:')` when the store provides it,
+falling back to the original Redis `SCAN`/`unlink` path otherwise. Runs
+before the enforcement-flag write in `killAgent()`'s step order, so it can
+never delete the flag it's about to set in the same call. Verified against
+the real `LmdbSessionStore` class (not just a mock) — writes 3 keys across
+2 agents, deletes only the 2 belonging to the target agent, confirms the
+third (a different agent's key) survives.
+
+**Remaining gap, still out of scope:** `agentRateLimit.js`'s actual
+rate-limiting counters (`checkAutoKill`, request/violation counting,
+`NX`/`EX` Redis semantics) are still Redis-only — real concurrency-sensitive
+counter logic, needs its own pass, not a quick fix.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/killSwitchService.test.js src/__tests__/lmdbSessionStore` (25/25); direct sanity check against the real `LmdbSessionStore` class round-trips correctly.
+
+### 2026-08-10 — Kill switch's enforcement flag never actually enforced anything (Redis-only code, LMDB deployment)
+
+**Files changed:** `demo_api_server/services/killSwitchService.js` (+ test)
+
+**What was broken:** live-verified the kill-switch result checklist (after
+fixing it to survive the session teardown, same day) and its "Arm the
+next-request block" step reported "Skipped — the session store was
+unreachable." Traced it: this deployment has no Redis at all (checked the
+running container's env — nothing) — the real session store is
+`LmdbSessionStore` (`services/lmdb/sessionStore.js`), a standard
+`express-session` Store (`get`/`set`/`destroy`, callback-based) with no
+`.client` property. `isAgentRevoked()` and the flag-arm write in
+`killAgent()` both gated on `sessionStore.client` and called Redis-only
+methods (`.client.get`, `.client.setex`). That gate can never pass against
+LmdbSessionStore, so on this deployment (and any deployment without Redis
+configured) the flag was never written, and — more importantly —
+`isAgentRevoked()` (which `agentRateLimit.js` calls before every agent tool
+call) always returned `false`. The "next call gets rejected" claim this
+whole feature's copy makes was not actually true here.
+
+**What was fixed:** `isAgentRevoked()` and the flag-arm write now go through
+the generic `express-session` Store interface (`sessionStore.get(key, cb)` /
+`sessionStore.set(key, value, cb)`) instead of a Redis-specific client —
+works identically against `LmdbSessionStore` and a Redis-backed store (e.g.
+`connect-redis`, which implements the same Store interface). Verified
+against the real `LmdbSessionStore` class directly (not just a mock) — a
+round-trip `set`/`get` returns the written value correctly.
+
+**Known remaining gap, explicitly out of scope for this fix (user decision):**
+`agentRateLimit.js`'s actual rate-limiting counters (`checkAutoKill`, request/
+violation counting) are ALSO Redis-only (`sessionStore.client.set/incr/unlink`
+with Redis `NX`/`EX` semantics) — separately broken on this deployment. Real
+concurrency-sensitive counter logic, not a simple flag; needs its own pass,
+not a quick fix. `invalidateSessionsInRedis()` (the Redis `SCAN`-based bulk
+session-wipe, "0 session key(s) removed" in the checklist) is also
+Redis-only and was left alone per explicit scope decision — LMDB has no
+pattern-scan primitive, would need a small helper added to
+`LmdbSessionStore` itself.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/killSwitchService.test.js middleware/agentRateLimit` (18/18 + 17/17); direct sanity check against the real `LmdbSessionStore` class round-trips correctly.
+
+### 2026-08-10 — Privilege config lived in the container; stale .env would break it on recreate
+
+**Files changed:** `demo_api_server/services/startupConfigGuard.js` (+ test);
+local `.env` realigned (not committed — gitignored).
+
+**What was broken:** the working Privilege MCP config (SSO env `8d4d7a4c`, client
+`deff60f5`) lived only in the RUNNING `ai-demo-api-server` container (env frozen at
+create time). Root `.env` had drifted to a stale/broken state — `PRIVILEGE_SSO_ENV_ID`
+= the banking env `01d89b06` (whose issuer the gateway rejects) and a dead
+`PRIVILEGE_MCPGW_URL` host (`banking.mcpgw…`, which does not resolve). A
+`docker compose up`/recreate would have silently reverted Privilege to the broken
+config and killed console-token sign-in.
+
+**What was fixed:** realigned `.env` to the working runtime (SSO env/client/secret +
+`PRIVILEGE_MCPGW_URL` → `mcp-pingone-admin.mcpgw.local.ping-devops.com`, the nginx
+front the console-token path uses). Added a boot-time guard
+`warnIfPrivilegeConfigRegressed()` that WARNs (never fatal) on the two smoking guns:
+`PRIVILEGE_SSO_ENV_ID === PINGONE_ENVIRONMENT_ID`, and the dead `banking.mcpgw` host.
+
+**Do not break:** the guard is advisory only (`console.warn`, never `process.exit`)
+— a Privilege misconfig must not take down BFF boot. It fires only when a Privilege
+gateway is configured. `PRIVILEGE_MCPGW_URL` has one runtime consumer (the Privilege
+page's default `config.mcpUrl`); the console-token path overrides it, so the guard is
+a signal, not a hard dependency.
+
+**Verify:** `jest tests/services/privilegeConfigGuard.test.js` (4/4); live — after a
+BFF restart the boot log shows the `banking.mcpgw` warning (the current ghost).
+
+
+### 2026-08-10 — Privilege open-access hop: banking data tools returned empty (no user identity)
+
+**Files changed:** `demo_api_server/routes/verticalTool.js`,
+`demo_api_server/middleware/auth.js`, new
+`demo_api_server/services/openAccessDemoUser.js`,
+`oauth-mcp/src/tools/BankingToolProvider.ts`,
+`oauth-mcp/src/banking/BankingAPIClient.ts`, `docker-compose.yml`
+(+ tests: `demo_api_server/tests/routes/demoSubjectToken.test.js`,
+`demo_api_server/tests/services/openAccessDemoUser.test.js`).
+
+**What was broken:** on the Privilege MCP page (open-access mode,
+`MCP_AUTH_DISABLED=true`) banking DATA tools (`get_my_transactions`,
+`get_my_accounts`, `get_balance`) crashed Step 9 with "cannot parse
+subject_token" — the forwarded bearer is the un-exchangeable `'disabled'`
+placeholder. PingOne has no ROPC grant, so there is no way to mint a *user*
+token non-interactively.
+
+**What was fixed:**
+
+- BFF `POST /api/path/demo-subject-token` mints the agent's `client_credentials`
+  **worker** token (`agentCCTokenService.getAgentCCToken`), 404 unless
+  `MCP_AUTH_DISABLED`. The MCP server swaps `'disabled'` for it as the Step 9
+  `subject_token` on this hop only, so the exchange now succeeds.
+- A worker token has no user `sub`, so `/my` resolved to zero rows. New
+  `openAccessDemoUser.js` resolves a real demo user (env `DEMO_SUBJECT_USER_ID`,
+  else the richest seeded account owner) and `authenticateToken` binds a
+  **sub-less, non-admin** token to that user *only* under `MCP_AUTH_DISABLED`.
+  Data tools now return real rows with a real holder name.
+
+**Do not break:** the auth binding is gated on
+`MCP_AUTH_DISABLED === 'true' && !decoded.sub && derivedRole !== 'admin'` — a
+real user (always has a `sub`) or an admin token is **never** rebound, so
+`requireNotAdmin` on `/my` (admin → 403) and the 4-signal admin role check are
+unchanged. Off by default (flag absent → endpoint 404s, binding never fires).
+
+**Verify:** `cd demo_api_server && CI=true npm run test:unit` (91/91) +
+`jest tests/services/openAccessDemoUser.test.js tests/routes/demoSubjectToken.test.js`
+(7/7); live: `get_my_accounts` on the open-access hop returns 4 accounts, holder
+"Demo User".
+
+### 2026-08-10 — Kill switch: explain the enforcement mechanism, stream steps live, split scope discoverability
+
+**Files changed:** `demo_api_server/services/killSwitchService.js`, new
+`demo_api_server/services/killSwitchSseHub.js`, `demo_api_server/routes/admin.js`,
+`demo_api_ui/src/components/KillSwitchConfirmModal.jsx` (+`.css`),
+`demo_api_ui/src/components/ControlPlaneRoster.jsx` (+`.css`)
+
+**What was missing:** the kill switch (instance-vs-full scope shipped in
+PR #684/#686) revoked tokens and disabled apps but never explained *why*
+that stops an agent, showed its steps only after the whole call finished,
+and buried instance-vs-full behind one generic "Stop Agent" button.
+
+**What was added:**
+
+- `killAgent()` now pushes an explicit `enforcement_flag` step for the
+  `agent:<id>:revoked` Redis write it already made silently — this is the
+  actual enforcement point `agentRateLimit.js` checks before any new tool
+  call, previously invisible in the UI. Step details across the board now
+  say *why*, not just what ran (e.g. token revoke doesn't interrupt an
+  in-flight call, only blocks the next one).
+- New `killSwitchSseHub.js` (same pattern as `pingoneTestSseHub.js`) —
+  `killAgent()` takes an optional `sessionId` and publishes each step as it
+  runs; new `GET /agent/:agentId/kill-switch/events` route. Modal opens an
+  `EventSource` before POSTing and renders steps live instead of waiting
+  for the response.
+- `ControlPlaneRoster.jsx`'s live row now has two explicit actions — "Stop
+  this instance" and "Stop entire agent" (visually distinct) — instead of
+  one button hiding the scope choice behind an in-modal radio.
+
+**Do not break:** the POST `/kill-switch` response shape (`steps` array)
+is unchanged — SSE is additive, not a replacement; `AgentLifecyclePage.jsx`'s
+self-service revoke and existing tests depend on that response still
+carrying the full `steps` array on its own. Step `key`s are matched by
+`.find()` in tests, not by array index/length — adding `enforcement_flag`
+as a 6th step doesn't break that.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`
+(killSwitchService: 17/17, agentRateLimit: 17/17); `cd demo_api_ui && npm run
+test:unit` (2915/2916 — the one failure is a pre-existing, unrelated
+`ToolsTable.css` monospace-font regression from PR #1551, not touched here)
+and `npm run build` (exit 0).
+
+### 2026-08-10 — PingOne Admin gate via P1AZ locked out every admin (reverted)
+
+**Files changed:** `demo_api_server/services/pingOneAdminAccessService.js`, its test,
+`docs/superpowers/specs/2026-08-10-pingone-admin-p1az-group-gate-design.md`
+
+**What was broken:** PR #1548 changed `checkAccess` to decide PingOne Admin
+dashboard access via `pingOneAuthorizeService.evaluateMcpToolDelegation`
+(a real PingOne Authorize decision) instead of a JS group check. Live-verify
+run immediately after merge/deploy found the deployed "McpFirstTool" policy
+runs an unconditional `TokenAudience`/actor-chain validation rule BEFORE its
+group rule. Called for a confirmed `pingone-admin` group member
+(`demoAdmin`), the real decision endpoint returned `DENY` with
+`"MCP tool 'pingone_admin_access' authorization denied. Token audience
+'none' or actor chain validation failed."` — the group rule never
+evaluated. Because this call site gates a plain session-based dashboard
+route (no MCP bearer token exists to read a real `TokenAudience` from), it
+has nothing legitimate to supply that check, and every admin — regardless
+of group membership — was locked out. Caught within minutes of deploy via
+the plan's own mandatory live-verify step, before any user besides the
+agent hit it.
+
+**What was fixed:** Reverted `checkAccess`'s decision back to
+`groups.includes(requiredGroup)` in JS (pre-PR-#1548 behavior). The
+directory-read-at-decision-time property is unchanged and still real. The
+PingOne Authorize call and its tests were removed rather than left dead —
+a follow-up needs either a dedicated decision endpoint/policy for this
+vertical with no audience gate, or a genuine token-audience source, before
+attempting P1AZ enforcement here again.
+
+**Do not break:** Do not re-attempt routing this specific check through
+`evaluateMcpToolDelegation`/the "McpFirstTool" decision context without
+first confirming (via the deployed policy's actual rule JSON, not just its
+documented intent) that its audience-chain rule won't fire for a caller
+with no MCP token. `routes/adminAgentRoutes.js`'s two call sites are
+unaffected either way — the `{allowed, error, status, requiredGroup}`
+contract never changed.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`;
+live: a confirmed `pingone-admin` group member gets `200`/access; a
+non-member gets `403 pingone_admin_group_required`.
 
 ### 2026-08-10 — MCP_AUTH_DISABLED denied every scoped tool call
 

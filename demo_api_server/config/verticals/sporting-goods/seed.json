@@ -434,5 +434,14 @@
       "expiresAt": "2026-03-15",
       "status": "active"
     }
-  ]
+  ],
+  "products": [
+    { "id": "prod-boots", "name": "Trail Runner Hiking Boots", "icon": "boots", "price": 129.99, "priceWas": 149.99, "rating": 4.6, "reviewCount": 312, "stock": "In stock" },
+    { "id": "prod-backpack", "name": "65L Trekking Backpack", "icon": "backpack", "price": 189.00, "rating": 4.8, "reviewCount": 94, "stock": "In stock" },
+    { "id": "prod-poles", "name": "Carbon Trekking Poles", "icon": "poles", "price": 54.00, "rating": 4.5, "reviewCount": 208, "stock": "In stock" },
+    { "id": "prod-bottle", "name": "Insulated Water Bottle, 1L", "icon": "bottle", "price": 28.00, "rating": 4.7, "reviewCount": 611, "stock": "In stock" },
+    { "id": "prod-tent", "name": "3-Season Tent, 2-Person", "icon": "tent", "price": 249.00, "rating": 4.4, "reviewCount": 77, "stock": "2 left" },
+    { "id": "prod-baselayer", "name": "Merino Wool Base Layer", "icon": "shirt", "price": 58.00, "rating": 4.6, "reviewCount": 145, "stock": "In stock" }
+  ],
+  "cart": []
 }

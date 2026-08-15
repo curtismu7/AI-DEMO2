@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { getTokenChain, getCurrentTokens, synthesizeFromSession, getMCPToolCalls } = require('../services/tokenChainService');
-const { logEvent: logAppEvent } = require('../services/appEventService');
+const appEventService = require('../services/appEventService');
+const { logEvent: logAppEvent } = appEventService;
 const { scrubRawJwts } = require('../services/jwtScrubber');
 const validationModeConfig = require('../config/validationModeConfig');
 
@@ -98,6 +99,45 @@ router.get('/', async (req, res) => {
     );
     res.status(500).json({ error: 'internal_error', message: err.message });
   }
+});
+
+// GET /api/token-chain/events — Server-Sent Events stream of token_exchange app events.
+// The UI hook (useTokenChainSSE) opens an EventSource here to render live exchanges
+// in TokenExchangeInspector without polling. Payload is the raw appEvent JSON so the
+// hook can pluck { exchangeType, subjectToken, resultToken, metadata }.
+router.get('/events', (req, res) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(`event: hello\ndata: ${JSON.stringify({ ts: new Date().toISOString() })}\n\n`);
+
+  const unsubscribe = appEventService.subscribe((event) => {
+    if (event.category !== 'token_exchange') return;
+    const meta = event.metadata || {};
+    const payload = {
+      timestamp: event.timestamp,
+      exchangeType: meta.exchangeType || event.tag || 'token_exchange',
+      subjectToken: meta.subjectToken || null,
+      resultToken: meta.resultToken || null,
+      metadata: meta,
+    };
+    try {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    } catch (_) { /* connection closed mid-write */ }
+  });
+
+  const heartbeat = setInterval(() => {
+    try { res.write(': hb\n\n'); } catch (_) {}
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
 });
 
 // GET /api/token-chain/current — get current active tokens

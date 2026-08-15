@@ -122,8 +122,8 @@
 
 /* Sidebar */
 .cur-sidebar {
-  width: 280px;
-  min-width: 180px;
+  width: 440px;
+  min-width: 200px;
   background: #1e1e1e;
   border-right: none;
   overflow-y: auto;
@@ -292,53 +292,107 @@ select.cur-input { cursor: pointer; }
 .cur-tools-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   margin: 4px 0;
 }
+
+/* Compact sidebar index rows — the rich view lives in the main Tools table. */
+.cur-tool-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.cur-tool-row:hover { background: #2a2d2e; border-left-color: #4ec9b0; }
+.cur-tool-row--selected { background: #2a2d2e; border-left-color: #6d9eeb; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row--selected { background: #eef2ff; border-left-color: #2563eb; }
+.cur-tool-row-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #4ec9b0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cur-tool-row-meta { font-size: 10px; color: #ffffff; flex-shrink: 0; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row:hover { background: #eef2ff; border-left-color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row-name { color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row-meta { color: #444; }
 
 .cur-tool-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 4px;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
+  /* The tool list is the whole point of this page — give each row weight. */
+  background: #202124;
+  border: 1px solid #30363d;
+  border-left: 3px solid #4ec9b0;
 }
-.cur-tool-item:hover { background: #2a2d2e; }
+.cur-tool-item:hover { background: #2a2d2e; border-left-color: #6ee7d0; }
 
 .cur-tool-icon {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
+  font-size: 13px;
+  font-weight: 700;
   color: #dcdcaa;
   background: #2a2a2a;
-  padding: 2px 4px;
-  border-radius: 3px;
+  padding: 4px 7px;
+  border-radius: 4px;
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .cur-tool-info {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
 .cur-tool-name {
-  font-size: 12px;
+  font-size: 17px;
+  font-weight: 700;
   color: #4ec9b0;
   font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .cur-tool-desc {
-  font-size: 11px;
+  font-size: 14px;
+  line-height: 1.45;
   color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.cur-tool-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+.cur-tool-param {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #9cdcfe;
+  background: #1a2733;
+  border: 1px solid #274156;
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+.cur-tool-param--req {
+  color: #ffd479;
+  background: #2e2612;
+  border-color: #4d3f19;
+  font-weight: 700;
 }
 
 .cur-empty-state {
@@ -525,6 +579,78 @@ select.cur-input { cursor: pointer; }
 
 .cur-result-block {
   margin-top: 16px;
+}
+
+.cur-sessions-panel {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cur-sessions-error,
+.cur-sessions-empty {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #888;
+}
+
+.cur-sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cur-session-card {
+  background: #252526;
+  border: 1px solid #2b2b2b;
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cur-session-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.cur-session-ttl,
+.cur-session-status {
+  font-size: 12px;
+  color: #888;
+}
+
+.cur-session-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.cur-session-card--selectable {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.cur-session-card--selectable:hover {
+  border-color: #007acc;
+  background: #2a2d2e;
+}
+
+.cur-session-card--active {
+  border-color: #007acc;
+  background: #1c3040;
+}
+
+.cur-session-active-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #007acc;
+  margin-left: 6px;
 }
 
 .cur-tool-detail {
@@ -759,14 +885,10 @@ select.cur-input { cursor: pointer; }
 .cur-modal h2 { color: #f87171; margin: 0 0 12px; font-size: 16px; }
 .cur-modal p { color: #ccc; margin: 0 0 20px; line-height: 1.5; }
 
-/* Responsive */
-@media (max-width: 1000px) {
-  .cur-sidebar { width: 220px; }
-}
-@media (max-width: 768px) {
-  .cur-activity-bar { display: none; }
-  .cur-sidebar { display: none; }
-}
+/* Responsive rules live at the end of this file (the max-width: 900px block).
+   The former rules here squeezed the sidebar to 220px and then HID it entirely
+   below 768px — which dropped the console-token box, tools list and scopes on
+   smaller displays. Replaced by the stack-and-scroll block. */
 
 /* ── Costume skin picker ────────────────────────────────────────────────── */
 
@@ -1006,4 +1128,315 @@ select.cur-input { cursor: pointer; }
   font-size: 11px;
   color: #8b949e;
   padding-left: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Light mode — page-local, toggled by the Light/Dark button in the title bar
+   (data-cur-theme="light" on .cur-ide). The base styles above are the dark
+   Cursor-IDE look; everything here is the light override. Scoped so it never
+   leaks to the app's own theme.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-ide[data-cur-theme="light"] { background: #ffffff; color: #1e1e1e; }
+
+/* Chrome: title bar, activity bar, sidebar, tabs, composer, terminal */
+.cur-ide[data-cur-theme="light"] .cur-titlebar { background: #f3f3f3; border-bottom-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-titlebar-title { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-activity-bar { background: #ececec; border-right-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-act-btn { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-act-btn:hover { background: #ddd; color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-act-btn--active { background: #d0d0d0; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-sidebar { background: #f7f7f7; border-right-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-sidebar-title,
+.cur-ide[data-cur-theme="light"] .cur-field-label,
+.cur-ide[data-cur-theme="light"] .cur-tools-header h3,
+.cur-ide[data-cur-theme="light"] .cur-settings-section-title { color: #444; }
+.cur-ide[data-cur-theme="light"] .cur-sidebar-divider { background: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-composer { background: #f7f7f7; border-top-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-tabs,
+.cur-ide[data-cur-theme="light"] .cur-terminal-tabs { background: #ececec; border-bottom-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-tab,
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-tab:hover,
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab:hover { color: #222; }
+.cur-ide[data-cur-theme="light"] .cur-tab--active { background: #ffffff; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab--active { color: #000; }
+
+/* Status pill + model badge */
+.cur-ide[data-cur-theme="light"] .cur-status { background: #e8e8e8; color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-model-badge { background: #ede9fe; color: #6d28d9; }
+
+/* Inputs, buttons, selects */
+.cur-ide[data-cur-theme="light"] .cur-input,
+.cur-ide[data-cur-theme="light"] .cur-btn,
+.cur-ide[data-cur-theme="light"] .cur-composer-input,
+.cur-ide[data-cur-theme="light"] .cur-skin-picker select,
+.cur-ide[data-cur-theme="light"] .cur-flow-trigger { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-btn:hover,
+.cur-ide[data-cur-theme="light"] .cur-flow-trigger:hover { background: #eaeaea; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-skin-picker > span,
+.cur-ide[data-cur-theme="light"] .cur-msg-role,
+.cur-ide[data-cur-theme="light"] .cur-result-label,
+.cur-ide[data-cur-theme="light"] .cur-auth-user { color: #666; }
+
+/* Muted greys → readable on white */
+.cur-ide[data-cur-theme="light"] .cur-empty-state,
+.cur-ide[data-cur-theme="light"] .cur-chat-empty p,
+.cur-ide[data-cur-theme="light"] .cur-chat-hint,
+.cur-ide[data-cur-theme="light"] .cur-terminal-empty,
+.cur-ide[data-cur-theme="light"] .cur-terminal-ts,
+.cur-ide[data-cur-theme="light"] .cur-terminal-msg,
+.cur-ide[data-cur-theme="light"] .cur-scopes-count-label,
+.cur-ide[data-cur-theme="light"] .cur-scope-cat,
+.cur-ide[data-cur-theme="light"] .cur-scopes-table th,
+.cur-ide[data-cur-theme="light"] .cur-flow-label,
+.cur-ide[data-cur-theme="light"] .cur-flow-conn-label,
+.cur-ide[data-cur-theme="light"] .cur-flow-sub { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-chat-empty-icon { color: #bbb; }
+
+/* Chat messages */
+.cur-ide[data-cur-theme="light"] .cur-msg--user { background: #d6e4f5; }
+.cur-ide[data-cur-theme="light"] .cur-msg--assistant { background: #f0f0f0; }
+.cur-ide[data-cur-theme="light"] .cur-msg--system { background: #e3f2fd; color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-msg--thinking { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-msg-meta { background: #f0f0f0; color: #666; }
+
+/* Tool list + detail + code output */
+.cur-ide[data-cur-theme="light"] .cur-tool-item { background: #f7f7f7; border-color: #e0e0e0; border-left-color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-item:hover { background: #eef2ff; border-left-color: #0a9d86; }
+.cur-ide[data-cur-theme="light"] .cur-tool-param { color: #0451a5; background: #eaf2fb; border-color: #cfe0f2; }
+.cur-ide[data-cur-theme="light"] .cur-tool-param--req { color: #8a5a00; background: #fdf3d9; border-color: #e6d29a; }
+.cur-ide[data-cur-theme="light"] .cur-tool-icon { background: #eee; color: #7a6a00; }
+.cur-ide[data-cur-theme="light"] .cur-tool-name { color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-desc,
+.cur-ide[data-cur-theme="light"] .cur-tool-detail-desc { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-tool-detail { background: #f5f5f5; }
+.cur-ide[data-cur-theme="light"] .cur-code-output { background: #f5f5f5; color: #0451a5; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-code-output--schema { color: #a31515; }
+
+/* Terminal event badges — lighter fills, darker text */
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--relay { background: #cffafe; color: #0e7490; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--oauth { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--config { background: #ecfccb; color: #4d7c0f; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--mcp { background: #dcfce7; color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--error { background: #fee2e2; color: #b91c1c; }
+
+/* Scopes panel */
+.cur-ide[data-cur-theme="light"] .cur-scopes-summary { background: #e3f2fd; }
+.cur-ide[data-cur-theme="light"] .cur-scopes-count-large { color: #1d4ed8; }
+.cur-ide[data-cur-theme="light"] .cur-scope-count { background: #dbeafe; color: #1d4ed8; }
+
+/* Modals: blocked, flow, settings */
+.cur-ide[data-cur-theme="light"] .cur-modal { background: #ffffff; color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-modal h2 { color: #dc2626; }
+.cur-ide[data-cur-theme="light"] .cur-modal p { color: #333; }
+.cur-ide[data-cur-theme="light"] .cur-flow-modal,
+.cur-ide[data-cur-theme="light"] .cur-settings-modal { background: #ffffff; color: #1e1e1e; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-header { background: #f0f0f0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-title,
+.cur-ide[data-cur-theme="light"] .cur-flow-name { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-flow-close { color: #666; }
+.cur-ide[data-cur-theme="light"] .cur-flow-close:hover { background: #eee; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-flow-box { background: #f5f5f5; border-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-box:hover { background: #eaeaea; }
+.cur-ide[data-cur-theme="light"] .cur-flow-claims { background: #f0f0f0; }
+.cur-ide[data-cur-theme="light"] .cur-flow-ck { color: #1d4ed8; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv { color: #333; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--hi { color: #7c3aed; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--ok,
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--aud { color: #15803d; }
+.cur-ide[data-cur-theme="light"] .cur-flow-line,
+.cur-ide[data-cur-theme="light"] .cur-flow-arrow { background: #ccc; color: #ccc; }
+.cur-ide[data-cur-theme="light"] .cur-auth-badge--ok { background: rgba(56, 139, 253, 0.12); color: #1d4ed8; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Readability: on the dark background every bit of body/label/muted text is
+   bright white. Scoped to dark (never light mode, where white-on-white would
+   vanish). Bright accent colors — teal tool names, coloured badges, blue links
+   — are deliberately left as-is; they are the highlight, not the problem.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-ide:not([data-cur-theme="light"]) { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-titlebar-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-sidebar-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-field-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-settings-section-title,
+.cur-ide:not([data-cur-theme="light"]) .cur-tools-header h3,
+.cur-ide:not([data-cur-theme="light"]) .cur-status,
+.cur-ide:not([data-cur-theme="light"]) .cur-tab,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-tab:hover,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-role,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-meta,
+.cur-ide:not([data-cur-theme="light"]) .cur-msg-body,
+.cur-ide:not([data-cur-theme="light"]) .cur-empty-state,
+.cur-ide:not([data-cur-theme="light"]) .cur-chat-empty p,
+.cur-ide:not([data-cur-theme="light"]) .cur-chat-hint,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-empty,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-ts,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-msg,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-cat,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table th,
+.cur-ide:not([data-cur-theme="light"]) .cur-result-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-auth-user,
+.cur-ide:not([data-cur-theme="light"]) .cur-skin-picker > span,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-conn-label,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-sub,
+.cur-ide:not([data-cur-theme="light"]) .cur-input,
+.cur-ide:not([data-cur-theme="light"]) .cur-btn,
+.cur-ide:not([data-cur-theme="light"]) .cur-composer-input,
+.cur-ide:not([data-cur-theme="light"]) .cur-skin-picker select,
+.cur-ide:not([data-cur-theme="light"]) .cur-flow-trigger,
+.cur-ide:not([data-cur-theme="light"]) .cur-modal p { color: #ffffff; }
+
+/* Relay log / Trace / Scopes readability (dark only). The terminal log, event
+   badges and scope pills carried coloured text on dark tinted fills that read
+   poorly. White text on the tint keeps the colour-coding (via background) at
+   full contrast. */
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log span,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-line,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-count-large,
+.cur-ide:not([data-cur-theme="light"]) .cur-scopes-table td,
+.cur-ide:not([data-cur-theme="light"]) .cur-code-output { color: #ffffff; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-badge,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-pill,
+.cur-ide:not([data-cur-theme="light"]) .cur-scope-count { color: #ffffff; font-weight: 600; }
+/* Lift the darkest pill/badge fills a little so white text sits on real contrast. */
+.cur-ide:not([data-cur-theme="light"]) .scope-mcp { background: #14532d; }
+.cur-ide:not([data-cur-theme="light"]) .scope-p1 { background: #1e3a5f; }
+.cur-ide:not([data-cur-theme="light"]) .scope-oidc { background: #3b2f5e; }
+.cur-ide:not([data-cur-theme="light"]) .scope-read { background: #164e59; }
+.cur-ide:not([data-cur-theme="light"]) .scope-write { background: #5a3a1a; }
+.cur-ide:not([data-cur-theme="light"]) .scope-default { background: #3a3a3a; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Connection debug strip + trace JSON — were inline-styled with fixed dark
+   colors, so light mode left them dark ("stays dark even when toggled").
+   Now class-based with explicit light overrides so the toggle flips them too.
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-conn-debug {
+  padding: 6px 12px;
+  font-size: 10px;
+  font-family: monospace;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1e1e1e;
+  color: #888;
+}
+.cur-cd-k { color: #7a7a7a; }
+.cur-cd-v--url { color: #7ec8e3; word-break: break-all; }
+.cur-cd-v--id { color: #ffd93d; }
+.cur-cd-v--scope { color: #a8e6cf; }
+.cur-cd-v--ok { color: #a8e6cf; }
+.cur-cd-v--bad { color: #ff6b6b; }
+.cur-trace-ts { color: #777; min-width: 70px; }
+.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; }
+
+.cur-ide[data-cur-theme="light"] .cur-conn-debug { background: #f0f0f0; border-bottom-color: #e0e0e0; color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-cd-k { color: #888; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--url { color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--id { color: #92600a; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--scope,
+.cur-ide[data-cur-theme="light"] .cur-cd-v--ok { color: #0a7d4f; }
+.cur-ide[data-cur-theme="light"] .cur-cd-v--bad { color: #c0392b; }
+.cur-ide[data-cur-theme="light"] .cur-trace-ts { color: #999; }
+.cur-ide[data-cur-theme="light"] .cur-trace-json { color: #333; }
+
+/* Scope pick — left rail pill selects and jumps to the right SCOPES table. */
+.cur-scope-pill[role="button"] { cursor: pointer; }
+.cur-scope-pill--selected { outline: 2px solid #6d9eeb; outline-offset: 1px; }
+.cur-scopes-table tr { cursor: pointer; }
+.cur-scope-row--selected > td { background: rgba(109, 158, 235, 0.22); }
+.cur-ide[data-cur-theme="light"] .cur-scope-row--selected > td { background: rgba(37, 99, 235, 0.14); }
+
+/* RESULTS terminal tab — collects tool-call output; flashes on each new result. */
+.cur-terminal-tab-badge {
+  display: inline-block;
+  margin-left: 5px;
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #6d9eeb;
+  color: #0a0a0a;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 15px;
+}
+@keyframes curTabFlash {
+  0% { background: #6d9eeb; color: #0a0a0a; }
+  70% { background: #6d9eeb; color: #0a0a0a; }
+  100% { background: transparent; color: inherit; }
+}
+.cur-terminal-tab--flash { animation: curTabFlash 1.4s ease-out; }
+
+.cur-terminal-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  height: 100%;
+}
+.cur-result-item {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  background: #0d0d0d;
+  overflow: hidden;
+}
+.cur-result-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #161616;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 11px;
+}
+.cur-result-item-badge--ok { color: #a8e6cf; }
+.cur-result-item-badge--err { color: #ff6b6b; }
+.cur-result-item-tool { font-weight: 700; color: #7ec8e3; font-family: monospace; }
+.cur-result-item-ts { margin-left: auto; color: #777; font-family: monospace; }
+.cur-result-item-body {
+  margin: 0;
+  padding: 8px;
+  color: #ddd;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 260px;
+  overflow: auto;
+}
+.cur-ide[data-cur-theme="light"] .cur-result-item { border-color: #e0e0e0; background: #ffffff; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #2563eb; color: #ffffff; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Responsive — on smaller displays the fixed IDE layout crushed the main pane
+   (sidebar is 440px and does not shrink) and clipped everything (overflow
+   hidden). Below 900px: stack sidebar above main, let the page grow and scroll,
+   and drop the chrome that only makes sense in the desktop split (the activity
+   bar duplicates the tabs; the drag handles have no axis to drag). The !important
+   rules beat the inline width/height the resize drags leave on the elements.
+   Desktop (>900px) is unchanged.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .cur-ide { height: auto; min-height: 0; overflow: visible; }
+  .cur-titlebar { height: auto; min-height: 38px; flex-wrap: wrap; gap: 6px; padding: 4px 10px; }
+  .cur-body { flex-direction: column; overflow: visible; }
+  .cur-activity-bar { display: none; }
+  .cur-sidebar {
+    width: 100% !important;
+    min-width: 0;
+    flex-shrink: 1;
+    max-height: 45vh;
+    border-bottom: 1px solid #2b2b2b;
+  }
+  .cur-ide[data-cur-theme="light"] .cur-sidebar { border-bottom-color: #e0e0e0; }
+  .cur-resize-handle { display: none; }
+  .cur-main { min-height: 78vh; overflow: visible; }
+  .cur-terminal { height: 240px !important; }
 }

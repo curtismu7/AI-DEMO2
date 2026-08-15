@@ -52,7 +52,12 @@ describe('POST /api/oauth/clients/register-cimd (route wiring)', () => {
     expect(res.body.steps.map((s) => s.step)).toEqual(['fetch', 'validate', 'register']);
   });
 
-  test('the main AI Agent (scope agent:invoke) registers end-to-end from its published document', async () => {
+  // `admin:read` joined agent:invoke in #1689 so the agent's client-credentials
+  // token can reach the MCP /audit endpoint, which requires that scope. This
+  // asserts the EXACT scope string on the published document on purpose: the set
+  // is a privilege boundary, so widening it should have to change this line and
+  // be seen in review, never drift in unnoticed.
+  test('the main AI Agent (scopes agent:invoke + admin:read) registers end-to-end from its published document', async () => {
     const docUrl = `${baseUrl}/api/cimd/agents/super-banking-ai-agent/client-metadata.json`;
 
     const res = await request(makeApp())
@@ -61,7 +66,7 @@ describe('POST /api/oauth/clients/register-cimd (route wiring)', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.client.client_id).toBe(docUrl);
-    expect(res.body.client.scope).toBe('agent:invoke');
+    expect(res.body.client.scope).toBe('agent:invoke admin:read');
     expect(res.body.steps.every((s) => s.status === 'success')).toBe(true);
   });
 

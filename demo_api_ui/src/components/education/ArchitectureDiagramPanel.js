@@ -19,8 +19,7 @@ function ContextTab() {
                                │ uses
                                ▼
                     ┌─────────────────────┐
-                    │   Super Banking     │
-                    │       Demo          │
+                    │      AI Demo        │
                     │  AI-powered banking │
                     │  RFC 8693 delegation│
                     └───┬──────────┬──────┘
@@ -369,7 +368,7 @@ export default function ArchitectureDiagramPanel({
     <EducationDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="C4 Architecture — Super Banking Demo"
+      title="C4 Architecture — AI Demo"
       tabs={tabs}
       initialTabId={initialTabId}
       width="min(720px, 100vw)"

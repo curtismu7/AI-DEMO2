@@ -134,7 +134,7 @@
 .customer-skin-p1 .rd2-right-rail .token-chain-label,
 .customer-skin-p1 .rd2-right-rail label,
 .customer-skin-p1 .rd2-right-rail .chain-label {
-  color: #94a3b8;
+  color: var(--th-text-muted);
 }
 
 /* ── Token rail (float + middle layouts) ───────────────────────────────────── */

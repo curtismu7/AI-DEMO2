@@ -32,6 +32,21 @@ const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService
  * over. Everything else must route.
  */
 const A2A_UNROUTABLE = /specialist/i;
+/**
+ * The actual criterion behind that regex: these chips' heuristics live in the
+ * A2A overlay, which verticalDispatch only merges when ff_a2a_delegation is on,
+ * and this gate parses with the flag off. "specialist" happened to appear in
+ * UC2/UC2.5's wording; UC2.6's vertical-neutral trigger does not contain it.
+ * Same exemption, keyed on identity instead of phrasing (mirrors
+ * A2A_OVERLAY_USE_CASE_IDS in useCases.primaryTool.test.js).
+ */
+const A2A_OVERLAY_USE_CASE_IDS = new Set([
+  'a2a-delegation',
+  'a2a-orchestrator-learning',
+  'a2a-generalist-mismatch',
+]);
+const isA2aOverlayChip = (uc, text) =>
+  A2A_OVERLAY_USE_CASE_IDS.has(uc.useCaseId) || A2A_UNROUTABLE.test(text);
 // UC34/UC35 are free-form LLM analysis chips (primaryTool: null) — the LLM reasons
 // freely with no single deterministic heuristic, so they route via the LLM path at
 // runtime, not a heuristic match. Excluded like the A2A baseline above (mirrors
@@ -58,7 +73,7 @@ function chipsFor(vertical) {
     const uc = resolveUseCase(u.id, vertical) || u;
     const t = uc.trigger || {};
     if (t.type !== 'chip' || !t.text) continue;
-    if (A2A_UNROUTABLE.test(t.text)) continue;
+    if (isA2aOverlayChip(uc, t.text)) continue;
     if (LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
     if (seen.has(t.text)) continue;
     seen.add(t.text);

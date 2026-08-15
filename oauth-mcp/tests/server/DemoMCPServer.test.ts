@@ -1,5 +1,5 @@
 /**
- * Banking MCP Server Tests
+ * AI Demo MCP Server Tests
  * Unit tests for WebSocket server and connection handling
  */
 

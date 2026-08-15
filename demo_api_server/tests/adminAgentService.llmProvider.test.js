@@ -18,6 +18,10 @@ jest.mock('../services/mcpPingOneHttpAdapter', () => ({
   getWorkerTokenDecoded: jest.fn().mockResolvedValue(null),
 }));
 
+// The message must NOT match a pingone-admin heuristic ("list applications"
+// did): heuristic-first routing answers those without any LLM, so the
+// provider-selection contract under test — WHEN the model runs, it is
+// llamacpp — needs a phrase that actually reaches the reason loop.
 describe('processAdminMessage — LLM provider selection', () => {
   let processAdminMessage;
   let runReasonLoop;
@@ -29,7 +33,7 @@ describe('processAdminMessage — LLM provider selection', () => {
 
   test('always requests llamacpp, regardless of session langchainConfig', async () => {
     await processAdminMessage({
-      message: 'list applications',
+      message: 'please summarize our identity security posture',
       userId: 'u1',
       sessionId: 's1',
       tokenEvents: [],
@@ -41,7 +45,7 @@ describe('processAdminMessage — LLM provider selection', () => {
 
   test('requests llamacpp with an empty langchainConfig too', async () => {
     await processAdminMessage({
-      message: 'list applications', userId: 'u1', sessionId: 's1', tokenEvents: [],
+      message: 'please summarize our identity security posture', userId: 'u1', sessionId: 's1', tokenEvents: [],
     });
     expect(runReasonLoop).toHaveBeenCalledTimes(1);
     expect(runReasonLoop.mock.calls[0][0].provider).toBe('llamacpp');

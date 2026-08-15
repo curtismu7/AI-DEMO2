@@ -1,6 +1,6 @@
 #!/bin/bash
-# Banking MCP Server Installation Script
-# Installs and configures the Banking MCP Server on Linux systems
+# AI Demo MCP Server Installation Script
+# Installs and configures the AI Demo MCP Server on Linux systems
 
 set -e
 
@@ -105,7 +105,7 @@ create_user() {
             --home-dir "$INSTALL_DIR" \
             --no-create-home \
             --shell /bin/false \
-            --comment "Banking MCP Server" \
+            --comment "AI Demo MCP Server" \
             "$SERVICE_USER"
         log "INFO" "Created user: $SERVICE_USER"
     else
@@ -227,7 +227,7 @@ show_instructions() {
 
 # Uninstall function
 uninstall() {
-    log "INFO" "Uninstalling Banking MCP Server..."
+    log "INFO" "Uninstalling AI Demo MCP Server..."
     
     # Stop and disable service
     if systemctl is-active --quiet "$SERVICE_NAME"; then
@@ -272,7 +272,7 @@ main() {
     
     case $action in
         install)
-            log "INFO" "Starting Banking MCP Server installation..."
+            log "INFO" "Starting AI Demo MCP Server installation..."
             check_root
             check_requirements
             create_user
@@ -284,7 +284,7 @@ main() {
             show_instructions
             ;;
         uninstall)
-            log "INFO" "Starting Banking MCP Server uninstallation..."
+            log "INFO" "Starting AI Demo MCP Server uninstallation..."
             check_root
             uninstall
             ;;

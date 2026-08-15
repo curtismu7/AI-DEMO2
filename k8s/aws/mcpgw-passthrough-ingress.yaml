@@ -1,0 +1,59 @@
+---
+# SSL-passthrough Ingress for the Privilege MCPGW gateway (cyonproxy), on its
+# own dedicated hostname — NOT the shared ai-demo.ping-devops.com app host.
+#
+# Why passthrough, why a separate host: cyonproxy's client-facing proxy port
+# (8680) is TLS-native — it presents its OWN certificate (CN=proxy.procyon.ai,
+# tied to this gateway's node identity, issued by PingPAM's own Intermediate
+# CA) and negotiates HTTP/2 via ALPN. nginx terminating and re-encrypting that
+# (backend-protocol HTTP/HTTPS/GRPCS) hits TLS handshake failures — confirmed
+# live 2026-08-13, see privilege/PRIVILEGE-MCP.md. SSL passthrough forwards
+# the raw TLS bytes untouched, letting the client's TLS session terminate at
+# cyonproxy itself, which is how the reference chart's own
+# k8s/helm/mcpgw/templates/mcpgw/ingress-passthrough.yaml was originally
+# built (disabled there — see that chart's values.yaml — specifically because
+# it assumed the app's SHARED hostname, which collides; this file gives it
+# the dedicated host passthrough actually requires).
+#
+# Passthrough routes purely by SNI (the TLS ClientHello hostname) — it never
+# sees HTTP paths, so this CANNOT share a host with se-ingress.yaml's path-
+# based /mcpgw rule. That's why se-ingress.yaml's /mcpgw path never worked
+# for cyonproxy and is superseded by this file for gateway traffic.
+#
+# This uses the OLDER annotation-based ingress class selection
+# (kubernetes.io/ingress.class), not spec.ingressClassName — the passthrough
+# controller has no registered IngressClass resource on this cluster
+# (`kubectl get ingressclass` shows only nginx-public and alb), only
+# nginx-public and alb are registered; nginx-public-passthrough is selected
+# by this older annotation only, matching the existing
+# mcpgw-agentless-ingress.yaml convention.
+#
+# DNS: point <<MCPGW_HOSTNAME>> at the PASSTHROUGH controller's LoadBalancer
+# — a DIFFERENT ELB than the main app's ingress-nginx:
+#   ad620bbbd689011eab84c02546501ac8-9ce5500c3bca3a05.elb.us-east-2.amazonaws.com
+# (confirmed live 2026-08-13: `kubectl get svc -n ingress-nginx-public-passthrough`)
+#
+# No TLS Certificate resource needed here — passthrough never terminates TLS
+# at nginx, so there's nothing for cert-manager to issue for this host.
+#
+# <<NAMESPACE>> and <<MCPGW_HOSTNAME>> are substituted by deploy.sh.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-mcpgw-passthrough-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    kubernetes.io/ingress.class: "nginx-public-passthrough"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  rules:
+  - host: <<MCPGW_HOSTNAME>>
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ping-mcpgw-mcpgw
+            port:
+              number: 8680

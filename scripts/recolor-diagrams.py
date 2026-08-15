@@ -5,11 +5,11 @@ Recolor mermaid sequence diagram SVGs with per-actor colors.
 Usage:
   python3 scripts/recolor-diagrams.py
 
-Reads:  privilege-mcp-flow1.svg, privilege-mcp-flow2.svg  (raw mmdc output)
-Writes: privilege-mcp-flow1.svg, privilege-mcp-flow2.svg  (recolored, in-place)
+Reads:  privilege/diagrams/privilege-mcp-flow1.svg, privilege/diagrams/privilege-mcp-flow2.svg  (raw mmdc output)
+Writes: privilege/diagrams/privilege-mcp-flow1.svg, privilege/diagrams/privilege-mcp-flow2.svg  (recolored, in-place)
 
 To regenerate the raw SVGs first:
-  npx @mermaid-js/mermaid-cli -i privilege-mcp-lucid-flow.md ... (split per diagram)
+  npx @mermaid-js/mermaid-cli -i privilege/diagrams/privilege-mcp-lucid-flow.md ... (split per diagram)
   or use render-diagrams.sh in this directory.
 """
 import re
@@ -50,7 +50,7 @@ def recolor(svg_path: Path) -> None:
 
 if __name__ == '__main__':
     import glob
-    svgs = sorted(glob.glob(str(HERE / 'privilege-mcp-flow*.svg')))
+    svgs = sorted(glob.glob(str(HERE / 'privilege/diagrams/privilege-mcp-flow*.svg')))
     if not svgs:
         print('No privilege-mcp-flow*.svg files found')
     for f in svgs:

@@ -21,6 +21,7 @@ import ComputerUseAgentPanel from "./ComputerUseAgentPanel";
 import ElicitationPanel from "./ElicitationPanel";
 import EnterpriseManagedAuthPanel from "./EnterpriseManagedAuthPanel";
 import FlowDiagramsPanel from "./FlowDiagramsPanel";
+import GatewayPolicySplitPanel from "./GatewayPolicySplitPanel";
 import GleanPanel from "./GleanPanel";
 import HumanInLoopPanel from "./HumanInLoopPanel";
 import IdJagPanel from "./IdJagPanel";
@@ -29,6 +30,7 @@ import IntentAuthStandardsPanel from "./IntentAuthStandardsPanel";
 import IntentDelegationPanel from "./IntentDelegationPanel";
 import IntrospectionPanel from "./IntrospectionPanel";
 import JwtClientAuthPanel from "./JwtClientAuthPanel";
+import KillSwitchMechanismsPanel from "./KillSwitchMechanismsPanel";
 import LangChainPanel from "./LangChainPanel";
 import LlmLandscapePanel from "./LlmLandscapePanel";
 import LoginFlowPanel from "./LoginFlowPanel";
@@ -71,6 +73,7 @@ const PANEL_MAP = {
   [EDU.CIMD]: CimdPanel,
   [EDU.CUA]: ComputerUseAgentPanel,
   [EDU.FLOW_DIAGRAMS]: FlowDiagramsPanel,
+  [EDU.GATEWAY_POLICY_SPLIT]: GatewayPolicySplitPanel,
   [EDU.GLEAN]: GleanPanel,
   [EDU.HUMAN_IN_LOOP]: HumanInLoopPanel,
   [EDU.ID_JAG]: IdJagPanel,
@@ -79,6 +82,7 @@ const PANEL_MAP = {
   [EDU.INTENT_AUTH_STANDARDS]: IntentAuthStandardsPanel,
   [EDU.INTROSPECTION]: IntrospectionPanel,
   [EDU.JWT_CLIENT_AUTH]: JwtClientAuthPanel,
+  [EDU.KILL_SWITCH]: KillSwitchMechanismsPanel,
   [EDU.LANGCHAIN]: LangChainPanel,
   [EDU.LLM_LANDSCAPE]: LlmLandscapePanel,
   [EDU.LOGIN_FLOW]: LoginFlowPanel,

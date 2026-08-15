@@ -94,6 +94,9 @@ export async function buildBankingDataToolResult(
     ok: true,
     result: {
       content: [{ type: 'text', text: JSON.stringify(resp.data) }],
+      // MCP spec (2025-06-18+) structured tool output — lets a client consume
+      // the payload directly instead of JSON-parsing content[].text.
+      structuredContent: resp.data,
       _meta: {
         credentialPath: 'oauth_bearer',
         backendRoute: base ? url.replace(base, '') : url,

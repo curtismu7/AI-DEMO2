@@ -52,7 +52,7 @@ function makeConfig(wbaMode: GatewayConfig['wbaMode']): GatewayConfig {
 }
 
 const deps = {
-  introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+  introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
   authorize: async () => ({ decision: 'PERMIT' as const }),
   // Step 4 now performs an RFC 8693 exchange before forwarding — stub it so
   // the forward path is reachable without a real token endpoint.

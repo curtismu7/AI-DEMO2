@@ -51,6 +51,17 @@ beforeEach(() => {
   global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ useCases: CATALOG }) }));
 });
 
+test('does not fetch the use-case catalog when there is no session', async () => {
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking" enabled={false}>
+      <Probe />
+    </ProofOfEnforcementProvider>,
+  );
+  // /api/use-cases 401s for a signed-out visitor — don't make the request.
+  expect(global.fetch).not.toHaveBeenCalled();
+  expect(getByTestId('verdict').textContent).toBe('none');
+});
+
 test('a fully-matched PERMIT trace verdicts as verified', async () => {
   const { getByTestId } = render(
     <ProofOfEnforcementProvider vertical="banking">
@@ -334,6 +345,33 @@ describe('a failed run is not reported as still waiting', () => {
     expect(v.state).toBe('incomplete');
     expect(v.resultText).toBe('Run failed before authorize-decision, tool-dispatched');
     expect(v.missingSteps).toEqual(['authorize-decision', 'tool-dispatched']);
+  });
+});
+
+// Regression: gateway-authoritative runs (useGateway: true) never populate
+// trace.authorize — the BFF skips its own Authorize gate and PingOne's real
+// PERMIT only ever arrives as a 'gw-authorize' token event. Without a
+// fallback, a run the gateway actually permitted still read "Run failed
+// before authorize-decision" because computeVerdict only checked trace.authorize.
+describe('a gateway-authoritative PERMIT is not reported as incomplete', () => {
+  const ENTRY = {
+    useCaseId: 'delegated-access-with-proof',
+    title: 'Delegated access with proof',
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'authorize-decision', 'tool-dispatched'], activity: ['token'] },
+  };
+
+  test('gw-authorize token event fills the authorize-decision step', () => {
+    // tokenChainTraceStore synthesizes trace.authorize from the gw-authorize event
+    // before computeVerdict is ever called, so authorize is never null on these runs.
+    const v = computeVerdict({
+      tokenEvents: [{ id: 'user-token' }, { id: 'gw-authorize', decision: 'PERMIT' }],
+      authorize: { decision: 'PERMIT', source: 'gw-authorize' },
+      mcpResult: { tool: 'view_coverage' },
+      outcome: 'ok',
+    }, ENTRY);
+    expect(v.state).toBe('verified');
+    expect(v.missingSteps).toEqual([]);
   });
 });
 

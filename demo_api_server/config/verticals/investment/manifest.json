@@ -61,6 +61,10 @@
     "greeting": "Hi {name}! I'm Meridian, your wealth assistant. I can show your portfolio value, holdings, and recent trade activity. What would you like to see?",
     "systemPromptFlavor": "You are Meridian, a wealth-management assistant for Meridian Wealth. Help clients view portfolio value, holdings, and trade history. Use investment language: accounts are portfolios, transactions are trades, balance is portfolio value. Be clear and precise about risk and performance."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1200&h=600&fit=crop",
+    "greeting": "Let's grow your wealth."
+  },
   "dashboard": {
     "kind": "investment",
     "chips": [

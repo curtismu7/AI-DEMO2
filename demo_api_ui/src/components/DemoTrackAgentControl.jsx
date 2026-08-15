@@ -21,6 +21,13 @@ function stepComplete(step, run, gauntletSims) {
 export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
   const [state, setState] = useState(null);
   const [open, setOpen] = useState(false);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    const onAuth = () => setAuthed(true);
+    window.addEventListener('userAuthenticated', onAuth);
+    return () => window.removeEventListener('userAuthenticated', onAuth);
+  }, []);
   // Picked-step completion watch: fire onStepComplete once per (run, step) when
   // the picked step's slots fill from real runs.
   const pickedRef = useRef(null); // stepId | null
@@ -48,14 +55,33 @@ export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
           });
         }
       }
-    } catch { /* header control is best-effort; next poll retries */ }
+      return true;
+    } catch (err) {
+      // A 401 means the session is gone — every future poll would 401 too,
+      // forever, since this control stays mounted (host preserves chat state)
+      // even while collapsed. Stop instead of spamming the network/console
+      // every 5s for the rest of the page's life.
+      return err?.response?.status !== 401;
+    }
   }, []);
 
   useEffect(() => {
+    if (!authed) return;
+    let stopped = false;
     load();
-    const t = setInterval(load, POLL_MS);
-    return () => clearInterval(t);
-  }, [load]);
+    const t = setInterval(async () => {
+      if (stopped) return;
+      const ok = await load();
+      if (!ok) {
+        stopped = true;
+        clearInterval(t);
+      }
+    }, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(t);
+    };
+  }, [load, authed]);
 
   const pick = useCallback(async (step, index, total) => {
     setOpen(false);

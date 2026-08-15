@@ -14,7 +14,6 @@ import { useVertical } from "../vertical/useVertical";
 import ConfirmModal from "./ConfirmModal";
 import ControlPlaneIntroModal from "./ControlPlaneIntroModal";
 import { EDU } from "./education/educationIds";
-import KillSwitchConfirmModal from "./KillSwitchConfirmModal";
 import { PAC_EDITOR_URL } from "./pacEditorStatus";
 import "./adminSkinPing2026.css";
 import { HiOutlineUsers } from "react-icons/hi";
@@ -160,8 +159,9 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "demos", paths: ["/agent-lifecycle", "/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation"] },
-  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
+  { id: "customer-demos", paths: ["/agent-lifecycle"] },
+  { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value"] },
+  { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
@@ -216,7 +216,11 @@ const sectionIdOf = (item, index) =>
 const isLocalHost = () =>
   typeof window !== "undefined" && LOCAL_HOSTNAMES.has(window.location.hostname);
 
-export default function AdminSideNav({ user }) {
+export default function AdminSideNav({
+  user,
+  onStopAgentClick = () => {},
+  agentRevoked = false,
+}) {
   const location = useLocation();
   const navigate = useNavigate();
   // The icon rail is the resting state: "Unchanged — icon rail, expands to the
@@ -340,13 +344,11 @@ export default function AdminSideNav({ user }) {
       /* ignore storage-unavailable (private mode / quota) */
     }
   }, [expandedSections, expandedSectionsKey]);
-  const [showKillModal, setShowKillModal] = useState(false);
   // Path of the admin-marked link a non-admin clicked; non-null opens the
   // "log in as admin" confirm dialog.
   const [adminPromptPath, setAdminPromptPath] = useState(null);
   // Path queued behind the AI Control Plane intro-gate modal (null = closed).
   const [controlPlaneIntroPath, setControlPlaneIntroPath] = useState(null);
-  const [agentRevoked, setAgentRevoked] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [latestRunId, setLatestRunId] = useState(null);
   const [latestRunTime, setLatestRunTime] = useState(null);
@@ -479,35 +481,51 @@ export default function AdminSideNav({ user }) {
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
-      label: "Demos",
+      // Customer-facing demo pages — visible to admins too ("there is no
+      // reason to hide on admin dashboard", 2026-08-10): the presenter drives
+      // these demos from an admin session. customerOnly was dropped from
+      // Agent Lifecycle when it moved here.
+      label: "Customer Demos",
       icon: "demo",
       children: [
         {
           label: "Agent Lifecycle",
           path: "/agent-lifecycle",
           icon: "agt",
-          customerOnly: true,
+          adminOnly: true,
         },
+        {
+          label: "Personal Agent",
+          path: "/personal-agent",
+          icon: "agt",
+          adminOnly: true,
+        },
+      ],
+    },
+    {
+      label: "Demos",
+      icon: "demo",
+      children: [
         {
           label: "Delegated Commerce",
           path: "/delegated-commerce",
           icon: "agt",
+          adminOnly: true,
         },
         { label: "Use Cases", path: "/use-cases", icon: "demo" },
         { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
         { label: "Guided Demo Track", path: "/demo-track", icon: "demo" },
+        { label: "Delegation Chain Value", path: "/delegation-chain-value", icon: "demo" },
         { label: "Group Policy Board", path: "/group-policy", icon: "demo" },
         {
           label: "Demo Script",
           icon: "demo",
           action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
         },
-        { label: "Demo Config", path: "/demo-config", icon: "cfg" },
-        { label: "Family Delegation", path: "/delegation", icon: "usr" },
+        { label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true },
+        { label: "Family Delegation", path: "/delegation", icon: "usr", adminOnly: true },
       ],
     },
-    { label: "AI Footprint", path: "/demo/footprint-picks", icon: "demo" },
-    { label: "Footprint Gallery", path: "/demo/footprint-mocks", icon: "demo" },
     // Latest report — shown when agent run completes
     ...(latestRunId
       ? [
@@ -530,14 +548,14 @@ export default function AdminSideNav({ user }) {
           highlight: true,
           introGate: true,
         },
-        { label: "Copilot", path: "/copilot", icon: "ai" },
         {
           label: "PingOne Agent Builder",
           path: "/agent-builder",
           icon: "tool",
+          adminOnly: true,
         },
         {
-          label: "Agent Flow Inspector",
+          label: "Agent & Token Flow History",
           path: "/agent-flow-inspector",
           icon: "flw",
         },
@@ -579,7 +597,6 @@ export default function AdminSideNav({ user }) {
           path: "/ping-ai-test-lab",
           icon: "tst",
         },
-        { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
           label: "Agent Gateway Inspector",
           path: "/agent-gateway-inspector",
@@ -689,7 +706,7 @@ export default function AdminSideNav({ user }) {
           icon: "file",
         },
         {
-          label: "PingCLI Demo",
+          label: "Headless Identity Demo",
           path: "/pingcli",
           icon: "tool",
         },
@@ -743,7 +760,12 @@ export default function AdminSideNav({ user }) {
         // been wrapped in RequireAdminLogin since PR #1473, but the nav was
         // never updated to match, so a non-admin got an ordinary-looking link
         // that dead-ends at the route-level login wall. /admin is the same.
-        { label: "Support Console", path: "/admin/sporting-goods", icon: "bld", adminOnly: true },
+        // "Support Console" used to sit here pointing at /admin. #1494 put
+        // /admin back on the PingOne dashboard and repointed the entry at
+        // /admin/sporting-goods, which is exactly where "Sporting Goods Ops"
+        // below already goes — same route, same component, duplicate React key.
+        // Removed rather than re-keyed: a second link to one destination is not
+        // a distinct nav item.
         { label: "Banking Ops", path: "/admin/banking", icon: "acc", adminOnly: true },
         { label: "Healthcare Ops", path: "/admin/healthcare", icon: "cfg", adminOnly: true },
         { label: "Retail Ops", path: "/admin/retail", icon: "cfg", adminOnly: true },
@@ -876,6 +898,11 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/p1az",
           icon: "log",
         },
+        {
+          label: "Token Exchange",
+          path: "/monitoring/token-exchange",
+          icon: "log",
+        },
       ],
     },
     {
@@ -926,6 +953,7 @@ export default function AdminSideNav({ user }) {
         { label: "MCP Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
         { label: "Privilege MCP (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
+        { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
       ],
     },
     {
@@ -1024,7 +1052,7 @@ export default function AdminSideNav({ user }) {
   // Escape hatch: hiding the whole Demos group must never take the Demo Config
   // page's own link with it (the user could not undo the hide from the sidebar).
   if (hiddenNavLabels.includes("Demos")) {
-    filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg" });
+    filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true });
   }
 
   // Apply the user's saved child moves/reorder (Demo Config drag of the items
@@ -1192,7 +1220,7 @@ export default function AdminSideNav({ user }) {
         setShowResetModal(true);
         break;
       case "sign-in":
-        navigateToCustomerOAuthLogin("/dashboard");
+        navigateToCustomerOAuthLogin();
         break;
       default:
         break;
@@ -1216,45 +1244,10 @@ export default function AdminSideNav({ user }) {
     performLogout();
   };
 
-  const handleKillSwitchConfirm = useCallback(
-    async (agentId, reason) => {
-      try {
-        const response = await fetch(
-          `/api/admin/agent/${agentId}/kill-switch`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reason }),
-          },
-        );
-        const body = await response.json().catch(() => ({}));
-        // 401 with agent_killed is the expected success response: session revoked at server
-        if (response.status === 401 && body.error === "agent_killed") {
-          setAgentRevoked(true);
-          setShowKillModal(false);
-          console.log(
-            "[AdminSideNav] Agent killed — navigating to logout page",
-          );
-          navigate("/logout");
-          return;
-        }
-        if (!response.ok)
-          throw new Error(
-            body.error_description ||
-              body.message ||
-              `Kill switch failed: ${response.status}`,
-          );
-        // Fallback for any 2xx
-        setAgentRevoked(true);
-        setShowKillModal(false);
-        navigate("/logout");
-      } catch (e) {
-        console.error("[AdminSideNav] Kill switch error:", e.message);
-      }
-    },
-    [navigate],
-  );
+  // Kill-switch state/handlers moved to App.js — this component (and its
+  // local state) unmounts the instant `user` clears, which a successful kill
+  // does immediately as its own side effect. A modal owned here can never
+  // survive long enough to show its own result. See App.js's `AppWithAuth`.
 
   const NavIcon = ({ name }) => {
     const IconComponent = ICON_MAP[name];
@@ -1452,8 +1445,9 @@ export default function AdminSideNav({ user }) {
 
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
-        {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
-            Agent/Admin/Setup when expanded (Refresh lives next to search). */}
+        {/* Quick-access shortcuts — single column of icons when collapsed
+            (incl. Refresh); 2×2 of Agent/Admin/Setup when expanded (Refresh
+            lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
@@ -1471,7 +1465,7 @@ export default function AdminSideNav({ user }) {
               navigate("/dashboard");
             }}
           >
-            {collapsed ? "Ag" : "Agent"}
+            {collapsed ? <MdDashboard size={16} aria-hidden="true" /> : "Agent"}
           </button>
           <button
             type="button"
@@ -1497,14 +1491,14 @@ export default function AdminSideNav({ user }) {
                 );
             }}
           >
-            {collapsed ? "A" : "Admin"}
+            {collapsed ? <MdSecurity size={16} aria-hidden="true" /> : "Admin"}
           </button>
           <Link
             to="/configure"
             className={`admin-side-nav__quick-link${location.pathname.startsWith("/configure") ? " admin-side-nav__quick-link--active" : ""}`}
             title="Setup"
           >
-            {collapsed ? "S" : "Setup"}
+            {collapsed ? <MdSettings size={16} aria-hidden="true" /> : "Setup"}
           </Link>
           {collapsed && (
             <button
@@ -1514,7 +1508,7 @@ export default function AdminSideNav({ user }) {
               aria-label="Refresh sidebar"
               onClick={loadNavConfig}
             >
-              R
+              <MdRefresh size={16} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -1677,7 +1671,7 @@ export default function AdminSideNav({ user }) {
           <button
             type="button"
             className="admin-side-nav__item admin-side-nav__stop-agent"
-            onClick={() => !agentRevoked && setShowKillModal(true)}
+            onClick={() => !agentRevoked && onStopAgentClick()}
             disabled={agentRevoked}
             title={
               agentRevoked
@@ -1716,15 +1710,6 @@ export default function AdminSideNav({ user }) {
           ))}
         </div>
       </nav>
-      {showKillModal && (
-        <KillSwitchConfirmModal
-          isOpen={showKillModal}
-          onCancel={() => setShowKillModal(false)}
-          onConfirm={(agentId, reason) =>
-            handleKillSwitchConfirm(agentId || "default-agent", reason)
-          }
-        />
-      )}
       <ConfirmModal
         isOpen={showResetModal}
         title="Reset Demo"

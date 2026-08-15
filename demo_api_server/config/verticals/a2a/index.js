@@ -33,12 +33,33 @@ const DELEGATE_TOOL = {
   authz: {}, // No BFF gate — PingOne Authorize decides over the act chain.
 };
 
+const MISMATCH_TOOL = {
+  name: 'a2a_generalist_mismatch',
+  description:
+    'Simulate what happens when an UNREGISTERED agent tries to act as the generalist in a specialist ' +
+    'delegation — sends a fabricated actor identity to the same PingOne Authorize decision the gateway ' +
+    'uses and shows the resulting DENY. Teaching/demo only: does not mint a real second agent identity.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      subtask: { type: 'string', description: 'What the specialist would have been asked to do.' },
+      tool: { type: 'string', description: 'Optional: the specialist tool to probe (defaults to the vertical specialist tool).' },
+    },
+  },
+  scopes: [],
+  authz: {},
+};
+
 // Delegation phrases route to delegate_to_specialist. The sensitive data itself is
 // gated by Authorize (which denies the generalist), which is what prompts delegation.
 const HEURISTICS = [
   {
     re: /\b(delegate|hand\s*(off|over)|escalate)\b.*\b(specialist|advisor|agent|expert)\b|\b(ask|consult|involve|bring\s+in)\b.{0,20}\b(specialist|advisor|expert)\b|\bsecond\s+agent\b|\bspecialist\s+agent\b/i,
     action: 'delegate_to_specialist',
+  },
+  {
+    re: /\bagent\s+identity\s+mismatch\b|\bagent\s+mismatch\b|\bunregistered\s+agent\b/i,
+    action: 'a2a_generalist_mismatch',
   },
 ];
 
@@ -66,12 +87,12 @@ function getManifest() {
 }
 
 function getAuthz() {
-  return { [DELEGATE_TOOL.name]: DELEGATE_TOOL.authz };
+  return { [DELEGATE_TOOL.name]: DELEGATE_TOOL.authz, [MISMATCH_TOOL.name]: MISMATCH_TOOL.authz };
 }
 
 module.exports = {
   getManifest,
-  getTools: () => [DELEGATE_TOOL],
+  getTools: () => [DELEGATE_TOOL, MISMATCH_TOOL],
   getHeuristics: () => HEURISTICS,
   getSystemPrompt,
   getDataStore: () => ({ get: () => ({}) }),
@@ -81,6 +102,12 @@ module.exports = {
     if (name === DELEGATE_TOOL.name) {
       return {
         result: { error: 'delegate_to_specialist must be handled by the A2A interception (missing req/vertical context).' },
+        render: 'text',
+      };
+    }
+    if (name === MISMATCH_TOOL.name) {
+      return {
+        result: { error: 'a2a_generalist_mismatch must be handled by the A2A interception (missing req/vertical context).' },
         render: 'text',
       };
     }

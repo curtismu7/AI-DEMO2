@@ -30,16 +30,20 @@
 .cvm-trigger:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 
 .cvm-pop {
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  z-index: 30;
+  /* Fixed + portaled to <body>: the token card is an overflow-y:auto scroll
+     container in split layout, which clipped an absolutely-positioned popover
+     mid-list on the short views. Coordinates come inline from the trigger's
+     rect at open time. */
+  position: fixed;
+  z-index: 1000;
+  max-height: min(70vh, 480px);
+  overflow-y: auto;
   min-width: 250px;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
   padding: 5px;
 }
@@ -56,7 +60,7 @@
   cursor: pointer;
 }
 
-.cvm-item:hover { background: #f1f5f9; }
+.cvm-item:hover { background: var(--th-bg-inset); }
 
 .cvm-item-label {
   display: flex;
@@ -64,7 +68,7 @@
   gap: 6px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .cvm-item-count {
@@ -79,20 +83,20 @@
 
 .cvm-item-hint {
   font-size: 11px;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 .cvm-note {
   margin: 4px 9px 3px;
   font-size: 11px;
-  color: #64748b;
-  border-top: 1px solid #e2e8f0;
+  color: var(--th-text-muted);
+  border-top: 1px solid var(--th-border);
   padding-top: 6px;
 }
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
-:root[data-theme="dark"] .cvm-pop { background: #0f1830; border-color: #26304a; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
-:root[data-theme="dark"] .cvm-item:hover { background: #1b2540; }
+:root[data-theme="dark"] .cvm-pop { background: var(--th-bg-card); border-color: var(--th-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+:root[data-theme="dark"] .cvm-item:hover { background: var(--th-bg-inset); }
 :root[data-theme="dark"] .cvm-item-label { color: #eaf0fb; }
 :root[data-theme="dark"] .cvm-item-count { background: #10331f; color: #5fe39c; }
 :root[data-theme="dark"] .cvm-item-hint { color: #90a0c2; }

@@ -49,8 +49,8 @@ curl -sk -X POST https://api.ping.demo:3001/api/admin/agent/<AGENT_ID>/kill-swit
   `auditLogService.recordKillEvent` → retrievable from `/api/admin/audit-trail`.
 - The call **destroys the admin session** on success (forces your own re-auth) —
   expect a 401 back; that is success, not failure.
-- After this, `agentRateLimit` rejects the agent with `401 agent_revoked` even if
-  it presents a still-unexpired token.
+- After this, the kill check in `runMcpToolPipeline` rejects the agent with
+  `403 agent_killed` even if it presents a still-unexpired token.
 
 ### b) If it's a user/standalone token — revoke at PingOne (RFC 7009)
 `services/tokenRevocation.js` revokes against `PINGONE_REVOCATION_ENDPOINT`.

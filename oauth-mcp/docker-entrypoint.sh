@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Banking MCP Server Docker Entrypoint
+# AI Demo MCP Server Docker Entrypoint
 # Handles graceful shutdown and environment setup
 
 # Function to handle graceful shutdown
@@ -37,7 +37,7 @@ if [ -z "$PORT" ]; then
 fi
 
 # Log startup information
-echo "Starting Banking MCP Server..."
+echo "Starting AI Demo MCP Server..."
 echo "Node Environment: $NODE_ENV"
 echo "Host: $MCP_SERVER_HOST"
 echo "Port: $PORT"

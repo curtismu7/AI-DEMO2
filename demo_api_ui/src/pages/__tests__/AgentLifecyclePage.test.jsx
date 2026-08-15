@@ -288,6 +288,10 @@ describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
       'href',
       '/audit?agentId=demo-agent',
     );
+    expect(screen.getByText('View lifecycle export feed →')).toHaveAttribute(
+      'href',
+      '/api/control-plane/lifecycle-events?agentId=demo-agent',
+    );
   });
 
   it('treats soft MCP error payloads as confirmed revoke (not unexpected success)', async () => {

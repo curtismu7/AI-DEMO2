@@ -75,6 +75,10 @@
     "greeting": "Hi {name}! I can browse products, check prices, help with your cart, and explain the OAuth flows securing your checkout. What would you like to do?",
     "systemPromptFlavor": "You are a Great Buy shopping assistant. Help customers check their reward points, browse purchase history, view their account balances, and complete checkouts. Use retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points, transfers are orders. Be concise and professional."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=1200&h=600&fit=crop",
+    "greeting": "Let's find something great for you."
+  },
   "dashboard": {
     "kind": "retail",
     "chips": [

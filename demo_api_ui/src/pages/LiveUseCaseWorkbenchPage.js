@@ -84,6 +84,12 @@ const DEMO_ID_SET = new Set([
   ...DEMO_ADVANCED_USE_CASE_IDS,
 ]);
 
+// Coupa/NIQ gap-closure demo (2026-08-10) — UC36 (Protect, not yet built) and
+// UC37 (Verified Trust) carved into their own section on this page only.
+// Both stay track: 'controls' in the catalog SoT, so the main /use-cases
+// launcher is unaffected — this exclusion + section is local to this page.
+const COUPA_NIQ_ID_SET = new Set(['UC36', 'UC37']);
+
 /**
  * Format trigger for secondary card line.
  * @param {{ type?: string, text?: string, sim?: string }} [trigger]
@@ -421,9 +427,15 @@ export default function LiveUseCaseWorkbenchPage() {
       items: useCases.filter(
         (uc) => uc.track === track
           && !DEMO_ID_SET.has(uc.id)
+          && !COUPA_NIQ_ID_SET.has(uc.id)
           && matchesQuery(uc, query),
       ),
     })).filter((g) => g.items.length > 0),
+    [useCases, query],
+  );
+
+  const coupaNiqDemo = useMemo(
+    () => useCases.filter((uc) => COUPA_NIQ_ID_SET.has(uc.id) && matchesQuery(uc, query)),
     [useCases, query],
   );
 
@@ -579,7 +591,7 @@ export default function LiveUseCaseWorkbenchPage() {
           <div className="luw-drawer__scroll">
             {loading && <p className="luw-drawer__empty">Loading…</p>}
             {error && <p className="luw-drawer__empty">{error}</p>}
-            {!loading && !error && primaryDemo.length === 0 && advancedDemo.length === 0 && groupedOther.length === 0 && (
+            {!loading && !error && primaryDemo.length === 0 && advancedDemo.length === 0 && groupedOther.length === 0 && coupaNiqDemo.length === 0 && (
               <p className="luw-drawer__empty">No use cases match “{query}”.</p>
             )}
 
@@ -614,6 +626,16 @@ export default function LiveUseCaseWorkbenchPage() {
                 {items.map((uc) => renderCard(uc))}
               </details>
             ))}
+
+            {!loading && !error && coupaNiqDemo.length > 0 && (
+              <details className="luw-track luw-track--gap-closure" open>
+                <summary>
+                  Identity for AI — Coupa/NIQ gap closure
+                  <span className="luw-track__count">{coupaNiqDemo.length}</span>
+                </summary>
+                {coupaNiqDemo.map((uc) => renderCard(uc))}
+              </details>
+            )}
           </div>
         </nav>
 

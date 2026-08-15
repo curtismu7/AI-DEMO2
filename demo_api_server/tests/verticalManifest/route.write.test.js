@@ -88,12 +88,31 @@ afterAll(() => {
 });
 
 describe('POST /active', () => {
-  // Switching the active vertical is open to any authenticated user (requireSession),
-  // not admin-only — it's a demo affordance. Unauthenticated requests are still 401.
-  test('unauthenticated → 401', async () => {
-    const res = await request(makeApp())
+  // Switching the active vertical is open to any caller — signed in or not — but
+  // only ever session-scoped. Moving the process-global stays admin-only.
+  //
+  // Guests used to 401 here. The SPA POSTs this endpoint whenever the vertical
+  // picker changes, so a rejected guest kept NO pin, and every downstream
+  // activeIdFor(req) fell back to the process-global — whatever vertical some
+  // other session last set. Observed live: a guest whose picker read "Super
+  // Banking" got retail's agent persona and was asked about their "Great Buy"
+  // account. The UI selection has to survive to the server for that not to happen.
+  test('unauthenticated → 204 pins the session only, never the global', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const session = { save: (cb) => cb && cb() };
+    const res = await request(makeApp({ session }))
       .post('/api/verticals/active').send({ id: 'healthcare' });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(204);
+    expect(session.active_vertical).toBe('healthcare');
+    expect(verticalManifest.resolver.activeId()).toBe('banking');
+  });
+
+  test('unauthenticated cannot force global=true', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const res = await request(makeApp())
+      .post('/api/verticals/active').send({ id: 'healthcare', global: true });
+    expect(res.status).toBe(403);
+    expect(verticalManifest.resolver.activeId()).toBe('banking');
   });
 
   test('non-admin authenticated → 204 session only (does not move global)', async () => {

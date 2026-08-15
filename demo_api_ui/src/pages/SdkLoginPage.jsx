@@ -6,7 +6,7 @@ import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 //
 // Demonstrates the Ping Orchestration JavaScript SDK (@forgerock/oidc-client):
 // browser-side authorization-code + PKCE login, then token revocation. This is the
-// OPPOSITE pattern to the Super Banking BFF login (where tokens live on the server
+// OPPOSITE pattern to the AI Demo BFF login (where tokens live on the server
 // and the browser only holds a session cookie) — here the SDK performs PKCE in the
 // browser and holds tokens in localStorage. It exists to illustrate the SDK, not to
 // replace the BFF flow. See GET /api/sdk-demo/config for the non-secret config.
@@ -320,7 +320,7 @@ export default function SdkLoginPage() {
         <div style={styles.explain}>
           <InfoBadge C={C} />
           <p style={{ margin: 0, color: C.muted }}>
-            <b style={{ color: C.text }}>Different from the main app.</b> The Super Banking login is
+            <b style={{ color: C.text }}>Different from the main app.</b> The AI Demo login is
             BFF-based — tokens live on the server and the browser only holds a session cookie.{" "}
             <b style={{ color: C.text }}>This page is the opposite pattern:</b> the SDK performs PKCE
             in the browser and holds tokens in <code>localStorage</code>. It illustrates the SDK; it

@@ -846,7 +846,43 @@ router.get(
  */
 
 const killSwitchService = require('../services/killSwitchService');
+const killSwitchSseHub = require('../services/killSwitchSseHub');
 const auditLogService = require('../services/auditLogService');
+const agentLifecycleEvents = require('../services/agentLifecycleEvents');
+const { deriveAgentKey } = require('../services/sessionKeyService');
+const agentRunRegistry = require('../services/agentRunRegistry');
+
+/**
+ * GET /api/admin/agent/:agentId/active-runs
+ * What the kill-switch confirm modal shows before the operator commits.
+ * userId is deliberately stripped from the response.
+ */
+router.get(
+  '/agent/:agentId/active-runs',
+  authenticateToken,
+  (req, res) => {
+    const _activeRunsUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+    const agentId = deriveAgentKey(req, req.params.agentId, _activeRunsUserId);
+    const runs = agentRunRegistry.listActiveRuns(agentId).map(
+      ({ runId, tool, startedAt }) => ({ runId, tool, startedAt }),
+    );
+    return res.status(200).json({ runs });
+  },
+);
+
+/**
+ * GET /api/admin/agent/:agentId/kill-switch/events
+ * SSE stream of kill-switch steps as they run, keyed by session — opened by
+ * KillSwitchConfirmModal right before it POSTs the kill so the checklist
+ * renders live instead of only after the whole call resolves.
+ */
+router.get(
+  '/agent/:agentId/kill-switch/events',
+  authenticateToken,
+  (req, res) => {
+    killSwitchSseHub.attach(req, res);
+  }
+);
 
 /**
  * POST /api/admin/agent/:agentId/kill-switch
@@ -857,7 +893,8 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
-      const { agentId } = req.params;
+      const _killUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _killUserId);
       // Default instance: omitting scope must NEVER disable PingOne agent apps
       // (that used to brick the whole demo when a caller forgot to pass scope).
       const { reason = 'manual_red_button', scope = 'instance' } = req.body;
@@ -896,7 +933,7 @@ router.post(
       // Execute kill switch — pass userId and session tokens for revocation at PingOne
       const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
       const oauthTokens = req.session?.oauthTokens || null;
-      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope);
+      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope, req.sessionID);
 
       // Destroy admin session — token is revoked, session is now invalid
       req.session.destroy(() => {});
@@ -910,6 +947,8 @@ router.post(
         time_to_revoke_ms: result.time_to_revoke_ms,
         scope: result.scope,
         steps: result.steps,
+        auto_reset_at: result.auto_reset_at,
+        auto_reset_in_ms: result.auto_reset_in_ms,
         message: `Agent stopped. Session revoked. Please sign in again.`,
       });
 
@@ -937,7 +976,17 @@ router.post(
   authenticateToken,
   async (req, res) => {
     try {
+      const _reEnableUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _reEnableUserId);
+      await killSwitchService.unrevokeAgent(agentId);
       const applications = await killSwitchService.enableAgentApplicationsAtPingOne();
+      agentLifecycleEvents.emit({
+        eventType: 'mover',
+        agentId: req.params.agentId,
+        source: 'this-app',
+        kind: 'live',
+        reason: 're-enable',
+      });
       return res.status(200).json({ ok: true, applications });
     } catch (error) {
       console.error('[admin] Re-enable agent error:', error.message);
@@ -959,7 +1008,8 @@ router.get(
   requireScopes(['admin']),
   async (req, res) => {
     try {
-      const { agentId } = req.params;
+      const _statusUserId = req.session?.user?.oauthId || req.session?.user?.id || null;
+      const agentId = deriveAgentKey(req, req.params.agentId, _statusUserId);
 
       const isRevoked = await killSwitchService.isAgentRevoked(agentId);
 

@@ -147,6 +147,26 @@ router.post('/agent-tool', async (req, res) => {
       parsed = { error: 'invalid_mcp_result' };
     }
 
+    // Elicitation: same single hitlRequired envelope (extractHitlInterrupt in
+    // demo_agent_service reads it generically — no agent-service change
+    // needed), but reason:'elicitation_required' so the UI's retry sends
+    // _elicitation_confirmed + _elicitation_id instead of _hitl_challenge_id.
+    const isElicitation = parsed && parsed.error === 'elicitation_required';
+    if (isElicitation) {
+      return res.json({
+        result: {
+          hitlRequired: true,
+          interruptId: parsed.elicitationId || `elicitation-${Date.now()}`,
+          consentId: parsed.elicitationId || null,
+          reason: 'elicitation_required',
+          tool,
+          message: parsed.prompt || parsed.message || 'This action requires your confirmation.',
+          expiresAt: parsed.expiresAt || new Date(Date.now() + 2 * 60 * 1000).toISOString(),
+        },
+        tokenEvents,
+      });
+    }
+
     // HITL / step-up: normalize to the SPA's single HITL contract
     // (result.hitlRequired + consentId + retry with _hitl_challenge_id).
     // Covers both pipeline codes (mcp_hitl_required, mcp_step_up_required)

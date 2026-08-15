@@ -9,9 +9,9 @@ export default function FlowDiagramsPanel({ isOpen, onClose, initialTabId }) {
       label: 'Diagram Overview',
       content: (
         <>
-          <h3>Super Banking Flow Diagrams</h3>
+          <h3>AI Demo Flow Diagrams</h3>
           <p>
-            The Super Banking demo includes comprehensive draw.io flow diagrams with RFC annotations that visualize the complete authentication and authorization flows. These diagrams provide detailed technical documentation for developers and security architects.
+            The AI Demo includes comprehensive draw.io flow diagrams with RFC annotations that visualize the complete authentication and authorization flows. These diagrams provide detailed technical documentation for developers and security architects.
           </p>
           
           <h4>Available Diagrams</h4>
@@ -53,7 +53,7 @@ export default function FlowDiagramsPanel({ isOpen, onClose, initialTabId }) {
           
           <h4>Flow Overview</h4>
           <p>
-            This diagram illustrates the complete MFA deviceAuthentication flow used in the Super Banking demo when sensitive operations require step-up authentication. The flow supports OTP, Push notifications, and FIDO2/WebAuthn methods.
+            This diagram illustrates the complete MFA deviceAuthentication flow used in the AI Demo when sensitive operations require step-up authentication. The flow supports OTP, Push notifications, and FIDO2/WebAuthn methods.
           </p>
 
           <h4>Key Components</h4>
@@ -307,7 +307,7 @@ export default function FlowDiagramsPanel({ isOpen, onClose, initialTabId }) {
           <div style={{ marginTop: '16px', padding: '12px', background: '#e1f5fe', border: '1px solid #81d4fa', borderRadius: '6px' }}>
             <h5 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: '#0277bd' }}>📚 Reference Implementation</h5>
             <p style={{ margin: '0', fontSize: '0.85rem', color: '#424242' }}>
-              The Super Banking demo serves as a reference implementation for these RFC standards,
+              The AI Demo serves as a reference implementation for these RFC standards,
               with complete code examples and best practices documented throughout the codebase.
             </p>
           </div>

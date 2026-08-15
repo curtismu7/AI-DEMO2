@@ -6,6 +6,7 @@
   font-size: 12.5px;
   border: 1px solid #16a34a;
   background: #e9f7ef;
+  color: #111827;
 }
 .proof-strip--mismatch, .proof-strip--incomplete {
   border-color: #d97706;
@@ -17,6 +18,7 @@
   align-items: center;
   font-weight: 650;
   margin-bottom: 6px;
+  color: #111827;
 }
 .proof-strip-chain {
   display: flex;

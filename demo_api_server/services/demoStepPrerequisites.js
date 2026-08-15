@@ -20,6 +20,7 @@ const {
 const A2A_USE_CASE_IDS = new Set([
   'a2a-delegation',
   'a2a-orchestrator-learning',
+  'a2a-generalist-mismatch',
 ]);
 
 /**

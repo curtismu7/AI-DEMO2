@@ -1,0 +1,52 @@
+{
+  "orders": [
+    {
+      "id": "1001",
+      "product": "AirPods Pro",
+      "sku": "BB-APP3",
+      "amount": 249,
+      "status": "Delivered",
+      "date": "2026-04-20"
+    },
+    {
+      "id": "1002",
+      "product": "MacBook Pro 14\"",
+      "sku": "BB-MBP14",
+      "amount": 1999,
+      "status": "Shipped",
+      "date": "2026-04-22"
+    },
+    {
+      "id": "1003",
+      "product": "Bose SoundLink",
+      "sku": "BB-BOSE-SL",
+      "amount": 149,
+      "status": "Processing",
+      "date": "2026-04-23"
+    },
+    {
+      "id": "1004",
+      "product": "Apple Watch Series 10",
+      "sku": "BB-AWS10",
+      "amount": 429,
+      "status": "Delivered",
+      "date": "2026-04-25"
+    },
+    {
+      "id": "1005",
+      "product": "Sony WH-1000XM5 Headphones",
+      "sku": "BB-SONYXM5",
+      "amount": 399,
+      "status": "Shipped",
+      "date": "2026-04-28"
+    },
+    {
+      "id": "1006",
+      "product": "LG 27\" 4K Monitor",
+      "sku": "BB-LG27UK",
+      "amount": 449,
+      "status": "Processing",
+      "date": "2026-05-01"
+    }
+  ]
+}

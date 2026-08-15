@@ -40,6 +40,31 @@ describe('mintIntentToken', () => {
     expect(payload.permitted_tools).toContain('get_my_accounts');
     expect(payload.permitted_tools).not.toContain('create_transfer');
   });
+
+  test('A&F checkout permits checkout and A&F order reads', () => {
+    const { payload } = mintIntentToken({
+      ...BASE_PARAMS,
+      prompt: 'checkout A&F outerwear for $2500',
+      intent: 'checkout',
+      vertical: 'abercrombie-fitch',
+    });
+    expect(payload.permitted_tools).toEqual(
+      expect.arrayContaining(['checkout', 'list_anf_orders']),
+    );
+  });
+
+  test.each(['view_wishlist', 'view_returns'])(
+    'A&F %s fallback permits its matching read tool',
+    (intent) => {
+      const { payload } = mintIntentToken({
+        ...BASE_PARAMS,
+        prompt: `A&F ${intent}`,
+        intent,
+        vertical: 'abercrombie-fitch',
+      });
+      expect(payload.permitted_tools).toContain(intent);
+    },
+  );
 });
 
 describe('verifyIntentToken', () => {

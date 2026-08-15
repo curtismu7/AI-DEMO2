@@ -442,17 +442,15 @@ export class AuthenticationIntegration {
         (await this.authManager.validateTokenScopes(agentToken, requiredScopes)) ||
         (!!alternativeScopes?.length &&
           (await this.authManager.validateTokenScopes(agentToken, alternativeScopes)));
-      if (!hasScopes && process.env.MCP_AUTH_DISABLED === 'true') {
-        // Open-access mode (MCP_AUTH_DISABLED): the caller in front of this
-        // server owns authorization — PingGateway + PingOne Authorize on the
-        // demo hop, the Privilege proxy on its own. Denying here would overrule
-        // a decision that was already made, which is exactly what the flag says
-        // not to do. The check still runs and still logs, so the gap is visible.
-        console.warn(
-          `[AuthenticationIntegration] MCP_AUTH_DISABLED=true — proceeding despite missing scopes [${requiredScopes.join(', ')}]; the gateway owns authorization on this hop`
-        );
-        return { success: true, session };
-      }
+      // NOTE: open-access mode does NOT get an escape hatch here any more.
+      // Reading the env var at this point applied the bypass to whoever asked,
+      // including a fully validated bearer that genuinely lacked the scope — so
+      // enabling the mode for the Privilege gateway silently disarmed scope
+      // enforcement for the banking path too. One env var, two gateways.
+      // The bypass now lives at the only place that can tell them apart:
+      // HttpMCPTransport marks the tokenless upstream-authorized hop as
+      // openAccess, and MCPMessageHandler skips this call entirely for it.
+      // Anything that reaches here presented a token and is enforced on it.
       if (!hasScopes) {
         console.log(
           `[AuthenticationIntegration] agentToken missing required scopes [${requiredScopes.join(', ')}]`

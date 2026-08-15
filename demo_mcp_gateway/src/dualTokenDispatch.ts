@@ -156,6 +156,7 @@ export async function buildDualTokenToolResult(
     ok: true,
     result: {
       content: [{ type: 'text', text: JSON.stringify(identityResp.data) }],
+      structuredContent: identityResp.data,
       _meta: {
         credentialPath: 'dual_token',
         idTokenAttached: true,

@@ -16,9 +16,21 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
+    "strip strip"
     "agent spotlight"
     "chain chain";
+  /* Rows size to content, except the agent/spotlight row which takes the rest.
+     Without this the strip row inherited the stretch and grew far beyond its
+     content. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   align-items: stretch;
+}
+
+/* The strip spans both columns and is only as tall as its controls. */
+.dashboard-content.ud-body.ud-focus-mode > .ud-dashboard-config-strip {
+  grid-area: strip;
+  min-width: 0;
+  align-self: start;
 }
 
 /* ── Focus Mode fits the screen; history is a scrollback ───────────────────
@@ -116,15 +128,15 @@
   /* Bounded like the agent column: the sheet scrolls, the page does not. */
   min-height: 0;
   overflow: hidden;
-  border-left: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-left: 1px solid var(--th-border);
+  background: var(--th-bg-card);
 }
 
 .tcfs-chain {
   grid-area: chain;
   min-width: 0;
-  border-top: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-card);
 }
 
 .tcfs-spotlight-empty {
@@ -135,7 +147,54 @@
   padding: 24px;
   text-align: center;
   font-size: 12.5px;
-  color: #64748b;
+  color: var(--th-text-muted);
+}
+
+.tcfs-spotlight-intro {
+  text-align: left;
+  max-width: 480px;
+}
+
+.tcfs-spotlight-intro-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--th-text);
+  margin-bottom: 10px;
+}
+
+.tcfs-spotlight-intro-list {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--th-text-muted);
+}
+
+.tcfs-spotlight-intro-list code {
+  font-size: 15px;
+  background: var(--th-bg-inset);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.tcfs-spotlight-intro-value {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border-left: 3px solid #1d4ed8;
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.tcfs-spotlight-intro-cta {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--th-text-muted);
 }
 
 /* Narrow: fall back to one column so the spotlight never becomes a slot. */
@@ -144,7 +203,7 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "agent" "spotlight" "chain";
   }
-  .tcfs-spotlight { border-left: 0; border-top: 1px solid #e2e8f0; }
+  .tcfs-spotlight { border-left: 0; border-top: 1px solid var(--th-border); }
 }
 
 .tcfs-head {
@@ -172,7 +231,7 @@
 .tcfs-dot--user { background: #f472b6; }
 .tcfs-dot--agent { background: #c084fc; }
 .tcfs-dot--mcp { background: #34d399; }
-.tcfs-arrow { color: #94a3b8; }
+.tcfs-arrow { color: var(--th-text-muted); }
 
 .tcfs-badge {
   background: #1d4ed8;
@@ -216,18 +275,18 @@
   gap: 8px;
   min-width: 180px;
   padding: 9px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--th-bg-card);
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
 }
 
 .tcfs-mode {
   display: flex;
   padding: 2px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: #eef2f9;
+  background: var(--th-bg-inset);
 }
 
 .tcfs-mode button {
@@ -236,7 +295,7 @@
   border-radius: 4px;
   padding: 3px 7px;
   background: transparent;
-  color: #64748b;
+  color: var(--th-text-muted);
   font: inherit;
   font-size: 11.5px;
   font-weight: 700;
@@ -250,9 +309,9 @@
   font-size: 12px;
   font-weight: 600;
   text-align: left;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
@@ -266,18 +325,47 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--th-text-muted);
   padding: 8px 12px 2px;
 }
 
 .tcfs-empty {
   margin: 10px 12px;
   padding: 16px;
-  border: 1px dashed #e2e8f0;
+  border: 1px dashed var(--th-border);
   border-radius: 6px;
-  color: #475569;
+  color: var(--th-text-muted);
   text-align: center;
   font-size: 12px;
+}
+
+.tcfs-empty-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 12px;
+}
+
+.tcfs-empty-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 96px;
+  padding: 10px 12px;
+  border: 1px dashed;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--th-text-muted);
+}
+
+.tcfs-empty-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 /* 16 steps are kept, not collapsed to lanes — horizontal scroll is accepted,
@@ -294,8 +382,8 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  border-top: 1px solid #e2e8f0;
-  background: #ffffff;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-card);
 }
 
 .tcfs-sheet-head {
@@ -303,8 +391,8 @@
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
 }
 
 .tcfs-sheet-title {
@@ -312,14 +400,14 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--th-text-muted);
 }
 
 .tcfs-sheet-close {
   margin-left: auto;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #475569;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
   font-size: 12px;
   line-height: 1;
   border-radius: 6px;
@@ -337,19 +425,40 @@
 }
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
-:root[data-theme="dark"] .tcfs-spotlight { background: #0b1426; border-left-color: #26304a; border-top-color: #26304a; }
-:root[data-theme="dark"] .tcfs-chain { background: #0b1426; border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-spotlight { background: var(--th-bg-page); border-left-color: #26304a; border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-chain { background: var(--th-bg-page); border-top-color: #26304a; }
 :root[data-theme="dark"] .tcfs-spotlight-empty { color: #90a0c2; }
-:root[data-theme="dark"] .tcfs-more-pop { background: #0f1830; border-color: #26304a; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
-:root[data-theme="dark"] .tcfs-mode { background: #1b2540; border-color: #26304a; }
+:root[data-theme="dark"] .tcfs-more-pop { background: var(--th-bg-card); border-color: var(--th-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+:root[data-theme="dark"] .tcfs-mode { background: var(--th-bg-inset); border-color: var(--th-border); }
 :root[data-theme="dark"] .tcfs-mode button { color: #cdd7ec; }
 :root[data-theme="dark"] .tcfs-mode button.active { background: #1d4ed8; color: #ffffff; }
-:root[data-theme="dark"] .tcfs-more-btn { background: #0f1830; border-color: #26304a; color: #eaf0fb; }
+:root[data-theme="dark"] .tcfs-more-btn { background: var(--th-bg-card); border-color: var(--th-border); color: #eaf0fb; }
 :root[data-theme="dark"] .tcfs-more-btn:hover:not(:disabled) { border-color: #9ec1ff; color: #9ec1ff; }
 :root[data-theme="dark"] .tcfs-label { color: #90a0c2; }
-:root[data-theme="dark"] .tcfs-empty { border-color: #26304a; color: #cdd7ec; }
-:root[data-theme="dark"] .tcfs-sheet { background: #0b1426; border-top-color: #26304a; }
-:root[data-theme="dark"] .tcfs-sheet-head { background: #0f1830; border-bottom-color: #26304a; }
+:root[data-theme="dark"] .tcfs-empty { border-color: var(--th-border); color: #cdd7ec; }
+:root[data-theme="dark"] .tcfs-sheet { background: var(--th-bg-page); border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-sheet-head { background: var(--th-bg-card); border-bottom-color: #26304a; }
 :root[data-theme="dark"] .tcfs-sheet-title { color: #cdd7ec; }
-:root[data-theme="dark"] .tcfs-sheet-close { background: #0f1830; border-color: #26304a; color: #cdd7ec; }
+:root[data-theme="dark"] .tcfs-sheet-close { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .tcfs-sheet-close:hover { border-color: #9ec1ff; color: #9ec1ff; }
+
+/* Float-mode wrapper — gives .tcfs children the grid context they expect.
+   chain spans full width; spotlight renders to the right on wide screens,
+   stacks below on narrow. */
+.tcfs-float-host {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  grid-template-areas: "chain spotlight";
+  grid-template-rows: auto;
+  width: 100%;
+  border-top: 1px solid var(--th-border, #e2e8f0);
+}
+
+@media (max-width: 900px) {
+  .tcfs-float-host {
+    grid-template-columns: 1fr;
+    grid-template-areas: "chain" "spotlight";
+  }
+}
+
+:root[data-theme="dark"] .tcfs-float-host { border-top-color: #26304a; }

@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../../context/ThemeContext';
-import { NewRelicRoute, PingOneEventsRoute, P1AzRoute } from '../MonitoringRoutes';
+import { NewRelicRoute, PingOneEventsRoute, P1AzRoute, TokenExchangeRoute } from '../MonitoringRoutes';
 import apiClient from '../../services/apiClient';
 
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
@@ -82,5 +82,24 @@ describe('P1AzRoute', () => {
     );
     await waitFor(() => expect(screen.getByRole('navigation')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('stat-PERMIT')).toHaveTextContent('2'));
+  });
+});
+
+describe('TokenExchangeRoute', () => {
+  it('renders app chrome and the dashboard for a signed-out visitor', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        view: 'tokenexchange', window: '24h',
+        outcomes: [{ tag: 'token-exchange/ok', count: 7 }, { tag: 'token-exchange/fail', count: 1 }],
+        attempts: [{ count: 8 }], delegation: [], variants: [], timeseries: [], stream: [],
+      },
+    });
+    render(
+      <MemoryRouter initialEntries={['/monitoring/token-exchange']}>
+        <ThemeProvider><TokenExchangeRoute user={null} logout={() => {}} /></ThemeProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole('navigation')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('stat-ok')).toHaveTextContent('7'));
   });
 });

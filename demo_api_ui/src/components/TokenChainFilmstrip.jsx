@@ -48,6 +48,18 @@ function readStoredViewMode() {
   }
 }
 
+// Before any run, the bottom chain has nothing to render — a bare dashed box
+// reads as broken. These are the pipeline stages a live run will fill in,
+// shown empty (no fabricated claims/tokens) purely so the strip isn't blank.
+const PREVIEW_STAGES = [
+  { id: "signin", label: "Sign-in", color: "#f472b6", bg: "rgba(244,114,182,0.14)" },
+  { id: "agent", label: "Agent", color: "#c084fc", bg: "rgba(192,132,252,0.14)" },
+  { id: "exchange", label: "Token Exchange", color: "#60a5fa", bg: "rgba(96,165,250,0.14)" },
+  { id: "authorize", label: "Authorize", color: "#fbbf24", bg: "rgba(251,191,36,0.14)" },
+  { id: "mcp", label: "MCP", color: "#34d399", bg: "rgba(52,211,153,0.14)" },
+  { id: "reply", label: "Reply", color: "#94a3b8", bg: "rgba(148,163,184,0.14)" },
+];
+
 export default function TokenChainFilmstrip() {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   const [viewMode, setViewMode] = useState(readStoredViewMode);
@@ -228,9 +240,24 @@ export default function TokenChainFilmstrip() {
           // The spotlight is the right column, so it must never be empty — an
           // empty half-screen reads as broken. Say what to do instead.
           <div className="tcfs-spotlight-empty">
-            {steps.length === 0
-              ? "Run an agent flow to build the token chain."
-              : "Pick a step on the chain below to see what it changed."}
+            <div className="tcfs-spotlight-intro">
+              <div className="tcfs-spotlight-intro-title">What this panel shows</div>
+              <ul className="tcfs-spotlight-intro-list">
+                <li>Every hop's token — issuer, audience, scopes, and the nested <code>act</code> chain (RFC 8693)</li>
+                <li>Who is acting on whose behalf, proven cryptographically at each step</li>
+                <li>Live claims you can inspect, not just a diagram</li>
+              </ul>
+              <div className="tcfs-spotlight-intro-value">
+                Token exchange means every downstream service gets proof of the
+                original user AND every agent that acted on their behalf — no
+                blanket credentials, no impersonation, full auditability end to end.
+              </div>
+              <div className="tcfs-spotlight-intro-cta">
+                {steps.length === 0
+                  ? "Run an agent request below to populate it."
+                  : "Pick a step on the chain below to see what it changed."}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -243,7 +270,14 @@ export default function TokenChainFilmstrip() {
         </div>
 
         {viewMode === "live" && steps.length === 0 ? (
-          <div className="tcfs-empty">Run an agent flow to build the token chain.</div>
+          <div className="tcfs-empty-preview">
+            {PREVIEW_STAGES.map((s) => (
+              <div key={s.id} className="tcfs-empty-chip" style={{ borderColor: s.color, background: s.bg }}>
+                <span className="tcfs-empty-chip-dot" style={{ background: s.color }} />
+                <span className="tcfs-empty-chip-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="tcfs-track">
             <TokenChainNodeRail

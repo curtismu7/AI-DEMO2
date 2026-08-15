@@ -21,7 +21,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
   it('forwards the EXCHANGED token, not the inbound bearer', async () => {
     const forwarded: string[] = [];
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange: async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }),
     });
@@ -34,7 +34,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     const forwarded: string[] = [];
     const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcp-olb.ping.demo', cached: false }));
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange,
     });
@@ -47,7 +47,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     const forwarded: string[] = [];
     const chunks: string[] = [];
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange: async () => { throw new Error('invalid_scope'); },
     });
@@ -67,7 +67,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
   it('records backend routing + exchange audience in the audit trail header', async () => {
     const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange: async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }),
     });
@@ -80,7 +80,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
   it('records exchange failure in the backend audit trail before failing closed', async () => {
     const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
-      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'read' }),
       authorize: async () => ({ decision: 'PERMIT' as const }),
       exchange: async () => { throw new Error('invalid_scope'); },
     });

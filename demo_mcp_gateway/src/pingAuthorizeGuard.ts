@@ -19,8 +19,10 @@ import {
   type PolicySource,
   ToolArgs,
   TratClaims,
+  actChainDepth,
 } from './auth/PingOneAuthorizeClient';
-import { getScopesForGatewayTool, evaluateScopeDecisionLocally } from './auth/toolScopes';
+import { getScopesForGatewayTool, evaluateScopeDecisionLocally, evaluateScopeDecisionUnconditionally } from './auth/toolScopes';
+import { evaluateTierDecision, parseRestrictedTools } from './tierEnforce';
 import { GatewayConfig, isP1AZActive, usingRealPdpEndpoint } from './config';
 import { getCorrelationId } from './correlationContext';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarToolArgs } from './rarEnforce';
@@ -61,6 +63,11 @@ export interface AuthzDecision {
    * derived as (candidates − deniedTools), so no separate permitted list is needed.
    */
   deniedTools?: Array<{ name: string; reason: string }>;
+  /**
+   * Advice items from the PDP — used by the elicitation handler to surface the
+   * prompt returned by the policy (id: 'elicitation-prompt').
+   */
+  advice?: Array<{ id: string; value?: string }>;
   /**
    * Which authorization backend produced this decision. Surfaced in tools/list
    * _meta.authzEngine so the BFF/UI can signal real vs. mock mode.
@@ -228,6 +235,8 @@ export async function guardToolCall(
   vertical?: string,
   hitlChallengeId?: string,
   intentValidation?: import('./intentTokenValidator').IntentValidationResult | null,
+  tierMaxAmountUsd?: string,
+  tierRestrictedTools?: string,
 ): Promise<AuthzDecision> {
   // UC16 — Impersonation block: must run BEFORE the Authorization Server call so
   // the check is reachable in production. GatewayTokenPolicy.validate() fires with
@@ -273,6 +282,47 @@ export async function guardToolCall(
     if (!r.ok) {
       console.warn(`[GW-WS] RAR intent violation: ${r.reason} (tool: ${toolName})`);
       return { permitted: false, reason: `rar_intent_violation: ${r.reason}` };
+    }
+  }
+
+  // Per-tool scope backstop (Rule 3 parity) — runs REGARDLESS of P1AZ state. Real
+  // P1AZ cannot express per-tool set-membership over TokenScopes
+  // (snapshots/gen-authorize-snapshot.js:36-39); this is the gateway's own
+  // enforcement of that rule, mirroring decision.js Rule 3.
+  if (toolName) {
+    const scopeBackstop = evaluateScopeDecisionUnconditionally(
+      toolName, decoded.scope, actChainDepth(decoded.act),
+    );
+    if (scopeBackstop.decision === 'DENY') {
+      console.warn(`[GW-WS] scope backstop DENY: ${scopeBackstop.reason} (tool: ${toolName})`);
+      return {
+        permitted: false,
+        reason: `local-fallback: ${scopeBackstop.reason}`,
+        engine: 'mock',
+        policySource: 'local-fallback',
+        degraded: true,
+      };
+    }
+
+    // Tier (groupToTier) local deny — mirrors decision.js Rule 3d. BFF pre-resolves
+    // group->tier and forwards the resolved definition as headers (parity with the
+    // HTTP path). Absent headers = PERMIT (no-op).
+    const tierDecision = evaluateTierDecision(
+      toolName,
+      getScopesForGatewayTool(toolName).includes('write'),
+      toolArgs?.amount !== undefined ? Number(toolArgs.amount) : undefined,
+      tierMaxAmountUsd !== undefined ? Number(tierMaxAmountUsd) : undefined,
+      parseRestrictedTools(tierRestrictedTools),
+    );
+    if (tierDecision.decision === 'DENY') {
+      console.warn(`[GW-WS] tier backstop DENY: ${tierDecision.reason} (tool: ${toolName})`);
+      return {
+        permitted: false,
+        reason: `local-fallback: ${tierDecision.reason}`,
+        engine: 'mock',
+        policySource: 'local-fallback',
+        degraded: true,
+      };
     }
   }
 
@@ -381,12 +431,17 @@ export async function guardToolCall(
     // mock says INDETERMINATE. Branching on the label alone let a live consent
     // obligation through this transport (parity with PingOneAuthorizeClient).
     const obligation = classifyStatements(response.data?.statements);
+    // Elicitation advice: surfaced so the WS handler can include the prompt in -32003.
+    const elicitationAdvice = obligation === 'elicitation'
+      ? (Array.isArray(response.data?.advice) ? response.data.advice as Array<{ id: string; value?: string }> : [])
+      : undefined;
     if (decision === 'PERMIT') {
       if (obligation) {
         return {
           permitted: false,
           reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
           obligation,
+          ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
           engine,
           policySource,
         };
@@ -399,6 +454,7 @@ export async function guardToolCall(
           permitted: false,
           reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
           obligation,
+          ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
           engine,
           policySource,
         };

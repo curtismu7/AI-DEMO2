@@ -38,11 +38,18 @@ function setupMocks({ user, manifest }) {
   return { FakeES, handlers };
 }
 
+// /api/verticals/stream and /me both require a session, so the provider waits
+// for the `userAuthenticated` event useAuth dispatches before connecting.
+function signIn() {
+  act(() => { window.dispatchEvent(new CustomEvent('userAuthenticated')); });
+}
+
 // The provider does not fetch on mount — it waits for the server's initial
 // `vertical-switched` SSE event (sent on stream connect) to drive the first
 // /me hydration. Tests must simulate that event after render, or the provider
 // stays in its pre-hydration (null) state and never renders children.
 function hydrate(FakeES) {
+  signIn();
   act(() => FakeES.last.fire('vertical-switched', {}));
 }
 
@@ -65,6 +72,20 @@ describe('VerticalProvider', () => {
     expect(queryByTestId('probe')).toBeNull();
     hydrate(FakeES);
     expect((await findByTestId('probe')).textContent).toBe('banking');
+  });
+
+  test('makes no /api/verticals request before a session exists', async () => {
+    const { FakeES } = setupMocks({ manifest: BANKING });
+    render(
+      <MemoryRouter><VerticalProvider><Probe /></VerticalProvider></MemoryRouter>
+    );
+    // Signed out, both endpoints only 401 — so neither is touched.
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(FakeES.last).toBeUndefined();
+
+    signIn();
+    await waitFor(() => expect(FakeES.last).toBeDefined());
+    expect(FakeES.last.url).toBe('/api/verticals/stream');
   });
 
   test('SSE vertical-switched triggers refetch', async () => {
