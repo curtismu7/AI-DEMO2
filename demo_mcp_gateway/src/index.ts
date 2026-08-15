@@ -882,7 +882,14 @@ async function handleMessage(
 
     let result: JsonRpcResponse;
     try {
-      result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts);
+      // MCP spec: relay any interim notifications/progress frame the backend
+      // emits (opted into by the caller via params._meta.progressToken, sent
+      // through unchanged in `msg`) straight back onto this client-facing
+      // connection — the caller is the only one who can act on it, the
+      // gateway just forwards.
+      result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts, (params) => {
+        send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params }));
+      });
     } catch (err) {
       const msg2 = err instanceof Error ? err.message : String(err);
       console.error(`[GW] Proxy error for ${toolName}:`, msg2);

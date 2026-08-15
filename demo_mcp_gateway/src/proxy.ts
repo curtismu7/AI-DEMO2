@@ -52,6 +52,11 @@ export function proxyJsonRpc(
   request: JsonRpcRequest,
   xTratContext?: string,
   tlsOptions?: MtlsOptions,
+  // MCP spec: called for each interim notifications/progress frame the
+  // backend emits while the call is in flight (a notification, so it has no
+  // `id` and would otherwise never match the final-response check below and
+  // be silently dropped). Not called for the final response.
+  onProgress?: (params: unknown) => void,
 ): Promise<JsonRpcResponse> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -133,6 +138,13 @@ export function proxyJsonRpc(
           outRequest = { ...request, params: { correlationId: _cid2 } as unknown };
         }
         ws.send(JSON.stringify(outRequest));
+        return;
+      }
+
+      // Step 1b: an interim notifications/progress frame — no `id`, so it
+      // would never match Step 2 below. Forward it and keep waiting.
+      if (msg.id === undefined && (msg as unknown as { method?: string }).method === 'notifications/progress') {
+        onProgress?.((msg as unknown as { params?: unknown }).params);
         return;
       }
 
