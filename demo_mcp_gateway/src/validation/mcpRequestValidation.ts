@@ -19,6 +19,9 @@ export const ALLOWED_METHODS: ReadonlySet<string> = new Set([
   'tools/call',
   'notifications/cancelled',
   'logging/setLevel',
+  'resources/list',
+  'resources/read',
+  'resources/templates/list',
 ]);
 
 export interface ValidationFailure {

@@ -593,6 +593,39 @@ async function handleMessage(
     return;
   }
 
+  // MCP Resources capability — proxied to demo_mcp_resource_server (the
+  // 'invest' backend target), the only backend that implements it. No
+  // per-resource policy dimension here: the resource server enforces its
+  // own requiredScope per catalog entry, same as it does for tools.
+  if (method === 'resources/list' || method === 'resources/read' || method === 'resources/templates/list') {
+    try {
+      await validateInboundToken(token, config.gatewayResourceUri);
+    } catch (err) {
+      const ve = err as TokenValidationError;
+      send(jsonRpcError(id, -32001, ve.message));
+      return;
+    }
+    if (!(await runWsAuthorizationPipeline(token, id, send))) return;
+
+    const wsUrl = backendWsUrl('invest', config);
+    const tlsOpts: MtlsOptions | undefined = gatewayCerts
+      ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
+      : undefined;
+    try {
+      const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(token, 'invest', {
+        allowDiscoveryScopeFallback: true,
+      });
+      const result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts);
+      send(JSON.stringify(result));
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[GW] Resources proxy error for ${method}:`, errMsg);
+      if (loggingState) emitLogMessage(send, loggingState, 'error', { method, message: errMsg }, 'gateway.resources');
+      send(jsonRpcError(id, -32500, 'Backend error'));
+    }
+    return;
+  }
+
   // tools/call — validate, guard, re-exchange, proxy
   if (method === 'tools/call') {
     // Audit hook — wrap `send` so the FIRST JSON-RPC response this tool call
@@ -1059,7 +1092,7 @@ async function handleMessage(
       id,
       result: {
         protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: { tools: {}, logging: {} },
+        capabilities: { tools: {}, logging: {}, resources: { subscribe: false, listChanged: false } },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },
     }));

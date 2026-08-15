@@ -643,8 +643,13 @@ export class GatewayServer {
     // Invest tools live on the mcp-resource-server WS backend — the HTTP upstream
     // (mcp-server) does not serve them. Mirror the WS ingress routing here;
     // the middleware already exchanged upstreamToken for the invest audience.
+    // MCP Resources capability is served by the same backend (only implementer
+    // of resources/*) — same routing rule, not tool-name-based.
     const rpcToolName = jsonRpc.method === 'tools/call' ? jsonRpc.params?.name : undefined;
-    if (rpcToolName && routeTool(rpcToolName) === 'invest') {
+    const isResourcesMethod = jsonRpc.method === 'resources/list'
+      || jsonRpc.method === 'resources/read'
+      || jsonRpc.method === 'resources/templates/list';
+    if ((rpcToolName && routeTool(rpcToolName) === 'invest') || isResourcesMethod) {
       try {
         const rpcResult = await proxyJsonRpc(
           backendWsUrl('invest', this.config),
@@ -655,7 +660,7 @@ export class GatewayServer {
         res.end(JSON.stringify(rpcResult));
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName}:`, msg);
+        console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName ?? jsonRpc.method}:`, msg);
         res.writeHead(502, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } }));
       }
