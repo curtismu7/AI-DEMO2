@@ -8,6 +8,7 @@
 const WebSocket = require('ws');
 const configStore = require('./configStore');
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
+const { callLlamaCpp } = require('./llamacppLlmService');
 
 /** Protocol version sent on initialize — runtime-configurable via Feature Flag 'mcp_use_legacy_protocol'.
  *  OFF (default) = 2025-11-25 (current spec).  ON = 2024-11-05 (previous spec).
@@ -321,7 +322,14 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         ws.on('open', () => {
           const initParams = {
             protocolVersion: getMcpProtocolVersion(),
-            capabilities: {},
+            // Declares what this client actually handles below in the
+            // 'awaiting_follow' server-initiated-request branch: elicitation
+            // was already handled but never declared; sampling/roots are new.
+            capabilities: {
+              elicitation: {},
+              sampling: {},
+              roots: { listChanged: false },
+            },
             clientInfo: { name: 'demo-api-server', version: '1.0.0', description: 'Super Banking Banking BFF — MCP WebSocket client' },
           };
           if (agentToken) initParams.agentToken = agentToken;
@@ -461,6 +469,51 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
                   });
                 return;
               }
+
+              // MCP Sampling — a backend server asking THIS client to run an
+              // LLM completion on its behalf. Wired to a real local model
+              // (llamacppLlmService, already used elsewhere in this process
+              // for NL intent classification) — not a stub reply.
+              if (msg.method === 'sampling/createMessage') {
+                const reqMessages = (msg.params && msg.params.messages) || [];
+                const chatMessages = reqMessages.map((m) => ({
+                  role: m.role,
+                  content: typeof m.content === 'string' ? m.content : ((m.content && m.content.text) || ''),
+                }));
+                if (msg.params && msg.params.systemPrompt) {
+                  chatMessages.unshift({ role: 'system', content: msg.params.systemPrompt });
+                }
+                callLlamaCpp(chatMessages)
+                  .then((text) => {
+                    ws.send(JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: msg.id,
+                      result: {
+                        role: 'assistant',
+                        content: { type: 'text', text },
+                        model: 'llama.cpp',
+                        stopReason: 'endTurn',
+                      },
+                    }));
+                  })
+                  .catch((err) => {
+                    ws.send(JSON.stringify({
+                      jsonrpc: '2.0',
+                      id: msg.id,
+                      error: { code: -32001, message: 'Sampling failed: ' + err.message },
+                    }));
+                  });
+                return;
+              }
+
+              // MCP Roots — a backend server asking which filesystem/workspace
+              // boundaries this client grants it. Honest answer, not a stub:
+              // this system exposes no filesystem to agent operations at all.
+              if (msg.method === 'roots/list') {
+                ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { roots: [] } }));
+                return;
+              }
+
               // Handle other server-initiated requests here in the future
               return;
             }
