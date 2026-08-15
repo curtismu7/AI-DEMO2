@@ -11,6 +11,12 @@ import {
   SNIP_TOKEN_EXCHANGE_PINGONE,
 } from './educationImplementationSnippets';
 
+// JWTs use base64url (-/_), but atob() only accepts standard base64 (+//).
+function base64UrlToBase64(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  return padded + '='.repeat((4 - (padded.length % 4)) % 4);
+}
+
 // ─── See Also: Token Flow Panel link ────────────────────────────────────────
 function TokenFlowLink({ onClick }) {
   return (
@@ -248,7 +254,7 @@ export default function TokenExchangePanel({ isOpen, onClose, initialTabId }) {
           const parts = r.data.accessToken.split('.');
           let payload = null;
           if (parts.length === 3) {
-            try { payload = JSON.parse(atob(parts[1])); } catch (_) {}
+            try { payload = JSON.parse(atob(base64UrlToBase64(parts[1]))); } catch (_) {}
           }
           setLive({ loading: false, error: null, userToken: { raw: r.data.accessToken, payload, expiresAt: r.data.expiresAt } });
         } else {
