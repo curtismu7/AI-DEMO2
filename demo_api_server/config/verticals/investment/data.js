@@ -63,8 +63,22 @@ function createInvestmentStore() {
     return byUser.get(key);
   }
 
+  /**
+   * Resolve a portfolio by type. When the caller names a type, honour that name
+   * only — never fall back to portfolios[0] on a miss (that deposited/withdrew
+   * Brokerage funds when the user asked for Retirement/IRA/etc.). Chips that
+   * omit portfolioType may still default to the first portfolio.
+   */
   function resolvePortfolio(data, portfolioType) {
-    return data.portfolios.find((p) => p.portfolioType === portfolioType) || data.portfolios[0];
+    if (portfolioType == null || portfolioType === '') {
+      return data.portfolios[0] || null;
+    }
+    const want = String(portfolioType).trim().toLowerCase();
+    return data.portfolios.find((p) => String(p.portfolioType).toLowerCase() === want) || null;
+  }
+
+  function portfolioNotFound(portfolioType) {
+    return { error: 'portfolio not found', portfolioType: portfolioType || null, status: 'not_found' };
   }
 
   function buySecurity(data, { symbol, shares, price } = {}) {
@@ -89,6 +103,7 @@ function createInvestmentStore() {
 
   function deposit(data, { portfolioType, amount } = {}) {
     const portfolio = resolvePortfolio(data, portfolioType);
+    if (!portfolio) return portfolioNotFound(portfolioType);
     const amt = Number(amount) || 0;
     portfolio.value = Number((portfolio.value + amt).toFixed(2));
     return { portfolioType: portfolio.portfolioType, amount: amt };
@@ -96,14 +111,16 @@ function createInvestmentStore() {
 
   function withdraw(data, { portfolioType, amount } = {}) {
     const portfolio = resolvePortfolio(data, portfolioType);
+    if (!portfolio) return portfolioNotFound(portfolioType);
     const amt = Number(amount) || 0;
     portfolio.value = Math.max(0, Number((portfolio.value - amt).toFixed(2)));
     return { portfolioType: portfolio.portfolioType, amount: amt };
   }
 
   function largeTrade(data, { portfolioType, symbol, amount } = {}) {
-    seq += 1;
     const portfolio = resolvePortfolio(data, portfolioType);
+    if (!portfolio) return portfolioNotFound(portfolioType);
+    seq += 1;
     const sym = symbol || 'VTI';
     const amt = Number(amount) || 0;
     data.trades.unshift({ id: `TRD-new-${seq}`, type: 'Large Trade', symbol: sym, amount: amt, date: '2026-07-04', status: 'Settled' });
@@ -112,6 +129,7 @@ function createInvestmentStore() {
 
   function rebalancePortfolio(data, { portfolioType } = {}) {
     const portfolio = resolvePortfolio(data, portfolioType);
+    if (!portfolio) return portfolioNotFound(portfolioType);
     return { portfolioType: portfolio.portfolioType, status: 'Rebalanced' };
   }
 
