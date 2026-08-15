@@ -38,6 +38,16 @@ describe('enforceRarSubset (RFC 9396)', () => {
     expect(r.ok).toBe(true);
   });
 
+  it('denies a tool not in a spec-shaped grant (no "tool" field, only "actions")', () => {
+    // Standard RFC 9396 authorization_details shape — no non-standard `tool` field —
+    // as produced by native AIC/PingFederate 11.2+ RAR minting. Must not fall back to
+    // details[0] and run amount/payee checks against an unrelated grant.
+    const specGrant = [{ type: 'banking_transaction', actions: ['transfer'], amount: 100, currency: 'USD', payee: 'acct_456' }];
+    const r = enforceRarSubset('delete_account', {}, specGrant);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/not in the granted/);
+  });
+
   it('extracts authorization_details from a TraT envelope', () => {
     const details = rarDetailsFromEnvelope({ azd: { authorization_details: grant } });
     expect(Array.isArray(details)).toBe(true);

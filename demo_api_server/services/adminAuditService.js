@@ -40,7 +40,7 @@ function logAdminTokenExchange(event, req) {
   };
 
   // Write to exchange audit store
-  writeExchangeEvent('admin_token_exchange', auditEvent);
+  writeExchangeEvent(auditEvent);
 
   // Additional admin-specific logging
   console.log('[ADMIN_AUDIT] Token Exchange:', {
@@ -74,7 +74,7 @@ function logAdminUserManagement(event, req) {
     sessionId: req.sessionID
   };
 
-  writeExchangeEvent('admin_user_management', auditEvent);
+  writeExchangeEvent(auditEvent);
 
   console.log('[ADMIN_AUDIT] User Management:', {
     type: auditEvent.type,
@@ -107,7 +107,7 @@ function logAdminSystemAdmin(event, req) {
     sessionId: req.sessionID
   };
 
-  writeExchangeEvent('admin_system_admin', auditEvent);
+  writeExchangeEvent(auditEvent);
 
   console.log('[ADMIN_AUDIT] System Admin:', {
     type: auditEvent.type,
@@ -140,7 +140,7 @@ function logAdminDataAccess(event, req) {
     sessionId: req.sessionID
   };
 
-  writeExchangeEvent('admin_data_access', auditEvent);
+  writeExchangeEvent(auditEvent);
 
   console.log('[ADMIN_AUDIT] Data Access:', {
     type: auditEvent.type,
@@ -173,7 +173,7 @@ function logAdminSecurityAction(event, req) {
     sessionId: req.sessionID
   };
 
-  writeExchangeEvent('admin_security_action', auditEvent);
+  writeExchangeEvent(auditEvent);
 
   console.log('[ADMIN_AUDIT] Security Action:', {
     type: auditEvent.type,

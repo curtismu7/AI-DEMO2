@@ -46,11 +46,12 @@ export function enforceRarSubset(
 ): RarResult {
   if (!details || details.length === 0) return { ok: true };
 
-  // Select the granted detail for this tool (by action list or tool name).
-  const grant =
-    details.find((d) => (d.actions ?? []).includes(toolName) || d.tool === toolName) ?? details[0];
+  // Select the granted detail for this tool (by action list or tool name). No match
+  // means the tool was never granted — deny immediately rather than falling back to
+  // an unrelated grant (which would run amount/payee checks against the wrong intent).
+  const grant = details.find((d) => (d.actions ?? []).includes(toolName) || d.tool === toolName);
 
-  if (grant.tool && grant.tool !== toolName && !(grant.actions ?? []).includes(toolName)) {
+  if (!grant) {
     return { ok: false, reason: `tool "${toolName}" is not in the granted authorization_details` };
   }
 

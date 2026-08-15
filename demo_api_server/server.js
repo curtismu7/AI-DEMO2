@@ -1298,11 +1298,13 @@ app.use('/api/tokens', authenticateToken, tokenRoutes);
 app.use('/api/users', authenticateToken, userRoutes);
 app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 app.use('/api/reports', reportsRoutes);
-// Agent restrictions gate — fires only on agent-originated calls (X-Agent-Sub present)
-// when ff_agent_restrictions=true. No-op for all direct user calls.
-app.use(['/api/accounts', '/api/transactions'], agentRestrictionsGate);
-app.use('/api/accounts', authenticateToken, accountRoutes);
-app.use('/api/accounts', authenticateToken, sensitiveBankingRoutes);
+// Agent restrictions gate — fires only on agent-originated calls (verified RFC 8693
+// `act` claim on req.user.actor, populated by authenticateToken above) when
+// ff_agent_restrictions=true. No-op for all direct user calls. Must run AFTER
+// authenticateToken so it reads the actor from the verified token, not a raw
+// client-supplied header.
+app.use('/api/accounts', authenticateToken, agentRestrictionsGate, accountRoutes);
+app.use('/api/accounts', authenticateToken, agentRestrictionsGate, sensitiveBankingRoutes);
 app.use('/api/investment', authenticateToken, investmentRoutes);
 // Interactive tester — mounted BEFORE the general /api/resource-server router so the
 // more-specific /test/* paths match here instead of falling through to a 404.
@@ -1339,7 +1341,8 @@ app.use('/api/transactions', (req, res, next) => {
     // the session-cookie check — authenticateToken validates the JWT below.
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) return next();
     return requireSession(req, res, next);
-}, authenticateToken, transactionRoutes);
+// agentRestrictionsGate runs after authenticateToken — see accounts mounts above.
+}, authenticateToken, agentRestrictionsGate, transactionRoutes);
 // GET /api/demo-scenario — return empty defaults when unauthenticated so the public
 // /demo-data page never triggers a 401 console error.  All mutating methods (PUT, PATCH)
 // still hit authenticateToken via the router below.

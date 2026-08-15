@@ -56,6 +56,7 @@ import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolA
 import type { TratClaims, PolicySource, AuthzDecision } from '../auth/PingOneAuthorizeClient';
 import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
+import { createPendingElicitation, consumePendingElicitation } from '../elicitationStore';
 
 // ---------------------------------------------------------------------------
 // Body parsing helper — extract method and tool name from JSON-RPC body
@@ -540,6 +541,8 @@ export function buildAuthorizeMcpRequest(
     if (parsedBody.method === 'tools/call') {
       const rawArgs = { ...(parsedBody.params?.arguments || {}) };
       delete (rawArgs as Record<string, unknown>)._hitl_challenge_id;
+      delete (rawArgs as Record<string, unknown>)._elicitation_confirmed;
+      delete (rawArgs as Record<string, unknown>)._elicitation_id;
       // Shape check above guarantees params.name is a non-empty string here.
       const argsFailure = validateToolArgs(toolName ?? '', rawArgs as Record<string, unknown>);
       if (argsFailure) { sendRpcError(400, parsedBody.id, argsFailure); return; }
@@ -558,6 +561,45 @@ export function buildAuthorizeMcpRequest(
       toolArgs = rest;
       if (parsedBody.params) parsedBody.params.arguments = rest;
       outBody = Buffer.from(JSON.stringify(parsedBody), 'utf-8');
+    }
+
+    // Elicitation re-call markers — mirrors the `_hitl_challenge_id` handling
+    // above. Stripped from the forwarded body (backend schemas reject unknown
+    // fields); re-added to a P1AZ-only args object further down so the policy
+    // can permit the retry.
+    let elicitationConfirmed = false;
+    let elicitationId: string | undefined;
+    if (toolArgs && ('_elicitation_confirmed' in toolArgs || '_elicitation_id' in toolArgs)) {
+      const { _elicitation_confirmed, _elicitation_id, ...rest } = toolArgs as Record<string, unknown>;
+      elicitationConfirmed = _elicitation_confirmed === true;
+      elicitationId = typeof _elicitation_id === 'string' ? _elicitation_id : undefined;
+      toolArgs = rest;
+      if (parsedBody.params) parsedBody.params.arguments = rest;
+      outBody = Buffer.from(JSON.stringify(parsedBody), 'utf-8');
+    }
+
+    // Elicitation re-call validation — verify the pending record is valid for
+    // this session + tool BEFORE calling P1AZ. One-time use: consumed here.
+    // Mirrors index.ts (WS path) so both transports share the same store.
+    if (elicitationConfirmed) {
+      // `_hdr` (Step 2c) is not defined yet at this point in the pipeline —
+      // read the session-binding header directly, same extraction it uses.
+      const _rawSessionId = _req?.headers?.['mcp-session-id'];
+      const sessionId = (Array.isArray(_rawSessionId) ? _rawSessionId[0] : _rawSessionId || '').toString().trim();
+      const rec = elicitationId ? consumePendingElicitation(elicitationId, toolName ?? '', sessionId) : null;
+      if (!rec) {
+        setAuditHeader(res);
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'elicitation_required',
+          message: 'Elicitation confirmation is invalid or has expired',
+          reason: 'invalid_or_expired',
+          tool: toolName ?? '',
+          login_required: false,
+        }));
+        return;
+      }
+      // ElicitationConfirmed: 'true' is added to P1AZ via toolArgsForAuthz below.
     }
 
     // ── Step 2a: HITL receipt verification (transport parity with the WS path) ──
@@ -865,6 +907,12 @@ export function buildAuthorizeMcpRequest(
     // (only the fail-closed literal below was in the union), so the statement-based
     // gate could not be read here.
     let authzDecision: AuthzDecision | undefined;
+    // toolArgsForAuthz: for confirmed elicitation re-calls, re-add _elicitation_confirmed
+    // so the PDP call sees it (the field was stripped from toolArgs earlier so it
+    // does not reach the backend). Mirrors index.ts (WS path).
+    const toolArgsForAuthz: Record<string, unknown> | undefined = elicitationConfirmed
+      ? { ...(toolArgs as Record<string, unknown> | undefined), _elicitation_confirmed: true }
+      : toolArgs;
     try {
       if (_localBackstopDenial) {
         // Already decided above — do not consult the PDP for a call the backstop
@@ -875,7 +923,7 @@ export function buildAuthorizeMcpRequest(
           decoded,
           method,
           toolName,
-          toolArgs,
+          toolArgsForAuthz,
           hitlApproved,
           intentValidation,
           hitlChallengeId,
@@ -887,7 +935,7 @@ export function buildAuthorizeMcpRequest(
           decoded,
           method,
           toolName,
-          toolArgs as any,
+          toolArgsForAuthz as any,
           hitlApproved,
           intentValidation,
           _tratClaims,
@@ -989,6 +1037,30 @@ export function buildAuthorizeMcpRequest(
           policy_source: authzDecision.policySource,
           ...(authzDecision.degraded ? { degraded: true } : {}),
           login_required: false,
+        }));
+        return;
+      }
+
+      // Elicitation obligation: P1AZ requires agent confirmation before proceeding.
+      // Branch on obligation (NOT reason) — reason is 'HITL_REQUIRED' for ALL
+      // non-stepUp obligations, so branching on reason would misclassify this as
+      // a HITL consent challenge. HTTP-transport counterpart of index.ts's WS
+      // handler; mints into the same shared store (src/elicitationStore.ts).
+      if (authzDecision.obligation === 'elicitation') {
+        const sessionId = _hdr('mcp-session-id') ?? '';
+        const prompt = authzDecision.advice?.find(
+          (a: { id: string }) => a.id === 'elicitation-prompt',
+        )?.value ?? `Confirm ${toolName}?`;
+        const rec = createPendingElicitation(toolName ?? '', sessionId, prompt);
+        res.end(JSON.stringify({
+          error: 'elicitation_required',
+          message: prompt,
+          elicitation_id: rec.elicitation_id,
+          prompt,
+          tool_name: toolName ?? '',
+          expires_in: 120,
+          policy_source: authzDecision.policySource,
+          ...(authzDecision.degraded ? { degraded: true } : {}),
         }));
         return;
       }
