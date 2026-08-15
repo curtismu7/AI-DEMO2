@@ -83,6 +83,74 @@ Check-then-act on shared mutable `globals` map, unsynchronized. PingGateway/IG i
 
 ---
 
+## Pass 2 — 2026-08-15
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 6 | High | 🔴 Open | RAR grant-match falls back to wrong grant on spec-shaped `authorization_details` | `demo_mcp_gateway/src/rarEnforce.ts:50-55` |
+| 7 | High | 🔴 Open | Non-numeric `TransactionAmount` silently becomes 0, bypasses all dollar-based PDP gates | `demo_authz_server/routes/decision.js:779,806,849,874-875` |
+| 8 | High | 🔴 Open | Dead AG-UI tool-call hooks report "run failed" after a transfer already executed | `pydantic_agent/src/agui_emitter.py:18,35-41,52-59` |
+| 9 | High | 🔴 Open | XSS via unescaped `dangerouslySetInnerHTML` in JSON viewer | `demo_api_ui/src/components/ProtocolPlayground/JSONViewer.jsx:11-36` |
+| 10 | Medium | 🔴 Open | Admin audit logger arg-shape mismatch drops all audit event data | `demo_api_server/services/adminAuditService.js:26-186` vs `exchangeAuditStore.js:15-22` |
+
+### 6. RAR grant-match falls back to wrong grant — High
+`enforceRarSubset()` (RFC 9396 RAR intent-subset check, `REQUIRE_RAR_INTENT`) is meant to deny any tool call not covered by the caller's granted `authorization_details`:
+```js
+const grant = details.find((d) => (d.actions ?? []).includes(toolName) || d.tool === toolName) ?? details[0];
+if (grant.tool && grant.tool !== toolName && !(grant.actions ?? []).includes(toolName)) {
+  return { ok: false, reason: `tool "${toolName}" is not in the granted authorization_details` };
+}
+```
+When no grant matches, it silently falls back to `details[0]` — the first grant, regardless of relevance. The mismatch guard only fires `if (grant.tool && ...)`, but standard RFC 9396 grants carry `actions`, not `tool` (that field is this demo's own BFF addition). Any spec-shaped grant with only `type`/`actions` skips the guard entirely, falling through to amount/payee checks against the *wrong* grant. Shared by both HTTP (`middleware/authorizeMcpRequest.ts:794`) and WebSocket (`pingAuthorizeGuard.ts:276`) transports.
+**Trigger:** caller holds a standard-shaped `{actions:['transfer'], amount:100, payee:'acct_456'}` grant, calls an unrelated tool whose args happen to satisfy the leftover amount/payee checks → `enforceRarSubset` returns `ok:true` for a tool action never granted.
+**Fix:** deny outright when `details.find(...)` returns nothing; don't fall back to `details[0]`.
+
+### 7. Non-numeric `TransactionAmount` bypasses PDP dollar gates — High
+```js
+const amount = parseFloat(TransactionAmount) || 0;
+const hasAmount = TransactionAmount !== '';
+```
+`hasAmount` is true for any non-empty string, but `amount` collapses to `0` for any non-numeric value. The ceiling check (`:779`) and tier check (`:849`) both skip on `isNaN`, and step-up/HITL checks (`:874-875`) evaluate `0 >= threshold` → false. Net effect: a malformed `TransactionAmount` sails through PERMIT with no ceiling, tier, step-up, or HITL consent applied — opposite of this PDP's stated fail-closed design elsewhere in the same file.
+**Trigger:** a write-tool call reaches `decision.js` (the authoritative PDP, callable directly) with `TransactionAmount: "abc"` → every dollar-based gate is silently skipped.
+**Fix:** treat non-empty-but-unparseable amount as invalid input → DENY, not `0`.
+
+### 8. Dead AG-UI tool-call hooks mask completed transfers as failures — High
+`on_tool_start`/`on_tool_args`/`on_tool_end` exist in `pydantic_agent/src/agui_emitter.py` but have zero call sites in `run_handler.py`/`bff_tool_adapter.py` (unlike `openai_agent`'s equivalents, which are wired and set `_any_tool_call = True`). `_any_visible_output` is only set by non-empty text deltas:
+```python
+async def on_run_end(self) -> None:
+    if not self._any_visible_output:
+        await self.on_error("The model didn't return a usable response...")
+```
+**Trigger:** model executes a money-moving tool (e.g. `create_transfer`, side effect already applied) but emits no trailing narration text this turn (common with small local models on this repo's LLM proxy) → client is told the run *failed* even though the transfer already happened, risking a user retry / double-transfer.
+**Fix:** wire the tool-call hooks into the pydantic_ai tool path, or set `_any_visible_output` from tool execution the way `openai_agent` sets `_any_tool_call`.
+
+### 9. XSS via unescaped `dangerouslySetInnerHTML` in JSON viewer — High
+```js
+let html = line
+  .replace(/"([^"]*)"(\s*):/g, '<span class="json-key">"$1"</span>$2<span class="json-colon">:</span>')
+  ...
+return <div key={line} dangerouslySetInnerHTML={{ __html: html }} />;
+```
+The regex tokenizer wraps JSON tokens in `<span>` markup but never HTML-escapes `<`, `>`, `&` in the underlying values first. Rendered via `ActivityPanel.jsx:96` for every raw HTTP response in Protocol Playground (PAR/authorize/token calls).
+**Trigger:** any response field (e.g. `error_description`) containing `<img src=x onerror=alert(1)>` renders as live HTML/JS instead of text.
+**Fix:** HTML-escape line content before running the highlighting regexes, or switch to a token-array render like the sibling `components/shared/JsonHighlight.jsx` (which deliberately avoids `dangerouslySetInnerHTML` for this exact reason).
+
+### 10. Admin audit logger drops all event data — Medium
+Five functions in `adminAuditService.js` (`logAdminTokenExchange`, `logAdminUserManagement`, etc.) call:
+```js
+writeExchangeEvent('admin_token_exchange', auditEvent);   // two args
+```
+but `exchangeAuditStore.js` declares `writeExchangeEvent(event)` — **one** param. The leading type-string becomes `event`; `{...event}` on a string spreads its characters into numeric keys, and the real object (adminSub, targetUserSub, action, result, IP) is dropped.
+**Confirmed live call site:** `routes/adminAgentTools.js:178-185` — `DELETE /users/:userId` deletes a user + accounts/transactions, then logs via this broken path. The persisted compliance audit trail for that destructive action ends up empty/garbage; only an ephemeral `console.log` has the real fields.
+**Fix:** drop the leading type-string argument (or fold `type` into the `auditEvent` object) so calls match the single-param signature.
+
+### Also found in pass 2, not in top 5 (verified, logged for awareness — not yet tracked with a number)
+- `demo_api_ui/src/components/AIAgent.js:1856-1911` — no staleness guard on `fetchLiveAccounts`; rapid vertical-switching can apply an older vertical's accounts last (Medium).
+- `langchain_agent/src/agent/langchain_mcp_agent.py:1109-1149` — stale OAuth/HITL challenge has no expiry check, hijacks every subsequent reply in a session until the user completes that exact flow (Medium).
+- `demo_authz_server/ruleStore.js:66-68` — admin-editable `hitlThresholdUsd` is persisted and shown as live-overridden but `decision.js` Rule 4 actually reads separate env vars; the control is dead (Medium).
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
