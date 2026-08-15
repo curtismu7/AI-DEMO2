@@ -127,12 +127,13 @@ export default function GatewayEnforcementMapPage() {
 
       <table className="edu-table" style={{ marginTop: 8 }}>
         <thead>
-          <tr><th>Rule</th><th>Node gateway</th><th>IG gateway (groovy)</th></tr>
+          <tr><th>Rule</th><th>Why P1AZ can't</th><th>Node gateway</th><th>IG gateway (groovy)</th></tr>
         </thead>
         <tbody>
           {GATEWAY_ENFORCEMENT_ROWS.map((row) => (
             <tr key={row.id}>
               <td>{row.label}</td>
+              <td style={{ fontSize: 12.5, opacity: 0.85, maxWidth: 360 }}>{row.p1az}</td>
               <td>{STATUS_LABEL[row.node.status]}</td>
               <td>{STATUS_LABEL[row.groovy.status]}</td>
             </tr>
