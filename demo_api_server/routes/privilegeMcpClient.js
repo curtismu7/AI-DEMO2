@@ -39,9 +39,20 @@ function getClientSession(req) {
   session._sid = sid;
   // Allow MCP clients that already hold a PingOne token to pass it directly
   // via Authorization: Bearer instead of going through the /auth/login flow.
+  // Clear refresh metadata when seeding: keeping a prior browser-OAuth
+  // refreshToken/expiresAt/tokenUri would let accessTokenExpiring() or a 401
+  // retry silently replace this Bearer with another identity's access token.
   const auth = req.headers?.authorization;
-  if (auth && auth.startsWith('Bearer ')) {
-    session.oauth.accessToken = auth.slice(7);
+  if (typeof auth === 'string') {
+    const match = auth.match(/^Bearer\s+(\S+)/i);
+    if (match) {
+      session.oauth.accessToken = match[1];
+      session.oauth.refreshToken = null;
+      session.oauth.expiresAt = null;
+      session.oauth.tokenUri = null;
+      session.oauth.dcrClientId = null;
+      session.oauth.dcrClientSecret = null;
+    }
   }
   return session;
 }
