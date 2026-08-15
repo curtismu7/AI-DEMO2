@@ -3,6 +3,15 @@
  */
 
 /**
+ * JWT segments are base64url (`-`/`_`, no padding), not standard base64
+ * (`+`/`/`, padded) — `atob` only accepts the latter, so convert first.
+ */
+function base64UrlToBase64(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  return padded + '='.repeat((4 - (padded.length % 4)) % 4);
+}
+
+/**
  * Decode a JWT into its three parts.
  * Always returns an object — callers gate on `isValid` rather than null-checking.
  */
@@ -17,8 +26,8 @@ function decodeJWT(token) {
   try {
     return {
       isValid: true,
-      header: JSON.parse(atob(parts[0])),
-      payload: JSON.parse(atob(parts[1])),
+      header: JSON.parse(atob(base64UrlToBase64(parts[0]))),
+      payload: JSON.parse(atob(base64UrlToBase64(parts[1]))),
       signature: parts[2],
     };
   } catch (err) {
