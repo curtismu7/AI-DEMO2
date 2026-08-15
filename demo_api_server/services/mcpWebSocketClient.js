@@ -518,6 +518,20 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
               return;
             }
 
+            // MCP spec: notifications/progress — an interim notification (no
+            // id) that may arrive before the final response on a long-running
+            // call. No tool in this demo emits one today (see MCP Inspector's
+            // "Attach progress token" toggle), but the client must not treat
+            // it as an out-of-order response — capture it on the frame sink
+            // (teaching surface) and keep waiting for the real response.
+            if (msg.method && msg.id === undefined && !msg.result && !msg.error) {
+              if (frameSink) {
+                frameSink.notifications = frameSink.notifications || [];
+                frameSink.notifications.push(msg);
+              }
+              return;
+            }
+
             // Check for tool/call or tools/list response
             if (!jsonRpcIdsMatch(msg.id, FOLLOW_REQUEST_ID)) {
               clearTimeout(timeout);
@@ -604,10 +618,28 @@ async function mcpListToolsWithFrames(agentToken, userSub, correlationId, opts) 
 async function mcpCallToolWithFrames(toolName, toolParams, agentToken, userSub, correlationId, opts) {
   const frames = {};
   try {
-    const result = await mcpRpc(agentToken, 'tools/call', {
-      name: toolName,
-      arguments: toolParams || {},
-    }, userSub, correlationId, frames, opts);
+    const followParams = { name: toolName, arguments: toolParams || {} };
+    // opts.meta: MCP spec request metadata (params._meta), e.g. progressToken —
+    // sibling of name/arguments, not a tool argument. Opt-in only (MCP
+    // Inspector's "Attach progress token" toggle); absent for every other caller.
+    if (opts && opts.meta) followParams._meta = opts.meta;
+    const result = await mcpRpc(agentToken, 'tools/call', followParams, userSub, correlationId, frames, opts);
+    return { result, frames };
+  } catch (err) {
+    err.frames = frames;
+    throw err;
+  }
+}
+
+// Thin generic frame-capturing wrapper for non-tool-call JSON-RPC methods
+// (Resources, Prompts, Completion, Logging — see MCP Inspector's POST /rpc).
+// mcpRpc is already method-agnostic; this just mirrors mcpCallToolWithFrames's
+// try/catch-and-attach-frames shape for an arbitrary `method`/`params` pair
+// instead of pinning followMethod to 'tools/call'.
+async function mcpRpcCall(method, params, agentToken, userSub, correlationId, opts) {
+  const frames = {};
+  try {
+    const result = await mcpRpc(agentToken, method, params || {}, userSub, correlationId, frames, opts);
     return { result, frames };
   } catch (err) {
     err.frames = frames;
@@ -627,6 +659,7 @@ module.exports = {
   mcpCallTool,
   mcpListToolsWithFrames,
   mcpCallToolWithFrames,
+  mcpRpcCall,
   resolveElicitation,
   rejectElicitation,
 };
