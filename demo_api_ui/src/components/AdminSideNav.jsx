@@ -479,7 +479,7 @@ export default function AdminSideNav({
         { label: "Privilege MCP Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
       ],
     },
-    { label: "Themes", path: "/themes", icon: "cfg", adminOnly: true },
+    { label: "Themes", path: "/themes", icon: "cfg" },
     {
       // Customer-facing demo pages — visible to admins too ("there is no
       // reason to hide on admin dashboard", 2026-08-10): the presenter drives

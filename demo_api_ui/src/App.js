@@ -1266,9 +1266,15 @@ function AppWithAuth() {
                             <Route
                               path="/themes"
                               element={
-                                <RequireAdminLogin user={user}>
+                                // The backend mounts vertical-themes behind
+                                // authenticateToken only (see verticalThemes.js) —
+                                // any signed-in user, not admin-only. Match that
+                                // here instead of forcing an admin re-login.
+                                user ? (
                                   <AdminThemesPage />
-                                </RequireAdminLogin>
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
                               }
                             />
                             <Route
