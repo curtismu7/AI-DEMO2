@@ -1854,10 +1854,20 @@ export default function BankingAgent({
   // Also re-runs when the vertical changes because themeManifest.id changes,
   // which causes isLoggedIn's referencing closure to re-evaluate. We call the
   // imperative helper directly from the vertical-switch effect below.
+  // Guards against a stale-response race: fetchLiveAccounts is called
+  // imperatively (not itself an effect) from both the login effect and the
+  // vertical-switch effect below, so a fast double vertical switch can have
+  // an earlier request resolve after a later one. Only the response matching
+  // the most recently issued request is applied (same intent as the
+  // `cancelled` guard on the tool-fetch effect above, adapted for an
+  // imperative call site via a request-id ref).
+  const liveAccountsRequestIdRef = useRef(0);
   const fetchLiveAccounts = useCallback(() => {
+    const requestId = ++liveAccountsRequestIdRef.current;
     fetch("/api/accounts/my", { credentials: "include", _silent: true })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
+        if (requestId !== liveAccountsRequestIdRef.current) return; // stale response
         if (!data?.accounts?.length) return;
         setLiveAccounts(
           data.accounts.map((a) => ({
