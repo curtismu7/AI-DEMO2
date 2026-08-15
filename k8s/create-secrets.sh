@@ -325,6 +325,18 @@ override_privilege_urls_for_public_origin() {
   local app_name="${NS#ping-devops-}"
   local mcpgw_client_url="https://${app_name}-app-default.applications.privilege.pingone.com:8643/mcp"
 
+  # mcpgw binary routes by path prefix: /<app-name>/mcp (not just /mcp).
+  # Set MCPGW_APP_NAME env var to the name registered in the Privilege console
+  # (AI Security > Agentic Apps). Omit to get the flat /mcp path (won't work
+  # with the mcpgw binary unless an app named "" exists, which it won't).
+  local mcpgw_app_name="${MCPGW_APP_NAME:-}"
+  local mcpgw_mcp_path
+  if [ -n "$mcpgw_app_name" ]; then
+    mcpgw_mcp_path="${mcpgw_base}/${mcpgw_app_name}/mcp"
+  else
+    mcpgw_mcp_path="${mcpgw_base}/mcp"
+  fi
+
   local ai_patch
   ai_patch=$(printf '{"stringData":{"PRIVILEGE_MCPGW_URL":"%s"}}' "$mcpgw_client_url")
   printf '%s' "$ai_patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null

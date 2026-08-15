@@ -1,6 +1,7 @@
 'use strict';
 
 const configStore = require('../services/configStore');
+const { getTokenEndpoint } = require('../services/oauthEndpointResolver');
 const { getRequiredTier, isAgentRestricted } = require('../services/agentRestrictionsService');
 const { cache: attrCache } = require('./agentRestrictionsCache');
 const { createPendingDecision } = require('../routes/mcpDecisionPolling');
@@ -36,7 +37,6 @@ async function getWorkerToken() {
   if (_workerToken && Date.now() < _workerTokenExpiry) return _workerToken;
 
   const envId = process.env.PINGONE_ENVIRONMENT_ID;
-  const region = process.env.PINGONE_REGION || 'com';
   const clientId = configStore.get('pingone_management_client_id') || process.env.PINGONE_MANAGEMENT_CLIENT_ID;
   const clientSecret = configStore.get('pingone_management_client_secret') || process.env.PINGONE_MANAGEMENT_CLIENT_SECRET;
 
@@ -50,7 +50,7 @@ async function getWorkerToken() {
       client_secret: clientSecret,
     });
     const res = await axios.post(
-      `https://auth.pingone.${region}/${envId}/as/token`,
+      getTokenEndpoint(),
       params.toString(),
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000, validateStatus: () => true }
     );

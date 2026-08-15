@@ -194,12 +194,77 @@ ping-mcpgw/
 Note: the console's **Get Docker Command** output omits the `/var/lib/procyon`
 mount entirely, so a proxy enrolled straight from that command never sees this tree.
 
+## Troubleshooting — auth failures
+
+| Error (in BFF log or UI) | Root cause | Fix |
+|---|---|---|
+| `JWT signature validation failed` | `PRIVILEGE_MCPGW_URL` points at Privilege Cloud hosted frontend or PingOne directly. Neither emits `WWW-Authenticate`, so `discoverAuth()` falls back to PingOne OIDC → BFF exchanges at PingOne → PingOne-signed token → mcpgw rejects it | Set `PRIVILEGE_MCPGW_URL=https://ai-demo.ping-devops.com/mcpgw/<app-name>/mcp` (K8s mcpgw URL, which emits `WWW-Authenticate`) |
+| `Token exchange failed: 401 invalid_client` | `OIDC_CLIENT_SECRET` in `pingone.env` is wrong. mcpgw tries to exchange the PingOne auth code at PingOne's token endpoint and PingOne rejects it. Confirm in mcpgw log: `Token exchange failed with status 401: {"error":"invalid_client",...}` | Copy `PRIVILEGE_SSO_CLIENT_SECRET` from `demo_api_server/.env` into `pingone.env` exactly. Watch for `l` (lowercase L) vs `I` (uppercase I) — visually identical in most fonts. Run `create-secrets.sh`, restart mcpgw. |
+| `Unknown client` | MCPgw pod restarted and lost in-memory DCR client state. BFF still has the old cached `client_id` from before the restart. | Restart the BFF (`kubectl rollout restart deployment/demo-api-server -n <ns>`) to flush the DCR cache. Next `auth/start` registers a fresh DCR client with the new mcpgw instance. |
+| `404 /mcp` (no WWW-Authenticate) | No MCP application registered in the Privilege console for this cluster. | Privilege console → AI Security > Agentic Apps > Add Application > MCP Server. Set backend to `http://mcp-server.<ns>.svc.cluster.local:8080/mcp`, Mesh Cluster = your gateway. The path mcpgw exposes becomes `/<app-name>/mcp`. |
+| `502` on `/mcpgw/*` | Service `targetPort` mismatch, or mcpgw pod not ready. | Verify `service.yaml` has `targetPort: 8623` (not 8680). Check `kubectl get pods -n <ns> \| grep mcpgw` and startup probe. |
+
+**Operational rule:** whenever mcpgw is restarted (upgrade, config change, crash), also restart the BFF. MCPgw holds DCR client registrations in memory only — any restart invalidates all clients, and the BFF cache won't know.
+
+## Adding a second MCP application — OpenSearch example
+
+The mcpgw binary routes to whichever backend each Privilege MCP Application declares.
+Steps below use `cmuir-opensearch` as the app name (path becomes `/cmuir-opensearch/mcp`).
+
+### 1. Start the OpenSearch MCP server
+
+**Docker:**
+```sh
+./run-docker.sh optional start mcpgw
+# opensearch-mcp-server accessible inside Docker network at http://opensearch-mcp-server:9900/mcp
+```
+
+**K8s (SE cluster):** already deployed — `deploy.sh` sets `opensearch.enabled=true` and
+`opensearchMcpServer.enabled=true` when `PUBLIC_APP_URL` is provided. Service name:
+`ping-mcpgw-opensearch-mcp-server` (port 80 → 9900). URL: `http://ping-mcpgw-opensearch-mcp-server/mcp`
+
+### 2. Register the app in the Privilege console
+
+Privilege console → **AI Security > Agentic Apps > Add Application > MCP Server**:
+
+| Field | Value |
+|---|---|
+| **App name** | `cmuir-opensearch` |
+| **MCP Server URL** (K8s) | `http://ping-mcpgw-opensearch-mcp-server/mcp` |
+| **MCP Server URL** (Docker) | `http://opensearch-mcp-server:9900/mcp` |
+| **Auth Mode** | Static Token — leave token **empty** (opensearch-mcp-server is unauthenticated) |
+| **Mesh Cluster** | your enrolled gateway |
+
+After save, mcpgw exposes the new path: `/<app-name>/mcp`.
+
+### 3. Configure the BFF or Postman
+
+The BFF's `/api/privilege-mcp/config` endpoint accepts `mcpUrl` to switch apps per session:
+
+```json
+POST /api/privilege-mcp/config
+{ "mcpUrl": "https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp",
+  "clientId": "a6219652-47af-4ed2-8dea-20e9940b3377" }
+```
+
+Or set `PRIVILEGE_MCPGW_URL=https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp` in
+`demo_api_server/.env` and restart the BFF to make it the default.
+
+Use the Postman collections in `privilege/postman/Privilege-MCP-Client-{Docker,K8s}.postman_collection.json` —
+each has an **OpenSearch app** folder with preconfigured requests.
+
+### 4. Author Privilege policy
+
+Add the same policy/record/deny rules in the Privilege console for `cmuir-opensearch` that
+you set up for `cmuir2`. Privilege enforces per-app, not globally — a new app has no rules until you add them.
+
+
 ## Where the wiring lives
 
 | file | what it does |
 |---|---|
 | `docker-compose.yml` | `ping-mcpgw` service (profile `mcpgw`), mounts proxy-token as `/procyon/ssl/proxy-token.data` |
-| `k8s/helm/mcpgw`, `k8s/aws/deploy.sh` | SE cluster: Helm-deployed cyonproxy, verified 2026-08-13 — see [`../deploy-whole-stack.prompt.md`](../deploy-whole-stack.prompt.md). `k8s/75-ping-mcpgw-deployment.yaml` (the untested `mcpgw` binary) is no longer applied |
+| `k8s/helm/mcpgw`, `k8s/aws/deploy.sh` | SE cluster: Helm-deployed `privilege-mcpgw` binary (mcpgw), swapped from cyonproxy 2026-08-13. mcpgw emits `WWW-Authenticate` OAuth challenge; cyonproxy did not. `k8s/75-ping-mcpgw-deployment.yaml` is the reference manifest the Helm chart mirrors |
 | `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `procyon/config/proxy-token` + `procyon/config/pingone.env` — the SE Helm deploy reads `ENV_PROXY_TOKEN` back out of this same Secret |
 | `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend `ping-mcpgw-mcpgw:80` (the Helm chart's Service) |
 | `demo_api_server/routes/privilegeMcpClient.js` | seeds the client page's default MCP URL from `PRIVILEGE_MCPGW_URL` |

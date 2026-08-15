@@ -36,6 +36,8 @@ import {
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
+import SimpleStepperBar from "./SimpleStepperBar";
+import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -164,6 +166,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const [middleAgentOpen, setMiddleAgentOpen] = useState(
     () => agentPlacement === "middle",
   );
+
+  const [showFilmstrip, setShowFilmstrip] = useState(() => {
+    try { return localStorage.getItem("ba_show_filmstrip") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    const handler = (e) => setShowFilmstrip(!!e.detail?.on);
+    window.addEventListener("agent-filmstrip-toggle", handler);
+    return () => window.removeEventListener("agent-filmstrip-toggle", handler);
+  }, []);
 
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
@@ -3678,10 +3689,45 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
+                <SimpleStepperBar />
+                <div className="ud-float-chain-actions">
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Real-time token topology — RFC 8693 delegation chain"
+                    onClick={() => window.dispatchEvent(new CustomEvent('token-topology-open'))}
+                  >
+                    Topology
+                  </button>
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Floating token chain — RFC 8693 delegation trace rail"
+                    onClick={() => window.dispatchEvent(new CustomEvent('floating-token-chain-open'))}
+                  >
+                    Token chain
+                  </button>
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Open 15-Min Security Demo Script"
+                    onClick={() => window.dispatchEvent(new CustomEvent('demo-script-toggle'))}
+                  >
+                    Script
+                  </button>
+                </div>
               </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
+            {/* Response mirror — shows last agent reply on main page when toggled on */}
+            <AgentResponseMirror />
+            {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
+            {showFilmstrip && (
+              <div className="tcfs-float-host">
+                <TokenChainFilmstrip />
+              </div>
+            )}
           </div>
         )
       )}

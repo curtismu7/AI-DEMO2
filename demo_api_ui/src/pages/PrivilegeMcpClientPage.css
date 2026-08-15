@@ -581,6 +581,56 @@ select.cur-input { cursor: pointer; }
   margin-top: 16px;
 }
 
+.cur-sessions-panel {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cur-sessions-error,
+.cur-sessions-empty {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #888;
+}
+
+.cur-sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cur-session-card {
+  background: #252526;
+  border: 1px solid #2b2b2b;
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cur-session-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.cur-session-ttl,
+.cur-session-status {
+  font-size: 12px;
+  color: #888;
+}
+
+.cur-session-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #aaa;
+}
+
 .cur-tool-detail {
   background: #252526;
   border: 1px solid #2b2b2b;
@@ -1058,66 +1108,6 @@ select.cur-input { cursor: pointer; }
   padding-left: 2px;
 }
 
-/* Console token (dev) — inject a Privilege console bearer to drive the gateway
-   without the PingOne OAuth flow. Rendered only under import.meta.env.DEV. */
-.cur-console-token {
-  margin-top: 12px;
-  padding: 10px;
-  border: 1px solid #30363d;
-  border-radius: 6px;
-  background: #0d1117;
-}
-.cur-console-token-hint {
-  margin: 6px 0 8px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #ffffff;
-}
-.cur-console-token-input {
-  width: 100%;
-  box-sizing: border-box;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  color: #e6edf3;
-  background: #010409;
-  border: 1px solid #30363d;
-  border-radius: 4px;
-  padding: 6px;
-  resize: vertical;
-  margin-bottom: 8px;
-}
-.cur-console-token-status {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #ffffff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-}
-.cur-ct-timer { font-family: monospace; font-variant-numeric: tabular-nums; }
-.cur-console-token-status.cur-ct-status--ok { border-color: rgba(74, 222, 128, .4); }
-.cur-console-token-status.cur-ct-status--ok .cur-ct-timer { color: #4ade80; }
-.cur-console-token-status.cur-ct-status--warn { border-color: rgba(250, 204, 21, .5); background: rgba(250, 204, 21, .1); }
-.cur-console-token-status.cur-ct-status--warn .cur-ct-timer { color: #facc15; }
-.cur-console-token-status.cur-ct-status--dead { border-color: rgba(248, 113, 113, .6); background: rgba(248, 113, 113, .12); }
-.cur-console-token-status.cur-ct-status--dead .cur-ct-timer { color: #f87171; font-weight: 700; }
-
-.cur-ct-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.cur-ct-grab {
-  margin-top: 8px; padding: 8px; border: 1px solid #2a2a2a; border-radius: 4px;
-  background: #0d0d0d; font-size: 11.5px; color: #cfcfcf; line-height: 1.45;
-}
-.cur-ct-grab p { margin: 0 0 6px; }
-.cur-ct-steps { margin: 0 0 6px; padding-left: 18px; }
-.cur-ct-steps li { margin: 2px 0; }
-.cur-ct-grab code { color: #7ec8e3; }
-.cur-ide[data-cur-theme="light"] .cur-ct-grab { background: #f0f0f0; border-color: #ddd; color: #333; }
-.cur-ide[data-cur-theme="light"] .cur-ct-grab code { color: #0369a1; }
-
 /* ─────────────────────────────────────────────────────────────────────────
    Light mode — page-local, toggled by the Light/Dark button in the title bar
    (data-cur-theme="light" on .cur-ide). The base styles above are the dark
@@ -1235,12 +1225,6 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-flow-line,
 .cur-ide[data-cur-theme="light"] .cur-flow-arrow { background: #ccc; color: #ccc; }
 .cur-ide[data-cur-theme="light"] .cur-auth-badge--ok { background: rgba(56, 139, 253, 0.12); color: #1d4ed8; }
-
-/* Console token (dev) box — the white hint would vanish on white, flip it dark */
-.cur-ide[data-cur-theme="light"] .cur-console-token { background: #f7f7f7; border-color: #ccc; }
-.cur-ide[data-cur-theme="light"] .cur-console-token-hint,
-.cur-ide[data-cur-theme="light"] .cur-console-token-status { color: #1e1e1e; }
-.cur-ide[data-cur-theme="light"] .cur-console-token-input { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Readability: on the dark background every bit of body/label/muted text is

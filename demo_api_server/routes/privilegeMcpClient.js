@@ -37,6 +37,12 @@ function getClientSession(req) {
   }
   const session = clientSessions.get(sid);
   session._sid = sid;
+  // Allow MCP clients that already hold a PingOne token to pass it directly
+  // via Authorization: Bearer instead of going through the /auth/login flow.
+  const auth = req.headers?.authorization;
+  if (auth && auth.startsWith('Bearer ')) {
+    session.oauth.accessToken = auth.slice(7);
+  }
   return session;
 }
 
@@ -457,10 +463,19 @@ async function beginOAuthFlow(session, req) {
   const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
   if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
+  // Reuse the active PingOne browser session when the main app is already logged in.
+  // prompt=none tells PingOne to complete the flow silently using the existing session
+  // cookie — no login page shown. Falls back to interactive on login_required.
+  const promptNoneAttempted = Boolean(
+    req.session?.oauthTokens?.accessToken && !req.session?.privilegePromptNoneFailed,
+  );
+  if (promptNoneAttempted) authUrl.searchParams.set('prompt', 'none');
+
   session.pendingAuth = {
     oauthState, verifier, tokenUri, redirectUri,
     dcrClientId,
     dcrClientSecret,
+    promptNoneAttempted,
   };
 
   return authUrl;
@@ -481,159 +496,6 @@ router.get('/state', (req, res) => {
     user: req.session?.user || null,
     tools: session.tools,
   });
-});
-
-// POST /dev/console-token — DEV ONLY. Inject a Privilege console token as the
-// client bearer, so the UI can drive the real gateway without the PingOne OAuth
-// flow (which fails the kid wall — see privilege/PRIVILEGE-MCP.md). Accepts either a
-// raw token or a whole "Copy as cURL" blob and parses auth_token out of it.
-//
-// Disabled in production: the console token is a short-lived operator credential,
-// never a login. This is a bench aid, gated off any real deployment.
-router.post('/dev/console-token', express.json({ limit: '256kb' }), async (req, res) => {
-  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
-
-  const blob = String(req.body?.curl || req.body?.token || '');
-  // auth_token from a cookie (-b 'auth_token=...') or a raw JWT; JWTs are three
-  // base64url segments joined by dots.
-  const token =
-    (blob.match(/auth_token=([A-Za-z0-9._-]+)/) || [])[1] ||
-    (blob.match(/\b(eyJ[A-Za-z0-9._-]{20,})\b/) || [])[1] ||
-    '';
-  if (!token) return res.status(400).json({ error: 'No auth_token / JWT found in the pasted value.' });
-
-  let header, payload;
-  try {
-    header = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
-    payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
-  } catch {
-    return res.status(400).json({ error: 'Value is not a decodable JWT.' });
-  }
-  const expiresAt = payload.exp ? payload.exp * 1000 : null;
-  if (expiresAt && expiresAt <= Date.now()) {
-    return res.status(400).json({ error: 'Token is already expired — copy a fresh one from the console.' });
-  }
-
-  const session = getClientSession(req);
-  session.oauth.accessToken = token;
-  session.oauth.refreshToken = null;
-  session.oauth.expiresAt = expiresAt;
-  session.oauth.scope = 'console-token';
-  // Point this client session at an app the console token can route to. The
-  // default targets mcp-pingone-admin's frontend host (nginx rewrites it to the
-  // registered Frontend Name). Override per-session with mcpUrl in the body.
-  const mcpUrl = String(req.body?.mcpUrl || '').trim() ||
-    'https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp';
-  session.config.mcpUrl = mcpUrl;
-  // Force a fresh MCP handshake against the new target/token.
-  resetMcpState(session);
-
-  emitEvent(session, 'mcp', { phase: 'console_token_set', user: payload.user || payload.sub, kid: header.kid });
-
-  const body = {
-    ok: true,
-    user: payload.user || payload.sub || null,
-    kid: header.kid || null,
-    kidMatchesGateway: header.kid === 'infra-root-jwt',
-    expiresInMinutes: expiresAt ? Math.round((expiresAt - Date.now()) / 60000) : null,
-    mcpUrl,
-  };
-
-  // The per-client token lives in clientSessions keyed by req.sessionID. With
-  // saveUninitialized:false an unmodified session issues no cookie, so a caller
-  // without an existing banking session would get a fresh sessionID on the next
-  // request and lose the token. Touch + save req.session here so a connect.sid
-  // is set and the following /tools/list reuses the same session.
-  if (req.session) {
-    req.session.privilegeConsoleTokenAt = Date.now();
-    return req.session.save((err) => {
-      if (err) return res.status(500).json({ error: 'Session save failed.' });
-      res.json(body);
-    });
-  }
-  res.json(body);
-});
-
-// Decode a bearer, store it as this client session's gateway credential, and
-// return the standard status body. Shared by the console-token and auto-mint paths.
-function applyBearerToSession(session, token, mcpUrlOverride) {
-  const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
-  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
-  const expiresAt = payload.exp ? payload.exp * 1000 : null;
-  session.oauth.accessToken = token;
-  session.oauth.refreshToken = null;
-  session.oauth.expiresAt = expiresAt;
-  session.oauth.scope = 'console-token';
-  const mcpUrl = String(mcpUrlOverride || '').trim() ||
-    'https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp';
-  session.config.mcpUrl = mcpUrl;
-  resetMcpState(session);
-  return {
-    ok: true,
-    user: payload.user || payload.sub || null,
-    kid: header.kid || null,
-    kidMatchesGateway: header.kid === 'infra-root-jwt',
-    expiresInMinutes: expiresAt ? Math.round((expiresAt - Date.now()) / 60000) : null,
-    mcpUrl,
-  };
-}
-
-// GET /dev/auto-mint/status — is headless mint wired? (a control-plane admin
-// credential + a mint endpoint are configured). Off by default; drives the UI button.
-router.get('/dev/auto-mint/status', (req, res) => {
-  const configured = process.env.NODE_ENV !== 'production'
-    && Boolean(process.env.PRIVILEGE_ADMIN_TOKEN)
-    && Boolean(process.env.PRIVILEGE_MINT_URL);
-  res.json({ configured });
-});
-
-// POST /dev/auto-mint — mint/refresh the infra token headlessly, when configured.
-//
-// Forward hook for the day a Privilege control-plane admin credential exists:
-// POST the mint params to PRIVILEGE_MINT_URL with the admin bearer, take the
-// returned identity token, and set it as this session's gateway credential — the
-// same effect as pasting a fresh console token, but scriptable. Inert (501) until
-// PRIVILEGE_ADMIN_TOKEN + PRIVILEGE_MINT_URL are set. See privilege/PRIVILEGE-MCP.md.
-router.post('/dev/auto-mint', express.json(), async (req, res) => {
-  if (process.env.NODE_ENV === 'production') return res.status(404).json({ error: 'Not found' });
-  const adminToken = process.env.PRIVILEGE_ADMIN_TOKEN;
-  const mintUrl = process.env.PRIVILEGE_MINT_URL;
-  if (!adminToken || !mintUrl) {
-    return res.status(501).json({
-      error: 'auto_mint_unconfigured',
-      message: 'Headless mint is not configured. Set PRIVILEGE_ADMIN_TOKEN and PRIVILEGE_MINT_URL (the control-plane token endpoint) to enable it.',
-    });
-  }
-  try {
-    const mintBody = {
-      tenant: process.env.PRIVILEGE_MINT_TENANT || '',
-      org: process.env.PRIVILEGE_MINT_ORG || 'default',
-      user: process.env.PRIVILEGE_MINT_USER || '',
-      device: process.env.PRIVILEGE_MINT_DEVICE || 'MCP Client',
-    };
-    const r = await fetch(mintUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
-      body: JSON.stringify(mintBody),
-    });
-    const text = await r.text();
-    let data; try { data = JSON.parse(text); } catch { data = {}; }
-    const token = data.access_token || data.token || (text.match(/eyJ[A-Za-z0-9._-]+/) || [])[0];
-    if (!r.ok || !token) {
-      return res.status(502).json({ error: 'mint_failed', message: `Mint endpoint returned ${r.status}.` });
-    }
-    const session = getClientSession(req);
-    const body = applyBearerToSession(session, token, req.body?.mcpUrl);
-    emitEvent(session, 'mcp', { phase: 'auto_mint', user: body.user, kid: body.kid });
-    if (req.session) {
-      req.session.privilegeConsoleTokenAt = Date.now();
-      return req.session.save((err) => (err ? res.status(500).json({ error: 'Session save failed.' }) : res.json(body)));
-    }
-    return res.json(body);
-  } catch (err) {
-    const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
-    return res.status(502).json({ error: 'mint_failed', message: normalizeAxiosError(err, { label: 'auto-mint' }).message });
-  }
 });
 
 // POST /config — save config
@@ -686,6 +548,14 @@ router.get('/auth/callback', async (req, res) => {
     if (error) {
       const reason = error_description ? `${error}: ${error_description}` : error;
       emitEvent(session, 'oauth', { phase: 'callback_error', error: reason });
+      // prompt=none was attempted (main app session existed) but PingOne had no
+      // active session to reuse — mark it so the next attempt skips prompt=none
+      // and falls through to the interactive login page instead of looping.
+      if (error === 'login_required' && session.pendingAuth?.promptNoneAttempted) {
+        req.session.privilegePromptNoneFailed = true;
+        session.pendingAuth = null;
+        return res.redirect(`${returnBase}?auth=silent_failed`);
+      }
       return redirectWithError(reason);
     }
     if (!session.pendingAuth || incomingState !== session.pendingAuth.oauthState) {
@@ -727,6 +597,7 @@ router.get('/auth/callback', async (req, res) => {
     session.oauth.dcrClientSecret = session.pendingAuth.dcrClientSecret || null;
     session.pendingAuth = null;
     resetMcpState(session);
+    if (req.session) req.session.privilegePromptNoneFailed = false;
 
     emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
     res.redirect(`${returnBase}?auth=success`);
@@ -747,8 +618,8 @@ router.post('/tools/list', express.json(), async (req, res) => {
     try {
       data = await fetchMcp(session, null, rpc, true);
     } catch (err) {
-      if (err.message.includes('invalid during session initialization')) {
-        session.mcpSession.initialized = false;
+      if (err.message.includes('invalid during session initialization') || err.message.includes('Unknown or expired MCP-Session-Id')) {
+        resetMcpState(session);
         await ensureMcpSessionInitialized(session);
         data = await fetchMcp(session, null, rpc, true);
       } else throw err;
@@ -770,7 +641,16 @@ router.post('/tools/call', express.json(), async (req, res) => {
     await ensureMcpSessionInitialized(session);
     const { name, arguments: args } = req.body || {};
     const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args || {} } };
-    const data = await fetchMcp(session, null, rpc, true);
+    let data;
+    try {
+      data = await fetchMcp(session, null, rpc, true);
+    } catch (err) {
+      if (err.message.includes('Unknown or expired MCP-Session-Id')) {
+        resetMcpState(session);
+        await ensureMcpSessionInitialized(session);
+        data = await fetchMcp(session, null, rpc, true);
+      } else throw err;
+    }
     res.json(data);
   } catch (err) {
     emitEvent(session, 'error', { scope: 'tools_call', message: err.message });
@@ -808,6 +688,32 @@ router.post('/auth/logout', (req, res) => {
   resetMcpState(session);
   emitEvent(session, 'oauth', { phase: 'logout' });
   res.json({ ok: true });
+});
+
+// GET /sessions — list Privilege console applications using the stored PingOne token
+router.get('/sessions', async (req, res) => {
+  const session = getClientSession(req);
+  if (!session.oauth.accessToken) {
+    return res.status(401).json({ error: 'Not authenticated.' });
+  }
+  const envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
+  if (!envId) {
+    return res.status(500).json({ error: 'PRIVILEGE_SSO_ENV_ID not configured.' });
+  }
+  try {
+    const url = `https://console.privilege.pingone.com/api/${envId}/v1/applications?ObjectMeta.Namespace=default`;
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ error: `Console API ${response.status}: ${text.slice(0, 300)}` });
+    }
+    const data = await response.json();
+    res.json({ applications: data.Applications || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /chat — demo chat with optional LLM routing

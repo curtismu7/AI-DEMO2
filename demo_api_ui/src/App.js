@@ -145,6 +145,8 @@ import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
+import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
@@ -190,6 +192,7 @@ import PublicRoutes, {
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
+import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
@@ -860,15 +863,13 @@ function AppWithAuth() {
                 <Route
                   path="/demo/:shellSlug"
                   element={
-                    loading ? null : user ? (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <FootprintLiveShellPage />
                         </main>
                       </>
-                    ) : (
-                      <Navigate to="/" replace />
                     )
                   }
                 />
@@ -957,18 +958,26 @@ function AppWithAuth() {
                 <Route
                   path="/pingcli"
                   element={
-                    // Keep PingCliPage mounted across auth `loading` flickers so a
-                    // finished terminal run is not wiped mid-view.
-                    loading && !user ? null : user ? (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          <PingCliPage />
-                        </main>
-                      </>
-                    ) : (
-                      <Navigate to="/" replace />
-                    )
+                    // Public route — no login required.
+                    <AppShell user={user} logout={logout}>
+                      <PingCliPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent"
+                  element={
+                    // Public route — no login required (same pattern as /pingcli).
+                    <AppShell user={user} logout={logout}>
+                      <PersonalAgentStudioPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent/client"
+                  element={
+                    // Bare route for pop-out window — no nav shell.
+                    <PersonalAgentClientWindow />
                   }
                 />
                 {/* Legacy Test Lab URL → unified Demo check */}

@@ -656,6 +656,13 @@ export default function BankingAgent({
       return false;
     }
   });
+  const [showFilmstrip, setShowFilmstrip] = useState(() => {
+    try {
+      return localStorage.getItem("ba_show_filmstrip") === "1";
+    } catch {
+      return false;
+    }
+  });
   // Inspectors sub-group — same reasoning as the Configuration group above, but
   // scoped so Demo steps / Live Use Cases / Agent scope stay visible beside it.
   const [inspectorsOpen, setInspectorsOpen] = useState(() => {
@@ -2178,8 +2185,8 @@ export default function BankingAgent({
       return undefined;
     }
 
-    // Guest / pre-hydration: /api/verticals/me is 401 until sign-in, so read the
-    // hero from its own public endpoint rather than waiting on the manifest.
+    if (!isLoggedIn) return undefined;
+
     fetch(`/api/verticals/${vertical}/hero`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then(apply)
@@ -2187,7 +2194,7 @@ export default function BankingAgent({
     return () => {
       cancelled = true;
     };
-  }, [effectiveVerticalId, heroShown, pageManifest, user]);
+  }, [effectiveVerticalId, heroShown, pageManifest, user, isLoggedIn]);
 
   // Auto-retry after login (auth challenge path)
   useEffect(() => {
@@ -2950,6 +2957,9 @@ export default function BankingAgent({
         { id, role, content: contentString ?? "", tool, proofRunId, ...rest },
       ];
     });
+    if (role === "assistant") {
+      window.dispatchEvent(new CustomEvent("agent-last-response", { detail: { text: contentString } }));
+    }
   }
 
   // Route an agent response's verticalResult to its renderer and return the
@@ -3959,9 +3969,12 @@ export default function BankingAgent({
           break;
         }
         case "transfer_600_test": {
-          // Test HITL consent + MFA flow with a realistic $600 transfer
+          // UC7: $600 triggers step-up obligation — route through MCP pipeline so
+          // forceStepUp fires (useCaseId 'step-up-required'). callMcpTool throws
+          // mcp_step_up_required → outer catch opens P1MFA device picker directly.
+          // Never show the consent modal for this chip.
           toast.update(toastId, {
-            render: "Initiating $600 transfer to test HITL consent + MFA flow…",
+            render: "Initiating $600 transfer — step-up MFA required (UC7)…",
           });
           const testAccounts =
             liveAccounts && liveAccounts.length >= 2 ? liveAccounts : null;
@@ -4004,80 +4017,26 @@ export default function BankingAgent({
           addMessage(
             "token-event",
             [
-              "Testing HITL Consent + MFA Flow",
+              "Testing Step-Up MFA Flow (UC7)",
               "",
               `Attempting transfer of $${APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER} from ${testFrom.name || testFrom.type} → ${testTo.name || testTo.type}`,
               "",
               "Expected flow:",
-              "  1. Consent modal appears (HITL gate triggers at $250+)",
-              "  2. Review transaction details and check 'I agree'",
-              "  3. Click 'Agree & send code'",
-              "  4. Device selection modal appears (select OTP or FIDO2)",
-              "  5. Complete MFA challenge (OTP: enter 123456 or code from email)",
-              "  6. Transaction completes",
+              "  1. PingOne Authorize returns step-up obligation ($600 >= $500 threshold)",
+              "  2. Device selection modal appears (select SMS, email, or FIDO2)",
+              "  3. Complete MFA challenge",
+              "  4. Transaction completes",
             ].join("\n"),
             actionId,
           );
-          try {
-            // Call HTTP endpoint directly (not MCP) to trigger authorization + HITL
-            const httpRes = await fetch("/api/transactions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                fromAccountId: testFrom.id,
-                toAccountId: testTo.id,
-                amount: APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER,
-                type: "transfer",
-                description: "HITL + MFA test",
-              }),
-            });
-            const httpBody = await httpRes.json();
-            console.log(
-              "[Transfer600Test] HTTP Transfer status:",
-              httpRes.status,
-            );
-            console.log("[Transfer600Test] HTTP Transfer body:", httpBody);
-            response = { result: httpBody, status: httpRes.status };
-
-            // If 428 (HITL), show consent modal
-            if (httpRes.status === 428) {
-              toast.dismiss(toastId);
-              setLoading(false);
-              setHitlPendingIntent({
-                actionId: "transfer_600_test",
-                form: {
-                  fromId: testFrom.id,
-                  toId: testTo.id,
-                  amount: String(APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER),
-                  note: "HITL + MFA test",
-                },
-                intentPayload: {
-                  type: "transfer",
-                  description: `Transfer $${APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER}`,
-                  amount: APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER,
-                },
-                threshold: 250,
-              });
-              return;
-            }
-
-            // If 403 (deny), format as error result
-            if (httpRes.status === 403) {
-              response.result = {
-                ok: false,
-                error: httpBody.error,
-                ...httpBody,
-              };
-            }
-          } catch (err) {
-            console.error("[Transfer600Test] Transfer failed:", err);
-            addMessage("assistant", `Error: ${err.message}`);
-            toast.dismiss(toastId);
-            setLoading(false);
-            return;
-          }
-          // Falls through to normalizeAgentToolResult for 200/other responses
+          response = await createTransfer(
+            testFrom.id,
+            testTo.id,
+            APP_CONFIG.THRESHOLDS.DEMO_HITL_TRANSFER,
+            "Step-up MFA test",
+            undefined,
+            { useCaseId: "step-up-required", vertical },
+          );
           break;
         }
         case "demo_intent_delegation": {
@@ -8319,15 +8278,44 @@ export default function BankingAgent({
         }
       }
       // Trigger the approval modal. Two shapes, both required here:
-      //   - banking transfers/deposits/withdrawals carry transactionAmount
-      //     → monetary consent intent (unchanged).
-      //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
-      //     carry NO amount → the isVerticalConsent shape, same as the
-      //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
-      //     open it too; without this, Demo Steps UC7/UC8 printed the gate
-      //     text and never prompted the user.
+      //   - step_up_required / mcp_step_up_required (UC7): go directly to P1MFA —
+      //     no consent modal. Identity verification IS the gate; consent is not.
+      //   - banking transfers with transactionAmount (UC8): create a server-side
+      //     challenge and show TransactionConsentModal (drives consent-only vs MFA
+      //     by amount).
+      //   - vertical plugin tools with no amount → isVerticalConsent shape, same
+      //     as the kind:'vertical' handler.
       if (isApprovalGate) {
-        if (response.transactionAmount != null) {
+        // Defense-in-depth: if the BFF returns step_up_required for an amount
+        // below the MFA threshold (e.g. PingOne policy misconfigured for $300),
+        // treat it as a consent gate, not a step-up gate. Only fire P1MFA when
+        // there is no transactionAmount (non-banking tools) or the amount is at
+        // or above the threshold. Use-case-declared step-up always has transactionAmount
+        // absent or above threshold because it is amount-independent (UC7).
+        const _mfaThresholdUi = APP_CONFIG.THRESHOLDS.MFA_DEFAULT;
+        const isStepUpGate =
+          (response.error === "step_up_required" ||
+           response.error === "mcp_step_up_required") &&
+          (response.transactionAmount == null ||
+           Number(response.transactionAmount) >= _mfaThresholdUi);
+        if (isStepUpGate) {
+          // UC7: skip consent — go straight to P1MFA. Store the original NL
+          // message so the transfer re-fires once identity is verified.
+          const retryMsg = text;
+          const retryOpts = { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId };
+          pendingStepUpCallbackRef.current = async () => {
+            setNlLoading(true);
+            try {
+              const resp = await sendAgentMessage(retryMsg, null, retryOpts);
+              addMessage("assistant", resp.reply || "✅ Done.", null, { source: "heuristic", ...verticalResultExtra(resp) });
+            } catch (err) {
+              addMessage("error", `Failed: ${err.message}`);
+            } finally {
+              setNlLoading(false);
+            }
+          };
+          openStepUpModal("Verify your identity to complete this action");
+        } else if (response.transactionAmount != null) {
           const fromAccountId = response.fromAccountId || response.from_account_id;
           const toAccountId = response.toAccountId || response.to_account_id;
           const intentPayload = {
@@ -8949,6 +8937,22 @@ export default function BankingAgent({
                         title="Show or hide the Simple Stepper token-chain table"
                       >
                         Simple step
+                      </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showFilmstrip}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0");
+                          } catch {}
+                          setShowFilmstrip(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Show or hide the token chain movie reel at the bottom of the page"
+                      >
+                        Movie reel
                       </Check>
                       <button
                         type="button"

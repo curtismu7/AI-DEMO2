@@ -494,6 +494,12 @@ export default function AdminSideNav({
           icon: "agt",
           adminOnly: true,
         },
+        {
+          label: "Personal Agent",
+          path: "/personal-agent",
+          icon: "agt",
+          adminOnly: true,
+        },
       ],
     },
     {
@@ -700,7 +706,7 @@ export default function AdminSideNav({
           icon: "file",
         },
         {
-          label: "PingCLI Demo",
+          label: "Headless Identity Demo",
           path: "/pingcli",
           icon: "tool",
         },

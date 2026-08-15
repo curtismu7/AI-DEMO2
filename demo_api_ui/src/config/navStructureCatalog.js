@@ -83,7 +83,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Scope Audit",
       "Scope Reference",
       "Snapshot Import",
-      "PingCLI Demo",
+      "Headless Identity Demo",
     ],
   },
   {

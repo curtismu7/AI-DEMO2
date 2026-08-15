@@ -955,18 +955,26 @@ export function buildAuthorizeMcpRequest(
       // `!hitlApproved` matters: an INDETERMINATE that survives an already-verified
       // receipt is the anti-loop case below (policy misconfiguration), which is
       // terminal — answering 428 there would invite the agent to retry forever.
-      const nonPermitStatus =
-        authzDecision.decision === 'INDETERMINATE' && !hitlApproved ? 428 : 403;
-      res.writeHead(nonPermitStatus, {
-        'Content-Type': 'application/json',
-        'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
-      });
+      // MCP Authorization spec §4.3 — the required scopes for this tool are
+      // always published in WWW-Authenticate regardless of WHY the PDP denied
+      // (scope gap, tier ceiling, group membership). The `scope=` parameter
+      // describes what the resource requires, not the denial reason. The body's
+      // `required_scopes` field is separately guarded by `deniedLocally` because
+      // that field IS a diagnosis (F8 reasoning below).
+      const toolRequiredScopesForHeader = getScopesForGatewayTool(toolName ?? '').join(' ');
 
       // Step-up is a different precondition from consent: MFA, not a human. It
       // gets its own code so the agent drives the right flow, and no HITL
       // challenge is minted (a receipt cannot satisfy MFA). Parity with
       // PingGateway's p1az-decision.groovy.
+      // RFC 6750 §3.1 + MCP Authorization spec §4.3: 403 with
+      // error="insufficient_scope" and scope= so the MCP client can trigger
+      // step-up re-authentication to obtain the required permissions.
       if (authzDecision.obligation === 'stepUp' && !hitlApproved) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="PingOne", error="insufficient_scope", scope="${toolRequiredScopesForHeader}", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+        });
         res.end(JSON.stringify({
           error: 'step_up_required',
           message: 'Step-up authentication required',
@@ -980,10 +988,18 @@ export function buildAuthorizeMcpRequest(
       }
 
       if (authzDecision.decision === 'INDETERMINATE') {
-        // HITL obligation. Anti-loop: a verified-approved receipt that still
-        // yields INDETERMINATE means a misconfigured policy — fail distinctly
-        // instead of re-issuing a challenge (mirrors index.ts WS path).
+        // HITL obligation — consent from a human, not a scope gap. 428 status
+        // signals "precondition required" (the precondition being an approved
+        // consent receipt). WWW-Authenticate carries realm + resource_metadata
+        // but NOT error="insufficient_scope" — the client cannot resolve this
+        // by requesting additional scopes.
+        // Anti-loop: a verified-approved receipt that still yields INDETERMINATE
+        // means misconfigured policy — fail distinctly instead of re-issuing.
         if (hitlApproved) {
+          res.writeHead(403, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+          });
           res.end(JSON.stringify({
             error: 'hitl_receipt_rejected',
             message: 'HITL receipt accepted but policy still requires approval',
@@ -1013,6 +1029,10 @@ export function buildAuthorizeMcpRequest(
             teachLog.error('[GW] HTTP path failed to create HITL challenge', hitlErr);
           }
         }
+        res.writeHead(428, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+        });
         res.end(JSON.stringify({
           error: 'hitl_required',
           message: 'Human approval required',
@@ -1035,11 +1055,17 @@ export function buildAuthorizeMcpRequest(
         return;
       }
 
-      // F8 — `required_scopes` is a hint derived from the LOCAL scope topology.
-      // It only describes the decision when the local scope engine IS what
-      // denied. Attaching it to a P1AZ denial for an unrelated reason (tier
-      // ceiling, group membership, actor chain) tells the operator to fix scopes
-      // that were never the problem — and can directly contradict the PDP.
+      // Generic DENY — RFC 6750 §3.1 + MCP Authorization spec §4.3:
+      // 403 with error="insufficient_scope" and scope= so MCP clients can
+      // trigger step-up re-authentication to obtain the missing permissions.
+      // F8 — `required_scopes` in the body is still guarded by `deniedLocally`
+      // because that field is a DIAGNOSIS (scope gap vs policy decision). The
+      // header's scope= is informational about what the resource requires and
+      // is always correct regardless of the denial reason.
+      res.writeHead(403, {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `Bearer realm="PingOne", error="insufficient_scope", scope="${toolRequiredScopesForHeader}", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+      });
       res.end(JSON.stringify({
         error: 'insufficient_scope',
         message: authzDecision.reason ?? 'Request denied by policy',

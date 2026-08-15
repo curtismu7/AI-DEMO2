@@ -12,9 +12,13 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 8680
+      targetPort: 8623
       protocol: TCP
-    - name: proxy
-      port: 8680
-      targetPort: 8680
+    - name: mcpgw
+      port: 8623
+      targetPort: 8623
+      protocol: TCP
+    - name: medusa
+      port: 8690
+      targetPort: 8690
       protocol: TCP

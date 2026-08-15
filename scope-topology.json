@@ -17,39 +17,138 @@
   "mappedClaims": {
     "_comment": "Scope-to-attributes gating (P14C-83315). Enabled on Super Banking API resource. Maps each scope to attributes that appear in tokens. Feature flag P14C-83315-custom-resource-scope-to-attributes-support must be enabled in PingOne.",
     "Super Banking API": [
-      { "scope": "read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "write", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "transfer", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "accounts:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "transactions:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "mortgage:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "largepurchase:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "records:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "gear:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "expense:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "permits:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "transcript:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "tax:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "finaid:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "supplier:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "purchase:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "membership:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "payroll:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "invest:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "holdings:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "airlines:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "airlines:write", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "pnr:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "sensitive:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "workorders:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "identity:read", "attributes": ["may_act", "delegated_to", "is_delegate"] },
-      { "scope": "ai:agent:read", "attributes": [] },
-      { "scope": "ai_agent", "attributes": [] },
-      { "scope": "admin:read", "attributes": [] },
-      { "scope": "admin:write", "attributes": [] },
-      { "scope": "admin:delete", "attributes": [] },
-      { "scope": "users:read", "attributes": [] },
-      { "scope": "users:manage", "attributes": [] }
+      {
+        "scope": "read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "write",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "transfer",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "accounts:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "transactions:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "mortgage:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "largepurchase:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "records:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "gear:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "expense:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "permits:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "transcript:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "tax:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "finaid:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "supplier:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "purchase:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "membership:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "payroll:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "invest:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "holdings:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "airlines:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "airlines:write",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "pnr:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "sensitive:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "workorders:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "identity:read",
+        "attributes": ["may_act", "delegated_to", "is_delegate"]
+      },
+      {
+        "scope": "ai:agent:read",
+        "attributes": []
+      },
+      {
+        "scope": "ai_agent",
+        "attributes": []
+      },
+      {
+        "scope": "admin:read",
+        "attributes": []
+      },
+      {
+        "scope": "admin:write",
+        "attributes": []
+      },
+      {
+        "scope": "admin:delete",
+        "attributes": []
+      },
+      {
+        "scope": "users:read",
+        "attributes": []
+      },
+      {
+        "scope": "users:manage",
+        "attributes": []
+      }
     ]
   },
   "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "pinggateway:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
@@ -1386,6 +1485,14 @@
     },
     "browse_gear": {
       "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
+    "get_loyalty_status": {
+      "requiredScopes": ["airlines:read"],
+      "surface": "gateway"
+    },
+    "redeem_miles": {
+      "requiredScopes": ["airlines:read", "airlines:write"],
       "surface": "gateway"
     }
   },

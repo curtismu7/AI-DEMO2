@@ -140,7 +140,9 @@ if command -v gh &>/dev/null; then
 fi
 
 info "Creating secrets from demo_api_server/.env..."
-K8S_NAMESPACE="$NS" bash "$K8S_DIR/create-secrets.sh"
+# MCPGW_APP_NAME: Privilege console app name (AI Security > Agentic Apps).
+# mcpgw binary routes /mcpgw/<app-name>/mcp — set to match the registered name.
+K8S_NAMESPACE="$NS" MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
 
 # OTel bootstrap script mounted at /otel in every instrumented Node service
 # (mirrors docker-compose's ./scripts/otel-instrument.js bind mount).
@@ -216,11 +218,11 @@ for manifest in \
 done
 
 # Privilege MCPGW gateway: deployed via Helm (k8s/helm/mcpgw), not a plain
-# manifest — see the chart's own comments for why. 75-ping-mcpgw-deployment.yaml
-# (the mcpgw binary, kubectl-apply path) is unused/untested; this repo's proven
-# path is the cyonproxy binary via this chart, enrolled and verified in
-# ping-devops-cmuir on 2026-08-13. Reuses the ENV_PROXY_TOKEN already written to
-# Secret ping-mcpgw-secrets by create-secrets.sh above, via --set-file (NOT
+# manifest — see the chart's own comments for why. Uses the privilege-mcpgw
+# binary (mcpgw), which emits WWW-Authenticate OAuth challenges on tokenless
+# requests. OIDC config is read from pingone.env mounted from ping-mcpgw-secrets
+# (written + patched with the correct SERVER_URL by create-secrets.sh above).
+# Reuses ENV_PROXY_TOKEN from ping-mcpgw-secrets via --set-file (NOT
 # --set-string, which corrupts long JWTs during Helm's own CLI arg parsing).
 if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
   if kubectl get secret ping-mcpgw-secrets -n "$NS" -o jsonpath='{.data.ENV_PROXY_TOKEN}' >/tmp/mcpgw-token.b64 2>/dev/null && [[ -s /tmp/mcpgw-token.b64 ]]; then
@@ -232,7 +234,7 @@ if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
     helm upgrade --install ping-mcpgw "$K8S_DIR/helm/mcpgw" \
       --namespace "$NS" \
       --set mcpgw.hostname="$mcpgw_host" \
-      --set mcpgw.serverUrl="$PUBLIC_APP_URL" \
+      --set mcpgw.serverUrl="${PUBLIC_APP_URL}/mcpgw" \
       --set opensearch.enabled=true \
       --set opensearchMcpServer.enabled=true \
       --set-file mcpgw.proxyToken=/tmp/mcpgw-token.txt

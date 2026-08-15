@@ -21,35 +21,45 @@ spec:
       containers:
         - name: mcpgw
           image: {{ .Values.mcpgw.image }}
+          imagePullPolicy: Always
           command:
-            - /procyon/bin/cyonproxy
+            - /procyon/bin/mcpgw
             - -hostname
             - {{ .Values.mcpgw.hostname | quote }}
+            # -mcpconfpath is required — fatal "MCP Config path not specified" without it.
+            # The file is mounted from ping-mcpgw-secrets (written by create-secrets.sh).
+            - -mcpconfpath
+            - /var/lib/procyon/config/pingone.env
+          ports:
+            - name: http
+              containerPort: 8623
+            - name: medusa
+              containerPort: 8690
           env:
             - name: ENV_PROXY_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-mcpgw-secret
                   key: ENV_PROXY_TOKEN
-            - name: SERVER_URL
-              value: {{ .Values.mcpgw.serverUrl | quote }}
-            {{- if .Values.mcpgw.oidc.enabled }}
-            - name: OIDC_CLIENT_ID
-              value: {{ .Values.mcpgw.oidc.clientId | quote }}
-            - name: OIDC_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-mcpgw-secret
-                  key: OIDC_CLIENT_SECRET
-            - name: OIDC_AUTH_URL
-              value: {{ .Values.mcpgw.oidc.authUrl | quote }}
-            - name: OIDC_TOKEN_URL
-              value: {{ .Values.mcpgw.oidc.tokenUrl | quote }}
-            - name: OIDC_USER_URL
-              value: {{ .Values.mcpgw.oidc.userUrl | quote }}
-            - name: OIDC_SCOPES
-              value: {{ .Values.mcpgw.oidc.scopes | quote }}
-            {{- end }}
+          startupProbe:
+            tcpSocket:
+              port: 8623
+            failureThreshold: 30
+            periodSeconds: 2
+            timeoutSeconds: 2
+          livenessProbe:
+            tcpSocket:
+              port: 8623
+            periodSeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 8623
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.mcpgw.resources | nindent 12 }}
           volumeMounts:
@@ -59,9 +69,18 @@ spec:
               mountPath: /procyon/ssl
             - name: recordings
               mountPath: /procyon/recordings
+            # pingone.env read by -mcpconfpath; optional so pod admission doesn't fail
+            # if ping-mcpgw-secrets hasn't been created yet, but mcpgw will crash-loop
+            # at runtime until the file exists — run create-secrets.sh first.
+            - name: pingone-config
+              mountPath: /var/lib/procyon/config
+              readOnly: true
+            - name: mcpgw-tls
+              mountPath: /var/lib/procyon/ssl
+              readOnly: true
         - name: log-tailer
           image: busybox
-          command: ["sh", "-c", "until [ -f /var/log/procyon/cyonproxy.log ]; do sleep 1; done; tail -F /var/log/procyon/cyonproxy.log"]
+          command: ["sh", "-c", "until [ -f /var/log/procyon/mcpgw.log ]; do sleep 1; done; tail -F /var/log/procyon/mcpgw.log"]
           volumeMounts:
             - name: logs
               mountPath: /var/log/procyon
@@ -77,3 +96,19 @@ spec:
           hostPath:
             path: /var/lib/procyon/recordings/{{ .Release.Name }}
             type: DirectoryOrCreate
+        - name: pingone-config
+          secret:
+            secretName: ping-mcpgw-secrets
+            optional: true
+            items:
+              - key: pingone.env
+                path: pingone.env
+        - name: mcpgw-tls
+          secret:
+            secretName: ping-mcpgw-secrets
+            optional: true
+            items:
+              - key: mcpgw-cert.pem
+                path: mcpgw-cert.pem
+              - key: mcpgw-key.pem
+                path: mcpgw-key.pem

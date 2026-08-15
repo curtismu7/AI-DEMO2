@@ -591,10 +591,8 @@ export function buildTraceSteps(trace) {
   const azBegun = hasPhase(phases, "authorize_gate_begin");
   const azUnavailable = hasPhase(phases, "authorize_unavailable");
   const azEvent = findEvent(tokenEvents, "authorize-decision");
-  const gwAzForAuthorize = findEvent(tokenEvents, "gw-authorize");
   const azPermitted = hasPhase(phases, "authorize_permitted")
-    || (authorize && authorize.decision === "PERMIT")
-    || String(gwAzForAuthorize?.decision || gwAzForAuthorize?.authorizeDecision || "").toUpperCase() === "PERMIT";
+    || (authorize && authorize.decision === "PERMIT");
   const azEval = authorize || (azEvent ? {
     engine: azEvent.authorizeEngine,
     decision: azEvent.authorizeDecision || azEvent.decision,
@@ -604,18 +602,6 @@ export function buildTraceSteps(trace) {
     request: azEvent.authorizeRequest || azEvent.request,
     response: azEvent.authorizeResponse || azEvent.response || azEvent.rawResponse,
     publicCatalog: azEvent.publicCatalog === true,
-  } : null) || (gwAzForAuthorize ? {
-    engine: gwAzForAuthorize.authorizeEngine || gwAzForAuthorize.backend || "pingone",
-    decision: gwAzForAuthorize.decision || gwAzForAuthorize.authorizeDecision,
-    decisionId: gwAzForAuthorize.decisionId || null,
-    decisionContext: gwAzForAuthorize.tool ? `tool:${gwAzForAuthorize.tool}` : null,
-    path: gwAzForAuthorize.url || null,
-    request: gwAzForAuthorize.authorizeRequest
-      || (gwAzForAuthorize.parameters
-        ? { method: "POST", url: gwAzForAuthorize.url || "", parameters: gwAzForAuthorize.parameters }
-        : null),
-    response: gwAzForAuthorize.authorizeResponse || gwAzForAuthorize.rawResponse || null,
-    source: "gw-authorize",
   } : null);
   const azDecision = azEval && azEval.decision != null
     ? String(azEval.decision).toUpperCase()

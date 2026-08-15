@@ -21,6 +21,13 @@ function stepComplete(step, run, gauntletSims) {
 export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
   const [state, setState] = useState(null);
   const [open, setOpen] = useState(false);
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    const onAuth = () => setAuthed(true);
+    window.addEventListener('userAuthenticated', onAuth);
+    return () => window.removeEventListener('userAuthenticated', onAuth);
+  }, []);
   // Picked-step completion watch: fire onStepComplete once per (run, step) when
   // the picked step's slots fill from real runs.
   const pickedRef = useRef(null); // stepId | null
@@ -59,6 +66,7 @@ export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
   }, []);
 
   useEffect(() => {
+    if (!authed) return;
     let stopped = false;
     load();
     const t = setInterval(async () => {
@@ -73,7 +81,7 @@ export default function DemoTrackAgentControl({ onPickStep, onStepComplete }) {
       stopped = true;
       clearInterval(t);
     };
-  }, [load]);
+  }, [load, authed]);
 
   const pick = useCallback(async (step, index, total) => {
     setOpen(false);

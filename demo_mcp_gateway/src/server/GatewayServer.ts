@@ -780,10 +780,14 @@ export class GatewayServer {
     const realm = 'banking-mcp-gateway';
     const metadataUrl = `${selfBaseUrl(req, this.config.port)}/.well-known/oauth-protected-resource`;
     const safeDesc = sanitizeHeaderDescription(description);
+    // RFC 6750 §3.1 SHOULD include scope= on 401 — advertise the minimum scope
+    // the gateway requires for any tool invocation.
+    const baseScope = 'mcp:invoke';
     res.writeHead(401, {
       'Content-Type': 'application/json',
       'WWW-Authenticate': appendEnterpriseWwwAuthHint([
         `Bearer realm="${realm}"`,
+        `scope="${baseScope}"`,
         `resource_metadata="${metadataUrl}"`,
         `error="${errorCode}"`,
         `error_description="${safeDesc}"`,

@@ -17,11 +17,13 @@ const config = {
   get _base()                 { return `https://auth.pingone.${this._region}/${this.environmentId}/as`; },
 
   // OAuth2 endpoints — resolved via endpointResolver (explicit config > PingOne fallback)
-  get authorizationEndpoint() { return endpointResolver.getAuthorizationEndpoint(); },
-  get tokenEndpoint()         { return endpointResolver.getTokenEndpoint(); },
-  get userInfoEndpoint()      { return endpointResolver.getUserInfoEndpoint(); },
-  get jwksEndpoint()          { return endpointResolver.getJwksUri(); },
-  get issuer()                { return endpointResolver.getIssuer(); },
+  get authorizationEndpoint()  { return endpointResolver.getAuthorizationEndpoint(); },
+  get tokenEndpoint()          { return endpointResolver.getTokenEndpoint(); },
+  get userInfoEndpoint()       { return endpointResolver.getUserInfoEndpoint(); },
+  get jwksEndpoint()           { return endpointResolver.getJwksUri(); },
+  get introspectionEndpoint()  { return endpointResolver.getIntrospectionEndpoint(); },
+  get revocationEndpoint()     { return endpointResolver.getRevocationEndpoint(); },
+  get issuer()                 { return endpointResolver.getIssuer(); },
 
   // End-user Web application client
   get clientId()              { return configStore.getEffective('user_client_id'); },

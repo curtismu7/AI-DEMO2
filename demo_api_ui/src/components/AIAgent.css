@@ -3883,6 +3883,19 @@ body > .banking-agent-float-root .banking-agent-panel {
     .ba-body::-webkit-scrollbar-thumb:hover {
     background: rgba(148, 163, 184, 0.5);
   }
+
+  /* Non-split inline: when the viewport-height lock releases, the flex chain
+     breaks and messages grow unbounded, pushing the filmstrip off screen.
+     Cap with a dvh-relative value so messages scroll internally on any screen
+     size. The ud-focus-mode selector overrides TokenChainFilmstrip.css's
+     max-height:none rule (higher specificity) so focus-mode is also covered. */
+  .banking-agent-panel.ba-mode-inline:not(.ba-split-column) .banking-agent-messages,
+  .ud-focus-mode.ud-focus-mode
+    .banking-agent-panel.ba-mode-inline:not(.ba-split-column)
+    .banking-agent-messages {
+    max-height: clamp(120px, calc(100dvh - 400px), 450px);
+    overflow-y: auto;
+  }
 }
 
 /* Enhanced scrollbar for very constrained heights */
@@ -7080,3 +7093,16 @@ button.ba-action-btn:hover {
 .ba-track-chip--r { border-color: #f2c6c6; background: #fdeeee; color: #c62828; font-weight: 600; }
 .ba-track-chip--exit { color: #5f6b76; }
 .ba-track-chip--next { border-color: #16324f; background: #16324f; color: #fff; font-weight: 700; }
+
+/* Narrow viewports: same bounded-messages fix as max-height:700px above.
+   At <=1024px the dashboard grid collapses to a single column and the
+   height chain no longer constrains the messages container. */
+@media (max-width: 1024px) {
+  .banking-agent-panel.ba-mode-inline:not(.ba-split-column) .banking-agent-messages,
+  .ud-focus-mode.ud-focus-mode
+    .banking-agent-panel.ba-mode-inline:not(.ba-split-column)
+    .banking-agent-messages {
+    max-height: clamp(120px, calc(100dvh - 400px), 450px);
+    overflow-y: auto;
+  }
+}

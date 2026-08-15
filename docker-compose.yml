@@ -1385,10 +1385,10 @@ services:
           - mcp-pingone-admin.mcpgw.local.ping-devops.com
     restart: unless-stopped
 
-  # OpenSearch + its MCP server — the reference chart's sample backend
-  # (k8s/helm/mcpgw), mirrored here for local Privilege gateway testing.
+  # OpenSearch + its MCP server — sample backend for the Privilege MCP gateway.
   # Not this app's own MCP servers; useful only when testing against an
-  # OpenSearch-backed MCP application in the Privilege console.
+  # OpenSearch-backed MCP application registered in the Privilege console
+  # (app name: cmuir-opensearch, backend: http://opensearch-mcp-server:9900/mcp).
   opensearch:
     profiles: ["mcpgw"]
     image: opensearchproject/opensearch:2

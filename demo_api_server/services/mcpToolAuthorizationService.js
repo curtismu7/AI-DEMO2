@@ -384,7 +384,13 @@ async function _applyTransactionPolicy(
         transactionPolicyDenied: true,
       }, r, { source: 'transaction-policy', decision: 'DENY', decisionId: t.decisionId || null, raw: t.raw || null });
     }
-    if (forceStepUp || (t && t.stepUpRequired)) {
+    // Transaction-policy step-up is only valid when the amount is at or above the
+    // MFA threshold. Without this guard a PingOne policy that returns a step-up
+    // obligation for amounts in the HITL band (e.g. $300) would incorrectly route
+    // UC8 (consent-only) to MFA. Use-case-declared step-up (forceStepUp, UC7) is
+    // always honoured regardless of amount.
+    const _mfaThreshold = Number(configStore.getEffective('mfa_threshold_usd') || runtimeSettings.get('mfa_threshold_usd') || 500);
+    if (forceStepUp || (t && t.stepUpRequired && Number.isFinite(amount) && amount >= _mfaThreshold)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
       // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
       // Clear hitlRequired so the gate's HITL obligation doesn't bleed through.

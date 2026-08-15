@@ -81,7 +81,7 @@ data:
 
   # CodeGraph index (hand-managed): baked into the langchain-agent image at
   # build time; not network topology, so it lives outside the generated block.
-  CODEGRAPH_DB_PATH: "/app/codegraph.db"
+  CODEGRAPH_DB_PATH: "/app/demo-codegraph.db"
 
   # CodeGraph LLM (hand-managed): the ReAct explorer shares the chat agent's
   # local llama.cpp model (LLAMACPP_MODEL) so only ONE model has to be served by
