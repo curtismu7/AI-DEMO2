@@ -35,6 +35,7 @@ import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, Receipt
 import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
+import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
 import { loadVaultIntoEnv } from './vault';
@@ -378,30 +379,6 @@ async function runWsAuthorizationPipeline(
 }
 
 // ---------------------------------------------------------------------------
-// Elicitation store — session-scoped pending elicitation records.
-// A record is created when P1AZ returns an ELICITATION obligation (-32003).
-// It is consumed (deleted) on a valid re-call with _elicitation_confirmed:true.
-// ---------------------------------------------------------------------------
-
-interface PendingElicitation {
-  elicitation_id: string;
-  toolName: string;
-  sessionId: string;
-  prompt: string;
-  expiresAt: number;
-}
-
-const pendingElicitations = new Map<string, PendingElicitation>();
-
-// Sweep expired records every 60 seconds.
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, rec] of pendingElicitations) {
-    if (rec.expiresAt < now) pendingElicitations.delete(id);
-  }
-}, 60_000).unref();
-
-// ---------------------------------------------------------------------------
 // WebSocket server
 // ---------------------------------------------------------------------------
 
@@ -740,14 +717,13 @@ async function handleMessage(
     // is added to the P1AZ call via toolArgsForAuthz so the policy can permit the retry.
     if (elicitationConfirmed) {
       const sessionId = mcpSessionId ?? '';
-      const rec = elicitationId ? pendingElicitations.get(elicitationId) : undefined;
-      if (!rec || rec.toolName !== toolName || rec.sessionId !== sessionId || rec.expiresAt < Date.now()) {
+      const rec = elicitationId ? consumePendingElicitation(elicitationId, toolName, sessionId) : null;
+      if (!rec) {
         send(jsonRpcError(id, -32003, 'elicitation_required', {
           reason: 'invalid_or_expired',
         }));
         return;
       }
-      pendingElicitations.delete(rec.elicitation_id);
       // ElicitationConfirmed: 'true' is added to P1AZ via toolArgsForAuthz below.
     }
 
@@ -797,16 +773,9 @@ async function handleMessage(
         const prompt = authz.advice?.find(
           (a: { id: string }) => a.id === 'elicitation-prompt',
         )?.value ?? `Confirm ${toolName}?`;
-        const elicId = crypto.randomUUID();
-        pendingElicitations.set(elicId, {
-          elicitation_id: elicId,
-          toolName,
-          sessionId,
-          prompt,
-          expiresAt: Date.now() + 120_000,
-        });
+        const rec = createPendingElicitation(toolName, sessionId, prompt);
         send(jsonRpcError(id, -32003, 'elicitation_required', {
-          elicitation_id: elicId,
+          elicitation_id: rec.elicitation_id,
           prompt,
           tool_name: toolName,
           expires_in: 120,
