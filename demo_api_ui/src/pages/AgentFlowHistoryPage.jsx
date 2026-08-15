@@ -1,8 +1,11 @@
 // demo_api_ui/src/pages/AgentFlowHistoryPage.jsx
 // /agent-flow-inspector — master-detail history view. Left: past agent runs
-// (GET /api/agent/runs). Right: the selected run's recorded events. Live
-// execution happens elsewhere (the agent chat); this page is for inspecting
-// past runs, not driving new ones.
+// from every execution path in the app (GET /api/agent-flow-history — backed
+// by reportStore, the same durable per-user store /api/agent/invoke and
+// /api/demo-agent/nl already write to; /api/agent/run and
+// /api/admin-agent/message now write there too). Right: the selected run's
+// detail. Live execution happens elsewhere (the agent chat); this page is for
+// inspecting past runs, not driving new ones.
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import AgentRunTimeline from '../components/AgentRunTimeline';
@@ -10,24 +13,25 @@ import './AgentFlowHistoryPage.css';
 
 const PAGE_TITLE = 'Agent & Token Flow History';
 
-const STATUS_LABELS = {
-  success: 'Success',
-  failed: 'Failed',
-  interrupted: 'Waiting on approval',
-  in_progress: 'In progress',
-};
-
-function formatTimestamp(ms) {
-  if (!ms) return 'Unknown time';
-  return new Date(ms).toLocaleString();
+function formatTimestamp(iso) {
+  if (!iso) return 'Unknown time';
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? 'Unknown time' : new Date(t).toLocaleString();
 }
 
-function formatDuration(startedAt, lastEventAt) {
-  if (!startedAt || !lastEventAt || lastEventAt <= startedAt) return null;
-  const seconds = Math.round((lastEventAt - startedAt) / 1000);
+function formatDuration(startedAt, completedAt) {
+  const start = Date.parse(startedAt);
+  const end = Date.parse(completedAt);
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null;
+  const seconds = Math.round((end - start) / 1000);
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   return `${minutes}m ${seconds % 60}s`;
+}
+
+function truncatePrompt(prompt) {
+  if (!prompt) return '(no prompt recorded)';
+  return prompt.length > 80 ? `${prompt.slice(0, 80)}…` : prompt;
 }
 
 export default function AgentFlowHistoryPage() {
@@ -43,7 +47,7 @@ export default function AgentFlowHistoryPage() {
 
   const fetchRuns = useCallback(() => {
     apiClient
-      .get('/api/agent/runs')
+      .get('/api/agent-flow-history')
       .then((r) => {
         setRuns(Array.isArray(r.data?.runs) ? r.data.runs : []);
         setLoadError(null);
@@ -63,13 +67,16 @@ export default function AgentFlowHistoryPage() {
     }
   }, [runs, selectedRunId]);
 
+  const selectedRun = runs?.find((r) => r.runId === selectedRunId) || null;
+
   return (
     <div className="agent-flow-history-page">
       <div className="afh-header">
         <h1 className="afh-title">{PAGE_TITLE}</h1>
         <p className="afh-subtitle">
-          Inspect past agent runs — OAuth token lifecycle and execution events. Run agents
-          from the banking chat; this page is for reviewing what already happened.
+          Inspect past agent runs from anywhere in the app — chat, chip clicks, demo
+          steps, and admin actions. Run agents elsewhere; this page is for reviewing
+          what already happened.
         </p>
       </div>
 
@@ -82,7 +89,8 @@ export default function AgentFlowHistoryPage() {
           )}
           {runs && runs.map((run) => {
             const active = run.runId === selectedRunId;
-            const duration = formatDuration(run.startedAt, run.lastEventAt);
+            const duration = formatDuration(run.startedAt, run.completedAt);
+            const status = run.success === false ? 'failed' : 'success';
             return (
               <button
                 type="button"
@@ -92,16 +100,17 @@ export default function AgentFlowHistoryPage() {
                 aria-current={active}
               >
                 <div className="afh-run-item-top">
-                  <span className={`afh-status-badge afh-status-badge--${run.status}`}>
-                    {STATUS_LABELS[run.status] || run.status}
+                  <span className={`afh-status-badge afh-status-badge--${status}`}>
+                    {status === 'failed' ? 'Failed' : 'Success'}
                   </span>
                   <span className="afh-run-time">{formatTimestamp(run.startedAt)}</span>
                 </div>
-                <div className="afh-run-item-mid">
-                  {run.frameworkLabel || 'Agent'} <span className="afh-run-id">· {run.runId}</span>
-                </div>
+                <div className="afh-run-item-mid">{truncatePrompt(run.prompt)}</div>
                 <div className="afh-run-item-bottom">
-                  {run.eventCount} event{run.eventCount === 1 ? '' : 's'}
+                  {run.vertical || 'banking'}
+                  {run.toolsCalled?.length
+                    ? ` · ${run.toolsCalled.length} tool${run.toolsCalled.length === 1 ? '' : 's'}`
+                    : ''}
                   {duration ? ` · ${duration}` : ''}
                 </div>
               </button>
@@ -110,8 +119,8 @@ export default function AgentFlowHistoryPage() {
         </aside>
 
         <main className="afh-detail">
-          {selectedRunId ? (
-            <AgentRunTimeline runId={selectedRunId} />
+          {selectedRun ? (
+            <AgentRunTimeline run={selectedRun} />
           ) : (
             <div className="afh-detail-empty">
               {runs === null ? 'Loading…' : 'Select a run from the history list to inspect it.'}

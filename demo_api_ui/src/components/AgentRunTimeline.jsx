@@ -1,18 +1,25 @@
 // demo_api_ui/src/components/AgentRunTimeline.jsx
 //
-// Read-only timeline for a single past agent run — projects the raw AG-UI
-// events recorded by GET /api/agent/runs/:runId/events into the same
-// TokenChainEventCard visual language used elsewhere in the app. This is
-// deliberately NOT UnifiedTokenFlowInspector: that component's rich token
-// chain / authorize-evaluation data comes from a separate, unpersisted SSE
-// channel (openMcpFlowSse) that GET /runs/:runId/events never captured, so
-// only the AG-UI conversation/tool-call events are available for replay here.
+// Read-only detail view for a single past agent run, given the run's
+// reportStore record (from GET /api/agent-flow-history). Two render paths:
+//
+//   - AG-UI runs (run.agentPath === 'agui'): fetch the raw AG-UI events this
+//     run's trace still holds (GET /api/agent/run/runs/:runId/events) and
+//     project them into the same TokenChainEventCard visual language used
+//     elsewhere in the app. This is deliberately NOT UnifiedTokenFlowInspector:
+//     that component's rich token chain / authorize-evaluation data comes from
+//     a separate, unpersisted SSE channel (openMcpFlowSse) never captured
+//     here, so only the AG-UI conversation/tool-call events are available.
+//   - Every other run (or an AG-UI run whose trace has expired — it's only
+//     kept for 1 hour): render directly from the reportStore record itself
+//     (prompt, toolsCalled, tokenEvents) — lighter, but real data, not an
+//     empty state.
 import React, { useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import TokenChainEventCard from './ProtocolPlayground/TokenChainEventCard';
 
 /** Group raw AG-UI events into one card per logical step (run/message/tool-call). */
-function projectEventsToCards(events) {
+function projectAguiEventsToCards(events) {
   const cards = [];
   const messages = new Map(); // messageId -> accumulated text
   const toolCalls = new Map(); // toolCallId -> { name, args }
@@ -97,28 +104,61 @@ function projectEventsToCards(events) {
   return cards;
 }
 
-export default function AgentRunTimeline({ runId }) {
-  const [state, setState] = useState({ loading: true, error: null, events: [] });
+/** Project a reportStore run record directly into cards — no raw event trace available. */
+function projectReportRecordToCards(run) {
+  const cards = [];
+  cards.push({
+    label: 'Prompt',
+    status: 'success',
+    explanation: run.prompt || '(no prompt recorded)',
+  });
+  for (const tool of run.toolsCalled || []) {
+    cards.push({ label: `Tool call: ${tool}`, status: 'success' });
+  }
+  for (const event of run.tokenEvents || []) {
+    cards.push({
+      label: event.label || event.eventType || event.id || 'Token event',
+      status: event.status || 'success',
+    });
+  }
+  cards.push({
+    label: 'Run finished',
+    status: run.success === false ? 'error' : 'success',
+  });
+  return cards;
+}
+
+export default function AgentRunTimeline({ run }) {
+  const [state, setState] = useState({ loading: true, error: null, cards: [] });
 
   useEffect(() => {
-    if (!runId) return;
+    if (!run || !run.runId) {
+      setState({ loading: false, error: null, cards: [] });
+      return undefined;
+    }
     let cancelled = false;
-    setState({ loading: true, error: null, events: [] });
+    setState({ loading: true, error: null, cards: [] });
+
+    if (run.agentPath !== 'agui') {
+      setState({ loading: false, error: null, cards: projectReportRecordToCards(run) });
+      return undefined;
+    }
+
     apiClient
-      .get(`/api/agent/runs/${encodeURIComponent(runId)}/events`)
+      .get(`/api/agent/run/runs/${encodeURIComponent(run.runId)}/events`)
       .then((r) => {
         if (cancelled) return;
-        setState({ loading: false, error: null, events: Array.isArray(r.data?.events) ? r.data.events : [] });
+        const events = Array.isArray(r.data?.events) ? r.data.events : [];
+        setState({ loading: false, error: null, cards: projectAguiEventsToCards(events) });
       })
-      .catch((err) => {
+      .catch(() => {
+        // The AG-UI trace expires after 1 hour — fall back to the durable
+        // reportStore record rather than showing an error for an old run.
         if (cancelled) return;
-        const message = err?.response?.status === 404
-          ? 'This run’s events have expired or are no longer available.'
-          : 'Failed to load run events.';
-        setState({ loading: false, error: message, events: [] });
+        setState({ loading: false, error: null, cards: projectReportRecordToCards(run) });
       });
     return () => { cancelled = true; };
-  }, [runId]);
+  }, [run]);
 
   if (state.loading) {
     return <div className="agent-run-timeline-empty">Loading run…</div>;
@@ -127,14 +167,13 @@ export default function AgentRunTimeline({ runId }) {
     return <div className="agent-run-timeline-empty agent-run-timeline-error">{state.error}</div>;
   }
 
-  const cards = projectEventsToCards(state.events);
-  if (!cards.length) {
+  if (!state.cards.length) {
     return <div className="agent-run-timeline-empty">No events recorded for this run.</div>;
   }
 
   return (
     <div className="agent-run-timeline">
-      {cards.map((card, idx) => (
+      {state.cards.map((card, idx) => (
         <TokenChainEventCard key={idx} event={card} />
       ))}
     </div>

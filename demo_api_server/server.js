@@ -1137,6 +1137,10 @@ app.use('/api/langchain/llamacpp', llamacppModelsRoutes);
 // req.user was always undefined, so every request 401'd — even with a valid
 // session — and the summary panel could never render.
 app.use('/api/conversations', authenticateToken, conversationRoutes);
+// authenticateToken is REQUIRED here for the same reason as /api/conversations
+// above — routes/agentFlowHistory.js reads req.user.sub to scope every run to
+// its owner; mounted without it, every request would 401.
+app.use('/api/agent-flow-history', authenticateToken, require('./routes/agentFlowHistory'));
 app.use('/api/authorize', authorizeRoutes);
 // Pre-Demo Check — readiness checks for the demo. Any logged-in user.
 const { authenticateToken: authForCheck } = require('./middleware/auth');
