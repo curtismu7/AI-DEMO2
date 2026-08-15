@@ -115,6 +115,7 @@ jest.mock('../../middleware/demoMode', () => ({
 
 const app = require('../../server');
 const runtimeSettings = require('../../config/runtimeSettings');
+const configStore = require('../../services/configStore');
 
 beforeAll(() => {
   runtimeSettings.update({ stepUpEnabled: false, authorizeEnabled: false });
@@ -217,6 +218,29 @@ describe('POST /api/transactions — amount limit gates', () => {
       .send({ fromAccountId: 'acct-1', amount: 10_001, type: 'withdrawal', description: 'over hard limit' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('amount_exceeds_hard_limit');
+  });
+
+  it('honors an explicit configStore max of 0 (admin "freeze all transactions") instead of falling back to $1000', async () => {
+    // Regression: MAX_TRANSACTION_AMOUNT was computed with `parseFloat(...) || 1000`,
+    // and parseFloat('0') === 0 is falsy, so an admin-set hard limit of 0 silently
+    // reinstated the $1000 default instead of blocking every transaction.
+    const original = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'ff_hitl_enabled') return 'false';
+      if (key === 'max_transaction_amount') return '0';
+      return null;
+    });
+
+    const res = await request(app)
+      .post('/api/transactions')
+      .set('x-test-user', ownerUser())
+      .send({ fromAccountId: 'acct-1', amount: 1, type: 'withdrawal', description: 'should be frozen' });
+
+    configStore.getEffective.mockImplementation(original);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('amount_exceeds_hard_limit');
+    expect(res.body.limit).toBe(0);
   });
 
   it('returns 400 invalid_amount for non-positive amount', async () => {

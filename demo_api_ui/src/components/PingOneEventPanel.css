@@ -1,0 +1,83 @@
+/* demo_api_ui/src/components/PingOneEventPanel.css */
+.pingone-event-panel { padding: 16px; }
+
+.pingone-event-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pingone-event-panel__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #111);
+}
+
+.pingone-event-panel__badge {
+  font-size: 11px;
+  background: var(--accent-bg, #e8f0fe);
+  color: var(--accent-text, #1a56db);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+
+.pingone-event-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.pingone-event-panel__row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: start;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--surface-secondary, #f9f9f9);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pingone-event-panel__row:hover { background: var(--surface-hover, #f0f0f0); }
+
+.pingone-event-panel__icon { font-size: 14px; }
+
+.pingone-event-panel__body { display: flex; flex-direction: column; gap: 2px; }
+
+.pingone-event-panel__type {
+  font-weight: 500;
+  color: var(--text-primary, #111);
+}
+
+.pingone-event-panel__meta {
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+}
+
+.pingone-event-panel__time {
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+  white-space: nowrap;
+}
+
+.pingone-event-panel__detail {
+  grid-column: 1 / -1;
+  background: var(--surface-code, #f4f4f4);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 11px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.pingone-event-panel__empty {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+  padding: 16px 0;
+  text-align: center;
+}

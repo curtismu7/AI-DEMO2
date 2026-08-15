@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
+import ToolsTable from '../components/privilege/ToolsTable';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -22,9 +23,11 @@ function api(path, options = {}) {
   });
 }
 
-function truncate(v, max = 240) {
-  if (typeof v !== 'string') return v;
-  return v.length <= max ? v : `${v.slice(0, max)}... (+${v.length - max} chars)`;
+
+// FrontEndName may already carry its registered port (e.g. "host:8643") —
+// appending a fixed :8643 again produces a malformed "host:8643:8643" URL.
+function frontEndMcpUrl(frontEnd) {
+  return /:\d+$/.test(frontEnd) ? `https://${frontEnd}/mcp` : `https://${frontEnd}:8643/mcp`;
 }
 
 function scopeColor(scope) {
@@ -49,19 +52,82 @@ export default function PrivilegeMcpClientPage() {
   const [chatInput, setChatInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [events, setEvents] = useState([]);
-  const [selectedTool, setSelectedTool] = useState('');
-  const [toolArgs, setToolArgs] = useState('{}');
-  const [toolResult, setToolResult] = useState('');
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
+  const [showPresent, setShowPresent] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState(null);
+  const jumpedToToolsRef = useRef(false);
+  const silentAuthAttempted = useRef(false);
+  const [silentAuthPending, setSilentAuthPending] = useState(false);
+  // Page-local light/dark, independent of the app theme. The page ships a fixed
+  // Cursor-IDE dark look; this lets it flip to light without touching app wiring.
+  const [pageTheme, setPageTheme] = useState(() => {
+    try { return localStorage.getItem('cur_priv_theme') || 'dark'; } catch { return 'dark'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
+  }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
+  // Tool-call results collected into the RESULTS terminal tab. resultNonce bumps
+  // on each new result to flash the tab so the user notices output arrived.
+  const [toolResults, setToolResults] = useState([]);
+  const [resultNonce, setResultNonce] = useState(0);
+  // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
+  // With a long granted-scope list, clicking a pill on the left jumps to its row.
+  const [selectedScope, setSelectedScope] = useState(null);
+  const scopeRowRef = useRef(null);
+  // Tool picked in the left rail — the right Tools table scrolls to and expands
+  // it. The nonce lets the same tool re-trigger the reveal on a second click.
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [toolSelectNonce, setToolSelectNonce] = useState(0);
+  const selectTool = useCallback((name) => {
+    setSelectedTool(name);
+    setToolSelectNonce((n) => n + 1);
+    setActiveTab('tools');
+  }, []);
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const terminalRef = useRef(null);
+  const bodyRef = useRef(null);
+
+  const startSidebarDrag = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = sidebarRef.current.offsetWidth;
+    const onMove = (ev) => {
+      const next = Math.max(200, Math.min(1000, startW + ev.clientX - startX));
+      sidebarRef.current.style.width = `${next}px`;
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const startTerminalDrag = (e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = terminalRef.current.offsetHeight;
+    const onMove = (ev) => {
+      const next = Math.max(80, Math.min(500, startH - (ev.clientY - startY)));
+      terminalRef.current.style.height = `${next}px`;
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'sessions' && authenticated) loadSessions();
+  }, [activeTab, authenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll the message list itself, never the window: scrollIntoView() walked up
   // to the document and pushed the title bar (and its Skin picker) off-screen on
@@ -90,6 +156,18 @@ export default function PrivilegeMcpClientPage() {
       // Auto-discover tools only after Privilege auth completes
       if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
+      }
+      // Auto-connect Privilege using the active PingOne session when the main app
+      // is already logged in — prompt=none on the BFF means PingOne returns silently.
+      if (s.mainAppAuthenticated && !s.oauth?.authenticated) {
+        const authParam = new URLSearchParams(window.location.search).get('auth');
+        if (authParam !== 'silent_failed' && !silentAuthAttempted.current) {
+          silentAuthAttempted.current = true;
+          setSilentAuthPending(true);
+          api('/auth/start', { method: 'POST' })
+            .then((data) => { window.location.href = data.authUrl; })
+            .catch(() => setSilentAuthPending(false));
+        }
       }
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,6 +200,9 @@ export default function PrivilegeMcpClientPage() {
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
     }
+    // silent_failed: prompt=none couldn't reuse a PingOne session — show the
+    // manual Sign In button without an error message.
+    // (no-op here; the /state effect already guards on authParam !== 'silent_failed')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -173,10 +254,44 @@ export default function PrivilegeMcpClientPage() {
       setTools([]);
       if (err.message?.toLowerCase().includes('not authenticated')) {
         setAuthenticated(false);
-      } else if (err.message?.toLowerCase().includes('not authorized')) {
+      } else if (
+        err.message?.toLowerCase().includes('not authorized') ||
+        err.message?.includes('403') ||
+        err.message?.toLowerCase().includes("doesn't have access") ||
+        err.message?.toLowerCase().includes('does not have access')
+      ) {
         setShowBlockedModal(true);
+        if (!silent) appendChat('system', 'Access blocked by policy.');
+        return;
       }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
+    }
+  };
+
+  const loadSessions = async () => {
+    setSessionsLoading(true);
+    setSessionsError(null);
+    try {
+      const data = await api('/sessions');
+      setSessions(data.applications || []);
+    } catch (err) {
+      setSessionsError(err.message);
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
+  const selectSession = async (app) => {
+    const frontEnd = app.Spec?.McpAppConfig?.FrontEndName?.Elems?.[0];
+    if (!frontEnd) return;
+    const mcpUrl = frontEndMcpUrl(frontEnd);
+    const next = { ...config, mcpUrl };
+    try {
+      await api('/config', { method: 'POST', body: next });
+      setConfig(next);
+      appendChat('system', `Switched to policy: ${app.ObjectMeta?.Name || frontEnd}`);
+    } catch (err) {
+      appendChat('system', `Failed to switch policy: ${err.message}`);
     }
   };
 
@@ -210,15 +325,56 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
-  const callTool = async () => {
+  // Per-row executor for the Tools table: returns the pretty-printed result and
+  // also records it in the RESULTS terminal tab (which flashes so the user sees
+  // fresh output land).
+  const recordResult = useCallback((name, result, ok) => {
+    // Keep only the latest result per tool — re-running a tool replaces its prior
+    // entry instead of stacking a duplicate (the RESULTS panel is tight).
+    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev.filter((r) => r.tool !== name)].slice(0, 50));
+    setResultNonce((n) => n + 1);
+    setTerminalTab('results');
+  }, []);
+
+  const executeToolCall = async (name, argsStr) => {
+    let out;
+    let ok = true;
     try {
-      const args = JSON.parse(toolArgs || '{}');
-      const data = await api('/tools/call', { method: 'POST', body: { name: selectedTool, arguments: args } });
-      setToolResult(JSON.stringify(data, null, 2));
+      const args = JSON.parse(argsStr || '{}');
+      const data = await api('/tools/call', { method: 'POST', body: { name, arguments: args } });
+      out = JSON.stringify(data, null, 2);
+      ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      setToolResult(JSON.stringify({ error: err.message }, null, 2));
+      out = JSON.stringify({ error: err.message }, null, 2);
+      ok = false;
     }
+    recordResult(name, out, ok);
+    return out;
   };
+
+  // Land on the Tools tab the first time tools are discovered — it is the point
+  // of the page. Only once, so it never fights later navigation.
+  useEffect(() => {
+    if (tools.length > 0 && !jumpedToToolsRef.current) {
+      jumpedToToolsRef.current = true;
+      setActiveTab('tools');
+    }
+  }, [tools.length]);
+
+  // Scroll the picked scope's row into view once the SCOPES table is showing it.
+  useEffect(() => {
+    if (selectedScope && terminalTab === 'scopes' && scopeRowRef.current) {
+      scopeRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [selectedScope, terminalTab]);
+
+  // Esc closes Present mode.
+  useEffect(() => {
+    if (!showPresent) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setShowPresent(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showPresent]);
 
   const sendRawRpcCall = async () => {
     try {
@@ -231,12 +387,20 @@ export default function PrivilegeMcpClientPage() {
   };
 
   return (
-    <div className="cur-ide">
+    <div className="cur-ide" data-cur-theme={pageTheme}>
+      {showPresent && (
+        <div className="ptt-present-overlay">
+          <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
+        </div>
+      )}
       {showBlockedModal && (
         <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
-            <p>User blocked — please request access from your Privilege Cloud administrator.</p>
+            <p>You are blocked per policy — please login to{' '}
+              <a href="https://console.login.privilege.pingone.com/?env=01d89b06-66d5-430e-9f28-65636843788b" target="_blank" rel="noreferrer">Ping Identity AI Gateway</a>
+              {' '}to request access.
+            </p>
             <div className="cur-btn-row">
               <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
               <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
@@ -469,6 +633,14 @@ export default function PrivilegeMcpClientPage() {
         </div>
         <div className="cur-titlebar-right">
           <FootprintSkinPicker className="cur-skin-picker" />
+          <button
+            type="button"
+            className="cur-flow-trigger"
+            onClick={() => setPageTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            title={pageTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {pageTheme === 'dark' ? 'Light' : 'Dark'}
+          </button>
           <button className="cur-flow-trigger" onClick={() => navigate('/privilege-mcp-learning')} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
@@ -476,7 +648,7 @@ export default function PrivilegeMcpClientPage() {
         </div>
       </header>
 
-      <div className="cur-body">
+      <div className="cur-body" ref={bodyRef}>
         {/* Activity bar */}
         <nav className="cur-activity-bar">
           <button className={`cur-act-btn ${activeTab === 'chat' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('chat')} title="Agent Chat">
@@ -491,20 +663,42 @@ export default function PrivilegeMcpClientPage() {
         </nav>
 
         {/* Sidebar */}
-        <aside className="cur-sidebar">
+        <aside className="cur-sidebar" ref={sidebarRef}>
           <div className="cur-sidebar-header">
             <span className="cur-sidebar-title">CONNECTION</span>
+          </div>
+          <div className="cur-conn-debug">
+            <div><span className="cur-cd-k">mcpUrl: </span><span className="cur-cd-v cur-cd-v--url">{config.mcpUrl || '—'}</span></div>
+            <div><span className="cur-cd-k">clientId: </span><span className="cur-cd-v cur-cd-v--id">{config.clientId || '—'}</span></div>
+            <div><span className="cur-cd-k">scopes: </span><span className="cur-cd-v cur-cd-v--scope">{config.scopes || '—'}</span></div>
+            <div><span className="cur-cd-k">authStatus: </span><span className={`cur-cd-v ${authenticated ? 'cur-cd-v--ok' : 'cur-cd-v--bad'}`}>{authenticated ? 'authenticated' : 'unauthenticated'}</span></div>
           </div>
           <div className="cur-sidebar-content">
             {authenticated ? (
               <div className="cur-auth-status">
                 <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 {user?.email && <span className="cur-auth-user">{user.email}</span>}
-                <button className="cur-btn" onClick={() => refreshTools()} style={{ marginTop: 8 }}>Retry Tools</button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button className="cur-btn" onClick={() => refreshTools()}>Retry Tools</button>
+                  <button className="cur-btn" onClick={async () => {
+                    await api('/auth/logout', { method: 'POST' }).catch(() => {});
+                    setAuthenticated(false);
+                    setGrantedScopes([]);
+                    setTools([]);
+                  }}>Sign Out</button>
+                </div>
+              </div>
+            ) : silentAuthPending ? (
+              <div className="cur-btn-row">
+                <span className="cur-auth-badge">Connecting...</span>
               </div>
             ) : (
               <div className="cur-btn-row">
-                <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+                {mainAppAuthenticated ? (
+                  <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
+                ) : (
+                  <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
+                )}
               </div>
             )}
 
@@ -516,7 +710,15 @@ export default function PrivilegeMcpClientPage() {
                 </div>
                 <div className="cur-scopes-grid">
                   {grantedScopes.map((s) => (
-                    <span key={s} className={`cur-scope-pill ${scopeColor(s)}`}>{s}</span>
+                    <span
+                      key={s}
+                      role="button"
+                      tabIndex={0}
+                      className={`cur-scope-pill ${scopeColor(s)}${s === selectedScope ? ' cur-scope-pill--selected' : ''}`}
+                      title={`Show ${s} in the scopes table`}
+                      onClick={() => { setSelectedScope(s); setTerminalTab('scopes'); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedScope(s); setTerminalTab('scopes'); } }}
+                    >{s}</span>
                   ))}
                 </div>
               </div>
@@ -526,31 +728,47 @@ export default function PrivilegeMcpClientPage() {
               <span className="cur-sidebar-title">MCP TOOLS</span>
               <span className="cur-scope-count">{tools.length}</span>
             </div>
-            {tools.length > 0 ? (
-              <div className="cur-tools-list">
-                {tools.map((t) => (
-                  <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
-                    <span className="cur-tool-icon">fn</span>
-                    <div className="cur-tool-info">
-                      <span className="cur-tool-name">{t.name}</span>
-                      {t.description && <span className="cur-tool-desc">{truncate(t.description, 60)}</span>}
+            {tools.length > 0 && (
+              <input
+                className="cur-input cur-tool-search"
+                placeholder="Filter tools..."
+                value={toolSearch}
+                onChange={(e) => setToolSearch(e.target.value)}
+                style={{ margin: '4px 8px', width: 'calc(100% - 16px)', fontSize: 11 }}
+              />
+            )}
+            {tools.length > 0 ? (() => {
+              const q = toolSearch.trim().toLowerCase();
+              const filtered = q ? tools.filter((t) => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q)) : tools;
+              return filtered.length > 0 ? (
+                <div className="cur-tools-list">
+                  {filtered.map((t) => {
+                    const n = Object.keys(t.inputSchema?.properties || {}).length;
+                    return (
+                    <div key={t.name} className={`cur-tool-row${t.name === selectedTool ? ' cur-tool-row--selected' : ''}`} onClick={() => selectTool(t.name)} title={t.description || t.name}>
+                      <span className="cur-tool-row-name">{t.name}</span>
+                      <span className="cur-tool-row-meta">{n} param{n === 1 ? '' : 's'}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+                    );
+                  })}
+                </div>
+              ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
+            })() : (
               <div className="cur-empty-state">No tools discovered yet</div>
             )}
             <button className="cur-btn cur-btn--primary cur-btn--refresh" onClick={() => refreshTools(false)}>Refresh Tools</button>
           </div>
         </aside>
 
+        <div className="cur-resize-handle cur-resize-handle--v" onMouseDown={startSidebarDrag} />
+
         {/* Main editor area */}
         <main className="cur-main">
           <div className="cur-tabs">
             <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
-            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tool Caller</button>
+            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tools</button>
             <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
+            <button className={`cur-tab ${activeTab === 'sessions' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('sessions')}>Access</button>
           </div>
 
           <div className="cur-editor-area">
@@ -602,27 +820,13 @@ export default function PrivilegeMcpClientPage() {
             )}
 
             {activeTab === 'tools' && (
-              <div className="cur-tools-panel">
-                <div className="cur-tools-header"><h3>Direct Tool Call</h3></div>
-                <label className="cur-field">
-                  <span className="cur-field-label">Tool</span>
-                  <select className="cur-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-                    <option value="">Select a tool...</option>
-                    {tools.map((t) => <option key={t.name} value={t.name}>{t.name} — {truncate(t.description || '', 60)}</option>)}
-                  </select>
-                </label>
-                <label className="cur-field">
-                  <span className="cur-field-label">Arguments (JSON)</span>
-                  <textarea className="cur-input cur-input--code" rows={5} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
-                </label>
-                <button className="cur-btn cur-btn--primary" onClick={callTool} disabled={!selectedTool}>Execute Tool</button>
-                {toolResult && (
-                  <div className="cur-result-block">
-                    <span className="cur-result-label">Result</span>
-                    <pre className="cur-code-output">{toolResult}</pre>
-                  </div>
-                )}
-              </div>
+              <ToolsTable
+                tools={tools}
+                onExecute={executeToolCall}
+                onPresent={() => setShowPresent(true)}
+                selectedTool={selectedTool}
+                selectNonce={toolSelectNonce}
+              />
             )}
 
             {activeTab === 'rpc' && (
@@ -641,15 +845,105 @@ export default function PrivilegeMcpClientPage() {
                 )}
               </div>
             )}
+
+            {activeTab === 'sessions' && (
+              <div className="cur-sessions-panel">
+                <div className="cur-tools-header">
+                  <h3>Access Sessions</h3>
+                  <button className="cur-btn" onClick={loadSessions} disabled={sessionsLoading}>
+                    {sessionsLoading ? 'Loading…' : 'Refresh'}
+                  </button>
+                </div>
+                {sessionsError && (
+                  <div className="cur-sessions-error">
+                    <span style={{color:'#ff6b6b'}}>{sessionsError}</span>
+                  </div>
+                )}
+                {!sessionsLoading && !sessionsError && sessions.length === 0 && (
+                  <div className="cur-sessions-empty">No access sessions found.</div>
+                )}
+                <div className="cur-sessions-grid">
+                  {sessions.map((app) => {
+                    const name = app.ObjectMeta?.Name || '—';
+                    const cfg = app.Spec?.McpAppConfig || {};
+                    const backendCount = cfg.Backends?.Elems?.length ?? 0;
+                    const principalCount = cfg.Policies?.Elems?.length ?? cfg.Principals?.Elems?.length ?? '?';
+                    const endsAt = app.Spec?.TTL || app.Metadata?.ExpiresAt || null;
+                    const status = app.Status?.McpServerStatus?.Status || '';
+                    const frontEnd = cfg.FrontEndName?.Elems?.[0];
+                    const appMcpUrl = frontEnd ? frontEndMcpUrl(frontEnd) : null;
+                    const isActive = appMcpUrl && config.mcpUrl === appMcpUrl;
+                    return (
+                      <div
+                        key={name}
+                        className={`cur-session-card${isActive ? ' cur-session-card--active' : ''}${appMcpUrl ? ' cur-session-card--selectable' : ''}`}
+                        onClick={appMcpUrl ? () => selectSession(app) : undefined}
+                        title={appMcpUrl ? `Use policy: ${name}` : 'No frontend URL available'}
+                      >
+                        <div className="cur-session-name">
+                          {name}
+                          {isActive && <span className="cur-session-active-badge"> ✓ Active</span>}
+                        </div>
+                        {endsAt && <div className="cur-session-ttl">Ends {endsAt}</div>}
+                        {status && <div className="cur-session-status">{status}</div>}
+                        <div className="cur-session-meta">
+                          <span title="Backends">Backends: {backendCount}</span>
+                          <span title="Principals">Principals: {principalCount}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Terminal panel */}
-          <div className="cur-terminal">
+          <div className="cur-resize-handle cur-resize-handle--h" onMouseDown={startTerminalDrag} />
+          <div className="cur-terminal" ref={terminalRef}>
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
+              <button className={`cur-terminal-tab ${terminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
               <button className={`cur-terminal-tab ${terminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>
+              <button
+                key={`results-tab-${resultNonce}`}
+                className={`cur-terminal-tab ${terminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && terminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
+                onClick={() => setTerminalTab('results')}
+              >
+                RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
+              </button>
+              {terminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
+              {terminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
             </div>
             <div className="cur-terminal-content">
+              {terminalTab === 'trace' && (
+                <div className="cur-terminal-log" style={{fontFamily:'monospace',fontSize:13}}>
+                  {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
+                  {events.slice(0, 100).map((e, i) => {
+                    const rest = { ...e, ts: undefined, type: undefined };
+                    let label = e.type;
+                    let color = '#888';
+                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; color = '#7ec8e3'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; color = e.status >= 400 ? '#ff6b6b' : '#a8e6cf'; }
+                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; color = '#ffd93d'; }
+                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; color = '#c3aed6'; }
+                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; color = '#ff6b6b'; }
+                    if (e.type === 'config') { label = 'Config updated'; color = '#b2bec3'; }
+                    return (
+                      <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
+                        <summary style={{cursor:'pointer',color,listStyle:'none',display:'flex',gap:8,alignItems:'center'}}>
+                          <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
+                          <span>{label}</span>
+                          {e.type === 'error' && <span style={{color:'#ff6b6b'}}>{e.message}</span>}
+                        </summary>
+                        <pre className="cur-trace-json">
+                          {JSON.stringify(rest, null, 2)}
+                        </pre>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
               {terminalTab === 'events' && (
                 <div className="cur-terminal-log">
                   {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
@@ -676,7 +970,12 @@ export default function PrivilegeMcpClientPage() {
                         <thead><tr><th>Scope</th><th>Category</th></tr></thead>
                         <tbody>
                           {grantedScopes.map((s) => (
-                            <tr key={s}>
+                            <tr
+                              key={s}
+                              ref={s === selectedScope ? scopeRowRef : null}
+                              className={s === selectedScope ? 'cur-scope-row--selected' : ''}
+                              onClick={() => setSelectedScope(s)}
+                            >
                               <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
                               <td className="cur-scope-cat">
                                 {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
@@ -686,6 +985,24 @@ export default function PrivilegeMcpClientPage() {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                </div>
+              )}
+              {terminalTab === 'results' && (
+                <div className="cur-terminal-results">
+                  {toolResults.length === 0 ? (
+                    <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
+                  ) : (
+                    toolResults.map((r, i) => (
+                      <div key={`${r.ts}-${i}`} className="cur-result-item">
+                        <div className="cur-result-item-head">
+                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                          <span className="cur-result-item-tool">{r.tool}</span>
+                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                        </div>
+                        <pre className="cur-result-item-body">{r.result}</pre>
+                      </div>
+                    ))
                   )}
                 </div>
               )}

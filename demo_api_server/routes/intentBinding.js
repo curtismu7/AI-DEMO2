@@ -32,6 +32,19 @@ function classifyParPushError(message) {
   return { errorCode: 'par_push_failed', reason: msg };
 }
 
+/**
+ * Execute a transfer whose intent is declared via RAR authorization_details
+ * (RFC 9396) — PingOne Authorize evaluates the requested amount against the
+ * agent's declared $100 intent cap and returns PERMIT or DENY.
+ *
+ * @flow rar
+ * @name RAR
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9396 RFC 9396
+ * @actor client-app
+ * @to auth-server
+ * @step 1
+ * @body {"action":"permit","requestedAmount":50,"live":false}
+ */
 router.post('/run', authenticateToken, async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     return res.status(403).json({ error: 'not_available_in_production' });

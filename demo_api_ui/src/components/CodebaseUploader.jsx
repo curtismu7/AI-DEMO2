@@ -8,6 +8,7 @@ import {
 } from '../services/codeSearchAPI';
 import { spinner } from '../services/spinnerService';
 import './CodebaseUploader.css';
+import { notifyError, notifyWarning } from '../utils/appToast';
 
 // Mirrors the multer `limits.fileSize` on the BFF route
 // (demo_api_server/routes/codeSearch.js) so oversized ZIPs are caught with a
@@ -47,8 +48,8 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     // was skipped and the limits. The inline note below stays as the
     // persistent record.
     if (skipped > 0) {
-      window.alert(
-        `${skipped} of ${list.length} selected files will be skipped.\n\n` +
+      notifyWarning(
+        `${skipped} of ${list.length} selected files will be skipped. ` +
           `Limits: max ${FOLDER_MAX_FILES} files per folder and ` +
           `${Math.round(FOLDER_MAX_FILE_BYTES / 1024)} KB per file. ` +
           `Binary, vendored (node_modules, .git, dist, build) and unsupported ` +
@@ -138,7 +139,7 @@ export default function CodebaseUploader({ onUpload, isLoading, onFolderIndexed 
     // limit, before any upload starts.
     if (file.size > ZIP_MAX_BYTES) {
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-      window.alert(
+      notifyError(
         `"${file.name}" is ${sizeMb} MB, which exceeds the ` +
           `${ZIP_MAX_BYTES / (1024 * 1024)} MB upload limit for ZIP files. ` +
           `Please upload a smaller archive.`

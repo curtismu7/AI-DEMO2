@@ -1,0 +1,11 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-gate-pdp",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "submit_expense",
+  "checkedAt": "2026-08-14",
+  "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy — PingOne Authorize Transaction obligation"
+}

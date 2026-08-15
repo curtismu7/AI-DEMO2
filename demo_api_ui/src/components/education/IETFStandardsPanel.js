@@ -501,9 +501,9 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
             maturity="Very High"
             maturityColor="#16a34a"
             pingRole="Co-author"
-            status="❌ Not implemented"
-            statusIcon="❌"
-            gap="This demo issues standard PingOne OAuth tokens. SD-JWT VC requires a credential issuance flow (OID4VCI), a wallet to hold the credential, and a presentation protocol (OID4VP) — all outside the current demo scope."
+            status="⚠️ Partial"
+            statusIcon="⚠️"
+            gap="The A2A delegation chain (services/a2aDelegationService.js) now attempts to issue an SD-JWT credential via a DaVinci flow (services/verifiedTrustService.js) at chain start, behind ff_verified_trust_a2a. No DaVinci flow is configured on this tenant yet, so issuance currently fails with NOT_CONFIGURED and the code fails open — the bearer-token chain still completes normally. What's built: the client, the fail-open wiring, and the Agent Card capability declaration. What's missing: the DaVinci flow itself, plus a wallet/OID4VP verification step at the receiving side."
             ietfLink="https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/"
           />
           <p
@@ -516,9 +516,10 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
           >
             <strong>PingOne role:</strong> PingOne Credentials (a dedicated
             product) fully supports SD-JWT VC issuance via OID4VCI and
-            presentation via OID4VP. Adding it to this demo would require a
-            credential issuer configuration, a wallet application or library,
-            and an OID4VP verification step at the banking API.
+            presentation via OID4VP. This demo calls DaVinci's flow-launch API
+            (orchestrate-api.pingone.com) to trigger issuance — the same
+            mechanism DaVinci uses for the Credentials connector — but no flow
+            has been authored/deployed on this tenant yet.
           </p>
           <p
             style={{
@@ -528,11 +529,12 @@ export default function IETFStandardsPanel({ isOpen, onClose, initialTabId }) {
               lineHeight: 1.6,
             }}
           >
-            <strong>Roadmap:</strong> Future phases will issue agent credentials
-            as SD-JWT VCs via PingOne Credentials, enabling agents to prove
-            attributes (e.g., delegation level, scopes) to downstream systems
-            with selective disclosure. This fulfills IDC Guardrail 01 at full
-            fidelity.
+            <strong>Roadmap:</strong> Author the DaVinci flow (issuing an
+            SD-JWT VC asserting agent_id/acting_for/scope/chain_id), set
+            PINGONE_DAVINCI_COMPANY_ID/API_KEY and
+            PINGONE_VERIFIED_TRUST_FLOW_ID, then flip ff_verified_trust_a2a on.
+            A presentation/verification step (OID4VP) at the receiving
+            specialist is still a separate follow-up beyond issuance.
           </p>
         </>
       ),

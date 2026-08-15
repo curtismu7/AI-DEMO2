@@ -18,7 +18,7 @@ export const AUTHZ_SECTIONS = [
   {
     id: "policies", number: 2, title: "Policies, Policy Sets & Combining Algorithms",
     concept:
-      "Policies live in a hierarchical tree of policy sets. Each policy holds rules; a combining algorithm (e.g. deny-overrides) reduces the rules' effects to one decision. This demo runs the Super Banking transaction policy so you can watch amount thresholds resolve to PERMIT / STEP_UP / DENY.",
+      "Policies live in a hierarchical tree of policy sets. Each policy holds rules; a combining algorithm (e.g. deny-overrides) reduces the rules' effects to one decision. This demo runs the AI Demo transaction policy so you can watch amount thresholds resolve to PERMIT / STEP_UP / DENY.",
     docHref: `${DOC}/p1az_policies.html`,
     demoType: "transaction",
     fields: [

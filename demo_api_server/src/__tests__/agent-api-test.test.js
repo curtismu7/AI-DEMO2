@@ -78,7 +78,7 @@ const agentApiTests = [
     path: '/api/demo-agent/message',
     body: { message: 'show my accounts' },
     expectedStatus: 200,
-    expectedFields: ['response'],
+    expectedFields: ['reply'],
     requiresAuth: true,
   },
 ];

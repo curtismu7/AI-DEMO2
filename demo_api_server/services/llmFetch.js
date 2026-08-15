@@ -57,6 +57,22 @@ async function llmFetch(url, options = {}, { label = 'llm', timeoutMs = DEFAULT_
     return attempt();
   }
 
+  // Detect provider content-policy blocks before returning to callers.
+  // HTTP 400 is the common status for safety refusals across OpenAI-compatible,
+  // Gemini, and llamacpp providers; the body signals which it is.
+  if (res.status === 400) {
+    let body;
+    try {
+      body = await res.clone().text();
+    } catch (_) { /* ignore read failure */ }
+    if (body && (/safety|content_filter|HARM_CATEGORY|content_policy/i).test(body)) {
+      const err = new Error('Request blocked by content policy');
+      err.code = 'CONTENT_POLICY_VIOLATION';
+      err.status = 422;
+      throw err;
+    }
+  }
+
   return res;
 }
 

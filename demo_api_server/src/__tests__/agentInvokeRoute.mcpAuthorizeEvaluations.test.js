@@ -37,6 +37,16 @@ jest.mock('../../middleware/auth', () => ({
     _req.tokenEvents = [];
     next();
   },
+  optionalAuthenticateToken: (_req, _res, next) => {
+    _req.user = { sub: 'user-test-123' };
+    _req.session = {
+      id: 'sess-test',
+      user: { oauthId: 'user-test-123', email: 'test@example.com' },
+      oauthTokens: { accessToken: 'tok' },
+    };
+    _req.tokenEvents = [];
+    next();
+  },
 }));
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn(() => null),

@@ -64,42 +64,54 @@ def _make_tool(schema: dict, emit_fn: Optional[Callable[[dict], Coroutine]]) -> 
 
     async def tool_fn(ctx: RunContext[BffDeps], **kwargs: Any) -> Any:
         args = {k: kwargs[k] for k in param_names if k in kwargs}
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                ctx.deps.bff_tool_url,
-                json={"tool": name, "args": args, "sessionId": ctx.deps.session_id},
-                headers={
-                    "x-internal-gateway-secret": ctx.deps.bff_internal_secret,
-                    "x-session-id": ctx.deps.session_id,
-                },
-                timeout=30.0,
-            )
-        if resp.status_code != 200:
-            # Retry only on transient failures. 4xx (except 408/429) are caller/
-            # authz errors — ModelRetry would amplify BFF load and risk duplicate
-            # side effects on non-idempotent tools.
-            body = resp.text[:200]
-            msg = f"Tool '{name}' failed: BFF returned HTTP {resp.status_code}: {body}"
-            if resp.status_code >= 500 or resp.status_code in (408, 429):
-                raise ModelRetry(msg)
-            raise RuntimeError(msg)
+        # Emit TOOL_CALL_START/END so AGUIEmitter observes that a tool actually
+        # ran even when the model emits no trailing narration text that turn.
+        # AGUIEmitter._emit() already flips _any_visible_output on
+        # TOOL_CALL_START; without this, a side-effecting tool (e.g.
+        # create_transfer) that completes with no follow-up text caused
+        # on_run_end() to report RUN_ERROR after the transfer already happened.
+        if emit_fn:
+            await emit_fn({"type": "TOOL_CALL_START", "toolCallId": ctx.tool_call_id, "toolName": name})
         try:
-            data = resp.json()
-        except ValueError as exc:
-            raise ModelRetry(
-                f"Tool '{name}' returned a non-JSON response from the BFF."
-            ) from exc
-        token_events = data.get("tokenEvents") or []
-        if token_events and emit_fn:
-            for te in token_events:
-                try:
-                    await emit_fn({
-                        "type": "STATE_DELTA",
-                        "delta": [{"op": "add", "path": "/tokenEvents/-", "value": te}],
-                    })
-                except Exception:
-                    logger.exception("[BffTool] Failed to emit STATE_DELTA")
-        return data.get("result", data)
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    ctx.deps.bff_tool_url,
+                    json={"tool": name, "args": args, "sessionId": ctx.deps.session_id},
+                    headers={
+                        "x-internal-gateway-secret": ctx.deps.bff_internal_secret,
+                        "x-session-id": ctx.deps.session_id,
+                    },
+                    timeout=30.0,
+                )
+            if resp.status_code != 200:
+                # Retry only on transient failures. 4xx (except 408/429) are caller/
+                # authz errors — ModelRetry would amplify BFF load and risk duplicate
+                # side effects on non-idempotent tools.
+                body = resp.text[:200]
+                msg = f"Tool '{name}' failed: BFF returned HTTP {resp.status_code}: {body}"
+                if resp.status_code >= 500 or resp.status_code in (408, 429):
+                    raise ModelRetry(msg)
+                raise RuntimeError(msg)
+            try:
+                data = resp.json()
+            except ValueError as exc:
+                raise ModelRetry(
+                    f"Tool '{name}' returned a non-JSON response from the BFF."
+                ) from exc
+            token_events = data.get("tokenEvents") or []
+            if token_events and emit_fn:
+                for te in token_events:
+                    try:
+                        await emit_fn({
+                            "type": "STATE_DELTA",
+                            "delta": [{"op": "add", "path": "/tokenEvents/-", "value": te}],
+                        })
+                    except Exception:
+                        logger.exception("[BffTool] Failed to emit STATE_DELTA")
+            return data.get("result", data)
+        finally:
+            if emit_fn:
+                await emit_fn({"type": "TOOL_CALL_END", "toolCallId": ctx.tool_call_id})
 
     tool_fn.__name__ = name
     tool_fn.__doc__ = description

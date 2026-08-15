@@ -258,6 +258,8 @@ function extractIntentAndConfidence(message) {
   // write tool, and PingGateway P1AZ denies on intent_mismatch instead of
   // the amount rule the demo is proving. Writes must precede every read
   // branch — "execute a large trade" would otherwise hit the trades read.
+  if (/\bpay\b.*\b(change|airline|flight|booking|cancellation)\b.*\bfees?\b|\bpay\b.*\bfees?\b.*\b(change|airline|flight)\b/.test(t))
+    return { intent: "pay_airline_fee", toolName: "pay_airline_fee", confidence: 0.9 };
   if (/\bpay\b.*\bfees?\b/.test(t))
     return { intent: "pay_fee", toolName: "pay_fee", confidence: 0.9 };
   if (/\bpay\b.*\bbills?\b/.test(t))
@@ -907,6 +909,32 @@ function resolveActiveVerticalCtx(req = null) {
   return resolveVerticalCtx(sessionVerticalId(req) || "banking");
 }
 
+/**
+ * intentHints fallback — only called when no heuristic matched (kind:'none' path).
+ * First match wins at confidence 0.7; only fires when a hint phrase is a substring
+ * of the normalized message.
+ * @returns {object|null}
+ */
+function tryIntentHints(message, verticalCtx, vertical) {
+  if (!verticalCtx?.tools || !Array.isArray(verticalCtx.tools)) return null;
+  const tNorm = norm(message);
+  for (const tool of verticalCtx.tools) {
+    if (!Array.isArray(tool.intentHints)) continue;
+    for (const hint of tool.intentHints) {
+      if (tNorm.includes(norm(hint))) {
+        return {
+          kind: vertical,
+          [vertical]: { action: tool.name },
+          toolName: tool.name,
+          confidence: 0.7,
+          source: 'intentHints',
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function parseHeuristic(
   message,
   vertical = "banking",
@@ -1116,6 +1144,15 @@ function parseHeuristic(
             };
           }
         }
+        if (h.extractsPortfolioType) {
+          // Match portfolio type keywords so "deposit $500 into brokerage" fills
+          // portfolioType and skips the clarification step.
+          const ptMatch = t.match(/\b(brokerage|retirement|trust)\b/i);
+          if (ptMatch) {
+            const raw = ptMatch[1];
+            params = { ...params, portfolioType: raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() };
+          }
+        }
         // These id extractors run alongside extractsAmount on the SAME text, and
         // norm() has already stripped "$" (it drops every non-word character), so
         // the amount is indistinguishable from an id by the time we get here:
@@ -1257,6 +1294,16 @@ function parseHeuristic(
           // can match it against its CONCEPTS regexes.
           params = { ...params, topic: t };
         }
+        if (typeof h.extractParams === 'function') {
+          // Per-heuristic extraction from the RAW message, not the normalized
+          // lowercase `t` — pingone-admin's prefix filters feed PingOne SCIM
+          // `sw` filters, which are case-sensitive ("Demo*" must stay "Demo").
+          // Extracted keys win over anything set so far for the same names.
+          const extracted = h.extractParams(message);
+          if (extracted && typeof extracted === 'object') {
+            params = { ...params, ...extracted };
+          }
+        }
         if (h.defaultParams) {
           // Static params a heuristic resolves to regardless of message text (e.g. the
           // pingone-admin operation heuristics each fix their OAS operationId). Extracted
@@ -1306,6 +1353,8 @@ function parseHeuristic(
       if (bankFallback) return bankFallback;
       return { kind: "none", message: buildAdminCatalogMessage() };
     }
+    const ih1 = tryIntentHints(message, verticalCtx, vertical);
+    if (ih1) return ih1;
     return { kind: "none", message: buildCatalogMessage(verticalCtx) };
   }
 
@@ -1325,6 +1374,8 @@ function parseHeuristic(
   const edu2 = parseEducation(t);
   if (edu2) return edu2;
 
+  const ih2 = tryIntentHints(message, verticalCtx, vertical);
+  if (ih2) return ih2;
   return { kind: "none", message: buildCatalogMessage(verticalCtx) };
 }
 

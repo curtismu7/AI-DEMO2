@@ -10,6 +10,13 @@
 .drp-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Non-device-selector steps still need padding + scroll */
+.drp-body > :not(.device-selector) {
   overflow-y: auto;
   padding: 10px 14px 14px;
 }

@@ -415,6 +415,111 @@ if (trustedCaller && decisionContext == 'McpToolsList') {
     }
 }
 
+// ── Local enforcement backstops for rules real P1AZ's DSL cannot express ──────
+// (snapshots/gen-authorize-snapshot.js:30-47). These mirror the Node gateway's
+// equivalent unconditional checks (demo_mcp_gateway/src/tokenValidator.ts,
+// GatewayTokenPolicy.ts, auth/toolScopes.ts, tierEnforce.ts) and decision.js's
+// mock rules. Additive to the PDP call below — a local DENY here short-circuits
+// before ever reaching P1AZ, since there is nothing for the PDP to add.
+def denyLocal = { String reason, String message ->
+    logger.warn('[P1AZ] local backstop DENY: reason=' + reason + ' tool=' + toolName + ' detail=' + message)
+    def rejected = new Response(Status.FORBIDDEN)
+    rejected.headers.put('Content-Type', 'application/json')
+    rejected.entity.setString(JsonOutput.toJson([error: reason, message: message, tool: toolName]))
+    return Promises.newResultPromise(rejected)
+}
+
+// Temporal (mirrors decision.js Rules 0d/0e) — exp is already covered upstream
+// by introspection's active:false; iat max-age and nbf are demo-specific
+// validity rules an AS's introspection response doesn't assert.
+def nowSecLocal = System.currentTimeMillis().intdiv(1000L)
+def iatMaxAge = (System.getenv('PG_IAT_MAX_AGE_SECONDS') ?: '7200') as long
+def skewLocal = 30L
+if (tokenIat) {
+    def iatVal = tokenIat as long
+    if (iatVal > nowSecLocal + skewLocal) {
+        return denyLocal('invalid_iat', 'token issued in the future')
+    }
+    if (nowSecLocal - iatVal > iatMaxAge) {
+        return denyLocal('token_too_old', 'issued ' + (nowSecLocal - iatVal) + 's ago (max ' + iatMaxAge + 's)')
+    }
+}
+if (tokenNbf) {
+    def nbfVal = tokenNbf as long
+    if (nowSecLocal < nbfVal - skewLocal) {
+        return denyLocal('token_not_yet_valid', 'nbf=' + nbfVal)
+    }
+}
+
+// D-05 anti-bypass (mirrors decision.js Rule 0b-2 / GatewayTokenPolicy.ts:117-144):
+// upstream audiences must never appear in the token's aud. Defaults match the
+// Node gateway's own config.ts fallbacks so both gateways agree even when an
+// operator hasn't set every env var explicitly.
+def upstreamAudsLocal = [
+    System.getenv('PG_OLB_RESOURCE_URI') ?: '',
+    System.getenv('PG_MCP_RESOURCE_SERVER_URI') ?: '',
+    System.getenv('BANKING_RESOURCE_SERVER_RESOURCE_URI') ?: 'https://banking-resource-server.ping.demo',
+].findAll { it } - [gatewayResourceUri, System.getenv('PG_GATEWAY_RESOURCE_ID') ?: '']
+def audEntriesLocal = tokenAudActual.tokenize(' ').findAll { it }
+if (upstreamAudsLocal.any { audEntriesLocal.contains(it) }) {
+    return denyLocal('bypass_attempt', 'token aud targets an upstream resource — cannot bypass gateway (D-05)')
+}
+
+// Per-tool scope backstop (mirrors decision.js Rule 3 / toolScopes.ts's
+// evaluateScopeDecisionUnconditionally) — real P1AZ cannot express per-tool
+// set-membership over TokenScopes. Unknown tools are NOT denied here — that
+// diagnosis belongs to the PDP (isPolicyNotFoundReason), not this backstop.
+if (mcpMethod == 'tools/call' && toolName) {
+    def topologyFile = new File('/var/gateway/config/scope-topology.json')
+    if (topologyFile.exists()) {
+        def topology = new JsonSlurper().parse(topologyFile)
+        def toolEntry = topology.tools?.get(toolName)
+        if (toolEntry != null) {
+            def requiredScopes = toolEntry.requiredScopes ?: []
+            def grantedScopesLocal = tokenScopes.tokenize(' ').findAll { it } as Set
+            def GATEWAY_HOP_SCOPES = ['gateway:mcp:invoke', 'pinggateway:invoke']
+            def hasGatewayHopScope = GATEWAY_HOP_SCOPES.any { grantedScopesLocal.contains(it) }
+            def topologyScopes = (topology.scopes?.keySet() ?: []) as Set
+            def suppliesPerToolScopes = grantedScopesLocal.any {
+                topologyScopes.contains(it) && !GATEWAY_HOP_SCOPES.contains(it)
+            }
+            def skipCheck = hasGatewayHopScope && !suppliesPerToolScopes
+            def a2aDelegatedLocal = toolEntry.a2aDelegated == true
+            def a2aScopeLocal = toolEntry.a2aDelegatedScope
+            def satisfiedByA2a = (actDepth as Integer) >= 2 && a2aDelegatedLocal && a2aScopeLocal && grantedScopesLocal.contains(a2aScopeLocal)
+            if (!skipCheck && !satisfiedByA2a && !requiredScopes.isEmpty()) {
+                def missing = requiredScopes.findAll { !grantedScopesLocal.contains(it) }
+                if (!missing.isEmpty()) {
+                    return denyLocal('insufficient_scope', 'missing ' + missing.join(', '))
+                }
+            }
+        }
+    } else {
+        logger.warn('[P1AZ] scope-topology.json not mounted at /var/gateway/config — scope backstop skipped')
+    }
+}
+
+// Tier (groupToTier) local deny (mirrors decision.js Rule 3d / tierEnforce.ts) —
+// real P1AZ cannot map a PingOne group array to a tier. The BFF pre-resolves
+// group->tier and forwards the resolved definition as headers; absent headers
+// (tier feature off, or non-gateway-mediated call) = PERMIT, no-op.
+def tierMaxAmountHeader = request.headers.getFirst('X-Tier-Max-Amount-Usd') ?: ''
+def tierRestrictedHeader = request.headers.getFirst('X-Tier-Restricted-Tools') ?: ''
+if (mcpMethod == 'tools/call' && toolName && (tierMaxAmountHeader || tierRestrictedHeader)) {
+    def restrictedToolsLocal = tierRestrictedHeader.tokenize(',').collect { it.trim() }.findAll { it }
+    if (restrictedToolsLocal.contains(toolName)) {
+        return denyLocal('tier_tool_not_allowed', '"' + toolName + '" is not permitted at this tier')
+    }
+    if (tierMaxAmountHeader.isNumber()) {
+        def maxAmountLocal = tierMaxAmountHeader as BigDecimal
+        def txAmountLocal = transactionAmount?.isNumber() ? (transactionAmount as BigDecimal) : null
+        def isWriteToolLocal = tokenScopes.tokenize(' ').contains('write')
+        if (txAmountLocal != null && isWriteToolLocal && txAmountLocal > maxAmountLocal) {
+            return denyLocal('tier_amount_exceeded', txAmountLocal.toString() + ' exceeds tier ceiling ' + maxAmountLocal.toString())
+        }
+    }
+}
+
 // ── Intent Token verification (F4) ────────────────────────────────────────────
 // The BFF mints an HMAC-SHA256 Intent Token at prompt-receipt time (server.js:1930)
 // and sends it as X-Intent-Token (mcpGatewayClient.js:136). Nothing on this path
@@ -623,6 +728,21 @@ if (tratContextRaw && !honorTrat) {
         }
     } catch (Exception e) {
         logger.warn('[P1AZ] X-TraT-Context parse failed — ignored: ' + e.message)
+    }
+}
+
+// ── RAR payee local deny — OPT-IN, default OFF (see check-groovy-params.sh:78-81) ──
+// check-groovy-params.sh WARNs against a local RAR DENY here ("P1AZ decides") — this
+// is a deliberate, narrow exception: the AMOUNT half of RAR is already enforced by
+// real P1AZ's RarMaxAmount rule (snapshots/gen-authorize-snapshot.js:20-22); only the
+// PAYEE half is unexpressable there (no set-membership operator). Mirrors
+// rarEnforce.ts:67-73 (already active, unconditionally, on the Node gateway). Off by
+// default — flip PG_LOCAL_RAR_PAYEE_ENFORCE only after explicit review.
+if (System.getenv('PG_LOCAL_RAR_PAYEE_ENFORCE') == 'true' && rarPermittedPayees) {
+    def permittedPayeeList = rarPermittedPayees.tokenize(' ').findAll { it }
+    def actualPayeeLocal = toAccountId ?: ''
+    if (!actualPayeeLocal || !permittedPayeeList.contains(actualPayeeLocal)) {
+        return denyLocal('rar_payee_not_permitted', 'payee ' + (actualPayeeLocal ?: '(missing)') + ' not in permitted list')
     }
 }
 

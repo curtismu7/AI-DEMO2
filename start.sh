@@ -24,7 +24,7 @@ sleep 1
 
 # Start oauth-mcp (port 8080)
 if [ -d "$BASEDIR/oauth-mcp" ]; then
-  echo "🤖 Starting Banking MCP Server on :8080..."
+  echo "🤖 Starting AI Demo MCP Server on :8080..."
   (cd "$BASEDIR/oauth-mcp" && cp .env.development .env 2>/dev/null; npm start > /tmp/demo-mcp-server.log 2>&1) &
   echo $! > /tmp/demo-mcp-server.pid
 fi
@@ -49,7 +49,7 @@ fi
 echo ""
 echo "✅ Services started:"
 echo "   Demo API Server: https://api.ping.demo:3001"
-echo "   Banking MCP Server: ws://localhost:8080 (internal)"
+echo "   AI Demo MCP Server: ws://localhost:8080 (internal)"
 echo "   Banking UI:         https://local.ping-devops.com:4000"
 echo "   LangChain Agent:    http://localhost:8888 (internal)"
 echo ""

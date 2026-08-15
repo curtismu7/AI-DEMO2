@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "show_health_record",
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-14",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

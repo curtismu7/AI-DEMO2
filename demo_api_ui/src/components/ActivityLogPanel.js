@@ -10,6 +10,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useActivityLog, ALL_CATEGORIES } from '../hooks/useActivityLog';
 import './ActivityLogPanel.css';
+import PingOneEventPanel from './PingOneEventPanel';
 
 function severityIcon(severity) {
   if (severity === 'error') return '❌';
@@ -127,6 +128,8 @@ export default function ActivityLogPanel({ enabled }) {
     clearUseCaseFilter,
   } = useActivityLog({ enabled });
 
+  const [activeTab, setActiveTab] = useState('activity');
+
   // Reset pause count whenever this panel becomes active.
   useEffect(() => {
     if (enabled) resetNewCount();
@@ -180,69 +183,93 @@ export default function ActivityLogPanel({ enabled }) {
         </button>
       </div>
 
-      {/* Category filter pills */}
-      <div className="alp-filters">
+      {/* Tab selector */}
+      <div className="activity-log-panel__tabs">
         <button
           type="button"
-          className="alp-filter-all"
-          onClick={() => setAllFilters(!allOn)}
+          className={activeTab === 'activity' ? 'tab-btn tab-btn--active' : 'tab-btn'}
+          onClick={() => setActiveTab('activity')}
         >
-          {allOn ? 'Deselect all' : 'Select all'}
+          Activity Log
         </button>
-        {ALL_CATEGORIES.map((cat) => (
-          <button
-            type="button"
-            key={cat}
-            className={`alp-pill alp-cat--${cat}${activeFilters.has(cat) ? '' : ' alp-pill--off'}`}
-            onClick={() => toggleFilter(cat)}
-          >
-            {cat}
-          </button>
-        ))}
+        <button
+          type="button"
+          className={activeTab === 'pingone' ? 'tab-btn tab-btn--active' : 'tab-btn'}
+          onClick={() => setActiveTab('pingone')}
+        >
+          PingOne Events
+        </button>
       </div>
 
-      {/* Use-case filter pills */}
-      {availableUseCaseIds.length > 0 && (
-        <div className="alp-filters alp-uc-filters">
-          <span className="alp-filter-label">Use case:</span>
-          <button
-            type="button"
-            className="alp-filter-all"
-            onClick={clearUseCaseFilter}
-            disabled={activeUseCaseFilters === null}
-          >
-            All
-          </button>
-          {availableUseCaseIds.map((ucId) => (
+      {activeTab === 'activity' && (
+        <>
+          {/* Category filter pills */}
+          <div className="alp-filters">
             <button
               type="button"
-              key={ucId}
-              className={`alp-pill${activeUseCaseFilters && !activeUseCaseFilters.has(ucId) ? ' alp-pill--off' : ''}`}
-              onClick={() => toggleUseCaseFilter(ucId)}
+              className="alp-filter-all"
+              onClick={() => setAllFilters(!allOn)}
             >
-              {ucId}
+              {allOn ? 'Deselect all' : 'Select all'}
             </button>
-          ))}
-        </div>
+            {ALL_CATEGORIES.map((cat) => (
+              <button
+                type="button"
+                key={cat}
+                className={`alp-pill alp-cat--${cat}${activeFilters.has(cat) ? '' : ' alp-pill--off'}`}
+                onClick={() => toggleFilter(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Use-case filter pills */}
+          {availableUseCaseIds.length > 0 && (
+            <div className="alp-filters alp-uc-filters">
+              <span className="alp-filter-label">Use case:</span>
+              <button
+                type="button"
+                className="alp-filter-all"
+                onClick={clearUseCaseFilter}
+                disabled={activeUseCaseFilters === null}
+              >
+                All
+              </button>
+              {availableUseCaseIds.map((ucId) => (
+                <button
+                  type="button"
+                  key={ucId}
+                  className={`alp-pill${activeUseCaseFilters && !activeUseCaseFilters.has(ucId) ? ' alp-pill--off' : ''}`}
+                  onClick={() => toggleUseCaseFilter(ucId)}
+                >
+                  {ucId}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Event list */}
+          <div className="alp-list">
+            {events.length === 0 ? (
+              <div className="alp-empty">
+                {isPaused
+                  ? 'Paused — resume to see new events'
+                  : 'No recent history yet — run a demo action (login, agent chip, MCP call) to populate this log.'}
+              </div>
+            ) : (
+              events.map((event) => (
+                <EventRow
+                  key={event.id || `${event.timestamp}-${event.category}-${event.message}`}
+                  event={event}
+                />
+              ))
+            )}
+          </div>
+        </>
       )}
 
-      {/* Event list */}
-      <div className="alp-list">
-        {events.length === 0 ? (
-          <div className="alp-empty">
-            {isPaused
-              ? 'Paused — resume to see new events'
-              : 'No recent history yet — run a demo action (login, agent chip, MCP call) to populate this log.'}
-          </div>
-        ) : (
-          events.map((event) => (
-            <EventRow
-              key={event.id || `${event.timestamp}-${event.category}-${event.message}`}
-              event={event}
-            />
-          ))
-        )}
-      </div>
+      {activeTab === 'pingone' && <PingOneEventPanel />}
     </div>
   );
 }

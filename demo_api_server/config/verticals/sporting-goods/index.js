@@ -36,6 +36,9 @@ const HEURISTICS = [
   { re: /\bextend\b.*\brental\b|\brenew\b.*\brental\b/, action: 'extend_rental', extractsAmount: true, extractsRentalId: true, paramHint: 'e.g. "extend rental r1" — find your rental ID in the rentals list' },
   { re: /\b(my\s+)?rentals?\b|\bgear\s+rentals?\b|\bdue\s+back\b/, action: 'list_rentals' },
   { re: /\border\s+status\b|\btrack\s+(my\s+)?order\b/, action: 'gear_order_status', extractsOrderId: true, paramHint: 'e.g. "order status 1003" — find your order ID in the gear list' },
+  // Shop/browse-for-gear chip (sg-gear) — must precede the generic `my gear`
+  // heuristic below, which would otherwise claim any message containing "gear".
+  { re: /\b(shop|browse|buy)\b.{0,20}\b(gear|products?)\b|\bgear\b.{0,20}\b(hiking|trip|trail)\b/i, action: 'browse_gear' },
   { re: /\b(my\s+)?gear\b|\bmy\s+equipment\b|\border\s+history\b/, action: 'list_gear' },
   { re: /\b(my\s+|check\s+)?(rewards?\s+points?|loyalty|point\s+balance)\b|\b(next\s+)?tier\b|\bhow\s+(close|far)\b.*\btier\b/, action: 'loyalty_balance' },
   // Chips sg8/sg10 — equipment suggestions (Heuristics-only → gear list)

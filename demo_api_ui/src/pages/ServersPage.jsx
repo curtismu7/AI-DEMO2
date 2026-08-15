@@ -45,6 +45,23 @@ function portLabel(svc) {
   return `:${svc.hostPort} → :${svc.internalPort}`;
 }
 
+// Optional services are Compose-profile extras (agent runtimes, demo-auth, rag)
+// that are off by default in lean-core. Folding them into one "18/21 up" made
+// three expected-absent services read as three outages. Counts required only
+// and reports optional beside it — same shape as the BFF's serversCheck detail
+// (`N/M required up (optional X/Y)`), so the two agree on the same page.
+export function serverCounts(services) {
+  const probed = (services || []).filter((s) => s.up !== null);
+  const required = probed.filter((s) => !s.optional);
+  const optional = probed.filter((s) => s.optional);
+  return {
+    requiredUp: required.filter((s) => s.up).length,
+    requiredProbed: required.length,
+    optionalUp: optional.filter((s) => s.up).length,
+    optionalProbed: optional.length,
+  };
+}
+
 export default function ServersPage() {
   const [services, setServices] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -105,8 +122,7 @@ export default function ServersPage() {
     return () => clearInterval(timer);
   }, [loadSizes]);
 
-  const probed = services.filter((s) => s.up !== null);
-  const upCount = probed.filter((s) => s.up).length;
+  const { requiredUp, requiredProbed, optionalUp, optionalProbed } = serverCounts(services);
 
   return (
     <div className="servers-page">
@@ -120,7 +136,9 @@ export default function ServersPage() {
         <div className="servers-header-right">
           {lastUpdated && (
             <span className="servers-meta">
-              {upCount}/{probed.length} up · updated {new Date(lastUpdated).toLocaleTimeString()}
+              {requiredUp}/{requiredProbed} required up
+              {optionalProbed > 0 && ` (optional ${optionalUp}/${optionalProbed})`}
+              {" · updated "}{new Date(lastUpdated).toLocaleTimeString()}
             </span>
           )}
           <button type="button" className="servers-refresh" onClick={load} disabled={loading}>

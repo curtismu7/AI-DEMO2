@@ -43,6 +43,38 @@ describe('TokenExchangeTesterPage', () => {
     );
   });
 
+  it('does not flash "Please log in first" for a logged-in user while the readiness fetch is still in flight', async () => {
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('session-preview')) {
+        return {
+          ok: true,
+          json: async () => ({
+            tokenEvents: [{ id: 'user-token', status: 'active', claims: { sub: 'u1' }, label: 'User' }],
+          }),
+        };
+      }
+      if (String(url).includes('agent-cc-preview')) {
+        return {
+          ok: true,
+          json: async () => ({
+            tokenEvents: [{ id: 'agent-cc-not-configured', status: 'skipped', explanation: 'Not configured' }],
+          }),
+        };
+      }
+      return { ok: false, json: async () => ({}) };
+    });
+
+    render(<TokenExchangeTesterPage />);
+
+    // Immediately after render, the readiness fetch's promise hasn't resolved
+    // yet — the page must show a checking state, not the logged-out prompt.
+    expect(screen.queryByText(/Please log in first/i)).toBeNull();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Exchange Token/i })).toBeTruthy();
+    });
+  });
+
   it('toggles to 2-exchange and requires agent readiness', async () => {
     global.fetch = vi.fn(async (url) => {
       if (String(url).includes('session-preview')) {

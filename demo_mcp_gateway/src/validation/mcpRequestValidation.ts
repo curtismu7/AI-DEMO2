@@ -17,6 +17,7 @@ export const ALLOWED_METHODS: ReadonlySet<string> = new Set([
   'notifications/initialized',
   'tools/list',
   'tools/call',
+  'notifications/cancelled',
 ]);
 
 export interface ValidationFailure {

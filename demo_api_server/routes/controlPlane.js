@@ -6,6 +6,7 @@ const demoAgentRoster = require('../services/controlPlane/demoAgentRoster');
 const { getLiveAgentRow } = require('../services/controlPlane/liveAgentInfo');
 const auditLogService = require('../services/auditLogService');
 const appEventService = require('../services/appEventService');
+const agentLifecycleEvents = require('../services/agentLifecycleEvents');
 
 // Honest-subset stop for a demo platform identity: writes a REAL immutable audit
 // record and emits a control_plane push event, then flips session status. Does
@@ -21,6 +22,15 @@ async function stopDemoAgent(req, agent, reason) {
     `${agent.label} stopped by the Ping control plane`,
     { tag: 'agent_stopped', metadata: { agentId: agent.id, label: agent.label, reason, kind: 'demo', audit_id: auditId } }
   );
+  agentLifecycleEvents.emit({
+    eventType: 'leaver',
+    agentId: agent.id,
+    agentLabel: agent.label,
+    source: agent.source || null,
+    kind: 'demo',
+    reason,
+    auditId,
+  });
   return auditId;
 }
 
@@ -69,7 +79,26 @@ router.post('/stop-all', authenticateToken, async (req, res) => {
 
 router.post('/reset', authenticateToken, (req, res) => {
   const demo = demoAgentRoster.reset(req);
+  demo.forEach((agent) => {
+    agentLifecycleEvents.emit({
+      eventType: 'joiner',
+      agentId: agent.id,
+      agentLabel: agent.label,
+      source: agent.source || null,
+      kind: 'demo',
+      reason: 'registration',
+    });
+  });
   req.session.save(() => res.json({ ok: true, demo }));
+});
+
+router.get('/lifecycle-events', authenticateToken, (req, res) => {
+  const { limit, eventType, agentId } = req.query;
+  const filters = {};
+  if (eventType) filters.eventType = eventType;
+  if (agentId) filters.agentId = agentId;
+  if (limit) filters.limit = Math.min(Number(limit) || 50, 500);
+  return res.json({ events: agentLifecycleEvents.query(filters), summary: agentLifecycleEvents.summary() });
 });
 
 module.exports = router;

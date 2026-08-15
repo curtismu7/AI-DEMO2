@@ -174,6 +174,7 @@ function logEvent(category, severity, message, options = {}) {
 
   events.push(event);
   _notify(event);
+  require('./newRelicForwarder').forwardAppEvent(event).catch(() => {});
 
   // Persist to NDJSON file — D-01
   try {

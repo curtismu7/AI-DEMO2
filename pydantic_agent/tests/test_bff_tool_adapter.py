@@ -54,15 +54,88 @@ async def test_emits_state_delta_per_token_event():
 
     class FakeCtx:
         deps = FakeDeps()
+        tool_call_id = "tc-1"
 
     await tools[0].function(FakeCtx(), userId="u1")
 
-    assert len(emitted) == 2
-    assert emitted[0] == {
+    state_deltas = [e for e in emitted if e["type"] == "STATE_DELTA"]
+    assert len(state_deltas) == 2
+    assert state_deltas[0] == {
         "type": "STATE_DELTA",
         "delta": [{"op": "add", "path": "/tokenEvents/-", "value": token_events[0]}],
     }
-    assert emitted[1] == {
+    assert state_deltas[1] == {
         "type": "STATE_DELTA",
         "delta": [{"op": "add", "path": "/tokenEvents/-", "value": token_events[1]}],
     }
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_emits_tool_call_start_and_end_around_execution():
+    """Bug: on_tool_start/on_tool_end were defined on AGUIEmitter but never
+    invoked from the tool-execution path, so AGUIEmitter._any_visible_output
+    stayed False for a tool-only turn (no trailing text) and on_run_end()
+    reported RUN_ERROR even though the tool (e.g. create_transfer) already
+    completed its side effect. tool_fn must emit TOOL_CALL_START before the
+    BFF call and TOOL_CALL_END after, so AGUIEmitter observes the tool ran."""
+    respx.post("http://127.0.0.1:3001/internal/agent-tool").mock(
+        return_value=httpx.Response(200, json={"result": {"ok": True}})
+    )
+
+    emitted: list = []
+
+    async def emit_fn(event: dict) -> None:
+        emitted.append(event)
+
+    tools = build_tool_functions([SCHEMA], emit_fn=emit_fn)
+
+    class FakeDeps:
+        bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
+        bff_internal_secret = "secret"
+        session_id = "sess_abc"
+
+    class FakeCtx:
+        deps = FakeDeps()
+        tool_call_id = "tc-2"
+
+    await tools[0].function(FakeCtx(), userId="u1")
+
+    assert emitted[0] == {
+        "type": "TOOL_CALL_START",
+        "toolCallId": "tc-2",
+        "toolName": "get_accounts",
+    }
+    assert emitted[-1] == {"type": "TOOL_CALL_END", "toolCallId": "tc-2"}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_emits_tool_call_end_even_when_tool_call_fails():
+    """TOOL_CALL_END must fire in a finally so the UI's tool-call timeline
+    entry doesn't stay stuck at status 'running' when the BFF call fails."""
+    respx.post("http://127.0.0.1:3001/internal/agent-tool").mock(
+        return_value=httpx.Response(400, text="bad request")
+    )
+
+    emitted: list = []
+
+    async def emit_fn(event: dict) -> None:
+        emitted.append(event)
+
+    tools = build_tool_functions([SCHEMA], emit_fn=emit_fn)
+
+    class FakeDeps:
+        bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
+        bff_internal_secret = "secret"
+        session_id = "sess_abc"
+
+    class FakeCtx:
+        deps = FakeDeps()
+        tool_call_id = "tc-3"
+
+    with pytest.raises(RuntimeError):
+        await tools[0].function(FakeCtx(), userId="u1")
+
+    assert emitted[0]["type"] == "TOOL_CALL_START"
+    assert emitted[-1] == {"type": "TOOL_CALL_END", "toolCallId": "tc-3"}

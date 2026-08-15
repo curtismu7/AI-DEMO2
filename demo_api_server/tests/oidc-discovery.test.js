@@ -179,6 +179,8 @@ describe('oauthDiscoveryService', () => {
       token_endpoint: 'https://auth.example.com/token',
       jwks_uri: 'https://auth.example.com/.well-known/jwks.json',
       userinfo_endpoint: 'https://auth.example.com/userinfo',
+      introspection_endpoint: null,
+      revocation_endpoint: null,
       issuer: 'https://auth.example.com',
       pushed_authorization_request_endpoint: null,
     });

@@ -1,0 +1,6 @@
+dependencies:
+- name: privgateway
+  repository: file://../../../k8s/helm/mcpgw
+  version: 0.1.0
+digest: sha256:95eef8e3661992f8ea945f371382709d57848a8efb3398d431ce512616ce5f6c
+generated: "2026-08-13T02:43:05.555114-05:00"

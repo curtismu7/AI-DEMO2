@@ -179,9 +179,7 @@ async function agentSessionMiddleware(req, res, next) {
     console.error('[agentSessionMiddleware] Error message:', error.message);
     console.error('[agentSessionMiddleware] Error stack:', error.stack);
     console.error('[agentSessionMiddleware] Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    return res
-      .status(500)
-      .json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -220,8 +218,29 @@ function getAuthContextOrDefault(req) {
   );
 }
 
+/**
+ * Guest-permissive variant: attaches full auth context when a valid session
+ * exists; sets req.agentContext = null and continues when there is no session.
+ * Protected actions must check !req.agentContext and return need_auth: true.
+ * Use only on routes that have explicit per-handler guest handling (demoAgentRoutes).
+ */
+async function agentGuestSessionMiddleware(req, res, next) {
+  // No session at all → guest pass-through
+  if (!req.session?.user || !req.session.oauthTokens?.accessToken ||
+      req.session.oauthTokens.accessToken === '_cookie_session') {
+    req.agentContext = null;
+    req.tokenEvents = [];
+    req.recordTokenEvent = () => {};
+    return next();
+  }
+
+  // Valid session exists — run the full auth middleware
+  return agentSessionMiddleware(req, res, next);
+}
+
 module.exports = {
   agentSessionMiddleware,
+  agentGuestSessionMiddleware,
   requireAgentContext,
   getAuthContextOrDefault,
 };

@@ -37,11 +37,12 @@ import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS 
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
-import { proxyJsonRpc } from '../proxy';
+import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
 import { buildAuthzHealth } from '../authzPosture';
+import { toolsListBackendOutage } from '../toolsListHealth';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -215,6 +216,10 @@ export class GatewayServer {
         // Contract C3 — the aggregate "is the gate armed" signal. `failOpen`
         // names every currently-active bypass; an empty array means fully armed.
         authz: buildAuthzHealth(this.config),
+        // Null unless the last tools/list read NO live backend and shipped the
+        // static gateway-owned registry instead — an outage the response itself
+        // looks perfectly healthy through.
+        toolsListBackendOutage: toolsListBackendOutage(),
       }));
       return;
     }
@@ -572,9 +577,24 @@ export class GatewayServer {
     }
 
     // Correlation: extract id from inbound request, bind to ALS for this request.
-    let parsedRpc: { id?: unknown; params?: { correlationId?: unknown } } = {};
+    let parsedRpc: { id?: unknown; method?: unknown; params?: { correlationId?: unknown } } = {};
     try { parsedRpc = JSON.parse(body.toString('utf-8')); } catch { /* already validated above */ }
     const correlationId = extractCorrelationId(req.headers as Record<string, unknown>, parsedRpc);
+
+    // MCP Streamable HTTP transport: once a session is established the client
+    // SHOULD send MCP-Protocol-Version on every request; a value the gateway
+    // doesn't support gets a 400, not a silent pass-through. `initialize` is
+    // exempt — that request IS the negotiation, before any version is agreed.
+    const inboundProtocolVersion = req.headers[MCP_PROTO_HEADER] as string | undefined;
+    if (inboundProtocolVersion && parsedRpc.method !== 'initialize' && inboundProtocolVersion !== MCP_PROTOCOL_VERSION) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        error: 'unsupported_protocol_version',
+        message: `This gateway supports MCP protocol version ${MCP_PROTOCOL_VERSION}, not ${inboundProtocolVersion}.`,
+        supported: [MCP_PROTOCOL_VERSION],
+      }));
+      return;
+    }
 
     // Middleware (Plan 243-02 will inject authorize + exchange here).
     // Default: pass through with the caller's bearer token.
@@ -669,7 +689,7 @@ export class GatewayServer {
       // default Accept (axios happens to include */*, but that is not a contract).
       Accept: 'application/json, text/event-stream',
       Authorization: `Bearer ${upstreamToken}`,
-      [MCP_PROTO_HEADER]: '2025-11-25',
+      [MCP_PROTO_HEADER]: MCP_PROTOCOL_VERSION,
     };
 
     // Bridge the gateway's DPoP verification outcome to the upstream MCP server
@@ -695,7 +715,7 @@ export class GatewayServer {
         id: 'gw-init',
         method: 'initialize',
         params: {
-          protocolVersion: '2025-11-25',
+          protocolVersion: MCP_PROTOCOL_VERSION,
           capabilities: {},
           clientInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
         },
@@ -775,10 +795,14 @@ export class GatewayServer {
     const realm = 'banking-mcp-gateway';
     const metadataUrl = `${selfBaseUrl(req, this.config.port)}/.well-known/oauth-protected-resource`;
     const safeDesc = sanitizeHeaderDescription(description);
+    // RFC 6750 §3.1 SHOULD include scope= on 401 — advertise the minimum scope
+    // the gateway requires for any tool invocation.
+    const baseScope = 'mcp:invoke';
     res.writeHead(401, {
       'Content-Type': 'application/json',
       'WWW-Authenticate': appendEnterpriseWwwAuthHint([
         `Bearer realm="${realm}"`,
+        `scope="${baseScope}"`,
         `resource_metadata="${metadataUrl}"`,
         `error="${errorCode}"`,
         `error_description="${safeDesc}"`,

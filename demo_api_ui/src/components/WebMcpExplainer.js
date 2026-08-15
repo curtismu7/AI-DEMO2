@@ -28,7 +28,7 @@ const WebMcpExplainer = ({ user, onLogout }) => (
       <section className="app-page-card" style={{ padding: '16px 18px', marginBottom: 16 }}>
         <h2>How it relates to this demo</h2>
         <p>
-          In Super Banking, MCP tools are served by the <strong>banking MCP server</strong> and
+          In AI Demo, MCP tools are served by the <strong>banking MCP server</strong> and
           reached through the Backend-for-Frontend over WebSocket (see <em>Our MCP Server</em> and
           <em> MCP Tools</em>). WebMCP moves that idea into the browser itself: the page declares
           tools the user&apos;s own browser-based agent can call, gated by browser permissions

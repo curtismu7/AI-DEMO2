@@ -49,6 +49,26 @@ function pdpResponseFor(gate) {
   return { decision: 'PERMIT', consentRequired: true, decisionId: 'tx-consent' };
 }
 
+const { AMOUNT_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
+
+// All verticals that participate in the UC6/7/8 amount-gate demo.
+// Each must have the same DENY/STEP_UP/HITL breakpoints as banking.
+// Adding a new vertical? Add it here — the test enforces that every
+// vertical in AMOUNT_PRIMARY_TOOL_BY_VERTICAL is covered.
+const AMOUNT_GATE_VERTICALS = [
+  { vertical: 'banking',        primaryTool: 'create_transfer' },
+  { vertical: 'healthcare',     primaryTool: 'pay_bill' },
+  { vertical: 'retail',         primaryTool: 'checkout' },
+  { vertical: 'abercrombie-fitch', primaryTool: 'checkout' },
+  { vertical: 'government',     primaryTool: 'pay_fee' },
+  { vertical: 'university',     primaryTool: 'pay_tuition_balance' },
+  { vertical: 'workforce',      primaryTool: 'submit_expense' },
+  { vertical: 'sporting-goods', primaryTool: 'extend_rental' },
+  { vertical: 'manufacturing',  primaryTool: 'approve_purchase_order' },
+  { vertical: 'investment',     primaryTool: 'large_trade' },
+  { vertical: 'airlines',       primaryTool: 'pay_airline_fee' },
+];
+
 const CASES = [
   ...bankingAmountGateExpectations().map((g) => ({
     id: g.id,
@@ -57,9 +77,14 @@ const CASES = [
     gate: g.gate,
     primaryTool: 'create_transfer',
   })),
-  { id: 'UC6', vertical: 'healthcare', amount: 2500, gate: 'DENY', primaryTool: 'pay_bill' },
-  { id: 'UC7', vertical: 'healthcare', amount: 600, gate: 'STEP_UP', primaryTool: 'pay_bill' },
-  { id: 'UC8', vertical: 'healthcare', amount: 300, gate: 'HITL', primaryTool: 'pay_bill' },
+  // All non-banking verticals: same three breakpoints as banking.
+  ...AMOUNT_GATE_VERTICALS
+    .filter((v) => v.vertical !== 'banking')
+    .flatMap(({ vertical, primaryTool }) => [
+      { id: 'UC6', vertical, amount: 2500, gate: 'DENY',    primaryTool },
+      { id: 'UC7', vertical, amount: 600,  gate: 'STEP_UP', primaryTool },
+      { id: 'UC8', vertical, amount: 300,  gate: 'HITL',    primaryTool },
+    ]),
 ];
 
 describe('step verification — amount gates come from the Transaction policy', () => {
@@ -67,11 +92,25 @@ describe('step verification — amount gates come from the Transaction policy', 
     jest.clearAllMocks();
   });
 
-  test('covers banking + healthcare UC6/7/8', () => {
-    expect(CASES.map((c) => `${c.vertical}:${c.id}`)).toEqual(expect.arrayContaining([
-      'banking:UC6', 'banking:UC7', 'banking:UC8',
-      'healthcare:UC6', 'healthcare:UC7', 'healthcare:UC8',
-    ]));
+  test('AMOUNT_PRIMARY_TOOL_BY_VERTICAL is fully covered — no vertical drifts out of sync', () => {
+    // banking uses its own base UC entries (primaryTool: 'create_transfer') and is
+    // NOT in AMOUNT_PRIMARY_TOOL_BY_VERTICAL. All other verticals are, and every
+    // one must appear in AMOUNT_GATE_VERTICALS above or this test fails.
+    const catalogVerticals = Object.keys(AMOUNT_PRIMARY_TOOL_BY_VERTICAL).sort();
+    const coveredNonBanking = AMOUNT_GATE_VERTICALS
+      .filter((v) => v.vertical !== 'banking')
+      .map((v) => v.vertical)
+      .sort();
+    expect(coveredNonBanking).toEqual(catalogVerticals);
+  });
+
+  test('covers all verticals for UC6/7/8', () => {
+    const pairs = CASES.map((c) => `${c.vertical}:${c.id}`);
+    for (const { vertical } of AMOUNT_GATE_VERTICALS) {
+      expect(pairs).toContain(`${vertical}:UC6`);
+      expect(pairs).toContain(`${vertical}:UC7`);
+      expect(pairs).toContain(`${vertical}:UC8`);
+    }
   });
 
   describe('Transaction policy attaches the obligation', () => {

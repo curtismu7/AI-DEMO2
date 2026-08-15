@@ -60,7 +60,10 @@ describe("costume picker on the Privilege client page", () => {
   it("selecting a costume persists the pick and loads that shell immediately", () => {
     fireEvent.change(renderClientPage(), { target: { value: "chatgpt:web" } });
     expect(readMockSelection().chatgpt).toBe("web");
-    expect(navigate).toHaveBeenCalledWith("/demo/chatgpt-desktop");
+    // Variant rides in the URL (?v=) so switching within a group re-renders — see
+    // FootprintSkinPicker (#1560). Only variant picks carry it; the client-page
+    // default navigates bare.
+    expect(navigate).toHaveBeenCalledWith("/demo/chatgpt-desktop?v=web");
   });
 });
 
@@ -76,7 +79,7 @@ describe("costume picker inside a live shell", () => {
   it("switches to another costume without backing out", () => {
     fireEvent.change(renderShell("coding"), { target: { value: "saas:glean" } });
     expect(readMockSelection().saas).toBe("glean");
-    expect(navigate).toHaveBeenCalledWith("/demo/saas-embedded");
+    expect(navigate).toHaveBeenCalledWith("/demo/saas-embedded?v=glean");
   });
 
   it("returns to the client page via the default option", () => {

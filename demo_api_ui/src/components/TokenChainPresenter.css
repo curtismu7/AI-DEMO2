@@ -1,0 +1,170 @@
+/* demo_api_ui/src/components/TokenChainPresenter.css
+ *
+ * Deliberately one look, not a themed component: this is a projector view and
+ * commits to dark. It therefore paints every colour explicitly and never keys
+ * anything to `prefers-color-scheme` (REGRESSION_PLAN §4, 2026-08-02 — the rail
+ * shipped an OS-keyed dark palette with no control; do not repeat it here).
+ *
+ * Type is sized with clamp() against the viewport so it reads from the back of
+ * a room on a projector and still fits a laptop.
+ */
+
+.tcp {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #0b0d12;
+  color: #eef2f8;
+  display: flex;
+  flex-direction: column;
+  padding: 3vh 4vw;
+  font-family: inherit;
+}
+
+.tcp-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: clamp(13px, 1.2vw, 16px);
+  color: #8b95a7;
+}
+
+.tcp-count {
+  color: #ffffff;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tcp-lane {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: clamp(12px, 1vw, 14px);
+  background: #141a25;
+  border-radius: 4px;
+  padding: 4px 10px;
+}
+
+.tcp-status {
+  letter-spacing: 0.05em;
+  font-size: clamp(12px, 1vw, 14px);
+  border-radius: 4px;
+  padding: 4px 10px;
+  background: #141a25;
+}
+
+.tcp-status--done { color: #6ee7a8; background: #10261c; }
+.tcp-status--denied { color: #ff8a80; background: #2b1418; }
+.tcp-status--error { color: #ffce7a; background: #2a2013; }
+.tcp-status--notinpath { color: #8b95a7; }
+.tcp-status--pending { color: #8b95a7; }
+
+.tcp-close {
+  margin-left: auto;
+  border: 1px solid #2b3242;
+  background: transparent;
+  color: #cbd3e1;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: clamp(13px, 1.1vw, 15px);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tcp-close:hover { background: #141a25; color: #ffffff; }
+
+.tcp-title {
+  font-size: clamp(28px, 4.6vw, 52px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 2.4vh 0 0;
+  text-wrap: balance;
+}
+
+.tcp-what {
+  font-size: clamp(16px, 1.8vw, 24px);
+  line-height: 1.45;
+  color: #b9c2d2;
+  max-width: 46ch;
+  margin: 2vh 0 0;
+}
+
+.tcp-kv {
+  margin: 3vh 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 62ch;
+}
+
+.tcp-kv-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 22%) 1fr;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid #1c2230;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(13px, 1.25vw, 18px);
+}
+
+.tcp-kv-row dt { color: #6b7688; margin: 0; }
+.tcp-kv-row dd { color: #eef2f8; margin: 0; word-break: break-word; }
+
+.tcp-rfcs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2vh; }
+
+.tcp-rfc {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(12px, 1vw, 15px);
+  background: #141a25;
+  color: #9ec1ff;
+  border-radius: 5px;
+  padding: 4px 10px;
+}
+
+.tcp-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.tcp-bar { flex: 1 1 260px; display: flex; gap: 4px; min-width: 200px; }
+
+.tcp-seg {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #232a38;
+}
+
+.tcp-seg--done { background: #2f6b4f; }
+.tcp-seg--on { background: #f97316; }
+
+.tcp-nav { display: flex; gap: 8px; }
+
+.tcp-nav button {
+  border: 1px solid #2b3242;
+  background: transparent;
+  color: #cbd3e1;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: clamp(13px, 1.1vw, 15px);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tcp-nav button:hover:not(:disabled) { background: #141a25; color: #ffffff; }
+.tcp-nav button:disabled { opacity: 0.4; cursor: default; }
+
+.tcp-hint {
+  font-size: clamp(12px, 1vw, 14px);
+  color: #6b7688;
+}
+
+.tcp button:focus-visible,
+.tcp-close:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}

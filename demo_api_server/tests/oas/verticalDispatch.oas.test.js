@@ -10,6 +10,7 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
 jest.mock('../../services/pingOneUserService', () => ({
   initialize: jest.fn(),
   makeRequest: jest.fn(),
+  listUsers: jest.fn(),
 }));
 const adapter = require('../../services/mcpPingOneHttpAdapter');
 const pingOneUserService = require('../../services/pingOneUserService');
@@ -52,6 +53,27 @@ describe('pingone-admin vertical dispatch', () => {
       'pingone-admin', 'call_pingone_tool', { name: 'listUsers' }, { userId: 'test-user' }
     );
     expect(result.result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: PingOne MCP HTTP 401');
+  });
+
+  test('filtered listUsers calls use the Management API fallback with the normalized SCIM filter', async () => {
+    adapter.callTool.mockRejectedValue(
+      Object.assign(new Error('PingOne MCP HTTP 401'), { code: 'pingone_mcp_http_error' })
+    );
+    pingOneUserService.makeRequest.mockResolvedValue({
+      _embedded: { users: [{ id: 'u1', username: 'curtis.one' }] },
+    });
+    const result = await verticalDispatch.executeToolFor(
+      'pingone-admin',
+      'call_pingone_tool',
+      { name: 'listUsers', arguments: { filter: 'curtis*', limit: 10 } },
+      { userId: 'test-user' }
+    );
+    expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
+      'GET',
+      '/users?filter=username+sw+%22curtis%22&limit=10',
+    );
+    expect(result.result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: PingOne MCP HTTP 401');
+    expect(result.result.debug.summary).toContain('filter=username sw "curtis"');
   });
 
   test('adapter and Management API both failing surfaces labeled mock fallback through dispatch', async () => {

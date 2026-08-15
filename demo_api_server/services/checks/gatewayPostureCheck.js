@@ -26,10 +26,11 @@
  *
  * NOTE ON SCOPE: two gateways decide here, and they disagree. PingGateway (IG)
  * calls real PingOne cloud (api.pingone.com/.../decisionEndpoints/) and serves
- * the main chip path. This Node gateway speaks the PingAuthorize PAP shape
+ * the main chip path. The Node gateway speaks the PingAuthorize PAP shape
  * ({base}/governance/pap/alpha/policy/{worker}/decision) and serves the A2A
  * specialist path. They are different products with different APIs, so this is
- * NOT fixable by repointing an endpoint — see the check detail.
+ * NOT fixable by repointing an endpoint — see the check detail. This check
+ * reports whichever one the flags actually put in the path (selectedGateway).
  *
  * This check changes nothing. It reports the posture, which is the part that
  * was missing.
@@ -73,30 +74,100 @@ const LOCAL_POLICY_NEXT_ACTION =
   + 'passes, THEN point PINGAUTHORIZE_ENDPOINT at the cloud. Repointing first removes the '
   + 'controls that only run here.';
 
-function gatewayUrl() {
-  return (
-    process.env.MCP_GW_URL
-    || configStore.getEffective('mcp_gw_url')
-    || process.env.MCP_GATEWAY_URL
-    || configStore.getEffective('mcp_gateway_url')
-    || 'http://mcp-gateway:3005'
-  );
+/**
+ * WHICH gateway is actually in the path — resolved the same way every tool call
+ * resolves it, not from a private env chain.
+ *
+ * This check used to read MCP_GW_URL / mcp_gateway_url and default to the Node
+ * gateway. With ff_mcp_gateway_pinggateway ON — the steady state — the request
+ * path is PingGateway (IG), so the card reported the posture of a component
+ * nothing was calling while sitting under the same "Agent Gateway" heading as
+ * gateway.real_path, which IS gated on that flag. Its own nextAction tells the
+ * presenter to trust it on stage, so naming the wrong gateway is worse than
+ * saying nothing.
+ *
+ * getMcpGatewayHttpUrl() is the single chokepoint the flag re-routes; the
+ * IG-vs-Node comparison is the same `base === pgUrl` test callToolViaGateway
+ * uses to pick IG-only routes.
+ */
+function selectedGateway() {
+  const { tryGetMcpGatewayHttpUrl } = require('../mcpGatewayClient');
+  const base = (tryGetMcpGatewayHttpUrl() || 'http://mcp-gateway:3005').replace(/\/$/, '');
+  const pgUrl = (
+    process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || ''
+  ).replace(/\/$/, '');
+  return {
+    // A configured URL may already carry /mcp; /health hangs off the origin.
+    url: base.replace(/\/mcp\/?$/, ''),
+    isPingGateway: !!pgUrl && base === pgUrl,
+  };
 }
 
 /**
  * Read the gateway's self-reported authz posture. Read-only: GET /health makes
  * no decision and mutates nothing.
- * @returns {Promise<{ok:boolean, authz:object|null, error?:string}>}
+ *
+ * `raw` is returned even when the probe is not 200: PingGateway answers 503 with
+ * a parseable `{ ready:false }` body, and "reachable but refusing to serve" is a
+ * different finding from "unreachable".
+ * @returns {Promise<{ok:boolean, authz:object|null, raw:object|null, error?:string}>}
  */
 async function readPosture(url) {
   const { probeGatewayHealth } = require('../../routes/mcpGatewayConfig');
   try {
     const { running, response } = await probeGatewayHealth(url);
-    if (!running || !response) return { ok: false, authz: null, error: `no /health from ${url}` };
+    if (!running || !response) {
+      return { ok: false, authz: null, raw: response || null, error: `no /health from ${url}` };
+    }
     return { ok: true, authz: response.authz || null, raw: response };
   } catch (err) {
-    return { ok: false, authz: null, error: err && err.message ? err.message : 'probe failed' };
+    return { ok: false, authz: null, raw: null, error: err && err.message ? err.message : 'probe failed' };
   }
+}
+
+/**
+ * PingGateway (IG) posture, from the only posture signal it exposes.
+ *
+ * IG has no /health authz block — its /health is p1az-readiness.groovy
+ * (ping-gateway/config/routes/00-health.json), which returns 200 `{ready:true}`
+ * only when P1AZDecision's DEFAULT (real, non-simulated) PingOne Authorize
+ * backend is fully configured, and 503 `{ready:false}` otherwise. That is
+ * exactly the "is a real PDP answering" question this card asks, read from the
+ * component that answers it. Enforcement per-control is not exposed there;
+ * gateway.real_path asserts the path end to end instead of guessing here.
+ */
+function pingGatewayPosture(url, raw, error) {
+  const meta = { url, gateway: 'pinggateway', policySource: 'pingone-authorize' };
+  if (!raw || typeof raw.ready !== 'boolean') {
+    return {
+      status: 'warn',
+      detail: `Could not read the PingGateway posture — ${error || '/health did not report readiness'}.`,
+      meta: { ...meta, engineIsReal: null },
+      nextAction: `Check PingGateway is up and the BFF gateway URL points at it (tried ${url}).`,
+    };
+  }
+  if (!raw.ready) {
+    return {
+      status: 'fail',
+      detail:
+        'PingGateway is the gateway in the path and it reports NOT READY — its real PingOne '
+        + 'Authorize decision backend is not configured, so every gateway decision fails closed.',
+      meta: { ...meta, engineIsReal: false, ready: false },
+      nextAction:
+        'Set the P1AZ_* env on the ping-gateway service (P1AZ_REAL_BASE, P1AZ_DECISION_ENDPOINT_ID, '
+        + 'PINGONE_TOKEN_ENDPOINT, P1AZ_WORKER_CLIENT_ID, P1AZ_WORKER_CLIENT_SECRET) and re-read its '
+        + '[P1AZReadiness] log line.',
+    };
+  }
+  return {
+    status: 'pass',
+    detail:
+      'PingGateway is the gateway in the path and its readiness probe confirms the REAL PingOne '
+      + 'Authorize decision endpoint is configured, so decisions come from PingOne Authorize, not a '
+      + 'local policy. PingGateway does not publish a per-control enforcement map — the end-to-end '
+      + 'path is asserted by the real gateway path check.',
+    meta: { ...meta, engineIsReal: true, ready: true },
+  };
 }
 
 const posture = {
@@ -105,14 +176,17 @@ const posture = {
   category: 'Agent Gateway',
   severity: 'blocking',
   async run() {
-    const url = gatewayUrl();
-    const { ok, authz, error } = await readPosture(url);
+    const { url, isPingGateway } = selectedGateway();
+    const { ok, authz, raw, error } = await readPosture(url);
+
+    // Different product, different posture surface — see pingGatewayPosture.
+    if (isPingGateway) return pingGatewayPosture(url, raw, error);
 
     if (!ok) {
       return {
         status: 'warn',
         detail: `Could not read the gateway posture — ${error}.`,
-        nextAction: `Check the Agent Gateway is up and MCP_GW_URL points at it (tried ${url}).`,
+        nextAction: `Check the Demo Agent Gateway is up and mcp_demo_gateway_url points at it (tried ${url}).`,
       };
     }
     if (!authz) {
@@ -135,7 +209,7 @@ const posture = {
     // Is a real PDP answering? Read from the gateway itself. Deliberately NOT
     // cross-referenced against ff_authorize_real — see the note below.
     const engineIsReal = !NOT_REAL.has(policySource);
-    const meta = { url, policySource, failOpen, enforcing, engineIsReal };
+    const meta = { url, gateway: 'node', policySource, failOpen, enforcing, engineIsReal };
 
     // NO split-brain check here, deliberately.
     //
@@ -190,4 +264,4 @@ const posture = {
 };
 
 register(posture);
-module.exports = { posture, readPosture, NOT_REAL };
+module.exports = { posture, readPosture, selectedGateway, pingGatewayPosture, NOT_REAL };

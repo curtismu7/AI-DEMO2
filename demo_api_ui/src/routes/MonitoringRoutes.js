@@ -7,10 +7,14 @@ import DevToolsDashboard from "../components/DevToolsDashboard";
 import LogViewerPage from "../components/LogViewerPage";
 import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
+import NewRelicDashboard from "../components/NewRelicDashboard";
+import P1AzDashboard from "../components/P1AzDashboard";
+import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
-import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
+import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
+import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -105,7 +109,51 @@ export function AgentFlowInspectorRoute({ user }) {
   // Mounted under App.js catch-all which already supplies TopNav + main-content
   // (+ side nav). Do not nest another shell — a second .main-content also got
   // the sidebar width offset and left empty space on the right.
+  // History view — UnifiedTokenFlowInspector (live execution) stays reachable
+  // as a floating overlay via DevToolsRoute; this page reviews past runs.
+  return <AgentFlowHistoryPage />;
+}
+
+// Public — no session required. Wrapped in AppShell so the header and side nav
+// render for signed-out visitors too; TopNav and AdminSideNav are both
+// null-user safe. Deliberately NOT in isNoChromeRoute(): with user null,
+// shellRendersSideNav() returns true and AppShell supplies the sidebar.
+export function NewRelicRoute({ user, logout }) {
   return (
-    <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
+    <AppShell user={user} logout={logout}>
+      <NewRelicDashboard />
+    </AppShell>
+  );
+}
+
+// The PingOne webhook event stream. Split out of /monitoring/new-relic, which
+// was named for New Relic but rendered this. Public, matching its old behavior.
+export function PingOneEventsRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingOneEventPanel />
+    </AppShell>
+  );
+}
+
+// PingOne Authorize decisions and gate posture. Public, matching the other
+// monitoring pages. Deliberately NOT in isNoChromeRoute(): with user null,
+// shellRendersSideNav() returns true and AppShell supplies the sidebar.
+export function P1AzRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <P1AzDashboard />
+    </AppShell>
+  );
+}
+
+// RFC 8693 token-exchange telemetry. Public, matching the other monitoring
+// pages. Deliberately NOT in isNoChromeRoute(): with user null,
+// shellRendersSideNav() returns true and AppShell supplies the sidebar.
+export function TokenExchangeRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <TokenExchangeDashboard />
+    </AppShell>
   );
 }

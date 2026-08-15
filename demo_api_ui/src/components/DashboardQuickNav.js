@@ -31,6 +31,8 @@ export default function DashboardQuickNav({ user }) {
     return null;
   }
 
+  // The admin dashboard moved to /admin/pingone when the support console took
+  // /admin. This button says "Admin dashboard", so it follows the content.
   const dashboardPath = user ? (isAdmin ? '/admin' : '/dashboard') : '/dashboard';
 
   const openApiPopout = () => {
@@ -68,7 +70,9 @@ export default function DashboardQuickNav({ user }) {
         className="dashboard-quick-nav__btn"
         title="Open AI Agent panel"
         onClick={() => {
-          const agentRoutes = ['/', '/admin', '/dashboard'];
+          // The admin agent mounts where isPingOneAdminAgentRoute matches,
+          // which is /admin/pingone now — not /admin.
+          const agentRoutes = ['/', '/admin', '/admin/pingone', '/dashboard'];
           const norm = pathname.replace(/\/$/, '') || '/';
           if (agentRoutes.includes(norm)) {
             window.dispatchEvent(new CustomEvent('banking-agent-open'));

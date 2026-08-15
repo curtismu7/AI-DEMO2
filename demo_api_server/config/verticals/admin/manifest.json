@@ -2,7 +2,7 @@
   "id": "admin",
   "schemaVersion": 3,
   "identity": {
-    "displayName": "Admin Console",
+    "displayName": "Admin Portal",
     "headerTitle": "Admin Console",
     "documentTitle": "Admin Console · PingOne AI IAM Core",
     "logoAlt": "Admin Console",

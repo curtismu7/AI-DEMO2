@@ -298,7 +298,7 @@ function main() {
   const args = process.argv.slice(2);
   const configFile = args[0];
   
-  console.log('🏦 Banking MCP Server - Configuration Validator\n');
+  console.log('🏦 AI Demo MCP Server - Configuration Validator\n');
   console.log('================================================\n');
   
   let totalErrors = 0;

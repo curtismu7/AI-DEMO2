@@ -123,6 +123,11 @@ interface RunAgentInput {
     interruptId: string;
     status: 'approved' | 'denied' | 'cancelled';
     payload?: unknown;
+    // Echoed back from the interrupt the frontend received (HitlInterrupt.reason /
+    // .toolName below) — lets the resume message name the exact retry argument
+    // instead of leaving the LLM to infer it from a vague "please proceed".
+    reason?: string;
+    toolName?: string;
   }>;
 }
 
@@ -240,6 +245,7 @@ interface HitlInterrupt {
   message: string;
   responseSchema: unknown;
   toolCallId: string;
+  toolName: string;
   expiresAt: string;
 }
 
@@ -257,6 +263,10 @@ function extractHitlInterrupt(toolResult: unknown): HitlInterrupt | null {
       message: String(r.message ?? 'User approval required'),
       responseSchema: r.responseSchema ?? { type: 'object', properties: {} },
       toolCallId: String(r.toolCallId ?? ''),
+      // r.tool — set by routes/agentTool.js on every hitlRequired envelope
+      // (HITL, step-up, and elicitation branches alike). Needed so the resume
+      // message can name which tool to retry.
+      toolName: String(r.tool ?? ''),
       expiresAt: String(r.expiresAt ?? new Date(Date.now() + 5 * 60 * 1000).toISOString()),
     };
   }
@@ -355,7 +365,7 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
 
     // Handle HITL resume
     if (resume && resume.length > 0) {
-      const { status: resumeStatus, interruptId } = resume[0];
+      const { status: resumeStatus, interruptId, reason: resumeReason, toolName: resumeToolName } = resume[0];
       if (resumeStatus === 'cancelled') {
         const msgId = uid('msg');
         emit(res, { type: EventType.TEXT_MESSAGE_START, messageId: msgId, role: 'assistant' });
@@ -366,14 +376,22 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
         return;
       }
       if (resumeStatus === 'approved') {
-        // Inject a synthetic tool result so the agent knows the HITL was approved.
+        // Inject a synthetic tool result so the agent knows the retry is approved.
         // The conversation history is supplied in `messages`; append a system note
-        // so the LLM understands it should proceed with the original tool call.
+        // that names the exact control argument to retry with — the LLM has no
+        // other way to learn the reserved arg name (it isn't in any tool schema),
+        // and a vague "please proceed" left it to guess. `reason` distinguishes
+        // an ELICITATION obligation (routes/agentTool.js) from HITL/step-up
+        // consent, which use a different reserved arg.
+        const tool = resumeToolName || 'the tool';
+        const retryHint = resumeReason === 'elicitation_required'
+          ? `Call ${tool} again with _elicitation_confirmed=true and _elicitation_id="${interruptId}" in the arguments.`
+          : `Call ${tool} again with _hitl_challenge_id="${interruptId}" in the arguments.`;
         messages = [
           ...messages,
           {
             role: 'user' as const,
-            content: `[System: The user approved the action (interrupt ${interruptId}). Please proceed.]`,
+            content: `[System: The user approved the action (interrupt ${interruptId}). ${retryHint}]`,
           },
         ];
       }

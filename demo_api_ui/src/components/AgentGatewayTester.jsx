@@ -11,6 +11,7 @@ import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
+import InlineSpinner from './shared/InlineSpinner';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_real';
@@ -891,7 +892,9 @@ export default function AgentGatewayTester() {
               <pre className="inspector-shell-output-code">
                 {chainResults.length === 0 ? (
                   <div style={{ padding: 16, color: '#64748b', fontSize: 12 }}>
-                    {chainRunning ? 'Running chain…' : 'Click "Run chain" (Config tab) to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
+                    {chainRunning
+                      ? 'Running chain…'
+                      : 'Toggle the left panel to "Config" (above the tool tree), then click "Run chain (accounts → balance → sensitive)" to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
                   </div>
                 ) : (
                   chainResults.map((step, i) => (
@@ -908,6 +911,10 @@ export default function AgentGatewayTester() {
                   ))
                 )}
               </pre>
+            </div>
+          ) : sending ? (
+            <div className="inspector-shell-output-empty">
+              <InlineSpinner label="Calling gateway…" />
             </div>
           ) : resp ? (
             <>

@@ -166,6 +166,7 @@ export async function buildApiKeyToolResult(
     ok: true,
     result: {
       content: [{ type: 'text', text: JSON.stringify(mResp.data) }],
+      structuredContent: mResp.data,
       _meta: {
         credentialPath: 'api_key',
         apiKeyMaskedLast4: backendLast4,

@@ -1,0 +1,23 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "UC2",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "FAIL",
+  "errorClass": "missing_prereq",
+  "primaryTool": "sensitive_passenger_record",
+  "checkedAt": "2026-08-14",
+  "requiredFlags": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "prereqErrors": [
+    "Passenger Records Specialist credentials missing (pingone_passenger_agent_client_id / pingone_passenger_agent_client_secret)"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway"
+  ]
+}

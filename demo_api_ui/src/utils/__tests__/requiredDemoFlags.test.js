@@ -46,4 +46,9 @@ describe('requiredDemoFlags', () => {
       }),
     ).toEqual(['ff_a2a_delegation']);
   });
+
+  it('requires ff_a2a_delegation for a2a-generalist-mismatch', () => {
+    expect(requiredFlagsForUseCase({ useCaseId: 'a2a-generalist-mismatch', primaryTool: 'sensitive_holdings' }))
+      .toContain('ff_a2a_delegation');
+  });
 });

@@ -24,4 +24,22 @@ describe('ActivityLogPage', () => {
       'true',
     );
   });
+
+  it('offsets the modal past the sidebar instead of painting over it', () => {
+    // Simulate AdminSideNav's reserved space — AppShell's .main-content
+    // normally gets this via CSS (margin-left: var(--sidebar-width)), but
+    // the fixed-position modal has to read it explicitly since fixed
+    // positioning ignores an ancestor's margin.
+    const mainContent = document.createElement('div');
+    mainContent.className = 'main-content';
+    mainContent.style.marginLeft = '310px';
+    document.body.appendChild(mainContent);
+
+    render(<ActivityLogPage />, { container: mainContent });
+
+    const dialog = screen.getByRole('dialog');
+    expect(parseFloat(dialog.style.left)).toBeGreaterThan(310);
+
+    document.body.removeChild(mainContent);
+  });
 });

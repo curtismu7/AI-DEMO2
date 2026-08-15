@@ -38,6 +38,10 @@ function _reasonFor(errorCode, fallback) {
 const ACTIVE_KEY = 'demo-track:active';
 const HISTORY_KEY = 'demo-track:history';
 const HISTORY_CAP = 20;
+// How long a slot stays armed for the wildcard after the page asks to run it.
+// Long enough for a chip round-trip (agent + gateway + P1AZ), short enough that
+// a presenter who walks away does not leave the track open to passive traffic.
+const ARM_TTL_MS = 120000;
 const GAUNTLET_SET = new Set(GAUNTLET_SIMS.map(g => g.sim));
 
 let _run = null;
@@ -96,14 +100,24 @@ function _maybeAdvance(run) {
 }
 
 /**
- * Candidate steps: active step first, then track order. `wildcardOk` is true
- * only for the active step — '*' matches must not swallow observations from
- * the fallback scan.
+ * Candidate steps: active step first, then track order.
  */
 function _candidates(run) {
   const active = _stepById(run.activeStepId);
   const rest = TRACK_STEPS.filter(s => s !== active);
-  return [...(active ? [{ step: active, wildcardOk: true }] : []), ...rest.map(step => ({ step, wildcardOk: false }))];
+  return [...(active ? [{ step: active }] : []), ...rest.map(step => ({ step }))];
+}
+
+/**
+ * '*' fires only for the ONE slot the page armed, and only until it expires or
+ * a fill consumes it. Keying the wildcard off the active step instead let any
+ * passing tool call stamp the active step, advance the pointer, and walk the
+ * whole track — filling every card with unrelated evidence.
+ */
+function _wildcardOk(run, stepId, color) {
+  const arm = run.arm;
+  if (!arm || arm.stepId !== stepId || arm.color !== color) return false;
+  return Date.now() < arm.expiresAt;
 }
 
 function _toolMatches(slot, toolName, wildcardOk) {
@@ -114,6 +128,7 @@ function _toolMatches(slot, toolName, wildcardOk) {
 
 function _fill(run, stepId, color, stamp) {
   run.slots[`${stepId}:${color}`] = stamp;
+  if (run.arm && run.arm.stepId === stepId && run.arm.color === color) run.arm = null;
   _maybeAdvance(run);
   _persist();
 }
@@ -122,10 +137,10 @@ function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }
   try {
     const run = _ensureRun();
     const at = timestamp || new Date().toISOString();
-    for (const { step, wildcardOk } of _candidates(run)) {
+    for (const { step } of _candidates(run)) {
       if (success) {
         const g = step.slots.green;
-        if (g && g.source === 'tool' && _toolMatches(g, toolName, wildcardOk)) {
+        if (g && g.source === 'tool' && _toolMatches(g, toolName, _wildcardOk(run, step.stepId, 'green'))) {
           return _fill(run, step.stepId, 'green', {
             verdict: 'PERMIT', decisionId: decisionId || null, via: toolName, at,
             reason: `PingOne Authorize permitted ${toolName} — the delegated call satisfied policy and ran.`,
@@ -133,7 +148,7 @@ function observeToolCall({ toolName, success, timestamp, decisionId, errorCode }
         }
       } else {
         const r = step.slots.red;
-        if (r && r.source === 'tool' && r.expected.includes('DENY') && _toolMatches(r, toolName, wildcardOk)) {
+        if (r && r.source === 'tool' && r.expected.includes('DENY') && _toolMatches(r, toolName, _wildcardOk(run, step.stepId, 'red'))) {
           return _fill(run, step.stepId, 'red', {
             verdict: 'DENY', decisionId: decisionId || null, via: toolName, at,
             errorCode: errorCode || null,
@@ -149,9 +164,9 @@ function observeDecision({ tool, decision, decisionId, errorCode }) {
   try {
     const run = _ensureRun();
     const at = new Date().toISOString();
-    for (const { step, wildcardOk } of _candidates(run)) {
+    for (const { step } of _candidates(run)) {
       const r = step.slots.red;
-      if (r && r.source === 'tool' && r.expected.includes(decision) && _toolMatches(r, tool, wildcardOk)) {
+      if (r && r.source === 'tool' && r.expected.includes(decision) && _toolMatches(r, tool, _wildcardOk(run, step.stepId, 'red'))) {
         return _fill(run, step.stepId, 'red', {
           verdict: decision, decisionId: decisionId || null, via: tool, at,
           errorCode: errorCode || null,
@@ -206,6 +221,20 @@ function setActiveStep(stepId) {
   return run;
 }
 
+/**
+ * Arm one slot for the wildcard — the page calls this immediately before it
+ * dispatches that slot's chip/sim, so the run about to happen is the only
+ * traffic a '*' matcher can accept.
+ */
+function armSlot({ stepId, color, ttlMs } = {}) {
+  const run = _ensureRun();
+  if (!_stepById(stepId) || (color !== 'green' && color !== 'red')) return run;
+  run.activeStepId = stepId;
+  run.arm = { stepId, color, expiresAt: Date.now() + (Number.isFinite(ttlMs) ? ttlMs : ARM_TTL_MS) };
+  _persist();
+  return run;
+}
+
 function getHistory() {
   _hydrate();
   return _history || [];
@@ -214,7 +243,7 @@ function getHistory() {
 function _resetForTests() { _run = _newRun(); _history = []; }
 
 module.exports = {
-  getState, startRun, setActiveStep, getHistory,
+  getState, startRun, setActiveStep, armSlot, getHistory,
   observeToolCall, observeDecision, observeAttackSim,
   _resetForTests,
 };

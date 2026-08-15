@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clarification Dropdown Enhancements — Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #f5f7fa;
+    --surface:   #ffffff;
+    --surface2:  #f0f2f7;
+    --border:    rgba(0,0,0,0.07);
+    --border2:   rgba(0,0,0,0.12);
+    --text:      #0d1117;
+    --muted:     #374151;
+    --accent:    #1d4ed8;
+    --accent2:   #166534;
+    --accent3:   #6d28d9;
+    --user-bg:   #bfdbfe;
+    --agent-bg:  #eef2f7;
+    --pill-bg:   rgba(29,78,216,0.08);
+    --pill-bdr:  rgba(29,78,216,0.35);
+    --pill-hover:rgba(29,78,216,0.16);
+    --amt-bg:    rgba(22,101,52,0.08);
+    --amt-bdr:   rgba(22,101,52,0.35);
+    --amt-hover: rgba(22,101,52,0.16);
+    --sel-bg:    rgba(29,78,216,0.18);
+    --sel-bdr:   rgba(29,78,216,0.7);
+    --radius:    12px;
+    --radius-sm: 8px;
+    --radius-pill: 20px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    font-weight: 300;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+
+  /* ─── HEADER ─────────────────────────────────────────── */
+  .page-header {
+    max-width: 960px;
+    margin: 0 auto 48px;
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .page-header-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.2);
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-top: 4px;
+    white-space: nowrap;
+  }
+  .page-header-text h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .page-header-text p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 560px;
+  }
+
+  /* ─── SECTION HEADERS ────────────────────────────────── */
+  .section {
+    max-width: 960px;
+    margin: 0 auto 56px;
+  }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.18);
+    border-radius: 4px;
+    padding: 2px 7px;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 24px;
+  }
+
+  /* ─── GRID ───────────────────────────────────────────── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* ─── CHAT MOCK ──────────────────────────────────────── */
+  .chat-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .chat-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .chat-panel-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px rgba(56,189,248,0.5);
+  }
+  .chat-panel-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .chat-panel-vertical {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-left: auto;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .chat-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ─── MESSAGES ───────────────────────────────────────── */
+  .msg { display: flex; flex-direction: column; gap: 6px; max-width: 88%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.agent { align-self: flex-start; align-items: flex-start; }
+
+  .msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    padding: 0 4px;
+  }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    line-height: 1.55;
+    font-weight: 400;
+  }
+  .msg.user .msg-bubble {
+    background: var(--user-bg);
+    border: 1px solid rgba(29,78,216,0.25);
+    color: #1e3a8a;
+    border-radius: var(--radius-sm) var(--radius-sm) 2px var(--radius-sm);
+  }
+  .msg.agent .msg-bubble {
+    background: var(--agent-bg);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    border-radius: var(--radius-sm) var(--radius-sm) var(--radius-sm) 2px;
+  }
+
+  /* ─── CLARIFY OPTION BUTTONS ─────────────────────────── */
+  .opts-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .opt-btn {
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 13px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--pill-bdr);
+    background: var(--pill-bg);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.13s, border-color 0.13s, transform 0.1s;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .opt-btn:hover {
+    background: var(--pill-hover);
+    border-color: rgba(56,189,248,0.55);
+    transform: translateY(-1px);
+  }
+  .opt-btn.selected {
+    background: var(--sel-bg);
+    border-color: var(--sel-bdr);
+    color: #e0f2fe;
+    animation: btn-select 0.22s ease forwards;
+  }
+  .opt-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    transform: none;
+  }
+  .opt-btn .acct-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    opacity: 0.75;
+  }
+
+  /* amount buttons */
+  .amt-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .amt-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 11px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--amt-bdr);
+    background: var(--amt-bg);
+    color: var(--accent2);
+    cursor: pointer;
+    transition: background 0.13s, border-color 0.13s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .amt-btn:hover {
+    background: var(--amt-hover);
+    border-color: rgba(245,158,11,0.55);
+    transform: translateY(-1px);
+  }
+  .amt-btn.selected {
+    background: rgba(22,101,52,0.18);
+    border-color: rgba(22,101,52,0.7);
+    color: #14532d;
+    animation: btn-select 0.22s ease forwards;
+  }
+  .amt-btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+
+  /* opts appear animation */
+  .opts-animate {
+    animation: opts-in 0.18s ease-out both;
+  }
+
+  @keyframes opts-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes opts-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-4px); }
+  }
+  @keyframes btn-select {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  .msg-appear { animation: opts-in 0.2s ease-out both; }
+
+  /* ─── BEFORE/AFTER COMPARE ───────────────────────────── */
+  .compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .compare-card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .compare-card-label.before { color: var(--muted); }
+  .compare-card-label.after  { color: #4ade80; }
+  .compare-card-label .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+  .compare-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .compare-opt {
+    font-size: 12px;
+    padding: 5px 13px;
+    border-radius: var(--radius-pill);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 500;
+  }
+  .compare-opt.old {
+    background: rgba(100,116,139,0.12);
+    border: 1px solid rgba(100,116,139,0.25);
+    color: var(--muted);
+  }
+  .compare-opt.new {
+    background: var(--pill-bg);
+    border: 1px solid var(--pill-bdr);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .compare-opt.new .acct-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    opacity: 0.72;
+  }
+
+  /* ─── FEATURE TAGS ───────────────────────────────────── */
+  .feature-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .feature-tag.blue  { color: var(--accent);  background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.2); }
+  .feature-tag.amber { color: var(--accent2); background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); }
+  .feature-tag.purple{ color: var(--accent3); background: rgba(167,139,250,0.1);border: 1px solid rgba(167,139,250,0.2);}
+  .feature-tag.green { color: #4ade80; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.2); }
+
+  /* ─── ANIM / KBD CARDS ──────────────────────────────── */
+  .anim-demo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .anim-demo-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .anim-demo-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .replay-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: rgba(255,255,255,0.04);
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    align-self: flex-start;
+  }
+  .replay-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+  .kbd-demo {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .kbd-shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .kbd-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .kbd-focused {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .demo-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <span class="page-header-badge">Mock · 2026-08-06</span>
+  <div class="page-header-text">
+    <h1>Clarification Dropdown Enhancements</h1>
+    <p>Visual mock for all four enhancements: smarter account labels, amount quick-picks, all-vertical enum coverage, and UX animation polish.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 1 — SMARTER OPTIONS (type + masked number)
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">
+    <span class="section-num">01</span>
+    <span class="section-title">Smarter Options — Type + Masked Number</span>
+    <span class="section-desc">liveAccounts → "Checking ••6789"</span>
+  </div>
+  <div class="section-divider"></div>
+
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="compare-card">
+      <div class="compare-card-label before"><span class="dot"></span> Before</div>
+      <div class="compare-opts">
+        <span class="compare-opt old">Checking</span>
+        <span class="compare-opt old">Savings</span>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-card-label after"><span class="dot"></span> After</div>
+      <div class="compare-opts">
+        <span class="compare-opt new">Checking <span class="acct-num">••6789</span></span>
+        <span class="compare-opt new">Savings <span class="acct-num">••4521</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-panel">
+    <div class="chat-panel-header">
+      <div class="chat-panel-dot"></div>
+      <span class="chat-panel-name">AI Banking Assistant</span>
+      <span class="chat-panel-vertical">banking</span>
+    </div>
+    <div class="chat-body" id="chat-banking-1">
+      <div class="msg user">
+        <span class="msg-label">You</span>
+        <div class="msg-bubble">check my balance</div>
+      </div>
+      <div class="msg agent">
+        <span class="msg-label">Agent</span>
+        <div class="msg-bubble">
+          Which account would you like to check the balance for?
+          <div class="opts-row opts-animate" id="opts-banking-1">
+            <button class="opt-btn" onclick="selectOpt(this,'opts-banking-1','chat-banking-1','Checking ••6789','balance')">Checking <span class="acct-num">••6789</span></button>
+            <button class="opt-btn" onclick="selectOpt(this,'opts-banking-1','chat-banking-1','Savings ••4521','balance')">Savings <span class="acct-num">••4521</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="demo-note">click a button to see selection + reply</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 2 — AMOUNT QUICK-PICKS
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">
+    <span class="section-num">02</span>
+    <span class="section-title">Amount Quick-Picks</span>
+    <span class="section-desc">amountPresets → $100 · $500 · $1,000 · $2,500</span>
+  </div>
+  <div class="section-divider"></div>
+
+  <div class="grid-2">
+    <div class="chat-panel">
+      <div class="chat-panel-header">
+        <div class="chat-panel-dot"></div>
+        <span class="chat-panel-name">AI Banking Assistant</span>
+        <span class="chat-panel-vertical">banking</span>
+      </div>
+      <div class="chat-body" id="chat-banking-2">
+        <div class="msg user">
+          <span class="msg-label">You</span>
+          <div class="msg-bubble">transfer some money</div>
+        </div>
+        <div class="msg agent">
+          <span class="msg-label">Agent</span>
+          <div class="msg-bubble">
+            Which accounts would you like to transfer between, and how much?
+            <div class="opts-row opts-animate" id="opts-b2-acct">
+              <button class="opt-btn" onclick="selectAcct(this,'opts-b2-acct')">Checking <span class="acct-num">••6789</span></button>
+              <button class="opt-btn" onclick="selectAcct(this,'opts-b2-acct')">Savings <span class="acct-num">••4521</span></button>
+            </div>
+            <div class="amt-row opts-animate" id="opts-b2-amt">
+              <button class="amt-btn" onclick="selectAmt(this,'opts-b2-amt','chat-banking-2')">$100</button>
+              <button class="amt-btn" onclick="selectAmt(this,'opts-b2-amt','chat-banking-2')">$500</button>
+              <button class="amt-btn" onclick="selectAmt(this,'opts-b2-amt','chat-banking-2')">$1,000</button>
+              <button class="amt-btn" onclick="selectAmt(this,'opts-b2-amt','chat-banking-2')">$2,500</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-note">select account then amount</div>
+    </div>
+
+    <div class="chat-panel">
+      <div class="chat-panel-header">
+        <div class="chat-panel-dot" style="background:#a78bfa;box-shadow:0 0 6px rgba(167,139,250,0.5)"></div>
+        <span class="chat-panel-name">Meridian Wealth Assistant</span>
+        <span class="chat-panel-vertical">investment</span>
+      </div>
+      <div class="chat-body" id="chat-invest-1">
+        <div class="msg user">
+          <span class="msg-label">You</span>
+          <div class="msg-bubble">deposit $500</div>
+        </div>
+        <div class="msg agent">
+          <span class="msg-label">Agent</span>
+          <div class="msg-bubble">
+            To deposit, I need: Portfolio Type. Please provide this detail.
+            <div class="opts-row opts-animate" id="opts-invest-1">
+              <button class="opt-btn" style="border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08);color:var(--accent3)" onclick="selectOpt(this,'opts-invest-1','chat-invest-1','Brokerage','deposit')">Brokerage</button>
+              <button class="opt-btn" style="border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08);color:var(--accent3)" onclick="selectOpt(this,'opts-invest-1','chat-invest-1','Retirement','deposit')">Retirement</button>
+              <button class="opt-btn" style="border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.08);color:var(--accent3)" onclick="selectOpt(this,'opts-invest-1','chat-invest-1','Trust','deposit')">Trust</button>
+            </div>
+            <div class="amt-row opts-animate">
+              <button class="amt-btn" disabled>$500</button>
+              <button class="amt-btn" disabled>$1,000</button>
+              <button class="amt-btn" disabled>$5,000</button>
+              <button class="amt-btn" disabled>$10,000</button>
+            </div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:'JetBrains Mono',monospace">amount already provided — amount presets disabled</div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-note">click portfolio type to complete</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 3 — ALL-VERTICAL ENUM COVERAGE
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">
+    <span class="section-num">03</span>
+    <span class="section-title">All-Vertical Enum Coverage</span>
+    <span class="section-desc">inputSchema.enum → needsParams.choices → dropdown</span>
+  </div>
+  <div class="section-divider"></div>
+
+  <div class="grid-3">
+    <div class="chat-panel">
+      <div class="chat-panel-header">
+        <div class="chat-panel-dot" style="background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,0.4)"></div>
+        <span class="chat-panel-name">City Services</span>
+        <span class="chat-panel-vertical">government</span>
+      </div>
+      <div class="chat-body" id="chat-gov-1">
+        <div class="msg user">
+          <span class="msg-label">You</span>
+          <div class="msg-bubble">schedule an inspection</div>
+        </div>
+        <div class="msg agent">
+          <span class="msg-label">Agent</span>
+          <div class="msg-bubble">
+            To schedule inspection, I need: Type.
+            <div class="opts-row opts-animate" id="opts-gov-1">
+              <button class="opt-btn" style="border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.08);color:#4ade80" onclick="selectOpt(this,'opts-gov-1','chat-gov-1','Building','inspection')">Building</button>
+              <button class="opt-btn" style="border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.08);color:#4ade80" onclick="selectOpt(this,'opts-gov-1','chat-gov-1','Electrical','inspection')">Electrical</button>
+              <button class="opt-btn" style="border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.08);color:#4ade80" onclick="selectOpt(this,'opts-gov-1','chat-gov-1','Plumbing','inspection')">Plumbing</button>
+              <button class="opt-btn" style="border-color:rgba(74,222,128,0.3);background:rgba(74,222,128,0.08);color:#4ade80" onclick="selectOpt(this,'opts-gov-1','chat-gov-1','Fire','inspection')">Fire</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-note">enum from tools.js</div>
+    </div>
+
+    <div class="chat-panel">
+      <div class="chat-panel-header">
+        <div class="chat-panel-dot" style="background:#fb923c;box-shadow:0 0 6px rgba(251,146,60,0.4)"></div>
+        <span class="chat-panel-name">United Airlines</span>
+        <span class="chat-panel-vertical">airlines</span>
+      </div>
+      <div class="chat-body" id="chat-air-1">
+        <div class="msg user">
+          <span class="msg-label">You</span>
+          <div class="msg-bubble">upgrade my seat</div>
+        </div>
+        <div class="msg agent">
+          <span class="msg-label">Agent</span>
+          <div class="msg-bubble">
+            Which cabin class would you like to upgrade to?
+            <div class="opts-row opts-animate" id="opts-air-1">
+              <button class="opt-btn" style="border-color:rgba(251,146,60,0.3);background:rgba(251,146,60,0.08);color:#fb923c" onclick="selectOpt(this,'opts-air-1','chat-air-1','Economy Plus','upgrade')">Economy Plus</button>
+              <button class="opt-btn" style="border-color:rgba(251,146,60,0.3);background:rgba(251,146,60,0.08);color:#fb923c" onclick="selectOpt(this,'opts-air-1','chat-air-1','United First','upgrade')">United First</button>
+              <button class="opt-btn" style="border-color:rgba(251,146,60,0.3);background:rgba(251,146,60,0.08);color:#fb923c" onclick="selectOpt(this,'opts-air-1','chat-air-1','United Polaris','upgrade')">United Polaris</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-note">enum from manifest accountTypes</div>
+    </div>
+
+    <div class="chat-panel">
+      <div class="chat-panel-header">
+        <div class="chat-panel-dot" style="background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.4)"></div>
+        <span class="chat-panel-name">CareConnect</span>
+        <span class="chat-panel-vertical">healthcare</span>
+      </div>
+      <div class="chat-body" id="chat-hc-1">
+        <div class="msg user">
+          <span class="msg-label">You</span>
+          <div class="msg-bubble">cancel my appointment</div>
+        </div>
+        <div class="msg agent">
+          <span class="msg-label">Agent</span>
+          <div class="msg-bubble">
+            To cancel appointment, I need: Appointment ID. Please provide this detail.
+            <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;padding:6px 10px">
+              hint: e.g. "APT-1042"
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-note">dynamic ID — no dropdown (correct behavior)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 4 — UX POLISH: ANIMATION + KEYBOARD NAV
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">
+    <span class="section-num">04</span>
+    <span class="section-title">UX Polish</span>
+    <span class="section-desc">animation · keyboard nav · accessible</span>
+  </div>
+  <div class="section-divider"></div>
+
+  <div class="grid-2">
+    <div class="anim-demo" id="anim-demo">
+      <div>
+        <span class="feature-tag blue">Animation</span>
+        <div class="anim-demo-title">Fade-in · Select highlight · Fade-out</div>
+        <div class="anim-demo-sub">150ms ease-out on appear, 200ms scale on select, 150ms ease-in on dismiss</div>
+      </div>
+      <div id="anim-target">
+        <div style="font-size:13px;color:var(--text);margin-bottom:10px;line-height:1.55">Which account would you like to check the balance for?</div>
+        <div class="opts-row opts-animate" id="opts-anim">
+          <button class="opt-btn" onclick="animSelect(this)">Checking <span class="acct-num">••6789</span></button>
+          <button class="opt-btn" onclick="animSelect(this)">Savings <span class="acct-num">••4521</span></button>
+        </div>
+      </div>
+      <button class="replay-btn" onclick="replayAnim()">↺ replay</button>
+    </div>
+
+    <div class="kbd-demo">
+      <span class="feature-tag green">Keyboard Nav</span>
+      <div class="anim-demo-title" style="font-family:'Syne',sans-serif;font-size:13px;font-weight:600;color:var(--text)">Navigate without mouse</div>
+      <div class="kbd-shortcuts">
+        <div class="kbd-row"><span class="kbd">← →</span><span>cycle focus between buttons</span></div>
+        <div class="kbd-row"><span class="kbd">Enter</span><span>select focused button</span></div>
+        <div class="kbd-row"><span class="kbd">Esc</span><span>dismiss, focus text input</span></div>
+        <div class="kbd-row"><span class="kbd">Tab</span><span>standard focus order (accessible)</span></div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Live preview — use arrow keys:</div>
+        <div class="opts-row" id="kbd-opts" role="listbox" aria-label="Account options">
+          <button class="opt-btn kbd-focused" role="option" aria-selected="true" tabindex="0"
+            onkeydown="handleKbd(event,0)" onfocus="kbdFocus(0)">Checking <span class="acct-num">••6789</span></button>
+          <button class="opt-btn" role="option" aria-selected="false" tabindex="-1"
+            onkeydown="handleKbd(event,1)" onfocus="kbdFocus(1)">Savings <span class="acct-num">••4521</span></button>
+          <button class="opt-btn" role="option" aria-selected="false" tabindex="-1"
+            onkeydown="handleKbd(event,2)" onfocus="kbdFocus(2)">Credit <span class="acct-num">••8832</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;gap:16px;align-items:flex-start">
+    <span class="feature-tag green" style="flex-shrink:0;margin-bottom:0">ARIA</span>
+    <div style="font-size:12px;color:var(--muted);line-height:1.7">
+      Container: <code style="font-family:'JetBrains Mono',monospace;color:var(--text);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">role="listbox"</code> ·
+      Each button: <code style="font-family:'JetBrains Mono',monospace;color:var(--text);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">role="option"</code> +
+      <code style="font-family:'JetBrains Mono',monospace;color:var(--text);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">aria-selected</code> ·
+      Disabled when inactive: <code style="font-family:'JetBrains Mono',monospace;color:var(--text);background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">disabled</code> prevents focus trap after reply
+    </div>
+  </div>
+</div>
+
+<script>
+  function disableOpts(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    row.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  }
+
+  function appendReply(chatId, text) {
+    const chat = document.getElementById(chatId);
+    const div = document.createElement('div');
+    div.className = 'msg agent msg-appear';
+    div.innerHTML = `<span class="msg-label">Agent</span><div class="msg-bubble">${text}</div>`;
+    chat.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function appendUserMsg(chatId, text) {
+    const chat = document.getElementById(chatId);
+    const div = document.createElement('div');
+    div.className = 'msg user msg-appear';
+    div.innerHTML = `<span class="msg-label">You</span><div class="msg-bubble">${text}</div>`;
+    chat.appendChild(div);
+  }
+
+  function selectOpt(btn, rowId, chatId, label, action) {
+    btn.classList.add('selected');
+    setTimeout(() => {
+      disableOpts(rowId);
+      appendUserMsg(chatId, label);
+      setTimeout(() => {
+        const replies = {
+          balance: `Your ${label.split(' ')[0]} account balance is <strong>$4,820.15</strong>.`,
+          upgrade: `Upgrading your seat to <strong>${label}</strong>. This requires step-up verification.`,
+          deposit: `Depositing into your <strong>${label}</strong> portfolio. Redirecting to confirmation.`,
+          inspection: `Scheduling a <strong>${label}</strong> inspection. Typically 3-5 business days to confirm.`,
+        };
+        appendReply(chatId, replies[action] || `Processing <strong>${label}</strong>...`);
+      }, 400);
+    }, 220);
+  }
+
+  let b2SelectedAcct = null;
+
+  function selectAcct(btn, rowId) {
+    const row = document.getElementById(rowId);
+    row.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    b2SelectedAcct = btn.textContent.trim();
+  }
+
+  function selectAmt(btn, amtRowId, chatId) {
+    if (!b2SelectedAcct) {
+      btn.style.borderColor = 'rgba(239,68,68,0.5)';
+      setTimeout(() => { btn.style.borderColor = ''; }, 800);
+      return;
+    }
+    btn.classList.add('selected');
+    const amt = btn.textContent.trim();
+    setTimeout(() => {
+      disableOpts('opts-b2-acct');
+      document.getElementById(amtRowId).querySelectorAll('button').forEach(b => { b.disabled = true; });
+      const acct = b2SelectedAcct.replace(/\s+••\d+/, '');
+      appendUserMsg(chatId, `${amt} from ${acct}`);
+      setTimeout(() => {
+        appendReply(chatId, `Transferring <strong>${amt}</strong> from your <strong>${acct}</strong> account. This action requires your consent.`);
+        b2SelectedAcct = null;
+      }, 400);
+    }, 220);
+  }
+
+  function animSelect(btn) {
+    btn.classList.add('selected');
+    setTimeout(() => {
+      const row = document.getElementById('opts-anim');
+      row.style.animation = 'opts-out 0.15s ease-in forwards';
+      setTimeout(() => { row.style.display = 'none'; }, 160);
+    }, 240);
+  }
+
+  function replayAnim() {
+    const row = document.getElementById('opts-anim');
+    row.style.display = 'flex';
+    row.style.animation = '';
+    row.querySelectorAll('button').forEach(b => {
+      b.classList.remove('selected');
+      b.disabled = false;
+    });
+    void row.offsetWidth;
+    row.classList.remove('opts-animate');
+    void row.offsetWidth;
+    row.classList.add('opts-animate');
+  }
+
+  function kbdFocus(idx) {
+    const opts = document.querySelectorAll('#kbd-opts button');
+    opts.forEach((b, i) => {
+      b.classList.toggle('kbd-focused', i === idx);
+      b.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+    });
+  }
+
+  function handleKbd(e, idx) {
+    const opts = Array.from(document.querySelectorAll('#kbd-opts button'));
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = e.key === 'ArrowRight'
+        ? (idx + 1) % opts.length
+        : (idx - 1 + opts.length) % opts.length;
+      opts[next].focus();
+      opts.forEach((b, i) => {
+        b.tabIndex = i === next ? 0 : -1;
+        b.setAttribute('aria-selected', i === next ? 'true' : 'false');
+        b.classList.toggle('kbd-focused', i === next);
+      });
+    }
+  }
+</script>
+</body>
+</html>

@@ -215,14 +215,14 @@ export function VerticalEditorPage() {
             ))}
           </select>
         </label>
-        <button onClick={() => setShowClone(true)} type="button">+ Clone vertical</button>
-        {!isProtected && <button onClick={doDelete} type="button">Delete</button>}
-        <button onClick={resetThisVertical} disabled={isProtected} type="button">
+        <button className="btn btn-secondary btn-sm" onClick={() => setShowClone(true)} type="button">+ Clone vertical</button>
+        {!isProtected && <button className="btn btn-danger btn-sm" onClick={doDelete} type="button">Delete</button>}
+        <button className="btn btn-secondary btn-sm" onClick={resetThisVertical} disabled={isProtected} type="button">
           Reset this vertical to seed
         </button>
-        <button onClick={resetAllVerticals} type="button">Reset all verticals to seed</button>
-        <button onClick={saveSnapshot} type="button">Save state</button>
-        <button onClick={restoreSnapshot} type="button">
+        <button className="btn btn-danger btn-sm" onClick={resetAllVerticals} type="button">Reset all verticals to seed</button>
+        <button className="btn btn-primary btn-sm" onClick={saveSnapshot} type="button">Save state</button>
+        <button className="btn btn-secondary btn-sm" onClick={restoreSnapshot} type="button">
           {snapshotInfo
             ? `Restore saved state · ${new Date(snapshotInfo.savedAt).toLocaleString()}`
             : 'Restore saved state'}
@@ -269,8 +269,8 @@ export function VerticalEditorPage() {
               options={{ formatOnPaste: true, formatOnType: true, minimap: { enabled: false } }}
             />
             <div className="vertical-editor__actions">
-              <button onClick={save} type="button" disabled={!!validationError}>Save</button>
-              <button onClick={() => setEditorValue(seedValue)} type="button">Discard</button>
+              <button className="btn btn-primary btn-sm" onClick={save} type="button" disabled={!!validationError}>Save</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditorValue(seedValue)} type="button">Discard</button>
               {validationError && (
                 <span className="vertical-editor__validation" role="status">{validationError}</span>
               )}
