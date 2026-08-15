@@ -211,6 +211,23 @@ test('Run chain executes the three tools in order, carrying the account id forwa
   expect(apiClient.post).toHaveBeenNthCalledWith(3, '/api/mcp-gateway/test', { tool: 'get_sensitive_account_details', args: { account_id: 'acct-1' } });
 });
 
+test('Chain tab empty state points to the actual "Run chain" control, not a nonexistent button', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({ data: { tools: [], _source: 'live' } });
+    return Promise.resolve({ data: {} });
+  });
+
+  render(<AgentGatewayTester />);
+  await screen.findByText('Demo Agent Gateway | Authz: simulated');
+  fireEvent.click(screen.getByText('Chain'));
+
+  // The guidance must reference the real toggle + real button label so a
+  // reader can actually find them, not a "Run Chain" button that doesn't exist.
+  expect(screen.getByText(/Toggle the left panel to "Config"/)).toBeInTheDocument();
+  expect(screen.getByText(/Run chain \(accounts → balance → sensitive\)/)).toBeInTheDocument();
+});
+
 test('order badges mark the chained tools 1, 2, 3 in the tool tree', async () => {
   apiClient.get.mockImplementation((url) => {
     if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
