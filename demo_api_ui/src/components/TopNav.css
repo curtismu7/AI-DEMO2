@@ -252,6 +252,32 @@
   }
 }
 
+/* Smaller displays: let the top bar WRAP instead of clipping its controls into a
+   hidden-scrollbar scroller — the dashboard control cluster overflowed and just
+   looked cut off. The bar is position: sticky (not a fixed offset), so letting it
+   grow taller simply flows the page below it. The right cluster drops to its own
+   full-width row and its buttons wrap, so everything stays visible without any
+   horizontal scroll. Desktop (>1280px) is unchanged. */
+@media (max-width: 1280px) {
+  .topnav-container {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .topnav-right {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+  .topnav-right-scroll {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    justify-content: flex-end;
+  }
+}
+
 .topnav-search {
   display: flex;
   align-items: center;

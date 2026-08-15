@@ -23,6 +23,9 @@
 #
 # App: https://ai-demo.ping-devops.com
 #
+# Also deploys the Privilege MCPGW gateway (Helm, k8s/helm/mcpgw) alongside the
+# app — see privilege/deploy-whole-stack.prompt.md.
+#
 # Equivalent low-level commands (still work):
 #   ./run-k8.sh se-all | se-build | se-deploy | se-status | se-undeploy
 #   ./se-update-code.sh [svc] | ./se-update-config.sh | ./se-update-pingone.sh
@@ -56,6 +59,12 @@ Usage:
   ./run-pingaws.sh help
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
+
+Includes the Privilege MCPGW gateway: `deploy`/`start` also runs `helm upgrade
+--install ping-mcpgw k8s/helm/mcpgw` if Secret ping-mcpgw-secrets exists (created
+by create-secrets.sh from ping-mcpgw/procyon/config/proxy-token.env — see
+privilege/deploy-whole-stack.prompt.md). Skipped with a warning if that file/
+secret is absent; the rest of the stack still deploys.
 
 Override namespace:
   SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh start

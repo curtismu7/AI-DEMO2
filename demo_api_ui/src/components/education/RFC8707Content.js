@@ -26,9 +26,9 @@ export function RFC8707Content() {
         <li><strong>Granular Control</strong> - Fine-grained access control per resource</li>
       </ul>
 
-      <h4>RFC 8707 in Super Banking</h4>
+      <h4>RFC 8707 in AI Demo</h4>
       <p>
-        The Super Banking demo implements RFC 8707 across multiple resource servers:
+        The AI Demo implements RFC 8707 across multiple resource servers:
       </p>
 
       <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
@@ -209,10 +209,10 @@ exists but is not the default.`}
 
       <p>The single exchange produces a token audience-scoped to the MCP gateway resource; the gateway then enforces policy and forwards the token unchanged to the backend MCP server.</p>
 
-      <h4>Implementation in Super Banking</h4>
+      <h4>Implementation in AI Demo</h4>
 
       <h5>Resource Server Configuration</h5>
-      <p>Key resource servers in the Super Banking demo:</p>
+      <p>Key resource servers in the AI Demo:</p>
 
       <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
         <pre style={{ margin: 0, fontSize: '14px', fontFamily: 'inherit' }}>
@@ -285,8 +285,8 @@ Super Banking Admin App:
       <ul>
         <li><a href="https://datatracker.ietf.org/doc/html/rfc8707" target="_blank" rel="noopener noreferrer">RFC 8707 - OAuth 2.0 Resource Indicators</a></li>
         <li><a href="https://datatracker.ietf.org/doc/html/rfc6819" target="_blank" rel="noopener noreferrer">OAuth 2.0 Security Best Current Practice</a></li>
-        <li><a href="PINGONE_MAY_ACT_ONE_TOKEN_EXCHANGE.md" target="_blank" rel="noopener noreferrer">Super Banking Token Exchange Guide</a></li>
-        <li><a href="PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md" target="_blank" rel="noopener noreferrer">Super Banking 2-Exchange Pattern</a></li>
+        <li><a href="PINGONE_MAY_ACT_ONE_TOKEN_EXCHANGE.md" target="_blank" rel="noopener noreferrer">AI Demo Token Exchange Guide</a></li>
+        <li><a href="PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md" target="_blank" rel="noopener noreferrer">AI Demo 2-Exchange Pattern</a></li>
       </ul>
 
       <div style={{ 

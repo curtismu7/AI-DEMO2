@@ -1294,6 +1294,16 @@ function parseHeuristic(
           // can match it against its CONCEPTS regexes.
           params = { ...params, topic: t };
         }
+        if (typeof h.extractParams === 'function') {
+          // Per-heuristic extraction from the RAW message, not the normalized
+          // lowercase `t` — pingone-admin's prefix filters feed PingOne SCIM
+          // `sw` filters, which are case-sensitive ("Demo*" must stay "Demo").
+          // Extracted keys win over anything set so far for the same names.
+          const extracted = h.extractParams(message);
+          if (extracted && typeof extracted === 'object') {
+            params = { ...params, ...extracted };
+          }
+        }
         if (h.defaultParams) {
           // Static params a heuristic resolves to regardless of message text (e.g. the
           // pingone-admin operation heuristics each fix their OAS operationId). Extracted

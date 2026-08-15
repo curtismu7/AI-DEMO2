@@ -117,6 +117,12 @@ describe('airlines dispatch', () => {
   it('returns only available seats by default', async () => {
     const result: any = await dispatch('check_seat_availability', { flight_number: 'UA328' }, '', '');
     expect(result.seats.every((s: any) => s.available)).toBe(true);
+    // The BFF's render fallback is the literal string 'text' whenever this field
+    // is absent — the UI's seat-map card depends on this exact value matching
+    // airlines/manifest.json's render.check_seat_availability key. Locks the
+    // coupling so a rename/typo on either side goes red instead of silently
+    // falling back to the plain-text card.
+    expect(result.render).toBe('check_seat_availability');
 
     const all: any = await dispatch('check_seat_availability', { flight_number: 'UA328', available_only: false }, '', '');
     expect(all.seatCount).toBeGreaterThan(result.seatCount);

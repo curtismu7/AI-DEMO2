@@ -41,7 +41,7 @@ export default function LoginSuccessModal({ user, isOpen, onClose, onDontShowAga
         Don't show again
       </label>
       <button type="button" className="btn btn-primary" onClick={handleContinue}>
-        Continue to dashboard
+        Let's get started
       </button>
     </>
   );
@@ -50,7 +50,7 @@ export default function LoginSuccessModal({ user, isOpen, onClose, onDontShowAga
     <DraggableModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Welcome back"
+      title="Welcome back!"
       defaultWidth={460}
       defaultHeight={344}
       minWidth={380}
@@ -60,8 +60,8 @@ export default function LoginSuccessModal({ user, isOpen, onClose, onDontShowAga
       <div className="lsm-split">
         <div className="lsm-left">
           <div className="lsm-mark" aria-hidden="true">🔐</div>
-          <h3 className="lsm-hello">You're signed in</h3>
-          <p className="lsm-via">Verified through PingOne</p>
+          <h3 className="lsm-hello">All set! You're in.</h3>
+          <p className="lsm-via">Verified and secure</p>
           <div className="lsm-secure" aria-hidden="true">✓ Secure session</div>
         </div>
         <div className="lsm-right">

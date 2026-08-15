@@ -1,6 +1,6 @@
 import React from 'react';
-import VerticalOpsConsole from './verticalOps/VerticalOpsConsole';
+import SupportConsole from './supportConsole/SupportConsole';
 
 export default function SportingGoodsAdminOps({ user, onLogout }) {
-  return <VerticalOpsConsole vertical="sporting-goods" user={user} onLogout={onLogout} />;
+  return <SupportConsole vertical="sporting-goods" user={user} onLogout={onLogout} />;
 }

@@ -74,6 +74,7 @@ function extractFieldName(keyText) {
 }
 
 export function tokenize(text) {
+  if (text == null) return [];
   const tokens = [];
   let last = 0;
   let lastKeyWasCritical = false;

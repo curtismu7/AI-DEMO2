@@ -87,6 +87,21 @@ const WATCHED = [
   },
 ];
 
+/**
+ * Is this process itself a container with no way to reach the docker API?
+ *
+ * On the normal ./run-docker.sh deployment the BFF runs inside
+ * ai-demo-api-server, which mounts no docker socket — so `docker ps` can never
+ * work here. Reported as a blocking warn, this check was structurally
+ * impossible to satisfy, and a red that can never go green teaches presenters
+ * to ignore the whole page. Not-applicable is the honest answer; when a socket
+ * IS reachable (host run, or the socket mounted deliberately) the real
+ * comparison below still runs unchanged.
+ */
+function dockerIsUnreachableFromContainer() {
+  return fs.existsSync('/.dockerenv') && !fs.existsSync('/var/run/docker.sock');
+}
+
 /** Run a command with a fixed argv. Never a shell — no interpolation anywhere. */
 function run(cmd, args, timeoutMs = 8000) {
   return new Promise((resolve) => {
@@ -153,6 +168,19 @@ const containerDrift = {
     const { stale, unknown, checked, dockerless } = await findDrift();
 
     if (dockerless) {
+      if (dockerIsUnreachableFromContainer()) {
+        return {
+          status: 'skip',
+          detail:
+            'Not applicable here — this API server is itself a container and no docker socket is '
+            + 'mounted into it, so it cannot inspect its sibling containers. Nothing is claimed '
+            + 'about drift either way.',
+          meta: { reason: 'no_docker_socket_in_container' },
+          nextAction:
+            'Compare on the docker host with scripts/preflight-demo.sh (check 8), or mount '
+            + '/var/run/docker.sock into demo-api-server to have this run here.',
+        };
+      }
       return {
         status: 'warn',
         detail: 'docker is not reachable from here — cannot compare running code to the repo.',
@@ -179,6 +207,18 @@ const containerDrift = {
         nextAction: 'Update containerPaths in services/checks/containerDriftCheck.js.',
       };
     }
+    if (checked === 0) {
+      // "0 container(s) verified" was reported as a pass — a green that proves
+      // nothing, which is the same dishonesty as the unsatisfiable warn above.
+      return {
+        status: 'skip',
+        detail:
+          'Nothing to compare — none of the watched containers are running, or their repo files '
+          + 'are not reachable from here.',
+        meta: { stale, unknown, checked },
+        nextAction: `Start the stack from ${mainCheckoutRoot()} (./run-docker.sh), then run this again.`,
+      };
+    }
     return {
       status: 'pass',
       detail: `${checked} container(s) verified against the repo.`,
@@ -188,4 +228,4 @@ const containerDrift = {
 };
 
 register(containerDrift);
-module.exports = { containerDrift, findDrift, WATCHED };
+module.exports = { containerDrift, findDrift, dockerIsUnreachableFromContainer, WATCHED };

@@ -1,35 +1,22 @@
 // banking_api_ui/src/utils/dashboardToast.js
 import { toast } from 'react-toastify';
-import { errorMessageSuggestsLogin, SESSION_REAUTH_EVENT } from './authUi';
 
 /**
- * Show an error toast; session-style messages raise an app-level banner with Sign in (see App.js).
+ * Show an error toast for a customer dashboard data-fetch failure.
  * @param {string} message
- * @param {() => void} _onSignIn — kept for call-site compatibility; routing uses `SESSION_REAUTH_EVENT` role `customer`
+ * @param {() => void} _onSignIn — unused; kept for call-site compatibility
  */
 export function toastCustomerError(message, _onSignIn) {
   if (message == null || message === '') return;
-  if (errorMessageSuggestsLogin(message)) {
-    window.dispatchEvent(
-      new CustomEvent(SESSION_REAUTH_EVENT, { detail: { message, role: 'customer' } })
-    );
-    return;
-  }
   toast.error(message);
 }
 
 /**
- * Admin dashboard session errors — login CTA is shown on-page (banner), not only as toast.
+ * Show an error toast for an admin dashboard data-fetch failure.
  * @param {string} message
- * @param {() => void} _onAdminSignIn — kept for compatibility; role `admin` in event detail
+ * @param {() => void} _onAdminSignIn — unused; kept for call-site compatibility
  */
 export function toastAdminSessionError(message, _onAdminSignIn) {
   if (message == null || message === '') return;
-  if (errorMessageSuggestsLogin(message)) {
-    window.dispatchEvent(
-      new CustomEvent(SESSION_REAUTH_EVENT, { detail: { message, role: 'admin' } })
-    );
-    return;
-  }
   toast.error(message);
 }

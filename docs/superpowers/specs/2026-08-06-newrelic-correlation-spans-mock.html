@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NR Mock — BankingDemo/UC14-AttackSim</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0a0a18; color: #f0f0f8; font-size: 13px; font-weight: 500; }
+
+/* ── Top bar ── */
+.topbar { background: #060610; border-bottom: 1px solid #252545; padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
+.nr-logo { color: #00d4ff; font-weight: 800; font-size: 15px; }
+.crumb { color: #b0b0d0; font-size: 12px; font-weight: 600; }
+.crumb span { color: #fff; font-weight: 700; }
+.spacer { flex: 1; }
+.acct { color: #b0b0d0; font-size: 11px; font-weight: 600; }
+
+/* ── Layout ── */
+.layout { display: grid; grid-template-columns: 210px 1fr; height: calc(100vh - 41px); }
+.sidebar { background: #060610; border-right: 1px solid #252545; padding: 12px 0; overflow-y: auto; }
+.sb-section { padding: 6px 16px; font-size: 10px; color: #8080b0; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 10px; font-weight: 700; }
+.sb-item { padding: 7px 16px; cursor: pointer; color: #c8c8e8; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; border-left: 3px solid transparent; }
+.sb-item:hover { background: #181830; color: #fff; }
+.sb-item.active { color: #00d4ff; border-left-color: #00d4ff; background: #0b1e30; font-weight: 700; }
+
+/* ── Main ── */
+.main { overflow-y: auto; }
+.page-hd { background: #10102a; border-bottom: 1px solid #252545; padding: 14px 24px; }
+.page-hd-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+.page-title { font-size: 17px; font-weight: 700; color: #fff; }
+.badge { padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.b-orange { background: #3a1f00; color: #ffa040; border: 1px solid #9a3412; }
+.b-red    { background: #3a0000; color: #ff6060; border: 1px solid #991111; }
+.b-blue   { background: #0d2040; color: #60b8ff; border: 1px solid #1e40af; }
+.page-meta { color: #c0c0e0; font-size: 11px; font-weight: 600; }
+.page-meta span { color: #fff; font-weight: 700; }
+
+/* ── Tabs ── */
+.tabs { display: flex; border-bottom: 1px solid #252545; background: #10102a; padding: 0 24px; }
+.tab { padding: 10px 16px; font-size: 12px; font-weight: 600; color: #9090c0; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab:hover { color: #d0d0f0; }
+.tab.active { color: #00d4ff; border-bottom-color: #00d4ff; }
+
+/* ── Section ── */
+.sec { padding: 20px 24px; }
+.sec-title { font-size: 11px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 14px; }
+
+/* ── Metrics ── */
+.metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 22px; }
+.mcard { background: #161630; border: 1px solid #252545; border-radius: 8px; padding: 12px 16px; }
+.mlabel { font-size: 10px; color: #c0c0e0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 700; }
+.mval { font-size: 22px; font-weight: 800; color: #fff; }
+.munit { font-size: 12px; color: #c0c0e0; font-weight: 600; }
+.mdelta { font-size: 11px; margin-top: 4px; font-weight: 600; }
+.dok { color: #4ade80; }
+.dwarn { color: #fb923c; }
+
+/* ── Waterfall ── */
+.wf { background: #161630; border: 1px solid #252545; border-radius: 8px; overflow: hidden; margin-bottom: 22px; }
+.wf-hdr { display: grid; grid-template-columns: 280px 1fr 80px 80px; gap: 8px; padding: 8px 16px; background: #10102a; border-bottom: 1px solid #252545; font-size: 10px; color: #d0d0f0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.wf-row { display: grid; grid-template-columns: 280px 1fr 80px 80px; gap: 8px; padding: 7px 16px; border-bottom: 1px solid #1a1a38; align-items: center; cursor: pointer; transition: background 0.1s; }
+.wf-row:last-child { border-bottom: none; }
+.wf-row:hover { background: #1c1c40; }
+.wf-row.root { background: #0b1e30; }
+.wf-row.root:hover { background: #0f2640; }
+.wf-name { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #f0f0ff; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.wf-indent { width: 16px; flex-shrink: 0; }
+.wf-bar-wrap { position: relative; height: 14px; }
+.wf-bar { position: absolute; height: 10px; top: 2px; border-radius: 3px; min-width: 4px; }
+.br { background: #0ea5e9; }
+.ba { background: #a78bfa; }
+.bt { background: #34d399; }
+.bm { background: #fbbf24; }
+.bz { background: #f87171; }
+.bh { background: #fb923c; }
+.bx { background: #e879f9; }
+.wf-dur  { font-size: 11px; font-weight: 700; color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
+.wf-self { font-size: 11px; font-weight: 600; color: #c0c0e0; text-align: right; font-variant-numeric: tabular-nums; }
+.skipped { color: #6060a0 !important; font-style: italic; }
+
+/* ── NRQL ── */
+.nrql { background: #080f0a; border: 1px solid #1a5c2a; border-radius: 8px; padding: 14px 18px; margin-bottom: 22px; font-family: "SF Mono", "Fira Code", monospace; font-size: 12px; line-height: 1.7; }
+.nk { color: #60a5fa; font-weight: 700; }
+.ns { color: #fbbf24; }
+.nc { color: #4a9a4a; }
+
+/* ── Log table ── */
+.log-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #10102a; border-bottom: 1px solid #252545; }
+.log-search { flex: 1; background: #161630; border: 1px solid #252545; border-radius: 6px; padding: 6px 12px; color: #f0f0f8; font-size: 12px; font-family: "SF Mono", monospace; font-weight: 600; }
+.log-search:focus { outline: none; border-color: #00d4ff; }
+.log-btn { padding: 5px 14px; background: #0d2040; border: 1px solid #1e40af; border-radius: 6px; color: #60b8ff; font-size: 11px; font-weight: 700; cursor: pointer; }
+.log-btn:hover { background: #122850; }
+
+table.lt { width: 100%; border-collapse: collapse; }
+table.lt th { background: #10102a; padding: 8px 14px; font-size: 10px; color: #e0e0f8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border-bottom: 1px solid #252545; white-space: nowrap; }
+
+/* Main data rows */
+tr.lr { cursor: pointer; }
+tr.lr td { padding: 8px 14px; border-bottom: 1px solid #161630; font-size: 11px; font-weight: 600; vertical-align: top; transition: background 0.1s; }
+tr.lr:hover td { background: #1a1a3e; }
+tr.lr.open td { background: #0d1830; border-bottom: none; }
+
+/* Preview strip — shown on hover or when open */
+.preview { display: none; font-size: 10px; color: #90b8e0; font-family: "SF Mono", monospace; padding-top: 4px; line-height: 1.5; }
+tr.lr:hover .preview, tr.lr.open .preview { display: block; }
+
+/* Toggle arrow */
+.arrow { float: right; font-size: 10px; color: #6060a0; transition: transform 0.15s; display: inline-block; margin-left: 8px; }
+tr.lr.open .arrow { transform: rotate(90deg); color: #00d4ff; }
+
+/* Detail row */
+tr.dr { display: none; }
+tr.dr.show { display: table-row; }
+tr.dr td { padding: 0; border-bottom: 1px solid #252545; background: #07101e; }
+.dp { padding: 14px 18px 14px 36px; }
+.dg { display: grid; grid-template-columns: 150px 1fr; gap: 5px 18px; font-size: 11px; margin-bottom: 10px; }
+.dk { color: #a0a8d0; font-weight: 700; font-family: "SF Mono", monospace; }
+.dv { color: #f0f0ff; font-family: "SF Mono", monospace; word-break: break-all; }
+.dv.deny { color: #f87171; font-weight: 800; }
+.dv.ok   { color: #4ade80; font-weight: 800; }
+.djson { background: #040c18; border: 1px solid #1a2840; border-radius: 6px; padding: 10px 14px; font-family: "SF Mono", monospace; font-size: 10px; line-height: 1.7; max-height: 160px; overflow-y: auto; white-space: pre; color: #a0c8ff; }
+.jk { color: #7dd3fc; }
+.jv { color: #86efac; }
+.jn { color: #fbbf24; }
+.jf { color: #f87171; }
+
+/* Category pills */
+.pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; }
+.p-oauth   { background: #1e3a8a22; color: #60a5fa; border: 1px solid #1e3a8a; }
+.p-token   { background: #58187022; color: #d070ff; border: 1px solid #581870; }
+.p-mcp     { background: #14532d22; color: #4ade80; border: 1px solid #14532d; }
+.p-authz   { background: #7f1d1d22; color: #fca5a5; border: 1px solid #7f1d1d; }
+.p-hitl    { background: #78350f22; color: #fcd34d; border: 1px solid #78350f; }
+.p-attack  { background: #4a044e22; color: #e879f9; border: 1px solid #4a044e; }
+.p-ui      { background: #0c4a6e22; color: #38bdf8; border: 1px solid #0c4a6e; }
+.p-p1      { background: #1a3a0022; color: #a3e635; border: 1px solid #1a3a00; }
+
+/* Source colours */
+.s-bff { color: #c084fc; font-weight: 700; }
+.s-ui  { color: #38bdf8; font-weight: 700; }
+.s-p1  { color: #a3e635; font-weight: 700; }
+
+.t { color: #d0d0ee; font-family: "SF Mono", monospace; font-weight: 600; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="nr-logo">New Relic</div>
+  <div class="crumb">APM &rsaquo; <span>ai-demo-bff</span> &rsaquo; Transactions &rsaquo; <span>BankingDemo/UC14-AttackSim</span></div>
+  <div class="spacer"></div>
+  <div class="acct">Account 8369622 &nbsp;|&nbsp; Last 30 min</div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sb-section">APM</div>
+    <div class="sb-item">Summary</div>
+    <div class="sb-item active">Distributed Tracing</div>
+    <div class="sb-item">Transactions</div>
+    <div class="sb-item">Databases</div>
+    <div class="sb-item">External services</div>
+    <div class="sb-section">Logs</div>
+    <div class="sb-item">Log management</div>
+    <div class="sb-item">Query logs</div>
+    <div class="sb-section">Alerts</div>
+    <div class="sb-item">Policies</div>
+    <div class="sb-item">Issues</div>
+  </nav>
+
+  <div class="main">
+    <div class="page-hd">
+      <div class="page-hd-row">
+        <div class="page-title">BankingDemo/UC14-AttackSim</div>
+        <span class="badge b-orange">ATTACK SIM</span>
+        <span class="badge b-red">DENIED</span>
+        <span class="badge b-blue">TRACED</span>
+      </div>
+      <div class="page-meta">
+        correlationId: <span>f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+        &nbsp;|&nbsp; Started: <span>2026-08-06 22:47:03.441 UTC</span>
+        &nbsp;|&nbsp; Duration: <span>1,847 ms</span>
+        &nbsp;|&nbsp; User: <span>demoUser</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active">Trace waterfall</div>
+      <div class="tab">Log timeline</div>
+      <div class="tab">Attributes</div>
+      <div class="tab">Related entities</div>
+    </div>
+
+    <div class="sec">
+
+      <!-- Metrics -->
+      <div class="metrics">
+        <div class="mcard"><div class="mlabel">Total duration</div><div class="mval">1,847<span class="munit">ms</span></div><div class="mdelta dok">p95 avg: 2,100 ms</div></div>
+        <div class="mcard"><div class="mlabel">Spans</div><div class="mval">8</div><div class="mdelta dok">All succeeded</div></div>
+        <div class="mcard"><div class="mlabel">P1AZ decision</div><div class="mval" style="color:#f87171">DENY</div><div class="mdelta dwarn">Attack blocked</div></div>
+        <div class="mcard"><div class="mlabel">Log events</div><div class="mval">13</div><div class="mdelta dok">BFF + UI linked</div></div>
+        <div class="mcard"><div class="mlabel">Errors</div><div class="mval" style="color:#4ade80">0</div><div class="mdelta dok">Clean run</div></div>
+      </div>
+
+      <!-- Waterfall -->
+      <div class="sec-title">Trace waterfall — 1,847 ms total</div>
+      <div class="wf">
+        <div class="wf-hdr"><div>Span name</div><div>Timeline (0 → 1847 ms)</div><div>Duration</div><div>Self time</div></div>
+        <div class="wf-row root"><div class="wf-name"><span style="color:#0ea5e9">⬡</span> BankingDemo/UC14-AttackSim</div><div class="wf-bar-wrap"><div class="wf-bar br" style="left:0%;width:100%"></div></div><div class="wf-dur">1,847 ms</div><div class="wf-self">42 ms</div></div>
+        <div class="wf-row"><div class="wf-name"><span class="wf-indent"></span>🔐 PingOne/Authenticate</div><div class="wf-bar-wrap"><div class="wf-bar ba" style="left:2%;width:18%"></div></div><div class="wf-dur">332 ms</div><div class="wf-self">332 ms</div></div>
+        <div class="wf-row"><div class="wf-name"><span class="wf-indent"></span><span style="color:#34d399">⇄</span> TokenExchange/SubjectToken</div><div class="wf-bar-wrap"><div class="wf-bar bt" style="left:21%;width:11%"></div></div><div class="wf-dur">203 ms</div><div class="wf-self">203 ms</div></div>
+        <div class="wf-row"><div class="wf-name"><span class="wf-indent"></span><span style="color:#34d399">⇄</span> TokenExchange/ActorToken</div><div class="wf-bar-wrap"><div class="wf-bar bt" style="left:33%;width:10%"></div></div><div class="wf-dur">185 ms</div><div class="wf-self">185 ms</div></div>
+        <div class="wf-row"><div class="wf-name"><span class="wf-indent"></span><span style="color:#fbbf24">⚙</span> MCP/ToolCall</div><div class="wf-bar-wrap"><div class="wf-bar bm" style="left:44%;width:22%"></div></div><div class="wf-dur">406 ms</div><div class="wf-self">406 ms</div></div>
+        <div class="wf-row"><div class="wf-name"><span class="wf-indent"></span><span style="color:#f87171">⊘</span> P1AZ/Authorize</div><div class="wf-bar-wrap"><div class="wf-bar bz" style="left:67%;width:9%"></div></div><div class="wf-dur">166 ms</div><div class="wf-self">166 ms</div></div>
+        <div class="wf-row" style="opacity:0.35"><div class="wf-name"><span class="wf-indent"></span>👤 HITL/RequestApproval</div><div class="wf-bar-wrap"></div><div class="wf-dur skipped">skipped</div><div class="wf-self"></div></div>
+        <div class="wf-row" style="opacity:0.35"><div class="wf-name"><span class="wf-indent"></span>👤 HITL/AwaitDecision</div><div class="wf-bar-wrap"></div><div class="wf-dur skipped">skipped</div><div class="wf-self"></div></div>
+        <div class="wf-row"><div class="wf-name"><span class="wf-indent"></span><span style="color:#e879f9">⚡</span> AttackSim/Verdict</div><div class="wf-bar-wrap"><div class="wf-bar bx" style="left:77%;width:19%"></div></div><div class="wf-dur">351 ms</div><div class="wf-self">351 ms</div></div>
+      </div>
+
+      <!-- NRQL -->
+      <div class="sec-title">NRQL — replay this run</div>
+      <div class="nrql">
+        <span class="nc">-- All events (BFF + UI) for this correlationId, in order</span><br>
+        <span class="nk">FROM</span> Log<br>
+        <span class="nk">SELECT</span> timestamp, message, category, source, eventStep<br>
+        <span class="nk">WHERE</span> correlationId = <span class="ns">'f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c'</span><br>
+        <span class="nk">ORDER BY</span> timestamp <span class="nk">ASC LIMIT</span> 100
+      </div>
+
+      <!-- Log timeline -->
+      <div class="sec-title">Log timeline — 13 events &nbsp;<small style="color:#8080b0;font-weight:600;text-transform:none;font-size:10px">click any row to expand · hover for preview</small></div>
+      <div class="wf">
+        <div class="log-bar">
+          <input class="log-search" value="correlationId = 'f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c'" readonly>
+          <button class="log-btn" type="button">Run query</button>
+          <button class="log-btn" type="button">Export</button>
+        </div>
+        <table class="lt">
+          <thead><tr><th>Timestamp</th><th>Source</th><th>Category</th><th>Message</th></tr></thead>
+          <tbody id="logbody">
+
+            <!-- Row 1 -->
+            <tr class="lr" onclick="toggleRow('r1')">
+              <td class="t">22:47:03.441</td>
+              <td class="s-ui">ui</td>
+              <td><span class="pill p-ui">ui_event</span></td>
+              <td>
+                <span class="arrow" id="a-r1">&#9658;</span>
+                ui.agent_message — useCaseId: UC14
+                <div class="preview">length: 38 &nbsp;|&nbsp; correlationId: f3a9c2d1…</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r1"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">event</span><span class="dv">ui.agent_message</span>
+                <span class="dk">useCaseId</span><span class="dv">UC14</span>
+                <span class="dk">messageLength</span><span class="dv">38</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+                <span class="dk">source</span><span class="dv">ai-demo-ui</span>
+                <span class="dk">logtype</span><span class="dv">ui_event</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 2 -->
+            <tr class="lr" onclick="toggleRow('r2')">
+              <td class="t">22:47:03.483</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-oauth">oauth</span></td>
+              <td>
+                <span class="arrow" id="a-r2">&#9658;</span>
+                PingOne token request — UC14-AttackSim initiated
+                <div class="preview">category: oauth &nbsp;|&nbsp; severity: info</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r2"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">message</span><span class="dv">PingOne token request — UC14-AttackSim initiated</span>
+                <span class="dk">category</span><span class="dv">oauth</span>
+                <span class="dk">severity</span><span class="dv">info</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+                <span class="dk">useCaseName</span><span class="dv">UC14-AttackSim</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 3 -->
+            <tr class="lr" onclick="toggleRow('r3')">
+              <td class="t">22:47:03.815</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-oauth">oauth</span></td>
+              <td>
+                <span class="arrow" id="a-r3">&#9658;</span>
+                PingOne authenticate — <span style="color:#4ade80;font-weight:700">SUCCESS</span>, sub: demoUser
+                <div class="preview">sub: demoUser &nbsp;|&nbsp; duration: 332ms</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r3"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">result</span><span class="dv ok">SUCCESS</span>
+                <span class="dk">sub</span><span class="dv">demoUser</span>
+                <span class="dk">duration</span><span class="dv">332ms</span>
+                <span class="dk">segment</span><span class="dv">PingOne/Authenticate</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 4 -->
+            <tr class="lr" onclick="toggleRow('r4')">
+              <td class="t">22:47:04.018</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-token">token_exchange</span></td>
+              <td>
+                <span class="arrow" id="a-r4">&#9658;</span>
+                RFC 8693 subject token exchange
+                <div class="preview">grant: urn:ietf:params:oauth:grant-type:token-exchange &nbsp;|&nbsp; 203ms</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r4"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">grant_type</span><span class="dv">urn:ietf:params:oauth:grant-type:token-exchange</span>
+                <span class="dk">exchange</span><span class="dv">subject_token</span>
+                <span class="dk">duration</span><span class="dv">203ms</span>
+                <span class="dk">segment</span><span class="dv">TokenExchange/SubjectToken</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 5 -->
+            <tr class="lr" onclick="toggleRow('r5')">
+              <td class="t">22:47:04.221</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-token">token_exchange</span></td>
+              <td>
+                <span class="arrow" id="a-r5">&#9658;</span>
+                RFC 8693 actor token exchange
+                <div class="preview">scope: mcp:invoke &nbsp;|&nbsp; 185ms</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r5"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">exchange</span><span class="dv">actor_token</span>
+                <span class="dk">scope</span><span class="dv">mcp:invoke</span>
+                <span class="dk">duration</span><span class="dv">185ms</span>
+                <span class="dk">segment</span><span class="dv">TokenExchange/ActorToken</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 6 -->
+            <tr class="lr" onclick="toggleRow('r6')">
+              <td class="t">22:47:04.406</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-mcp">mcp</span></td>
+              <td>
+                <span class="arrow" id="a-r6">&#9658;</span>
+                MCP tool call — getAccountBalance
+                <div class="preview">account: 9941872 &nbsp;|&nbsp; 406ms total</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r6"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">tool</span><span class="dv">getAccountBalance</span>
+                <span class="dk">accountId</span><span class="dv">9941872</span>
+                <span class="dk">duration</span><span class="dv">406ms</span>
+                <span class="dk">segment</span><span class="dv">MCP/ToolCall</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+              <div class="djson"><span class="jk">"result"</span>: {
+  <span class="jk">"balance"</span>: <span class="jn">12450.00</span>,
+  <span class="jk">"currency"</span>: <span class="jv">"USD"</span>,
+  <span class="jk">"accountId"</span>: <span class="jv">"9941872"</span>
+}</div>
+            </div></td></tr>
+
+            <!-- Row 7 -->
+            <tr class="lr" onclick="toggleRow('r7')">
+              <td class="t">22:47:04.812</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-authz">authorize</span></td>
+              <td>
+                <span class="arrow" id="a-r7">&#9658;</span>
+                P1AZ authorize — action: transfer — amount: $50,000
+                <div class="preview">actorId: client_uc14_sim &nbsp;|&nbsp; awaiting decision…</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r7"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">action</span><span class="dv">transfer</span>
+                <span class="dk">amount</span><span class="dv">$50,000</span>
+                <span class="dk">actorId</span><span class="dv">client_uc14_sim</span>
+                <span class="dk">segment</span><span class="dv">P1AZ/Authorize</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 8 -->
+            <tr class="lr" onclick="toggleRow('r8')">
+              <td class="t">22:47:04.978</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-authz">authorize</span></td>
+              <td>
+                <span class="arrow" id="a-r8">&#9658;</span>
+                <span style="color:#f87171;font-weight:700">P1AZ decision — DENY</span> — exceeded threshold + suspicious actor
+                <div class="preview">rule: amount_band_exceeded &nbsp;|&nbsp; band: CRITICAL &nbsp;|&nbsp; 166ms</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r8"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">decision</span><span class="dv deny">DENY</span>
+                <span class="dk">rule</span><span class="dv">amount_band_exceeded</span>
+                <span class="dk">band</span><span class="dv">CRITICAL (&gt;$25,000)</span>
+                <span class="dk">actorType</span><span class="dv">suspicious_client</span>
+                <span class="dk">duration</span><span class="dv">166ms</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+              <div class="djson"><span class="jk">"p1azResponse"</span>: {
+  <span class="jk">"decision"</span>: <span class="jv">"DENY"</span>,
+  <span class="jk">"evaluatedPolicies"</span>: [<span class="jv">"AmountBandPolicy"</span>, <span class="jv">"SuspiciousActorPolicy"</span>],
+  <span class="jk">"matchedRules"</span>: [<span class="jv">"amount_band_exceeded"</span>],
+  <span class="jk">"obligatory"</span>: <span class="jf">false</span>
+}</div>
+            </div></td></tr>
+
+            <!-- Row 9 -->
+            <tr class="lr" onclick="toggleRow('r9')">
+              <td class="t">22:47:05.001</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-attack">authorize</span></td>
+              <td>
+                <span class="arrow" id="a-r9">&#9658;</span>
+                Attack sim verdict — <span style="color:#e879f9;font-weight:700">BLOCKED</span>
+                <div class="preview">rule: amount_band_exceeded &nbsp;|&nbsp; segment: AttackSim/Verdict</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r9"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">verdict</span><span class="dv deny">BLOCKED</span>
+                <span class="dk">rule</span><span class="dv">amount_band_exceeded</span>
+                <span class="dk">segment</span><span class="dv">AttackSim/Verdict</span>
+                <span class="dk">duration</span><span class="dv">351ms</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 10 -->
+            <tr class="lr" onclick="toggleRow('r10')">
+              <td class="t">22:47:05.095</td>
+              <td class="s-p1">pingone</td>
+              <td><span class="pill p-p1">pingone</span></td>
+              <td>
+                <span class="arrow" id="a-r10">&#9658;</span>
+                PingOne AUTHORIZATION.GRANT_AUTHORIZATION — FAILED
+                <div class="preview">source: pingone-webhook &nbsp;|&nbsp; actorId: demoUser</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r10"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">eventType</span><span class="dv">AUTHORIZATION.GRANT_AUTHORIZATION</span>
+                <span class="dk">status</span><span class="dv deny">FAILED</span>
+                <span class="dk">actorId</span><span class="dv">demoUser</span>
+                <span class="dk">source</span><span class="dv">pingone-webhook</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 11 -->
+            <tr class="lr" onclick="toggleRow('r11')">
+              <td class="t">22:47:05.141</td>
+              <td class="s-bff">bff</td>
+              <td><span class="pill p-attack">agent</span></td>
+              <td>
+                <span class="arrow" id="a-r11">&#9658;</span>
+                Agent run complete — UC14 — DENY delivered to UI
+                <div class="preview">totalDuration: 1700ms &nbsp;|&nbsp; spans: 6</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r11"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">outcome</span><span class="dv deny">DENY</span>
+                <span class="dk">useCaseId</span><span class="dv">UC14</span>
+                <span class="dk">totalDuration</span><span class="dv">1700ms</span>
+                <span class="dk">spansCompleted</span><span class="dv">6</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+            <!-- Row 12 -->
+            <tr class="lr" onclick="toggleRow('r12')">
+              <td class="t">22:47:05.199</td>
+              <td class="s-ui">ui</td>
+              <td><span class="pill p-ui">ui_event</span></td>
+              <td>
+                <span class="arrow" id="a-r12">&#9658;</span>
+                ui.agent_response — UC14-AttackSim — status: DENY
+                <div class="preview">roundtrip: 1758ms &nbsp;|&nbsp; correlationId: f3a9c2d1…</div>
+              </td>
+            </tr>
+            <tr class="dr" id="r12"><td colspan="4"><div class="dp">
+              <div class="dg">
+                <span class="dk">event</span><span class="dv">ui.agent_response</span>
+                <span class="dk">useCaseName</span><span class="dv">UC14-AttackSim</span>
+                <span class="dk">status</span><span class="dv deny">DENY</span>
+                <span class="dk">roundtrip</span><span class="dv">1758ms</span>
+                <span class="dk">source</span><span class="dv">ai-demo-ui</span>
+                <span class="dk">correlationId</span><span class="dv">f3a9c2d1-7e4b-4f12-a8c3-1d2e3f4a5b6c</span>
+              </div>
+            </div></td></tr>
+
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleRow(id) {
+  const dr = document.getElementById(id);
+  const tr = dr.previousElementSibling;
+  const arrow = document.getElementById(`a-${id}`);
+  const isOpen = dr.classList.contains('show');
+  dr.classList.toggle('show', !isOpen);
+  tr.classList.toggle('open', !isOpen);
+  arrow.classList.toggle('open', !isOpen);
+}
+</script>
+</body>
+</html>

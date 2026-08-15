@@ -13,6 +13,8 @@ const router = express.Router();
  * Client sends authorization parameters and receives a request_uri for later use.
  *
  * @flow par
+ * @name PAR
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9126 RFC 9126
  * @actor client-app
  * @to auth-server
  * @step 1

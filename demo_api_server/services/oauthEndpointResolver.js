@@ -70,6 +70,24 @@ function getJwksUri() {
   return base ? `${base}/jwks` : '';
 }
 
+function getIntrospectionEndpoint() {
+  const explicit = configStore.getEffective('oauth_introspection_endpoint');
+  if (explicit) return explicit;
+  const cached = _fromCache('introspection_endpoint');
+  if (cached) return cached;
+  const base = _pingOneBase();
+  return base ? `${base}/introspect` : '';
+}
+
+function getRevocationEndpoint() {
+  const explicit = configStore.getEffective('oauth_revocation_endpoint');
+  if (explicit) return explicit;
+  const cached = _fromCache('revocation_endpoint');
+  if (cached) return cached;
+  const base = _pingOneBase();
+  return base ? `${base}/revoke` : '';
+}
+
 // PingOne issues tokens with iss = https://auth.pingone.{tld}/{envId}/as.
 // A misconfigured OAUTH_ISSUER missing the /as suffix makes every token fail
 // validation ("jwt issuer invalid") and silently breaks all authenticated
@@ -124,12 +142,14 @@ function getDiscoveryEndpoint() {
 
 function getOAuthEndpoints() {
   return {
-    authorization_endpoint: getAuthorizationEndpoint(),
-    token_endpoint:         getTokenEndpoint(),
-    userinfo_endpoint:      getUserInfoEndpoint(),
-    jwks_uri:               getJwksUri(),
-    issuer:                 getIssuer(),
-    discovery_endpoint:     getDiscoveryEndpoint(),
+    authorization_endpoint:  getAuthorizationEndpoint(),
+    token_endpoint:          getTokenEndpoint(),
+    userinfo_endpoint:       getUserInfoEndpoint(),
+    jwks_uri:                getJwksUri(),
+    introspection_endpoint:  getIntrospectionEndpoint(),
+    revocation_endpoint:     getRevocationEndpoint(),
+    issuer:                  getIssuer(),
+    discovery_endpoint:      getDiscoveryEndpoint(),
   };
 }
 
@@ -173,6 +193,8 @@ module.exports = {
   getParEndpoint,
   getUserInfoEndpoint,
   getJwksUri,
+  getIntrospectionEndpoint,
+  getRevocationEndpoint,
   getIssuer,
   getDiscoveryEndpoint,
   getOAuthEndpoints,

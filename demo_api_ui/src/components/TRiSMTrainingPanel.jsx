@@ -31,7 +31,7 @@ const SLIDES = [
     whatItMeans: 'Identify potential failures (bias, drift, cascade errors). Test and validate agent behavior. Monitor for anomalies in real-time.',
     howWeMeetIt: [
       { feature: 'Token Validation Tests', component: 'TokenSecurityTester', description: 'Try sending wrong tokens to MCP — see scope/audience rejection' },
-      { feature: 'Rate Limiting', component: 'agentRateLimitMiddleware', description: 'Prevent cascade errors: 10 requests/min cap, auto-kill after 5 violations' },
+      { feature: 'Rate Limiting', component: 'UC18 Gateway Rate Limiting', description: 'Per-agent/per-tool sliding-window limiting in the gateway; throttled bursts return 429 before reaching PingOne Authorize' },
       { feature: 'State Capture', component: 'killSwitchService', description: 'Freeze agent state on failure for forensic analysis' },
       { feature: 'Error Scenarios', component: 'Admin Security Tab', description: 'Run all 5 failure scenarios to validate security controls' }
     ],

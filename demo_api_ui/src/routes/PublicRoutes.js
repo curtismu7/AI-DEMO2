@@ -207,11 +207,11 @@ export function ReportsPageRoute({ user, logout }) {
   );
 }
 
-export function UseCasesPageRoute({ user, logout }) {
+export function UseCasesPageRoute({ user, logout, onStopAgentClick }) {
   return (
     <AppShell user={user} logout={logout}>
       {/* A5.2 — slim launch drawer on /agent screen — deferred to A5.2 */}
-      <UseCaseLauncherPage />
+      <UseCaseLauncherPage onStopAgentClick={onStopAgentClick} />
     </AppShell>
   );
 }

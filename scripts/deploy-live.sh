@@ -19,7 +19,11 @@
 #   scripts/deploy-live.sh <old> <new>          deploy an explicit git range (no sync)
 
 set -euo pipefail
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve the main checkout via git, not this script's own file location — see
+# sync-main-checkout.sh for why: every worktree has its own copy of this file,
+# and resolving via BASH_SOURCE silently diffed/restarted against whichever
+# worktree ran it instead of the main checkout Docker bind-mounts.
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 
 DRY_RUN=0
 OLD="" NEW=""

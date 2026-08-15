@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Privilege MCP Client — Docker (BFF relay)",
+    "_postman_id": "priv-mcp-client-docker-001",
+    "description": "Tests the Privilege MCP client flow via the BFF relay running on the local Docker stack.\n\nThe BFF handles everything: it discovers auth from the mcpgw WWW-Authenticate header, registers a DCR client, runs PKCE against mcpgw's own OAuth AS, and relays MCP JSON-RPC. These requests are plain JSON over HTTPS — no bearer token of your own.\n\nSETUP:\n  1. Run the demo stack: ./run-docker.sh (or docker compose --profile mcpgw up -d)\n  2. Postman must trust the mkcert CA: Settings > General > SSL certificate verification OFF,\n     or import the mkcert root CA from ~/.local/share/mkcert/rootCA.pem\n  3. Sign in to https://local.ping-devops.com:4000 in a browser first — the BFF reuses\n     the existing PingOne session for prompt=none silent auth. Without a session, auth/start\n     will redirect through the PingOne login page instead (still works, just not silent).\n  4. Enable cookie sync: Postman > Settings > Cookies — ensure Postman can read the\n     connect.sid cookie from api.ping.demo:3001 (or sign in via Postman's browser).\n\nFLOW:\n  Run requests 0 → 1 → 2 in order. After request 2, open the authUrl in a browser where\n  you are signed in to the demo app. The BFF callback sets the session. Then run 3 → 4 → 5.\n  For OpenSearch, run 6 → 7 after the cmuir-opensearch Privilege app is registered.\n\nNOTE: mcpgw_url points at the SE K8s cluster — this is correct even for Docker, because\n  the local Docker BFF's PRIVILEGE_MCPGW_URL env var points there. The Docker mcpgw\n  container (cyonproxy) is the legacy mesh proxy; only the SE binary emits WWW-Authenticate.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "bff_url",
+      "value": "https://api.ping.demo:3001",
+      "description": "Local Docker BFF. Requires /etc/hosts: 127.0.0.1 api.ping.demo",
+      "type": "default"
+    },
+    {
+      "key": "mcpgw_banking_url",
+      "value": "https://ai-demo.ping-devops.com/mcpgw/cmuir2/mcp",
+      "description": "SE K8s mcpgw — banking mcp-server backend (app: cmuir2)",
+      "type": "default"
+    },
+    {
+      "key": "mcpgw_opensearch_url",
+      "value": "https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp",
+      "description": "SE K8s mcpgw — OpenSearch MCP backend (app: cmuir-opensearch). Register in Privilege console first.",
+      "type": "default"
+    },
+    {
+      "key": "pingone_client_id",
+      "value": "a6219652-47af-4ed2-8dea-20e9940b3377",
+      "description": "PingOne application the BFF uses for Privilege SSO (env 01d89b06)",
+      "type": "default"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. State — check current session",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/state",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "state"]
+        },
+        "description": "Returns the current privilege MCP session state.\n\nKey fields:\n  oauth.authenticated  — true after a successful auth/start + callback\n  config.mcpUrl        — which mcpgw the BFF is pointed at\n  mainAppAuthenticated — true when the user is signed in to the main app\n  tools                — non-empty after a successful tools/list"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const s = pm.response.json();",
+              "console.log('oauth.authenticated:', s.oauth?.authenticated);",
+              "console.log('config.mcpUrl:', s.config?.mcpUrl);",
+              "console.log('mainAppAuthenticated:', s.mainAppAuthenticated);",
+              "console.log('tools count:', s.tools?.length ?? 0);",
+              "pm.test('state shape OK', () => pm.expect(s).to.have.all.keys('config', 'oauth', 'mainAppAuthenticated', 'user', 'tools'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Configure — set banking mcpgw URL",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mcpUrl\": \"{{mcpgw_banking_url}}\",\n  \"clientId\": \"{{pingone_client_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/config",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "config"]
+        },
+        "description": "Sets the mcpUrl the BFF will use for auth discovery and MCP relay.\n\nSend this before auth/start whenever you want to switch apps. Blank fields are ignored (no partial-clear).\n\nExpect: { ok: true, config: { mcpUrl: '...', clientId: '...' } }"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('config saved', () => pm.expect(b.ok).to.be.true);",
+              "console.log('mcpUrl set to:', b.config?.mcpUrl);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Start Auth — get PingOne redirect URL",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"returnTo\": \"/privilege-mcp-client\"\n}"
+        },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/auth/start",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "auth", "start"]
+        },
+        "description": "Triggers the BFF to:\n  1. GET mcpUrl — discovers WWW-Authenticate header\n  2. DCR on mcpgw OAuth AS (registers a PKCE client)\n  3. Build the PingOne authorization URL (prompt=none if main app session exists)\n  4. Return { authUrl } for the browser to follow\n\nAFTER this request: open authUrl in a browser where you are signed in to the demo app.\nThe BFF callback (/api/privilege-mcp/auth/callback) exchanges the code and stores the token.\nSilent auth (prompt=none) completes without user interaction when the main app session is active.\n\nA 400 'Client ID is required' means request 1 was skipped or the session was reset — send request 1 first."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('authUrl returned', () => pm.expect(b.authUrl).to.be.a('string').and.include('http'));",
+              "if (b.authUrl) {",
+              "  console.log('\\n=== OPEN THIS URL IN A BROWSER ===');",
+              "  console.log(b.authUrl);",
+              "  console.log('=================================\\n');",
+              "  console.log('If the main app session is active, it will redirect silently back to the BFF.');",
+              "  console.log('Then run requests 3-5 below.');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. List tools (after auth)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/tools/list",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "tools", "list"]
+        },
+        "description": "Calls tools/list on the MCP server via the Privilege gateway.\n\nRequires auth (complete request 2 flow first). A 401/403 means the Privilege policy is\nenforcing access control — that is the demo feature.\n\nExpect: { tools: [...] } — the full tool catalogue from the banking mcp-server."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "if (b.error) { console.log('error:', b.error); return; }",
+              "pm.test('tools array returned', () => pm.expect(b.tools).to.be.an('array'));",
+              "if (b.tools) {",
+              "  console.log('tool count:', b.tools.length);",
+              "  console.log('tools:', b.tools.map(t => t.name).join(', '));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Call tool — get_my_accounts",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"get_my_accounts\",\n  \"arguments\": {}\n}"
+        },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/tools/call",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "tools", "call"]
+        },
+        "description": "Calls a specific tool. Change 'name' to any tool from the tools/list response.\n\nThe DEMO VALUE here is watching Privilege enforce its policy:\n  - 200 with result data: the user's policy grants access\n  - 403: Privilege DENY — the policy blocked this tool call\n  - 401: token expired or invalid — re-run request 2\n\nA DENY from Privilege is the feature working correctly."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK or policy-blocked', () => pm.expect([200, 403]).to.include(pm.response.code));",
+              "const b = pm.response.json();",
+              "if (pm.response.code === 403) {",
+              "  console.log('403 — Privilege policy DENY. This is the demo feature.');",
+              "  return;",
+              "}",
+              "console.log('result:', JSON.stringify(b.result || b).slice(0, 400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Raw RPC — tools/list JSON-RPC",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+        },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/rpc",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "rpc"]
+        },
+        "description": "Send any raw MCP JSON-RPC to the /rpc endpoint. The BFF attaches the session token and handles session management."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "console.log('result:', JSON.stringify(b.result || b.error || b).slice(0, 400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "OpenSearch app (register cmuir-opensearch in console first)",
+      "item": [
+        {
+          "name": "6. Configure — switch to OpenSearch mcpgw URL",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mcpUrl\": \"{{mcpgw_opensearch_url}}\",\n  \"clientId\": \"{{pingone_client_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{bff_url}}/api/privilege-mcp/config",
+              "host": ["{{bff_url}}"],
+              "path": ["api", "privilege-mcp", "config"]
+            },
+            "description": "Switches the BFF to the OpenSearch mcpgw app.\n\nPREREQUISITE: Register the cmuir-opensearch app in the Privilege console first:\n  AI Security > Agentic Apps > Add Application > MCP Server\n  App name: cmuir-opensearch\n  Backend URL (K8s): http://ping-mcpgw-opensearch-mcp-server/mcp\n  Backend URL (Docker): http://opensearch-mcp-server:9900/mcp\n  Auth Mode: Static Token (empty — opensearch-mcp-server is unauthenticated)\n  Mesh Cluster: your registered gateway\n\nAfter save, mcpgw exposes: /cmuir-opensearch/mcp\nFull URL: https://ai-demo.ping-devops.com/mcpgw/cmuir-opensearch/mcp"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "console.log('mcpUrl now:', b.config?.mcpUrl);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Start Auth for OpenSearch app",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"returnTo\": \"/privilege-mcp-client\"}" },
+            "url": {
+              "raw": "{{bff_url}}/api/privilege-mcp/auth/start",
+              "host": ["{{bff_url}}"],
+              "path": ["api", "privilege-mcp", "auth", "start"]
+            },
+            "description": "Same PKCE flow as request 2, but now against the cmuir-opensearch app's mcpgw path. Open the returned authUrl in a browser."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "if (b.authUrl) { console.log('Open in browser:', b.authUrl); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. List OpenSearch tools (after auth)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": {
+              "raw": "{{bff_url}}/api/privilege-mcp/tools/list",
+              "host": ["{{bff_url}}"],
+              "path": ["api", "privilege-mcp", "tools", "list"]
+            },
+            "description": "Lists tools from the OpenSearch MCP server via the Privilege gateway.\n\nExpect: tools like search_documents, index_document, list_indices — OpenSearch operations."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "if (b.tools) {",
+                  "  console.log('OpenSearch tools:', b.tools.map(t => t.name).join(', '));",
+                  "} else { console.log(JSON.stringify(b).slice(0, 300)); }"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "description": "OpenSearch variant — requires the cmuir-opensearch app to be registered in the Privilege console first. See request 6 description for setup steps."
+    },
+    {
+      "name": "9. Sign out",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/auth/logout",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "auth", "logout"]
+        },
+        "description": "Clears the privilege MCP session token. Does not sign out of the main app."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "console.log('Privilege MCP session cleared.');"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

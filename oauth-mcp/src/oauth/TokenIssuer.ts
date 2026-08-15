@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { SigningKeyManager } from './SigningKeyManager';
 import { ClientRegistry, OAuthClient } from './ClientRegistry';
 import { TokenStore } from './TokenStore';
+import { resolveEmbeddedIssuer } from './embeddedIssuer';
 
 export interface TokenResponse {
   access_token: string;
@@ -10,6 +11,24 @@ export interface TokenResponse {
   expires_in: number;
   scope: string;
   id_token?: string;
+}
+
+/** MCP_SERVER_RESOURCE_URI may be a comma-separated list (rollout: own backend
+ *  URI + gateway URI while both token shapes are live) — jose needs an array
+ *  to emit a multi-value `aud` claim, not the raw comma-joined string. */
+export function resolveAudience(): string[] {
+  const raw = process.env.MCP_SERVER_RESOURCE_URI || 'mcpserver.ping.demo';
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** The ONLY audience this embedded AS is entitled to assert: its own resource
+ *  URI — the first entry of MCP_SERVER_RESOURCE_URI. The remaining entries name
+ *  OTHER resource servers (the gateway, PingOne's API); this AS has no authority
+ *  to grant access to them, so a self-issued token must never claim them. The
+ *  full list stays the *accepted* set on the inbound side (see
+ *  TokenIntrospector.audienceAccepted), which is a different question. */
+export function resolveOwnAudience(): string {
+  return resolveAudience()[0] || 'mcpserver.ping.demo';
 }
 
 export class TokenIssuer {
@@ -20,8 +39,7 @@ export class TokenIssuer {
     private clientRegistry: ClientRegistry,
     private tokenStore: TokenStore,
   ) {
-    this.issuer = process.env.OAUTH_ISSUER
-      || `https://${process.env.OAUTH_HOSTNAME || 'localhost'}:${process.env.MCP_SERVER_PORT || '8080'}`;
+    this.issuer = resolveEmbeddedIssuer();
   }
 
   getIssuer(): string {
@@ -41,7 +59,7 @@ export class TokenIssuer {
       .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
       .setIssuer(this.issuer)
       .setSubject(client.client_id)
-      .setAudience(process.env.MCP_SERVER_RESOURCE_URI || 'mcpserver.ping.demo')
+      .setAudience(resolveOwnAudience())
       .setIssuedAt(now)
       .setExpirationTime(now + expiresIn)
       .setJti(jti)
@@ -63,8 +81,14 @@ export class TokenIssuer {
   async issueAuthorizationCode(
     client: OAuthClient,
     subject: string,
-    scope: string,
+    requestedScope: string,
   ): Promise<TokenResponse> {
+    // Same intersection issueClientCredentials does: the scope that travelled
+    // through /authorize is CLIENT-CONTROLLED input, so it must be clamped to
+    // what the client is actually registered for. Without this,
+    // `/authorize?...&scope=admin:read` mints an admin-scoped token for a client
+    // registered with only `mcp:invoke`.
+    const scope = this.resolveScope(client, requestedScope);
     const jti = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);
     const expiresIn = 3600;
@@ -76,7 +100,7 @@ export class TokenIssuer {
       .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
       .setIssuer(this.issuer)
       .setSubject(subject)
-      .setAudience(process.env.MCP_SERVER_RESOURCE_URI || 'mcpserver.ping.demo')
+      .setAudience(resolveOwnAudience())
       .setIssuedAt(now)
       .setExpirationTime(now + expiresIn)
       .setJti(jti)

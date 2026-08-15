@@ -42,6 +42,33 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
+  it('renders a Stop Agent action that calls onStopAgentClick when open', async () => {
+    const onStopAgentClick = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+        onStopAgentClick={onStopAgentClick}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('demo-steps-stop-agent'));
+    expect(onStopAgentClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the Stop Agent action when onStopAgentClick is not provided', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+    expect(screen.queryByTestId('demo-steps-stop-agent')).not.toBeInTheDocument();
+  });
+
   it('lists demo steps in DEMO_USE_CASE_IDS order when open', async () => {
     render(
       <DemoStepsDropdown

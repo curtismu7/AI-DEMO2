@@ -67,6 +67,9 @@ vi.mock("../../context/AgentUiModeContext", async (importOriginal) => {
     useAgentUiMode: () => ({
       placement: "bottom",
       setSurfaceHostEl: vi.fn(),
+      // The dashboard registers a toolbar host too; omitting this makes every
+      // case in this file die on "setToolbarHostEl is not a function".
+      setToolbarHostEl: vi.fn(),
       fab: false,
     }),
   };
@@ -181,13 +184,16 @@ test("1. renders without crashing", () => {
   expect(container).toBeInTheDocument();
 });
 
-test("2. .customer-skin-p1 wrapper is present", () => {
+test("2. .customer-skin-p1 wrapper is present", async () => {
   const { container } = render(
     <Wrapper>
       <UserDashboardPing2026 user={mockUser} onLogout={vi.fn()} />
     </Wrapper>,
   );
-  expect(container.querySelector(".customer-skin-p1")).not.toBeNull();
+  // loading=true on mount shows spinner; wait for fetchUserData to complete
+  await waitFor(() =>
+    expect(container.querySelector(".customer-skin-p1")).not.toBeNull()
+  );
 });
 
 test("3. root element has both customer-skin-p1 and user-dashboard--2026 classes", async () => {
@@ -307,13 +313,15 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-03: #1161 removed the dashboard loading spinner and
-  // added embedded-agent scroll. Previous baseline 2026-07-27 (consent-decline
-  // toast copy change).
+  // Re-baselined 2026-08-09 (2): an admin_token_forbidden 403 now falls back to
+  // demo data instead of an error toast, so an admin can view the customer
+  // dashboard without being forced through a PingOne login. Earlier same-day
+  // baseline: dropped the StaleSessionBanner mount and import. Previous
+  // 2026-08-07: guard 401 redirect when propUser is null (guest/lazy-auth).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "31ca45ccbfb0586e78676bb5ddc0f6153151b957e58b057b874e22dd22c96722";
+    "85f25bbd874253fb7dd9e505bb71541bfd7e2464e0eea2f65aeabfcc0ea250a1";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

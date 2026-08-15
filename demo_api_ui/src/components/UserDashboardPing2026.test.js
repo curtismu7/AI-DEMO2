@@ -21,6 +21,9 @@ vi.mock("../context/AgentUiModeContext", () => ({
   useAgentUiMode: () => ({
     placement: "none",
     setSurfaceHostEl: vi.fn(),
+    // The dashboard registers a toolbar host too; omitting this makes every
+    // case in this file die on "setToolbarHostEl is not a function".
+    setToolbarHostEl: vi.fn(),
   }),
 }));
 
@@ -113,7 +116,6 @@ vi.mock("./OAuthTokenDisplayPage", () => ({ default: () => null }));
 vi.mock("./RetailDashboard", () => ({ default: () => null }));
 vi.mock("./agent-clinical/AgentClinicalHost", () => ({ default: () => null }));
 vi.mock("./AgentIdentityCard", () => ({ default: () => null }));
-vi.mock("./StaleSessionBanner", () => ({ default: () => null }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -136,12 +138,15 @@ function renderDashboard(user = mockUser) {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("UserDashboardPing2026", () => {
-  it("renders the customer-skin-p1 wrapper div", () => {
+  it("renders the customer-skin-p1 wrapper div", async () => {
     const { container } = renderDashboard();
 
-    const wrapperDiv = container.querySelector(".customer-skin-p1");
-    expect(wrapperDiv).not.toBeNull();
-    expect(wrapperDiv.className).toContain("customer-skin-p1");
+    // loading=true on mount shows spinner; wait for fetchUserData to complete
+    await waitFor(() => {
+      const wrapperDiv = container.querySelector(".customer-skin-p1");
+      expect(wrapperDiv).not.toBeNull();
+      expect(wrapperDiv.className).toContain("customer-skin-p1");
+    });
   });
 
   it("does not crash when user prop is null", () => {

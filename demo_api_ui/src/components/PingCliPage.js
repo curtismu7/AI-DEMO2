@@ -367,36 +367,6 @@ function CollapsibleSection({
   );
 }
 
-/**
- * Scroll an element into view inside the nearest overflow scroll parent
- * (e.g. `.main-content__primary`), falling back to the window. Plain
- * `scrollIntoView` often no-ops when a nested scroller owns the overflow.
- */
-function scrollIntoNearestScroller(el, offset = 16) {
-  if (!el) return;
-
-  let scroller = el.parentElement;
-  while (scroller && scroller !== document.body && scroller !== document.documentElement) {
-    const style = window.getComputedStyle(scroller);
-    const oy = style.overflowY;
-    const scrolls =
-      (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
-      scroller.scrollHeight > scroller.clientHeight + 1;
-    if (scrolls) break;
-    scroller = scroller.parentElement;
-  }
-
-  if (scroller && scroller !== document.body && scroller !== document.documentElement) {
-    const sRect = scroller.getBoundingClientRect();
-    const eRect = el.getBoundingClientRect();
-    const top = scroller.scrollTop + (eRect.top - sRect.top) - offset;
-    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-    return;
-  }
-
-  const top = window.scrollY + el.getBoundingClientRect().top - offset;
-  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-}
 
 /**
  * Shared copyable dark code row used by Install / Configure / How to run.
@@ -722,20 +692,12 @@ export default function PingCliPage() {
     if (buildReadableView(output)) setViewMode('easy');
   }, [running, exitCode, output]);
 
-  // Scroll the response pane into view when a run starts. Prefer the nearest
-  // overflow scroller (window may not be the one that moves).
+  // Scroll the response pane into view when a run starts, but only if it is
+  // currently below the visible area. Scrolling to top would push all command
+  // cards out of view, making them appear to disappear.
   useEffect(() => {
-    if (running === null) return;
-    const scroll = () => scrollIntoNearestScroller(outputRef.current);
-    scroll();
-    const raf = requestAnimationFrame(scroll);
-    const t1 = setTimeout(scroll, 80);
-    const t2 = setTimeout(scroll, 250);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    if (running === null || !outputRef.current) return;
+    outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [running]);
 
   /** Render the Easy read / JSON toggle (used above the output pane). */

@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { CORE_MODE_IDS, MODE_PROVIDER, DEFAULT_MODE } from "../config/agentModes";
+import InlineSpinner from "./shared/InlineSpinner";
 import "./AgentModeSelector.css";
 
 // FIVE single-brain modes (four production + one MLX demo). Each maps to one
@@ -183,6 +184,7 @@ export default function AgentModeSelector({
             );
           })}
         </select>
+        {saving && <InlineSpinner size="sm" label="Switching…" />}
       </label>
 
       <label className="ams-label ams-routing">

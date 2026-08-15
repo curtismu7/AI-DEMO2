@@ -1,0 +1,29 @@
+---
+# Wildcard TLS cert for PingOne Privilege MCPGW agentless-mode frontend hosts.
+# Consumed by mcpgw-agentless-ingress.yaml's tls.secretName.
+#
+# Explicit apex + wildcard, not just the wildcard: *.mcpgw.ai-demo.ping-devops.com
+# does NOT cover the bare mcpgw.ai-demo.ping-devops.com apex (the gateway base
+# host used for /authorize and /callback) — a wildcard matches exactly one label
+# and never its own parent name. The wildcard covers every per-app subdomain
+# (aidemo.mcpgw..., <new-app>.mcpgw..., etc.) with no new cert needed per app.
+#
+# letsencrypt-pdo is a DNS-01/Route53 issuer for zone ping-devops.com (confirmed
+# 2026-08-12 via `kubectl get clusterissuer letsencrypt-pdo -o yaml`), so a
+# wildcard request is not blocked by an HTTP-01-only solver as an earlier
+# revision of mcpgw-agentless-ingress.yaml assumed.
+#
+# <<NAMESPACE>> is substituted by deploy.sh, matching se-ingress.yaml.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mcpgw-agentless-wildcard
+  namespace: <<NAMESPACE>>
+spec:
+  secretName: mcpgw-agentless-tls
+  issuerRef:
+    name: letsencrypt-pdo
+    kind: ClusterIssuer
+  dnsNames:
+    - mcpgw.ai-demo.ping-devops.com
+    - "*.mcpgw.ai-demo.ping-devops.com"

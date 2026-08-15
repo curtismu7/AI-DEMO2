@@ -75,9 +75,13 @@ describe('ProtocolPlayground wiring', () => {
   });
 
   test('lists every generated protocol in the sidebar', () => {
-    render(<ProtocolPlayground />);
+    const { container } = render(<ProtocolPlayground />);
 
-    const buttons = screen.getAllByTitle(/.+/).filter((el) => el.tagName === 'BUTTON');
+    // Scoped to the sidebar's own nav. Counting every titled button in the tree
+    // also swept up StepCard's "Execute this step" buttons once step cards
+    // gained titles, so the count drifted with the selected flow's step count
+    // rather than with the number of protocols.
+    const buttons = container.querySelectorAll('.protocol-list .protocol-item');
     expect(buttons.length).toBe(flowIds.length);
   });
 
@@ -97,7 +101,11 @@ describe('ProtocolPlayground wiring', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Execute All/i }));
 
-    expect(await screen.findByText('step-1')).toBeInTheDocument();
-    expect(screen.getByText('200')).toBeInTheDocument();
+    // ActivityPanel renders each result as a TokenChainEventCard built by
+    // synthesizeEvent — "<METHOD> <url>" as the label and "HTTP <status>" as
+    // the explanation. It used to print the raw stepId and status code.
+    expect(await screen.findByText('POST /api/oauth/token/token')).toBeInTheDocument();
+    expect(screen.getByText(/HTTP 200/)).toBeInTheDocument();
+    expect(screen.queryByText(/No activity yet/)).not.toBeInTheDocument();
   });
 });

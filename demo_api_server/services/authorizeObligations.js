@@ -62,6 +62,7 @@ function classifyObligation(ob) {
   // Order matters: HITL_CONSENT before HITL (most specific first).
   if (key.includes('HITLCONSENT')) return 'consent';
   if (key.includes('STEPUP')) return 'stepUp';
+  if (key.includes('ELICITATION')) return 'elicitation';
   if (key.includes('HITL') || key.includes('HUMANAPPROVAL')) return 'hitl';
   return null;
 }
@@ -75,11 +76,12 @@ function classifyObligation(ob) {
  *   stepUpRequired: boolean,
  *   hitlRequired: boolean,
  *   consentRequired: boolean,
- *   classified: { stepUp: Obligation[], hitl: Obligation[], consent: Obligation[] }
+ *   elicitationRequired: boolean,
+ *   classified: { stepUp: Obligation[], hitl: Obligation[], consent: Obligation[], elicitation: Obligation[] }
  * }}
  */
 function classifyObligations(obligations) {
-  const classified = { stepUp: [], hitl: [], consent: [] };
+  const classified = { stepUp: [], hitl: [], consent: [], elicitation: [] };
 
   if (Array.isArray(obligations)) {
     for (const ob of obligations) {
@@ -91,20 +93,24 @@ function classifyObligations(obligations) {
   const hasStepUp = classified.stepUp.length > 0;
   const hasConsent = classified.consent.length > 0;
   const hasHitl = classified.hitl.length > 0;
+  const hasElicitation = classified.elicitation.length > 0;
 
   // Highest-gate-wins: step-up dominates. Only one enforcement flag is ever
   // true so callers cannot accidentally double-gate (the duplicated, drifting
   // precedence in transactionAuthorizationService is now centralized here).
   if (hasStepUp) {
-    return { stepUpRequired: true, hitlRequired: false, consentRequired: false, classified };
+    return { stepUpRequired: true, hitlRequired: false, consentRequired: false, elicitationRequired: false, classified };
   }
   if (hasConsent) {
-    return { stepUpRequired: false, hitlRequired: false, consentRequired: true, classified };
+    return { stepUpRequired: false, hitlRequired: false, consentRequired: true, elicitationRequired: false, classified };
   }
   if (hasHitl) {
-    return { stepUpRequired: false, hitlRequired: true, consentRequired: false, classified };
+    return { stepUpRequired: false, hitlRequired: true, consentRequired: false, elicitationRequired: false, classified };
   }
-  return { stepUpRequired: false, hitlRequired: false, consentRequired: false, classified };
+  if (hasElicitation) {
+    return { stepUpRequired: false, hitlRequired: false, consentRequired: false, elicitationRequired: true, classified };
+  }
+  return { stepUpRequired: false, hitlRequired: false, consentRequired: false, elicitationRequired: false, classified };
 }
 
 module.exports = {

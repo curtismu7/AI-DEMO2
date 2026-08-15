@@ -16,6 +16,21 @@
         "additionalProperties": false
       }
     },
+    "add_to_cart": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "productId"
+        ],
+        "additionalProperties": false
+      }
+    },
     "add_to_wishlist": {
       "source": "olb",
       "inputSchema": {
@@ -143,6 +158,15 @@
         "required": [
           "query"
         ],
+        "additionalProperties": false
+      }
+    },
+    "browse_gear": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
         "additionalProperties": false
       }
     },
@@ -1006,6 +1030,14 @@
         ]
       }
     },
+    "get_loyalty_status": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
     "get_my_accounts": {
       "source": "olb",
       "inputSchema": {
@@ -1567,6 +1599,23 @@
           "shipmentId"
         ],
         "additionalProperties": false
+      }
+    },
+    "redeem_miles": {
+      "source": "airlines",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "confirmation_number": {
+            "type": "string",
+            "description": "Reservation to upgrade. Omit for the next upcoming trip."
+          },
+          "target_cabin": {
+            "type": "string",
+            "description": "Target cabin: 'Business' or 'First'. Defaults to next class up from current cabin."
+          }
+        },
+        "required": []
       }
     },
     "redeem_points": {

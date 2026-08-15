@@ -4,11 +4,11 @@
 .reasoning-panel {
   margin: 6px 8px 8px;
   padding: 8px 10px;
-  border: 1px solid var(--ba-border, #d0d0d0);
+  border: 1px solid var(--ba-border, var(--th-border));
   border-radius: 8px;
-  background: var(--ba-surface, #ffffff);
+  background: var(--ba-surface, var(--th-bg-inset));
   font-size: 12px;
-  color: var(--ba-text, #1a1a1a);
+  color: var(--ba-text, var(--th-text));
 }
 
 .reasoning-panel-header {
@@ -32,7 +32,7 @@
 
 .reasoning-tokens {
   font-variant-numeric: tabular-nums;
-  color: var(--ba-text, #1a1a1a);
+  color: var(--ba-text, var(--th-text));
   opacity: 0.85;
 }
 
@@ -62,7 +62,7 @@
 }
 
 .reasoning-tool-desc {
-  color: var(--ba-text, #1a1a1a);
+  color: var(--ba-text, var(--th-text));
   opacity: 0.8;
   overflow: hidden;
   text-overflow: ellipsis;

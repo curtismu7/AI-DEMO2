@@ -82,6 +82,16 @@ class ExecutionEngine {
       const url = this._interpolateUrl(step.endpoint || step.url);
       const data = step.body ? this._interpolateBody(step.body) : null;
 
+      // A placeholder left unresolved means the step that provides it failed
+      // (e.g. a prior 401 never returned auth_req_id) — sending it anyway
+      // fires a malformed request against a literal ":paramName" segment.
+      const unresolvedParam = url.match(/:([a-zA-Z_][a-zA-Z0-9_]*)/);
+      if (unresolvedParam) {
+        throw new Error(
+          `Missing value for :${unresolvedParam[1]} — the step that provides it did not complete successfully.`
+        );
+      }
+
       // Prepare request config
       const config = {
         method,

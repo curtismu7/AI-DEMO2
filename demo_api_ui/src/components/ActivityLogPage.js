@@ -13,8 +13,15 @@ export default function ActivityLogPage() {
   const { defaultWidth, defaultHeight, defaultX, defaultY } = useMemo(() => {
     const margin = 16;
     const topBar = 56;
+    // The modal is position:fixed (viewport-relative), so it doesn't inherit
+    // .main-content's sidebar margin-left the way in-flow content does — read
+    // the live rendered offset instead of hardcoding a sidebar width, so it
+    // stays correct whether AdminSideNav is expanded, collapsed, or resized.
+    const sidebarOffset = typeof document !== 'undefined'
+      ? parseFloat(getComputedStyle(document.querySelector('.main-content') || document.body).marginLeft) || 0
+      : 0;
     const w = typeof window !== 'undefined'
-      ? Math.max(640, window.innerWidth - margin * 2)
+      ? Math.max(640, window.innerWidth - sidebarOffset - margin * 2)
       : 1200;
     const h = typeof window !== 'undefined'
       ? Math.max(480, window.innerHeight - topBar - margin)
@@ -22,7 +29,7 @@ export default function ActivityLogPage() {
     return {
       defaultWidth: w,
       defaultHeight: h,
-      defaultX: margin,
+      defaultX: sidebarOffset + margin,
       defaultY: topBar,
     };
   }, []);

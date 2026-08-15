@@ -49,8 +49,8 @@ jest.mock('../../services/hitlServiceClient', () => {
   };
 });
 
-jest.mock('../../middleware/agentSessionMiddleware', () => ({
-  agentSessionMiddleware: (req, res, next) => {
+jest.mock('../../middleware/agentSessionMiddleware', () => {
+  const middleware = (req, res, next) => {
     req.session = req.session || {
       id: 'integration-session-id',
       user: { id: 'integration-user-1', oauthId: 'integration-user-1' },
@@ -62,8 +62,9 @@ jest.mock('../../middleware/agentSessionMiddleware', () => ({
       tokenEvents: [],
     };
     next();
-  },
-}));
+  };
+  return { agentSessionMiddleware: middleware, agentGuestSessionMiddleware: middleware };
+});
 
 jest.mock('../../services/demoAgentLangGraphService', () => ({
   processAgentMessage: jest.fn(() =>

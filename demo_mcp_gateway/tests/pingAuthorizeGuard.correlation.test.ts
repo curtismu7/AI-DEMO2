@@ -26,7 +26,10 @@ const config = {
 
 const decoded = {
   sub: 'demoUser',
-  scope: 'records:read',
+  // view_records' plain requiredScopes is ['read'] (scope-topology.json); 'records:read'
+  // is the healthcare A2A least-privilege scope, kept alongside for fixture realism —
+  // this test asserts correlation-id forwarding, not scope semantics.
+  scope: 'records:read read',
   act: { sub: 'agent-1' },
 } as unknown as DecodedGatewayToken;
 

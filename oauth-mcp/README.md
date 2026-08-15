@@ -1,4 +1,4 @@
-# Banking MCP Server
+# AI Demo MCP Server
 
 A TypeScript-based Model Context Protocol (MCP) server for banking operations with PingOne AI IAM Core authentication.
 

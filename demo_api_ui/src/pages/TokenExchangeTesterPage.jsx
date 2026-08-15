@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './TokenExchangeTesterPage.css';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import InlineSpinner from '../components/shared/InlineSpinner';
 
 const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/token-exchange-tester';
 
@@ -233,9 +234,13 @@ export default function TokenExchangeTesterPage() {
       </div>
 
       <div className="tet-readiness">
-        <div className={`tet-ready-card ${userReady.status === 'ready' ? 'tet-ready-card--ok' : 'tet-ready-card--bad'}`}>
+        <div className={`tet-ready-card ${
+          userReady.status === 'ready' ? 'tet-ready-card--ok'
+            : userReady.status === 'checking' ? 'tet-ready-card--checking'
+              : 'tet-ready-card--bad'
+        }`}>
           <div className="tet-ready-card__title">
-            {userReady.status === 'ready' ? '✅' : '❌'} Subject (User) Token
+            {userReady.status === 'ready' ? '✅' : userReady.status === 'checking' ? <InlineSpinner /> : '❌'} Subject (User) Token
           </div>
           <div className="tet-ready-card__meta">{userReady.label || '—'}</div>
           {userReady.claims && renderClaims(userReady.claims)}
@@ -245,9 +250,13 @@ export default function TokenExchangeTesterPage() {
             </a>
           )}
         </div>
-        <div className={`tet-ready-card ${agentReady.status === 'ready' ? 'tet-ready-card--ok' : 'tet-ready-card--bad'}`}>
+        <div className={`tet-ready-card ${
+          agentReady.status === 'ready' ? 'tet-ready-card--ok'
+            : agentReady.status === 'checking' ? 'tet-ready-card--checking'
+              : 'tet-ready-card--bad'
+        }`}>
           <div className="tet-ready-card__title">
-            {agentReady.status === 'ready' ? '✅' : '❌'} Agent Actor Token (CC)
+            {agentReady.status === 'ready' ? '✅' : agentReady.status === 'checking' ? <InlineSpinner /> : '❌'} Agent Actor Token (CC)
           </div>
           <div className="tet-ready-card__meta">{agentReady.label || '—'}</div>
           {agentReady.claims && renderClaims(agentReady.claims)}
@@ -259,7 +268,11 @@ export default function TokenExchangeTesterPage() {
         </div>
       </div>
 
-      {!hasSession ? (
+      {userReady.status === 'checking' ? (
+        <div className="tet-no-session">
+          <InlineSpinner label="Checking session…" />
+        </div>
+      ) : !hasSession ? (
         <div className="tet-no-session">
           Please log in first to test token exchange.{' '}
           <a href={LOGIN_URL}>Customer Sign In</a>

@@ -39,13 +39,14 @@ import {
 import { allRelatedUCIds as allAgentGatewayUCIds } from '../config/capabilityLedgers/agentGatewayCapabilities';
 import { allRelatedUCIds as allPingOneAuthorizeUCIds } from '../config/capabilityLedgers/pingOneAuthorizeCapabilities';
 
-const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
+const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'nhi', 'learn', 'tools'];
 const TRACK_LABELS = {
   foundations: 'Foundations — delegation lifecycle',
   demo:        'Progressive Trust Demo — Ping MyHotels pattern on banking agents (Acts 1–5)',
   attacks:     'Attacks — malicious attempts blocked by PingOne',
   hitl:        'Human-in-the-Loop — approval, step-up, and consent requirements',
   controls:    'Other Controls — additional policy gates',
+  nhi:         'NHI Governance — multi-source inventory and agent lifecycle export',
   learn:       'Learn — explore the platform hands-on',
   tools:       'Developer Tools — utilities and explorers',
 };
@@ -703,7 +704,7 @@ function ProgressiveTrustLlmShowcase() {
   );
 }
 
-export default function UseCaseLauncherPage() {
+export default function UseCaseLauncherPage({ onStopAgentClick }) {
   const navigate    = useNavigate();
   const { activeId: verticalId } = useVertical();
   const { open: openEdu } = useEducationUI();
@@ -953,6 +954,16 @@ export default function UseCaseLauncherPage() {
               title="Clear checkmarks for a fresh demo pass"
             >
               Clear progress
+            </button>
+          )}
+          {onStopAgentClick && (
+            <button
+              type="button"
+              className="uc-launcher__stop-agent"
+              onClick={onStopAgentClick}
+              title="Revoke the agent's OAuth token at PingOne — stops it before its next tool call"
+            >
+              Stop Agent
             </button>
           )}
         </div>

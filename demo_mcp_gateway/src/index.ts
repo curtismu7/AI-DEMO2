@@ -29,12 +29,13 @@ import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
-import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse } from './proxy';
+import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
+import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
 import { loadVaultIntoEnv } from './vault';
@@ -49,6 +50,7 @@ import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
+import { recordToolsListBackendOutage, clearToolsListBackendOutage } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 import { buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from './enterpriseMcpAuth';
 
@@ -389,6 +391,12 @@ async function handleMessage(
   bffMayActSub?: string,
   xTratContext?: string,
   xIntentToken?: string,
+  tierMaxAmountUsd?: string,
+  tierRestrictedTools?: string,
+  mcpSessionId?: string,
+  // MCP spec: notifications/cancelled. Connection-scoped registry (see
+  // wss.on('connection')) of in-flight calls this connection can abort.
+  inFlightCalls?: Map<string | number, AbortController>,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -404,6 +412,16 @@ async function handleMessage(
   const shapeFailure = validateMethodAndShape(method, msg.params);
   if (shapeFailure) {
     send(jsonRpcError(id, shapeFailure.code, shapeFailure.message, shapeFailure.data));
+    return;
+  }
+
+  // MCP spec: notifications/cancelled — a notification (no response sent
+  // either way). Look up the target request id and abort it if still in
+  // flight; an unknown or already-settled id is a silent no-op, matching
+  // spec guidance that a cancellation racing a response is not an error.
+  if (method === 'notifications/cancelled') {
+    const requestId = (msg.params as { requestId?: string | number } | undefined)?.requestId;
+    if (requestId !== undefined) inFlightCalls?.get(requestId)?.abort();
     return;
   }
 
@@ -464,6 +482,15 @@ async function handleMessage(
         failedBackends.push(backendLabels[i]);
         console.warn(`[GW] tools/list failed for backend=${backendLabels[i]}:`, r.reason instanceof Error ? r.reason.message : r.reason);
       }
+    }
+    // A TOTAL backend failure is not a partial outage: every live catalog entry
+    // is gone and what ships is the gateway-owned static list alone, which looks
+    // like a healthy tools/list to the UI. Record it for /health and say so once
+    // per window — the per-backend warns above scroll past unnoticed at this rate.
+    if (failedBackends.length === results.length) {
+      recordToolsListBackendOutage([...failedBackends]);
+    } else {
+      clearToolsListBackendOutage();
     }
 
     // Phase 266: append Gateway-owned tools (dispatched BY NAME in tools/call).
@@ -630,14 +657,19 @@ async function handleMessage(
     // Scope + ACR for the compliance report (Scenario 5).
     _audCtx.scope = decoded.scope;
     _audCtx.acr = decoded.acr;
-    // Phase 2 CR-01 — `_hitl_challenge_id` is a gateway-internal field that
-    // gates the retry. Strip it from toolArgs before forwarding to the
-    // downstream MCP server: the backend has no use for it and may reject
-    // unrecognized arguments under strict input-schema validation.
+    // Phase 2 CR-01 — gateway-internal fields gate retries and are stripped before
+    // forwarding to the downstream MCP server. Backend schemas use
+    // additionalProperties:false and would reject unknown fields.
     const rawToolArgs: Record<string, unknown> = msgParams?.arguments || {};
     const hitlChallengeId = rawToolArgs._hitl_challenge_id as string | undefined;
+    // Elicitation re-call markers — extracted for session-binding check and P1AZ
+    // parameter injection (via toolArgsForAuthz below), then stripped from toolArgs.
+    const elicitationConfirmed = rawToolArgs._elicitation_confirmed === true;
+    const elicitationId = rawToolArgs._elicitation_id as string | undefined;
     const toolArgs: Record<string, unknown> = { ...rawToolArgs };
     delete toolArgs._hitl_challenge_id;
+    delete toolArgs._elicitation_confirmed;
+    delete toolArgs._elicitation_id;
     if (msgParams) {
       msgParams.arguments = toolArgs;
     }
@@ -692,6 +724,22 @@ async function handleMessage(
     // and PingAuthorize so the policy can PERMIT when approval is already recorded.
     const hitlApproved = hitlChallengeId != null && verification?.ok === true;
 
+    // Elicitation re-call validation — if agent retries with _elicitation_confirmed:true,
+    // verify the stored record is valid for this session + tool before calling P1AZ.
+    // The pending record is consumed here (one-time use); ElicitationConfirmed:'true'
+    // is added to the P1AZ call via toolArgsForAuthz so the policy can permit the retry.
+    if (elicitationConfirmed) {
+      const sessionId = mcpSessionId ?? '';
+      const rec = elicitationId ? consumePendingElicitation(elicitationId, toolName, sessionId) : null;
+      if (!rec) {
+        send(jsonRpcError(id, -32003, 'elicitation_required', {
+          reason: 'invalid_or_expired',
+        }));
+        return;
+      }
+      // ElicitationConfirmed: 'true' is added to P1AZ via toolArgsForAuthz below.
+    }
+
     // WR-02: forward the same transaction params the HTTP path sends so an
     // amount-conditioned PingAuthorize policy fires identically on WS.
     // Intent token: parity with HTTP authorizeMcpRequest — validate X-Intent-Token
@@ -708,18 +756,45 @@ async function handleMessage(
     }
     // Vertical precedence (same as tools/list): token `vertical` claim wins, else header.
     const callVertical = (decoded as { vertical?: string }).vertical || activeVertical;
+    // toolArgsForAuthz: for confirmed elicitation re-calls, re-add _elicitation_confirmed
+    // so buildAuthorizeParameters sends ElicitationConfirmed:'true' to P1AZ. The field
+    // was stripped from toolArgs earlier (to pass backend schema validation) so we add
+    // it back in a separate object used ONLY for the P1AZ call, not for backend forwarding.
+    const toolArgsForAuthz: Record<string, unknown> = elicitationConfirmed
+      ? { ...toolArgs, _elicitation_confirmed: true }
+      : toolArgs;
     const authz = await guardToolCall(
       toolName,
       decoded,
       config,
-      toolArgs,
+      toolArgsForAuthz,
       xTratContext,
       hitlApproved,
       callVertical,
       hitlChallengeId,
       intentValidation,
+      tierMaxAmountUsd,
+      tierRestrictedTools,
     );
     if (!authz.permitted) {
+      // Elicitation obligation: P1AZ requires agent to confirm intent before proceeding.
+      // Branch on obligation === 'elicitation' (NOT reason) — reason is 'HITL_REQUIRED'
+      // for ALL non-stepUp obligations (pre-existing behaviour), so branching on reason
+      // here would misclassify an elicitation obligation as HITL.
+      if (authz.obligation === 'elicitation') {
+        const sessionId = mcpSessionId ?? '';
+        const prompt = authz.advice?.find(
+          (a: { id: string }) => a.id === 'elicitation-prompt',
+        )?.value ?? `Confirm ${toolName}?`;
+        const rec = createPendingElicitation(toolName, sessionId, prompt);
+        send(jsonRpcError(id, -32003, 'elicitation_required', {
+          elicitation_id: rec.elicitation_id,
+          prompt,
+          tool_name: toolName,
+          expires_in: 120,
+        }));
+        return;
+      }
       if (authz.reason === 'HITL_REQUIRED') {
         // Anti-loop: if a receipt was verified OK but the policy still returned
         // INDETERMINATE, fail with a distinct error instead of re-issuing a
@@ -866,14 +941,32 @@ async function handleMessage(
       ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
       : undefined;
 
+    // MCP spec: notifications/cancelled — register this call so a later
+    // cancel notification on the same connection can find and abort it.
+    const cancelController = new AbortController();
+    if (id !== undefined) inFlightCalls?.set(id, cancelController);
+
     let result: JsonRpcResponse;
     try {
-      result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts);
+      // MCP spec: relay any interim notifications/progress frame the backend
+      // emits (opted into by the caller via params._meta.progressToken, sent
+      // through unchanged in `msg`) straight back onto this client-facing
+      // connection — the caller is the only one who can act on it, the
+      // gateway just forwards.
+      result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts, (params) => {
+        send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params }));
+      }, cancelController.signal);
     } catch (err) {
+      // Cancelled: the client sent notifications/cancelled and is not
+      // expecting a response for this id — sending one anyway (an error or
+      // otherwise) is what the spec's cancellation flow explicitly avoids.
+      if ((err as { code?: string })?.code === 'cancelled') return;
       const msg2 = err instanceof Error ? err.message : String(err);
       console.error(`[GW] Proxy error for ${toolName}:`, msg2);
       send(jsonRpcError(id, -32500, 'Backend error'));
       return;
+    } finally {
+      if (id !== undefined) inFlightCalls?.delete(id);
     }
 
     // C3 + H1: synthesize tokenEvents for the Token Chain UI showing that the
@@ -945,7 +1038,7 @@ async function handleMessage(
       jsonrpc: '2.0',
       id,
       result: {
-        protocolVersion: '2025-11-25',
+        protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },
@@ -970,7 +1063,9 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
   // PingOne to the olb audience when exchanging for invest; the invest backend
   // then rejects it and the existing failedBackends/_meta partial-results path
   // (Promise.allSettled below) reports it — acceptable by design.
-  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target);
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, target, {
+    allowDiscoveryScopeFallback: true,
+  });
   return proxyJsonRpc(wsUrl, backendToken, {
     jsonrpc: '2.0',
     id: `gw-list-${target}`,
@@ -985,7 +1080,9 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
 // side of this same HTTP backend.
 async function proxyToolsListJwtVerifier(inboundToken: string): Promise<JsonRpcResponse> {
   const httpUrl = backendHttpMcpUrl('jwtverifier', config);
-  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier');
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier', {
+    allowDiscoveryScopeFallback: true,
+  });
   return proxyJsonRpcHttp(httpUrl, backendToken, {
     jsonrpc: '2.0',
     id: 'gw-list-jwtverifier',
@@ -1032,11 +1129,28 @@ wss.on('connection', (ws, req) => {
   const authHeader = req.headers['authorization'];
   const token = extractBearerToken(authHeader) || '';
 
+  // MCP spec: notifications/cancelled. One registry per connection — request
+  // ids are only unique within a connection, not globally. Populated around
+  // each proxyJsonRpc call below; notifications/cancelled looks a request id
+  // up here and aborts it if still in flight (already-settled calls are a
+  // no-op, per proxyJsonRpc's own settled guard).
+  const inFlightCalls = new Map<string | number, AbortController>();
+
   // Active vertical for per-vertical tools/list filtering (spec §8). Sourced
   // server-to-server from the BFF on the WS upgrade — NOT user-controlled (the
   // SPA never opens this socket). Single value; trimmed.
   const rawVertical = req.headers['x-active-vertical'];
   const activeVertical = (Array.isArray(rawVertical) ? rawVertical[0] : rawVertical || '').trim() || undefined;
+
+  // Tier (groupToTier) — BFF pre-resolves group->tier and forwards the
+  // resolved definition as headers (parity with the HTTP path in
+  // authorizeMcpRequest.ts). Read once at upgrade time, same as activeVertical.
+  const wsHdr = (n: string): string | undefined => {
+    const v = req.headers[n];
+    return (Array.isArray(v) ? v[0] : v || '').toString().trim() || undefined;
+  };
+  const tierMaxAmountUsd = wsHdr('x-tier-max-amount-usd');
+  const tierRestrictedTools = wsHdr('x-tier-restricted-tools');
 
   // X-Act-Client-Id / X-May-Act-Sub: BFF-provided actor identity headers.
   // Gate behind the internal gateway secret (parity with HTTP path in
@@ -1065,6 +1179,11 @@ wss.on('connection', (ws, req) => {
   const rawIntentToken = req.headers['x-intent-token'];
   const wsIntentToken = (Array.isArray(rawIntentToken) ? rawIntentToken[0] : rawIntentToken || '').trim() || undefined;
 
+  // MCP-Session-Id: used as the session-binding key for pending elicitations.
+  // Captured at upgrade time and passed to handleMessage so re-call validation
+  // can verify the elicitation was issued for the same session.
+  const wsMcpSessionId = wsHdr('mcp-session-id');
+
   if (!token) {
     ws.close(4001, 'Bearer token required');
     return;
@@ -1078,7 +1197,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools, wsMcpSessionId, inFlightCalls).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));

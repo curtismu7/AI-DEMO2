@@ -169,6 +169,21 @@ describe('UC21 tier attributes reach PingOne Authorize', () => {
     }
   });
 
+  test('read tools (null toolAmount) send Amount: 0 so tier-cap comparison does not INDETERMINATE', () => {
+    // P1AZ tier-cap rule: Amount > threshold. If Amount is absent entirely, the
+    // comparison has a missing operand → INDETERMINATE (not DENY, not PERMIT).
+    // With the fail-closed fix (#1310) in place, INDETERMINATE collapses to DENY
+    // — so every read from a PrivateBanking user is denied. Send 0 for reads.
+    const params = buildMcpDelegationParameters({
+      ...baseArgs,
+      toolName: 'get_my_accounts',
+      transactionType: null,
+      amount: null,
+    });
+    expect(params).toHaveProperty('Amount', 0);
+    expect(params).toHaveProperty('TransactionAmount', '0');
+  });
+
   test('the ceiling is a policy constant, never a PEP-supplied attribute', () => {
     // Forwarding a pre-computed UserMaxAmountUsd would leave P1AZ evaluating
     // "Amount > whatever the BFF said" — the threshold would be back in

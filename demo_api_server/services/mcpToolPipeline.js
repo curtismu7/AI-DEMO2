@@ -402,6 +402,32 @@ async function runMcpToolPipeline(ctx) {
         return { kind: 'block', httpStatus: r.status, body: r.body };
     }
 
+    // Kill switch: the ONE point every real tool call passes through,
+    // regardless of whether PingOne Authorize runs locally
+    // (evaluateMcpFirstToolGate) or the call is gateway-authoritative
+    // (which skips that function entirely) — see the 2026-08-10 final
+    // review that found the prior location never ran under the default
+    // gateway-enabled deployment.
+    const { deriveAgentKey } = require('./sessionKeyService');
+    const killSwitchService = require('./killSwitchService');
+    const _killUserId = userSub || req.session?.user?.oauthId || req.session?.user?.id || null;
+    const _killAgentKey = deriveAgentKey(req, null, _killUserId);
+    if (await killSwitchService.isAgentRevoked(_killAgentKey)) {
+        deps.emit({ phase: 'kill_switch_blocked' });
+        deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+        return {
+            kind: 'block',
+            httpStatus: 403,
+            tokenEvents,
+            body: {
+                error: 'agent_killed',
+                error_description: 'This agent was stopped via the kill switch and cannot make further tool calls.',
+                agentId: _killAgentKey,
+                tokenEvents,
+            },
+        };
+    }
+
     // PingOne Authorize (or simulated) on every MCP tool call — docs/PINGONE_AUTHORIZE_PLAN.md §7
     /** @type {object|undefined} */
     let mcpAuthorizeEvaluationThisRequest;
@@ -451,6 +477,7 @@ async function runMcpToolPipeline(ctx) {
         const hitlChallengeId = params?.[HITL_CHALLENGE_ARG] || null;
         if (hitlChallengeId) { delete params[HITL_CHALLENGE_ARG]; }
 
+        console.log('[mcpToolPipeline] Before authorize-decision:', { tool: tool.name, userSub, tokenScopes: mcpAccessToken?.scope });
         const mcpAuthz = await deps.evaluateMcpFirstToolGate({
             req,
             tool,
@@ -460,6 +487,7 @@ async function runMcpToolPipeline(ctx) {
             toolParams: params,
             hitlChallengeId,
         });
+        console.log('[mcpToolPipeline] After authorize-decision:', { tool: tool.name, ran: mcpAuthz.ran, blocked: !!mcpAuthz.block, decision: mcpAuthz.block?.body?.decision });
         if (mcpAuthz.ran && mcpAuthz.block) {
             deps.emit({
                 phase: 'authorize_denied',
@@ -888,7 +916,25 @@ async function runMcpToolPipeline(ctx) {
             // switched the global vertical. Still server-resolved: activeIdFor only
             // returns a vertical this session legitimately selected, falling back to
             // the global otherwise.
-            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
+            // Tier (groupToTier) — neither gateway can map a PingOne group array to a
+            // tier locally (no set-membership operator), so resolve it here the same
+            // way the McpFirstTool gate does and forward it as headers for the
+            // gateway's own local backstop (snapshots/gen-authorize-snapshot.js:44-47).
+            // Scoped to the main group-policy flag only — the UC9/UC21 demo-specific
+            // override paths that also feed the McpFirstTool gate are intentionally
+            // not replicated here to avoid duplicating that flag logic.
+            let gatewayUserGroups;
+            try {
+                const groupPolicy = require('./groupPolicy');
+                if (groupPolicy.isEnabled(require('./configStore'))) {
+                    gatewayUserGroups = await groupPolicy.groupsForUser(
+                        req.session?.user?.username,
+                        sessionVertical,
+                        { pingOneUserId: req.session?.user?.oauthId || req.session?.user?.sub || null },
+                    );
+                }
+            } catch (_) { /* best-effort */ }
+            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
@@ -1138,6 +1184,30 @@ async function runMcpToolPipeline(ctx) {
         // call to PingOne Authorize failed (its worker credentials), not a real
         // policy verdict — that must read as "fix the gateway", not "you are denied"
         // (same distinction the gateway_misconfigured catch-block handler makes).
+        // Ensure gateway authorize decision is always surfaced, even on successful
+        // tool calls. When gwAuditTrail.authorize exists but wasn't added during the
+        // normal success flow (line 956-977), add it here to prevent "Run failed before
+        // authorize-decision" on calls that actually reached Authorize.
+        if (useGateway && gwAuditTrail?.authorize && !tokenEvents.some((e) => e && e.id === 'gw-authorize')) {
+            const authzRes = gwAuditTrail.authorize;
+            const decision = authzRes.decision; // PERMIT, DENY, INDETERMINATE
+            const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
+            tokenEvents.push(deps.buildTokenEvent(
+                'gw-authorize',
+                'PingGateway → PingOne Authorize',
+                status,
+                null,
+                `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
+                buildGwAuthorizeEventExtra({
+                    ...authzRes,
+                    denyingFilter: gwAuditTrail.denyingFilter || authzRes.denyingFilter,
+                    lastFilter: gwAuditTrail.lastFilter || authzRes.lastFilter,
+                    filterChain: gwAuditTrail.filterChain || authzRes.filterChain,
+                    policy: gwAuditTrail.policy || authzRes.policy,
+                })
+            ));
+        }
+
         if (useGateway && gwAuditTrail?.authorize?.decision === 'DENY') {
             const authzRes = gwAuditTrail.authorize;
             const isInfraFault = !authzRes.correlationId
@@ -1159,21 +1229,6 @@ async function runMcpToolPipeline(ctx) {
             // authorize-decision" on a DENY that actually fired (#1313 did this
             // for the 428 branches; this is the 403 counterpart).
             const gwDenyEval = gatewayBlockAuthEval(gwAuditTrail, 'DENY', ctx, 'DENY');
-            if (!tokenEvents.some((e) => e && e.id === 'gw-authorize')) {
-                tokenEvents.push(deps.buildTokenEvent(
-                    'gw-authorize',
-                    'PingGateway → PingOne Authorize',
-                    'deny',
-                    null,
-                    `PingOne Authorize decision: DENY${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra({
-                        ...authzRes,
-                        denyingFilter: gwAuditTrail.denyingFilter,
-                        lastFilter: gwAuditTrail.lastFilter,
-                        filterChain: gwAuditTrail.filterChain,
-                    })
-                ));
-            }
             return { kind: 'block', httpStatus: 403, tokenEvents, body: {
                 error: 'gateway_policy_denied',
                 tool,
@@ -1250,6 +1305,39 @@ async function runMcpToolPipeline(ctx) {
                 });
             } catch (_) { /* SSE best-effort */ }
             return { kind: 'block', httpStatus: 428, tokenEvents, body: stepUpBody };
+        }
+
+        // HTTP 428 Precondition Required: P1AZ ELICITATION obligation — the agent
+        // must confirm intent before the tool call proceeds. Distinct from HITL
+        // (no human at the dashboard, no challenge minted) and step-up (no MFA);
+        // checked first since mcpGatewayClient.js tags it with its own
+        // gatewayErrorCode, separate from 'hitl_required'.
+        if (err.gatewayErrorCode === 'elicitation_required') {
+            deps.emit({ phase: 'gateway_elicitation_required' });
+            const elicitationBody = {
+                error: 'elicitation_required',
+                isError: false,
+                tool,
+                message: err.rpcData?.prompt || 'This action requires your confirmation.',
+                // The agent retries by echoing this id back as `_elicitation_id`
+                // with `_elicitation_confirmed:true` — without it the confirmation
+                // modal has nothing to send and the confirmation can never be spent.
+                elicitationId: err.rpcData?.elicitationId || null,
+                prompt: err.rpcData?.prompt || null,
+                tokenEvents,
+                requestJson,
+            };
+            try {
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: { error: 'elicitation_required', message: elicitationBody.message },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 428, tokenEvents, body: elicitationBody };
         }
 
         // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)

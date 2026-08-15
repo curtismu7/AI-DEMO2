@@ -45,12 +45,13 @@ const INHERITED_KEYS = ['constructor', '__proto__', 'toString', 'valueOf', 'hasO
 /** Names verticalDispatch.executeToolFor was handed, captured with their type. */
 const observedToolNames = [];
 
-jest.mock('../../middleware/agentSessionMiddleware', () => ({
-  agentSessionMiddleware: (req, _res, next) => {
+jest.mock('../../middleware/agentSessionMiddleware', () => {
+  const middleware = (req, _res, next) => {
     req.agentContext = { userId: 'u1', accessToken: 'tok', tokenEvents: [] };
     next();
-  },
-}));
+  };
+  return { agentSessionMiddleware: middleware, agentGuestSessionMiddleware: middleware };
+});
 
 jest.mock('../../services/bffMcpToolExecutor', () => ({
   executeBffTool: jest.fn(async () => JSON.stringify({

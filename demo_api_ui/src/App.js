@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Navigate,
   Route,
   BrowserRouter as Router,
   Routes,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { MdSwapHoriz } from "react-icons/md";
@@ -26,7 +27,9 @@ import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage"
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
+import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
+import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -62,6 +65,7 @@ import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
 import TokenTopologyPanel from "./components/TokenTopologyPanel";
 import HealthcareAdminOps from "./components/HealthcareAdminOps";
+import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
@@ -105,6 +109,13 @@ import VerticalFeaturePage from "./components/VerticalFeaturePage";
 import WebMcpExplainer from "./components/WebMcpExplainer";
 import NotFoundPage from "./components/NotFoundPage";
 import WorkforceAdminOps from "./components/WorkforceAdminOps";
+import UniversityAdminOps from "./components/UniversityAdminOps";
+import SupportConsole from "./components/supportConsole/SupportConsole";
+import { resolveConsoleVertical } from "./components/supportConsole/supportConsoleConfig";
+import GovernmentAdminOps from "./components/GovernmentAdminOps";
+import ManufacturingAdminOps from "./components/ManufacturingAdminOps";
+import InvestmentAdminOps from "./components/InvestmentAdminOps";
+import AbercrombieFitchAdminOps from "./components/AbercrombieFitchAdminOps";
 import { ActivityNarrativeProvider } from "./context/ActivityNarrativeContext";
 import {
   AgentUiModeProvider,
@@ -134,18 +145,23 @@ import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
+import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
-import AdminBlockedDashboard from "./components/AdminBlockedDashboard";
 import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
   AgentFlowInspectorRoute,
   ApiTrafficRoute,
   LogsRoute,
   McpTrafficRoute,
+  NewRelicRoute,
+  P1AzRoute,
+  PingOneEventsRoute,
   SequenceDiagramRoute,
+  TokenExchangeRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
   CibaApprovalPageRoute,
@@ -176,6 +192,7 @@ import PublicRoutes, {
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
+import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
@@ -284,6 +301,71 @@ function AppWithAuth() {
   const { appFlags } = useAppFlags();
   const { downServers, markAllUp, dismissForSession } = useServerHealthCheck();
   useOAuthUrlCleanup();
+  const navigate = useNavigate();
+
+  // Kill-switch modal state lives here, not in whatever page/component
+  // triggers it, because a successful kill destroys the session — which
+  // unmounts anything gated on `user` (AdminSideNav globally, and every
+  // `user ? <Page/> : <Navigate to="/"/>` protected route, e.g.
+  // /ai-control-plane, /agent-lifecycle) before it could ever show its own
+  // result. This component never unmounts on auth changes, so the modal
+  // survives long enough to render what actually happened.
+  //
+  // Callers open it via openKillSwitchModal({ agentId, initialScope,
+  // onConfirm, onDismiss }) instead of owning their own modal instance —
+  // onConfirm/onDismiss are supplied per-open so each caller keeps its own
+  // post-kill behavior (AdminSideNav navigates to /logout; ControlPlaneRoster
+  // just updates its roster row) while sharing one modal that outlives them.
+  const [killModal, setKillModal] = useState(null);
+  const openKillSwitchModal = useCallback((config) => setKillModal(config), []);
+  const closeKillSwitchModal = useCallback(() => {
+    killModal?.onDismiss?.();
+    setKillModal(null);
+  }, [killModal]);
+
+  const [agentRevoked, setAgentRevoked] = useState(false);
+  const handleKillSwitchConfirm = useCallback(
+    async (agentId, reason, scope = "instance") => {
+      const response = await fetch(`/api/admin/agent/${agentId}/kill-switch`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, scope }),
+      });
+      const body = await response.json().catch(() => ({}));
+      // 401 with agent_killed is the expected success response: session revoked at server
+      const killed = response.status === 401 && body.error === "agent_killed";
+      if (!killed && !response.ok) {
+        throw new Error(
+          body.error_description ||
+            body.message ||
+            `Kill switch failed: ${response.status}`,
+        );
+      }
+      setAgentRevoked(true);
+      return body;
+    },
+    [],
+  );
+  // AdminSideNav's "STOP AGENT" trigger — navigates to /logout on dismiss,
+  // but only if this specific open actually killed the agent (not just any
+  // prior kill), so a fresh local flag rather than the shared agentRevoked
+  // state avoids a stale-closure/timing mismatch between open and dismiss.
+  const openAdminStopAgent = useCallback(() => {
+    let revokedThisOpen = false;
+    openKillSwitchModal({
+      agentId: "default-agent",
+      initialScope: "instance",
+      onConfirm: async (agentId, reason, scope) => {
+        const body = await handleKillSwitchConfirm(agentId, reason, scope);
+        revokedThisOpen = true;
+        return body;
+      },
+      onDismiss: () => {
+        if (revokedThisOpen) navigate("/logout");
+      },
+    });
+  }, [handleKillSwitchConfirm, navigate, openKillSwitchModal]);
 
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
@@ -293,6 +375,11 @@ function AppWithAuth() {
     const onOpen = () => setShowTokenTopology(true);
     window.addEventListener('token-topology-open', onOpen);
     return () => window.removeEventListener('token-topology-open', onOpen);
+  }, []);
+  useEffect(() => {
+    const onOpen = () => setShowTokenChain(true);
+    window.addEventListener('floating-token-chain-open', onOpen);
+    return () => window.removeEventListener('floating-token-chain-open', onOpen);
   }, []);
 
   // Post-login success modal. `?oauth=success` is captured on the first render
@@ -371,8 +458,10 @@ function AppWithAuth() {
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
 
   // Landing /: always show float agent, never bottom dock.
+  // No Boolean(user) check — guests on /dashboard get the bottom dock agent
+  // (same reasoning as onMiddlePlacementInDashboard: guest must be able to start the demo).
   const hasEmbeddedDockLayout =
-    Boolean(user) && agentPlacement === "bottom" && onEmbeddedDockRoute;
+    agentPlacement === "bottom" && onEmbeddedDockRoute;
 
   const onMonitoringRoute = isMonitoringRoute(pathname);
 
@@ -408,7 +497,7 @@ function AppWithAuth() {
    *  Restricting to signed-in users would silently strip the inline agent
    *  for guests and leave them with no way to start the demo. */
   const onMiddlePlacementInDashboard =
-    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute);
+    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute || pathname === "/dashboard");
   /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise.
    *  onLiveWorkbenchRoute always mounts the agent here regardless of agentPlacement: this route's entire purpose
    *  requires the real agent to be present (narrow, inline), and unlike UserDashboard it renders no dock fallback
@@ -432,7 +521,7 @@ function AppWithAuth() {
   if (clinicalSplit) {
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   } else if (hasEmbeddedDockLayout) {
-    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true };
+    singleAgentSurfaceProps = { mode: "inline", embeddedDockBottom: true, splitColumnChrome: true };
   } else if (onMiddlePlacementInDashboard) {
     // Middle column owns the agent surface — render inline so the floating
     // dock chrome doesn't appear inside the column. Same pattern as the
@@ -454,7 +543,7 @@ function AppWithAuth() {
     <DemoTourProvider>
       <EducationUIProvider>
         <TokenChainProvider activePath={pathname}>
-          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined}>
+          <ProofOfEnforcementProvider vertical={activeVerticalId || undefined} enabled={!!user}>
           <ActivityNarrativeProvider>
             <div
               className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
@@ -478,12 +567,17 @@ function AppWithAuth() {
                 />
               )}
               {appRendersSideNav({ pathname, user }) && (
-                <AdminSideNav user={user} />
+                <AdminSideNav
+                  user={user}
+                  onStopAgentClick={openAdminStopAgent}
+                  agentRevoked={agentRevoked}
+                />
               )}
               {/* Auth check in flight — every route below renders null until `loading`
                   resolves, which left a blank content area under the side nav/dock.
-                  Show a branded loading card in that same slot instead. */}
-              {loading && (
+                  Show a branded loading card in that same slot instead.
+                  Skip on / and /dashboard — those routes render immediately for guests. */}
+              {loading && pathname !== "/" && pathname !== "/dashboard" && (
                 <main className="main-content main-content--auth-loading">
                   <div className="auth-loading-card">
                     <div className="auth-loading-dots">
@@ -502,10 +596,35 @@ function AppWithAuth() {
                   path="/setup/*"
                   element={<PublicRoutes user={user} logout={logout} />}
                 />
+                {/* New Relic event stream — public, no session required */}
+                <Route
+                  path="/monitoring/new-relic"
+                  element={<NewRelicRoute user={user} logout={logout} />}
+                />
+                {/* PingOne webhook events — public, same posture as New Relic */}
+                <Route
+                  path="/monitoring/pingone-events"
+                  element={<PingOneEventsRoute user={user} logout={logout} />}
+                />
+                {/* PingOne Authorize decisions — public, same posture as the others */}
+                <Route
+                  path="/monitoring/p1az"
+                  element={<P1AzRoute user={user} logout={logout} />}
+                />
+                {/* RFC 8693 token exchange telemetry — public, same posture as the others */}
+                <Route
+                  path="/monitoring/token-exchange"
+                  element={<TokenExchangeRoute user={user} logout={logout} />}
+                />
                 {/* Demo config accessible without login */}
                 <Route
                   path="/configure"
                   element={<ConfigurePage user={user} logout={logout} />}
+                />
+                {/* Stakeholder preview page — accessible without login, same as /configure */}
+                <Route
+                  path="/agent-studio-preview"
+                  element={<AgentStudioPreviewPage />}
                 />
                 <Route
                   path="/demo-data"
@@ -616,6 +735,7 @@ function AppWithAuth() {
                     <GraphifyPageRoute user={user} logout={logout} />
                   }
                 />
+                {/* OAuth Academy educational tool — accessible without login */}
                 <Route
                   path="/oauth-academy"
                   element={
@@ -651,7 +771,7 @@ function AppWithAuth() {
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
-                          <AiControlPlanePage />
+                          <AiControlPlanePage openKillSwitchModal={openKillSwitchModal} />
                         </main>
                       </>
                     ) : (
@@ -743,15 +863,13 @@ function AppWithAuth() {
                 <Route
                   path="/demo/:shellSlug"
                   element={
-                    loading ? null : user ? (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <FootprintLiveShellPage />
                         </main>
                       </>
-                    ) : (
-                      <Navigate to="/" replace />
                     )
                   }
                 />
@@ -773,7 +891,11 @@ function AppWithAuth() {
                   path="/use-cases"
                   element={
                     loading ? null : user && appFlags.showUseCaseLauncher ? (
-                      <UseCasesPageRoute user={user} logout={logout} />
+                      <UseCasesPageRoute
+                        user={user}
+                        logout={logout}
+                        onStopAgentClick={openAdminStopAgent}
+                      />
                     ) : (
                       <Navigate to="/" replace />
                     )
@@ -836,18 +958,26 @@ function AppWithAuth() {
                 <Route
                   path="/pingcli"
                   element={
-                    // Keep PingCliPage mounted across auth `loading` flickers so a
-                    // finished terminal run is not wiped mid-view.
-                    loading && !user ? null : user ? (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          <PingCliPage />
-                        </main>
-                      </>
-                    ) : (
-                      <Navigate to="/" replace />
-                    )
+                    // Public route — no login required.
+                    <AppShell user={user} logout={logout}>
+                      <PingCliPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent"
+                  element={
+                    // Public route — no login required (same pattern as /pingcli).
+                    <AppShell user={user} logout={logout}>
+                      <PersonalAgentStudioPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent/client"
+                  element={
+                    // Bare route for pop-out window — no nav shell.
+                    <PersonalAgentClientWindow />
                   }
                 />
                 {/* Legacy Test Lab URL → unified Demo check */}
@@ -919,18 +1049,19 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage */}
+                {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage.
+                    No loading guard — DashboardContent handles user=null with demo data immediately.
+                    Admins get the same surface: the dashboard is viewable without a customer
+                    token, and DashboardContent falls back to demo data when the backend answers
+                    admin_token_forbidden. It used to render AdminBlockedDashboard here, a wall
+                    whose only way forward was a role switch that signed the admin out. */}
                 <Route
                   path="/dashboard"
                   element={
                     <>
                       <TopNav user={user} onLogout={logout} />
                       <main className="main-content">
-                        {loading ? null : user?.role === "admin" ? (
-                          <AdminBlockedDashboard user={user} onLogout={logout} />
-                        ) : (
-                          <DashboardContent user={user} logout={logout} />
-                        )}
+                        <DashboardContent user={user} logout={logout} />
                       </main>
                     </>
                   }
@@ -954,11 +1085,7 @@ function AppWithAuth() {
                 <Route
                   path="*"
                   element={
-                    !user ? (
-                      loading ? null : (
-                        <TopNav user={null} onLogout={logout} />
-                      )
-                    ) : (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
@@ -983,8 +1110,27 @@ function AppWithAuth() {
                               "Render smoke" tests for the failure mode. To
                               add a new admin route, add it to this block and
                               wrap with <AdminRoute user={user}>...</AdminRoute>. */}
+                            {/* /admin is the PingOne admin dashboard. It was
+                                briefly repointed at the support console (#1486)
+                                and reverted (#REVERT): the console does not yet
+                                carry what this page does — group membership,
+                                the PingOne user record on lookup, the full
+                                token chain — so the repoint lost real
+                                capability. It moves back once the console is at
+                                parity. The support console lives at
+                                /admin/<vertical> meanwhile. */}
                             <Route
                               path="/admin"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <Dashboard user={user} onLogout={logout} />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            {/* Kept from #1486 so the Platform Admin nav entry
+                                and any bookmark still resolve. Same component. */}
+                            <Route
+                              path="/admin/pingone"
                               element={
                                 <RequireAdminLogin user={user}>
                                   <Dashboard user={user} onLogout={logout} />
@@ -994,46 +1140,111 @@ function AppWithAuth() {
                             <Route
                               path="/admin/banking"
                               element={
-                                <BankingAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <BankingAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/healthcare"
                               element={
-                                <HealthcareAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <HealthcareAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/retail"
                               element={
-                                <RetailAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <RetailAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/sporting-goods"
                               element={
-                                <SportingGoodsAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <SportingGoodsAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/admin/workforce"
                               element={
-                                <WorkforceAdminOps
-                                  user={user}
-                                  onLogout={logout}
-                                />
+                                <RequireAdminLogin user={user}>
+                                  <WorkforceAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/university"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <UniversityAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/government"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <GovernmentAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/manufacturing"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <ManufacturingAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/investment"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <InvestmentAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/abercrombie-fitch"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <AbercrombieFitchAdminOps
+                                    user={user}
+                                    onLogout={logout}
+                                  />
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1055,6 +1266,10 @@ function AppWithAuth() {
                             <Route
                               path="/themes"
                               element={
+                                // The backend mounts vertical-themes behind
+                                // authenticateToken only (see verticalThemes.js) —
+                                // any signed-in user, not admin-only. Match that
+                                // here instead of forcing an admin re-login.
                                 user ? (
                                   <AdminThemesPage />
                                 ) : (
@@ -1090,11 +1305,9 @@ function AppWithAuth() {
                             <Route
                               path="/demo-config"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DemoConfigPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1249,11 +1462,9 @@ function AppWithAuth() {
                             <Route
                               path="/agent-builder"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AgentBuilderPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1297,12 +1508,16 @@ function AppWithAuth() {
                               element={<DemoTrackPage />}
                             />
                             <Route
+                              path="/delegation-chain-value"
+                              element={<DelegationChainValuePage />}
+                            />
+                            <Route
                               path="/invest-dual-auth"
                               element={<InvestDualAuthDiagramPage />}
                             />
                             <Route
-                              path="/agent-studio-preview"
-                              element={<AgentStudioPreviewPage />}
+                              path="/gateway-enforcement-map"
+                              element={<GatewayEnforcementMapPage />}
                             />
                             <Route
                               path="/discovery-preview"
@@ -1437,34 +1652,28 @@ function AppWithAuth() {
                             <Route
                               path="/delegation"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DelegationPage
                                     user={user}
                                     onLogout={logout}
                                   />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/agent-lifecycle"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <AgentLifecyclePage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
                               path="/delegated-commerce"
                               element={
-                                user ? (
+                                <RequireAdminLogin user={user}>
                                   <DelegatedCommercePage user={user} />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
+                                </RequireAdminLogin>
                               }
                             />
                             <Route
@@ -1502,6 +1711,7 @@ function AppWithAuth() {
                     embeddedFocus={resolveEmbeddedFocus(pathname)}
                     distinctFloatingChrome
                     surfaceHostEl={surfaceHostEl}
+                    onStopAgentClick={openAdminStopAgent}
                     {...(isPingOneAdminAgentRoute(pathname)
                       ? { forceVertical: "pingone-admin" }
                       : {})}
@@ -1573,6 +1783,13 @@ function AppWithAuth() {
                   setCredentialsModal(null);
                 }}
                 onCancel={() => setCredentialsModal(null)}
+              />
+              <KillSwitchConfirmModal
+                isOpen={!!killModal}
+                agentId={killModal?.agentId}
+                initialScope={killModal?.initialScope}
+                onCancel={closeKillSwitchModal}
+                onConfirm={killModal?.onConfirm}
               />
               <LoginSuccessModal
                 user={user}

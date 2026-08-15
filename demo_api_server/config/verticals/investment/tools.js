@@ -84,10 +84,16 @@ function buildInvestmentTools(store) {
         return { result: store.buySecurity(userId, params || {}), render: 'buy_security' };
       case 'sell_security':
         return { result: store.sellSecurity(userId, params || {}), render: 'sell_security' };
-      case 'deposit':
-        return { result: store.deposit(userId, params || {}), render: 'deposit' };
-      case 'withdraw':
-        return { result: store.withdraw(userId, params || {}), render: 'withdraw' };
+      case 'deposit': {
+        const deposited = store.deposit(userId, params || {});
+        if (deposited && deposited.error) return { result: deposited, render: 'text' };
+        return { result: deposited, render: 'deposit' };
+      }
+      case 'withdraw': {
+        const withdrawn = store.withdraw(userId, params || {});
+        if (withdrawn && withdrawn.error) return { result: withdrawn, render: 'text' };
+        return { result: withdrawn, render: 'withdraw' };
+      }
       case 'large_trade': {
         // Consent/step-up showcase chips carry no symbol/amount — default the symbol to a
         // held security and a nominal amount so the security control runs against a real trade.
@@ -95,10 +101,15 @@ function buildInvestmentTools(store) {
         const _p = params || {};
         const _sym = _p.symbol || (store.get(userId).holdings[0] || {}).symbol || 'VTI';
         const _amt = _p.amount != null ? _p.amount : 100;
-        return { result: store.largeTrade(userId, { ..._p, symbol: _sym, amount: _amt }), render: 'large_trade' };
+        const traded = store.largeTrade(userId, { ..._p, symbol: _sym, amount: _amt });
+        if (traded && traded.error) return { result: traded, render: 'text' };
+        return { result: traded, render: 'large_trade' };
       }
-      case 'rebalance_portfolio':
-        return { result: store.rebalancePortfolio(userId, params || {}), render: 'rebalance_portfolio' };
+      case 'rebalance_portfolio': {
+        const rebalanced = store.rebalancePortfolio(userId, params || {});
+        if (rebalanced && rebalanced.error) return { result: rebalanced, render: 'text' };
+        return { result: rebalanced, render: 'rebalance_portfolio' };
+      }
       case 'sensitive_holdings':
         return { result: { holdings: store.get(userId).holdings, note: 'Sensitive cost-basis / tax-lot detail' }, render: 'text' };
       case 'api_key_demo':

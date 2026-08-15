@@ -1,5 +1,7 @@
 import React from 'react';
 import TokenCard from './TokenCard';
+import ProductCardGrid from './ProductCardGrid';
+import SeatMapPanel from './SeatMapPanel';
 import { formatValue } from '../utils/formatters';
 
 function valueByPath(obj, path) {
@@ -7,7 +9,7 @@ function valueByPath(obj, path) {
   return String(path).split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
-function VerticalResult({ descriptor, data }) {
+function VerticalResult({ descriptor, data, onAction }) {
   // Token card(s) — decoded JWT view(s). data carries {header,payload,tokenType} (token)
   // or { t1, t2 } each of that shape (token-pair). No raw token string is present.
   if (descriptor && descriptor.type === 'token') {
@@ -34,8 +36,28 @@ function VerticalResult({ descriptor, data }) {
     );
   }
 
+  if (descriptor && descriptor.type === 'productGrid') {
+    const items = Array.isArray(data) ? data : (data && Array.isArray(data.products) ? data.products : []);
+    return (
+      <div className="vertical-result vertical-result-product-grid">
+        <ProductCardGrid kind="products" title={descriptor.title} items={items} onAction={onAction} action={descriptor.action} />
+      </div>
+    );
+  }
+
+  if (descriptor && descriptor.type === 'seatMap') {
+    const flightNumber = (data && data.flightNumber) || '';
+    const rawSeats = (data && (data.seats || data)) || [];
+    const seats = Array.isArray(rawSeats) ? rawSeats : [];
+    return (
+      <div className="vertical-result vertical-result-seat-map">
+        <SeatMapPanel flightNumber={flightNumber} seats={seats} />
+      </div>
+    );
+  }
+
   // Text fallback for null/undefined/unknown descriptor type
-  if (!descriptor || !descriptor.type || !['card', 'fieldList', 'table'].includes(descriptor.type)) {
+  if (!descriptor || !descriptor.type || !['card', 'fieldList', 'table', 'productGrid', 'seatMap'].includes(descriptor.type)) {
     if (typeof data === 'string') {
       return <div className="vertical-result vertical-result-text">{data}</div>;
     }

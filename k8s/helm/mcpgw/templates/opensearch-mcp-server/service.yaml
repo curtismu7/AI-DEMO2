@@ -1,0 +1,18 @@
+{{- if .Values.opensearchMcpServer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-opensearch-mcp-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: opensearch-mcp-server
+    {{- include "privgateway.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: opensearch-mcp-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9900
+{{- end }}
