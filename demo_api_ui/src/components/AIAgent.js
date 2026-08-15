@@ -79,6 +79,7 @@ import { adminCustomerContext } from "../services/adminCustomerContext";
 import ScopePicker from "./ScopePicker";
 import ComplianceModal from "./ComplianceModal";
 import GatewayConsentModal from "./GatewayConsentModal";
+import ElicitationModal from "./ElicitationModal";
 import { EDU } from "./education/educationIds";
 import FidoStepUpModal from "./FidoStepUpModal";
 import MCPToolsListModal from "./MCPToolsListModal";
@@ -2536,7 +2537,11 @@ export default function BankingAgent({
         // back to its 'anthropic' default — an LLM call even in Heuristics.
         provider: activeLlmProvider,
         mode: agentProviderMode,
-        resume: [{ interruptId: interrupt.id, status: 'approved' }],
+        // reason/toolName: echoed straight back from the interrupt the BFF
+        // emitted (routes/agentTool.js's hitlRequired envelope) so the agent
+        // service's resume message can name the exact retry argument
+        // (_elicitation_confirmed vs _hitl_challenge_id) instead of guessing.
+        resume: [{ interruptId: interrupt.id, status: 'approved', reason: interrupt.reason, toolName: interrupt.toolName }],
       }).finally(() => setNlLoading(false));
     };
 
@@ -10227,14 +10232,26 @@ export default function BankingAgent({
             />
 
             {/* AG-UI Step 7 — HITL interrupt consent modal */}
-            <GatewayConsentModal
-              show={!!aguiHitlPending}
-              challengeId={aguiHitlPending?.id || ""}
-              challengeType="consent"
-              expiresAt={aguiHitlPending?.expiresAt || ""}
-              onApprove={handleAguiHitlApprove}
-              onDismiss={handleAguiHitlDismiss}
-            />
+            {aguiHitlPending?.reason === 'elicitation_required' ? (
+              <ElicitationModal
+                show={!!aguiHitlPending}
+                prompt={aguiHitlPending?.message || ""}
+                toolName={aguiHitlPending?.toolName || ""}
+                elicitationId={aguiHitlPending?.id || ""}
+                expiresAt={aguiHitlPending?.expiresAt || ""}
+                onApprove={handleAguiHitlApprove}
+                onDismiss={handleAguiHitlDismiss}
+              />
+            ) : (
+              <GatewayConsentModal
+                show={!!aguiHitlPending}
+                challengeId={aguiHitlPending?.id || ""}
+                challengeType="consent"
+                expiresAt={aguiHitlPending?.expiresAt || ""}
+                onApprove={handleAguiHitlApprove}
+                onDismiss={handleAguiHitlDismiss}
+              />
+            )}
 
             {/* Transaction failure modal — replaces auto-closing toast for write actions */}
             {txErrorModal && (
