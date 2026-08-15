@@ -23,7 +23,7 @@ const ChipSchema = z.object({
   caption: z.string().optional(),
   stepUpMethod: z.string().optional(),
   denyTool: z.string().optional(),
-  queryPrompt: z.enum(['userFilter']).optional(),
+  queryPrompt: z.enum(['userFilter', 'appFilter']).optional(),
   // Proof-of-enforcement catalog identity (Task 1: config/verticals/*/manifest.json
   // chips10 entries). Threaded through onChipClick → callMcpTool/sendAgentMessage
   // request bodies (Task 2) so the BFF can stamp the run against a known use case.
@@ -58,7 +58,7 @@ const RenderFieldSchema = z.object({
 });
 
 const RenderDescriptorSchema = z.object({
-  type: z.enum(['card', 'fieldList', 'table', 'text', 'token', 'token-pair']),
+  type: z.enum(['card', 'fieldList', 'table', 'text', 'token', 'token-pair', 'productGrid', 'seatMap']),
   title: z.string().optional(),
   fields: z.array(RenderFieldSchema).optional(),
   columns: z.array(z.object({
@@ -148,6 +148,13 @@ const ManifestSchema = z.object({
     greeting: z.string().optional(),
     systemPromptFlavor: z.string().optional(),
   }),
+
+  // Landing hero for the chat surface — full-bleed image + inviting greeting,
+  // shown before the first turn. Distinct from `dashboard.hero` (stat cards).
+  hero: z.object({
+    imageUrl: z.string().url(),
+    greeting: z.string().min(1),
+  }).optional(),
 
   dashboard: z.object({
     kind: z.string(),

@@ -81,6 +81,25 @@ it('uses the configured agent until claimed registration receives consent', () =
   expect(runtime.resolveAgentRuntime(req(), { fallbackToDefault: true })).toBeNull();
 });
 
+it('does not enforce consent until the claimed registration is activated', () => {
+  store.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'claimed',
+    scopes: [],
+    expiresAt: Date.now() + 60000,
+  });
+
+  expect(runtime.resolveConsentContext(req(), 'checkout')).toBeNull();
+});
+
+it('ignores orphaned delegated-commerce session ids', () => {
+  store.get.mockReturnValue(null);
+
+  expect(runtime.resolveConsentContext(req(), 'list_orders')).toBeNull();
+});
+
 it('reports read-only consent as insufficient for checkout', () => {
   store.get.mockReturnValue({
     id: 'reg-1',
@@ -111,5 +130,20 @@ it('reports expired registrations as insufficient consent', () => {
 
   expect(runtime.resolveConsentContext(req(), 'list_orders')).toEqual(
     expect.objectContaining({ status: 'expired', sufficient: false }),
+  );
+});
+
+it('keeps revoked registrations insufficient so post-revoke tool retries deny', () => {
+  store.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'revoked',
+    scopes: ['read', 'write'],
+    expiresAt: Date.now() + 60000,
+  });
+
+  expect(runtime.resolveConsentContext(req(), 'list_orders')).toEqual(
+    expect.objectContaining({ status: 'revoked', sufficient: false }),
   );
 });

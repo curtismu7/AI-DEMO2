@@ -1,0 +1,227 @@
+/* demo_api_ui/src/components/StepDetailPanel.css
+ *
+ * The selected step's full detail, below the chain map.
+ *
+ * Two rules inherited from REGRESSION_PLAN §4 and deliberately followed here:
+ *   - dark styling is keyed to :root[data-theme="dark"], NEVER
+ *     @media (prefers-color-scheme: dark)  (2026-08-02 — the rail went dark on
+ *     load with no control because the OS setting drove it)
+ *   - no declaration below 11px  (same entry raised the rail's font floor from
+ *     9px because it was unreadable in a demo)
+ */
+
+.sdp {
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-inset);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.sdp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.sdp-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.sdp-lane {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.sdp-status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 9px;
+  background: #e2e8f0;
+  color: var(--th-text);
+}
+
+.sdp-status--done { background: #dcfce7; color: #166534; }
+.sdp-status--active { background: #fef3c7; color: #92400e; }
+.sdp-status--denied,
+.sdp-status--error { background: #fee2e2; color: #991b1b; }
+
+.sdp-section { margin-bottom: 9px; }
+
+.sdp-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  margin-bottom: 3px;
+}
+
+.sdp-narrative {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--th-text);
+}
+
+.sdp-kv {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.sdp-kv-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 25%) 1fr;
+  gap: 8px;
+  /* monospace: token claim keys and values line up for scanning */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.sdp-kv-row dt { color: var(--th-text-muted); }
+
+.sdp-kv-row dd {
+  margin: 0;
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Before and after, side by side. Only the moved rows are marked — the point is
+   that `read` goes, `act` appears, `aud` rebinds and `exp` shortens. */
+.sdp-ba {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sdp-ba-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  margin-bottom: 3px;
+}
+
+.sdp-ba-row {
+  display: grid;
+  grid-template-columns: minmax(52px, 32%) 1fr;
+  gap: 6px;
+  /* monospace: claim keys and values line up across the two columns */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+}
+
+.sdp-ba-k { color: var(--th-text-muted); }
+.sdp-ba-v { color: var(--th-text); }
+
+.sdp-ba-row--changed { background: #fef3c7; }
+.sdp-ba-row--changed .sdp-ba-k { color: #92400e; }
+.sdp-ba-row--changed .sdp-ba-v { color: #78350f; font-weight: 600; }
+
+/* Present before, absent after — the claim was dropped. */
+.sdp-ba-row--gone .sdp-ba-v { text-decoration: line-through; opacity: 0.75; }
+
+.sdp-nochange {
+  margin: 0 0 9px;
+  font-size: 12px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  border-radius: 6px;
+  padding: 6px 9px;
+}
+
+/* Payloads render open, as the agreed mock shows them. .sdp-pre caps its own
+   height and scrolls, so a long body cannot push the rest of the panel away. */
+.sdp-payload { margin-bottom: 9px; }
+
+.sdp-payload-title {
+  font-size: 11px;
+  color: var(--th-text-muted);
+  margin: 2px 0 3px 11px;
+}
+
+.sdp-pre {
+  margin: 0;
+  /* monospace: raw HTTP request/response payloads */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border-radius: 6px;
+  padding: 8px 10px;
+  /* a long payload must not push the rest of the rail off screen */
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sdp-rfcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.sdp-rfc {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3730a3;
+  background: #e0e7ff;
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.sdp-inspect {
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border-radius: 6px;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+
+.sdp-inspect:hover { border-color: #1d4ed8; color: #1d4ed8; }
+
+/* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
+:root[data-theme="dark"] .sdp { background: var(--th-bg-card); border-color: var(--th-border); }
+:root[data-theme="dark"] .sdp-title { color: #eaf0fb; }
+:root[data-theme="dark"] .sdp-lane { color: #cdd7ec; }
+:root[data-theme="dark"] .sdp-status { background: var(--th-bg-inset); color: #cdd7ec; }
+:root[data-theme="dark"] .sdp-status--done { background: #10331f; color: #5fe39c; }
+:root[data-theme="dark"] .sdp-status--active { background: #33280f; color: #ffce7a; }
+:root[data-theme="dark"] .sdp-status--denied,
+:root[data-theme="dark"] .sdp-status--error { background: #3a1717; color: #ff8a80; }
+:root[data-theme="dark"] .sdp-section-label { color: #90a0c2; }
+:root[data-theme="dark"] .sdp-narrative { color: #eaf0fb; }
+:root[data-theme="dark"] .sdp-kv-row dt { color: #90a0c2; }
+:root[data-theme="dark"] .sdp-kv-row dd { color: #eaf0fb; }
+:root[data-theme="dark"] .sdp-pre { background: var(--th-bg-page); color: #e2e8f0; }
+:root[data-theme="dark"] .sdp-ba-title { color: #90a0c2; }
+:root[data-theme="dark"] .sdp-ba-k { color: #90a0c2; }
+:root[data-theme="dark"] .sdp-ba-v { color: #eaf0fb; }
+:root[data-theme="dark"] .sdp-ba-row--changed { background: #33280f; }
+:root[data-theme="dark"] .sdp-ba-row--changed .sdp-ba-k { color: #ffce7a; }
+:root[data-theme="dark"] .sdp-ba-row--changed .sdp-ba-v { color: #ffce7a; }
+:root[data-theme="dark"] .sdp-nochange { background: var(--th-bg-inset); color: #90a0c2; }
+:root[data-theme="dark"] .sdp-payload-title { color: #90a0c2; }
+:root[data-theme="dark"] .sdp-rfc { background: var(--th-bg-inset); color: #9ec1ff; }
+:root[data-theme="dark"] .sdp-inspect { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
+:root[data-theme="dark"] .sdp-inspect:hover { border-color: #9ec1ff; color: #9ec1ff; }

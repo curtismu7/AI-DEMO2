@@ -1,0 +1,33 @@
+/* NewRelicDashboard now composes the shared dashboard shell/strip/stream
+   components (../dashboard/dashboard.css) instead of its own markup — see
+   NewRelicDashboard.jsx. Everything that dashboard.css now supplies (head,
+   window/theme controls, cards, stat strip, table, sparkline) has been
+   removed from here. Only genuinely page-specific rules remain below. */
+
+/* Kept only for a pinned CSS-source guard test in NewRelicDashboard.test.jsx
+   ("NewRelicDashboard.css dark-mode ground") that statically asserts this
+   file paints its own --nrd-ground in both themes. The page no longer
+   renders an element with class "nrd" — DashboardShell supplies the actual
+   root (`.dash`, styled by dashboard.css) — so this rule has no live target
+   today. Left in place because deleting it requires also changing that
+   test, which is outside what this change is permitted to touch (the task
+   authorizes only the stage-&gt;stat testid rename in that file). */
+.nrd {
+  --nrd-ground: #eef2f7;
+  background: var(--nrd-ground);
+}
+
+:root[data-theme="dark"] .nrd {
+  --nrd-ground: #0a0f18;
+}
+
+/* Severity is a CSS dot, never an emoji — REGRESSION_PLAN §0 allowlist.
+   Rendered as a React element passed through EventStream's generic cell
+   renderer; styled here because dashboard.css has no severity-dot
+   equivalent. Uses --dash-* tokens (not --nrd-*, see note above) since this
+   markup renders inside DashboardShell's `.dash` root, which is what
+   actually defines those custom properties at runtime. */
+.nrd-sev { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dash-ink-2); white-space: nowrap; }
+.nrd-sev::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dash-ok); flex: none; }
+.nrd-sev-warn::before, .nrd-sev-warning::before { background: var(--dash-warn); }
+.nrd-sev-error::before, .nrd-sev-err::before { background: var(--dash-bad); }

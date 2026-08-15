@@ -1,6 +1,11 @@
 /* AdminCustomerPanel.css — deterministic customer admin panel.
-   Reuses dashboard tokens (--dash-*) and shared classes (dash-shell-card,
-   btn btn-primary, table, form-control) so it blends into the admin dashboard. */
+   Consumes the --admin-* tokens defined by AdminDashboardSkin.css on
+   .admin-dashboard-page (the panel's only mount point, Dashboard.js), plus the
+   shared classes (dash-shell-card, btn btn-primary, table, form-control).
+   Earlier revisions referenced --dash-* tokens — those are scoped to .dash and
+   never resolved here, so the panel silently ran on its fallback literals and
+   drifted onto a second gray ramp. The --admin-* tokens also carry the page's
+   dark values, so this file needs no dark block of its own. */
 
 .acp-panel {
   display: flex;
@@ -10,7 +15,7 @@
 .acp-subtitle {
   margin: 0 0 1rem;
   font-size: 0.9rem;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
   line-height: 1.5;
 }
 
@@ -20,7 +25,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
   margin-bottom: 0.3rem;
 }
 
@@ -35,12 +40,12 @@
   max-width: 360px;
   padding: 0.5rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid var(--dash-border, #e2e8f0);
+  border: 1px solid var(--admin-line);
 }
 
 .acp-hint {
   font-size: 0.85rem;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
   margin: 0.35rem 0;
 }
 
@@ -68,7 +73,7 @@
   list-style: none;
   margin: 0 0 1rem;
   padding: 0;
-  border: 1px solid var(--dash-border, #e2e8f0);
+  border: 1px solid var(--admin-line);
   border-radius: 8px;
   overflow: hidden;
   max-width: 480px;
@@ -85,7 +90,7 @@
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--dash-border, #e2e8f0);
+  border-bottom: 1px solid var(--admin-line);
   padding: 0.55rem 0.75rem;
   cursor: pointer;
   transition: background 0.12s;
@@ -97,19 +102,19 @@
 
 .acp-match:hover,
 .acp-match:focus-visible {
-  background: var(--dash-surface2, #f1f5f9);
+  background: var(--admin-surface-2);
   outline: none;
 }
 
 .acp-match__name {
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--dash-text, #1e293b);
+  color: var(--admin-ink);
 }
 
 .acp-match__meta {
   font-size: 0.78rem;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
 }
 
 /* Selected banner */
@@ -121,8 +126,8 @@
   padding: 0.6rem 0.85rem;
   margin-bottom: 1rem;
   border-radius: 8px;
-  background: var(--dash-surface2, #f1f5f9);
-  border: 1px solid var(--dash-border, #e2e8f0);
+  background: var(--admin-surface-2);
+  border: 1px solid var(--admin-line);
 }
 
 .acp-selected__label {
@@ -130,30 +135,30 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
 }
 
 .acp-selected__name {
   font-weight: 600;
-  color: var(--dash-text, #1e293b);
+  color: var(--admin-ink);
 }
 
 .acp-selected__id {
   font-weight: 400;
   font-size: 0.8rem;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
   word-break: break-all;
 }
 
 .acp-clear-btn {
   margin-left: auto;
   background: transparent;
-  border: 1px solid var(--dash-border, #cbd5e1);
+  border: 1px solid var(--admin-line);
   border-radius: 6px;
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
   cursor: pointer;
-  color: var(--dash-text, #1e293b);
+  color: var(--admin-ink);
 }
 
 .acp-clear-btn:hover {
@@ -177,14 +182,14 @@
 .acp-results {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--dash-border, #e2e8f0);
+  border-top: 1px solid var(--admin-line);
 }
 
 .acp-result-title {
   margin: 0 0 0.65rem;
   font-size: 1rem;
   font-weight: 700;
-  color: var(--dash-text, #1e293b);
+  color: var(--admin-ink);
 }
 
 .acp-dl {
@@ -203,12 +208,12 @@
   margin: 0;
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--dash-muted, #64748b);
+  color: var(--admin-muted);
 }
 
 .acp-dl__val {
   margin: 0.15rem 0 0;
-  color: var(--dash-text, #1e293b);
+  color: var(--admin-ink);
   word-break: break-word;
 }
 
@@ -220,7 +225,7 @@
 .acp-json {
   margin: 0.5rem 0 0;
   padding: 0.6rem 0.8rem;
-  background: var(--dash-surface2, #f1f5f9);
+  background: var(--admin-surface-2);
   border-radius: 6px;
   font-size: 0.8rem;
   overflow-x: auto;
@@ -236,7 +241,7 @@
 .acp-callout--ok {
   background: rgba(34, 197, 94, 0.12);
   border: 1px solid rgba(34, 197, 94, 0.3);
-  color: var(--dash-text, #14532d);
+  color: var(--admin-ink);
 }
 
 /* Adjust form */
@@ -251,5 +256,31 @@
   min-width: 220px;
   padding: 0.5rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid var(--dash-border, #e2e8f0);
+  border: 1px solid var(--admin-line);
 }
+
+/* ── Consolidated lookup (absorbed from the dashboard's separate card) ────── */
+.acp-hints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.acp-hint-chip {
+  border: 1px solid var(--admin-line);
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.acp-hint-chip:hover { background: var(--admin-tint); border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface)); }
+.acp-lookup { margin-top: 14px; }
+.acp-lookup__h {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--admin-muted);
+}
+.acp-kv { margin: 0; display: grid; gap: 2px; }
+.acp-kv__row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--admin-line); font-size: 13px; }
+.acp-kv__row dt { color: var(--admin-muted); }
+.acp-kv__row dd { margin: 0; color: var(--admin-ink); font-weight: 600; }

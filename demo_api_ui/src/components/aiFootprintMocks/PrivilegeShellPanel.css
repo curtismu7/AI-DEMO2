@@ -168,6 +168,40 @@
   overflow: auto;
 }
 
+/* Forced light/dark override — flips the panel regardless of the costume skin's
+   own brightness. Fills are translucent grey so they adapt to either --fg. */
+.pvs[data-pvs-theme="light"] { --fg: #1e1e1e; background: #ffffff; }
+.pvs[data-pvs-theme="dark"] { --fg: #e8e8e8; background: #16181d; }
+
+.pvs-theme-toggle {
+  margin-left: auto;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: rgba(128, 128, 128, 0.14);
+  color: inherit;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.pvs-theme-toggle:hover { background: rgba(128, 128, 128, 0.26); }
+
+/* Retry / sign-out actions in the ready phase. */
+.pvs-actions {
+  display: flex;
+  gap: 6px;
+}
+.pvs-actions button {
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: rgba(128, 128, 128, 0.14);
+  color: inherit;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pvs-actions button:hover { background: rgba(128, 128, 128, 0.26); }
+.pvs-actions button:disabled { opacity: 0.5; cursor: default; }
+
 /* Coding (Claude Code terminal) — monospace all the way. */
 .pvs--coding {
   font-family: "SF Mono", ui-monospace, Menlo, monospace;

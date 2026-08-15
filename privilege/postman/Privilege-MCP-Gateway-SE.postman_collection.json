@@ -1,0 +1,204 @@
+{
+  "info": {
+    "name": "Privilege MCP Gateway — SE cluster (PingOne OAuth2)",
+    "_postman_id": "priv-mcpgw-se-001",
+    "description": "Tests the cyonproxy gateway deployed via k8s/helm/mcpgw in ping-devops-cmuir on the SE AWS cluster (see privilege/deploy-whole-stack.prompt.md). Confirmed live end-to-end 2026-08-13.\n\nThe real entry point is Privilege's OWN publicly-hosted frontend:\n\n  https://<app-name>-app-default.applications.privilege.pingone.com:8643/mcp\n\n(for this deployment, app-name = cmuir). Direct access to our own ingress resets at the TLS layer — the Privilege-hosted URL is the only path that works.\n\nAuth: collection-level OAuth2 (auth code + PKCE) against the 'PingOne Privilege' app (client a6219652) in env 01d89b06. Postman opens a browser tab to PingOne, completes SSO, stores the resulting access token, and uses it as the Bearer token for all MCP Protocol requests. On 401, click 'Get New Access Token' in the collection Auth tab — Postman will auto-refresh via the stored refresh token if available, otherwise re-run the browser flow.\n\nSetup (one-time):\n  1. Set privilege_client_secret in the environment (get from PingOne console > Applications > PingOne Privilege > Configuration > Secret).\n  2. Click the collection > Auth tab > Get New Access Token.\n  3. Sign in — Postman captures and stores the token.\n\nExpected response progression: 401 'Bearer Token not found.' (no token) -> 403 'User ... doesn't have access to MCP app <name>' (token valid, no policy grant) -> 200 (token valid + policy granted). A 403 is progress — auth AND routing passed, Privilege is enforcing policy.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "oauth2",
+    "oauth2": [
+      { "key": "grant_type", "value": "authorization_code_with_pkce", "type": "string" },
+      { "key": "authUrl", "value": "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/authorize", "type": "string" },
+      { "key": "accessTokenUrl", "value": "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/token", "type": "string" },
+      { "key": "clientId", "value": "{{privilege_client_id}}", "type": "string" },
+      { "key": "clientSecret", "value": "{{privilege_client_secret}}", "type": "string" },
+      { "key": "scope", "value": "openid profile", "type": "string" },
+      { "key": "redirect_uri", "value": "https://oauth.pstmn.io/v1/callback", "type": "string" },
+      { "key": "tokenName", "value": "Privilege PingOne Token", "type": "string" },
+      { "key": "addTokenTo", "value": "header", "type": "string" },
+      { "key": "useBrowser", "value": true, "type": "boolean" }
+    ]
+  },
+  "event": [],
+  "variable": [],
+  "item": [
+    {
+      "name": "Diagnostic — Console Token (manual fallback)",
+      "item": [
+        {
+          "name": "1. Fetch session ID (needs auth_token cookie set manually below first)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "auth_token={{console_auth_token}}" }
+            ],
+            "url": {
+              "raw": "https://console.privilege.pingone.com/session-token",
+              "protocol": "https",
+              "host": ["console", "privilege", "pingone", "com"],
+              "path": ["session-token"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text());",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.collectionVariables.set('console_session_id', json.session_id);",
+            "  console.log('captured console_session_id:', json.session_id);",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "2. Read applications (verify token + get FrontEndName/status)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Cookie", "value": "auth_token={{console_auth_token}}" },
+              { "key": "x-procyon-session-id", "value": "{{console_session_id}}" }
+            ],
+            "url": {
+              "raw": "https://console.privilege.pingone.com/api/01d89b06-66d5-430e-9f28-65636843788b/v1/applications?ObjectMeta.Namespace=default",
+              "protocol": "https",
+              "host": ["console", "privilege", "pingone", "com"],
+              "path": ["api", "01d89b06-66d5-430e-9f28-65636843788b", "v1", "applications"],
+              "query": [{ "key": "ObjectMeta.Namespace", "value": "default" }]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code);",
+            "if (pm.response.code === 200) {",
+            "  const apps = pm.response.json().Applications || [];",
+            "  apps.forEach(a => {",
+            "    const cfg = a.Spec.McpAppConfig;",
+            "    console.log(a.ObjectMeta.Name, '-> FrontEndName:', JSON.stringify(cfg.FrontEndName.Elems));",
+            "    console.log('  Backends:', JSON.stringify(cfg.Backends.Elems), 'EntryPath:', cfg.EntryPath);",
+            "    console.log('  McpServerStatus:', a.Status.McpServerStatus.Status || '(clean)');",
+            "  });",
+            "} else { console.log(pm.response.text().slice(0,300)); }"
+          ], "type": "text/javascript" }}]
+        }
+      ],
+      "description": "Manual fallback for when OAuth2 is unavailable. console_auth_token is the browser's auth_token cookie from the Privilege console — get it from browser devtools (Application/Storage > Cookies) while logged in. Confirmed live 2026-08-13: the gateway accepts the raw auth_token JWT as its Bearer token directly.\n\nFor normal use, ignore this folder — the collection-level OAuth2 handles auth automatically."
+    },
+    {
+      "name": "MCP Protocol",
+      "item": [
+        {
+          "name": "0. Tokenless probe (expect 401 Bearer Token not found.)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,200));",
+            "pm.test('gateway reachable, wants a token', () => pm.response.code === 401);"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "1. Initialize",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2024-11-05\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.test('MCP initialized', () => pm.expect(json.result).to.have.property('serverInfo'));",
+            "  const sessionId = pm.response.headers.get('MCP-Session-Id') || pm.response.headers.get('Mcp-Session-Id');",
+            "  if (sessionId) { pm.environment.set('mcp_session_id', sessionId); console.log('captured session:', sessionId); }",
+            "} else if (pm.response.code === 403) {",
+            "  console.log('403 = auth+routing OK, no policy grant yet — grant this user access to the MCP app in the Privilege console.');",
+            "} else if (pm.response.code === 401) {",
+            "  console.log('401 = token missing/expired — collection > Auth tab > Get New Access Token.');",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "2. List Tools",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));",
+            "if (pm.response.code === 200) {",
+            "  const json = pm.response.json();",
+            "  pm.test('Tools returned', () => pm.expect(json.result.tools).to.be.an('array'));",
+            "  if (json.result && json.result.tools) console.log('Available tools:', json.result.tools.map(t => t.name).join(', '));",
+            "}"
+          ], "type": "text/javascript" }}]
+        },
+        {
+          "name": "3. Call Tool (edit name/arguments to match a registered tool)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json, text/event-stream" },
+              { "key": "MCP-Session-Id", "value": "{{mcp_session_id}}", "disabled": true }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"get_my_accounts\",\n    \"arguments\": {}\n  }\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/mcp",
+              "host": ["{{gateway_url}}"],
+              "path": ["mcp"]
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "console.log('status', pm.response.code, '|', pm.response.text().slice(0,300));"
+          ], "type": "text/javascript" }}]
+        }
+      ]
+    },
+    {
+      "name": "Kubernetes — reference (not runnable from Postman)",
+      "item": [],
+      "description": "Direct access to our own ingress/Service resets for real MCP clients (TLS-layer, confirmed live 2026-08-13); Privilege's own hosted frontend is the only path that works.\n\nPod/log check:\n  kubectl get pods -n {{namespace}} | grep {{helm_release}}\n  kubectl logs -n {{namespace}} deployment/{{helm_release}}-mcpgw -c log-tailer --tail=30\n(-c mcpgw is normally empty even when healthy — cyonproxy logs to a file, log-tailer is the sidecar tailing it.)\n\nBackend health (what the gateway forwards permitted calls to):\n  kubectl run mcp-probe -n {{namespace}} --image=curlimages/curl --rm -i --restart=Never --command -- curl -X POST http://mcp-server.{{namespace}}.svc.cluster.local:8080/mcp -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"probe\",\"version\":\"1.0\"}}}'"
+    }
+  ]
+}

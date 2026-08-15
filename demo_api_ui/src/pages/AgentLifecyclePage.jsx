@@ -360,6 +360,15 @@ function RevokeSlot() {
           >
             View audit trail →
           </a>
+          <a
+            className="alp-audit-link"
+            href={`/api/control-plane/lifecycle-events?agentId=${agentId}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ marginLeft: 12 }}
+          >
+            View lifecycle export feed →
+          </a>
           {lastScope === 'full' && (
             <button
               className="alp-btn"

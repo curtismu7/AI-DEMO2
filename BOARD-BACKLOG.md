@@ -52,3 +52,8 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 ### E6. Consistent "Exploring" section
 - Code Explorer, OAuth Academy, Code Search, and OAS Demo should be visually consistent pages/agents.
 - Move all of them under a new menu group named **"Exploring"**.
+
+### E7. `/agent-studio-preview` — needs to be greatly enhanced
+- URL: https://local.ping-devops.com:4000/agent-studio-preview
+- Design spec: `docs/superpowers/specs/2026-07-13-agent-studio-preview-design.md`
+- Was fixed for blank-page-when-signed-out in PR #1641 (route was gated behind login); content itself still needs the enhancement pass.

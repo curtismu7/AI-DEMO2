@@ -30,14 +30,15 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { PingOneAuthorizeClient, policySourceForEngine } from '../auth/PingOneAuthorizeClient';
+import { PingOneAuthorizeClient, policySourceForEngine, actChainDepth } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
 import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../config';
-import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
+import { getScopesForGatewayTool, getChallengeTypeForTool, evaluateScopeDecisionUnconditionally } from '../auth/toolScopes';
+import { evaluateTierDecision, parseRestrictedTools } from '../tierEnforce';
 import { teachLog } from '../teachLogger';
 import { routeTool } from '../router';
 import { selfBaseUrl } from '../selfBaseUrl';
@@ -55,6 +56,7 @@ import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolA
 import type { TratClaims, PolicySource, AuthzDecision } from '../auth/PingOneAuthorizeClient';
 import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
+import { createPendingElicitation, consumePendingElicitation } from '../elicitationStore';
 
 // ---------------------------------------------------------------------------
 // Body parsing helper — extract method and tool name from JSON-RPC body
@@ -157,7 +159,7 @@ function stampFilterTrail(
  * pipeline is bypassed and these functions are used instead.
  */
 export interface AuthorizeMcpRequestDeps {
-  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string }>;
+  introspect: (token: string) => Promise<{ active: boolean; sub?: string; exp?: number; error?: string; scope?: string; act?: { sub?: string } }>;
   authorize: (
     decoded: any,
     method: string,
@@ -421,7 +423,7 @@ export function buildAuthorizeMcpRequest(
         return;
       }
       auditTrail.policy = { passed: true };
-      decoded = { sub: introspResult.sub };
+      decoded = { sub: introspResult.sub, scope: introspResult.scope, act: introspResult.act };
       // Capture introspection result for passing to P1AZ (test path as well)
       introspectionResult = {
         active: introspResult.active,
@@ -539,6 +541,8 @@ export function buildAuthorizeMcpRequest(
     if (parsedBody.method === 'tools/call') {
       const rawArgs = { ...(parsedBody.params?.arguments || {}) };
       delete (rawArgs as Record<string, unknown>)._hitl_challenge_id;
+      delete (rawArgs as Record<string, unknown>)._elicitation_confirmed;
+      delete (rawArgs as Record<string, unknown>)._elicitation_id;
       // Shape check above guarantees params.name is a non-empty string here.
       const argsFailure = validateToolArgs(toolName ?? '', rawArgs as Record<string, unknown>);
       if (argsFailure) { sendRpcError(400, parsedBody.id, argsFailure); return; }
@@ -557,6 +561,45 @@ export function buildAuthorizeMcpRequest(
       toolArgs = rest;
       if (parsedBody.params) parsedBody.params.arguments = rest;
       outBody = Buffer.from(JSON.stringify(parsedBody), 'utf-8');
+    }
+
+    // Elicitation re-call markers — mirrors the `_hitl_challenge_id` handling
+    // above. Stripped from the forwarded body (backend schemas reject unknown
+    // fields); re-added to a P1AZ-only args object further down so the policy
+    // can permit the retry.
+    let elicitationConfirmed = false;
+    let elicitationId: string | undefined;
+    if (toolArgs && ('_elicitation_confirmed' in toolArgs || '_elicitation_id' in toolArgs)) {
+      const { _elicitation_confirmed, _elicitation_id, ...rest } = toolArgs as Record<string, unknown>;
+      elicitationConfirmed = _elicitation_confirmed === true;
+      elicitationId = typeof _elicitation_id === 'string' ? _elicitation_id : undefined;
+      toolArgs = rest;
+      if (parsedBody.params) parsedBody.params.arguments = rest;
+      outBody = Buffer.from(JSON.stringify(parsedBody), 'utf-8');
+    }
+
+    // Elicitation re-call validation — verify the pending record is valid for
+    // this session + tool BEFORE calling P1AZ. One-time use: consumed here.
+    // Mirrors index.ts (WS path) so both transports share the same store.
+    if (elicitationConfirmed) {
+      // `_hdr` (Step 2c) is not defined yet at this point in the pipeline —
+      // read the session-binding header directly, same extraction it uses.
+      const _rawSessionId = _req?.headers?.['mcp-session-id'];
+      const sessionId = (Array.isArray(_rawSessionId) ? _rawSessionId[0] : _rawSessionId || '').toString().trim();
+      const rec = elicitationId ? consumePendingElicitation(elicitationId, toolName ?? '', sessionId) : null;
+      if (!rec) {
+        setAuditHeader(res);
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'elicitation_required',
+          message: 'Elicitation confirmation is invalid or has expired',
+          reason: 'invalid_or_expired',
+          tool: toolName ?? '',
+          login_required: false,
+        }));
+        return;
+      }
+      // ElicitationConfirmed: 'true' is added to P1AZ via toolArgsForAuthz below.
     }
 
     // ── Step 2a: HITL receipt verification (transport parity with the WS path) ──
@@ -709,7 +752,10 @@ export function buildAuthorizeMcpRequest(
     // a self-consistent proof. Reject rather than accept an unbound proof.
     if (_requireDpop && !_cnfJkt) {
       setAuditHeader(res);
-      res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'DPoP' });
+      res.writeHead(401, {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `DPoP realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource", error="invalid_dpop_proof", error_description="token is not DPoP-bound (no cnf.jkt)"`,
+      });
       res.end(JSON.stringify({ error: 'invalid_dpop_proof', message: 'token is not DPoP-bound (no cnf.jkt)' }));
       return;
     }
@@ -729,7 +775,10 @@ export function buildAuthorizeMcpRequest(
         teachLog.warn(`[GW] DPoP proof verification failed: ${_v.reason} (tool: ${toolName})`);
         if (_requireDpop) {
           setAuditHeader(res);
-          res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'DPoP' });
+          res.writeHead(401, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `DPoP realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource", error="invalid_dpop_proof", error_description="${_v.reason || 'DPoP proof required'}"`,
+          });
           res.end(JSON.stringify({ error: 'invalid_dpop_proof', message: _v.reason || 'DPoP proof required' }));
           return;
         }
@@ -804,18 +853,77 @@ export function buildAuthorizeMcpRequest(
       _audCtx.rar = 'observed';
     }
 
+    // ── Step 2f: Per-tool scope backstop (Rule 3 parity) ──────────────────────────
+    // Runs REGARDLESS of P1AZ state. Real P1AZ cannot express per-tool set-membership
+    // over TokenScopes (snapshots/gen-authorize-snapshot.js:36-39); this is the
+    // gateway's own enforcement of that rule, mirroring decision.js Rule 3. Shaped
+    // as an AuthzDecision (not a hand-rolled response) so it flows through the SAME
+    // C2 provenance-aware rendering (policy_source, degraded, required_scopes) as
+    // every other DENY — a raw short-circuit here would silently drop that contract.
+    let _localBackstopDenial: AuthzDecision | undefined;
+    if (method === 'tools/call' && toolName) {
+      const _scopeBackstop = evaluateScopeDecisionUnconditionally(
+        toolName, decoded.scope, actChainDepth(decoded.act),
+      );
+      if (_scopeBackstop.decision === 'DENY') {
+        teachLog.warn(`[GW] scope backstop DENY: ${_scopeBackstop.reason} (tool: ${toolName})`);
+        _localBackstopDenial = {
+          decision: 'DENY',
+          reason: `local-fallback: ${_scopeBackstop.reason}`,
+          engine: 'mock',
+          policySource: 'local-fallback',
+          degraded: true,
+        };
+      } else {
+        // ── Tier (groupToTier) local deny — mirrors decision.js Rule 3d ───────────
+        // BFF pre-resolves group->tier (neither gateway can do set-membership over a
+        // PingOne group array) and forwards the resolved definition as headers.
+        // Absent headers = PERMIT (no-op) — this never widens what the token's own
+        // scopes already earned, only narrows it further when tier data IS present.
+        const _tierMaxAmount = _hdr('x-tier-max-amount-usd');
+        const _tierRestricted = parseRestrictedTools(_hdr('x-tier-restricted-tools'));
+        const _tierDecision = evaluateTierDecision(
+          toolName,
+          getScopesForGatewayTool(toolName).includes('write'),
+          toolArgs?.amount !== undefined ? Number(toolArgs.amount) : undefined,
+          _tierMaxAmount !== undefined ? Number(_tierMaxAmount) : undefined,
+          _tierRestricted,
+        );
+        if (_tierDecision.decision === 'DENY') {
+          teachLog.warn(`[GW] tier backstop DENY: ${_tierDecision.reason} (tool: ${toolName})`);
+          _localBackstopDenial = {
+            decision: 'DENY',
+            reason: `local-fallback: ${_tierDecision.reason}`,
+            engine: 'mock',
+            policySource: 'local-fallback',
+            degraded: true,
+          };
+        }
+      }
+    }
+
     // ── Step 3: PingOne Authorize evaluation (D-06) ───────────────────────────────
     // Typed explicitly: inferring from the first assignment dropped `obligation`
     // (only the fail-closed literal below was in the union), so the statement-based
     // gate could not be read here.
     let authzDecision: AuthzDecision | undefined;
+    // toolArgsForAuthz: for confirmed elicitation re-calls, re-add _elicitation_confirmed
+    // so the PDP call sees it (the field was stripped from toolArgs earlier so it
+    // does not reach the backend). Mirrors index.ts (WS path).
+    const toolArgsForAuthz: Record<string, unknown> | undefined = elicitationConfirmed
+      ? { ...(toolArgs as Record<string, unknown> | undefined), _elicitation_confirmed: true }
+      : toolArgs;
     try {
-      if (deps) {
+      if (_localBackstopDenial) {
+        // Already decided above — do not consult the PDP for a call the backstop
+        // already denied (nothing to gain, and it would waste a real PDP round-trip).
+        authzDecision = _localBackstopDenial;
+      } else if (deps) {
         authzDecision = await deps.authorize(
           decoded,
           method,
           toolName,
-          toolArgs,
+          toolArgsForAuthz,
           hitlApproved,
           intentValidation,
           hitlChallengeId,
@@ -827,7 +935,7 @@ export function buildAuthorizeMcpRequest(
           decoded,
           method,
           toolName,
-          toolArgs as any,
+          toolArgsForAuthz as any,
           hitlApproved,
           intentValidation,
           _tratClaims,
@@ -901,18 +1009,26 @@ export function buildAuthorizeMcpRequest(
       // `!hitlApproved` matters: an INDETERMINATE that survives an already-verified
       // receipt is the anti-loop case below (policy misconfiguration), which is
       // terminal — answering 428 there would invite the agent to retry forever.
-      const nonPermitStatus =
-        authzDecision.decision === 'INDETERMINATE' && !hitlApproved ? 428 : 403;
-      res.writeHead(nonPermitStatus, {
-        'Content-Type': 'application/json',
-        'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
-      });
+      // MCP Authorization spec §4.3 — the required scopes for this tool are
+      // always published in WWW-Authenticate regardless of WHY the PDP denied
+      // (scope gap, tier ceiling, group membership). The `scope=` parameter
+      // describes what the resource requires, not the denial reason. The body's
+      // `required_scopes` field is separately guarded by `deniedLocally` because
+      // that field IS a diagnosis (F8 reasoning below).
+      const toolRequiredScopesForHeader = getScopesForGatewayTool(toolName ?? '').join(' ');
 
       // Step-up is a different precondition from consent: MFA, not a human. It
       // gets its own code so the agent drives the right flow, and no HITL
       // challenge is minted (a receipt cannot satisfy MFA). Parity with
       // PingGateway's p1az-decision.groovy.
+      // RFC 6750 §3.1 + MCP Authorization spec §4.3: 403 with
+      // error="insufficient_scope" and scope= so the MCP client can trigger
+      // step-up re-authentication to obtain the required permissions.
       if (authzDecision.obligation === 'stepUp' && !hitlApproved) {
+        res.writeHead(403, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="PingOne", error="insufficient_scope", scope="${toolRequiredScopesForHeader}", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+        });
         res.end(JSON.stringify({
           error: 'step_up_required',
           message: 'Step-up authentication required',
@@ -925,11 +1041,43 @@ export function buildAuthorizeMcpRequest(
         return;
       }
 
+      // Elicitation obligation: P1AZ requires agent confirmation before proceeding.
+      // Branch on obligation (NOT reason) — reason is 'HITL_REQUIRED' for ALL
+      // non-stepUp obligations, so branching on reason would misclassify this as
+      // a HITL consent challenge. HTTP-transport counterpart of index.ts's WS
+      // handler; mints into the same shared store (src/elicitationStore.ts).
+      if (authzDecision.obligation === 'elicitation') {
+        const sessionId = _hdr('mcp-session-id') ?? '';
+        const prompt = authzDecision.advice?.find(
+          (a: { id: string }) => a.id === 'elicitation-prompt',
+        )?.value ?? `Confirm ${toolName}?`;
+        const rec = createPendingElicitation(toolName ?? '', sessionId, prompt);
+        res.end(JSON.stringify({
+          error: 'elicitation_required',
+          message: prompt,
+          elicitation_id: rec.elicitation_id,
+          prompt,
+          tool_name: toolName ?? '',
+          expires_in: 120,
+          policy_source: authzDecision.policySource,
+          ...(authzDecision.degraded ? { degraded: true } : {}),
+        }));
+        return;
+      }
+
       if (authzDecision.decision === 'INDETERMINATE') {
-        // HITL obligation. Anti-loop: a verified-approved receipt that still
-        // yields INDETERMINATE means a misconfigured policy — fail distinctly
-        // instead of re-issuing a challenge (mirrors index.ts WS path).
+        // HITL obligation — consent from a human, not a scope gap. 428 status
+        // signals "precondition required" (the precondition being an approved
+        // consent receipt). WWW-Authenticate carries realm + resource_metadata
+        // but NOT error="insufficient_scope" — the client cannot resolve this
+        // by requesting additional scopes.
+        // Anti-loop: a verified-approved receipt that still yields INDETERMINATE
+        // means misconfigured policy — fail distinctly instead of re-issuing.
         if (hitlApproved) {
+          res.writeHead(403, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+          });
           res.end(JSON.stringify({
             error: 'hitl_receipt_rejected',
             message: 'HITL receipt accepted but policy still requires approval',
@@ -959,6 +1107,10 @@ export function buildAuthorizeMcpRequest(
             teachLog.error('[GW] HTTP path failed to create HITL challenge', hitlErr);
           }
         }
+        res.writeHead(428, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+        });
         res.end(JSON.stringify({
           error: 'hitl_required',
           message: 'Human approval required',
@@ -981,11 +1133,17 @@ export function buildAuthorizeMcpRequest(
         return;
       }
 
-      // F8 — `required_scopes` is a hint derived from the LOCAL scope topology.
-      // It only describes the decision when the local scope engine IS what
-      // denied. Attaching it to a P1AZ denial for an unrelated reason (tier
-      // ceiling, group membership, actor chain) tells the operator to fix scopes
-      // that were never the problem — and can directly contradict the PDP.
+      // Generic DENY — RFC 6750 §3.1 + MCP Authorization spec §4.3:
+      // 403 with error="insufficient_scope" and scope= so MCP clients can
+      // trigger step-up re-authentication to obtain the missing permissions.
+      // F8 — `required_scopes` in the body is still guarded by `deniedLocally`
+      // because that field is a DIAGNOSIS (scope gap vs policy decision). The
+      // header's scope= is informational about what the resource requires and
+      // is always correct regardless of the denial reason.
+      res.writeHead(403, {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `Bearer realm="PingOne", error="insufficient_scope", scope="${toolRequiredScopesForHeader}", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
+      });
       res.end(JSON.stringify({
         error: 'insufficient_scope',
         message: authzDecision.reason ?? 'Request denied by policy',

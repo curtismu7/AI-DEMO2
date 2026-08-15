@@ -35,6 +35,9 @@ import {
 } from "../utils/agentColumnLayout";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
+import TokenChainFilmstrip from "./TokenChainFilmstrip";
+import SimpleStepperBar from "./SimpleStepperBar";
+import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -51,7 +54,6 @@ import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
 import AgentIdentityCard from "./AgentIdentityCard";
-import StaleSessionBanner from "./StaleSessionBanner";
 
 /** Format a number as USD currency — $1,234.56 */
 const fmt = (n) =>
@@ -165,6 +167,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     () => agentPlacement === "middle",
   );
 
+  const [showFilmstrip, setShowFilmstrip] = useState(() => {
+    try { return localStorage.getItem("ba_show_filmstrip") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    const handler = (e) => setShowFilmstrip(!!e.detail?.on);
+    window.addEventListener("agent-filmstrip-toggle", handler);
+    return () => window.removeEventListener("agent-filmstrip-toggle", handler);
+  }, []);
+
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
   // pop-out). Floating mode is unaffected. Mirrors the cookie-
@@ -173,9 +184,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/admin/feature-flags", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    getCachedJson("/api/admin/feature-flags")
+      .then(({ data }) => {
         if (cancelled) return;
         const flag = data?.flags?.find(
           (f) => f.id === "ff_show_agent_in_middle",
@@ -221,9 +231,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   });
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/admin/feature-flags', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    getCachedJson('/api/admin/feature-flags')
+      .then(({ data }) => {
         if (cancelled) return;
         const f = data?.flags?.find((x) => x.id === 'ff_agent_clinical_split');
         if (f != null) setClinicalSplitEnabled((cur) => cur || Boolean(f.value));
@@ -331,6 +340,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const handleInitiateOtpRef = useRef(null); // stays current — avoids stale closure
   const stepUpVerifyHrefRef = useRef(null); // stays current — avoids stale closure
   const fetchingRef = React.useRef(false);
+  const inFlightRef = React.useRef(null);
   const agentPlacementInitRef = React.useRef(true);
 
   const loadDemoFallback = useCallback(
@@ -348,8 +358,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   const fetchUserData = useCallback(
     async (silent = false) => {
-      if (fetchingRef.current) return;
+      if (fetchingRef.current) {
+        // Silent callers don't touch `loading` either way (see both `!silent`
+        // guards below), so no-op is fine for them. A non-silent caller does
+        // care, though — if it silently no-ops here because a silent fetch
+        // (e.g. the agentPlacement-change effect) won the race for
+        // fetchingRef first, nothing would ever clear the spinner it owns.
+        // Wait for the in-flight fetch to settle instead of leaving
+        // `loading` stuck true forever.
+        if (!silent) {
+          await inFlightRef.current?.catch(() => {});
+          setLoading(false);
+        }
+        return;
+      }
       fetchingRef.current = true;
+      const runPromise = (async () => {
       try {
         if (!silent) setLoading(true);
 
@@ -427,9 +451,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             }
             // silent refresh 401 — ignore; next explicit load will handle it
           } else if (dataErr.response?.status === 403) {
-            notifyError(
-              "You do not have permission to access this information.",
-            );
+            // admin_token_forbidden: an admin is viewing the customer dashboard.
+            // requireNotAdmin refuses admin tokens on customer data by design, so
+            // there is nothing to re-authenticate *for* — show the same demo data a
+            // guest sees rather than an error the admin cannot act on. Signing in as
+            // a customer stays available from the header.
+            if (dataErr.response?.data?.error === "admin_token_forbidden") {
+              if (!silent) loadDemoFallback("admin token — customer data not available");
+            } else {
+              notifyError(
+                "You do not have permission to access this information.",
+              );
+            }
           } else if (!silent) {
             // API unreachable or 5xx — fall back to demo without blocking the user
             loadDemoFallback("could not reach banking API");
@@ -439,6 +472,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         if (!silent) setLoading(false);
         fetchingRef.current = false;
       }
+      })();
+      inFlightRef.current = runPromise;
+      return runPromise;
     },
     [loadDemoFallback],
   );
@@ -3506,15 +3542,24 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       data-refined-surface="customer"
       data-rd-v2
     >
-      <StaleSessionBanner />
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div
-          className={`dashboard-content ud-body ud-body--2026 ${splitGridClass(
+          // ud-focus-mode overrides the split grid to a single column: the agent
+          // takes the full width and the chain lies underneath it, which is the
+          // whole point of Focus Mode. The grid classes stay so the collapsed
+          // and banking-column states keep their existing rules.
+          className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
+          {/* Full width above both columns, where the mock puts it. Inside the
+              agent column it had ~760px for ~14 controls and wrapped onto five
+              rows, taking 161px straight out of the transcript. The controls
+              already carry the mock's grouping (ba-hg groups, labels, dividers);
+              they were being asked to fit half the width they were built for. */}
+          <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
           <section
             className="ud-agent-column"
             ref={agentColumnRef}
@@ -3525,7 +3570,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               tabIndex: -1,
             })}
           >
-            <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
             <div className="embedded-banking-agent ud-dashboard-inline-agent">
               {/* Host stays mounted so the BankingAgent portal target's ref always
                   attaches. Guests have no portaled agent here (App.js gates the
@@ -3563,19 +3607,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </button>
           </section>
 
-          {showBankingInMiddle && (
-            <main
-              className="ud-center ud-banking-column"
-              id="main-dashboard-content"
-              tabIndex={-1}
-            >
-              {isRetailDashboard ? (
-                <RetailDashboard data={pageMockData} />
-              ) : (
-                renderBankingMain()
-              )}
-            </main>
-          )}
+          {/* No banking column in Focus Mode. Stacking it between the agent and
+              the chain puts balances in the middle of the evidence — and the
+              balances are the proof, not the subject. The 'bottom' and 'none'
+              branches below still render it. */}
+
 
           {/* Collapsed middle: agent column is CSS-hidden (host stays mounted so
               the portaled BankingAgent keeps its chat state); surface the same
@@ -3595,10 +3631,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </aside>
           )}
 
-          <DashboardTokenRail>
-            <ExchangeModeToggle hideTable />
-            <TokenChainTraceRail />
-          </DashboardTokenRail>
+          {/* Focus Mode: the chain lies along the bottom, full width, so a click
+              raises a sheet across the whole width instead of confining the
+              evidence to the narrowest column. TokenChainFilmstrip is a sibling
+              over the same store — the shared TokenChainTraceRail, which mounts
+              on ~20 other surfaces, is not modified. The 'bottom' and 'none'
+              branches below keep the vertical rail unchanged. */}
+          <TokenChainFilmstrip />
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
@@ -3650,10 +3689,45 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
+                <SimpleStepperBar />
+                <div className="ud-float-chain-actions">
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Real-time token topology — RFC 8693 delegation chain"
+                    onClick={() => window.dispatchEvent(new CustomEvent('token-topology-open'))}
+                  >
+                    Topology
+                  </button>
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Floating token chain — RFC 8693 delegation trace rail"
+                    onClick={() => window.dispatchEvent(new CustomEvent('floating-token-chain-open'))}
+                  >
+                    Token chain
+                  </button>
+                  <button
+                    type="button"
+                    className="ud-float-chain-btn"
+                    title="Open 15-Min Security Demo Script"
+                    onClick={() => window.dispatchEvent(new CustomEvent('demo-script-toggle'))}
+                  >
+                    Script
+                  </button>
+                </div>
               </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
+            {/* Response mirror — shows last agent reply on main page when toggled on */}
+            <AgentResponseMirror />
+            {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
+            {showFilmstrip && (
+              <div className="tcfs-float-host">
+                <TokenChainFilmstrip />
+              </div>
+            )}
           </div>
         )
       )}

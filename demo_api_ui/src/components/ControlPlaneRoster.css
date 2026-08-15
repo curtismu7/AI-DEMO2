@@ -65,6 +65,14 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 .cp-node.dead .ndot{background:var(--danger);box-shadow:none}
 .cp-node.hit .ndot{animation:cphit .4s ease}
 @keyframes cphit{0%{transform:scale(1)}40%{transform:scale(1.7)}100%{transform:scale(1)}}
+/* source filter chips */
+.cp-source-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;position:relative;z-index:2}
+.cp-source-chip{font-size:11px;letter-spacing:.3px;padding:4px 10px;border-radius:999px;cursor:pointer;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#e8eef7;opacity:.75;
+  transition:background .15s,border-color .15s,opacity .15s}
+.cp-source-chip:hover{opacity:1}
+.cp-source-chip.active{background:rgba(37,99,235,.22);border-color:#2563eb;color:#bfdbfe;opacity:1}
+.cp-source-count{opacity:.65;font-variant-numeric:tabular-nums}
 /* roster */
 .cp-rows{margin-top:8px;display:flex;flex-direction:column;gap:6px;position:relative;z-index:2}
 .cp-row{display:grid;grid-template-columns:18px 1fr auto auto;align-items:center;gap:10px;
@@ -89,6 +97,10 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
 .cp-stop--live:hover{background:#b91c1c;border-color:#b91c1c}
 .cp-stop--revive{background:#16a34a;border-color:#16a34a;color:#fff;font-weight:800;letter-spacing:.5px;padding:5px 18px;margin-left:8px}
 .cp-stop--revive:hover{background:#15803d;border-color:#15803d}
+/* Full-scope kill (disables the shared PingOne app for every user) — visually
+   distinct from the instance-only stop so it doesn't read as the default. */
+.cp-stop--live-full{background:transparent;border:1px dashed #f87171;color:#fca5a5;font-weight:700;letter-spacing:.3px;padding:5px 14px;margin-left:8px}
+.cp-stop--live-full:hover{background:rgba(248,113,113,.12);border-color:#ef4444;color:#fecaca}
 .cp-pulse .rdot{animation:cppulse .6s infinite}
 @keyframes cppulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
 .cp-actions{display:flex;gap:10px;margin-top:14px;align-items:center;position:relative;z-index:2}

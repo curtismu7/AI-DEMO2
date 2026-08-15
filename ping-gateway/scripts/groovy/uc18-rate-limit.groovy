@@ -102,14 +102,32 @@ if (globals._uc18Windows == null) {
     globals._uc18Windows = [:]
 }
 
-def now         = System.currentTimeMillis()
-def windowStart = now - windowMs
-def timestamps  = (globals._uc18Windows[rlKey] ?: []).findAll { (it as long) > windowStart }
+// PingGateway/IG is multi-threaded (unlike the Node counterpart's single-threaded
+// event loop), so the read-check-append-write below must be atomic per rlKey or two
+// concurrent requests for the same key can both read the same stale window and both
+// pass. Synchronize on `globals` — the same per-script-context shared object already
+// used as the cross-request store above — to serialize the compound update.
+def now
+def windowStart
+def limited = false
+def retryAfterMs = 0L
+synchronized (globals) {
+    now         = System.currentTimeMillis()
+    windowStart = now - windowMs
+    def timestamps = (globals._uc18Windows[rlKey] ?: []).findAll { (it as long) > windowStart }
 
-if (timestamps.size() >= maxRequests) {
-    def oldest       = timestamps[0] as long
-    def retryAfterMs = Math.max(1L, oldest + windowMs - now)
-    def resp         = new Response(Status.TOO_MANY_REQUESTS)
+    if (timestamps.size() >= maxRequests) {
+        limited = true
+        def oldest = timestamps[0] as long
+        retryAfterMs = Math.max(1L, oldest + windowMs - now)
+    } else {
+        timestamps.add(now)
+        globals._uc18Windows[rlKey] = timestamps
+    }
+}
+
+if (limited) {
+    def resp = new Response(Status.TOO_MANY_REQUESTS)
     resp.headers.put('Content-Type', 'application/json')
     resp.headers.put('Retry-After', String.valueOf((long) Math.ceil(retryAfterMs / 1000.0d)))
     resp.entity.setString(JsonOutput.toJson([
@@ -122,8 +140,5 @@ if (timestamps.size() >= maxRequests) {
     logger.warn("[UC18] rate_limited key=${rlKey} retryAfterMs=${retryAfterMs}")
     return Promises.newResultPromise(resp)
 }
-
-timestamps.add(now)
-globals._uc18Windows[rlKey] = timestamps
 
 return next.handle(context, request)

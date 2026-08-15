@@ -210,6 +210,28 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts && opts.useCaseId) {
         headers['X-Use-Case-Id'] = String(opts.useCaseId);
     }
+    // Tier (groupToTier) — pre-resolved here because neither gateway can map a
+    // PingOne group array to a tier locally (no set-membership operator in either
+    // P1AZ's DSL or the gateways' own runtimes). Additive: gateways use this only
+    // to DENY, never to widen a decision a token's own scopes wouldn't otherwise earn.
+    if (opts && Array.isArray(opts.userGroups)) {
+        try {
+            const groupPolicy = require('./groupPolicy');
+            const verticalForTier = (opts && opts.vertical) || configStore.getEffective('active_vertical') || 'banking';
+            const tier = groupPolicy.resolveUserTier(opts.userGroups, verticalForTier);
+            const tierDefs = groupPolicy.getTierDefinitions(verticalForTier);
+            const tierDef = tierDefs[tier];
+            headers['X-User-Tier'] = tier;
+            if (tierDef) {
+                if (typeof tierDef.maxAmountUsd === 'number') {
+                    headers['X-Tier-Max-Amount-Usd'] = String(tierDef.maxAmountUsd);
+                }
+                if (Array.isArray(tierDef.restrictedTools) && tierDef.restrictedTools.length) {
+                    headers['X-Tier-Restricted-Tools'] = tierDef.restrictedTools.join(',');
+                }
+            }
+        } catch (_) { /* best-effort */ }
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
@@ -510,6 +532,33 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // re-opening the consent modal on it would loop.
     if (status === 428) {
         const body428 = response.data || {};
+
+        // Elicitation is a third, distinct 428 precondition: P1AZ's ELICITATION
+        // obligation asks the agent to confirm intent, minted as a one-time,
+        // session-bound record (demo_mcp_gateway/src/elicitationStore.ts) — not
+        // a HITL consent challenge and not step-up MFA. Checked first so it
+        // does not fall into the generic HITL branch below (both share
+        // decision:INDETERMINATE / reason:HITL_REQUIRED upstream; only the
+        // gateway's error code distinguishes them on the wire).
+        if (body428.error === 'elicitation_required') {
+            console.warn('[mcpGatewayClient] 428 elicitation required: tool=%s elicitationId=%s', body428.tool_name || '(?)', body428.elicitation_id || '(none)');
+            throw Object.assign(
+                new Error(body428.message || 'Confirmation required'),
+                {
+                    code: 'mcp_tool_error',
+                    httpStatus: 428,
+                    gatewayErrorCode: 'elicitation_required',
+                    elicitation: true,
+                    rpcData: {
+                        elicitationId: body428.elicitation_id || null,
+                        prompt: body428.prompt || body428.message || '',
+                        toolName: body428.tool_name || null,
+                        expiresIn: body428.expires_in,
+                    },
+                    gwAuditTrail: _parseGwAuditTrail(response),
+                },
+            );
+        }
 
         // Two different preconditions arrive as 428 and they drive different UI:
         // step-up needs MFA (no challenge, no human), consent needs a human at the

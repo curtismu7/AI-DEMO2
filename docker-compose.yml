@@ -80,6 +80,11 @@ services:
       NODE_ENV: development
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      # Open-access demo flag — same value the mcp-server gets. The BFF reads it
+      # only to gate /api/path/demo-subject-token (mints the demo-user token the
+      # mcp-server needs as a Step 9 subject_token on the Privilege open-access
+      # hop). 404s the endpoint when false. No other BFF behavior keys on it.
+      MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
       # Phase 4 crash guard: unhandled rejections log-and-continue in demo runs
       # (see demo_api_server/utils/crashGuard.js).
       CRASH_GUARD: "1"
@@ -342,6 +347,11 @@ services:
       - "8080:8080"
     environment:
       NODE_ENV: development
+      # environments.ts defaults development mode to a relative
+      # './dev-data/tokens' path the Dockerfile never creates/chowns (only
+      # /app/data/tokens, the production path, for the non-root appuser) —
+      # every session write hits EACCES. See k8s/30-mcp-server-deployment.yaml.
+      TOKEN_STORAGE_PATH: "/app/data/tokens"
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8080"
       # Opt-in TLS+ALPN listener for real HTTP/2 to the BFF's http2McpBridge.js.
@@ -428,6 +438,25 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+
+  # ── Privilege MCPGW (Procyon cyonproxy) ──────────────────────────────────────
+  mcpgw:
+    image: public.ecr.aws/s7q1z8z4/privilege-proxy:latest
+    container_name: ai-demo-mcpgw
+    ports:
+      - "8443:8443"
+    environment:
+      # Privilege gateway enrollment token (from Privilege console Setup > Gateways)
+      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
+    volumes:
+      - /var/log/procyon:/var/log/procyon
+      - /var/lib/procyon/ssl:/procyon/ssl
+      - /var/lib/procyon/recordings:/procyon/recordings
+    networks:
+      - ai-demo
+    restart: unless-stopped
+    depends_on:
+      - mcp-server
 
   # ── LangChain Agent (Python / uvicorn) ───────────────────────────────────────
   langchain-agent:
@@ -1187,29 +1216,92 @@ services:
   # ── PingOne Privilege MCPGW (commercial) ───────────────────────────────────
   # PingOne Privilege proxy: just-in-time least-privilege plus full session
   # recording. Policy is authored in the PingOne Privilege console, NOT in this
-  # repo. ENV_PROXY_TOKEN comes from the gateway wizard; store the JWT in
-  # ping-mcpgw/config/proxy-token (gitignored).
+  # repo. ENV_PROXY_TOKEN comes from the gateway wizard; store it in
+  # ping-mcpgw/procyon/config/proxy-token.env (gitignored).
   ping-mcpgw:
     profiles: ["mcpgw"]
-    image: public.ecr.aws/s7q1z8z4/privilege-proxy
+    # BINARY SWAP 2026-08-12, from privilege-proxy/cyonproxy to
+    # privilege-mcpgw/mcpgw. Reason: cyonproxy never emits a WWW-Authenticate
+    # challenge on a tokenless request (verified by grep -a over the binary —
+    # zero occurrences of authorization_uri / MCP OAuth Server /
+    # oauth-protected-resource). mcpgw's binary contains every one of those
+    # strings, and a live probe of another engineer's cluster running this same
+    # image confirmed it emits the challenge for real:
+    #   401, www-authenticate: Bearer realm="MCP OAuth Server", authorization_uri="..."
+    # ValidateInfraJwt (the kid-vs-infra-root-jwt wall) is present in this binary
+    # too, so this is NOT confirmed to unblock PingOne-issued client tokens —
+    # only the discovery/challenge layer is proven. See privilege/PRIVILEGE-MCP.md
+    # and the skill's "The PingOne token wall" section.
+    #
+    # Pinned by digest (multi-arch manifest list, works on both Apple Silicon and
+    # amd64) rather than a tag — no public tag-listing access to confirm a stable
+    # version tag exists, and this is the exact build verified above. Bump by
+    # re-pulling :latest and updating the digest when re-verifying.
+    image: public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d
+    pull_policy: always
     container_name: ai-demo-ping-mcpgw
-    # No -listen flag, matching the vendor's own docker run. This proxy binds no
-    # public MCP port at all: it holds an outbound gRPC command stream to the
-    # control plane, and each application's frontend is hosted in the cloud and
-    # routed back over that mesh. Inside the container only :8090 (loopback) is
-    # bound. Published ports below are the health endpoint and the mesh port —
-    # earlier attempts to publish an "MCP port" (8680, then 8623) were chasing a
-    # listener that never exists in this topology.
-    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com
-    environment:
-      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
+    # AGENTLESS (self-hosted frontend) MODE — see privilege/PRIVILEGE-MCP.md.
+    #
+    # There are two Privilege topologies and they behave completely differently:
+    #
+    #   mesh / cloud frontend  the console assigns each MCP Server application an
+    #                          *.applications.privilege.pingone.com FQDN, requests
+    #                          land in Ping's cloud and are routed back over the
+    #                          outbound gRPC stream. Nothing binds locally. Privilege
+    #                          validates the client's PingOne JWT itself — which is
+    #                          the "IssuerPublicKey:[]" / "JWT signature validation
+    #                          failed" wall this demo hit for weeks.
+    #
+    #   agentless / self-hosted frontend  (this config) the console's Frontend Name
+    #                          is OUR domain, the proxy binds locally, and the
+    #                          gateway runs the OIDC dance itself against the
+    #                          endpoints in ping-mcpgw/procyon/config/pingone.env.
+    #
+    # -mcpconfpath is REQUIRED on this binary (fatal "MCP Config path not
+    # specified" without it) — unlike cyonproxy, which only ever read pingone.env
+    # via env_file-injected environment variables and never touched the file
+    # itself. Confirmed by running --help and a scratch container.
+    command: /procyon/bin/mcpgw -hostname local.ping-devops.com -mcpconfpath /var/lib/procyon/config/pingone.env
+    # pingone.env is an ENV FILE — load its contents as environment variables, AND
+    # (per the command above) mcpgw reads the file directly via -mcpconfpath.
+    #
+    # required: false on both so the profile still starts on a checkout that has not
+    # created them yet (both gitignored — copy pingone.env.example for the first).
+    # Unlike under cyonproxy, a genuinely missing pingone.env is no longer a soft
+    # degradation here — mcpgw reads -mcpconfpath eagerly at startup and exits
+    # fatally if the path doesn't resolve.
+    #
+    # NO `environment:` block here. It used to carry
+    # ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}", which the compose-env-shadow
+    # hygiene gate correctly rejects once env_file is in play: `environment:` wins
+    # over env_file unconditionally, so on any checkout where the shell or root .env
+    # does not set PRIVILEGE_PROXY_TOKEN it would blank the token to "".
+    #
+    # The enrollment token travels in its own env file, ENV_PROXY_TOKEN=eyJ...:
+    #
+    #   printf 'ENV_PROXY_TOKEN=%s\n' 'eyJ...' > ping-mcpgw/procyon/config/proxy-token.env
+    #
+    # Only needed for FIRST boot or re-enrollment. After that the proxy authenticates
+    # to the control plane with the mTLS cert pair in /procyon/ssl (proxy-crt.pem,
+    # proxy-key.pem, proxy-ca.pem) and ignores this entirely — which is why an
+    # enrollment token that expired days ago still starts the container fine.
+    env_file:
+      - path: ./ping-mcpgw/procyon/config/pingone.env
+        required: false
+      - path: ./ping-mcpgw/procyon/config/proxy-token.env
+        required: false
     ports:
       - "8620:8620"
       - "8690:8690"
+      # -mcpgw's own listener (default :8623) — the port that actually answers MCP
+      # requests and emits the OAuth challenge on this binary. mcpgw-nginx targets
+      # this port; the published host port is for direct-probe troubleshooting only
+      # (curl -i https://localhost:8623/mcp).
+      - "8623:8623"
     volumes:
-      # NO single-file bind of the enrollment token here. cyonproxy REWRITES
-      # /procyon/ssl/proxy-token.data at startup (it swaps the short-lived
-      # wizard JWT for a long-lived one), so a :ro bind made it exit 1 on every
+      # NO single-file bind of the enrollment token here. The proxy REWRITES
+      # /procyon/ssl/proxy-token.data at startup (the SAME token, rewritten — it is
+      # not swapped for a long-lived one), so a :ro bind made it exit 1 on every
       # boot — "ProxyToken write to /procyon/ssl/proxy-token.data failed …
       # read-only file system" — and a :rw single-file bind breaks the same way
       # as soon as the proxy replaces rather than truncates the file.
@@ -1219,20 +1311,115 @@ services:
       - mcpgw-ssl:/procyon/ssl
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
-      # pingone.env — SERVER_URL + the OIDC endpoints the gateway uses to
-      # authenticate MCP clients. It was authored into ping-mcpgw/config (the BFF
-      # writes it via PUT /api/privilege-mcp/env) but NEVER mounted here, so the
-      # proxy never saw it. Its own docs call a missing SERVER_URL a cause of
-      # "gateway does not behave as expected", which matches a proxy that enrolls
-      # fine and then serves nothing. Directory mount, not a single file: a
-      # single-file bind goes stale when the host file is replaced.
-      - ./ping-mcpgw/config:/var/lib/procyon/config
+      # The WHOLE /var/lib/procyon tree, same path on both sides. This mirrors the
+      # vendor's own run command, which is embedded verbatim in the cyctl binary:
+      #
+      #   --net=host --name procyon-proxy \
+      #     -v /var/log/procyon:/var/log/procyon \
+      #     -v /var/lib/procyon/ssl:/procyon/ssl \
+      #     -v /var/lib/procyon/recordings:/procyon/recordings \
+      #     -v /var/lib/procyon:/var/lib/procyon \        <- this one
+      #     -v /etc/ssh/sshd_config:/etc/ssh/sshd_config
+      #
+      # We previously bound only the config subdirectory, which put pingone.env at
+      # the right path but hid every sibling the proxy might expect next to it.
+      # Note the console's "Get Docker Command" output omits this mount entirely —
+      # a proxy enrolled straight from that command has no /var/lib/procyon at all.
+      #
+      # Directory mount, never single files: a single-file bind goes stale when the
+      # host file is replaced (git checkout, editor save-by-rename give it a new
+      # inode) and then vanishes inside the container.
+      - ./ping-mcpgw/procyon:/var/lib/procyon
     networks:
       ai-demo:
         aliases:
           - local.ping-devops.com
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ── MCPGW front door (nginx) ───────────────────────────────────────────────
+  # The "nginx engine" from the Privilege SE storyboard: customer-owned DNS and
+  # TLS in front of the gateway runtime, so the frontend URL a client calls is a
+  # domain we control rather than a Ping-assigned cloud FQDN.
+  #
+  #   https://aidemo.mcpgw.local.ping-devops.com/mcp  ->  nginx :443
+  #                                                    ->  ping-mcpgw :8623
+  #                                                    ->  mcp-server :8080
+  #
+  # Requires /etc/hosts entries — a wildcard cert works, but /etc/hosts has no
+  # wildcard, so add one 127.0.0.1 line per frontend host (see
+  # privilege/runbooks/mcpgw-nginx.md).
+  #
+  # The wildcard cert pair is NOT the core stack's api.ping.demo+2 pair; it is
+  # generated separately by scripts/ensure-mcpgw-certs.sh into the same certs/
+  # directory (gitignored).
+  mcpgw-nginx:
+    profiles: ["mcpgw"]
+    image: nginx:alpine
+    container_name: ai-demo-mcpgw-nginx
+    ports:
+      # Host 443 so the frontend URLs registered in the Privilege console carry
+      # no port, matching the vendor's own SE material. If something else on the
+      # host claims 443, change this to 8643:443 and append :8643 to every
+      # Frontend Name in the console and to PRIVILEGE_MCPGW_URL.
+      - "443:443"
+    volumes:
+      - ./demo_mcpgw_nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      ping-mcpgw:
+        condition: service_started
+    networks:
+      ai-demo:
+        # In-container DNS aliases for the per-app frontend hosts, so the BFF
+        # (ai-demo-api-server) reaches the gateway front door by the same
+        # hostname a browser uses. Without the app-named entries the BFF cannot
+        # resolve them (those names live only in the host's /etc/hosts), and the
+        # Privilege client's gateway path is dead from inside Docker. The
+        # wildcard cert already covers every name here.
+        aliases:
+          - mcpgw.local.ping-devops.com
+          - aidemo.mcpgw.local.ping-devops.com
+          - MCP-aidemo.mcpgw.local.ping-devops.com
+          - mcp-pingone-admin.mcpgw.local.ping-devops.com
+    restart: unless-stopped
+
+  # OpenSearch + its MCP server — sample backend for the Privilege MCP gateway.
+  # Not this app's own MCP servers; useful only when testing against an
+  # OpenSearch-backed MCP application registered in the Privilege console
+  # (app name: cmuir-opensearch, backend: http://opensearch-mcp-server:9900/mcp).
+  opensearch:
+    profiles: ["mcpgw"]
+    image: opensearchproject/opensearch:2
+    container_name: ai-demo-opensearch
+    environment:
+      discovery.type: "single-node"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  opensearch-mcp-server:
+    profiles: ["mcpgw"]
+    image: cjmuir710/opensearch-mcp-server:latest
+    container_name: ai-demo-opensearch-mcp-server
+    command: ["--transport", "stream", "--host", "0.0.0.0", "--port", "9900"]
+    environment:
+      OPENSEARCH_URL: "http://opensearch:9200"
+      OPENSEARCH_NO_AUTH: "true"
+    ports:
+      - "9900:9900"
+    depends_on:
+      opensearch:
+        condition: service_started
+    networks:
+      - ai-demo
     restart: unless-stopped
 
   # ── RAG Code Search Services ──────────────────────────────────────────────
@@ -1469,3 +1656,4 @@ volumes:
   mcpgw-ssl:
   mcpgw-logs:
   mcpgw-recordings:
+  opensearch-data:

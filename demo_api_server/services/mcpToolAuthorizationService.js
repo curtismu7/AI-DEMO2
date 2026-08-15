@@ -368,7 +368,26 @@ async function _applyTransactionPolicy(
   const declaredMethod = getUseCaseStepUpMethod(useCaseId);
   const forceStepUp = !!declaredMethod;
   if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
-  if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
+  if (r.decision === 'DENY' || r.policyNotFound) return r; // already at/above what we could add
+  // MFA threshold used both to (a) demote a gate-level step-up that landed in the
+  // HITL amount band and (b) refuse to promote a Transaction-policy step-up below
+  // the same bar. Declared forceStepUp (UC7) always wins regardless of amount.
+  const _mfaThreshold = Number(configStore.getEffective('mfa_threshold_usd') || runtimeSettings.get('mfa_threshold_usd') || 500);
+  // Gate already returned step-up. Do NOT early-return blindly: a $300 MCP-gate
+  // step-up used to bypass the threshold guard below, the UI then demoted it to
+  // consent, and createTransferWithConsent completed via REST without MFA.
+  if (r.stepUpRequired) {
+    if (forceStepUp) return r;
+    if (Number.isFinite(amount) && amount < _mfaThreshold) {
+      return withGateAndSecondaryEvaluation({
+        ...r,
+        stepUpRequired: false,
+        hitlRequired: true,
+        transactionPolicyHitl: true,
+      }, r, { source: 'transaction-policy', decision: 'HITL_REQUIRED', decisionId: r.decisionId || null, raw: r.raw || null });
+    }
+    return r;
+  }
   try {
     const t = await pingOneAuthorizeService.evaluateTransaction({
       userId, amount, type: transactionType, acr,
@@ -384,7 +403,12 @@ async function _applyTransactionPolicy(
         transactionPolicyDenied: true,
       }, r, { source: 'transaction-policy', decision: 'DENY', decisionId: t.decisionId || null, raw: t.raw || null });
     }
-    if (forceStepUp || (t && t.stepUpRequired)) {
+    // Transaction-policy step-up is only valid when the amount is at or above the
+    // MFA threshold. Without this guard a PingOne policy that returns a step-up
+    // obligation for amounts in the HITL band (e.g. $300) would incorrectly route
+    // UC8 (consent-only) to MFA. Use-case-declared step-up (forceStepUp, UC7) is
+    // always honoured regardless of amount.
+    if (forceStepUp || (t && t.stepUpRequired && Number.isFinite(amount) && amount >= _mfaThreshold)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
       // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
       // Clear hitlRequired so the gate's HITL obligation doesn't bleed through.

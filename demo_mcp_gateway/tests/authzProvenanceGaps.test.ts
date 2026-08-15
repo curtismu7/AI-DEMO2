@@ -55,7 +55,7 @@ function makeRes() {
 /** Drive the HTTP middleware with an injected decision and return what went out. */
 async function runWith(authorize: () => Promise<any>, toolName = 'create_transfer') {
   const middleware = buildAuthorizeMcpRequest(stubConfig, {
-    introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+    introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'write transfer' }),
     authorize,
     exchange: async () => ({ token: 'x', targetAud: 'mcpserver.ping.demo', cached: false }),
   } as any);
@@ -191,7 +191,7 @@ describe('C2 — authorize_config_error is labelled on BOTH transports', () => {
     gatewayResourceUri: 'mcpgateway.ping.demo',
     p1azEnabled: true,
   };
-  const decoded: any = { sub: 'u1', scope: 'read transfer', act: { sub: 'agent' } };
+  const decoded: any = { sub: 'u1', scope: 'read write transfer', act: { sub: 'agent' } };
 
   beforeEach(() => jest.clearAllMocks());
 

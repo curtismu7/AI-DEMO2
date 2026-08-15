@@ -64,6 +64,22 @@ function defaultSessionBearer() {
 function defaultScopeTopology() {
   return require('./scopeTopology');
 }
+function defaultAxios() {
+  return require('axios');
+}
+
+function authzEndpoint() {
+  return process.env.PINGAUTHORIZE_ENDPOINT || 'http://localhost:9001';
+}
+function authzWorkerId() {
+  return process.env.PINGAUTHORIZE_WORKER_ID || 'mcp-gateway-policy';
+}
+
+/**
+ * Deliberately unregistered — any registered PingOne client id would make this
+ * a real (not simulated) mismatch, defeating the point of the probe.
+ */
+const MISMATCH_NESTED_ACT_CLIENT_ID = 'unregistered-simulated-agent';
 
 /**
  * Derive the specialist's requested scopes from the SoT (scope-topology.json).
@@ -434,6 +450,40 @@ async function delegateToSpecialist(req, opts = {}) {
       }
     }
 
+    // Additive Verified Trust assertion — a signed credential alongside the
+    // bearer chain, not instead of it. No DaVinci flow exists on this tenant
+    // yet (verifiedTrustService throws NOT_CONFIGURED), so this is soft-fail
+    // by design: any failure here must never affect tInvest/act above.
+    let trustAssertion;
+    const verifiedTrust = deps.verifiedTrustService || require('./verifiedTrustService');
+    if (verifiedTrust.isEnabled()) {
+      try {
+        trustAssertion = await verifiedTrust.issueAgentTrustAssertion({
+          agentId: c.agent2ClientId,
+          actingForUserId: userSub,
+          scope: specialistScopes.join(' '),
+          chainId: `${userSub}:${specialist.appKey}:${Date.now()}`,
+        });
+        tokenEvents.push(buildA2aEvent(
+          'verified-trust-issuance',
+          'Verified Trust — signed agent assertion issued',
+          'issued',
+          null,
+          `A signed SD-JWT credential was issued alongside the bearer chain, asserting ${specialist.specialistName} acts for the user — independently verifiable, portable across an org boundary.`,
+          { a2aRole: 'verified-trust', vertical, specialist: specialist.specialistName, credentialId: trustAssertion.credentialId },
+        ));
+      } catch (vtErr) {
+        tokenEvents.push(buildA2aEvent(
+          'verified-trust-issuance',
+          'Verified Trust — assertion not issued',
+          'failed',
+          null,
+          `Bearer-token delegation unaffected: ${vtErr.message}`,
+          { a2aRole: 'verified-trust', vertical, error: vtErr.message, code: vtErr.code || null },
+        ));
+      }
+    }
+
     return {
       token: tInvest,
       tokenEvents,
@@ -452,6 +502,7 @@ async function delegateToSpecialist(req, opts = {}) {
       scopes: specialistScopes,
       actChainDepth,
       protocolHandoff,
+      trustAssertion,
     };
   } catch (err) {
     tokenEvents.push(buildA2aEvent(
@@ -463,6 +514,84 @@ async function delegateToSpecialist(req, opts = {}) {
       { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
     ));
     return { token: null, tokenEvents, claims: null, userSub, error: err.message };
+  }
+}
+
+/**
+ * Probe the same decision endpoint the gateway calls (POST .../decision) with a
+ * fabricated, unregistered NestedActClientId — demonstrates the
+ * invalid_a2a_generalist DENY (demo_authz_server/routes/decision.js:554-558)
+ * without minting a real second agent identity. See docs/superpowers/specs/
+ * 2026-08-11-delegation-chain-value-demo-design.md for why this is simulated
+ * rather than a full live token mint.
+ * @param {object} req - Express request (only req.session.user.id is read)
+ * @param {object} opts - { vertical, tool, tokenEvents, deps }
+ * @returns {Promise<{tokenEvents: object[], decision: string|null, reason: string|null, simulated: true, error?: string}>}
+ */
+async function probeGeneralistMismatch(req, opts = {}) {
+  const deps = opts.deps || {};
+  const cfg = deps.configStore || defaultConfigStore();
+  const httpClient = deps.axios || defaultAxios();
+  const scopeTopo = deps.scopeTopology || defaultScopeTopology();
+
+  const tokenEvents = opts.tokenEvents || [];
+  const vertical = opts.vertical;
+  const base = { tokenEvents, decision: null, reason: null, simulated: true };
+
+  if (!isA2aEnabled(cfg)) {
+    return { ...base, error: 'a2a_delegation_disabled' };
+  }
+  const specialist = specialistForVertical(vertical);
+  if (!specialist) {
+    return { ...base, error: `No A2A specialist configured for vertical "${vertical}"` };
+  }
+  const tool = opts.tool || (specialist.tools || [])[0] || null;
+  if (!tool) {
+    return { ...base, error: `No specialist tool available for vertical "${vertical}"` };
+  }
+
+  const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
+  const c = resolveA2aConfig(cfg, specialist, scopeTopo);
+
+  const parameters = {
+    DecisionContext: 'McpToolCall',
+    McpMethod: 'tools/call',
+    ToolName: tool,
+    ClientId: req?.session?.user?.id || 'demo-user',
+    ActClientId: c.agent2ClientId || '',
+    TokenScopes: specialistScopes.join(' '),
+    TokenAudience: c.specialistAud || 'mcpgateway.ping.demo',
+    TransactionAmount: '',
+    TransactionType: tool,
+    ToAccountId: '',
+    HitlApproved: '',
+    ActChainDepth: '2',
+    NestedActClientId: MISMATCH_NESTED_ACT_CLIENT_ID,
+  };
+
+  const decisionUrl = `${authzEndpoint()}/governance/pap/alpha/policy/${authzWorkerId()}/decision`;
+
+  try {
+    const response = await httpClient.post(
+      decisionUrl,
+      { parameters },
+      { timeout: 5000, headers: { 'Content-Type': 'application/json' } },
+    );
+    const decision = response.data?.decision || null;
+    const reason = response.data?.reason || null;
+    tokenEvents.push(buildA2aEvent(
+      'a2a-mismatch-probe',
+      `A2A — Simulated actor-mismatch probe (${specialist.specialistName})`,
+      decision === 'DENY' ? 'denied' : 'evaluated',
+      null,
+      'A fabricated, unregistered NestedActClientId was sent directly to the same decision endpoint the ' +
+      'gateway calls (not a full live token mint) — PingOne Authorize DENYs because the nested act.sub is ' +
+      'not the registered generalist. This proves the policy evaluates the AGENT identity, not just the user.',
+      { a2aRole: 'mismatch-probe', decision, reason, nestedActClientId: MISMATCH_NESTED_ACT_CLIENT_ID, simulated: true, vertical, specialist: specialist.specialistName },
+    ));
+    return { ...base, decision, reason };
+  } catch (err) {
+    return { ...base, error: err.message || 'mismatch_probe_failed' };
   }
 }
 
@@ -481,6 +610,7 @@ module.exports = {
   isA2aEnabled,
   resolveA2aConfig,
   delegateToSpecialist,
+  probeGeneralistMismatch,
   // Exchange #2's requested scope. Exported so pingoneProvisionService (Step
   // 37a-A2A) grants the SAME scope the runtime asks for — a second, hand-rolled
   // derivation there once granted bare `read` while the runtime requested the

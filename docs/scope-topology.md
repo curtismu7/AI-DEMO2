@@ -236,7 +236,7 @@ Granted scopes: `read`, `write`, `mcp:invoke`
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `agent:invoke`
+Granted scopes: `agent:invoke`, `admin:read`
 
 ### Super Banking Investment Advisor Agent
 
@@ -571,3 +571,7 @@ Granted scopes: `read`, `identity:read`
 | `request_spec_exception` | gateway | `write` | — |
 | `request_price_adjustment` | gateway | `write` | — |
 | `list_anf_orders` | gateway | `read` | — |
+| `add_to_cart` | gateway | `write` | — |
+| `browse_gear` | gateway | `read` | — |
+| `get_loyalty_status` | gateway | `airlines:read` | — |
+| `redeem_miles` | gateway | `airlines:read` `airlines:write` | — |

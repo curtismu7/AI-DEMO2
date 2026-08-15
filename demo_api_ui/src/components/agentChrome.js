@@ -104,8 +104,17 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
     return opt.charAt(0).toLowerCase() + opt.slice(1);
   }
 
+  /** Display label — locale commas OK (e.g. "$1,000"). */
   function fmtAmount(n) {
     return `$${Number(n).toLocaleString('en-US')}`;
+  }
+  /**
+   * Value passed to onSelect / clarification parse — must NOT use locale commas.
+   * parseClarificationReply matches /\$?\s*(\d+(?:\.\d{1,2})?)/ so "$1,000"
+   * would otherwise capture "1" and transfer $1 instead of $1000.
+   */
+  function amountSelectValue(n) {
+    return `$${Number(n)}`;
   }
 
   function handleKeyDown(e) {
@@ -165,7 +174,7 @@ export function ClarifyOptions({ options, amountOptions, onSelect, active, onDis
               aria-selected="false"
               className="clarify-amounts__btn"
               disabled={!active}
-              onClick={() => active && onSelect(fmtAmount(amt))}
+              onClick={() => active && onSelect(amountSelectValue(amt))}
               onKeyDown={handleKeyDown}
             >
               {fmtAmount(amt)}
@@ -214,6 +223,38 @@ export function buildPingOneUserListMessage(value) {
   if (!/^[A-Za-z0-9._@+-]+\*$/.test(input)) return null;
   const prefix = input.slice(0, -1);
   return `List PingOne users whose username starts with "${prefix}". Call listUsers with arguments.filter exactly username sw "${prefix}".`;
+}
+
+// Tool variant (queryPrompt "toolFilter"). Unlike the sw prefixes this is a
+// case-insensitive substring over tool name/description (applied client-side
+// in tools.js listPingOneTools), so no asterisk and no case trap. "all" (or
+// empty) lists the whole role-gated catalog via the proven fallback phrase —
+// the chip title's literal wording ("...MCP server") must NOT be sent as a
+// message: "MCP" matches an earlier banking heuristic and dispatches the
+// wrong tool.
+export function buildPingOneToolListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'What PingOne tools can I use right now?';
+  }
+  if (!/^[A-Za-z0-9._-]+\*?$/.test(input)) return null;
+  const fragment = input.endsWith('*') ? input.slice(0, -1) : input;
+  return `Show me the PingOne tools matching "${fragment}"`;
+}
+
+// App variant of the prefix prompt (queryPrompt "appFilter"). Same contract:
+// "all"/"*" lists everything, "<prefix>*" filters, anything else is invalid.
+// The prefix charset stays space-free to match the heuristic parser's
+// PREFIX_RE — a spaced prefix would silently lose its filter in Fallback
+// routing, which is exactly the failure the filter steps exist to disprove.
+export function buildPingOneAppListMessage(value) {
+  const input = String(value || '').trim();
+  if (!input || input.toLowerCase() === 'all' || input === '*') {
+    return 'List all applications in my PingOne environment. Call listApplications with no filter.';
+  }
+  if (!/^[A-Za-z0-9._@+-]+\*$/.test(input)) return null;
+  const prefix = input.slice(0, -1);
+  return `List PingOne applications whose name starts with "${prefix}". Call listApplications with arguments.filter exactly name sw "${prefix}".`;
 }
 
 // Chip challenge marker (REGRESSION_PLAN §0 allows 👤 and 🔑), so a demo

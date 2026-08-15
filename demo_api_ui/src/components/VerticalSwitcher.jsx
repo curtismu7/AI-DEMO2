@@ -12,24 +12,28 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
   const { activeId, refetch } = useVertical();
   const [verticals, setVerticals] = useState([]);
   const [switching, setSwitching] = useState(false);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    // GET /api/verticals/list returns { id, displayName, tagline, theme }
-    fetch('/api/verticals/list', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setVerticals(Array.isArray(data) ? data : []))
-      .catch(() => {});
-    // Re-fetch on vertical-list-changed (clone / delete) so the switcher stays
-    // in sync without a full reload.
-    const onListChanged = () => {
+    const onAuth = () => setAuthed(true);
+    window.addEventListener('userAuthenticated', onAuth);
+    return () => window.removeEventListener('userAuthenticated', onAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    const doFetch = () => {
       fetch('/api/verticals/list', { credentials: 'include' })
         .then(r => r.ok ? r.json() : [])
         .then(data => setVerticals(Array.isArray(data) ? data : []))
         .catch(() => {});
     };
-    window.addEventListener('vertical-list-changed', onListChanged);
-    return () => window.removeEventListener('vertical-list-changed', onListChanged);
-  }, []);
+    doFetch();
+    // Re-fetch on vertical-list-changed (clone / delete) so the switcher stays
+    // in sync without a full reload.
+    window.addEventListener('vertical-list-changed', doFetch);
+    return () => window.removeEventListener('vertical-list-changed', doFetch);
+  }, [authed]);
 
   const handleSwitch = async (id) => {
     if (id === activeId || switching) return;
@@ -58,7 +62,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
     return v.theme?.cssVars?.['--app-primary-red'] || '#6b7280';
   };
 
-  if (verticals.length < 2) return null;
+  if (verticals.length === 0) return null;
 
   if (variant === 'config' || variant === 'pills') {
     return (

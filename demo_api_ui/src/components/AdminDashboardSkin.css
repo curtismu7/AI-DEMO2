@@ -1,0 +1,208 @@
+/* AdminDashboardSkin.css — the support console's visual language, applied to
+ * the admin dashboard.
+ *
+ * Purely additive and scoped to .admin-dashboard-page. No markup moved, no
+ * feature touched: /admin was briefly repointed at the console (#1486) and
+ * reverted (#1494) because that lost PingOne lookup, group membership and the
+ * full token chain. The look was the only thing worth keeping, so it is brought
+ * to the features rather than the features to it.
+ *
+ * .dash-shell-card had no base style anywhere in src — it was an unstyled hook,
+ * which is why this page read as plainer than the console. These rules give it
+ * the same card treatment SupportConsole.css gives .vops__card.
+ *
+ * Every rule sets background and colour together. A colour-only override is how
+ * the group-membership modal ended up near-white on white (#1483).
+ *
+ * Dark mode: keyed to :root[data-theme="dark"] (the attribute ThemeProvider
+ * writes), never prefers-color-scheme. An earlier revision of this file
+ * declared the page "light in every scheme"; that stance was reversed
+ * 2026-08-10 on an explicit request for light/dark across the whole
+ * dashboard. Everything below consumes the --admin-* tokens, so the dark
+ * block redefining them is the single switch.
+ */
+
+.admin-dashboard-page {
+  /* Accent matches SupportConsole.css. An earlier revision deferred surface,
+     border and text to --dash-* tokens — but those are scoped to .dash
+     (dashboard/dashboard.css), which this page is not inside, so the var()
+     lookups always fell through to their fallbacks. These literals ARE the
+     source; the dark block below is the only other one. */
+  --admin-accent: #2563eb;
+  --admin-accent2: #1e3a8a;
+  --admin-tint: #eef4ff;
+  --admin-surface: #ffffff;
+  --admin-surface-2: #f1f5f9;
+  --admin-line: #eceef5;
+  --admin-ink: #1a2230;
+  --admin-muted: #69748a;
+}
+
+/* Same ramp dashboard/dashboard.css uses for .dash in dark, so /admin and the
+   P1AZ/New Relic dashboards read as one product when the theme flips.
+   The page ground is overridden here too: the shared .app-page-shell is
+   light-only (styles/appShellPages.css has no dark rules at all), and
+   restyling that shell would drag every settings-style page along — so the
+   dark ground is scoped to this page. */
+:root[data-theme="dark"] .admin-dashboard-page.app-page-shell {
+  background: #0a0f18;
+}
+:root[data-theme="dark"] .admin-dashboard-page {
+  --admin-accent: #7aa2f7;
+  --admin-accent2: #9ec1ff;
+  --admin-tint: #172554;
+  --admin-surface: #111823;
+  --admin-surface-2: #161f2c;
+  --admin-line: #253244;
+  --admin-ink: #e8eef7;
+  --admin-muted: #a5b4c8;
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.admin-dashboard-page .dash-shell-card {
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  /* No margin-bottom. .admin-dash-col2 is a flex column with gap: 1rem and
+     overflow-y: auto; a bottom margin on the last card is clipped by that
+     scroll container, which cut off the end of the page. The gap already
+     spaces them. */
+  /* Deliberately NOT overflow: hidden. SupportConsole's .vops__card can afford
+     it, but this page hosts TokenChainTraceRail, whose .tctr-more-pop is
+     position:absolute at top: calc(100% + 5px) — clipping it would put the
+     rail's "more" menu out of reach. The card head clips its own corners
+     instead. */
+}
+
+.admin-dashboard-page .dash-shell-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--admin-line);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+  /* Clips its own top corners, since the card no longer clips for it. */
+  border-radius: 14px 14px 0 0;
+}
+
+/* Everything after the title gets the card's inner padding. */
+.admin-dashboard-page .dash-shell-card > *:not(.dash-shell-card__title) {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.admin-dashboard-page .dash-shell-card > *:last-child {
+  padding-bottom: 14px;
+}
+
+/* ── Section subheadings (Customer profile / Accounts / Recent transactions) */
+
+.admin-dashboard-page .dash-shell-card h3 {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-muted);
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+
+/* :not(.form-control) — .form-control is the design system's input. Restyling
+   it here fights the shared component instead of skinning the page. */
+.admin-dashboard-page .dash-shell-card input[type="text"]:not(.form-control),
+.admin-dashboard-page .dash-shell-card input:not([type]):not(.form-control) {
+  border: 1px solid var(--admin-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+}
+
+.admin-dashboard-page .dash-shell-card input:not(.form-control):focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 1px;
+}
+
+/* :not([class*="btn"]) — .btn/.btn-primary/.btn-secondary carry their own fill
+   and text colour. This rule outranked them (0,2,1 vs 0,1,0), so the "Look up
+   customer" primary button lost its blue and its white label went invisible on
+   the white background it inherited. Skin the unclassed buttons only. */
+.admin-dashboard-page .dash-shell-card button:not([class*="btn"]) {
+  border: 1px solid var(--admin-line);
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--admin-ink);
+  background: var(--admin-surface);
+  cursor: pointer;
+}
+
+.admin-dashboard-page .dash-shell-card button:not([class*="btn"]):hover:not(:disabled) {
+  background: var(--admin-tint);
+  border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface));
+}
+
+.admin-dashboard-page .dash-shell-card button:not([class*="btn"]):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Key metrics tiles ──────────────────────────────────────────────────── */
+
+.admin-dashboard-page [aria-label^="View "][aria-label$=" details"] {
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.admin-dashboard-page [aria-label^="View "][aria-label$=" details"]:hover {
+  background: var(--admin-tint);
+  border-color: color-mix(in srgb, var(--admin-accent) 30%, var(--admin-surface));
+}
+
+/* ── Tile innards + Recent Activity table ───────────────────────────────────
+   index.css paints .stat-card/.stat-value/.stat-label and .table with the
+   light-only --brand-* palette (.stat-label is a literal #999). The skin
+   already re-surfaces the tile buttons; these carry the inner text and the
+   table onto the same tokens so dark mode reaches them too. */
+.admin-dashboard-page .stat-card {
+  background: var(--admin-surface);
+}
+.admin-dashboard-page .stat-value {
+  color: var(--admin-accent);
+}
+.admin-dashboard-page .stat-label {
+  color: var(--admin-muted);
+}
+.admin-dashboard-page .table {
+  background: var(--admin-surface);
+  color: var(--admin-ink);
+}
+.admin-dashboard-page .table th,
+.admin-dashboard-page .table td {
+  border-bottom-color: var(--admin-line);
+}
+
+/* ── Token chain column ─────────────────────────────────────────────────── */
+
+.admin-dashboard-page .dash-shell-card--token {
+  background: var(--admin-surface);
+  /* No overflow declaration here on purpose. The base card no longer clips, and
+     in split layout Dashboard.css sets overflow-y: auto on this card with
+     higher specificity (main.admin-dash-main--split ...) — writing
+     `overflow: visible` here would be a no-op that reads like a guarantee the
+     rail's popup always escapes. It does not in split layout, and that is
+     pre-existing behaviour, not something this skin introduced. */
+}

@@ -70,6 +70,10 @@
     "greeting": "Hi {name}! I can review your appointments, check coverage details, and help you manage records requests. I'll walk you through the consent flows as we go. What do you need?",
     "systemPromptFlavor": "You are a PingHealth patient assistant. Help patients view their insurance coverage, check patient records, review appointment history, and understand their benefits. Use healthcare language: accounts are patient records, transactions are appointments, consultations, or referrals, balance is coverage amount. Respond with appropriate care and clarity."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?w=1200&h=600&fit=crop",
+    "greeting": "How can we help with your health today?"
+  },
   "dashboard": {
     "kind": "healthcare",
     "chips": [

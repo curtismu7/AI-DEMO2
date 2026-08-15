@@ -80,7 +80,7 @@ const ProtocolPlayground = () => {
         </button>
         <aside className="protocol-playground__sidebar">
           <ProtocolSidebar
-            protocols={protocolArray.map(p => p.id)}
+            protocols={protocolArray.map(p => ({ id: p.id, name: p.name }))}
             selectedProtocol={selectedProtocol?.id}
             onSelectProtocol={handleProtocolSelect}
           />

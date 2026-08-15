@@ -11,6 +11,7 @@ const express = require('express');
 const http = require('http');
 const https = require('https');
 const configStore = require('../services/configStore');
+const { getTokenEndpoint, getIntrospectionEndpoint } = require('../services/oauthEndpointResolver');
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -349,7 +350,7 @@ router.get('/config', async (req, res) => {
             : configStore.getEffective('mcp_gw_public_url') || 'https://ig.example.com:8443',
         mcpScope: configStore.getEffective('mcp_scope') || 'mcp:invoke',
     };
-    cfg.introspectEndpoint = `${cfg.pingOneEnvUrl}/as/introspect`;
+    cfg.introspectEndpoint = getIntrospectionEndpoint();
 
     // Env tab is labeled "Required (gateway service)" — those vars live on the
     // Demo Agent Gateway (demo_mcp_gateway/.env + compose), not necessarily on
@@ -361,13 +362,7 @@ router.get('/config', async (req, res) => {
     const live = liveConfig.ok ? liveConfig.config : null;
     const demoLive = demoLiveConfig.ok ? demoLiveConfig.config : null;
     const gatewayServiceUp = !!demoHealth.running;
-    const derivedTokenEndpoint = (() => {
-      if (process.env.PINGONE_TOKEN_ENDPOINT) return process.env.PINGONE_TOKEN_ENDPOINT;
-      if (envId && !String(envId).includes('<')) {
-        return `https://auth.pingone.${region}/${envId}/as/token`;
-      }
-      return '';
-    })();
+    const derivedTokenEndpoint = getTokenEndpoint();
     const maskSet = (...vals) => (
       vals.some((v) => v != null && String(v).trim() !== '') ? '••••' : 'NOT SET'
     );

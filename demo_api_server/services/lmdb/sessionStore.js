@@ -101,6 +101,27 @@ class LmdbSessionStore extends Store {
     cb(null);
   }
 
+  /**
+   * Delete every entry whose key starts with `prefix`. Not part of the
+   * express-session Store interface — added so callers that need a
+   * Redis-SCAN-shaped bulk delete (e.g. killSwitchService wiping
+   * `agent:<id>:*` synthetic keys) have an equivalent here, since this DB
+   * has no pattern-scan primitive otherwise. Real express-session ids never
+   * collide with an `agent:...:` prefix in practice.
+   * @param {string} prefix
+   * @returns {number} count deleted
+   */
+  deleteByPrefix(prefix) {
+    let count = 0;
+    for (const { key } of this._db.getRange()) {
+      if (typeof key === 'string' && key.startsWith(prefix)) {
+        this._db.removeSync(key);
+        count++;
+      }
+    }
+    return count;
+  }
+
   close() {
     clearInterval(this._cleanupInterval);
   }

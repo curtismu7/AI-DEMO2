@@ -334,6 +334,32 @@ export function recordFeePayment(input: FeePaymentInput): FeePayment {
   });
 }
 
+/**
+ * Deduct loyalty points from a passenger. Called by redeem_miles after the
+ * redemption is confirmed. Clamps to zero so a replayed demo can't go negative.
+ */
+export function deductLoyaltyPoints(passengerRef: string, points: number): void {
+  withDb((conn) => {
+    conn.prepare(
+      'UPDATE passengers SET loyalty_points = MAX(0, loyalty_points - ?) WHERE passenger_ref = ?',
+    ).run(points, passengerRef);
+  });
+}
+
+/**
+ * Upgrade a booking's cabin class. Mutates the row so the demo survives a
+ * page reload — unlike cancelReservation which deliberately stays read-only.
+ * The seed re-applies only on an empty table, so the change persists across
+ * restarts without overwriting other demo data.
+ */
+export function upgradeCabinOnBooking(confirmationNumber: string, newCabin: string): void {
+  withDb((conn) => {
+    conn.prepare(
+      'UPDATE bookings SET cabin = ? WHERE confirmation_number = ?',
+    ).run(newCabin, confirmationNumber);
+  });
+}
+
 export function listFeePayments(confirmationNumber?: string): FeePayment[] {
   const sql = confirmationNumber
     ? 'SELECT * FROM fee_payments WHERE confirmation_number = ? ORDER BY id DESC'

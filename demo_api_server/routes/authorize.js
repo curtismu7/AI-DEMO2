@@ -391,11 +391,13 @@ router.post('/test-evaluate', async (req, res) => {
       });
     }
     try {
+      const _t0 = Date.now();
       const result = await evaluatePingOneTransaction({ userId, amount: numAmount, type, acr: acr || undefined });
+      const latencyMs = Date.now() - _t0;
       logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
         `Authorize [pingone/force-live] ${result.decision} — ${type} $${numAmount}`,
         { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-          metadata: { engine: 'pingone', forced: true, decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, path: result.path, ...(useCaseId ? { useCaseId } : {}) } });
+          metadata: { engine: 'pingone', forced: true, decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, path: result.path, latencyMs, ...(useCaseId ? { useCaseId } : {}) } });
       const pingConsent = result.hitlRequired || result.consentRequired || false;
       return res.json({
         ok: true,
@@ -471,11 +473,13 @@ router.post('/test-evaluate', async (req, res) => {
     }
 
     // PingOne Authorize (live)
+    const _t0 = Date.now();
     result = await evaluatePingOneTransaction({ userId, amount: numAmount, type, acr: acr || undefined });
+    const latencyMs = Date.now() - _t0;
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [pingone] ${result.decision} — ${type} $${numAmount}`,
       { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-        metadata: { engine: 'pingone', decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, path: result.path } });
+        metadata: { engine: 'pingone', decision: result.decision, type, amount: numAmount, userId, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, path: result.path, latencyMs } });
     // F7: normalize both field names — consentRequired (canonical) and
     // hitlRequired (alias) always present so callers don't need engine-specific
     // field name knowledge. Both are identical values.
@@ -786,7 +790,7 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [console] ${result.decision} — endpoint ${endpointId}`,
       { tag: result.decision === 'PERMIT' ? 'authorize/permit' : 'authorize/deny',
-        metadata: { engine: 'pingone', console: true, endpointId, decision: result.decision, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ...(useCaseId ? { useCaseId } : {}) } });
+        metadata: { engine: 'pingone', console: true, endpointId, decision: result.decision, stepUpRequired: result.stepUpRequired, decisionId: result.decisionId, ruleName: result.ruleName, ruleCode: result.ruleCode, policyEvalMs: result.policyEvalMs, ...(useCaseId ? { useCaseId } : {}) } });
     return res.json({
       ok: true,
       decision: result.decision,

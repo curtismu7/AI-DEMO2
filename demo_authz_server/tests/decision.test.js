@@ -161,6 +161,21 @@ test('NNP-5 A-3: read tool, amount=2500 -> PERMIT (not a write tool, ceiling rul
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
 });
 
+// BUGS.md #7: a non-numeric TransactionAmount used to be coerced to 0 via
+// `parseFloat(TransactionAmount) || 0`, silently bypassing the ceiling, tier,
+// and step-up/HITL checks (all fire only for a real amount). It must DENY
+// instead of falling through to PERMIT.
+test('BUGS.md #7: write tool, amount="abc" (unparseable) -> DENY with invalid_transaction_amount, not a 0-amount PERMIT bypass', async () => {
+  const result = await decide(writeParams({ TransactionAmount: 'abc' }));
+  assert.strictEqual(result.decision, 'DENY', 'Expected DENY, got ' + result.decision + ': ' + result.reason);
+  assert.ok(result.reason.includes('invalid_transaction_amount'), 'reason should include invalid_transaction_amount, got: ' + result.reason);
+});
+
+test('BUGS.md #7: read tool, amount="abc" -> PERMIT (not a write tool, invalid-amount guard does not apply)', async () => {
+  const result = await decide(readParams({ TransactionAmount: 'abc' }));
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
+
 // ── NNP-6: STEP_UP vs HITL_CONSENT split ─────────────────────────────────
 
 test('NNP-6 A-4: write tool, amount=600 (>= step-up 500) -> INDETERMINATE reason=STEP_UP', async () => {

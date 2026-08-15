@@ -71,16 +71,33 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 5px;
+  width: 12px;
   height: 100%;
   cursor: col-resize;
   z-index: 1001;
   background: transparent;
   transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-side-nav__resize-handle::before {
+  content: '';
+  width: 2px;
+  height: 40px;
+  background: rgba(160, 160, 160, 0.3);
+  border-radius: 1px;
+  transition: all 0.15s;
 }
 
 .admin-side-nav__resize-handle:hover {
-  background: rgba(52, 152, 219, 0.4);
+  background: rgba(52, 152, 219, 0.15);
+}
+
+.admin-side-nav__resize-handle:hover::before {
+  background: rgba(52, 152, 219, 0.7);
+  height: 60px;
 }
 
 /* Role badge */
@@ -162,6 +179,18 @@
 /* Expanded: only three chips — Setup spans the second row. */
 .admin-side-nav__quick-link:nth-child(3):last-child {
   grid-column: 1 / -1;
+}
+
+/* Collapsed: rail is 80px — a 2-col grid of text pills doesn't fit. Stack as
+   single-column icon buttons, matching the nav items below them. */
+.admin-side-nav--collapsed .admin-side-nav__quick-links {
+  grid-template-columns: 1fr;
+  padding: 14px 8px 16px;
+}
+
+.admin-side-nav--collapsed .admin-side-nav__quick-link {
+  padding: 8px;
+  font-size: 16px;
 }
 
 .admin-side-nav__quick-link--active {

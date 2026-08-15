@@ -39,6 +39,22 @@ export function VerticalProvider({ children }) {
           adminManifest: null,
           isAdmin: false,
         });
+        // Then learn WHICH vertical the server considers active. /me is session-only,
+        // so a guest hydrated activeId=null and the UI fell back to its own default
+        // while the server independently used the process-global — the two described
+        // different verticals, and an A&F picker returned a workforce office couch.
+        //
+        // Deliberately NOT awaited: hydration above must not block on a secondary
+        // lookup. Awaiting it wedged first render for 30s wherever this endpoint is
+        // unmocked (caught by App.structure.test.js), and a guest seeing the picker
+        // a tick later is far better than a page that will not paint.
+        fetch('/api/verticals/active', { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const id = d && d.id;
+            if (id) setState((cur) => (cur && !cur.activeId ? { ...cur, activeId: id } : cur));
+          })
+          .catch(() => { /* keep activeId null — same state as before this existed */ });
         return;
       }
       const data = await res.json();
@@ -63,7 +79,33 @@ export function VerticalProvider({ children }) {
 
   const refetch = useTrailingThrottle(doFetch, 250);
 
+  // Both /api/verticals/stream and /api/verticals/me require a session; before
+  // one exists they only 401. This provider sits above the component that owns
+  // useAuth, so the session signal arrives as the `userAuthenticated` event
+  // useAuth dispatches once a session is confirmed.
+  const [authed, setAuthed] = useState(false);
   useEffect(() => {
+    const onAuth = () => setAuthed(true);
+    window.addEventListener('userAuthenticated', onAuth);
+    return () => window.removeEventListener('userAuthenticated', onAuth);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) {
+      // No session yet. Same timing as the authed fallback below, but hydrate
+      // the empty state directly instead of asking /me for it — that request
+      // could only 401, which is what it did on every guest page load.
+      const guestFallback = setTimeout(() => {
+        setState((cur) => cur ?? {
+          activeId: null,
+          pageManifest: null,
+          pageMockData: null,
+          adminManifest: null,
+          isAdmin: false,
+        });
+      }, 1500);
+      return () => clearTimeout(guestFallback);
+    }
     // The server sends an initial `vertical-switched` on stream connect as a
     // hydration optimization, so we don't eagerly refetch — that event drives
     // the first /me. Fallback: if the stream 401s (logged out) or no event
@@ -78,7 +120,7 @@ export function VerticalProvider({ children }) {
     });
     const fallback = setTimeout(() => { if (!hydrated) refetch(); }, 1500);
     return () => { clearTimeout(fallback); es.close(); };
-  }, [refetch]);
+  }, [authed, refetch]);
 
   if (!state) return null;
   return (

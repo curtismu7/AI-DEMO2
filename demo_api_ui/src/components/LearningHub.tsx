@@ -189,6 +189,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "🏢",
         action: () => {},
       },
+      {
+        label: "Agent Kill Switch",
+        description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
+        icon: "⚠️",
+        action: () => {},
+      },
     ],
   },
   {
@@ -236,6 +242,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Sensitive Data & Disclosure",
         description: "Protecting sensitive information",
         icon: "🔒",
+        action: () => {},
+      },
+      {
+        label: "Gateway vs P1AZ Decision Split",
+        description: "Coarse (PEP) vs fine (PDP), and the 5 rules P1AZ can't express",
+        icon: "🧭",
         action: () => {},
       },
     ],
@@ -315,7 +327,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       },
       {
         label: "WebMCP (Google)",
-        description: "Google's Web MCP implementation",
+        description: "Proposed web standard for exposing tools to AI agents",
         icon: "🌐",
         action: () => {},
       },
@@ -399,6 +411,7 @@ export default function LearningHub() {
         openEdu(EDU.PINGGATEWAY_MCP, "overview"),
       "Enterprise-Managed Auth (EMA)": () =>
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
+      "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),
@@ -411,6 +424,8 @@ export default function LearningHub() {
       "Token Chain (edu)": () => openEdu(EDU.TOKEN_CHAIN, "overview"),
       "Sensitive Data & Disclosure": () =>
         openEdu(EDU.SENSITIVE_DATA, "least-data"),
+      "Gateway vs P1AZ Decision Split": () =>
+        openEdu(EDU.GATEWAY_POLICY_SPLIT, "overview"),
     },
     "project-reference": {
       "Server Capabilities": () =>

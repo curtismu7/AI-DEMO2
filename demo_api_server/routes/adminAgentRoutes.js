@@ -9,6 +9,7 @@ const { buildAdminToolSchemas } = require('../config/admin/tools');
 const appEventService = require('../services/appEventService');
 const { prependRefreshEvent } = require('../services/agentMcpTokenService');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
+const reportStore = require('../services/lmdb/reportStore.lmdb');
 const pingOneAdminAccessService = require('../services/pingOneAdminAccessService');
 
 const router = express.Router();
@@ -19,6 +20,7 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
   const access = await pingOneAdminAccessService.checkAccess({
     username: req.session?.user?.username || null,
     pingOneUserId: req.agentContext?.userId || null,
+    accessToken: req.agentContext?.accessToken || null,
   });
   if (access.allowed) return true;
 
@@ -125,7 +127,7 @@ router.post('/message', async (req, res) => {
 
     const langchainConfig = req.session?.langchain_config || {};
     const runId = crypto.randomUUID();
-    void runId; // available for future correlation
+    const runStartedAt = new Date().toISOString();
 
     const response = await processAdminMessage({
       message,
@@ -146,6 +148,28 @@ router.post('/message', async (req, res) => {
       });
     } catch (convErr) {
       console.warn('[admin-agent/message] conversationStore.saveMessage failed:', convErr.message);
+    }
+
+    // Archive to the same durable per-user history the other agent-execution
+    // routes write to (agentInvokeRoute.js, demoAgentNl.js) — the admin
+    // vertical was the one execution path with no run history recorded anywhere.
+    try {
+      reportStore.saveRun({
+        runId,
+        userId,
+        vertical: 'pingone-admin',
+        prompt: message,
+        startedAt: runStartedAt,
+        completedAt: new Date().toISOString(),
+        toolsCalled: response.toolsCalled || [],
+        tokenEvents: response.tokenEvents || [],
+        tokenCount: (response.tokenEvents || []).length,
+        agentPath: 'admin-agent',
+        success: response.success !== false,
+        files: [],
+      });
+    } catch (reportErr) {
+      console.warn('[admin-agent/message] reportStore.saveRun failed:', reportErr.message);
     }
 
     if (response.requiresConsent) {

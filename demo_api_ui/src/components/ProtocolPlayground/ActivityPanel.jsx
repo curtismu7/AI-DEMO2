@@ -1,11 +1,39 @@
 import React, { useEffect, useRef } from 'react';
+import JSONViewer from './JSONViewer';
+import TokenChainEventCard from './TokenChainEventCard';
 import TokenInspector from './TokenInspector';
 
-/** ExecutionEngine reports errors as objects; React can only render a string. */
 function errorText(error) {
   if (!error) return null;
   if (typeof error === 'string') return error;
   return error.message || 'Execution failed';
+}
+
+/**
+ * Synthesize a token-chain event from a step result when real events unavailable.
+ * No invented narrative; only data that was actually computed.
+ */
+function synthesizeEvent(result) {
+  if (!result || !result.response) return null;
+
+  const status = result.response.status;
+  const statusMap = {
+    200: 'success', 201: 'success', 204: 'success',
+    403: 'deny', 401: 'deny', 400: 'error', 500: 'error'
+  };
+
+  const endpoint = result.request?.url || 'Unknown';
+  const method = result.request?.method || 'GET';
+
+  return {
+    label: `${method} ${endpoint}`,
+    status: statusMap[status] || (status >= 200 && status < 300 ? 'success' : 'error'),
+    explanation: `HTTP ${status}${result.decodedToken?.isValid ? ' (signed)' : ''}`,
+    claims: result.decodedToken?.claims ? Object.entries(result.decodedToken.claims).map(([key, value]) => ({
+      key,
+      value: typeof value === 'object' ? JSON.stringify(value) : String(value)
+    })) : []
+  };
 }
 
 export default function ActivityPanel({ results, error }) {
@@ -37,34 +65,36 @@ export default function ActivityPanel({ results, error }) {
         {entries.length === 0 ? (
           <div className="activity-empty">No activity yet. Click Execute or Next Step.</div>
         ) : (
-          entries.map((result) => {
-            const status = result.response?.status;
-            const ok = status >= 200 && status < 300;
-            return (
-              <div key={result.stepId} className="activity-entry">
-                <div className="entry-header">
-                  <span className="entry-step">{result.stepId}</span>
-                  <span className={`entry-status status-${ok ? 'ok' : 'error'}`}>
-                    {status ?? 'failed'}
-                  </span>
-                </div>
-                <div className="entry-method">
-                  {result.request
-                    ? `${result.request.method} ${result.request.url}`
-                    : errorText(result.error)}
-                </div>
-              </div>
-            );
-          })
+          <div>
+            {entries.map((result) => {
+              const realEvents = result.response?.body?.tokenChainEvents;
+              const hasRealEvents = Array.isArray(realEvents) && realEvents.length > 0;
+
+              if (hasRealEvents) {
+                return (
+                  <div key={result.stepId}>
+                    {realEvents.map((event, idx) => (
+                      <TokenChainEventCard key={idx} event={event} />
+                    ))}
+                  </div>
+                );
+              }
+
+              const synthesized = synthesizeEvent(result);
+              return synthesized ? (
+                <TokenChainEventCard key={result.stepId} event={synthesized} />
+              ) : null;
+            })}
+          </div>
         )}
       </div>
 
       {lastResult?.response && (
         <div className="activity-details">
-          <div className="details-section">
-            <h5>Response</h5>
-            <pre className="details-json">{JSON.stringify(lastResult.response, null, 2)}</pre>
-          </div>
+          <details className="raw-response-toggle">
+            <summary>Raw response</summary>
+            <JSONViewer data={lastResult.response} />
+          </details>
 
           {lastResult.decodedToken?.isValid && (
             <TokenInspector token={lastResult.decodedToken} />

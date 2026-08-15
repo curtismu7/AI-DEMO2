@@ -4,26 +4,31 @@
    Never redefine --theme-accent or --brand-dashboard-header-* here. */
 
 [data-rd-v2] {
-  /* Neutral institutional surfaces */
-  --rd2-bg:          #f7f7f5;
-  --rd2-surface:     #ffffff;
-  --rd2-surface-2:   #f3f3f1;
-  --rd2-surface-3:   #ebebea;
+  /* Neutral surfaces — routed through the semantic --th-* tokens (index.css)
+     so light is the one unified palette and dark arrives by the :root
+     [data-theme="dark"] redefinition, with no per-rule dark blocks here.
+     The old warm-paper literals (#f7f7f5 family) are retired by this. */
+  --rd2-bg:          var(--th-bg-page);
+  --rd2-surface:     var(--th-bg-card);
+  --rd2-surface-2:   var(--th-bg-inset);
+  --rd2-surface-3:   var(--th-bg-inset);
 
-  /* Text */
-  --rd2-ink-1:  #111110;
-  --rd2-ink-2:  #4c4c48;
-  --rd2-ink-3:  #8c8c88;
+  /* Text — ink-3 was #8c8c88 (3.4:1 on white, AA fail); --th-text-muted passes */
+  --rd2-ink-1:  var(--th-text);
+  --rd2-ink-2:  var(--th-text-muted);
+  --rd2-ink-3:  var(--th-text-muted);
 
   /* Borders */
-  --rd2-line-1: #e4e4e0;
-  --rd2-line-2: #d5d5d0;
+  --rd2-line-1: var(--th-border);
+  --rd2-line-2: var(--th-border-strong);
 
   /* Accent — from active vertical; fallback to banking blue */
   --rd2-accent:       var(--theme-accent, #1b3a6b);
   --rd2-accent-text:  #ffffff;
-  --rd2-accent-muted: color-mix(in srgb, var(--rd2-accent) 8%, #ffffff);
-  --rd2-accent-ring:  color-mix(in srgb, var(--rd2-accent) 20%, #ffffff);
+  /* Mix against the card surface, not literal white, so accent washes stay
+     legible when the dark palette flips --th-bg-card. */
+  --rd2-accent-muted: color-mix(in srgb, var(--rd2-accent) 8%, var(--th-bg-card));
+  --rd2-accent-ring:  color-mix(in srgb, var(--rd2-accent) 20%, var(--th-bg-card));
 
   /* Semantic */
   --rd2-positive: #1a6b49;

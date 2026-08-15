@@ -10,13 +10,12 @@ token exchange, LMDB-backed config/session store).
 > can respond to — and demonstrate response to — a realistic incident. Paths and
 > identifiers are accurate as of writing; verify against the code before acting.
 
-## The four runbooks
+## The three runbooks
 
 | Incident | Runbook | Primary lever |
 | --- | --- | --- |
 | Leaked / stolen access, refresh, or exchanged token | [token-compromise.md](token-compromise.md) | Kill switch + RFC 7009 revocation |
 | Agent/user holding a scope or delegation it shouldn't | [unauthorized-scope-grant.md](unauthorized-scope-grant.md) | Revoke `may_act` / delegation, scope audit |
-| Abuse / DoS against agent endpoints | [rate-limit-attack.md](rate-limit-attack.md) | `agentRateLimit` + auto-kill |
 | `VAULT_PASSWORD` or a stored secret leaked | [vault-secret-exposure.md](vault-secret-exposure.md) | Vault rotate + secret rotation |
 
 ## First response (any incident)
@@ -74,8 +73,7 @@ session (`authenticateToken` + `requireAdmin`); `/api/introspect` is public.
 
 - Token revocation (RFC 7009): `services/tokenRevocation.js`
 - Token introspection (RFC 7662): `services/tokenIntrospectionService.js`, route `routes/introspect.js` → `POST /api/introspect`
-- Kill switch: `services/killSwitchService.js`, route `POST /api/admin/agent/:agentId/kill-switch` (`routes/admin.js`)
-- Rate limiting: `middleware/agentRateLimit.js`
+- Kill switch: `services/killSwitchService.js`, route `POST /api/admin/agent/:agentId/kill-switch` (`routes/admin.js`); enforced on the next tool call by the kill check in `services/mcpToolPipeline.js` (`runMcpToolPipeline`)
 - Delegation / `may_act`: `services/delegationService.js`, `routes/agentAuthorization.js`, `middleware/delegationAuditLogger.js`
 - Vault: `services/vaultLoader.js`, `routes/adminVault.js`
 - Sessions: `services/lmdb/sessionStore.js` (LMDB db `sessions`), env `CLEAR_SESSIONS_ON_BOOT`
