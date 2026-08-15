@@ -102,6 +102,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-15 — Agent restrictions gate trusted a raw client header instead of the verified `act` claim
+
+**Files changed:** `demo_api_server/middleware/agentRestrictionsGate.js`,
+`demo_api_server/server.js` (+ `demo_api_server/tests/agentRestrictionsGate.test.js`).
+
+**What was broken:** `agentRestrictionsGate` decided whether a request was
+agent-originated by reading `req.headers['x-agent-sub']` — an unauthenticated,
+client-supplied header — and was mounted on `/api/accounts` /
+`/api/transactions` **before** `authenticateToken` ran. Every other failure
+mode in the gate is fail-closed by design (worker-token fetch fails → restrict,
+PingOne lookup errors → restrict, unexpected exception → restrict), but the
+primary trigger condition itself trusted an untrusted header and never
+cross-checked it against the verified token's RFC 8693 `act` claim. A request
+that simply omitted the `X-Agent-Sub` header skipped the entire
+restriction-tier check, giving an agent that should be restricted full write
+access to accounts/transactions.
+
+**What was fixed:** the gate now derives `agentSub` from `req.user?.actor`
+(`actor.sub || actor.client_id`) — the verified `act` claim populated by
+`authenticateToken` — using the same actor-identity idiom as
+`requireDelegation` in `middleware/auth.js`. To make that claim available, the
+gate's mount points in `server.js` were reordered to run **after**
+`authenticateToken` on all three routes (`accountRoutes`,
+`sensitiveBankingRoutes`, `transactionRoutes`) instead of once, globally,
+before auth.
+
+**Do not break:**
+
+- Every fail-closed branch inside the gate (worker-token fetch failure,
+  non-2xx/error PingOne lookup, unexpected exception) is untouched — only the
+  entry condition changed.
+- The gate must keep running strictly after `authenticateToken` on all three
+  mount points; moving it back before auth (or in front of a route the
+  header-based check didn't previously cover) reintroduces the trust gap.
+- A request with no `act` claim (ordinary human/browser session) must still
+  no-op through the gate exactly as before — `X-Agent-Sub` alone, forged or
+  not, must never trigger the restriction check.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentRestrictionsGate.test.js --forceExit`
+— 9 tests, 1 suite, including "a forged X-Agent-Sub header with no verified act
+claim does NOT trigger the gate"; full suite `CI=true npm test -- --forceExit --maxWorkers=4`
+— 747 suites passed, 9474 tests passed, 0 failed.
+
 ### 2026-08-12 — A kill now expires itself after 10 minutes; the PingOne app disable had no TTL and needed a sweep
 
 **Files changed:** `demo_api_server/services/killSwitchService.js`,
