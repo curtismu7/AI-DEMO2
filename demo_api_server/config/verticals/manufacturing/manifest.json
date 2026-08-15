@@ -60,6 +60,10 @@
     "greeting": "Hi {name}! I'm Gauge. I can show your work orders and on-hand inventory, review production history, schedule a run, and release a work order to the floor — I'll walk you through the approval steps. What do you need?",
     "systemPromptFlavor": "You are Gauge, a Precision Works production assistant. Help operators view work orders and inventory, review production history, schedule runs, and release work orders to the floor. Use manufacturing language: accounts are work orders, transactions are production runs, balance is on-hand inventory. Be concise and precise."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1200&h=600&fit=crop",
+    "greeting": "Let's optimize your operations."
+  },
   "dashboard": {
     "kind": "manufacturing",
     "chips": [

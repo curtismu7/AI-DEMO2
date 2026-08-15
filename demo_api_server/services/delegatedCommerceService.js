@@ -177,7 +177,12 @@ async function cleanup(registrationId, creatorUserId) {
   }
   if (record.claimedByUserId) {
     pingOneUserService.initialize();
-    await pingOneUserService.setMayActAttribute(record.claimedByUserId, null);
+    // Only clear mayAct when it still names THIS registration's agent. Cleaning
+    // up an older registration must not revoke a newer agent's authorization.
+    await pingOneUserService.clearMayActIfMatches(
+      record.claimedByUserId,
+      record.applicationId,
+    );
     let delegation = delegationStore.findActiveByActorAndGrantor(
       record.applicationId,
       record.claimedByUserId,

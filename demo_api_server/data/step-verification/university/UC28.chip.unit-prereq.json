@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "request_housing_assignment",
-  "checkedAt": "2026-08-07",
+  "checkedAt": "2026-08-14",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],

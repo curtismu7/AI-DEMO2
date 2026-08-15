@@ -89,6 +89,7 @@ const TOOLS = [
     },
     scopes: ['airlines:read'],
     authz: {},
+    render: 'seatMap',
   },
   {
     name: 'sensitive_passenger_record',
@@ -99,6 +100,30 @@ const TOOLS = [
     // resource server actually enforces — see airlinesTools.ts.
     scopes: ['read'],
     authz: { consent: true },
+  },
+  {
+    // UC38 — Personal Agent Concierge read. No authz challenge: the BFF gate
+    // (MFA + personal agent check) is the authorization signal for this tool.
+    name: 'get_loyalty_status',
+    description: "Return the passenger's MileagePlus tier and points balance.",
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    scopes: ['airlines:read'],
+    authz: {},
+  },
+  {
+    // UC38 — Personal Agent Concierge write. Deducts points and upgrades cabin.
+    name: 'redeem_miles',
+    description: 'Redeem loyalty points to upgrade cabin class on an upcoming reservation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        confirmation_number: { type: 'string', description: 'Reservation to upgrade' },
+        target_cabin: { type: 'string', description: "Target cabin: 'Business' or 'First'" },
+      },
+      required: [],
+    },
+    scopes: ['airlines:read', 'airlines:write'],
+    authz: {},
   },
   // Shared education-path placeholders. createVerticalPlugin appends
   // EDUCATION_HEURISTICS, whose actions must be declared tool names — same
@@ -129,9 +154,19 @@ const HEURISTICS = [
   // "cancel my reservation" must not fall into the generic bookings rule below.
   { re: /\b(cancel|refund)\b.*\b(reservation|booking|trip|flight)\b/i, action: 'cancel_airline_reservation' },
   { re: /\bsensitive\b.*\b(booking|bookings|reservation|reservations)\b/i, action: 'sensitive_airline_bookings' },
-  { re: /\b(seat|seats|seat\s*map|row)\b/i, action: 'check_seat_availability' },
+  // available_only defaults to true in airlinesToolHandler.ts (resource server),
+  // so the seat-map chip never showed occupied seats without this — the
+  // "Occupied" legend swatch + disabled seat styling could never be exercised.
+  // A seat MAP should show the whole plane, not just what's left to buy.
+  { re: /\b(seat|seats|seat\s*map|row)\b/i, action: 'check_seat_availability', defaultParams: { available_only: false } },
   { re: /\b(status|gate|boarding|delayed|on\s*time)\b/i, action: 'get_flight_status' },
   { re: /\b(reservation|reservations|booking|bookings|itinerar\w*|my\s+trips?|my\s+flights?)\b/i, action: 'get_airline_bookings' },
+  // UC38 — Personal Agent Concierge. "miles" / "loyalty" / "upgrade" phrases
+  // that are NOT seat-map queries (seat rule above already claimed "upgrade fee"
+  // via pay_airline_fee). Order: redeem_miles before get_loyalty_status so a
+  // "use my miles" phrase routes to the write action.
+  { re: /\b(redeem|use)\b.*\bmiles?\b|\bmiles?\b.*\b(upgrade|reward)\b/i, action: 'redeem_miles' },
+  { re: /\b(miles?|loyalty|tier|mileage\s*plus|points?\s+balance)\b/i, action: 'get_loyalty_status' },
 ];
 
 function systemPrompt(ctx) {

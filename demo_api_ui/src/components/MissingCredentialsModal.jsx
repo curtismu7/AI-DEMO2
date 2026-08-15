@@ -159,7 +159,7 @@ export default function MissingCredentialsModal({
     <DraggableModal
       isOpen
       onClose={onCancel}
-      title="Missing Credentials"
+      title="Complete your setup"
       defaultWidth={460}
       defaultHeight={560}
       storageKey="missing-credentials-modal"
@@ -182,7 +182,7 @@ export default function MissingCredentialsModal({
             disabled={submitting}
             type="button"
           >
-            {submitting ? "Saving…" : "Save Credentials"}
+            {submitting ? "Connecting…" : "Connect"}
           </button>
         </>
       }

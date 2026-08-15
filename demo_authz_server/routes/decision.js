@@ -774,6 +774,15 @@ module.exports = async function decisionHandler(req, res) {
   // HITL approval or step-up. This is NNP-5 — the mock was missing this rule.
   // Reads the same env var the simulated engine uses (default 2000).
   const isWriteTool = ruleStore.isWriteTool(ToolName);
+  // Fail closed on a present-but-unparseable amount: parseFloat('abc') is NaN,
+  // and `NaN || 0` silently collapses to 0 downstream — that zeroed amount would
+  // skip Rule 3b's ceiling, Rule 3d's tier ceiling, and Rule 4's step-up/consent
+  // checks entirely (all fire only when amount is a real number). Deny here so a
+  // malformed TransactionAmount can never bypass every dollar-based gate.
+  if (TransactionAmount !== '' && isWriteTool && Number.isNaN(parseFloat(TransactionAmount))) {
+    warn(`[AuthzServer/decision] DENY — invalid_transaction_amount: "${TransactionAmount}" is not a valid number (tool="${ToolName}")`);
+    return deny(res, `invalid_transaction_amount: TransactionAmount "${TransactionAmount}" could not be parsed as a number`);
+  }
   if (TransactionAmount !== '' && isWriteTool) {
     const DENY_CEILING_USD = parseFloat(process.env.SIMULATED_AUTHORIZE_DENY_AMOUNT || '2000');
     const txAmount = parseFloat(TransactionAmount);
@@ -931,6 +940,26 @@ module.exports = async function decisionHandler(req, res) {
       // declaresConsent requires !hasAmount, overConfirm requires hasAmount.
       return indeterminate(res, 'HITL_CONSENT', declaresConsent ? 'HITL' : 'HITL_CONSENT');
     }
+  }
+
+  // ── Rule 4.5: Elicitation — require confirmation for destructive tool calls ──────
+  // When the gateway marks a tool as destructive (ToolDestructive='true') and the
+  // caller has not yet confirmed (ElicitationConfirmed!='true'), return INDETERMINATE
+  // with an ELICITATION statement so the client can prompt the user for confirmation.
+  // HITL/STEP_UP rules above take precedence; this fires only when those don't apply.
+  if (params.ToolDestructive === 'true' && params.ElicitationConfirmed !== 'true') {
+    log(`[AuthzServer/decision] INDETERMINATE — ELICITATION: tool="${ToolName}" is destructive, confirmation absent`);
+    auditDecision('INDETERMINATE', 'ELICITATION');
+    _emitDecisionHop('n/a', 'ELICITATION');
+    return res.json({
+      decision: 'INDETERMINATE',
+      reason: 'ELICITATION',
+      statements: statementsFor('ELICITATION'),
+      advice: [{ id: 'elicitation-prompt', value: `Confirm ${ToolName}?` }],
+      policy_source: POLICY_SOURCE,
+      decision_id: randomId(),
+      policy_version: 'mock-v1',
+    });
   }
 
   // ── Rule 4a: Intent token — deny if a token was PRESENTED but is TAMPERED ──────

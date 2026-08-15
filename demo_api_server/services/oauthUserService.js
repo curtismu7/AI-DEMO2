@@ -256,11 +256,9 @@ class OAuthUserService {
    */
   async revokeToken(token, tokenType) {
     if (!token) return;
-    const revocationEndpoint = this.config.tokenEndpoint
-      ? this.config.tokenEndpoint.replace(/\/as\/token$/, '/as/revoke')
-      : null;
+    const revocationEndpoint = this.config.revocationEndpoint || null;
     if (!revocationEndpoint) {
-      console.warn('[RFC7009] Cannot revoke token: tokenEndpoint not configured');
+      console.warn('[RFC7009] Cannot revoke token: revocationEndpoint not configured');
       return;
     }
     const body = new URLSearchParams({ token, client_id: this.config.clientId });

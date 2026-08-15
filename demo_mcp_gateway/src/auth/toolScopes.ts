@@ -9,7 +9,10 @@
  * Write/transfer tools also drive `challenge_type: 'step_up'` in HITL errors.
  */
 
-import { gatewayToolNames, toolRequiredScopes, toolChallengeType } from './scopeTopology';
+import {
+  gatewayToolNames, toolRequiredScopes, toolChallengeType,
+  allowedScopes, isA2aDelegatedTool, a2aDelegatedScope,
+} from './scopeTopology';
 
 /**
  * Canonical tool→scope map for the MCP gateway, DERIVED from
@@ -100,6 +103,67 @@ export function validateActClaim(
   return {
     valid: false,
     reason: `act.sub "${actSub}" is not an authorized actor (${allowed.join(', ')})`,
+  };
+}
+
+/** Mirrors decision.js:181 GATEWAY_HOP_SCOPES — the coarse scopes that admit a
+ *  caller past the gateway's own OAuth2ResourceServerFilter but say nothing
+ *  about which tool it may invoke. */
+const GATEWAY_HOP_SCOPES = ['gateway:mcp:invoke', 'pinggateway:invoke'];
+
+/**
+ * Full Rule 3 parity (demo_authz_server/routes/decision.js:660-715) — the
+ * per-tool scope backstop. Unlike evaluateScopeDecisionLocally (which only
+ * runs when P1AZ is NOT configured), this is the check the gateway runs
+ * UNCONDITIONALLY, because real PingOne Authorize's DSL cannot express
+ * per-tool set-membership over TokenScopes (snapshots/gen-authorize-snapshot.js:36-39).
+ *
+ * @param actChainDepth from PingOneAuthorizeClient.actChainDepth(decoded.act) —
+ *   depth >= 2 means a specialist delegated by a generalist (A2A).
+ */
+export function evaluateScopeDecisionUnconditionally(
+  toolName: string,
+  scopeClaim: string | undefined,
+  actChainDepth: number,
+): { decision: 'PERMIT' } | { decision: 'DENY'; reason: string; missingScopes: string[] } {
+  // Unknown tool — deliberately NOT denied here. Unknown-tool detection is
+  // plain set-membership over a static, enumerable tool list, which real P1AZ's
+  // DSL CAN express (unlike the 5 gaps this backstop exists for) — the PDP
+  // (and this repo's isPolicyNotFoundReason diagnostics) already own that
+  // judgment. Duplicating it here would let a generic message from this
+  // backstop pre-empt the PDP's more specific policy-drift diagnosis.
+  const required = toolRequiredScopes(toolName) ?? [];
+  const granted = new Set(String(scopeClaim || '').split(/\s+/).filter(Boolean));
+
+  // Gateway-hop-scope bypass: a bearer carrying ONLY the coarse hop scope (no
+  // other topology-known scope) is exempt — it hasn't been given a per-tool
+  // grant to check against, so there's nothing to enforce here (the caller
+  // relied entirely on the PDP call this backstop supplements).
+  const hasGatewayHopScope = GATEWAY_HOP_SCOPES.some((s) => granted.has(s));
+  const topologyScopes = new Set(allowedScopes());
+  const suppliesPerToolScopes = [...granted].some(
+    (s) => topologyScopes.has(s) && !GATEWAY_HOP_SCOPES.includes(s),
+  );
+  if (hasGatewayHopScope && !suppliesPerToolScopes) {
+    return { decision: 'PERMIT' };
+  }
+
+  // A2A delegated-scope satisfaction: a specialist (depth >= 2) presenting the
+  // tool's declared least-privilege scope satisfies the check even though it
+  // differs from requiredScopes by name.
+  if (actChainDepth >= 2 && isA2aDelegatedTool(toolName)) {
+    const delegated = a2aDelegatedScope(toolName);
+    if (delegated && granted.has(delegated)) {
+      return { decision: 'PERMIT' };
+    }
+  }
+
+  const missing = required.filter((s) => !granted.has(s));
+  if (missing.length === 0) return { decision: 'PERMIT' };
+  return {
+    decision: 'DENY',
+    reason: `insufficient_scope: missing ${missing.join(', ')}`,
+    missingScopes: missing,
   };
 }
 

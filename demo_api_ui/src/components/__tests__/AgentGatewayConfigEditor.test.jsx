@@ -53,8 +53,11 @@ test('defaults to Editor view showing the raw JSON in Monaco', async () => {
   await waitFor(() => {
     expect(screen.getByText('IG Config')).toBeInTheDocument();
   });
-  const monaco = await screen.findByTestId('monaco');
-  expect(monaco).toHaveValue(FILE_DETAIL.raw);
+  // findByTestId waits for the element, not its value — the mock editor mounts
+  // before the fetched config populates it, so asserting the value straight
+  // after wins only when the fetch happens to resolve first. Under parallel
+  // load it does not.
+  await waitFor(() => expect(screen.getByTestId('monaco')).toHaveValue(FILE_DETAIL.raw));
   expect(screen.queryByText('Description')).toBeNull();
 });
 
@@ -75,7 +78,7 @@ test('switching back to Editor view restores Monaco with the current value', asy
   await screen.findByTestId('monaco');
   fireEvent.click(screen.getByRole('button', { name: 'Form' }));
   fireEvent.click(screen.getByRole('button', { name: 'Editor' }));
-  expect(await screen.findByTestId('monaco')).toHaveValue(FILE_DETAIL.raw);
+  await waitFor(() => expect(screen.getByTestId('monaco')).toHaveValue(FILE_DETAIL.raw));
 });
 
 test('shows a parse-error notice in Form view instead of crashing when JSON is invalid', async () => {

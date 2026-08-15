@@ -24,6 +24,23 @@ describe('publicBranchCatalog', () => {
     expect(reply).toContain('Dallas');
     expect(reply).toContain('Hours:');
   });
+
+  // Important fix: branch_hours' reply text duplicated the same location detail
+  // AIAgent.js's locationCards rendering already shows as cards. { short: true }
+  // is the heading-only mode that lets the cards carry the detail instead.
+  it('short mode returns a heading only — no per-branch address/hours detail', () => {
+    const result = searchPublicBranches({ city: 'Dallas' });
+    const reply = formatBranchCatalogReply(result, { short: true });
+    expect(reply).toContain('Dallas');
+    expect(reply).not.toContain('Hours:');
+    expect(reply).not.toContain(result.branches[0].address);
+  });
+
+  it('short mode still names a no-match result correctly', () => {
+    const result = searchPublicBranches({ city: 'Nowhereville' });
+    const reply = formatBranchCatalogReply(result, { short: true });
+    expect(reply).toMatch(/No .* matched "Nowhereville"/);
+  });
 });
 
 describe('vertical-aware catalog', () => {

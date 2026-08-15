@@ -57,6 +57,16 @@ describe('classifyStatements — same vocabulary as the BFF classifier', () => {
     // demo as step-up, matching demo_api_server/services/authorizeObligations.js.
     expect(classifyStatements([{ code: 'HITL_CONSENT' }, { code: 'STEP_UP_REQUIRED' }])).toBe('stepUp');
   });
+
+  it('classifies ELICITATION statement as elicitation', () => {
+    const result = classifyStatement({ code: 'ELICITATION' });
+    expect(result).toBe('elicitation');
+  });
+
+  it('classifies ELICITATION case-insensitively', () => {
+    expect(classifyStatement({ code: 'elicitation' })).toBe('elicitation');
+    expect(classifyStatement({ name: 'Elicitation-Required' })).toBe('elicitation');
+  });
 });
 
 describe('PingOneAuthorizeClient — a live PERMIT can still carry a gate', () => {

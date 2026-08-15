@@ -157,6 +157,25 @@
         }
       }
     },
+    "mappedClaims": {
+      "type": "object",
+      "description": "Scope-to-attributes gating (P14C-83315). Maps each resource to scope-attribute mappings for custom resource token claims. Requires PingOne feature flag P14C-83315-custom-resource-scope-to-attributes-support.",
+      "properties": {
+        "_comment": { "type": "string", "description": "Human-readable annotation; ignored at runtime." }
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["scope", "attributes"],
+          "additionalProperties": false,
+          "properties": {
+            "scope": { "type": "string", "minLength": 1 },
+            "attributes": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
     "tools": {
       "type": "object",
       "additionalProperties": {

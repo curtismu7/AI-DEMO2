@@ -1,0 +1,35 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-mcpgw-passthrough
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: mcpgw
+    {{- include "privgateway.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: "nginx-public-passthrough"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  rules:
+    - host: opensearch.{{ .Values.mcpgw.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-mcpgw
+                port:
+                  number: 8680
+    - host: {{ .Values.mcpgw.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-mcpgw
+                port:
+                  number: 8680
+{{- end }}

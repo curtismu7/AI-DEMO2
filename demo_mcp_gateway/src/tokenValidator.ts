@@ -289,6 +289,22 @@ export async function validateInboundToken(
     throw new TokenValidationError('Token not yet valid (nbf)', 'token_not_yet_valid');
   }
 
+  // F-iat — mirrors decision.js Rule 0d (demo_authz_server/routes/decision.js:396-409):
+  // iat must not be in the future and must not be older than the max-age ceiling.
+  // Only enforced when the claim is present (same posture as nbf above).
+  const IAT_MAX_AGE_SEC = parseInt(process.env.MCP_GW_IAT_MAX_AGE_SECONDS || '7200', 10);
+  if (typeof decoded.iat === 'number') {
+    if (decoded.iat > nowSec + CLOCK_SKEW_SEC) {
+      throw new TokenValidationError('Token issued in the future (iat)', 'invalid_iat');
+    }
+    if (nowSec - decoded.iat > IAT_MAX_AGE_SEC) {
+      throw new TokenValidationError(
+        `Token too old: issued ${nowSec - decoded.iat}s ago (max ${IAT_MAX_AGE_SEC}s)`,
+        'token_too_old',
+      );
+    }
+  }
+
   // issuer: enforced only when the gateway has been told who the issuer is. An
   // unset PINGONE_ISSUER_URI cannot be turned into a check — but when it IS set,
   // a missing iss is a mismatch, not a pass (fail closed).

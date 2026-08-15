@@ -131,6 +131,65 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p).not.toHaveProperty('IntentTokenValid');
     expect(p).not.toHaveProperty('IntentMatchesTool');
   });
+});
+
+describe('buildAuthorizeParameters — Tool annotations and elicitation', () => {
+  const GW = 'mcpgateway.ping.demo';
+  const tok = (over: any = {}): any => ({
+    sub: 'u1', scope: 'read write transfer', aud: GW, exp: 111, iat: 100, ...over,
+  });
+
+  it('includes tool annotation fields in P1AZ context for a write tool', () => {
+    const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_withdrawal', { amount: 100 });
+    expect(p.ToolReadOnly).toBe('false');
+    expect(p.ToolDestructive).toBe('true');
+    expect(p.ToolIdempotent).toBe('false');
+  });
+
+  it('includes tool annotation fields for a read tool', () => {
+    const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts', {});
+    expect(p.ToolReadOnly).toBe('true');
+    expect(p.ToolDestructive).toBe('false');
+    expect(p.ToolIdempotent).toBe('true');
+  });
+
+  it('includes tool annotation fields for an unknown tool (fail-safe: all false)', () => {
+    const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'nonexistent_tool_xyz', {});
+    expect(p.ToolReadOnly).toBe('false');
+    expect(p.ToolDestructive).toBe('false');
+    expect(p.ToolIdempotent).toBe('false');
+  });
+
+  it('sets ElicitationConfirmed to true when args contain _elicitation_confirmed: true', () => {
+    const p = buildAuthorizeParameters(
+      tok(), 'tools/call', GW, 'create_withdrawal',
+      { amount: 100, _elicitation_confirmed: true, _elicitation_id: 'test-uuid' },
+    );
+    expect(p.ElicitationConfirmed).toBe('true');
+  });
+
+  it('sets ElicitationConfirmed to false when args do not contain _elicitation_confirmed', () => {
+    const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'create_withdrawal', { amount: 100 });
+    expect(p.ElicitationConfirmed).toBe('false');
+  });
+
+  it('sets ElicitationConfirmed to false when _elicitation_confirmed is false', () => {
+    const p = buildAuthorizeParameters(
+      tok(), 'tools/call', GW, 'create_withdrawal',
+      { amount: 100, _elicitation_confirmed: false },
+    );
+    expect(p.ElicitationConfirmed).toBe('false');
+  });
+
+  it('includes tool annotations with all-false for tools/list (no toolName)', () => {
+    const p = buildAuthorizeParameters(tok(), 'tools/list', GW);
+    // Annotation fields always present: unknown toolName returns all-false (fail-safe)
+    expect(p.ToolReadOnly).toBe('false');
+    expect(p.ToolDestructive).toBe('false');
+    expect(p.ToolIdempotent).toBe('false');
+    // ElicitationConfirmed is always sent as it is tool-agnostic
+    expect(p.ElicitationConfirmed).toBe('false');
+  });
 
   it('sends binding claims when the transport DID verify them', () => {
     const p = buildAuthorizeParameters(

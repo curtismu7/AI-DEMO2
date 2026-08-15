@@ -34,9 +34,34 @@ describe("TokenChainNodeRail", () => {
     expect(screen.queryByText(/Token exchange — delegation/)).toBeNull();
   });
 
-  it("shows the first kv pair a step produced as its headline fact", () => {
+  // The node fact describes what the hop CHANGED. The act claim appearing is the
+  // delegation itself, so it leads with a "+" rather than reading as a field the
+  // step merely carries.
+  it("leads with the act claim a step added", () => {
     render(<TokenChainNodeRail steps={STEPS} activeId={null} onSelect={() => {}} />);
-    expect(screen.getByText(/act agent-001/)).toBeInTheDocument();
+    expect(screen.getByText(/act \+agent-001/)).toBeInTheDocument();
+  });
+
+  it("strikes the scopes an exchange dropped and keeps the ones it did not", () => {
+    const steps = [{
+      id: "exchange", title: "Token exchange", lane: "BFF", status: "done",
+      detail: { scopeDiff: { before: ["read", "write"], after: ["write"] } },
+    }];
+    render(<TokenChainNodeRail steps={steps} activeId={null} onSelect={() => {}} />);
+    expect(document.querySelector(".tcnr-fact-gone").textContent).toBe("read");
+    expect(document.querySelector(".tcnr-fact-kept").textContent).toBe("write");
+  });
+
+  it("says a finished transport hop changed nothing, but never says it of one still running", () => {
+    const bare = { id: "gateway", title: "Gateway", lane: "GATEWAY", detail: {} };
+    const { rerender } = render(
+      <TokenChainNodeRail steps={[{ ...bare, status: "done" }]} activeId={null} onSelect={() => {}} />,
+    );
+    expect(screen.getByText("no token change")).toBeInTheDocument();
+
+    rerender(<TokenChainNodeRail steps={[{ ...bare, status: "active" }]} activeId={null} onSelect={() => {}} />);
+    expect(screen.queryByText("no token change")).toBeNull();
+    expect(screen.getByText("in flight")).toBeInTheDocument();
   });
 
   it("never says done for a hop that is still in flight", () => {

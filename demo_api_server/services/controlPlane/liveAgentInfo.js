@@ -32,6 +32,8 @@ function getLiveAgentRow(req) {
     vertical: verticalLabel,
     provider,
     providerLabel,
+    source: 'this-app',
+    sourceLabel: 'This App',
     status: 'active',
   };
 }

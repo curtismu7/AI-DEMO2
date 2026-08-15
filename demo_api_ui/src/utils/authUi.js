@@ -8,7 +8,7 @@ export const SESSION_REAUTH_EVENT = 'banking-session-reauth';
 
 /** Canonical user-facing copy for session/auth loss (banner + agent chat). */
 export const USER_SESSION_EXPIRED_MESSAGE =
-  'Your sign-in session has expired. Sign in again to continue.';
+  'For a more personalized experience, please sign in.';
 
 const DEFAULT_SESSION_EXPIRED_MESSAGE = USER_SESSION_EXPIRED_MESSAGE;
 
@@ -248,12 +248,20 @@ export function errorMessageSuggestsLogin(message) {
 
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
- * @param {string} [returnTo] - app path to land on after login (BFF `return_to`)
+ * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
+ *   If not provided, defaults to current page unless on landing page (redirects to /dashboard).
  */
 export function navigateToCustomerOAuthLogin(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-  const suffix = returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : '';
+
+  let destination = returnTo;
+  if (!destination && typeof window !== 'undefined') {
+    const currentPath = window.location.pathname;
+    destination = currentPath === '/' ? '/dashboard' : currentPath;
+  }
+
+  const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
   window.location.href = `${apiUrl}/api/auth/oauth/user/login${suffix}`;
 }
 

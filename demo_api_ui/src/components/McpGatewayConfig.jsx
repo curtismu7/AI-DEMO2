@@ -15,6 +15,7 @@ import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { useGatewayLiveConfig } from "../hooks/useGatewayLiveConfig";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
+import { useTheme } from "../context/ThemeContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
@@ -77,6 +78,7 @@ function EnvVarTable({ vars, title }) {
 
 function McpGatewayConfigInner() {
 	const [searchParams] = useSearchParams();
+	const { darkMode, toggleDarkMode } = useTheme();
 	const { data, loading, error, refetch: fetchConfig } = useGatewayLiveConfig();
 	const initialSubtab = searchParams.get("subtab");
 	const [activeTab, setActiveTab] = useState(() =>
@@ -239,7 +241,16 @@ function McpGatewayConfigInner() {
 				<div className="mgc-header-badge">
 					<StatusBadge running={mock.running} devBypass={mock.devBypass} enabled={mock.enabled} />
 					{data && <McpModeChip usePingOneServer={data.mcpMode === 'pingone'} />}
-					<button className="mgc-refresh-btn" onClick={fetchConfig}>Refresh</button>
+					<button
+						type="button"
+						onClick={toggleDarkMode}
+						className="app-page-toolbar-btn app-page-toolbar-btn--theme"
+						title="Switch this page between light and dark"
+						aria-pressed={darkMode}
+					>
+						{darkMode ? "Light mode" : "Dark mode"}
+					</button>
+					<button type="button" className="mgc-refresh-btn" onClick={fetchConfig}>Refresh</button>
 				</div>
 			</div>
 

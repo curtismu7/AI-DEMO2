@@ -1,0 +1,55 @@
+/* DelegationChainValuePage.css
+ *
+ * Theme tokens only — this page renders outside any panel, so a literal colour
+ * fallback here reads correctly in light mode and wrong in dark. The plan's
+ * draft referenced --th-space-lg / --th-text-secondary / --th-error, none of
+ * which exist in this codebase; the real vocabulary is --th-bg-card,
+ * --th-bg-inset, --th-text, --th-text-muted, --th-border, --th-border-strong.
+ */
+
+.dcv-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px;
+  color: var(--th-text);
+}
+
+.dcv-intro {
+  color: var(--th-text-muted);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.dcv-run {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.dcv-run h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.dcv-run p {
+  color: var(--th-text-muted);
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+.dcv-reply,
+.dcv-error {
+  background: var(--th-bg-inset);
+  border-left: 3px solid var(--th-border-strong);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 12px 0 0;
+  color: var(--th-text);
+  white-space: pre-wrap;
+}
+
+.dcv-error {
+  font-weight: 600;
+}

@@ -230,6 +230,9 @@ const {
     requireAdmin,
     requireSession
 } = require('./middleware/auth');
+// Separate module on purpose: suites that hand-mock middleware/auth would make
+// this undefined here and crash at the mount. See middleware/optionalAuth.js.
+const { optionalAuthenticateToken } = require('./middleware/optionalAuth');
 const {
     logActivity
 } = require('./middleware/activityLogger');
@@ -1093,8 +1096,8 @@ app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
-app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
-app.use('/api/demo-track', authenticateToken, require('./routes/demoTrack'));
+app.use('/api/use-cases', require('./routes/useCases')); // read-only catalog is public; step-run routes self-gate with authenticateToken
+app.use('/api/demo-track', optionalAuthenticateToken, require('./routes/demoTrack'));
 app.use('/api/admin-tools', authenticateToken, require('./routes/adminTools'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes
@@ -1134,6 +1137,10 @@ app.use('/api/langchain/llamacpp', llamacppModelsRoutes);
 // req.user was always undefined, so every request 401'd — even with a valid
 // session — and the summary panel could never render.
 app.use('/api/conversations', authenticateToken, conversationRoutes);
+// authenticateToken is REQUIRED here for the same reason as /api/conversations
+// above — routes/agentFlowHistory.js reads req.user.sub to scope every run to
+// its owner; mounted without it, every request would 401.
+app.use('/api/agent-flow-history', authenticateToken, require('./routes/agentFlowHistory'));
 app.use('/api/authorize', authorizeRoutes);
 // Pre-Demo Check — readiness checks for the demo. Any logged-in user.
 const { authenticateToken: authForCheck } = require('./middleware/auth');
@@ -1295,11 +1302,13 @@ app.use('/api/tokens', authenticateToken, tokenRoutes);
 app.use('/api/users', authenticateToken, userRoutes);
 app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 app.use('/api/reports', reportsRoutes);
-// Agent restrictions gate — fires only on agent-originated calls (X-Agent-Sub present)
-// when ff_agent_restrictions=true. No-op for all direct user calls.
-app.use(['/api/accounts', '/api/transactions'], agentRestrictionsGate);
-app.use('/api/accounts', authenticateToken, accountRoutes);
-app.use('/api/accounts', authenticateToken, sensitiveBankingRoutes);
+// Agent restrictions gate — fires only on agent-originated calls (verified RFC 8693
+// `act` claim on req.user.actor, populated by authenticateToken above) when
+// ff_agent_restrictions=true. No-op for all direct user calls. Must run AFTER
+// authenticateToken so it reads the actor from the verified token, not a raw
+// client-supplied header.
+app.use('/api/accounts', authenticateToken, agentRestrictionsGate, accountRoutes);
+app.use('/api/accounts', authenticateToken, agentRestrictionsGate, sensitiveBankingRoutes);
 app.use('/api/investment', authenticateToken, investmentRoutes);
 // Interactive tester — mounted BEFORE the general /api/resource-server router so the
 // more-specific /test/* paths match here instead of falling through to a 404.
@@ -1336,7 +1345,8 @@ app.use('/api/transactions', (req, res, next) => {
     // the session-cookie check — authenticateToken validates the JWT below.
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) return next();
     return requireSession(req, res, next);
-}, authenticateToken, transactionRoutes);
+// agentRestrictionsGate runs after authenticateToken — see accounts mounts above.
+}, authenticateToken, agentRestrictionsGate, transactionRoutes);
 // GET /api/demo-scenario — return empty defaults when unauthenticated so the public
 // /demo-data page never triggers a 401 console error.  All mutating methods (PUT, PATCH)
 // still hit authenticateToken via the router below.
@@ -1388,7 +1398,13 @@ app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 // its Telemetry/Tracing siblings above.
 app.use('/api/api-calls', authenticateToken, apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
-app.use('/api/verticals', authenticateToken, verticalManifestRoutes);
+// Optional auth: this mount mixes public routes (/list, /:id/hero — the chat
+// surface reads them before sign-in) with session/admin routes (/me, /stream,
+// /active, the editor). Plain `authenticateToken` 401s the public ones; dropping
+// it entirely leaves req.user unset, which 401s the protected ones for
+// signed-in users too. optionalAuthenticateToken populates req.user when
+// credentials are present and lets requireSession/requireAdmin do the gating.
+app.use('/api/verticals', optionalAuthenticateToken, verticalManifestRoutes);
 app.use('/api/groups', authenticateToken, groupMembershipRoutes);
 app.use('/api/plugin/data', authenticateToken, require('./routes/pluginData'));
 app.use('/api/config/credentials', configCredentialsRoutes);
@@ -1478,6 +1494,16 @@ app.use('/api/demo/attack-sim', express.json(), attackSimulatorRoutes);
 
 const intentBindingRoutes = require('./routes/intentBinding');
 app.use('/api/demo/intent-binding', express.json(), intentBindingRoutes);
+
+// Protocol Playground mocks for specs PingOne does not natively implement.
+const pkceDemoRoutes = require('./routes/pkceDemo');
+app.use('/api/demo/pkce', pkceDemoRoutes);
+const txnTokenDemoRoutes = require('./routes/txnTokenDemo');
+app.use('/api/demo/txn-tokens', txnTokenDemoRoutes);
+const xaaIdJagDemoRoutes = require('./routes/xaaIdJagDemo');
+app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
+const spiffeDemoRoutes = require('./routes/spiffeDemo');
+app.use('/api/demo/spiffe', spiffeDemoRoutes);
 
 // Public CIMD well-known endpoint — no authentication required.
 // Mounted after session/auth middleware but before static files.
@@ -2036,6 +2062,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
           gear_order_status: 'gear_order', loyalty_balance: 'view_rewards',
           extend_rental: 'extend_rental', show_gear_order: 'list_gear',
           show_gear_warranty: 'view_gear_warranty', request_price_match: 'request_price_match',
+          browse_gear: 'browse_gear', add_to_cart: 'add_to_cart',
           // Workforce
           view_benefits: 'view_benefits', pto_balance: 'pto_balance',
           list_expenses: 'view_expenses', submit_expense: 'submit_expense',
@@ -2660,6 +2687,17 @@ if (require.main === module) {
             require('./services/verticalConsistencyGuard').runVerticalConsistencyGuard();
         } catch (e) {
             console.warn('[VERTICAL GUARD] unexpected error (non-fatal):', e.message);
+        }
+
+        // Kill-switch auto-reset: the revoked flag expires itself, but a
+        // full-scope kill's PingOne application disable has no TTL. This sweep
+        // re-enables those applications once their marker is due, including
+        // markers left by a previous process — a restart inside the 10-minute
+        // window would otherwise leave the agent client disabled for good.
+        try {
+            require('./services/killSwitchService').startAutoResetSweep();
+        } catch (e) {
+            console.warn('[killSwitch] Could not start the auto-reset sweep (non-fatal):', e.message);
         }
 
         const fs = require('fs');

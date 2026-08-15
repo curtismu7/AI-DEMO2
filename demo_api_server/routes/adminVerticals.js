@@ -313,6 +313,10 @@ for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'wo
   router.get(`/${vertical}/verify/status`, ...ADMIN_WRITE, verifyStatus);
   router.get(`/${vertical}/permissions`, ...ADMIN_WRITE, permissionsFor);
   router.get(`/${vertical}/audit`, auditFor);
+  router.get(`/${vertical}/queue`, requireAdmin, (req, res, next) => {
+    req.queueVertical = vertical;
+    return queueFor(req, res, next);
+  });
 }
 
 // Lookups stay open: an operator has to find the customer before verifying
@@ -396,6 +400,97 @@ router.get('/abercrombie-fitch/lookup', requireAdmin, lookupAction(abercrombieFi
   orders: 'orders', returns: 'returns', support_tickets: 'support_tickets',
   rewards: 'rewards', gift_cards: 'gift_cards',
 }));
+
+// ── Support queue ─────────────────────────────────────────────────────────────
+// A projection over each vertical's existing slices, not a new store. Every row
+// traces to a record that is really in that state, so the queue cannot drift
+// from the data and a vertical with nothing open renders an honest empty queue.
+//
+// Statuses are compared case-insensitively: sporting-goods seeds 'open' /
+// 'in_progress' where retail seeds 'Open' / 'In Progress'.
+//
+// banking and investment declare no rules deliberately. Banking's store is the
+// global accounts/transactions one rather than per-user slices, and its seed
+// carries no open states at all — every account status is null and every
+// transaction is 'completed'. Investment's trades are all 'Settled' or
+// 'Posted'. Inventing flags to fill those queues would mean fabricating demo
+// data; they stay empty until the seeds carry real open work.
+const QUEUE_RULES = {
+  banking: [],
+  healthcare: [
+    { slice: 'billingHistory', label: 'Billing', open: ['due', 'overdue'], title: (r) => r.description || 'Bill' },
+    { slice: 'medications', label: 'Medications', open: ['on hold'], title: (r) => r.name || 'Medication' },
+    { slice: 'referrals', label: 'Referrals', open: ['pending'], title: (r) => r.specialty || 'Referral' },
+  ],
+  retail: [
+    { slice: 'returns', label: 'Returns', open: ['pending'], title: (r) => r.product || 'Return' },
+    { slice: 'support_tickets', label: 'Support', open: ['open', 'in progress'], title: (r) => r.subject || 'Ticket' },
+  ],
+  'sporting-goods': [
+    { slice: 'orders', label: 'Orders', open: ['processing'], title: (r) => r.product || 'Order' },
+    { slice: 'support_tickets', label: 'Support', open: ['open', 'in_progress'], title: (r) => r.subject || 'Ticket' },
+  ],
+  workforce: [
+    { slice: 'expenses', label: 'Expenses', open: ['pending', 'submitted'], title: (r) => r.description || 'Expense' },
+    { slice: 'tickets', label: 'IT tickets', open: ['open', 'pending approval'], title: (r) => r.subject || 'Ticket' },
+  ],
+  university: [
+    { slice: 'holds', label: 'Holds', open: ['active'], title: (r) => `${r.holdType || 'Hold'} hold` },
+    { slice: 'billing', label: 'Billing', open: ['unpaid'], title: (r) => r.description || 'Charge' },
+  ],
+  government: [
+    { slice: 'recordsRequests', label: 'Records requests', open: ['in review'], title: (r) => r.requestType || 'Request' },
+    { slice: 'inspections', label: 'Inspections', open: ['failed'], title: (r) => r.type || 'Inspection' },
+  ],
+  manufacturing: [
+    { slice: 'maintenanceTickets', label: 'Maintenance', open: ['open'], title: (r) => r.issue || 'Ticket' },
+    { slice: 'purchaseOrders', label: 'Purchase orders', open: ['pending approval'], title: (r) => r.material || 'Purchase order' },
+  ],
+  investment: [],
+  'abercrombie-fitch': [
+    { slice: 'support_tickets', label: 'Support', open: ['open'], title: (r) => r.subject || 'Ticket' },
+  ],
+};
+
+const VERTICAL_PLUGINS = {
+  healthcare, retail, 'sporting-goods': sportingGoods, workforce,
+  university, government, manufacturing, investment,
+  'abercrombie-fitch': abercrombieFitch,
+};
+
+// GET /<vertical>/queue — open work across the demo customers this vertical lists.
+function queueFor(req, res) {
+  const vertical = req.baseUrl.split('/').pop() || req.params.vertical;
+  const rules = QUEUE_RULES[req.queueVertical || vertical] || [];
+  const plugin = VERTICAL_PLUGINS[req.queueVertical || vertical];
+  if (!plugin || rules.length === 0) {
+    return res.json({ vertical: req.queueVertical || vertical, data: { rows: [] } });
+  }
+
+  const customers = dataStore.getAllUsers()
+    .filter((u) => u.isActive !== false && u.role !== 'admin' && u.username);
+
+  const rows = [];
+  for (const u of customers) {
+    const data = plugin.getDataStore().get(String(u.id)) || {};
+    for (const rule of rules) {
+      for (const row of data[rule.slice] || []) {
+        if (!rule.open.includes(String(row.status || '').toLowerCase())) continue;
+        rows.push({
+          customerId: String(u.id),
+          customerName: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username,
+          customerQuery: u.username,
+          category: rule.slice,
+          categoryLabel: rule.label,
+          id: String(row.id),
+          title: rule.title(row),
+          status: row.status,
+        });
+      }
+    }
+  }
+  res.json({ vertical: req.queueVertical || vertical, data: { rows } });
+}
 
 // ── Case notes ────────────────────────────────────────────────────────────────
 // In-memory, keyed `<vertical>:<customerId>`. Not gated on verification: a note

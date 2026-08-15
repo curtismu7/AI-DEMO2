@@ -18,4 +18,9 @@ describe("JsonHighlight", () => {
     expect(tokens.find((token) => token.text.startsWith('"RarAuthorizationDetails"'))).toMatchObject({ focused: true });
     expect(tokens.find((token) => token.text.startsWith('"result"'))).toMatchObject({ critical: true });
   });
+
+  test("returns no tokens for undefined/null text instead of throwing", () => {
+    expect(tokenize(undefined)).toEqual([]);
+    expect(tokenize(null)).toEqual([]);
+  });
 });

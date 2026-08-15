@@ -11,7 +11,7 @@
  */
 
 .tcnr {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--th-border);
   padding: 8px 0 4px;
   margin-bottom: 8px;
 }
@@ -28,12 +28,12 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--th-text-muted);
 }
 
 .tcnr-count {
   font-size: 11px;
-  color: #64748b;
+  color: var(--th-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -73,9 +73,9 @@
 }
 
 .tcnr-speed {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 6px;
   padding: 3px 6px;
   font-size: 11px;
@@ -84,9 +84,9 @@
 }
 
 .tcnr-present {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 6px;
   padding: 4px 11px;
   font-size: 11px;
@@ -100,7 +100,7 @@
 .tcnr-density {
   display: inline-flex;
   gap: 2px;
-  background: #eef2f7;
+  background: var(--th-bg-inset);
   border-radius: 6px;
   padding: 2px;
 }
@@ -108,7 +108,7 @@
 .tcnr-density button {
   border: 0;
   background: transparent;
-  color: #475569;
+  color: var(--th-text-muted);
   border-radius: 4px;
   padding: 3px 9px;
   font-size: 11px;
@@ -118,8 +118,8 @@
 }
 
 .tcnr-density button.active {
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
 }
 
@@ -143,9 +143,9 @@
   text-align: left;
   cursor: pointer;
   font-family: inherit;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-top: 3px solid #cbd5e1;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-top: 3px solid var(--th-border-strong);
   border-radius: 8px;
   padding: 7px 8px;
   display: flex;
@@ -176,29 +176,29 @@
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  background: #f1f5f9;
-  color: #475569;
-  border: 2px solid #cbd5e1;
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  border: 2px solid var(--th-border-strong);
 }
 
 .tcnr-node-lane {
   font-size: 11px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--th-text-muted);
 }
 
 .tcnr-node-title {
   font-size: 12px;
   font-weight: 650;
   line-height: 1.25;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .tcnr-node-fact {
   font-size: 11px;
   line-height: 1.3;
-  color: #64748b;
+  color: var(--th-text-muted);
   word-break: break-word;
 }
 
@@ -259,12 +259,12 @@
 .tcnr[data-density="compact"] .tcnr-node-title {
   font-size: 11px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--th-text-muted);
   max-width: 60px;
 }
 
 .tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title {
-  color: #0f172a;
+  color: var(--th-text);
   font-weight: 700;
 }
 
@@ -283,14 +283,14 @@
 :root[data-theme="dark"] .tcnr-count { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr-run { background: #1d4ed8; color: #ffffff; }
 :root[data-theme="dark"] .tcnr-run:hover { background: #2563eb; }
-:root[data-theme="dark"] .tcnr-speed { background: #0f1830; border-color: #26304a; color: #eaf0fb; }
-:root[data-theme="dark"] .tcnr-present { background: #0f1830; border-color: #26304a; color: #cdd7ec; }
+:root[data-theme="dark"] .tcnr-speed { background: var(--th-bg-card); border-color: var(--th-border); color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr-present { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .tcnr-present:hover { border-color: #9ec1ff; color: #9ec1ff; }
-:root[data-theme="dark"] .tcnr-density { background: #1b2540; }
+:root[data-theme="dark"] .tcnr-density { background: var(--th-bg-inset); }
 :root[data-theme="dark"] .tcnr-density button { color: #cdd7ec; }
-:root[data-theme="dark"] .tcnr-density button.active { background: #0f1830; color: #eaf0fb; }
-:root[data-theme="dark"] .tcnr-node { background: #0f1830; border-color: #26304a; border-top-color: #26304a; }
-:root[data-theme="dark"] .tcnr-node-n { background: #0b1426; border-color: #26304a; color: #cdd7ec; }
+:root[data-theme="dark"] .tcnr-density button.active { background: var(--th-bg-card); color: #eaf0fb; }
+:root[data-theme="dark"] .tcnr-node { background: var(--th-bg-card); border-color: var(--th-border); border-top-color: #26304a; }
+:root[data-theme="dark"] .tcnr-node-n { background: var(--th-bg-page); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .tcnr-node-lane { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr-node-title { color: #eaf0fb; }
 :root[data-theme="dark"] .tcnr-node-fact { color: #90a0c2; }
@@ -310,3 +310,15 @@
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node { background: transparent; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node-title { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title { color: #eaf0fb; }
+
+/* Node facts describe the CHANGE, so the scope diff is legible at node size:
+   what survived the narrowing stays readable, what was dropped is struck. */
+.tcnr-fact-kept { margin-right: 4px; }
+.tcnr-fact-gone {
+  margin-right: 4px;
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+.tcnr-node-fact--nochange { font-style: italic; opacity: 0.8; }
+
+:root[data-theme="dark"] .tcnr-fact-gone { opacity: 0.6; }

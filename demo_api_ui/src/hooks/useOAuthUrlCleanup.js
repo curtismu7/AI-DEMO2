@@ -47,7 +47,7 @@ export function useOAuthUrlCleanup() {
   }, []);
 
   // Silent reauth failure: strip ?silent_reauth_failed= param (no error toast needed —
-  // StaleSessionBanner handles the UX). Must run independently of the error-toast
+  // the param is simply cleared). Must run independently of the error-toast
   // check above which only fires when ?error= is also present.
   useEffect(() => {
     if (typeof window === "undefined") return;

@@ -40,12 +40,14 @@ beforeEach(() => {
 describe("DemoTrackAgentControl", () => {
   it("shows the active step position in the header button", async () => {
     render(<DemoTrackAgentControl onPickStep={() => {}} />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     expect(await screen.findByText(/Demo Track:/)).toBeInTheDocument();
     expect(screen.getByText(/Step 2 of 3/)).toBeInTheDocument();
   });
 
   it("opens the picker with act labels, done marks, and full-page link", async () => {
     render(<DemoTrackAgentControl onPickStep={() => {}} />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     fireEvent.click(await screen.findByText(/Demo Track:/));
     expect(await screen.findByText("ACT 1 · THE CUSTOMER AGENT")).toBeInTheDocument();
     expect(screen.getByText("ACT 2 · SAME RAILS GOVERN THE ADMINS")).toBeInTheDocument();
@@ -57,6 +59,7 @@ describe("DemoTrackAgentControl", () => {
   it("picking a step posts active-step and calls onPickStep with step and position", async () => {
     const onPickStep = vi.fn();
     render(<DemoTrackAgentControl onPickStep={onPickStep} />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     fireEvent.click(await screen.findByText(/Demo Track:/));
     fireEvent.click(await screen.findByText("PingOne MCP admin"));
     await waitFor(() =>
@@ -92,6 +95,7 @@ describe("DemoTrackAgentControl", () => {
       return Promise.resolve({ data: { track: TRACK, run: calls >= 2 ? completedRun : RUN } });
     });
     render(<DemoTrackAgentControl onPickStep={() => {}} onStepComplete={onStepComplete} />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     fireEvent.click(await screen.findByText(/Demo Track:/));
     fireEvent.click(await screen.findByText("Fine-grained authz"));
     await waitFor(() => expect(onStepComplete).toHaveBeenCalledTimes(1));
@@ -113,6 +117,7 @@ describe("DemoTrackAgentControl", () => {
     };
     apiClient.get.mockResolvedValue({ data: { track: TRACK, run: completedRun } });
     render(<DemoTrackAgentControl onPickStep={() => {}} onStepComplete={onStepComplete} />);
+    window.dispatchEvent(new Event('userAuthenticated'));
     await screen.findByText(/Demo Track:/);
     expect(onStepComplete).not.toHaveBeenCalled();
   });

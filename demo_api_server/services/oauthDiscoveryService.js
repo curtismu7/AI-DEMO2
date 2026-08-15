@@ -66,6 +66,8 @@ function extractEndpoints(metadata) {
     token_endpoint:         metadata.token_endpoint         || null,
     userinfo_endpoint:      metadata.userinfo_endpoint      || null,
     jwks_uri:               metadata.jwks_uri               || null,
+    introspection_endpoint: metadata.introspection_endpoint || null,
+    revocation_endpoint:    metadata.revocation_endpoint    || null,
     issuer:                 metadata.issuer                 || null,
     pushed_authorization_request_endpoint:
       metadata.pushed_authorization_request_endpoint || null,
@@ -86,6 +88,8 @@ function persistDiscoveredEndpoints(endpoints) {
     'token_endpoint': 'oauth_token_endpoint',
     'userinfo_endpoint': 'oauth_userinfo_endpoint',
     'jwks_uri': 'oauth_jwks_uri',
+    'introspection_endpoint': 'oauth_introspection_endpoint',
+    'revocation_endpoint': 'oauth_revocation_endpoint',
     'issuer': 'oauth_issuer',
     'pushed_authorization_request_endpoint': 'oauth_par_endpoint',
   };

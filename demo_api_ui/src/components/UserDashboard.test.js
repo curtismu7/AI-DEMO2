@@ -120,7 +120,6 @@ vi.mock("./OAuthTokenDisplayPage", () => ({ default: () => null }));
 vi.mock("./RetailDashboard", () => ({ default: () => null }));
 vi.mock("./agent-clinical/AgentClinicalHost", () => ({ default: () => null }));
 vi.mock("./AgentIdentityCard", () => ({ default: () => null }));
-vi.mock("./StaleSessionBanner", () => ({ default: () => null }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

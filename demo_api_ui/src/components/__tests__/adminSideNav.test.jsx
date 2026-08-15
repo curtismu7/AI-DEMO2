@@ -41,6 +41,14 @@ import AdminSideNav from "../AdminSideNav";
 import { NAV_ITEM_CATALOG } from "../../config/navItemsCatalog";
 import { NAV_STRUCTURE_CATALOG } from "../../config/navStructureCatalog";
 
+// The sidebar now rests as an icon rail (labels hidden). These suites exercise
+// the expanded tree — filtering by label, group auto-expand — so they opt into
+// the expanded state explicitly rather than relying on a default.
+beforeEach(() => {
+  try { window.localStorage.setItem("adminSideNav.collapsed", "false"); } catch { /* jsdom always has it */ }
+});
+
+
 const adminUser = { id: "4", username: "admin", role: "admin" };
 const customerUser = { id: "1", username: "customer", role: "customer" };
 const renderNav = (path = "/admin") =>
@@ -229,6 +237,18 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getAllByText("PingOne MCP Setup")).toHaveLength(1);
     expect(screen.queryByText("PingOne MCP")).toBeNull();
     vi.unstubAllGlobals();
+  });
+
+  it("Industry Verticals has one entry per destination — no duplicate-path React keys", () => {
+    renderNav();
+    fireEvent.click(screen.getByText("Industry Verticals"));
+    const group = screen.getByRole("region", { name: "Industry Verticals" });
+    const paths = within(group)
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+    // Two children resolving to the same path collide on the path-derived key.
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(paths.filter((p) => p === "/admin/sporting-goods")).toHaveLength(1);
   });
 
   it("NAV_STRUCTURE_CATALOG top-level labels stay in sync with AdminSideNav", () => {

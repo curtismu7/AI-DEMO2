@@ -6,7 +6,17 @@
 # Exposed externally at https://ai-demo.ping-devops.com/mcpgw via se-ingress.yaml,
 # and per-application at https://<app>.mcpgw.ai-demo.ping-devops.com/mcp via
 # aws/mcpgw-agentless-ingress.yaml (agentless / self-hosted frontend mode — see
-# docs/PRIVILEGE-MCP.md for why that mode sidesteps the JWT issuer-trust wall).
+# privilege/PRIVILEGE-MCP.md for why that mode sidesteps the JWT issuer-trust wall).
+#
+# BINARY SWAP 2026-08-12, from privilege-proxy/cyonproxy to privilege-mcpgw/mcpgw.
+# cyonproxy never emits a WWW-Authenticate challenge (grep -a over the binary:
+# zero occurrences of authorization_uri / MCP OAuth Server /
+# oauth-protected-resource). mcpgw's binary contains every one of those strings,
+# and a live probe of this same image running in another engineer's cluster
+# confirmed it emits the challenge for real on a tokenless request. The
+# ValidateInfraJwt kid-comparison wall is present in this binary too, so PingOne
+# client tokens passing through it is NOT confirmed — only the discovery layer
+# is proven. See the skill's "The PingOne token wall" section.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,22 +44,38 @@ spec:
     spec:
       containers:
       - name: ping-mcpgw
-        image: public.ecr.aws/s7q1z8z4/privilege-proxy
+        # Pinned by digest (multi-arch manifest list) rather than a tag — no
+        # public tag-listing access to confirm a stable version tag exists, and
+        # this is the exact build verified against a live cluster (see header
+        # comment). Bump by re-pulling :latest and updating the digest.
+        image: public.ecr.aws/s7q1z8z4/privilege-mcpgw@sha256:0faad5903a5bd72539b1df525e3c7bc5d458a5bd324aac9755b8af99dfa6647d
         imagePullPolicy: Always
-        command: ["/procyon/bin/cyonproxy"]
+        command: ["/procyon/bin/mcpgw"]
         args:
         - "-hostname"
         - "mcpgw.ai-demo.ping-devops.com"
-        # -listen is the MESH port, not the MCP frontend. It speaks mTLS and
-        # answers every plain request with "tlsv13 alert certificate required".
-        # The frontend is -alp-port ("agentless proxy api port"), which defaults
-        # to :8620 and is what the Service and Ingress target. Verified locally:
-        # POST http://<proxy>:8620/mcp -> 401 "Bearer Token not found."
-        - "-listen"
-        - ":8623"
+        # -mcpconfpath is REQUIRED on this binary (fatal "MCP Config path not
+        # specified" without it) — confirmed via --help and a scratch container.
+        # Unlike cyonproxy, mcpgw reads this file directly rather than only
+        # consuming pingone.env's values via injected environment variables.
+        - "-mcpconfpath"
+        - "/var/lib/procyon/config/pingone.env"
+        # -mcpgw is this binary's MCP+OAuth-challenge listener (default :8623) —
+        # a different port role than cyonproxy's -alp-port (8620). Left on default
+        # rather than pinned explicitly, matching the one proven-working
+        # invocation seen live: another engineer's cluster, same image (same
+        # digest), same minimal flag set (-hostname, -mcpconfpath only, no
+        # -alp-port/-listen/-mcpgw overrides) — POST .../mcp there returned 401
+        # with WWW-Authenticate present. NOT yet verified against our own
+        # enrollment; this deployment has never run (see PR that added it).
         ports:
-        - containerPort: 8620
+        - containerPort: 8623
           name: http
+        # Official Ping doc ("PingOne-Privilege-MCP-Gateway-Configuration.md", received
+        # 2026-08-12): "8690/TCP for gateway-to-gateway communication and mesh cluster
+        # creation." Not previously exposed here — added on audit against that doc.
+        - containerPort: 8690
+          name: medusa
         env:
         - name: ENV_PROXY_TOKEN
           valueFrom:
@@ -57,7 +83,7 @@ spec:
               name: ping-mcpgw-secrets
               key: ENV_PROXY_TOKEN
         volumeMounts:
-        # NOT readOnly, and NOT emptyDir: cyonproxy rewrites proxy-token.data at
+        # NOT readOnly, and NOT emptyDir: the proxy rewrites proxy-token.data at
         # startup (it swaps the short-lived wizard JWT for a long-lived one). A
         # read-only mount makes it exit 1 with "ProxyToken write ... read-only file
         # system"; an emptyDir loses the exchanged token on every restart, forcing
@@ -68,10 +94,24 @@ spec:
           mountPath: /procyon/recordings
         - name: logs
           mountPath: /var/log/procyon
-        # Agentless mode only: SERVER_URL + the OIDC endpoints the gateway uses to
-        # authenticate MCP clients itself. Optional so a mesh-mode cluster still boots.
+        # -mcpconfpath (above) points here. NOT optional in practice on this
+        # binary the way it was under cyonproxy: mcpgw reads this file eagerly at
+        # startup and exits fatally if the path doesn't resolve, so a missing
+        # pingone.env now means crash-loop, not soft degradation. `optional: true`
+        # on the volume itself is kept only so pod admission doesn't fail outright
+        # if the ping-mcpgw-secrets object hasn't been created yet at all.
         - name: pingone-env
           mountPath: /var/lib/procyon/config
+          readOnly: true
+        # Official Ping doc lists /var/lib/procyon/ssl/mcpgw-{cert,key}.pem under
+        # "Required host configuration" — a DIFFERENT path from ssl-certs above
+        # (/procyon/ssl, the proxy's own enrollment-identity cert store). Local
+        # docker-compose gets these for free by mounting the whole /var/lib/procyon
+        # tree; this manifest only ever mounted /config, never /ssl. optional: true
+        # for the same reason as pingone-env — don't fail pod admission if the files
+        # don't exist locally at deploy time.
+        - name: mcpgw-tls
+          mountPath: /var/lib/procyon/ssl
           readOnly: true
         resources:
           requests:
@@ -82,19 +122,19 @@ spec:
             cpu: "500m"
         startupProbe:
           tcpSocket:
-            port: 8620
+            port: 8623
           failureThreshold: 30
           periodSeconds: 2
           timeoutSeconds: 2
         livenessProbe:
           tcpSocket:
-            port: 8620
+            port: 8623
           periodSeconds: 60
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           tcpSocket:
-            port: 8620
+            port: 8623
           initialDelaySeconds: 5
           periodSeconds: 30
           timeoutSeconds: 3
@@ -114,9 +154,18 @@ spec:
           items:
           - key: pingone.env
             path: pingone.env
+      - name: mcpgw-tls
+        secret:
+          secretName: ping-mcpgw-secrets
+          optional: true
+          items:
+          - key: mcpgw-cert.pem
+            path: mcpgw-cert.pem
+          - key: mcpgw-key.pem
+            path: mcpgw-key.pem
       restartPolicy: Always
 ---
-# Holds the long-lived proxy token cyonproxy writes after enrollment. Losing this
+# Holds the long-lived proxy token the proxy writes after enrollment. Losing this
 # volume means re-enrolling the gateway in the Privilege console for a fresh JWT —
 # get the new token BEFORE deleting it.
 apiVersion: v1
@@ -145,10 +194,16 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8620
-    targetPort: 8620
+  - port: 8623
+    targetPort: 8623
     protocol: TCP
     name: http
+  # Mesh cluster creation / gateway-to-gateway per the official config doc — see
+  # the containerPort comment above.
+  - port: 8690
+    targetPort: 8690
+    protocol: TCP
+    name: medusa
   sessionAffinity: ClientIP
   sessionAffinityConfig:
     clientIP:

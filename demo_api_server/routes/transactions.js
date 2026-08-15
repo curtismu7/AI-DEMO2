@@ -473,7 +473,8 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // ── Hard transaction limit gate ──────────────────────────────────────
     // Block ALL transactions exceeding the absolute maximum (applies to all user types)
-    const MAX_TRANSACTION_AMOUNT = parseFloat(configStore.getEffective('max_transaction_amount')) || 1000;
+    const rawMaxTransactionAmount = parseFloat(configStore.getEffective('max_transaction_amount'));
+    const MAX_TRANSACTION_AMOUNT = Number.isFinite(rawMaxTransactionAmount) ? rawMaxTransactionAmount : 1000;
     if (roundedAmount > MAX_TRANSACTION_AMOUNT) {
       // Also check if the source account has insufficient funds, so the error message can surface both reasons.
       let insufficientFundsAlso = false;

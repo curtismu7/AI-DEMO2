@@ -221,4 +221,34 @@ router.get('/admin/queue-stats', (req, res) => {
   }
 });
 
+/**
+ * POST /:userId/:vertical/hero-shown
+ * Save hero greeting + image to conversation history for memory across sessions.
+ * Body: { greeting: string, imageUrl: string }
+ */
+router.post('/:userId/:vertical/hero-shown', express.json(), (req, res) => {
+  const { userId, vertical } = req.params;
+  const { greeting, imageUrl } = req.body;
+
+  if (!userId || !vertical) {
+    return res.status(400).json({ error: 'userId and vertical are required' });
+  }
+
+  if (!greeting || !imageUrl) {
+    return res.status(400).json({ error: 'greeting and imageUrl are required' });
+  }
+
+  try {
+    conversationStore.saveMessage(userId, vertical, 'assistant', greeting, {
+      heroGreeting: true,
+      imageUrl,
+      timestamp: Date.now(),
+    });
+    return res.json({ saved: true });
+  } catch (err) {
+    console.error('[conversations.POST.hero-shown] Error:', err.message);
+    return res.status(500).json({ error: 'failed to save hero info' });
+  }
+});
+
 module.exports = router;

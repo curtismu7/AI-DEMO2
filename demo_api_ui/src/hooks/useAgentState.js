@@ -155,6 +155,11 @@ export function useAgentState() {
           const finishedMessage = {
             ...streamingMessageRef.current,
             streaming: false,
+            // UC24 public catalog rides the terminating event: agentRun.js answers
+            // branch_hours deterministically and attaches the locations here, so the
+            // AG-UI path can render the same cards the heuristic path already does.
+            // Absent on every other reply, which leaves the message shape unchanged.
+            ...(Array.isArray(event.locationCards) ? { locationCards: event.locationCards } : {}),
           };
           tokenChainTraceStore.ingestLlmReply(finishedMessage.content);
           setState((prev) => {

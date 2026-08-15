@@ -150,6 +150,7 @@
 }
 .tet-ready-card--ok { border-color: #86efac; background: #f0fdf4; }
 .tet-ready-card--bad { border-color: #fca5a5; background: #fef2f2; }
+.tet-ready-card--checking { border-color: #d1d5db; background: #f9fafb; }
 .tet-ready-card__title {
   font-size: 13px;
   font-weight: 700;

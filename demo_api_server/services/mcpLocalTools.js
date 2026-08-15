@@ -342,7 +342,22 @@ async function create_withdrawal(params, userId, req) {
   const withdrawalStepUp = checkLocalStepUp('withdrawal', rounded, req);
   if (withdrawalStepUp) return withdrawalStepUp;
 
-  await dataStore.updateAccountBalance(targetAccountId, -rounded);
+  // Atomic funds check + mutation — closes the TOCTOU overdraft race that a
+  // separate check-then-await-then-mutate sequence allows (see applyTransfer's
+  // doc comment in data/store.js). Mirrors POST /api/transactions' call pattern.
+  const move = await dataStore.applyTransfer({
+    fromAccountId: targetAccountId,
+    toAccountId: null,
+    amount: rounded,
+    userId,
+  });
+  if (!move.ok) {
+    if (move.reason === 'insufficient_funds') {
+      const current = dataStore.getAccountById(targetAccountId)?.balance ?? account.balance;
+      return { error: `Insufficient balance (current: $${current.toFixed(2)}, requested: $${rounded.toFixed(2)})` };
+    }
+    return { error: `Account "${targetAccountId}" not found` };
+  }
 
   const txn = await dataStore.createTransaction({
     fromAccountId: targetAccountId,
@@ -404,8 +419,24 @@ async function create_transfer(params, userId, req) {
   const transferStepUp = checkLocalStepUp('transfer', rounded, req);
   if (transferStepUp) return transferStepUp;
 
-  await dataStore.updateAccountBalance(from_account_id, -rounded);
-  await dataStore.updateAccountBalance(to_account_id,   rounded);
+  // Atomic funds check + mutation — closes the TOCTOU overdraft race that a
+  // separate check-then-await-then-mutate sequence allows (see applyTransfer's
+  // doc comment in data/store.js). Mirrors POST /api/transactions' call pattern.
+  const move = await dataStore.applyTransfer({
+    fromAccountId: from_account_id,
+    toAccountId: to_account_id,
+    amount: rounded,
+    userId,
+  });
+  if (!move.ok) {
+    if (move.reason === 'insufficient_funds') {
+      const current = dataStore.getAccountById(from_account_id)?.balance ?? fromAccount.balance;
+      return { error: `Insufficient balance (current: $${current.toFixed(2)}, requested: $${rounded.toFixed(2)})` };
+    }
+    if (move.reason === 'from_not_found') return { error: `Source account ${from_account_id} not found` };
+    if (move.reason === 'to_not_found') return { error: `Destination account ${to_account_id} not found` };
+    return { error: 'Transfer failed' };
+  }
 
   const txn = await dataStore.createTransaction({
     fromAccountId: from_account_id,

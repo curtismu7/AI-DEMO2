@@ -81,18 +81,68 @@ function nodeLabel(step) {
   return words.length > 16 ? `${words.slice(0, 15)}…` : words;
 }
 
+function shorten(v, max = 18) {
+  const s = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
 /**
- * The one line of evidence a node shows. Prefers the step's own first kv pair
- * (real data the step produced); falls back to the status so a node is never
- * blank and never invents a fact it does not have.
+ * What this hop CHANGED, not merely what it carries.
+ *
+ * A chain of "done · done · done" says nothing; the demo's whole claim is that
+ * each hop narrows or rebinds something. So the scope diff and the act claim
+ * are read first, and a hop that genuinely changed nothing says so rather than
+ * borrowing an unrelated field to look busy.
+ *
+ * Still never invents a fact it does not have: with no evidence it falls back
+ * to the status, and only "done" may say done.
  */
-function headline(step) {
-  const kv = step?.detail?.kv;
-  if (Array.isArray(kv) && kv.length > 0) {
-    const [k, v] = kv[0];
-    const val = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
-    if (val) return `${k} ${val.length > 18 ? `${val.slice(0, 17)}…` : val}`;
+function NodeFact({ step }) {
+  const d = step?.detail || {};
+  const ran = ["done", "active", "denied", "error"].includes(step?.status);
+
+  // Scope narrowing is the most legible change in the chain — show what went.
+  if (ran && Array.isArray(d.scopeDiff?.before) && Array.isArray(d.scopeDiff?.after)) {
+    const after = new Set(d.scopeDiff.after);
+    return (
+      <span className="tcnr-node-fact">
+        scope{" "}
+        {d.scopeDiff.before.map((s) => (
+          <span key={s} className={after.has(s) ? "tcnr-fact-kept" : "tcnr-fact-gone"}>
+            {s}
+          </span>
+        ))}
+      </span>
+    );
   }
+
+  const kv = Array.isArray(d.kv) ? d.kv : [];
+  // The act claim appearing is the delegation, so it leads when present.
+  const act = kv.find(([k]) => String(k).toLowerCase() === "act");
+  if (ran && act && shorten(act[1])) {
+    return <span className="tcnr-node-fact">act +{shorten(act[1], 14)}</span>;
+  }
+
+  if (kv.length > 0) {
+    const [k, v] = kv[0];
+    const val = shorten(v);
+    if (val) return <span className="tcnr-node-fact">{`${k} ${val}`}</span>;
+  }
+
+  // Transport and lookup hops carry the request without altering it. Saying so
+  // beats "done", which implies something happened to the token here.
+  //
+  // Only a FINISHED hop may claim this. An in-flight one has not changed
+  // nothing — it has not finished, and "no token change" would be a verdict the
+  // run has not earned yet (the same trap `active` sets for "done").
+  if (step.status === "done" && !d.beforeAfter && !d.decision) {
+    return <span className="tcnr-node-fact tcnr-node-fact--nochange">no token change</span>;
+  }
+
+  return <span className="tcnr-node-fact">{statusFact(step)}</span>;
+}
+
+function statusFact(step) {
   // Only "done" may say done. `active` means the hop is still in flight — an
   // authorize step awaiting a decision must never read as if it had succeeded,
   // and anything unrecognised falls back to the raw status rather than to a
@@ -262,7 +312,7 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresen
                 <span className="tcnr-node-lane">{step.lane}</span>
               </span>
               <span className="tcnr-node-title">{nodeLabel(step)}</span>
-              <span className="tcnr-node-fact">{headline(step)}</span>
+              <NodeFact step={step} />
             </button>
           </li>
         ))}

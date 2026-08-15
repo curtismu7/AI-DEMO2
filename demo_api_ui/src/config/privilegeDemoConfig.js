@@ -17,9 +17,9 @@ export const PRIVILEGE_DEMO = {
   subtitle: 'Shared environment presenter resource. Requires local EndUser and Admin VMs with the Privilege Agent installed.',
   overview:
     'Demo Engineering hosts a always-on shared Privilege multi-tenant environment. Complete the SE setup once (workstations, password reset, agent onboarding, MFA), snapshot your VMs, then present from the Script tab.',
-  se1GuidePath: 'docs/resources/SE1-Privilege-Shared-Demo.md',
+  se1GuidePath: 'privilege/SE1-Privilege-Shared-Demo.md',
   se1GuideUrl:
-    'https://github.com/curtismu7/AI-DEMO2/blob/main/docs/resources/SE1-Privilege-Shared-Demo.md',
+    'https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/SE1-Privilege-Shared-Demo.md',
   adminEnvId: '88d79a9c-0dfe-4817-97aa-905bad9ca502',
   agentEnvId: 'a32ebaed-d454-4f5a-9575-697cfcb6f822',
   emailPattern: '{seemail}+role@pingone.com',

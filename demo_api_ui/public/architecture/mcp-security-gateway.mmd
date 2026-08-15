@@ -16,7 +16,7 @@ flowchart LR
     subgraph Customer["Customer Cloud"]
         direction TB
         GATEWAY["MCP Gateway\nPingGateway (IG, :3036)\nff_mcp_gateway_pinggateway=true (default)"]
-        MCP_SERVER["Banking MCP Server\n:8080\nbalance · transfer\ntransactions · accounts"]
+        MCP_SERVER["AI Demo MCP Server\n:8080\nbalance · transfer\ntransactions · accounts"]
         GATEWAY <-->|"3. Adapt security to\ndownstream requirements"| MCP_SERVER
         BANKING_RS["banking_resource_server\n/identity (Path B: dual_token)\n/accounts /transactions (Path C: oauth_bearer)"]
         SQLITE[("SQLite\nbanking-resource-server.db")]
