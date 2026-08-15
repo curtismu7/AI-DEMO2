@@ -188,3 +188,33 @@ describe('Prompts capability', () => {
     expect(r.json.result.capabilities.prompts).toBeDefined();
   });
 });
+
+// MCP Completion capability — real argument autocompletion, scoped to the
+// authenticated caller's own bookings (not a global lookup). Depends on
+// Prompts existing (bookingId is summarize_airline_booking's argument).
+describe('Completion capability', () => {
+  it('completes bookingId from the caller\'s own confirmation numbers matching the given prefix', async () => {
+    const r = await post({
+      jsonrpc: '2.0', id: 1, method: 'completion/complete',
+      params: {
+        ref: { type: 'ref/prompt', name: 'summarize_airline_booking' },
+        argument: { name: 'bookingId', value: 'K7' },
+      },
+    }, token('airlines:read'));
+    expect(r.json.result.completion.values).toContain('K7XR2M');
+    for (const v of r.json.result.completion.values) expect(v.startsWith('K7')).toBe(true);
+  });
+
+  it('returns an empty completion (not an error) for an unrecognized ref/argument combo', async () => {
+    const r = await post({
+      jsonrpc: '2.0', id: 2, method: 'completion/complete',
+      params: { ref: { type: 'ref/prompt', name: 'not_a_real_prompt' }, argument: { name: 'x', value: '' } },
+    }, token('airlines:read'));
+    expect(r.json.result.completion.values).toEqual([]);
+  });
+
+  it('declares the completions capability on initialize', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 3, method: 'initialize', params: {} }, token('airlines:read'));
+    expect(r.json.result.capabilities.completions).toBeDefined();
+  });
+});

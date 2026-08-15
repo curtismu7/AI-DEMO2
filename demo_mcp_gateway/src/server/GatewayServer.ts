@@ -650,7 +650,8 @@ export class GatewayServer {
       || jsonRpc.method === 'resources/read'
       || jsonRpc.method === 'resources/templates/list'
       || jsonRpc.method === 'prompts/list'
-      || jsonRpc.method === 'prompts/get';
+      || jsonRpc.method === 'prompts/get'
+      || jsonRpc.method === 'completion/complete';
     if ((rpcToolName && routeTool(rpcToolName) === 'invest') || isResourceServerOnlyMethod) {
       try {
         const rpcResult = await proxyJsonRpc(

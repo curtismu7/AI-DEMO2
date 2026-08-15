@@ -2,11 +2,11 @@
 import { validateMethodAndShape, validateToolArgs, ALLOWED_METHODS } from '../src/validation/mcpRequestValidation';
 
 describe('validateMethodAndShape', () => {
-  it('allows the eleven MCP methods', () => {
+  it('allows the twelve MCP methods', () => {
     for (const m of [
       'initialize', 'notifications/initialized', 'tools/list', 'notifications/cancelled',
       'logging/setLevel', 'resources/list', 'resources/read', 'resources/templates/list',
-      'prompts/list', 'prompts/get',
+      'prompts/list', 'prompts/get', 'completion/complete',
     ]) {
       expect(validateMethodAndShape(m, undefined)).toBeNull();
     }

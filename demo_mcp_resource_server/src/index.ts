@@ -57,6 +57,7 @@ import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
+import { resolvePassenger, listBookings } from './db/airlinesDb';
 
 // ---------------------------------------------------------------------------
 // MCP Prompts capability — real, usable templates referencing this server's
@@ -372,6 +373,7 @@ async function handleMessage(
         resources: { subscribe: false, listChanged: false },
         logging: {},
         prompts: { listChanged: false },
+        completions: {},
       },
       serverInfo: { name: 'banking-mcp-resource-server', version: '1.0.0' },
     }));
@@ -394,6 +396,33 @@ async function handleMessage(
       return;
     }
     send(rpcResult(id, prompt.build(promptArgs)));
+    return;
+  }
+
+  // MCP Completion capability — real autocompletion, scoped to the
+  // authenticated caller's own bookings (never a global lookup across
+  // passengers). Only bookingId on summarize_airline_booking is wired;
+  // anything else gets an empty completion, not an error — the spec treats
+  // an unrecognized ref/argument as "nothing to suggest," not a failure.
+  if (method === 'completion/complete') {
+    const ref = msg.params?.ref;
+    const argument = msg.params?.argument;
+    let values: string[] = [];
+    if (ref?.type === 'ref/prompt' && ref?.name === 'summarize_airline_booking' && argument?.name === 'bookingId') {
+      let decoded;
+      try { decoded = await decodeAndValidate(token, ACCEPTED_AUDIENCES); } catch { decoded = undefined; }
+      if (decoded) {
+        const match = resolvePassenger(decoded.sub);
+        const prefix = String(argument.value ?? '').toUpperCase();
+        if (match) {
+          values = listBookings(match.passenger.passenger_ref)
+            .map((b) => b.confirmation_number)
+            .filter((cn) => cn.toUpperCase().startsWith(prefix))
+            .slice(0, 100);
+        }
+      }
+    }
+    send(rpcResult(id, { completion: { values, total: values.length, hasMore: false } }));
     return;
   }
 

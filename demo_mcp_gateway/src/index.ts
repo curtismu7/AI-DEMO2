@@ -600,7 +600,8 @@ async function handleMessage(
   // has no scope gate on Prompts (matches its own design — see its
   // prompts/list handler), same as it does for tools.
   const RESOURCE_SERVER_ONLY_METHODS = new Set([
-    'resources/list', 'resources/read', 'resources/templates/list', 'prompts/list', 'prompts/get',
+    'resources/list', 'resources/read', 'resources/templates/list',
+    'prompts/list', 'prompts/get', 'completion/complete',
   ]);
   if (RESOURCE_SERVER_ONLY_METHODS.has(method)) {
     try {
@@ -1102,6 +1103,7 @@ async function handleMessage(
           logging: {},
           resources: { subscribe: false, listChanged: false },
           prompts: { listChanged: false },
+          completions: {},
         },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },

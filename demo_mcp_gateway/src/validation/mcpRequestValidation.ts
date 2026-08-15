@@ -24,6 +24,7 @@ export const ALLOWED_METHODS: ReadonlySet<string> = new Set([
   'resources/templates/list',
   'prompts/list',
   'prompts/get',
+  'completion/complete',
 ]);
 
 export interface ValidationFailure {
