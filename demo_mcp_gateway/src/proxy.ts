@@ -28,7 +28,7 @@ export function buildUpstreamHeaders(
   return headers;
 }
 
-const MCP_PROTOCOL_VERSION = '2025-11-25';
+export const MCP_PROTOCOL_VERSION = '2025-11-25';
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const CALL_TIMEOUT_MS = parseInt(process.env.GW_TOOL_CALL_TIMEOUT_MS || '30000', 10);
 
@@ -52,12 +52,38 @@ export function proxyJsonRpc(
   request: JsonRpcRequest,
   xTratContext?: string,
   tlsOptions?: MtlsOptions,
+  // MCP spec: called for each interim notifications/progress frame the
+  // backend emits while the call is in flight (a notification, so it has no
+  // `id` and would otherwise never match the final-response check below and
+  // be silently dropped). Not called for the final response.
+  onProgress?: (params: unknown) => void,
+  // MCP spec: notifications/cancelled. Aborting terminates the backend
+  // connection and rejects with a distinguishable { code: 'cancelled' }
+  // error instead of waiting out CALL_TIMEOUT_MS.
+  signal?: AbortSignal,
 ): Promise<JsonRpcResponse> {
   return new Promise((resolve, reject) => {
+    // Guards every settle path against acting twice (e.g. an abort() that
+    // races the final response) — resolve/reject themselves are idempotent,
+    // but ws.terminate() on an already-closed socket is not something to do
+    // twice, and the abort listener must know not to fire post-settle.
+    let settled = false;
+
     const timer = setTimeout(() => {
+      settled = true;
       ws.terminate();
       reject(new Error(`Proxy timeout after ${CALL_TIMEOUT_MS}ms for ${request.method}`));
     }, CALL_TIMEOUT_MS);
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(handshakeTimer);
+      ws.terminate();
+      reject(Object.assign(new Error('Cancelled'), { code: 'cancelled' }));
+    };
+    signal?.addEventListener('abort', onAbort);
 
     const wsOptions: WebSocket.ClientOptions = {
       headers: buildUpstreamHeaders(backendToken, xTratContext),
@@ -79,8 +105,10 @@ export function proxyJsonRpc(
     let handshakeTimer: ReturnType<typeof setTimeout> | undefined;
 
     ws.on('error', (err) => {
+      settled = true;
       clearTimeout(timer);
       clearTimeout(handshakeTimer);
+      signal?.removeEventListener('abort', onAbort);
       reject(err);
     });
 
@@ -104,6 +132,8 @@ export function proxyJsonRpc(
       // Handshake timeout guard
       handshakeTimer = setTimeout(() => {
         if (!initialized) {
+          settled = true;
+          signal?.removeEventListener('abort', onAbort);
           ws.terminate();
           reject(new Error('MCP handshake timeout'));
         }
@@ -136,10 +166,19 @@ export function proxyJsonRpc(
         return;
       }
 
+      // Step 1b: an interim notifications/progress frame — no `id`, so it
+      // would never match Step 2 below. Forward it and keep waiting.
+      if (msg.id === undefined && (msg as unknown as { method?: string }).method === 'notifications/progress') {
+        onProgress?.((msg as unknown as { params?: unknown }).params);
+        return;
+      }
+
       // Step 2: match the real request's id
       if (msg.id === request.id) {
+        settled = true;
         clearTimeout(timer);
         clearTimeout(handshakeTimer);
+        signal?.removeEventListener('abort', onAbort);
         ws.close();
         resolve(msg);
       }

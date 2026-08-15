@@ -29,7 +29,7 @@ import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
-import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse } from './proxy';
+import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
@@ -394,6 +394,9 @@ async function handleMessage(
   tierMaxAmountUsd?: string,
   tierRestrictedTools?: string,
   mcpSessionId?: string,
+  // MCP spec: notifications/cancelled. Connection-scoped registry (see
+  // wss.on('connection')) of in-flight calls this connection can abort.
+  inFlightCalls?: Map<string | number, AbortController>,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -409,6 +412,16 @@ async function handleMessage(
   const shapeFailure = validateMethodAndShape(method, msg.params);
   if (shapeFailure) {
     send(jsonRpcError(id, shapeFailure.code, shapeFailure.message, shapeFailure.data));
+    return;
+  }
+
+  // MCP spec: notifications/cancelled — a notification (no response sent
+  // either way). Look up the target request id and abort it if still in
+  // flight; an unknown or already-settled id is a silent no-op, matching
+  // spec guidance that a cancellation racing a response is not an error.
+  if (method === 'notifications/cancelled') {
+    const requestId = (msg.params as { requestId?: string | number } | undefined)?.requestId;
+    if (requestId !== undefined) inFlightCalls?.get(requestId)?.abort();
     return;
   }
 
@@ -928,14 +941,32 @@ async function handleMessage(
       ? { cert: gatewayCerts.clientCert, key: gatewayCerts.clientKey }
       : undefined;
 
+    // MCP spec: notifications/cancelled — register this call so a later
+    // cancel notification on the same connection can find and abort it.
+    const cancelController = new AbortController();
+    if (id !== undefined) inFlightCalls?.set(id, cancelController);
+
     let result: JsonRpcResponse;
     try {
-      result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts);
+      // MCP spec: relay any interim notifications/progress frame the backend
+      // emits (opted into by the caller via params._meta.progressToken, sent
+      // through unchanged in `msg`) straight back onto this client-facing
+      // connection — the caller is the only one who can act on it, the
+      // gateway just forwards.
+      result = await proxyJsonRpc(wsUrl, backendToken, msg, undefined, tlsOpts, (params) => {
+        send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params }));
+      }, cancelController.signal);
     } catch (err) {
+      // Cancelled: the client sent notifications/cancelled and is not
+      // expecting a response for this id — sending one anyway (an error or
+      // otherwise) is what the spec's cancellation flow explicitly avoids.
+      if ((err as { code?: string })?.code === 'cancelled') return;
       const msg2 = err instanceof Error ? err.message : String(err);
       console.error(`[GW] Proxy error for ${toolName}:`, msg2);
       send(jsonRpcError(id, -32500, 'Backend error'));
       return;
+    } finally {
+      if (id !== undefined) inFlightCalls?.delete(id);
     }
 
     // C3 + H1: synthesize tokenEvents for the Token Chain UI showing that the
@@ -1007,7 +1038,7 @@ async function handleMessage(
       jsonrpc: '2.0',
       id,
       result: {
-        protocolVersion: '2025-11-25',
+        protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },
@@ -1098,6 +1129,13 @@ wss.on('connection', (ws, req) => {
   const authHeader = req.headers['authorization'];
   const token = extractBearerToken(authHeader) || '';
 
+  // MCP spec: notifications/cancelled. One registry per connection — request
+  // ids are only unique within a connection, not globally. Populated around
+  // each proxyJsonRpc call below; notifications/cancelled looks a request id
+  // up here and aborts it if still in flight (already-settled calls are a
+  // no-op, per proxyJsonRpc's own settled guard).
+  const inFlightCalls = new Map<string | number, AbortController>();
+
   // Active vertical for per-vertical tools/list filtering (spec §8). Sourced
   // server-to-server from the BFF on the WS upgrade — NOT user-controlled (the
   // SPA never opens this socket). Single value; trimmed.
@@ -1159,7 +1197,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools, wsMcpSessionId).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools, wsMcpSessionId, inFlightCalls).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));
