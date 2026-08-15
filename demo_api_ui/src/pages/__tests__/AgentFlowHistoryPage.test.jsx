@@ -54,6 +54,19 @@ describe('AgentFlowHistoryPage', () => {
     await waitFor(() => expect(screen.getByText(/Failed to load run history/)).toBeInTheDocument());
   });
 
+  it('offers a retry that re-fetches after a failed load', async () => {
+    apiClient.get.mockRejectedValueOnce(new Error('network down'));
+    render(<AgentFlowHistoryPage />);
+    await waitFor(() => expect(screen.getByText(/Failed to load run history/)).toBeInTheDocument());
+
+    apiClient.get.mockResolvedValueOnce({ data: { runs: RUNS } });
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(screen.getByText(/Loading runs/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('second run')).toBeInTheDocument());
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+  });
+
   it('renders the run list newest-first and defaults the detail to the first run', async () => {
     apiClient.get.mockResolvedValue({ data: { runs: RUNS } });
     render(<AgentFlowHistoryPage />);
