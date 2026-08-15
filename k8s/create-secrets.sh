@@ -294,23 +294,23 @@ override_redirect_uris_for_public_origin() {
   info "  PUBLIC_APP_URL/PINGONE_PUBLIC_APP_URL/PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
 }
 
-# ── Privilege gateway URLs: same public-origin problem, two more places ─────
+# ── Privilege gateway URLs: two places, two different fixes ─────────────────
 # PRIVILEGE_MCPGW_URL (the BFF's target) and pingone.env's SERVER_URL (the
-# gateway's own front door, which it advertises in its WWW-Authenticate
-# challenge and its /callback redirect) both shipped from demo_api_server/.env
-# and ping-mcpgw/procyon/config/pingone.env as-is — local values
-# (mcp-pingone-admin.mcpgw.local.ping-devops.com, mcpgw.local.ping-devops.com)
-# that don't resolve from inside the cluster. Found 2026-08-12: the K8s-hosted
-# UI's relay log showed "fetch failed" trying to reach the local hostname.
+# gateway's own front door) both shipped from demo_api_server/.env and
+# ping-mcpgw/procyon/config/pingone.env as-is — local values that don't
+# resolve from inside the cluster.
 #
-# Both need the SAME public origin as override_redirect_uris_for_public_origin
-# above, with /mcpgw appended — that's the only path se-ingress.yaml actually
-# routes to the gateway (nginx.ingress.kubernetes.io/rewrite-target strips it
-# before the container sees the request, so SERVER_URL must include it for the
-# round trip to work: https://<origin>/mcpgw/callback -> ingress strips /mcpgw
-# -> container sees /callback). The dedicated-subdomain agentless ingress
-# (k8s/aws/mcpgw-agentless-ingress.yaml) is NOT applied by any deploy script —
-# do not point these at that subdomain, it has no ingress behind it.
+# PRIVILEGE_MCPGW_URL used to be overridden to <origin>/mcpgw/mcp (the app's
+# own se-ingress.yaml path). Proven live 2026-08-13 that this categorically
+# cannot work for cyonproxy — that port is TLS-native (HTTP/2 via ALPN, its
+# own certificate), and nginx re-encrypting it hits TLS handshake failures no
+# matter the backend-protocol annotation (HTTP/HTTPS/GRPCS all tried against
+# the real gateway). The actual working client entry point is Privilege's OWN
+# publicly-hosted frontend, not anything in this cluster:
+#   https://<app-name>-app-default.applications.privilege.pingone.com:8643/mcp
+# <app-name> matches the SE namespace's user suffix (ping-devops-cmuir -> cmuir)
+# — confirmed live for that case; unverified whether every namespace's
+# Privilege-registered app name follows the same derivation.
 override_privilege_urls_for_public_origin() {
   local origin="${CALLER_PUBLIC_APP_URL:-}"
   if [ -z "$origin" ]; then
@@ -322,6 +322,8 @@ override_privilege_urls_for_public_origin() {
   fi
   origin="${origin%/}"
   local mcpgw_base="${origin}/mcpgw"
+  local app_name="${NS#ping-devops-}"
+  local mcpgw_client_url="https://${app_name}-app-default.applications.privilege.pingone.com:8643/mcp"
 
   # mcpgw binary routes by path prefix: /<app-name>/mcp (not just /mcp).
   # Set MCPGW_APP_NAME env var to the name registered in the Privilege console
@@ -336,9 +338,9 @@ override_privilege_urls_for_public_origin() {
   fi
 
   local ai_patch
-  ai_patch=$(printf '{"stringData":{"PRIVILEGE_MCPGW_URL":"%s"}}' "$mcpgw_mcp_path")
+  ai_patch=$(printf '{"stringData":{"PRIVILEGE_MCPGW_URL":"%s"}}' "$mcpgw_client_url")
   printf '%s' "$ai_patch" | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
-  info "  PRIVILEGE_MCPGW_URL overridden to match $mcpgw_mcp_path"
+  info "  PRIVILEGE_MCPGW_URL overridden to match ${mcpgw_client_url}"
 
   if [ -f "$ASSET_ROOT/ping-mcpgw/procyon/config/pingone.env" ]; then
     local patched_pingone_env
