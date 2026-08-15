@@ -157,7 +157,7 @@ client_id=myapp&response_type=code&scope=openid read
       label: 'In this repo',
       content: (
         <>
-          <h3 style={{ marginTop: 0 }}>PAR in Super Banking</h3>
+          <h3 style={{ marginTop: 0 }}>PAR in AI Demo</h3>
           <EduImplIntro mock>
             Sign-in here uses Authorization Code + PKCE without pushing parameters via PAR first. The snippet shows the pattern you would add on the BFF before redirecting the browser.
           </EduImplIntro>

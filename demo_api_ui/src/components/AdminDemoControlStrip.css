@@ -1,0 +1,21 @@
+/* AdminDemoControlStrip.css — one row of demo controls at the top of /admin.
+   Consumes the --admin-* tokens from AdminDashboardSkin.css (the strip mounts
+   inside .admin-dashboard-page), so light/dark comes from the page. */
+
+.adcs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 10px;
+}
+
+/* The shared controls carry agent-header styling; keep them legible on the
+   page surface without restyling the components themselves. */
+.adcs .ams--compact {
+  margin-right: 6px;
+}

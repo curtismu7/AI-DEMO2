@@ -38,12 +38,33 @@ const AdminCustomerPanel = () => {
   const [actionError, setActionError] = useState(null);
   const [result, setResult] = useState(null); // { kind, data }
 
+  // Consolidated read. The dashboard used to carry a second "Customer lookup"
+  // card with its own search box; its distinguishing value was the PingOne
+  // record, which /api/admin/agent does not return. That card is gone and its
+  // read path lives here, so there is one search on the page instead of two.
+  const [lookup, setLookup] = useState(null);   // { user, accounts, transactions, pingOne }
+  const [lookupError, setLookupError] = useState(null);
+  const [hints, setHints] = useState([]);
+
   // Adjust-balance sub-form state
   const [adjustAccountId, setAdjustAccountId] = useState("");
   const [adjustAmount, setAdjustAmount] = useState("");
 
   const debounceRef = useRef(null);
   const reqIdRef = useRef(0);
+  const lookupReqRef = useRef(0);
+
+  // Username hint chips — carried over from the dashboard's lookup card.
+  useEffect(() => {
+    let live = true;
+    bffAxios
+      .get("/api/admin/users/hints")
+      .then(({ data }) => {
+        if (live) setHints(Array.isArray(data?.users) ? data.users.slice(0, 6) : []);
+      })
+      .catch(() => { if (live) setHints([]); });
+    return () => { live = false; };
+  }, []);
 
   // Debounced search (~300ms). q must be >= 1 char.
   useEffect(() => {
@@ -86,11 +107,32 @@ const AdminCustomerPanel = () => {
     setAdjustAmount("");
     setMatches([]);
     setQuery("");
+
+    // Pull the full record for this customer. /api/admin/transactions/lookup is
+    // the only path that returns the PingOne record alongside accounts and
+    // transactions, which is why it stays the read path while the write
+    // operations below continue to use /api/admin/agent.
+    const myReq = ++lookupReqRef.current;
+    setLookup(null);
+    setLookupError(null);
+    bffAxios
+      .post("/api/admin/transactions/lookup", { username: u.username || customer.name })
+      .then(({ data }) => {
+        if (myReq !== lookupReqRef.current) return;   // superseded by a newer select
+        setLookup(data || null);
+      })
+      .catch((err) => {
+        if (myReq !== lookupReqRef.current) return;
+        setLookupError(errMessage(err, "Lookup failed"));
+      });
   }, []);
 
   const handleClear = useCallback(() => {
     setSelectedCustomer(null);
     adminCustomerContext.set(null);
+    lookupReqRef.current += 1;   // drop any in-flight read for the old customer
+    setLookup(null);
+    setLookupError(null);
     setResult(null);
     setActionError(null);
     setAdjustAccountId("");
@@ -175,7 +217,7 @@ const AdminCustomerPanel = () => {
       aria-labelledby="acp-heading"
     >
       <h2 id="acp-heading" className="dash-shell-card__title">
-        Customer Admin
+        Customer lookup &amp; admin
       </h2>
       <p className="acp-subtitle">
         Search for a demo customer, select them, then run real admin operations
@@ -196,6 +238,20 @@ const AdminCustomerPanel = () => {
           onChange={(e) => setQuery(e.target.value)}
           autoComplete="off"
         />
+        {hints.length > 0 && !selectedCustomer && (
+          <div className="acp-hints" role="group" aria-label="Suggested customers">
+            {hints.map((h) => (
+              <button
+                key={h.username || h}
+                type="button"
+                className="acp-hint-chip"
+                onClick={() => setQuery(h.username || h)}
+              >
+                {h.username || h}
+              </button>
+            ))}
+          </div>
+        )}
         {searching && <span className="acp-hint">Searching…</span>}
         {searchError && (
           <span className="acp-error" role="alert">
@@ -251,6 +307,39 @@ const AdminCustomerPanel = () => {
         <p className="acp-hint acp-hint--select">
           Search and select a customer above to enable admin actions.
         </p>
+      )}
+
+      {/* Consolidated read — replaces the dashboard's separate lookup card. */}
+      {selectedCustomer && lookupError && (
+        <p className="acp-error" role="alert">❌ {lookupError}</p>
+      )}
+      {selectedCustomer && lookup && (
+        <div className="acp-lookup">
+          <h3 className="acp-lookup__h">Customer profile</h3>
+          <ProfileResult user={lookup.user} />
+
+          {lookup.pingOne && (
+            <>
+              <h3 className="acp-lookup__h">PingOne record</h3>
+              <dl className="acp-kv">
+                {Object.entries(lookup.pingOne)
+                  .filter(([, v]) => v !== null && typeof v !== "object")
+                  .map(([k, v]) => (
+                    <div className="acp-kv__row" key={k}>
+                      <dt>{k}</dt>
+                      <dd>{String(v)}</dd>
+                    </div>
+                  ))}
+              </dl>
+            </>
+          )}
+
+          <h3 className="acp-lookup__h">Accounts</h3>
+          <AccountsTable accounts={lookup.accounts || []} />
+
+          <h3 className="acp-lookup__h">Recent transactions</h3>
+          <TransactionsTable transactions={lookup.transactions || []} />
+        </div>
       )}
 
       {/* Action buttons */}

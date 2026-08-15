@@ -21,11 +21,21 @@ const ADMIN_PARSE_EXPECT = {
   ADMIN2: { action: 'call_pingone_tool', toolName: 'listUsers' },
   ADMIN3: { action: 'call_pingone_tool', toolName: 'listPopulations' },
   ADMIN4: { action: 'call_pingone_tool', toolName: 'getEnvironment' },
+  // ADMIN5/6 assert the FILTER too — the prefix reaching PingOne as a SCIM sw
+  // filter is the step's whole point; a parse that resolves the tool but drops
+  // the filter lists everything and demos nothing. Case matters: sw is
+  // case-sensitive, so "Demo" must survive as "Demo".
+  ADMIN5: { action: 'call_pingone_tool', toolName: 'listUsers', filter: 'username sw "curt"' },
+  ADMIN6: { action: 'call_pingone_tool', toolName: 'listApplications', filter: 'name sw "Demo"' },
+  ADMIN7: { action: 'list_pingone_tools', toolName: undefined },
+  ADMIN8: { action: 'call_pingone_tool', toolName: 'listResources' },
 };
 
 describe('step verification — pingone-admin catalog', () => {
-  test('catalog lists ADMIN1–4 with chip triggers', () => {
-    expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual(['ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4']);
+  test('catalog lists ADMIN1–7 with chip triggers', () => {
+    expect(ADMIN_DEMO_STEPS.map((s) => s.id)).toEqual([
+      'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8',
+    ]);
     for (const s of ADMIN_DEMO_STEPS) {
       expect(s.trigger?.type).toBe('chip');
       expect(s.trigger?.text).toBeTruthy();
@@ -67,8 +77,20 @@ describe('step verification — pingone-admin chip routing (check 2: parse/route
       expect(parsed?.kind).not.toBe('none');
       expect(parsed.action).toBe(expect_.action);
       expect(parsed.params?.name).toBe(expect_.toolName);
+      if (expect_.filter) {
+        expect(parsed.params?.arguments?.filter).toBe(expect_.filter);
+      }
     },
   );
+});
+
+describe('pingone-admin tool-filter phrase (ADMIN7 modal output)', () => {
+  test('the matching-fragment phrase parses to list_pingone_tools WITH the filter', () => {
+    const ctx = resolveVerticalCtx(VERTICAL);
+    const parsed = parseHeuristic('Show me the PingOne tools matching "user"', VERTICAL, ctx, {});
+    expect(parsed?.action).toBe('list_pingone_tools');
+    expect(parsed?.params?.filter).toBe('user');
+  });
 });
 
 describe('step verification — pingone-admin prerequisites', () => {
@@ -88,6 +110,6 @@ describe('step verification — pingone-admin prerequisites', () => {
         verifiedBy: 'pingone-admin vertical has no flag/A2A/PAR prerequisites',
       });
     }
-    expect(ADMIN_DEMO_STEPS.length).toBe(4);
+    expect(ADMIN_DEMO_STEPS.length).toBe(8);
   });
 });

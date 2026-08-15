@@ -42,6 +42,7 @@ import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
 import { buildAuthzHealth } from '../authzPosture';
+import { toolsListBackendOutage } from '../toolsListHealth';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -215,6 +216,10 @@ export class GatewayServer {
         // Contract C3 — the aggregate "is the gate armed" signal. `failOpen`
         // names every currently-active bypass; an empty array means fully armed.
         authz: buildAuthzHealth(this.config),
+        // Null unless the last tools/list read NO live backend and shipped the
+        // static gateway-owned registry instead — an outage the response itself
+        // looks perfectly healthy through.
+        toolsListBackendOutage: toolsListBackendOutage(),
       }));
       return;
     }
@@ -775,10 +780,14 @@ export class GatewayServer {
     const realm = 'banking-mcp-gateway';
     const metadataUrl = `${selfBaseUrl(req, this.config.port)}/.well-known/oauth-protected-resource`;
     const safeDesc = sanitizeHeaderDescription(description);
+    // RFC 6750 §3.1 SHOULD include scope= on 401 — advertise the minimum scope
+    // the gateway requires for any tool invocation.
+    const baseScope = 'mcp:invoke';
     res.writeHead(401, {
       'Content-Type': 'application/json',
       'WWW-Authenticate': appendEnterpriseWwwAuthHint([
         `Bearer realm="${realm}"`,
+        `scope="${baseScope}"`,
         `resource_metadata="${metadataUrl}"`,
         `error="${errorCode}"`,
         `error_description="${safeDesc}"`,

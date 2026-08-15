@@ -31,6 +31,9 @@ services:
       # is a generated copy inside this directory mount instead.
       - ./config:/var/gateway/config:ro
       - ./scripts/groovy:/var/gateway/scripts/groovy:ro
+    # PG_LOCAL_RAR_PAYEE_ENFORCE=true — OFF by default — see p1az-decision.groovy's
+    # RAR payee local deny and check-groovy-params.sh:78-81. Enable only after
+    # explicit review; this overrides the "P1AZ decides" convention that script guards.
     env_file:
       - .env
     extra_hosts:

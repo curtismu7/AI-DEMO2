@@ -26,11 +26,18 @@ function currentRegistration(req) {
   return id ? delegatedCommerceStore.get(id) : null;
 }
 
-async function revokeActiveDelegations(agentId, userId) {
-  let record = delegationStore.findActiveByActorAndGrantor(agentId, userId);
-  while (record) {
+function registrationIsActive(registration) {
+  return registration?.status === 'active' && registration.expiresAt > Date.now();
+}
+
+async function revokeActiveDelegations(agentId, userId, exceptId = null) {
+  const records = delegationStore.getDelegations(userId).filter((record) =>
+    record.delegate_email === agentId &&
+    record.status === 'active' &&
+    record.id !== exceptId,
+  );
+  for (const record of records) {
     await delegationService.revokeDelegation(record.id, userId);
-    record = delegationStore.findActiveByActorAndGrantor(agentId, userId);
   }
 }
 
@@ -80,12 +87,15 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
   if (!registration || registration.claimedByUserId !== userId) {
     return res.status(409).json({ error: 'agent_claim_required' });
   }
+  if (registration.expiresAt <= Date.now()) {
+    return res.status(410).json({ error: 'agent_registration_expired' });
+  }
 
+  let granted = null;
   try {
     pingOneUserService.initialize();
     await pingOneUserService.setMayActAttribute(userId, { sub: registration.applicationId });
-    await revokeActiveDelegations(registration.applicationId, userId);
-    const granted = delegationStore.grantDelegation({
+    granted = delegationStore.grantDelegation({
       delegator_user_id: userId,
       delegator_email: req.user?.email || req.session?.user?.email || '',
       delegate_email: registration.applicationId,
@@ -95,6 +105,7 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
     const updated = delegatedCommerceService.updateConsent(registration.id, scopes);
     req.session.agentTokens = {};
     await saveSession(req);
+    await revokeActiveDelegations(registration.applicationId, userId, granted.id);
     res.json({
       ok: true,
       reauthRequired: true,
@@ -102,6 +113,16 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
       registration: updated,
     });
   } catch (err) {
+    try {
+      pingOneUserService.initialize();
+      await pingOneUserService.setMayActAttribute(userId, null);
+      if (typeof granted?.id === 'string') {
+        await delegationService.revokeDelegation(granted.id, userId);
+      }
+      delegatedCommerceStore.put(registration);
+    } catch (rollbackErr) {
+      console.error('[delegated-commerce] consent rollback failed:', rollbackErr.message);
+    }
     res.status(502).json({
       error: 'consent_write_failed',
       message: 'Could not activate the scoped agent consent.',
@@ -120,7 +141,7 @@ router.get('/status', (req, res) => {
   );
   res.json({
     registration: delegatedCommerceService.safeRegistration(registration),
-    authorized: !!delegation && registration.status === 'active',
+    authorized: !!delegation && registrationIsActive(registration),
     delegationId: delegation?.id || null,
     scopes: delegation?.scopes || [],
   });

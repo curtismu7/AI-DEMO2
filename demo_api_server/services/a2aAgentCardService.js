@@ -43,6 +43,9 @@ function buildSpecialistAgentCard(vertical, cfg) {
   if (!specialist) return null;
 
   const rpcUrl = specialistRpcUrl(vertical, cfg);
+  const verifiedTrustEnabled = cfg && typeof cfg.getEffective === 'function'
+    ? cfg.getEffective('ff_verified_trust_a2a') === 'true'
+    : false;
   const skills = (specialist.tools || []).map((tool) => ({
     id: tool,
     name: tool.replace(/_/g, ' '),
@@ -82,6 +85,25 @@ function buildSpecialistAgentCard(vertical, cfg) {
           },
         },
       },
+      // Additive, not a replacement for pingoneBearer — only advertised when
+      // ff_verified_trust_a2a is on. Not added to securityRequirements below:
+      // the bearer token stays the one REQUIRED scheme; the VC is an optional
+      // extra assertion delegateToSpecialist() may attach (see a2aDelegationService.js).
+      ...(verifiedTrustEnabled ? {
+        verifiedTrustCredential: {
+          scheme: {
+            $case: 'httpAuthSecurityScheme',
+            value: {
+              description:
+                'Signed SD-JWT Verifiable Credential (PingOne Credentials via DaVinci), ' +
+                'additionally asserting which agent acts for which user — independently ' +
+                'verifiable offline, portable across an org boundary.',
+              scheme: 'VC-SD-JWT',
+              bearerFormat: 'SD-JWT',
+            },
+          },
+        },
+      } : {}),
     },
     securityRequirements: [{ schemes: { pingoneBearer: { list: [] } } }],
     defaultInputModes: ['text/plain'],

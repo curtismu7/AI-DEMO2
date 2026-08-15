@@ -1,0 +1,14 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "UC35",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "UNPROVEN",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-08-14",
+  "requiredFlags": [],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": []
+}

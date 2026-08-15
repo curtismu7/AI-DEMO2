@@ -29,6 +29,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC30',  // Weather MCP — Texas permit
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope
+  'UC38',  // Personal Agent Concierge — MFA + Agent Builder + RFC 8693 delegation
 ];
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
@@ -66,7 +67,7 @@ export const DEMO_USE_CASE_IDS = [
  * list (demo_api_server/config/admin/demoSteps.js), not the 22-use-case
  * banking catalog — see docs/superpowers/specs/2026-07-19-pingone-admin-demo-steps-design.md.
  */
-export const ADMIN_PRIMARY_USE_CASE_IDS = ['ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4'];
+export const ADMIN_PRIMARY_USE_CASE_IDS = ['ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8'];
 
 /** Section heading used on /use-cases for this script. */
 export const DEMO_USE_CASE_LABEL = 'Demo — a scripted walkthrough';

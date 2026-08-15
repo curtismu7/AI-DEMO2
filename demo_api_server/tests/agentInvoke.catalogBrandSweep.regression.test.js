@@ -43,9 +43,14 @@ describe('UC24 catalog chip — every vertical answers with its OWN locations', 
     expect(result.success).toBe(true);
     expect(result.toolsCalled).toContain('get_branch_hours');
     // Content assertion: the vertical's own first location name must appear.
-    expect(result.reply).toContain(CATALOG_BY_VERTICAL[vertical][0].name);
+    // formatBranchCatalogReply now returns a short heading (the AIAgent.js
+    // locationCards rendering shows the per-branch detail as cards, not
+    // duplicated in the reply text — see publicBranchCatalog.test.js), so the
+    // name-level assertion moves to `branches`, the data the cards render from.
+    expect(result.branches.map((b) => b.name)).toContain(CATALOG_BY_VERTICAL[vertical][0].name);
     if (vertical !== 'banking') {
       expect(result.reply).not.toContain('Super Banking');
+      expect(result.branches.some((b) => b.name.includes('Super Banking'))).toBe(false);
     }
   });
 });

@@ -1,3 +1,9 @@
+/* Dark ground for the app shell — dark-only so the light look is untouched.
+   Keyed to the ThemeContext data-theme stamp, never prefers-color-scheme. */
+:root[data-theme="dark"] .App {
+  background: var(--th-bg-page);
+}
+
 .App {
   min-height: 100vh;
   display: flex;
@@ -63,6 +69,65 @@
   flex: 1 1 0%;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Phone: undo the viewport-tall shell. The one-page model above assumes three
+   side-by-side columns that each scroll internally; stacked into one column
+   that becomes ~3,000px of content inside an 844px `overflow: hidden` box, and
+   everything past the fold is unreachable. Below 1024px the page scrolls
+   instead and the columns size to their content.
+
+   Same selectors as the rules above, so this wins on source order alone — no
+   !important, and no effect on any other route because the :has() still gates
+   on the split3 dashboard being rendered. */
+@media (max-width: 1024px) {
+  .App:has(.user-dashboard--split3) {
+    height: auto;
+    min-height: 100dvh;
+    /* x stays clipped: two control rows below are intrinsically wider than a
+       phone and were only ever hidden by the old `overflow: hidden`. Releasing
+       y without this turns that into a sideways-scrolling page. */
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .App:has(.user-dashboard--split3) main.main-content {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  /* The agent-mode row is ~566px of nowrap chips inside the stacked column, so
+     it would be the one thing still pushing past the fold-in. Let it scroll on
+     its own axis. (The topnav's own right-hand controls are left alone — that
+     row is compressed to 0 by flex before this media query is even involved,
+     which is a pre-existing topnav problem, not a stacking one.) */
+  .App:has(.user-dashboard--split3) .ams--compact {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+}
+
+/* Short viewport: same problem as the phone case above, on the vertical axis.
+   The agent column's own chrome (header, composer, Start Over) is ~350px
+   before a single message renders, and the chain map beneath it wants its own
+   room too — no amount of squeezing the fr row fits both in a locked box under
+   ~700px tall, and the parts that lose (the composer, Start Over) go past
+   .ud-agent-column's overflow:hidden edge and become unreachable. Give up the
+   one-page model here too and let the page scroll, same as the width case. */
+@media (max-height: 700px) {
+  .App:has(.user-dashboard--split3) {
+    height: auto;
+    min-height: 100dvh;
+    overflow-y: visible;
+  }
+
+  .App:has(.user-dashboard--split3) main.main-content {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+  }
 }
 
 /* Quick nav (signed-in /, /admin, /dashboard only) — extra stack + content inset */
@@ -344,8 +409,11 @@
    flight (App.js `loading`), so the content area isn't a blank flash. */
 .main-content--auth-loading {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
   min-height: 60vh;
 }
 
@@ -894,8 +962,8 @@
   right: 0;
   z-index: 10050;
   padding: 0.75rem 1rem;
-  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
-  border-bottom: 1px solid #f59e0b;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
   box-sizing: border-box;
 }
@@ -1773,17 +1841,21 @@
    These pages use position:fixed/100vw to fill the viewport when opened in a
    popup window. When navigated to in-app (with the sidebar present) we must
    offset them so the fixed sidebar does not cover their content.            */
+/* The page HOST sits inside main-content, which the shell already offsets by the
+   nav width — so it just fills its parent. (It used to re-apply the nav offset on
+   top, double-counting it and pushing the panel off the right edge.) The fixed
+   panel--page below is viewport-positioned, so it still needs the explicit offset. */
 .App:has(.admin-side-nav) .api-traffic-page-host {
-  width: calc(100vw - var(--sidebar-width));
-  margin-left: var(--sidebar-width);
+  width: 100%;
+  margin-left: 0;
 }
 .App:has(.admin-side-nav) .api-traffic-panel--page {
   left: var(--sidebar-width);
   width: calc(100vw - var(--sidebar-width));
 }
 .App:has(.admin-side-nav--collapsed) .api-traffic-page-host {
-  width: calc(100vw - var(--sidebar-collapsed-width));
-  margin-left: var(--sidebar-collapsed-width);
+  width: 100%;
+  margin-left: 0;
 }
 .App:has(.admin-side-nav--collapsed) .api-traffic-panel--page {
   left: var(--sidebar-collapsed-width);

@@ -826,6 +826,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
       noBackdrop
       zIndex={10000}
       minWidth={480}
+      className="tfd-slide-panel"
       minHeight={360}
     >
       <div className={`tfd-root${darkMode ? '' : ' tfd-light'}`}>

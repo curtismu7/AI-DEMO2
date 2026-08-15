@@ -20,9 +20,15 @@ jest.mock('../services/agentReasoningClient', () => ({
 const { processAdminMessage } = require('../services/adminAgentService');
 const { executeAdminTool } = require('../config/admin/tools');
 
+// The message must NOT match a pingone-admin heuristic ("list populations"
+// did): heuristic-first routing would dispatch the tool before the mocked
+// reason loop ever ran, and these tests exercise the LLM loop's step
+// recording specifically. The heuristic path's own step recording is covered
+// in adminAgentHeuristicFirst.test.js — both share recordAdminToolStep.
+
 test('processAdminMessage adds a pingone-admin-api Token Chain step for each admin tool call', async () => {
   const response = await processAdminMessage({
-    message: 'list populations', userId: 'u1', sessionId: 's1', tokenEvents: [],
+    message: 'please summarize our identity security posture', userId: 'u1', sessionId: 's1', tokenEvents: [],
   });
   expect(response.success).toBe(true);
   const step = response.tokenEvents.find((e) => e.id === 'pingone-admin-api:list_populations');
@@ -40,7 +46,7 @@ test('processAdminMessage marks the Token Chain step failed when executeAdminToo
   );
 
   const response = await processAdminMessage({
-    message: 'list populations', userId: 'u1', sessionId: 's1', tokenEvents: [],
+    message: 'please summarize our identity security posture', userId: 'u1', sessionId: 's1', tokenEvents: [],
   });
 
   const step = response.tokenEvents.find((e) => e.id === 'pingone-admin-api:list_populations');

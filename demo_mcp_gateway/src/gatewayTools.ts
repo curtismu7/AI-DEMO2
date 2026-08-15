@@ -88,8 +88,8 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
       type: 'object',
       properties: {
         city_name: { type: 'string', description: 'City name, optionally with state, e.g. "Austin, TX"' },
-        latitude: { type: 'number' },
-        longitude: { type: 'number' },
+        latitude: { type: 'number', description: 'Decimal latitude, e.g. 30.2672' },
+        longitude: { type: 'number', description: 'Decimal longitude, e.g. -97.7431' },
         location_name: { type: 'string', description: 'A saved location name (not scope-verifiable; denied by policy)' },
       },
       additionalProperties: true,
@@ -102,8 +102,8 @@ export const GATEWAY_TOOLS: GatewayToolDescriptor[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string' },
-        count: { type: 'number' },
+        query: { type: 'string', description: 'Search query string' },
+        count: { type: 'number', description: 'Number of results to return (default 5)' },
       },
       required: ['query'],
       additionalProperties: false,

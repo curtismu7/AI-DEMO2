@@ -19,8 +19,16 @@ jest.mock('../../services/demoAgentLangGraphService', () => ({
 jest.mock('../../middleware/auth', () => ({
   authenticateToken: (_req, _res, next) => {
     _req.user = { sub: 'user-test-123' };
-    // agentSessionMiddleware (now on this route) requires session.user + a live
-    // OAuth access token; provide both so the guard passes through.
+    _req.session = {
+      id: 'sess-test',
+      user: { oauthId: 'user-test-123', email: 'test@example.com' },
+      oauthTokens: { accessToken: 'tok' },
+    };
+    _req.tokenEvents = [];
+    next();
+  },
+  optionalAuthenticateToken: (_req, _res, next) => {
+    _req.user = { sub: 'user-test-123' };
     _req.session = {
       id: 'sess-test',
       user: { oauthId: 'user-test-123', email: 'test@example.com' },

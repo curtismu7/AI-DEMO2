@@ -26,6 +26,9 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
   const [args, setArgs] = useState("{}");
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
+  // Force light/dark on the panel independent of the costume skin's own
+  // brightness ("even if the skin is the opposite"). auto = inherit the skin.
+  const [pvsTheme, setPvsTheme] = useState("auto"); // auto | light | dark
   const [notice, setNotice] = useState(() => {
     if (searchParams.get("auth") !== "error") return "";
     const reason = searchParams.get("reason");
@@ -99,13 +102,55 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
     }
   };
 
+  const retryTools = async () => {
+    setBusy(true);
+    setNotice("");
+    try {
+      await listTools();
+    } catch (err) {
+      setNotice(errText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const signOut = async () => {
+    setBusy(true);
+    try {
+      await apiClient.post(`${API_BASE}/auth/logout`);
+    } catch {
+      /* ignore — clear locally regardless */
+    }
+    setTools([]);
+    setScopes([]);
+    setSelected("");
+    setResult("");
+    setPhase("signed-out");
+    setBusy(false);
+  };
+
   return (
-    <div className={`pvs pvs--${skin}`} data-testid="privilege-shell-panel">
+    <div
+      className={`pvs pvs--${skin}`}
+      data-pvs-theme={pvsTheme === "auto" ? undefined : pvsTheme}
+      data-testid="privilege-shell-panel"
+    >
       <div className="pvs-head">
         <strong>Privilege MCP</strong>
         <span>PingOne Privilege client</span>
+        <button
+          type="button"
+          className="pvs-theme-toggle"
+          title="Force light/dark — overrides this skin's theme"
+          onClick={() =>
+            setPvsTheme((t) => (t === "auto" ? "light" : t === "light" ? "dark" : "auto"))
+          }
+        >
+          {pvsTheme === "auto" ? "Theme: Auto" : pvsTheme === "light" ? "Theme: Light" : "Theme: Dark"}
+        </button>
       </div>
       {notice ? <div className="pvs-notice">{notice}</div> : null}
+
       {phase === "loading" ? (
         <div className="pvs-empty">Checking Privilege session…</div>
       ) : null}
@@ -119,6 +164,14 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
       ) : null}
       {phase === "ready" ? (
         <>
+          <div className="pvs-actions">
+            <button type="button" onClick={retryTools} disabled={busy}>
+              Retry tools
+            </button>
+            <button type="button" onClick={signOut} disabled={busy}>
+              Sign out
+            </button>
+          </div>
           {scopes.length ? (
             <div className="pvs-scopes">
               {scopes.map((s) => (

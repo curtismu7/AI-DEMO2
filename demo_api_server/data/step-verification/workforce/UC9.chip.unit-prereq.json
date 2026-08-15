@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "submit_expense",
-  "checkedAt": "2026-08-03",
+  "checkedAt": "2026-08-14",
   "requiredFlags": [
     "ff_authorize_group_policy",
     "ff_mcp_gateway_pinggateway"

@@ -1,0 +1,44 @@
+{
+  "permits": [
+    {
+      "id": "P-1001",
+      "permitType": "Building",
+      "subject": "1234 Maple Street, Springfield, IL",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2026-02-10",
+      "expiresDate": "2026-12-01",
+      "status": "Active",
+      "inspector": "M. Alvarez (Code Enforcement)"
+    },
+    {
+      "id": "P-1002",
+      "permitType": "Business",
+      "subject": "Maple Cafe LLC",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2025-09-15",
+      "expiresDate": "2026-09-15",
+      "status": "Active",
+      "inspector": "—"
+    },
+    {
+      "id": "P-1003",
+      "permitType": "Professional",
+      "subject": "General Contractor License",
+      "jurisdiction": "State of Illinois",
+      "issuedDate": "2024-07-01",
+      "expiresDate": "2026-07-01",
+      "status": "Renewal Due",
+      "inspector": "—"
+    },
+    {
+      "id": "P-1004",
+      "permitType": "Building",
+      "subject": "88 Oak Avenue — deck addition",
+      "jurisdiction": "City of Springfield",
+      "issuedDate": "2025-05-20",
+      "expiresDate": "2025-11-20",
+      "status": "Released",
+      "inspector": "T. Nguyen (Code Enforcement)"
+    }
+  ]
+}

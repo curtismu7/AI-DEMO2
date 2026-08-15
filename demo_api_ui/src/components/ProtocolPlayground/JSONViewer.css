@@ -1,0 +1,71 @@
+.json-viewer {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pp-text-secondary);
+  background-color: var(--pp-bg-code);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: none;
+  flex: 1;
+}
+
+.json-viewer > div {
+  margin: 0;
+  padding: 0;
+}
+
+.json-key {
+  color: var(--pp-text);
+  font-weight: 600;
+}
+
+.json-string {
+  color: #4ade80;
+}
+
+.json-number {
+  color: #fbbf24;
+}
+
+.json-boolean {
+  color: #60a5fa;
+}
+
+.json-null {
+  color: #a78bfa;
+}
+
+.json-brace,
+.json-bracket {
+  color: var(--pp-text-muted);
+}
+
+.json-colon {
+  color: var(--pp-text-muted);
+}
+
+.json-comma {
+  color: var(--pp-text-muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  .json-string {
+    color: #86efac;
+  }
+
+  .json-number {
+    color: #fcd34d;
+  }
+
+  .json-boolean {
+    color: #93c5fd;
+  }
+
+  .json-null {
+    color: #c4b5fd;
+  }
+}

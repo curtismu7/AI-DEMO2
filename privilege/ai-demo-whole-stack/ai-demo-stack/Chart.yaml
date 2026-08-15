@@ -1,0 +1,18 @@
+apiVersion: v2
+name: ai-demo-stack
+description: AI-DEMO2 whole stack (BFF, UI, MCP server, agents, auth/gateway) plus the Privilege MCPGW gateway, for the Ping SE AWS cluster.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+dependencies:
+  # k8s/helm/mcpgw's own Chart.yaml internally names it "privgateway" (from the
+  # original vendored source, PR #1747) even though the directory is "mcpgw" —
+  # the dependency name below must match that internal name, not the directory.
+  # Its own templates also reference .Values.mcpgw.* internally (written as a
+  # standalone top-level chart), so values here nest as privgateway.mcpgw.* —
+  # do not alias to "mcpgw", it collides with that internal expectation and
+  # values silently stop reaching the subchart.
+  - name: privgateway
+    version: "0.1.0"
+    repository: "file://../../../k8s/helm/mcpgw"
+    condition: privgateway.enabled

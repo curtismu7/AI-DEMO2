@@ -117,6 +117,20 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
           </span>
         </div>
 
+        {/* The demo's story, told where the control lives: scopes are not
+            entitlements. Wording is deliberately what the CODE does — a live
+            directory read per call, enforced before the tool runs — and NOT
+            "PingOne Authorize decides", which this gate cannot back (see
+            docs/superpowers/specs/2026-08-10-admin-demo-stories-design.md). */}
+        <div className="gmt-story">
+          <div className="gmt-story-title">The story: scopes are not entitlements</div>
+          <ol className="gmt-story-beats">
+            <li>The agent's token already holds every scope it needs — and it never changes during this demo.</li>
+            <li>What decides access is membership in this group, re-read live from the PingOne directory on every tool call.</li>
+            <li>Remove the user, and the very next call is refused — same token, no logout, no waiting for expiry. Add them back and it is permitted again.</li>
+          </ol>
+        </div>
+
         <dl className="gmt-facts">
           <div>
             <dt>User</dt>
@@ -174,10 +188,15 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
               </span>
             </div>
 
+            {/* Accuracy: the gate is a live PingOne directory read enforced
+                before the tool runs — NOT a PingOne Authorize decision. The
+                earlier copy credited P1AZ, a claim this demo cannot back
+                (spec 2026-08-10-admin-demo-stories-design.md, "What the gate
+                actually is"). */}
             <p className="gmt-modal-body">
               {modal.inGroup
-                ? `The group-gated tool for ${modal.verticalId} will now be permitted. PingOne Authorize sees the membership and returns PERMIT.`
-                : `The group-gated tool for ${modal.verticalId} will now be denied. PingOne Authorize sees no membership and returns DENY, regardless of the token's scopes.`}
+                ? `The group-gated tools for ${modal.verticalId} are now permitted. The authorization check re-reads this membership from the PingOne directory on the next call.`
+                : `The group-gated tools for ${modal.verticalId} are now denied. The authorization check re-reads the PingOne directory on the next call and finds no membership — regardless of the token's scopes.`}
             </p>
 
             {modal.userTier ? (

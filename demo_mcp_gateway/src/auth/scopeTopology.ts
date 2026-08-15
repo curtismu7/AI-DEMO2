@@ -11,7 +11,14 @@
 import manifest from '../../../scope-topology.json';
 
 type Surface = 'gateway' | 'exchange-only' | 'legacy-alias';
-interface ToolEntry { requiredScopes: string[]; surface: Surface; challengeType?: 'step_up' | 'consent'; requiresAgentMediation?: boolean; }
+interface ToolEntry {
+  requiredScopes: string[];
+  surface: Surface;
+  challengeType?: 'step_up' | 'consent';
+  requiresAgentMediation?: boolean;
+  a2aDelegated?: boolean;
+  a2aDelegatedScope?: string;
+}
 interface Manifest { tools: Record<string, ToolEntry>; }
 
 const M = manifest as unknown as Manifest;
@@ -73,4 +80,30 @@ const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest' | 'jwtverifier', string> = 
 export function resourceScopesForBackend(backend: 'olb' | 'invest' | 'jwtverifier'): string[] {
   const r = (manifest as unknown as ManifestWithResources).resources[BACKEND_RESOURCE_NAME[backend]];
   return r ? [...(r.scopes || []), ...(r.mirroredScopes || [])] : [];
+}
+
+interface ScopesManifest { scopes?: Record<string, unknown>; }
+
+/** All scope names declared in the SoT — mirrors demo_authz_server/scopeTopology.js:135-137. */
+export function allowedScopes(): string[] {
+  return Object.keys((manifest as unknown as ScopesManifest).scopes || {});
+}
+
+/**
+ * True when the tool is reachable ONLY via A2A specialist delegation (act chain
+ * depth >= 2). Mirrors demo_authz_server/scopeTopology.js:65-70.
+ */
+export function isA2aDelegatedTool(name: string): boolean {
+  const t = M.tools[name];
+  return t?.a2aDelegated === true;
+}
+
+/**
+ * The tool's least-privilege A2A scope (e.g. 'records:read' instead of 'read'),
+ * when the SoT declares one. Mirrors demo_authz_server/scopeTopology.js:86-91.
+ */
+export function a2aDelegatedScope(name: string): string | null {
+  const t = M.tools[name];
+  const scope = t?.a2aDelegatedScope;
+  return typeof scope === 'string' && scope ? scope : null;
 }

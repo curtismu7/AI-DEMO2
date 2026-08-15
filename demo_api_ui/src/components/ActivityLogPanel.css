@@ -302,3 +302,32 @@
   max-height: 200px;
   overflow-y: auto;
 }
+
+/* ─── Tab bar ──────────────────────────────────────────────────────────────── */
+.activity-log-panel__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary, #1e293b);
+}
+
+.tab-btn--active {
+  color: var(--accent-text, #1a56db);
+  border-bottom-color: var(--accent-text, #1a56db);
+}

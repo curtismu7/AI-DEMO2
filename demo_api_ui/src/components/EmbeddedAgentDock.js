@@ -46,11 +46,13 @@ const FRAMEWORK_LABELS = {
 export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { setSurfaceHostEl } = useAgentUiMode();
+  const { setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
   const { pageManifest } = useVertical();
   const terminology = pageManifest?.terminology;
   const identity = pageManifest?.identity;
   const [hostEl, setHostEl] = useState(null);
+  const [toolbarHostEl, setToolbarHostElNode] = useState(null);
+  const toolbarHostRef = useCallback((el) => setToolbarHostElNode(el), []);
   const [frameworkLabel, setFrameworkLabel] = useState(null);
   const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
   const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
@@ -70,6 +72,10 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
       setSurfaceHostEl((cur) => (cur === hostEl ? null : cur));
     };
   }, [hostEl, setSurfaceHostEl]);
+  useEffect(() => {
+    setToolbarHostEl(toolbarHostEl);
+    return () => setToolbarHostEl((cur) => (cur === toolbarHostEl ? null : cur));
+  }, [toolbarHostEl, setToolbarHostEl]);
   const [collapsed, setCollapsed] = useState(readStoredCollapsed);
   const [dockHeight, setDockHeight] = useState(() =>
     typeof window !== 'undefined' ? readStoredHeight() : DEFAULT_HEIGHT
@@ -154,24 +160,9 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
 
   const onBottomDockRoute =
     agentPlacement === 'bottom' && isEmbeddedAgentDockRoute(pathname);
-  const authenticatedStandardDock = Boolean(user) && onBottomDockRoute;
-
-  if (!authenticatedStandardDock) {
-    // Guest on a bottom-dock route: no agent portals into the dock (App gates
-    // that on a signed-in user), so show a login prompt instead of nothing.
-    if (!user && onBottomDockRoute) {
-      return (
-        <div
-          className="global-embedded-agent-dock-wrap refined-dock rd2-dock"
-          role="region"
-          aria-label="Assistant"
-        >
-          <div className="embedded-agent-dock-guest-prompt">
-            Please sign in to use the Agent
-          </div>
-        </div>
-      );
-    }
+  // No user gate — guests need the dock so the portaled AIAgent can mount.
+  // AIAgent handles its own guest vs. signed-in state internally.
+  if (!onBottomDockRoute) {
     return null;
   }
 
@@ -253,6 +244,9 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
           </button>
         </div>
       </div>
+
+      {/* Config strip — agent portals its .ba-hg--strip here (Focus Mode) */}
+      <div className="ud-dashboard-config-strip" ref={toolbarHostRef} />
 
       {/* Host div is ALWAYS mounted so the BankingAgent portal target / its
           React subtree (in-flight chat state) never unmounts on collapse.

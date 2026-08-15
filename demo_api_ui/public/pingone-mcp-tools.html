@@ -94,6 +94,17 @@
     <tr><td><code>updatePopulation</code></td><td>Updates a population by full replacement — name, description, password policy, theme references.</td></tr>
   </table>
 
+  <h2>Platform — Resources (addendum 2026-08-10)</h2>
+  <p class="meta">Verified live against the same hosted server (environment <code>01d89b06</code>) on 2026-08-10 — the tool surface had grown to 102 tools; these five back the ADMIN8 "resources and their scopes" demo step. Scopes are not exposed as an MCP tool; the demo enriches <code>listResources</code> rows from the Management API's <code>/resources/{id}/scopes</code>.</p>
+  <table>
+    <tr><th>Tool</th><th>Description</th></tr>
+    <tr><td><code>listResources</code></td><td>Lists the resource servers (APIs) defined in an environment.</td></tr>
+    <tr><td><code>getResource</code></td><td>Returns a single resource's configuration.</td></tr>
+    <tr><td><code>createResource</code></td><td>Creates a custom resource in an environment.</td></tr>
+    <tr><td><code>updateResource</code></td><td>Updates a resource by full replacement.</td></tr>
+    <tr><td><code>deleteResource</code></td><td>Deletes a custom resource.</td></tr>
+  </table>
+
   <h2>Platform — Users</h2>
   <table>
     <tr><th>Tool</th><th>Description</th></tr>

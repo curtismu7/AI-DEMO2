@@ -436,20 +436,14 @@ export class PingOneAuthorizeClient {
         // INDETERMINATE with NO classifiable obligation is not a legitimate
         // step-up/consent ask — it means the PDP could not produce a real
         // verdict (no rule fired, an unrecognized statement code, or a live
-        // PDP returning its "could not evaluate" outcome, which per the
-        // module doc above should never happen). That is a policy engine
-        // fault, not a business decision, so it must not silently masquerade
-        // as a HITL challenge the agent would then loop on. Resolve it to a
-        // concrete PERMIT/DENY instead: PERMIT by default (fail open on
-        // ambiguity), unless the response carries an explicit deny reason.
+        // PDP returning its "could not evaluate" outcome). That is a policy
+        // engine fault, not a business decision. Fail closed: an unknown
+        // outcome must never widen access.
         console.warn(
           `[GW] PingAuthorize returned INDETERMINATE with no classifiable obligation (engine=${engine}) — ` +
-          'treating as a policy engine fault, not a step-up/consent ask.',
+          'fail-closed: treating as DENY.',
         );
-        if (typeof data?.reason === 'string' && /deny/i.test(data.reason)) {
-          return { decision: 'DENY', reason: `indeterminate_no_obligation: ${data.reason}`, ...meta };
-        }
-        return { decision: 'PERMIT', reason: 'indeterminate_no_obligation: defaulted to permit', ...meta };
+        return { decision: 'DENY', reason: `indeterminate_no_obligation: ${data?.reason ?? 'unknown'}`, ...meta };
       }
       // Preserve the engine's specific DENY reason (e.g. the mock's
       // 'unknown_tool: no policy defined' = policy drift) instead of flattening

@@ -47,6 +47,7 @@ export default function DemoStepsDropdown({
   open = false,
   onOpenChange,
   onSelect,
+  onStopAgentClick,
 }) {
   const triggerRef = useRef(null);
   const panelPosRef = useRef({ x: 0, y: 0 });
@@ -349,6 +350,17 @@ export default function DemoStepsDropdown({
               >
                 Clear progress
               </button>
+              {onStopAgentClick && (
+                <button
+                  type="button"
+                  className="ba-demo-steps-popout__stop-agent"
+                  onClick={onStopAgentClick}
+                  title="Revoke the agent's OAuth token at PingOne — stops it before its next tool call"
+                  data-testid="demo-steps-stop-agent"
+                >
+                  Stop Agent
+                </button>
+              )}
             </div>
           </div>
           {loading && (

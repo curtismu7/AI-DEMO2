@@ -26,13 +26,33 @@ const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 const { agentRunStore } = require('../services/agentRunStore');
 const verticalDispatch = require('../services/verticalDispatch');
-const { agentSessionMiddleware } = require('../middleware/agentSessionMiddleware');
+const { agentGuestSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenService');
 const { guardPromptInput } = require('../services/promptGuard');
+const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
+
+// Public catalog actions a signed-out visitor may run. UC24 ("What branches are
+// near me?") is the documented progressive-trust entry point: no Authorize, no
+// Gateway, no token exchange. Keep this list minimal — anything absent is
+// refused, which is what makes the gate in POST /run fail closed.
+const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours']);
 
 const router = express.Router();
-router.use(agentSessionMiddleware);
+// Guest-tolerant, matching /api/agent/invoke. The strict middleware returned a
+// blanket 401 session_expired for every signed-out prompt, which killed the
+// documented public paths — UC24's "What branches are near me?" is defined as
+// skipping PingOne Authorize, the Agent Gateway and token exchange entirely,
+// yet it could not run from the composer.
+//
+// This does not widen access. agentGuestSessionMiddleware delegates to
+// agentSessionMiddleware verbatim whenever a session exists, so the signed-in
+// path is untouched; a guest gets agentContext=null, which this file already
+// handles (`req.agentContext || {}`, `req.agentContext?.userId`). Protected
+// tools still refuse a guest downstream — "show my balance" answers
+// "Sign in to use the banking agent" — which is the same behaviour
+// /api/agent/invoke has shipped with all along.
+router.use(agentGuestSessionMiddleware);
 
 // ---------------------------------------------------------------------------
 // AG-UI trace store — persists run events for /runs/:runId/events retrieval
@@ -175,7 +195,7 @@ function markRecovered(tokenEvents) {
 // POST /api/agent/run
 // ---------------------------------------------------------------------------
 
-router.post('/run', async (req, res) => {
+router.post('/run', nrTransactionMiddleware, async (req, res) => {
   // Feature flag check
   const aguiEnabled = configStore.getEffective('ff_agui_enabled');
   if (aguiEnabled !== 'true' && aguiEnabled !== true) {
@@ -183,8 +203,36 @@ router.post('/run', async (req, res) => {
   }
 
   const { userId, email: userEmail, accessToken, tokenEvents: sessionTokenEvents } = req.agentContext || {};
+
+  // Signed-out callers are allowed ONLY for the public catalog actions, which
+  // are defined as skipping PingOne Authorize, the Agent Gateway and token
+  // exchange (UC24 in demo_api_server/config/useCases.js). Everything else
+  // keeps the 401 this route has always returned.
+  //
+  // Fail closed by construction: the allowlist is explicit and the default is
+  // still refusal, matching the `noAuthTools` pattern in routes/mcpInspector.js.
+  // This matters more here than elsewhere — agentRun does NOT execute tools via
+  // mcpToolPipeline, so it does not inherit that pipeline's mcpNoBearerResponse
+  // denial. This gate is the only thing between a guest and a protected tool.
   if (!userId || !accessToken) {
-    return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+    const guestMsg = [...(req.body?.messages || [])].reverse().find((m) => m && m.role === 'user');
+    const guestPrompt = typeof guestMsg?.content === 'string'
+      ? guestMsg.content
+      : JSON.stringify(guestMsg?.content ?? '');
+    // parseHeuristic, not extractIntentAndConfidence: the latter returns
+    // intent "unknown" for this prompt, while the heuristic resolves the actual
+    // banking action ("branch_hours") — the same result /api/demo-agent/nl
+    // returns for the UC24 chip.
+    let guestAction = '';
+    try {
+      const { parseHeuristic } = require('../services/nlIntentParser');
+      guestAction = String(parseHeuristic(guestPrompt)?.banking?.action || '');
+    } catch {
+      guestAction = '';
+    }
+    if (!PUBLIC_GUEST_ACTIONS.has(guestAction)) {
+      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+    }
   }
 
   // Parse request body
@@ -201,6 +249,70 @@ router.post('/run', async (req, res) => {
   const promptBlock = guardPromptInput((lastUserMessage?.content || '').trim());
   if (promptBlock) {
     return res.status(promptBlock.status).json(promptBlock.body);
+  }
+
+  // UC24 / Act 1 public catalog — answer deterministically, never via the LLM.
+  //
+  // branch_hours was already in PUBLIC_GUEST_ACTIONS above, but that allowlist only
+  // decides AUTHORIZATION ("may a signed-out caller run this?"). Nothing here ever
+  // DISPATCHED it, so the prompt fell through to the LLM, which has no catalog and
+  // improvised: it asked the user for an account email and answered in whatever
+  // vertical's brand voice activeIdFor(req) resolved to. The deterministic handler
+  // lives on the other agent route (dispatchBankingAction), which this route never
+  // calls — so "branches near me" only ever produced cards in Heuristics mode.
+  //
+  // Short-circuits for EVERY caller, not just guests: the fall-through hit signed-in
+  // users too whenever an LLM provider was active. Placed after the auth gate and the
+  // injection guard, so neither is weakened. This action skips PingOne Authorize, the
+  // gateway and token exchange by definition (UC24), so no token path is bypassed
+  // that the action did not already bypass.
+  let catalogAction = '';
+  try {
+    const { parseHeuristic } = require('../services/nlIntentParser');
+    catalogAction = String(parseHeuristic((lastUserMessage?.content || '').trim())?.banking?.action || '');
+  } catch {
+    catalogAction = '';
+  }
+  if (PUBLIC_GUEST_ACTIONS.has(catalogAction)) {
+    const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
+    const catalogVertical = verticalManifest.resolver.activeIdFor(req) || 'banking';
+    const catalog = searchPublicBranches({ vertical: catalogVertical });
+    // short:true — the client renders each location as a card from `locationCards`,
+    // so the reply text is the heading only and the detail is not printed twice.
+    const catalogReply = formatBranchCatalogReply(catalog, { short: true });
+    const messageId = 'catalog-' + runId;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    const emit = (evt) => res.write('data: ' + JSON.stringify(evt) + '\n\n');
+    // The token chain must still show WHY this turn was cheap: Act 1 skips both
+    // PingOne Authorize and the RFC 8693 exchange, and that "skipped" pair is the
+    // teaching point of UC24. The sibling route builds the same events; without
+    // them here the chain rendered empty and the step looked untraced.
+    // Same STATE_SNAPSHOT shape the LLM path injects for initialTokenEvents below.
+    const { buildPublicCatalogTokenEvents } = require('../services/publicCatalogTokenEvents');
+    emit({
+      type: 'STATE_SNAPSHOT',
+      snapshot: {
+        tokenEvents: buildPublicCatalogTokenEvents('get_branch_hours'),
+        mcpTraffic: [],
+        authorizeDecisions: [],
+        archTrace: [],
+        auditEvents: [],
+        activeRun: null,
+      },
+    });
+    // Same START/CONTENT/END burst a non-streaming provider produces, so the
+    // existing useAgentState reducer builds the bubble with no new event type.
+    emit({ type: 'RUN_STARTED', threadId, runId });
+    emit({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' });
+    emit({ type: 'TEXT_MESSAGE_CONTENT', messageId, delta: catalogReply });
+    emit({ type: 'TEXT_MESSAGE_END', messageId, locationCards: catalog.branches });
+    emit({ type: 'RUN_FINISHED', threadId, runId, outcome: { type: 'complete' } });
+    return res.end();
   }
 
   // flowTraceId binds this run to the browser's live MCP flow SSE subscription.
@@ -502,6 +614,7 @@ router.post('/run', async (req, res) => {
   });
 
   agentReq = http.request(options, (agentRes) => {
+    agentReq.setTimeout(0); // cancel the connect timeout once the response begins
     // Non-200 from agent service — emit RUN_ERROR rather than piping raw JSON as SSE
     if (agentRes.statusCode !== 200) {
       let body = '';
@@ -553,6 +666,19 @@ router.post('/run', async (req, res) => {
         type: 'RUN_ERROR',
         message: 'Cannot reach agent service: ' + err.message,
         code: 'AGENT_UNREACHABLE',
+      }) + '\n\n');
+    } catch (_) {}
+    _cleanupHitlConsentSubscription(runId).finally(() => res.end());
+  });
+
+  agentReq.setTimeout(60000, () => {
+    console.error('[agentRun] Agent service timed out after 60s');
+    agentReq.destroy();
+    try {
+      res.write('data: ' + JSON.stringify({
+        type: 'RUN_ERROR',
+        message: 'Agent service timed out',
+        code: 'AGENT_TIMEOUT',
       }) + '\n\n');
     } catch (_) {}
     _cleanupHitlConsentSubscription(runId).finally(() => res.end());

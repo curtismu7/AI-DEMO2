@@ -8,6 +8,9 @@ const pingOneClientService = require('./pingOneClientService');
 const scopeTopology = require('./scopeTopology');
 const store = require('./lmdb/delegatedCommerceStore.lmdb');
 const runtime = require('./delegatedCommerceRuntime');
+const delegationStore = require('./lmdb/delegationStore.lmdb');
+const delegationService = require('./delegationService');
+const pingOneUserService = require('./pingOneUserService');
 
 const REGISTRATION_TTL_MS = 60 * 60 * 1000;
 const DEMO_MARKER = 'A&F delegated-commerce demo';
@@ -94,6 +97,7 @@ async function register({ name, creatorUserId }) {
       status: 'staged',
       scopes: [],
       tokenEndpointAuthMethod: 'post',
+      encryptedClientSecret: store.encryptClientSecret(app.clientSecret),
       createdAt: now,
       expiresAt: now + REGISTRATION_TTL_MS,
     });
@@ -170,6 +174,21 @@ async function cleanup(registrationId, creatorUserId) {
       code: 'registration_not_found',
       httpStatus: 404,
     });
+  }
+  if (record.claimedByUserId) {
+    pingOneUserService.initialize();
+    await pingOneUserService.setMayActAttribute(record.claimedByUserId, null);
+    let delegation = delegationStore.findActiveByActorAndGrantor(
+      record.applicationId,
+      record.claimedByUserId,
+    );
+    while (delegation) {
+      await delegationService.revokeDelegation(delegation.id, record.claimedByUserId);
+      delegation = delegationStore.findActiveByActorAndGrantor(
+        record.applicationId,
+        record.claimedByUserId,
+      );
+    }
   }
   await pingOneClientService.deleteApplication(record.applicationId);
   runtime.removeCredentials(registrationId);

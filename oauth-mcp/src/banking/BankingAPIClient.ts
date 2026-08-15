@@ -40,6 +40,9 @@ export interface HttpTraceEntry {
 export class BankingAPIClient {
   private client: AxiosInstance;
   private config: BankingAPIConfig;
+  // Process-wide demo-user token cache (open-access hop). Static so every
+  // call-scoped client instance shares one ROPC round-trip.
+  private static demoTokenCache: { token: string; expiresAt: number } | null = null;
   private circuitBreaker: CircuitBreaker;
   private retryManager: RetryManager;
   /** Trace entries collected during the current startTrace() window, or null if not tracing */
@@ -189,14 +192,46 @@ export class BankingAPIClient {
     userToken: string,
     name: string,
     args: Record<string, unknown> = {},
+    vertical?: string,
   ): Promise<{ ok: boolean; result: unknown; render?: string }> {
+    // vertical: the tool's own vertical, forwarded as a hint so the BFF runs
+    // that vertical's agent regardless of the caller's active/selected vertical
+    // (resolveVertical honours it only when the vertical owns the tool).
     const response = await this.makeAuthenticatedRequest<{ ok: boolean; result: unknown; render?: string }>(
       'POST',
       '/api/path/vertical-tool',
       userToken,
-      { name, args },
+      { name, args, ...(vertical ? { vertical } : {}) },
     );
     return response.data;
+  }
+
+  /**
+   * Open-access hop only: fetch a real access token for the configured demo user
+   * from the BFF (ROPC), to use as the RFC 8693 subject_token when the forwarded
+   * Privilege bearer is the un-exchangeable 'disabled' placeholder. Cached in
+   * process until ~1 min before expiry. The BFF endpoint 404s unless
+   * MCP_AUTH_DISABLED, so this only ever succeeds in the open-access demo mode.
+   */
+  async fetchDemoSubjectToken(): Promise<string | null> {
+    const now = Date.now();
+    if (BankingAPIClient.demoTokenCache && BankingAPIClient.demoTokenCache.expiresAt - now > 60_000) {
+      return BankingAPIClient.demoTokenCache.token;
+    }
+    try {
+      const { data } = await this.client.post<{ access_token?: string; expires_in?: number }>(
+        '/api/path/demo-subject-token',
+        {},
+      );
+      if (!data?.access_token) return null;
+      BankingAPIClient.demoTokenCache = {
+        token: data.access_token,
+        expiresAt: now + ((data.expires_in || 3600) * 1000),
+      };
+      return data.access_token;
+    } catch {
+      return null;
+    }
   }
 
   /**

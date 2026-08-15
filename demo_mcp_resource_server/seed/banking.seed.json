@@ -1,0 +1,31 @@
+{
+  "accounts": [
+    {
+      "id": "acct-001",
+      "userId": "demo-user",
+      "accountNumber": "****4821",
+      "accountType": "checking",
+      "balance": 4230.15,
+      "currency": "USD",
+      "isActive": true
+    },
+    {
+      "id": "acct-002",
+      "userId": "demo-user",
+      "accountNumber": "****9104",
+      "accountType": "savings",
+      "balance": 18540.00,
+      "currency": "USD",
+      "isActive": true
+    },
+    {
+      "id": "acct-003",
+      "userId": "demo-user",
+      "accountNumber": "****3377",
+      "accountType": "credit_card",
+      "balance": -842.50,
+      "currency": "USD",
+      "isActive": true
+    }
+  ]
+}

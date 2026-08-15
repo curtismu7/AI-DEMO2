@@ -124,25 +124,29 @@ describe('PingOneAuthorizeClient — a live PERMIT can still carry a gate', () =
   // a policy engine fault, not a business decision: it must resolve to a
   // concrete PERMIT/DENY instead of masquerading as a HITL challenge the
   // agent would then loop on forever.
-  it('resolves an INDETERMINATE with no obligation to PERMIT (fail open on ambiguity)', async () => {
+  it('resolves an INDETERMINATE with no obligation to DENY (fail closed)', async () => {
+    // P1AZ "could not evaluate" = missing operand or no rule fired.
+    // Fail-closed: unknown outcome must never widen access.
     mockedAxios.post.mockResolvedValueOnce({
       status: 200,
       data: { decision: 'INDETERMINATE', reason: 'policy could not evaluate' },
     });
     const client = new PingOneAuthorizeClient(baseConfig);
     const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
-    expect(d.decision).toBe('PERMIT');
+    expect(d.decision).toBe('DENY');
     expect(d.obligation).toBeUndefined();
   });
 
-  it('resolves an INDETERMINATE with unrecognized statements to PERMIT', async () => {
+  it('resolves an INDETERMINATE with unrecognized statements to DENY', async () => {
+    // Unrecognised statement code = PDP gave an answer we cannot parse.
+    // Fail-closed: ambiguous ≠ permitted.
     mockedAxios.post.mockResolvedValueOnce({
       status: 200,
       data: { decision: 'INDETERMINATE', reason: 'n/a', statements: [{ code: 'unrelated-statement' }] },
     });
     const client = new PingOneAuthorizeClient(baseConfig);
     const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
-    expect(d.decision).toBe('PERMIT');
+    expect(d.decision).toBe('DENY');
   });
 
   it('resolves an INDETERMINATE with an explicit deny reason to DENY, not permit', async () => {

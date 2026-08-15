@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langchain-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: langchain-agent
+spec:
+  replicas: 1
+  # Quota-safe restarts: terminate the old pod before creating the new one so a
+  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: langchain-agent
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: langchain-agent
+    spec:
+      containers:
+      - name: langchain-agent
+        image: "{{ .Values.imageRegistry }}/ai-demo-langchain-agent:{{ .Values.imageTag }}"
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8888
+          name: agui
+        - containerPort: 8889
+          name: ws-chat
+        - containerPort: 8890
+          name: health
+        # secret first, configmap last → cluster URLs in the configmap win
+        envFrom:
+        - secretRef:
+            name: langchain-secrets
+        - configMapRef:
+            name: ai-demo-config
+        env:
+        # httpx honors SSL_CERT_FILE: combined system-roots + mkcert bundle so
+        # the BFF tool callback (mkcert cert) verifies without breaking
+        # external HTTPS. Mirrors the docker-compose wiring.
+        - name: SSL_CERT_FILE
+          value: /etc/ssl/certs/ca-bundle-with-mkcert.pem
+        volumeMounts:
+        - name: ca-bundle
+          mountPath: /etc/ssl/certs/ca-bundle-with-mkcert.pem
+          subPath: ca-bundle-with-mkcert.pem
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        # Health server binds 127.0.0.1 only (CR-03: /inspector/mcp-host leaks the
+        # MCP registry unauthenticated, so it must not reach the pod network).
+        # BOTH tcpSocket AND httpGet probes connect via the pod IP, so both are
+        # refused by a loopback-only bind — that caused a liveness crashloop.
+        # Only an exec probe reaches loopback (it runs inside the container), so
+        # liveness uses the same curl-localhost check as readiness.
+        livenessProbe:
+          exec:
+            command: ["curl", "-f", "http://localhost:8890/health"]
+          initialDelaySeconds: 20
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["curl", "-f", "http://localhost:8890/health"]
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: ca-bundle
+        secret:
+          secretName: tls-certs
+          items:
+          - key: ca-bundle-with-mkcert.pem
+            path: ca-bundle-with-mkcert.pem
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langchain-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: ai-demo
+    component: langchain-agent
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8888
+    targetPort: 8888
+    protocol: TCP
+    name: agui
+  - port: 8889
+    targetPort: 8889
+    protocol: TCP
+    name: ws-chat
+  - port: 8890
+    targetPort: 8890
+    protocol: TCP
+    name: health
+  selector:
+    app: ai-demo
+    component: langchain-agent

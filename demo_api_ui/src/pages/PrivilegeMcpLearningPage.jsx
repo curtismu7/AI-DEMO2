@@ -185,14 +185,14 @@ export default function PrivilegeMcpLearningPage() {
               headers={["Path", "Endpoint", "How it works"]}
               rows={[
                 [
-                  "Cloud API (recommended)",
-                  "https://privilege.pingone.com/api/mcp",
-                  "Requests routed through Privilege cloud. User token validated server-side. Requires x-procyon-session-id header.",
+                  "Agentless self-hosted (working)",
+                  "https://<appname>.mcpgw.<your-dns>/mcp via nginx → gateway :8620",
+                  "nginx rewrites Host to <appname>.default.applications.procyon.ai:8643 and proxies to the gateway's -alp-port :8620 (plain HTTP). Requires privilege-mcpgw image. Console token works end to end.",
                 ],
                 [
-                  "Local proxy",
-                  "https://<app>-default.applications.privilege.pingone.com:8643/mcp",
-                  "On-prem Docker proxy intercepts traffic. Requires JWKS keys from controller (IssuerPublicKey). Port 8623/TCP inbound.",
+                  "Cloud frontend",
+                  "https://<appname>-app-default.applications.privilege.pingone.com:8643/mcp",
+                  "Console-assigned FQDN routes through Privilege cloud mesh to the enrolled proxy. Blocked by IssuerPublicKey:[] — all tokens rejected with 'JWT signature validation failed'. Not currently usable.",
                 ],
               ]}
             />
@@ -208,13 +208,21 @@ export default function PrivilegeMcpLearningPage() {
               ]}
             />
 
-            <h3>Agentless SSO mode</h3>
+            <h3>Agentless mode</h3>
             <p>
-              The local endpoint agent/controller is <strong>not required</strong> for the
-              Privilege MCP Gateway. In agentless mode, authentication relies entirely on
-              PingOne SSO. The gateway validates the user's PingOne token and applies policies
-              without needing hardware-bound device identity. This is the mode our demo uses.
+              The local endpoint agent/controller is <strong>not required</strong>. In agentless
+              mode, traffic enters the gateway's MCP frontend port (<code>-alp-port :8620</code>)
+              through an nginx front door. The gateway acts as its own OAuth server once
+              front-end OAuth config is wired. The demo currently authenticates with a Privilege
+              console token, which carries <code>kid: infra-root-jwt</code> from Privilege's
+              internal Notary PKI — the only token class the gateway trusts by default.
             </p>
+            <div className="plp-callout plp-callout--warn">
+              <strong>Port note:</strong> Port <code>8620</code> is the MCP frontend
+              (<code>-alp-port</code>). Port <code>8623</code> is the mesh/mTLS port used for
+              the gateway-to-control-plane channel — <strong>not</strong> the MCP client port.
+              nginx must proxy to <code>8620</code> over plain HTTP.
+            </div>
           </Section>
 
           {/* ─── Installation ─── */}
@@ -274,18 +282,33 @@ OIDC_SCOPES=openid profile email`}
             </ol>
 
             <h3>Step 5: Start the proxy</h3>
+            <div className="plp-callout plp-callout--warn">
+              <strong>Use the privilege-mcpgw image, not privilege-proxy.</strong> The
+              <code>privilege-proxy</code>/<code>cyonproxy</code> binary lacks the OAuth challenge
+              flow strings. Only <code>privilege-mcpgw</code>/<code>mcpgw</code> emits a proper
+              <code>WWW-Authenticate</code> response.
+            </div>
             <CodeBlock title="Docker run (host network, recommended for dev)">
 {`docker run -d \\
   -e ENV_PROXY_TOKEN="<enrollment-jwt>" \\
   --net=host \\
-  --name privilege-proxy \\
+  --name privilege-mcpgw \\
+  -v ai-demo_mcpgw-ssl:/procyon/ssl \\
   -v /var/log/procyon:/var/log/procyon \\
-  -v /var/lib/procyon/ssl:/procyon/ssl \\
   -v /var/lib/procyon/recordings:/procyon/recordings \\
   -v /path/to/pingone.env:/var/lib/procyon/config/pingone.env:ro \\
-  public.ecr.aws/s7q1z8z4/privilege-proxy \\
-  /procyon/bin/cyonproxy -hostname <your-dns-name>`}
+  public.ecr.aws/s7q1z8z4/privilege-mcpgw \\
+  /procyon/bin/mcpgw -hostname <your-dns-name>`}
             </CodeBlock>
+            <div className="plp-callout plp-callout--warn">
+              <strong>Fresh enrollment CA trust gap (2026-08-12):</strong> New enrollment tokens
+              currently fail with <code>error Verifying siging cert x509: certificate signed by
+              unknown authority (Root CA PingOne Privilege)</code>. Nodes enrolled before this
+              regression window (approx. 2026-08-11 19:22 UTC) continue to work because they
+              never re-verify the token after the first enrollment. If you need a fresh
+              deployment, escalate to Ping — this is a vendor-side CA rotation issue, not a
+              config problem.
+            </div>
 
             <h3>Step 6: Verify enrollment</h3>
             <CodeBlock title="Check logs">
@@ -306,7 +329,8 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["Port", "Direction", "Purpose"]}
               rows={[
-                ["8623/TCP", "Inbound", "MCP traffic (client → gateway)"],
+                ["8620/TCP", "Inbound", "MCP frontend (-alp-port) — nginx proxies here over plain HTTP. This is the MCP client port."],
+                ["8623/TCP", "Inbound", "Mesh port (mTLS) — gateway-to-control-plane channel. NOT the MCP client port; nginx must NOT target this."],
                 ["8690/TCP", "Inbound", "Gateway-to-gateway mesh communication"],
                 ["443/TCP", "Outbound", "gRPC to grpc.privilege.pingone.com (control plane)"],
                 ["443/TCP", "Outbound", "HTTPS to auth.pingone.com (OIDC)"],
@@ -333,8 +357,9 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["Variable", "Value", "Purpose"]}
               rows={[
-                ["PRIVILEGE_MCPGW_URL", "https://privilege.pingone.com/api/mcp", "Gateway endpoint the BFF connects to"],
-                ["PINGONE_ENVIRONMENT_ID", "<env-id>", "PingOne environment for token discovery"],
+                ["PRIVILEGE_MCPGW_URL", "https://<appname>.mcpgw.<your-dns>/mcp", "Gateway endpoint the BFF connects to. Must be the nginx front-door URL, NOT privilege.pingone.com/api/mcp (that URL 401s all tokens)."],
+                ["PRIVILEGE_SSO_ENV_ID", "8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b", "Privilege's own PingOne tenant — required for OIDC discovery"],
+                ["PRIVILEGE_SSO_CLIENT_ID", "deff60f5-5a67-4a6e-b283-47252856c89c", "OIDC client (MCPGW-CMUIR) in env 8d4d7a4c"],
               ]}
             />
 
@@ -369,7 +394,7 @@ OIDC_SCOPES=openid profile email`}
               <li>Click <strong>Add Application &gt; MCP Server</strong></li>
               <li>Fill in:
                 <ul>
-                  <li><strong>Application Name</strong> — descriptive name (e.g. &quot;Banking MCP Server&quot;)</li>
+                  <li><strong>Application Name</strong> — descriptive name (e.g. &quot;AI Demo MCP Server&quot;)</li>
                   <li><strong>Frontend URL</strong> — client-facing gateway URL</li>
                   <li><strong>MCP Server URL</strong> — backend endpoint (e.g. <code>http://host.docker.internal:8080/mcp</code>)</li>
                   <li><strong>Optional Headers</strong> — static headers to inject on upstream calls</li>
@@ -404,11 +429,32 @@ OIDC_SCOPES=openid profile email`}
               ]}
             />
 
+            <h3>Frontend Name and Host routing</h3>
+            <p>
+              The <strong>Frontend Name</strong> field in the console UI is read-only. It
+              shows a <code>*.applications.privilege.pingone.com</code> hostname, but the
+              gateway's internal routing key is the <code>procyon.ai</code> form:
+            </p>
+            <TableBlock
+              headers={["Where", "Value shown"]}
+              rows={[
+                ["Console UI display", "<appname>-app-default.applications.privilege.pingone.com:8643"],
+                ["Internal routing key (actual)", "<appname>.default.applications.procyon.ai:8643"],
+              ]}
+            />
+            <p>
+              nginx must rewrite the <code>Host</code> header to the internal
+              <code>procyon.ai</code> form. Forwarding your own hostname unchanged causes
+              <em>Domain not found</em> and an empty <code>200</code> body. Read the true value
+              from the console API (<code>.Applications[0].Spec.McpAppConfig.FrontEndName</code>)
+              — the UI shows stale values once its session expires.
+            </p>
             <h3>Linking gateway to MCP app</h3>
             <p>
               The gateway (cluster) and the MCP app are separate entities. They are linked
               via the <strong>Mesh Cluster</strong> dropdown on the MCP app configuration.
-              After linking, the gateway discovers tools from the backend within ~30 seconds.
+              After linking, the gateway discovers tools from the backend within ~30 seconds
+              (though on some builds discovery dispatch is delayed or requires a retry).
             </p>
           </Section>
 
@@ -454,24 +500,39 @@ OIDC_SCOPES=openid profile email`}
               headers={["Symptom", "Cause", "Fix"]}
               rows={[
                 [
-                  "IssuerPublicKey:[] in proxy logs",
-                  "Controller never pushes JWKS keys to the local proxy",
-                  "Use Cloud API path (privilege.pingone.com/api/mcp) instead",
+                  "IssuerPublicKey:[] in proxy logs / 401 JWT signature validation failed",
+                  "Gateway validates inbound token kid against infra-root-jwt (fetched from Privilege Notary PKI at startup). PingOne-issued tokens have a JWKS kid that never matches.",
+                  "Console token (kid: infra-root-jwt) works end to end. PingOne tokens require ResourceOAuth + cyctl idprovider wiring — not yet confirmed working on published builds. Switch to privilege-mcpgw image first.",
+                ],
+                [
+                  '401 "Bearer Token not found." with no WWW-Authenticate',
+                  "Gateway has no front-end OAuth config — falls back to bare 401 with no challenge. cyonproxy binary lacks the OAuth challenge strings entirely.",
+                  "Use privilege-mcpgw image (public.ecr.aws/s7q1z8z4/privilege-mcpgw). It contains the challenge flow. Also ensure front-end OAuth is wired in the console app.",
+                ],
+                [
+                  "Domain not found / empty 200 body",
+                  "Host header sent to gateway doesn't match any registered Frontend Name. The gateway routes on <appname>.default.applications.procyon.ai:8643, not on your DNS hostname.",
+                  "Configure nginx to rewrite Host to the procyon.ai form. Read the true FrontEndName from the console API (.Applications[0].Spec.McpAppConfig.FrontEndName), not the console UI.",
+                ],
+                [
+                  "error Verifying siging cert x509: certificate signed by unknown authority (Root CA PingOne Privilege)",
+                  "Fresh enrollment tokens fail CA trust verification. Ping rotated the root CA after approx. 2026-08-11T19:22Z; published proxy images don't yet trust the new root.",
+                  "Vendor-side gap — escalate to Ping. Existing enrolled nodes (those enrolled before the regression window) continue to work because they never re-verify the token after first enrollment.",
                 ],
                 [
                   '"No Tools, Prompts, or Resources Discovered"',
                   "Proxy can't reach MCP server (mTLS blocks, wrong URL/port)",
-                  "Set MCP_MTLS_ENABLED=false; ensure URL is http://host.docker.internal:8080/mcp",
+                  "Set MCP_MTLS_ENABLED=false; ensure backend URL is http://host.docker.internal:8080/mcp",
                 ],
                 [
-                  '401 "User is not authorized"',
-                  "User has no Privilege policy for the MCP app",
-                  "Assign policy in Privilege console (requires discovery first)",
+                  '401 "User is not authorized" / 403 doesn\'t have access to MCP app',
+                  "User has no active Privilege policy for the MCP app, or policy expired",
+                  "Assign or renew policy in Privilege console. Policies with time-bound windows expire silently and look identical to never having existed.",
                 ],
                 [
-                  "Cloud API 400: mcp-protocol-version header required",
+                  "400: mcp-protocol-version header required",
                   "Non-initialize requests need protocol version header",
-                  "Add mcp-protocol-version: 2024-11-05 header",
+                  "Add mcp-protocol-version: 2024-11-05 (or the version from the initialize response) on every non-initialize call",
                 ],
                 [
                   "Server crash: EACCES mkdir './dev-data'",
@@ -484,19 +545,24 @@ OIDC_SCOPES=openid profile email`}
                   "Set NODE_ENV: development on mcp-server service",
                 ],
                 [
-                  "curl: Empty reply from server",
-                  "MCP_MTLS_ENABLED=true — server drops non-cert connections",
-                  "Set MCP_MTLS_ENABLED=false or provide gateway client cert",
+                  "curl: Empty reply from server / EPROTO TLS error",
+                  "MCP_MTLS_ENABLED=true — server speaks TLS, gateway connects plain HTTP",
+                  "Set MCP_MTLS_ENABLED=false; ensure backend URL scheme matches",
                 ],
                 [
                   "Proxy exits immediately",
                   "No proxy-config.data and no ENV_PROXY_TOKEN",
-                  "Provide enrollment token from console wizard",
+                  "Provide enrollment token from console wizard (Gateway > Add Node)",
                 ],
                 [
                   '"not found" on enrollment (500)',
                   "Token's nodeId was deleted from the gateway in console",
                   "Console > Gateways > Add Node to get a fresh token",
+                ],
+                [
+                  "Console: Gateway Unreachable — Showing Cached Data",
+                  "Console session (~60 min) expired; all values on screen are stale",
+                  "Sign in again via https://console.pingone.com/?env=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b then launch Privilege",
                 ],
                 [
                   "gRPC UNAVAILABLE / proxy silent hang",
@@ -513,17 +579,18 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["What", "Value"]}
               rows={[
-                ["PingOne Environment", "01d89b06-66d5-430e-9f28-65636843788b"],
-                ["OIDC Client (MCP Gateway)", "6586d3de-b916-454c-84e5-6d21b572a534"],
-                ["Privilege Tenant", "8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b"],
-                ["Proxy Image", "public.ecr.aws/s7q1z8z4/privilege-proxy"],
-                ["Proxy Binary", "/procyon/bin/cyonproxy"],
-                ["Cluster Name", "ai-demo-se"],
-                ["Node ID", "271b827f-b6ea-4bef-80fc-604ca1121ce7"],
-                ["Cloud API Endpoint", "https://privilege.pingone.com/api/mcp"],
-                ["Local Proxy Endpoint", "https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp"],
+                ["AI-Demo PingOne Env", "01d89b06-66d5-430e-9f28-65636843788b (banking demo users live here)"],
+                ["Privilege Tenant / SSO Env", "8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b (all Privilege console work happens here)"],
+                ["OIDC Client (MCPGW-CMUIR)", "deff60f5-5a67-4a6e-b283-47252856c89c in env 8d4d7a4c — the Privilege OIDC client"],
+                ["Proxy Image", "public.ecr.aws/s7q1z8z4/privilege-mcpgw (replaces privilege-proxy)"],
+                ["Proxy Binary", "/procyon/bin/mcpgw (replaces cyonproxy)"],
+                ["Cluster Name", "ai-demo-fresh"],
+                ["Node ID (Docker local)", "1cf90baf-2a83-45db-830f-581ea98110d1"],
+                ["Cloud API Endpoint", "https://privilege.pingone.com/api/mcp — BLOCKED (401s all tokens)"],
+                ["Working Local Endpoint", "https://mcp-pingone-admin.mcpgw.local.ping-devops.com/mcp via nginx"],
+                ["Internal Frontend Name", "mcp-pingone-admin.default.applications.procyon.ai:8643 (procyon.ai, not pingone.com)"],
                 ["gRPC Controller", "grpc.privilege.pingone.com:443"],
-                ["Backend MCP Server", "http://host.docker.internal:8080/mcp"],
+                ["Backend MCP Server", "http://mcp-server:8080/mcp (compose DNS) or http://host.docker.internal:8080/mcp"],
               ]}
             />
 
@@ -531,12 +598,15 @@ OIDC_SCOPES=openid profile email`}
             <TableBlock
               headers={["File", "Purpose"]}
               rows={[
-                ["ping-mcpgw/config/pingone.env", "OIDC config mounted into proxy container"],
-                ["ping-mcpgw/config/proxy-token", "Enrollment JWT (gitignored, expires ~24h)"],
-                ["oauth-mcp/.env", "MCP server env overrides (SKIP_TOKEN_SIGNATURE_VALIDATION, etc.)"],
+                ["ping-mcpgw/config/pingone.env", "OIDC config mounted into proxy container at /var/lib/procyon/config — live config in agentless mode"],
+                ["ping-mcpgw/config/proxy-token", "Enrollment JWT (gitignored). Consumed once on first enrollment; durable identity is the mTLS cert pair in the mcpgw-ssl volume."],
+                ["ping-mcpgw/procyon/ssl/", "Gateway mTLS cert tree (proxy-crt.pem, proxy-key.pem, proxy-ca.pem). DO NOT delete the mcpgw-ssl Docker volume without a fresh enrollment token ready."],
+                ["demo_mcpgw_nginx/nginx.conf", "nginx front door — rewrites Host to procyon.ai form, proxies to :8620"],
                 ["demo_api_server/routes/privilegeMcpClient.js", "BFF relay route for Privilege MCP Client page"],
-                ["docker-compose.yml", "PRIVILEGE_MCPGW_URL, MCP_MTLS_ENABLED, NODE_ENV settings"],
-                ["k8s/75-ping-mcpgw-deployment.yaml", "Kubernetes deployment manifest"],
+                ["demo_api_server/.env", "PRIVILEGE_MCPGW_URL, PRIVILEGE_SSO_* — BFF reads THIS file, NOT root .env"],
+                ["docker-compose.yml", "ping-mcpgw + mcpgw-nginx services (profile: mcpgw)"],
+                ["k8s/75-ping-mcpgw-deployment.yaml", "Kubernetes deployment manifest (image: privilege-mcpgw, ports 8620/8623/8690)"],
+                ["scripts/privilege-smoke.sh", "Five-assertion end-to-end check (manual — needs a live console token)"],
               ]}
             />
 

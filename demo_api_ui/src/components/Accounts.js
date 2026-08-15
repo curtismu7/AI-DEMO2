@@ -11,13 +11,13 @@ import { useSortableTable, SortableTh, dateOf } from '../hooks/useSortableTable'
 
 const ACCOUNT_TYPE_BADGE_COLORS = {
   checking: 'var(--brand-navy)',
-  savings: '#10b981',
-  investment: '#8b5cf6',
-  money_market: '#06b6d4',
-  credit: '#f59e0b',
-  credit_card: '#f59e0b',
-  car_loan: '#ec4899',
-  mortgage: '#6366f1',
+  savings: 'var(--v2-badge-savings, #10b981)',
+  investment: 'var(--v2-badge-investment, #8b5cf6)',
+  money_market: 'var(--v2-badge-money-market, #06b6d4)',
+  credit: 'var(--v2-badge-credit, #f59e0b)',
+  credit_card: 'var(--v2-badge-credit, #f59e0b)',
+  car_loan: 'var(--v2-badge-loan, #ec4899)',
+  mortgage: 'var(--v2-badge-mortgage, #6366f1)',
 };
 
 // Accounts never get an updatedAt from the data layer, so "latest update" is creation date.
@@ -129,7 +129,7 @@ const Accounts = ({ user, onLogout }) => {
                         {account.accountType}
                       </span>
                     </td>
-                    <td style={{ fontWeight: '600', color: account.balance >= 0 ? '#10b981' : '#ef4444' }}>
+                    <td style={{ fontWeight: '600', color: account.balance >= 0 ? 'var(--v2-badge-savings, #10b981)' : 'var(--v2-negative, #ef4444)' }}>
                       ${account.balance.toLocaleString()}
                     </td>
                     <td>{account.currency}</td>
@@ -139,7 +139,7 @@ const Accounts = ({ user, onLogout }) => {
                         borderRadius: '0.25rem',
                         fontSize: '0.75rem',
                         fontWeight: '500',
-                        backgroundColor: account.isActive ? '#10b981' : '#6b7280',
+                        backgroundColor: account.isActive ? 'var(--v2-badge-savings, #10b981)' : 'var(--v2-badge-inactive, #6b7280)',
                         color: 'white'
                       }}>
                         {account.isActive ? 'Active' : 'Inactive'}

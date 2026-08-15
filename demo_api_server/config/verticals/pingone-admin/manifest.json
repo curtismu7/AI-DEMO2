@@ -59,6 +59,10 @@
     "greeting": "Hi {name}! I'm connected to the hosted PingOne MCP server. I can list the tools my worker identity is allowed to use and call them for real answers about your environment. Try: 'Show me the tools' or 'List users in my environment'.",
     "systemPromptFlavor": "You are a PingOne Admin Assistant connected to the hosted PingOne MCP server. When asked what you can do, ALWAYS call list_pingone_tools first — the visible tool set is gated by the worker application's admin roles in PingOne. Call tools with call_pingone_tool using the exact tool name and camelCase arguments. Every result carries a source field: state whether the answer came from the live server or from labeled mock fallback data. This demo shows an AI agent whose capabilities are governed by the identity it runs as."
   },
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200&h=600&fit=crop",
+    "greeting": "Explore your live PingOne environment."
+  },
   "dashboard": {
     "kind": "standard",
     "chips": [
@@ -71,7 +75,7 @@
     "chips10": [
       { "id": "pa1", "label": "List Tools",      "message": "Show me the tools available from the PingOne MCP server", "tool": "list_pingone_tools", "mode": "both" },
       { "id": "pa2", "label": "List Users",      "message": "List the users in my PingOne environment",                "tool": "call_pingone_tool",  "mode": "both", "queryPrompt": "userFilter" },
-      { "id": "pa3", "label": "List Apps",       "message": "List the applications registered in my environment",      "tool": "call_pingone_tool",  "mode": "both" },
+      { "id": "pa3", "label": "List Apps",       "message": "List the applications registered in my environment",      "tool": "call_pingone_tool",  "mode": "both", "queryPrompt": "appFilter" },
       { "id": "pa4", "label": "List Populations", "message": "List the populations in my PingOne environment",         "tool": "call_pingone_tool",  "mode": "both" },
       { "id": "pa5", "label": "Get Environment", "message": "Get the details of my PingOne environment",               "tool": "call_pingone_tool",  "mode": "both" }
     ]

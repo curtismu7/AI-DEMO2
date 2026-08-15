@@ -83,6 +83,27 @@ describe('a2aAgentCardService', () => {
       demoLayer: 'a2a-protocol-wire',
     });
   });
+
+  test('ff_verified_trust_a2a off (or no cfg): only pingoneBearer is advertised', () => {
+    const card = buildSpecialistAgentCard('banking', { getEffective: () => '' });
+    expect(card.securitySchemes.pingoneBearer).toBeTruthy();
+    expect(card.securitySchemes.verifiedTrustCredential).toBeUndefined();
+    expect(Object.keys(card.securitySchemes)).toEqual(['pingoneBearer']);
+
+    const cardNoCfg = buildSpecialistAgentCard('banking');
+    expect(cardNoCfg.securitySchemes.verifiedTrustCredential).toBeUndefined();
+  });
+
+  test('ff_verified_trust_a2a on: verifiedTrustCredential scheme added, pingoneBearer stays the only REQUIRED scheme', () => {
+    const cfg = { getEffective: (k) => (k === 'ff_verified_trust_a2a' ? 'true' : '') };
+    const card = buildSpecialistAgentCard('banking', cfg);
+
+    expect(card.securitySchemes.pingoneBearer).toBeTruthy();
+    expect(card.securitySchemes.verifiedTrustCredential).toBeTruthy();
+    expect(card.securitySchemes.verifiedTrustCredential.scheme.value.scheme).toBe('VC-SD-JWT');
+    // Additive only — the VC is never a hard requirement, bearer still is.
+    expect(card.securityRequirements).toEqual([{ schemes: { pingoneBearer: { list: [] } } }]);
+  });
 });
 
 describe('requireA2aPingOneBearer', () => {

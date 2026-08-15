@@ -1,0 +1,10 @@
+{
+  "vertical": "airlines",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_airline_fee",
+  "checkedAt": "2026-08-14"
+}

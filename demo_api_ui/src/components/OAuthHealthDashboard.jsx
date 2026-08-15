@@ -188,9 +188,9 @@ export default function OAuthHealthDashboard() {
             Health Check Results
           </h4>
           <div style={{ marginBottom: 20 }}>
-            {checks.checks.map((check, i) => (
+            {checks.checks.map((check) => (
               <div
-                key={i}
+                key={check.name || check.label || check.id}
                 style={{
                   background: check.status === 'pass' ? '#f0fdf4' : '#fef2f2',
                   border: `1px solid ${check.status === 'pass' ? '#bbf7d0' : '#fecaca'}`,

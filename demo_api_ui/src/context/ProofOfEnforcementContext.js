@@ -72,6 +72,8 @@ function decisionOf(trace) {
   // Because step-up and HITL collapse to the same value here, `decision` alone
   // cannot identify the block kind — computeVerdict uses trace.authorize.outcome
   // for that and keeps this only as the PERMIT/non-PERMIT fallback.
+  // For gateway-authoritative runs, tokenChainTraceStore synthesizes trace.authorize
+  // from the gw-authorize token event, so no separate fallback is needed here.
   const d = trace.authorize && trace.authorize.decision;
   return d || null;
 }
@@ -202,7 +204,11 @@ export function computeVerdict(trace, catalogEntry) {
 // their strip disappears rather than showing someone else's result.
 const MAX_TRACKED_RUNS = 20;
 
-export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
+// `enabled` gates the catalog fetch on there being a session: /api/use-cases
+// 401s for a signed-out visitor, and a guest has no run to prove anything
+// about, so the request was pure console noise. Defaults on for callers that
+// mount this provider inside an already-authenticated tree.
+export function ProofOfEnforcementProvider({ children, vertical = 'banking', enabled = true }) {
   const [catalog, setCatalog] = useState([]);
   const [verdict, setVerdict] = useState(null);
   // Verdict per RUN, keyed by the trace's runId (beginTrace stamps a fresh one
@@ -215,13 +221,14 @@ export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
   const [verdictsByRun, setVerdictsByRun] = useState({});
 
   useEffect(() => {
+    if (!enabled) { setCatalog([]); return undefined; }
     let cancelled = false;
     fetch(`/api/use-cases?vertical=${encodeURIComponent(vertical)}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { useCases: [] }))
       .then((data) => { if (!cancelled) setCatalog(data.useCases || []); })
       .catch(() => { if (!cancelled) setCatalog([]); });
     return () => { cancelled = true; };
-  }, [vertical]);
+  }, [enabled, vertical]);
 
   const recompute = useCallback((snap) => {
     const trace = snap.trace;

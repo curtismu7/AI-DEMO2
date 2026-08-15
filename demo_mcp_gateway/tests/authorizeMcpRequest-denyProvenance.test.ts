@@ -39,7 +39,7 @@ function makeRes() {
 
 async function denyWith(authzDecision: Record<string, unknown>) {
   const middleware = buildAuthorizeMcpRequest(stubConfig, {
-    introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+    introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'write transfer' }),
     authorize: async () => authzDecision,
     exchange: async () => ({ token: 'x', targetAud: 'mcpserver.ping.demo', cached: false }),
   } as any);

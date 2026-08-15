@@ -152,22 +152,34 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(ex.detail.why).toMatch(/delegated token/i);
   });
 
-  test("gw-authorize alone fills authorize step why + request (no BFF authorize-decision)", () => {
+  test("store-synthesized authorize from gw-authorize fills authorize step why + request", () => {
+    // tokenChainTraceStore synthesizes trace.authorize from the gw-authorize event
+    // (via _syncGwAuthorize) before buildTraceSteps is called, so buildTraceSteps
+    // always receives a pre-populated authorize field on gateway-authoritative runs.
+    const gwEv = {
+      id: "gw-authorize",
+      status: "permit",
+      decision: "PERMIT",
+      tool: "get_my_accounts",
+      url: "https://api.pingone.com/v1/.../decisionEndpoints/abc",
+      parameters: { ToolName: "get_my_accounts", UserId: "u1" },
+      rawResponse: { decision: "PERMIT", id: "dec_1" },
+      backend: "real",
+    };
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "ok",
-      tokenEvents: [
-        {
-          id: "gw-authorize",
-          status: "permit",
-          decision: "PERMIT",
-          tool: "get_my_accounts",
-          url: "https://api.pingone.com/v1/.../decisionEndpoints/abc",
-          parameters: { ToolName: "get_my_accounts", UserId: "u1" },
-          rawResponse: { decision: "PERMIT", id: "dec_1" },
-          backend: "real",
-        },
-      ],
+      authorize: {
+        engine: gwEv.backend,
+        decision: gwEv.decision,
+        decisionId: null,
+        decisionContext: `tool:${gwEv.tool}`,
+        path: gwEv.url,
+        request: { method: "POST", url: gwEv.url, parameters: gwEv.parameters },
+        response: gwEv.rawResponse,
+        source: "gw-authorize",
+      },
+      tokenEvents: [gwEv],
     });
     const az = steps.find((s) => s.id === "authorize");
     expect(az.status).toBe("done");
@@ -758,17 +770,26 @@ describe("buildRunStory — L0 strip", () => {
   });
 
   test("summarizes a successful run with authorize decision", () => {
+    const gwEv = {
+      id: "gw-authorize", status: "permit", decision: "PERMIT",
+      tool: "get_my_accounts", parameters: { ToolName: "get_my_accounts" },
+      rawResponse: { decision: "PERMIT" }, backend: "real",
+    };
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "ok",
       prompt: { message: "show my balance" },
-      tokenEvents: [
-        {
-          id: "gw-authorize", status: "permit", decision: "PERMIT",
-          tool: "get_my_accounts", parameters: { ToolName: "get_my_accounts" },
-          rawResponse: { decision: "PERMIT" }, backend: "real",
-        },
-      ],
+      authorize: {
+        engine: gwEv.backend,
+        decision: gwEv.decision,
+        decisionId: null,
+        decisionContext: `tool:${gwEv.tool}`,
+        path: null,
+        request: { method: "POST", url: "", parameters: gwEv.parameters },
+        response: gwEv.rawResponse,
+        source: "gw-authorize",
+      },
+      tokenEvents: [gwEv],
     });
     const story = buildRunStory({
       ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" },
