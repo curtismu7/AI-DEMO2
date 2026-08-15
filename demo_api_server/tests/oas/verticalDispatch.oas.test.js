@@ -59,7 +59,7 @@ describe('pingone-admin vertical dispatch', () => {
     adapter.callTool.mockRejectedValue(
       Object.assign(new Error('PingOne MCP HTTP 401'), { code: 'pingone_mcp_http_error' })
     );
-    pingOneUserService.listUsers.mockResolvedValue({
+    pingOneUserService.makeRequest.mockResolvedValue({
       _embedded: { users: [{ id: 'u1', username: 'curtis.one' }] },
     });
     const result = await verticalDispatch.executeToolFor(
@@ -68,10 +68,10 @@ describe('pingone-admin vertical dispatch', () => {
       { name: 'listUsers', arguments: { filter: 'curtis*', limit: 10 } },
       { userId: 'test-user' }
     );
-    expect(pingOneUserService.listUsers).toHaveBeenCalledWith({
-      filter: 'username sw "curtis"',
-      limit: 10,
-    });
+    expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
+      'GET',
+      '/users?filter=username+sw+%22curtis%22&limit=10',
+    );
     expect(result.result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: PingOne MCP HTTP 401');
     expect(result.result.debug.summary).toContain('filter=username sw "curtis"');
   });

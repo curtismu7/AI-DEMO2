@@ -407,39 +407,6 @@ async function callPingOneTool(params) {
     };
 
     const restReq = REST_FALLBACK[name]?.(liveArgs);
-    if (name === 'listUsers' && Object.keys(liveArgs).length > 0) {
-      try {
-        pingOneUserService.initialize();
-        const data = await pingOneUserService.listUsers(liveArgs);
-        console.warn('[pingone-admin] call_pingone_tool API fallback for %s: %s', name, err.message);
-        return {
-          result: {
-            tool: name,
-            responseSummary: summaryForResponse(name, data),
-            source: apiSource(err.message),
-            debug: {
-              backend: 'management-api',
-              transport: 'fallback',
-              tool: name,
-              args: liveArgs,
-              reason: err.message,
-              summary: buildDebugSummary({
-                backend: 'management-api',
-                transport: 'fallback',
-                tool: name,
-                args: liveArgs,
-                reason: err.message,
-              }),
-            },
-          },
-          render: 'call_pingone_tool',
-        };
-      } catch (restErr) {
-        console.warn('[pingone-admin] API fallback also failed for %s: %s', name, restErr.message);
-        return mockFallback(mockAfterApiSource(err.message));
-      }
-    }
-
     if (restReq) {
       try {
         pingOneUserService.initialize();

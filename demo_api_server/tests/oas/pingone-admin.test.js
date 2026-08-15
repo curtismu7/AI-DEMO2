@@ -84,7 +84,7 @@ test('call_pingone_tool listUsers parses MCP envelope and summarizes live data',
 
 test('call_pingone_tool listUsers normalizes prefix filters and uses the Management API fallback when MCP is down', async () => {
   adapter.callTool.mockRejectedValue(httpErr('connect ECONNREFUSED'));
-  pingOneUserService.listUsers.mockResolvedValue({
+  pingOneUserService.makeRequest.mockResolvedValue({
     _embedded: { users: [{ id: 'u1', username: 'curtis.one' }, { id: 'u2', username: 'curtis.two' }] },
   });
   const { result } = await plugin.executeTool(
@@ -96,10 +96,10 @@ test('call_pingone_tool listUsers normalizes prefix filters and uses the Managem
     filter: 'username sw "curtis"',
     limit: 25,
   });
-  expect(pingOneUserService.listUsers).toHaveBeenCalledWith({
-    filter: 'username sw "curtis"',
-    limit: 25,
-  });
+  expect(pingOneUserService.makeRequest).toHaveBeenCalledWith(
+    'GET',
+    '/users?filter=username+sw+%22curtis%22&limit=25',
+  );
   expect(result.responseSummary).toBe('2 users found');
   expect(result.source).toBe('api — hosted PingOne MCP unavailable, used direct Management API: connect ECONNREFUSED');
   expect(result.debug.summary).toContain('filter=username sw "curtis"');
