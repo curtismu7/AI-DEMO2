@@ -29,7 +29,7 @@ import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
-import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse } from './proxy';
+import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
@@ -966,7 +966,7 @@ async function handleMessage(
       jsonrpc: '2.0',
       id,
       result: {
-        protocolVersion: '2025-11-25',
+        protocolVersion: MCP_PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },

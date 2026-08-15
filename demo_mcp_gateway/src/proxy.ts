@@ -28,7 +28,7 @@ export function buildUpstreamHeaders(
   return headers;
 }
 
-const MCP_PROTOCOL_VERSION = '2025-11-25';
+export const MCP_PROTOCOL_VERSION = '2025-11-25';
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 const CALL_TIMEOUT_MS = parseInt(process.env.GW_TOOL_CALL_TIMEOUT_MS || '30000', 10);
 
