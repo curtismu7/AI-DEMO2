@@ -774,6 +774,15 @@ module.exports = async function decisionHandler(req, res) {
   // HITL approval or step-up. This is NNP-5 — the mock was missing this rule.
   // Reads the same env var the simulated engine uses (default 2000).
   const isWriteTool = ruleStore.isWriteTool(ToolName);
+  // Fail closed on a present-but-unparseable amount: parseFloat('abc') is NaN,
+  // and `NaN || 0` silently collapses to 0 downstream — that zeroed amount would
+  // skip Rule 3b's ceiling, Rule 3d's tier ceiling, and Rule 4's step-up/consent
+  // checks entirely (all fire only when amount is a real number). Deny here so a
+  // malformed TransactionAmount can never bypass every dollar-based gate.
+  if (TransactionAmount !== '' && isWriteTool && Number.isNaN(parseFloat(TransactionAmount))) {
+    warn(`[AuthzServer/decision] DENY — invalid_transaction_amount: "${TransactionAmount}" is not a valid number (tool="${ToolName}")`);
+    return deny(res, `invalid_transaction_amount: TransactionAmount "${TransactionAmount}" could not be parsed as a number`);
+  }
   if (TransactionAmount !== '' && isWriteTool) {
     const DENY_CEILING_USD = parseFloat(process.env.SIMULATED_AUTHORIZE_DENY_AMOUNT || '2000');
     const txAmount = parseFloat(TransactionAmount);
