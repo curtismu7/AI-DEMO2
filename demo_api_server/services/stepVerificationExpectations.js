@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { USE_CASES, resolveUseCase, SECOND_PRODUCT_TOOL_BY_VERTICAL } = require('../config/useCases.js');
+const { gwAuthorizeEventFrom } = require('../utils/gwAuthorizeUtils');
 
 /**
  * Heuristic ACTION → MCP tool. THE single source; tests/helpers/actionToTool.js
@@ -340,9 +341,8 @@ function scoreDelegatedAccessInvoke(invoke, opts = {}) {
   const hasExchange = tokenEvents.some((e) => e && e.exchangeStep != null);
   const hasAuthorize = !!(
     body.authorize
-    || seenIds.has('gw-authorize')
     || seenIds.has('authorize-decision')
-    || tokenEvents.some((e) => e && (e.decision === 'PERMIT' || e.id === 'gw-authorize'))
+    || gwAuthorizeEventFrom(tokenEvents)
   );
   const hasTool = Array.isArray(body.toolsCalled) && body.toolsCalled.length > 0;
 
