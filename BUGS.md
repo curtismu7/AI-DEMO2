@@ -17,8 +17,8 @@ Living doc. Rerun audit, append new pass, update status on old entries. Do not d
 | 1 | Critical | 🟢 Fixed | TOCTOU overdraft race in agent transfers/withdrawals | `demo_api_server/services/mcpLocalTools.js:401-408`, `:339-345` |
 | 2 | High | 🟢 Fixed | Agent-restriction gate trusts unauthenticated header | `demo_api_server/middleware/agentRestrictionsGate.js:110-111` |
 | 3 | High | 🟢 Fixed | Cross-caller tool-list leak via unkeyed global cache | `demo_mcp_proxy/server.js:14,108-120` |
-| 4 | Medium | 🔴 Open | Admin "$0 transaction limit" silently ignored (`\|\|` vs finite-check) | `demo_api_server/routes/transactions.js:476` vs `demo_api_server/routes/admin.js:540-543` |
-| 5 | Medium | 🔴 Open | UC18 rate limiter race — Groovy port not thread-safe | `ping-gateway/scripts/groovy/uc18-rate-limit.groovy:101-127` |
+| 4 | Medium | 🟢 Fixed | Admin "$0 transaction limit" silently ignored (`\|\|` vs finite-check) | `demo_api_server/routes/transactions.js:476` vs `demo_api_server/routes/admin.js:540-543` |
+| 5 | Medium | 🟢 Fixed | UC18 rate limiter race — Groovy port not thread-safe | `ping-gateway/scripts/groovy/uc18-rate-limit.groovy:101-127` |
 
 ### 1. TOCTOU overdraft race in agent transfers/withdrawals — Critical
 `create_transfer`/`create_withdrawal` (in-process fallback path used when the WebSocket MCP server is down) check balance, `await` a step-up check, then call `dataStore.updateAccountBalance()` directly — no locking, no funds re-check:
@@ -71,6 +71,7 @@ const MAX_TRANSACTION_AMOUNT = parseFloat(configStore.getEffective('max_transact
 `parseFloat('0')` is `0`, falsy → `0 || 1000` evaluates to `1000`.
 **Trigger:** admin sets limit to `0` (demo "freeze all transactions" control) → default $1000 silently reinstated instead of a hard block.
 **Fix:** `Number.isFinite(x) ? x : 1000` instead of `||`.
+**Fixed:** PR [#1816](https://github.com/curtismu7/AI-DEMO2/pull/1816). Verified: 24/24 scoped tests pass (new test proves `0` now blocks transactions), full suite 9475/9598 pass (0 failed).
 
 ### 5. UC18 rate limiter race — Groovy port not thread-safe — Medium
 ```groovy
@@ -83,6 +84,7 @@ globals._uc18Windows[rlKey] = timestamps
 Check-then-act on shared mutable `globals` map, unsynchronized. PingGateway/IG is multi-threaded, unlike the Node counterpart (`demo_mcp_gateway/src/rateLimit.ts:8-9`, single-threaded event loop — its "safe for single-process gateways" comment doesn't carry over to this Groovy port).
 **Trigger:** concurrent `tools/call` bursts for the same agent+tool within one window (fan-out call or abuse script) → more than `maxRequests` (default 20/60s) get through.
 **Fix:** synchronize the compound read-check-write per `rlKey`, or use an atomic/concurrent structure instead of a bare Groovy map.
+**Fixed:** PR [#1813](https://github.com/curtismu7/AI-DEMO2/pull/1813) — wrapped read-check-append-write in `synchronized (globals)`, 429 response built outside the lock. No test infra exists for `ping-gateway/scripts/groovy/*`; verified by manual review (lock scope, no conflicting lock order with sibling scripts, single-threaded semantics unchanged).
 
 ---
 
@@ -94,7 +96,7 @@ Check-then-act on shared mutable `globals` map, unsynchronized. PingGateway/IG i
 | 7 | High | 🟢 Fixed | Non-numeric `TransactionAmount` silently becomes 0, bypasses all dollar-based PDP gates | `demo_authz_server/routes/decision.js:779,806,849,874-875` |
 | 8 | High | 🟢 Fixed | Dead AG-UI tool-call hooks report "run failed" after a transfer already executed | `pydantic_agent/src/agui_emitter.py:18,35-41,52-59` |
 | 9 | High | 🟢 Fixed | XSS via unescaped `dangerouslySetInnerHTML` in JSON viewer | `demo_api_ui/src/components/ProtocolPlayground/JSONViewer.jsx:11-36` |
-| 10 | Medium | 🔴 Open | Admin audit logger arg-shape mismatch drops all audit event data | `demo_api_server/services/adminAuditService.js:26-186` vs `exchangeAuditStore.js:15-22` |
+| 10 | Medium | 🟢 Fixed | Admin audit logger arg-shape mismatch drops all audit event data | `demo_api_server/services/adminAuditService.js:26-186` vs `exchangeAuditStore.js:15-22` |
 
 ### 6. RAR grant-match falls back to wrong grant — High
 `enforceRarSubset()` (RFC 9396 RAR intent-subset check, `REQUIRE_RAR_INTENT`) is meant to deny any tool call not covered by the caller's granted `authorization_details`:
@@ -150,6 +152,7 @@ writeExchangeEvent('admin_token_exchange', auditEvent);   // two args
 but `exchangeAuditStore.js` declares `writeExchangeEvent(event)` — **one** param. The leading type-string becomes `event`; `{...event}` on a string spreads its characters into numeric keys, and the real object (adminSub, targetUserSub, action, result, IP) is dropped.
 **Confirmed live call site:** `routes/adminAgentTools.js:178-185` — `DELETE /users/:userId` deletes a user + accounts/transactions, then logs via this broken path. The persisted compliance audit trail for that destructive action ends up empty/garbage; only an ephemeral `console.log` has the real fields.
 **Fix:** drop the leading type-string argument (or fold `type` into the `auditEvent` object) so calls match the single-param signature.
+**Fixed:** PR [#1815](https://github.com/curtismu7/AI-DEMO2/pull/1815) — leading type-string arg dropped from all 5 call sites; `type` field was already set on each `auditEvent`, matching the convention every other `writeExchangeEvent` caller uses. Verified red-green (new test fails pre-fix with spread-string garbage, passes post-fix); full suite 9476/9602 pass (6 pre-existing unrelated flakes).
 
 ### Also found in pass 2, not in top 5 (verified, logged for awareness — not yet tracked with a number)
 - `demo_api_ui/src/components/AIAgent.js:1856-1911` — no staleness guard on `fetchLiveAccounts`; rapid vertical-switching can apply an older vertical's accounts last (Medium).
