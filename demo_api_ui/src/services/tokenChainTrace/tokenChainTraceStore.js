@@ -153,6 +153,10 @@ export const tokenChainTraceStore = {
     trace.flowTraceId = activeFlowTraceId;
     try {
       agentFlowDiagram.clearServerEvents();
+      // Wipe compliance-step "done" bits from the prior run so the flow
+      // diagram doesn't render an old run's lit nodes until the new run's
+      // first STATE_SNAPSHOT lands.
+      agentFlowDiagram.resetComplianceSteps(null, null);
     } catch { /* display-only */ }
     emit();
   },
@@ -285,6 +289,7 @@ export const tokenChainTraceStore = {
     explicitlyReset = true;
     try {
       agentFlowDiagram.clearServerEvents();
+      agentFlowDiagram.resetComplianceSteps(null, null);
     } catch { /* display-only */ }
     emit();
   },
