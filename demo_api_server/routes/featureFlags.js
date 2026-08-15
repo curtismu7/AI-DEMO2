@@ -272,6 +272,40 @@ const FLAG_REGISTRY = [
 
   // ── A2A Delegation ──────────────────────────────────────────────────────────
   {
+    id:           'ff_personal_agent_concierge',
+    name:         'Personal Agent Concierge (UC38) — MFA-gated RFC 8693 delegation via Agent Builder',
+    category:     'Personal Agent',
+    description:
+      'Enables the UC38 Personal Agent Concierge use case for the airlines vertical. ' +
+      'Requires the user to have a registered personal agent (Agent Builder page). ' +
+      'BFF gates delegation on MFA acr claim, looks up the agent identity, emits a ' +
+      'personal-agent-lookup token event, then passes through to processAgentMessage ' +
+      'which performs the RFC 8693 exchange (sub=user, act=agent) scoped to ' +
+      'airlines:read airlines:write. Agent calls get_loyalty_status + redeem_miles.',
+    impact:
+      'ON = UC38 chip active; BFF pre-checks MFA and personal agent registration before delegation. ' +
+      'OFF (default) = UC38 chip shows "flag off" state; pre-checks are bypassed.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
+  {
+    id:           'ff_personal_agent_studio',
+    name:         'Personal Agent Studio — dedicated /personal-agent page',
+    category:     'Personal Agent',
+    description:
+      'Enables the /personal-agent route, the side-nav entry under Customer Demos, ' +
+      'and the "Launch Studio" button on the UC38 tile. The studio shows four AI-client ' +
+      'skins (Privilege, Claude-look, ChatGPT-look, Gemini-look) with a live security ' +
+      'rail (MFA gate, Gateway token check, P1AZ Authorize) and a real pop-out window.',
+    impact:
+      'ON/OFF = reserved for the UC38 "Launch Studio" button (not yet implemented). ' +
+      'The /personal-agent route and nav item are always visible to admin users.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
+  {
     id:           'ff_a2a_delegation',
     name:         'A2A — Agent-to-Agent specialist delegation (RFC 8693 nested-act)',
     category:     'A2A Delegation',

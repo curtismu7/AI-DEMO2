@@ -586,6 +586,10 @@ describe('authorizeMcpRequest — RFC 9728 WWW-Authenticate header', () => {
     expect(wwwAuth).toMatch(/Bearer realm="PingOne"/);
     expect(wwwAuth).toMatch(/resource_metadata=/);
     expect(wwwAuth).toMatch(/\/\.well-known\/oauth-protected-resource/);
+    // MCP Authorization spec §4.3 — insufficient_scope denials must carry
+    // error= and scope= so MCP clients can drive step-up re-authentication.
+    expect(wwwAuth).toMatch(/error="insufficient_scope"/);
+    expect(wwwAuth).toMatch(/scope="/);
     expect(forwardSpy).not.toHaveBeenCalled();
   });
 });

@@ -63,16 +63,6 @@ function verticalOf(trace) {
   return null;
 }
 
-// Gateway-authoritative runs (useGateway: true) never populate trace.authorize —
-// the BFF skips its own Authorize gate and the real decision only ever arrives
-// as a 'gw-authorize' token event (mcpToolPipeline.js). buildTraceSteps.js
-// already falls back to this event for the Token Chain rail; decisionOf and
-// the authorize-decision step check below mirror that so the ProofStrip
-// verdict doesn't read "Incomplete" on a run the gateway actually permitted.
-function gwAuthorizeEvent(trace) {
-  return (trace.tokenEvents || []).find((e) => e && e.id === 'gw-authorize') || null;
-}
-
 function decisionOf(trace) {
   // `decision` IS populated on block outcomes — mcpToolPipeline.js synthesizes it
   // for the block path ('INDETERMINATE' for step-up/HITL, 'DENY' otherwise), and
@@ -82,11 +72,10 @@ function decisionOf(trace) {
   // Because step-up and HITL collapse to the same value here, `decision` alone
   // cannot identify the block kind — computeVerdict uses trace.authorize.outcome
   // for that and keeps this only as the PERMIT/non-PERMIT fallback.
+  // For gateway-authoritative runs, tokenChainTraceStore synthesizes trace.authorize
+  // from the gw-authorize token event, so no separate fallback is needed here.
   const d = trace.authorize && trace.authorize.decision;
-  if (d) return d;
-  const gwAz = gwAuthorizeEvent(trace);
-  const gwDecision = gwAz && (gwAz.decision || gwAz.authorizeDecision);
-  return gwDecision ? String(gwDecision).toUpperCase() : null;
+  return d || null;
 }
 
 /**
@@ -115,7 +104,7 @@ export function computeVerdict(trace, catalogEntry) {
   const mechanism = productsForUseCase(catalogEntry).map((p) => p.label);
   const seenTokenIds = new Set((trace.tokenEvents || []).map((e) => e.id));
   const matchedSteps = (evidence.tokenChain || []).filter((step) => {
-    if (step === 'authorize-decision') return !!trace.authorize || !!gwAuthorizeEvent(trace);
+    if (step === 'authorize-decision') return !!trace.authorize;
     if (step === 'tool-dispatched') return !!trace.mcpResult;
     if (step === 'token-exchange') return trace.tokenEvents.some((e) => e && e.exchangeStep != null);
     return seenTokenIds.has(step);

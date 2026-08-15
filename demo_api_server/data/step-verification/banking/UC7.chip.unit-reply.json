@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-08-07",
+  "checkedAt": "2026-08-14",
   "verifiedBy": "scoreAgentReply exact vs data/goldens (#762)"
 }

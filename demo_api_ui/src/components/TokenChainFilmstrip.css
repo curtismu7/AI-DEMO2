@@ -441,3 +441,24 @@
 :root[data-theme="dark"] .tcfs-sheet-title { color: #cdd7ec; }
 :root[data-theme="dark"] .tcfs-sheet-close { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .tcfs-sheet-close:hover { border-color: #9ec1ff; color: #9ec1ff; }
+
+/* Float-mode wrapper — gives .tcfs children the grid context they expect.
+   chain spans full width; spotlight renders to the right on wide screens,
+   stacks below on narrow. */
+.tcfs-float-host {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  grid-template-areas: "chain spotlight";
+  grid-template-rows: auto;
+  width: 100%;
+  border-top: 1px solid var(--th-border, #e2e8f0);
+}
+
+@media (max-width: 900px) {
+  .tcfs-float-host {
+    grid-template-columns: 1fr;
+    grid-template-areas: "chain" "spotlight";
+  }
+}
+
+:root[data-theme="dark"] .tcfs-float-host { border-top-color: #26304a; }

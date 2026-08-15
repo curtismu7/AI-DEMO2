@@ -11,11 +11,11 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 54 use cases including UC1..UC32, UC33..UC35, UC37, and UC-NHI1/2', () => {
-    // 54 since UC2.6 (a2a-generalist-mismatch) joined the catalog.
-    expect(USE_CASES).toHaveLength(54);
+  test('contains all 55 use cases including UC1..UC32, UC33..UC35, UC37, UC38, and UC-NHI1/2', () => {
+    // 55 since UC38 (personal-agent-concierge) joined the catalog.
+    expect(USE_CASES).toHaveLength(55);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(54);
+    expect(new Set(ids).size).toBe(55);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -30,8 +30,9 @@ describe('useCases catalog SoT', () => {
     expect(ids).toContain('UC33');
     expect(ids).toContain('UC34');
     expect(ids).toContain('UC35');
-    // UC36 (Protect) is a separate, not-yet-built plan — only UC37 exists today.
+    // UC36 (Protect) is a separate, not-yet-built plan — only UC37/UC38 exist today.
     expect(ids).toContain('UC37');
+    expect(ids).toContain('UC38');
     expect(ids).toContain('UC-NHI1');
     expect(ids).toContain('UC-NHI2');
   });
@@ -203,9 +204,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 54 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(54);
-    expect(listUseCases()).toHaveLength(54);
+  test('listUseCases returns all 55 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(55);
+    expect(listUseCases()).toHaveLength(55);
   });
 
   test('only UC14 and UC15 are advanced', () => {
