@@ -710,7 +710,10 @@ export function buildAuthorizeMcpRequest(
     // a self-consistent proof. Reject rather than accept an unbound proof.
     if (_requireDpop && !_cnfJkt) {
       setAuditHeader(res);
-      res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'DPoP' });
+      res.writeHead(401, {
+        'Content-Type': 'application/json',
+        'WWW-Authenticate': `DPoP realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource", error="invalid_dpop_proof", error_description="token is not DPoP-bound (no cnf.jkt)"`,
+      });
       res.end(JSON.stringify({ error: 'invalid_dpop_proof', message: 'token is not DPoP-bound (no cnf.jkt)' }));
       return;
     }
@@ -730,7 +733,10 @@ export function buildAuthorizeMcpRequest(
         teachLog.warn(`[GW] DPoP proof verification failed: ${_v.reason} (tool: ${toolName})`);
         if (_requireDpop) {
           setAuditHeader(res);
-          res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'DPoP' });
+          res.writeHead(401, {
+            'Content-Type': 'application/json',
+            'WWW-Authenticate': `DPoP realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource", error="invalid_dpop_proof", error_description="${_v.reason || 'DPoP proof required'}"`,
+          });
           res.end(JSON.stringify({ error: 'invalid_dpop_proof', message: _v.reason || 'DPoP proof required' }));
           return;
         }
