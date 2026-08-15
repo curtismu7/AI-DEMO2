@@ -700,11 +700,19 @@ router.get('/sessions', async (req, res) => {
   if (!envId) {
     return res.status(500).json({ error: 'PRIVILEGE_SSO_ENV_ID not configured.' });
   }
+  if (accessTokenExpiring(session)) {
+    await refreshAccessToken(session);
+  }
   try {
     const url = `https://console.privilege.pingone.com/api/${envId}/v1/applications?ObjectMeta.Namespace=default`;
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
     });
+    if (response.status === 401 && await refreshAccessToken(session)) {
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${session.oauth.accessToken}` },
+      });
+    }
     if (!response.ok) {
       const text = await response.text();
       return res.status(response.status).json({ error: `Console API ${response.status}: ${text.slice(0, 300)}` });

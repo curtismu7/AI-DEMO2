@@ -24,6 +24,12 @@ function api(path, options = {}) {
 }
 
 
+// FrontEndName may already carry its registered port (e.g. "host:8643") —
+// appending a fixed :8643 again produces a malformed "host:8643:8643" URL.
+function frontEndMcpUrl(frontEnd) {
+  return /:\d+$/.test(frontEnd) ? `https://${frontEnd}/mcp` : `https://${frontEnd}:8643/mcp`;
+}
+
 function scopeColor(scope) {
   if (scope.startsWith('mcp:')) return 'scope-mcp';
   if (scope.startsWith('p1:')) return 'scope-p1';
@@ -272,6 +278,20 @@ export default function PrivilegeMcpClientPage() {
       setSessionsError(err.message);
     } finally {
       setSessionsLoading(false);
+    }
+  };
+
+  const selectSession = async (app) => {
+    const frontEnd = app.Spec?.McpAppConfig?.FrontEndName?.Elems?.[0];
+    if (!frontEnd) return;
+    const mcpUrl = frontEndMcpUrl(frontEnd);
+    const next = { ...config, mcpUrl };
+    try {
+      await api('/config', { method: 'POST', body: next });
+      setConfig(next);
+      appendChat('system', `Switched to policy: ${app.ObjectMeta?.Name || frontEnd}`);
+    } catch (err) {
+      appendChat('system', `Failed to switch policy: ${err.message}`);
     }
   };
 
@@ -850,14 +870,25 @@ export default function PrivilegeMcpClientPage() {
                     const principalCount = cfg.Policies?.Elems?.length ?? cfg.Principals?.Elems?.length ?? '?';
                     const endsAt = app.Spec?.TTL || app.Metadata?.ExpiresAt || null;
                     const status = app.Status?.McpServerStatus?.Status || '';
+                    const frontEnd = cfg.FrontEndName?.Elems?.[0];
+                    const appMcpUrl = frontEnd ? frontEndMcpUrl(frontEnd) : null;
+                    const isActive = appMcpUrl && config.mcpUrl === appMcpUrl;
                     return (
-                      <div key={name} className="cur-session-card">
-                        <div className="cur-session-name">{name}</div>
+                      <div
+                        key={name}
+                        className={`cur-session-card${isActive ? ' cur-session-card--active' : ''}${appMcpUrl ? ' cur-session-card--selectable' : ''}`}
+                        onClick={appMcpUrl ? () => selectSession(app) : undefined}
+                        title={appMcpUrl ? `Use policy: ${name}` : 'No frontend URL available'}
+                      >
+                        <div className="cur-session-name">
+                          {name}
+                          {isActive && <span className="cur-session-active-badge"> ✓ Active</span>}
+                        </div>
                         {endsAt && <div className="cur-session-ttl">Ends {endsAt}</div>}
                         {status && <div className="cur-session-status">{status}</div>}
                         <div className="cur-session-meta">
-                          <span title="Backends">🗄️ {backendCount}</span>
-                          <span title="Principals">👥 {principalCount}</span>
+                          <span title="Backends">Backends: {backendCount}</span>
+                          <span title="Principals">Principals: {principalCount}</span>
                         </div>
                       </div>
                     );
