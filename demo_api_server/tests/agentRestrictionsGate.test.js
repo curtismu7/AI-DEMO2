@@ -37,8 +37,11 @@ let agentRestrictionsGate;
 
 function makeReq(overrides = {}) {
   return {
-    headers: { 'x-agent-sub': 'agent-client-id', 'x-mcp-tool': 'create_transfer' },
+    headers: { 'x-mcp-tool': 'create_transfer' },
     session: { user: { id: 'user-1', oauthId: 'oauth-user-1', role: 'customer' } },
+    // Gate now trusts only the VERIFIED RFC 8693 `act` claim populated by
+    // authenticateToken (which runs before this gate), not a raw client header.
+    user: { id: 'user-1', actor: { sub: 'agent-client-id' } },
     ...overrides,
   };
 }
@@ -74,11 +77,25 @@ test('calls next() immediately when ff_agent_restrictions is false', async () =>
   expect(mockRes.status).not.toHaveBeenCalled();
 });
 
-test('calls next() when X-Agent-Sub header is absent', async () => {
+test('calls next() when the verified token carries no act claim (no req.user.actor)', async () => {
   const configStore = require('../services/configStore');
   configStore.get.mockImplementation((key) => key === 'ff_agent_restrictions' ? 'true' : null);
-  await agentRestrictionsGate(makeReq({ headers: {} }), mockRes, mockNext);
+  await agentRestrictionsGate(makeReq({ user: { id: 'user-1' } }), mockRes, mockNext);
   expect(mockNext).toHaveBeenCalled();
+});
+
+test('a forged X-Agent-Sub header with no verified act claim does NOT trigger the gate (regression: BUGS.md #2)', async () => {
+  const configStore = require('../services/configStore');
+  configStore.get.mockImplementation((key) => key === 'ff_agent_restrictions' ? 'true' : null);
+  // Client sends the header, but authenticateToken found no `act` claim on the
+  // token, so req.user.actor is absent. The header alone must never be trusted.
+  await agentRestrictionsGate(
+    makeReq({ headers: { 'x-agent-sub': 'forged-agent-id' }, user: { id: 'user-1' } }),
+    mockRes,
+    mockNext,
+  );
+  expect(mockNext).toHaveBeenCalled();
+  expect(mockRes.status).not.toHaveBeenCalled();
 });
 
 test('returns 428 with taskId on DENY', async () => {
@@ -182,8 +199,9 @@ test('resolves userId from Bearer JWT when session has no user', async () => {
   attrCache.get.mockReturnValue('write');
 
   const req = {
-    headers: { 'x-agent-sub': 'some-agent', 'authorization': `Bearer ${fakeJwt}` },
+    headers: { 'authorization': `Bearer ${fakeJwt}` },
     session: {},   // no session.user
+    user: { actor: { sub: 'some-agent' } },
   };
   const next = jest.fn();
 

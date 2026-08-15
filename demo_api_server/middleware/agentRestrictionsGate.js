@@ -107,7 +107,15 @@ async function fetchAgentRestrictions(userId) {
 async function agentRestrictionsGate(req, res, next) {
   if (configStore.get('ff_agent_restrictions') !== 'true') return next();
 
-  const agentSub = req.headers['x-agent-sub'];
+  // Trust boundary: "is this an agent-originated request" must come from the
+  // VERIFIED token's RFC 8693 `act` claim (req.user.actor, populated by
+  // authenticateToken — which now runs before this gate, see server.js route
+  // mounting), never from the raw, unauthenticated X-Agent-Sub client header.
+  // A request that simply omits/forges that header must not be able to skip
+  // the restriction-tier check. Same actor-identity idiom as requireDelegation
+  // in middleware/auth.js.
+  const actor = req.user?.actor;
+  const agentSub = actor?.sub || actor?.client_id || null;
   if (!agentSub) return next();
 
   const toolName = req.headers['x-mcp-tool'] || '';
