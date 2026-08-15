@@ -81,6 +81,9 @@ export interface AuthzDecision {
   // so the Agent Gateway Tester can show WHAT was evaluated. Undefined on the
   // no-P1AZ local-scope fallback path (no decision call is made).
   sentParameters?: Record<string, string>;
+  // Advice items from the PDP — used by the elicitation handler to surface the
+  // elicitation prompt returned by the policy (id: 'elicitation-prompt').
+  advice?: Array<{ id: string; value?: string }>;
 }
 
 export interface ToolArgs {
@@ -422,12 +425,17 @@ export class PingOneAuthorizeClient {
       // Real-first: a live PERMIT can still carry a gate in `statements[]`.
       // Reading only the label forwarded exactly the calls the PDP held.
       const obligation = classifyStatements(data?.statements);
+      // Elicitation advice: surfaced so the handler can include the prompt in -32003.
+      const elicitationAdvice = obligation === 'elicitation'
+        ? (Array.isArray(data?.advice) ? data.advice as Array<{ id: string; value?: string }> : [])
+        : undefined;
       if (outcome === 'PERMIT') {
         if (obligation) {
           return {
             decision: 'INDETERMINATE',
             reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
             obligation,
+            ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
             ...meta,
           };
         }
@@ -441,6 +449,7 @@ export class PingOneAuthorizeClient {
             decision: 'INDETERMINATE',
             reason: obligation === 'stepUp' ? 'STEP_UP_REQUIRED' : 'HITL_REQUIRED',
             obligation,
+            ...(elicitationAdvice ? { advice: elicitationAdvice } : {}),
             ...meta,
           };
         }

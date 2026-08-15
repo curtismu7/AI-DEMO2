@@ -378,6 +378,30 @@ async function runWsAuthorizationPipeline(
 }
 
 // ---------------------------------------------------------------------------
+// Elicitation store — session-scoped pending elicitation records.
+// A record is created when P1AZ returns an ELICITATION obligation (-32003).
+// It is consumed (deleted) on a valid re-call with _elicitation_confirmed:true.
+// ---------------------------------------------------------------------------
+
+interface PendingElicitation {
+  elicitation_id: string;
+  toolName: string;
+  sessionId: string;
+  prompt: string;
+  expiresAt: number;
+}
+
+const pendingElicitations = new Map<string, PendingElicitation>();
+
+// Sweep expired records every 60 seconds.
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, rec] of pendingElicitations) {
+    if (rec.expiresAt < now) pendingElicitations.delete(id);
+  }
+}, 60_000).unref();
+
+// ---------------------------------------------------------------------------
 // WebSocket server
 // ---------------------------------------------------------------------------
 
@@ -392,6 +416,7 @@ async function handleMessage(
   xIntentToken?: string,
   tierMaxAmountUsd?: string,
   tierRestrictedTools?: string,
+  mcpSessionId?: string,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -642,14 +667,19 @@ async function handleMessage(
     // Scope + ACR for the compliance report (Scenario 5).
     _audCtx.scope = decoded.scope;
     _audCtx.acr = decoded.acr;
-    // Phase 2 CR-01 — `_hitl_challenge_id` is a gateway-internal field that
-    // gates the retry. Strip it from toolArgs before forwarding to the
-    // downstream MCP server: the backend has no use for it and may reject
-    // unrecognized arguments under strict input-schema validation.
+    // Phase 2 CR-01 — gateway-internal fields gate retries and are stripped before
+    // forwarding to the downstream MCP server. Backend schemas use
+    // additionalProperties:false and would reject unknown fields.
     const rawToolArgs: Record<string, unknown> = msgParams?.arguments || {};
     const hitlChallengeId = rawToolArgs._hitl_challenge_id as string | undefined;
+    // Elicitation re-call markers — extracted for session-binding check and P1AZ
+    // parameter injection (via toolArgsForAuthz below), then stripped from toolArgs.
+    const elicitationConfirmed = rawToolArgs._elicitation_confirmed === true;
+    const elicitationId = rawToolArgs._elicitation_id as string | undefined;
     const toolArgs: Record<string, unknown> = { ...rawToolArgs };
     delete toolArgs._hitl_challenge_id;
+    delete toolArgs._elicitation_confirmed;
+    delete toolArgs._elicitation_id;
     if (msgParams) {
       msgParams.arguments = toolArgs;
     }
@@ -704,6 +734,23 @@ async function handleMessage(
     // and PingAuthorize so the policy can PERMIT when approval is already recorded.
     const hitlApproved = hitlChallengeId != null && verification?.ok === true;
 
+    // Elicitation re-call validation — if agent retries with _elicitation_confirmed:true,
+    // verify the stored record is valid for this session + tool before calling P1AZ.
+    // The pending record is consumed here (one-time use); ElicitationConfirmed:'true'
+    // is added to the P1AZ call via toolArgsForAuthz so the policy can permit the retry.
+    if (elicitationConfirmed) {
+      const sessionId = mcpSessionId ?? '';
+      const rec = elicitationId ? pendingElicitations.get(elicitationId) : undefined;
+      if (!rec || rec.toolName !== toolName || rec.sessionId !== sessionId || rec.expiresAt < Date.now()) {
+        send(jsonRpcError(id, -32003, 'elicitation_required', {
+          reason: 'invalid_or_expired',
+        }));
+        return;
+      }
+      pendingElicitations.delete(rec.elicitation_id);
+      // ElicitationConfirmed: 'true' is added to P1AZ via toolArgsForAuthz below.
+    }
+
     // WR-02: forward the same transaction params the HTTP path sends so an
     // amount-conditioned PingAuthorize policy fires identically on WS.
     // Intent token: parity with HTTP authorizeMcpRequest — validate X-Intent-Token
@@ -720,11 +767,18 @@ async function handleMessage(
     }
     // Vertical precedence (same as tools/list): token `vertical` claim wins, else header.
     const callVertical = (decoded as { vertical?: string }).vertical || activeVertical;
+    // toolArgsForAuthz: for confirmed elicitation re-calls, re-add _elicitation_confirmed
+    // so buildAuthorizeParameters sends ElicitationConfirmed:'true' to P1AZ. The field
+    // was stripped from toolArgs earlier (to pass backend schema validation) so we add
+    // it back in a separate object used ONLY for the P1AZ call, not for backend forwarding.
+    const toolArgsForAuthz: Record<string, unknown> = elicitationConfirmed
+      ? { ...toolArgs, _elicitation_confirmed: true }
+      : toolArgs;
     const authz = await guardToolCall(
       toolName,
       decoded,
       config,
-      toolArgs,
+      toolArgsForAuthz,
       xTratContext,
       hitlApproved,
       callVertical,
@@ -734,6 +788,31 @@ async function handleMessage(
       tierRestrictedTools,
     );
     if (!authz.permitted) {
+      // Elicitation obligation: P1AZ requires agent to confirm intent before proceeding.
+      // Branch on obligation === 'elicitation' (NOT reason) — reason is 'HITL_REQUIRED'
+      // for ALL non-stepUp obligations (pre-existing behaviour), so branching on reason
+      // here would misclassify an elicitation obligation as HITL.
+      if (authz.obligation === 'elicitation') {
+        const sessionId = mcpSessionId ?? '';
+        const prompt = authz.advice?.find(
+          (a: { id: string }) => a.id === 'elicitation-prompt',
+        )?.value ?? `Confirm ${toolName}?`;
+        const elicId = crypto.randomUUID();
+        pendingElicitations.set(elicId, {
+          elicitation_id: elicId,
+          toolName,
+          sessionId,
+          prompt,
+          expiresAt: Date.now() + 120_000,
+        });
+        send(jsonRpcError(id, -32003, 'elicitation_required', {
+          elicitation_id: elicId,
+          prompt,
+          tool_name: toolName,
+          expires_in: 120,
+        }));
+        return;
+      }
       if (authz.reason === 'HITL_REQUIRED') {
         // Anti-loop: if a receipt was verified OK but the policy still returned
         // INDETERMINATE, fail with a distinct error instead of re-issuing a
@@ -1093,6 +1172,11 @@ wss.on('connection', (ws, req) => {
   const rawIntentToken = req.headers['x-intent-token'];
   const wsIntentToken = (Array.isArray(rawIntentToken) ? rawIntentToken[0] : rawIntentToken || '').trim() || undefined;
 
+  // MCP-Session-Id: used as the session-binding key for pending elicitations.
+  // Captured at upgrade time and passed to handleMessage so re-call validation
+  // can verify the elicitation was issued for the same session.
+  const wsMcpSessionId = wsHdr('mcp-session-id');
+
   if (!token) {
     ws.close(4001, 'Bearer token required');
     return;
@@ -1106,7 +1190,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools, wsMcpSessionId).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));
