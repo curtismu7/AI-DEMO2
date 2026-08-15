@@ -73,4 +73,19 @@ describe('Path C — buildBankingDataToolResult', () => {
     expect(out.code).toBe(-32500);
     expect(out.message).toMatch(/Backend route unreachable/);
   });
+
+  // MCP spec (2025-06-18+) structured tool output: a CallToolResult SHOULD carry
+  // structuredContent alongside content[].text so a client can consume the data
+  // without JSON-parsing text — demo_api_server/services/attackSimulatorService.js:1600-1603
+  // already reads structuredContent defensively but nothing ever populated it.
+  test('carries structuredContent matching the backend payload, alongside content[].text', async () => {
+    const payload = { accounts: [{ id: 'chk-1', balance: 100 }] };
+    mockedAxios.get.mockResolvedValue({ status: 200, data: payload });
+    const out = await buildBankingDataToolResult('demo_show_accounts', 'tok', CONFIG);
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const result = out.result as { structuredContent: unknown; content: Array<{ text: string }> };
+    expect(result.structuredContent).toEqual(payload);
+    expect(JSON.parse(result.content[0].text)).toEqual(payload);
+  });
 });
