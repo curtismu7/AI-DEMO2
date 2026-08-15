@@ -5,7 +5,10 @@
  * Cards advertise JSON-RPC + PingOne Bearer (httpAuthSecurityScheme).
  */
 
-const { A2A_SPECIALISTS, specialistForVertical } = require('../config/a2aSpecialists');
+const {
+  specialistForVertical,
+  verticalsWithSpecialist,
+} = require('../config/a2aSpecialists');
 
 /** Public BFF origin used in Agent Card interface URLs. */
 function publicApiBase(cfg) {
@@ -121,7 +124,7 @@ function buildSpecialistAgentCard(vertical, cfg) {
 /** Agent cards for every registered specialist vertical. */
 function buildAllSpecialistAgentCards(cfg) {
   const out = {};
-  for (const vertical of Object.keys(A2A_SPECIALISTS)) {
+  for (const vertical of verticalsWithSpecialist()) {
     out[vertical] = buildSpecialistAgentCard(vertical, cfg);
   }
   return out;

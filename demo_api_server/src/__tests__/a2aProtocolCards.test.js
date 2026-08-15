@@ -4,12 +4,18 @@
  * Unit tests for A2A Agent Cards + PingOne bearer middleware.
  */
 
+const express = require('express');
+const request = require('supertest');
 const {
   buildSpecialistAgentCard,
   buildAllSpecialistAgentCards,
   specialistRpcUrl,
 } = require('../../services/a2aAgentCardService');
-const { A2A_SPECIALISTS } = require('../../config/a2aSpecialists');
+const {
+  specialistForVertical,
+  verticalsWithSpecialist,
+} = require('../../config/a2aSpecialists');
+const { createA2aProtocolRouter } = require('../../services/a2aProtocolServer');
 const { requireA2aPingOneBearer } = require('../../middleware/a2aPingOneBearer');
 
 function fakeJwt(payload) {
@@ -20,9 +26,9 @@ function fakeJwt(payload) {
 describe('a2aAgentCardService', () => {
   test('builds a card for every specialist vertical', () => {
     const cards = buildAllSpecialistAgentCards({ getEffective: () => '' });
-    expect(Object.keys(cards).sort()).toEqual(Object.keys(A2A_SPECIALISTS).sort());
+    expect(Object.keys(cards).sort()).toEqual(verticalsWithSpecialist().sort());
     for (const [vertical, card] of Object.entries(cards)) {
-      expect(card.name).toBe(A2A_SPECIALISTS[vertical].specialistName);
+      expect(card.name).toBe(specialistForVertical(vertical).specialistName);
       expect(card.supportedInterfaces[0].protocolBinding).toBe('JSONRPC');
       expect(card.supportedInterfaces[0].protocolVersion).toBe('1.0');
       expect(card.securitySchemes.pingoneBearer).toBeTruthy();
@@ -39,6 +45,43 @@ describe('a2aAgentCardService', () => {
 
   test('unknown vertical returns null', () => {
     expect(buildSpecialistAgentCard('nope')).toBeNull();
+  });
+
+  test('routes A&F SendMessage through its aliased specialist handler', async () => {
+    const cfg = {
+      getEffective: (key) =>
+        key === 'ff_a2a_delegation' ? true : 'https://api.ping.demo:3001',
+    };
+    const app = express();
+    app.use(createA2aProtocolRouter({ configStore: cfg }));
+
+    const res = await request(app)
+      .post('/abercrombie-fitch')
+      .set('Authorization', `Bearer ${fakeJwt({ client_id: 'generalist-agent' })}`)
+      .set('A2A-Version', '1.0')
+      .send({
+        jsonrpc: '2.0',
+        id: 'anf-send-message',
+        method: 'SendMessage',
+        params: {
+          message: {
+            messageId: 'anf-message-1',
+            role: 'ROLE_USER',
+            parts: [{ text: 'Retrieve my A&F purchase history' }],
+          },
+        },
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.error).toBeUndefined();
+    expect(res.body.result.message.parts[0].text).toContain(
+      specialistForVertical('abercrombie-fitch').specialistName,
+    );
+    expect(res.body.result.message.metadata).toMatchObject({
+      vertical: 'abercrombie-fitch',
+      specialistAppKey: specialistForVertical('abercrombie-fitch').appKey,
+      demoLayer: 'a2a-protocol-wire',
+    });
   });
 
   test('ff_verified_trust_a2a off (or no cfg): only pingoneBearer is advertised', () => {
