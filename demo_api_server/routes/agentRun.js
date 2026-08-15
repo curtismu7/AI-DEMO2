@@ -25,6 +25,7 @@ const configStore = require('../services/configStore');
 const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 const { agentRunStore } = require('../services/agentRunStore');
+const reportStore = require('../services/lmdb/reportStore.lmdb');
 const verticalDispatch = require('../services/verticalDispatch');
 const { agentGuestSessionMiddleware } = require('../middleware/agentSessionMiddleware');
 const { mintIntentToken } = require('../services/intentTokenService');
@@ -652,6 +653,13 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
       res.write(chunk);
     });
     agentRes.on('end', () => {
+      _archiveRunToReportStore(
+        runId,
+        userId,
+        typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : '',
+        verticalManifest.resolver.activeIdFor(req) || 'banking',
+        initialTokenEvents,
+      );
       _cleanupHitlConsentSubscription(runId).finally(() => res.end());
     });
     agentRes.on('error', (err) => {
@@ -728,6 +736,44 @@ function _summarizeRun(runId, entry) {
   };
 }
 
+// Archive a completed run into reportStore (LMDB, durable, per-user) so it
+// shows up in the same history list as runs from /api/agent/invoke and
+// /api/demo-agent/nl — those already write there. _traceStore stays the
+// source of truth for this run's rich raw-AG-UI-event replay via
+// /runs/:runId/events; this is a lighter, durable summary alongside it.
+// Guest runs (no userId) are not archived — reportStore is keyed per user.
+function _archiveRunToReportStore(runId, userId, prompt, vertical, tokenEvents) {
+  if (!userId) return;
+  const entry = _traceStore.get(runId);
+  if (!entry) return;
+  const { status } = _summarizeRun(runId, entry);
+  const toolsCalled = [];
+  for (const evt of entry.events) {
+    if (evt && evt.type === 'TOOL_CALL_START') {
+      const name = evt.toolCallName || evt.toolName;
+      if (name) toolsCalled.push(name);
+    }
+  }
+  try {
+    reportStore.saveRun({
+      runId,
+      userId,
+      vertical,
+      prompt,
+      startedAt: new Date(entry.startedAt).toISOString(),
+      completedAt: new Date().toISOString(),
+      toolsCalled,
+      tokenEvents: tokenEvents || [],
+      tokenCount: (tokenEvents || []).length,
+      agentPath: 'agui',
+      success: status !== 'failed',
+      files: [],
+    });
+  } catch (err) {
+    console.warn('[agentRun] failed to archive run to reportStore:', err.message);
+  }
+}
+
 // GET /runs — list past runs' summaries (newest first) for the history view.
 // Same ownership rule as /runs/:runId/events: an owner-tagged run is visible
 // only to that owner; an ownerless run (pre-existing/legacy) is visible to any
@@ -769,4 +815,6 @@ module.exports.__test = {
   _recordTraceEvents,
   _ensureHitlConsentSubscription,
   _cleanupHitlConsentSubscription,
+  _archiveRunToReportStore,
+  _traceStore,
 };
