@@ -236,6 +236,70 @@ Previously logged as "found but not in top 5" (see full detail in the pass 2 / p
 
 ---
 
+## Pass 4 — 2026-08-15 (UI-focused)
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 24 | High | 🔴 Open | atob() crashes on base64url JWT payloads in Token Exchange Inspector modal | `demo_api_ui/src/components/TokenInspectModal.jsx:5-14` |
+| 25 | High | 🔴 Open | Same atob() crash — decoded-token section silently vanishes in Learning Hub | `demo_api_ui/src/components/education/TokenExchangePanel.js:251` |
+| 26 | High | 🔴 Open | `useNewItems` stops detecting new items after any array reset (e.g. new agent run) | `demo_api_ui/src/hooks/useNewItems.js:14-26` |
+| 27 | Medium | 🔴 Open | `useAgentCCTokenPrefetch` re-fetches every poll/SSE tick instead of once on mount | `demo_api_ui/src/hooks/useAgentCCTokenPrefetch.js:15,69` |
+| 28 | Medium | 🔴 Open | Dead `tokenData` state — decoded token discarded, wasted fetch/decode work, live landmine | `demo_api_ui/src/components/Dashboard.js:72,417-451` |
+
+### 24. atob() crashes on base64url JWT payloads — TokenInspectModal — High
+```js
+function decodeJwt(token) {
+  try {
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch (err) {
+    return null;   // swallowed, not even logged
+  }
+}
+```
+Same root cause as bug #15 (fixed in `tokenInspector.js`) — `atob()` needs standard base64, JWTs use base64url. Called live from `TokenExchangeInspector.jsx` (`decodeJwt(exchange.subjectToken)`/`resultToken`).
+**Trigger:** any exchanged token whose payload segment contains `-`/`_` throws, caught silently, modal renders `'(Unable to decode)'` with zero indication why — looks like a broken feature.
+**Fix:** same base64url-to-base64 conversion already applied in `tokenInspector.js`.
+
+### 25. Same atob() crash — TokenExchangePanel — High
+```js
+try { payload = JSON.parse(atob(parts[1])); } catch (_) {}
+```
+Feeds `live.userToken.payload` in the Learning Hub's "Live Session Token" tab, gated by `live.userToken?.payload &&`.
+**Trigger:** payload with base64url chars → `payload` stays `null` → the entire decoded-token block (including the `may_act` delegation sub-view) silently vanishes from the panel, no error, no fallback.
+**Fix:** same base64url conversion.
+
+### 26. `useNewItems` stops detecting new items after any array reset — High
+```js
+const prevLenRef = useRef(0);
+useEffect(() => {
+  const newCount = items.length - prevLenRef.current;
+  if (newCount <= 0) return;
+  prevLenRef.current = items.length;
+  onNew(items.slice(-newCount));
+}, [enabled, items]);
+```
+`prevLenRef` only advances on growth; never resets when the array is replaced by a shorter one. `demo_api_server/routes/agentRun.js` injects a fresh `STATE_SNAPSHOT` with empty `mcpTraffic`/`authorizeDecisions` arrays at the start of every new run, and `useAgentState.onStateSnapshot` does a full replace.
+**Trigger:** run 1 accumulates 5 mcpTraffic entries (`prevLenRef=5`). Run 2 resets the array to `[]` then grows to 3 by the time it finishes → `newCount = 3-5 = -2` every tick → `onNew` never fires. MCP Traffic panel, Authorize Decision panel, and activity narration silently stop updating for run 2 (or any later run whose peak stays below the prior run's peak) — looks like the agent made no tool calls even though it did.
+**Fix:** detect a shrink (`items.length < prevLenRef.current`) and treat it as a reset (`prevLenRef.current = 0`) before computing `newCount`, or compare array identity instead of length.
+
+### 27. `useAgentCCTokenPrefetch` re-fetches on every poll/SSE tick — Medium
+Effect depends on `[tokenChain]`, but `tokenChain` (from `TokenChainContext`'s `useMemo`) gets a new identity on nearly every provider state change (15s poll, SSE events, history writes). The duplicate-prevention check runs only after fetch completes, not before.
+**Trigger:** on any token-chain route, each poll/SSE tick re-renders the provider, giving `tokenChain` a new reference, re-running the effect and firing another `GET /api/tokens/agent-cc-preview` — indefinitely, contradicting the hook's own doc comment ("prefetch ... once on component mount").
+**Fix:** depend on a stable reference (e.g. `tokenChain?.setTokenEvents`) instead of the whole context object, matching the pattern already used in `useCurrentUserTokenEvent.js`.
+
+### 28. Dead `tokenData` state in Dashboard.js — Medium
+```js
+const [, setTokenData] = useState(null);   // value discarded!
+...
+setTokenData({ accessToken: decodeToken(response.data.accessToken), ... });
+```
+`tokenData` (the state value) is destructured away — only the setter kept — and never read anywhere else in the file. `fetchTokenData()` still does a real network round-trip and JWT decode on every dashboard mount and every token-modal open, thrown into the void; the modal actually shown fetches its own data independently.
+**Trigger:** no current visible break (output is discarded), but wasted API calls + decode work on every mount, and the same unconverted-base64url `atob` bug exists here too — currently harmless only because its output is discarded; becomes a live landmine the moment someone wires `tokenData` back into the render (e.g. "fixing" the unused-state lint warning).
+**Fix:** either delete the dead `fetchTokenData`/`decodeToken`/`setTokenData` plumbing, or wire `tokenData` into the modal it was clearly meant to feed.
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
