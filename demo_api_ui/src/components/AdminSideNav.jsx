@@ -555,7 +555,7 @@ export default function AdminSideNav({
           adminOnly: true,
         },
         {
-          label: "Agent Flow Inspector",
+          label: "Agent & Token Flow History",
           path: "/agent-flow-inspector",
           icon: "flw",
         },
