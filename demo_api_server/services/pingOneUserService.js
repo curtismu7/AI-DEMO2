@@ -360,6 +360,23 @@ class PingOneUserService {
   }
 
   /**
+   * Read mayAct custom attribute on user (top-level schema attribute).
+   * Returns null when unset.
+   */
+  async getMayActAttribute(userId) {
+    try {
+      const user = await this.makeRequest('GET', `/users/${userId}`);
+      return user?.mayAct ?? null;
+    } catch (error) {
+      logger.error(LOG_CATEGORIES.USER_MANAGEMENT, 'Failed to get mayAct attribute', {
+        userId,
+        error: error.message
+      });
+      throw new Error(`Failed to get mayAct attribute: ${error.message}`);
+    }
+  }
+
+  /**
    * Set mayAct custom attribute on user
    */
   async setMayActAttribute(userId, mayActConfig) {
@@ -381,6 +398,18 @@ class PingOneUserService {
       });
       throw new Error(`Failed to set mayAct attribute: ${error.message}`);
     }
+  }
+
+  /**
+   * Clear mayAct only when it still names this agent. Avoids wiping a newer
+   * agent's authorization during stale cleanup or mismatched revoke.
+   */
+  async clearMayActIfMatches(userId, agentId) {
+    if (!userId || !agentId) return false;
+    const current = await this.getMayActAttribute(userId);
+    if (current?.sub !== agentId) return false;
+    await this.setMayActAttribute(userId, null);
+    return true;
   }
 
   /**
