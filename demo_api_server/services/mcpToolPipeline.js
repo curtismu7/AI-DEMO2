@@ -1307,6 +1307,39 @@ async function runMcpToolPipeline(ctx) {
             return { kind: 'block', httpStatus: 428, tokenEvents, body: stepUpBody };
         }
 
+        // HTTP 428 Precondition Required: P1AZ ELICITATION obligation — the agent
+        // must confirm intent before the tool call proceeds. Distinct from HITL
+        // (no human at the dashboard, no challenge minted) and step-up (no MFA);
+        // checked first since mcpGatewayClient.js tags it with its own
+        // gatewayErrorCode, separate from 'hitl_required'.
+        if (err.gatewayErrorCode === 'elicitation_required') {
+            deps.emit({ phase: 'gateway_elicitation_required' });
+            const elicitationBody = {
+                error: 'elicitation_required',
+                isError: false,
+                tool,
+                message: err.rpcData?.prompt || 'This action requires your confirmation.',
+                // The agent retries by echoing this id back as `_elicitation_id`
+                // with `_elicitation_confirmed:true` — without it the confirmation
+                // modal has nothing to send and the confirmation can never be spent.
+                elicitationId: err.rpcData?.elicitationId || null,
+                prompt: err.rpcData?.prompt || null,
+                tokenEvents,
+                requestJson,
+            };
+            try {
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: { error: 'elicitation_required', message: elicitationBody.message },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 428, tokenEvents, body: elicitationBody };
+        }
+
         // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
         if (err.gatewayErrorCode === 'hitl_required') {
             deps.emit({ phase: 'gateway_hitl_required' });
