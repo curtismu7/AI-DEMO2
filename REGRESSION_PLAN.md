@@ -122,6 +122,31 @@ grouping commas). Display formatting may keep `toLocaleString`.
 
 **Verify:** `cd demo_api_ui && npm run test:unit -- src/components/__tests__/agentChrome.test.jsx && npm run build`
 
+### 2026-08-06 — Delegated-commerce mayAct wipe on failed consent / stale cleanup
+
+**Files changed:** `demo_api_server/services/pingOneUserService.js`,
+`demo_api_server/routes/delegatedCommerce.js`,
+`demo_api_server/services/delegatedCommerceService.js`,
+`demo_api_server/tests/delegatedCommerceRoutes.test.js`,
+`demo_api_server/tests/delegatedCommerceService.test.js`,
+`demo_api_server/tests/pingOneUserService.mayActClear.test.js`
+
+**What was broken:** Consent rollback always wrote `mayAct: null`, and admin
+cleanup/revoke cleared mayAct without checking its current owner. A failed
+second consent (or cleanup of an older registration) erased a still-valid
+authorization for another delegated agent, breaking later RFC 8693 exchanges.
+
+**What was fixed:** Consent captures pre-request mayAct and restores it on
+rollback. Cleanup and revoke clear mayAct only when it still names that
+registration's application id.
+
+**Do not break:** Successful consent still sets mayAct to the new agent;
+intentional revoke of the current agent still clears matching mayAct; OAuth
+login and the active-consent token-exchange path are unchanged.
+
+**Verify:**
+`cd demo_api_server && CI=true npx jest tests/delegatedCommerceRoutes.test.js tests/delegatedCommerceService.test.js tests/pingOneUserService.mayActClear.test.js --forceExit`
+
 ### 2026-08-15 — Agent restrictions gate trusted a raw client header instead of the verified `act` claim
 
 **Files changed:** `demo_api_server/middleware/agentRestrictionsGate.js`,

@@ -31,7 +31,9 @@ jest.mock('../services/delegationService', () => ({
 }));
 jest.mock('../services/pingOneUserService', () => ({
   initialize: jest.fn(),
+  getMayActAttribute: jest.fn(),
   setMayActAttribute: jest.fn(),
+  clearMayActIfMatches: jest.fn(),
 }));
 jest.mock('../services/lmdb/mcpAuditStore.lmdb', () => ({
   append: jest.fn(),
@@ -65,6 +67,8 @@ function makeApp() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  pingOneUserService.getMayActAttribute.mockResolvedValue(null);
+  pingOneUserService.clearMayActIfMatches.mockResolvedValue(true);
 });
 
 it('returns safe registration data without a client secret', async () => {
@@ -132,7 +136,9 @@ it('compensates mayAct and local state when consent cannot be persisted', async 
     status: 'claimed',
     expiresAt: Date.now() + 60000,
   };
+  const priorMayAct = { sub: 'agent-prior' };
   delegatedCommerceStore.get.mockReturnValue(registration);
+  pingOneUserService.getMayActAttribute.mockResolvedValue(priorMayAct);
   delegationStore.grantDelegation.mockReturnValue({ id: 'del-1' });
   delegatedCommerceService.updateConsent.mockImplementation(() => {
     throw new Error('LMDB unavailable');
@@ -143,7 +149,8 @@ it('compensates mayAct and local state when consent cannot be persisted', async 
     .send({ scopes: ['read'] });
 
   expect(response.status).toBe(502);
-  expect(pingOneUserService.setMayActAttribute).toHaveBeenLastCalledWith('user-1', null);
+  // Restore the pre-request mayAct — do not wipe a still-valid prior agent.
+  expect(pingOneUserService.setMayActAttribute).toHaveBeenLastCalledWith('user-1', priorMayAct);
   expect(delegatedCommerceStore.put).toHaveBeenCalledWith(registration);
 });
 
@@ -182,6 +189,7 @@ it('revokes mayAct and returns immutable audit evidence', async () => {
     .post('/api/delegated-commerce/revoke')
     .send({ reason: 'Customer request' });
   expect(response.status).toBe(200);
-  expect(pingOneUserService.setMayActAttribute).toHaveBeenCalledWith('user-1', null);
+  expect(pingOneUserService.clearMayActIfMatches).toHaveBeenCalledWith('user-1', 'agent-new');
+  expect(pingOneUserService.setMayActAttribute).not.toHaveBeenCalledWith('user-1', null);
   expect(response.body.auditId).toMatch(/^delegated-revoke-/);
 });
