@@ -56,6 +56,7 @@ import jwt from 'jsonwebtoken';
 import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
+import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 
 // Security guard: SKIP_TOKEN_SIGNATURE_VALIDATION downgrades JWT signature
 // verification to a warning (tokenValidator.ts) and must never run in production.
@@ -193,6 +194,14 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     });
     req.on('end', () => {
       if (tooLarge) return;
+      // MCP Streamable HTTP transport: the server MAY assign a session id on
+      // initialize. Read once `body` is fully accumulated (not `s`, the
+      // outbound body) so it's known before the response is written.
+      let sessionIdForInitialize: string | undefined;
+      try {
+        if (JSON.parse(body).method === 'initialize') sessionIdForInitialize = crypto.randomUUID();
+      } catch { /* malformed body — handleMessage below reports the parse error */ }
+
       let replied = false;
       const send = (s: string): void => {
         if (replied) return;
@@ -210,13 +219,15 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
           }
         } catch { /* ok — malformed body goes through as 200 */ }
+        const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
         if (isInsufficientScope) {
           res.writeHead(403, {
             'Content-Type': 'application/json',
             'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
+            ...sessionHeader,
           });
         } else {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
         }
         res.end(s);
       };
@@ -301,6 +312,11 @@ async function handleMessage(
   rawMsg: string,
   token: string,
   send: (s: string) => void,
+  // MCP spec: logging capability. On WS this is one box per connection; on
+  // HTTP (stateless, one request per handleMessage call) a fresh empty box
+  // is passed each time, so logging/setLevel has no effect beyond that
+  // single call — an honest limitation of a one-shot transport, not a bug.
+  loggingState: LoggingState = {},
 ): Promise<void> {
   let msg: any;
   try { msg = JSON.parse(rawMsg); } catch { send(rpcError(null, -32700, 'Parse error')); return; }
@@ -313,6 +329,7 @@ async function handleMessage(
       capabilities: {
         tools: {},
         resources: { subscribe: false, listChanged: false },
+        logging: {},
       },
       serverInfo: { name: 'banking-mcp-resource-server', version: '1.0.0' },
     }));
@@ -320,6 +337,17 @@ async function handleMessage(
   }
 
   if (method === 'notifications/initialized') return;
+
+  if (method === 'logging/setLevel') {
+    const level = msg.params?.level;
+    if (!isValidLogLevel(level)) {
+      send(rpcError(id, -32602, 'Invalid params: level must be one of the RFC 5424 severities'));
+      return;
+    }
+    loggingState.level = level;
+    send(rpcResult(id, {}));
+    return;
+  }
 
   if (method === 'tools/list') {
     let decoded;
@@ -379,6 +407,7 @@ async function handleMessage(
       }));
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      emitLogMessage(send, loggingState, 'error', { tool: toolName, message: errMsg }, 'resource-server.dispatch');
       send(rpcResult(id, { content: [{ type: 'text', text: errMsg }], isError: true }));
     }
     return;
@@ -478,10 +507,13 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
+  // MCP spec: logging capability. One state box per WS connection.
+  const loggingState: LoggingState = {};
+
   ws.on('message', (raw) => {
     handleMessage(raw.toString(), token, (s) => {
       if (ws.readyState === WebSocket.OPEN) ws.send(s);
-    }).catch((err) => {
+    }, loggingState).catch((err) => {
       console.error('[mcp-resource-server] Handler error:', err);
       if (ws.readyState === WebSocket.OPEN) ws.send(rpcError(null, -32603, 'Internal error'));
     });

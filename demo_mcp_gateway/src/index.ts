@@ -52,6 +52,7 @@ import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from 
 import { GATEWAY_TOOLS } from './gatewayTools';
 import { recordToolsListBackendOutage, clearToolsListBackendOutage } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
+import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from './enterpriseMcpAuth';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
@@ -397,6 +398,10 @@ async function handleMessage(
   // MCP spec: notifications/cancelled. Connection-scoped registry (see
   // wss.on('connection')) of in-flight calls this connection can abort.
   inFlightCalls?: Map<string | number, AbortController>,
+  // MCP spec: logging capability. Connection-scoped — the client sets its
+  // desired minimum level once via logging/setLevel; every notifications/message
+  // this connection emits after that is gated against it (see mcpLogging.ts).
+  loggingState?: LoggingState,
 ): Promise<void> {
   let msg: JsonRpcRequest;
   try {
@@ -422,6 +427,20 @@ async function handleMessage(
   if (method === 'notifications/cancelled') {
     const requestId = (msg.params as { requestId?: string | number } | undefined)?.requestId;
     if (requestId !== undefined) inFlightCalls?.get(requestId)?.abort();
+    return;
+  }
+
+  // MCP spec: logging/setLevel — sets the minimum level this connection
+  // wants notifications/message for. No level set at all = no notifications,
+  // matching spec guidance that a client opts in explicitly.
+  if (method === 'logging/setLevel') {
+    const level = (msg.params as { level?: unknown } | undefined)?.level;
+    if (!isValidLogLevel(level)) {
+      send(jsonRpcError(id, -32602, `Invalid params: level must be one of the RFC 5424 severities`));
+      return;
+    }
+    if (loggingState) loggingState.level = level;
+    send(JSON.stringify({ jsonrpc: '2.0', id, result: {} }));
     return;
   }
 
@@ -963,6 +982,7 @@ async function handleMessage(
       if ((err as { code?: string })?.code === 'cancelled') return;
       const msg2 = err instanceof Error ? err.message : String(err);
       console.error(`[GW] Proxy error for ${toolName}:`, msg2);
+      if (loggingState) emitLogMessage(send, loggingState, 'error', { tool: toolName, message: msg2 }, 'gateway.proxy');
       send(jsonRpcError(id, -32500, 'Backend error'));
       return;
     } finally {
@@ -1039,7 +1059,7 @@ async function handleMessage(
       id,
       result: {
         protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, logging: {} },
         serverInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
       },
     }));
@@ -1136,6 +1156,10 @@ wss.on('connection', (ws, req) => {
   // no-op, per proxyJsonRpc's own settled guard).
   const inFlightCalls = new Map<string | number, AbortController>();
 
+  // MCP spec: logging capability. One state box per connection, mutated by
+  // the logging/setLevel handler in handleMessage.
+  const loggingState: LoggingState = {};
+
   // Active vertical for per-vertical tools/list filtering (spec §8). Sourced
   // server-to-server from the BFF on the WS upgrade — NOT user-controlled (the
   // SPA never opens this socket). Single value; trimmed.
@@ -1197,7 +1221,7 @@ wss.on('connection', (ws, req) => {
     runWithCorrelation(wsCid, () => {
       handleMessage(rawStr, token, (s) => {
         if (ws.readyState === WebSocket.OPEN) ws.send(s);
-      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools, wsMcpSessionId, inFlightCalls).catch((err) => {
+      }, activeVertical, bffActClientId, bffMayActSub, wsXTratContext, wsIntentToken, tierMaxAmountUsd, tierRestrictedTools, wsMcpSessionId, inFlightCalls, loggingState).catch((err) => {
         console.error('[GW] Unhandled message error:', err);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(jsonRpcError(null, -32603, 'Internal error'));

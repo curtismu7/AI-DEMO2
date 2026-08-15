@@ -125,4 +125,26 @@ describe('POST /mcp', () => {
     const r = await post('{not json', token('airlines:read'));
     expect(r.json.error.code).toBe(-32700);
   });
+
+  // MCP Streamable HTTP transport: the server MAY assign a session id on
+  // initialize; the gateway's own HTTP transport already does this
+  // (GatewayServer.ts). This server had no Mcp-Session-Id handling at all —
+  // flagged as a gap in the MCP spec-compliance audit.
+  it('assigns an Mcp-Session-Id header on the initialize response', async () => {
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token('airlines:read')}` },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    expect(res.headers.get('mcp-session-id')).toBeTruthy();
+  });
+
+  it('does not assign a session id on an ordinary tools/call response', async () => {
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token('airlines:read')}` },
+      body: JSON.stringify(callTool('get_airline_bookings')),
+    });
+    expect(res.headers.get('mcp-session-id')).toBeNull();
+  });
 });

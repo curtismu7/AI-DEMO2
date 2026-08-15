@@ -2,8 +2,8 @@
 import { validateMethodAndShape, validateToolArgs, ALLOWED_METHODS } from '../src/validation/mcpRequestValidation';
 
 describe('validateMethodAndShape', () => {
-  it('allows the five MCP methods', () => {
-    for (const m of ['initialize', 'notifications/initialized', 'tools/list', 'notifications/cancelled']) {
+  it('allows the six MCP methods', () => {
+    for (const m of ['initialize', 'notifications/initialized', 'tools/list', 'notifications/cancelled', 'logging/setLevel']) {
       expect(validateMethodAndShape(m, undefined)).toBeNull();
     }
     expect(validateMethodAndShape('tools/call', { name: 'get_my_accounts', arguments: {} })).toBeNull();
