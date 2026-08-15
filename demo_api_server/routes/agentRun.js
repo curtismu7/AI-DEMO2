@@ -92,14 +92,21 @@ async function _cleanupHitlConsentSubscription(runId) {
   } catch (_) { /* best-effort */ }
 }
 
-function _recordTraceEvents(runId, chunk, owner) {
+function _recordTraceEvents(runId, chunk, owner, framework) {
   const text = Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk);
   let entry = _traceStore.get(runId);
   let hitlSuspended = false;
   if (!entry) {
     // Bind the trace to the user who started the run so /runs/:runId/events
     // cannot be read by another authenticated user who guesses the runId.
-    entry = { events: [], expiresAt: Date.now() + _TRACE_TTL_MS, owner: owner || null };
+    entry = {
+      events: [],
+      startedAt: Date.now(),
+      lastEventAt: Date.now(),
+      expiresAt: Date.now() + _TRACE_TTL_MS,
+      owner: owner || null,
+      framework: framework || null,
+    };
     _traceStore.set(runId, entry);
     // Evict oldest entries if store exceeds cap
     if (_traceStore.size > _MAX_TRACE_ENTRIES) {
@@ -111,6 +118,7 @@ function _recordTraceEvents(runId, chunk, owner) {
       if (oldestKey) _traceStore.delete(oldestKey);
     }
   }
+  entry.lastEventAt = Date.now();
   for (const line of text.split('\n')) {
     if (!line.startsWith('data: ')) continue;
     try {
@@ -591,6 +599,7 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
   const { hostname: agentHost, port: agentPort } = resolveAgentTarget();
   const agentPath = '/run';
+  const agentFramework = configStore.getEffective('llm_framework') || 'langchain';
 
   const bodyStr = JSON.stringify(agentPayload);
 
@@ -634,7 +643,7 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     }
     // Pipe SSE stream verbatim to browser and record events for trace retrieval
     agentRes.on('data', (chunk) => {
-      const hitlSuspended = _recordTraceEvents(runId, chunk, userId);
+      const hitlSuspended = _recordTraceEvents(runId, chunk, userId, agentFramework);
       if (hitlSuspended) {
         _ensureHitlConsentSubscription(runId, res).catch((err) => {
           console.warn('[agentRun] HITL consent wiring failed:', err.message);
@@ -686,6 +695,52 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
   agentReq.write(bodyStr);
   agentReq.end();
+});
+
+const FRAMEWORK_LABELS = {
+  langchain:     'LangChain / LangGraph',
+  openai_agents: 'OpenAI Agents SDK',
+  mastra:        'Mastra',
+  pydantic_ai:   'Pydantic AI',
+};
+
+// Derive a list-friendly summary from a trace's raw AG-UI events — status,
+// thread id and framework label without the caller re-scanning events itself.
+function _summarizeRun(runId, entry) {
+  let status = 'in_progress';
+  let threadId = null;
+  for (const evt of entry.events) {
+    if (!threadId && evt && evt.threadId) threadId = evt.threadId;
+    if (evt && evt.type === 'RUN_ERROR') status = 'failed';
+    if (evt && evt.type === 'RUN_FINISHED' && status !== 'failed') {
+      status = evt.outcome?.type === 'interrupt' ? 'interrupted' : 'success';
+    }
+  }
+  return {
+    runId,
+    threadId,
+    startedAt: entry.startedAt,
+    lastEventAt: entry.lastEventAt,
+    status,
+    eventCount: entry.events.length,
+    framework: entry.framework || null,
+    frameworkLabel: FRAMEWORK_LABELS[entry.framework] || entry.framework || null,
+  };
+}
+
+// GET /runs — list past runs' summaries (newest first) for the history view.
+// Same ownership rule as /runs/:runId/events: an owner-tagged run is visible
+// only to that owner; an ownerless run (pre-existing/legacy) is visible to any
+// requester, matching that endpoint's `trace.owner && trace.owner !== requester`.
+router.get('/runs', (req, res) => {
+  const requester = req.agentContext?.userId;
+  const runs = [];
+  for (const [runId, entry] of _traceStore) {
+    if (entry.owner && entry.owner !== requester) continue;
+    runs.push(_summarizeRun(runId, entry));
+  }
+  runs.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  res.json({ runs, count: runs.length });
 });
 
 // GET /runs/:runId/events — retrieve AG-UI events recorded for a completed run.

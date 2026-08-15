@@ -13,8 +13,8 @@ import PingOneEventPanel from "../components/PingOneEventPanel";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
-import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
 import WebMcpPanel from "../components/WebMcpPanel";
+import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -109,9 +109,9 @@ export function AgentFlowInspectorRoute({ user }) {
   // Mounted under App.js catch-all which already supplies TopNav + main-content
   // (+ side nav). Do not nest another shell — a second .main-content also got
   // the sidebar width offset and left empty space on the right.
-  return (
-    <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
-  );
+  // History view — UnifiedTokenFlowInspector (live execution) stays reachable
+  // as a floating overlay via DevToolsRoute; this page reviews past runs.
+  return <AgentFlowHistoryPage />;
 }
 
 // Public — no session required. Wrapped in AppShell so the header and side nav
