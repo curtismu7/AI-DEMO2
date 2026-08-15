@@ -168,6 +168,31 @@ login and the active-consent token-exchange path are unchanged.
 **Verify:**
 `cd demo_api_server && CI=true npx jest tests/delegatedCommerceRoutes.test.js tests/delegatedCommerceService.test.js tests/pingOneUserService.mayActClear.test.js --forceExit`
 
+### 2026-08-05 — Claimed delegated agent blocked all MCP tools before consent
+
+**Files changed:** `demo_api_server/services/delegatedCommerceRuntime.js`,
+`demo_api_server/tests/delegatedCommerceRuntime.test.js`
+
+**What was broken:** After a customer claimed a delegated-commerce agent
+(status `claimed`) — or kept an orphaned `delegatedCommerceRegistrationId` in
+session — `resolveConsentContext` returned an insufficient consent object.
+`evaluateMcpFirstToolGate` then 403'd every MCP tool, even though
+`resolveAgentRuntime(..., { fallbackToDefault: true })` correctly fell back to
+the configured banking agent until consent.
+
+**What was fixed:** Consent enforcement applies only after the registration is
+bound and past claim/stage (`active` / `revoked` / expired-active). Claimed,
+staged, missing, and unbound registrations return `null` so the default agent
+keeps working. Revoked + expired-active remain insufficient for the demo's
+post-revoke denial proof.
+
+**Do not break:** Active read-only consent must still deny write tools. Revoked
+registrations must still fail closed for the guided revoke retry. Do not apply
+the consent gate whenever a session id is merely present.
+
+**Verify:**
+`cd demo_api_server && CI=true npx jest tests/delegatedCommerceRuntime.test.js --forceExit`
+
 ### 2026-08-15 — Agent restrictions gate trusted a raw client header instead of the verified `act` claim
 
 **Files changed:** `demo_api_server/middleware/agentRestrictionsGate.js`,
