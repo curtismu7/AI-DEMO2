@@ -174,6 +174,7 @@ import PublicRoutes, {
   MFATestPageRoute,
   OASDemoPageRoute,
   PrivilegeMcpLearningPageRoute,
+  AgentGatewayCapabilitiesPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
   PrivilegeDemoPageRoute,
@@ -662,7 +663,7 @@ function AppWithAuth() {
                 <Route
                   path="/agent-gateway-capabilities"
                   element={
-                    <Navigate to="/agent-gateway-inspector?subtab=capabilities" replace />
+                    <AgentGatewayCapabilitiesPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route

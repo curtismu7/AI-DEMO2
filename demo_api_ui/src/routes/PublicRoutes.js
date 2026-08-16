@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
+import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
@@ -112,6 +113,14 @@ export function PrivilegeMcpLearningPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeMcpLearningPage />
+    </AppShell>
+  );
+}
+
+export function AgentGatewayCapabilitiesPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AgentGatewayCapabilitiesPage />
     </AppShell>
   );
 }
