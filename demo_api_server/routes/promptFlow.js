@@ -22,9 +22,20 @@ function _resolveVertical(hops) {
   return null;
 }
 
-/** 'error' if any hop in the run reports status 'error', else 'ok'. */
+/**
+ * 'error' if any hop in the run reports status 'error', OR if any hop
+ * carries a P1AZ policy denial — an `authz.decision` hop reports
+ * `status: 'ok'` even for a DENY verdict (demo_authz_server/routes/decision.js
+ * _emitDecisionHop: status is always 'ok', the outcome lives in
+ * `decision.outcome`), so without this check a run denied by authorization
+ * would show as "ok" (green) in the run list. Folded into the existing
+ * 'error' value rather than a new 'denied' status so the two-value contract
+ * existing consumers (tests, UI) already assume stays intact.
+ */
 function _resolveStatus(hops) {
-  return hops.some((hop) => hop && hop.status === 'error') ? 'error' : 'ok';
+  const hasError = hops.some((hop) => hop && hop.status === 'error');
+  const hasDenial = hops.some((hop) => hop && hop.decision && hop.decision.outcome === 'deny');
+  return hasError || hasDenial ? 'error' : 'ok';
 }
 
 /**

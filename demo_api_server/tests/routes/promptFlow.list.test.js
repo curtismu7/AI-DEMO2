@@ -46,6 +46,41 @@ describe('GET /api/prompt-flow', () => {
     ]);
   });
 
+  test('marks a run "error" when a P1AZ hop is status "ok" but decision.outcome is "deny"', async () => {
+    ledger.listRecords.mockReturnValue([
+      { correlationId: 'c1', startedAt: 't1', endedAt: 't1', hopCount: 1, principal: 'u1' },
+    ]);
+    ledger.getRecord.mockReturnValue({
+      hops: [
+        { phase: 'authz.decision', status: 'ok', decision: { outcome: 'deny', by: 'mock' } },
+      ],
+    });
+
+    const res = await request(app()).get('/api/prompt-flow');
+
+    expect(res.status).toBe(200);
+    expect(res.body.runs).toEqual([
+      expect.objectContaining({ correlationId: 'c1', status: 'error' }),
+    ]);
+  });
+
+  test('a "permit" decision outcome does not flip an otherwise-ok run to error', async () => {
+    ledger.listRecords.mockReturnValue([
+      { correlationId: 'c1', startedAt: 't1', endedAt: 't1', hopCount: 1, principal: 'u1' },
+    ]);
+    ledger.getRecord.mockReturnValue({
+      hops: [
+        { phase: 'authz.decision', status: 'ok', decision: { outcome: 'permit', by: 'mock' } },
+      ],
+    });
+
+    const res = await request(app()).get('/api/prompt-flow');
+
+    expect(res.body.runs).toEqual([
+      expect.objectContaining({ correlationId: 'c1', status: 'ok' }),
+    ]);
+  });
+
   test('applies limit and offset for pagination', async () => {
     ledger.listRecords.mockReturnValue([
       { correlationId: 'c1', startedAt: 't1', endedAt: 't1', hopCount: 1, principal: null },

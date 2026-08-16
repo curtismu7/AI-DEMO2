@@ -1,5 +1,25 @@
 const dataStore = require('../data/store');
 const { emitHop } = require('../services/transactionHop');
+const configStore = require('../services/configStore');
+const { resolveActingIdentity } = require('./transactionTurn');
+const { redactValue } = require('../utils/logRedact');
+
+// Routes excluded from the backend.request ledger hop: high-frequency
+// polling endpoints that would otherwise flood the ledger's 500-record cap
+// with single-hop noise unrelated to any traced prompt flow. Mirrors
+// server.js's POLL_ROUTES (morgan access-log skip-list, server.js ~line 437)
+// — kept as a local copy since server.js doesn't export that set.
+// '/health' and '/static/*' never reach here at all (see the early return
+// below), so they don't need to be repeated in this list.
+const HOP_SKIP_ROUTES = new Set([
+  '/api/auth/oauth/user/status',
+  '/api/auth/oauth/status',
+  '/api/tokens/session-preview',
+  '/api/auth/session',
+  '/api/auth/ciba/status',
+  '/api/config/vertical',
+  '/api/admin/config',
+]);
 
 // Known sensitive field names (case-insensitive) redacted from requestBody
 // before it's persisted — mirrors the Authorization header redaction below.
@@ -45,6 +65,9 @@ const logActivity = (req, res, next) => {
     let userId = null;
     let username = null;
     let action = 'UNKNOWN';
+    // Hoisted so the hop-emission block below (its own try/catch) can reuse
+    // the already-computed entry instead of re-deriving the same fields.
+    let logEntry = null;
 
     try {
       // For login requests, extract user info from response
@@ -127,7 +150,7 @@ const logActivity = (req, res, next) => {
       const authHeader = req.get('Authorization');
       
       // Create activity log entry
-      const logEntry = {
+      logEntry = {
         userId,
         username,
         action,
@@ -142,37 +165,6 @@ const logActivity = (req, res, next) => {
         timestamp: new Date()
       };
 
-      // Also chain this request into the shared transaction ledger as a
-      // 'backend.request' hop — but only when the request arrived carrying an
-      // upstream correlation id (agent/gateway/P1AZ already tagged it), not
-      // for ordinary UI-direct calls where middleware/correlationId.js had to
-      // mint a fresh id locally. Every BFF request gets *some* correlationId,
-      // so gating on presence alone would write a ledger record for every
-      // GET/POST the API serves and flood the 500-record cap
-      // (services/lmdb/transactionLedger.lmdb.js MAX_TRANSACTIONS) with
-      // single-hop noise unrelated to any traced prompt flow.
-      const hadInboundCorrelationId = Boolean(
-        req.headers['x-request-id'] || req.headers['x-correlation-id']
-      );
-      if (hadInboundCorrelationId) {
-        emitHop({
-          phase: 'backend.request',
-          op: logEntry.endpoint,
-          identity: { sub: userId ? String(userId) : null },
-          durationMs: duration,
-          status: res.statusCode >= 400 ? 'error' : 'ok',
-          details: {
-            username: logEntry.username,
-            action: logEntry.action,
-            ipAddress: logEntry.ipAddress,
-            userAgent: logEntry.userAgent,
-            authorization: logEntry.authorization,
-            requestBody: logEntry.requestBody,
-            responseStatus: logEntry.responseStatus,
-          },
-        });
-      }
-
       // Store the activity log (async, but don't wait for it)
       dataStore.createActivityLog(logEntry).catch(error => {
         console.error('Error creating activity log:', error);
@@ -180,6 +172,56 @@ const logActivity = (req, res, next) => {
 
     } catch (error) {
       console.error('Error logging activity:', error);
+    }
+
+    // Also chain this request into the shared transaction ledger as a
+    // 'backend.request' hop. Emitted for every request (a correlationId is
+    // minted for all of them — middleware/correlationId.js), except on
+    // HOP_SKIP_ROUTES (polling noise) or when ff_transaction_ledger is off.
+    // Isolated in its own try/catch, entirely independent of the activity
+    // log write above: a failure in either block must never suppress the
+    // other (activity logging vs. ledger hop are two unrelated concerns).
+    try {
+      if (
+        logEntry &&
+        configStore.getEffective('ff_transaction_ledger') !== 'false' &&
+        !HOP_SKIP_ROUTES.has(req.path)
+      ) {
+        // op strips the query string — logEntry.endpoint is `${method}
+        // ${req.originalUrl}` which includes it, and query params can carry
+        // sensitive values (tokens, ids) that don't belong in the ledger.
+        const opPath = logEntry.endpoint.split('?')[0];
+
+        emitHop({
+          phase: 'backend.request',
+          op: opPath,
+          // Uses the same identity space every other BFF ledger write uses
+          // (middleware/transactionTurn.js resolveActingIdentity), not
+          // req.user.id — appendHop pins the record's principal to the
+          // first non-null identity.sub it sees, so stamping the wrong
+          // identity space here would make the record invisible to its
+          // owner (routes/transactionTrace.js _isOwnRecord).
+          identity: { sub: resolveActingIdentity(req) },
+          durationMs: logEntry.duration,
+          status: res.statusCode >= 400 ? 'error' : 'ok',
+          details: {
+            username: logEntry.username,
+            action: logEntry.action,
+            ipAddress: logEntry.ipAddress,
+            userAgent: logEntry.userAgent,
+            authorization: logEntry.authorization,
+            // Run this repo's general secret redaction on top of the
+            // field-name-allowlist redaction already applied to
+            // logEntry.requestBody, to catch anything the allowlist misses
+            // (e.g. JWTs embedded in a value, other secret-shaped keys)
+            // before it's persisted into the ledger.
+            requestBody: redactValue(logEntry.requestBody),
+            responseStatus: logEntry.responseStatus,
+          },
+        });
+      }
+    } catch (hopError) {
+      console.warn('[activityLogger] hop emission failed:', hopError?.message);
     }
 
     // Call original send method
