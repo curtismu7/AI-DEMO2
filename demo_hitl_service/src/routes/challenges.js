@@ -104,6 +104,10 @@ router.get('/:id', requireSecret, (req, res) => {
 // A failed binding check is a 200 with `{ ok: false, message }`, not a 4xx: the
 // caller must be able to tell "receipt rejected" (re-challenge / deny) from
 // "HITL service unreachable" (fail closed with a 503 of its own).
+//
+// Single-use: a successful verify consumes the receipt (status -> 'consumed'),
+// so a replayed verify against the same human approval is rejected the same
+// way an unapproved one is (BUGS.md #35).
 router.post('/:id/verify', requireSecret, (req, res) => {
   const { userId, agentId, tool, amount, params } = req.body || {};
   const challenge = store.get(req.params.id);
@@ -112,6 +116,12 @@ router.post('/:id/verify', requireSecret, (req, res) => {
   }
 
   const result = verifyReceipt(challenge, { userId, agentId, tool, amount, params });
+  if (result.ok) {
+    // Single-use: consume the receipt on its first successful verify so a
+    // replayed verify against the same human approval cannot discharge a
+    // second transfer (BUGS.md #35).
+    store.consume(challenge.id);
+  }
   teachLog.info('hitl receipt verification', {
     challengeId: req.params.id,
     tool: tool || null,
