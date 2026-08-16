@@ -64,29 +64,37 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "gateway",
-        "action": "POST /api/auth/oauth/token",
-        "label": "POST /api/auth/oauth/token",
+        "action": "POST /api/demo/dpop/token",
+        "label": "POST /api/demo/dpop/token",
         "method": "POST",
-        "endpoint": "/api/auth/oauth/token",
+        "endpoint": "/api/demo/dpop/token",
         "step": 1,
         "title": null,
-        "description": "Request an access token with DPoP proof. Client sends a DPoP proof header to bind the token to a specific key pair.",
-        "body": null,
-        "expected": {}
+        "description": "Request an access token with a DPoP proof. Client sends a DPoP proof to bind the token to a specific key pair.",
+        "body": {
+          "dpop_proof": "demo-dpop-proof-9f8a7b6c5d4e3f2a"
+        },
+        "expected": {},
+        "responseMap": {
+          "access_token": "access_token"
+        }
       },
       {
         "id": "step-2",
         "actor": "gateway",
         "fromActor": "gateway",
         "toActor": "client-app",
-        "action": "POST /api/auth/gateway/verify-dpop",
-        "label": "POST /api/auth/gateway/verify-dpop",
+        "action": "POST /api/demo/dpop/verify-dpop",
+        "label": "POST /api/demo/dpop/verify-dpop",
         "method": "POST",
-        "endpoint": "/api/auth/gateway/verify-dpop",
+        "endpoint": "/api/demo/dpop/verify-dpop",
         "step": 2,
         "title": null,
         "description": "Verify DPoP proof on gateway. Gateway validates that the DPoP proof is valid and matches the token being used.",
-        "body": null,
+        "body": {
+          "access_token": ":access_token",
+          "dpop_proof": "demo-dpop-proof-9f8a7b6c5d4e3f2a"
+        },
         "expected": {}
       }
     ],
@@ -95,7 +103,7 @@
       "url": "https://datatracker.ietf.org/doc/html/rfc9449",
       "label": "RFC 9449",
       "title": "DPoP",
-      "why": "Request an access token with DPoP proof. Client sends a DPoP proof header to bind the token to a specific key pair."
+      "why": "Request an access token with a DPoP proof. Client sends a DPoP proof to bind the token to a specific key pair."
     }
   },
   "rar": {
@@ -135,54 +143,6 @@
       "why": "Execute a transfer whose intent is declared via RAR authorization_details (RFC 9396) — PingOne Authorize evaluates the requested amount against the agent's declared $100 intent cap and returns PERMIT or DENY."
     }
   },
-  "rfc8693-token-exchange": {
-    "id": "rfc8693-token-exchange",
-    "name": "RFC 8693 Token Exchange",
-    "description": "Protocol flow: rfc8693-token-exchange",
-    "actors": [
-      "client-app",
-      "token-exchanger"
-    ],
-    "steps": [
-      {
-        "id": "step-1",
-        "actor": "client-app",
-        "fromActor": "client-app",
-        "toActor": "token-exchanger",
-        "action": "POST /api/oauth/token/token",
-        "label": "POST /api/oauth/token/token",
-        "method": "POST",
-        "endpoint": "/api/oauth/token/token",
-        "step": 1,
-        "title": null,
-        "description": "Exchange delegated token via RFC 8693 token exchange. Client sends a subject token (typically an ID token) and requests an access token.",
-        "body": null,
-        "expected": {}
-      },
-      {
-        "id": "step-2",
-        "actor": "token-exchanger",
-        "fromActor": "token-exchanger",
-        "toActor": "client-app",
-        "action": "POST /api/oauth/token/introspect",
-        "label": "POST /api/oauth/token/introspect",
-        "method": "POST",
-        "endpoint": "/api/oauth/token/introspect",
-        "step": 2,
-        "title": null,
-        "description": "Validate and introspect delegated token via RFC 8693. Token exchanger verifies the subject token and returns token details.",
-        "body": null,
-        "expected": {}
-      }
-    ],
-    "branches": [],
-    "spec": {
-      "url": "https://datatracker.ietf.org/doc/html/rfc8693",
-      "label": "RFC 8693",
-      "title": "RFC 8693 Token Exchange",
-      "why": "Exchange delegated token via RFC 8693 token exchange. Client sends a subject token (typically an ID token) and requests an access token."
-    }
-  },
   "par": {
     "id": "par",
     "name": "PAR",
@@ -197,29 +157,39 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "auth-server",
-        "action": "POST /api/auth/par",
-        "label": "POST /api/auth/par",
+        "action": "POST /api/demo/par/par",
+        "label": "POST /api/demo/par/par",
         "method": "POST",
-        "endpoint": "/api/auth/par",
+        "endpoint": "/api/demo/par/par",
         "step": 1,
         "title": null,
         "description": "Push an authorization request for later retrieval. Client sends authorization parameters and receives a request_uri for later use.",
-        "body": null,
-        "expected": {}
+        "body": {
+          "client_id": "demo-par-client",
+          "redirect_uri": "https://ai-demo.ping-devops.com/callback",
+          "scope": "openid profile"
+        },
+        "expected": {},
+        "responseMap": {
+          "requestUri": "request_uri"
+        }
       },
       {
         "id": "step-2",
         "actor": "auth-server",
         "fromActor": "auth-server",
         "toActor": "client-app",
-        "action": "GET /api/auth/authorize",
-        "label": "GET /api/auth/authorize",
-        "method": "GET",
-        "endpoint": "/api/auth/authorize",
+        "action": "POST /api/demo/par/authorize",
+        "label": "POST /api/demo/par/authorize",
+        "method": "POST",
+        "endpoint": "/api/demo/par/authorize",
         "step": 2,
         "title": null,
-        "description": "Authorize a pushed authorization request. Authorization server processes the request_uri and issues authorization code.",
-        "body": null,
+        "description": "Authorize a pushed authorization request. Authorization server processes the request_uri and issues an authorization code.",
+        "body": {
+          "request_uri": ":requestUri",
+          "client_id": "demo-par-client"
+        },
         "expected": {}
       }
     ],
@@ -331,6 +301,65 @@
       "label": "RFC 8414",
       "title": "Resource Metadata",
       "why": "Client discovers this API's protected-resource metadata — which authorization server issues its tokens and which scopes it accepts."
+    }
+  },
+  "rfc8693-token-exchange": {
+    "id": "rfc8693-token-exchange",
+    "name": "RFC 8693 Token Exchange",
+    "description": "Protocol flow: rfc8693-token-exchange",
+    "actors": [
+      "client-app",
+      "token-exchanger"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "token-exchanger",
+        "action": "POST /api/demo/rfc8693/token",
+        "label": "POST /api/demo/rfc8693/token",
+        "method": "POST",
+        "endpoint": "/api/demo/rfc8693/token",
+        "step": 1,
+        "title": null,
+        "description": "Exchange delegated token via RFC 8693 token exchange. Client sends a subject token (typically an ID token) and requests an access token.",
+        "body": {
+          "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+          "subject_token": "demo-subject-id-token",
+          "subject_token_type": "urn:ietf:params:oauth:token-type:id_token",
+          "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
+          "audience": "demo-resource-server"
+        },
+        "expected": {},
+        "responseMap": {
+          "access_token": "access_token"
+        }
+      },
+      {
+        "id": "step-2",
+        "actor": "token-exchanger",
+        "fromActor": "token-exchanger",
+        "toActor": "client-app",
+        "action": "POST /api/demo/rfc8693/introspect",
+        "label": "POST /api/demo/rfc8693/introspect",
+        "method": "POST",
+        "endpoint": "/api/demo/rfc8693/introspect",
+        "step": 2,
+        "title": null,
+        "description": "Validate and introspect the delegated token via RFC 8693. Token exchanger verifies the subject token and returns token details.",
+        "body": {
+          "token": ":access_token"
+        },
+        "expected": {}
+      }
+    ],
+    "branches": [],
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc8693",
+      "label": "RFC 8693",
+      "title": "RFC 8693 Token Exchange",
+      "why": "Exchange delegated token via RFC 8693 token exchange. Client sends a subject token (typically an ID token) and requests an access token."
     }
   },
   "spiffe": {
