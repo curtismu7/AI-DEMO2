@@ -67,6 +67,13 @@ const GATEWAY_SCOPES = [
   'ai_agent',
 ];
 
+// HTTP request-body cap. The WS transport is hardened with maxPayload
+// (MCP_WS_MAX_PAYLOAD_BYTES, 1 MB default) precisely because a huge JSON-RPC
+// frame can hang Node parsing it; readBody had no equivalent, so an
+// authenticated caller could stream an arbitrarily large body into memory on
+// POST /mcp or POST /admin/config. Bodies over this size are rejected 413.
+const HTTP_MAX_BODY_BYTES = Number(process.env.HTTP_MAX_BODY_BYTES ?? 1024 * 1024); // 1 MB default
+
 /**
  * Middleware hook — injected by Plan 243-02 to add PingOne Authorize + exchange.
  * Defaults to a no-op that falls through to basic forwarding.
@@ -148,8 +155,14 @@ export class GatewayServer {
   private readonly upstreamHttpsAgent: https.Agent | undefined;
   // HTTP transport has no persistent connection (unlike WS), so cancellation
   // needs a registry keyed by request id — notifications/cancelled arrives as
-  // a separate POST while the original call is still in flight.
-  private readonly inFlightCalls = new Map<string | number, AbortController>();
+  // a separate POST while the original call is still in flight. The key is
+  // scoped per authenticated caller (`${callerScope}:${id}`), NOT the bare
+  // JSON-RPC id: ids are per-client small ints (1, 2, ...), so a bare-id map
+  // shared across every HTTP caller in this process lets one caller's
+  // notifications/cancelled {requestId:1} abort a DIFFERENT caller's in-flight
+  // id 1 (cross-caller cancellation / DoS). The WS transport avoids this by
+  // giving each connection its own inFlightCalls map (index.ts).
+  private readonly inFlightCalls = new Map<string, AbortController>();
 
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
     this.config = config;
@@ -262,7 +275,12 @@ export class GatewayServer {
       let adminBody: Buffer;
       try {
         adminBody = await this.readBody(req);
-      } catch {
+      } catch (err) {
+        if ((err as { statusCode?: number } | undefined)?.statusCode === 413) {
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'payload_too_large', message: `Request body exceeds ${HTTP_MAX_BODY_BYTES} bytes` }));
+          return;
+        }
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'bad_request', message: 'Could not read request body' }));
         return;
@@ -619,11 +637,21 @@ export class GatewayServer {
     let body: Buffer;
     try {
       body = await this.readBody(req);
-    } catch {
+    } catch (err) {
+      if ((err as { statusCode?: number } | undefined)?.statusCode === 413) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'payload_too_large', message: `Request body exceeds ${HTTP_MAX_BODY_BYTES} bytes` }));
+        return;
+      }
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'bad_request', message: 'Could not read request body' }));
       return;
     }
+
+    // Scope the in-flight cancellation registry to THIS caller so a
+    // notifications/cancelled from one caller cannot abort another caller's
+    // call sharing the same JSON-RPC id (see inFlightCalls declaration).
+    const callerScope = this.callerScope(bearerToken);
 
     // McpValidationFilter equivalent: JSON-RPC 2.0 format validation
     const jsonRpcError = this.validateJsonRpc(body);
@@ -717,8 +745,9 @@ export class GatewayServer {
       const cancelParams = parsedRpc.params as { requestId?: string | number } | undefined;
       const targetId = cancelParams?.requestId;
       if (targetId !== undefined) {
-        this.inFlightCalls.get(targetId)?.abort();
-        this.inFlightCalls.delete(targetId);
+        const key = this.callKey(callerScope, targetId);
+        this.inFlightCalls.get(key)?.abort();
+        this.inFlightCalls.delete(key);
       }
       res.writeHead(202, { 'Content-Type': 'application/json' });
       res.end();
@@ -749,7 +778,7 @@ export class GatewayServer {
         req,
         res,
         async (upstreamToken, upstreamBody) => {
-          await this.forwardToUpstream(req, res, upstreamToken, upstreamBody);
+          await this.forwardToUpstream(req, res, upstreamToken, upstreamBody, callerScope);
         },
       );
     });
@@ -777,6 +806,7 @@ export class GatewayServer {
     res: ServerResponse,
     upstreamToken: string,
     body: Buffer,
+    callerScope: string,
   ): Promise<void> {
     const timeoutMs = parseInt(process.env.GW_UPSTREAM_TIMEOUT_MS || '30000', 10);
 
@@ -807,7 +837,8 @@ export class GatewayServer {
       const requestId = jsonRpc.id as string | number | undefined;
 
       const controller = new AbortController();
-      if (requestId !== undefined) this.inFlightCalls.set(requestId, controller);
+      const callKey = requestId !== undefined ? this.callKey(callerScope, requestId) : undefined;
+      if (callKey !== undefined) this.inFlightCalls.set(callKey, controller);
 
       if (useSse) {
         res.writeHead(200, {
@@ -850,7 +881,7 @@ export class GatewayServer {
           res.end(errBody);
         }
       } finally {
-        if (requestId !== undefined) this.inFlightCalls.delete(requestId);
+        if (callKey !== undefined) this.inFlightCalls.delete(callKey);
       }
       return;
     }
@@ -1032,12 +1063,42 @@ export class GatewayServer {
     return null;
   }
 
+  // Per-caller scope for the in-flight cancellation registry. Derived from the
+  // inbound bearer token (hashed, not stored raw) so a cancel only affects a
+  // call registered under the SAME caller's token — different callers get
+  // different scopes even when they reuse the same JSON-RPC id. Works under
+  // devBypass too, where the token isn't a verifiable JWT.
+  private callerScope(bearerToken: string): string {
+    return crypto.createHash('sha256').update(bearerToken).digest('hex').slice(0, 16);
+  }
+
+  private callKey(callerScope: string, id: string | number): string {
+    return `${callerScope}:${id}`;
+  }
+
+  // Reads the request body with a hard size cap (HTTP_MAX_BODY_BYTES). Once the
+  // accumulated length crosses the limit it stops buffering (further chunks are
+  // discarded, so memory stays bounded) and rejects with a 413 marker so the
+  // caller can answer 413 Payload Too Large. The socket is deliberately NOT
+  // destroyed here — that would race the 413 response and surface as a socket
+  // hang up; draining and ignoring the rest lets the response flush cleanly.
   private readBody(req: IncomingMessage): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
-      req.on('data', (chunk: Buffer) => chunks.push(chunk));
-      req.on('end', () => resolve(Buffer.concat(chunks)));
-      req.on('error', reject);
+      let total = 0;
+      let aborted = false;
+      req.on('data', (chunk: Buffer) => {
+        if (aborted) return;
+        total += chunk.length;
+        if (total > HTTP_MAX_BODY_BYTES) {
+          aborted = true;
+          reject(Object.assign(new Error('payload_too_large'), { statusCode: 413 }));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      req.on('end', () => { if (!aborted) resolve(Buffer.concat(chunks)); });
+      req.on('error', (err) => { if (!aborted) reject(err); });
     });
   }
 
