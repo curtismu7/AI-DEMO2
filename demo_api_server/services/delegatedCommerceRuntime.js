@@ -5,6 +5,27 @@ const scopeTopology = require('./scopeTopology');
 
 const credentialVault = new Map();
 
+// Reduce a namespaced tool-required scope (e.g. 'sensitive:read',
+// 'airlines:write', 'transfer', 'read') to the customer-consent class it
+// demands. The customer's consent vocabulary is ONLY 'read' | 'write' (see
+// routes/delegatedCommerce.js ALLOWED_SCOPES), so every namespaced required
+// scope must be classified into one of those before comparing against consent.
+// Any *:write, bare 'write', 'transfer' (money movement), or 'sensitive:*'
+// (sensitive-data access) demands the 'write' class — the highest grantable
+// tier — so read-only consent can never reach it. Everything else is 'read'.
+// Previously the required set was filtered down to literal 'read'/'write'
+// tokens, which silently dropped every namespaced scope: a tool whose scopes
+// were all namespaced (e.g. airlines writes) produced an empty required set and
+// [].every(...) returned true, bypassing the consent gate entirely.
+function requiresWriteConsent(scope) {
+  return (
+    scope === 'write' ||
+    scope === 'transfer' ||
+    scope.endsWith(':write') ||
+    scope.startsWith('sensitive:')
+  );
+}
+
 function holdCredentials(registrationId, credentials) {
   credentialVault.set(registrationId, { ...credentials });
 }
@@ -79,19 +100,26 @@ function resolveConsentContext(req, tool) {
   }
 
   const expired = registration.expiresAt <= Date.now();
-  const requiredScopes = scopeTopology.toolScopes(tool)
-    .filter((scope) => scope === 'read' || scope === 'write');
+  const requiredScopes = scopeTopology.toolScopes(tool);
   const consentScopes = registration.scopes || [];
+  // Any required scope in the 'write' class means the tool needs write consent;
+  // otherwise read consent is enough. Write consent implies read (it is the
+  // higher-privilege class), so a write-consented agent satisfies read-only
+  // tools too.
+  const needsWrite = requiredScopes.some(requiresWriteConsent);
+  const sufficient =
+    registration.status === 'active' &&
+    !expired &&
+    (needsWrite
+      ? consentScopes.includes('write')
+      : consentScopes.includes('read') || consentScopes.includes('write'));
   return {
     registrationId,
     agentId: registration.applicationId || null,
     status: expired ? 'expired' : registration.status,
     consentScopes,
     requiredScopes,
-    sufficient:
-      registration.status === 'active' &&
-      !expired &&
-      requiredScopes.every((scope) => consentScopes.includes(scope)),
+    sufficient,
   };
 }
 

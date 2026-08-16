@@ -102,6 +102,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-16 — Delegated-commerce consent scope check bypassed for namespaced tool scopes (BUGS.md #55)
+
+**Files changed:** `demo_api_server/services/delegatedCommerceRuntime.js`,
+`demo_api_server/tests/delegatedCommerceRuntime.test.js`
+
+**What was broken:** `resolveConsentContext()` computed the tool's required
+scopes as `scopeTopology.toolScopes(tool).filter(s => s === 'read' || s === 'write')`
+— keeping ONLY literal `read`/`write` tokens. But `scope-topology.json` declares
+tool scopes as namespaced strings (`sensitive:read`, `airlines:write`,
+`transfer`). The filter dropped every namespaced scope, so any tool whose
+required scopes lacked a bare `read`/`write` produced `requiredScopes = []`, and
+`[].every(...)` is vacuously `true` → `sufficient: true` regardless of consent.
+A read-only-consented delegated agent could invoke `get_sensitive_account_details`
+(full acct#/routing/SWIFT) and `create_wire_transfer`; `cancel_airline_reservation`/
+`redeem_miles`/`pay_airline_fee` (`["airlines:read","airlines:write"]`) had NO
+consent check at all. The enforcement gate (`evaluateMcpFirstToolGate`) keys off
+`sufficient`, so this silently fail-opened.
+
+**What was fixed:** Stop collapsing required scopes to the bare read/write
+subset. Classify each namespaced required scope into the customer's consent
+vocabulary (`read`/`write` — the only values `routes/delegatedCommerce.js`
+`ALLOWED_SCOPES` accepts): any `*:write`, bare `write`, `transfer`, or
+`sensitive:*` demands `write` consent (highest grantable tier, unreachable by
+read-only consent); everything else demands `read`. Write consent implies read.
+`requiredScopes` surfaced in the denial body is now the full tool scope list.
+
+**Do not break:** Banking `create_transfer` (`["write","transfer"]`) must stay
+write-gated (read-only denied, write allowed) — unchanged. Legitimate read-only
+tools must still pass for read-only consent. Claimed/staged registrations must
+still early-return `null` (default MCP agent not 403'd before consent).
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/delegatedCommerceRuntime.test.js --forceExit --maxWorkers=4` (17/17 passed); related suites `tests/delegatedCommerceService.test.js tests/delegatedCommerceRoutes.test.js tests/delegationGate.unit.test.js tests/agentConsentRoute.test.js` (17/17) and gate regressions `tests/mcpToolPipelineSseRequest.regression.test.js tests/mcpToolPipeline.gatewayDenyEvidence.test.js tests/agentPreflight.regression.test.js` (23/23).
+
 ### 2026-08-16 — Aborted AG-UI run's cleanup clobbered the current run's abort controller (BUGS.md #51)
 
 **Files changed:** `demo_api_ui/src/hooks/useAgentRun.js`,
