@@ -168,6 +168,21 @@ test('an approved-then-expired receipt is refused', async () => {
   }
 });
 
+test('an approved receipt is consumed on first verify; a replayed verify is refused', async () => {
+  // BUGS.md #35 — a second /verify against the same human approval must not
+  // discharge a second transfer.
+  const ch = await approvedChallenge();
+
+  const first = await verify(ch.id, MATCHING_RETRY);
+  expect(first.statusCode).toBe(200);
+  expect(first.body).toEqual({ ok: true });
+
+  const replay = await verify(ch.id, MATCHING_RETRY);
+  expect(replay.body.ok).toBe(false);
+  expect(replay.body.message).toMatch(/not approved/i);
+  expect(replay.body.message).toMatch(/consumed/i);
+});
+
 test('the endpoint requires the internal secret', async () => {
   const ch = await approvedChallenge();
   const req = { method: 'POST', url: `/${ch.id}/verify`, headers: {}, body: MATCHING_RETRY };

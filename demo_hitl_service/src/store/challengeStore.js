@@ -8,6 +8,7 @@
  *     createdAt, expiresAt, resolvedAt, decision }
  *
  * Status lifecycle:  pending → approved | denied | expired
+ *                     approved → consumed  (single-use: POST /verify success)
  *
  * For production: swap _store for Redis or a DB — interface stays the same.
  */
@@ -87,6 +88,19 @@ function resolve(id, decision, responderId) {
   return { ...ch };
 }
 
+// Single-use: transitions an approved challenge to 'consumed' so a replayed
+// POST /verify against the same human approval cannot discharge a second
+// transfer. Only 'approved' may be consumed — mirrors the guard in resolve().
+function consume(id) {
+  const ch = _store.get(id);
+  if (!ch) return null;
+  if (ch.status !== 'approved') {
+    throw new Error(`Challenge ${id} is not approved (status: ${ch.status})`);
+  }
+  ch.status = 'consumed';
+  return { ...ch };
+}
+
 function list({ userId, status, limit = 20 } = {}) {
   _pruneExpired();
   let entries = [..._store.values()];
@@ -98,4 +112,4 @@ function list({ userId, status, limit = 20 } = {}) {
     .map((c) => ({ ...c }));
 }
 
-module.exports = { create, get, resolve, list };
+module.exports = { create, get, resolve, consume, list };
