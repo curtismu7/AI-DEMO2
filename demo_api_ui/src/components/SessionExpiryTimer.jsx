@@ -25,7 +25,6 @@ export default function SessionExpiryTimer({ hideOnPaths = [] }) {
     hideOnPaths.some((p) => pathname.startsWith(p)) ||
     pathname === "/" ||
     pathname === "/" ||
-    pathname === "/onboarding" ||
     pathname === "/setup" ||
     pathname === "/setup/wizard" ||
     pathname === "/setup/pingone" ||

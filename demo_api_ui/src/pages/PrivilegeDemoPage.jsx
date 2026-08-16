@@ -48,7 +48,7 @@ export default function PrivilegeDemoPage() {
             <p className="pd-page__subtitle">{PRIVILEGE_DEMO.subtitle}</p>
           </div>
           <div className="pd-page__header-links">
-            <Link to="/onboarding">Banking demo setup</Link>
+            <Link to="/setup">Banking demo setup</Link>
             <Link to="/">Sign in</Link>
           </div>
         </div>

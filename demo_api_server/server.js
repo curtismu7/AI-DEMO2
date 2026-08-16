@@ -1369,7 +1369,9 @@ app.use('/api/admin/demo-users', adminDemoUsersRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
-app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
+// Fully public (no authenticateToken) — themes are cosmetic, shared, and the
+// page itself is now reachable signed-out; see verticalThemes.js's own header.
+app.use('/api/admin', require('./routes/verticalThemes'));
 app.use('/api/admin', authenticateToken, require('./routes/agentGatewayLogs'));
 app.use('/api/admin', authenticateToken, adminRoutes);
 

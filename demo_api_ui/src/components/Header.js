@@ -118,14 +118,8 @@ const Header = ({ user, onLogout }) => {
                 >
                   Transactions
                 </NavLink>
-                <NavLink 
-                  to="/onboarding" 
-                  className={`nav-link ${location.pathname === '/onboarding' ? 'active' : ''}`}
-                >
-                  Setup guide
-                </NavLink>
-                <NavLink 
-                  to="/config" 
+                <NavLink
+                  to="/config"
                   className={`nav-link ${location.pathname === '/config' ? 'active' : ''}`}
                 >
                   Config

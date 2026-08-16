@@ -176,7 +176,6 @@ import PublicRoutes, {
   PrivilegeMcpLearningPageRoute,
   AgentGatewayCapabilitiesPageRoute,
   OAuthAcademyPageRoute,
-  OnboardingRoute,
   PrivilegeDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -906,10 +905,6 @@ function AppWithAuth() {
                     )
                   }
                 />
-                <Route
-                  path="/onboarding"
-                  element={<OnboardingRoute user={user} />}
-                />
                 {/* Group policy board — live decision per vertical; the page the
                     group demo is for. Signed-in users only (it reads their own
                     directory membership). */}
@@ -1260,17 +1255,10 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/themes"
-                              element={
-                                // The backend mounts vertical-themes behind
-                                // authenticateToken only (see verticalThemes.js) —
-                                // any signed-in user, not admin-only. Match that
-                                // here instead of forcing an admin re-login.
-                                user ? (
-                                  <AdminThemesPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
-                              }
+                              // Fully public — no session/user gate. Matches the
+                              // backend, which mounts vertical-themes with no
+                              // auth middleware at all (see verticalThemes.js).
+                              element={<AdminThemesPage />}
                             />
                             <Route
                               path="/users"

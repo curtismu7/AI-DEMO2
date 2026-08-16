@@ -7,7 +7,7 @@ const REPO_ROOT = 'path/to/Banking';
 
 /**
  * Full reference: PingOne objects, redirect URIs, repo scripts, and env vars needed for the demo.
- * For a shorter checklist, use /onboarding; for the bootstrap UI, use /setup.
+ * For the bootstrap UI, use /setup.
  */
 export default function PingOneSetupGuidePage() {
   const copy = useCallback((text, label) => {
@@ -75,7 +75,6 @@ export default function PingOneSetupGuidePage() {
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <Link to="/" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem' }}>← Sign in</Link>
-            <Link to="/onboarding" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem' }}>Setup checklist</Link>
             <Link to="/setup" style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.875rem' }}>Deployment setup</Link>
             <Link
               to="/config"
@@ -100,7 +99,6 @@ export default function PingOneSetupGuidePage() {
         <div style={{ ...cardStyle, background: '#eff6ff', borderColor: '#bfdbfe' }}>
           <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--brand-navy)' }}>How to use this page</h2>
           <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--brand-navy)', fontSize: '0.9375rem', lineHeight: 1.65 }}>
-            <li><strong>/onboarding</strong> — short checklist (roles, hosted vs localhost).</li>
             <li><strong>/setup</strong> — PingOne bootstrap plan from the API, and (as admin) probe / run bootstrap.</li>
             <li><strong>/config</strong> — enter or review PingOne environment, OAuth apps, and advanced options (localhost LMDB or deployment-managed).</li>
             <li>This page is the <strong>full map</strong>: PingOne objects, exact callback paths, scripts, and env var names.</li>
@@ -261,7 +259,6 @@ export default function PingOneSetupGuidePage() {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
           <Link to="/setup" style={{ fontSize: '0.9375rem', color: 'var(--brand-navy)' }}>Open Deployment setup</Link>
-          <Link to="/onboarding" style={{ fontSize: '0.9375rem', color: 'var(--brand-navy)' }}>Open Setup checklist</Link>
           <Link to="/" style={{ fontSize: '0.9375rem', color: 'var(--brand-navy)' }}>Return to sign in</Link>
         </div>
       </div>
