@@ -7,14 +7,23 @@
  * backward-compat probe a dual-era-aware client uses to tell a legacy
  * server apart from a modern one.
  *
- * supportedVersions is deliberately narrow right now: this gateway is still
- * Legacy-era end-to-end (2025-11-25 initialize handshake). Only add
- * '2026-07-28' here once stateless _meta negotiation, MRTR, and list
- * caching are actually implemented — claiming it earlier would make this
- * RPC lie to a caller that trusts it.
+ * supportedVersions now includes 2026-07-28: tools/call genuinely supports
+ * it end-to-end (Modern per-request negotiation + MRTR-shaped elicitation
+ * on both transports, real and tested — see modernNegotiation.ts and the
+ * elicitation-obligation branches in index.ts / authorizeMcpRequest.ts).
+ * This is real but PARTIAL Modern support, not full spec compliance for
+ * 2026-07-28 as a whole: no header-based routing (Mcp-Method/Mcp-Name), no
+ * list-result caching (ttlMs/cacheScope), and methods proxied to
+ * demo_mcp_resource_server (resources/*, prompts/*, completion/complete)
+ * still hit that service's own Legacy-only negotiation gate, since it
+ * hasn't been upgraded. The BFF client (mcpGatewayClient.js /
+ * mcpWebSocketClient.js) also does not yet SEND Modern _meta on its own
+ * calls, so this repo's own live traffic still runs Legacy end-to-end today
+ * — this flip makes the gateway ready to serve a genuinely Modern caller
+ * correctly, it does not itself change what our own BFF sends.
  */
 
-export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25'] as const;
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2026-07-28'] as const;
 
 export interface DiscoverServerInfo {
   name: string;

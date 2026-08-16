@@ -23,7 +23,10 @@ describe('buildDiscoverResult', () => {
 
   it('reports only the protocol versions actually supported end-to-end', () => {
     const result = buildDiscoverResult(capabilities, serverInfo);
-    expect(result.supportedVersions).toEqual(['2025-11-25']);
+    // 2026-07-28 is genuinely supported for tools/call (MRTR-shaped
+    // elicitation, real and tested) — see the SUPPORTED_PROTOCOL_VERSIONS
+    // docblock in src/serverDiscover.ts for exactly what's real vs partial.
+    expect(result.supportedVersions).toEqual(['2025-11-25', '2026-07-28']);
   });
 
   it('sets resultType to complete', () => {

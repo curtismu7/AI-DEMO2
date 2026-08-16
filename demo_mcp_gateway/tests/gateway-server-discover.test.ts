@@ -107,7 +107,7 @@ describe('POST /mcp — server/discover', () => {
     // request was forwarded instead of answered locally.
     expect(res.status).toBe(200);
     expect(res.body.result.resultType).toBe('complete');
-    expect(res.body.result.supportedVersions).toEqual(['2025-11-25']);
+    expect(res.body.result.supportedVersions).toEqual(['2025-11-25', '2026-07-28']);
     expect(res.body.result.capabilities).toMatchObject({ tools: {} });
     expect(res.body.result._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: expect.any(String) });
   });
@@ -138,14 +138,14 @@ describe('POST /mcp — Modern per-request version negotiation (_meta)', () => {
     request = supertest(gateway.httpServer);
   });
 
-  it('rejects a request carrying an unsupported Modern _meta.protocolVersion with -32022, listing what is actually supported', async () => {
+  it('rejects a request carrying a genuinely unsupported Modern _meta.protocolVersion with -32022, listing what is actually supported', async () => {
     const res = await request
       .post('/mcp')
       .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
       .set('Content-Type', 'application/json')
       .send(JSON.stringify({
         jsonrpc: '2.0', id: 9, method: 'tools/list',
-        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2099-01-01' } },
       }));
 
     // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: "If the
@@ -155,7 +155,7 @@ describe('POST /mcp — Modern per-request version negotiation (_meta)', () => {
     expect(res.body.error).toMatchObject({
       code: -32022,
       message: 'Unsupported protocol version',
-      data: { supported: ['2025-11-25'], requested: '2026-07-28' },
+      data: { supported: ['2025-11-25', '2026-07-28'], requested: '2099-01-01' },
     });
   });
 
@@ -169,6 +169,21 @@ describe('POST /mcp — Modern per-request version negotiation (_meta)', () => {
     // Upstream at 127.0.0.1:19999 is unreachable — 502 proves this request
     // was NOT rejected at the version gate and instead reached forwarding,
     // exactly like before this change.
+    expect(res.status).toBe(502);
+  });
+
+  it('lets a genuinely-supported Modern version (2026-07-28) through the gate on tools/list — but that method has no Modern-specific processing, so it just forwards like Legacy', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 11, method: 'tools/list',
+        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+      }));
+    // 502, not 400 — the version gate let it through (real, partial Modern
+    // support per serverDiscover.ts's docblock); it reaches the same
+    // unreachable-upstream forwarding path as any Legacy request.
     expect(res.status).toBe(502);
   });
 });
