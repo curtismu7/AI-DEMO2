@@ -23,9 +23,13 @@ import groovy.json.JsonOutput
 //
 // Trusted exactly like p1az-decision.groovy: the simulated flag counts only from
 // the BFF, so a gateway-audience token cannot force the mock backend.
-def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
-def trustedCaller = internalSecret &&
-    request.headers.getFirst('X-BFF-Internal') == internalSecret
+def internalSecret  = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def presentedSecret = request.headers.getFirst('X-BFF-Internal') ?: ''
+def trustedCaller   = false
+if (internalSecret && presentedSecret) {
+    trustedCaller = java.security.MessageDigest.isEqual(
+        internalSecret.getBytes('UTF-8'), presentedSecret.getBytes('UTF-8'))
+}
 attributes['aamSimulated'] = (trustedCaller &&
     request.headers.getFirst('X-Authz-Simulated') == 'true')
 

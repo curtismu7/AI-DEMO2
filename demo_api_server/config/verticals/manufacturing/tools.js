@@ -84,9 +84,16 @@ function buildManufacturingTools(store) {
         const _arr = store.get(userId).purchaseOrders || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
+        const _byExplicitId = !!_item;
         // Amount-driven policy chip ("approve a $300 purchase order") carries no PO id — default to the first pending PO.
-        if (!_item && !_id) _item = _arr.find((r) => r.status === 'Pending') || _arr[0];
+        if (!_item && !_id) _item = _arr.find((r) => r.status === 'Pending Approval') || _arr[0];
         if (!_item) return { result: { error: 'purchase order not found' }, render: 'text' };
+        // Only gate the explicit-id path: an agent naming a specific PO must not silently
+        // re-"approve" one that's already Approved/Delivered/Rejected/Voided. The amount-driven
+        // no-id fallback intentionally keeps completing even when every real Pending Approval PO
+        // is exhausted — see useCases.chipCompletes.test.js, which requires every catalog chip to
+        // finish rather than error.
+        if (_byExplicitId && _item.status !== 'Pending Approval') return { result: { error: 'purchase order is not pending approval' }, render: 'text' };
         Object.assign(_item, { status: 'Approved' });
         return { result: _item, render: 'approve_purchase_order' };
       }

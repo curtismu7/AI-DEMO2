@@ -129,6 +129,47 @@ current, including after an older superseded run's cleanup has resolved.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/hooks/__tests__/useAgentRun.abortRace.test.js src/hooks/__tests__/useAgentRun.patch.test.js` (17/17 passed); full suite `npx vitest run` (1059/1059 suites, 3070 passed/24 pending/0 failed); `npx vite build` exits 0.
 
+### 2026-08-16 — authz-server rule-write endpoints unauthenticated on docker-compose (BUGS.md #34)
+
+**Files changed:** `demo_authz_server/routes/rulesWrite.js`,
+`demo_authz_server/rulesWrite.test.js`, `docker-compose.yml`
+
+**What was broken:** `guardOk()` in `rulesWrite.js` returned `true` (guard
+inactive) whenever `AUTHZ_ADMIN_TOKEN` was unset, justified by a comment
+claiming the server "binds 127.0.0.1 as a sidecar" — true for the k8s
+deployment (no `HOST` override there), but not for docker-compose:
+`docker-compose.yml` sets `HOST: "0.0.0.0"` for `authz-server` and publishes
+`9001:9001` to the host, and `AUTHZ_ADMIN_TOKEN` was never set anywhere in the
+repo. With the stack running normally (the `demo-auth` profile is part of the
+always-up flow via `run-docker.sh`), anyone reaching `localhost:9001` could
+`PUT /rules` with zero credentials — e.g. zeroing `create_transfer`'s
+`requiredScopes` so `decision.js` skips scope enforcement and HITL/step-up
+gates entirely, persisted live until `/rules/reset` (also unauthenticated).
+
+**What was fixed:** `guardOk()`'s no-token fallback now checks the bind
+address (`isLoopbackBind()`, `demo_authz_server/routes/rulesWrite.js`): it
+stays inactive only when `HOST` is `127.0.0.1`/`localhost`/`::1` (the k8s
+sidecar default). A non-loopback bind (docker-compose's `HOST=0.0.0.0`) with
+no token now fails closed (401) instead of silently allowing writes.
+`docker-compose.yml` also gets a real dev-only default
+`AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"`
+on both `authz-server` and `demo-api-server` (the BFF's
+`/api/authorize/mock-authz-rules` proxy in `demo_api_server/routes/authorize.js`
+forwards this token via `_authzAdminHeaders()`, so both sides must match) so
+the stack stays protected out of the box.
+
+**Do not break:** k8s sidecar deployment (no `HOST` override, defaults to
+loopback) must keep working unauthenticated exactly as today —
+`isLoopbackBind()` preserves that. `decision.js` and unrelated route logic in
+`rulesWrite.js` untouched.
+
+**Verify:** `cd demo_authz_server && node --test rulesWrite.test.js` (6/6
+pass, including the two new cases proving loopback stays open and
+`HOST=0.0.0.0` without a token now fails closed); full suite
+`node --test` (226/227 pass — the one failure, `tests/decision.test.js`
+chip-markers `sensitive_holdings`, is pre-existing on `main`, unrelated to
+this change).
+
 ### 2026-08-15 — Self-service user creation let any customer self-grant admin role
 
 **Files changed:** `demo_api_server/routes/selfServiceUsers.js`,
