@@ -17,6 +17,22 @@ const devHttpsAgent = BANKING_API_BASE.startsWith('https')
   ? new https.Agent({ rejectUnauthorized: false })
   : undefined;
 
+// Investment transaction pages are small; cap the caller-supplied limit so a
+// malformed or oversized value can't distort the BFF query.
+const MAX_TRANSACTION_LIMIT = 100;
+const DEFAULT_TRANSACTION_LIMIT = 20;
+
+// Resolve `limit` to a bounded positive integer. Absent/garbage values fall back
+// to the default; 0 or negatives clamp to 1 (never silently the default, as the
+// old `args.limit || 20` did); anything above the cap clamps down.
+function resolveTransactionLimit(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n)) return DEFAULT_TRANSACTION_LIMIT;
+  const int = Math.trunc(n);
+  if (int < 1) return 1;
+  return Math.min(int, MAX_TRANSACTION_LIMIT);
+}
+
 async function callBff(path: string, token: string): Promise<unknown> {
   const response = await axios.get(`${BANKING_API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -48,7 +64,7 @@ export async function handleGetPortfolioSummary(
   const accountId = args.account_id as string;
   const period = (args.period as string) || '1m';
   return callBff(
-    `/api/investment/accounts/${encodeURIComponent(accountId)}/portfolio?period=${period}`,
+    `/api/investment/accounts/${encodeURIComponent(accountId)}/portfolio?period=${encodeURIComponent(String(period))}`,
     token,
   );
 }
@@ -58,7 +74,7 @@ export async function handleGetInvestmentTransactions(
   token: string,
 ): Promise<unknown> {
   const accountId = args.account_id as string;
-  const limit = args.limit || 20;
+  const limit = resolveTransactionLimit(args.limit);
   return callBff(
     `/api/investment/accounts/${encodeURIComponent(accountId)}/transactions?limit=${limit}`,
     token,
