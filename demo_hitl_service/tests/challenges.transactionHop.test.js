@@ -73,12 +73,12 @@ function createChallenge(overrides) {
 // whenever the request carries none) then the challenges router. Neither the
 // header nor the body here carries a correlationId, matching how the
 // dashboard/webhook actually calls this endpoint — only { decision } is sent.
-async function respond(challengeId, decision) {
+async function respond(challengeId, decision, respondedBy) {
   const req = {
     method: 'POST',
     url: `/${challengeId}/respond`,
     headers: { 'x-hitl-internal-secret': 'test-secret' },
-    body: { decision },
+    body: respondedBy === undefined ? { decision } : { decision, respondedBy },
   };
   const res = makeRes();
   await new Promise((resolve, reject) => {
@@ -143,6 +143,13 @@ test('a failed resolve (409, responding twice) emits no additional hop', async (
   const second = await respond(ch.id, 'denied');
   expect(second.statusCode).toBe(409);
   expect(calls).toHaveLength(1); // no new hop from the failed second resolve
+});
+
+test('respondedBy sent in the request body is persisted on the resolved challenge', async () => {
+  const ch = createChallenge();
+  const res = await respond(ch.id, 'approved', 'admin-user-7');
+  expect(res.statusCode).toBe(200);
+  expect(store.get(ch.id).responderId).toBe('admin-user-7');
 });
 
 test('a challenge with no correlationId emits no hop (does not fabricate one from ALS)', async () => {
