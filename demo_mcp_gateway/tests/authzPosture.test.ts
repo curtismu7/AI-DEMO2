@@ -192,6 +192,30 @@ describe('C3 — failOpen names every active bypass', () => {
   });
 
   /**
+   * GatewayTokenPolicy.validate prefers authorizedActorClientIds (the plural,
+   * multi-actor list) and only falls back to the singular legacy field when
+   * the array is empty. An operator who sets only PINGONE_AI_AGENT_ACTOR_CLIENT_ID
+   * — leaving PINGONE_TOKEN_EXCHANGER_CLIENT_ID unset — has actor-chain
+   * validation fully armed via the array. authzPosture must not report that
+   * as a bypass just because the singular is blank.
+   */
+  test('authorizedActorClientIds alone (singular unset) is not a bypass', () => {
+    const h = buildAuthzHealth(cfg({
+      authorizedActorClientId: '',
+      authorizedActorClientIds: ['ai-agent-actor'],
+    }));
+    expect(h.failOpen).not.toContain('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
+  });
+
+  test('both actor fields unset/empty is still a bypass', () => {
+    const h = buildAuthzHealth(cfg({
+      authorizedActorClientId: '',
+      authorizedActorClientIds: [],
+    }));
+    expect(h.failOpen).toContain('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
+  });
+
+  /**
    * With ALLOW_UNSIGNED_TRAT_CONTEXT the gateway accepts purp/reqctx/azd from an
    * unsigned caller-supplied header and feeds them to the PDP and to RAR subset
    * enforcement. The RAR check still runs — against evidence the caller wrote.

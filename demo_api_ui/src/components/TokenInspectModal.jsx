@@ -2,12 +2,18 @@ import React, { useState } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
 import JsonHighlight from './shared/JsonHighlight';
 
+// JWTs use base64url (-/_), but atob() only accepts standard base64 (+//).
+function base64UrlToBase64(str) {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  return padded + '='.repeat((4 - (padded.length % 4)) % 4);
+}
+
 function decodeJwt(token) {
   try {
     if (!token) return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
+    const payload = JSON.parse(atob(base64UrlToBase64(parts[1])));
     return payload;
   } catch (err) {
     return null;

@@ -135,6 +135,10 @@ export class GatewayServer {
   private readonly middleware: McpRequestMiddleware;
   private readonly acceptedOriginsRe: RegExp;
   private readonly upstreamHttpsAgent: https.Agent | undefined;
+  // HTTP transport has no persistent connection (unlike WS), so cancellation
+  // needs a registry keyed by request id — notifications/cancelled arrives as
+  // a separate POST while the original call is still in flight.
+  private readonly inFlightCalls = new Map<string | number, AbortController>();
 
   constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
     this.config = config;
@@ -596,6 +600,23 @@ export class GatewayServer {
       return;
     }
 
+    // MCP spec: notifications/cancelled. HTTP has no persistent connection to
+    // carry this to the in-flight call the way WS does, so intercept it here
+    // — before it falls through to forwardToUpstream's default routing, which
+    // doesn't understand it — abort the matching registry entry, and ack per
+    // the Streamable HTTP transport's handling of notifications (202, no body).
+    if (parsedRpc.method === 'notifications/cancelled') {
+      const cancelParams = parsedRpc.params as { requestId?: string | number } | undefined;
+      const targetId = cancelParams?.requestId;
+      if (targetId !== undefined) {
+        this.inFlightCalls.get(targetId)?.abort();
+        this.inFlightCalls.delete(targetId);
+      }
+      res.writeHead(202, { 'Content-Type': 'application/json' });
+      res.end();
+      return;
+    }
+
     // Middleware (Plan 243-02 will inject authorize + exchange here).
     // Default: pass through with the caller's bearer token.
     await runWithCorrelation(correlationId, async () => {
@@ -643,21 +664,70 @@ export class GatewayServer {
     // Invest tools live on the mcp-resource-server WS backend — the HTTP upstream
     // (mcp-server) does not serve them. Mirror the WS ingress routing here;
     // the middleware already exchanged upstreamToken for the invest audience.
+    // MCP Resources and Prompts capabilities are served by the same backend
+    // (only implementer of either) — same routing rule, not tool-name-based.
     const rpcToolName = jsonRpc.method === 'tools/call' ? jsonRpc.params?.name : undefined;
-    if (rpcToolName && routeTool(rpcToolName) === 'invest') {
+    const isResourceServerOnlyMethod = jsonRpc.method === 'resources/list'
+      || jsonRpc.method === 'resources/read'
+      || jsonRpc.method === 'resources/templates/list'
+      || jsonRpc.method === 'prompts/list'
+      || jsonRpc.method === 'prompts/get'
+      || jsonRpc.method === 'completion/complete';
+    if ((rpcToolName && routeTool(rpcToolName) === 'invest') || isResourceServerOnlyMethod) {
+      // MCP spec: Progress notifications. The WS transport already forwards
+      // proxyJsonRpc's onProgress frames; the HTTP transport has no
+      // persistent connection to push them over unless the caller opts in
+      // via params._meta.progressToken — only then upgrade to SSE.
+      const progressToken = (jsonRpc.params as { _meta?: { progressToken?: string | number } } | undefined)
+        ?._meta?.progressToken;
+      const useSse = progressToken !== undefined;
+      const requestId = jsonRpc.id as string | number | undefined;
+
+      const controller = new AbortController();
+      if (requestId !== undefined) this.inFlightCalls.set(requestId, controller);
+
+      if (useSse) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        });
+      }
+
       try {
         const rpcResult = await proxyJsonRpc(
           backendWsUrl('invest', this.config),
           upstreamToken,
           JSON.parse(body.toString('utf-8')),
+          undefined,
+          undefined,
+          useSse
+            ? (params) => {
+                res.write(`data: ${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/progress', params })}\n\n`);
+              }
+            : undefined,
+          controller.signal,
         );
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(rpcResult));
+        if (useSse) {
+          res.write(`data: ${JSON.stringify(rpcResult)}\n\n`);
+          res.end();
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(rpcResult));
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName}:`, msg);
-        res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } }));
+        console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName ?? jsonRpc.method}:`, msg);
+        const errBody = JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } });
+        if (useSse) {
+          res.write(`data: ${errBody}\n\n`);
+          res.end();
+        } else {
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(errBody);
+        }
+      } finally {
+        if (requestId !== undefined) this.inFlightCalls.delete(requestId);
       }
       return;
     }

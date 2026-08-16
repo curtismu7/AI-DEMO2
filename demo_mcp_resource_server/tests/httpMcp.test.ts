@@ -125,4 +125,96 @@ describe('POST /mcp', () => {
     const r = await post('{not json', token('airlines:read'));
     expect(r.json.error.code).toBe(-32700);
   });
+
+  // MCP Streamable HTTP transport: the server MAY assign a session id on
+  // initialize; the gateway's own HTTP transport already does this
+  // (GatewayServer.ts). This server had no Mcp-Session-Id handling at all —
+  // flagged as a gap in the MCP spec-compliance audit.
+  it('assigns an Mcp-Session-Id header on the initialize response', async () => {
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token('airlines:read')}` },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
+    });
+    expect(res.headers.get('mcp-session-id')).toBeTruthy();
+  });
+
+  it('does not assign a session id on an ordinary tools/call response', async () => {
+    const res = await fetch(`${base}/mcp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token('airlines:read')}` },
+      body: JSON.stringify(callTool('get_airline_bookings')),
+    });
+    expect(res.headers.get('mcp-session-id')).toBeNull();
+  });
+});
+
+// MCP Prompts capability — real, usable templates referencing this server's
+// own tools, not a stub. No live consumer exists in the banking demo (the
+// chat UI has no prompt picker), built anyway per explicit request to close
+// every gap the spec-compliance audit found.
+describe('Prompts capability', () => {
+  it('lists summarize_airline_booking with its argument schema', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'prompts/list', params: {} }, token('airlines:read'));
+    const prompt = r.json.result.prompts.find((p: { name: string }) => p.name === 'summarize_airline_booking');
+    expect(prompt).toBeDefined();
+    expect(prompt.arguments).toEqual([
+      { name: 'bookingId', description: expect.any(String), required: true },
+    ]);
+  });
+
+  it('prompts/get fills the booking id into a real instruction referencing this server\'s own tools', async () => {
+    const r = await post(
+      { jsonrpc: '2.0', id: 2, method: 'prompts/get', params: { name: 'summarize_airline_booking', arguments: { bookingId: 'K7XR2M' } } },
+      token('airlines:read'),
+    );
+    expect(r.json.result.messages).toHaveLength(1);
+    const text = r.json.result.messages[0].content.text;
+    expect(text).toContain('K7XR2M');
+    expect(text).toContain('get_airline_bookings');
+    expect(text).toContain('get_flight_status');
+  });
+
+  it('prompts/get on an unknown prompt name is -32602, not a crash', async () => {
+    const r = await post(
+      { jsonrpc: '2.0', id: 3, method: 'prompts/get', params: { name: 'not_a_real_prompt', arguments: {} } },
+      token('airlines:read'),
+    );
+    expect(r.json.error.code).toBe(-32602);
+  });
+
+  it('declares the prompts capability on initialize', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 4, method: 'initialize', params: {} }, token('airlines:read'));
+    expect(r.json.result.capabilities.prompts).toBeDefined();
+  });
+});
+
+// MCP Completion capability — real argument autocompletion, scoped to the
+// authenticated caller's own bookings (not a global lookup). Depends on
+// Prompts existing (bookingId is summarize_airline_booking's argument).
+describe('Completion capability', () => {
+  it('completes bookingId from the caller\'s own confirmation numbers matching the given prefix', async () => {
+    const r = await post({
+      jsonrpc: '2.0', id: 1, method: 'completion/complete',
+      params: {
+        ref: { type: 'ref/prompt', name: 'summarize_airline_booking' },
+        argument: { name: 'bookingId', value: 'K7' },
+      },
+    }, token('airlines:read'));
+    expect(r.json.result.completion.values).toContain('K7XR2M');
+    for (const v of r.json.result.completion.values) expect(v.startsWith('K7')).toBe(true);
+  });
+
+  it('returns an empty completion (not an error) for an unrecognized ref/argument combo', async () => {
+    const r = await post({
+      jsonrpc: '2.0', id: 2, method: 'completion/complete',
+      params: { ref: { type: 'ref/prompt', name: 'not_a_real_prompt' }, argument: { name: 'x', value: '' } },
+    }, token('airlines:read'));
+    expect(r.json.result.completion.values).toEqual([]);
+  });
+
+  it('declares the completions capability on initialize', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 3, method: 'initialize', params: {} }, token('airlines:read'));
+    expect(r.json.result.capabilities.completions).toBeDefined();
+  });
 });

@@ -15,6 +15,11 @@ export function useNewItems(items, enabled, onNew) {
   const prevLenRef = useRef(0);
   useEffect(() => {
     if (!enabled || !Array.isArray(items)) return;
+    if (items.length < prevLenRef.current) {
+      // Array was replaced by a shorter one (e.g. a fresh run's STATE_SNAPSHOT
+      // reset it to []) — treat as a new baseline instead of going negative.
+      prevLenRef.current = 0;
+    }
     const newCount = items.length - prevLenRef.current;
     if (newCount <= 0) return;
     prevLenRef.current = items.length;

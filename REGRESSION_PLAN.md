@@ -129,6 +129,34 @@ route's actual purpose.
 
 **Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4 tests/selfServiceUsersAdminGate.test.js`
 
+### 2026-08-15 — A2A bearer auth trusted an unverified JWT signature (identity spoofing)
+
+**Files changed:** `demo_api_server/middleware/a2aPingOneBearer.js`,
+`demo_api_server/src/__tests__/a2aProtocolCards.test.js`
+
+**What was broken:** `requireA2aPingOneBearer` — the sole auth gate on the
+A2A JSON-RPC route (`services/a2aProtocolServer.js`, mounted at
+`/a2a/specialists` without the session `authenticateToken` middleware) — only
+base64-decoded the bearer JWT via `decodeJwt()` (display-only, never checks a
+signature) and trusted `claims.client_id`/`cid`/`sub` directly.
+`pingOneA2aUserBuilder` then marked the request `isAuthenticated: true` under
+that claim. Anyone could POST `Authorization: Bearer header.payload.garbage`
+with an arbitrary `client_id`/`sub` and be treated as that identity — full
+identity spoofing on the A2A delegation/specialist endpoints.
+
+**What was fixed:** `requireA2aPingOneBearer` now verifies the bearer's RS256
+signature (issuer, expiry) against PingOne's JWKS via
+`services/tokenValidationService.js#validateToken` before trusting any claim —
+the same JWKS fetch/cache/verify helper `middleware/auth.js`'s
+`validatePingOneCoreToken` already uses. A forged/unsigned token now gets 401;
+`req.a2aPingOne` shape is unchanged for genuinely PingOne-issued tokens.
+
+**Do not break:** `a2aProtocolServer.js`'s mount point (still no session
+`authenticateToken`) or `pingOneA2aUserBuilder`'s contract; don't reintroduce
+a decode-only path on this gate.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- src/__tests__/a2aProtocolCards.test.js --forceExit`
+
 ### 2026-08-10 — AG-UI /api/agent/run never minted Intent Tokens
 
 **Files changed:** `demo_api_server/routes/agentRun.js`,

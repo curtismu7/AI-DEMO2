@@ -270,6 +270,81 @@ test('the Form tab renders a captured API call response body as labeled fields',
   expect(screen.getByText('Pending')).toBeInTheDocument();
 });
 
+test('an explicit ?source=protocol param selects the Protocol source and lists its capability methods', async () => {
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  expect(screen.getByRole('button', { name: 'Protocol' })).toHaveClass('src-pill--active');
+  // Other sources' hooks still mount alongside Protocol (existing pattern — every
+  // source's hook mounts unconditionally) and fire their own background fetches;
+  // await one so those settle inside this test's lifecycle instead of leaking a
+  // pending state update into the next test.
+  expect(await screen.findByText('resources/list')).toBeInTheDocument();
+  expect(screen.getByText('resources/read')).toBeInTheDocument();
+  expect(screen.getByText('prompts/list')).toBeInTheDocument();
+  expect(screen.getByText('prompts/get')).toBeInTheDocument();
+  expect(screen.getByText('completion/complete')).toBeInTheDocument();
+  expect(screen.getByText('logging/setLevel')).toBeInTheDocument();
+});
+
+test('Protocol source: selecting resources/read shows a uri field; Execute posts to /api/mcp/inspector/rpc', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: { contents: [] }, frames: {} } });
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  fireEvent.click(screen.getByText('resources/read'));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'banking://accounts' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/rpc',
+    { method: 'resources/read', params: { uri: 'banking://accounts' } },
+  ));
+});
+
+test('Protocol source: selecting logging/setLevel shows a level dropdown; Execute posts the chosen level', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: {}, frames: {} } });
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  fireEvent.click(screen.getByText('logging/setLevel'));
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'warning' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/rpc',
+    { method: 'logging/setLevel', params: { level: 'warning' } },
+  ));
+});
+
+test('Protocol source: resources/list needs no params and posts an empty params object', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: { resources: [] }, frames: {} } });
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  fireEvent.click(screen.getByText('resources/list'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/rpc',
+    { method: 'resources/list', params: {} },
+  ));
+});
+
+test('Protocol source: shows a read-only Sampling/Roots note with no Execute control for them', async () => {
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  // See the ?source=protocol test above for why this awaits (other sources'
+  // background fetches settling inside this test's lifecycle).
+  expect(await screen.findByText('Sampling & Roots')).toBeInTheDocument();
+  expect(screen.getByText(/server-initiated/)).toBeInTheDocument();
+  expect(screen.getByText(/mcpWebSocketClient\.samplingRoots\.test\.js/)).toBeInTheDocument();
+});
+
+test('AI Demo MCP: an "Attach progress token" toggle includes meta.progressToken in the Execute POST body', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: {} } });
+  renderPage('/pingone-mcp-inspector?source=banking');
+  // getByRole('button', ...), not getByText: the left tree's History footer
+  // (a module-level store shared across tests in this file) also renders past
+  // "get_account_balance" invocations as plain text by this point in the suite.
+  fireEvent.click(await screen.findByRole('button', { name: 'get_account_balance' }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
+  fireEvent.click(screen.getByLabelText(/Attach progress token/));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/invoke',
+    { tool: 'get_account_balance', params: { account_id: 'acc_1' }, meta: { progressToken: expect.any(String) } },
+  ));
+});
+
 test('the Form tab renders the Custom Server response as labeled fields', async () => {
   mockCustomServerEndpoints();
   apiClient.post.mockResolvedValueOnce({ data: { query: 'weather today', results: 3 } });

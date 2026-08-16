@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from src.agui_emitter import AGUIEmitter
+from src.run_handler import _handle_sdk_event
 from guardrails.validator_base import FailResult
 
 
@@ -131,3 +132,58 @@ def test_run_emits_no_grounding_correction_on_grounded_reply():
     events = _parse_sse(resp.text)
     custom_events = [e for e in events if e["type"] == "CUSTOM" and e["name"] == "grounding_correction"]
     assert len(custom_events) == 0
+
+
+@pytest.mark.asyncio
+async def test_handle_sdk_event_extracts_tool_call_id_name_args_from_pydantic_raw_item():
+    """Regression test for the bug where `item.raw_item` for a real function-tool
+    call is a pydantic model (ResponseFunctionToolCall), never a dict, so the old
+    `isinstance(raw, dict)` check always failed -- every tool-call start got
+    name="unknown", args="{}", and a random UUID as toolCallId, and start/end
+    ids never matched (breaking the grounding guardrail and the UI timeline).
+    """
+    from agents.items import ToolCallItem, ToolCallOutputItem
+    from agents.stream_events import RunItemStreamEvent
+    from openai.types.responses import ResponseFunctionToolCall
+
+    collected = []
+
+    async def sink(event):
+        collected.append(event)
+
+    emitter = AGUIEmitter(run_id="r1", thread_id="t1", sink=sink)
+    fake_agent = MagicMock()
+
+    # Start item: raw_item is a real pydantic model, as produced by the SDK for
+    # every actual function-tool call (e.g. transfer_funds, get_accounts).
+    raw_start = ResponseFunctionToolCall(
+        call_id="call_abc123",
+        name="transfer_funds",
+        arguments='{"amount": 50, "toAccount": "savings"}',
+        type="function_call",
+    )
+    start_item = ToolCallItem(agent=fake_agent, raw_item=raw_start)
+    start_event = RunItemStreamEvent(item=start_item, name="tool_called")
+    await _handle_sdk_event(start_event, emitter)
+
+    tool_start = next(e for e in collected if e["type"] == "TOOL_CALL_START")
+    assert tool_start["toolCallId"] == "call_abc123"
+    assert tool_start["toolCallName"] == "transfer_funds"
+    args_event = next(e for e in collected if e["type"] == "TOOL_CALL_ARGS")
+    assert args_event["delta"] == '{"amount": 50, "toAccount": "savings"}'
+
+    # End item: raw_item carries the same call_id (dict-shaped, matching what
+    # ItemHelpers.tool_call_output_item builds) -- ids must match the start.
+    raw_end = {"call_id": "call_abc123", "output": "ok", "type": "function_call_output"}
+    end_item = ToolCallOutputItem(agent=fake_agent, raw_item=raw_end, output="ok")
+    end_event = RunItemStreamEvent(item=end_item, name="tool_output")
+    await _handle_sdk_event(end_event, emitter)
+
+    tool_end = next(e for e in collected if e["type"] == "TOOL_CALL_END")
+    assert tool_end["toolCallId"] == "call_abc123"
+
+    # The pending tool call must have been popped (matched) rather than lost --
+    # this is what the grounding guardrail's _turn_tool_calls depends on.
+    assert emitter._pending_tool_calls == {}
+    assert len(emitter._turn_tool_calls) == 1
+    assert emitter._turn_tool_calls[0].name == "transfer_funds"

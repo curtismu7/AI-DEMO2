@@ -66,6 +66,13 @@ function persist() {
 function getHitlThreshold() {
   return overlay.global.hitlThresholdUsd ?? envDefaults().hitlThresholdUsd;
 }
+// Raw admin override only (undefined when no overlay is set) — lets a caller with
+// its own env-var fallback chain (decision.js Rule 4's CONFIRM_AMOUNT) prefer the
+// overlay ONLY when an admin has actually set it, without disturbing that chain's
+// existing env-var precedence for deployments that never touch the overlay.
+function getHitlThresholdOverride() {
+  return overlay.global.hitlThresholdUsd;
+}
 function getAuthorizedActorClientId() {
   return overlay.global.authorizedActorClientId ?? envDefaults().authorizedActorClientId;
 }
@@ -199,6 +206,7 @@ function reset() {
 
 module.exports = {
   getHitlThreshold,
+  getHitlThresholdOverride,
   getAuthorizedActorClientId,
   getToolDiscoveryDecision,
   requiredScopesForTool,

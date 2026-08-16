@@ -11,6 +11,12 @@ import { isEducationalPath } from '../utils/educationalPages';
  */
 export function useAgentCCTokenPrefetch() {
   const tokenChain = useTokenChainOptional();
+  // setTokenEvents is a stable useCallback([]) on the context, so depending on
+  // it (rather than the whole context object) prevents this "once on mount"
+  // effect from re-firing on every provider state change that gives
+  // tokenChain a new object identity (15s poll tick, SSE events, history
+  // writes) — same convention as useCurrentUserTokenEvent.
+  const setTokenEvents = tokenChain?.setTokenEvents;
 
   useEffect(() => {
     if (!tokenChain) return;
@@ -66,5 +72,5 @@ export function useAgentCCTokenPrefetch() {
     return () => {
       isMounted = false;
     };
-  }, [tokenChain]);
+  }, [setTokenEvents]);
 }
