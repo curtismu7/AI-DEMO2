@@ -92,13 +92,15 @@ const stubConfig: GatewayConfig = {
   introspectionSimDown: false,
 } as unknown as GatewayConfig;
 
-function makeToken(aud: string | string[]): string {
+function makeToken(aud: string | string[], sub = 'user-123'): string {
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
   const exp = Math.floor(Date.now() / 1000) + 3600;
   const payload = Buffer.from(
-    JSON.stringify({ sub: 'user-123', aud, exp, iss: 'https://auth.example.com' }),
+    JSON.stringify({ sub, aud, exp, iss: 'https://auth.example.com' }),
   ).toString('base64url');
-  const sig = Buffer.from('fakesig').toString('base64url');
+  // Distinct sig bytes per sub so two callers never share an identical bearer
+  // string (the cancellation registry keys on the raw bearer token).
+  const sig = Buffer.from(`fakesig-${sub}`).toString('base64url');
   return `${header}.${payload}.${sig}`;
 }
 
@@ -163,9 +165,10 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
       });
     });
 
+    const ownerToken = makeToken(GATEWAY_AUDIENCE, 'owner');
     const callPromise = request
       .post('/mcp')
-      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
       .set('Content-Type', 'application/json')
       .send(JSON.stringify({ jsonrpc: '2.0', id: 42, method: 'resources/list', params: {} }));
     // supertest/superagent requests are thenable but lazy — the underlying
@@ -179,12 +182,53 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
 
     const cancelRes = await request
       .post('/mcp')
-      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
       .set('Content-Type', 'application/json')
       .send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 42 } }));
 
     expect(cancelRes.status).toBe(202);
     await callPromise;
     expect(capturedSignal?.aborted).toBe(true);
+  });
+
+  it('does not let a different caller abort an in-flight call that shares the same JSON-RPC id', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    let resolveCall: ((value: unknown) => void) | undefined;
+    mockedProxyJsonRpc.mockImplementation((_url, _token, _req, _x, _tls, _onProgress, signal: AbortSignal) => {
+      capturedSignal = signal;
+      return new Promise((resolve) => {
+        resolveCall = resolve;
+      });
+    });
+
+    const ownerToken = makeToken(GATEWAY_AUDIENCE, 'owner');
+    const peerToken = makeToken(GATEWAY_AUDIENCE, 'peer');
+
+    const callPromise = request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 42, method: 'resources/list', params: {} }));
+    callPromise.then(() => {}, () => {});
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    // Peer reuses the same numeric JSON-RPC id (common client pattern) — must
+    // NOT abort the owner's in-flight invest/resource-server call.
+    const cancelRes = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${peerToken}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 42 } }));
+
+    expect(cancelRes.status).toBe(202);
+    expect(capturedSignal?.aborted).toBe(false);
+
+    resolveCall?.({ jsonrpc: '2.0', id: 42, result: { resources: [] } });
+    const callRes = await callPromise;
+    expect(callRes.status).toBe(200);
+    expect(capturedSignal?.aborted).toBe(false);
   });
 });
