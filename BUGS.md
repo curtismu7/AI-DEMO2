@@ -385,16 +385,16 @@ const validPatterns = [
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 34 | Critical | 🔴 Open | Unauthenticated write access to live authorization policy in the default docker-compose deployment | `demo_authz_server/routes/rulesWrite.js:15-22` |
-| 35 | High | 🔴 Open | HITL approval receipts are never single-use — replay within TTL enables a second transfer from one human consent | `demo_hitl_service/src/store/challengeStore.js`, `receiptVerification.js:55-116` |
-| 36 | High | 🔴 Open | Workforce `request_time_off` accepts negative `days` — inflates PTO balance instead of rejecting | `demo_api_server/config/verticals/workforce/data.js:26-31` |
-| 37 | High | 🔴 Open | P1AZ tier amount-ceiling backstop keyed on token scope instead of tool scope — effectively dead on standard traffic | `ping-gateway/scripts/groovy/p1az-decision.groovy:516` |
-| 38 | Medium | 🔴 Open | Investment `deposit`/`withdraw` accept negative amounts, inverting the operation with no ceiling guard | `demo_api_server/config/verticals/investment/data.js:104-118` |
-| 39 | Medium | 🔴 Open | CivicPermit `pay_fee` silently pays a different, unrelated fee on bad/mismatched `permitId` | `demo_api_server/config/verticals/government/data.js:14-23` |
-| 40 | Medium | 🔴 Open | Non-constant-time secret comparison on AAM trust gate — timing side channel | `ping-gateway/scripts/groovy/aam-trail-stamp.groovy:27-28` |
-| 41 | Medium | 🔴 Open | TOCTOU race on JWKS forced-refetch throttle — concurrent bad-`kid` burst defeats the 60s rate cap | `ping-gateway/scripts/groovy/jwks-token-validation.groovy:154-159` |
-| 42 | Medium | 🔴 Open | pydantic_agent raises `RuntimeError` on tool policy-denial instead of `ModelRetry` — aborts run instead of reporting the real reason | `pydantic_agent/src/bff_tool_adapter.py:86-94` |
-| 43 | Medium | 🔴 Open | openai_agent never closes an open text bubble before a tool call starts — UI ordering/merge glitch | `openai_agent/src/run_handler.py:223-252` |
+| 34 | Critical | 🟢 Fixed | Unauthenticated write access to live authorization policy in the default docker-compose deployment | `demo_authz_server/routes/rulesWrite.js:15-22` |
+| 35 | High | 🟢 Fixed | HITL approval receipts are never single-use — replay within TTL enables a second transfer from one human consent | `demo_hitl_service/src/store/challengeStore.js`, `receiptVerification.js:55-116` |
+| 36 | High | 🟢 Fixed | Workforce `request_time_off` accepts negative `days` — inflates PTO balance instead of rejecting | `demo_api_server/config/verticals/workforce/data.js:26-31` |
+| 37 | High | 🟢 Fixed | P1AZ tier amount-ceiling backstop keyed on token scope instead of tool scope — effectively dead on standard traffic | `ping-gateway/scripts/groovy/p1az-decision.groovy:516` |
+| 38 | Medium | 🟢 Fixed | Investment `deposit`/`withdraw` accept negative amounts, inverting the operation with no ceiling guard | `demo_api_server/config/verticals/investment/data.js:104-118` |
+| 39 | Medium | 🟢 Fixed | CivicPermit `pay_fee` silently pays a different, unrelated fee on bad/mismatched `permitId` | `demo_api_server/config/verticals/government/data.js:14-23` |
+| 40 | Medium | 🟢 Fixed | Non-constant-time secret comparison on AAM trust gate — timing side channel | `ping-gateway/scripts/groovy/aam-trail-stamp.groovy:27-28` |
+| 41 | Medium | 🟢 Fixed | TOCTOU race on JWKS forced-refetch throttle — concurrent bad-`kid` burst defeats the 60s rate cap | `ping-gateway/scripts/groovy/jwks-token-validation.groovy:154-159` |
+| 42 | Medium | 🟢 Fixed | pydantic_agent raises `RuntimeError` on tool policy-denial instead of `ModelRetry` — aborts run instead of reporting the real reason | `pydantic_agent/src/bff_tool_adapter.py:86-94` |
+| 43 | Medium | 🟢 Fixed | openai_agent never closes an open text bubble before a tool call starts — UI ordering/merge glitch | `openai_agent/src/run_handler.py:223-252` |
 
 ### 34. Unauthenticated write access to live authorization policy — Critical
 ```js
@@ -407,11 +407,13 @@ function guardOk(req) {
 The no-op fallback is justified by a comment assuming the server "binds 127.0.0.1 as a sidecar" — true for the k8s deployment, but `docker-compose.yml` explicitly sets `HOST: "0.0.0.0"` and publishes `9001:9001` to the host, and `AUTHZ_ADMIN_TOKEN` is never set anywhere in the repo (`.env`, compose, k8s — verified via full-repo grep). The `demo-auth` compose profile (which includes `authz-server`) is part of the normal always-up flow, not opt-in.
 **Trigger:** with the stack running normally (`./run-docker.sh`), anyone reaching `localhost:9001` can `PUT /rules` with zero credentials, e.g. setting `create_transfer`'s `requiredScopes` to `[]` and it no longer being classified as a write tool — `decision.js` then skips scope enforcement AND the HITL/step-up gates entirely, persisted live to `rules-overlay.json` until someone notices or calls `/rules/reset` (also unauthenticated).
 **Fix:** require `AUTHZ_ADMIN_TOKEN` whenever `HOST` isn't loopback (fail closed with a startup error), or default one in docker-compose the way other admin-facing services in this repo do.
+**Fixed:** PR [#1859](https://github.com/curtismu7/AI-DEMO2/pull/1859) — `guardOk()` now fails closed (401) on any non-loopback bind with no token; k8s sidecar loopback case unaffected. Real dev-only default `AUTHZ_ADMIN_TOKEN` added to docker-compose.yml on both authz-server and BFF proxy. 6/6 scoped pass, 226/227 full (1 pre-existing unrelated).
 
 ### 35. HITL approval receipts not single-use — High
 Once approved, a challenge stays `status:'approved'` until its 10-minute TTL or the 1-hour GC sweep. `verifyReceipt()` only checks status/expiry, never marks the challenge consumed — no equivalent to the codebase's own established "one-time use: consumed here" pattern used for pending-elicitation checks one block above in the same gateway file.
 **Trigger:** agent gets a transfer challenge approved once by a human, then retries (or replays) the same `tools/call` with the identical `_hitl_challenge_id` before the TTL expires — verification passes again, discharging a second transfer from one approval. The repo's own replay test suite (`challenges.verify.test.js`) covers every cross-user/agent/tool/amount vector except this one.
 **Fix:** transition the challenge to a terminal `consumed`/`spent` status on first successful `/verify`, and reject non-`'approved'` status the same way `'denied'`/`'expired'` are already rejected.
+**Fixed:** PR [#1858](https://github.com/curtismu7/AI-DEMO2/pull/1858) — `store.consume()` added, called on first successful verify. 47/47 pass. Important finding: the *default* Node gateway path (`ff_mcp_gateway_pinggateway` OFF) never calls `/verify` at all and has an even bigger unpatched version of this hole — logged as a scoped follow-up in TECH_DEBT.md rather than expanding this PR's blast radius.
 
 ### 36. Workforce PTO negative-days inflation — High
 ```js
@@ -421,6 +423,7 @@ data.pto.balance -= days;
 `days` comes straight from tool-call params with no server-side range check.
 **Trigger:** `days: -5` passes `balance < days` (false), then `balance -= (-5)` INCREASES the balance instead of being rejected. Non-numeric `days` also passes (`balance < NaN` is always false) and corrupts `balance` to `NaN`.
 **Fix:** validate `days > 0` and finite before the balance check/mutation.
+**Fixed:** PR [#1855](https://github.com/curtismu7/AI-DEMO2/pull/1855) — red-green verified. Full suite 9578/9578 pass.
 
 ### 37. P1AZ tier ceiling backstop effectively dead — High
 ```groovy
@@ -430,6 +433,7 @@ if (txAmountLocal != null && isWriteToolLocal && txAmountLocal > maxAmountLocal)
 This is documented as the SOLE enforcement of the tier-based transfer ceiling (the script's own comment: "real P1AZ cannot map a PingOne group array to a tier"). It checks the caller's granted TOKEN scopes, but the standard inbound token on this route only ever carries the gateway-hop scope — never the literal `'write'` scope, which is a TOOL-level classification in `scope-topology.json` (88 write tools declare `requiredScopes:['write']` at the tool level, not token level).
 **Trigger:** `isWriteToolLocal` is false for essentially all standard traffic, so `tier_amount_exceeded` never fires — a tier-restricted user's transfer/withdraw ceiling is silently unenforced.
 **Fix:** derive `isWriteToolLocal` from the tool's own `requiredScopes` (already loaded as `toolEntry.requiredScopes` earlier in the same block), not from `tokenScopes`.
+**Fixed:** PR [#1854](https://github.com/curtismu7/AI-DEMO2/pull/1854) — no test infra exists for this file; verified by cross-checking real tool classifications against `scope-topology.json` (write tools correctly flagged, read tools correctly excluded) and diff-scoped brace/paren balance.
 
 ### 38. Investment deposit/withdraw invert on negative amounts — Medium
 ```js
@@ -440,6 +444,7 @@ portfolio.value = Math.max(0, Number((portfolio.value - amt).toFixed(2)));  // w
 No sign constraint on `amount`.
 **Trigger:** `deposit` with `amount: -50000` reduces the portfolio (an inverted withdrawal mislabeled as a deposit); `withdraw` with a negative amount increases the value with no ceiling (`deposit` also has no matching ceiling guard).
 **Fix:** reject non-positive `amount` in both mutators before applying the delta.
+**Fixed:** PR [#1856](https://github.com/curtismu7/AI-DEMO2/pull/1856). Full suite 9583/9583 pass.
 
 ### 39. CivicPermit pays wrong fee on bad permitId — Medium
 ```js
@@ -449,6 +454,7 @@ const item = data.fees.items.find((f) => f.permitId === permitId || f.id === per
 Unlike every sibling vertical's mutator (which returns `null`/errors on no-match), this one silently falls back to whichever fee happens to be Outstanding first.
 **Trigger:** a wrong/stale/typo'd `permitId` pays a DIFFERENT permit's fee instead of erroring, returning `status:'Paid'` as if the request succeeded.
 **Fix:** return an error when `permitId` is supplied but matches nothing — no fallback.
+**Fixed:** by another concurrent session (commit `eace36aaf`, not this session's work) — already on main before this pass ran; this pass's audit was against a stale branch point. Verified via existing `verticalMutatorIdHonour.regression.test.js`, 7/7 pass. No new PR needed.
 
 ### 40. AAM trust gate uses non-constant-time comparison — Medium
 ```groovy
@@ -457,6 +463,7 @@ def trustedCaller = internalSecret && request.headers.getFirst('X-BFF-Internal')
 Every equivalent trust gate elsewhere in this codebase uses constant-time comparison (`p1az-decision.groovy` uses `MessageDigest.isEqual`; the Node BFF's own internal-secret helper explicitly documents why). Groovy `==` on strings short-circuits on first mismatched byte.
 **Trigger:** anyone reaching the IG host port directly can time-probe `X-BFF-Internal` byte-by-byte to recover the shared secret and force AAM decisions to the permissive mock backend.
 **Fix:** use `MessageDigest.isEqual` on UTF-8 bytes, matching `p1az-decision.groovy`'s existing pattern.
+**Fixed:** PR [#1852](https://github.com/curtismu7/AI-DEMO2/pull/1852) — no test infra exists for this file; verified by code review, byte-for-byte pattern match against `p1az-decision.groovy`'s working implementation.
 
 ### 41. JWKS forced-refetch throttle has a TOCTOU race — Medium
 ```groovy
@@ -465,6 +472,7 @@ if (nowMs - lastForced > 60_000L) { globals._jwksForcedFetchAt = nowMs; jwk = fi
 Unsynchronized shared `globals` on a multi-threaded IG runtime; the check-then-set isn't atomic.
 **Trigger:** a burst of concurrent requests with an unknown `kid` can all read `lastForced` before any writes it back — all N threads pass the throttle and each issues a forced HTTPS fetch to the JWKS endpoint, the exact amplification the throttle exists to prevent (just needs concurrency instead of sequential requests).
 **Fix:** guard the check-and-set with `synchronized` or an `AtomicLong`/CAS so only one thread per 60s window wins the forced refetch.
+**Fixed:** PR [#1853](https://github.com/curtismu7/AI-DEMO2/pull/1853) — wrapped in `synchronized (globals)`, matching the identical pattern already used for `uc18-rate-limit.groovy`'s analogous TOCTOU fix. Verified by code review (no test infra exists for this file).
 
 ### 42. pydantic_agent aborts run on policy denial instead of reporting it — Medium
 ```python
@@ -475,11 +483,13 @@ raise RuntimeError(msg)   # includes 403 policy denials
 The class docstring says recoverable failures should let the model "recover or report the error," but any other 4xx (e.g. a 403 P1AZ-blocked transfer) raises a bare `RuntimeError`, which `pydantic_ai` doesn't special-case — it propagates uncaught to the top-level generic error handler, discarding the real denial reason. The other three agents (openai, langchain, mastra) all surface the real error to the model instead.
 **Trigger:** user asks pydantic_agent to make a transfer that trips a policy limit; instead of the model explaining the denial, the user sees a generic "internal error" message and the run terminates.
 **Fix:** raise `ModelRetry(msg)` for 4xx denial responses too (or return an error string like the sibling agents).
+**Fixed:** PR [#1860](https://github.com/curtismu7/AI-DEMO2/pull/1860) — verified `ModelRetry` semantics against real pydantic_ai docs first (hands the message to the model as a `RetryPromptPart`, doesn't blindly re-invoke the tool). 7/7 pass.
 
 ### 43. openai_agent doesn't close text bubble before tool call — Medium
 The `tool_call_item` branch calls `emitter.on_tool_start(...)` with no check of `_current_message_id`, unlike `mastra_agent`/`langchain_agent`'s equivalents, which both explicitly close the open text message before emitting `TOOL_CALL_START`.
 **Trigger:** model streams lead-in text, then emits a tool call in the same turn while a text bubble is still open — `TEXT_MESSAGE_END` never fires at the tool-call boundary, and when text resumes after the tool result, `on_llm_start` is skipped since the stale message id is still set — pre- and post-tool text silently merge into one bubble with the tool-call event racing in the middle.
 **Fix:** close the current message (`on_llm_end()`) before `on_tool_start` when `_current_message_id` is set, mirroring the other agents.
+**Fixed:** PR [#1857](https://github.com/curtismu7/AI-DEMO2/pull/1857). 4/5 pass (1 pre-existing unrelated, confirmed via git stash).
 
 ### Also found in pass 6, not in top 10 (verified, logged for awareness)
 - `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx:606-610` — token-expiry badge only recomputes `isExpired` when the `exp` claim value changes, not on wall-clock passage; stays "✓ Active" indefinitely after real expiry if the token isn't refreshed. Display-only, contrast with the correct inline-computed pattern in `TokenCard.jsx` (Medium).
@@ -490,15 +500,15 @@ The `tool_call_item` branch calls `emitter.on_tool_start(...)` with no check of 
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 44 | Critical | 🔴 Open | Undeclared `emit` reference crashes the entire `demo_api_server` process on any elicitation flow | `demo_api_server/services/mcpWebSocketClient.js` (`ws.on('message')` handler) |
-| 45 | High | 🔴 Open | Banking-vertical resource-server tools have no per-user scoping — IDOR, masked today by single-user seed data | `demo_mcp_resource_server/src/tools/registry.ts:78`, `bankingToolHandler.ts:15-20`, `bankingDb.ts:104-134` |
-| 46 | High | 🔴 Open | Agent-route session refresh reintroduces the concurrent refresh-token race `tokenRefresh.js` was built to prevent | `demo_api_server/middleware/agentSessionMiddleware.js:13-25` |
-| 47 | High | 🔴 Open | `approve_purchase_order` approves the wrong PO and ignores its own required `amount` param | `demo_api_server/config/verticals/manufacturing/tools.js:82-91` |
-| 48 | High | 🔴 Open | `pay_bill` with no id defaults to an already-paid bill instead of the first outstanding one | `demo_api_server/config/verticals/healthcare/tools.js:88-95` |
-| 49 | Medium | 🔴 Open | CIBA misconfiguration silently drops the HITL notification instead of falling back to log mode as documented | `demo_hitl_service/src/notifier.js:53-57` |
-| 50 | Medium | 🔴 Open | `cash_out_store_credit` has no balance cap — can report cashing out far more than the actual store-credit balance | `demo_api_server/config/verticals/retail/tools.js:44,212-215` |
-| 51 | Medium | 🔴 Open | Shared `abortRef` lets an aborted run's cleanup clobber the current run's controller, breaking logout/unmount cancellation | `demo_api_ui/src/hooks/useAgentRun.js:118-136,260-271` |
-| 52 | Medium | 🔴 Open | `p1azEnabled` skips the admin-config strict-boolean gate — a non-boolean payload can silently disable the live PDP | `demo_mcp_gateway/src/adminConfig.ts:100,115-126,169-188` |
+| 44 | Critical | 🟢 Fixed | Undeclared `emit` reference crashes the entire `demo_api_server` process on any elicitation flow | `demo_api_server/services/mcpWebSocketClient.js` (`ws.on('message')` handler) |
+| 45 | High | 🟢 Fixed | Banking-vertical resource-server tools have no per-user scoping — IDOR, masked today by single-user seed data | `demo_mcp_resource_server/src/tools/registry.ts:78`, `bankingToolHandler.ts:15-20`, `bankingDb.ts:104-134` |
+| 46 | High | 🟢 Fixed | Agent-route session refresh reintroduces the concurrent refresh-token race `tokenRefresh.js` was built to prevent | `demo_api_server/middleware/agentSessionMiddleware.js:13-25` |
+| 47 | High | 🟢 Fixed | `approve_purchase_order` approves the wrong PO and ignores its own required `amount` param | `demo_api_server/config/verticals/manufacturing/tools.js:82-91` |
+| 48 | High | 🟢 Fixed | `pay_bill` with no id defaults to an already-paid bill instead of the first outstanding one | `demo_api_server/config/verticals/healthcare/tools.js:88-95` |
+| 49 | Medium | 🟢 Fixed | CIBA misconfiguration silently drops the HITL notification instead of falling back to log mode as documented | `demo_hitl_service/src/notifier.js:53-57` |
+| 50 | Medium | 🟢 Fixed | `cash_out_store_credit` has no balance cap — can report cashing out far more than the actual store-credit balance | `demo_api_server/config/verticals/retail/tools.js:44,212-215` |
+| 51 | Medium | 🟢 Fixed | Shared `abortRef` lets an aborted run's cleanup clobber the current run's controller, breaking logout/unmount cancellation | `demo_api_ui/src/hooks/useAgentRun.js:118-136,260-271` |
+| 52 | Medium | 🟢 Fixed | `p1azEnabled` skips the admin-config strict-boolean gate — a non-boolean payload can silently disable the live PDP | `demo_mcp_gateway/src/adminConfig.ts:100,115-126,169-188` |
 
 ### 44. Undeclared `emit` crashes the entire server process — Critical
 ```js
@@ -509,6 +519,7 @@ if (msg.method === 'elicitation/create') {
 `emit` is never declared, imported, or destructured anywhere in this file. Elicitation is a real, wired feature (client declares `elicitation: {}` capability; `server.js` has a live `/resolve-elicitation`-style endpoint), not dead code.
 **Trigger:** any MCP tool call that causes the server to send a server-initiated `elicitation/create` JSON-RPC message over the WebSocket hits this line → `ReferenceError: emit is not defined` inside the `ws.on('message')` handler → `server.js`'s `process.on('uncaughtException', ...)` unconditionally calls `process.exit(1)` → the entire `demo_api_server` process crashes for every user, not just the triggering request.
 **Fix:** wire this to the actual SSE/event publisher used elsewhere for MCP flow events (`mcpFlowSseHub.publish`/`mcpSsePublisher`), or pass an `emit` callback into the caller.
+**Fixed:** PR [#1869](https://github.com/curtismu7/AI-DEMO2/pull/1869) — red-green verified (reproduced the exact `ReferenceError` crash before fixing). Threaded `deps.emit` (already used by `mcpToolPipeline.js` for every other phase event) down as an optional `opts.emit`. 18 suites, 117 tests, 0 failures.
 
 ### 45. Banking accounts IDOR — no per-user scoping — High
 ```ts
@@ -522,6 +533,7 @@ getAccount(id)  // SELECT * FROM accounts WHERE id = ? — no userId filter
 `Account` has an explicit `userId` column and the tool descriptions promise "for the authenticated user," but identity is never checked — `index.ts` already resolves `decoded.sub` and passes it into `dispatch()`, `registry.ts` just drops it before calling `dispatchBankingTool`. Banking is the only vertical in the resource server with per-user ownership modeled (confirmed: none of the other 7 verticals' DB files have a `userId` column).
 **Trigger:** any caller with `banking:read` scope can call `get_banking_account` with a guessed/enumerated `account_id` and get another user's balance, or call `list_banking_accounts` and get every account in the database. Masked today only because seed data has exactly one user.
 **Fix:** thread `subject` through `registry.ts` → `dispatchBankingTool` → `listAccounts(userId)`/`getAccount(id, userId)`, filter both queries by `userId`.
+**Fixed:** PR [#1863](https://github.com/curtismu7/AI-DEMO2/pull/1863) — tests seed a 2nd user, prove cross-user isolation. 156/159 pass (3 pre-existing unrelated, confirmed via stash). Note: no live UI consumer calls these tools today, but real PingOne `sub` claims are UUIDs — flagged for whoever wires this up next that seed data won't match unless updated.
 
 ### 46. Agent-route refresh reintroduces concurrent refresh-token race — High
 ```js
@@ -533,6 +545,7 @@ const refreshOAuthSession = async (req) => {
 Comment claims this "mirrors" `middleware/tokenRefresh.js`'s `refreshIfExpiring`, but omits its `_refreshInFlight` dedup Set and `_refreshBlacklist` Map, which exist specifically to stop concurrent refreshes from reusing an already-rotated refresh token. Mounted on `/api/agent`, `/api/admin-agent`, `/api/ops-agent`, `/api/a2a`, `/api/support-agent`, `/api/compliance-agent` — none covered by the global proactive-refresh path (`/api/demo-agent` is, `/api/agent` is not).
 **Trigger:** two concurrent requests on any of these routes with an expired token (chat send + background poll, or a double-click) both call `refreshOAuthSession` with the same still-current refresh token. PingOne rotates on use, so the second call gets `invalid_grant` → bare 401 `session_expired`, forcing full re-auth even though the first refresh succeeded moments earlier.
 **Fix:** reuse the in-flight/blacklist guard from `middleware/tokenRefresh.js` (or call `refreshIfExpiring` directly) instead of a standalone unguarded refresh.
+**Fixed:** PR [#1870](https://github.com/curtismu7/AI-DEMO2/pull/1870) — added in-flight Map + blacklist Map, concurrent callers await the in-flight refresh. 9/9 scoped pass, 9575/9700 full (2 pre-existing unrelated).
 
 ### 47. `approve_purchase_order` approves the wrong PO, ignores amount — High
 ```js
@@ -541,6 +554,7 @@ if (!_item && !_id) _item = _arr.find((r) => r.status === 'Pending') || _arr[0];
 Seed statuses are `"Pending Approval"`/`"Approved"`/`"Delivered"`, never `"Pending"` — the status match is dead code, so the fallback silently degrades to `_arr[0]` regardless of that PO's actual state. The schema marks `amount` required (comment: "approve a $300 purchase order") but the handler never reads it — no validation against the found PO's total, and no guard against approving an already-`Delivered`/`Rejected` PO on either path.
 **Trigger:** "approve a $300 purchase order" with no id → always approves `purchaseOrders[0]` regardless of stated amount or actual PO state.
 **Fix:** match the literal `Pending Approval` status (or drop the dead branch), add a status guard before mutating on every path, validate `params.amount` against the found PO's total or drop it from the schema.
+**Fixed:** PR [#1866](https://github.com/curtismu7/AI-DEMO2/pull/1866) — fixed dead status match, added status guard on the explicit-id path only (a discovered cross-vertical test invariant requires the no-id amount-driven fallback to always complete, never error — scoped accordingly). `amount` left deliberately unvalidated against total, documented in the PR. 302/302 + 192/192 pass.
 
 ### 48. `pay_bill` defaults to an already-paid bill — High
 ```js
@@ -549,6 +563,7 @@ if (!_billId) { const _bills = store.get(userId).billingHistory || []; _billId =
 Comment says "first outstanding bill" but the code takes literal index `[0]` with no status filter — seed `billingHistory[0]` is already `status: "Paid"`; the real outstanding bills are elsewhere in the array.
 **Trigger:** "pay my bill" with no id → re-marks the already-paid $20 bill as paid and reports success, while actual overdue balances go untouched.
 **Fix:** filter for `status !== 'Paid'` before taking `[0]`.
+**Fixed:** PR [#1865](https://github.com/curtismu7/AI-DEMO2/pull/1865) — also added a 4th Due bill to seed data since an existing chip-completion test needed 4 outstanding bills. 9/9 scoped, 191/191 wider pass.
 
 ### 49. CIBA misconfiguration silently drops HITL notification — Medium
 ```js
@@ -560,6 +575,7 @@ if (!CIBA_ENDPOINT || !CIBA_CLIENT_ID) {
 The caller only logs on rejection (`.catch`), but this resolves normally, so no error signal fires either.
 **Trigger:** `HITL_NOTIFY_MODE=ciba` set but `PINGONE_CIBA_ENDPOINT`/`HITL_CLIENT_ID` missing (partially-configured env) → a money-transfer HITL challenge is created, no CIBA push sent, no fallback log-mode notification with `approvalUrl` emitted, no error logged anywhere — looks like a hung transfer with no diagnostic trail pointing at the real cause.
 **Fix:** in the missing-config branch, actually call through to the log-mode notification path instead of only warning and returning.
+**Fixed:** PR [#1862](https://github.com/curtismu7/AI-DEMO2/pull/1862) — extracted a `_notifyViaLog()` helper shared by both the default log-mode branch and the CIBA-fallback branch. 48/48 pass.
 
 ### 50. `cash_out_store_credit` has no balance cap — Medium
 ```js
@@ -569,6 +585,7 @@ return { result: { cashedOut: _amt, ..., status: 'pending step-up' }, render: 't
 Never checks `_amt` against the real `storeCredit` balance (150 in seed data) and never decrements it.
 **Trigger:** "cash out $50,000 of my store credit" reports `cashedOut: 50000` as pending-step-up success with no rejection, repeatably, balance never depleted.
 **Fix:** clamp/reject `_amt` against the actual balance and decrement it on success.
+**Fixed:** PR [#1867](https://github.com/curtismu7/AI-DEMO2/pull/1867). 3/3 scoped, 561/561 wider pass.
 
 ### 51. Shared `abortRef` breaks logout/unmount cancellation — Medium
 ```js
@@ -581,11 +598,13 @@ Never checks `_amt` against the real `storeCredit` balance (150 in seed data) an
 `useAgentRun` is instantiated once and shared across every send path (typed message, chip, HITL resume). An aborted run's `finally` unwinds asynchronously and unconditionally nulls `abortRef.current` with no check that it still belongs to that invocation.
 **Trigger:** run A gets aborted by run B (e.g. sending a new message while a HITL modal's approve triggers a third run C); when A's aborted stream loop unwinds, it nulls out C's controller. `aguiAbort()` (called on logout/unmount) becomes a silent no-op — the actually-active stream keeps running past logout/navigation, still dispatching events into reset state.
 **Fix:** `if (abortRef.current === controller) { abortRef.current = null; }` (and guard `setIsRunning(false)` the same way) instead of unconditional clearing.
+**Fixed:** PR [#1864](https://github.com/curtismu7/AI-DEMO2/pull/1864) — red-green verified with a race-simulating test. Full suite 3070/3070 pass, build clean.
 
 ### 52. `p1azEnabled` skips the admin-config strict-boolean gate — Medium
 `boolKeys` lists `requireActForAgentTools`/`intentTokenRequired`/`requireRarIntent`/`introspectionSimDown`; `devBypass`/`rateLimitEnabled` get their own dedicated 400-rejection. `p1azEnabled` is allowed as an admin-config key but isn't in any of these lists, so it falls through to a generic assignment with no type check or coercion.
 **Trigger:** `POST /admin/config {"p1azEnabled": 0}` (a JSON number, not boolean) silently sets `config.p1azEnabled = 0` → `isP1AZActive()` evaluates falsy → disables the live PDP, routing every `guardToolCall`/`guardToolsList` into the local-scope-fallback path — exactly the malformed-payload case the strict-boolean gate exists to reject with 400 for its sibling keys.
 **Fix:** add `p1azEnabled` to the strict-boolean validation/coercion list, matching `rateLimitEnabled`/`devBypass`.
+**Fixed:** PR [#1861](https://github.com/curtismu7/AI-DEMO2/pull/1861). 31/31 scoped pass.
 
 ---
 
