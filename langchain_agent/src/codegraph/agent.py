@@ -237,7 +237,7 @@ class CodegraphRunner:
     async def astream_sse(self, question: str, history: list[dict]) -> AsyncGenerator[str, None]:
         import asyncio
 
-        yield f"data: {json.dumps({'type': 'status', 'text': 'Searching the codebase\u2026'})}\n\n"
+        yield f"data: {json.dumps({'type': 'status', 'text': 'Searching the codebase…'})}\n\n"
         msg_history = _to_msg_history(history)
         queue: asyncio.Queue = asyncio.Queue()
 
