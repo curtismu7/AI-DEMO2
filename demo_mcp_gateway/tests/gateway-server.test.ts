@@ -18,6 +18,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import http from 'http';
 import supertest from 'supertest';
 import { GatewayServer } from '../src/server/GatewayServer';
+import { McpTokenExchangeClient } from '../src/auth/McpTokenExchangeClient';
+import { GatewayIntrospectionClient } from '../src/auth/GatewayIntrospectionClient';
 import type { GatewayConfig } from '../src/config';
 
 // makeToken below produces jwt.decode()-only tokens (fake signature) — see its
@@ -337,6 +339,63 @@ describe('GatewayServer — Plan 243-01 foundational tests', () => {
       expect(res.body.clientSecret).toBeUndefined();
       expect(res.body.apiResourceServerApiKey).toBeUndefined();
       expect(JSON.stringify(res.body)).not.toContain('demo-mortgage-key');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 6. POST /admin/clear-token-cache — logout cache flush (internal-secret gated)
+  //
+  // Regression: this route was defined only on the dead WS-era listener
+  // (index.ts handleHttp) and never wired to this HTTP ingress, so the BFF's
+  // fire-and-forget logout POST silently 404'd and the exchanged-token cache
+  // was never flushed — a token-replay window open until natural TTL expiry.
+  // -------------------------------------------------------------------------
+
+  describe('POST /admin/clear-token-cache', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('returns 401 without the internal secret', async () => {
+      const res = await request.post('/admin/clear-token-cache');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe('unauthorized');
+    });
+
+    it('returns 401 with a wrong internal secret', async () => {
+      const res = await request
+        .post('/admin/clear-token-cache')
+        .set('x-internal-gateway-secret', 'wrong');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 200 and flushes both token caches with the correct secret (was 404 before the fix)', async () => {
+      const exchangeSpy = jest.spyOn(McpTokenExchangeClient, 'clearCache');
+      const introspectSpy = jest.spyOn(GatewayIntrospectionClient, 'clearCache');
+
+      const res = await request
+        .post('/admin/clear-token-cache')
+        .set('x-internal-gateway-secret', INTERNAL_SECRET);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ ok: true });
+      // The route exists AND actually clears the caches — the two assertions
+      // that would have caught the original silent-404 regression.
+      expect(exchangeSpy).toHaveBeenCalledTimes(1);
+      expect(introspectSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. GET /openapi/* — sibling OpenAPI specs for PingAuthorize per-tool scope
+  // policy. Ported off the dead WS-era listener alongside clear-token-cache.
+  // -------------------------------------------------------------------------
+
+  describe('GET /openapi/:spec', () => {
+    it('serves the mcp-olb OpenAPI spec as JSON', async () => {
+      const res = await request.get('/openapi/mcp-olb');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toMatch(/application\/json/);
     });
   });
 });
