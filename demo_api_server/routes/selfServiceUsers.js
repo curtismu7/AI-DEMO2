@@ -100,6 +100,17 @@ router.post('/',
         address
       } = req.body;
 
+      // Only an existing admin may use this self-service endpoint to create
+      // another admin account. A non-admin (or unauthenticated) caller
+      // requesting role: 'admin' is a privilege-escalation attempt.
+      if (role === 'admin' && (!req.user || req.user.role !== 'admin')) {
+        throw new OAuthError(
+          OAUTH_ERROR_TYPES.INSUFFICIENT_SCOPE,
+          'Admin role required to create an admin user',
+          403
+        );
+      }
+
       logger.info(LOG_CATEGORIES.USER_MANAGEMENT, 'Creating new user via self-service', {
         email,
         username,

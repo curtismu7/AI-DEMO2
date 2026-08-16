@@ -40,6 +40,12 @@ const COMPONENTS = [
   'TokenChainTraceRail',
 ];
 
+// /api/auth/oauth/status and /api/auth/oauth/user/status were part of this
+// census when it was taken, but only via Dashboard.js's own fetchTokenData —
+// a call whose result (tokenData) was set but never read anywhere (BUGS.md
+// #28). Removed as dead code; the underlying OAuth-status feature stays
+// reachable on /admin through SessionExpiryTimer (header countdown pill) and
+// useAuth/sessionResolver (session routing), so this isn't a dropped feature.
 const ENDPOINTS = [
   '/api/accounts/reset-all-demo',
   '/api/admin/bootstrap/export',
@@ -47,8 +53,6 @@ const ENDPOINTS = [
   '/api/admin/stats',
   '/api/admin/transactions/lookup',
   '/api/admin/users/hints',
-  '/api/auth/oauth/status',
-  '/api/auth/oauth/user/status',
 ];
 
 const HEADINGS = [

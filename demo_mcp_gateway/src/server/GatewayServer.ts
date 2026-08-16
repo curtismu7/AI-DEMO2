@@ -34,6 +34,8 @@ import { resolve } from 'path';
 import axios, { AxiosError } from 'axios';
 import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
+import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
+import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
@@ -284,6 +286,48 @@ export class GatewayServer {
       }
       res.writeHead(result.status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(result.body));
+      return;
+    }
+
+    // POST /admin/clear-token-cache — flush the gateway's in-memory token caches
+    // (RFC 8693 exchange + RFC 7662 introspection). Called fire-and-forget by the
+    // BFF on user logout so a "start demo over" cannot replay a previously-exchanged
+    // backend token within its TTL. Same internal-secret gate as /admin/config; the
+    // caches are global (not user-keyed) so the clear is global — acceptable for the
+    // single-user demo. This handler lived on the dead WS-era listener (index.ts
+    // handleHttp) but was never wired to this HTTP ingress, so the BFF's logout POST
+    // silently 404'd and the exchanged-token cache was never flushed.
+    if (url === '/admin/clear-token-cache' && method === 'POST') {
+      if (!this.requireInternalSecret(req, res)) return;
+      McpTokenExchangeClient.clearCache();
+      GatewayIntrospectionClient.clearCache();
+      console.log('[GW] token caches cleared (logout)');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    // GET /openapi/mcp-olb | /openapi/mcp-resource-server — serve the sibling
+    // OpenAPI specs (Dockerfile copies them to /repo/oauth-mcp/openapi and
+    // /repo/demo_mcp_resource_server/openapi) for PingAuthorize per-tool scope
+    // policy. Public (no secret), matching the dead WS-era listener this was
+    // ported from. __dirname is dist/server, so the repo root is three levels up
+    // — same depth as the certs path resolved in the constructor.
+    const openApiMatch = url.match(/^\/openapi\/(mcp-olb|mcp-resource-server)$/);
+    if (openApiMatch && method === 'GET') {
+      const specName = openApiMatch[1];
+      const specPaths: Record<string, string> = {
+        'mcp-olb': resolve(__dirname, '../../../oauth-mcp/openapi/mcp-olb.openapi.json'),
+        'mcp-resource-server': resolve(__dirname, '../../../demo_mcp_resource_server/openapi/mcp-resource-server.openapi.json'),
+      };
+      const specPath = specPaths[specName];
+      if (specPath && existsSync(specPath)) {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
+        res.end(readFileSync(specPath, 'utf8'));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `OpenAPI spec not found for ${specName}` }));
+      }
       return;
     }
 

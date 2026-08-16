@@ -513,7 +513,19 @@ if (mcpMethod == 'tools/call' && toolName && (tierMaxAmountHeader || tierRestric
     if (tierMaxAmountHeader.isNumber()) {
         def maxAmountLocal = tierMaxAmountHeader as BigDecimal
         def txAmountLocal = transactionAmount?.isNumber() ? (transactionAmount as BigDecimal) : null
-        def isWriteToolLocal = tokenScopes.tokenize(' ').contains('write')
+        // Bug fix: this must classify the TOOL ('write' is a per-tool requiredScopes
+        // entry in scope-topology.json, e.g. create_transfer/withdraw/pay_bill), not
+        // the caller's granted token scopes — the standard inbound token on this path
+        // only ever carries the gateway-hop scope, so checking tokenScopes here left
+        // this ceiling effectively dead on standard traffic. Mirrors the Node gateway's
+        // getScopesForGatewayTool(toolName).includes('write') (pingAuthorizeGuard.ts:312).
+        def isWriteToolLocal = false
+        def tierToolTopologyFile = new File('/var/gateway/config/scope-topology.json')
+        if (tierToolTopologyFile.exists()) {
+            def tierToolTopology = new JsonSlurper().parse(tierToolTopologyFile)
+            def tierToolEntry = tierToolTopology.tools?.get(toolName)
+            isWriteToolLocal = (tierToolEntry?.requiredScopes ?: []).contains('write')
+        }
         if (txAmountLocal != null && isWriteToolLocal && txAmountLocal > maxAmountLocal) {
             return denyLocal('tier_amount_exceeded', txAmountLocal.toString() + ' exceeds tier ceiling ' + maxAmountLocal.toString())
         }

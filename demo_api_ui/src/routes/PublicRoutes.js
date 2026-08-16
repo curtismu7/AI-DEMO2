@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
+import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
@@ -15,7 +16,6 @@ import ComplianceModalPopout from "../components/ComplianceModalPopout";
 import DemoGuidePopout from "../components/DemoGuidePopout";
 import LogoutPage from "../components/LogoutPage";
 import MFATestPage from "../components/MFATestPage";
-import Onboarding from "../components/Onboarding";
 import PingOneSetupGuidePage from "../components/PingOneSetupGuidePage";
 import PingOneTestPage from "../components/PingOneTestPage";
 import PingOneSetup from "../pages/PingOneSetup";
@@ -116,9 +116,12 @@ export function PrivilegeMcpLearningPageRoute({ user, logout }) {
   );
 }
 
-export function OnboardingRoute({ user }) {
-  if (user && user.role !== "admin") return <Navigate to="/" replace />;
-  return <Onboarding />;
+export function AgentGatewayCapabilitiesPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AgentGatewayCapabilitiesPage />
+    </AppShell>
+  );
 }
 
 export function AgentPageRoute({ user, logout }) {
@@ -167,7 +170,7 @@ export function OAuthAcademyPageRoute({ user, logout }) {
 export function OASDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <OASDemoPage />
+      <OASDemoPage user={user} />
     </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 import pytest
 import httpx
 import respx
+from pydantic_ai import ModelRetry
 from src.models import BffDeps
 from src.bff_tool_adapter import build_tool_functions, BffToolError
 
@@ -134,8 +135,68 @@ async def test_emits_tool_call_end_even_when_tool_call_fails():
         deps = FakeDeps()
         tool_call_id = "tc-3"
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ModelRetry):
         await tools[0].function(FakeCtx(), userId="u1")
 
     assert emitted[0]["type"] == "TOOL_CALL_START"
     assert emitted[-1] == {"type": "TOOL_CALL_END", "toolCallId": "tc-3"}
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_403_policy_denial_raises_model_retry_with_real_reason():
+    """Bug: a 403 tool-call policy denial (e.g. gateway_policy_denied,
+    insufficient_scope, a P1AZ-blocked transfer) used to raise a bare
+    RuntimeError, which pydantic_ai does not special-case -- it propagated out
+    of agent.run_stream() uncaught and was only caught by run_handler's
+    generic top-level `except Exception`, which discards the real message and
+    emits a generic "internal error" response. It must instead raise
+    ModelRetry so the model sees the real denial reason and can explain it
+    (or decide what to do next) rather than the run hard-aborting."""
+    respx.post("http://127.0.0.1:3001/internal/agent-tool").mock(
+        return_value=httpx.Response(
+            403, text='{"error":"gateway_policy_denied","reason":"transfer exceeds daily limit"}'
+        )
+    )
+
+    tools = build_tool_functions([SCHEMA])
+
+    class FakeDeps:
+        bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
+        bff_internal_secret = "secret"
+        session_id = "sess_abc"
+
+    class FakeCtx:
+        deps = FakeDeps()
+        tool_call_id = "tc-4"
+
+    with pytest.raises(ModelRetry) as exc_info:
+        await tools[0].function(FakeCtx(), userId="u1")
+
+    message = str(exc_info.value)
+    assert "403" in message
+    assert "gateway_policy_denied" in message
+    assert "transfer exceeds daily limit" in message
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_5xx_still_raises_model_retry():
+    """Regression: transient server errors must keep raising ModelRetry."""
+    respx.post("http://127.0.0.1:3001/internal/agent-tool").mock(
+        return_value=httpx.Response(503, text="service unavailable")
+    )
+
+    tools = build_tool_functions([SCHEMA])
+
+    class FakeDeps:
+        bff_tool_url = "http://127.0.0.1:3001/internal/agent-tool"
+        bff_internal_secret = "secret"
+        session_id = "sess_abc"
+
+    class FakeCtx:
+        deps = FakeDeps()
+        tool_call_id = "tc-5"
+
+    with pytest.raises(ModelRetry):
+        await tools[0].function(FakeCtx(), userId="u1")

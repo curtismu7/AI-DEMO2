@@ -9,7 +9,22 @@ jest.mock('../services/scopeTopology', () => ({
 }));
 
 const store = require('../services/lmdb/delegatedCommerceStore.lmdb');
+const scopeTopology = require('../services/scopeTopology');
 const runtime = require('../services/delegatedCommerceRuntime');
+
+// Register a mocked active registration with the given consent scopes, then
+// make scopeTopology.toolScopes return the real namespaced required scopes for
+// the tool under test.
+function activeReg(consentScopes) {
+  store.get.mockReturnValue({
+    id: 'reg-1',
+    applicationId: 'agent-new',
+    claimedByUserId: 'user-1',
+    status: 'active',
+    scopes: consentScopes,
+    expiresAt: Date.now() + 60000,
+  });
+}
 
 function req() {
   return {
@@ -146,4 +161,86 @@ it('keeps revoked registrations insufficient so post-revoke tool retries deny', 
   expect(runtime.resolveConsentContext(req(), 'list_orders')).toEqual(
     expect.objectContaining({ status: 'revoked', sufficient: false }),
   );
+});
+
+// Regression: namespaced tool scopes must not be filtered away. Before the fix
+// the required set was reduced to bare 'read'/'write', so 'sensitive:read',
+// 'transfer', and 'airlines:*' were dropped and read-only consent passed.
+describe('namespaced required scopes are enforced against read/write consent', () => {
+  it('denies read-only consent on get_sensitive_account_details (read + sensitive:read)', () => {
+    activeReg(['read']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['read', 'sensitive:read']);
+    expect(runtime.resolveConsentContext(req(), 'get_sensitive_account_details')).toEqual(
+      expect.objectContaining({
+        consentScopes: ['read'],
+        requiredScopes: ['read', 'sensitive:read'],
+        sufficient: false,
+      }),
+    );
+  });
+
+  it('denies read-only consent on create_wire_transfer (read + transfer)', () => {
+    activeReg(['read']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['read', 'transfer']);
+    expect(runtime.resolveConsentContext(req(), 'create_wire_transfer')).toEqual(
+      expect.objectContaining({ requiredScopes: ['read', 'transfer'], sufficient: false }),
+    );
+  });
+
+  it('denies read-only consent on redeem_miles (airlines:read + airlines:write, no bare read/write)', () => {
+    activeReg(['read']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['airlines:read', 'airlines:write']);
+    expect(runtime.resolveConsentContext(req(), 'redeem_miles')).toEqual(
+      expect.objectContaining({
+        requiredScopes: ['airlines:read', 'airlines:write'],
+        sufficient: false,
+      }),
+    );
+  });
+
+  it('denies read-only consent on pay_airline_fee (airlines:read + airlines:write)', () => {
+    activeReg(['read']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['airlines:read', 'airlines:write']);
+    expect(runtime.resolveConsentContext(req(), 'pay_airline_fee')).toMatchObject({
+      sufficient: false,
+    });
+  });
+
+  it('allows a write-consented agent on get_sensitive_account_details', () => {
+    activeReg(['read', 'write']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['read', 'sensitive:read']);
+    expect(runtime.resolveConsentContext(req(), 'get_sensitive_account_details')).toMatchObject({
+      sufficient: true,
+    });
+  });
+
+  it('allows a write-consented agent on redeem_miles', () => {
+    activeReg(['read', 'write']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['airlines:read', 'airlines:write']);
+    expect(runtime.resolveConsentContext(req(), 'redeem_miles')).toMatchObject({
+      sufficient: true,
+    });
+  });
+
+  it('keeps banking create_transfer gating unchanged: read-only denied, write allowed', () => {
+    activeReg(['read']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['write', 'transfer']);
+    expect(runtime.resolveConsentContext(req(), 'create_transfer')).toMatchObject({
+      sufficient: false,
+    });
+
+    activeReg(['read', 'write']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['write', 'transfer']);
+    expect(runtime.resolveConsentContext(req(), 'create_transfer')).toMatchObject({
+      sufficient: true,
+    });
+  });
+
+  it('allows read consent on a legitimate read-only tool (airlines:read)', () => {
+    activeReg(['read']);
+    scopeTopology.toolScopes.mockReturnValueOnce(['airlines:read']);
+    expect(runtime.resolveConsentContext(req(), 'list_airline_reservations')).toMatchObject({
+      sufficient: true,
+    });
+  });
 });

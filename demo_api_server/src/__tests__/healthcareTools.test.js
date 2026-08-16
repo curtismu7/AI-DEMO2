@@ -55,4 +55,24 @@ describe('healthcare tools', () => {
     expect(out.result.status).toBe('Cancelled');
     expect(out.render).toBe('cancel_appointment');
   });
+
+  it('pay_bill with no id defaults to the first outstanding bill, not billingHistory[0] which is already Paid (regression)', async () => {
+    const bills = store.get('u').billingHistory;
+    expect(bills[0].status).toBe('Paid'); // sanity check on seed data shape
+    const firstOutstanding = bills.find((b) => b.status !== 'Paid');
+    const out = await execute('pay_bill', { amount: firstOutstanding.amountDue }, { userId: 'u' });
+    expect(out.result.id).toBe(firstOutstanding.id);
+    expect(out.result.status).toBe('Paid');
+    expect(out.render).toBe('pay_bill');
+    // The already-paid bill at index 0 must remain untouched.
+    expect(bills[0].status).toBe('Paid');
+  });
+
+  it('pay_bill with no id and no outstanding bills returns an error instead of re-paying a Paid bill', async () => {
+    const bills = store.get('u').billingHistory;
+    for (const b of bills) b.status = 'Paid';
+    const out = await execute('pay_bill', { amount: 10 }, { userId: 'u' });
+    expect(out.result.error).toBe('no outstanding bills');
+    expect(out.render).toBe('text');
+  });
 });

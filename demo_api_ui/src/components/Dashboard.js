@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { getCachedJson } from "../services/cachedStatusService";
 import {
   toast,
   notifySuccess,
@@ -39,23 +38,6 @@ import AdminCustomerPanel from "./AdminCustomerPanel";
 import AdminDemoControlStrip from "./AdminDemoControlStrip";
 import GroupMembershipToggle from "./GroupMembershipToggle";
 
-// Decode a JWT into { header, payload, raw } — no component deps
-function decodeToken(token) {
-  try {
-    if (!token) return null;
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    return {
-      header: JSON.parse(atob(parts[0])),
-      payload: JSON.parse(atob(parts[1])),
-      raw: token,
-    };
-  } catch (err) {
-    console.error("Error decoding token:", err);
-    return null;
-  }
-}
-
 const Dashboard = ({ user, onLogout }) => {
   // Fetch and display current user token in the token chain
   useCurrentUserTokenEvent();
@@ -69,7 +51,6 @@ const Dashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [forbidden403, setForbidden403] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
-  const [, setTokenData] = useState(null);
   const { registerTokenModalOpener } = useSessionToken();
   const [resettingDemo, setResettingDemo] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -412,60 +393,16 @@ const Dashboard = ({ user, onLogout }) => {
   }, [location.state, location.pathname, navigate, fetchDashboardData]);
 
 
-  // Function to decode JWT token
-  // Function to fetch current OAuth tokens
-  const fetchTokenData = useCallback(async () => {
-    try {
-      // Try both admin and user status endpoints using axios directly
-      let response;
-      try {
-        response = await getCachedJson("/api/auth/oauth/status");
-        console.debug("Admin OAuth response:", response.data);
-        if (!response.data.authenticated) {
-          response = await getCachedJson("/api/auth/oauth/user/status");
-          console.debug("User OAuth response:", response.data);
-        }
-      } catch (_err) {
-        response = await getCachedJson("/api/auth/oauth/user/status");
-        console.debug("User OAuth response:", response.data);
-      }
-
-      if (response.data.authenticated) {
-        if (response.data.accessToken) {
-          setTokenData({
-            accessToken: decodeToken(response.data.accessToken),
-            tokenType: response.data.tokenType,
-            expiresAt: response.data.expiresAt,
-            clientType: response.data.clientType,
-            oauthProvider: response.data.oauthProvider,
-            user: response.data.user,
-          });
-        }
-      } else {
-        setTokenData(null);
-      }
-    } catch (error) {
-      console.error("❌ Error fetching token data:", error);
-      setTokenData(null);
-    }
-  }, []);
-
   // Function to open token modal
   const openTokenModal = () => {
-    fetchTokenData();
     setShowTokenModal(true);
   };
-
-  // Prefetch decoded token data so the modal opens instantly.
-  useEffect(() => {
-    fetchTokenData();
-  }, [fetchTokenData]);
 
   // SessionTokenProvider owns the pill countdown; this dashboard only owns the
   // token-detail modal, so register an opener for the pill's "View Token" button.
   useEffect(
-    () => registerTokenModalOpener(() => { fetchTokenData(); setShowTokenModal(true); }),
-    [registerTokenModalOpener, fetchTokenData],
+    () => registerTokenModalOpener(() => setShowTokenModal(true)),
+    [registerTokenModalOpener],
   );
 
   // Check if scope injection is enabled (Phase 146 — D-04)

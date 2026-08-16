@@ -102,6 +102,240 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-16 — Delegated-commerce consent scope check bypassed for namespaced tool scopes (BUGS.md #55)
+
+**Files changed:** `demo_api_server/services/delegatedCommerceRuntime.js`,
+`demo_api_server/tests/delegatedCommerceRuntime.test.js`
+
+**What was broken:** `resolveConsentContext()` computed the tool's required
+scopes as `scopeTopology.toolScopes(tool).filter(s => s === 'read' || s === 'write')`
+— keeping ONLY literal `read`/`write` tokens. But `scope-topology.json` declares
+tool scopes as namespaced strings (`sensitive:read`, `airlines:write`,
+`transfer`). The filter dropped every namespaced scope, so any tool whose
+required scopes lacked a bare `read`/`write` produced `requiredScopes = []`, and
+`[].every(...)` is vacuously `true` → `sufficient: true` regardless of consent.
+A read-only-consented delegated agent could invoke `get_sensitive_account_details`
+(full acct#/routing/SWIFT) and `create_wire_transfer`; `cancel_airline_reservation`/
+`redeem_miles`/`pay_airline_fee` (`["airlines:read","airlines:write"]`) had NO
+consent check at all. The enforcement gate (`evaluateMcpFirstToolGate`) keys off
+`sufficient`, so this silently fail-opened.
+
+**What was fixed:** Stop collapsing required scopes to the bare read/write
+subset. Classify each namespaced required scope into the customer's consent
+vocabulary (`read`/`write` — the only values `routes/delegatedCommerce.js`
+`ALLOWED_SCOPES` accepts): any `*:write`, bare `write`, `transfer`, or
+`sensitive:*` demands `write` consent (highest grantable tier, unreachable by
+read-only consent); everything else demands `read`. Write consent implies read.
+`requiredScopes` surfaced in the denial body is now the full tool scope list.
+
+**Do not break:** Banking `create_transfer` (`["write","transfer"]`) must stay
+write-gated (read-only denied, write allowed) — unchanged. Legitimate read-only
+tools must still pass for read-only consent. Claimed/staged registrations must
+still early-return `null` (default MCP agent not 403'd before consent).
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/delegatedCommerceRuntime.test.js --forceExit --maxWorkers=4` (17/17 passed); related suites `tests/delegatedCommerceService.test.js tests/delegatedCommerceRoutes.test.js tests/delegationGate.unit.test.js tests/agentConsentRoute.test.js` (17/17) and gate regressions `tests/mcpToolPipelineSseRequest.regression.test.js tests/mcpToolPipeline.gatewayDenyEvidence.test.js tests/agentPreflight.regression.test.js` (23/23).
+
+### 2026-08-16 — Aborted AG-UI run's cleanup clobbered the current run's abort controller (BUGS.md #51)
+
+**Files changed:** `demo_api_ui/src/hooks/useAgentRun.js`,
+`demo_api_ui/src/hooks/__tests__/useAgentRun.abortRace.test.js` (new)
+
+**What was broken:** `useAgentRun` is instantiated exactly once in `AIAgent.js`,
+so a single `abortRef` is shared across every send path (typed message, chip,
+HITL resume). `run()`'s top correctly aborts an in-flight run and installs a
+new `AbortController` when called again, but the *old* run's `finally` block
+unconditionally set `abortRef.current = null` and `setIsRunning(false)` — even
+after a newer run had already reassigned `abortRef.current` to its own
+controller. The old run's late async cleanup wiped out the current run's
+controller, so `abort()` (called on logout and on unmount) silently became a
+no-op: the actually-active SSE stream kept running past logout/navigation,
+still dispatching events into reset agent state.
+
+**What was fixed:** In `run()`'s `finally` block, only clear `abortRef.current`
+and flip `isRunning` when `abortRef.current === controller` (this invocation's
+own controller) — i.e. only when no newer run has superseded this one. The
+abort-the-previous-run-on-new-call behavior at the top of `run()` is unchanged.
+
+**Do not break:** `run()` must still abort a prior in-flight run when called
+again. `abort()` must remain effective against whichever run is actually
+current, including after an older superseded run's cleanup has resolved.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/hooks/__tests__/useAgentRun.abortRace.test.js src/hooks/__tests__/useAgentRun.patch.test.js` (17/17 passed); full suite `npx vitest run` (1059/1059 suites, 3070 passed/24 pending/0 failed); `npx vite build` exits 0.
+
+### 2026-08-16 — authz-server rule-write endpoints unauthenticated on docker-compose (BUGS.md #34)
+
+**Files changed:** `demo_authz_server/routes/rulesWrite.js`,
+`demo_authz_server/rulesWrite.test.js`, `docker-compose.yml`
+
+**What was broken:** `guardOk()` in `rulesWrite.js` returned `true` (guard
+inactive) whenever `AUTHZ_ADMIN_TOKEN` was unset, justified by a comment
+claiming the server "binds 127.0.0.1 as a sidecar" — true for the k8s
+deployment (no `HOST` override there), but not for docker-compose:
+`docker-compose.yml` sets `HOST: "0.0.0.0"` for `authz-server` and publishes
+`9001:9001` to the host, and `AUTHZ_ADMIN_TOKEN` was never set anywhere in the
+repo. With the stack running normally (the `demo-auth` profile is part of the
+always-up flow via `run-docker.sh`), anyone reaching `localhost:9001` could
+`PUT /rules` with zero credentials — e.g. zeroing `create_transfer`'s
+`requiredScopes` so `decision.js` skips scope enforcement and HITL/step-up
+gates entirely, persisted live until `/rules/reset` (also unauthenticated).
+
+**What was fixed:** `guardOk()`'s no-token fallback now checks the bind
+address (`isLoopbackBind()`, `demo_authz_server/routes/rulesWrite.js`): it
+stays inactive only when `HOST` is `127.0.0.1`/`localhost`/`::1` (the k8s
+sidecar default). A non-loopback bind (docker-compose's `HOST=0.0.0.0`) with
+no token now fails closed (401) instead of silently allowing writes.
+`docker-compose.yml` also gets a real dev-only default
+`AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"`
+on both `authz-server` and `demo-api-server` (the BFF's
+`/api/authorize/mock-authz-rules` proxy in `demo_api_server/routes/authorize.js`
+forwards this token via `_authzAdminHeaders()`, so both sides must match) so
+the stack stays protected out of the box.
+
+**Do not break:** k8s sidecar deployment (no `HOST` override, defaults to
+loopback) must keep working unauthenticated exactly as today —
+`isLoopbackBind()` preserves that. `decision.js` and unrelated route logic in
+`rulesWrite.js` untouched.
+
+**Verify:** `cd demo_authz_server && node --test rulesWrite.test.js` (6/6
+pass, including the two new cases proving loopback stays open and
+`HOST=0.0.0.0` without a token now fails closed); full suite
+`node --test` (226/227 pass — the one failure, `tests/decision.test.js`
+chip-markers `sensitive_holdings`, is pre-existing on `main`, unrelated to
+this change).
+
+### 2026-08-15 — Self-service user creation let any customer self-grant admin role
+
+**Files changed:** `demo_api_server/routes/selfServiceUsers.js`,
+`demo_api_server/tests/selfServiceUsersAdminGate.test.js`
+
+**What was broken:** `POST /api/self-service/users` accepted `role` from the
+request body, validated only with `isIn(['customer','admin'])`. Unlike the
+sibling `DELETE /:userId` and `GET /` handlers in the same file, it had no
+`req.user.role !== 'admin'` gate. Any authenticated (non-admin) customer could
+POST `{ ..., role: 'admin' }` and receive a new PingOne user with admin role
+assignments granted via `ensureAdminRoleAssignments` — full privilege
+escalation, no admin session involved.
+
+**What was fixed:** Added a gate in the `POST /` handler: if the requested
+`role === 'admin'` and the caller is missing or not `req.user.role === 'admin'`,
+reject with the same `OAuthError`/`INSUFFICIENT_SCOPE`/403 shape the sibling
+handlers use, before `createPingOneUser`/`ensureAdminRoleAssignments` run.
+Legitimate customer self-service signup (`role` omitted or `'customer'`) is
+untouched; an admin caller may still use this endpoint to create another admin.
+
+**Do not break:** Customer self-service account creation with no `role` or
+`role: 'customer'` must keep returning 201. Don't broaden this to an
+unconditional admin-only gate on the whole route — that would break the
+route's actual purpose.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4 tests/selfServiceUsersAdminGate.test.js`
+
+### 2026-08-15 — `/api/admin/scope-audit` had no admin gate (BUGS.md #12)
+
+**Files changed:** `demo_api_server/server.js` (+ `demo_api_server/tests/routes/scopeAudit.adminGate.test.js`).
+
+**What was broken:** `/api/admin/scope-audit` was mounted with
+`authenticateToken` only — no `requireAdmin` — unlike every other
+`/api/admin/*` route (`admin.js`, `adminAgentTools.js`, `mgmt-api`, and
+`groupMembership.js`'s local gate). Any signed-in customer could call
+`GET /api/admin/scope-audit/resources` (dumps every PingOne resource server +
+its scopes via the Management API worker token — information disclosure) and
+`POST /api/admin/scope-audit/scopes` (creates a new OAuth scope on any PingOne
+resource — a live tenant write).
+
+**What was fixed:** added `requireAdmin` (from `middleware/auth.js`) to the
+mount chain in `server.js`, matching the exact pattern already used for
+`/api/admin/mgmt-api`: `authenticateToken, requireAdmin, <router>`. No change
+to `routes/scopeAudit.js`'s handler logic.
+
+**Do not break:**
+
+- Keep `requireAdmin` after `authenticateToken` in the `/api/admin/scope-audit`
+  mount chain — removing it reopens the information-disclosure/write hole.
+- Don't move the gate into `routes/scopeAudit.js` itself unless the mount
+  point pattern for sibling `/api/admin/*` routes changes too — consistency
+  with `mgmt-api` is the point.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/scopeAudit.adminGate.test.js --forceExit`
+— 4 tests, 1 suite (non-admin 403 on both routes, admin clears the gate on
+both routes); full suite `CI=true npm test -- --forceExit --maxWorkers=4` —
+756 suites passed, 9505 tests passed, 1 pre-existing unrelated flake
+(`rfc9728-integration.test.js` timing assertion, passes in isolation).
+
+### 2026-08-15 — UC18 rate limiting was enforced on the HTTP transport only; WebSocket, the gateway's primary ingress, bypassed it entirely
+
+**Files changed:** `demo_mcp_gateway/src/index.ts`,
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`
+(+ `demo_mcp_gateway/tests/authorizeMcpRequest-rateLimit.test.ts`).
+
+**What was broken:** `authorizeMcpRequest.ts`'s HTTP `tools/call` path checks
+`config.rateLimitEnabled` and calls `getRateLimiter(config).check(sub:toolName)`
+(a `SlidingWindowLimiter`), returning 429 on burst. The WS `tools/call` handler
+in `index.ts` (`handleMessage`) had zero rate-limit references anywhere — it
+went straight from token validation into `guardToolCall`/dispatch. An agent
+connecting over WebSocket (the gateway's documented primary channel) could
+send unlimited `tools/call` bursts with no resource-exhaustion / cost-runaway
+protection, while the identical calls over HTTP were throttled.
+
+**What was fixed:** `getRateLimiter` is now exported from
+`authorizeMcpRequest.ts` (was a private module-level function) so both
+transports share the exact same `SlidingWindowLimiter` singleton — one bucket
+per `sub:toolName`, not two independent ones. The WS `tools/call` handler in
+`index.ts` now runs the same check (`config.rateLimitEnabled` →
+`getRateLimiter(config).check(key)`) before `validateInboundToken`, so a
+throttled burst never burns a token-validation, introspection, or P1AZ round
+trip — matching the HTTP path's stated intent. On block it sends a JSON-RPC
+error (code `-32429`, `data.error: 'rate_limited'`, `data.retryAfterMs`)
+through the connection's existing audit-hook `send` wrapper, so the denial is
+recorded the same way any other WS `tools/call` outcome is.
+
+**Do not break:**
+
+- HTTP path (`authorizeMcpRequest.ts`) logic and its own inline audit-trail
+  record on 429 are untouched — only the `export` keyword was added.
+- Both transports must keep sharing one `getRateLimiter(config)` singleton —
+  giving WS its own independent limiter would silently reopen half the gap
+  (same policy, but a forgeable double allowance across transports).
+- The WS rate-limit key stays `${sub}:${toolName}`, decoded from the raw JWT
+  payload without signature verification (mirrors the HTTP path) — full
+  validation still happens in `validateInboundToken` immediately after.
+
+**Verify:** `cd demo_mcp_gateway && CI=true npx jest authorizeMcpRequest-rateLimit rateLimit.test adminConfig-ratelimit --forceExit --maxWorkers=4`
+— 3 suites, 23 tests passed; `npx tsc --noEmit` clean; full suite
+`CI=true npx jest --forceExit --maxWorkers=4` — 583 passed, 10 failed, all 10
+pre-existing in this worktree and unrelated (confirmed via `git stash`):
+missing `argon2` native module (`vault.test.ts`), missing
+`MCP_GW_CLIENT_ID` env var (`gateway-passthrough.test.ts`), and pre-existing
+`gateway-auth.test.ts` flakiness — none touch rate limiting or the WS path.
+
+### 2026-08-15 — A2A bearer auth trusted an unverified JWT signature (identity spoofing)
+
+**Files changed:** `demo_api_server/middleware/a2aPingOneBearer.js`,
+`demo_api_server/src/__tests__/a2aProtocolCards.test.js`
+
+**What was broken:** `requireA2aPingOneBearer` — the sole auth gate on the
+A2A JSON-RPC route (`services/a2aProtocolServer.js`, mounted at
+`/a2a/specialists` without the session `authenticateToken` middleware) — only
+base64-decoded the bearer JWT via `decodeJwt()` (display-only, never checks a
+signature) and trusted `claims.client_id`/`cid`/`sub` directly.
+`pingOneA2aUserBuilder` then marked the request `isAuthenticated: true` under
+that claim. Anyone could POST `Authorization: Bearer header.payload.garbage`
+with an arbitrary `client_id`/`sub` and be treated as that identity — full
+identity spoofing on the A2A delegation/specialist endpoints.
+
+**What was fixed:** `requireA2aPingOneBearer` now verifies the bearer's RS256
+signature (issuer, expiry) against PingOne's JWKS via
+`services/tokenValidationService.js#validateToken` before trusting any claim —
+the same JWKS fetch/cache/verify helper `middleware/auth.js`'s
+`validatePingOneCoreToken` already uses. A forged/unsigned token now gets 401;
+`req.a2aPingOne` shape is unchanged for genuinely PingOne-issued tokens.
+
+**Do not break:** `a2aProtocolServer.js`'s mount point (still no session
+`authenticateToken`) or `pingOneA2aUserBuilder`'s contract; don't reintroduce
+a decode-only path on this gate.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- src/__tests__/a2aProtocolCards.test.js --forceExit`
+
 ### 2026-08-10 — AG-UI /api/agent/run never minted Intent Tokens
 
 **Files changed:** `demo_api_server/routes/agentRun.js`,

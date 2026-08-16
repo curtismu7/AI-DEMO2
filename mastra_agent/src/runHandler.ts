@@ -92,6 +92,10 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
         role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
         content: m.content,
       }));
+    // An empty/all-filtered messages array would call agent.stream([]) with no
+    // user turn, which the AI SDK errors on or yields an empty stream. Fall back
+    // to a single placeholder user message, mirroring the openai sibling.
+    if (coreMessages.length === 0) coreMessages.push({ role: 'user' as const, content: '' });
     const stream = await agent.stream(
       coreMessages as Parameters<typeof agent.stream>[0],
       { abortSignal: abortController.signal },
@@ -117,6 +121,14 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
         }
         await emitter.onLlmToken(part.textDelta ?? '');
       } else if (part.type === 'tool-call') {
+        // Close any open streaming text message before the tool card, so the
+        // TEXT_MESSAGE_START gets a matching TEXT_MESSAGE_END and post-tool
+        // narration starts a fresh bubble instead of merging into an
+        // unterminated one. Mirrors the 'tool-error' branch and both siblings.
+        if (streaming) {
+          await emitter.onLlmEnd();
+          streaming = false;
+        }
         await emitter.onToolStart(
           part.toolCallId as string,
           part.toolName as string,
@@ -124,6 +136,29 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
         );
       } else if (part.type === 'tool-result') {
         await emitter.onToolEnd(part.toolCallId as string, part.result);
+      } else if (part.type === 'tool-error') {
+        // The `ai` SDK (v6.x) emits this instead of 'tool-result' when a tool's
+        // execute() throws (e.g. bffToolAdapter's BffToolError on a BFF
+        // timeout/non-2xx/client-abort). onToolStart already flipped
+        // anyVisibleOutput, so without resolving this call onRunEnd would still
+        // emit a false-success RUN_FINISHED while the UI's TOOL_CALL_START entry
+        // spins forever. Resolve the pending entry, then fail the run the same
+        // way the 'error' branch below does.
+        const toolCallId = part.toolCallId as string;
+        const toolErr = part.error;
+        const message =
+          toolErr instanceof Error
+            ? toolErr.message
+            : typeof toolErr === 'string'
+              ? toolErr
+              : JSON.stringify(toolErr ?? 'Tool execution failed');
+        await emitter.onToolEnd(toolCallId, { error: message });
+        if (streaming) {
+          await emitter.onLlmEnd();
+          streaming = false;
+        }
+        await emitter.onError(toolErr instanceof Error ? toolErr : new Error(message));
+        return;
       } else if (part.type === 'error') {
         // A mid-stream provider error must not masquerade as a successful empty
         // run. Close any open message, surface RUN_ERROR, and stop.

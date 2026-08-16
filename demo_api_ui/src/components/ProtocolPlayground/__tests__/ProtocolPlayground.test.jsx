@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import ProtocolPlayground from '../ProtocolPlayground';
 import protocolFlows from '../../../data/protocolFlows.json';
@@ -27,8 +27,18 @@ vi.mock('../../../services/executionEngine', () => ({
       };
       return this.state.results;
     }
-    async executeStep() {
-      return null;
+    async executeStep(stepId) {
+      const idx = this.flowSpec.steps.findIndex((s) => s.id === stepId);
+      const result = {
+        stepId,
+        request: { method: 'POST', url: `/api/mock/${stepId}` },
+        response: { status: 200, body: {} },
+        decodedToken: null,
+      };
+      const results = [...this.state.results];
+      results[idx] = result;
+      this.state = { ...this.state, currentStep: stepId, results };
+      return result;
     }
     reset() {
       this.state = { currentStep: null, results: [], error: null };
@@ -107,5 +117,27 @@ describe('ProtocolPlayground wiring', () => {
     expect(await screen.findByText('POST /api/oauth/token/token')).toBeInTheDocument();
     expect(screen.getByText(/HTTP 200/)).toBeInTheDocument();
     expect(screen.queryByText(/No activity yet/)).not.toBeInTheDocument();
+  });
+
+  test('completing step 1 via its own Execute button enables step 2\'s button', async () => {
+    const { container } = render(<ProtocolPlayground />);
+
+    const stepCards = () => container.querySelectorAll('.step-cards-container .step-card');
+    const executeButton = (card) => card.querySelector('.step-execute-btn');
+
+    const cardsBefore = stepCards();
+    expect(cardsBefore.length).toBeGreaterThanOrEqual(2);
+
+    const step2ButtonBefore = executeButton(cardsBefore[1]);
+    expect(step2ButtonBefore).toBeDisabled();
+    expect(step2ButtonBefore).toHaveAttribute('title', 'Complete previous steps first');
+
+    fireEvent.click(executeButton(cardsBefore[0]));
+
+    await waitFor(() => {
+      const step2ButtonAfter = executeButton(stepCards()[1]);
+      expect(step2ButtonAfter).not.toBeDisabled();
+      expect(step2ButtonAfter).toHaveAttribute('title', 'Execute this step');
+    });
   });
 });

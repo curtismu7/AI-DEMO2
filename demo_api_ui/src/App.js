@@ -30,7 +30,6 @@ import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
-import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
 import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
@@ -175,8 +174,8 @@ import PublicRoutes, {
   MFATestPageRoute,
   OASDemoPageRoute,
   PrivilegeMcpLearningPageRoute,
+  AgentGatewayCapabilitiesPageRoute,
   OAuthAcademyPageRoute,
-  OnboardingRoute,
   PrivilegeDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -621,11 +620,6 @@ function AppWithAuth() {
                   path="/configure"
                   element={<ConfigurePage user={user} logout={logout} />}
                 />
-                {/* Stakeholder preview page — accessible without login, same as /configure */}
-                <Route
-                  path="/agent-studio-preview"
-                  element={<AgentStudioPreviewPage />}
-                />
                 <Route
                   path="/demo-data"
                   element={
@@ -668,7 +662,7 @@ function AppWithAuth() {
                 <Route
                   path="/agent-gateway-capabilities"
                   element={
-                    <Navigate to="/agent-gateway-inspector?subtab=capabilities" replace />
+                    <AgentGatewayCapabilitiesPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
@@ -910,10 +904,6 @@ function AppWithAuth() {
                       <Navigate to="/" replace />
                     )
                   }
-                />
-                <Route
-                  path="/onboarding"
-                  element={<OnboardingRoute user={user} />}
                 />
                 {/* Group policy board — live decision per vertical; the page the
                     group demo is for. Signed-in users only (it reads their own
@@ -1265,17 +1255,10 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/themes"
-                              element={
-                                // The backend mounts vertical-themes behind
-                                // authenticateToken only (see verticalThemes.js) —
-                                // any signed-in user, not admin-only. Match that
-                                // here instead of forcing an admin re-login.
-                                user ? (
-                                  <AdminThemesPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
-                              }
+                              // Fully public — no session/user gate. Matches the
+                              // backend, which mounts vertical-themes with no
+                              // auth middleware at all (see verticalThemes.js).
+                              element={<AdminThemesPage />}
                             />
                             <Route
                               path="/users"

@@ -230,14 +230,42 @@ async def _handle_sdk_event(event, emitter: AGUIEmitter) -> None:
         item = event.item
         item_type = getattr(item, "type", None)
         if item_type == "tool_call_item":
+            # raw_item is a pydantic model (e.g. ResponseFunctionToolCall) for a
+            # real function-tool call, and only rarely a plain dict -- extract
+            # via both paths instead of assuming dict shape.
             raw = getattr(item, "raw_item", {})
-            tc_id = raw.get("call_id", uuid.uuid4().hex[:12]) if isinstance(raw, dict) else uuid.uuid4().hex[:12]
-            name = raw.get("name", "unknown") if isinstance(raw, dict) else "unknown"
-            args = raw.get("arguments", "{}") if isinstance(raw, dict) else "{}"
+            tc_id = (
+                getattr(raw, "call_id", None)
+                or (raw.get("call_id") if isinstance(raw, dict) else None)
+                or uuid.uuid4().hex[:12]
+            )
+            name = (
+                getattr(raw, "name", None)
+                or (raw.get("name") if isinstance(raw, dict) else None)
+                or "unknown"
+            )
+            args = (
+                getattr(raw, "arguments", None)
+                or (raw.get("arguments") if isinstance(raw, dict) else None)
+                or "{}"
+            )
+            # Close any still-open text bubble before the tool call starts,
+            # mirroring mastra_agent's `if (streaming) await emitter.onLlmEnd()`
+            # and langchain_agent's `if llm_streaming: await emitter.on_llm_end()`.
+            # Without this, lead-in text streamed via ResponseTextDeltaEvent
+            # never gets a TEXT_MESSAGE_END at the tool-call boundary, and
+            # post-tool text silently merges into the same bubble because
+            # on_llm_start() only fires when _current_message_id is unset.
+            if emitter._current_message_id:
+                await emitter.on_llm_end()
             await emitter.on_tool_start(name, tc_id, args)
         elif item_type == "tool_call_output_item":
             raw = getattr(item, "raw_item", {})
-            tc_id = raw.get("call_id", "") if isinstance(raw, dict) else ""
+            tc_id = (
+                getattr(raw, "call_id", None)
+                or (raw.get("call_id") if isinstance(raw, dict) else None)
+                or ""
+            )
             output = getattr(item, "output", "")
             await emitter.on_tool_end(tc_id, output)
         elif item_type == "message_output_item":

@@ -13,6 +13,13 @@ const scopeTopology = require('./scopeTopology');
 // Canonical end-user API audience (single source of truth: scope-topology.json).
 const ENDUSER_AUDIENCE = scopeTopology.audiences().enduser;
 
+// This service runs server-side, so Node's built-in fetch has no DOM/base-URL
+// context to resolve relative paths against — a bare fetch('/foo') throws
+// immediately. Build an absolute base for the audit's self-referential calls,
+// reusing the BFF_BASE_URL convention already used for this in
+// services/mcpGatewayClient.js, with the same PORT default as server.js.
+const SELF_BASE_URL = (process.env.BFF_BASE_URL || `http://localhost:${process.env.PORT || 3001}`).replace(/\/+$/, '');
+
 /**
  * RFC 9728 Specification Requirements
  * Based on https://datatracker.ietf.org/doc/html/rfc9728
@@ -363,7 +370,7 @@ class RFC9728ComplianceAuditService {
 
     try {
       // Test the well-known endpoint
-      const response = await fetch('/.well-known/oauth-protected-resource');
+      const response = await fetch(`${SELF_BASE_URL}/.well-known/oauth-protected-resource`);
       result.accessible = response.ok;
       result.status_code = response.status;
       
@@ -402,7 +409,7 @@ class RFC9728ComplianceAuditService {
     };
 
     try {
-      const response = await fetch('/.well-known/oauth-protected-resource');
+      const response = await fetch(`${SELF_BASE_URL}/.well-known/oauth-protected-resource`);
       
       // Check content type
       const contentType = response.headers.get('content-type');
@@ -459,7 +466,7 @@ class RFC9728ComplianceAuditService {
     };
 
     try {
-      const response = await fetch('/.well-known/oauth-protected-resource');
+      const response = await fetch(`${SELF_BASE_URL}/.well-known/oauth-protected-resource`);
       
       // Check for CORS headers
       const corsHeaders = [
@@ -497,7 +504,7 @@ class RFC9728ComplianceAuditService {
     };
 
     try {
-      const response = await fetch('/.well-known/oauth-protected-resource');
+      const response = await fetch(`${SELF_BASE_URL}/.well-known/oauth-protected-resource`);
       
       // Check caching headers
       const cacheHeaders = [
@@ -701,7 +708,7 @@ class RFC9728ComplianceAuditService {
 
     try {
       // Test if the demo endpoint is accessible
-      const response = await fetch('/api/rfc9728/metadata');
+      const response = await fetch(`${SELF_BASE_URL}/api/rfc9728/metadata`);
       result.accessible = response.ok;
       
       if (response.ok) {

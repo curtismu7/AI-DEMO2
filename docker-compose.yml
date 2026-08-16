@@ -178,6 +178,10 @@ services:
       # inside this container (left the A2A explain modal empty for Authorize rules).
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
       PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
+      # Forwarded as X-Authz-Admin-Token by authorize.js's mock-authz-rules proxy
+      # (_authzAdminHeaders()). Must match authz-server's AUTHZ_ADMIN_TOKEN above —
+      # same dev-only default, override via shell env together.
+      AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"
       # Default agent to the local llama.cpp reasoning engine (free, no external
       # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
       # OVERRIDES any persisted /config selection on every read — it is the
@@ -772,6 +776,11 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
+      # Transaction-trace hop ingest — mirrors mcp-gateway's BFF_TRANSACTION_HOP_URL.
+      # BFF_INTERNAL_SECRET isn't wired for local compose (no demo_mcp_resource_server/.env
+      # in the setup flow yet); emitHop() fail-opens without it, so hops just don't
+      # appear locally — same no-op behavior as before this file existed.
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_mcp_resource_server/.env
         required: false
@@ -904,6 +913,12 @@ services:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
       HOST: "0.0.0.0"
+      # HOST above is non-loopback and 9001 is published to the host (see ports:),
+      # so rulesWrite.js's guardOk() now fails closed on PUT /rules and
+      # /rules/reset without this. Dev-only default, override via shell env for
+      # a real value; must match demo-api-server's AUTHZ_ADMIN_TOKEN below so its
+      # /api/authorize/mock-authz-rules proxy can still authenticate.
+      AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "authz-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"

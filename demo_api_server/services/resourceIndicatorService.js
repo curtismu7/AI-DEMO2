@@ -78,36 +78,23 @@ function validateResourceFormat(resourceUri) {
     return false;
   }
 
-  // RFC 8707: Resource indicators must be absolute URIs
-  try {
-    const url = new URL(resourceUri);
-    
-    // Must be HTTPS
-    if (url.protocol !== 'https:') {
-      return false;
-    }
-    
-    // Must have a hostname
-    if (!url.hostname) {
-      return false;
-    }
-    
-    // Must end with / (resource indicator convention)
-    if (!resourceUri.endsWith('/')) {
-      return false;
-    }
-    
-    // Validate against known resource patterns
-    const validPatterns = [
-      /^https:\/\/.*\.pingdemo\.com\/$/,
-      /^https:\/\/pingone\.com\/.*\/$/,
-      /^https:\/\/auth\.pingone\..*\/.*\/$/
-    ];
-    
-    return validPatterns.some(pattern => pattern.test(resourceUri));
-  } catch (error) {
+  // Must end with / (resource indicator convention)
+  if (!resourceUri.endsWith('/')) {
     return false;
   }
+
+  // RESOURCE_DEFINITIONS keys are used as-is (no scheme prepended) when sent
+  // as the RFC 8707 `resource` parameter, so this service's legitimate
+  // resource identifiers appear in two forms: absolute https:// URIs
+  // (e.g. https://admin-api.ping.demo/) and bare *.ping.demo hostnames
+  // (e.g. enduser.ping.demo/). Validate against both, scoped to the real
+  // ping.demo domain used by RESOURCE_DEFINITIONS.
+  const validPatterns = [
+    /^https:\/\/[a-z0-9-]+\.ping\.demo\/$/,
+    /^[a-z0-9-]+\.ping\.demo\/$/
+  ];
+
+  return validPatterns.some(pattern => pattern.test(resourceUri));
 }
 
 /**

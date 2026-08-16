@@ -75,7 +75,7 @@ export function dispatch(
   subject: string,
 ): Promise<unknown> {
   if (AIRLINES_TOOL_NAMES.has(toolName)) return dispatchAirlinesTool(toolName, args, subject);
-  if (BANKING_TOOL_NAMES.has(toolName)) return dispatchBankingTool(toolName, args);
+  if (BANKING_TOOL_NAMES.has(toolName)) return dispatchBankingTool(toolName, args, subject);
   if (HEALTHCARE_TOOL_NAMES.has(toolName)) return dispatchHealthcareTool(toolName, args);
   if (GOVERNMENT_TOOL_NAMES.has(toolName)) return dispatchGovernmentTool(toolName, args);
   if (MANUFACTURING_TOOL_NAMES.has(toolName)) return dispatchManufacturingTool(toolName, args);

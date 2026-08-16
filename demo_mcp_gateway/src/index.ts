@@ -16,12 +16,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
 import * as crypto from 'node:crypto';
 import WebSocket from 'ws';
-import { loadConfig, GatewayConfig, assertProductionSecrets, isInternalSecretUsable, checkInternalSecret } from './config';
+import { loadConfig, GatewayConfig, assertProductionSecrets, checkInternalSecret } from './config';
 import { validateInboundToken, extractBearerToken, TokenValidationError } from './tokenValidator';
 import { validateIntentToken } from './intentTokenValidator';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from './router';
@@ -33,19 +31,16 @@ import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PR
 import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
-import { buildAuthorizeMcpRequest } from './middleware/authorizeMcpRequest';
+import { buildAuthorizeMcpRequest, getRateLimiter } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
 import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
+import { wsTransportBindingGuard } from './wsBindingGuard';
+import { noteBindingHeaderSeen } from './authzPosture';
 import { loadVaultIntoEnv } from './vault';
-import {
-  applyAdminConfigUpdate,
-  ADMIN_CONFIG_ALLOWED_KEYS,
-  adminConfigSafeView,
-} from './adminConfig';
 import { extractCorrelationId } from './correlationId';
 import { runWithCorrelation } from './correlationContext';
 import { generateGatewayCerts, GatewayCerts } from './mtls';
@@ -55,7 +50,6 @@ import { GATEWAY_TOOLS } from './gatewayTools';
 import { recordToolsListBackendOutage, clearToolsListBackendOutage } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
-import { buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from './enterpriseMcpAuth';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -134,195 +128,6 @@ if (!gatewayCerts && upstreamClientCertPath && upstreamClientKeyPath) {
 // the HTTP path has always run — including the D-05 anti-bypass invariant
 // (rejects tokens whose aud is an upstream MCP-server URI).
 const wsIntrospectionClient = new GatewayIntrospectionClient(config);
-
-// ---------------------------------------------------------------------------
-// BL-01: timing-safe internal-secret check. Mirrors the BFF pattern in
-// banking_api_server/routes/agentIdToken.js — both processes use
-// crypto.timingSafeEqual on Buffers of equal length. Mismatched lengths
-// must still consume constant time, so we pad the shorter buffer to the
-// length of the configured secret before comparing.
-// ---------------------------------------------------------------------------
-
-function requireInternalSecret(req: IncomingMessage, res: ServerResponse, cfg: GatewayConfig): boolean {
-  // WR-07: an empty (or near-empty) secret makes timingSafeEqual on two
-  // zero-length buffers return true for a header-less request — turning the
-  // admin surface into an unauthenticated control plane. Refuse to compare
-  // against a weak/empty secret; never treat that as a valid authorization.
-  // This must be explicit at the gate, not an emergent property of
-  // optional()'s `||` fallback (see isInternalSecretUsable in config.ts).
-  if (!isInternalSecretUsable(cfg.bffInternalSecret)) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'misconfigured' }));
-    return false;
-  }
-
-  const presented = req.headers['x-internal-gateway-secret'];
-  const expectedBuf = Buffer.from(cfg.bffInternalSecret);
-  const presentedStr = typeof presented === 'string' ? presented : '';
-  const presentedBuf = Buffer.from(presentedStr);
-
-  // Always compare against an equal-length buffer so timingSafeEqual never
-  // short-circuits on length mismatch. Pad/truncate presented to expected length.
-  const padded = Buffer.alloc(expectedBuf.length);
-  presentedBuf.copy(padded, 0, 0, Math.min(presentedBuf.length, expectedBuf.length));
-  const equalContent = crypto.timingSafeEqual(padded, expectedBuf);
-  const equalLength = presentedBuf.length === expectedBuf.length;
-
-  if (!equalContent || !equalLength) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'unauthorized' }));
-    return false;
-  }
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// HTTP server (metadata + health)
-// ---------------------------------------------------------------------------
-
-function handleHttp(req: IncomingMessage, res: ServerResponse): void {
-  const url = req.url || '/';
-
-  if (url === '/.well-known/oauth-protected-resource' && req.method === 'GET') {
-    const pingOneEnvId = process.env.PINGONE_ENVIRONMENT_ID || '';
-    const pingOneRegion = process.env.PINGONE_REGION || 'com';
-    const asList = pingOneEnvId
-      ? [`https://auth.pingone.${pingOneRegion}/${pingOneEnvId}/as`]
-      : [];
-
-    const metadata: Record<string, unknown> = {
-      resource: config.gatewayResourceUri,
-      bearer_methods_supported: ['header'],
-      scopes_supported: [
-        'read',
-        'write',
-        'admin',
-        'mortgage:read',  // Phase 267 — Path A api_key disposition
-        'ai_agent',
-      ],
-      resource_name: 'Demo MCP Gateway',
-      resource_documentation: 'https://datatracker.ietf.org/doc/html/rfc9728',
-    };
-    if (asList.length) metadata.authorization_servers = asList;
-    if (isEnterpriseManagedMcpAuthEnabled()) {
-      metadata.extensions = buildEnterpriseExtensionBlock();
-    }
-
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
-    res.end(JSON.stringify(metadata, null, 2));
-    return;
-  }
-
-  if (url === '/health' && req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', service: 'banking-mcp-gateway', ts: new Date().toISOString() }));
-    return;
-  }
-
-  // Serve OpenAPI specs for PingAuthorize per-tool scope policy
-  // GET /openapi/mcp-olb  → demo_mcp_server OpenAPI spec
-  // GET /openapi/mcp-resource-server → demo_mcp_resource_server OpenAPI spec
-  const openApiMatch = url.match(/^\/openapi\/(mcp-olb|mcp-resource-server)$/);
-  if (openApiMatch && req.method === 'GET') {
-    const server = openApiMatch[1];
-    const specPaths: Record<string, string> = {
-      'mcp-olb':    join(__dirname, '../../oauth-mcp/openapi/mcp-olb.openapi.json'),
-      'mcp-resource-server': join(__dirname, '../../demo_mcp_resource_server/openapi/mcp-resource-server.openapi.json'),
-    };
-    const specPath = specPaths[server];
-    if (specPath && existsSync(specPath)) {
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
-      res.end(readFileSync(specPath, 'utf8'));
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: `OpenAPI spec not found for ${server}` }));
-    }
-    return;
-  }
-
-  // ---------------------------------------------------------------------------
-  // POST /admin/config — push dynamic config updates without restart.
-  // Only non-sensitive, non-binding fields are accepted.
-  //
-  // BL-01: REQUIRES x-internal-gateway-secret header (timing-safe compare).
-  // Without auth, anyone on 0.0.0.0:3005 could flip devBypass:true and redirect
-  // upstream WebSocket URLs — a full auth-bypass primitive.
-  //
-  // BL-01: even with the secret, `devBypass: true` is REFUSED when NODE_ENV
-  // is 'production'. Dev bypass is a localhost-only debugging affordance and
-  // must never be flippable on a production deploy.
-  // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
-  // POST /admin/clear-token-cache — flush the gateway's in-memory token caches.
-  // Called fire-and-forget by the BFF on user logout so a "start demo over"
-  // cannot replay a previously-exchanged backend token within its TTL window.
-  // The BFF already revokes the subject token at PingOne (RFC 7009); this
-  // closes the gap where the *exchanged* token stayed cached here.
-  //
-  // Gated behind the same internal secret as /admin/config — the caches are
-  // not user-keyed, so a clear is global; that is acceptable for a single-user
-  // demo and the worst case is a few extra token exchanges after a logout.
-  // ---------------------------------------------------------------------------
-  if (url === '/admin/clear-token-cache' && req.method === 'POST') {
-    if (!requireInternalSecret(req, res, config)) return;
-    McpTokenExchangeClient.clearCache();
-    GatewayIntrospectionClient.clearCache();
-    console.log('[GW] token caches cleared (logout)');
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return;
-  }
-
-  if (url === '/admin/config' && req.method === 'POST') {
-    if (!requireInternalSecret(req, res, config)) return;
-
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => {
-      try {
-        const updates: Partial<Record<string, unknown>> = JSON.parse(body || '{}');
-
-        // Phase 3 CR-02: devBypass anti-bypass hardening (A + D + belt) lives
-        // in applyAdminConfigUpdate so it is unit-testable. A rejects non-boolean
-        // devBypass (400); D hard-refuses any truthy devBypass in production
-        // (403); the assignment loop coerces devBypass to a strict boolean.
-        const result = applyAdminConfigUpdate(config, updates, process.env.NODE_ENV);
-        if (result.mutated) {
-          console.log(
-            '[GW] /admin/config updated:',
-            Object.keys(updates).filter((k) =>
-              ADMIN_CONFIG_ALLOWED_KEYS.includes(k as keyof typeof config),
-            ),
-          );
-        }
-        res.writeHead(result.status, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result.body));
-      } catch {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-      }
-    });
-    return;
-  }
-
-  // GET /admin/config — read current live config (no secrets).
-  // BL-01: also gated behind the internal secret — the response leaks live
-  // routing URLs (mcpOlbWsUrl etc.) and the devBypass flag, both of which
-  // are useful reconnaissance for an attacker.
-  if (url === '/admin/config' && req.method === 'GET') {
-    if (!requireInternalSecret(req, res, config)) return;
-    // IN-01: reuse the single safe-config projection from adminConfig.ts
-    // (also used by the POST echo) so the two views cannot drift and a
-    // future allowed-key addition cannot leak a secret here independently.
-    const safe = adminConfigSafeView(config);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(safe));
-    return;
-  }
-
-  res.writeHead(404);
-  res.end();
-}
 
 // ---------------------------------------------------------------------------
 // JSON-RPC helpers
@@ -688,6 +493,40 @@ async function handleMessage(
       _origSend(s);
     };
 
+    // UC18: per-agent/per-tool rate limiting — WS parity with the HTTP path
+    // (authorizeMcpRequest.ts). Runs before token validation/introspection so a
+    // throttled burst never burns a validation or P1AZ round trip. No signature
+    // verification here — full validation happens in validateInboundToken below;
+    // a forged sub only wastes a slot in the attacker's own bucket, not a
+    // legitimate user's. Shares the HTTP path's limiter singleton (getRateLimiter)
+    // so the same agent/tool pair is throttled identically regardless of transport.
+    if (config.rateLimitEnabled) {
+      let _rlSub = 'unknown';
+      try {
+        const _rawPayload = token.split('.')[1];
+        if (_rawPayload) {
+          const _claims = JSON.parse(Buffer.from(_rawPayload, 'base64url').toString('utf-8'));
+          if (_claims?.sub) _rlSub = String(_claims.sub);
+        }
+      } catch { /* use 'unknown' sub */ }
+      const _rlTool = (msg.params as { name?: string } | undefined)?.name ?? 'unknown_tool';
+      const _rlKey = `${_rlSub}:${_rlTool}`;
+      const _rlResult = getRateLimiter(config).check(_rlKey);
+      if (!_rlResult.allowed) {
+        console.warn(`[GW] UC18 rate_limited key=${_rlKey} retryAfterMs=${_rlResult.retryAfterMs}`);
+        // Audit hook above is already installed — set operation/userId so the
+        // wrapped `send` records this denial (mirrors the HTTP path's own
+        // self-contained audit record, made unnecessary here by reusing it).
+        _audCtx.operation = _rlTool;
+        _audCtx.userId = _rlSub;
+        send(jsonRpcError(id, -32429, 'Tool call rate limit exceeded. Retry after the indicated interval.', {
+          error: 'rate_limited',
+          retryAfterMs: _rlResult.retryAfterMs,
+        }));
+        return;
+      }
+    }
+
     let decoded;
     try {
       decoded = await validateInboundToken(token, config.gatewayResourceUri);
@@ -739,6 +578,31 @@ async function handleMessage(
     // Scope + ACR for the compliance report (Scenario 5).
     _audCtx.scope = decoded.scope;
     _audCtx.acr = decoded.acr;
+
+    // ── BUGS.md #53: DPoP / Web Bot Auth transport-parity guard ──────────────────
+    // DPoP (RFC 9449) and Web Bot Auth (RFC 9421) are HTTP-request-bound proofs the
+    // HTTP path fail-closes on (authorizeMcpRequest.ts Step 2d/2d'). They cannot be
+    // presented per-call over a long-lived WebSocket, so an ENFORCED control must
+    // refuse the WS tool call rather than let a caller bypass it by transport choice
+    // (same class as the WS rate-limit gap, BUGS.md #13 / PR #1825). No-op when both
+    // controls are OFF (defaults: REQUIRE_DPOP_PROOF unset, wbaMode=monitor).
+    const _bindingReject = wsTransportBindingGuard({
+      requireDpopProof: process.env.REQUIRE_DPOP_PROOF === 'true',
+      wbaMode: config.wbaMode,
+    });
+    if (_bindingReject) {
+      console.warn(`[GW] WS ${_bindingReject.data.error}: enforced control cannot be satisfied over WebSocket (tool: ${toolName})`);
+      send(jsonRpcError(id, _bindingReject.code, _bindingReject.message, _bindingReject.data));
+      return;
+    }
+    // Posture parity (authzPosture): record the binding evidence this WS call
+    // actually carries so seenBindingHeaders()/authzHealth().failOpen reports the
+    // same aggregate on WS as on HTTP (Step 522/688/757 of the HTTP path). DPoP is
+    // not recorded here — the BFF's WS client never sends a DPoP proof, and the
+    // guard above already fail-closes when DPoP is enforced.
+    if (xIntentToken) noteBindingHeaderSeen('intent');
+    if (xTratContext) noteBindingHeaderSeen('rar');
+    if (decoded.act?.sub) noteBindingHeaderSeen('act');
     // Phase 2 CR-01 — gateway-internal fields gate retries and are stripped before
     // forwarding to the downstream MCP server. Backend schemas use
     // additionalProperties:false and would reject unknown fields.

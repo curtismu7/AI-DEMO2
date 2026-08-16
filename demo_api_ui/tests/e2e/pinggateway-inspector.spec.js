@@ -8,7 +8,7 @@
  *   - Default tab is "Demo Agent Gateway (Dev)" (mock)
  *   - Status badge is visible
  *   - ?subtab=tester deep-links to Agent Gateway Tester tab
- *   - ?subtab=capabilities deep-links to Capability Tour tab
+ *   - ?subtab=capabilities redirects to /agent-gateway-capabilities
  *   - Refresh button re-fetches config
  *   - MCP mode chip shown
  *   - Non-admin is redirected away
@@ -152,12 +152,6 @@ test.describe('Agent Gateway Inspector — tabs', () => {
     await expect(page.getByRole('button', { name: 'Agent Gateway Tester' })).toBeVisible({ timeout: 10000 });
   });
 
-  test('Capability Tour tab is present', async ({ page }) => {
-    await mockGatewayInspector(page);
-    await page.goto('/agent-gateway-inspector');
-    await expect(page.getByRole('button', { name: 'Capability Tour' })).toBeVisible({ timeout: 10000 });
-  });
-
   test('Token Security tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
     await page.goto('/agent-gateway-inspector');
@@ -188,13 +182,10 @@ test.describe('Agent Gateway Inspector — deep-link subtabs', () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
-  test('?subtab=capabilities activates Capability Tour tab', async ({ page }) => {
+  test('?subtab=capabilities redirects to /agent-gateway-capabilities', async ({ page }) => {
     await mockGatewayInspector(page);
     await page.goto('/agent-gateway-inspector?subtab=capabilities');
-    await expect(
-      page.getByRole('button', { name: 'Capability Tour' })
-        .and(page.locator('.mgc-tab--active'))
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page).toHaveURL(/\/agent-gateway-capabilities$/, { timeout: 10000 });
   });
 });
 

@@ -800,6 +800,86 @@ class TestProcessMessageWithTracing:
         agent.initialize_tools.assert_called_once()
         assert "not properly configured" in response
 
+    @pytest.mark.asyncio
+    async def test_expired_auth_challenge_does_not_hijack_response(self, agent, mock_tools):
+        """BUGS.md #17: a stale, expired auth challenge must not overwrite a
+        later turn's real response, and must be evicted from the session
+        challenge store once found expired."""
+        from datetime import datetime, timedelta
+
+        session_id = "test-session-expired-challenge"
+        user_message = "what's my balance?"
+
+        mock_graph = _make_mock_graph()
+        agent._graph = mock_graph
+        agent._tools = mock_tools
+
+        agent.mcp_tool_provider.set_session_context = AsyncMock()
+        agent.mcp_tool_provider.set_tracer = Mock()
+
+        # A stale challenge from a tool the user triggered and abandoned,
+        # long past its expiresAt.
+        agent.mcp_tool_provider.mcp_client_manager._session_challenges = {
+            session_id: {
+                "tool_name": "transfer_funds",
+                "server_name": "test_server",
+                "parameters": {},
+                "auth_challenge": {
+                    "method": "redirect_popup",
+                    "authorizationUrl": "https://example.test/authorize",
+                    "expiresAt": (datetime.now() - timedelta(hours=1)).isoformat(),
+                },
+                "timestamp": datetime.now() - timedelta(hours=1),
+            }
+        }
+
+        await agent.conversation_memory.set_user_identified(session_id, "user@test.com", "user-1")
+
+        response = await agent.process_message_with_tracing(user_message, session_id)
+
+        # Real response wins — not the stale popup.
+        assert response == "mock response"
+        assert "SYSTEM_AUTH_POPUP_REQUEST_START" not in response
+        # Stale entry is evicted so it can't hijack a further turn either.
+        assert session_id not in agent.mcp_tool_provider.mcp_client_manager._session_challenges
+
+    @pytest.mark.asyncio
+    async def test_unexpired_auth_challenge_still_injects_popup(self, agent, mock_tools):
+        """Regression guard: a still-valid challenge must keep hijacking the
+        turn with the popup UI (existing behavior, unchanged by the fix)."""
+        from datetime import datetime, timedelta
+
+        session_id = "test-session-live-challenge"
+        user_message = "what's my balance?"
+
+        mock_graph = _make_mock_graph()
+        agent._graph = mock_graph
+        agent._tools = mock_tools
+
+        agent.mcp_tool_provider.set_session_context = AsyncMock()
+        agent.mcp_tool_provider.set_tracer = Mock()
+
+        agent.mcp_tool_provider.mcp_client_manager._session_challenges = {
+            session_id: {
+                "tool_name": "transfer_funds",
+                "server_name": "test_server",
+                "parameters": {},
+                "auth_challenge": {
+                    "method": "redirect_popup",
+                    "authorizationUrl": "https://example.test/authorize",
+                    "expiresAt": (datetime.now() + timedelta(minutes=10)).isoformat(),
+                },
+                "timestamp": datetime.now(),
+            }
+        }
+
+        await agent.conversation_memory.set_user_identified(session_id, "user@test.com", "user-1")
+
+        response = await agent.process_message_with_tracing(user_message, session_id)
+
+        assert "SYSTEM_AUTH_POPUP_REQUEST_START" in response
+        assert session_id in agent.mcp_tool_provider.mcp_client_manager._session_challenges
+
 
 # ---------------------------------------------------------------------------
 # process_message — non-tracing path

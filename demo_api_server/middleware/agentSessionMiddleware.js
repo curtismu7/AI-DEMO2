@@ -7,21 +7,87 @@
 const oauthUserService = require('../services/oauthUserService');
 
 /**
+ * Concurrent-refresh guards for the agent-family routes (/api/agent,
+ * /api/admin-agent, /api/ops-agent, /api/a2a, /api/support-agent,
+ * /api/compliance-agent). These routes are NOT covered by the global
+ * proactive refresh in server.js (only /api/demo-agent is), so this
+ * reactive refresh is their only defense: without a guard, two concurrent
+ * requests hitting an expired session both call PingOne with the same
+ * refresh token. PingOne rotates refresh tokens on use, so the second call
+ * gets invalid_grant and forces a full re-auth even though the first
+ * call's refresh just succeeded.
+ *
+ * Mirrors the dedup Set + blacklist Map pattern in
+ * middleware/tokenRefresh.js:refreshIfExpiring, adapted for this reactive/
+ * blocking path: a concurrent caller AWAITS the in-flight refresh (rather
+ * than skipping it) because the caller needs a valid access token before
+ * it can proceed, and then reloads the session from the store to pick up
+ * the tokens the in-flight request persisted.
+ */
+const _refreshInFlight = new Map(); // sessionId -> Promise
+const _refreshBlacklist = new Map(); // sessionId -> expireTimestamp
+const BLACKLIST_TTL = 10 * 60 * 1000; // 10 minutes
+
+/**
  * Refreshes the OAuth access token for the current session using the stored refresh token.
- * Mirrors the pattern in middleware/tokenRefresh.js:refreshIfExpiring.
+ * Mirrors the pattern in middleware/tokenRefresh.js:refreshIfExpiring, including its
+ * in-flight dedup + blacklist guards against the concurrent-refresh race.
  */
 const refreshOAuthSession = async (req) => {
   const tokens = req.session && req.session.oauthTokens;
   if (!tokens || !tokens.refreshToken || tokens.refreshToken === '_cookie_session') {
     throw new Error('no_refresh_token_available');
   }
-  const tokenData = await oauthUserService.refreshAccessToken(tokens.refreshToken);
-  req.session.oauthTokens.accessToken = tokenData.access_token;
-  req.session.oauthTokens.refreshToken = tokenData.refresh_token || tokens.refreshToken;
-  req.session.oauthTokens.expiresAt = Date.now() + (tokenData.expires_in || 3600) * 1000;
-  await new Promise((resolve, reject) =>
-    req.session.save(err => err ? reject(err) : resolve())
-  );
+
+  const sid = req.sessionID;
+
+  // Skip if this session's refresh token was recently rejected by PingOne
+  const blacklistExpiry = _refreshBlacklist.get(sid);
+  if (blacklistExpiry) {
+    if (Date.now() < blacklistExpiry) throw new Error('invalid_grant');
+    _refreshBlacklist.delete(sid); // expired — allow retry
+  }
+
+  // Another request for this session is already refreshing — await it
+  // instead of racing it with the same (soon-to-be-rotated) refresh token.
+  const inFlight = _refreshInFlight.get(sid);
+  if (inFlight) {
+    await inFlight;
+    // The in-flight refresh persisted to the session STORE, not to this
+    // request's own in-memory req.session — reload to pick up its result.
+    if (req.sessionStore) {
+      const stored = await new Promise((resolve) => {
+        req.sessionStore.get(sid, (err, data) => resolve(err ? null : data));
+      });
+      if (stored?.oauthTokens) req.session.oauthTokens = stored.oauthTokens;
+    }
+    if (!req.session.oauthTokens?.accessToken || req.session.oauthTokens.expiresAt < Date.now()) {
+      throw new Error('session_expired');
+    }
+    return;
+  }
+
+  const refreshPromise = (async () => {
+    const tokenData = await oauthUserService.refreshAccessToken(tokens.refreshToken);
+    req.session.oauthTokens.accessToken = tokenData.access_token;
+    req.session.oauthTokens.refreshToken = tokenData.refresh_token || tokens.refreshToken;
+    req.session.oauthTokens.expiresAt = Date.now() + (tokenData.expires_in || 3600) * 1000;
+    await new Promise((resolve, reject) =>
+      req.session.save(err => err ? reject(err) : resolve())
+    );
+  })();
+  _refreshInFlight.set(sid, refreshPromise);
+
+  try {
+    await refreshPromise;
+  } catch (err) {
+    if (err.message && /does not exist|invalid_grant|revoked|expired/i.test(err.message)) {
+      _refreshBlacklist.set(sid, Date.now() + BLACKLIST_TTL);
+    }
+    throw err;
+  } finally {
+    _refreshInFlight.delete(sid);
+  }
 };
 
 /**

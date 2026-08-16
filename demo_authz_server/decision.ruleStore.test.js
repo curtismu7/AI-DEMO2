@@ -68,15 +68,43 @@ test('write tool below default threshold permits', async () => {
 });
 
 // NNP-6: HITL thresholds moved from ruleStore.hitlThresholdUsd to two separate env vars
-// (SIMULATED_AUTHORIZE_CONFIRM_AMOUNT / SIMULATED_AUTHORIZE_STEPUP_AMOUNT). The old
-// single-threshold ruleStore override path is superseded by the two-tier system.
-// This test now verifies the new STEP_UP vs HITL_CONSENT split via env vars.
+// (SIMULATED_AUTHORIZE_CONFIRM_AMOUNT / SIMULATED_AUTHORIZE_STEPUP_AMOUNT). This test
+// verifies the STEP_UP vs HITL_CONSENT split via env vars, with no overlay set.
 test('amount above step-up threshold -> INDETERMINATE reason=STEP_UP (NNP-6)', async () => {
   process.env.SIMULATED_AUTHORIZE_STEPUP_AMOUNT = '5';
   process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT = '5';
   fresh(); // reload handler with new env
   const res = makeRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TransactionAmount: '10' }) } }, res);
+  assert.strictEqual(res.body.decision, 'INDETERMINATE');
+  assert.strictEqual(res.body.reason, 'STEP_UP');
+});
+
+// Bug fix (BUGS.md #18): ruleStore.hitlThresholdUsd is exposed as a live,
+// admin-editable knob (PUT /rules), persists, and shows overridden:true, but Rule 4
+// used to read only the env vars above and never consulted the overlay — an admin
+// edit silently did nothing to live enforcement. It now overrides the CONFIRM_AMOUNT
+// (HITL_CONSENT) tier, which is what the knob was always documented (routes/rules.js
+// hitl-gate) to control; STEP_UP (MFA) is a separate, not-admin-editable control and
+// stays env-only.
+test('overlay hitlThresholdUsd overrides the HITL_CONSENT (confirm) tier at request time', async () => {
+  // Env default (250) would normally PERMIT a $10 transfer; lower the admin
+  // override below the transaction amount and confirm it now takes effect live.
+  ruleStore.applyPatch({ global: { hitlThresholdUsd: 5 } });
+  const res = makeRes();
+  await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TransactionAmount: '10' }) } }, res);
+  assert.strictEqual(res.body.decision, 'INDETERMINATE');
+  assert.strictEqual(res.body.reason, 'HITL_CONSENT');
+});
+
+test('overlay hitlThresholdUsd does not leak into the STEP_UP (MFA) threshold', async () => {
+  // Override the confirm tier far above the transaction amount so HITL_CONSENT
+  // cannot fire; STEP_UP still uses its own env default (500, unset here). A $600
+  // transfer must still hit STEP_UP — proving the overlay only wires CONFIRM_AMOUNT,
+  // not STEP_UP_AMOUNT.
+  ruleStore.applyPatch({ global: { hitlThresholdUsd: 5000 } });
+  const res = makeRes();
+  await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TransactionAmount: '600' }) } }, res);
   assert.strictEqual(res.body.decision, 'INDETERMINATE');
   assert.strictEqual(res.body.reason, 'STEP_UP');
 });

@@ -396,12 +396,19 @@ align_internal_secret() {
       warn "  BFF_INTERNAL_SECRET missing/default in demo_api_server/.env — minted a deploy-local internal secret"
       ;;
   esac
+  # mcp-resource-server has no per-service .env / secret of its own (unlike the
+  # other four) — create-or-update it here so the patch loop below has a target.
+  # Scoped to just this one key, unlike reusing gateway-secrets/ai-demo-secrets,
+  # which would leak unrelated worker/agent credentials into the resource server.
+  kubectl create secret generic mcp-resource-server-secrets --namespace="$NS" \
+    --from-literal=BFF_INTERNAL_SECRET="$secret" --dry-run=client -o yaml \
+    | kubectl apply -f - >/dev/null 2>&1 || true
   local s
-  for s in ai-demo-secrets gateway-secrets agent-secrets ping-gateway-secrets; do
+  for s in ai-demo-secrets gateway-secrets agent-secrets ping-gateway-secrets mcp-resource-server-secrets; do
     printf '{"stringData":{"BFF_INTERNAL_SECRET":"%s"}}' "$secret" \
       | kubectl patch secret "$s" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null 2>&1 || true
   done
-  info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + ping-gateway"
+  info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + ping-gateway + mcp-resource-server"
 }
 
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────

@@ -104,7 +104,10 @@ function createInvestmentStore() {
   function deposit(data, { portfolioType, amount } = {}) {
     const portfolio = resolvePortfolio(data, portfolioType);
     if (!portfolio) return portfolioNotFound(portfolioType);
-    const amt = Number(amount) || 0;
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return { error: 'invalid amount: must be positive', status: 'invalid_amount' };
+    }
     portfolio.value = Number((portfolio.value + amt).toFixed(2));
     return { portfolioType: portfolio.portfolioType, amount: amt };
   }
@@ -112,7 +115,10 @@ function createInvestmentStore() {
   function withdraw(data, { portfolioType, amount } = {}) {
     const portfolio = resolvePortfolio(data, portfolioType);
     if (!portfolio) return portfolioNotFound(portfolioType);
-    const amt = Number(amount) || 0;
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      return { error: 'invalid amount: must be positive', status: 'invalid_amount' };
+    }
     portfolio.value = Math.max(0, Number((portfolio.value - amt).toFixed(2)));
     return { portfolioType: portfolio.portfolioType, amount: amt };
   }

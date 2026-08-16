@@ -101,9 +101,9 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
   }
 }
 
-export function listAccounts(): Account[] {
+export function listAccounts(userId: string): Account[] {
   return withDb((conn) => {
-    const rows = conn.prepare('SELECT * FROM accounts ORDER BY id').all() as unknown as Array<{
+    const rows = conn.prepare('SELECT * FROM accounts WHERE userId = ? ORDER BY id').all(userId) as unknown as Array<{
       id: string;
       userId: string;
       accountNumber: string;
@@ -116,9 +116,9 @@ export function listAccounts(): Account[] {
   });
 }
 
-export function getAccount(id: string): Account | null {
+export function getAccount(id: string, userId: string): Account | null {
   return withDb((conn) => {
-    const row = conn.prepare('SELECT * FROM accounts WHERE id = ?').get(id) as
+    const row = conn.prepare('SELECT * FROM accounts WHERE id = ? AND userId = ?').get(id, userId) as
       | {
           id: string;
           userId: string;

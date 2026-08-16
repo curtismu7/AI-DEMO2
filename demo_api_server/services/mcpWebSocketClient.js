@@ -413,16 +413,22 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
             if (msg.method && msg.id && !msg.result && !msg.error) {
               // This is a server-initiated request, not a response
               if (msg.method === 'elicitation/create') {
-                // Emit elicitation event and wait for browser response
-                emit({
-                  phase: 'elicitation_requested',
-                  elicitationId: msg.id,
-                  mode: msg.params?.mode,
-                  message: msg.params?.message,
-                  requestedSchema: msg.params?.requestedSchema,
-                  url: msg.params?.url,
-                  payload: msg.params
-                });
+                // Emit elicitation event (same deps.emit → mcpFlowSseHub.publish
+                // mechanism mcpToolPipeline.js uses for every other `phase:`
+                // event) and wait for browser response. opts.emit is absent for
+                // callers that don't pass a flow-trace-bound emitter (e.g. the
+                // agent tool path, flowTraceId: null) — guarded, not required.
+                if (opts && typeof opts.emit === 'function') {
+                  opts.emit({
+                    phase: 'elicitation_requested',
+                    elicitationId: msg.id,
+                    mode: msg.params?.mode,
+                    message: msg.params?.message,
+                    requestedSchema: msg.params?.requestedSchema,
+                    url: msg.params?.url,
+                    payload: msg.params
+                  });
+                }
 
                 // Create a promise to wait for the browser's elicitation response
                 createElicitationPromise(msg.id, 60000)
@@ -593,11 +599,11 @@ function mcpListTools(agentToken, userSub, correlationId, opts) {
   return mcpRpc(agentToken, 'tools/list', {}, userSub, correlationId, undefined, opts);
 }
 
-function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId) {
+function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId, opts) {
   return mcpRpc(agentToken, 'tools/call', {
     name: toolName,
     arguments: toolParams || {},
-  }, userSub, correlationId);
+  }, userSub, correlationId, undefined, opts);
 }
 
 // Frame-capturing variants for the MCP Inspector teaching surface. Same wire

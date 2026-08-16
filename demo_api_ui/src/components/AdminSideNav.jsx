@@ -176,7 +176,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
-  { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
+  { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
@@ -744,7 +744,7 @@ export default function AdminSideNav({
         // entry at all — it was reached by URL. The support console took
         // /admin, so this content moved to /admin/pingone and now has one.
         {
-          label: "PingOne Admin",
+          label: "Dashboard",
           path: "/admin/pingone",
           icon: "cfg",
           adminOnly: true,
@@ -960,7 +960,6 @@ export default function AdminSideNav({
       label: "Agent Studio (Preview)",
       icon: "arc",
       children: [
-        { label: "Agent Studio", path: "/agent-studio-preview", icon: "doc" },
         { label: "IGA for AI", path: "/iga-for-ai", icon: "shld" },
         { label: "Discovery", path: "/discovery-preview", icon: "sec" },
         { label: "Privileges Gateway", path: "/privileges-gateway-preview", icon: "pol" },

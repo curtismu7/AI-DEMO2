@@ -7,6 +7,79 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-16 — Node MCP Gateway's HITL retry path never consumes the receipt
+
+**Where:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (~L611-654,
+the `_hitl_challenge_id` retry branch) and `demo_mcp_gateway/src/hitlClient.ts`
+(`getHitlChallengeStatus` + `verifyHitlReceipt`).
+
+**What's wrong:** BUGS.md #35 fixed HITL receipt replay by having
+`demo_hitl_service`'s `POST /challenges/:id/verify` transition the challenge
+to a terminal `consumed` status on its first successful call
+(`demo_hitl_service/src/routes/challenges.js`, `store.consume()` in
+`demo_hitl_service/src/store/challengeStore.js`). That closes the replay gap
+for `ping-gateway/scripts/groovy/p1az-decision.groovy`, the only caller of
+`/verify`. The Node MCP Gateway (`demo_mcp_gateway`) never calls `/verify` —
+it calls `GET /challenges/:id` and re-implements the same binding checks
+locally in `hitlClient.ts#verifyHitlReceipt`, with no call that mutates
+challenge state. So a replayed retry against the same `_hitl_challenge_id`
+through the Node gateway still succeeds every time until the 10-minute TTL,
+identical to the bug BUGS.md #35 describes. Per `ping-gateway/README.md:32-34`,
+`ff_mcp_gateway_pinggateway` **OFF (the default)** routes MCP traffic through
+this unfixed Node gateway path — the fixed PingGateway/Groovy path is opt-in.
+
+**Why not fixed now:** the task scoped the fix to `demo_hitl_service` only
+(minimum diff, don't touch the two consumer services). Closing this gap
+requires either (a) adding a consuming call from `hitlClient.ts` at its one
+use site and a way for `demo_hitl_service`'s `GET /challenges/:id` to
+distinguish that consuming read from the read-only polling done by
+`demo_api_server/services/hitlServiceClient.js` (BFF dashboard) and
+`demo_authz_server/routes/decision.js` (own PDP flow) — both of which also
+call plain `GET /challenges/:id` and must not be treated as consuming — or
+(b) a new dedicated consuming endpoint the Node gateway calls instead of GET.
+Either touches 2-3 more services and needs its own regression pass; out of
+scope for a targeted HITL-service fix in a protected area.
+
+**Real fix:** give the Node gateway path a consuming step equivalent to
+`/verify`'s, without breaking the other `GET /challenges/:id` pollers — e.g.
+a `?consume=true` flag (or dedicated `POST /challenges/:id/consume`) that
+only `hitlClient.ts`'s retry-time call sends, verified against a test that
+replays the Node gateway's retry twice and asserts the second is rejected.
+
+### 2026-08-15 — mastra_agent: `req.on('close')` fires before the client actually disconnects
+
+**Where:** `mastra_agent/src/runHandler.ts` — `req.on('close', () => abortController.abort())`.
+
+**What's wrong:** Node's `IncomingMessage` is a Readable stream with
+`autoDestroy` on, so it emits `'close'` once its own body has been fully
+read — not when the underlying connection/client actually goes away. For a
+small JSON POST body (this endpoint's whole payload), that happens almost
+immediately after Express's body parser finishes, often before
+`agent.stream()` even starts consuming `fullStream`. Confirmed live:
+instrumenting the handler showed `abortController.signal.aborted` already
+`true` by the time the `for await` loop began, in every request. Effect:
+`tests/runHandler.test.ts`'s three streaming-event assertions (`RUN_FINISHED`,
+`TEXT_MESSAGE_CONTENT`, `TOOL_CALL_START`/`END`) fail — the loop `break`s on
+its first `abortController.signal.aborted` check before processing any part,
+so `onRunEnd()` falls back to the "model didn't return a usable response"
+error path. Reproduced identically on an unmodified `main` checkout (no code
+change involved) via `cd mastra_agent && npx jest tests/runHandler.test.ts`,
+so it predates and is unrelated to any recent change in this file.
+
+**Why not fixed now:** found while fixing the missing `'tool-error'` branch
+in the same file (BUGS.md #14) — a distinct, unrelated code path. The real
+fix (switching the disconnect signal from `req` to `res`) touches request
+lifecycle handling for every run, which is out of scope for a targeted
+tool-error fix and risks the exact abort/stream-teardown behavior this repo
+is careful about.
+
+**Real fix:** listen on `res.on('close')` (or `res.on('finish')` paired with
+a separate disconnect check) instead of `req.on('close')` — the response
+stays open for the SSE duration, so its `'close'` reflects the actual
+client/connection state rather than "the request body has been read." Needs
+a scoped repro against a real (non-supertest) client to confirm the new
+listener still aborts on a genuine client disconnect before landing.
+
 ### 2026-08-12 — oauth-mcp encrypted-storage CBC mode has no integrity check
 
 **Where:** `oauth-mcp/src/utils/encryption.ts` — uses `aes-256-cbc`.

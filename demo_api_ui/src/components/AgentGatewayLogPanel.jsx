@@ -93,7 +93,7 @@ export default function AgentGatewayLogPanel() {
     <div className="mgc-section">
       <CapabilityCallout
         capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'rate-limiting')}
-        to="/agent-gateway-inspector?subtab=capabilities"
+        to="/agent-gateway-capabilities"
       />
       <h4>Real Agent Gateway logs</h4>
       <p className="mgc-field-hint">
