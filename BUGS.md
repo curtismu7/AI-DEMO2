@@ -614,18 +614,20 @@ Surfaced by the major-components code review (CODE_REVIEW.md), not the correctne
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 53 | High | 🔴 Open | DPoP + Web Bot Auth enforced on HTTP transport only — dodgeable by switching to WebSocket | `demo_mcp_gateway/src/index.ts` (WS handler) vs `middleware/authorizeMcpRequest.ts:717-830` |
-| 54 | High | 🔴 Open | Dead `handleHttp` holds the only `POST /admin/clear-token-cache` impl — logout cache flush silently 404s, never runs | `demo_mcp_gateway/src/index.ts:181-323` vs `server/GatewayServer.ts` |
+| 53 | High | 🟢 Fixed | DPoP + Web Bot Auth enforced on HTTP transport only — dodgeable by switching to WebSocket | `demo_mcp_gateway/src/index.ts` (WS handler) vs `middleware/authorizeMcpRequest.ts:717-830` |
+| 54 | High | 🟢 Fixed | Dead `handleHttp` holds the only `POST /admin/clear-token-cache` impl — logout cache flush silently 404s, never runs | `demo_mcp_gateway/src/index.ts:181-323` vs `server/GatewayServer.ts` |
 
 ### 53. DPoP/WBA enforced HTTP-only, bypassable via WebSocket — High
 DPoP (RFC 9449) proof verification, Web Bot Auth (`wbaMode=enforce`), and posture recording (`noteBindingHeaderSeen`) are implemented only in the HTTP path (`authorizeMcpRequest.ts:717-830`) — zero equivalent in the WS `handleMessage` handler in `index.ts`.
 **Trigger:** with `REQUIRE_DPOP_PROOF=true` / `wbaMode=enforce`, a caller connects over WebSocket instead of HTTP and skips these checks entirely; `/health` posture is also blind to WS traffic. Same transport-bypass class as the already-fixed #13 (WS rate-limit bypass).
 **Fix:** move the DPoP/WBA/posture checks into the shared pipeline (`auth/authorizeMcpRequestCore.ts` already proves the one-shared-core pattern) so both transports enforce them, or add the equivalent checks to the WS handler before dispatch.
+**Fixed:** PR [#1875](https://github.com/curtismu7/AI-DEMO2/pull/1875) — verified real but narrower than the review claimed: RAR was NOT bypassed (already enforced via `guardToolCall`), only DPoP+WBA. Since both are HTTP-request-bound proofs a long-lived WebSocket can't carry, the fix **fails closed** — refuses WS `tools/call` when either control is enforced (steering to `POST /mcp`), via a new unit-tested `wsBindingGuard.ts`. No-op when controls are off. 68 scoped tests pass, tsc clean.
 
 ### 54. Dead `handleHttp` holds the only clear-token-cache route — logout flush never runs — High
 `handleHttp` (`index.ts:181-323`) is dead code (the real listener is `GatewayServer.handleRequest`, confirmed by its own comment), but it contains the only implementation of `POST /admin/clear-token-cache`. `demo_api_server/server.js` still calls that endpoint on logout.
 **Trigger:** user logs out → BFF POSTs `/admin/clear-token-cache` → `GatewayServer` never ported the route → silent 404 → the gateway's exchanged-token cache is never flushed, leaving a token-replay window open until natural TTL expiry.
 **Fix:** port `POST /admin/clear-token-cache` (and check `/openapi/*` + reconcile the two drifting RFC 9728 metadata copies) into `GatewayServer`, then delete `handleHttp` and its duplicate `requireInternalSecret`.
+**Fixed:** PR [#1876](https://github.com/curtismu7/AI-DEMO2/pull/1876) — verified real. Ported `POST /admin/clear-token-cache` (same `requireInternalSecret` gate) + `GET /openapi/*` into `GatewayServer`, flushing both the RFC 8693 exchange cache and RFC 7662 introspection cache; deleted dead `handleHttp` + duplicate helper + the drifting second RFC 9728 metadata copy. 20/20 tests (route now 200, was 404), tsc clean.
 
 ---
 
