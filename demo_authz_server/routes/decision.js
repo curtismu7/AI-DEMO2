@@ -287,6 +287,7 @@ module.exports = async function decisionHandler(req, res) {
     intentValid: IntentTokenValid || null,
     intentMatch: IntentMatchesTool || null,
     hitlApproved,
+    vertical: params.Vertical || null,
   });
 
   log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
@@ -1034,6 +1035,7 @@ function _emitDecisionHop(outcome, reason, details) {
     identity: { sub: ctx.sub || null, act: ctx.actor ? [ctx.actor] : [] },
     decision: { outcome, by: 'mock', reason: reason || null },
     status: 'ok',
+    vertical: ctx.vertical || null,
     details: details || null,
   });
 }

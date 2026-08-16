@@ -219,6 +219,35 @@ test('WIRE-7: a DENY hop carries details.reason matching the response reason, an
   assert.strictEqual(hop.details.decisionId, body.decision_id);
 });
 
+test('WIRE-9: an ELICITATION (destructive tool, unconfirmed) response emits a hop whose details.decisionId matches the response decision_id', async () => {
+  // The inline ELICITATION branch (ToolDestructive='true', ElicitationConfirmed
+  // not 'true') is the one hand-written randomId()->auditDecision()->
+  // _emitDecisionHop() sequence outside the four terminal helpers — untested
+  // until now, so a future edit to those helpers could silently drift this
+  // path without a failing test catching it.
+  const body = await decide(
+    baseWriteParams({ ToolDestructive: 'true' }),
+    'cid-elicitation-1',
+  );
+  assert.strictEqual(body.decision, 'INDETERMINATE', 'expected INDETERMINATE: ' + JSON.stringify(body));
+  assert.strictEqual(body.reason, 'ELICITATION');
+  assert.strictEqual(calls.length, 1, 'expected exactly one hop emitted');
+  const hop = calls[0].body;
+  assert.ok(hop.details, 'hop must carry a details payload');
+  assert.strictEqual(hop.details.decisionId, body.decision_id, 'hop details.decisionId must match the response decision_id');
+});
+
+test('WIRE-10: a request carrying a Vertical param emits a hop with a matching top-level vertical field', async () => {
+  const body = await decide(
+    baseWriteParams({ Vertical: 'super-sports' }),
+    'cid-vertical-1',
+  );
+  assert.strictEqual(body.decision, 'PERMIT', 'expected PERMIT: ' + JSON.stringify(body));
+  assert.strictEqual(calls.length, 1);
+  const hop = calls[0].body;
+  assert.strictEqual(hop.vertical, 'super-sports');
+});
+
 test('WIRE-8: hop.details exactly matches the stdout authz_decision audit record — no divergence between the two sinks', async () => {
   const lines = [];
   const orig = console.log;

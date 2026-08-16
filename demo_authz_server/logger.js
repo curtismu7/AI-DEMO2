@@ -35,8 +35,10 @@ function warn(...args) {
  * computed object, two destinations (stdout + ledger), no chance of drift.
  *
  * PERMIT is audited alongside DENY / INDETERMINATE so the stdout trail is
- * complete for a human reading container logs. Note this sink is stdout-only —
- * the machine-readable path the reconciler uses is transactionHop.emitHop.
+ * complete for a human reading container logs. This function itself only
+ * writes stdout — the machine-readable ledger path is transactionHop.emitHop —
+ * but its return value is what the caller forwards into that hop's `details`
+ * field, so the same record now reaches both sinks.
  * @param {'PERMIT'|'DENY'|'INDETERMINATE'} decision
  * @param {string} reason
  * @param {{decisionId?: string, policyVersion?: string}} [extra] - fields the
