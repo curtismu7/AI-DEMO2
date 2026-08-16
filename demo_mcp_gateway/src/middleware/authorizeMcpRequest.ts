@@ -200,7 +200,9 @@ function parseJsonRpcBody(body: Buffer): JsonRpcBody {
 // Module-level rate-limiter singleton — created lazily from config on first request.
 // One limiter per gateway process. Reset via _resetRateLimiterForTest in tests.
 let _rateLimiter: SlidingWindowLimiter | null = null;
-function getRateLimiter(config: { rateLimitMaxRequests: number; rateLimitWindowMs: number }): SlidingWindowLimiter {
+// Exported so the WS transport (index.ts) shares the SAME limiter instance —
+// an agent's bucket must be one shared count across transports, not two.
+export function getRateLimiter(config: { rateLimitMaxRequests: number; rateLimitWindowMs: number }): SlidingWindowLimiter {
   if (!_rateLimiter) {
     _rateLimiter = new SlidingWindowLimiter(config.rateLimitWindowMs, config.rateLimitMaxRequests);
   }
