@@ -249,6 +249,15 @@ async def _handle_sdk_event(event, emitter: AGUIEmitter) -> None:
                 or (raw.get("arguments") if isinstance(raw, dict) else None)
                 or "{}"
             )
+            # Close any still-open text bubble before the tool call starts,
+            # mirroring mastra_agent's `if (streaming) await emitter.onLlmEnd()`
+            # and langchain_agent's `if llm_streaming: await emitter.on_llm_end()`.
+            # Without this, lead-in text streamed via ResponseTextDeltaEvent
+            # never gets a TEXT_MESSAGE_END at the tool-call boundary, and
+            # post-tool text silently merges into the same bubble because
+            # on_llm_start() only fires when _current_message_id is unset.
+            if emitter._current_message_id:
+                await emitter.on_llm_end()
             await emitter.on_tool_start(name, tc_id, args)
         elif item_type == "tool_call_output_item":
             raw = getattr(item, "raw_item", {})
