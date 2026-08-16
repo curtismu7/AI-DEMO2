@@ -192,4 +192,35 @@ describe('POST /api/mcp/inspector/rpc', () => {
     expect(res.body.error).toBe('mcp_rpc_failed');
     expect(res.body.frames).toEqual(err.frames);
   });
+
+  it('accepts server/discover — the mandatory MCP 2026-07-28 handshake RPC — and dials the gateway', async () => {
+    mockRpcCall.mockResolvedValue({
+      result: {
+        resultType: 'success',
+        supportedVersions: ['2025-11-25', '2026-07-28'],
+        capabilities: {},
+        _meta: {},
+      },
+      frames: {
+        request: { jsonrpc: '2.0', id: 2, method: 'server/discover', params: {} },
+        response: { jsonrpc: '2.0', id: 2, result: { resultType: 'success' } },
+      },
+    });
+
+    const res = await request(app)
+      .post('/api/mcp/inspector/rpc')
+      .set('x-test-authed', '1')
+      .send({ method: 'server/discover', params: {} });
+
+    expect(res.status).toBe(200);
+    expect(res.body.result.resultType).toBe('success');
+    expect(mockRpcCall).toHaveBeenCalledWith(
+      'server/discover',
+      {},
+      'agent-token-abc',
+      'rpc-test-user-sub',
+      undefined,
+      expect.objectContaining({ serverUrl: GATEWAY_WS_URL })
+    );
+  });
 });

@@ -283,6 +283,49 @@ test('an explicit ?source=protocol param selects the Protocol source and lists i
   expect(screen.getByText('prompts/get')).toBeInTheDocument();
   expect(screen.getByText('completion/complete')).toBeInTheDocument();
   expect(screen.getByText('logging/setLevel')).toBeInTheDocument();
+  expect(screen.getByText('server/discover')).toBeInTheDocument();
+});
+
+test('Protocol source: selecting server/discover needs no params and posts an empty params object', async () => {
+  apiClient.post.mockResolvedValueOnce({
+    data: { result: { resultType: 'success', supportedVersions: ['2025-11-25', '2026-07-28'], capabilities: {} }, frames: {} },
+  });
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  fireEvent.click(await screen.findByText('server/discover'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/rpc',
+    { method: 'server/discover', params: {} },
+  ));
+});
+
+test('Protocol source: a "Modern (2026-07-28)" toggle attaches params._meta to the Execute POST body', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: { resources: [] }, frames: {} } });
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  fireEvent.click(await screen.findByText('resources/list'));
+  fireEvent.click(screen.getByLabelText(/Modern \(2026-07-28\)/));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/rpc',
+    { method: 'resources/list', params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } } },
+  ));
+});
+
+test('Protocol source: the Modern toggle is off by default — resources/list still posts an unmodified params object', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: { resources: [] }, frames: {} } });
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  fireEvent.click(await screen.findByText('resources/list'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/rpc',
+    { method: 'resources/list', params: {} },
+  ));
+});
+
+test('Protocol source: shows an honest note that header-based routing is an HTTP-transport-only requirement not exercised by this WS-based tester', async () => {
+  renderPage('/pingone-mcp-inspector?source=protocol');
+  expect(await screen.findByText(/header-based routing/i)).toBeInTheDocument();
+  expect(screen.getByText(/gateway-header-routing\.test\.ts/)).toBeInTheDocument();
 });
 
 test('Protocol source: selecting resources/read shows a uri field; Execute posts to /api/mcp/inspector/rpc', async () => {
@@ -343,6 +386,64 @@ test('AI Demo MCP: an "Attach progress token" toggle includes meta.progressToken
     '/api/mcp/inspector/invoke',
     { tool: 'get_account_balance', params: { account_id: 'acc_1' }, meta: { progressToken: expect.any(String) } },
   ));
+});
+
+test('AI Demo MCP: a "Modern (2026-07-28)" toggle includes meta[\'io.modelcontextprotocol/protocolVersion\'] in the Execute POST body', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: {} } });
+  renderPage('/pingone-mcp-inspector?source=banking');
+  fireEvent.click(await screen.findByRole('button', { name: 'get_account_balance' }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
+  fireEvent.click(screen.getByLabelText(/Modern \(2026-07-28\)/));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/invoke',
+    {
+      tool: 'get_account_balance',
+      params: { account_id: 'acc_1' },
+      meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' },
+    },
+  ));
+});
+
+test('AI Demo MCP: Modern toggle and progress-token toggle together merge into one meta object', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { result: {} } });
+  renderPage('/pingone-mcp-inspector?source=banking');
+  fireEvent.click(await screen.findByRole('button', { name: 'get_account_balance' }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
+  fireEvent.click(screen.getByLabelText(/Attach progress token/));
+  fireEvent.click(screen.getByLabelText(/Modern \(2026-07-28\)/));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/invoke',
+    {
+      tool: 'get_account_balance',
+      params: { account_id: 'acc_1' },
+      meta: {
+        progressToken: expect.any(String),
+        'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+      },
+    },
+  ));
+});
+
+test('AI Demo MCP: default (Modern toggle off) still posts without a meta field — unchanged Legacy behavior', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { balance: 4820.15 } });
+  renderPage('/pingone-mcp-inspector?source=banking');
+  fireEvent.click(await screen.findByRole('button', { name: 'get_account_balance' }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/invoke',
+    { tool: 'get_account_balance', params: { account_id: 'acc_1' } },
+  ));
+});
+
+test('AI Demo MCP: checking Modern shows an honest note that this tester bypasses the MCP gateway (no real MRTR elicitation demo)', async () => {
+  renderPage('/pingone-mcp-inspector?source=banking');
+  fireEvent.click(await screen.findByRole('button', { name: 'get_account_balance' }));
+  fireEvent.click(screen.getByLabelText(/Modern \(2026-07-28\)/));
+  expect(screen.getByText(/bypasses/i)).toBeInTheDocument();
+  expect(screen.getByText(/-32022/)).toBeInTheDocument();
 });
 
 test('the Form tab renders the Custom Server response as labeled fields', async () => {
