@@ -111,4 +111,61 @@ describe('POST /mcp — server/discover', () => {
     expect(res.body.result.capabilities).toMatchObject({ tools: {} });
     expect(res.body.result._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: expect.any(String) });
   });
+
+  it('still answers when the discover call itself carries Modern _meta — discovery must work regardless of what the caller claims', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 2, method: 'server/discover',
+        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+      }));
+    expect(res.status).toBe(200);
+    expect(res.body.result.resultType).toBe('complete');
+  });
+});
+
+describe('POST /mcp — Modern per-request version negotiation (_meta)', () => {
+  let gateway: GatewayServer;
+  let request: ReturnType<typeof supertest>;
+
+  beforeEach(() => {
+    gateway = new GatewayServer({
+      config: stubConfig,
+      upstreamMcpUrl: 'http://127.0.0.1:19999',
+    });
+    request = supertest(gateway.httpServer);
+  });
+
+  it('rejects a request carrying an unsupported Modern _meta.protocolVersion with -32022, listing what is actually supported', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 9, method: 'tools/list',
+        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+      }));
+
+    expect(res.status).toBe(200);
+    expect(res.body.error).toMatchObject({
+      code: -32022,
+      message: 'Unsupported protocol version',
+      data: { supported: ['2025-11-25'], requested: '2026-07-28' },
+    });
+  });
+
+  it('does not touch an ordinary Legacy request with no _meta.protocolVersion — falls through to normal forwarding', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'tools/list', params: {} }));
+
+    // Upstream at 127.0.0.1:19999 is unreachable — 502 proves this request
+    // was NOT rejected at the version gate and instead reached forwarding,
+    // exactly like before this change.
+    expect(res.status).toBe(502);
+  });
 });

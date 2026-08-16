@@ -36,7 +36,8 @@ import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
 import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
-import { buildDiscoverResult } from './serverDiscover';
+import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
+import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
 import { loadVaultIntoEnv } from './vault';
@@ -419,6 +420,20 @@ async function handleMessage(
   if (shapeFailure) {
     send(jsonRpcError(id, shapeFailure.code, shapeFailure.message, shapeFailure.data));
     return;
+  }
+
+  // MCP spec 2026-07-28: per-request version negotiation. A Modern request
+  // declares its version in params._meta instead of an initialize handshake.
+  // This gateway doesn't implement Modern behavior yet — reject cleanly
+  // rather than silently running Legacy semantics a Modern caller never
+  // agreed to. server/discover is exempt: its whole purpose is answering
+  // regardless of what version the caller claims.
+  if (method !== 'server/discover') {
+    const requestedVersion = extractRequestedProtocolVersion(msg.params);
+    if (requestedVersion !== undefined && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)) {
+      send(JSON.stringify(buildUnsupportedProtocolVersionError(id, requestedVersion, SUPPORTED_PROTOCOL_VERSIONS)));
+      return;
+    }
   }
 
   // MCP spec: notifications/cancelled — a notification (no response sent

@@ -57,7 +57,8 @@ import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
-import { buildDiscoverResult } from './serverDiscover';
+import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
+import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
 
 // ---------------------------------------------------------------------------
@@ -382,6 +383,20 @@ async function handleMessage(
   }
 
   if (method === 'notifications/initialized') return;
+
+  // MCP spec 2026-07-28: per-request version negotiation. A Modern request
+  // declares its version in params._meta instead of an initialize
+  // handshake. This server doesn't implement Modern behavior yet — reject
+  // cleanly rather than silently running Legacy semantics a Modern caller
+  // never agreed to. server/discover is exempt — its whole purpose is
+  // answering regardless of what version the caller claims.
+  if (method !== 'server/discover') {
+    const requestedVersion = extractRequestedProtocolVersion(msg.params);
+    if (requestedVersion !== undefined && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)) {
+      send(JSON.stringify(buildUnsupportedProtocolVersionError(id, requestedVersion, SUPPORTED_PROTOCOL_VERSIONS)));
+      return;
+    }
+  }
 
   // MCP spec 2026-07-28: server/discover — servers MUST implement it. Same
   // identity/capabilities as the initialize handler above.
