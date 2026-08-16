@@ -154,11 +154,13 @@ export async function guardToolsList(
 
   try {
     const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean).join(' ');
-    // C1 rule 1 — the token's ACTUAL audience (array ⇒ first entry). Setting this
-    // to config.gatewayResourceUri, as this path used to, made the cloud rule
-    // HasValidMcpAudience compare McpResourceUri to itself — a tautology that
-    // could never deny. Omitted (not fabricated) when the token carries no aud.
-    const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
+    // C1 rule 1 — the token's ACTUAL audience (array ⇒ FULL space-joined list,
+    // matching the Groovy gateway, so mock Rule 0b-2's D-05 anti-bypass still
+    // catches a multi-aud [gateway, upstream] token; truncating to aud[0] defeated
+    // it). Setting this to config.gatewayResourceUri, as this path used to, made
+    // the cloud rule HasValidMcpAudience compare McpResourceUri to itself — a
+    // tautology that could never deny. Omitted (not fabricated) when no aud.
+    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
     const body = {
       parameters: {
         DecisionContext: 'McpToolsList',

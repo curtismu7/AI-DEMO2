@@ -73,9 +73,13 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p.TokenAudience).toBe(p.McpResourceUri);
   });
 
-  it('an array aud contributes its FIRST entry', () => {
-    const p = buildAuthorizeParameters(tok({ aud: ['first-aud', 'second-aud'] }), 'tools/call', GW, 'create_transfer');
-    expect(p.TokenAudience).toBe('first-aud');
+  it('an array aud contributes its FULL space-joined list (D-05 anti-bypass parity with Groovy)', () => {
+    // A multi-aud [gateway, upstream] confused-deputy token must send EVERY aud
+    // entry, not just aud[0] — mock Rule 0b-2 splits TokenAudActual on whitespace,
+    // so truncating to the first entry would let the upstream aud escape the check.
+    const p = buildAuthorizeParameters(tok({ aud: [GW, 'https://banking-resource-server.ping.demo'] }), 'tools/call', GW, 'create_transfer');
+    expect(p.TokenAudience).toBe(`${GW} https://banking-resource-server.ping.demo`);
+    expect(p.TokenAudActual).toBe(p.TokenAudience);
   });
 
   it('TokenAudActual carries the same value (mock back-compat)', () => {
