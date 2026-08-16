@@ -28,13 +28,17 @@ async function notifyUser(challenge, userEmail) {
   const message = _buildMessage(challenge, approvalUrl);
 
   if (NOTIFY_MODE === 'ciba') {
-    return _notifyViaCiba(challenge, userEmail, message);
+    return _notifyViaCiba(challenge, userEmail, message, approvalUrl);
   }
   if (NOTIFY_MODE === 'email') {
     return _notifyViaEmail(challenge, userEmail, message, approvalUrl);
   }
 
   // log mode (default for dev)
+  _notifyViaLog(challenge, userEmail, approvalUrl);
+}
+
+function _notifyViaLog(challenge, userEmail, approvalUrl) {
   teachLog.info('approval needed', {
     challengeId: challenge.id,
     tool: challenge.tool,
@@ -50,10 +54,10 @@ function _buildMessage(challenge, approvalUrl) {
   return `AI agent is requesting approval to call ${toolLabel}${detail}. Review and approve: ${approvalUrl}`;
 }
 
-async function _notifyViaCiba(challenge, userEmail, message) {
+async function _notifyViaCiba(challenge, userEmail, message, approvalUrl) {
   if (!CIBA_ENDPOINT || !CIBA_CLIENT_ID) {
     teachLog.warn('ciba not configured — falling back to log', { challengeId: challenge.id, userEmail });
-    return;
+    return _notifyViaLog(challenge, userEmail, approvalUrl);
   }
 
   const credentials = Buffer.from(`${CIBA_CLIENT_ID}:${CIBA_CLIENT_SECRET}`).toString('base64');
