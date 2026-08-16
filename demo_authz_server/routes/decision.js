@@ -354,7 +354,7 @@ module.exports = async function decisionHandler(req, res) {
       const parsed = JSON.parse(TokenAudActual);
       actualList = Array.isArray(parsed) ? parsed : [String(parsed)];
     } catch {
-      actualList = TokenAudActual.split(/\s+/).filter(Boolean);
+      actualList = TokenAudActual.split(/[\s,]+/).filter(Boolean);
     }
     const upstreamHit = scopeTopology.upstreamAudiences().find((u) => actualList.includes(u));
     if (upstreamHit) {
