@@ -44,6 +44,36 @@ describe('tokenInspector', () => {
       expect(result.header.typ).toBe('JWT');
       expect(result.signature).toBe('TEST_SIGNATURE');
     });
+
+    // Real PingOne tokens are base64url-encoded (RFC 7515): `-`/`_`, no padding.
+    // `atob()` only accepts the standard base64 alphabet (`+`/`/`), so any
+    // segment whose base64url form contains `-` or `_` used to throw
+    // "Invalid character" and decodeJWT would report isValid:false for a
+    // perfectly valid token. This payload's `picture` claim query string
+    // (`?size=128`) lands on a byte boundary that produces a literal `_` in
+    // the base64url-encoded payload segment, reproducing the real failure.
+    const pingOneShapedToken =
+      'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjlmOGU3ZDZjLTViNGEtM2MyZC0xZTBmLWExYjJjM2Q0ZTVmNiJ9' +
+      '.' +
+      'eyJpc3MiOiJodHRwczovL2F1dGgucGluZ29uZS5jb20vOGYzYjJjMWEtNGQ1ZS02ZjcwLTgxOTItYTNiNGM1ZDZlN2Y4L2FzIiwic3ViIjoiYjJjM2Q0ZTUtZjYwNy00ODM5LWEwYjEtYzJkM2U0ZjUwNjE3IiwiYXVkIjoiYmFua2luZy11aS1jbGllbnQiLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIGFjY2Vzc19yZXNvdXJjZSByZWFkX2FjY291bnRzIiwiY2xpZW50X2lkIjoiYmFua2luZy11aS1jbGllbnQiLCJuYW1lIjoiSm9yZGFuIFJpdmVyYSIsInBpY3R1cmUiOiJodHRwczovL2Nkbi5waW5naWRlbnRpdHkuY29tL2F2YXRhcnMvZGVmYXVsdC5wbmc_c2l6ZT0xMjgiLCJleHAiOjk5OTk5OTk5OTksImlhdCI6MTcwMDAwMDAwMCwianRpIjoiYjdlMWMyZDMtNGY1YS02YjdjLThkOWUtMGYxYTJiM2M0ZDVlIn0' +
+      '.TEST_SIGNATURE_VALUE';
+
+    it('confirms the payload segment contains base64url-only characters (- or _)', () => {
+      const payloadSegment = pingOneShapedToken.split('.')[1];
+      expect(/[-_]/.test(payloadSegment)).toBe(true);
+    });
+
+    it('decodes a realistic PingOne-shaped token whose segments contain base64url `-`/`_`', () => {
+      const result = decodeJWT(pingOneShapedToken);
+      expect(result.isValid).toBe(true);
+      expect(result.error).toBeUndefined();
+      expect(result.header.alg).toBe('RS256');
+      expect(result.payload.sub).toBe('b2c3d4e5-f607-4839-a0b1-c2d3e4f50617');
+      expect(result.payload.picture).toBe(
+        'https://cdn.pingidentity.com/avatars/default.png?size=128'
+      );
+      expect(result.payload.scope).toBe('openid profile email access_resource read_accounts');
+    });
   });
 
   describe('extractScopes', () => {
