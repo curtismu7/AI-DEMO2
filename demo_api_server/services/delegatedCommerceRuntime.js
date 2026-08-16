@@ -64,21 +64,31 @@ function resolveConsentContext(req, tool) {
   const registrationId = req?.session?.delegatedCommerceRegistrationId;
   if (!registrationId) return null;
   const registration = store.get(registrationId);
+  // Orphaned session id (admin cleanup, restart without LMDB) must not brick
+  // the default banking/MCP agent path.
+  if (!registration) return null;
+
   const userId = req.user?.id || req.session?.user?.id || req.session?.user?.oauthId;
-  const expired = registration?.expiresAt <= Date.now();
+  if (registration.claimedByUserId !== userId) return null;
+
+  // Claimed/staged means the customer has not consented yet. Token minting
+  // falls back to the configured agent (fallbackToDefault); the consent gate
+  // must not 403 every MCP tool in the meantime.
+  if (registration.status === 'claimed' || registration.status === 'staged') {
+    return null;
+  }
+
+  const expired = registration.expiresAt <= Date.now();
   const requiredScopes = scopeTopology.toolScopes(tool)
     .filter((scope) => scope === 'read' || scope === 'write');
-  const consentScopes = registration?.scopes || [];
+  const consentScopes = registration.scopes || [];
   return {
     registrationId,
-    agentId: registration?.applicationId || null,
-    status: registration?.claimedByUserId === userId
-      ? (expired ? 'expired' : registration.status)
-      : 'invalid_binding',
+    agentId: registration.applicationId || null,
+    status: expired ? 'expired' : registration.status,
     consentScopes,
     requiredScopes,
     sufficient:
-      registration?.claimedByUserId === userId &&
       registration.status === 'active' &&
       !expired &&
       requiredScopes.every((scope) => consentScopes.includes(scope)),

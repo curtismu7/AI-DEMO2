@@ -1854,10 +1854,20 @@ export default function BankingAgent({
   // Also re-runs when the vertical changes because themeManifest.id changes,
   // which causes isLoggedIn's referencing closure to re-evaluate. We call the
   // imperative helper directly from the vertical-switch effect below.
+  // Guards against a stale-response race: fetchLiveAccounts is called
+  // imperatively (not itself an effect) from both the login effect and the
+  // vertical-switch effect below, so a fast double vertical switch can have
+  // an earlier request resolve after a later one. Only the response matching
+  // the most recently issued request is applied (same intent as the
+  // `cancelled` guard on the tool-fetch effect above, adapted for an
+  // imperative call site via a request-id ref).
+  const liveAccountsRequestIdRef = useRef(0);
   const fetchLiveAccounts = useCallback(() => {
+    const requestId = ++liveAccountsRequestIdRef.current;
     fetch("/api/accounts/my", { credentials: "include", _silent: true })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
+        if (requestId !== liveAccountsRequestIdRef.current) return; // stale response
         if (!data?.accounts?.length) return;
         setLiveAccounts(
           data.accounts.map((a) => ({
@@ -5716,11 +5726,15 @@ export default function BankingAgent({
       : ["checking", "savings", "credit", "credit card", "loan", "mortgage"];
     const matchedTypes = accountTypes.filter((kind) => t.includes(kind));
 
-    // Extract dollar amount. Accepts "$200", "200 dollars", "200".
+    // Extract dollar amount. Accepts "$200", "$1,000", "200 dollars", "200".
+    // Strip grouping commas before parseFloat — locale-formatted amounts must
+    // not truncate at the first comma ("$1,000" → 1000, not 1).
     const amountMatch = t.match(
-      /\$?\s*(\d+(?:\.\d{1,2})?)\s*(?:dollars?|usd)?/,
+      /\$?\s*([\d,]+(?:\.\d{1,2})?)\s*(?:dollars?|usd)?/,
     );
-    const amount = amountMatch ? parseFloat(amountMatch[1]) : null;
+    const amount = amountMatch
+      ? parseFloat(amountMatch[1].replace(/,/g, ""))
+      : null;
 
     // Extract direction prepositions for transfers: "from X to Y".
     const fromTo = t.match(/from\s+(\w+)\s+to\s+(\w+)/);
@@ -8291,18 +8305,13 @@ export default function BankingAgent({
       //   - vertical plugin tools with no amount → isVerticalConsent shape, same
       //     as the kind:'vertical' handler.
       if (isApprovalGate) {
-        // Defense-in-depth: if the BFF returns step_up_required for an amount
-        // below the MFA threshold (e.g. PingOne policy misconfigured for $300),
-        // treat it as a consent gate, not a step-up gate. Only fire P1MFA when
-        // there is no transactionAmount (non-banking tools) or the amount is at
-        // or above the threshold. Use-case-declared step-up always has transactionAmount
-        // absent or above threshold because it is amount-independent (UC7).
-        const _mfaThresholdUi = APP_CONFIG.THRESHOLDS.MFA_DEFAULT;
+        // Always treat step_up_required as MFA — never demote to consent by amount.
+        // Demoting sub-threshold step-up to TransactionConsentModal + createTransferWithConsent
+        // completed the transfer via REST without MFA (consent satisfies the $300 HITL
+        // band). Sub-threshold MCP-gate step-up is demoted to HITL on the BFF instead.
         const isStepUpGate =
-          (response.error === "step_up_required" ||
-           response.error === "mcp_step_up_required") &&
-          (response.transactionAmount == null ||
-           Number(response.transactionAmount) >= _mfaThresholdUi);
+          response.error === "step_up_required" ||
+          response.error === "mcp_step_up_required";
         if (isStepUpGate) {
           // UC7: skip consent — go straight to P1MFA. Store the original NL
           // message so the transfer re-fires once identity is verified.

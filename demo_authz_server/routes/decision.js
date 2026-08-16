@@ -888,7 +888,14 @@ module.exports = async function decisionHandler(req, res) {
       process.env.SIMULATED_AUTHORIZE_POLICY_STEPUP_AMOUNT ||
       '500'
     );
-    const CONFIRM_AMOUNT = parseFloat(process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT || '250');
+    // Admin override (ruleStore's "HITL threshold (USD)" knob, PUT /rules
+    // {global:{hitlThresholdUsd}}) takes precedence over the env var when an
+    // operator has actually set it — otherwise the env-var chain below is
+    // unchanged. STEP_UP (MFA) is a distinct, not-admin-editable control and
+    // stays env-only; only the HITL_CONSENT tier this knob was documented
+    // (routes/rules.js hitl-gate) to control is wired here.
+    const CONFIRM_AMOUNT = ruleStore.getHitlThresholdOverride()
+      ?? parseFloat(process.env.SIMULATED_AUTHORIZE_CONFIRM_AMOUNT || '250');
     // Amount-bearing write tool over step-up threshold -> STEP_UP (MFA required).
     // IMP-3: NOT guarded by hitlApproved; IMP-1: guarded by !acrStrong.
     const overStepUp = isWriteTool && hasAmount && amount >= STEP_UP_AMOUNT && !acrStrong;

@@ -174,6 +174,40 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
     expect(out.decision).toBe('PERMIT');
   });
 
+  test('UC8 regression: MCP-gate stepUpRequired below MFA threshold is demoted to HITL', async () => {
+    // The gate already answered step-up. Early-returning that answer bypassed the
+    // amount threshold, the UI demoted to consent, and REST createTransferWithConsent
+    // completed without MFA. Demote to HITL so UC8 stays consent-only.
+    const out = await _applyTransactionPolicy(
+      { ...base, stepUpRequired: true, hitlRequired: false },
+      {
+        amount: 300,
+        transactionType: 'transfer',
+        userId: 'user-1',
+        acr: 'Password',
+      },
+    );
+    expect(out.stepUpRequired).toBeFalsy();
+    expect(out.hitlRequired).toBe(true);
+    expect(out.transactionPolicyHitl).toBe(true);
+    expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
+  });
+
+  test('UC7: forceStepUp preserves an existing gate step-up even below MFA threshold', async () => {
+    const out = await _applyTransactionPolicy(
+      { ...base, stepUpRequired: true },
+      {
+        amount: 300,
+        transactionType: 'transfer',
+        userId: 'user-1',
+        acr: 'Password',
+        useCaseId: 'step-up-required',
+      },
+    );
+    expect(out.stepUpRequired).toBe(true);
+    expect(out.hitlRequired).toBeFalsy();
+  });
+
   test('UC7: forceStepUp always fires step-up regardless of PingOne answer or amount', async () => {
     // UC7 declares stepUpMethod: 'p1mfa' in useCases.js. That declaration is
     // amount-independent — forceStepUp must win even when PingOne returns bare PERMIT.

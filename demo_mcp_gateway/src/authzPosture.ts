@@ -105,7 +105,15 @@ export function buildAuthzHealth(config: GatewayConfig): AuthzHealth {
   // validateActClaim() short-circuits to {valid:true} when the allow-list is
   // empty (toolScopes.ts), so an unset actor client id means ANY act.sub is
   // accepted — the delegation actor is not checked at all.
-  if (!config.authorizedActorClientId) failOpen.push('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
+  // Mirror GatewayTokenPolicy.validate's precedence: the plural, multi-actor
+  // list (config.ts) is preferred and only falls back to the singular legacy
+  // field when empty. Checking only the singular here reports a fully-armed
+  // actor allow-list (e.g. PINGONE_AI_AGENT_ACTOR_CLIENT_ID set alone) as a
+  // bypass — the same class of orphan-field lie #1012 fixed for JWKS above.
+  const authorizedActors = config.authorizedActorClientIds?.length
+    ? config.authorizedActorClientIds
+    : config.authorizedActorClientId;
+  if (!authorizedActors?.length) failOpen.push('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
   // The gateway accepts purp / reqctx / azd from an unsigned, caller-supplied
   // header and feeds them to the PDP and to RAR subset enforcement. Those checks
   // still run — against evidence the caller wrote for itself.

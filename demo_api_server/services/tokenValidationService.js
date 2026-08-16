@@ -103,7 +103,7 @@ async function validateToken(token, { jwksUri, issuer, audience } = {}) {
   if (!decoded || !decoded.header) {
     throw new Error('Invalid JWT: cannot decode header');
   }
-  const { kid, alg } = decoded.header;
+  const { kid } = decoded.header;
 
   // Fetch JWKS
   const keys = await fetchJwks(jwksUri);
@@ -135,9 +135,14 @@ async function validateToken(token, { jwksUri, issuer, audience } = {}) {
 
   const pem = jwkToPem(jwk);
 
-  // Verify options
+  // Verify options — the allow-list is a fixed, server-controlled value.
+  // NEVER derive it from the token's own (unverified) header: doing so lets
+  // an attacker pick their own verification algorithm (CWE-347, the classic
+  // RS256->HS256 signing-key confusion attack). PingOne only ever issues
+  // RS256-signed tokens (see jwkToPem above and jwksService.js), so RS256 is
+  // the only algorithm this server will accept.
   const verifyOptions = {
-    algorithms: [alg || 'RS256'],
+    algorithms: ['RS256'],
   };
   if (issuer) verifyOptions.issuer = issuer;
   if (audience) verifyOptions.audience = audience;

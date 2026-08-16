@@ -58,6 +58,20 @@
   color: #b91c1c;
 }
 
+.afh-retry-btn {
+  border: 1px solid #b91c1c;
+  background: #ffffff;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.afh-retry-btn:hover {
+  background: #fef2f2;
+}
+
 .afh-run-item {
   display: flex;
   flex-direction: column;

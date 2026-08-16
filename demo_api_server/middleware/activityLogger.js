@@ -1,5 +1,30 @@
 const dataStore = require('../data/store');
 
+// Known sensitive field names (case-insensitive) redacted from requestBody
+// before it's persisted — mirrors the Authorization header redaction below.
+const SENSITIVE_BODY_FIELDS = new Set([
+  'password',
+  'newpassword',
+  'currentpassword',
+  'confirmpassword',
+  'clientsecret',
+  'client_secret',
+  'workerclientsecret',
+]);
+
+const redactSensitiveFields = (body) => {
+  if (!body || typeof body !== 'object') {
+    return body;
+  }
+  const redacted = { ...body };
+  for (const key of Object.keys(redacted)) {
+    if (SENSITIVE_BODY_FIELDS.has(key.toLowerCase())) {
+      redacted[key] = '[REDACTED]';
+    }
+  }
+  return redacted;
+};
+
 const logActivity = (req, res, next) => {
   // Skip logging for static files and health checks
   if (req.path.startsWith('/static/') || req.path === '/health') {
@@ -109,7 +134,7 @@ const logActivity = (req, res, next) => {
         ipAddress: (req.ip || req.connection.remoteAddress) === '::1' ? '127.0.0.1' : (req.ip || req.connection.remoteAddress),
         userAgent: req.get('User-Agent'),
         authorization: authHeader ? `${authHeader.split(' ')[0]} [REDACTED]` : null,
-        requestBody: method === 'POST' || method === 'PUT' ? req.body : null,
+        requestBody: method === 'POST' || method === 'PUT' ? redactSensitiveFields(req.body) : null,
         responseBody: null, // Response body capture disabled — may contain PII/sensitive data
         responseStatus: res.statusCode,
         duration,

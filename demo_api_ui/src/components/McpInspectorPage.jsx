@@ -29,6 +29,7 @@ const SOURCES = [
   { key: 'pingone', label: 'PingOne MCP' },
   { key: 'api', label: 'API Calls' },
   { key: 'custom', label: 'Custom Server' },
+  { key: 'protocol', label: 'Protocol' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -256,6 +257,13 @@ function useBankingSource() {
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
   const [mcpHistory, setMcpHistory] = useState(getCalls);
+  // Optional MCP spec: notifications/progress opt-in. No tool in this demo
+  // emits one today (see the Protocol tab's Sampling/Roots note for the same
+  // "built ahead of a producer" pattern) — attaching the token still lets the
+  // Inspector show a real interim frame if one ever arrives (see
+  // mcpWebSocketClient.js's frameSink.notifications capture), an honest empty
+  // result otherwise.
+  const [progressEnabled, setProgressEnabled] = useState(false);
   // Computed once, synchronously, before any effect runs: a Token Chain replay
   // handoff (?replay=<id>) races the tool-catalog GET below — if the catalog
   // resolves after the replay has selected/invoked a tool, its reset would
@@ -335,7 +343,14 @@ function useBankingSource() {
     setBusy(true);
     const t0 = Date.now();
     try {
-      const { data } = await apiClient.post('/api/mcp/inspector/invoke', { tool: selectedTool.name, params });
+      const meta = progressEnabled
+        ? { progressToken: `progress-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
+        : undefined;
+      const { data } = await apiClient.post('/api/mcp/inspector/invoke', {
+        tool: selectedTool.name,
+        params,
+        ...(meta ? { meta } : {}),
+      });
       const ms = Date.now() - t0;
       appendMcpCall(selectedTool.name, 200, ms, data.result ?? data);
       setLastInvoke(data);
@@ -358,7 +373,7 @@ function useBankingSource() {
     } finally {
       setBusy(false);
     }
-  }, [selectedTool, paramValues]);
+  }, [selectedTool, paramValues, progressEnabled]);
 
   const clearForm = () => {
     setParamValues({});
@@ -515,7 +530,23 @@ function useBankingSource() {
             <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
               <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569', marginLeft: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={progressEnabled}
+                  onChange={(e) => setProgressEnabled(e.target.checked)}
+                />
+                Attach progress token
+              </label>
             </div>
+            {progressEnabled && (
+              <div style={{ padding: '4px 20px 8px', fontSize: 11, color: '#64748b' }}>
+                No tool in this demo currently emits <code>notifications/progress</code> yet — built ahead of a
+                producer, same as Prompts/Sampling. Cancellation (<code>notifications/cancelled</code>) is covered
+                by <code>demo_mcp_gateway/tests/gateway-http-progress-cancellation.test.js</code> and the
+                WS-transport cancellation tests, not exercised from this Inspector.
+              </div>
+            )}
             <div className="inspector-shell-form-body">
               {Object.entries(schemaProps).map(([key, schema]) => (
                 <div className="inspector-shell-field" key={key}>
@@ -1553,6 +1584,310 @@ function useCustomServerSource() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Protocol source — testers for the MCP methods that are not tools/call:
+// Resources, Prompts, Completion, Logging. All are clean request→response
+// JSON-RPC calls served only behind the MCP gateway (POST /api/mcp/inspector/rpc
+// — see demo_api_server/routes/mcpInspector.js). Sampling and Roots are
+// server→client capabilities (the MCP server asks the BFF, never the
+// reverse) and Cancellation has no cross-request BFF state to reuse from a
+// second click — both get a read-only info note here instead of an Execute
+// control that would misrepresent the protocol direction.
+// ---------------------------------------------------------------------------
+
+const LOG_LEVELS = ['debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency'];
+
+const PROTOCOL_METHOD_GROUPS = [
+  {
+    key: 'resources',
+    label: 'Resources',
+    methods: [
+      { method: 'resources/list', fields: [] },
+      { method: 'resources/templates/list', fields: [] },
+      {
+        method: 'resources/read',
+        fields: [{ key: 'uri', label: 'uri', type: 'text', required: true, placeholder: 'banking://accounts' }],
+      },
+    ],
+  },
+  {
+    key: 'prompts',
+    label: 'Prompts',
+    methods: [
+      { method: 'prompts/list', fields: [] },
+      {
+        method: 'prompts/get',
+        fields: [
+          { key: 'name', label: 'name', type: 'text', required: true, placeholder: 'summarize_airline_booking' },
+          { key: 'arguments', label: 'arguments', type: 'json', required: false, placeholder: '{ "bookingId": "ABC123" }' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'completion',
+    label: 'Completion',
+    methods: [
+      {
+        method: 'completion/complete',
+        fields: [
+          { key: 'ref', label: 'ref', type: 'json', required: true, placeholder: '{ "type": "ref/prompt", "name": "summarize_airline_booking" }' },
+          { key: 'argument', label: 'argument', type: 'json', required: true, placeholder: '{ "name": "bookingId", "value": "AB" }' },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'logging',
+    label: 'Logging',
+    methods: [
+      {
+        method: 'logging/setLevel',
+        fields: [{ key: 'level', label: 'level', type: 'enum', required: true, options: LOG_LEVELS, default: 'info' }],
+      },
+    ],
+  },
+];
+
+function buildProtocolParams(selectedMethod, fieldValues) {
+  const params = {};
+  for (const f of selectedMethod.fields) {
+    const raw = fieldValues[f.key];
+    const trimmed = String(raw ?? '').trim();
+    if (f.required && !trimmed) throw new Error(`Required: ${f.label}`);
+    if (!trimmed) continue;
+    if (f.type === 'json') {
+      try {
+        params[f.key] = JSON.parse(raw);
+      } catch {
+        throw new Error(`${f.label} must be valid JSON`);
+      }
+    } else {
+      params[f.key] = raw;
+    }
+  }
+  return params;
+}
+
+function useProtocolSource() {
+  const [selectedMethod, setSelectedMethod] = useState(null);
+  const [fieldValues, setFieldValues] = useState({});
+  const [formError, setFormError] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
+  const [lastTiming, setLastTiming] = useState(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [outputTab, setOutputTab] = useState('response');
+
+  const selectMethod = (m) => {
+    setSelectedMethod(m);
+    const defaults = {};
+    for (const f of m.fields) if (f.type === 'enum' && f.default) defaults[f.key] = f.default;
+    setFieldValues(defaults);
+    setFormError(null);
+    setLastResult(null);
+    setLastTiming(null);
+    setNeedsLogin(false);
+    setOutputTab('response');
+  };
+
+  const handleExecute = useCallback(async () => {
+    if (!selectedMethod) return;
+    let params;
+    try {
+      params = buildProtocolParams(selectedMethod, fieldValues);
+    } catch (err) {
+      setFormError(err.message);
+      return;
+    }
+    setFormError(null);
+    setBusy(true);
+    const t0 = Date.now();
+    try {
+      const { data } = await apiClient.post('/api/mcp/inspector/rpc', { method: selectedMethod.method, params });
+      const ms = Date.now() - t0;
+      setLastResult(data);
+      setLastTiming({ ms, error: false });
+      setNeedsLogin(false);
+      setOutputTab('response');
+    } catch (e) {
+      const ms = Date.now() - t0;
+      const errBody = e.response?.data || { error: 'rpc_failed', message: formatAxiosError(e, 'RPC failed') };
+      setLastResult(errBody);
+      setLastTiming({ ms, error: true, reason: formatAxiosError(e, 'RPC failed') });
+      if (e.response?.status === 401) {
+        setNeedsLogin(true);
+      } else {
+        setNeedsLogin(false);
+        notifyError(formatAxiosError(e, 'RPC failed'));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [selectedMethod, fieldValues]);
+
+  const clearForm = () => {
+    setFieldValues({});
+    setFormError(null);
+    setLastResult(null);
+    setLastTiming(null);
+  };
+
+  const outputContent = useMemo(() => {
+    if (!lastResult && !lastTiming) return null;
+    if (outputTab === 'response') {
+      if (lastResult) return lastResult;
+      if (lastTiming?.error) return { error: true, message: lastTiming.reason || 'RPC failed' };
+      return null;
+    }
+    if (outputTab === 'request') {
+      let params = {};
+      try {
+        params = selectedMethod ? buildProtocolParams(selectedMethod, fieldValues) : {};
+      } catch {
+        params = fieldValues;
+      }
+      return { jsonrpc: '2.0', id: 1, method: selectedMethod?.method, params };
+    }
+    return null;
+  }, [outputTab, lastResult, lastTiming, selectedMethod, fieldValues]);
+
+  return {
+    statusOn: true,
+    statusText: 'Resources / Prompts / Completion / Logging — via MCP Gateway',
+    left: (
+      <>
+        <div className="inspector-shell-tree-header"><span>Protocol Methods</span></div>
+        <div className="inspector-shell-tree-body">
+          {PROTOCOL_METHOD_GROUPS.map((group) => (
+            <div key={group.key}>
+              <div className="inspector-shell-tree-group__label">{group.label}</div>
+              {group.methods.map((m) => (
+                <InspectorListItem
+                  key={m.method}
+                  label={m.method}
+                  active={selectedMethod?.method === m.method}
+                  onClick={() => selectMethod(m)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div
+          className="inspector-shell-tree-footer"
+          style={{ borderTop: '1px solid #cbd5e1', padding: '10px 12px', fontSize: 11, color: '#64748b' }}
+        >
+          <div style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            Sampling &amp; Roots
+          </div>
+          <div>
+            Sampling (<code>sampling/createMessage</code>) and Roots (<code>roots/list</code>) are server-initiated
+            capabilities — the MCP server asks the BFF, never the reverse — so there is no Execute control for them
+            here; a button would misrepresent the protocol direction. They already run automatically whenever an MCP
+            server issues the request (see <code>mcpWebSocketClient.js</code>) and are covered by real tests in
+            {' '}<code>demo_api_server/src/__tests__/mcpWebSocketClient.samplingRoots.test.js</code>.
+          </div>
+        </div>
+      </>
+    ),
+    middle: (
+      <>
+        {needsLogin && (
+          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <strong>Sign in required.</strong> This call needs a valid BFF session.
+            <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
+              Log in
+            </button>
+          </div>
+        )}
+        {selectedMethod ? (
+          <>
+            <div className="inspector-shell-form-header">
+              <div className="inspector-shell-form-header__name">{selectedMethod.method}</div>
+            </div>
+            <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+              <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+            </div>
+            <div className="inspector-shell-form-body">
+              {selectedMethod.fields.map((f) => (
+                <div className="inspector-shell-field" key={f.key}>
+                  <label>
+                    {f.label}{f.required && <span className="req"> *</span>}
+                    <span className="type">{f.type}</span>
+                  </label>
+                  {f.type === 'enum' ? (
+                    <select
+                      value={fieldValues[f.key] ?? f.default ?? ''}
+                      onChange={(e) => setFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    >
+                      {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : f.type === 'json' ? (
+                    <textarea
+                      rows={4}
+                      placeholder={f.placeholder}
+                      value={fieldValues[f.key] ?? ''}
+                      onChange={(e) => setFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder={f.placeholder}
+                      value={fieldValues[f.key] ?? ''}
+                      onChange={(e) => setFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                  )}
+                </div>
+              ))}
+              {selectedMethod.fields.length === 0 && (
+                <div style={{ color: '#64748b', fontSize: 13 }}>No parameters required.</div>
+              )}
+            </div>
+            <div className="inspector-shell-form-actions">
+              <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+              {formError && <span className="inspector-shell-form-error">{formError}</span>}
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-form-empty">Select a Resources / Prompts / Completion / Logging method from the tree.</div>
+        )}
+      </>
+    ),
+    right: (
+      <>
+        <InspectorTabs
+          tabs={[
+            { key: 'response', label: 'Response' },
+            { key: 'request', label: 'Request' },
+          ]}
+          activeKey={outputTab}
+          onChange={setOutputTab}
+        />
+        {outputContent ? (
+          <>
+            <div className="inspector-shell-output-body">
+              <pre className="inspector-shell-output-code">
+                <JsonHighlight value={outputContent} deep />
+              </pre>
+            </div>
+            <div className="inspector-shell-output-footer">
+              <span><strong>Status:</strong> {lastTiming?.error ? 'Error' : lastTiming ? '200 OK' : '-'}</span>
+              <span><strong>Duration:</strong> {lastTiming?.ms != null ? `${lastTiming.ms}ms` : '-'}</span>
+              <span><strong>Transport:</strong> WebSocket JSON-RPC (via MCP Gateway)</span>
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-output-empty">
+            {selectedMethod ? 'Click Execute to call the method and see the response here.' : 'Select a method and execute it to see results.'}
+          </div>
+        )}
+      </>
+    ),
+  };
+}
+
 export default function McpInspectorPage() {
   const [searchParams] = useSearchParams();
   const requestedSource = searchParams.get('source');
@@ -1569,10 +1904,12 @@ export default function McpInspectorPage() {
   const pingone = usePingOneSource();
   const api = useApiCallsSource();
   const custom = useCustomServerSource();
+  const protocol = useProtocolSource();
   const current =
     activeSource === 'pingone' ? pingone
       : activeSource === 'api' ? api
       : activeSource === 'custom' ? custom
+      : activeSource === 'protocol' ? protocol
       : banking;
 
   return (
