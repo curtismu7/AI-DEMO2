@@ -89,7 +89,12 @@ function buildHealthcareTools(store) {
         // Amount-driven policy chips ("pay my $300 bill") don't carry a bill id —
         // default to the first outstanding bill so the Authorize outcome can be shown.
         let _billId = params && (params.billId || params.recordId);
-        if (!_billId) { const _bills = store.get(userId).billingHistory || []; _billId = _bills[0] && _bills[0].id; }
+        if (!_billId) {
+          const _bills = store.get(userId).billingHistory || [];
+          const _outstanding = _bills.find((b) => b.status !== 'Paid');
+          if (!_outstanding) return { result: { error: 'no outstanding bills' }, render: 'text' };
+          _billId = _outstanding.id;
+        }
         const bill = store.payBill(userId, _billId);
         if (!bill) return { result: { error: 'bill not found' }, render: 'text' };
         return { result: bill, render: 'pay_bill' };
