@@ -60,6 +60,7 @@ import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
+import { emitHop } from './transactionHop';
 
 // ---------------------------------------------------------------------------
 // MCP Prompts capability — real, usable templates referencing this server's
@@ -528,14 +529,25 @@ async function handleMessage(
       return;
     }
 
+    // Transaction-trace hop — forwarded by the gateway in msg.params.correlationId
+    // (same field it reads via extractCorrelationId). No-ops without one (e.g. a
+    // caller that bypasses the gateway), matching emitHop's own fail-open contract.
+    const correlationId = typeof msg.params?.correlationId === 'string' ? msg.params.correlationId : undefined;
+    const _startedAt = Date.now();
     try {
       const result = await dispatch(toolName, args, token, decoded.sub);
+      if (correlationId) {
+        emitHop({ phase: 'mcp.tool', op: toolName, correlationId, durationMs: Date.now() - _startedAt, status: 'ok' });
+      }
       send(rpcResult(id, {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         isError: false,
       }));
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      if (correlationId) {
+        emitHop({ phase: 'mcp.tool', op: toolName, correlationId, durationMs: Date.now() - _startedAt, status: 'error' });
+      }
       emitLogMessage(send, loggingState, 'error', { tool: toolName, message: errMsg }, 'resource-server.dispatch');
       send(rpcResult(id, { content: [{ type: 'text', text: errMsg }], isError: true }));
     }

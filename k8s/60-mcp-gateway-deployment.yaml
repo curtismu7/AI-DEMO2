@@ -60,6 +60,11 @@ spec:
           value: "https://demo-api-server:3001/internal/id-token"
         - name: BANKING_RESOURCE_SERVER_BASE_URL
           value: "https://demo-api-server:3001"
+        # Transaction-trace hop ingest — mirrors docker-compose's BFF_TRANSACTION_HOP_URL.
+        # Without this, gatewayAudit.ts's emitHop() silently no-ops (missing url/secret
+        # guard), so MCP gateway hops never appear on /transaction-trace.
+        - name: BFF_TRANSACTION_HOP_URL
+          value: "https://demo-api-server:3001/internal/transaction-hop"
         # mkcert TLS on demo-api-server — same opt-in as MCP_GATEWAY_REJECT_UNAUTHORIZED.
         - name: NODE_TLS_REJECT_UNAUTHORIZED
           value: "0"
