@@ -36,6 +36,8 @@ import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest, getRateLimiter } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
 import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
+import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
+import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
 import { loadVaultIntoEnv } from './vault';
@@ -420,6 +422,20 @@ async function handleMessage(
     return;
   }
 
+  // MCP spec 2026-07-28: per-request version negotiation. A Modern request
+  // declares its version in params._meta instead of an initialize handshake.
+  // This gateway doesn't implement Modern behavior yet — reject cleanly
+  // rather than silently running Legacy semantics a Modern caller never
+  // agreed to. server/discover is exempt: its whole purpose is answering
+  // regardless of what version the caller claims.
+  if (method !== 'server/discover') {
+    const requestedVersion = extractRequestedProtocolVersion(msg.params);
+    if (requestedVersion !== undefined && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)) {
+      send(JSON.stringify(buildUnsupportedProtocolVersionError(id, requestedVersion, SUPPORTED_PROTOCOL_VERSIONS)));
+      return;
+    }
+  }
+
   // MCP spec: notifications/cancelled — a notification (no response sent
   // either way). Look up the target request id and abort it if still in
   // flight; an unknown or already-settled id is a silent no-op, matching
@@ -738,7 +754,15 @@ async function handleMessage(
     // carry mcpOlbResourceUri (or any upstream MCP-server URI) in aud.
     if (!(await runWsAuthorizationPipeline(token, id, send))) return;
 
-    const msgParams = msg.params as { name?: string; arguments?: Record<string, unknown> } | undefined;
+    const msgParams = msg.params as {
+      name?: string;
+      arguments?: Record<string, unknown>;
+      // MCP spec 2026-07-28 MRTR retry fields — top-level params siblings,
+      // distinct from the Legacy _elicitation_confirmed/_elicitation_id
+      // tool-argument markers below.
+      inputResponses?: Record<string, { action?: string }>;
+      requestState?: string;
+    } | undefined;
     const toolName: string = msgParams?.name || '';
     // Activate the audit hook now that the tool + caller identity are known.
     // Set before any authz/HITL send so denials and approval-pending outcomes
@@ -756,14 +780,25 @@ async function handleMessage(
     const hitlChallengeId = rawToolArgs._hitl_challenge_id as string | undefined;
     // Elicitation re-call markers — extracted for session-binding check and P1AZ
     // parameter injection (via toolArgsForAuthz below), then stripped from toolArgs.
-    const elicitationConfirmed = rawToolArgs._elicitation_confirmed === true;
-    const elicitationId = rawToolArgs._elicitation_id as string | undefined;
+    let elicitationConfirmed = rawToolArgs._elicitation_confirmed === true;
+    let elicitationId = rawToolArgs._elicitation_id as string | undefined;
     const toolArgs: Record<string, unknown> = { ...rawToolArgs };
     delete toolArgs._hitl_challenge_id;
     delete toolArgs._elicitation_confirmed;
     delete toolArgs._elicitation_id;
     if (msgParams) {
       msgParams.arguments = toolArgs;
+    }
+    // MCP spec 2026-07-28 MRTR: a Modern retry carries top-level
+    // params.inputResponses + params.requestState instead. requestState IS
+    // the elicitation_id — reuses the same crypto-random, one-time-use,
+    // session+tool-bound record from elicitationStore.ts. Only 'accept'
+    // counts as confirmed.
+    if (msgParams?.inputResponses?.elicitation?.action === 'accept' && msgParams.requestState) {
+      elicitationConfirmed = true;
+      elicitationId = msgParams.requestState;
+      delete msgParams.inputResponses;
+      delete msgParams.requestState;
     }
 
     // Spec §2 — per-tool argument schema validation. Runs after the auth
@@ -879,6 +914,28 @@ async function handleMessage(
           (a: { id: string }) => a.id === 'elicitation-prompt',
         )?.value ?? `Confirm ${toolName}?`;
         const rec = createPendingElicitation(toolName, sessionId, prompt);
+        // MCP spec 2026-07-28 MRTR: a Modern caller gets the server-initiated
+        // input request embedded in an InputRequiredResult (HTTP-transport
+        // counterpart in authorizeMcpRequest.ts) instead of the Legacy
+        // elicitation_required error.
+        if (extractRequestedProtocolVersion(msg.params) !== undefined) {
+          send(JSON.stringify({
+            jsonrpc: '2.0',
+            id,
+            result: {
+              resultType: 'input_required',
+              inputRequests: {
+                elicitation: {
+                  method: 'elicitation/create',
+                  params: { mode: 'form', message: prompt, requestedSchema: { type: 'object', properties: {} } },
+                },
+              },
+              requestState: rec.elicitation_id,
+            },
+          }));
+          return;
+        }
+        // Legacy (2025-11-25 and earlier): unchanged.
         send(jsonRpcError(id, -32003, 'elicitation_required', {
           elicitation_id: rec.elicitation_id,
           prompt,
@@ -1147,6 +1204,23 @@ async function handleMessage(
 
   if (method === 'notifications/initialized') {
     return; // no response required
+  }
+
+  // MCP spec 2026-07-28: server/discover — servers MUST implement it. Same
+  // identity/capabilities as the initialize handler above.
+  if (method === 'server/discover') {
+    const result = buildDiscoverResult(
+      {
+        tools: {},
+        logging: {},
+        resources: { subscribe: false, listChanged: false },
+        prompts: { listChanged: false },
+        completions: {},
+      },
+      { name: 'banking-mcp-gateway', version: '1.0.0' },
+    );
+    send(JSON.stringify({ jsonrpc: '2.0', id, result }));
+    return;
   }
 
   send(jsonRpcError(id, -32601, `Method not found: ${method}`));

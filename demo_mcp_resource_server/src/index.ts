@@ -57,6 +57,8 @@ import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
+import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
+import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
 
 // ---------------------------------------------------------------------------
@@ -261,6 +263,13 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
           }
         } catch { /* ok — malformed body goes through as 200 */ }
+        // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header:
+        // UnsupportedProtocolVersionError MUST ride HTTP 400, not 200.
+        let isUnsupportedProtocolVersion = false;
+        try {
+          const parsed = JSON.parse(s);
+          isUnsupportedProtocolVersion = parsed?.error?.code === -32022;
+        } catch { /* ok — malformed body goes through as 200 */ }
         const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
         if (isInsufficientScope) {
           res.writeHead(403, {
@@ -268,6 +277,8 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
             ...sessionHeader,
           });
+        } else if (isUnsupportedProtocolVersion) {
+          res.writeHead(400, { 'Content-Type': 'application/json', ...sessionHeader });
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
         }
@@ -381,6 +392,36 @@ async function handleMessage(
   }
 
   if (method === 'notifications/initialized') return;
+
+  // MCP spec 2026-07-28: per-request version negotiation. A Modern request
+  // declares its version in params._meta instead of an initialize
+  // handshake. This server doesn't implement Modern behavior yet — reject
+  // cleanly rather than silently running Legacy semantics a Modern caller
+  // never agreed to. server/discover is exempt — its whole purpose is
+  // answering regardless of what version the caller claims.
+  if (method !== 'server/discover') {
+    const requestedVersion = extractRequestedProtocolVersion(msg.params);
+    if (requestedVersion !== undefined && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)) {
+      send(JSON.stringify(buildUnsupportedProtocolVersionError(id, requestedVersion, SUPPORTED_PROTOCOL_VERSIONS)));
+      return;
+    }
+  }
+
+  // MCP spec 2026-07-28: server/discover — servers MUST implement it. Same
+  // identity/capabilities as the initialize handler above.
+  if (method === 'server/discover') {
+    send(rpcResult(id, buildDiscoverResult(
+      {
+        tools: {},
+        resources: { subscribe: false, listChanged: false },
+        logging: {},
+        prompts: { listChanged: false },
+        completions: {},
+      },
+      { name: 'banking-mcp-resource-server', version: '1.0.0' },
+    )));
+    return;
+  }
 
   if (method === 'prompts/list') {
     send(rpcResult(id, { prompts: PROMPTS.map(({ name, description, argsDef }) => ({ name, description, arguments: argsDef })) }));

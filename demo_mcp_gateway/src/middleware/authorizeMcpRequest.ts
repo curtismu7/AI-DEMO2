@@ -57,6 +57,7 @@ import type { TratClaims, PolicySource, AuthzDecision } from '../auth/PingOneAut
 import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 import { createPendingElicitation, consumePendingElicitation } from '../elicitationStore';
+import { extractRequestedProtocolVersion } from '../modernNegotiation';
 
 // ---------------------------------------------------------------------------
 // Body parsing helper — extract method and tool name from JSON-RPC body
@@ -68,6 +69,12 @@ interface JsonRpcBody {
     params?: {
       name?: string;
       arguments?: Record<string, unknown>;
+      // MCP spec 2026-07-28 MRTR retry fields — top-level params siblings,
+      // distinct from the Legacy _elicitation_confirmed/_elicitation_id
+      // tool-argument markers.
+      inputResponses?: Record<string, { action?: string }>;
+      requestState?: string;
+      _meta?: unknown;
     };
 }
 
@@ -580,6 +587,26 @@ export function buildAuthorizeMcpRequest(
       outBody = Buffer.from(JSON.stringify(parsedBody), 'utf-8');
     }
 
+    // MCP spec 2026-07-28 MRTR: a Modern retry carries top-level
+    // params.inputResponses + params.requestState instead of the Legacy
+    // _elicitation_confirmed/_elicitation_id tool-argument markers above.
+    // requestState IS the elicitation_id — reusing the same crypto-random,
+    // one-time-use, session+tool-bound record from elicitationStore.ts.
+    // Only 'accept' counts as confirmed; decline/cancel/missing all fall
+    // through to a fresh obligation check, same fail-closed default as an
+    // absent Legacy confirmation.
+    const modernInputResponses = parsedBody.params?.inputResponses as Record<string, { action?: string }> | undefined;
+    const modernRequestState = parsedBody.params?.requestState as string | undefined;
+    if (modernInputResponses?.elicitation?.action === 'accept' && modernRequestState) {
+      elicitationConfirmed = true;
+      elicitationId = modernRequestState;
+      if (parsedBody.params) {
+        delete parsedBody.params.inputResponses;
+        delete parsedBody.params.requestState;
+      }
+      outBody = Buffer.from(JSON.stringify(parsedBody), 'utf-8');
+    }
+
     // Elicitation re-call validation — verify the pending record is valid for
     // this session + tool BEFORE calling P1AZ. One-time use: consumed here.
     // Mirrors index.ts (WS path) so both transports share the same store.
@@ -1054,6 +1081,31 @@ export function buildAuthorizeMcpRequest(
           (a: { id: string }) => a.id === 'elicitation-prompt',
         )?.value ?? `Confirm ${toolName}?`;
         const rec = createPendingElicitation(toolName ?? '', sessionId, prompt);
+        // MCP spec 2026-07-28 MRTR: a Modern caller gets the server-initiated
+        // input request embedded in an InputRequiredResult instead of the
+        // Legacy elicitation_required error — MRTR replaced server-initiated
+        // requests over an open connection entirely. requestState carries
+        // the same elicitation_id the Legacy path uses; requestedSchema is
+        // empty because the meaningful signal is the accept/decline action
+        // itself, not any collected data (this is a confirm, not a form).
+        if (extractRequestedProtocolVersion(parsedBody.params) !== undefined) {
+          res.end(JSON.stringify({
+            jsonrpc: '2.0',
+            id: parsedBody.id ?? null,
+            result: {
+              resultType: 'input_required',
+              inputRequests: {
+                elicitation: {
+                  method: 'elicitation/create',
+                  params: { mode: 'form', message: prompt, requestedSchema: { type: 'object', properties: {} } },
+                },
+              },
+              requestState: rec.elicitation_id,
+            },
+          }));
+          return;
+        }
+        // Legacy (2025-11-25 and earlier): unchanged.
         res.end(JSON.stringify({
           error: 'elicitation_required',
           message: prompt,

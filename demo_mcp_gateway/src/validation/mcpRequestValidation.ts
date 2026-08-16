@@ -19,6 +19,7 @@ export const ALLOWED_METHODS: ReadonlySet<string> = new Set([
   'tools/call',
   'notifications/cancelled',
   'logging/setLevel',
+  'server/discover',
   'resources/list',
   'resources/read',
   'resources/templates/list',

@@ -38,6 +38,8 @@ import { extractBearerToken, validateInboundToken, TokenValidationError } from '
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
+import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from '../serverDiscover';
+import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from '../modernNegotiation';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
@@ -585,19 +587,43 @@ export class GatewayServer {
     try { parsedRpc = JSON.parse(body.toString('utf-8')); } catch { /* already validated above */ }
     const correlationId = extractCorrelationId(req.headers as Record<string, unknown>, parsedRpc);
 
-    // MCP Streamable HTTP transport: once a session is established the client
-    // SHOULD send MCP-Protocol-Version on every request; a value the gateway
-    // doesn't support gets a 400, not a silent pass-through. `initialize` is
-    // exempt — that request IS the negotiation, before any version is agreed.
-    const inboundProtocolVersion = req.headers[MCP_PROTO_HEADER] as string | undefined;
-    if (inboundProtocolVersion && parsedRpc.method !== 'initialize' && inboundProtocolVersion !== MCP_PROTOCOL_VERSION) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'unsupported_protocol_version',
-        message: `This gateway supports MCP protocol version ${MCP_PROTOCOL_VERSION}, not ${inboundProtocolVersion}.`,
-        supported: [MCP_PROTOCOL_VERSION],
-      }));
-      return;
+    // MCP spec 2026-07-28: per-request version negotiation. A Modern request
+    // declares its version in params._meta instead of an initialize
+    // handshake — a fundamentally different era from the legacy
+    // MCP-Protocol-Version header check below, so it's checked first and,
+    // if the request is Modern-shaped, takes over entirely: this gateway
+    // doesn't implement any Modern-era behavior yet, so it rejects cleanly
+    // rather than falling through to legacy header semantics a Modern
+    // caller never agreed to. server/discover is exempt — its whole purpose
+    // is answering regardless of what version the caller claims.
+    const requestedModernVersion = extractRequestedProtocolVersion(parsedRpc.params);
+    if (requestedModernVersion !== undefined && parsedRpc.method !== 'server/discover') {
+      if (!(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedModernVersion)) {
+        // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: this
+        // case MUST be 400 Bad Request, not 200 with a JSON-RPC-level error.
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(buildUnsupportedProtocolVersionError(
+          (parsedRpc.id as string | number | null) ?? null,
+          requestedModernVersion,
+          SUPPORTED_PROTOCOL_VERSIONS,
+        )));
+        return;
+      }
+    } else {
+      // MCP Streamable HTTP transport: once a session is established the client
+      // SHOULD send MCP-Protocol-Version on every request; a value the gateway
+      // doesn't support gets a 400, not a silent pass-through. `initialize` is
+      // exempt — that request IS the negotiation, before any version is agreed.
+      const inboundProtocolVersion = req.headers[MCP_PROTO_HEADER] as string | undefined;
+      if (inboundProtocolVersion && parsedRpc.method !== 'initialize' && inboundProtocolVersion !== MCP_PROTOCOL_VERSION) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'unsupported_protocol_version',
+          message: `This gateway supports MCP protocol version ${MCP_PROTOCOL_VERSION}, not ${inboundProtocolVersion}.`,
+          supported: [MCP_PROTOCOL_VERSION],
+        }));
+        return;
+      }
     }
 
     // MCP spec: notifications/cancelled. HTTP has no persistent connection to
@@ -614,6 +640,21 @@ export class GatewayServer {
       }
       res.writeHead(202, { 'Content-Type': 'application/json' });
       res.end();
+      return;
+    }
+
+    // MCP spec 2026-07-28: server/discover — servers MUST implement it.
+    // Answered locally, not forwarded upstream: it exists so a client can
+    // learn about the server it is directly connected to, and the gateway
+    // is a real MCP server in its own right. Mirrors the identity/capabilities
+    // the WS transport (index.ts) already answers `initialize` with locally.
+    if (parsedRpc.method === 'server/discover') {
+      const result = buildDiscoverResult(
+        { tools: {}, logging: {}, resources: { subscribe: false, listChanged: false }, prompts: { listChanged: false }, completions: {} },
+        { name: 'banking-mcp-gateway', version: '1.0.0' },
+      );
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: parsedRpc.id ?? null, result }));
       return;
     }
 
