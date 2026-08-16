@@ -477,7 +477,7 @@ async function runMcpToolPipeline(ctx) {
         const hitlChallengeId = params?.[HITL_CHALLENGE_ARG] || null;
         if (hitlChallengeId) { delete params[HITL_CHALLENGE_ARG]; }
 
-        console.log('[mcpToolPipeline] Before authorize-decision:', { tool: tool.name, userSub, tokenScopes: mcpAccessToken?.scope });
+        logger.debug(_CAT, `[mcpToolPipeline] Before authorize-decision: tool=${tool} userSub=${userSub ?? '(none)'}`);
         const mcpAuthz = await deps.evaluateMcpFirstToolGate({
             req,
             tool,
@@ -487,7 +487,7 @@ async function runMcpToolPipeline(ctx) {
             toolParams: params,
             hitlChallengeId,
         });
-        console.log('[mcpToolPipeline] After authorize-decision:', { tool: tool.name, ran: mcpAuthz.ran, blocked: !!mcpAuthz.block, decision: mcpAuthz.block?.body?.decision });
+        logger.debug(_CAT, `[mcpToolPipeline] After authorize-decision: tool=${tool} ran=${mcpAuthz.ran} blocked=${!!mcpAuthz.block} decision=${mcpAuthz.block?.body?.decision ?? '(none)'}`);
         if (mcpAuthz.ran && mcpAuthz.block) {
             deps.emit({
                 phase: 'authorize_denied',
@@ -1660,6 +1660,36 @@ async function runMcpToolPipeline(ctx) {
         deps.emit({
             phase: 'mcp_remote_unreachable'
         });
+        // #67 — When the call is gateway-authoritative the BFF deliberately skips
+        // its own authorize gate (gatewayAuthoritative, ~:452) because the gateway
+        // is the sole PDP. A transport failure reaching the gateway
+        // (GATEWAY_UNREACHABLE/GATEWAY_TIMEOUT, whose messages contain
+        // ECONNREFUSED/"timed out" and so satisfy isConnErr) must NOT silently run
+        // the tool via callToolLocal: that bypasses the gateway, the MCP server,
+        // AND PingOne Authorize (group/tier/RAR/scope), i.e. fail-open on the
+        // money-movement path. Surface the transport error (503/504) instead.
+        // Mirrors the no-bearer (~:385) and exchange-failure (F5, ~:320) paths,
+        // both made non-bypassing. The degraded local-demo affordance is gated
+        // behind the SAME opt-in (default OFF) and marks the result _degraded so
+        // the caller can see the call was not authorized by any policy engine.
+        if (useGateway) {
+            const localFallbackOnGatewayDown =
+                require('./configStore').getEffective('ff_local_fallback_on_exchange_failure') === 'true';
+            if (!localFallbackOnGatewayDown) {
+                deps.emit({ phase: 'gateway_unreachable_no_fallback' });
+                logger.warn(_CAT,
+                    `[MCP Gateway] ${tool} — gateway unreachable/timed out and the ungated local fallback is DISABLED ` +
+                    '(ff_local_fallback_on_exchange_failure=false); surfacing the transport error instead of running unauthorized.'
+                );
+                const gwTimeout = err.code === 'GATEWAY_TIMEOUT' || err.message.includes('timed out');
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+                return { kind: 'error', httpStatus: err.httpStatus || (gwTimeout ? 504 : 503), tokenEvents, body: {
+                    error: gwTimeout ? 'GATEWAY_TIMEOUT' : 'GATEWAY_UNREACHABLE',
+                    message: err.message,
+                    tokenEvents,
+                } };
+            }
+        }
         // ── Local fallback ──────────────────────────────────────────────────────
         const sessionUser = req.session ?.user;
         if (!sessionUser ?.id) {
@@ -1694,7 +1724,11 @@ async function runMcpToolPipeline(ctx) {
             return { kind: 'result', httpStatus: 200, tokenEvents, body: {
                 result,
                 tokenEvents,
-                _localFallback: true
+                _localFallback: true,
+                // #67 — reachable with useGateway only via the opt-in flag; the
+                // gateway (sole PDP) was down, so this ran without any policy
+                // decision. Contract C2: mark degraded so the caller can tell.
+                ...(useGateway ? { _degraded: true, policy_source: 'local-fallback' } : {}),
             } };
         } catch (localErr) {
             deps.emit({

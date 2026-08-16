@@ -102,6 +102,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-16 — Gateway-unreachable failed OPEN to unauthorized local execution (BUGS.md #67, #68, #69)
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/mcpToolPipeline.gatewayUnreachableFailOpen.test.js` (new),
+`demo_api_server/tests/mcpGatewayClient.hitl403AuditTrail.test.js` (new)
+
+**What was broken:**
+- **#67 (HIGH):** When `useGateway` is true the BFF deliberately skips its own
+  authorize gate (`gatewayAuthoritative`) because the gateway is the sole PDP.
+  But `_normalizeGatewayNetworkError` turns a down/slow gateway into a
+  `GATEWAY_UNREACHABLE`/`GATEWAY_TIMEOUT` error whose message contains
+  `ECONNREFUSED`/"timed out", so the pipeline's `isConnErr` heuristic was true →
+  the tool ran via `callToolLocal`, bypassing the gateway, the MCP server, AND
+  PingOne Authorize (group/tier/RAR/scope). A down gateway meant every agent
+  tool call (transfers, cross-owner reads) executed locally with zero policy
+  enforcement — fail-open on the money-movement path, contradicting the
+  already-hardened no-bearer and exchange-failure sibling paths.
+- **#68 (MEDIUM):** The 403 `hitl_required` branch in `mcpGatewayClient` threw
+  WITHOUT `gwAuditTrail`, unlike every sibling obligation branch. The pipeline's
+  `hitl_required` handler reads `err.gwAuditTrail` to build the `gw-authorize`
+  Token Chain card; undefined there lost the P1AZ PERMIT-before-obligation
+  decision and ProofStrip rendered "Run failed before authorize-decision" on a
+  gate that actually fired.
+- **#69 (LOW):** Two raw `console.log`s logged always-undefined props
+  (`tool.name` on a string, `mcpAccessToken?.scope` on a JWT string) — the only
+  raw `console.log`s in a `logger`-based file, running on every non-skip call.
+
+**What was fixed:**
+- **#67:** When `useGateway`, a gateway transport error no longer falls back to
+  the local handler — the pipeline returns the `GATEWAY_UNREACHABLE` (503) /
+  `GATEWAY_TIMEOUT` (504) error instead. The degraded local-demo affordance is
+  gated behind the SAME opt-in as the exchange-failure fallback
+  (`ff_local_fallback_on_exchange_failure`, default OFF) and marks the result
+  `_degraded` / `policy_source: 'local-fallback'`. Non-gateway mode (direct MCP
+  server unreachable → local) is unchanged.
+- **#68:** Added `gwAuditTrail: _parseGwAuditTrail(response)` to the 403 HITL
+  throw, matching the sibling branches.
+- **#69:** Replaced the two `console.log`s with `logger.debug(_CAT, …)` using
+  `tool` directly.
+
+**Do not break:** The legitimately-opt-in fallback paths (exchange-failure F5;
+gateway-down under the flag) must still run when
+`ff_local_fallback_on_exchange_failure=true`. Non-gateway (direct MCP) local
+fallback on server-unreachable must stay intact. Do not alter the other gateway
+obligation branches (428 hitl/step-up/elicitation, generic 403 deny) that
+already carry `gwAuditTrail`.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- tests/mcpToolPipeline.gatewayUnreachableFailOpen.test.js tests/mcpGatewayClient.hitl403AuditTrail.test.js tests/mcpToolPipeline.gatewayDenyEvidence.test.js tests/mcpToolPipeline.dynamicPush.test.js tests/mcpToolPipeline.killSwitch.test.js tests/mcpToolPipelineSseRequest.regression.test.js tests/mcpGatewayClient.weatherScopeTrail.test.js tests/pingOneAuthorizeIndeterminate.test.js tests/hitlBypass.regression.test.js --forceExit --maxWorkers=4` (9 suites, 33 tests passed).
+
 ### 2026-08-16 — Delegated-commerce consent scope check bypassed for namespaced tool scopes (BUGS.md #55)
 
 **Files changed:** `demo_api_server/services/delegatedCommerceRuntime.js`,
