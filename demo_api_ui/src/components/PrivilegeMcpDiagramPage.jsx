@@ -1,50 +1,52 @@
 // PrivilegeMcpDiagramPage.jsx — Architecture and sequence diagrams from
-// privilege/PRIVILEGE-MCP.md rendered via Mermaid. Two tabs: Architecture (graph TB)
-// and Sign-in + Tool Call (sequenceDiagram).
+// privilege/PRIVILEGE-MCP.md rendered via Mermaid. Three tabs: Architecture
+// (graph TB) and Sign-in + Tool Call (sequenceDiagram) mirror the doc's
+// current diagrams verbatim; Auth Flow is this page's own more detailed
+// breakdown of the OAuth/PKCE handshake, not sourced from the doc.
 import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 import DiagramExportBar from "./DiagramExportBar";
 import "./PrivilegeMcpDiagramPage.css";
 
 const ARCHITECTURE_SOURCE = `graph TB
-    subgraph browser["Browser"]
-        UI["/privilege-mcp-client<br/>React page"]
+    subgraph browser["Browser — no MCP here"]
+        UI["/privilege-mcp-client<br/>React page (UI only)"]
     end
 
     subgraph demo["Demo stack (Docker Compose)"]
-        BFF["demo-api-server<br/>/api/privilege-mcp/*"]
-        NGX["mcpgw-nginx :443<br/>rewrites Host to the<br/>registered Frontend Name"]
-        GW["ping-mcpgw :8620<br/>cyonproxy (agentless)"]
-        MCP["mcp-server :8080<br/>Privilege-unaware"]
+        BFF["demo-api-server<br/><b>MCP CLIENT</b><br/>/api/privilege-mcp/* (user)<br/>/api/privilege-mcp-simple/* (machine)"]
+        GW["ping-mcpgw — cyonproxy<br/>binds no public port<br/><b>MCP CLIENT</b> to mcp-server"]
+        MCP["mcp-server :8080<br/><b>MCP SERVER</b> — owns the tools<br/>aud mcpserver.ping.demo"]
     end
 
-    subgraph ping["PingOne (cloud)"]
+    subgraph ping["PingOne (cloud) — identity and policy, not MCP"]
         AS["Authorization server<br/>auth.pingone.com/{envId}/as"]
         CP["Privilege control plane<br/>grpc.privilege.pingone.com:443"]
         API["Privilege cloud API<br/>privilege.pingone.com/api/mcp"]
     end
 
-    UI -->|"HTTPS + session cookie"| BFF
+    UI -->|"HTTPS + session cookie<br/>(not MCP)"| BFF
     BFF -.->|"SSE: live relay events"| UI
-    BFF -->|"OAuth 2.0 code + PKCE"| AS
-    BFF -->|"MCP JSON-RPC over HTTPS"| NGX
-    NGX -->|"Host: MCP-aidemo.default<br/>.applications.procyon.ai:8643<br/>X-Forwarded-Host: original"| GW
-    GW -->|"MCP JSON-RPC"| MCP
+    BFF -->|"OAuth 2.0 code + PKCE (user)<br/>client_credentials (machine)"| AS
+    BFF -->|"MCP session 1<br/>JSON-RPC over HTTP"| GW
+    GW -->|"MCP session 2<br/>policy applied between them"| MCP
+    BFF -->|"MCP direct — simple route,<br/>works today"| MCP
     GW <-->|"outbound gRPC<br/>enrollment JWT"| CP
-    BFF -.->|"currently configured here<br/>instead of the gateway"| API
+    API -.->|"NOT the gateway frontend"| GW
 
+    classDef mcpserver stroke-width:3px
     classDef broken stroke-dasharray: 5 5
+    class MCP,GW mcpserver
     class API broken`;
 
 const SEQUENCE_SOURCE = `sequenceDiagram
     autonumber
     participant U as Operator
-    participant P as Client page
-    participant B as BFF relay
+    participant P as Client page (UI)
+    participant B as BFF — MCP CLIENT
     participant A as PingOne AS
-    participant N as mcpgw-nginx
-    participant G as MCP Gateway
-    participant M as MCP server
+    participant G as Gateway — MCP server+client
+    participant M as mcp-server — MCP SERVER
 
     U->>P: Sign In with Privilege
     P->>B: POST /auth/start
@@ -59,13 +61,10 @@ const SEQUENCE_SOURCE = `sequenceDiagram
 
     U->>P: Load Tools
     P->>B: POST /tools/list
-    B->>N: initialize
-    Note over N,G: nginx rewrites Host to the registered<br/>Frontend Name. Send our own hostname and<br/>the gateway logs "Domain not found"<br/>and returns an empty 200.
-    N->>G: initialize (Host rewritten)
+    B->>G: initialize
     G-->>B: protocolVersion + MCP-Session-Id
-    B->>N: notifications/initialized
-    B->>N: tools/list (Bearer + session headers)
-    N->>G: tools/list
+    B->>G: notifications/initialized
+    B->>G: tools/list (Bearer + session headers)
     G->>M: tools/list
     M-->>G: tools
     G-->>B: tools (JSON or SSE frames)
@@ -73,15 +72,12 @@ const SEQUENCE_SOURCE = `sequenceDiagram
 
     U->>P: Run a tool
     P->>B: POST /tools/call
-    B->>N: tools/call
-    N->>G: tools/call (Host rewritten)
+    B->>G: tools/call
     Note over G: Privilege decides:<br/>JIT least-privilege policy<br/>+ session recording
     alt permitted
         G->>M: tools/call
         M-->>G: result
         G-->>B: result
-    else no policy grants this user the app
-        G-->>B: 403 doesn't have access to MCP app
     else denied by policy
         G-->>B: 4xx — relayed with its own status
     end
@@ -210,10 +206,17 @@ export default function PrivilegeMcpDiagramPage() {
       </div>
 
       <p className="pmd-footer">
-        Source: <a href="https://github.com" className="pmd-link">privilege/PRIVILEGE-MCP.md</a>.
-        Dashed lines indicate a path that is configured but not the intended one — the BFF
-        still talks to the Privilege cloud API directly instead of routing that call through
-        the gateway.
+        Source:{" "}
+        <a
+          href="https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/PRIVILEGE-MCP.md"
+          className="pmd-link"
+        >
+          privilege/PRIVILEGE-MCP.md
+        </a>
+        . The dashed line marks the Privilege cloud API as NOT the gateway frontend — it's a
+        separate control-plane endpoint, not an alternate route for MCP traffic. The BFF also
+        talks to mcp-server directly via <code>/api/privilege-mcp-simple/*</code> (no human,
+        no Privilege policy) alongside the gateway-mediated path shown here.
       </p>
     </div>
   );
