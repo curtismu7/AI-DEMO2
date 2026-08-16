@@ -38,6 +38,7 @@ import { extractBearerToken, validateInboundToken, TokenValidationError } from '
 import { extractCorrelationId } from '../correlationId';
 import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc, MCP_PROTOCOL_VERSION } from '../proxy';
+import { buildDiscoverResult } from '../serverDiscover';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
@@ -614,6 +615,21 @@ export class GatewayServer {
       }
       res.writeHead(202, { 'Content-Type': 'application/json' });
       res.end();
+      return;
+    }
+
+    // MCP spec 2026-07-28: server/discover — servers MUST implement it.
+    // Answered locally, not forwarded upstream: it exists so a client can
+    // learn about the server it is directly connected to, and the gateway
+    // is a real MCP server in its own right. Mirrors the identity/capabilities
+    // the WS transport (index.ts) already answers `initialize` with locally.
+    if (parsedRpc.method === 'server/discover') {
+      const result = buildDiscoverResult(
+        { tools: {}, logging: {}, resources: { subscribe: false, listChanged: false }, prompts: { listChanged: false }, completions: {} },
+        { name: 'banking-mcp-gateway', version: '1.0.0' },
+      );
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: parsedRpc.id ?? null, result }));
       return;
     }
 

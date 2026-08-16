@@ -57,6 +57,7 @@ import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
+import { buildDiscoverResult } from './serverDiscover';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
 
 // ---------------------------------------------------------------------------
@@ -381,6 +382,22 @@ async function handleMessage(
   }
 
   if (method === 'notifications/initialized') return;
+
+  // MCP spec 2026-07-28: server/discover — servers MUST implement it. Same
+  // identity/capabilities as the initialize handler above.
+  if (method === 'server/discover') {
+    send(rpcResult(id, buildDiscoverResult(
+      {
+        tools: {},
+        resources: { subscribe: false, listChanged: false },
+        logging: {},
+        prompts: { listChanged: false },
+        completions: {},
+      },
+      { name: 'banking-mcp-resource-server', version: '1.0.0' },
+    )));
+    return;
+  }
 
   if (method === 'prompts/list') {
     send(rpcResult(id, { prompts: PROMPTS.map(({ name, description, argsDef }) => ({ name, description, arguments: argsDef })) }));

@@ -218,3 +218,18 @@ describe('Completion capability', () => {
     expect(r.json.result.capabilities.completions).toBeDefined();
   });
 });
+
+// MCP spec 2026-07-28: server/discover — servers MUST implement it. This
+// server is still Legacy-era (2025-11-25 handshake) end-to-end, so
+// supportedVersions stays honestly scoped to that — claiming 2026-07-28
+// before the rest of Modern (stateless _meta negotiation, MRTR, list
+// caching) lands would make this RPC lie to a caller relying on it.
+describe('server/discover', () => {
+  it('answers with resultType complete, supportedVersions, capabilities, and serverInfo', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'server/discover', params: {} }, token('airlines:read'));
+    expect(r.json.result.resultType).toBe('complete');
+    expect(r.json.result.supportedVersions).toEqual(['2025-11-25']);
+    expect(r.json.result.capabilities).toMatchObject({ tools: {} });
+    expect(r.json.result._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: 'banking-mcp-resource-server' });
+  });
+});

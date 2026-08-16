@@ -36,6 +36,7 @@ import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
 import { createPendingElicitation, consumePendingElicitation } from './elicitationStore';
+import { buildDiscoverResult } from './serverDiscover';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
 import { loadVaultIntoEnv } from './vault';
@@ -1113,6 +1114,23 @@ async function handleMessage(
 
   if (method === 'notifications/initialized') {
     return; // no response required
+  }
+
+  // MCP spec 2026-07-28: server/discover — servers MUST implement it. Same
+  // identity/capabilities as the initialize handler above.
+  if (method === 'server/discover') {
+    const result = buildDiscoverResult(
+      {
+        tools: {},
+        logging: {},
+        resources: { subscribe: false, listChanged: false },
+        prompts: { listChanged: false },
+        completions: {},
+      },
+      { name: 'banking-mcp-gateway', version: '1.0.0' },
+    );
+    send(JSON.stringify({ jsonrpc: '2.0', id, result }));
+    return;
   }
 
   send(jsonRpcError(id, -32601, `Method not found: ${method}`));
