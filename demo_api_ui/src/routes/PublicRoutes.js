@@ -176,7 +176,7 @@ export function OAuthAcademyPageRoute({ user, logout }) {
 export function OASDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <OASDemoPage />
+      <OASDemoPage user={user} />
     </AppShell>
   );
 }
