@@ -54,6 +54,12 @@ spec:
         envFrom:
         - configMapRef:
             name: ai-demo-config
+        # HITL_INTERNAL_SECRET (challenge-create auth) — was never wired, so
+        # requireSecret() 503'd on every call (demo_hitl_service/src/routes/
+        # challenges.js). optional:true so a cluster mid-migration doesn't crash-loop.
+        - secretRef:
+            name: hitl-secrets
+            optional: true
         volumeMounts:
         - name: otel-instrument
           mountPath: /otel
