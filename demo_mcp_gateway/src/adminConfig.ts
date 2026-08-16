@@ -97,7 +97,7 @@ export function applyAdminConfigUpdate(
 ): AdminConfigResult {
   const hasDevBypass = Object.prototype.hasOwnProperty.call(updates, 'devBypass');
   const hasRateLimitEnabled = Object.prototype.hasOwnProperty.call(updates, 'rateLimitEnabled');
-  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent', 'introspectionSimDown'] as const;
+  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent', 'introspectionSimDown', 'p1azEnabled'] as const;
 
   // A — strict-boolean validation (all environments). Reject the whole
   // request on any non-boolean devBypass BEFORE the prod check / assignment.
@@ -176,7 +176,7 @@ export function applyAdminConfigUpdate(
       } else if (key === 'rateLimitEnabled') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any).rateLimitEnabled = updates.rateLimitEnabled === true;
-      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown') {
+      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown' || key === 'p1azEnabled') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any)[key] = updates[key] === true;
       } else {
