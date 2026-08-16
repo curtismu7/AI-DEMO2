@@ -630,6 +630,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                         challenge_type: body403.challenge_type || 'consent',
                         instructions: body403.message || body403.instructions,
                     },
+                    // Carry the gateway's P1AZ decision trail (X-Gw-Audit-Trail) like
+                    // every sibling obligation branch (428 hitl/step-up/elicitation,
+                    // generic 403 deny). The pipeline's hitl_required handler reads
+                    // err.gwAuditTrail to build the gw-authorize Token Chain card;
+                    // without it the PERMIT-before-obligation decision is lost and
+                    // ProofStrip renders "Run failed before authorize-decision".
+                    gwAuditTrail: _parseGwAuditTrail(response),
                 },
             );
         }
