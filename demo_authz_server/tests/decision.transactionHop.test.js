@@ -181,3 +181,58 @@ test('WIRE-5: hop emission does not alter the decision response body shape', asy
   assert.ok(body.decision_id.length > 0);
   assert.strictEqual(body.policy_version, 'mock-v1');
 });
+
+test('WIRE-6: a PERMIT hop carries a details payload matching the full decision context (scopes/RAR/intent/HITL/decisionId/policyVersion)', async () => {
+  const body = await decide(baseWriteParams(), 'cid-details-permit-1');
+  assert.strictEqual(body.decision, 'PERMIT');
+  assert.strictEqual(calls.length, 1);
+  const hop = calls[0].body;
+  assert.ok(hop.details, 'hop must carry a details payload');
+  assert.strictEqual(hop.details.evt, 'authz_decision');
+  assert.strictEqual(hop.details.decision, 'PERMIT');
+  assert.strictEqual(hop.details.correlationId, 'cid-details-permit-1');
+  assert.strictEqual(hop.details.tool, 'update_contact_email');
+  assert.strictEqual(hop.details.sub, 'user-alice');
+  assert.strictEqual(hop.details.actor, 'agent-1');
+  assert.deepStrictEqual(hop.details.scopes, ['write']);
+  assert.strictEqual(hop.details.rarPresent, false);
+  assert.strictEqual(hop.details.hitlApproved, false);
+  assert.strictEqual(hop.details.decisionId, body.decision_id, 'hop details.decisionId must match the response decision_id');
+  assert.strictEqual(hop.details.policyVersion, body.policy_version);
+});
+
+test('WIRE-7: a DENY hop carries details.reason matching the response reason, and reflects RAR presence', async () => {
+  const body = await decide(
+    baseWriteParams({
+      ResourceOwnerId: 'user-bob',
+      ClientId: 'user-alice',
+      RarAuthorizationDetails: '[{"type":"transfer"}]',
+    }),
+    'cid-details-deny-1',
+  );
+  assert.strictEqual(body.decision, 'DENY');
+  assert.strictEqual(calls.length, 1);
+  const hop = calls[0].body;
+  assert.strictEqual(hop.details.decision, 'DENY');
+  assert.strictEqual(hop.details.reason, body.reason);
+  assert.strictEqual(hop.details.rarPresent, true);
+  assert.strictEqual(hop.details.decisionId, body.decision_id);
+});
+
+test('WIRE-8: hop.details exactly matches the stdout authz_decision audit record — no divergence between the two sinks', async () => {
+  const lines = [];
+  const orig = console.log;
+  console.log = (...args) => lines.push(args.map(String).join(' '));
+  let body;
+  try {
+    body = await decide(baseWriteParams(), 'cid-details-parity-1');
+  } finally {
+    console.log = orig;
+  }
+  assert.strictEqual(body.decision, 'PERMIT');
+  const auditLine = lines.find((l) => l.includes('"evt":"authz_decision"'));
+  assert.ok(auditLine, 'expected a structured authz_decision audit line');
+  const auditRecord = JSON.parse(auditLine);
+  const hop = calls[0].body;
+  assert.deepStrictEqual(hop.details, auditRecord, 'hop.details must exactly match the stdout audit record');
+});

@@ -282,6 +282,11 @@ module.exports = async function decisionHandler(req, res) {
     sub: ClientId || null,
     actor: ActClientId || null,
     workerId: workerId || null,
+    scopes: Array.from(grantedScopes),
+    rarPresent: Boolean(RarAuthorizationDetails),
+    intentValid: IntentTokenValid || null,
+    intentMatch: IntentMatchesTool || null,
+    hitlApproved,
   });
 
   log(`[AuthzServer/decision] policy=${workerId} ctx=${DecisionContext} tool=${ToolName || '(none)'} sub=${ClientId || '(none)'} actor=${ActClientId || '(none)'} aud=${TokenAudActual || TokenAudience || '(none)'} exp=${TokenExp || '(none)'} scopes=[${TokenScopes}] hitlApproved=${hitlApproved} intentValid=${IntentTokenValid || 'absent'} intentMatch=${IntentMatchesTool || 'absent'} intent=${IntentIntent || '(none)'} rar=${RarAuthorizationDetails ? 'present' : 'absent'}`);
@@ -956,15 +961,16 @@ module.exports = async function decisionHandler(req, res) {
   // HITL/STEP_UP rules above take precedence; this fires only when those don't apply.
   if (params.ToolDestructive === 'true' && params.ElicitationConfirmed !== 'true') {
     log(`[AuthzServer/decision] INDETERMINATE — ELICITATION: tool="${ToolName}" is destructive, confirmation absent`);
-    auditDecision('INDETERMINATE', 'ELICITATION');
-    _emitDecisionHop('n/a', 'ELICITATION');
+    const decisionId = randomId();
+    const record = auditDecision('INDETERMINATE', 'ELICITATION', { decisionId, policyVersion: 'mock-v1' });
+    _emitDecisionHop('n/a', 'ELICITATION', record);
     return res.json({
       decision: 'INDETERMINATE',
       reason: 'ELICITATION',
       statements: statementsFor('ELICITATION'),
       advice: [{ id: 'elicitation-prompt', value: `Confirm ${ToolName}?` }],
       policy_source: POLICY_SOURCE,
-      decision_id: randomId(),
+      decision_id: decisionId,
       policy_version: 'mock-v1',
     });
   }
@@ -1020,7 +1026,7 @@ function acrLooksStrong(acr) {
 // gives complete coverage. Early DENY guards return before setDecisionContext
 // runs, so their hops carry null tool/sub/actor — that gap is real and must
 // stay visible rather than being back-filled with guesses.
-function _emitDecisionHop(outcome, reason) {
+function _emitDecisionHop(outcome, reason, details) {
   const ctx = getDecisionContext();
   emitHop({
     phase: 'authz.decision',
@@ -1028,6 +1034,7 @@ function _emitDecisionHop(outcome, reason) {
     identity: { sub: ctx.sub || null, act: ctx.actor ? [ctx.actor] : [] },
     decision: { outcome, by: 'mock', reason: reason || null },
     status: 'ok',
+    details: details || null,
   });
 }
 
@@ -1050,45 +1057,49 @@ function denyCodeFor(reason) {
 }
 
 function permit(res, reason) {
-  auditDecision('PERMIT', reason);
-  _emitDecisionHop('permit', reason);
+  const decisionId = randomId();
+  const record = auditDecision('PERMIT', reason, { decisionId, policyVersion: 'mock-v1' });
+  _emitDecisionHop('permit', reason, record);
   res.json({
     decision: 'PERMIT', reason,
     statements: statementsFor('mcp-tool-authorized'),
     policy_source: POLICY_SOURCE,
-    decision_id: randomId(), policy_version: 'mock-v1',
+    decision_id: decisionId, policy_version: 'mock-v1',
   });
 }
 
 function permitWithAdvice(res, reason, advice) {
-  auditDecision('PERMIT', reason);
-  _emitDecisionHop('permit', reason);
+  const decisionId = randomId();
+  const record = auditDecision('PERMIT', reason, { decisionId, policyVersion: 'mock-v1' });
+  _emitDecisionHop('permit', reason, record);
   res.json({
     decision: 'PERMIT', reason, advice,
     statements: statementsFor('mcp-tool-authorized'),
     policy_source: POLICY_SOURCE,
-    decision_id: randomId(), policy_version: 'mock-v1',
+    decision_id: decisionId, policy_version: 'mock-v1',
   });
 }
 
 function deny(res, reason, code) {
-  auditDecision('DENY', reason);
-  _emitDecisionHop('deny', reason);
+  const decisionId = randomId();
+  const record = auditDecision('DENY', reason, { decisionId, policyVersion: 'mock-v1' });
+  _emitDecisionHop('deny', reason, record);
   res.json({
     decision: 'DENY', reason,
     statements: statementsFor(code || denyCodeFor(reason)),
     policy_source: POLICY_SOURCE,
-    decision_id: randomId(), policy_version: 'mock-v1',
+    decision_id: decisionId, policy_version: 'mock-v1',
   });
 }
 
 function indeterminate(res, reason, code) {
-  auditDecision('INDETERMINATE', reason);
-  _emitDecisionHop('n/a', reason);
+  const decisionId = randomId();
+  const record = auditDecision('INDETERMINATE', reason, { decisionId, policyVersion: 'mock-v1' });
+  _emitDecisionHop('n/a', reason, record);
   res.json({
     decision: 'INDETERMINATE', reason,
     statements: statementsFor(code),
     policy_source: POLICY_SOURCE,
-    decision_id: randomId(), policy_version: 'mock-v1',
+    decision_id: decisionId, policy_version: 'mock-v1',
   });
 }
