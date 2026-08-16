@@ -5,16 +5,28 @@
  * POST /rules/reset  — clear all overrides, revert to scope-topology.json + env.
  *
  * Env-gated guard: when AUTHZ_ADMIN_TOKEN is set, both require a matching
- * X-Authz-Admin-Token header. When unset, the guard is inactive (the server
- * binds 127.0.0.1 as a sidecar; the BFF admin role is the primary control).
+ * X-Authz-Admin-Token header. When unset, the guard falls back to the bind
+ * address: it stays inactive only when HOST is genuinely loopback (the k8s
+ * sidecar deployment never overrides HOST, so it defaults to 127.0.0.1, and
+ * the BFF admin role is the primary control there). A non-loopback bind
+ * (e.g. docker-compose's HOST=0.0.0.0, published to the host) with no token
+ * configured would leave these write routes open to anyone who can reach the
+ * port, so fail closed instead of silently allowing unauthenticated writes.
  */
 
 const crypto = require('crypto');
 const ruleStore = require('../ruleStore');
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+
+function isLoopbackBind() {
+  const host = process.env.HOST || '127.0.0.1';
+  return LOOPBACK_HOSTS.has(host);
+}
+
 function guardOk(req) {
   const expected = process.env.AUTHZ_ADMIN_TOKEN;
-  if (!expected) return true;
+  if (!expected) return isLoopbackBind();
   const got = req.headers['x-authz-admin-token'] || '';
   const a = Buffer.from(String(got));
   const b = Buffer.from(String(expected));

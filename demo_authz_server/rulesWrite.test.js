@@ -29,10 +29,14 @@ beforeEach(() => {
   process.env.AUTHZ_RULES_OVERLAY_PATH = OVERLAY;
   process.env.CONFIRM_THRESHOLD_USD = '250';
   delete process.env.AUTHZ_ADMIN_TOKEN;
+  delete process.env.HOST;
   try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ }
   fresh();
 });
-afterEach(() => { try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ } });
+afterEach(() => {
+  try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ }
+  delete process.env.HOST;
+});
 
 test('PUT applies a valid patch and returns the editable block', () => {
   const res = makeRes();
@@ -72,4 +76,25 @@ test('guard active when AUTHZ_ADMIN_TOKEN set: wrong/missing token -> 401, corre
   const ok = makeRes();
   putHandler({ headers: { 'x-authz-admin-token': 'sekret' }, body: { global: { hitlThresholdUsd: 5 } } }, ok);
   assert.strictEqual(ok.statusCode, 200);
+});
+
+test('no token + loopback HOST (k8s sidecar default): guard stays inactive -> 200', () => {
+  process.env.HOST = '127.0.0.1';
+  fresh();
+  const res = makeRes();
+  putHandler({ headers: {}, body: { global: { hitlThresholdUsd: 5 } } }, res);
+  assert.strictEqual(res.statusCode, 200);
+});
+
+test('no token + non-loopback HOST (docker-compose HOST=0.0.0.0): guard fails closed -> 401', () => {
+  process.env.HOST = '0.0.0.0';
+  fresh();
+  const res = makeRes();
+  putHandler({ headers: {}, body: { global: { hitlThresholdUsd: 5 } } }, res);
+  assert.strictEqual(res.statusCode, 401);
+  assert.strictEqual(ruleStore.getHitlThreshold(), 250);
+
+  const resetRes = makeRes();
+  resetHandler({ headers: {} }, resetRes);
+  assert.strictEqual(resetRes.statusCode, 401);
 });
