@@ -39,6 +39,40 @@ function makeReq(overrides = {}) {
   };
 }
 
+// Minimal fake session store shared across "independent" req objects, so a
+// req.session.save() from one simulated request is visible to another via
+// req.sessionStore.get() — mirrors how express-session + LmdbSessionStore
+// actually propagate a refresh between two concurrent requests.
+function makeSharedStore(initialSession) {
+  let stored = JSON.parse(JSON.stringify(initialSession));
+  return {
+    get(sid, cb) {
+      cb(null, JSON.parse(JSON.stringify(stored)));
+    },
+    _write(sess) {
+      stored = JSON.parse(JSON.stringify(sess));
+    },
+  };
+}
+
+// Builds a req whose session is an independent object (not shared by
+// reference with any other req) but backed by the same sharedStore — like
+// two real requests that each deserialized their own copy of the session.
+function makeIndependentReq(sessionData, sharedStore) {
+  const session = JSON.parse(JSON.stringify(sessionData));
+  session.save = (cb) => {
+    sharedStore._write(session);
+    cb(null);
+  };
+  return {
+    session,
+    sessionID: session.id,
+    sessionStore: sharedStore,
+    path: '/api/agent/message',
+    method: 'POST',
+  };
+}
+
 function makeRes() {
   const res = {
     _status: null,
@@ -194,6 +228,55 @@ describe('agentSessionMiddleware', () => {
     expect(req.tokenEvents[0].audience).toBe('https://mcp.example.com');
     expect(req.tokenEvents[1].type).toBe('exchange_complete');
     expect(req.tokenEvents[0].timestamp).toBeDefined();
+  });
+
+  // Bug #46: routes mounted with agentSessionMiddleware (/api/agent,
+  // /api/admin-agent, /api/ops-agent, /api/a2a, /api/support-agent,
+  // /api/compliance-agent) are NOT covered by the global proactive refresh
+  // in server.js, so refreshOAuthSession is their only guard. Two concurrent
+  // requests on an expired session must not both call PingOne with the same
+  // (soon-to-be-rotated) refresh token — the second request should await the
+  // first's in-flight refresh and reuse its result instead of racing it.
+  it('dedupes concurrent refresh attempts for the same session (single PingOne call)', async () => {
+    const baseSession = {
+      id: 'sess-concurrent',
+      user: { id: 'u1', oauthId: 'oauth-u1', email: 'user@example.com' },
+      oauthTokens: {
+        accessToken: 'old-token',
+        refreshToken: 'refresh-tok',
+        expiresAt: Date.now() - 10_000, // expired
+      },
+    };
+    const sharedStore = makeSharedStore(baseSession);
+    const req1 = makeIndependentReq(baseSession, sharedStore);
+    const req2 = makeIndependentReq(baseSession, sharedStore);
+    const res1 = makeRes();
+    const res2 = makeRes();
+    const next1 = jest.fn();
+    const next2 = jest.fn();
+
+    mockRefreshAccessToken.mockResolvedValue({
+      access_token: 'new-access-token',
+      refresh_token: 'new-refresh-token',
+      expires_in: 3600,
+    });
+
+    await Promise.all([
+      agentSessionMiddleware(req1, res1, next1),
+      agentSessionMiddleware(req2, res2, next2),
+    ]);
+
+    // The core assertion: only ONE PingOne refresh call for two concurrent
+    // requests against the same expired session/refresh token.
+    expect(mockRefreshAccessToken).toHaveBeenCalledTimes(1);
+
+    // Both requests still succeed and see the refreshed token.
+    expect(next1).toHaveBeenCalled();
+    expect(next2).toHaveBeenCalled();
+    expect(res1._status).toBeNull();
+    expect(res2._status).toBeNull();
+    expect(req1.agentContext.accessToken).toBe('new-access-token');
+    expect(req2.agentContext.accessToken).toBe('new-access-token');
   });
 
   // T-6 (commit 71fbf0ac, REGRESSION_PLAN.md §"resolve user identity from
