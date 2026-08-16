@@ -631,6 +631,84 @@ DPoP (RFC 9449) proof verification, Web Bot Auth (`wbaMode=enforce`), and postur
 
 ---
 
+## Pass 9 — 2026-08-16 (fresh-territory sweep)
+
+7 verified (refused to pad to 10 — codebase had 8 prior passes; hunters ruled out several hypotheses instead of inventing findings). Ruled-out negatives noted at the bottom.
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 55 | High | 🔴 Open | Delegated-commerce consent scope check filters to bare `read`/`write` — namespaced-scope tools get vacuously-true consent | `demo_api_server/services/delegatedCommerceRuntime.js:82-95` |
+| 56 | High | ⏸️ Held (MCP) | Node gateway truncates multi-aud token to `aud[0]` — defeats the D-05 confused-deputy anti-bypass the Groovy path enforces (+ Rule 0b-2 comma-split parity nit) | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:160`, `pingAuthorizeGuard.ts:161`, `demo_authz_server/routes/decision.js:357` |
+| 57 | Medium | ⏸️ Held (MCP) | Reverse tabnabbing — `window.open` on a server-supplied elicitation URL omits `noopener` | `demo_api_ui/src/components/ElicitationDialog.jsx:222` |
+| 58 | Medium | ⏸️ Held (MCP) | Optional number field submits `NaN` → serialized as `null` to the BFF (client validation gap) | `demo_api_ui/src/components/ElicitationDialog.jsx:35-43,121` |
+| 59 | Medium | 🔴 Open | mastra_agent never closes the open text bubble at a tool-call boundary — same class as #43 (openai), distinct instance | `mastra_agent/src/runHandler.ts:119-124` |
+| 60 | Low | 🔴 Open | mastra_agent has no empty-messages fallback — empty/filtered `messages` calls `agent.stream([])` | `mastra_agent/src/runHandler.ts:89-94` |
+| 61 | Low | ⏸️ Held (MCP) | Invest resource-server tool interpolates `period`/`limit` into the BFF query string unencoded/unvalidated | `demo_mcp_resource_server/src/tools/investToolHandler.ts:50-65` |
+
+### 55. Delegated-commerce consent scope bypass — High
+```js
+const requiredScopes = scopeTopology.toolScopes(tool)
+  .filter((scope) => scope === 'read' || scope === 'write');   // keeps only bare tokens
+...
+sufficient: registration.status === 'active' && !expired &&
+  requiredScopes.every((scope) => consentScopes.includes(scope)),
+```
+`scope-topology.json` declares tool scopes as namespaced strings (`sensitive:read`, `airlines:write`, `transfer`). The filter keeps only literal `read`/`write`, so any tool lacking those bare tokens yields `requiredScopes = []` → `[].every()` is vacuously `true` → `sufficient:true` regardless of what the customer consented to. `evaluateMcpFirstToolGate` (`mcpToolAuthorizationService.js:947`) then never raises `delegated_consent_scope_denied`.
+**Trigger:** customer consents to `['read']` only; the delegated agent calls `get_sensitive_account_details` (`["read","sensitive:read"]`→`["read"]`) or `create_wire_transfer` (`["read","transfer"]`→`["read"]`) and passes; vertical write tools with no secondary challenge (`redeem_miles`/`pay_airline_fee`, `["airlines:read","airlines:write"]`→`[]`) have this as their SOLE consent control and it's fully silent — a read-only-consented agent performs writes. (Banking `create_transfer`=`["write","transfer"]`→`["write"]` is correctly gated, which masked the bug.)
+**Fix:** classify each namespaced scope into an access class (any `*:write`/`transfer` ⇒ needs write consent, any `sensitive:*` ⇒ elevated) before `every()`, or compare consent against the tool's FULL `requiredScopes`. Filtering must never turn "requires write" into "requires nothing."
+
+### 56. Node gateway multi-aud truncation defeats D-05 anti-bypass — High
+```ts
+const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
+base.TokenAudActual = tokenAud;   // only the FIRST aud element
+```
+The Groovy gateway was deliberately fixed to send the FULL space-joined aud list (`p1az-decision.groovy:278-283`, comment cites "mock Rule 0b-2's D-05 anti-bypass splits this on whitespace, so a multi-aud confused-deputy token is still caught"). The Node gateway still sends only `aud[0]`.
+**Trigger:** a confused-deputy token `aud=["...mcpgateway...","...banking-resource-server..."]` through the Node gateway → `TokenAudActual` = gateway URI only → Rule 0b passes, Rule 0b-2 sees no upstream → PERMIT. The identical token through the Groovy pinggateway → DENY `bypass_attempt`. The anti-bypass control is enforced on one transport, silently defeated on the other.
+**Plus parity nit:** `decision.js:337` Rule 0b splits `TokenAudActual` on `/[\s,]+/` (comma-aware) but Rule 0b-2 (`:357`) splits on `/\s+/` only — a comma-joined multi-aud would pass Rule 0b yet collapse to one element in Rule 0b-2.
+**Fix:** send the full aud (`Array.isArray(decoded.aud) ? decoded.aud.join(' ') : decoded.aud`) in both TS files, matching Groovy; and make Rule 0b-2 split on `/[\s,]+/` too.
+
+### 57. Reverse tabnabbing on elicitation URL — Medium
+```jsx
+await onSubmit({ action: 'accept' });
+window.open(url, '_blank', 'secure');   // 'secure' is not a real feature; no noopener
+```
+`url` comes straight from the MCP server's elicitation request. The features string omits `noopener`, so the opened page keeps a live `window.opener`.
+**Trigger:** a hostile/compromised MCP server returns a url-mode elicitation to `attacker.example`; user clicks "Open in Browser"; the new tab does `window.opener.location = <phishing clone>`, navigating the banking-demo tab to credential harvesting.
+**Fix:** `window.open(url, '_blank', 'noopener,noreferrer')`; drop the bogus `'secure'` token.
+
+### 58. Optional number field → NaN → null to BFF — Medium
+`parseFloat('')` on a cleared number input is `NaN`, stored in `formData[key]`. `validateForm` only checks presence of `required` keys, so a non-required number field holding `NaN` passes; `JSON.stringify(NaN)` → `null`, so the BFF receives `key:null` for a schema-declared number.
+**Fix:** store the raw string or guard `Number.isNaN` and set an error; validate numeric type/range for all present fields, not just presence of required ones.
+
+### 59. mastra text bubble not closed at tool-call boundary — Medium
+```ts
+} else if (part.type === 'tool-call') {
+  await emitter.onToolStart(...);   // never closes the open text message
+```
+Both siblings close it (openai `run_handler.py:259`, langchain `message_processor.py:1240`); mastra only closes in its `tool-error` branch, not the success `tool-call` path. Same defect class as the fixed #43, distinct instance.
+**Trigger:** model streams lead-in text then calls a tool → `TEXT_MESSAGE_START` with no matching `END` before `TOOL_CALL_START`; post-tool narration merges into the still-open bubble (every text msg reuses `messageId: this.runId`) → tool card renders interleaved inside an unterminated assistant message.
+**Fix:** `if (streaming) { await emitter.onLlmEnd(); streaming = false; }` in the `tool-call` branch.
+
+### 60. mastra no empty-messages fallback — Low
+`coreMessages` filters to string-content messages; if empty/all-filtered, `agent.stream([])` is called with no user turn (the openai sibling guards with `... or [{"role":"user","content":""}]`).
+**Trigger:** malformed/empty `messages` in the `/run` payload → the AI SDK errors or yields an empty stream → generic run failure instead of graceful handling.
+**Fix:** fall back to a single placeholder user message when `coreMessages.length === 0`.
+
+### 61. Invest tool unencoded query params — Low
+```ts
+return callBff(`/api/investment/accounts/${encodeURIComponent(accountId)}/portfolio?period=${period}`, token);
+return callBff(`.../transactions?limit=${limit}`, token);
+```
+`account_id` is encoded but `period`/`limit` are concatenated raw; `limit === 0` silently becomes `20` (`0 || 20`). Account stays path-bound/encoded (no pivot), target is the trusted BFF — validation/consistency gap, not an auth bypass.
+**Fix:** `encodeURIComponent(String(period))`; validate `limit` as a bounded integer instead of `|| 20`.
+
+### Ruled out in pass 9 (verified NOT bugs — don't re-chase)
+- **Other-vertical IDOR** (healthcare/gov/manufacturing/retail/etc. resource-server tools): NOT an IDOR — unlike banking, those tables carry no owner/subject column; they're shared demo reference datasets. Airlines scopes correctly via `resolvePassenger(subject)`.
+- **`p1az-decision.groovy` `_p1azTokenCache` unsynchronized writes** (flagged by the code review): verified BENIGN — each write assigns a whole new map (JVM reference assignment is atomic), so a reader never sees a torn `token`/`expiresAt` pair; worst case is a redundant token fetch, never a wrong decision.
+- **X-Authz-Simulated / header-trust spoofing** in p1az-decision.groovy: correctly closed — `trustedCaller` requires a constant-time `MessageDigest.isEqual` match of `BFF_INTERNAL_SECRET`; simulated headers read only when trusted; untrusted falls through to the real backend (fails closed).
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
