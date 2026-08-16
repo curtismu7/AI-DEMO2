@@ -151,10 +151,22 @@ if (alg == 'RS256') {
             // Key rotation: refetch on kid miss before rejecting — but at most
             // once per 60s (globals-throttled), so unauthenticated bogus-kid
             // tokens can't bypass the cache and drive a fetch per request.
+            // IG is multi-threaded, so the read-check-write on
+            // globals._jwksForcedFetchAt must be atomic or a concurrent burst
+            // can all pass the throttle check at once (see uc18-rate-limit.groovy
+            // for the same synchronized(globals) pattern). Only the check-and-set
+            // is synchronized — the fetch itself runs outside the lock so
+            // concurrent requests aren't serialized on the HTTPS round trip.
             long nowMs = System.currentTimeMillis()
-            def lastForced = (globals._jwksForcedFetchAt ?: 0L) as long
-            if (nowMs - lastForced > 60_000L) {
-                globals._jwksForcedFetchAt = nowMs
+            boolean forceFetchWon = false
+            synchronized (globals) {
+                def lastForced = (globals._jwksForcedFetchAt ?: 0L) as long
+                if (nowMs - lastForced > 60_000L) {
+                    globals._jwksForcedFetchAt = nowMs
+                    forceFetchWon = true
+                }
+            }
+            if (forceFetchWon) {
                 jwk = findJwk(fetchJwks(true), kid)
             }
         }
