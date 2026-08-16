@@ -12,9 +12,11 @@ const {
   MCP_CLIENT_PROTOCOL_VERSION,
   getMcpProtocolVersion,
   getMcpServerUrl,
+  getMcpGatewayWsUrl,
   getSessionBearerForMcp,
   mcpListToolsWithFrames,
   mcpCallToolWithFrames,
+  mcpRpcCall,
 } = require('../services/mcpWebSocketClient');
 const { callToolLocal, listLocalInspectorTools } = require('../services/mcpLocalTools');
 const mcpProfileStore = require('../services/mcpProfileStore');
@@ -589,7 +591,7 @@ router.get('/tools', async (req, res) => {
 
 // POST /api/mcp/inspector/invoke — tools/call with inspector metadata (demo); local handler when no MCP bearer or MCP down
 router.post('/invoke', express.json(), async (req, res) => {
-  const { tool, params, profile: requestedProfileId } = req.body || {};
+  const { tool, params, meta, profile: requestedProfileId } = req.body || {};
   if (!tool || typeof tool !== 'string') {
     return res.status(400).json({ error: 'tool name is required' });
   }
@@ -671,7 +673,14 @@ router.post('/invoke', express.json(), async (req, res) => {
     const started = Date.now();
     try {
       archEmit({ nodeId: 'n-mcp-gw', edgeId: 'e-bff-mcpgw', label: 'MCP tool call dispatched to gateway' });
-      const { result, frames } = await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub);
+      // meta: MCP Inspector's "Attach progress token" toggle — request metadata
+      // (params._meta), not a tool argument. See mcpCallToolWithFrames's opts.meta.
+      // Extra call args are only appended when meta is actually present, so the
+      // arity callers/tests already depend on is unchanged in the common case.
+      const invokeOpts = meta && typeof meta === 'object' ? { meta } : undefined;
+      const { result, frames } = invokeOpts
+        ? await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub, undefined, invokeOpts)
+        : await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub);
       const durationMs = Date.now() - started;
       archEmit({ nodeId: 'n-mcp-server', edgeId: 'e-mcpgw-mcpserver', label: 'MCP Server executed tool' });
 
@@ -704,6 +713,110 @@ router.post('/invoke', express.json(), async (req, res) => {
     console.error(`[MCP Inspector] invoke ${tool}:`, err.message);
     res.status(502).json({
       error: 'mcp_invoke_failed',
+      message: err.message,
+      ...(err.frames ? { frames: err.frames } : {}),
+      ...(err.tokenEvents ? { tokenEvents: err.tokenEvents } : {}),
+    });
+  }
+});
+
+// Explicit allow-list — POST /rpc must never become an open JSON-RPC proxy.
+// Every method here is a clean request→response call implemented ONLY behind
+// the MCP gateway's proxy to demo_mcp_resource_server (see demo_mcp_gateway/
+// src/index.ts RESOURCE_SERVER_ONLY_METHODS + mcpRequestValidation.ts
+// ALLOWED_METHODS) — the plain mcp-server (getMcpServerUrl) does not
+// implement any of them, so this route dials the gateway WS URL directly.
+const PROTOCOL_RPC_METHODS = new Set([
+  'resources/list',
+  'resources/read',
+  'resources/templates/list',
+  'prompts/list',
+  'prompts/get',
+  'completion/complete',
+  'logging/setLevel',
+]);
+
+// Not a real MCP tool — a scope-hint placeholder so resolveMcpAccessTokenWithEvents's
+// tokenEvents/log lines have a stable label. MCP_TOOL_SCOPES is not consulted for it
+// because opts.scopeOverride below takes precedence (same pattern as
+// agentToolsResolver.js's DISCOVERY_TOOL for tools/list discovery).
+const PROTOCOL_RPC_PSEUDO_TOOL = '__protocol_rpc__';
+
+// POST /api/mcp/inspector/rpc — tester for MCP protocol methods that are not
+// tools/call (Resources, Prompts, Completion, Logging). Requires a real
+// session: there is no local in-process handler for these methods, so unlike
+// /invoke there is nothing to fall back to when a bearer can't be resolved.
+//
+// Token audience: NOT forceDirectMcpAudience — these methods only exist
+// behind the MCP gateway (RESOURCE_SERVER_ONLY_METHODS proxies to the
+// resource-server 'invest' backend), so the token must carry the gateway's
+// audience, exactly as resolveMcpAccessTokenWithEvents already resolves by
+// default when a gateway is configured (see _resolveFinalMcpAudience).
+router.post('/rpc', requireSession, express.json(), async (req, res) => {
+  const { method, params } = req.body || {};
+  if (!method || typeof method !== 'string' || !PROTOCOL_RPC_METHODS.has(method)) {
+    return res.status(400).json({
+      error: 'invalid_method',
+      message: `method must be one of: ${[...PROTOCOL_RPC_METHODS].join(', ')}`,
+    });
+  }
+
+  const gatewayWsUrl = getMcpGatewayWsUrl();
+  if (!gatewayWsUrl) {
+    return res.status(503).json({
+      error: 'mcp_gateway_not_configured',
+      message: 'MCP Gateway is not configured (MCP_GATEWAY_HTTP_URL). Resources/Prompts/Completion/Logging are served only behind the gateway.',
+    });
+  }
+
+  try {
+    await configStore.ensureInitialized();
+
+    let agentToken;
+    let userSub;
+    let tokenEvents = [];
+    try {
+      ({ token: agentToken, userSub, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(
+        req,
+        PROTOCOL_RPC_PSEUDO_TOOL,
+        { scopeOverride: ['read'] }
+      ));
+    } catch (err) {
+      const status = err.httpStatus || 502;
+      return res.status(status).json({
+        error: err.code || 'token_resolution_failed',
+        message: err.message,
+        tokenEvents: err.tokenEvents || [],
+      });
+    }
+    if (!agentToken) {
+      return authRequired(res);
+    }
+
+    const started = Date.now();
+    try {
+      const { result, frames } = await mcpRpcCall(method, params || {}, agentToken, userSub, undefined, { serverUrl: gatewayWsUrl });
+      const durationMs = Date.now() - started;
+      return res.json({
+        result,
+        // Exact JSON-RPC frames (teaching surface — token visibility is
+        // intentional in this demo), same shape as /invoke's response.
+        frames,
+        tokenEvents,
+        inspector: {
+          method,
+          durationMs,
+          phases: ['initialize (WebSocket, gateway)', method],
+        },
+      });
+    } catch (err) {
+      err.tokenEvents = err.tokenEvents || tokenEvents;
+      throw err;
+    }
+  } catch (err) {
+    console.error(`[MCP Inspector] rpc ${method}:`, err.message);
+    res.status(502).json({
+      error: 'mcp_rpc_failed',
       message: err.message,
       ...(err.frames ? { frames: err.frames } : {}),
       ...(err.tokenEvents ? { tokenEvents: err.tokenEvents } : {}),

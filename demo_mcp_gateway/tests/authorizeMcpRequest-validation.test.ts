@@ -42,7 +42,7 @@ async function run(rpc: object) {
 
 describe('authorizeMcpRequest — request validation', () => {
   it('rejects unknown methods with -32601 and does not forward', async () => {
-    const { forwarded, body } = await run({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+    const { forwarded, body } = await run({ jsonrpc: '2.0', id: 1, method: 'nonexistent/method' });
     expect(forwarded).toHaveLength(0);
     expect(body().error.code).toBe(-32601);
   });
