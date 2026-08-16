@@ -486,6 +486,109 @@ The `tool_call_item` branch calls `emitter.on_tool_start(...)` with no check of 
 
 ---
 
+## Pass 7 — 2026-08-16 (broad sweep)
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 44 | Critical | 🔴 Open | Undeclared `emit` reference crashes the entire `demo_api_server` process on any elicitation flow | `demo_api_server/services/mcpWebSocketClient.js` (`ws.on('message')` handler) |
+| 45 | High | 🔴 Open | Banking-vertical resource-server tools have no per-user scoping — IDOR, masked today by single-user seed data | `demo_mcp_resource_server/src/tools/registry.ts:78`, `bankingToolHandler.ts:15-20`, `bankingDb.ts:104-134` |
+| 46 | High | 🔴 Open | Agent-route session refresh reintroduces the concurrent refresh-token race `tokenRefresh.js` was built to prevent | `demo_api_server/middleware/agentSessionMiddleware.js:13-25` |
+| 47 | High | 🔴 Open | `approve_purchase_order` approves the wrong PO and ignores its own required `amount` param | `demo_api_server/config/verticals/manufacturing/tools.js:82-91` |
+| 48 | High | 🔴 Open | `pay_bill` with no id defaults to an already-paid bill instead of the first outstanding one | `demo_api_server/config/verticals/healthcare/tools.js:88-95` |
+| 49 | Medium | 🔴 Open | CIBA misconfiguration silently drops the HITL notification instead of falling back to log mode as documented | `demo_hitl_service/src/notifier.js:53-57` |
+| 50 | Medium | 🔴 Open | `cash_out_store_credit` has no balance cap — can report cashing out far more than the actual store-credit balance | `demo_api_server/config/verticals/retail/tools.js:44,212-215` |
+| 51 | Medium | 🔴 Open | Shared `abortRef` lets an aborted run's cleanup clobber the current run's controller, breaking logout/unmount cancellation | `demo_api_ui/src/hooks/useAgentRun.js:118-136,260-271` |
+| 52 | Medium | 🔴 Open | `p1azEnabled` skips the admin-config strict-boolean gate — a non-boolean payload can silently disable the live PDP | `demo_mcp_gateway/src/adminConfig.ts:100,115-126,169-188` |
+
+### 44. Undeclared `emit` crashes the entire server process — Critical
+```js
+if (msg.method === 'elicitation/create') {
+  emit({ phase: 'elicitation_requested', elicitationId: msg.id, ... });
+  createElicitationPromise(msg.id, 60000)...
+```
+`emit` is never declared, imported, or destructured anywhere in this file. Elicitation is a real, wired feature (client declares `elicitation: {}` capability; `server.js` has a live `/resolve-elicitation`-style endpoint), not dead code.
+**Trigger:** any MCP tool call that causes the server to send a server-initiated `elicitation/create` JSON-RPC message over the WebSocket hits this line → `ReferenceError: emit is not defined` inside the `ws.on('message')` handler → `server.js`'s `process.on('uncaughtException', ...)` unconditionally calls `process.exit(1)` → the entire `demo_api_server` process crashes for every user, not just the triggering request.
+**Fix:** wire this to the actual SSE/event publisher used elsewhere for MCP flow events (`mcpFlowSseHub.publish`/`mcpSsePublisher`), or pass an `emit` callback into the caller.
+
+### 45. Banking accounts IDOR — no per-user scoping — High
+```ts
+if (BANKING_TOOL_NAMES.has(toolName)) return dispatchBankingTool(toolName, args);  // no subject/token forwarded
+```
+```ts
+// bankingDb.ts
+listAccounts()  // SELECT * FROM accounts ORDER BY id — all users, no WHERE
+getAccount(id)  // SELECT * FROM accounts WHERE id = ? — no userId filter
+```
+`Account` has an explicit `userId` column and the tool descriptions promise "for the authenticated user," but identity is never checked — `index.ts` already resolves `decoded.sub` and passes it into `dispatch()`, `registry.ts` just drops it before calling `dispatchBankingTool`. Banking is the only vertical in the resource server with per-user ownership modeled (confirmed: none of the other 7 verticals' DB files have a `userId` column).
+**Trigger:** any caller with `banking:read` scope can call `get_banking_account` with a guessed/enumerated `account_id` and get another user's balance, or call `list_banking_accounts` and get every account in the database. Masked today only because seed data has exactly one user.
+**Fix:** thread `subject` through `registry.ts` → `dispatchBankingTool` → `listAccounts(userId)`/`getAccount(id, userId)`, filter both queries by `userId`.
+
+### 46. Agent-route refresh reintroduces concurrent refresh-token race — High
+```js
+const refreshOAuthSession = async (req) => {
+  const tokens = req.session && req.session.oauthTokens;
+  ...
+  const tokenData = await oauthUserService.refreshAccessToken(tokens.refreshToken);
+```
+Comment claims this "mirrors" `middleware/tokenRefresh.js`'s `refreshIfExpiring`, but omits its `_refreshInFlight` dedup Set and `_refreshBlacklist` Map, which exist specifically to stop concurrent refreshes from reusing an already-rotated refresh token. Mounted on `/api/agent`, `/api/admin-agent`, `/api/ops-agent`, `/api/a2a`, `/api/support-agent`, `/api/compliance-agent` — none covered by the global proactive-refresh path (`/api/demo-agent` is, `/api/agent` is not).
+**Trigger:** two concurrent requests on any of these routes with an expired token (chat send + background poll, or a double-click) both call `refreshOAuthSession` with the same still-current refresh token. PingOne rotates on use, so the second call gets `invalid_grant` → bare 401 `session_expired`, forcing full re-auth even though the first refresh succeeded moments earlier.
+**Fix:** reuse the in-flight/blacklist guard from `middleware/tokenRefresh.js` (or call `refreshIfExpiring` directly) instead of a standalone unguarded refresh.
+
+### 47. `approve_purchase_order` approves the wrong PO, ignores amount — High
+```js
+if (!_item && !_id) _item = _arr.find((r) => r.status === 'Pending') || _arr[0];
+```
+Seed statuses are `"Pending Approval"`/`"Approved"`/`"Delivered"`, never `"Pending"` — the status match is dead code, so the fallback silently degrades to `_arr[0]` regardless of that PO's actual state. The schema marks `amount` required (comment: "approve a $300 purchase order") but the handler never reads it — no validation against the found PO's total, and no guard against approving an already-`Delivered`/`Rejected` PO on either path.
+**Trigger:** "approve a $300 purchase order" with no id → always approves `purchaseOrders[0]` regardless of stated amount or actual PO state.
+**Fix:** match the literal `Pending Approval` status (or drop the dead branch), add a status guard before mutating on every path, validate `params.amount` against the found PO's total or drop it from the schema.
+
+### 48. `pay_bill` defaults to an already-paid bill — High
+```js
+if (!_billId) { const _bills = store.get(userId).billingHistory || []; _billId = _bills[0] && _bills[0].id; }
+```
+Comment says "first outstanding bill" but the code takes literal index `[0]` with no status filter — seed `billingHistory[0]` is already `status: "Paid"`; the real outstanding bills are elsewhere in the array.
+**Trigger:** "pay my bill" with no id → re-marks the already-paid $20 bill as paid and reports success, while actual overdue balances go untouched.
+**Fix:** filter for `status !== 'Paid'` before taking `[0]`.
+
+### 49. CIBA misconfiguration silently drops HITL notification — Medium
+```js
+if (!CIBA_ENDPOINT || !CIBA_CLIENT_ID) {
+  teachLog.warn('ciba not configured — falling back to log', ...);
+  return;   // never actually emits the log-mode notification it claims to fall back to
+}
+```
+The caller only logs on rejection (`.catch`), but this resolves normally, so no error signal fires either.
+**Trigger:** `HITL_NOTIFY_MODE=ciba` set but `PINGONE_CIBA_ENDPOINT`/`HITL_CLIENT_ID` missing (partially-configured env) → a money-transfer HITL challenge is created, no CIBA push sent, no fallback log-mode notification with `approvalUrl` emitted, no error logged anywhere — looks like a hung transfer with no diagnostic trail pointing at the real cause.
+**Fix:** in the missing-config branch, actually call through to the log-mode notification path instead of only warning and returning.
+
+### 50. `cash_out_store_credit` has no balance cap — Medium
+```js
+const _amt = (params && params.amount != null) ? params.amount : 50;
+return { result: { cashedOut: _amt, ..., status: 'pending step-up' }, render: 'text' };
+```
+Never checks `_amt` against the real `storeCredit` balance (150 in seed data) and never decrements it.
+**Trigger:** "cash out $50,000 of my store credit" reports `cashedOut: 50000` as pending-step-up success with no rejection, repeatably, balance never depleted.
+**Fix:** clamp/reject `_amt` against the actual balance and decrement it on success.
+
+### 51. Shared `abortRef` breaks logout/unmount cancellation — Medium
+```js
+} finally {
+  ...
+  abortRef.current = null;   // unconditional, not identity-checked
+  setIsRunning(false);
+}
+```
+`useAgentRun` is instantiated once and shared across every send path (typed message, chip, HITL resume). An aborted run's `finally` unwinds asynchronously and unconditionally nulls `abortRef.current` with no check that it still belongs to that invocation.
+**Trigger:** run A gets aborted by run B (e.g. sending a new message while a HITL modal's approve triggers a third run C); when A's aborted stream loop unwinds, it nulls out C's controller. `aguiAbort()` (called on logout/unmount) becomes a silent no-op — the actually-active stream keeps running past logout/navigation, still dispatching events into reset state.
+**Fix:** `if (abortRef.current === controller) { abortRef.current = null; }` (and guard `setIsRunning(false)` the same way) instead of unconditional clearing.
+
+### 52. `p1azEnabled` skips the admin-config strict-boolean gate — Medium
+`boolKeys` lists `requireActForAgentTools`/`intentTokenRequired`/`requireRarIntent`/`introspectionSimDown`; `devBypass`/`rateLimitEnabled` get their own dedicated 400-rejection. `p1azEnabled` is allowed as an admin-config key but isn't in any of these lists, so it falls through to a generic assignment with no type check or coercion.
+**Trigger:** `POST /admin/config {"p1azEnabled": 0}` (a JSON number, not boolean) silently sets `config.p1azEnabled = 0` → `isP1AZActive()` evaluates falsy → disables the live PDP, routing every `guardToolCall`/`guardToolsList` into the local-scope-fallback path — exactly the malformed-payload case the strict-boolean gate exists to reject with 400 for its sibling keys.
+**Fix:** add `p1azEnabled` to the strict-boolean validation/coercion list, matching `rateLimitEnabled`/`devBypass`.
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
