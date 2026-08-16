@@ -112,6 +112,43 @@ describe('applyJsonPatch — nested object ops (depth-2)', () => {
   });
 });
 
+describe('applyJsonPatch — deep (depth-3+) and array-index inserts', () => {
+  it('replace at depth-3 updates a nested array element property (stale-decision bug #62)', () => {
+    const prev = { authorizeDecisions: [{ decision: 'PERMIT' }] };
+    const result = applyJsonPatch(prev, [
+      { op: 'replace', path: '/authorizeDecisions/0/decision', value: 'DENY' },
+    ]);
+    expect(result.authorizeDecisions[0].decision).toBe('DENY');
+    // original state untouched
+    expect(prev.authorizeDecisions[0].decision).toBe('PERMIT');
+  });
+
+  it('add at depth-3 sets a new nested property', () => {
+    const result = applyJsonPatch(
+      { archTrace: [{ id: 's1' }] },
+      [{ op: 'add', path: '/archTrace/0/status', value: 'done' }],
+    );
+    expect(result.archTrace[0]).toEqual({ id: 's1', status: 'done' });
+  });
+
+  it('add at a numeric array index inserts rather than being dropped (bug #62)', () => {
+    const prev = { tokenEvents: ['a', 'b'] };
+    const result = applyJsonPatch(prev, [
+      { op: 'add', path: '/tokenEvents/2', value: 'c' },
+    ]);
+    expect(result.tokenEvents).toEqual(['a', 'b', 'c']);
+    expect(prev.tokenEvents).toEqual(['a', 'b']);
+  });
+
+  it('add at an interior numeric index shifts the tail', () => {
+    const result = applyJsonPatch(
+      { tokenEvents: ['a', 'c'] },
+      [{ op: 'add', path: '/tokenEvents/1', value: 'b' }],
+    );
+    expect(result.tokenEvents).toEqual(['a', 'b', 'c']);
+  });
+});
+
 describe('applyJsonPatch — edge cases', () => {
   it('empty operations returns a shallow copy', () => {
     const orig = { a: 1 };
