@@ -40,6 +40,8 @@ import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscov
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
+import { wsTransportBindingGuard } from './wsBindingGuard';
+import { noteBindingHeaderSeen } from './authzPosture';
 import { loadVaultIntoEnv } from './vault';
 import {
   applyAdminConfigUpdate,
@@ -773,6 +775,31 @@ async function handleMessage(
     // Scope + ACR for the compliance report (Scenario 5).
     _audCtx.scope = decoded.scope;
     _audCtx.acr = decoded.acr;
+
+    // ── BUGS.md #53: DPoP / Web Bot Auth transport-parity guard ──────────────────
+    // DPoP (RFC 9449) and Web Bot Auth (RFC 9421) are HTTP-request-bound proofs the
+    // HTTP path fail-closes on (authorizeMcpRequest.ts Step 2d/2d'). They cannot be
+    // presented per-call over a long-lived WebSocket, so an ENFORCED control must
+    // refuse the WS tool call rather than let a caller bypass it by transport choice
+    // (same class as the WS rate-limit gap, BUGS.md #13 / PR #1825). No-op when both
+    // controls are OFF (defaults: REQUIRE_DPOP_PROOF unset, wbaMode=monitor).
+    const _bindingReject = wsTransportBindingGuard({
+      requireDpopProof: process.env.REQUIRE_DPOP_PROOF === 'true',
+      wbaMode: config.wbaMode,
+    });
+    if (_bindingReject) {
+      console.warn(`[GW] WS ${_bindingReject.data.error}: enforced control cannot be satisfied over WebSocket (tool: ${toolName})`);
+      send(jsonRpcError(id, _bindingReject.code, _bindingReject.message, _bindingReject.data));
+      return;
+    }
+    // Posture parity (authzPosture): record the binding evidence this WS call
+    // actually carries so seenBindingHeaders()/authzHealth().failOpen reports the
+    // same aggregate on WS as on HTTP (Step 522/688/757 of the HTTP path). DPoP is
+    // not recorded here — the BFF's WS client never sends a DPoP proof, and the
+    // guard above already fail-closes when DPoP is enforced.
+    if (xIntentToken) noteBindingHeaderSeen('intent');
+    if (xTratContext) noteBindingHeaderSeen('rar');
+    if (decoded.act?.sub) noteBindingHeaderSeen('act');
     // Phase 2 CR-01 — gateway-internal fields gate retries and are stripped before
     // forwarding to the downstream MCP server. Backend schemas use
     // additionalProperties:false and would reject unknown fields.
