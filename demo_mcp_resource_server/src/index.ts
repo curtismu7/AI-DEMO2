@@ -263,6 +263,13 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
           }
         } catch { /* ok — malformed body goes through as 200 */ }
+        // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header:
+        // UnsupportedProtocolVersionError MUST ride HTTP 400, not 200.
+        let isUnsupportedProtocolVersion = false;
+        try {
+          const parsed = JSON.parse(s);
+          isUnsupportedProtocolVersion = parsed?.error?.code === -32022;
+        } catch { /* ok — malformed body goes through as 200 */ }
         const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
         if (isInsufficientScope) {
           res.writeHead(403, {
@@ -270,6 +277,8 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
             ...sessionHeader,
           });
+        } else if (isUnsupportedProtocolVersion) {
+          res.writeHead(400, { 'Content-Type': 'application/json', ...sessionHeader });
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
         }

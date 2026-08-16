@@ -599,7 +599,9 @@ export class GatewayServer {
     const requestedModernVersion = extractRequestedProtocolVersion(parsedRpc.params);
     if (requestedModernVersion !== undefined && parsedRpc.method !== 'server/discover') {
       if (!(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedModernVersion)) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: this
+        // case MUST be 400 Bad Request, not 200 with a JSON-RPC-level error.
+        res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(buildUnsupportedProtocolVersionError(
           (parsedRpc.id as string | number | null) ?? null,
           requestedModernVersion,

@@ -248,11 +248,14 @@ describe('server/discover', () => {
 // UnsupportedProtocolVersionError rather than silently run under Legacy
 // semantics it never declared support for.
 describe('Modern per-request version negotiation (_meta)', () => {
-  it('rejects a request carrying an unsupported Modern _meta.protocolVersion with -32022', async () => {
+  it('rejects a request carrying an unsupported Modern _meta.protocolVersion with -32022 and HTTP 400', async () => {
     const r = await post({
       jsonrpc: '2.0', id: 9, method: 'tools/list',
       params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
     }, token('airlines:read'));
+    // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: this
+    // case MUST be 400 Bad Request, not 200 with a JSON-RPC-level error.
+    expect(r.status).toBe(400);
     expect(r.json.error).toMatchObject({
       code: -32022,
       message: 'Unsupported protocol version',

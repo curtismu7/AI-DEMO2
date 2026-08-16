@@ -148,7 +148,10 @@ describe('POST /mcp — Modern per-request version negotiation (_meta)', () => {
         params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
       }));
 
-    expect(res.status).toBe(200);
+    // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: "If the
+    // server does not implement the requested protocol version... it MUST
+    // respond with 400 Bad Request and an UnsupportedProtocolVersionError."
+    expect(res.status).toBe(400);
     expect(res.body.error).toMatchObject({
       code: -32022,
       message: 'Unsupported protocol version',
