@@ -4,7 +4,7 @@ LangChain MCP Agent implementation.
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage, trim_messages
 from langchain_core.messages.utils import count_tokens_approximately
@@ -27,6 +27,34 @@ from .tracing_callback import DetailedTracingCallbackHandler
 
 
 logger = logging.getLogger(__name__)
+
+# BUGS.md #17: a stale auth challenge (user triggered a tool that needed
+# authorization, then abandoned it) must not hijack every later turn in the
+# session forever. `expiresAt` on the MCP server's challenge payload is the
+# authoritative expiry; when it's missing/unparseable we fall back to
+# `timestamp` + this TTL. 15 minutes mirrors the existing convention for
+# abandoned pending-auth state (message_processor._pending_auth_ttl).
+_AUTH_CHALLENGE_TTL = timedelta(minutes=15)
+
+
+def _is_auth_challenge_expired(challenge_info: Dict[str, Any], auth_challenge: Dict[str, Any]) -> bool:
+    """True if the stored challenge is past its expiry and should be discarded."""
+    expires_at = auth_challenge.get("expiresAt")
+    if expires_at:
+        try:
+            expiry = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+            now = datetime.now(timezone.utc) if expiry.tzinfo else datetime.now()
+            return now >= expiry
+        except (ValueError, TypeError):
+            logger.warning(f"Unparseable expiresAt on auth challenge: {expires_at!r} — falling back to TTL")
+
+    timestamp = challenge_info.get("timestamp")
+    if isinstance(timestamp, datetime):
+        return datetime.now() >= timestamp + _AUTH_CHALLENGE_TTL
+
+    # No usable expiry or timestamp at all — treat as expired rather than
+    # hijacking turns indefinitely on an un-datable entry.
+    return True
 
 
 def _content_to_text(content: Any) -> str:
@@ -1112,8 +1140,11 @@ What's your email address?"""
                 if session_id in session_challenges:
                     challenge_info = session_challenges[session_id]
                     auth_challenge = challenge_info.get('auth_challenge', {})
-                    
-                    if auth_challenge.get('method') == 'redirect_popup':
+
+                    if _is_auth_challenge_expired(challenge_info, auth_challenge):
+                        logger.info(f"Discarding expired auth challenge for session {session_id}")
+                        del session_challenges[session_id]
+                    elif auth_challenge.get('method') == 'redirect_popup':
                         tracer.log_step("oauth_challenge", "OAuth Manager", {
                             "method": "redirect_popup",
                             "auth_url": auth_challenge.get('authorizationUrl', ''),

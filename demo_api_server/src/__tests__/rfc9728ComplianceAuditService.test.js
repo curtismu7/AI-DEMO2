@@ -87,6 +87,23 @@ describe('RFC9728ComplianceAuditService', () => {
       expect(result.error).toBeNull();
     });
 
+    test('should call fetch with an absolute URL (Node fetch has no base-URL context)', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Map([['content-type', 'application/json']])
+      });
+
+      await auditService.testEndpointAccessibility();
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const calledUrl = global.fetch.mock.calls[0][0];
+      // Must not throw: a relative URL like '/.well-known/...' would fail here,
+      // exactly as it fails when passed directly to Node's built-in fetch.
+      expect(() => new URL(calledUrl)).not.toThrow();
+      expect(calledUrl.endsWith('/.well-known/oauth-protected-resource')).toBe(true);
+    });
+
     test('should handle endpoint accessibility errors', async () => {
       global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
@@ -279,7 +296,7 @@ describe('RFC9728ComplianceAuditService', () => {
     test('should perform comprehensive compliance audit', async () => {
       // Mock all fetch calls
       global.fetch = jest.fn().mockImplementation((url) => {
-        if (url === '/.well-known/oauth-protected-resource' || url === '/api/rfc9728/metadata') {
+        if (url.endsWith('/.well-known/oauth-protected-resource') || url.endsWith('/api/rfc9728/metadata')) {
           return Promise.resolve({
             ok: true,
             status: 200,

@@ -46,6 +46,8 @@ export default function AgentFlowHistoryPage() {
   }, []);
 
   const fetchRuns = useCallback(() => {
+    setRuns(null);
+    setLoadError(null);
     apiClient
       .get('/api/agent-flow-history')
       .then((r) => {
@@ -83,7 +85,14 @@ export default function AgentFlowHistoryPage() {
       <div className="afh-body">
         <aside className="afh-sidebar" aria-label="Run history">
           {runs === null && <div className="afh-sidebar-empty">Loading runs…</div>}
-          {loadError && <div className="afh-sidebar-empty afh-sidebar-error">{loadError}</div>}
+          {loadError && (
+            <div className="afh-sidebar-empty afh-sidebar-error">
+              {loadError}{' '}
+              <button type="button" className="afh-retry-btn" onClick={fetchRuns}>
+                Try again
+              </button>
+            </div>
+          )}
           {runs && runs.length === 0 && !loadError && (
             <div className="afh-sidebar-empty">No agent runs recorded yet.</div>
           )}

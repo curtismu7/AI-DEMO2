@@ -2,14 +2,18 @@
 import { validateMethodAndShape, validateToolArgs, ALLOWED_METHODS } from '../src/validation/mcpRequestValidation';
 
 describe('validateMethodAndShape', () => {
-  it('allows the five MCP methods', () => {
-    for (const m of ['initialize', 'notifications/initialized', 'tools/list', 'notifications/cancelled']) {
+  it('allows the twelve MCP methods', () => {
+    for (const m of [
+      'initialize', 'notifications/initialized', 'tools/list', 'notifications/cancelled',
+      'logging/setLevel', 'resources/list', 'resources/read', 'resources/templates/list',
+      'prompts/list', 'prompts/get', 'completion/complete',
+    ]) {
       expect(validateMethodAndShape(m, undefined)).toBeNull();
     }
     expect(validateMethodAndShape('tools/call', { name: 'get_my_accounts', arguments: {} })).toBeNull();
   });
   it('rejects unknown methods with -32601', () => {
-    const f = validateMethodAndShape('resources/list', undefined);
+    const f = validateMethodAndShape('nonexistent/method', undefined);
     expect(f).toMatchObject({ code: -32601 });
   });
   it('rejects tools/call without a non-empty string name', () => {

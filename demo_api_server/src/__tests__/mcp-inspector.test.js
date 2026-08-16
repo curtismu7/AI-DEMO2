@@ -40,10 +40,13 @@ jest.mock('../../services/mcpWebSocketClient', () => {
     },
     mcpCallToolWithFrames: async (toolName, toolParams, ...rest) => {
       const result = await mockCall(toolName, toolParams, ...rest);
+      const opts = rest[3];
+      const requestParams = { name: toolName, arguments: toolParams || {} };
+      if (opts && opts.meta) requestParams._meta = opts.meta;
       return {
         result,
         frames: {
-          request: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: toolName, arguments: toolParams || {} } },
+          request: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: requestParams },
           response: { jsonrpc: '2.0', id: 2, result },
         },
       };
@@ -276,6 +279,18 @@ describe('MCP Inspector routes', () => {
     });
     expect(res.body.frames.response.result).toEqual({ content: [{ type: 'text', text: '{"ok":true}' }] });
     expect(res.body.tokenEvents).toEqual(tokenEvents);
+  });
+
+  it('POST /api/mcp/inspector/invoke passes body.meta through as params._meta.progressToken (Attach progress token toggle)', async () => {
+    const token = bearerToken(['read', 'read']);
+
+    const res = await request(app)
+      .post('/api/mcp/inspector/invoke')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tool: 'get_my_accounts', params: {}, meta: { progressToken: 'progress-abc' } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.frames.request.params._meta).toEqual({ progressToken: 'progress-abc' });
   });
 
   describe('GET /api/mcp/inspector/langchain-host', () => {

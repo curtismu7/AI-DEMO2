@@ -226,6 +226,14 @@ export default function Phase266ArchitecturePage() {
           (banking_mcp_resource_server) and HITL consent service (banking_hitl_service)
           are out of scope here — see the Flow and Token Flow pages for those.
         </p>
+        <p className="p266-arch-subtitle">
+          <strong>Historical snapshot.</strong> The diagram below is kept verbatim
+          from Phase 266's plan-approval time, including its original{" "}
+          <code>banking_*</code> service naming (this repo's directories/containers
+          are now <code>demo_*</code>/<code>ai-demo-*</code>). For the current
+          service topology, see{" "}
+          <a href="/architecture/overview">Architecture Overview</a>.
+        </p>
       </header>
 
       <PathFilterBar paths={P266_PATHS} selectedPath={selectedPath} onSelect={setSelectedPath} className="p266-filter-bar" />

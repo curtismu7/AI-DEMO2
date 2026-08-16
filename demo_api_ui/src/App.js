@@ -30,7 +30,6 @@ import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
-import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
 import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
@@ -620,11 +619,6 @@ function AppWithAuth() {
                 <Route
                   path="/configure"
                   element={<ConfigurePage user={user} logout={logout} />}
-                />
-                {/* Stakeholder preview page — accessible without login, same as /configure */}
-                <Route
-                  path="/agent-studio-preview"
-                  element={<AgentStudioPreviewPage />}
                 />
                 <Route
                   path="/demo-data"

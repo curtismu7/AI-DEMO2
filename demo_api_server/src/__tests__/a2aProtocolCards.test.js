@@ -18,6 +18,15 @@ const {
 const { createA2aProtocolRouter } = require('../../services/a2aProtocolServer');
 const { requireA2aPingOneBearer } = require('../../middleware/a2aPingOneBearer');
 
+// requireA2aPingOneBearer now verifies the bearer's signature via
+// services/tokenValidationService (JWKS-based, same helper middleware/auth.js
+// uses) before trusting any claim. Mock it here so these unit/route tests can
+// control the verification verdict without a live PingOne JWKS fetch.
+jest.mock('../../services/tokenValidationService', () => ({
+  validateToken: jest.fn(),
+}));
+const { validateToken } = require('../../services/tokenValidationService');
+
 function fakeJwt(payload) {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   return `${b64({ alg: 'none', typ: 'JWT' })}.${b64(payload)}.sig`;
@@ -48,6 +57,7 @@ describe('a2aAgentCardService', () => {
   });
 
   test('routes A&F SendMessage through its aliased specialist handler', async () => {
+    validateToken.mockResolvedValueOnce({ client_id: 'generalist-agent' });
     const cfg = {
       getEffective: (key) =>
         key === 'ff_a2a_delegation' ? true : 'https://api.ping.demo:3001',
@@ -123,23 +133,51 @@ describe('requireA2aPingOneBearer', () => {
     return res;
   }
 
-  test('rejects missing Authorization', () => {
-    const res = mockRes();
-    requireA2aPingOneBearer({ headers: {} }, res, () => {});
-    expect(res.statusCode).toBe(401);
+  beforeEach(() => {
+    validateToken.mockReset();
   });
 
-  test('accepts PingOne-shaped Bearer JWT', () => {
+  test('rejects missing Authorization', async () => {
+    const res = mockRes();
+    await requireA2aPingOneBearer({ headers: {} }, res, () => {});
+    expect(res.statusCode).toBe(401);
+    expect(validateToken).not.toHaveBeenCalled();
+  });
+
+  test('accepts a bearer that passes JWKS signature verification', async () => {
+    validateToken.mockResolvedValueOnce({ client_id: 'agent-1', aud: ['x'] });
     const res = mockRes();
     const req = {
       headers: { authorization: `Bearer ${fakeJwt({ client_id: 'agent-1', aud: ['x'] })}` },
     };
     let nextCalled = false;
-    requireA2aPingOneBearer(req, res, () => {
+    await requireA2aPingOneBearer(req, res, () => {
       nextCalled = true;
     });
     expect(nextCalled).toBe(true);
     expect(req.a2aPingOne.clientId).toBe('agent-1');
+  });
+
+  // Regression for the forged-identity bug: a JWT-shaped token whose signature
+  // is garbage (or simply not signed by PingOne) must be REJECTED even though
+  // it decodes cleanly and carries an attacker-chosen client_id. Before the
+  // fix, decodeJwt() never checked the signature, so this exact request was
+  // accepted and req.a2aPingOne.clientId was trusted as-is.
+  test('rejects a forged/unsigned JWT with a garbage signature', async () => {
+    validateToken.mockRejectedValueOnce(new Error('invalid signature'));
+    const res = mockRes();
+    const req = {
+      headers: {
+        authorization: `Bearer ${fakeJwt({ client_id: 'attacker-controlled-identity' })}`,
+      },
+    };
+    let nextCalled = false;
+    await requireA2aPingOneBearer(req, res, () => {
+      nextCalled = true;
+    });
+    expect(nextCalled).toBe(false);
+    expect(res.statusCode).toBe(401);
+    expect(req.a2aPingOne).toBeUndefined();
   });
 });
 

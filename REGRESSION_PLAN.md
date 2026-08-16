@@ -148,6 +148,125 @@ missing `argon2` native module (`vault.test.ts`), missing
 `MCP_GW_CLIENT_ID` env var (`gateway-passthrough.test.ts`), and pre-existing
 `gateway-auth.test.ts` flakiness — none touch rate limiting or the WS path.
 
+### 2026-08-15 — A2A bearer auth trusted an unverified JWT signature (identity spoofing)
+
+**Files changed:** `demo_api_server/middleware/a2aPingOneBearer.js`,
+`demo_api_server/src/__tests__/a2aProtocolCards.test.js`
+
+**What was broken:** `requireA2aPingOneBearer` — the sole auth gate on the
+A2A JSON-RPC route (`services/a2aProtocolServer.js`, mounted at
+`/a2a/specialists` without the session `authenticateToken` middleware) — only
+base64-decoded the bearer JWT via `decodeJwt()` (display-only, never checks a
+signature) and trusted `claims.client_id`/`cid`/`sub` directly.
+`pingOneA2aUserBuilder` then marked the request `isAuthenticated: true` under
+that claim. Anyone could POST `Authorization: Bearer header.payload.garbage`
+with an arbitrary `client_id`/`sub` and be treated as that identity — full
+identity spoofing on the A2A delegation/specialist endpoints.
+
+**What was fixed:** `requireA2aPingOneBearer` now verifies the bearer's RS256
+signature (issuer, expiry) against PingOne's JWKS via
+`services/tokenValidationService.js#validateToken` before trusting any claim —
+the same JWKS fetch/cache/verify helper `middleware/auth.js`'s
+`validatePingOneCoreToken` already uses. A forged/unsigned token now gets 401;
+`req.a2aPingOne` shape is unchanged for genuinely PingOne-issued tokens.
+
+**Do not break:** `a2aProtocolServer.js`'s mount point (still no session
+`authenticateToken`) or `pingOneA2aUserBuilder`'s contract; don't reintroduce
+a decode-only path on this gate.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- src/__tests__/a2aProtocolCards.test.js --forceExit`
+
+### 2026-08-10 — AG-UI /api/agent/run never minted Intent Tokens
+
+**Files changed:** `demo_api_server/routes/agentRun.js`,
+`demo_api_server/tests/agentRun.intentTokenMint.regression.test.js`
+
+**What was broken:** The Intent Token mint block on `POST /api/agent/run`
+destructured `extractIntentFromPrompt` from `nlIntentParser`. That name is a
+local helper inside `agentInvokeRoute.js` and is **not** exported — the call
+threw `TypeError`, the surrounding try/catch logged "non-fatal", and AG-UI
+never wrote `session.intentToken` or the Token Chain `intent-token` event.
+`ff_intent_token_enabled` defaults on, so the primary composer path silently
+skipped intent binding while `/api/agent/invoke` still minted correctly.
+
+**What was fixed:** Call the exported `extractIntentAndConfidence` (same API
+`agentInvokeRoute` wraps). Regression locks the export + the call site.
+
+**Do not break:** Guest `PUBLIC_GUEST_ACTIONS` gate, `agentGuestSessionMiddleware`,
+RFC 8693 exchange, or the invoke-route local helper of the same name.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4 tests/agentRun.intentTokenMint.regression.test.js`
+
+### 2026-08-07 — Clarification amount presets transferred $1 instead of $1,000
+
+**Files changed:** `demo_api_ui/src/components/agentChrome.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/agentChrome.test.jsx`
+
+**What was broken:** Amount quick-pick buttons labeled `$1,000` / `$2,500` /
+`$10,000` passed the locale-formatted string into clarification parsing. The
+regex stopped at the first comma, so clicking `$1,000` ran a $1 deposit,
+withdrawal, or transfer.
+
+**What was fixed:** Buttons still display locale labels, but `onSelect` receives
+an unformatted value (`$1000`). `parseClarificationReply` also strips grouping
+commas so typed `$1,000` parses correctly.
+
+**Do not break:** Amount presets must pass a parse-safe dollar string (no
+grouping commas). Display formatting may keep `toLocaleString`.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- src/components/__tests__/agentChrome.test.jsx && npm run build`
+
+### 2026-08-06 — Delegated-commerce mayAct wipe on failed consent / stale cleanup
+
+**Files changed:** `demo_api_server/services/pingOneUserService.js`,
+`demo_api_server/routes/delegatedCommerce.js`,
+`demo_api_server/services/delegatedCommerceService.js`,
+`demo_api_server/tests/delegatedCommerceRoutes.test.js`,
+`demo_api_server/tests/delegatedCommerceService.test.js`,
+`demo_api_server/tests/pingOneUserService.mayActClear.test.js`
+
+**What was broken:** Consent rollback always wrote `mayAct: null`, and admin
+cleanup/revoke cleared mayAct without checking its current owner. A failed
+second consent (or cleanup of an older registration) erased a still-valid
+authorization for another delegated agent, breaking later RFC 8693 exchanges.
+
+**What was fixed:** Consent captures pre-request mayAct and restores it on
+rollback. Cleanup and revoke clear mayAct only when it still names that
+registration's application id.
+
+**Do not break:** Successful consent still sets mayAct to the new agent;
+intentional revoke of the current agent still clears matching mayAct; OAuth
+login and the active-consent token-exchange path are unchanged.
+
+**Verify:**
+`cd demo_api_server && CI=true npx jest tests/delegatedCommerceRoutes.test.js tests/delegatedCommerceService.test.js tests/pingOneUserService.mayActClear.test.js --forceExit`
+
+### 2026-08-05 — Claimed delegated agent blocked all MCP tools before consent
+
+**Files changed:** `demo_api_server/services/delegatedCommerceRuntime.js`,
+`demo_api_server/tests/delegatedCommerceRuntime.test.js`
+
+**What was broken:** After a customer claimed a delegated-commerce agent
+(status `claimed`) — or kept an orphaned `delegatedCommerceRegistrationId` in
+session — `resolveConsentContext` returned an insufficient consent object.
+`evaluateMcpFirstToolGate` then 403'd every MCP tool, even though
+`resolveAgentRuntime(..., { fallbackToDefault: true })` correctly fell back to
+the configured banking agent until consent.
+
+**What was fixed:** Consent enforcement applies only after the registration is
+bound and past claim/stage (`active` / `revoked` / expired-active). Claimed,
+staged, missing, and unbound registrations return `null` so the default agent
+keeps working. Revoked + expired-active remain insufficient for the demo's
+post-revoke denial proof.
+
+**Do not break:** Active read-only consent must still deny write tools. Revoked
+registrations must still fail closed for the guided revoke retry. Do not apply
+the consent gate whenever a session id is merely present.
+
+**Verify:**
+`cd demo_api_server && CI=true npx jest tests/delegatedCommerceRuntime.test.js --forceExit`
+
 ### 2026-08-15 — Agent restrictions gate trusted a raw client header instead of the verified `act` claim
 
 **Files changed:** `demo_api_server/middleware/agentRestrictionsGate.js`,
