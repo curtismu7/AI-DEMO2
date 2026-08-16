@@ -48,6 +48,13 @@ import { toolsListBackendOutage } from '../toolsListHealth';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
+// MCP spec 2026-07-28 Streamable HTTP §Request Metadata — Modern-only.
+const MCP_METHOD_HEADER = 'mcp-method';
+const MCP_NAME_HEADER = 'mcp-name';
+// Methods whose Mcp-Name must mirror params.name (tools/call) — resources/read
+// (params.uri) and prompts/get aren't routed through this gateway's tools/call
+// pipeline, so only tools/call is checked here.
+const NAME_HEADER_REQUIRED_METHODS = new Set(['tools/call']);
 
 const GATEWAY_SCOPES = [
   'read',
@@ -583,7 +590,7 @@ export class GatewayServer {
     }
 
     // Correlation: extract id from inbound request, bind to ALS for this request.
-    let parsedRpc: { id?: unknown; method?: unknown; params?: { correlationId?: unknown } } = {};
+    let parsedRpc: { id?: unknown; method?: unknown; params?: { correlationId?: unknown; name?: unknown } } = {};
     try { parsedRpc = JSON.parse(body.toString('utf-8')); } catch { /* already validated above */ }
     const correlationId = extractCorrelationId(req.headers as Record<string, unknown>, parsedRpc);
 
@@ -607,6 +614,37 @@ export class GatewayServer {
           requestedModernVersion,
           SUPPORTED_PROTOCOL_VERSIONS,
         )));
+        return;
+      }
+      // MCP spec 2026-07-28 Streamable HTTP §Request Metadata: Modern
+      // requests MUST mirror method (and, for tools/call, params.name) into
+      // Mcp-Method/Mcp-Name headers. A missing or mismatched header MUST be
+      // rejected with 400 + -32020 HeaderMismatch — Legacy-only requests
+      // never had this requirement and are unaffected (this whole branch
+      // only runs for a request that already declared Modern _meta).
+      const mcpMethodHeader = req.headers[MCP_METHOD_HEADER] as string | undefined;
+      const bodyMethod = typeof parsedRpc.method === 'string' ? parsedRpc.method : undefined;
+      let headerMismatch: string | undefined;
+      if (!mcpMethodHeader) {
+        headerMismatch = 'Missing required header: Mcp-Method';
+      } else if (mcpMethodHeader !== bodyMethod) {
+        headerMismatch = `Header mismatch: Mcp-Method header value '${mcpMethodHeader}' does not match body value '${bodyMethod}'`;
+      } else if (bodyMethod && NAME_HEADER_REQUIRED_METHODS.has(bodyMethod)) {
+        const mcpNameHeader = req.headers[MCP_NAME_HEADER] as string | undefined;
+        const bodyName = typeof parsedRpc.params?.name === 'string' ? parsedRpc.params.name : undefined;
+        if (!mcpNameHeader) {
+          headerMismatch = 'Missing required header: Mcp-Name';
+        } else if (mcpNameHeader !== bodyName) {
+          headerMismatch = `Header mismatch: Mcp-Name header value '${mcpNameHeader}' does not match body value '${bodyName}'`;
+        }
+      }
+      if (headerMismatch) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          jsonrpc: '2.0',
+          id: (parsedRpc.id as string | number | null) ?? null,
+          error: { code: -32020, message: headerMismatch },
+        }));
         return;
       }
     } else {
