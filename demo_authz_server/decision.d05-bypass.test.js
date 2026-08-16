@@ -118,6 +118,16 @@ test('DENY bypass_attempt — multi-aud [gateway, banking RS]', async () => {
   assert.match(body.reason, /bypass_attempt/);
 });
 
+test('DENY bypass_attempt — comma-joined multi-aud [gateway, banking RS]', async () => {
+  // Rule 0b splits TokenAudActual on /[\s,]+/, so a comma-joined multi-aud passes
+  // the "aud includes gateway" check; Rule 0b-2 must split the SAME way or the
+  // upstream aud collapses into one token and escapes the anti-bypass check.
+  const body = await decide({ TokenAudActual: `${GATEWAY_AUD},${BANKING_RS_AUD}` });
+  assert.strictEqual(body.decision, 'DENY');
+  assert.match(body.reason, /bypass_attempt/);
+  assert.match(body.reason, new RegExp(BANKING_RS_AUD.replace(/[.]/g, '\\.')));
+});
+
 test('missing TokenAudActual keeps legacy behaviour (D-05 skipped, PERMIT)', async () => {
   const body = await decide({ TokenAudActual: '' });
   assert.strictEqual(body.decision, 'PERMIT', `reason: ${body && body.reason}`);

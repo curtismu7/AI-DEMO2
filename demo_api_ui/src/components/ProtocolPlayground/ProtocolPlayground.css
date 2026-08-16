@@ -492,6 +492,12 @@
   font-size: 13px;
 }
 
+.activity-error__signin {
+  color: var(--pp-error-text);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .activity-log {
   flex: 1;
   overflow-y: auto;
