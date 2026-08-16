@@ -53,47 +53,62 @@ function parseSseChunk(buffer, newChunk) {
 
 /**
  * Apply JSON Patch (RFC 6902) operations to a state object.
- * Supports: add, replace, remove (the subset AG-UI STATE_DELTA uses).
+ * Supports: add, replace, remove (the subset AG-UI STATE_DELTA uses) at
+ * arbitrary path depth. Walks `parts` to the leaf's parent container — cloning
+ * each node along the way so shared state is never mutated — then applies the
+ * leaf op. Depth-3+ ops (e.g. /authorizeDecisions/0/decision) and array-index
+ * inserts (e.g. add /tokenEvents/2) are handled, not just length 1/2.
  */
+// A path segment addresses an array when it is the append token or numeric.
+function isArrayIndexSegment(seg) {
+  return seg === '-' || (/^\d+$/).test(seg);
+}
+
 export function applyJsonPatch(state, operations) {
-  let next = { ...state };
+  const next = { ...state };
   for (const op of operations) {
     const { op: verb, path, value } = op;
     const parts = path.replace(/^\//, '').split('/');
-    if (parts.length === 1) {
-      const key = parts[0];
-      if (verb === 'add' || verb === 'replace') {
-        next[key] = value;
-      } else if (verb === 'remove') {
-        const { [key]: _removed, ...rest } = next;
-        next = rest;
-      }
-    } else if (parts.length === 2) {
-      const [key, idx] = parts;
-      if (verb === 'add' && idx === '-') {
-        // Append to array
-        next[key] = Array.isArray(next[key]) ? [...next[key], value] : [value];
-      } else if (Array.isArray(next[key])) {
-        // Numeric index operation on array
-        const i = parseInt(idx, 10);
-        const arr = [...next[key]];
-        if (verb === 'replace') {
-          arr[i] = value;
-          next[key] = arr;
-        } else if (verb === 'remove') {
-          arr.splice(i, 1);
-          next[key] = arr;
-        }
+    // Descend to the leaf's parent, cloning each container so we never mutate
+    // the original state's nested objects/arrays.
+    let parent = next;
+    for (let d = 0; d < parts.length - 1; d++) {
+      const seg = parts[d];
+      const existing = parent[seg];
+      let clone;
+      if (Array.isArray(existing)) {
+        clone = [...existing];
+      } else if (existing && typeof existing === 'object') {
+        clone = { ...existing };
       } else {
-        // Object property update — e.g. /activeRun/status, /activeRun/currentStep
-        if (verb === 'add' || verb === 'replace') {
-          next[key] = { ...(next[key] || {}), [idx]: value };
-        } else if (verb === 'remove') {
-          const obj = { ...(next[key] || {}) };
-          delete obj[idx];
-          next[key] = obj;
-        }
+        // Missing container — its type is implied by the NEXT segment.
+        clone = isArrayIndexSegment(parts[d + 1]) ? [] : {};
       }
+      if (Array.isArray(parent)) {
+        parent[parseInt(seg, 10)] = clone;
+      } else {
+        parent[seg] = clone;
+      }
+      parent = clone;
+    }
+    const leaf = parts[parts.length - 1];
+    if (Array.isArray(parent)) {
+      if (verb === 'add') {
+        if (leaf === '-') {
+          parent.push(value);
+        } else {
+          // RFC 6902 array add inserts at the index (shifting the tail).
+          parent.splice(parseInt(leaf, 10), 0, value);
+        }
+      } else if (verb === 'replace') {
+        parent[parseInt(leaf, 10)] = value;
+      } else if (verb === 'remove') {
+        parent.splice(parseInt(leaf, 10), 1);
+      }
+    } else if (verb === 'add' || verb === 'replace') {
+      parent[leaf] = value;
+    } else if (verb === 'remove') {
+      delete parent[leaf];
     }
   }
   return next;
