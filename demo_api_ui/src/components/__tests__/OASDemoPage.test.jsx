@@ -87,6 +87,84 @@ describe('OASDemoPage — Try it out', () => {
     await waitFor(() => expect(screen.getByText(/"curt"/)).toBeInTheDocument());
   });
 
+  it('blocks execution and shows a required-field error without calling pingone-invoke', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        enabled: true,
+        tools: [
+          {
+            name: 'listUsers',
+            inputSchema: { type: 'object', properties: { environmentId: { type: 'string' } }, required: ['environmentId'] },
+          },
+        ],
+        paramDefaults: {},
+      },
+    });
+
+    renderPage({ id: 'u1' });
+    await expandListUsersRow();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try it out' }));
+
+    await screen.findByText('Required: environmentId');
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
+
+  it('shows a styled error and no result when the backend returns a 200 error:true tool-call failure', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        enabled: true,
+        tools: [
+          {
+            name: 'listUsers',
+            inputSchema: { type: 'object', properties: { environmentId: { type: 'string' } }, required: ['environmentId'] },
+          },
+        ],
+        paramDefaults: { environmentId: 'env-123' },
+      },
+    });
+    apiClient.post.mockResolvedValue({
+      data: { enabled: true, error: true, reason: 'tools/call failed: environment not found' },
+    });
+
+    renderPage({ id: 'u1' });
+    await expandListUsersRow();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try it out' }));
+
+    await screen.findByText('tools/call failed: environment not found');
+  });
+
+  it('unwraps response.result instead of dumping the full envelope on success', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        enabled: true,
+        tools: [
+          {
+            name: 'listUsers',
+            inputSchema: { type: 'object', properties: { environmentId: { type: 'string' } }, required: ['environmentId'] },
+          },
+        ],
+        paramDefaults: { environmentId: 'env-123' },
+      },
+    });
+    apiClient.post.mockResolvedValue({
+      data: {
+        enabled: true,
+        request: { jsonrpc: '2.0', id: 1, method: 'tools/call' },
+        response: { jsonrpc: '2.0', id: 1, result: { users: [{ username: 'curt' }] } },
+      },
+    });
+
+    renderPage({ id: 'u1' });
+    await expandListUsersRow();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try it out' }));
+
+    await screen.findByText(/"curt"/);
+    expect(screen.queryByText(/"jsonrpc"/)).not.toBeInTheDocument();
+  });
+
   it('shows an unavailable message when the hosted tool list has no matching operation', async () => {
     apiClient.get.mockResolvedValue({ data: { enabled: true, tools: [], paramDefaults: {} } });
 

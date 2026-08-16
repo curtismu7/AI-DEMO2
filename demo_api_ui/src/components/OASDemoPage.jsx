@@ -80,6 +80,11 @@ function TryItOut({ operationId, user, pingoneTools }) {
   const paramKeys = Object.keys(props);
 
   const runTool = async () => {
+    const missing = [...required].filter((key) => !(paramValues?.[key] ?? '').trim());
+    if (missing.length > 0) {
+      setCallError(`Required: ${missing.join(', ')}`);
+      return;
+    }
     setCalling(true);
     setCallError(null);
     const params = {};
@@ -89,7 +94,12 @@ function TryItOut({ operationId, user, pingoneTools }) {
     }
     try {
       const res = await apiClient.post('/api/mcp/inspector/pingone-invoke', { tool: operationId, params });
-      setResult(res.data);
+      if (res.data?.error) {
+        setCallError(res.data.reason || 'Request failed');
+        setResult(null);
+      } else {
+        setResult(res.data?.response?.result ?? res.data);
+      }
     } catch (e) {
       setCallError(e?.response?.data?.message || e?.message || 'Request failed');
       setResult(null);
