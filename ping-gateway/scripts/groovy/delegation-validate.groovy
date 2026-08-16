@@ -73,6 +73,12 @@ def tokenSub = tokenInfo?.get('sub')
 logger.info('[DelegationValidate] ✅ Delegation verified — user=' + tokenSub + ' agent(act.sub)=' + actSub)
 
 // ── Attach delegation metadata to request for downstream use ──────────────────
+// Replace, never append: `.add` alone leaves a client-supplied forged value
+// ahead of ours, so a downstream getFirst() would read the attacker's header.
+// Remove before add (matches p1az-decision.groovy's remove-before-use pattern).
+request.headers.remove('X-Delegation-User')
+request.headers.remove('X-Delegation-Agent')
+request.headers.remove('X-Delegation-Verified')
 request.headers.add('X-Delegation-User',  tokenSub?.toString() ?: '')
 request.headers.add('X-Delegation-Agent', actSub?.toString() ?: '')
 request.headers.add('X-Delegation-Verified', 'true')
