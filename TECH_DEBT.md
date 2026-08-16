@@ -7,6 +7,40 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-15 — mastra_agent: `req.on('close')` fires before the client actually disconnects
+
+**Where:** `mastra_agent/src/runHandler.ts` — `req.on('close', () => abortController.abort())`.
+
+**What's wrong:** Node's `IncomingMessage` is a Readable stream with
+`autoDestroy` on, so it emits `'close'` once its own body has been fully
+read — not when the underlying connection/client actually goes away. For a
+small JSON POST body (this endpoint's whole payload), that happens almost
+immediately after Express's body parser finishes, often before
+`agent.stream()` even starts consuming `fullStream`. Confirmed live:
+instrumenting the handler showed `abortController.signal.aborted` already
+`true` by the time the `for await` loop began, in every request. Effect:
+`tests/runHandler.test.ts`'s three streaming-event assertions (`RUN_FINISHED`,
+`TEXT_MESSAGE_CONTENT`, `TOOL_CALL_START`/`END`) fail — the loop `break`s on
+its first `abortController.signal.aborted` check before processing any part,
+so `onRunEnd()` falls back to the "model didn't return a usable response"
+error path. Reproduced identically on an unmodified `main` checkout (no code
+change involved) via `cd mastra_agent && npx jest tests/runHandler.test.ts`,
+so it predates and is unrelated to any recent change in this file.
+
+**Why not fixed now:** found while fixing the missing `'tool-error'` branch
+in the same file (BUGS.md #14) — a distinct, unrelated code path. The real
+fix (switching the disconnect signal from `req` to `res`) touches request
+lifecycle handling for every run, which is out of scope for a targeted
+tool-error fix and risks the exact abort/stream-teardown behavior this repo
+is careful about.
+
+**Real fix:** listen on `res.on('close')` (or `res.on('finish')` paired with
+a separate disconnect check) instead of `req.on('close')` — the response
+stays open for the SSE duration, so its `'close'` reflects the actual
+client/connection state rather than "the request body has been read." Needs
+a scoped repro against a real (non-supertest) client to confirm the new
+listener still aborts on a genuine client disconnect before landing.
+
 ### 2026-08-12 — oauth-mcp encrypted-storage CBC mode has no integrity check
 
 **Where:** `oauth-mcp/src/utils/encryption.ts` — uses `aes-256-cbc`.
