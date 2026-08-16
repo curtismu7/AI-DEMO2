@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node router.js",
     "dev": "node --watch router.js",
-    "test": "node --test posthogAi.test.js"
+    "test": "node --test *.test.js"
   },
   "keywords": ["llm", "proxy", "router", "llama.cpp"],
   "author": "",
