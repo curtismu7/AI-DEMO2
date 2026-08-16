@@ -65,4 +65,29 @@ router.get('/', (req, res) => {
   }
 });
 
+/**
+ * GET /api/prompt-flow/:correlationId — all ledger hops for that run,
+ * ordered by timestamp, each carrying its full `details` payload.
+ */
+router.get('/:correlationId', (req, res) => {
+  try {
+    const record = ledger.getRecord(req.params.correlationId);
+    if (!record) {
+      // Missing/unknown correlationId -> empty result, not an error.
+      return res.json({ correlationId: req.params.correlationId, hops: [] });
+    }
+    const hops = [...record.hops].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
+    return res.json({
+      correlationId: record.correlationId,
+      startedAt: record.startedAt,
+      endedAt: record.endedAt,
+      principal: record.principal,
+      hops,
+    });
+  } catch (err) {
+    console.warn('[promptFlow] detail failed:', err?.message);
+    return res.json({ correlationId: req.params.correlationId, hops: [] });
+  }
+});
+
 module.exports = router;
