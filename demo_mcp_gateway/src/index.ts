@@ -28,7 +28,8 @@ import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
-import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
+import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
+import { classifyWsDeny } from './wsDenyClassifier';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest, getRateLimiter } from './middleware/authorizeMcpRequest';
@@ -774,7 +775,28 @@ async function handleMessage(
         }));
         return;
       }
-      if (authz.reason === 'HITL_REQUIRED') {
+      // Ordering of the remaining (non-elicitation) deny dispositions is the exact
+      // thing bug #66 got wrong; it lives in classifyWsDeny() as a pure, tested
+      // function so a step-up decision can never silently collapse to insufficient_scope.
+      const denyDisposition = classifyWsDeny(authz, !!hitlApproved);
+      // Step-up obligation: P1AZ requires MFA re-authentication (not a human/consent).
+      // Distinct signal so the agent drives step-up instead of chasing token scopes
+      // forever. Without this branch a stepUp decision fell through to the generic
+      // insufficient_scope error below. HTTP-transport counterpart: authorizeMcpRequest.ts
+      // step_up_required (403 + WWW-Authenticate); JSON-RPC carries the same
+      // error='step_up_required' discriminator in data so the client can branch on it.
+      if (denyDisposition === 'stepup') {
+        send(jsonRpcError(id, -32403, 'Step-up authentication required', {
+          error: 'step_up_required',
+          tool: toolName,
+          required_scopes: getScopesForGatewayTool(toolName),
+          policy_source: authz.policySource,
+          ...(authz.degraded ? { degraded: true } : {}),
+          login_required: false,
+        }));
+        return;
+      }
+      if (denyDisposition === 'hitl') {
         // Anti-loop: if a receipt was verified OK but the policy still returned
         // INDETERMINATE, fail with a distinct error instead of re-issuing a
         // challenge. This prevents an infinite loop if the policy is misconfigured.
@@ -812,7 +834,7 @@ async function handleMessage(
         } else {
           send(jsonRpcError(id, -32002, 'Human approval required', { hitl: true, tool: toolName, challenge_type: getChallengeTypeForTool(toolName) }));
         }
-      } else if (isPolicyNotFoundReason(authz.reason)) {
+      } else if (denyDisposition === 'policy_not_found') {
         // Policy drift: the tool has no matching policy (mock 'unknown_tool' /
         // NOT_APPLICABLE). Surface it as policy_not_found — same operator vocabulary
         // as the BFF — instead of insufficient_scope, so nobody is sent to chase
