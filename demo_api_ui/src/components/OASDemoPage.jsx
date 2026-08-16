@@ -1,6 +1,135 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../services/apiClient';
 import './OASDemoPage.css';
+
+const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/oas-demo';
+
+// Mirrors McpInspectorPage.jsx's coerceParam — same shape, kept local since
+// it's a small pure function and the two pages aren't otherwise coupled.
+function coerceParam(raw, type) {
+  if (raw === '') return undefined;
+  if (type === 'number' || type === 'integer') {
+    const n = Number(raw);
+    return Number.isNaN(n) ? raw : n;
+  }
+  if (type === 'boolean') return raw === 'true' || raw === '1';
+  if (type === 'object' || type === 'array') {
+    try { return JSON.parse(raw); } catch { return raw; }
+  }
+  return raw;
+}
+
+/**
+ * Execute panel for one operation — real request/response against the hosted
+ * PingOne MCP server via the same admin-gated pipeline McpInspectorPage's
+ * "PingOne MCP" tab uses (GET pingone-tools / POST pingone-invoke). The OAS
+ * operationId matches the hosted tool name 1:1 (listUsers, createUser, ...).
+ */
+function TryItOut({ operationId, user, pingoneTools }) {
+  const [paramValues, setParamValues] = useState(null); // null = not yet seeded
+  const [calling, setCalling] = useState(false);
+  const [result, setResult] = useState(null);
+  const [callError, setCallError] = useState(null);
+
+  const tool = pingoneTools?.tools?.find((t) => t.name === operationId) || null;
+
+  useEffect(() => {
+    if (!tool || paramValues !== null) return;
+    const props = tool.inputSchema?.properties || {};
+    const defaults = pingoneTools?.paramDefaults || {};
+    const seeded = {};
+    for (const key of Object.keys(props)) {
+      if (defaults[key] != null) seeded[key] = String(defaults[key]);
+    }
+    setParamValues(seeded);
+  }, [tool, paramValues, pingoneTools]);
+
+  if (!user) {
+    return (
+      <div className="oas-tryitout oas-tryitout--locked">
+        <a className="oas-tryitout-btn oas-tryitout-btn--disabled" href={LOGIN_URL}>
+          Sign in to try this
+        </a>
+      </div>
+    );
+  }
+
+  if (!pingoneTools) {
+    return <div className="oas-tryitout oas-tryitout--loading">Loading available tools…</div>;
+  }
+
+  if (!pingoneTools.enabled || pingoneTools.error) {
+    return (
+      <div className="oas-tryitout oas-tryitout--unavailable">
+        {pingoneTools.reason || 'PingOne MCP tools are unavailable right now.'}
+      </div>
+    );
+  }
+
+  if (!tool) {
+    return (
+      <div className="oas-tryitout oas-tryitout--unavailable">
+        Not available via the hosted PingOne MCP server in this demo.
+      </div>
+    );
+  }
+
+  const props = tool.inputSchema?.properties || {};
+  const required = new Set(tool.inputSchema?.required || []);
+  const paramKeys = Object.keys(props);
+
+  const runTool = async () => {
+    setCalling(true);
+    setCallError(null);
+    const params = {};
+    for (const [key, schema] of Object.entries(props)) {
+      const coerced = coerceParam((paramValues?.[key] ?? '').trim(), schema?.type);
+      if (coerced !== undefined) params[key] = coerced;
+    }
+    try {
+      const res = await apiClient.post('/api/mcp/inspector/pingone-invoke', { tool: operationId, params });
+      setResult(res.data);
+    } catch (e) {
+      setCallError(e?.response?.data?.message || e?.message || 'Request failed');
+      setResult(null);
+    } finally {
+      setCalling(false);
+    }
+  };
+
+  return (
+    <div className="oas-tryitout">
+      {paramKeys.length > 0 && (
+        <div className="oas-tryitout-params">
+          {paramKeys.map((key) => (
+            <label key={key} className="oas-tryitout-field">
+              <span>{key}{required.has(key) ? ' *' : ''}</span>
+              <input
+                type="text"
+                value={paramValues?.[key] ?? ''}
+                onChange={(e) => setParamValues((prev) => ({ ...(prev || {}), [key]: e.target.value }))}
+                placeholder={props[key]?.type || 'string'}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        className="oas-tryitout-btn"
+        onClick={runTool}
+        disabled={calling}
+      >
+        {calling ? 'Running…' : 'Try it out'}
+      </button>
+      {callError && <div className="oas-tryitout-error">{callError}</div>}
+      {result && (
+        <pre className="oas-tryitout-result">{JSON.stringify(result, null, 2)}</pre>
+      )}
+    </div>
+  );
+}
 
 const METHOD_COLORS = {
   GET:    '#22c55e',
@@ -40,7 +169,7 @@ function PublicApiBadge({ value }) {
   return <span className="oas-public-badge">x-public-api: {value}</span>;
 }
 
-function OperationRow({ pathKey, method, op, expanded, onToggle }) {
+function OperationRow({ pathKey, method, op, expanded, onToggle, user, pingoneTools }) {
   const scope = PERMISSION_SCOPE_MAP[op['x-permission']] || 'read';
   const params = (op.parameters || []).filter(p => p.in === 'path');
 
@@ -98,6 +227,10 @@ function OperationRow({ pathKey, method, op, expanded, onToggle }) {
               </dl>
             </div>
           </div>
+          <div className="oas-op-detail-col oas-op-detail-col--tryitout">
+            <h4>Try it out</h4>
+            <TryItOut operationId={op.operationId} user={user} pingoneTools={pingoneTools} />
+          </div>
         </div>
       )}
     </div>
@@ -140,13 +273,14 @@ function SecurityFlowDiagram() {
   );
 }
 
-export default function OASDemoPage() {
+export default function OASDemoPage({ user }) {
   const navigate = useNavigate();
   const [spec, setSpec] = useState(null);
   const [error, setError] = useState(null);
   const [expandedOp, setExpandedOp] = useState(null);
   const [showRawSpec, setShowRawSpec] = useState(false);
   const [filterTag, setFilterTag] = useState('All');
+  const [pingoneTools, setPingoneTools] = useState(null);
 
   useEffect(() => {
     fetch('/api/oas/pingone-fragment', { credentials: 'include' })
@@ -157,6 +291,16 @@ export default function OASDemoPage() {
       .then(setSpec)
       .catch(e => setError(e.message));
   }, []);
+
+  // "Try it out" needs the real hosted PingOne MCP tool list (param schemas,
+  // defaults) once, up front — not per-row, since every row's Try It Out
+  // panel reads from the same list.
+  useEffect(() => {
+    if (!user) return;
+    apiClient.get('/api/mcp/inspector/pingone-tools')
+      .then((r) => setPingoneTools(r.data))
+      .catch(() => setPingoneTools({ enabled: false, tools: [], reason: 'Failed to load PingOne MCP tools.' }));
+  }, [user]);
 
   const allOperations = spec
     ? Object.entries(spec.paths || {}).flatMap(([pathKey, pathItem]) =>
@@ -273,6 +417,8 @@ export default function OASDemoPage() {
                 op={op}
                 expanded={expandedOp === key}
                 onToggle={() => setExpandedOp(expandedOp === key ? null : key)}
+                user={user}
+                pingoneTools={pingoneTools}
               />
             );
           })}
