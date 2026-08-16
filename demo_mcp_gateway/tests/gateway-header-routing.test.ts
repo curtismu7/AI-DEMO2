@@ -3,13 +3,15 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 /**
- * MCP spec 2026-07-28: server/discover. Servers MUST implement it. Answered
- * locally by the gateway (not forwarded upstream) — it exists so a client
- * can learn about the server it is directly connected to, and the gateway
- * is a real MCP server in its own right, not a transparent pipe. Mirrors
- * how the WS transport (index.ts) already answers `initialize` locally with
- * the gateway's own identity, rather than the HTTP transport's existing
- * forward-to-upstream behavior for `initialize`.
+ * MCP spec 2026-07-28 Streamable HTTP §Request Metadata: Modern requests
+ * mirror selected JSON-RPC body fields into HTTP headers (Mcp-Method on
+ * every request; Mcp-Name on tools/call, resources/read, prompts/get) so
+ * intermediaries can route/inspect without parsing the body. Servers MUST
+ * validate the header matches the body and reject with -32020
+ * (HeaderMismatch) + HTTP 400 on any mismatch or missing required header.
+ *
+ * Scoped to Modern requests only — this repo's Legacy (2025-11-25) traffic
+ * never had this header requirement and is untouched.
  */
 
 import supertest from 'supertest';
@@ -84,7 +86,9 @@ function makeToken(aud: string | string[]): string {
   return `${header}.${payload}.${sig}`;
 }
 
-describe('POST /mcp — server/discover', () => {
+const MODERN_META = { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' };
+
+describe('POST /mcp — Modern header-based routing (Mcp-Method / Mcp-Name)', () => {
   let gateway: GatewayServer;
   let request: ReturnType<typeof supertest>;
 
@@ -96,98 +100,99 @@ describe('POST /mcp — server/discover', () => {
     request = supertest(gateway.httpServer);
   });
 
-  it('answers locally with resultType complete, supportedVersions, capabilities, and serverInfo — no upstream call', async () => {
-    const res = await request
-      .post('/mcp')
-      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
-      .set('Content-Type', 'application/json')
-      .send(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'server/discover', params: {} }));
-
-    // Upstream at 127.0.0.1:19999 is unreachable — a 502 here would mean this
-    // request was forwarded instead of answered locally.
-    expect(res.status).toBe(200);
-    expect(res.body.result.resultType).toBe('complete');
-    expect(res.body.result.supportedVersions).toEqual(['2025-11-25', '2026-07-28']);
-    expect(res.body.result.capabilities).toMatchObject({ tools: {} });
-    expect(res.body.result._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: expect.any(String) });
-  });
-
-  it('still answers when the discover call itself carries Modern _meta — discovery must work regardless of what the caller claims', async () => {
+  it('rejects a Modern tools/call missing Mcp-Method with -32020 HeaderMismatch and HTTP 400', async () => {
     const res = await request
       .post('/mcp')
       .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
       .set('Content-Type', 'application/json')
       .send(JSON.stringify({
-        jsonrpc: '2.0', id: 2, method: 'server/discover',
-        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+        jsonrpc: '2.0', id: 1, method: 'tools/call',
+        params: { name: 'get_my_accounts', arguments: {}, _meta: MODERN_META },
       }));
-    expect(res.status).toBe(200);
-    expect(res.body.result.resultType).toBe('complete');
-  });
-});
-
-describe('POST /mcp — Modern per-request version negotiation (_meta)', () => {
-  let gateway: GatewayServer;
-  let request: ReturnType<typeof supertest>;
-
-  beforeEach(() => {
-    gateway = new GatewayServer({
-      config: stubConfig,
-      upstreamMcpUrl: 'http://127.0.0.1:19999',
-    });
-    request = supertest(gateway.httpServer);
-  });
-
-  it('rejects a request carrying a genuinely unsupported Modern _meta.protocolVersion with -32022, listing what is actually supported', async () => {
-    const res = await request
-      .post('/mcp')
-      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
-      .set('Content-Type', 'application/json')
-      .send(JSON.stringify({
-        jsonrpc: '2.0', id: 9, method: 'tools/list',
-        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2099-01-01' } },
-      }));
-
-    // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: "If the
-    // server does not implement the requested protocol version... it MUST
-    // respond with 400 Bad Request and an UnsupportedProtocolVersionError."
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatchObject({
-      code: -32022,
-      message: 'Unsupported protocol version',
-      data: { supported: ['2025-11-25', '2026-07-28'], requested: '2099-01-01' },
-    });
+    expect(res.body.error).toMatchObject({ code: -32020 });
   });
 
-  it('does not touch an ordinary Legacy request with no _meta.protocolVersion — falls through to normal forwarding', async () => {
+  it('rejects a Modern tools/call where Mcp-Method does not match the body method', async () => {
     const res = await request
       .post('/mcp')
       .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
       .set('Content-Type', 'application/json')
-      .send(JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'tools/list', params: {} }));
-
-    // Upstream at 127.0.0.1:19999 is unreachable — 502 proves this request
-    // was NOT rejected at the version gate and instead reached forwarding,
-    // exactly like before this change.
-    expect(res.status).toBe(502);
-  });
-
-  it('lets a genuinely-supported Modern version (2026-07-28) through the gate on tools/list — but that method has no Modern-specific processing, so it just forwards like Legacy', async () => {
-    const res = await request
-      .post('/mcp')
-      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
-      .set('Content-Type', 'application/json')
-      // Mcp-Method is required on every Modern request (Mcp-Name is only
-      // required for tools/call, resources/read, prompts/get) — see
-      // gateway-header-routing.test.ts for that gate's own coverage.
       .set('Mcp-Method', 'tools/list')
+      .set('Mcp-Name', 'get_my_accounts')
       .send(JSON.stringify({
-        jsonrpc: '2.0', id: 11, method: 'tools/list',
-        params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+        jsonrpc: '2.0', id: 2, method: 'tools/call',
+        params: { name: 'get_my_accounts', arguments: {}, _meta: MODERN_META },
       }));
-    // 502, not 400 — the version gate let it through (real, partial Modern
-    // support per serverDiscover.ts's docblock); it reaches the same
-    // unreachable-upstream forwarding path as any Legacy request.
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: -32020 });
+  });
+
+  it('rejects a Modern tools/call missing Mcp-Name', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .set('Mcp-Method', 'tools/call')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 3, method: 'tools/call',
+        params: { name: 'get_my_accounts', arguments: {}, _meta: MODERN_META },
+      }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: -32020 });
+  });
+
+  it('rejects a Modern tools/call where Mcp-Name does not match params.name', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .set('Mcp-Method', 'tools/call')
+      .set('Mcp-Name', 'create_transfer')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 4, method: 'tools/call',
+        params: { name: 'get_my_accounts', arguments: {}, _meta: MODERN_META },
+      }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({ code: -32020 });
+  });
+
+  it('accepts a Modern tools/call with matching Mcp-Method + Mcp-Name and proceeds to the normal pipeline', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .set('Mcp-Method', 'tools/call')
+      .set('Mcp-Name', 'get_my_accounts')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 5, method: 'tools/call',
+        params: { name: 'get_my_accounts', arguments: {}, _meta: MODERN_META },
+      }));
+    // Not a HeaderMismatch — reaches the normal (unreachable-upstream) path.
+    expect(res.status).not.toBe(400);
+  });
+
+  it('does not require Mcp-Method/Mcp-Name on a Modern non-tools/call request (e.g. server/discover)', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 6, method: 'server/discover',
+        params: { _meta: MODERN_META },
+      }));
+    expect(res.status).toBe(200);
+  });
+
+  it('does not require these headers on an ordinary Legacy request', async () => {
+    const res = await request
+      .post('/mcp')
+      .set('Authorization', `Bearer ${makeToken(GATEWAY_AUDIENCE)}`)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({
+        jsonrpc: '2.0', id: 7, method: 'tools/call',
+        params: { name: 'get_my_accounts', arguments: {} },
+      }));
+    expect(res.status).not.toBe(400);
   });
 });

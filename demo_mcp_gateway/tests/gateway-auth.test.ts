@@ -225,7 +225,14 @@ describe('PingOneAuthorizeClient', () => {
   });
 
   it('returns indeterminate (HITL trigger) when PingAuthorize returns INDETERMINATE', async () => {
-    mockedAxios.post.mockResolvedValueOnce({ data: { decision: 'INDETERMINATE' } });
+    // authorizeObligations.ts's classifyStatements requires a classifiable
+    // statement — INDETERMINATE with no obligation is deliberately fail-closed
+    // to DENY (an unclassifiable outcome must never widen access), so a real
+    // HITL-triggering response always carries one. Mirrors the mock authz
+    // server's actual HITL statement shape.
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { decision: 'INDETERMINATE', statements: [{ code: 'HITL_CONSENT' }] },
+    });
     const client = new PingOneAuthorizeClient(stubConfig);
     const result = await client.evaluate(decodedToken(), 'tools/call', 'create_transfer');
     expect(result.decision).toBe('INDETERMINATE');

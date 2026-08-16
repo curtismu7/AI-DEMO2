@@ -243,6 +243,12 @@ const BANKING_STATIC_TOOLS = [
   },
 ];
 
+// MCP spec 2026-07-28 ("Modern") per-request version negotiation: a request
+// is Modern-shaped when params._meta carries this key. Shared by the AI Demo
+// MCP tools/call tester and the Protocol tab's RPC tester.
+const MCP_MODERN_PROTOCOL_VERSION = '2026-07-28';
+const MCP_MODERN_META = { 'io.modelcontextprotocol/protocolVersion': MCP_MODERN_PROTOCOL_VERSION };
+
 function useBankingSource() {
   const [tools, setTools] = useState([]);
   const [toolsSourceInfo, setToolsSourceInfo] = useState(null);
@@ -264,6 +270,14 @@ function useBankingSource() {
   // mcpWebSocketClient.js's frameSink.notifications capture), an honest empty
   // result otherwise.
   const [progressEnabled, setProgressEnabled] = useState(false);
+  // MCP spec 2026-07-28 per-request version negotiation opt-in: attaches
+  // params._meta['io.modelcontextprotocol/protocolVersion'] so the call is
+  // Modern-shaped. This tester dials the plain MCP server directly and
+  // bypasses demo_mcp_gateway (see mcpInspector.js's forceDirectMcpAudience),
+  // so the gateway-only mechanisms that key off Modern-shaped calls — version
+  // negotiation's -32022 and the MRTR ELICITATION obligation — cannot be
+  // demonstrated here; see the honest note rendered below when this is on.
+  const [modernEnabled, setModernEnabled] = useState(false);
   // Computed once, synchronously, before any effect runs: a Token Chain replay
   // handoff (?replay=<id>) races the tool-catalog GET below — if the catalog
   // resolves after the replay has selected/invoked a tool, its reset would
@@ -343,9 +357,10 @@ function useBankingSource() {
     setBusy(true);
     const t0 = Date.now();
     try {
-      const meta = progressEnabled
-        ? { progressToken: `progress-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }
-        : undefined;
+      const metaParts = {};
+      if (progressEnabled) metaParts.progressToken = `progress-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      if (modernEnabled) metaParts['io.modelcontextprotocol/protocolVersion'] = MCP_MODERN_PROTOCOL_VERSION;
+      const meta = Object.keys(metaParts).length > 0 ? metaParts : undefined;
       const { data } = await apiClient.post('/api/mcp/inspector/invoke', {
         tool: selectedTool.name,
         params,
@@ -373,7 +388,7 @@ function useBankingSource() {
     } finally {
       setBusy(false);
     }
-  }, [selectedTool, paramValues, progressEnabled]);
+  }, [selectedTool, paramValues, progressEnabled, modernEnabled]);
 
   const clearForm = () => {
     setParamValues({});
@@ -538,6 +553,14 @@ function useBankingSource() {
                 />
                 Attach progress token
               </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569', marginLeft: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={modernEnabled}
+                  onChange={(e) => setModernEnabled(e.target.checked)}
+                />
+                Modern (2026-07-28)
+              </label>
             </div>
             {progressEnabled && (
               <div style={{ padding: '4px 20px 8px', fontSize: 11, color: '#64748b' }}>
@@ -545,6 +568,17 @@ function useBankingSource() {
                 producer, same as Prompts/Sampling. Cancellation (<code>notifications/cancelled</code>) is covered
                 by <code>demo_mcp_gateway/tests/gateway-http-progress-cancellation.test.js</code> and the
                 WS-transport cancellation tests, not exercised from this Inspector.
+              </div>
+            )}
+            {modernEnabled && (
+              <div style={{ padding: '4px 20px 8px', fontSize: 11, color: '#64748b' }}>
+                Marks this call Modern-shaped (<code>params._meta</code>) per MCP spec 2026-07-28. This AI Demo
+                MCP tester dials the plain MCP server directly and bypasses <code>demo_mcp_gateway</code> (see{' '}
+                <code>mcpInspector.js</code>'s <code>forceDirectMcpAudience</code>), so it cannot demonstrate the
+                gateway-only mechanisms that key off a Modern-shaped call: per-request version negotiation (a
+                not-yet-upgraded method would answer <code>-32022 UnsupportedProtocolVersionError</code>) and the
+                MRTR ELICITATION obligation. See the Protocol tab for that error fired for real, through the
+                gateway.
               </div>
             )}
             <div className="inspector-shell-form-body">
@@ -1599,6 +1633,17 @@ const LOG_LEVELS = ['debug', 'info', 'notice', 'warning', 'error', 'critical', '
 
 const PROTOCOL_METHOD_GROUPS = [
   {
+    key: 'discover',
+    label: 'Discover',
+    methods: [
+      // MCP 2026-07-28: mandatory handshake RPC, answered locally by the
+      // gateway on both transports — never forwarded upstream (see
+      // demo_mcp_gateway/src/serverDiscover.ts). Exempt from per-request
+      // version negotiation, so it works with the Modern toggle on or off.
+      { method: 'server/discover', fields: [] },
+    ],
+  },
+  {
     key: 'resources',
     label: 'Resources',
     methods: [
@@ -1678,6 +1723,15 @@ function useProtocolSource() {
   const [needsLogin, setNeedsLogin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
+  // MCP spec 2026-07-28 per-request version negotiation opt-in — see
+  // MCP_MODERN_META. Unlike the AI Demo MCP tester, this tab's requests
+  // actually reach demo_mcp_gateway (POST /api/mcp/inspector/rpc dials the
+  // gateway WS URL), so a Modern-shaped call to a method that only got
+  // Legacy support in this pass (Resources/Prompts/Completion/Logging)
+  // genuinely 400s with -32022 UnsupportedProtocolVersionError — real,
+  // correct, expected behavior, not a bug. server/discover is exempt and
+  // works either way.
+  const [modernEnabled, setModernEnabled] = useState(false);
 
   const selectMethod = (m) => {
     setSelectedMethod(m);
@@ -1704,7 +1758,8 @@ function useProtocolSource() {
     setBusy(true);
     const t0 = Date.now();
     try {
-      const { data } = await apiClient.post('/api/mcp/inspector/rpc', { method: selectedMethod.method, params });
+      const finalParams = modernEnabled ? { ...params, _meta: MCP_MODERN_META } : params;
+      const { data } = await apiClient.post('/api/mcp/inspector/rpc', { method: selectedMethod.method, params: finalParams });
       const ms = Date.now() - t0;
       setLastResult(data);
       setLastTiming({ ms, error: false });
@@ -1724,7 +1779,7 @@ function useProtocolSource() {
     } finally {
       setBusy(false);
     }
-  }, [selectedMethod, fieldValues]);
+  }, [selectedMethod, fieldValues, modernEnabled]);
 
   const clearForm = () => {
     setFieldValues({});
@@ -1747,10 +1802,11 @@ function useProtocolSource() {
       } catch {
         params = fieldValues;
       }
+      if (modernEnabled) params = { ...params, _meta: MCP_MODERN_META };
       return { jsonrpc: '2.0', id: 1, method: selectedMethod?.method, params };
     }
     return null;
-  }, [outputTab, lastResult, lastTiming, selectedMethod, fieldValues]);
+  }, [outputTab, lastResult, lastTiming, selectedMethod, fieldValues, modernEnabled]);
 
   return {
     statusOn: true,
@@ -1788,6 +1844,21 @@ function useProtocolSource() {
             {' '}<code>demo_api_server/src/__tests__/mcpWebSocketClient.samplingRoots.test.js</code>.
           </div>
         </div>
+        <div
+          className="inspector-shell-tree-footer"
+          style={{ borderTop: '1px solid #cbd5e1', padding: '10px 12px', fontSize: 11, color: '#64748b' }}
+        >
+          <div style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+            Modern (2026-07-28) &amp; Header Routing
+          </div>
+          <div>
+            The "Modern (2026-07-28)" toggle attaches request metadata (<code>params._meta</code>) that marks a
+            call as Modern-shaped, per MCP spec 2026-07-28 per-request version negotiation. Header-based routing
+            (<code>Mcp-Method</code> / <code>Mcp-Name</code>) is a separate, HTTP-transport-only requirement — this
+            tester dials the gateway over WebSocket, so header-based routing is never exercised here; see{' '}
+            <code>demo_mcp_gateway/tests/gateway-header-routing.test.ts</code> for real coverage.
+          </div>
+        </div>
       </>
     ),
     middle: (
@@ -1808,7 +1879,29 @@ function useProtocolSource() {
             <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
               <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569', marginLeft: 12 }}>
+                <input
+                  type="checkbox"
+                  checked={modernEnabled}
+                  onChange={(e) => setModernEnabled(e.target.checked)}
+                />
+                Modern (2026-07-28)
+              </label>
             </div>
+            {modernEnabled && selectedMethod.method !== 'server/discover' && (
+              <div style={{ padding: '4px 20px 8px', fontSize: 11, color: '#64748b' }}>
+                Resources/Prompts/Completion/Logging only got Legacy support in this pass — a Modern-shaped call to
+                {' '}<code>{selectedMethod.method}</code> will genuinely 400 with a JSON-RPC{' '}
+                <code>-32022 UnsupportedProtocolVersionError</code>. That's expected, correct behavior showing what
+                a not-yet-upgraded method looks like under negotiation, not a bug.
+              </div>
+            )}
+            {modernEnabled && selectedMethod.method === 'server/discover' && (
+              <div style={{ padding: '4px 20px 8px', fontSize: 11, color: '#64748b' }}>
+                <code>server/discover</code> is exempt from version negotiation — it works whether or not the
+                caller declares a Modern <code>_meta</code>.
+              </div>
+            )}
             <div className="inspector-shell-form-body">
               {selectedMethod.fields.map((f) => (
                 <div className="inspector-shell-field" key={f.key}>
