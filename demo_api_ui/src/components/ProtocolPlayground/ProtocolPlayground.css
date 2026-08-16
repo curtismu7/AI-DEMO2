@@ -13,16 +13,20 @@
   --pp-item-hover: #eef0f4;
   --pp-item-active-bg: #1d4ed8;
   --pp-item-active-text: #fff;
-  --pp-btn-bg: #f0f2f5;
-  --pp-btn-border: #d4d8de;
-  --pp-btn-text: #333;
+  --pp-btn-bg: #ffffff;
+  --pp-btn-border: #b8bfc9;
+  --pp-btn-text: #1a1a1a;
   --pp-btn-hover: #e4e7ec;
+  --pp-btn-primary-bg: #1d4ed8;
+  --pp-btn-primary-text: #ffffff;
+  --pp-btn-primary-hover: #1e40af;
   --pp-progress-bg: #e2e5ea;
   --pp-error-bg: #fef2f2;
   --pp-error-border: #fecaca;
   --pp-error-text: #dc2626;
   --pp-ok-bg: #ecfdf5;
   --pp-ok-text: #16a34a;
+  --pp-ok-border: #86efac;
   --pp-err-badge-bg: #fef2f2;
   --pp-err-badge-text: #dc2626;
   --pp-scrollbar: #ccc;
@@ -47,16 +51,20 @@
   --pp-item-hover: #1a1a1a;
   --pp-item-active-bg: #1d4ed8;
   --pp-item-active-text: #fff;
-  --pp-btn-bg: #1a1a1a;
-  --pp-btn-border: #333;
-  --pp-btn-text: #ccc;
-  --pp-btn-hover: #252525;
+  --pp-btn-bg: #232323;
+  --pp-btn-border: #3d3d3d;
+  --pp-btn-text: #e0e0e0;
+  --pp-btn-hover: #2d2d2d;
+  --pp-btn-primary-bg: #2563eb;
+  --pp-btn-primary-text: #ffffff;
+  --pp-btn-primary-hover: #3b82f6;
   --pp-progress-bg: #222;
   --pp-error-bg: #1c0a0a;
   --pp-error-border: #3b1111;
   --pp-error-text: #f87171;
   --pp-ok-bg: #052e16;
   --pp-ok-text: #4ade80;
+  --pp-ok-border: #166534;
   --pp-err-badge-bg: #1c0a0a;
   --pp-err-badge-text: #f87171;
   --pp-scrollbar: #333;
@@ -418,14 +426,38 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: background 0.12s, border-color 0.12s;
 }
 
-.controls-buttons .btn-default:hover {
+.controls-buttons .btn-default:hover:not(:disabled) {
   background-color: var(--pp-btn-hover);
+  border-color: var(--pp-item-active-bg);
 }
 
 .controls-buttons .btn-default:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.controls-buttons .btn-primary {
+  background-color: var(--pp-btn-primary-bg);
+  color: var(--pp-btn-primary-text);
+  border: 1px solid var(--pp-btn-primary-bg);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.controls-buttons .btn-primary:hover:not(:disabled) {
+  background-color: var(--pp-btn-primary-hover);
+  border-color: var(--pp-btn-primary-hover);
+}
+
+.controls-buttons .btn-primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -576,7 +608,7 @@
   padding: 20px;
   border-top: 1px solid var(--pp-border);
   border-bottom: 1px solid var(--pp-border);
-  background: var(--pp-bg-secondary);
+  background: var(--pp-bg-surface);
 }
 
 /* --- Scrollbar --- */
