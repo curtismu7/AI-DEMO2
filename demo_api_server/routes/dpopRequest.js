@@ -12,12 +12,9 @@ const router = express.Router();
  * Request an access token with DPoP proof.
  * Client sends a DPoP proof header to bind the token to a specific key pair.
  *
- * @flow dpop
- * @name DPoP
- * @rfc https://datatracker.ietf.org/doc/html/rfc9449 RFC 9449
- * @actor client-app
- * @to gateway
- * @step 1
+ * Not scriptable by the protocol playground (requires a DPoP HTTP header,
+ * which the playground's @body-only engine cannot populate) — see the
+ * self-contained demo at routes/dpopDemo.js instead.
  */
 router.post('/oauth/token', express.json(), (req, res) => {
   try {
@@ -59,11 +56,6 @@ router.post('/oauth/token', express.json(), (req, res) => {
 /**
  * Verify DPoP proof on gateway.
  * Gateway validates that the DPoP proof is valid and matches the token being used.
- *
- * @flow dpop
- * @actor gateway
- * @to client-app
- * @step 2
  */
 router.post('/gateway/verify-dpop', express.json(), (req, res) => {
   try {

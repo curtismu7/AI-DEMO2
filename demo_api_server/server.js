@@ -1510,6 +1510,12 @@ const xaaIdJagDemoRoutes = require('./routes/xaaIdJagDemo');
 app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
+const dpopDemoRoutes = require('./routes/dpopDemo');
+app.use('/api/demo/dpop', dpopDemoRoutes);
+const parDemoRoutes = require('./routes/parDemo');
+app.use('/api/demo/par', parDemoRoutes);
+const rfc8693DemoRoutes = require('./routes/rfc8693Demo');
+app.use('/api/demo/rfc8693', rfc8693DemoRoutes);
 
 // Public CIMD well-known endpoint — no authentication required.
 // Mounted after session/auth middleware but before static files.
