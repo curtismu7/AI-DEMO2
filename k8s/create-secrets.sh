@@ -417,6 +417,7 @@ secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BF
 override_redirect_uris_for_public_origin                                    # public origin beats local .env redirect URIs
 align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env"    # MCP server
+secret_from_envfile hitl-secrets      "$ASSET_ROOT/demo_hitl_service/.env"  # HITL service — HITL_INTERNAL_SECRET
 secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # LangChain agent
 inject_helix_api_key                                                        # Helix key from <agent>.json keyfile (patches langchain-secrets — must run after it exists)
 mirror_google_api_key                                                       # BFF → langchain for Google/Gemini provider
