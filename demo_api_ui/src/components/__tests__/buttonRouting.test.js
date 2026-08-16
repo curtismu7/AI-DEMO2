@@ -570,29 +570,6 @@ describe("DemoDataPage", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Onboarding — static links
-// ─────────────────────────────────────────────────────────────────────────────
-import Onboarding from "../Onboarding";
-
-describe("Onboarding", () => {
-	it("← Sign in link points to /", () => {
-		renderAt(Onboarding, "/onboarding");
-		const signinLink = screen
-			.getAllByRole("link")
-			.find((l) => l.getAttribute("href") === "/");
-		expect(signinLink).toBeTruthy();
-	});
-
-	it("Open Application Configuration link points to /config", () => {
-		renderAt(Onboarding, "/onboarding");
-		const configLinks = screen
-			.getAllByRole("link")
-			.filter((l) => l.getAttribute("href") === "/config");
-		expect(configLinks.length).toBeGreaterThan(0);
-	});
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Footer — renders brand name and copyright (Demo config link removed)
 // ─────────────────────────────────────────────────────────────────────────────
 import Footer from "../Footer";

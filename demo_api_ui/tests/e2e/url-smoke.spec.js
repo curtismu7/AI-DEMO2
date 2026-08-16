@@ -222,7 +222,6 @@ const CUSTOMER_ROUTES = [
   '/self-service',
   '/delegation',
   '/delegated-access',
-  '/onboarding',
   '/transaction-consent',
   '/agent',
 ];

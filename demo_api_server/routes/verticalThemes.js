@@ -8,9 +8,9 @@
 // then stores whatever the client sends. Zone semantics live entirely in the
 // frontend registry (themeZones.js). See skill: vertical-theme-zones.
 //
-// Open to ANY signed-in user (not admin-only): authentication is enforced by the
-// `authenticateToken` mount in server.js. Overrides are GLOBAL per vertical —
-// any user's pick changes what every user sees for that vertical (last write wins).
+// Fully public — no auth mount in server.js (deliberate; see server.js's mount
+// comment). Overrides are GLOBAL per vertical — any visitor's pick changes what
+// everyone sees for that vertical (last write wins).
 
 const express = require('express');
 const router = express.Router();

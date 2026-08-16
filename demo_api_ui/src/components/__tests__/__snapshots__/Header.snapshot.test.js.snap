@@ -61,13 +61,6 @@ exports[`Header snapshot > renders admin nav without change 1`] = `
         <a
           class="nav-link "
           data-discover="true"
-          href="/onboarding"
-        >
-          Setup guide
-        </a>
-        <a
-          class="nav-link "
-          data-discover="true"
           href="/config"
         >
           Config

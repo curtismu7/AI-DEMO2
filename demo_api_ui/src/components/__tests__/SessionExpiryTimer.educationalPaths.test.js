@@ -69,7 +69,6 @@ describe("SessionExpiryTimer — educational path silence", () => {
     "/",
     "/setup",
     "/logout",
-    "/onboarding",
   ])("does NOT call BFF auth endpoints on hidden path %s", (path) => {
     render(
       <MemoryRouter initialEntries={[path]}>
