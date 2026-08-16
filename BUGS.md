@@ -381,6 +381,111 @@ const validPatterns = [
 
 ---
 
+## Pass 6 — 2026-08-15 (top 10, broad sweep)
+
+| # | Severity | Status | Title | File:Line |
+|---|----------|--------|-------|-----------|
+| 34 | Critical | 🔴 Open | Unauthenticated write access to live authorization policy in the default docker-compose deployment | `demo_authz_server/routes/rulesWrite.js:15-22` |
+| 35 | High | 🔴 Open | HITL approval receipts are never single-use — replay within TTL enables a second transfer from one human consent | `demo_hitl_service/src/store/challengeStore.js`, `receiptVerification.js:55-116` |
+| 36 | High | 🔴 Open | Workforce `request_time_off` accepts negative `days` — inflates PTO balance instead of rejecting | `demo_api_server/config/verticals/workforce/data.js:26-31` |
+| 37 | High | 🔴 Open | P1AZ tier amount-ceiling backstop keyed on token scope instead of tool scope — effectively dead on standard traffic | `ping-gateway/scripts/groovy/p1az-decision.groovy:516` |
+| 38 | Medium | 🔴 Open | Investment `deposit`/`withdraw` accept negative amounts, inverting the operation with no ceiling guard | `demo_api_server/config/verticals/investment/data.js:104-118` |
+| 39 | Medium | 🔴 Open | CivicPermit `pay_fee` silently pays a different, unrelated fee on bad/mismatched `permitId` | `demo_api_server/config/verticals/government/data.js:14-23` |
+| 40 | Medium | 🔴 Open | Non-constant-time secret comparison on AAM trust gate — timing side channel | `ping-gateway/scripts/groovy/aam-trail-stamp.groovy:27-28` |
+| 41 | Medium | 🔴 Open | TOCTOU race on JWKS forced-refetch throttle — concurrent bad-`kid` burst defeats the 60s rate cap | `ping-gateway/scripts/groovy/jwks-token-validation.groovy:154-159` |
+| 42 | Medium | 🔴 Open | pydantic_agent raises `RuntimeError` on tool policy-denial instead of `ModelRetry` — aborts run instead of reporting the real reason | `pydantic_agent/src/bff_tool_adapter.py:86-94` |
+| 43 | Medium | 🔴 Open | openai_agent never closes an open text bubble before a tool call starts — UI ordering/merge glitch | `openai_agent/src/run_handler.py:223-252` |
+
+### 34. Unauthenticated write access to live authorization policy — Critical
+```js
+function guardOk(req) {
+  const expected = process.env.AUTHZ_ADMIN_TOKEN;
+  if (!expected) return true;   // guard is a no-op when unset
+  ...
+}
+```
+The no-op fallback is justified by a comment assuming the server "binds 127.0.0.1 as a sidecar" — true for the k8s deployment, but `docker-compose.yml` explicitly sets `HOST: "0.0.0.0"` and publishes `9001:9001` to the host, and `AUTHZ_ADMIN_TOKEN` is never set anywhere in the repo (`.env`, compose, k8s — verified via full-repo grep). The `demo-auth` compose profile (which includes `authz-server`) is part of the normal always-up flow, not opt-in.
+**Trigger:** with the stack running normally (`./run-docker.sh`), anyone reaching `localhost:9001` can `PUT /rules` with zero credentials, e.g. setting `create_transfer`'s `requiredScopes` to `[]` and it no longer being classified as a write tool — `decision.js` then skips scope enforcement AND the HITL/step-up gates entirely, persisted live to `rules-overlay.json` until someone notices or calls `/rules/reset` (also unauthenticated).
+**Fix:** require `AUTHZ_ADMIN_TOKEN` whenever `HOST` isn't loopback (fail closed with a startup error), or default one in docker-compose the way other admin-facing services in this repo do.
+
+### 35. HITL approval receipts not single-use — High
+Once approved, a challenge stays `status:'approved'` until its 10-minute TTL or the 1-hour GC sweep. `verifyReceipt()` only checks status/expiry, never marks the challenge consumed — no equivalent to the codebase's own established "one-time use: consumed here" pattern used for pending-elicitation checks one block above in the same gateway file.
+**Trigger:** agent gets a transfer challenge approved once by a human, then retries (or replays) the same `tools/call` with the identical `_hitl_challenge_id` before the TTL expires — verification passes again, discharging a second transfer from one approval. The repo's own replay test suite (`challenges.verify.test.js`) covers every cross-user/agent/tool/amount vector except this one.
+**Fix:** transition the challenge to a terminal `consumed`/`spent` status on first successful `/verify`, and reject non-`'approved'` status the same way `'denied'`/`'expired'` are already rejected.
+
+### 36. Workforce PTO negative-days inflation — High
+```js
+if (data.pto.balance < days) return { error: ... };
+data.pto.balance -= days;
+```
+`days` comes straight from tool-call params with no server-side range check.
+**Trigger:** `days: -5` passes `balance < days` (false), then `balance -= (-5)` INCREASES the balance instead of being rejected. Non-numeric `days` also passes (`balance < NaN` is always false) and corrupts `balance` to `NaN`.
+**Fix:** validate `days > 0` and finite before the balance check/mutation.
+
+### 37. P1AZ tier ceiling backstop effectively dead — High
+```groovy
+def isWriteToolLocal = tokenScopes.tokenize(' ').contains('write')
+if (txAmountLocal != null && isWriteToolLocal && txAmountLocal > maxAmountLocal) { return denyLocal('tier_amount_exceeded', ...) }
+```
+This is documented as the SOLE enforcement of the tier-based transfer ceiling (the script's own comment: "real P1AZ cannot map a PingOne group array to a tier"). It checks the caller's granted TOKEN scopes, but the standard inbound token on this route only ever carries the gateway-hop scope — never the literal `'write'` scope, which is a TOOL-level classification in `scope-topology.json` (88 write tools declare `requiredScopes:['write']` at the tool level, not token level).
+**Trigger:** `isWriteToolLocal` is false for essentially all standard traffic, so `tier_amount_exceeded` never fires — a tier-restricted user's transfer/withdraw ceiling is silently unenforced.
+**Fix:** derive `isWriteToolLocal` from the tool's own `requiredScopes` (already loaded as `toolEntry.requiredScopes` earlier in the same block), not from `tokenScopes`.
+
+### 38. Investment deposit/withdraw invert on negative amounts — Medium
+```js
+const amt = Number(amount) || 0;
+portfolio.value = Number((portfolio.value + amt).toFixed(2));   // deposit — no ceiling guard
+portfolio.value = Math.max(0, Number((portfolio.value - amt).toFixed(2)));  // withdraw — floor only
+```
+No sign constraint on `amount`.
+**Trigger:** `deposit` with `amount: -50000` reduces the portfolio (an inverted withdrawal mislabeled as a deposit); `withdraw` with a negative amount increases the value with no ceiling (`deposit` also has no matching ceiling guard).
+**Fix:** reject non-positive `amount` in both mutators before applying the delta.
+
+### 39. CivicPermit pays wrong fee on bad permitId — Medium
+```js
+const item = data.fees.items.find((f) => f.permitId === permitId || f.id === permitId)
+  || data.fees.items.find((f) => f.status === 'Outstanding');
+```
+Unlike every sibling vertical's mutator (which returns `null`/errors on no-match), this one silently falls back to whichever fee happens to be Outstanding first.
+**Trigger:** a wrong/stale/typo'd `permitId` pays a DIFFERENT permit's fee instead of erroring, returning `status:'Paid'` as if the request succeeded.
+**Fix:** return an error when `permitId` is supplied but matches nothing — no fallback.
+
+### 40. AAM trust gate uses non-constant-time comparison — Medium
+```groovy
+def trustedCaller = internalSecret && request.headers.getFirst('X-BFF-Internal') == internalSecret
+```
+Every equivalent trust gate elsewhere in this codebase uses constant-time comparison (`p1az-decision.groovy` uses `MessageDigest.isEqual`; the Node BFF's own internal-secret helper explicitly documents why). Groovy `==` on strings short-circuits on first mismatched byte.
+**Trigger:** anyone reaching the IG host port directly can time-probe `X-BFF-Internal` byte-by-byte to recover the shared secret and force AAM decisions to the permissive mock backend.
+**Fix:** use `MessageDigest.isEqual` on UTF-8 bytes, matching `p1az-decision.groovy`'s existing pattern.
+
+### 41. JWKS forced-refetch throttle has a TOCTOU race — Medium
+```groovy
+if (nowMs - lastForced > 60_000L) { globals._jwksForcedFetchAt = nowMs; jwk = findJwk(fetchJwks(true), kid) }
+```
+Unsynchronized shared `globals` on a multi-threaded IG runtime; the check-then-set isn't atomic.
+**Trigger:** a burst of concurrent requests with an unknown `kid` can all read `lastForced` before any writes it back — all N threads pass the throttle and each issues a forced HTTPS fetch to the JWKS endpoint, the exact amplification the throttle exists to prevent (just needs concurrency instead of sequential requests).
+**Fix:** guard the check-and-set with `synchronized` or an `AtomicLong`/CAS so only one thread per 60s window wins the forced refetch.
+
+### 42. pydantic_agent aborts run on policy denial instead of reporting it — Medium
+```python
+if resp.status_code >= 500 or resp.status_code in (408, 429):
+    raise ModelRetry(msg)
+raise RuntimeError(msg)   # includes 403 policy denials
+```
+The class docstring says recoverable failures should let the model "recover or report the error," but any other 4xx (e.g. a 403 P1AZ-blocked transfer) raises a bare `RuntimeError`, which `pydantic_ai` doesn't special-case — it propagates uncaught to the top-level generic error handler, discarding the real denial reason. The other three agents (openai, langchain, mastra) all surface the real error to the model instead.
+**Trigger:** user asks pydantic_agent to make a transfer that trips a policy limit; instead of the model explaining the denial, the user sees a generic "internal error" message and the run terminates.
+**Fix:** raise `ModelRetry(msg)` for 4xx denial responses too (or return an error string like the sibling agents).
+
+### 43. openai_agent doesn't close text bubble before tool call — Medium
+The `tool_call_item` branch calls `emitter.on_tool_start(...)` with no check of `_current_message_id`, unlike `mastra_agent`/`langchain_agent`'s equivalents, which both explicitly close the open text message before emitting `TOOL_CALL_START`.
+**Trigger:** model streams lead-in text, then emits a tool call in the same turn while a text bubble is still open — `TEXT_MESSAGE_END` never fires at the tool-call boundary, and when text resumes after the tool result, `on_llm_start` is skipped since the stale message id is still set — pre- and post-tool text silently merge into one bubble with the tool-call event racing in the middle.
+**Fix:** close the current message (`on_llm_end()`) before `on_tool_start` when `_current_message_id` is set, mirroring the other agents.
+
+### Also found in pass 6, not in top 10 (verified, logged for awareness)
+- `demo_api_ui/src/components/UnifiedTokenFlowInspector.jsx:606-610` — token-expiry badge only recomputes `isExpired` when the `exp` claim value changes, not on wall-clock passage; stays "✓ Active" indefinitely after real expiry if the token isn't refreshed. Display-only, contrast with the correct inline-computed pattern in `TokenCard.jsx` (Medium).
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
