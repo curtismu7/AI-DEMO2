@@ -108,7 +108,7 @@ describe('POST /mcp', () => {
   it('filters tools/list by scope, same as the WebSocket path', async () => {
     const r = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, token('airlines:read'));
     const names = r.json.result.tools.map((t: { name: string }) => t.name);
-    expect(names).toEqual(['get_airline_bookings', 'get_flight_status', 'check_seat_availability']);
+    expect(names).toEqual(['get_airline_bookings', 'get_flight_status', 'check_seat_availability', 'get_loyalty_status']);
   });
 
   it('handles initialize without a token check, matching the WS handshake', async () => {

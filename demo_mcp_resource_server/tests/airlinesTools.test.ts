@@ -15,7 +15,7 @@ afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-const AIRLINES = ['get_airline_bookings', 'get_flight_status', 'check_seat_availability'];
+const AIRLINES = ['get_airline_bookings', 'get_flight_status', 'check_seat_availability', 'get_loyalty_status'];
 
 describe('resource server tool registry', () => {
   it('exposes both namespaces and advertises both scopes', () => {
