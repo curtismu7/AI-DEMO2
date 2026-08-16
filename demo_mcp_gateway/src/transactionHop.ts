@@ -15,6 +15,7 @@ export interface TransactionHopInput {
   correlationId?: string;
   params?: Record<string, unknown>;
   consentRequired?: boolean;
+  vertical?: string;
 }
 
 type FetchLike = (url: string, init: any) => Promise<any>;

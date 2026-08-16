@@ -103,6 +103,26 @@ describe('recordGatewayAudit — details forwarded into the ledger hop (no diver
     const hopArg = emitHopSpy.mock.calls[0][0];
     expect(hopArg.details).toBeUndefined();
   });
+
+  it('forwards the vertical field from the audit event into the hop', () => {
+    runWithCorrelation('cid-vertical-1', () =>
+      recordGatewayAudit(
+        { operation: 'create_transfer', outcome: 'success', vertical: 'retail' },
+        config,
+      ),
+    );
+    expect(emitHopSpy).toHaveBeenCalledTimes(1);
+    const hopArg = emitHopSpy.mock.calls[0][0];
+    expect(hopArg.vertical).toBe('retail');
+  });
+
+  it('omits vertical from the hop when the audit event carries none', () => {
+    runWithCorrelation('cid-vertical-2', () =>
+      recordGatewayAudit({ operation: 'get_accounts', outcome: 'success' }, config),
+    );
+    const hopArg = emitHopSpy.mock.calls[0][0];
+    expect(hopArg.vertical).toBeUndefined();
+  });
 });
 
 // Scenario 4 — insufficient-scope denials become "unauthorized tool" audit alerts.

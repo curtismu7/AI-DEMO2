@@ -91,6 +91,7 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
       },
       details: enriched.details,
       status: enriched.outcome === 'failure' ? 'error' : 'ok',
+      vertical: enriched.vertical,
     });
     axios
       .post(url, enriched, {
