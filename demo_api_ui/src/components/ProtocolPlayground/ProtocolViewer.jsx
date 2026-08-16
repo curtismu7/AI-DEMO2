@@ -106,7 +106,7 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
               {flowSpec.steps.map((step, idx) => {
                 const result = executionState.results[idx];
                 const isComplete = !!result;
-                const isEnabled = idx === 0 || isComplete;
+                const isEnabled = idx === 0 || !!executionState.results[idx - 1];
                 return (
                   <StepCard
                     key={step.id}
