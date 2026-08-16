@@ -712,6 +712,48 @@ return callBff(`.../transactions?limit=${limit}`, token);
 
 ---
 
+## Pass 10 — 2026-08-16 (Agent Gateway focus; MCP hold lifted)
+
+14 verified gateway-path bugs (find + code review). 2 High. Full review observations in CODE_REVIEW.md's gateway section. The 4 previously-held MCP bugs (#56/#57/#58/#61) were fixed this pass too (PRs #1887/#1886/#1885).
+
+| # | Sev | Status | Title | File:Line |
+|---|-----|--------|-------|-----------|
+| 62 | Medium | 🔴 Open | `applyJsonPatch` drops depth≥3 STATE_DELTA ops (and array-index inserts) — enforcement/authorize/token panels go stale | `demo_api_ui/src/hooks/useAgentRun.js:58-100` |
+| 63 | Medium | 🔴 Open | Gateway-tester Chain tab marks a rate-limited/DENY call as green "OK" (predicate omits rateLimited/429/decision) | `demo_api_ui/src/components/AgentGatewayTester.jsx:585` |
+| 64 | Medium | 🔴 Open | Streaming `TOOL_CALL_ARGS` parsed per-delta and replaced, not accumulated — args lost on fragmented streams | `demo_api_ui/src/hooks/useAgentState.js:195-206` |
+| 65 | High | 🔴 Open | Empty `authorization_details: []` bypasses RAR intent-subset enforcement under `REQUIRE_RAR_INTENT` | `demo_mcp_gateway/src/rarEnforce.ts:47`, `middleware/authorizeMcpRequest.ts:864`, `pingAuthorizeGuard.ts:277-281` |
+| 66 | Medium | 🔴 Open | WS transport never surfaces the step-up obligation — falls through to generic `insufficient_scope`, step-up flow dead on WS | `demo_mcp_gateway/src/index.ts:826-832`, `pingAuthorizeGuard.ts:442,455` |
+| 67 | High | 🔴 Open | Gateway-unreachable fails OPEN — a down/slow gateway routes every agent tool call through unauthenticated local execution (all policy skipped) | `demo_api_server/services/mcpToolPipeline.js:1640-1698` |
+| 68 | Medium | 🔴 Open | 403 `hitl_required` path drops `gwAuditTrail` — authorize evidence lost, ProofStrip shows "failed before authorize" on a gate that fired | `demo_api_server/services/mcpGatewayClient.js:618-635` |
+| 69 | Low | 🔴 Open | Stray `console.log` reads `tool.name`/`mcpAccessToken?.scope` (both always undefined; `tool`/token are strings) on every tool call | `demo_api_server/services/mcpToolPipeline.js:480,490` |
+| 70 | Medium | 🔴 Open | HTTP `inFlightCalls` registry is process-global keyed by bare JSON-RPC id — `notifications/cancelled {requestId:1}` aborts another caller's call | `demo_mcp_gateway/src/server/GatewayServer.ts:145,682,772` |
+| 71 | Medium | 🔴 Open | Runtime rate-limit reconfig is a silent no-op — admin changes `rateLimitMaxRequests`/`WindowMs`, returns 200, live limiter keeps old thresholds until restart | `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts:212-217` |
+| 72 | Low-Med | 🔴 Open | HTTP `readBody` has no size cap (WS was hardened with `maxPayload` 1 MB, HTTP wasn't) — authenticated caller can stream arbitrarily large bodies into memory | `demo_mcp_gateway/src/server/GatewayServer.ts:997-1004` |
+| 73 | Medium | 🔴 Open | IG `p1az-decision.groovy` never sends `ToolDestructive`/`ElicitationConfirmed` etc — elicitation confirmation gate silently skipped on the IG/mock-backend path | `ping-gateway/scripts/groovy/p1az-decision.groovy:795-854` |
+| 74 | Medium | 🔴 Open | `/mcp/brave` + `/mcp/weather` IG routes have no inbound auth (no rsFilter/introspection/p1az) — only a fail-open flag + content filter; unauth caller reaches upstream MCP | `ping-gateway/config/routes/00-mcp-brave.json`, `00-mcp-weather.json`, `tx-brave-scope.groovy:10-21` |
+| 75 | Low | 🔴 Open | `delegation-validate.groovy` `.add`s identity headers instead of replacing — a pre-set `X-Delegation-User` survives, downstream `getFirst()` reads the forged value | `ping-gateway/scripts/groovy/delegation-validate.groovy:76-78` |
+
+### 65. Empty `authorization_details: []` bypasses RAR intent-subset — High
+`enforceRarSubset` early-returns `{ok:true}` when `details.length === 0`, and the required-intent guard treats `[]` as "present" (`if (!_rarDetails)` — `[]` is truthy → skipped). Since `_rarDetails` is populated only from the caller-supplied `X-TraT-Context` (the mode this runs in, `ALLOW_UNSIGNED_TRAT_CONTEXT=true`), an attacker sets `azd.authorization_details: []` and the amount/payee subset checks are entirely skipped — defeating the control's fail-closed intent, on both transports.
+**Fix:** when `requireRarIntent`, treat `_rarDetails.length === 0` as missing → fail closed (or drop the `length===0` early-return so the no-matching-grant DENY fires).
+
+### 67. Gateway-unreachable fails OPEN to local execution — High
+When `useGateway` is true the BFF's own authorize gate is deliberately skipped (gateway is sole PDP), but `_normalizeGatewayNetworkError` turns a down gateway into an error whose message contains `ECONNREFUSED`/`timed out`, so `isConnErr` is true → the pipeline runs the tool via `callToolLocal`, bypassing the gateway, MCP server, and PingOne Authorize (group/tier/RAR/scope all skipped). Contradicts the hardening on the sibling no-bearer and exchange-failure paths in the same file (the latter made opt-in OFF via `ff_local_fallback_on_exchange_failure`).
+**Trigger:** gateway container down/slow → every agent tool call (transfers, cross-owner reads) executes locally with zero policy enforcement.
+**Fix:** when `useGateway`, don't local-fall-back on gateway transport errors — return `GATEWAY_UNREACHABLE`/`GATEWAY_TIMEOUT` (503/504), or gate behind the same `ff_local_fallback_on_exchange_failure` opt-in with a `_degraded` marker.
+
+*(Entries #62-64, #66, #68-75: see the per-hunter detail captured in the pass-10 review; each has file:line, snippet, trigger, and fix direction. Summarized in the table above; expanded on fix.)*
+
+### Gateway review observations (not bugs — recorded for CODE_REVIEW.md)
+- **HTTP/WS enforcement is hand-mirrored** (scope backstop, tier, RAR, obligation→response) across `authorizeMcpRequest.ts` and `guardToolCall`/`index.ts` — bugs #66 and the aud-truncation (#56) are this drift class. Recommend one shared decision→transport-neutral outcome mapper + a parity test asserting identical error taxonomy per obligation.
+- **Intent-token `permitted_tools` not locally enforced** (`intentTokenValidator.ts:99`) — only the PDP checks it; in local-fallback mode an intent token for tool A is accepted for tool B.
+- **Delegated-consent revocation may be bypassed in gateway mode** — `evaluateMcpFirstToolGate` (the only place `resolveConsentContext` runs) is skipped when `useGateway`; confirm the gateway independently enforces delegated-commerce consent/revocation.
+- **RFC 8693 subject-swap only warns** (`agentMcpTokenService.js:1636`) — `exchanged.sub !== userSub` pushes a warning but forwards the token; should fail closed.
+- **IG↔Node parity by prose, no golden-payload test**; `p1az-decision.groovy` is 65KB untested; `HttpURLConnection` helpers copy-pasted across 4 Groovy scripts; `invest-dispatch.groovy` collapses backend status to 200 (opposite of `olb-token-exchange.groovy`'s deliberate preservation).
+- **Mermaid `securityLevel:'loose'` + editable source + `innerHTML`** on the diagram pages; **brittle single-line `data:` SSE parse** (`useAgentRun.js:42`); **`CopyButton` setTimeout no cleanup**.
+
+---
+
 ## How to rerun
 
 Ask: "audit the project for bugs, update BUGS.md" — new pass gets appended as `## Pass N — <date>`, existing entries get status updated in place (do not duplicate a still-open bug into a new pass table).
