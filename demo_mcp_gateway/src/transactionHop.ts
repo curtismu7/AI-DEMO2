@@ -9,6 +9,7 @@ export interface TransactionHopInput {
   op?: string;
   identity?: Record<string, unknown>;
   decision?: Record<string, unknown>;
+  details?: Record<string, unknown>;
   durationMs?: number;
   status?: 'ok' | 'error';
   correlationId?: string;
