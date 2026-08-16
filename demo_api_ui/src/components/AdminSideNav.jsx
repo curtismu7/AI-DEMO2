@@ -744,7 +744,7 @@ export default function AdminSideNav({
         // entry at all — it was reached by URL. The support console took
         // /admin, so this content moved to /admin/pingone and now has one.
         {
-          label: "PingOne Admin",
+          label: "Dashboard",
           path: "/admin/pingone",
           icon: "cfg",
           adminOnly: true,
