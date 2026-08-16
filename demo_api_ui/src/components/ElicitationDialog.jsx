@@ -39,6 +39,24 @@ export default function ElicitationDialog({ elicitation, onSubmit, onCancel }) {
           newErrors[key] = `${key} is required`;
         }
       });
+      // Type/range validation for every PRESENT numeric field (not just required
+      // ones). A field the user never touched stays absent from formData, so an
+      // optional field left untouched is not forced. But once touched — including
+      // cleared back to empty — it must hold a finite number within min/max, so a
+      // non-required field can never submit a NaN/empty value (which JSON-encodes
+      // to null) to the BFF.
+      Object.entries(properties).forEach(([key, schema]) => {
+        if (schema.type !== 'number' && schema.type !== 'integer') return;
+        if (!Object.prototype.hasOwnProperty.call(formData, key)) return;
+        const value = formData[key];
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
+          if (!newErrors[key]) newErrors[key] = `${key} must be a valid number`;
+        } else if (schema.minimum !== undefined && value < schema.minimum) {
+          newErrors[key] = `${key} must be at least ${schema.minimum}`;
+        } else if (schema.maximum !== undefined && value > schema.maximum) {
+          newErrors[key] = `${key} must be at most ${schema.maximum}`;
+        }
+      });
       return newErrors;
     };
 
@@ -118,7 +136,14 @@ export default function ElicitationDialog({ elicitation, onSubmit, onCancel }) {
                       type="number"
                       className={`elicit-form__input ${errors[key] ? 'elicit-form__input--error' : ''}`}
                       value={formData[key] || ''}
-                      onChange={(e) => handleInputChange(key, schema.type === 'integer' ? parseInt(e.target.value) : parseFloat(e.target.value))}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const parsed = schema.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
+                        // Never let NaN (empty/invalid input) land in formData —
+                        // it JSON-encodes to null on submit. Keep the raw string so
+                        // validateForm can flag it and the field renders as typed.
+                        handleInputChange(key, Number.isNaN(parsed) ? raw : parsed);
+                      }}
                       placeholder={schema.description || key}
                       required={required.includes(key)}
                       min={schema.minimum}
@@ -218,8 +243,9 @@ export default function ElicitationDialog({ elicitation, onSubmit, onCancel }) {
                 try {
                   // Send accept response to BFF
                   await onSubmit({ action: 'accept' });
-                  // Open URL in secure context
-                  window.open(url, '_blank', 'secure');
+                  // Open URL with noopener,noreferrer so the untrusted MCP-supplied
+                  // page cannot reach back through window.opener and navigate this tab.
+                  window.open(url, '_blank', 'noopener,noreferrer');
                 } finally {
                   setIsSubmitting(false);
                 }
