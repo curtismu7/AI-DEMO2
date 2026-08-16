@@ -12,9 +12,7 @@ Session ran a repeated find→fix→PR→merge loop across AI-DEMO2 (banking dem
 
 - **52/52 bugs fixed** (passes 1–7). Full detail, code snippets, triggers, and fix descriptions are in `BUGS.md`.
 - **Bugs #1–33**: all PRs merged into `main`, confirmed synced.
-- **Bugs #34–52** (19 bugs, this session's later work): 18 PRs opened.
-  - **17 merged** into `main` and synced.
-  - **1 still open**: PR **#1864** (bug #51 — `useAgentRun.js` shared `abortRef` breaking logout cancellation) hit a merge conflict against `main` (fast-moving concurrent merges). A background agent (id `afeaef6286dd32535`) was dispatched to resolve it — **check its status first**; it may have already landed by the time you read this. If not, resolve manually: `git fetch origin worktree-agent-a9dff53f29911a16f && git merge origin/main`, keep both sides of any `REGRESSION_PLAN.md` §4 conflict, re-run `npx vitest run src/hooks/__tests__/useAgentRun.abortRace.test.js`, then merge.
+- **Bugs #34–52** (19 bugs, this session's later work): 18 PRs opened, **all 18 merged** into `main` and synced. (PR #1864 needed one conflict-resolution round in `REGRESSION_PLAN.md` §4 — resolved, tests re-verified 17/17, merged clean.)
 - **Bug #39** (CivicPermit wrong-record fee payment) was already fixed by a **different concurrent session** (commit `eace36aaf`) before this session's audit pass reached it — no PR from this session, just a doc correction.
 
 ## Two Critical bugs found and fixed this session (highest priority context)
