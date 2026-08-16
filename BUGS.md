@@ -638,12 +638,12 @@ DPoP (RFC 9449) proof verification, Web Bot Auth (`wbaMode=enforce`), and postur
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
 | 55 | High | 🟢 Fixed | Delegated-commerce consent scope check filters to bare `read`/`write` — namespaced-scope tools get vacuously-true consent | `demo_api_server/services/delegatedCommerceRuntime.js:82-95` |
-| 56 | High | ⏸️ Held (MCP) | Node gateway truncates multi-aud token to `aud[0]` — defeats the D-05 confused-deputy anti-bypass the Groovy path enforces (+ Rule 0b-2 comma-split parity nit) | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:160`, `pingAuthorizeGuard.ts:161`, `demo_authz_server/routes/decision.js:357` |
-| 57 | Medium | ⏸️ Held (MCP) | Reverse tabnabbing — `window.open` on a server-supplied elicitation URL omits `noopener` | `demo_api_ui/src/components/ElicitationDialog.jsx:222` |
-| 58 | Medium | ⏸️ Held (MCP) | Optional number field submits `NaN` → serialized as `null` to the BFF (client validation gap) | `demo_api_ui/src/components/ElicitationDialog.jsx:35-43,121` |
+| 56 | High | 🟢 Fixed | Node gateway truncates multi-aud token to `aud[0]` — defeats the D-05 confused-deputy anti-bypass the Groovy path enforces (+ Rule 0b-2 comma-split parity nit) | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:160`, `pingAuthorizeGuard.ts:161`, `demo_authz_server/routes/decision.js:357` |
+| 57 | Medium | 🟢 Fixed | Reverse tabnabbing — `window.open` on a server-supplied elicitation URL omits `noopener` | `demo_api_ui/src/components/ElicitationDialog.jsx:222` |
+| 58 | Medium | 🟢 Fixed | Optional number field submits `NaN` → serialized as `null` to the BFF (client validation gap) | `demo_api_ui/src/components/ElicitationDialog.jsx:35-43,121` |
 | 59 | Medium | 🟢 Fixed | mastra_agent never closes the open text bubble at a tool-call boundary — same class as #43 (openai), distinct instance | `mastra_agent/src/runHandler.ts:119-124` |
 | 60 | Low | 🟢 Fixed | mastra_agent has no empty-messages fallback — empty/filtered `messages` calls `agent.stream([])` | `mastra_agent/src/runHandler.ts:89-94` |
-| 61 | Low | ⏸️ Held (MCP) | Invest resource-server tool interpolates `period`/`limit` into the BFF query string unencoded/unvalidated | `demo_mcp_resource_server/src/tools/investToolHandler.ts:50-65` |
+| 61 | Low | 🟢 Fixed | Invest resource-server tool interpolates `period`/`limit` into the BFF query string unencoded/unvalidated | `demo_mcp_resource_server/src/tools/investToolHandler.ts:50-65` |
 
 ### 55. Delegated-commerce consent scope bypass — High
 ```js
