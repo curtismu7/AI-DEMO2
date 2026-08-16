@@ -102,6 +102,52 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-15 — UC18 rate limiting was enforced on the HTTP transport only; WebSocket, the gateway's primary ingress, bypassed it entirely
+
+**Files changed:** `demo_mcp_gateway/src/index.ts`,
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`
+(+ `demo_mcp_gateway/tests/authorizeMcpRequest-rateLimit.test.ts`).
+
+**What was broken:** `authorizeMcpRequest.ts`'s HTTP `tools/call` path checks
+`config.rateLimitEnabled` and calls `getRateLimiter(config).check(sub:toolName)`
+(a `SlidingWindowLimiter`), returning 429 on burst. The WS `tools/call` handler
+in `index.ts` (`handleMessage`) had zero rate-limit references anywhere — it
+went straight from token validation into `guardToolCall`/dispatch. An agent
+connecting over WebSocket (the gateway's documented primary channel) could
+send unlimited `tools/call` bursts with no resource-exhaustion / cost-runaway
+protection, while the identical calls over HTTP were throttled.
+
+**What was fixed:** `getRateLimiter` is now exported from
+`authorizeMcpRequest.ts` (was a private module-level function) so both
+transports share the exact same `SlidingWindowLimiter` singleton — one bucket
+per `sub:toolName`, not two independent ones. The WS `tools/call` handler in
+`index.ts` now runs the same check (`config.rateLimitEnabled` →
+`getRateLimiter(config).check(key)`) before `validateInboundToken`, so a
+throttled burst never burns a token-validation, introspection, or P1AZ round
+trip — matching the HTTP path's stated intent. On block it sends a JSON-RPC
+error (code `-32429`, `data.error: 'rate_limited'`, `data.retryAfterMs`)
+through the connection's existing audit-hook `send` wrapper, so the denial is
+recorded the same way any other WS `tools/call` outcome is.
+
+**Do not break:**
+
+- HTTP path (`authorizeMcpRequest.ts`) logic and its own inline audit-trail
+  record on 429 are untouched — only the `export` keyword was added.
+- Both transports must keep sharing one `getRateLimiter(config)` singleton —
+  giving WS its own independent limiter would silently reopen half the gap
+  (same policy, but a forgeable double allowance across transports).
+- The WS rate-limit key stays `${sub}:${toolName}`, decoded from the raw JWT
+  payload without signature verification (mirrors the HTTP path) — full
+  validation still happens in `validateInboundToken` immediately after.
+
+**Verify:** `cd demo_mcp_gateway && CI=true npx jest authorizeMcpRequest-rateLimit rateLimit.test adminConfig-ratelimit --forceExit --maxWorkers=4`
+— 3 suites, 23 tests passed; `npx tsc --noEmit` clean; full suite
+`CI=true npx jest --forceExit --maxWorkers=4` — 583 passed, 10 failed, all 10
+pre-existing in this worktree and unrelated (confirmed via `git stash`):
+missing `argon2` native module (`vault.test.ts`), missing
+`MCP_GW_CLIENT_ID` env var (`gateway-passthrough.test.ts`), and pre-existing
+`gateway-auth.test.ts` flakiness — none touch rate limiting or the WS path.
+
 ### 2026-08-15 — A2A bearer auth trusted an unverified JWT signature (identity spoofing)
 
 **Files changed:** `demo_api_server/middleware/a2aPingOneBearer.js`,
