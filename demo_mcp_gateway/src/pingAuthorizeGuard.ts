@@ -277,7 +277,10 @@ export async function guardToolCall(
   // REQUIRE_RAR_INTENT=true; fail-closed if intent is required but none was declared.
   if (config.requireRarIntent === true) {
     const rarDetails = rarDetailsFromEnvelope(tratClaims ? { azd: tratClaims.azd } : undefined);
-    if (!rarDetails) {
+    // An empty authorization_details ([]) is MISSING intent, not present intent — it
+    // constrains nothing, so it must fail closed like an absent envelope rather than
+    // slip past enforceRarSubset's no-details early return (HTTP-path parity).
+    if (!rarDetails || rarDetails.length === 0) {
       return { permitted: false, reason: 'rar_intent_required: authorization_details required (RFC 9396)' };
     }
     const r = enforceRarSubset(toolName, toolArgs as RarToolArgs, rarDetails);

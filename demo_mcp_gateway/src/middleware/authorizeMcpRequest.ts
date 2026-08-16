@@ -207,11 +207,23 @@ function parseJsonRpcBody(body: Buffer): JsonRpcBody {
 // Module-level rate-limiter singleton — created lazily from config on first request.
 // One limiter per gateway process. Reset via _resetRateLimiterForTest in tests.
 let _rateLimiter: SlidingWindowLimiter | null = null;
+// Thresholds captured when the singleton was built. SlidingWindowLimiter freezes
+// windowMs/maxRequests at construction, so a runtime reconfig via POST /admin/config
+// (adminConfig.ts mutates config.rateLimit*) would otherwise be a silent no-op until
+// restart. We rebuild the singleton when either value changes.
+let _rateLimiterWindowMs: number | undefined;
+let _rateLimiterMaxRequests: number | undefined;
 // Exported so the WS transport (index.ts) shares the SAME limiter instance —
 // an agent's bucket must be one shared count across transports, not two.
 export function getRateLimiter(config: { rateLimitMaxRequests: number; rateLimitWindowMs: number }): SlidingWindowLimiter {
-  if (!_rateLimiter) {
+  if (
+    !_rateLimiter ||
+    _rateLimiterWindowMs !== config.rateLimitWindowMs ||
+    _rateLimiterMaxRequests !== config.rateLimitMaxRequests
+  ) {
     _rateLimiter = new SlidingWindowLimiter(config.rateLimitWindowMs, config.rateLimitMaxRequests);
+    _rateLimiterWindowMs = config.rateLimitWindowMs;
+    _rateLimiterMaxRequests = config.rateLimitMaxRequests;
   }
   return _rateLimiter;
 }
@@ -219,6 +231,8 @@ export function getRateLimiter(config: { rateLimitMaxRequests: number; rateLimit
 /** Reset the rate-limiter singleton. Delegates to _resetLimiterForTest in rateLimit.ts. */
 export function resetRateLimiterForTest(): void {
   _rateLimiter = null;
+  _rateLimiterWindowMs = undefined;
+  _rateLimiterMaxRequests = undefined;
   _resetRateLimiterForTest();
 }
 
@@ -861,7 +875,11 @@ export function buildAuthorizeMcpRequest(
     // authorization_details (action match, amount <= granted, payee match). Hard only
     // when REQUIRE_RAR_INTENT=true; fail-closed if intent is required but none declared.
     if (config.requireRarIntent === true) {
-      if (!_rarDetails) {
+      // An empty authorization_details ([]) is MISSING intent, not present intent:
+      // it carries no amount/payee to constrain, so treating it as present would let
+      // a caller-supplied `authorization_details: []` skip the subset checks entirely.
+      // Fail closed exactly as for an absent envelope.
+      if (!_rarDetails || _rarDetails.length === 0) {
         _audCtx.rar = 'required-missing';
         setAuditHeader(res);
         res.writeHead(403, { 'Content-Type': 'application/json' });

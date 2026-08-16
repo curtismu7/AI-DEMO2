@@ -250,3 +250,60 @@ describe('UC18 rate-limiting — getRateLimiter is shared across HTTP and WS tra
     expect(fakeRes.statusCode).toBe(429);
   });
 });
+
+// ---------------------------------------------------------------------------
+// BUG #71: runtime rate-limit reconfig (POST /admin/config mutates config.rateLimit*)
+// was a silent no-op — getRateLimiter froze windowMs/maxRequests at first build and
+// kept serving them until process restart. getRateLimiter now rebuilds when either
+// value changes, while still returning the shared singleton when they are unchanged.
+// ---------------------------------------------------------------------------
+describe('BUG #71 — getRateLimiter honours a runtime max/window reconfig', () => {
+  afterEach(() => {
+    resetRateLimiterForTest();
+  });
+
+  it('same config object identity across calls returns the SAME singleton (unchanged case preserved)', () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 5, rateLimitWindowMs: 10000 });
+    const a = getRateLimiter(config);
+    const b = getRateLimiter(config);
+    expect(a).toBe(b);
+  });
+
+  it('raising rateLimitMaxRequests at runtime raises the enforced threshold', () => {
+    // Simulate the admin path mutating the live config object in place.
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 2, rateLimitWindowMs: 10000 });
+
+    // Exhaust the original limit of 2.
+    expect(getRateLimiter(config).check('user-x:transfer').allowed).toBe(true);
+    expect(getRateLimiter(config).check('user-x:transfer').allowed).toBe(true);
+    expect(getRateLimiter(config).check('user-x:transfer').allowed).toBe(false);
+
+    // adminConfig.ts mutates config.rateLimitMaxRequests → the NEXT getRateLimiter
+    // must rebuild against the new threshold instead of the frozen one.
+    (config as { rateLimitMaxRequests: number }).rateLimitMaxRequests = 10;
+    const limiter = getRateLimiter(config);
+    // Fresh limiter (rebuilt), so the raised ceiling is now in force.
+    for (let i = 0; i < 10; i++) {
+      expect(limiter.check('user-x:transfer').allowed).toBe(true);
+    }
+    expect(limiter.check('user-x:transfer').allowed).toBe(false);
+  });
+
+  it('lowering rateLimitMaxRequests at runtime lowers the enforced threshold', () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 10, rateLimitWindowMs: 10000 });
+    getRateLimiter(config); // build at 10
+
+    (config as { rateLimitMaxRequests: number }).rateLimitMaxRequests = 1;
+    const limiter = getRateLimiter(config);
+    expect(limiter.check('user-y:transfer').allowed).toBe(true);
+    expect(limiter.check('user-y:transfer').allowed).toBe(false);
+  });
+
+  it('changing rateLimitWindowMs rebuilds the limiter (new instance)', () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 3, rateLimitWindowMs: 10000 });
+    const before = getRateLimiter(config);
+    (config as { rateLimitWindowMs: number }).rateLimitWindowMs = 30000;
+    const after = getRateLimiter(config);
+    expect(after).not.toBe(before);
+  });
+});
