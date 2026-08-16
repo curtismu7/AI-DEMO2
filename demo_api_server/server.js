@@ -1018,7 +1018,11 @@ app.use('/api/pingone/setup', pingoneSetupRoutes);
 // always display flag state. See REGRESSION_PLAN.md §1 "configStore / Config UI".
 const { makeFeatureFlagsAuthGate } = require('./middleware/featureFlagsAuthGate');
 app.use('/api/admin/feature-flags', makeFeatureFlagsAuthGate(authenticateToken), featureFlagsRoutes);
-app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudit'));
+// requireAdmin, not just authenticateToken: this route dumps every PingOne
+// resource server + its scopes (Management API worker token) and can create
+// new OAuth scopes on any resource, so a signed-in demo customer must not
+// reach it. BUGS.md #12.
+app.use('/api/admin/scope-audit', authenticateToken, requireAdmin, require('./routes/scopeAudit'));
 app.use('/api/admin/token-compliance', authenticateToken, require('./routes/tokenCompliance'));
 app.use('/api/nav-configs', authenticateToken, require('./routes/navConfigs'));
 app.use('/api/user/nav-config', authenticateToken, require('./routes/userNavConfig'));
