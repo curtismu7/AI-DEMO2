@@ -776,6 +776,11 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
+      # Transaction-trace hop ingest — mirrors mcp-gateway's BFF_TRANSACTION_HOP_URL.
+      # BFF_INTERNAL_SECRET isn't wired for local compose (no demo_mcp_resource_server/.env
+      # in the setup flow yet); emitHop() fail-opens without it, so hops just don't
+      # appear locally — same no-op behavior as before this file existed.
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_mcp_resource_server/.env
         required: false

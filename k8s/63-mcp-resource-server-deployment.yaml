@@ -53,9 +53,17 @@ spec:
           value: "mcp-resource-server"
         - name: NODE_OPTIONS
           value: "-r /otel/otel-instrument.js"
+        # Transaction-trace hop ingest — mirrors mcp-gateway's BFF_TRANSACTION_HOP_URL.
+        # BFF_INTERNAL_SECRET comes from mcp-resource-server-secrets below. Without
+        # both, emitHop() silently no-ops (fail-open by design).
+        - name: BFF_TRANSACTION_HOP_URL
+          value: "https://demo-api-server:3001/internal/transaction-hop"
         envFrom:
         - configMapRef:
             name: ai-demo-config
+        - secretRef:
+            name: mcp-resource-server-secrets
+            optional: true
         volumeMounts:
         - name: otel-instrument
           mountPath: /otel

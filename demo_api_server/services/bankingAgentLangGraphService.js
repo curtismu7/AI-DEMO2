@@ -464,11 +464,15 @@ async function buildPingOneAdminToolSchemas() {
  */
 async function executePingOneTool(name, args) {
   const { callTool } = require('./mcpPingOneHttpAdapter');
+  const { emitHop } = require('./transactionHop');
+  const startedAt = Date.now();
   try {
     const result = await callTool(name, args || {});
+    emitHop({ phase: 'mcp.tool', op: name, durationMs: Date.now() - startedAt, status: 'ok' });
     return typeof result === 'string' ? result : JSON.stringify(result);
   } catch (err) {
     console.error('[executePingOneTool] Error calling tool %s: %s', name, err.message);
+    emitHop({ phase: 'mcp.tool', op: name, durationMs: Date.now() - startedAt, status: 'error' });
     return JSON.stringify({ error: 'pingone_mcp_unavailable', message: err.message });
   }
 }

@@ -17,6 +17,7 @@ import http from 'http';
 import os from 'os';
 import path from 'path';
 import type { AddressInfo } from 'net';
+import { __setFetchForTests } from '../src/transactionHop';
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-http-'));
 process.env.AIRLINES_DB_PATH = path.join(tmpDir, 'airlines.db');
@@ -103,6 +104,36 @@ describe('POST /mcp', () => {
     const payload = JSON.parse(r.json.result.content[0].text);
     expect(payload.source).toBe('sqlite');
     expect(payload.bookings[0].confirmationNumber).toBe('K7XR2M');
+  });
+
+  it('emits a transaction-trace hop when the caller forwards a correlationId', async () => {
+    const hopCalls: Array<{ url: string; body: any }> = [];
+    process.env.BFF_TRANSACTION_HOP_URL = 'http://bff/internal/transaction-hop';
+    process.env.BFF_INTERNAL_SECRET = 'sekrit';
+    __setFetchForTests(async (url: string, init: any) => {
+      hopCalls.push({ url, body: JSON.parse(init.body) });
+      return { ok: true } as any;
+    });
+    try {
+      const r = await post(
+        { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'get_airline_bookings', arguments: {}, correlationId: 'c-http-1' } },
+        token('airlines:read'),
+      );
+      expect(r.status).toBe(200);
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(hopCalls).toHaveLength(1);
+      expect(hopCalls[0].body).toMatchObject({
+        correlationId: 'c-http-1',
+        service: 'mcp-resource-server',
+        phase: 'mcp.tool',
+        op: 'get_airline_bookings',
+        status: 'ok',
+      });
+    } finally {
+      __setFetchForTests(undefined);
+      delete process.env.BFF_TRANSACTION_HOP_URL;
+      delete process.env.BFF_INTERNAL_SECRET;
+    }
   });
 
   it('filters tools/list by scope, same as the WebSocket path', async () => {
