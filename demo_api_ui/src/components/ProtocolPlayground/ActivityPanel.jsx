@@ -3,6 +3,8 @@ import JSONViewer from './JSONViewer';
 import TokenChainEventCard from './TokenChainEventCard';
 import TokenInspector from './TokenInspector';
 
+const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/protocol-playground';
+
 function errorText(error) {
   if (!error) return null;
   if (typeof error === 'string') return error;
@@ -48,6 +50,7 @@ export default function ActivityPanel({ results, error }) {
 
   const lastResult = entries.length > 0 ? entries[entries.length - 1] : null;
   const message = errorText(error);
+  const needsSignIn = entries.some((result) => result.response?.status === 401);
 
   return (
     <div className="activity-panel">
@@ -58,6 +61,12 @@ export default function ActivityPanel({ results, error }) {
       {message && (
         <div className="activity-error">
           ❌ {message}
+          {needsSignIn && (
+            <>
+              {' '}
+              <a className="activity-error__signin" href={LOGIN_URL}>Sign in</a>
+            </>
+          )}
         </div>
       )}
 
