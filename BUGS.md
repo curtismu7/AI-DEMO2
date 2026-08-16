@@ -637,12 +637,12 @@ DPoP (RFC 9449) proof verification, Web Bot Auth (`wbaMode=enforce`), and postur
 
 | # | Severity | Status | Title | File:Line |
 |---|----------|--------|-------|-----------|
-| 55 | High | 🔴 Open | Delegated-commerce consent scope check filters to bare `read`/`write` — namespaced-scope tools get vacuously-true consent | `demo_api_server/services/delegatedCommerceRuntime.js:82-95` |
+| 55 | High | 🟢 Fixed | Delegated-commerce consent scope check filters to bare `read`/`write` — namespaced-scope tools get vacuously-true consent | `demo_api_server/services/delegatedCommerceRuntime.js:82-95` |
 | 56 | High | ⏸️ Held (MCP) | Node gateway truncates multi-aud token to `aud[0]` — defeats the D-05 confused-deputy anti-bypass the Groovy path enforces (+ Rule 0b-2 comma-split parity nit) | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:160`, `pingAuthorizeGuard.ts:161`, `demo_authz_server/routes/decision.js:357` |
 | 57 | Medium | ⏸️ Held (MCP) | Reverse tabnabbing — `window.open` on a server-supplied elicitation URL omits `noopener` | `demo_api_ui/src/components/ElicitationDialog.jsx:222` |
 | 58 | Medium | ⏸️ Held (MCP) | Optional number field submits `NaN` → serialized as `null` to the BFF (client validation gap) | `demo_api_ui/src/components/ElicitationDialog.jsx:35-43,121` |
-| 59 | Medium | 🔴 Open | mastra_agent never closes the open text bubble at a tool-call boundary — same class as #43 (openai), distinct instance | `mastra_agent/src/runHandler.ts:119-124` |
-| 60 | Low | 🔴 Open | mastra_agent has no empty-messages fallback — empty/filtered `messages` calls `agent.stream([])` | `mastra_agent/src/runHandler.ts:89-94` |
+| 59 | Medium | 🟢 Fixed | mastra_agent never closes the open text bubble at a tool-call boundary — same class as #43 (openai), distinct instance | `mastra_agent/src/runHandler.ts:119-124` |
+| 60 | Low | 🟢 Fixed | mastra_agent has no empty-messages fallback — empty/filtered `messages` calls `agent.stream([])` | `mastra_agent/src/runHandler.ts:89-94` |
 | 61 | Low | ⏸️ Held (MCP) | Invest resource-server tool interpolates `period`/`limit` into the BFF query string unencoded/unvalidated | `demo_mcp_resource_server/src/tools/investToolHandler.ts:50-65` |
 
 ### 55. Delegated-commerce consent scope bypass — High
@@ -656,6 +656,7 @@ sufficient: registration.status === 'active' && !expired &&
 `scope-topology.json` declares tool scopes as namespaced strings (`sensitive:read`, `airlines:write`, `transfer`). The filter keeps only literal `read`/`write`, so any tool lacking those bare tokens yields `requiredScopes = []` → `[].every()` is vacuously `true` → `sufficient:true` regardless of what the customer consented to. `evaluateMcpFirstToolGate` (`mcpToolAuthorizationService.js:947`) then never raises `delegated_consent_scope_denied`.
 **Trigger:** customer consents to `['read']` only; the delegated agent calls `get_sensitive_account_details` (`["read","sensitive:read"]`→`["read"]`) or `create_wire_transfer` (`["read","transfer"]`→`["read"]`) and passes; vertical write tools with no secondary challenge (`redeem_miles`/`pay_airline_fee`, `["airlines:read","airlines:write"]`→`[]`) have this as their SOLE consent control and it's fully silent — a read-only-consented agent performs writes. (Banking `create_transfer`=`["write","transfer"]`→`["write"]` is correctly gated, which masked the bug.)
 **Fix:** classify each namespaced scope into an access class (any `*:write`/`transfer` ⇒ needs write consent, any `sensitive:*` ⇒ elevated) before `every()`, or compare consent against the tool's FULL `requiredScopes`. Filtering must never turn "requires write" into "requires nothing."
+**Fixed:** PR [#1882](https://github.com/curtismu7/AI-DEMO2/pull/1882) — classifies each namespaced scope into the customer's `read`/`write` consent vocabulary (any `*:write`/`write`/`transfer`/`sensitive:*` ⇒ write consent, unreachable by read-only). Read-only agents now denied on sensitive/wire/airline-write tools; banking gating unchanged. 40/40 tests across 8 suites.
 
 ### 56. Node gateway multi-aud truncation defeats D-05 anti-bypass — High
 ```ts
@@ -688,11 +689,13 @@ window.open(url, '_blank', 'secure');   // 'secure' is not a real feature; no no
 Both siblings close it (openai `run_handler.py:259`, langchain `message_processor.py:1240`); mastra only closes in its `tool-error` branch, not the success `tool-call` path. Same defect class as the fixed #43, distinct instance.
 **Trigger:** model streams lead-in text then calls a tool → `TEXT_MESSAGE_START` with no matching `END` before `TOOL_CALL_START`; post-tool narration merges into the still-open bubble (every text msg reuses `messageId: this.runId`) → tool card renders interleaved inside an unterminated assistant message.
 **Fix:** `if (streaming) { await emitter.onLlmEnd(); streaming = false; }` in the `tool-call` branch.
+**Fixed:** PR [#1880](https://github.com/curtismu7/AI-DEMO2/pull/1880) (with #60). 6/6 tests, tsc clean.
 
 ### 60. mastra no empty-messages fallback — Low
 `coreMessages` filters to string-content messages; if empty/all-filtered, `agent.stream([])` is called with no user turn (the openai sibling guards with `... or [{"role":"user","content":""}]`).
 **Trigger:** malformed/empty `messages` in the `/run` payload → the AI SDK errors or yields an empty stream → generic run failure instead of graceful handling.
 **Fix:** fall back to a single placeholder user message when `coreMessages.length === 0`.
+**Fixed:** PR [#1880](https://github.com/curtismu7/AI-DEMO2/pull/1880) (with #59) — placeholder `{role:'user',content:''}` when empty, mirroring openai sibling.
 
 ### 61. Invest tool unencoded query params — Low
 ```ts
