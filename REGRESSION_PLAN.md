@@ -102,6 +102,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-15 — Self-service user creation let any customer self-grant admin role
+
+**Files changed:** `demo_api_server/routes/selfServiceUsers.js`,
+`demo_api_server/tests/selfServiceUsersAdminGate.test.js`
+
+**What was broken:** `POST /api/self-service/users` accepted `role` from the
+request body, validated only with `isIn(['customer','admin'])`. Unlike the
+sibling `DELETE /:userId` and `GET /` handlers in the same file, it had no
+`req.user.role !== 'admin'` gate. Any authenticated (non-admin) customer could
+POST `{ ..., role: 'admin' }` and receive a new PingOne user with admin role
+assignments granted via `ensureAdminRoleAssignments` — full privilege
+escalation, no admin session involved.
+
+**What was fixed:** Added a gate in the `POST /` handler: if the requested
+`role === 'admin'` and the caller is missing or not `req.user.role === 'admin'`,
+reject with the same `OAuthError`/`INSUFFICIENT_SCOPE`/403 shape the sibling
+handlers use, before `createPingOneUser`/`ensureAdminRoleAssignments` run.
+Legitimate customer self-service signup (`role` omitted or `'customer'`) is
+untouched; an admin caller may still use this endpoint to create another admin.
+
+**Do not break:** Customer self-service account creation with no `role` or
+`role: 'customer'` must keep returning 201. Don't broaden this to an
+unconditional admin-only gate on the whole route — that would break the
+route's actual purpose.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4 tests/selfServiceUsersAdminGate.test.js`
+
 ### 2026-08-15 — `/api/admin/scope-audit` had no admin gate (BUGS.md #12)
 
 **Files changed:** `demo_api_server/server.js` (+ `demo_api_server/tests/routes/scopeAudit.adminGate.test.js`).
