@@ -102,6 +102,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-16 — Aborted AG-UI run's cleanup clobbered the current run's abort controller (BUGS.md #51)
+
+**Files changed:** `demo_api_ui/src/hooks/useAgentRun.js`,
+`demo_api_ui/src/hooks/__tests__/useAgentRun.abortRace.test.js` (new)
+
+**What was broken:** `useAgentRun` is instantiated exactly once in `AIAgent.js`,
+so a single `abortRef` is shared across every send path (typed message, chip,
+HITL resume). `run()`'s top correctly aborts an in-flight run and installs a
+new `AbortController` when called again, but the *old* run's `finally` block
+unconditionally set `abortRef.current = null` and `setIsRunning(false)` — even
+after a newer run had already reassigned `abortRef.current` to its own
+controller. The old run's late async cleanup wiped out the current run's
+controller, so `abort()` (called on logout and on unmount) silently became a
+no-op: the actually-active SSE stream kept running past logout/navigation,
+still dispatching events into reset agent state.
+
+**What was fixed:** In `run()`'s `finally` block, only clear `abortRef.current`
+and flip `isRunning` when `abortRef.current === controller` (this invocation's
+own controller) — i.e. only when no newer run has superseded this one. The
+abort-the-previous-run-on-new-call behavior at the top of `run()` is unchanged.
+
+**Do not break:** `run()` must still abort a prior in-flight run when called
+again. `abort()` must remain effective against whichever run is actually
+current, including after an older superseded run's cleanup has resolved.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/hooks/__tests__/useAgentRun.abortRace.test.js src/hooks/__tests__/useAgentRun.patch.test.js` (17/17 passed); full suite `npx vitest run` (1059/1059 suites, 3070 passed/24 pending/0 failed); `npx vite build` exits 0.
+
 ### 2026-08-16 — authz-server rule-write endpoints unauthenticated on docker-compose (BUGS.md #34)
 
 **Files changed:** `demo_authz_server/routes/rulesWrite.js`,

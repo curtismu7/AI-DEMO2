@@ -266,8 +266,15 @@ export function useAgentRun({
     } finally {
       closeSse();
       reader.releaseLock();
-      abortRef.current = null;
-      setIsRunning(false);
+      // Only clear the shared ref / flip running state if it still belongs to
+      // THIS invocation. If a newer run() call has since superseded this one
+      // (aborting it and installing its own controller), that newer run's
+      // controller and running state must not be clobbered by this run's
+      // late cleanup.
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsRunning(false);
+      }
     }
   }, []);
 
