@@ -25,6 +25,7 @@ function createWorkforceStore() {
   }
   function requestTimeOff(userId, { days }) {
     const data = get(userId);
+    if (!Number.isFinite(days) || days <= 0) return { error: 'invalid days: must be a positive number' };
     if (data.pto.balance < days) return { error: `insufficient PTO: ${data.pto.balance} day(s) available` };
     data.pto.balance -= days;
     return { days, remaining: data.pto.balance };

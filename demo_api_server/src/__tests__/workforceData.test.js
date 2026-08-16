@@ -31,4 +31,19 @@ describe('workforce data store', () => {
     const out = store.requestTimeOff('user-a', { days: 999 });
     expect(out.error).toBeDefined();
   });
+
+  it('requestTimeOff rejects negative days without mutating the balance', () => {
+    const before = store.get('user-a').pto.balance;
+    const out = store.requestTimeOff('user-a', { days: -5 });
+    expect(out.error).toBeDefined();
+    expect(out.remaining).toBeUndefined();
+    expect(store.get('user-a').pto.balance).toBe(before);
+  });
+
+  it('requestTimeOff rejects NaN days without mutating the balance', () => {
+    const before = store.get('user-a').pto.balance;
+    const out = store.requestTimeOff('user-a', { days: NaN });
+    expect(out.error).toBeDefined();
+    expect(store.get('user-a').pto.balance).toBe(before);
+  });
 });
