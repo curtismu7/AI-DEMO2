@@ -92,6 +92,10 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
         role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
         content: m.content,
       }));
+    // An empty/all-filtered messages array would call agent.stream([]) with no
+    // user turn, which the AI SDK errors on or yields an empty stream. Fall back
+    // to a single placeholder user message, mirroring the openai sibling.
+    if (coreMessages.length === 0) coreMessages.push({ role: 'user' as const, content: '' });
     const stream = await agent.stream(
       coreMessages as Parameters<typeof agent.stream>[0],
       { abortSignal: abortController.signal },
@@ -117,6 +121,14 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
         }
         await emitter.onLlmToken(part.textDelta ?? '');
       } else if (part.type === 'tool-call') {
+        // Close any open streaming text message before the tool card, so the
+        // TEXT_MESSAGE_START gets a matching TEXT_MESSAGE_END and post-tool
+        // narration starts a fresh bubble instead of merging into an
+        // unterminated one. Mirrors the 'tool-error' branch and both siblings.
+        if (streaming) {
+          await emitter.onLlmEnd();
+          streaming = false;
+        }
         await emitter.onToolStart(
           part.toolCallId as string,
           part.toolName as string,
