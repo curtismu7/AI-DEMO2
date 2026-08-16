@@ -50,6 +50,75 @@ describe('manufacturing releaseWorkOrder id honour', () => {
   });
 });
 
+describe('manufacturing approve_purchase_order status guard', () => {
+  it('approves a genuinely Pending Approval PO via explicit id', async () => {
+    const store = createManufacturingStore();
+    const { execute } = buildManufacturingTools(store);
+    const out = await execute('approve_purchase_order', { poId: 'PO-6001', amount: 300 }, { userId: 'u1' });
+    expect(out.result.status).toBe('Approved');
+    expect(out.result.id).toBe('PO-6001');
+  });
+
+  it('rejects re-approving an already-Delivered PO via explicit id (no silent mutation)', async () => {
+    const store = createManufacturingStore();
+    const { execute } = buildManufacturingTools(store);
+    const before = structuredClone(store.get('u1').purchaseOrders.find((p) => p.id === 'PO-6004'));
+    expect(before.status).toBe('Delivered');
+
+    const out = await execute('approve_purchase_order', { poId: 'PO-6004', amount: 300 }, { userId: 'u1' });
+    expect(out.result.error).toBeTruthy();
+
+    const after = store.get('u1').purchaseOrders.find((p) => p.id === 'PO-6004');
+    expect(after).toEqual(before);
+  });
+
+  it('no-id fallback picks a genuinely Pending Approval PO, not just arr[0]', async () => {
+    const store = createManufacturingStore();
+    const { execute } = buildManufacturingTools(store);
+    // The dead-code match was `_arr.find(status === 'Pending')` — the real seed value
+    // is 'Pending Approval', so that branch never matched and the fallback silently
+    // degraded to arr[0] regardless of status. Put a non-pending PO first to prove the
+    // fallback now genuinely prefers a Pending Approval row over blindly taking arr[0].
+    const pos = store.get('u1').purchaseOrders;
+    pos[0].status = 'Approved'; // PO-6001, normally first and Pending Approval
+    const nextPending = pos.find((p) => p.id !== pos[0].id && p.status === 'Pending Approval');
+    expect(nextPending).toBeTruthy();
+
+    const out = await execute('approve_purchase_order', { amount: 300 }, { userId: 'u1' });
+    expect(out.result.status).toBe('Approved');
+    expect(out.result.id).toBe(nextPending.id);
+  });
+
+  it('no-id fallback still completes (does not error) when every PO is already non-pending', async () => {
+    const store = createManufacturingStore();
+    const { execute } = buildManufacturingTools(store);
+    // The amount-driven chip ("approve a $300 purchase order") carries no id and must
+    // always complete for the demo to run — useCases.chipCompletes.test.js enforces this
+    // across every vertical's amount-gated tool. Unlike the explicit-id path, the no-id
+    // fallback intentionally does not gate on status, so exhausting every Pending Approval
+    // PO (e.g. from repeated UC6/7/8/22 demo calls sharing one store) still succeeds.
+    const pos = store.get('u1').purchaseOrders;
+    pos.forEach((p) => { p.status = 'Delivered'; });
+
+    const out = await execute('approve_purchase_order', { amount: 300 }, { userId: 'u1' });
+    expect(out.result.error).toBeUndefined();
+    expect(out.result.status).toBe('Approved');
+    expect(out.result.id).toBe(pos[0].id);
+  });
+
+  it('does not gate on amount vs PO total — amount only drives the upstream Authorize amount-band gate (UC6/7/8), same as healthcare pay_bill', async () => {
+    const store = createManufacturingStore();
+    const { execute } = buildManufacturingTools(store);
+    // PO-6001's real total is 8750; the UC6/7/8 demo intentionally passes synthetic
+    // amounts (300/600/2500 — see stepVerification.amountGateBand.test.js) that never
+    // match a real PO total, so handler-level amount==total validation would break
+    // the demo's amount-gate chips.
+    const out = await execute('approve_purchase_order', { poId: 'PO-6001', amount: 300 }, { userId: 'u1' });
+    expect(out.result.status).toBe('Approved');
+    expect(out.result.total).toBe(8750);
+  });
+});
+
 describe('government payFee id honour', () => {
   it('does not pay a different fee when permitId is unknown', () => {
     const store = createGovernmentStore();
