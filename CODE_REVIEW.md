@@ -55,6 +55,14 @@ Fail-open is per-gate and env-toggleable (`tokenIntrospection.js:58` `INTROSPECT
 ## Residual thread-safety (not covered by the #40/#41 fixes)
 `p1az-decision.groovy` writes `globals._p1azTokenCache` **unsynchronized** at `:119`, `:167`, `:889` — the 401-refresh path (`:889` clear-then-refetch) is a check-then-act race. Benign today (torn cache just refetches) but inconsistent with the `synchronized(globals)` discipline now applied in `uc18-rate-limit.groovy` and `jwks-token-validation.groovy`. Standardize on one helper.
 
+## demo_mcp_gateway — two findings that cross into likely-real defects
+Beyond the HTTP/WS duplication (theme 1/2), the gateway review surfaced two items that read as functional/security bugs, not just design debt — worth triaging like BUGS.md entries:
+
+- **[HIGH — likely security bug] DPoP (RFC 9449), Web Bot Auth, and posture recording exist ONLY on the HTTP path** (`authorizeMcpRequest.ts:717-830`; zero hits in `index.ts` WS handler). So `REQUIRE_DPOP_PROOF=true` / `wbaMode=enforce` are **dodgeable by switching to the WebSocket transport**, and `/health` posture is blind to WS traffic. Same bug class as the already-fixed #13 (WS rate-limit bypass) — a security control enforced on one transport only.
+- **[HIGH — likely functional bug] `handleHttp` in `index.ts:181-323` is dead code, but it holds the ONLY implementation of `POST /admin/clear-token-cache`** — which `demo_api_server/server.js` still calls on logout. The real listener (`GatewayServer.handleRequest`) never ported that route, so the logout token-cache flush silently 404s and **never runs** — an exchanged-token replay window stays open until TTL. (Also leaves RFC 9728 metadata in two drifting copies.) Port the two missing routes into `GatewayServer`, delete `handleHttp`.
+
+Other gateway design notes: two P1AZ PDP clients with transport-differing failover (`pingAuthorizeGuard.ts` WS-only vs `auth/PingOneAuthorizeClient.ts` HTTP-only); `handleMessage` takes 14 positional args / `guardToolCall` 11 (want a `RequestContext`); logging split by transport (`teachLog` on HTTP, `console.*` on WS — WS denials never reach the teach log); security flags read raw from `process.env` at call sites bypassing `/admin/config` visibility; `any`-escapes cluster at token-claim decode boundaries (recommend a zod/guard claims parser). `auth/authorizeMcpRequestCore.ts` already proves the right one-shared-pipeline pattern — migrate both transports onto it.
+
 ## Suggested priority order
 1. Add cross-file/golden tests pinning the 4 HITL-receipt copies and the Groovy↔Node 18-key payload (cheap, stops the most dangerous drift).
 2. Extract one shared `decodeJwt()` helper; delete the 6 UI copies + 2 dead ones.
