@@ -102,6 +102,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-15 — `/api/admin/scope-audit` had no admin gate (BUGS.md #12)
+
+**Files changed:** `demo_api_server/server.js` (+ `demo_api_server/tests/routes/scopeAudit.adminGate.test.js`).
+
+**What was broken:** `/api/admin/scope-audit` was mounted with
+`authenticateToken` only — no `requireAdmin` — unlike every other
+`/api/admin/*` route (`admin.js`, `adminAgentTools.js`, `mgmt-api`, and
+`groupMembership.js`'s local gate). Any signed-in customer could call
+`GET /api/admin/scope-audit/resources` (dumps every PingOne resource server +
+its scopes via the Management API worker token — information disclosure) and
+`POST /api/admin/scope-audit/scopes` (creates a new OAuth scope on any PingOne
+resource — a live tenant write).
+
+**What was fixed:** added `requireAdmin` (from `middleware/auth.js`) to the
+mount chain in `server.js`, matching the exact pattern already used for
+`/api/admin/mgmt-api`: `authenticateToken, requireAdmin, <router>`. No change
+to `routes/scopeAudit.js`'s handler logic.
+
+**Do not break:**
+
+- Keep `requireAdmin` after `authenticateToken` in the `/api/admin/scope-audit`
+  mount chain — removing it reopens the information-disclosure/write hole.
+- Don't move the gate into `routes/scopeAudit.js` itself unless the mount
+  point pattern for sibling `/api/admin/*` routes changes too — consistency
+  with `mgmt-api` is the point.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/scopeAudit.adminGate.test.js --forceExit`
+— 4 tests, 1 suite (non-admin 403 on both routes, admin clears the gate on
+both routes); full suite `CI=true npm test -- --forceExit --maxWorkers=4` —
+756 suites passed, 9505 tests passed, 1 pre-existing unrelated flake
+(`rfc9728-integration.test.js` timing assertion, passes in isolation).
+
 ### 2026-08-15 — UC18 rate limiting was enforced on the HTTP transport only; WebSocket, the gateway's primary ingress, bypassed it entirely
 
 **Files changed:** `demo_mcp_gateway/src/index.ts`,
