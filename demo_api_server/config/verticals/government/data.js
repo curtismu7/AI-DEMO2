@@ -12,14 +12,29 @@ const { createSeedStore } = require('../shared/createSeedStore');
 function createGovernmentStore() {
   return createSeedStore(path.join(__dirname, 'seed.json'), {
     payFee(data, { amount, permitId } = {}) {
-      const item = data.fees.items.find((f) => f.permitId === permitId || f.id === permitId)
-        || data.fees.items.find((f) => f.status === 'Outstanding');
-      if (item) {
-        item.status = 'Paid';
-        data.fees.total = Math.max(0, Number((data.fees.total - item.amount).toFixed(2)));
+      // When the caller names a permit/fee, honour that id only. Falling back
+      // to "first Outstanding" on a miss paid a different fee and still
+      // reported success (e.g. permitId P-DOES-NOT-EXIST → FEE-9001).
+      // Chips that omit permitId may still target the first outstanding fee.
+      let item;
+      if (permitId != null && permitId !== '') {
+        const id = String(permitId);
+        item = data.fees.items.find(
+          (f) => String(f.permitId) === id || String(f.id) === id,
+        );
+        if (!item) {
+          return { error: 'fee not found', permitId: id, status: 'not_found' };
+        }
+      } else {
+        item = data.fees.items.find((f) => f.status === 'Outstanding');
+        if (!item) {
+          return { error: 'no outstanding fees', status: 'not_found' };
+        }
       }
-      const paid = amount != null ? Number(amount) : item ? item.amount : 0;
-      return { paid, permitId: item ? item.permitId : permitId, remainingBalance: data.fees.total, status: 'Paid' };
+      item.status = 'Paid';
+      data.fees.total = Math.max(0, Number((data.fees.total - item.amount).toFixed(2)));
+      const paid = amount != null ? Number(amount) : item.amount;
+      return { paid, permitId: item.permitId, remainingBalance: data.fees.total, status: 'Paid' };
     },
     releaseRecord(data, permitId) {
       const permit = data.permits.find((p) => p.id === permitId);

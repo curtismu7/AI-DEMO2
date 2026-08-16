@@ -42,7 +42,7 @@
     }
   ],
   "fees": {
-    "total": 240,
+    "total": 480,
     "oldestDue": "2026-06-01",
     "items": [
       {
@@ -59,6 +59,22 @@
         "description": "License renewal fee",
         "amount": 90,
         "due": "2026-07-01",
+        "status": "Outstanding"
+      },
+      {
+        "id": "FEE-9003",
+        "permitId": "P-1002",
+        "description": "Business license renewal fee",
+        "amount": 150,
+        "due": "2026-06-15",
+        "status": "Outstanding"
+      },
+      {
+        "id": "FEE-9004",
+        "permitId": "P-1004",
+        "description": "Deck addition re-inspection fee",
+        "amount": 90,
+        "due": "2026-07-15",
         "status": "Outstanding"
       }
     ]

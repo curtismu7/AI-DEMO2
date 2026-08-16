@@ -20,8 +20,15 @@ function createManufacturingStore() {
       return { workOrder: wo, when: entry.date, status: 'Scheduled' };
     },
     releaseWorkOrder(data, orderId) {
-      const wo = data.workOrders.find((w) => w.id === orderId)
-        || data.workOrders.find((w) => w.status !== 'Released');
+      // Never fall back to "first open order". A missing/mismatched id must
+      // return null — otherwise "release WO-4002" (or a typo) silently releases
+      // WO-4001 and reports success. Callers that mean "any/first" (consent
+      // chips) must resolve the id themselves before calling.
+      if (orderId == null || orderId === '') return null;
+      const id = String(orderId);
+      const wo = data.workOrders.find((w) => String(w.id) === id)
+        || data.workOrders.find((w) => String(w.id) === `WO-${id}`)
+        || data.workOrders.find((w) => String(w.id).replace(/^WO-/i, '') === id);
       if (!wo) return null;
       wo.status = 'Released';
       return wo;
