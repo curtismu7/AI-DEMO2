@@ -74,8 +74,9 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
     const enriched: GatewayAuditEvent = event.correlationId
       ? event
       : { ...event, correlationId: getCorrelationId() };
-    // Same chokepoint, second consumer: the durable audit trail keeps its
-    // existing shape while the ledger gets a hop with identity fields on it.
+    // Same chokepoint, second consumer: the durable audit trail and the
+    // ledger hop now carry the identical `details` object — one computation,
+    // two destinations, so /api/mcp/audit and the ledger can never diverge.
     const decision = decisionFromAuditOutcome(enriched.outcome, enriched.details);
     emitHop({
       phase: 'gateway.authorize',
@@ -88,6 +89,7 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
         by: 'gateway',
         reason: decision.reason,
       },
+      details: enriched.details,
       status: enriched.outcome === 'failure' ? 'error' : 'ok',
     });
     axios

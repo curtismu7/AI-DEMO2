@@ -9,6 +9,7 @@
  */
 
 import axios from 'axios';
+import * as transactionHop from '../src/transactionHop';
 import {
   recordGatewayAudit,
   scopeAlertDetails,
@@ -59,6 +60,48 @@ describe('recordGatewayAudit — correlation id on audit events', () => {
   it('leaves correlationId undefined when no context is active', () => {
     recordGatewayAudit({ operation: 'get_accounts', outcome: 'success' }, config);
     expect(lastBody().correlationId).toBeUndefined();
+  });
+});
+
+describe('recordGatewayAudit — details forwarded into the ledger hop (no divergence from mcpAuditStore)', () => {
+  let emitHopSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockedAxios.post.mockReset();
+    mockedAxios.post.mockResolvedValue({ status: 200 } as never);
+    emitHopSpy = jest.spyOn(transactionHop, 'emitHop').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    emitHopSpy.mockRestore();
+  });
+
+  it('forwards the same details object built for mcpAuditStore into the emitHop details field', () => {
+    const details = {
+      httpStatus: 403,
+      dpop_bound: true,
+      dpop_verified: true,
+      alert: true,
+      reason: 'insufficient_scope',
+      requiredScopes: ['transfers:write'],
+      missingScopes: ['transfers:write'],
+      availableScopes: ['accounts:read'],
+    };
+    runWithCorrelation('cid-details-1', () =>
+      recordGatewayAudit({ operation: 'create_transfer', outcome: 'failure', details }, config),
+    );
+    expect(emitHopSpy).toHaveBeenCalledTimes(1);
+    const hopArg = emitHopSpy.mock.calls[0][0];
+    expect(hopArg.details).toEqual(details);
+    expect(hopArg.details).toEqual(lastBody().details);
+  });
+
+  it('omits details from the hop when the audit event carries none', () => {
+    runWithCorrelation('cid-details-2', () =>
+      recordGatewayAudit({ operation: 'get_accounts', outcome: 'success' }, config),
+    );
+    const hopArg = emitHopSpy.mock.calls[0][0];
+    expect(hopArg.details).toBeUndefined();
   });
 });
 
