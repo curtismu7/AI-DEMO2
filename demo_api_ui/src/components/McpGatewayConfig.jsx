@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import "./McpGatewayConfig.css";
 import CopyableValue from "./CopyableValue";
 import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
@@ -77,6 +77,7 @@ function EnvVarTable({ vars, title }) {
 
 function McpGatewayConfigInner() {
 	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
 	const { darkMode, toggleDarkMode } = useTheme();
 	const { data, loading, error, refetch: fetchConfig } = useGatewayLiveConfig();
 	const initialSubtab = searchParams.get("subtab");
@@ -87,10 +88,15 @@ function McpGatewayConfigInner() {
 	// Deep-link from AdminSideNav / ?subtab=tester → Agent Gateway Tester tab
 	useEffect(() => {
 		const subtab = searchParams.get("subtab");
+		if (subtab === "capabilities") {
+			// Capability Tour moved to its own route — redirect stale ?subtab=capabilities links.
+			navigate("/agent-gateway-capabilities", { replace: true });
+			return;
+		}
 		if (subtab && MGC_TABS.includes(subtab)) {
 			setActiveTab(subtab);
 		}
-	}, [searchParams]);
+	}, [searchParams, navigate]);
 
 	// Shared field context setters — used by seed effect and Step 2 onChange handlers.
 	// CopyableValue reads from context directly via fieldKey; no need to read values here.

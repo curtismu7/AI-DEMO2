@@ -79,7 +79,6 @@ import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
 import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
-import AgentGatewayCapabilitiesPage from "./pages/AgentGatewayCapabilitiesPage";
 import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
@@ -175,6 +174,7 @@ import PublicRoutes, {
   MFATestPageRoute,
   OASDemoPageRoute,
   PrivilegeMcpLearningPageRoute,
+  AgentGatewayCapabilitiesPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
   PrivilegeDemoPageRoute,
@@ -662,7 +662,9 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/agent-gateway-capabilities"
-                  element={<AgentGatewayCapabilitiesPage />}
+                  element={
+                    <AgentGatewayCapabilitiesPageRoute user={user} logout={logout} />
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"
