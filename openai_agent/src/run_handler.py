@@ -230,14 +230,33 @@ async def _handle_sdk_event(event, emitter: AGUIEmitter) -> None:
         item = event.item
         item_type = getattr(item, "type", None)
         if item_type == "tool_call_item":
+            # raw_item is a pydantic model (e.g. ResponseFunctionToolCall) for a
+            # real function-tool call, and only rarely a plain dict -- extract
+            # via both paths instead of assuming dict shape.
             raw = getattr(item, "raw_item", {})
-            tc_id = raw.get("call_id", uuid.uuid4().hex[:12]) if isinstance(raw, dict) else uuid.uuid4().hex[:12]
-            name = raw.get("name", "unknown") if isinstance(raw, dict) else "unknown"
-            args = raw.get("arguments", "{}") if isinstance(raw, dict) else "{}"
+            tc_id = (
+                getattr(raw, "call_id", None)
+                or (raw.get("call_id") if isinstance(raw, dict) else None)
+                or uuid.uuid4().hex[:12]
+            )
+            name = (
+                getattr(raw, "name", None)
+                or (raw.get("name") if isinstance(raw, dict) else None)
+                or "unknown"
+            )
+            args = (
+                getattr(raw, "arguments", None)
+                or (raw.get("arguments") if isinstance(raw, dict) else None)
+                or "{}"
+            )
             await emitter.on_tool_start(name, tc_id, args)
         elif item_type == "tool_call_output_item":
             raw = getattr(item, "raw_item", {})
-            tc_id = raw.get("call_id", "") if isinstance(raw, dict) else ""
+            tc_id = (
+                getattr(raw, "call_id", None)
+                or (raw.get("call_id") if isinstance(raw, dict) else None)
+                or ""
+            )
             output = getattr(item, "output", "")
             await emitter.on_tool_end(tc_id, output)
         elif item_type == "message_output_item":
