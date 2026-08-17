@@ -7221,7 +7221,12 @@ export default function BankingAgent({
     }
     if (!Object.keys(updates).length) return;
     try {
-      await apiClient.patch("/api/admin/feature-flags", { updates });
+      // _noAuthBanner: arming is best effort and the route is admin-gated, so
+      // any signed-out caller 401s here. That 401 is about this call, not the
+      // session. Public use cases skip arming entirely (see the caller), but
+      // this keeps a guest reaching it by another path from being told their
+      // session expired.
+      await apiClient.patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true });
       console.log(`[ensureRequiredDemoFlags] Auto-enabled ${Object.keys(updates).join(", ")} for ${reason}`);
     } catch (e) {
       console.warn(`[ensureRequiredDemoFlags] Could not auto-enable flags for ${reason}:`, e.message);

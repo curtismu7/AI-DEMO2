@@ -806,7 +806,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
     if (flags.length) {
       const updates = Object.fromEntries(flags.map((id) => [id, true]));
       try {
-        await apiClient.patch('/api/admin/feature-flags', { updates });
+        // _noAuthBanner: same reasoning as ensureRequiredDemoFlags — an arming
+        // 401 says nothing about the session, so it must not raise the banner.
+        await apiClient.patch('/api/admin/feature-flags', { updates }, { _noAuthBanner: true });
       } catch (e) {
         console.warn('[handleRun] Could not auto-enable flags:', e.message);
       }
