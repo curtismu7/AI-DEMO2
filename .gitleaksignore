@@ -17,3 +17,4 @@ snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json:generic-api-key:2
 snapshots/authorizeSnapshotCloudDelta.test.js:generic-api-key:82
 docs/scope-topology.md:generic-api-key:184
 docs/scope-topology.md:generic-api-key:205
+.claude/HANDOFF-2026-08-17-apikey-tools.md:generic-api-key:93
