@@ -6,10 +6,13 @@ export { dispatchGovernmentTool } from './governmentToolHandler';
 
 export const GOVERNMENT_TOOLS: McpToolDef[] = [
   {
-    name: 'list_permits',
+    // Named to match the chip-facing tool scope-topology.json already declares
+    // (tools.view_permits, requiredScopes ["read"]) — same pattern as
+    // healthcare's view_records (see router.ts HEALTHCARE_TOOLS comment).
+    name: 'view_permits',
     description: 'List all government permits for the authenticated user, including permit type, subject, status, and expiration date.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    requiredScopes: ['government:read'],
+    requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
       'show my permits',

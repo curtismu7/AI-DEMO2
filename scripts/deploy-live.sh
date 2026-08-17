@@ -34,16 +34,49 @@ for a in "$@"; do
   esac
 done
 
+# What the CONTAINERS last had deployed, not what the checkout was a moment ago.
+# Lives under .git/ deliberately: an untracked file in the working tree makes
+# sync-main-checkout.sh back off, which would break the very thing this script
+# runs first.
+STAMP="$(git rev-parse --path-format=absolute --git-common-dir)/deploy-live.last"
+
 if [ -z "$OLD" ]; then
-  OLD="$(git rev-parse HEAD)"
+  PRE="$(git rev-parse HEAD)"
   ./scripts/sync-main-checkout.sh
   NEW="$(git rev-parse HEAD)"
+  # Comparing against PRE is what made this script structurally unable to detect
+  # the case it exists for: the 15-minute launchd sync job has usually already
+  # advanced the checkout, so PRE == NEW and we reported "nothing to deploy"
+  # while the containers still ran the old code. Prefer the last SHA we actually
+  # deployed. Fall back to PRE when the stamp is missing (first run) or names a
+  # commit this repo no longer has (rebase, force-push, pruned branch).
+  if [ -s "$STAMP" ] && git cat-file -e "$(cat "$STAMP")^{commit}" 2>/dev/null; then
+    OLD="$(cat "$STAMP")"
+  else
+    OLD="$PRE"
+    STAMP_BOOTSTRAP=1
+  fi
 else
   NEW="${NEW:-$(git rev-parse HEAD)}"
 fi
 
 if [ "$OLD" = "$NEW" ]; then
-  echo "[deploy-live] checkout already at ${NEW:0:12} — nothing to deploy"
+  if [ "${STAMP_BOOTSTRAP:-0}" = "1" ]; then
+    # No stamp yet, so "checkout did not move" is the ONLY signal available —
+    # and it is the unreliable one. Say so instead of reporting a clean no-op:
+    # if a sync already advanced the checkout, the containers may still be stale.
+    echo "[deploy-live] no deploy stamp yet and the checkout did not move this run."
+    echo "[deploy-live] Cannot tell whether the containers are current. If they look stale,"
+    echo "[deploy-live] deploy an explicit range: scripts/deploy-live.sh <old-sha> ${NEW:0:12}"
+    if [ "$DRY_RUN" = "1" ]; then
+      echo "[deploy-live] DRY RUN — would stamp ${NEW:0:12} for later runs to compare against."
+    else
+      printf '%s\n' "$NEW" > "$STAMP"
+      echo "[deploy-live] stamped ${NEW:0:12} — later runs will compare against it."
+    fi
+    exit 0
+  fi
+  echo "[deploy-live] containers already serve ${NEW:0:12} — nothing to deploy"
   exit 0
 fi
 
@@ -142,6 +175,9 @@ done
 [ -n "$NOTES" ] && printf '%s' "$NOTES"
 
 if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
+  # Nothing to touch means the running containers already serve this range, so
+  # advance the stamp — otherwise every later run re-diffs from the same old SHA.
+  [ "$DRY_RUN" = "1" ] || printf '%s\n' "$NEW" > "$STAMP"
   echo "[deploy-live] no running service is affected by this range — done"
   exit 0
 fi
@@ -163,4 +199,5 @@ if [ -n "${RESTART_SET// /}" ]; then
   # shellcheck disable=SC2086
   ./run-docker.sh restart $RESTART_SET
 fi
+printf '%s\n' "$NEW" > "$STAMP"
 echo "[deploy-live] done — live stack serves ${NEW:0:12}"

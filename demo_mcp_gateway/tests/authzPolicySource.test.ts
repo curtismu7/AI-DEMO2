@@ -200,10 +200,10 @@ describe('C1 — guardToolsList sends the token\'s real audience', () => {
     expect(sentParams().McpResourceUri).toBe('mcpgateway.ping.demo');
   });
 
-  test('an array aud contributes its first entry', async () => {
+  test('an array aud contributes the full space-joined list (D-05: a decoy first entry cannot hide a real second audience from the PDP)', async () => {
     mockedAxios.post.mockResolvedValueOnce({ status: 200, data: { decision: 'PERMIT' } });
     await guardToolsList({ ...decoded, aud: ['aud-one', 'aud-two'] }, p1azOn, 'banking', []);
-    expect(sentParams().TokenAudience).toBe('aud-one');
+    expect(sentParams().TokenAudience).toBe('aud-one aud-two');
   });
 
   test('the audience key is omitted when the token has no aud', async () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import "./McpGatewayConfig.css";
 import CopyableValue from "./CopyableValue";
 import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
@@ -10,7 +10,6 @@ import McpTrafficPage from "./McpTrafficPage";
 import TokenSecurityTester from "./TokenSecurityTester";
 import CapabilityCallout from "./CapabilityCallout";
 import { AGENT_GATEWAY_CAPABILITIES } from "../config/capabilityLedgers/agentGatewayCapabilities";
-import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { useGatewayLiveConfig } from "../hooks/useGatewayLiveConfig";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
@@ -19,7 +18,7 @@ import { useTheme } from "../context/ThemeContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
-const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "traffic", "tokensecurity", "capabilities"];
+const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "traffic", "tokensecurity"];
 
 function StatusBadge({ running, devBypass, enabled }) {
 	if (!enabled) return <span className="mgc-badge mgc-badge--off">Disabled</span>;
@@ -78,6 +77,7 @@ function EnvVarTable({ vars, title }) {
 
 function McpGatewayConfigInner() {
 	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
 	const { darkMode, toggleDarkMode } = useTheme();
 	const { data, loading, error, refetch: fetchConfig } = useGatewayLiveConfig();
 	const initialSubtab = searchParams.get("subtab");
@@ -88,10 +88,15 @@ function McpGatewayConfigInner() {
 	// Deep-link from AdminSideNav / ?subtab=tester → Agent Gateway Tester tab
 	useEffect(() => {
 		const subtab = searchParams.get("subtab");
+		if (subtab === "capabilities") {
+			// Capability Tour moved to its own route — redirect stale ?subtab=capabilities links.
+			navigate("/agent-gateway-capabilities", { replace: true });
+			return;
+		}
 		if (subtab && MGC_TABS.includes(subtab)) {
 			setActiveTab(subtab);
 		}
-	}, [searchParams]);
+	}, [searchParams, navigate]);
 
 	// Shared field context setters — used by seed effect and Step 2 onChange handlers.
 	// CopyableValue reads from context directly via fieldKey; no need to read values here.
@@ -228,7 +233,7 @@ function McpGatewayConfigInner() {
 		<div className="mgc-root">
 			<CapabilityCallout
 				capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === "audit-logging")}
-				to="/agent-gateway-inspector?subtab=capabilities"
+				to="/agent-gateway-capabilities"
 			/>
 			<div className="mgc-header">
 				<div>
@@ -302,12 +307,6 @@ function McpGatewayConfigInner() {
 					onClick={() => setActiveTab("tokensecurity")}
 				>
 					Token Security
-				</button>
-				<button
-					className={`mgc-tab ${activeTab === "capabilities" ? "mgc-tab--active" : ""}`}
-					onClick={() => setActiveTab("capabilities")}
-				>
-					Capability Tour
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "mock" ? "mgc-tab--active" : ""}`}
@@ -696,13 +695,13 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 						<p className="mgc-doc-card-title">PingOne Agent Gateway + PingOne Authorize (AAM)</p>
 						<p className="mgc-doc-card-desc">How the PingOne Agent Gateway integrates with PingOne Authorize for policy-driven agent authorization</p>
 						<a className="mgc-doc-card-link" href="https://docs.pingidentity.com/pinggateway/2026/pingone/aam.html" target="_blank" rel="noopener noreferrer">
-							docs.pingidentity.com — PingGateway AAM
+							docs.pingidentity.com — PingOne Agent Gateway AAM
 						</a>
 					</div>
 					<div className="mgc-doc-card">
 						<p className="mgc-doc-card-title">MCP security gateway</p>
 						<p className="mgc-doc-card-desc">
-							Protect MCP servers with PingGateway: valid MCP only, audit requests and actors,
+							Protect MCP servers with PingOne Agent Gateway: valid MCP only, audit requests and actors,
 							throttle, coarse OAuth 2.0, fine-grained Authorize/Protect, and token transformation.
 							Includes the sample <code>mcp.json</code> route (McpAuditFilter → audit/mcp.audit.json).
 						</p>
@@ -714,7 +713,7 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 						<p className="mgc-doc-card-title">PingOne Agent Gateway Documentation</p>
 						<p className="mgc-doc-card-desc">Full installation, configuration, and deployment guide for Ping Identity Gateway 2025.11 and 2026</p>
 						<a className="mgc-doc-card-link" href="https://docs.pingidentity.com/pinggateway/2026/" target="_blank" rel="noopener noreferrer">
-							docs.pingidentity.com — PingGateway Docs
+							docs.pingidentity.com — PingOne Agent Gateway Docs
 						</a>
 					</div>
 				</div>
@@ -743,11 +742,6 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 			{activeTab === "tokensecurity" && (
 				<div className="mgc-panel">
 					<TokenSecurityTester />
-				</div>
-			)}
-			{activeTab === "capabilities" && (
-				<div className="mgc-panel">
-					<AgentGatewayCapabilitiesPage />
 				</div>
 			)}
 		</div>

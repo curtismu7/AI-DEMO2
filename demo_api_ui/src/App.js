@@ -28,6 +28,8 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
+import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
+import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
@@ -168,14 +170,16 @@ import PublicRoutes, {
   CodeSearchPageRoute,
   ConfigurePage,
   CopilotPageRoute,
+  DavinciLoginPageRoute,
+  DavinciExplainerRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
   LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
   PrivilegeMcpLearningPageRoute,
+  AgentGatewayCapabilitiesPageRoute,
   OAuthAcademyPageRoute,
-  OnboardingRoute,
   PrivilegeDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -662,7 +666,7 @@ function AppWithAuth() {
                 <Route
                   path="/agent-gateway-capabilities"
                   element={
-                    <Navigate to="/agent-gateway-inspector?subtab=capabilities" replace />
+                    <AgentGatewayCapabilitiesPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
@@ -710,6 +714,8 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route path="/davinci-login" element={<DavinciLoginPageRoute />} />
+                <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
@@ -904,10 +910,6 @@ function AppWithAuth() {
                       <Navigate to="/" replace />
                     )
                   }
-                />
-                <Route
-                  path="/onboarding"
-                  element={<OnboardingRoute user={user} />}
                 />
                 {/* Group policy board — live decision per vertical; the page the
                     group demo is for. Signed-in users only (it reads their own
@@ -1259,17 +1261,10 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/themes"
-                              element={
-                                // The backend mounts vertical-themes behind
-                                // authenticateToken only (see verticalThemes.js) —
-                                // any signed-in user, not admin-only. Match that
-                                // here instead of forcing an admin re-login.
-                                user ? (
-                                  <AdminThemesPage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
-                              }
+                              // Fully public — no session/user gate. Matches the
+                              // backend, which mounts vertical-themes with no
+                              // auth middleware at all (see verticalThemes.js).
+                              element={<AdminThemesPage />}
                             />
                             <Route
                               path="/users"
@@ -1512,6 +1507,14 @@ function AppWithAuth() {
                             <Route
                               path="/gateway-enforcement-map"
                               element={<GatewayEnforcementMapPage />}
+                            />
+                            <Route
+                              path="/resource-server-placement"
+                              element={<ResourceServerPlacementPage />}
+                            />
+                            <Route
+                              path="/resource-server-checkpoint"
+                              element={<ResourceServerCheckpointPage />}
                             />
                             <Route
                               path="/discovery-preview"

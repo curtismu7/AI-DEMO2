@@ -32,8 +32,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--pp-number-bg);
-  border: 2px solid var(--pp-number-border);
+  background: var(--pp-bg-surface);
+  border: 2px solid var(--pp-border);
   border-radius: 50%;
   font-weight: 700;
   font-size: 14px;
@@ -108,20 +108,35 @@
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 600;
-  border: 1px solid var(--pp-border);
+  border: 1px solid var(--pp-btn-primary-bg);
   border-radius: 4px;
-  background: var(--pp-bg-button);
-  color: var(--pp-text);
+  background: var(--pp-btn-primary-bg);
+  color: var(--pp-btn-primary-text);
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
 }
 
 .step-execute-btn:hover:not(:disabled) {
-  background: var(--pp-bg-button-hover);
-  border-color: var(--pp-text-muted);
+  background: var(--pp-btn-primary-hover);
+  border-color: var(--pp-btn-primary-hover);
 }
 
 .step-execute-btn:disabled {
+  background: var(--pp-btn-bg);
+  color: var(--pp-btn-text);
+  border-color: var(--pp-btn-border);
+  box-shadow: none;
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Success — the step completed with a 2xx response. Re-clickable (steps can
+   be re-run), so this needs its own :hover to win over the base hover rule. */
+.step-execute-btn.step-execute-btn--success,
+.step-execute-btn.step-execute-btn--success:hover:not(:disabled) {
+  background: var(--pp-ok-bg);
+  color: var(--pp-ok-text);
+  border-color: var(--pp-ok-border);
+  box-shadow: none;
 }

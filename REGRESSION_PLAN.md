@@ -56,6 +56,7 @@ minimal diff.
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
 | Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `langchain_agent/tests/test_codegraph_index_guard.py`, `langchain_agent/tests/test_build_codegraph.py`, `langchain_agent/tests/test_ensure_index.py`, `langchain_agent/tests/test_retrieve.py` |
+| Agent dashboard token-rail + filmstrip defaults (locked 2026-08-17, PR #1896) | Live Pipeline rail (float placement) defaults **collapsed** — `demo_api_ui/src/utils/tokenRailLayout.js` `readStoredTokenRailCollapsed()`, key `ud_token_rail_collapsed_v2` (unset → collapsed; bumped from `_v1` because the old default self-persisted `"0"` on every mount, so a bare default flip alone would never reach existing browsers — bump the key again if the default ever changes). Movie-reel filmstrip defaults **shown** — `ba_show_filmstrip` read as `!== "0"` in BOTH `AIAgent.js` (writer) and `UserDashboardPing2026.js` (listener); an explicit toggle-off must still persist "0" and stay hidden. Guarded by `demo_api_ui/src/utils/__tests__/tokenRailLayout.test.js`, `demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`, `demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js` |
 
 ---
 
@@ -101,6 +102,320 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-08-17 — Public use cases demanded a sign-in; no SoT for which steps need auth
+
+**Files changed:** `demo_api_server/config/auth-requirements.json` (new),
+`demo_api_server/config/authRequirements.js` (new),
+`demo_api_server/routes/useCases.js`,
+`demo_api_server/tests/authRequirements.test.js` (new),
+`demo_api_server/src/__tests__/useCases.route.test.js`,
+`demo_api_ui/src/utils/useCaseAuth.js` (new, + test),
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.publicUseCase.test.jsx` (new),
+`demo_api_ui/src/pages/UseCaseLauncherPage.js`,
+`demo_api_ui/src/services/apiClient.js` (+ `apiClient.noAuthBanner.test.js`),
+`scripts/check-auth-requirements.js` (new), `package.json`, `CLAUDE.md`
+
+**What was broken:** running UC24 ("What branches are near me?") signed out
+answered correctly — `POST /api/agent/invoke` returned 200 and rendered all
+seven branch cards — and then dropped "For a more personalized experience,
+please sign in." over the top of it. Two independent causes:
+
+1. `handleDemoStepSelect` armed feature flags before **every** demo step via
+   `PATCH /api/admin/feature-flags`. That route is admin-gated, so a guest
+   always 401s. `ensureRequiredDemoFlags` swallowed the error, but the
+   `apiClient` response interceptor had already raised the global
+   `SessionReauthBanner`. On `/` the banner is suppressed by
+   `isAuthenticatedAppSurface`, which is why this only looked broken on app pages.
+2. Every client gate asked "signed in, or on a marketing path?" and never "does
+   this step need a session at all?" — so a public step got a sign-in prompt
+   anywhere outside `/` and `/dashboard`.
+
+Nothing in the repo knew which use cases are public. The only auth-scoping fact
+was `PUBLIC_GUEST_ACTIONS` in `routes/agentRun.js` — action-level, one route,
+invisible to the UI. The ~55-entry catalog had no auth field.
+
+**What was fixed:** `config/auth-requirements.json` is now the SoT — 55 catalog
+entries plus 8 admin demo steps mapped to `public` | `user` | `admin`, the 15
+routes use cases link to, and the guest agent-action list. `GET /api/use-cases`
+stamps `uc.auth` on every entry so the UI has no copy of its own to drift. The
+chip gate, the NL-resume gate, the flag arming in `AIAgent.js` and the launcher
+tile arming in `UseCaseLauncherPage.js` all read it. `apiClient` gained a
+`_noAuthBanner` request flag for best-effort background calls whose 401 says
+nothing about the session.
+
+**Do not break:**
+- The SoT is a **UI-gating** fact, not an enforcement point. `PUBLIC_GUEST_ACTIONS`
+  in `routes/agentRun.js` still decides what a guest may run on `/api/agent/run`,
+  and every route keeps its own guard. Do not start trusting `uc.auth` server-side.
+- An id absent from the SoT resolves to `user`, never `public` — both the server
+  and client readers fail closed. Keep it that way.
+- `npm run authz:verify` (also in `hygiene:check`) is the no-drift gate. Check 5
+  proves the `PUBLIC_GUEST_ACTIONS` literal and `publicAgentActions` agree —
+  it parses that literal out of `agentRun.js` by regex, so **moving or renaming
+  the constant breaks the gate** (it fails loudly rather than silently passing).
+  Check 6 proves each `public` chip's text actually resolves to an allowed
+  action in **every** vertical; chip text is per-vertical, so one vertical's
+  phrasing can stop resolving while both lists still match. Don't reduce it to
+  banking-only.
+- `_noAuthBanner` is for calls whose 401 is expected and uninformative. Do not
+  put it on a call that actually proves the session is gone — the positive
+  control in `apiClient.noAuthBanner.test.js` guards that direction.
+
+**Verify:** `npm run authz:verify` → `OK — 63 use cases, 15 routes, 1 public
+agent action(s)`. Negative-tested both new checks: flipping UC23 to `public`
+trips the route-consistency check, flipping UC1 to `public` trips check 6 with
+11 cross-vertical errors. `cd demo_api_server && CI=true npm test -- --forceExit
+--maxWorkers=4`; `cd demo_api_ui && npm run test:unit && npm run build`.
+
+### 2026-08-17 — MCP 401 handshake made real; recordTokenEvent evidence never reached the client
+
+**Files changed:** `demo_api_server/services/mcpChallengeProbe.js` (new, + test),
+`demo_api_server/services/agentGatewayClient.js`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/routes/agentRun.js`,
+`demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` (+ its test),
+`demo_api_ui/src/components/TokenTopologyPanel.jsx` (+ its tests)
+
+**What was broken:**
+- The topology and token chain showed ONE MCP request per method. That was
+  accurate — the BFF holds its agent token before it speaks to the gateway, so
+  it never walked the spec's discovery handshake — but it hid the mechanism the
+  demo exists to teach: the MCP endpoint is an OAuth 2.1 protected resource that
+  challenges an anonymous caller and advertises its authorization server.
+- Separately, `req.recordTokenEvent()` events were invisible to the client.
+  `agentRun.js` seeded `initialTokenEvents` from
+  `buildSessionPreviewTokenEvents()`, which builds a NEW array — not
+  `req.agentContext.tokenEvents`, where `recordTokenEvent` writes. The
+  `tools_list_*` family therefore never reached the trace rail on the happy
+  path (only via the line-376 catch branch).
+
+**What was fixed:**
+- `mcpChallengeProbe.probeMcpChallenge()` issues the JSON-RPC method at
+  `<gateway>/mcp` with NO Authorization header, records the live 401 +
+  `WWW-Authenticate`, then GETs the advertised `resource_metadata` (RFC 9728).
+  Called before `tools/list` (agentGatewayClient) and before `tools/call`
+  (mcpToolPipeline, gateway path only). It never throws and its result is
+  unused by the callers — evidence only.
+- Two new trace steps, `tools-list-challenge` and `tools-call-challenge`, each
+  immediately before the authorized leg it precedes. A 401 is `status: 'done'`
+  (the control working) carrying `decision.outcome: 'DENY'` so the topology
+  badge paints the block; a non-401 answer to an anonymous call is `'error'`.
+- `agentRun.js` merges the `MCP_DISCOVERY_EVENT_TYPES` subset of
+  `req.tokenEvents` into the STATE_SNAPSHOT.
+
+**Do not break:**
+- The probe is evidence-only. Never let its result gate, short-circuit, or
+  delay the authenticated call that follows — swallow every failure.
+- The merge in `agentRun.js` is an allowlist on purpose. Merging all of
+  `req.tokenEvents` adds unrendered internal bookkeeping as Token Chain cards.
+- `buildChallengeStep` keys evidence on BOTH type and `phase`. Both legs emit
+  identical event types; matching on type alone puts the discovery challenge's
+  evidence on the tool-call card too.
+- `MCP_STEP_IDS` includes `tools-call-challenge` but NOT `tools-list-challenge`
+  — discovery stays on the spine, invocation hangs off the branch.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/mcpChallengeProbe.test.js --forceExit`
+· `cd demo_api_ui && npm run test:unit && npm run build`
+
+### 2026-08-16 — Dashboard rail default, movie-reel loss, invest-server audience drift, P1AZ probe INDETERMINATE
+
+**Files changed:** `demo_api_ui/src/utils/tokenRailLayout.js` (+ its test),
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`,
+`demo_api_ui/src/components/UserDashboardPing2026.test.js`,
+`demo_mcp_resource_server/src/index.ts`,
+`demo_mcp_resource_server/src/server/acceptedAudiences.ts` (new, + test),
+`demo_api_server/scripts/verifyA2aDelegationPolicy.js`
+
+**What was broken:**
+- Live Pipeline token rail opened expanded on the agent dashboard; wanted
+  collapsed by default. The old default ("expanded") was also self-persisted on
+  every mount, so a changed default alone would never reach existing browsers.
+- "Movie reel" filmstrip vanished from the float-placement dashboard: #1784
+  gated it behind `ba_show_filmstrip === "1"` (default OFF) when adding the
+  More › Movie reel toggle.
+- `get_airline_bookings` (and all 7 airlines + 4 invest tools) failed with
+  `Audience mismatch: got [mcp-invest.ping.demo], expected one of
+  [mcpserver.ping.demo, mcpgateway.ping.demo]` when a stale container env fanned
+  the banking MCP server's `MCP_SERVER_RESOURCE_URI` into
+  demo_mcp_resource_server. Checked-in config was correct; only the running
+  env had drifted.
+- `verify:a2a-policy` / `verify:authorize-parity` probes omitted `Amount`, the
+  exact shape live P1AZ evaluates INDETERMINATE (see 2026-08-03 memory; the PEP
+  itself already always sends `Amount: 0`).
+
+**What was fixed:** rail collapse key bumped to `ud_token_rail_collapsed_v2`
+with unset → collapsed; filmstrip gate default ON (`!== "0"`), explicit
+toggle-off still respected; resource server now always accepts its own
+canonical audience `mcp-invest.ping.demo` (`resolveAcceptedAudiences`, warns on
+stale env); probe base params send `Amount: 0` / `TransactionAmount: '0'`.
+
+**Do not break:** the Movie reel toggle must keep writing `ba_show_filmstrip`
+("0" hides); `resolveAcceptedAudiences` must UNION, never replace — first env
+entry stays the canonical RFC 9728 URI; probe `extra` overlays must keep
+overriding the base Amount. Live P1AZ INDETERMINATE always means bad request or
+bad policy — never treat it as permit-pending.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/tokenRailLayout.test.js src/components/__tests__/DashboardTokenRail.test.jsx src/components/UserDashboardPing2026.test.js` ·
+`cd demo_mcp_resource_server && npx jest && npx tsc --noEmit` ·
+`cd demo_api_server && npm run verify:authorize-parity` (control PERMIT, 7/7).
+Known residual: `verify:a2a-policy` FAILs airlines/admin depth-2
+(`mcp-invalid-actor`) until `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
+(already contains all 11 actor ids) is re-imported in the PingOne console.
+
+### 2026-08-16 — Gateway-unreachable failed OPEN to unauthorized local execution (BUGS.md #67, #68, #69)
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/mcpToolPipeline.gatewayUnreachableFailOpen.test.js` (new),
+`demo_api_server/tests/mcpGatewayClient.hitl403AuditTrail.test.js` (new)
+
+**What was broken:**
+- **#67 (HIGH):** When `useGateway` is true the BFF deliberately skips its own
+  authorize gate (`gatewayAuthoritative`) because the gateway is the sole PDP.
+  But `_normalizeGatewayNetworkError` turns a down/slow gateway into a
+  `GATEWAY_UNREACHABLE`/`GATEWAY_TIMEOUT` error whose message contains
+  `ECONNREFUSED`/"timed out", so the pipeline's `isConnErr` heuristic was true →
+  the tool ran via `callToolLocal`, bypassing the gateway, the MCP server, AND
+  PingOne Authorize (group/tier/RAR/scope). A down gateway meant every agent
+  tool call (transfers, cross-owner reads) executed locally with zero policy
+  enforcement — fail-open on the money-movement path, contradicting the
+  already-hardened no-bearer and exchange-failure sibling paths.
+- **#68 (MEDIUM):** The 403 `hitl_required` branch in `mcpGatewayClient` threw
+  WITHOUT `gwAuditTrail`, unlike every sibling obligation branch. The pipeline's
+  `hitl_required` handler reads `err.gwAuditTrail` to build the `gw-authorize`
+  Token Chain card; undefined there lost the P1AZ PERMIT-before-obligation
+  decision and ProofStrip rendered "Run failed before authorize-decision" on a
+  gate that actually fired.
+- **#69 (LOW):** Two raw `console.log`s logged always-undefined props
+  (`tool.name` on a string, `mcpAccessToken?.scope` on a JWT string) — the only
+  raw `console.log`s in a `logger`-based file, running on every non-skip call.
+
+**What was fixed:**
+- **#67:** When `useGateway`, a gateway transport error no longer falls back to
+  the local handler — the pipeline returns the `GATEWAY_UNREACHABLE` (503) /
+  `GATEWAY_TIMEOUT` (504) error instead. The degraded local-demo affordance is
+  gated behind the SAME opt-in as the exchange-failure fallback
+  (`ff_local_fallback_on_exchange_failure`, default OFF) and marks the result
+  `_degraded` / `policy_source: 'local-fallback'`. Non-gateway mode (direct MCP
+  server unreachable → local) is unchanged.
+- **#68:** Added `gwAuditTrail: _parseGwAuditTrail(response)` to the 403 HITL
+  throw, matching the sibling branches.
+- **#69:** Replaced the two `console.log`s with `logger.debug(_CAT, …)` using
+  `tool` directly.
+
+**Do not break:** The legitimately-opt-in fallback paths (exchange-failure F5;
+gateway-down under the flag) must still run when
+`ff_local_fallback_on_exchange_failure=true`. Non-gateway (direct MCP) local
+fallback on server-unreachable must stay intact. Do not alter the other gateway
+obligation branches (428 hitl/step-up/elicitation, generic 403 deny) that
+already carry `gwAuditTrail`.
+
+**Verify:** `cd demo_api_server && CI=true npm test -- tests/mcpToolPipeline.gatewayUnreachableFailOpen.test.js tests/mcpGatewayClient.hitl403AuditTrail.test.js tests/mcpToolPipeline.gatewayDenyEvidence.test.js tests/mcpToolPipeline.dynamicPush.test.js tests/mcpToolPipeline.killSwitch.test.js tests/mcpToolPipelineSseRequest.regression.test.js tests/mcpGatewayClient.weatherScopeTrail.test.js tests/pingOneAuthorizeIndeterminate.test.js tests/hitlBypass.regression.test.js --forceExit --maxWorkers=4` (9 suites, 33 tests passed).
+
+### 2026-08-16 — Delegated-commerce consent scope check bypassed for namespaced tool scopes (BUGS.md #55)
+
+**Files changed:** `demo_api_server/services/delegatedCommerceRuntime.js`,
+`demo_api_server/tests/delegatedCommerceRuntime.test.js`
+
+**What was broken:** `resolveConsentContext()` computed the tool's required
+scopes as `scopeTopology.toolScopes(tool).filter(s => s === 'read' || s === 'write')`
+— keeping ONLY literal `read`/`write` tokens. But `scope-topology.json` declares
+tool scopes as namespaced strings (`sensitive:read`, `airlines:write`,
+`transfer`). The filter dropped every namespaced scope, so any tool whose
+required scopes lacked a bare `read`/`write` produced `requiredScopes = []`, and
+`[].every(...)` is vacuously `true` → `sufficient: true` regardless of consent.
+A read-only-consented delegated agent could invoke `get_sensitive_account_details`
+(full acct#/routing/SWIFT) and `create_wire_transfer`; `cancel_airline_reservation`/
+`redeem_miles`/`pay_airline_fee` (`["airlines:read","airlines:write"]`) had NO
+consent check at all. The enforcement gate (`evaluateMcpFirstToolGate`) keys off
+`sufficient`, so this silently fail-opened.
+
+**What was fixed:** Stop collapsing required scopes to the bare read/write
+subset. Classify each namespaced required scope into the customer's consent
+vocabulary (`read`/`write` — the only values `routes/delegatedCommerce.js`
+`ALLOWED_SCOPES` accepts): any `*:write`, bare `write`, `transfer`, or
+`sensitive:*` demands `write` consent (highest grantable tier, unreachable by
+read-only consent); everything else demands `read`. Write consent implies read.
+`requiredScopes` surfaced in the denial body is now the full tool scope list.
+
+**Do not break:** Banking `create_transfer` (`["write","transfer"]`) must stay
+write-gated (read-only denied, write allowed) — unchanged. Legitimate read-only
+tools must still pass for read-only consent. Claimed/staged registrations must
+still early-return `null` (default MCP agent not 403'd before consent).
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/delegatedCommerceRuntime.test.js --forceExit --maxWorkers=4` (17/17 passed); related suites `tests/delegatedCommerceService.test.js tests/delegatedCommerceRoutes.test.js tests/delegationGate.unit.test.js tests/agentConsentRoute.test.js` (17/17) and gate regressions `tests/mcpToolPipelineSseRequest.regression.test.js tests/mcpToolPipeline.gatewayDenyEvidence.test.js tests/agentPreflight.regression.test.js` (23/23).
+
+### 2026-08-16 — Aborted AG-UI run's cleanup clobbered the current run's abort controller (BUGS.md #51)
+
+**Files changed:** `demo_api_ui/src/hooks/useAgentRun.js`,
+`demo_api_ui/src/hooks/__tests__/useAgentRun.abortRace.test.js` (new)
+
+**What was broken:** `useAgentRun` is instantiated exactly once in `AIAgent.js`,
+so a single `abortRef` is shared across every send path (typed message, chip,
+HITL resume). `run()`'s top correctly aborts an in-flight run and installs a
+new `AbortController` when called again, but the *old* run's `finally` block
+unconditionally set `abortRef.current = null` and `setIsRunning(false)` — even
+after a newer run had already reassigned `abortRef.current` to its own
+controller. The old run's late async cleanup wiped out the current run's
+controller, so `abort()` (called on logout and on unmount) silently became a
+no-op: the actually-active SSE stream kept running past logout/navigation,
+still dispatching events into reset agent state.
+
+**What was fixed:** In `run()`'s `finally` block, only clear `abortRef.current`
+and flip `isRunning` when `abortRef.current === controller` (this invocation's
+own controller) — i.e. only when no newer run has superseded this one. The
+abort-the-previous-run-on-new-call behavior at the top of `run()` is unchanged.
+
+**Do not break:** `run()` must still abort a prior in-flight run when called
+again. `abort()` must remain effective against whichever run is actually
+current, including after an older superseded run's cleanup has resolved.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/hooks/__tests__/useAgentRun.abortRace.test.js src/hooks/__tests__/useAgentRun.patch.test.js` (17/17 passed); full suite `npx vitest run` (1059/1059 suites, 3070 passed/24 pending/0 failed); `npx vite build` exits 0.
+
+### 2026-08-16 — authz-server rule-write endpoints unauthenticated on docker-compose (BUGS.md #34)
+
+**Files changed:** `demo_authz_server/routes/rulesWrite.js`,
+`demo_authz_server/rulesWrite.test.js`, `docker-compose.yml`
+
+**What was broken:** `guardOk()` in `rulesWrite.js` returned `true` (guard
+inactive) whenever `AUTHZ_ADMIN_TOKEN` was unset, justified by a comment
+claiming the server "binds 127.0.0.1 as a sidecar" — true for the k8s
+deployment (no `HOST` override there), but not for docker-compose:
+`docker-compose.yml` sets `HOST: "0.0.0.0"` for `authz-server` and publishes
+`9001:9001` to the host, and `AUTHZ_ADMIN_TOKEN` was never set anywhere in the
+repo. With the stack running normally (the `demo-auth` profile is part of the
+always-up flow via `run-docker.sh`), anyone reaching `localhost:9001` could
+`PUT /rules` with zero credentials — e.g. zeroing `create_transfer`'s
+`requiredScopes` so `decision.js` skips scope enforcement and HITL/step-up
+gates entirely, persisted live until `/rules/reset` (also unauthenticated).
+
+**What was fixed:** `guardOk()`'s no-token fallback now checks the bind
+address (`isLoopbackBind()`, `demo_authz_server/routes/rulesWrite.js`): it
+stays inactive only when `HOST` is `127.0.0.1`/`localhost`/`::1` (the k8s
+sidecar default). A non-loopback bind (docker-compose's `HOST=0.0.0.0`) with
+no token now fails closed (401) instead of silently allowing writes.
+`docker-compose.yml` also gets a real dev-only default
+`AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"`
+on both `authz-server` and `demo-api-server` (the BFF's
+`/api/authorize/mock-authz-rules` proxy in `demo_api_server/routes/authorize.js`
+forwards this token via `_authzAdminHeaders()`, so both sides must match) so
+the stack stays protected out of the box.
+
+**Do not break:** k8s sidecar deployment (no `HOST` override, defaults to
+loopback) must keep working unauthenticated exactly as today —
+`isLoopbackBind()` preserves that. `decision.js` and unrelated route logic in
+`rulesWrite.js` untouched.
+
+**Verify:** `cd demo_authz_server && node --test rulesWrite.test.js` (6/6
+pass, including the two new cases proving loopback stays open and
+`HOST=0.0.0.0` without a token now fails closed); full suite
+`node --test` (226/227 pass — the one failure, `tests/decision.test.js`
+chip-markers `sensitive_holdings`, is pre-existing on `main`, unrelated to
+this change).
 
 ### 2026-08-15 — Self-service user creation let any customer self-grant admin role
 

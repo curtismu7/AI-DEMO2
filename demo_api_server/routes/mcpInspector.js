@@ -734,6 +734,11 @@ const PROTOCOL_RPC_METHODS = new Set([
   'prompts/get',
   'completion/complete',
   'logging/setLevel',
+  // MCP 2026-07-28: mandatory handshake RPC, answered locally by the gateway
+  // on both transports (see demo_mcp_gateway/src/serverDiscover.ts) — never
+  // forwarded upstream, but a clean request/response RPC like the others
+  // above, so it fits this same tester.
+  'server/discover',
 ]);
 
 // Not a real MCP tool — a scope-hint placeholder so resolveMcpAccessTokenWithEvents's

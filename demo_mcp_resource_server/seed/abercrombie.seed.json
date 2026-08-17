@@ -1,0 +1,25 @@
+{
+  "orders": [
+    {
+      "id": "ANF-10482",
+      "product": "Essential Popover Hoodie",
+      "amount": 80,
+      "status": "Delivered",
+      "date": "2026-07-28"
+    },
+    {
+      "id": "ANF-10519",
+      "product": "Curve Love High Rise 90s Relaxed Jean",
+      "amount": 90,
+      "status": "Shipped",
+      "date": "2026-08-01"
+    },
+    {
+      "id": "ANF-10544",
+      "product": "Sloane Tailored Pant",
+      "amount": 90,
+      "status": "Processing",
+      "date": "2026-08-03"
+    }
+  ]
+}

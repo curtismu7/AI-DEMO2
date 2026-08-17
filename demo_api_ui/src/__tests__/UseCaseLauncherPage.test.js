@@ -522,6 +522,8 @@ describe('UseCaseLauncherPage', () => {
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/api/admin/feature-flags',
         { updates: { ff_a2a_delegation: true } },
+        // Arming is best effort — its 401 must not raise the re-auth banner.
+        { _noAuthBanner: true },
       );
     });
   });

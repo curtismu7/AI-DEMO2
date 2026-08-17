@@ -26,6 +26,7 @@ import { opportunisticPrewarm } from '../components/demoAgentSafety';
 import { PingProductChip } from '../components/PingProductChip';
 import { productsForUseCase } from '../utils/pingProducts';
 import { markCameFromUseCases } from '../utils/fromUseCasesNav';
+import { runsSignedOut } from '../utils/useCaseAuth';
 import {
   clearCompletedUseCases,
   getCompletedUseCaseIds,
@@ -799,11 +800,15 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
     }
     setChipRun({ id: uc.id, state: 'running' });
     // Auto-arm required flags so Run is not blocked when maturity is flag:* or A2A.
-    const flags = requiredFlagsForUseCase(uc);
+    // Skipped for public use cases: arming PATCHes an admin route, and its 401
+    // raises the global re-auth banner over a step that needs no session.
+    const flags = runsSignedOut(uc) ? [] : requiredFlagsForUseCase(uc);
     if (flags.length) {
       const updates = Object.fromEntries(flags.map((id) => [id, true]));
       try {
-        await apiClient.patch('/api/admin/feature-flags', { updates });
+        // _noAuthBanner: same reasoning as ensureRequiredDemoFlags — an arming
+        // 401 says nothing about the session, so it must not raise the banner.
+        await apiClient.patch('/api/admin/feature-flags', { updates }, { _noAuthBanner: true });
       } catch (e) {
         console.warn('[handleRun] Could not auto-enable flags:', e.message);
       }

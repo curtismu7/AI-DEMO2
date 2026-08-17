@@ -8,6 +8,7 @@
 const WebSocket = require('ws');
 const configStore = require('./configStore');
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
+const { getCorrelationId } = require('../utils/correlationContext');
 const { callLlamaCpp } = require('./llamacppLlmService');
 
 /** Protocol version sent on initialize — runtime-configurable via Feature Flag 'mcp_use_legacy_protocol'.
@@ -209,6 +210,15 @@ function rejectElicitation(requestId, error) {
  *   in this demo). Mutated even when the promise rejects with a JSON-RPC error.
  */
 function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, frameSink, opts) {
+  // Correlation: fall back to the ambient turn id when the caller didn't pass
+  // one. Without this the WS path shipped NO params.correlationId, and the
+  // gateway's extractCorrelationId — which sees no per-message HTTP headers on
+  // a WebSocket — fell through to the JSON-RPC `id`. That id is the hardcoded
+  // FOLLOW_REQUEST_ID (2) below, identical on every call, so every WS request
+  // ever made collapsed into one ledger record ("2") and no tool call could be
+  // joined to the ui.request hop of its own turn. Reading the ALS id here is
+  // what actually links gateway/authz/mcp hops back to the originating turn.
+  correlationId = correlationId || getCorrelationId();
   // WR-06: hold the pooled WS slot until the ENTIRE RPC promise settles.
   // Previously safeRelease() ran inside the message handler before
   // resolve()/reject() returned, so releaseMcpWsSlot() synchronously woke the
@@ -413,16 +423,22 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
             if (msg.method && msg.id && !msg.result && !msg.error) {
               // This is a server-initiated request, not a response
               if (msg.method === 'elicitation/create') {
-                // Emit elicitation event and wait for browser response
-                emit({
-                  phase: 'elicitation_requested',
-                  elicitationId: msg.id,
-                  mode: msg.params?.mode,
-                  message: msg.params?.message,
-                  requestedSchema: msg.params?.requestedSchema,
-                  url: msg.params?.url,
-                  payload: msg.params
-                });
+                // Emit elicitation event (same deps.emit → mcpFlowSseHub.publish
+                // mechanism mcpToolPipeline.js uses for every other `phase:`
+                // event) and wait for browser response. opts.emit is absent for
+                // callers that don't pass a flow-trace-bound emitter (e.g. the
+                // agent tool path, flowTraceId: null) — guarded, not required.
+                if (opts && typeof opts.emit === 'function') {
+                  opts.emit({
+                    phase: 'elicitation_requested',
+                    elicitationId: msg.id,
+                    mode: msg.params?.mode,
+                    message: msg.params?.message,
+                    requestedSchema: msg.params?.requestedSchema,
+                    url: msg.params?.url,
+                    payload: msg.params
+                  });
+                }
 
                 // Create a promise to wait for the browser's elicitation response
                 createElicitationPromise(msg.id, 60000)
@@ -593,11 +609,11 @@ function mcpListTools(agentToken, userSub, correlationId, opts) {
   return mcpRpc(agentToken, 'tools/list', {}, userSub, correlationId, undefined, opts);
 }
 
-function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId) {
+function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId, opts) {
   return mcpRpc(agentToken, 'tools/call', {
     name: toolName,
     arguments: toolParams || {},
-  }, userSub, correlationId);
+  }, userSub, correlationId, undefined, opts);
 }
 
 // Frame-capturing variants for the MCP Inspector teaching surface. Same wire

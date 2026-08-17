@@ -709,6 +709,40 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       };
     }
 
+    if (action === 'request_fee_waiver') {
+      // UC28 (Air Canada tool-boundary pattern): the tool can only FILE a
+      // request for human review, never grant a waiver — see request_fee_waiver's
+      // description. nlIntentParser's waiver regex names no account (the demo
+      // chip text always says "checking"), so resolve it here the same way
+      // deposit/withdraw resolve a named account type.
+      const tokenEvents = [];
+      const sessionId = req?.sessionID || '';
+      const accounts = await dataStore.getAccountsByUserId(userId);
+      const acct = accounts?.find(a => a.accountType?.toLowerCase() === (params.accountType || 'checking').toLowerCase() || a.id === params.accountId);
+      if (!acct) {
+        return { reply: `❌ Could not find your checking account.`, success: false, toolsCalled: [], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
+      const rawResult = await executeBffTool({
+        name: 'request_fee_waiver', args: { account_id: acct.id, reason: params.reason || 'Customer requested via AI agent' }, userId, userToken, req, tokenEvents, sessionId,
+      });
+      if (rawResult?.hitl || rawResult?.error === 'hitl_required') {
+        return { reply: 'Requesting a fee waiver requires your approval. Please confirm in the consent modal to continue.', success: false, toolsCalled: ['request_fee_waiver'], tokensUsed: 0, requiresConsent: true, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: rawResult.hitl || { type: 'consent' }, hitl_threshold_usd: 0 };
+      }
+      if (!rawResult || rawResult.isError) {
+        const errMsg = rawResult?.content?.[0]?.text || rawResult?.error || 'Could not submit the fee waiver request.';
+        return { reply: `❌ ${errMsg}`, success: false, toolsCalled: ['request_fee_waiver'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
+      return {
+        reply: `I've submitted a fee waiver request on your checking account for human review — I can't grant a waiver myself, but the request is logged and someone will follow up.`,
+        success: true,
+        toolsCalled: ['request_fee_waiver'],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents,
+      };
+    }
+
     // Unhandled actions that need LLM reasoning — return null to signal fallthrough
     if (CLIENT_DISPATCHED_ACTIONS.includes(action)) {
       return null; // Heuristic matched but requires client-side / LLM formatting
@@ -1531,7 +1565,10 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
     requiresConsent: false,
     agentConfigured: true,
     tokenEvents,
-    verticalResult: { action, render: (out && out.render) || 'text', data },
+    // No verticalResult on errors: the error payload has no render descriptor,
+    // so the UI's VerticalResult fallback would print the raw {"error":...}
+    // JSON under the ❌ prose. The machine code already rides `error` above.
+    ...(isErr ? {} : { verticalResult: { action, render: (out && out.render) || 'text', data } }),
   };
 }
 

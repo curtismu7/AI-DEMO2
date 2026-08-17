@@ -396,11 +396,11 @@ export const AIRLINES_TOOL_NAMES = new Set([
   'redeem_miles',
 ]);
 
-export async function dispatchAirlinesTool(
+function runAirlinesTool(
   toolName: string,
   args: Record<string, unknown>,
   subject: string,
-): Promise<unknown> {
+): unknown {
   switch (toolName) {
     case 'pay_airline_fee':
       return payFee(args, subject);
@@ -423,4 +423,20 @@ export async function dispatchAirlinesTool(
     default:
       throw new Error(`Unknown airlines tool: ${toolName}`);
   }
+}
+
+export async function dispatchAirlinesTool(
+  toolName: string,
+  args: Record<string, unknown>,
+  subject: string,
+): Promise<unknown> {
+  const result = runAirlinesTool(toolName, args, subject);
+  // Same convention seatAvailability documents inline: render keyed by the
+  // tool's own action name so the UI's manifest lookup
+  // (pageManifest.render[vr.render]) resolves a descriptor. Without it the BFF
+  // defaults render to 'text' and the chat dumps the raw JSON payload.
+  if (result && typeof result === 'object' && !('render' in result)) {
+    (result as Record<string, unknown>).render = toolName;
+  }
+  return result;
 }

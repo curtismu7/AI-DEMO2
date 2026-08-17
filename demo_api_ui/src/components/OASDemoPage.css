@@ -447,6 +447,86 @@
 .oas-status-code--err  { background: #fee2e2; color: #991b1b; }
 .oas-status-code--warn { background: #fef3c7; color: #92400e; }
 
+/* ── Try it out ── */
+.oas-op-detail-col--tryitout {
+  grid-column: 1 / -1;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+  margin-top: 0.25rem;
+}
+
+.oas-tryitout-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #1e40af;
+  background: #1e40af;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.oas-tryitout-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.oas-tryitout-btn--disabled {
+  background: #9ca3af;
+  border-color: #9ca3af;
+}
+
+.oas-tryitout--loading,
+.oas-tryitout--unavailable {
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.oas-tryitout-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.oas-tryitout-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.oas-tryitout-field input {
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  min-width: 160px;
+}
+
+.oas-tryitout-error {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: #991b1b;
+}
+
+.oas-tryitout-result {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
 /* ── Security Scheme ── */
 .oas-scheme-card {
   background: #fff;

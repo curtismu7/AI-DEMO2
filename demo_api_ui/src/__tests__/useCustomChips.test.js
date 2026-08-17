@@ -18,26 +18,42 @@ import { useCustomChips } from "../hooks/useCustomChips";
 
 let _store = {};
 
+// Replace the global outright rather than spying on it. Spying is what made
+// this file Node-version-dependent: where the Storage methods LIVE differs
+// between runtimes (own instance properties under Node 26's builtin, on
+// Storage.prototype under the jsdom store CI's Node 22 provides), so a spy
+// pinned to either location silently intercepts nothing on the other. When it
+// misses, every call reaches the real store, state carries across tests, and
+// the failures look like assertion bugs — accumulating counts, and
+// JSON.parse("undefined") from a key a previous test wrote. Confirmed live:
+// the instance spy passed on Node 26 and failed six assertions on Node 22.
+// A plain object owns its own methods on every runtime.
+const memoryStorage = {
+  getItem: (key) =>
+    Object.prototype.hasOwnProperty.call(_store, key) ? _store[key] : null,
+  setItem: (key, val) => {
+    _store[key] = String(val);
+  },
+  removeItem: (key) => {
+    delete _store[key];
+  },
+  clear: () => {
+    _store = {};
+  },
+  key: (index) => Object.keys(_store)[index] ?? null,
+  get length() {
+    return Object.keys(_store).length;
+  },
+};
+
 beforeEach(() => {
   _store = {};
-  // Spy on the localStorage INSTANCE, not Storage.prototype: under
-  // Vitest + jsdom + Node 26, the bare global Storage is Node's builtin (the
-  // jsdom localStorage is not an instanceof it, and exposes getItem/setItem as
-  // own instance properties), so prototype spies intercept nothing and state
-  // leaks between tests through the real jsdom storage.
-  jest
-    .spyOn(localStorage, "getItem")
-    .mockImplementation((key) => _store[key] ?? null);
-  jest.spyOn(localStorage, "setItem").mockImplementation((key, val) => {
-    _store[key] = val;
-  });
-  jest.spyOn(localStorage, "removeItem").mockImplementation((key) => {
-    delete _store[key];
-  });
+  vi.stubGlobal("localStorage", memoryStorage);
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 // ── fixtures ──────────────────────────────────────────────────────────────────

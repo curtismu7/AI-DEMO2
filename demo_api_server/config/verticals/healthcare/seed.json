@@ -198,6 +198,13 @@
       "date": "2026-02-28",
       "amountDue": 20,
       "status": "Paid"
+    },
+    {
+      "id": "406",
+      "description": "Lab Panel coinsurance",
+      "date": "2026-05-14",
+      "amountDue": 15,
+      "status": "Due"
     }
   ],
   "medications": [

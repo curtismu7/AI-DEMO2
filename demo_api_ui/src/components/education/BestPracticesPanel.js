@@ -160,7 +160,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
           </p>
           <OverviewGrid />
           <p style={{ fontSize: '0.82rem', color: '#374151', borderTop: '1px solid #e5e7eb', paddingTop: 10 }}>
-            Source: <em>Securing Digital Assistants with PingOne and PingGateway</em> — PingOne 2025.
+            Source: <em>Securing Digital Assistants with PingOne and PingOne Agent Gateway</em> — PingOne 2025.
             Each practice links to a deeper guide in the Learn menu.
           </p>
         </>

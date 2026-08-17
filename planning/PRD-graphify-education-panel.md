@@ -1,9 +1,22 @@
 # PRD — Graphify Education Panel
 
 **Date:** 2026-07-08  
-**Status:** Draft  
+**Status:** SHIPPED and CLOSED. Delivered as a page, not a drawer panel — Surface line amended below to match. Verified 2026-08-17.  
 **Audience:** SE / engineers / “how agents navigate this repo”  
-**Surface:** Education drawer panel (same pattern as Weaviate RAG), not a customer banking page
+**Surface:** ~~Education drawer panel (same pattern as Weaviate RAG), not a customer banking page~~
+**Surface (as built, 2026-08-17):** Standalone admin page at `GraphifyPage.jsx`, reached from the side nav
+
+> **Amended to match what shipped.** Graphify education landed as
+> `demo_api_ui/src/components/GraphifyPage.jsx` — a standalone page reached from
+> `AdminSideNav.jsx`, registered in `config/navStructureCatalog.js` and
+> `config/heroVariants.js`. The original Surface line called for an education
+> *drawer panel* following the Weaviate RAG pattern; no such panel was built.
+>
+> Decided 2026-08-17: **keep the page, amend the spec.** The page is live, wired
+> into the nav, and serves the PRD's stated Goal. Rebuilding it as a drawer would
+> be churn in a protected UI area for no user-visible gain, and would leave the
+> page needing retirement or a redirect. The struck-through line is kept so the
+> original intent is still legible. No work remains.
 
 ---
 

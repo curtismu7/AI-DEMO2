@@ -330,6 +330,7 @@ def toAccountId       = ''
 // forwarded entity is rewritten without it (parity with the Node gateway's
 // authorizeMcpRequest, which deletes the key before dispatch).
 def hitlChallengeId   = ''
+def elicitationConfirmed = false
 def toolArgs          = [:]
 try {
     def bodyStr = request.entity.string
@@ -353,10 +354,29 @@ try {
             // filter (backends do not know it, and it must not echo).
             request.headers.remove('X-Hitl-Challenge-Id')
             hitlChallengeId   = rawChallenge != null ? String.valueOf(rawChallenge) : ''
-            if (args instanceof Map && args.containsKey('_hitl_challenge_id')) {
-                args.remove('_hitl_challenge_id')
-                parsed.params.arguments = args
-                request.entity.setString(JsonOutput.toJson(parsed))
+            // Elicitation confirmation (parity with the Node gateway). The signal
+            // arrives either inline as the _elicitation_confirmed arg OR — on
+            // routes fronted by McpValidationFilter, whose additionalProperties:
+            // false schema strips the inline marker — re-signalled on the
+            // X-Elicitation-Confirmed header by mcp-request-validation.groovy.
+            // Read both; consume the header so it travels no further.
+            def argElicit = (args instanceof Map) ? args['_elicitation_confirmed'] : null
+            def hdrElicit = request.headers.getFirst('X-Elicitation-Confirmed')
+            elicitationConfirmed = (argElicit == true) || (hdrElicit == 'true')
+            request.headers.remove('X-Elicitation-Confirmed')
+            // Strip gateway-internal control markers from the forwarded body so
+            // the backend's strict input schema does not 502 on unknown args
+            // (same reason _hitl_challenge_id is stripped; parity with the Node
+            // gateway's authorizeMcpRequest).
+            if (args instanceof Map) {
+                def removedMarker = false
+                ['_hitl_challenge_id', '_elicitation_confirmed', '_elicitation_id'].each { m ->
+                    if (args.remove(m) != null) removedMarker = true
+                }
+                if (removedMarker) {
+                    parsed.params.arguments = args
+                    request.entity.setString(JsonOutput.toJson(parsed))
+                }
             }
             toolArgs          = args instanceof Map ? args : [:]
             def amt           = args?.amount
@@ -513,7 +533,19 @@ if (mcpMethod == 'tools/call' && toolName && (tierMaxAmountHeader || tierRestric
     if (tierMaxAmountHeader.isNumber()) {
         def maxAmountLocal = tierMaxAmountHeader as BigDecimal
         def txAmountLocal = transactionAmount?.isNumber() ? (transactionAmount as BigDecimal) : null
-        def isWriteToolLocal = tokenScopes.tokenize(' ').contains('write')
+        // Bug fix: this must classify the TOOL ('write' is a per-tool requiredScopes
+        // entry in scope-topology.json, e.g. create_transfer/withdraw/pay_bill), not
+        // the caller's granted token scopes — the standard inbound token on this path
+        // only ever carries the gateway-hop scope, so checking tokenScopes here left
+        // this ceiling effectively dead on standard traffic. Mirrors the Node gateway's
+        // getScopesForGatewayTool(toolName).includes('write') (pingAuthorizeGuard.ts:312).
+        def isWriteToolLocal = false
+        def tierToolTopologyFile = new File('/var/gateway/config/scope-topology.json')
+        if (tierToolTopologyFile.exists()) {
+            def tierToolTopology = new JsonSlurper().parse(tierToolTopologyFile)
+            def tierToolEntry = tierToolTopology.tools?.get(toolName)
+            isWriteToolLocal = (tierToolEntry?.requiredScopes ?: []).contains('write')
+        }
         if (txAmountLocal != null && isWriteToolLocal && txAmountLocal > maxAmountLocal) {
             return denyLocal('tier_amount_exceeded', txAmountLocal.toString() + ' exceeds tier ceiling ' + maxAmountLocal.toString())
         }
@@ -759,9 +791,10 @@ if (System.getenv('PG_LOCAL_RAR_PAYEE_ENFORCE') == 'true' && rarPermittedPayees)
 // (mcpgateway.ping.demo), so comparing the real aud against the short name alone would
 // have DENIED every request.
 //
-// The gateway answers to BOTH identities — jwks-token-validation.groovy:173-177 accepts
-// either — so McpResourceUri is the STATIC set of both, mirroring the Node gateway, which
-// sends its comma-separated MCP_GW_RESOURCE_URI verbatim (PingOneAuthorizeClient.ts:148).
+// The gateway answers to these identities — jwks-token-validation.groovy:173-177 accepts
+// the first two — so McpResourceUri is the STATIC set of all of them, mirroring the Node
+// gateway, which sends its comma-separated MCP_GW_RESOURCE_URI verbatim
+// (PingOneAuthorizeClient.ts:148).
 //
 // It must NOT be derived from the token under test. Resolving it to "whichever accepted
 // identity the token happened to target" made the PEP pre-compute the PDP's answer: the
@@ -771,14 +804,43 @@ if (System.getenv('PG_LOCAL_RAR_PAYEE_ENFORCE') == 'true' && rarPermittedPayees)
 // is either identity still intersects and PERMITs, while a foreign aud intersects nothing
 // and DENIES — the discrimination is the PDP's to make, not the gateway's.
 def gatewayResourceId = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
+// api-key-disposition tools (show_mortgage, show_gear_order, ...) exchange
+// against a THIRD, distinct resource (/mcp/apikey, see 00-mcp-apikey.json's
+// McpProtectionFilter.resourceId) — its audience must be in the accepted set
+// too, or the cloud PDP's HasValidMcpAudience rule denies every apikey tool
+// call even after McpProtectionFilter itself already passed.
+def apikeyResourceId = System.getenv('PG_APIKEY_RESOURCE_ID') ?: ''
 def audEntries = (rawTokenAud instanceof List
     ? rawTokenAud.collect { it as String }
     : (rawTokenAud ? [rawTokenAud as String] : [])).findAll { it }
-def acceptedAuds   = [gatewayResourceUri, gatewayResourceId].findAll { it }
+def acceptedAuds   = [gatewayResourceUri, gatewayResourceId, apikeyResourceId].findAll { it }
 // C1: array => first entry.
 def tokenAudience  = audEntries ? audEntries[0] : ''
 // Static — a function of configuration only, never of the token being judged.
 def mcpResourceUri = acceptedAuds.join(',')
+
+// Tool annotations — parity with the Node gateway (toolAnnotations.ts +
+// PingOneAuthorizeClient.buildAuthorizeParameters). Derived from the tool's
+// requiredScopes in scope-topology.json: destructive when it needs 'write' or
+// any '*:write' scope; readOnly/idempotent are its inverse. Without
+// ToolDestructive the mock PDP's elicitation gate (decision.js Rule 4.5:
+// ToolDestructive=='true' && ElicitationConfirmed!='true') could never fire on
+// the IG/mock backend, so a destructive tool skipped the confirmation gate the
+// Node gateway enforces on every payload — a fail-open parity drift. Unknown /
+// unclassified tools stay all-false, matching getToolAnnotations' fail-safe.
+def toolDestructive = false
+def toolReadOnly = false
+if (mcpMethod == 'tools/call' && toolName) {
+    def annFile = new File('/var/gateway/config/scope-topology.json')
+    if (annFile.exists()) {
+        def annTool = new JsonSlurper().parse(annFile).tools?.get(toolName)
+        if (annTool != null) {
+            def annScopes = annTool.requiredScopes ?: []
+            toolDestructive = annScopes.any { it == 'write' || (it instanceof String && it.endsWith(':write')) }
+            toolReadOnly = !toolDestructive
+        }
+    }
+}
 
 def parameters = [
     DecisionContext  : decisionContext,
@@ -807,6 +869,14 @@ def parameters = [
     // Timestamp is a cloud Trust Framework attribute neither gateway was sending.
     // ISO-8601, matching the BFF (pingOneAuthorizeService.js:434 new Date().toISOString()).
     Timestamp        : java.time.Instant.now().toString(),
+    // Tool annotations + elicitation state — parity with the Node gateway
+    // (PingOneAuthorizeClient). Sent unconditionally as 'true'/'false' strings,
+    // exactly as Node does; the mock PDP's elicitation gate (decision.js Rule 4.5)
+    // reads ToolDestructive + ElicitationConfirmed.
+    ToolReadOnly        : String.valueOf(toolReadOnly),
+    ToolDestructive     : String.valueOf(toolDestructive),
+    ToolIdempotent      : String.valueOf(toolReadOnly),
+    ElicitationConfirmed: elicitationConfirmed ? 'true' : 'false',
 ]
 // Absent values are omitted, never fabricated (C1 preamble). Both audience keys are
 // omitted together when introspection surfaced no aud — mock Rule 0b reads TokenAudActual

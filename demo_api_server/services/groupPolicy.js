@@ -212,17 +212,47 @@ function isUserGroupsAttributeError(err) {
     (msg.includes('INVALID_VALUE') || msg.includes('Invalid value for attribute'));
 }
 
-async function disableGroupPolicy(configStore) {
-  if (!configStore || typeof configStore.setRaw !== 'function') return false;
-  await configStore.setRaw({ [GROUP_POLICY_FLAG]: 'false' });
+/**
+ * Group-parameter suppression after a live PingOne 400 on parameters.UserGroups.
+ *
+ * This REPLACES the old behavior of writing ff_authorize_group_policy=false.
+ * That write was persistent and far wider than the fault it responded to: the
+ * flag also gates whether userTier is resolved at all (see
+ * mcpToolAuthorizationService's resolution gate), so one malformed-UserGroups
+ * 400 silently disarmed every tier ceiling for every later request, and stayed
+ * that way until someone noticed and flipped the flag back by hand.
+ *
+ * Suppression instead is:
+ *   - in-memory, so it never edits operator-owned config;
+ *   - time-boxed, so a transient upstream fault heals itself;
+ *   - narrow — only the three group parameters are dropped. UserTier is a
+ *     separate attribute PingOne did not complain about, so it keeps flowing
+ *     and tier ceilings keep enforcing.
+ */
+const GROUP_PARAM_SUPPRESS_MS = 10 * 60 * 1000;
+let _groupParamsSuppressedUntil = 0;
+
+function suppressGroupParams(now = Date.now()) {
+  _groupParamsSuppressedUntil = now + GROUP_PARAM_SUPPRESS_MS;
   console.warn(
-    '[groupPolicy] PingOne rejected parameters.UserGroups — auto-disabled ff_authorize_group_policy',
+    '[groupPolicy] PingOne rejected parameters.UserGroups — suppressing group parameters for ' +
+      `${GROUP_PARAM_SUPPRESS_MS / 60000} min. ff_authorize_group_policy is UNCHANGED and tier ` +
+      'ceilings stay in force.',
   );
   return true;
 }
 
+function areGroupParamsSuppressed(now = Date.now()) {
+  return _groupParamsSuppressedUntil > now;
+}
+
+function _resetGroupParamSuppression() {
+  _groupParamsSuppressedUntil = 0;
+}
+
 function _reset() {
   _legacyData = null;
+  _resetGroupParamSuppression();
   try {
     require('./pingOneGroupMembershipService')._resetCache();
   } catch {
@@ -241,6 +271,8 @@ module.exports = {
   listGroupNamesForVertical,
   listAllVerticalGroupDefinitions,
   isUserGroupsAttributeError,
-  disableGroupPolicy,
+  suppressGroupParams,
+  areGroupParamsSuppressed,
+  _resetGroupParamSuppression,
   _reset,
 };

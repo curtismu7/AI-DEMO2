@@ -26,6 +26,7 @@ const axios = require('axios');
 const https = require('node:https');
 const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
+const { getCorrelationId } = require('../utils/correlationContext');
 const nrSegments = require('./nrSegments');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
@@ -157,10 +158,24 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     const body = {
         jsonrpc: '2.0',
-        id:      opts.correlationId || crypto.randomUUID(),
+        // Fall back to the ambient turn id before minting a fresh one. This id
+        // becomes X-Correlation-ID below, which is what the gateway, the authz
+        // server and the MCP server all key their ledger hops on — so a random
+        // uuid here silently files the gateway/mcp legs under their own
+        // one-hop transactions instead of the turn that caused them. Same class
+        // of bug as the WS path's hardcoded JSON-RPC id.
+        id:      opts.correlationId || getCorrelationId() || crypto.randomUUID(),
         method:  'tools/call',
         params:  { name: tool, arguments: params },
     };
+    // Also ride the correlation id INSIDE params, mirroring the WS client.
+    // PingGateway proxies the JSON-RPC body verbatim but does not forward the
+    // X-Correlation-ID header downstream, so the header alone dies at the
+    // gateway and the MCP server mints its own id — leaving mcp.tool hops in
+    // their own single-hop transactions. params.correlationId is what
+    // correlationFromMessage reads first, and IG's validator only inspects
+    // params.arguments, so this is invisible to schema validation.
+    if (body.id) body.params.correlationId = String(body.id);
 
     // UC18 on PingOne Agent Gateway (IG): arm uc18-rate-limit.groovy via trusted header
     // (Demo Agent Gateway enforces limits in-process instead).
@@ -630,6 +645,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
                         challenge_type: body403.challenge_type || 'consent',
                         instructions: body403.message || body403.instructions,
                     },
+                    // Carry the gateway's P1AZ decision trail (X-Gw-Audit-Trail) like
+                    // every sibling obligation branch (428 hitl/step-up/elicitation,
+                    // generic 403 deny). The pipeline's hitl_required handler reads
+                    // err.gwAuditTrail to build the gw-authorize Token Chain card;
+                    // without it the PERMIT-before-obligation decision is lost and
+                    // ProofStrip renders "Run failed before authorize-decision".
+                    gwAuditTrail: _parseGwAuditTrail(response),
                 },
             );
         }

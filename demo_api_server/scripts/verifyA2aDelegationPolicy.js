@@ -135,6 +135,12 @@ function params({ tool, depth, vertical, actClientId }) {
   return {
     DecisionContext: 'McpToolCall',
     McpMethod: 'tools/call',
+    // Amount is unconditional, mirroring the PEP (pingOneAuthorizeService sends
+    // Amount 0 for reads since the #1310 INDETERMINATE->DENY fix): the live
+    // amount-cap comparison returns INDETERMINATE when the operand is absent.
+    // Per-rule `extra` overlays override this for write probes.
+    Amount: 0,
+    TransactionAmount: '0',
     ToolName: tool,
     ClientId: SUBJECT,
     UserId: SUBJECT,

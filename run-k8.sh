@@ -460,13 +460,39 @@ sim_deploy() {
 
 # ── SE DevOps cluster helpers ─────────────────────────────────────────────────
 
-# Derive the SE namespace from the Ping email address.
+# Derive the SE namespace from the Ping email address, then PIN it to
+# demo_api_server/.env as SE_NAMESPACE= so every later run reuses the same
+# value without re-deriving. This is a shared cluster — a leftover
+# `export SE_NAMESPACE=...` from an unrelated terminal session silently
+# redirecting a deploy to the wrong namespace is the failure mode this
+# guards against: an explicit env-var override still works (documented,
+# sanctioned), but it now logs loudly when it disagrees with the pinned
+# value instead of silently winning.
+#
 # cmuir@pingidentity.com  → ping-devops-cmuir
 # curtis.muir@pingidentity.com → ping-devops-curtismuir
-# Override by setting SE_NAMESPACE before running.
+#
+# NOTE: this function is always called as `ns="$(derive_se_namespace)"` —
+# every diagnostic line below MUST go to stderr (`>&2`), never stdout, or it
+# corrupts the captured namespace value. `info`/`warn` write to stdout, so
+# this function does not use them.
 derive_se_namespace() {
+  local pinned=""
+  if [[ -f "$BASEDIR/demo_api_server/.env" ]]; then
+    pinned="$(grep -E '^SE_NAMESPACE=' "$BASEDIR/demo_api_server/.env" 2>/dev/null | tail -1 | cut -d= -f2-)"
+  fi
+
   if [[ -n "${SE_NAMESPACE:-}" ]]; then
+    if [[ -n "$pinned" && "$SE_NAMESPACE" != "$pinned" ]]; then
+      echo "  !  SE_NAMESPACE=$SE_NAMESPACE overrides the pinned namespace ($pinned) for THIS run only." >&2
+      echo "     demo_api_server/.env is unchanged — unset SE_NAMESPACE to go back to $pinned." >&2
+    fi
     echo "$SE_NAMESPACE"
+    return
+  fi
+
+  if [[ -n "$pinned" ]]; then
+    echo "$pinned"
     return
   fi
 
@@ -505,7 +531,7 @@ derive_se_namespace() {
         else
           echo "PING_EMAIL=${email}" >> "$BASEDIR/demo_api_server/.env"
         fi
-        info "Saved PING_EMAIL to demo_api_server/.env for future deploys."
+        echo "  Saved PING_EMAIL to demo_api_server/.env for future deploys." >&2
       fi
     fi
   fi
@@ -518,7 +544,21 @@ derive_se_namespace() {
   # Strip dots to match Ping namespace convention (jeremy.carrier → jeremycarrier)
   local slug
   slug="$(echo "$localpart" | tr -d '.' | tr '[:upper:]' '[:lower:]')"
-  echo "ping-devops-${slug}"
+  local resolved="ping-devops-${slug}"
+
+  # Pin it — every later run reads SE_NAMESPACE straight from .env above,
+  # skipping re-derivation entirely, so the namespace can't drift as long as
+  # the pinned line stays untouched.
+  if [[ -f "$BASEDIR/demo_api_server/.env" ]]; then
+    if grep -q '^SE_NAMESPACE=' "$BASEDIR/demo_api_server/.env" 2>/dev/null; then
+      sed -i.bak "s|^SE_NAMESPACE=.*|SE_NAMESPACE=${resolved}|" "$BASEDIR/demo_api_server/.env" && rm -f "$BASEDIR/demo_api_server/.env.bak"
+    else
+      echo "SE_NAMESPACE=${resolved}" >> "$BASEDIR/demo_api_server/.env"
+    fi
+    echo "  Pinned SE_NAMESPACE=${resolved} to demo_api_server/.env for future deploys." >&2
+  fi
+
+  echo "$resolved"
 }
 
 # In-cluster K8 deploy uses k8s/56-llm-stack.yaml (llm-proxy + swap tiers).

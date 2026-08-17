@@ -2,7 +2,9 @@
 /** Persist / restore dashboard Token Chain rail width + collapsed state. */
 
 export const TOKEN_RAIL_WIDTH_KEY = "ud_token_rail_width_px";
-export const TOKEN_RAIL_COLLAPSED_KEY = "ud_token_rail_collapsed";
+// v2: default flipped to collapsed; old key left behind so browsers that had
+// the always-expanded default persisted ("0") still start collapsed once.
+export const TOKEN_RAIL_COLLAPSED_KEY = "ud_token_rail_collapsed_v2";
 
 export const TOKEN_RAIL_DEFAULT_WIDTH = 320;
 export const TOKEN_RAIL_MIN_WIDTH = 220;
@@ -26,14 +28,15 @@ export function readStoredTokenRailWidth() {
 }
 
 /**
- * Read stored collapsed flag (default: expanded).
+ * Read stored collapsed flag (default: collapsed).
  * @returns {boolean}
  */
 export function readStoredTokenRailCollapsed() {
   try {
-    return localStorage.getItem(TOKEN_RAIL_COLLAPSED_KEY) === "1";
+    const v = localStorage.getItem(TOKEN_RAIL_COLLAPSED_KEY);
+    return v === null ? true : v === "1";
   } catch {
-    return false;
+    return true;
   }
 }
 

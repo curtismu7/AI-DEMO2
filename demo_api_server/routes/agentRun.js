@@ -22,6 +22,7 @@
 const express = require('express');
 const http = require('http');
 const configStore = require('../services/configStore');
+const agentFrameworkOrchestrator = require('../services/agentFrameworkOrchestrator');
 const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 const { agentRunStore } = require('../services/agentRunStore');
@@ -172,8 +173,11 @@ const FRAMEWORK_HOSTS = {
   pydantic_ai:   'pydantic-agent',
 };
 
-function resolveAgentTarget() {
-  const framework = configStore.getEffective('llm_framework') || 'langchain';
+async function resolveAgentTarget({ message, vertical } = {}) {
+  let framework = configStore.getEffective('llm_framework') || 'langchain';
+  if (framework === 'auto') {
+    framework = await agentFrameworkOrchestrator.selectFramework({ message, vertical });
+  }
   const port = FRAMEWORK_PORTS[framework] ?? FRAMEWORK_PORTS.langchain;
   const hostname = FRAMEWORK_HOSTS[framework] ?? FRAMEWORK_HOSTS.langchain;
   return { hostname, port };
@@ -196,6 +200,23 @@ function resolveAgentRunTools(currentTools, activeId) {
 // heuristic treats the first red event as the halt point and ghosts every step
 // after it as "did not run" — steps that in fact executed. `recovered` keeps
 // the event red while telling that heuristic to look further down the chain.
+// The recordTokenEvent() families the Token Chain trace rail renders as steps:
+// the MCP 401 challenge handshake (mcpChallengeProbe) and the tools/list
+// discovery outcome (agentGatewayClient). Kept in sync with the step model in
+// demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js.
+const MCP_DISCOVERY_EVENT_TYPES = new Set([
+  'mcp_challenge',
+  'mcp_challenge_error',
+  'mcp_challenge_skipped',
+  'mcp_resource_metadata',
+  'mcp_resource_metadata_error',
+  'tools_list_request_started',
+  'tools_list_success',
+  'tools_list_fallback',
+  'tools_list_error',
+  'tools_list_failed',
+]);
+
 function markRecovered(tokenEvents) {
   return (tokenEvents || []).map((ev) => ({ ...ev, recovered: true }));
 }
@@ -436,7 +457,21 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     let toolsResult;
     if (ccTokenResult) {
       try {
-        toolsResult = await agentGatewayClient.getAvailableTools(req, ccTokenResult.access_token);
+        // listAvailableTools, NOT the legacy getAvailableTools. The latter POSTs
+        // to <AGENT_GATEWAY_URL>/tools/list — an endpoint that exists nowhere in
+        // this system: the Node gateway serves only /.well-known, /health,
+        // /admin/* and /mcp, and IG's routes define no /tools/list either. With
+        // AGENT_GATEWAY_URL unset it dialled localhost:8080 (the BFF itself), so
+        // EVERY run failed discovery with ECONNREFUSED and fell back to the
+        // hardcoded 4-tool catalog. That was invisible because
+        // resolveAgentRunTools below discards the catalog anyway for any vertical
+        // with a plugin — the only symptom was a permanently red tools/list step.
+        // listAvailableTools is the WS path agentToolsResolver already uses
+        // successfully in this same process, and it goes THROUGH the gateway, so
+        // PingOne Authorize filters the catalog by vertical and scope.
+        toolsResult = await agentGatewayClient.listAvailableTools(req, ccTokenResult.access_token, {
+          vertical: verticalManifest.resolver.activeIdFor(req),
+        });
       } catch (toolsErr) {
         console.warn('[agentRun] Gateway tools failed, falling back to local catalog:', toolsErr.message);
         toolsResult = { tools: agentGatewayClient.getLocalToolsCatalog(), tokenEvents: [] };
@@ -460,6 +495,17 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
     // Merge any token events from tools/list
     initialTokenEvents = [...initialTokenEvents, ...(toolsResult.tokenEvents || [])];
+
+    // req.recordTokenEvent() writes to req.agentContext.tokenEvents, a DIFFERENT
+    // array from the preview that seeded initialTokenEvents above — so the MCP
+    // discovery evidence the trace rail consumes (the 401 challenge, the RFC 9728
+    // metadata, the tools/list outcome) never reached the client. Merge only
+    // those families: the rest of req.tokenEvents is internal bookkeeping the
+    // Token Chain does not render, and dumping it wholesale would add cards.
+    initialTokenEvents = [
+      ...initialTokenEvents,
+      ...(req.tokenEvents || []).filter((e) => e && MCP_DISCOVERY_EVENT_TYPES.has(e.type)),
+    ];
   } catch (err) {
     console.error('[agentRun] Tool resolution error:', err.message);
     // Non-fatal: run with no tools
@@ -603,7 +649,10 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     })}\n\n`);
   }
 
-  const { hostname: agentHost, port: agentPort } = resolveAgentTarget();
+  const { hostname: agentHost, port: agentPort } = await resolveAgentTarget({
+    message: lastUserMessage?.content,
+    vertical: verticalManifest.resolver.activeIdFor(req),
+  });
   const agentPath = '/run';
   const agentFramework = configStore.getEffective('llm_framework') || 'langchain';
 
@@ -815,6 +864,7 @@ module.exports = router;
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
 module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
+  resolveAgentTarget,
   resolveAgentRunTools,
   markRecovered,
   _recordTraceEvents,

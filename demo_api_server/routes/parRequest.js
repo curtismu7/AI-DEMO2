@@ -12,12 +12,9 @@ const router = express.Router();
  * Push an authorization request for later retrieval.
  * Client sends authorization parameters and receives a request_uri for later use.
  *
- * @flow par
- * @name PAR
- * @rfc https://datatracker.ietf.org/doc/html/rfc9126 RFC 9126
- * @actor client-app
- * @to auth-server
- * @step 1
+ * Not scriptable by the protocol playground (step 2 is a GET with query
+ * params the @body-only engine cannot populate) — see the self-contained
+ * demo at routes/parDemo.js instead.
  */
 router.post('/par', express.json(), (req, res) => {
   try {
@@ -50,11 +47,6 @@ router.post('/par', express.json(), (req, res) => {
 /**
  * Authorize a pushed authorization request.
  * Authorization server processes the request_uri and issues authorization code.
- *
- * @flow par
- * @actor auth-server
- * @to client-app
- * @step 2
  */
 router.get('/authorize', (req, res) => {
   try {

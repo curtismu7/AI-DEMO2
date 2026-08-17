@@ -29,6 +29,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 - Stage explicitly (`git add <files>`), never `git add -A`. Verify `git branch --show-current` before each commit.
 - A hard-block hook denies `Write`/`Edit` in the main checkout.
 - **After any PR merges, sync the shared main checkout:** `scripts/sync-main-checkout.sh` from repo root. Docker (`ai-demo-ui`/`ai-demo-api-server`) bind-mounts that checkout's files directly — a merge on GitHub does not update them, so the running demo silently serves stale code until something pulls. The script fast-forwards only; it backs off untouched if anything unexpected is dirty. A launchd job also runs it every 15 min to catch merges that land outside any agent session.
+- **When sync backs off:** `npm run sync:status` says whether the checkout is stale and names the files blocking it (silent staleness is the failure mode — the launchd job logs where nobody looks). `npm run sync:unblock` (`scripts/park-main-edits.sh`) moves stray main-checkout edits onto a `wip/main-<timestamp>` branch and then syncs — nothing stashed, nothing discarded, recover with `git switch wip/main-<timestamp>`. Untracked top-level `.claude/*.md` notes no longer block sync at all.
 
 ## Project
 
@@ -38,7 +39,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 | SE AWS | `./run-pingaws.sh` — Ping SE cluster only (`ai-demo.ping-devops.com`); wraps `./run-k8.sh se-*` + `se-update-{code,config,pingone}.sh` |
 | API / UI | API `https://api.ping.demo:3001` / UI `https://local.ping-devops.com:4000` (hosts + `mkcert -install` once) |
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
-| Hygiene | `npm run topology:verify`, `npm run hygiene:check` |
+| Hygiene | `npm run topology:verify`, `npm run hygiene:check`, `npm run authz:verify` |
 | LLM proxy | `:8090` via `demo_llm_proxy/` (`LLM_BACKEND=llamacpp` default; `omlx` on Apple Silicon) |
 
 PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) mutates a live environment — read the script before running. Prefer hosted PingOne MCP tools for app/population/user reads during development.
@@ -57,6 +58,7 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 ## Watch out
 
 - Auth/token/session/UI: protected — state what you won't break before editing.
+- **Which use case / tile / route needs sign-in is declared in `demo_api_server/config/auth-requirements.json`** (`public` | `user` | `admin`), served to the UI as `uc.auth` on `/api/use-cases`. Gate on that, never on a fresh `isLoggedIn` check. `npm run authz:verify` fails on an unlisted use case, a drifted guest allowlist, or an App.js route guard that disagrees with the file — add a route or change a guard and update the SoT in the same commit.
 - **Sign-in only works on `local.ping-devops.com:4000`** (passkey rp.id must match the serving host). `api.ping.demo:4000` serves the app but the session cookie lives on the other host, so it shows "Please sign in." Point `E2E_BASE_URL` there too, or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Match existing conventions (error shapes, date handling, import paths) — don't invent.
 - After code edits, run `graphify update .` (AST-only). Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
@@ -70,7 +72,11 @@ Citable facts live in `graphify-out/*.kb.json`: `repo-topology` (service boundar
 
 Use **Super Sports** as the default vertical for manual validation and tests that select a vertical. Keep another vertical only when that test explicitly verifies vertical-specific behavior.
 
-1. Run the checks for what you touched and paste the result line: server → `cd demo_api_server && CI=true npm test -- --forceExit`; UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify`.
+1. Run the checks for what you touched — **scoped by default, not the full suite** — and paste the result line.
+   - Server, scoped (default): `cd demo_api_server && CI=true npx jest <touched test paths> --forceExit`
+   - Server, full: `cd demo_api_server && CI=true npm test -- --forceExit` — only when the change touches shared middleware (auth, session, token exchange, config store), spans more than ~3 route files, or a scoped run came back red in a way that suggests wider breakage.
+   - UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify` (run these only if you touched that surface).
+   - A single-route fix, copy change, or one isolated test file needs the scoped run only. Say which scope you ran.
 2. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
 
 ## AI-DLC (opt-in only)

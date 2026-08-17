@@ -167,6 +167,7 @@ const agentRunRoutes = require('./routes/agentRun');
 const demoAgentNlRoutes = require('./routes/demoAgentNl');
 const agentInvokeRoutes = require('./routes/agentInvokeRoute');
 const webhookPingOneRoutes = require('./routes/webhookPingOne');
+const webhookDavinciRoutes = require('./routes/webhookDavinci');
 const intentAuthRoutes = require('./routes/intentAuthRoute');
 const langchainConfigRoutes = require('./routes/langchainConfig');
 const lmstudioRoutes = require('./routes/lmstudio');
@@ -508,6 +509,9 @@ app.use(sessionMiddleware);
 // check, which is gone: PingOne cannot sign a request body. See
 // docs/PINGONE-WEBHOOK.md. Batches of 500 events exceed the default 100kb.
 app.use('/webhook', express.json({ limit: '5mb' }), webhookPingOneRoutes);
+// DaVinci showcase flow callbacks — same open-ingest posture as the PingOne
+// webhook above (no signing available from a DaVinci HTTP connector node).
+app.use('/webhook', express.json({ limit: '1mb' }), webhookDavinciRoutes);
 
 // Body parsing middleware
 app.use(express.json());
@@ -1082,9 +1086,35 @@ app.get('/api/sdk-demo/config', (req, res) => {
     }
 });
 
+// DaVinci widget login demo (/davinci-login) — public, non-secret config for
+// @forgerock/davinci-client. flowVersion lets the UI show which A/B version is
+// live (see docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md).
+app.get('/api/davinci-demo/config', (req, res) => {
+    try {
+        const davinciConfig = require('./config/davinci');
+        let redirectUri = configStore.getEffective('pingone_davinci_login_redirect_uri');
+        if (!redirectUri) {
+            const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+            const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+            redirectUri = `${proto}://${host}/davinci-login/callback`;
+        }
+        res.json({
+            wellknown:   getDiscoveryEndpoint(),
+            clientId:    davinciConfig.login.appId,
+            redirectUri,
+            flowVersion: configStore.getEffective('davinci_login_flow_version') || 'v1',
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'davinci_demo_config_failed', message: err.message });
+    }
+});
+
 // SDK demo token store — LMDB-backed custom storage adapter for @forgerock/oidc-client
 // (see routes/sdkDemoTokens.js). Mounted here, next to the public config endpoint.
 app.use('/api/sdk-demo', require('./routes/sdkDemoTokens'));
+
+// DaVinci login callback route — exchanges OIDC code for tokens and establishes session
+app.use('/api/davinci-login', require('./routes/davinciLogin'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
@@ -1355,7 +1385,13 @@ app.use('/internal', require('./routes/braveMcpFlag'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)
 app.use('/api/path', require('./routes/pathInfo'));
-app.use('/api/path', require('./routes/verticalTool'));
+// transactionTurnMiddleware: a vertical-tool call IS an agent turn — it is what
+// a use-case chip dispatches — so it belongs in the ledger alongside
+// /api/demo-agent. Without it the gateway and MCP hops for a chip-driven tool
+// call had no ui.request/response to attach to and formed their own orphan
+// transaction, which is exactly what /transaction-trace could not explain.
+// Still route-scoped, not app-wide, so the 500-record cap stays meaningful.
+app.use('/api/path', transactionTurnMiddleware, require('./routes/verticalTool'));
 app.use('/api/transactions', (req, res, next) => {
     // Allow Bearer-token requests (MCP server, agent gateway, direct API calls) to bypass
     // the session-cookie check — authenticateToken validates the JWT below.
@@ -1381,7 +1417,9 @@ app.use('/api/admin/demo-users', adminDemoUsersRoutes);
 app.use('/api/admin/agent', authenticateToken, adminAgentToolsRoutes);
 app.use('/api/admin', authenticateToken, require('./routes/opsAssistantRoutes'));
 app.use('/api/admin', authenticateToken, require('./routes/adminVerticals'));
-app.use('/api/admin', authenticateToken, require('./routes/verticalThemes'));
+// Fully public (no authenticateToken) — themes are cosmetic, shared, and the
+// page itself is now reachable signed-out; see verticalThemes.js's own header.
+app.use('/api/admin', require('./routes/verticalThemes'));
 app.use('/api/admin', authenticateToken, require('./routes/agentGatewayLogs'));
 app.use('/api/admin', authenticateToken, adminRoutes);
 
@@ -1520,6 +1558,12 @@ const xaaIdJagDemoRoutes = require('./routes/xaaIdJagDemo');
 app.use('/api/demo/xaa', xaaIdJagDemoRoutes);
 const spiffeDemoRoutes = require('./routes/spiffeDemo');
 app.use('/api/demo/spiffe', spiffeDemoRoutes);
+const dpopDemoRoutes = require('./routes/dpopDemo');
+app.use('/api/demo/dpop', dpopDemoRoutes);
+const parDemoRoutes = require('./routes/parDemo');
+app.use('/api/demo/par', parDemoRoutes);
+const rfc8693DemoRoutes = require('./routes/rfc8693Demo');
+app.use('/api/demo/rfc8693', rfc8693DemoRoutes);
 
 // Public CIMD well-known endpoint — no authentication required.
 // Mounted after session/auth middleware but before static files.
@@ -1868,7 +1912,14 @@ function renderOutcome(res, outcome) {
 }
 
 // POST /api/mcp/tool — call a banking MCP tool
-app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next) => {
+// transactionTurnMiddleware: this route IS an agent turn — a chip or the direct
+// tool caller enters here, and the gateway + MCP hops it causes already land in
+// the ledger under this request's correlation id. Without it the BFF emitted no
+// hop of its own, so those records held gateway + mcp hops and NO
+// demo-api-server hop — the orphan cluster /transaction-trace could not attach
+// to any turn. After requireSession so an unauthenticated probe never files a
+// record and burns the 500-transaction cap.
+app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddleware, async (req, res, next) => {
   // Defense-in-depth: scrub any JWT-shaped string from EVERY json response on
   // this route (tokenEvents success + all error/expiry paths) without editing
   // each res.json call site — keeps the §1-protected gate/branch logic byte-for-
@@ -2065,6 +2116,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
           // Investment
           get_investment_accounts: 'view_investments', get_investment_balance: 'view_investments',
           get_portfolio_summary: 'view_investments', get_investment_transactions: 'view_investments',
+          show_investment: 'view_investments',
           // Healthcare
           view_records: 'view_records', view_coverage: 'view_coverage',
           list_appointments: 'list_appointments', book_appointment: 'book_appointment',
@@ -2085,6 +2137,12 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
           request_time_off: 'request_time_off', show_expense_report: 'view_expenses',
           // Mortgage
           show_mortgage: 'view_mortgage',
+          // Government
+          show_permit: 'view_permits',
+          // University
+          show_enrollment: 'view_enrollment_history',
+          // Manufacturing
+          show_work_order: 'view_work_orders',
         };
         _itIntent = _TOOL_TO_INTENT[tool] || tool;
         _itConf = _TOOL_TO_INTENT[tool] ? 0.97 : 0.50;

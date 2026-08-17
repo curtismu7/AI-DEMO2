@@ -1,4 +1,4 @@
-import { buildTraceSteps, buildRunStory } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory, buildGatewayStages } from "../buildTraceSteps";
 import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
@@ -8,15 +8,155 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 14 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 17 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
+    // Each MCP method is TWO requests: the credential-less one the gateway
+    // refuses, then the authorized one. Both legs are their own hop.
     expect(steps.map((s) => s.id)).toEqual([
-      "website", "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap", "mcp", "api", "database", "reply",
+      "website", "signin", "prompt", "agent",
+      "tools-list-challenge", "tools-list", "llm", "agent-token", "exchange",
+      "authorize", "gateway", "api-key-swap",
+      "tools-call-challenge", "mcp", "api", "database", "reply",
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
     expect(steps.slice(1).every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
+  });
+
+  test("each MCP method's challenge leg sits immediately before its authorized leg", () => {
+    const ids = buildTraceSteps(EMPTY_TRACE).map((s) => s.id);
+    expect(ids.indexOf("tools-list") - ids.indexOf("tools-list-challenge")).toBe(1);
+    expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(1);
+  });
+
+  test("tool discovery sits between the agent and the model that consumes the catalog", () => {
+    const ids = buildTraceSteps(EMPTY_TRACE).map((s) => s.id);
+    expect(ids.indexOf("tools-list")).toBeGreaterThan(ids.indexOf("agent"));
+    expect(ids.indexOf("tools-list")).toBeLessThan(ids.indexOf("llm"));
+  });
+});
+
+describe("buildTraceSteps — MCP 401 challenge legs", () => {
+  const challengeEvents = (phase) => [
+    {
+      type: "mcp_challenge", phase, method: phase, status: 401, challenged: true,
+      url: "https://gw.example/mcp",
+      wwwAuthenticate: 'Bearer realm="PingOne", resource_metadata="https://gw.example/.well-known/oauth-protected-resource"',
+      realm: "PingOne",
+      resourceMetadataUrl: "https://gw.example/.well-known/oauth-protected-resource",
+    },
+    {
+      type: "mcp_resource_metadata", phase,
+      url: "https://gw.example/.well-known/oauth-protected-resource",
+      resource: "https://gw.example/mcp",
+      authorizationServers: ["https://auth.pingone.com/env/as"],
+      scopesSupported: ["mcp:invoke"],
+      document: { resource: "https://gw.example/mcp" },
+    },
+  ];
+  const stepById = (steps, id) => steps.find((s) => s.id === id);
+
+  test("a 401 with a resource_metadata pointer is the control working — done, not error", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, tokenEvents: challengeEvents("tools/list") });
+    const step = stepById(steps, "tools-list-challenge");
+    expect(step.status).toBe("done");
+    // The refusal still reads as a DENY for the topology badge.
+    expect(step.detail.decision.outcome).toBe("DENY");
+    expect(step.detail.response.text).toContain("resource_metadata=");
+    expect(step.detail.kv).toContainEqual(["authorization server", "https://auth.pingone.com/env/as"]);
+  });
+
+  test("evidence is keyed by phase, so the tools/list challenge does not light up the tools/call hop", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, tokenEvents: challengeEvents("tools/list") });
+    expect(stepById(steps, "tools-call-challenge").status).toBe("pending");
+    expect(stepById(steps, "tools-call-challenge").detail.kv).toBeUndefined();
+  });
+
+  test("a gateway that serves an anonymous call instead of challenging it is an error", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ type: "mcp_challenge", phase: "tools/call", method: "tools/call", status: 200, challenged: false }],
+    });
+    const step = stepById(steps, "tools-call-challenge");
+    expect(step.status).toBe("error");
+    expect(step.detail.why).toContain("HTTP 200");
+    expect(step.detail.decision).toBeUndefined();
+  });
+
+  test("no gateway to challenge is notinpath, not a failure", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ type: "mcp_challenge_skipped", phase: "tools/list", reason: "no_gateway_configured" }],
+    });
+    expect(stepById(steps, "tools-list-challenge").status).toBe("notinpath");
+  });
+});
+
+describe("buildTraceSteps — Agent Gateway filter chain", () => {
+  const CHAIN = [
+    { filter: "TokenIntrospection", result: "passed" },
+    { filter: "GatewayTokenPolicy", result: "passed" },
+    { filter: "P1AZDecision", result: "forwarded", decision: "PERMIT" },
+    { filter: "mTLS", result: "skipped" },
+    { filter: "BackendExchange", result: "forwarded" },
+  ];
+  const gwStep = (steps) => steps.find((s) => s.id === "gateway");
+
+  test("maps the gateway's stage vocabulary onto the rail's status vocabulary", () => {
+    const stages = buildGatewayStages(CHAIN, null);
+    expect(stages.map((s) => s.status)).toEqual(["done", "done", "done", "notinpath", "done"]);
+    // A stage that never ran must stay distinct from one that refused.
+    expect(stages[3].status).not.toBe("error");
+    expect(stages[2].decision).toBe("PERMIT");
+  });
+
+  test("renames the raw filter names and keeps the raw one for keying", () => {
+    const stages = buildGatewayStages(CHAIN, null);
+    expect(stages[0].name).toBe("Token introspection");
+    expect(stages[0].raw).toBe("TokenIntrospection");
+    expect(stages[4].name).toBe("Backend token exchange");
+  });
+
+  test("an unknown future stage still renders rather than being dropped", () => {
+    const stages = buildGatewayStages([{ filter: "SomeNewFilter", result: "passed" }], null);
+    expect(stages).toHaveLength(1);
+    expect(stages[0].name).toBe("SomeNewFilter");
+    expect(stages[0].note).toBeUndefined();
+  });
+
+  test("marks the stage that blocked and says so in the why line", () => {
+    const blocked = [
+      { filter: "TokenIntrospection", result: "passed" },
+      { filter: "GatewayTokenPolicy", result: "blocked" },
+    ];
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "gateway_policy_denied", detail: "scope" }],
+      tokenEvents: [{ id: "gw-filter-chain", filterChain: blocked, denyingFilter: "GatewayTokenPolicy" }],
+    });
+    const stages = gwStep(steps).detail.stages;
+    expect(stages[1].status).toBe("error");
+    expect(stages[1].blockedHere).toBe(true);
+    expect(stages[0].blockedHere).toBe(false);
+    expect(gwStep(steps).detail.why).toMatch(/Gateway token policy/);
+  });
+
+  test("reads the chain off gw-authorize when there is no dedicated event", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "gw-authorize", decision: "PERMIT", tool: "get_my_accounts", filterChain: CHAIN, lastFilter: "BackendExchange" }],
+    });
+    expect(gwStep(steps).detail.stages).toHaveLength(5);
+    expect(gwStep(steps).detail.why).toMatch(/Backend token exchange/);
+  });
+
+  test("no filter chain means no stages block, not an empty one", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "gw-authorize", decision: "PERMIT" }],
+    });
+    expect(gwStep(steps).detail.stages).toBeUndefined();
   });
 });
 
@@ -799,6 +939,46 @@ describe("buildRunStory — L0 strip", () => {
     expect(story.headline).toMatch(/PERMIT/);
     expect(story.outcome).toBe("ok");
     expect(story.bits.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildRunStory — missing decision is never dressed up as INDETERMINATE", () => {
+  // INDETERMINATE is a real P1AZ verdict ("could not evaluate", fail-closed
+  // since #1310). A trace whose authorize slot has no decision recorded must
+  // not claim it — a successful run headline reading "Authorize returned
+  // INDETERMINATE" is a contradiction.
+  const carriedGateTrace = {
+    ...EMPTY_TRACE,
+    outcome: "ok",
+    prompt: { message: "show my airline bookings" },
+    authorize: { outcome: "STEP_UP", priorGate: "STEP_UP" },
+  };
+
+  test("authorize card shows 'no decision recorded', not INDETERMINATE", () => {
+    const steps = buildTraceSteps(carriedGateTrace);
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.decision.outcome).not.toBe("INDETERMINATE");
+    expect(az.detail.decision.outcome).toBe("NOT_RECORDED");
+  });
+
+  test("run story headline omits the decision clause entirely", () => {
+    const steps = buildTraceSteps(carriedGateTrace);
+    const story = buildRunStory(carriedGateTrace, steps);
+    expect(story.headline).toMatch(/completed successfully/i);
+    expect(story.headline).not.toMatch(/INDETERMINATE/);
+    expect(story.headline).not.toMatch(/NOT_RECORDED/);
+  });
+
+  test("a REAL INDETERMINATE decision still surfaces verbatim", () => {
+    const trace = {
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      prompt: { message: "x" },
+      authorize: { decision: "INDETERMINATE", engine: "pingone" },
+    };
+    const steps = buildTraceSteps(trace);
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.decision.outcome).toBe("INDETERMINATE");
   });
 });
 

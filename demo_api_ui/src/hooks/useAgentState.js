@@ -56,11 +56,15 @@ export function useAgentState() {
   // Accumulate text content for streaming messages
   const streamingMessageRef = useRef(null);
   const streamingToolCallRef = useRef(null);
+  // Raw TOOL_CALL_ARGS fragments accumulated across deltas for the active tool
+  // call; parsed once at TOOL_CALL_END. Reset per tool call.
+  const streamingToolArgsRef = useRef('');
 
   const reset = useCallback(() => {
     setState(INITIAL_STATE);
     streamingMessageRef.current = null;
     streamingToolCallRef.current = null;
+    streamingToolArgsRef.current = '';
   }, []);
 
   const onStateSnapshot = useCallback((snapshot) => {
@@ -185,6 +189,7 @@ export function useAgentState() {
           status: 'running',
         };
         streamingToolCallRef.current = startedToolCall;
+        streamingToolArgsRef.current = '';
         setState((prev) => ({
           ...prev,
           toolCalls: [...prev.toolCalls, startedToolCall],
@@ -194,28 +199,32 @@ export function useAgentState() {
 
       case 'TOOL_CALL_ARGS':
         if (streamingToolCallRef.current && event.toolCallId === streamingToolCallRef.current.id) {
-          let args = null;
-          try { args = JSON.parse(event.delta || '{}'); } catch (_) {}
-          streamingToolCallRef.current = { ...streamingToolCallRef.current, args };
-          setState((prev) => {
-            const calls = [...prev.toolCalls];
-            const idx = calls.findIndex((c) => c && c.id === event.toolCallId);
-            if (idx !== -1) calls[idx] = { ...streamingToolCallRef.current };
-            return { ...prev, toolCalls: calls };
-          });
+          // AG-UI streams args as partial JSON fragments; parsing each in
+          // isolation throws on every partial and loses the args. Accumulate the
+          // raw string and parse once at TOOL_CALL_END.
+          streamingToolArgsRef.current += (event.delta || '');
         }
         break;
 
       case 'TOOL_CALL_END':
         if (streamingToolCallRef.current && event.toolCallId === streamingToolCallRef.current.id) {
-          streamingToolCallRef.current = { ...streamingToolCallRef.current, status: 'done' };
+          let args = null;
+          try {
+            args = streamingToolArgsRef.current ? JSON.parse(streamingToolArgsRef.current) : null;
+          } catch (_) {}
+          // Capture locally — the setState updater runs lazily, and the ref is
+          // nulled below before it executes; reading the ref inside the updater
+          // would push {} into toolCalls (same reasoning as TEXT_MESSAGE_END).
+          const finishedToolCall = { ...streamingToolCallRef.current, args, status: 'done' };
+          streamingToolCallRef.current = finishedToolCall;
           setState((prev) => {
             const calls = [...prev.toolCalls];
             const idx = calls.findIndex((c) => c && c.id === event.toolCallId);
-            if (idx !== -1) calls[idx] = { ...streamingToolCallRef.current };
+            if (idx !== -1) calls[idx] = finishedToolCall;
             return { ...prev, toolCalls: calls };
           });
           streamingToolCallRef.current = null;
+          streamingToolArgsRef.current = '';
         }
         break;
 

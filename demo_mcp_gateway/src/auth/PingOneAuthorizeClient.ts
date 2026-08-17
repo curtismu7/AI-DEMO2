@@ -156,8 +156,12 @@ export function buildAuthorizeParameters(
 ): Record<string, string> {
   const decisionContext = method === 'tools/call' ? 'McpToolCall' : 'McpRequest';
   const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean);
-  // C1: the token's ACTUAL audience. Array ⇒ first entry.
-  const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
+  // C1: the token's ACTUAL audience. Array ⇒ FULL space-joined list (matching
+  // the Groovy gateway), not just aud[0]: mock Rule 0b-2's D-05 anti-bypass
+  // splits TokenAudActual on whitespace, so a multi-aud [gateway, upstream]
+  // confused-deputy token is only caught if every aud entry survives. Truncating
+  // to the first entry silently defeated that control on this transport.
+  const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
   const base: Record<string, string> = {
     DecisionContext: decisionContext,
     McpMethod: method,

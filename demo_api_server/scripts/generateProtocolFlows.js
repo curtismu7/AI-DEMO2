@@ -266,6 +266,21 @@ function buildFlowSpecs(routes) {
       authReqId: 'auth_req_id'
     };
   }
+  if (flows['dpop'] && flows['dpop'].steps[0]) {
+    flows['dpop'].steps[0].responseMap = {
+      access_token: 'access_token'
+    };
+  }
+  if (flows['par'] && flows['par'].steps[0]) {
+    flows['par'].steps[0].responseMap = {
+      requestUri: 'request_uri'
+    };
+  }
+  if (flows['rfc8693-token-exchange'] && flows['rfc8693-token-exchange'].steps[0]) {
+    flows['rfc8693-token-exchange'].steps[0].responseMap = {
+      access_token: 'access_token'
+    };
+  }
 
   return flows;
 }

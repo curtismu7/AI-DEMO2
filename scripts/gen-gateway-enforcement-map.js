@@ -41,7 +41,10 @@ const p1azReasonFor = (marker, fallback) => {
   if (idx < 0) return fallback;
   const line = notModeledBlock.slice(idx, notModeledBlock.indexOf('\n *   -', idx + 1) || idx + 400);
   const cleaned = line.replace(/\s*\*\s*/g, ' ').replace(/\s+/g, ' ').trim();
-  return cleaned.slice(0, 220);
+  if (cleaned.length <= 220) return cleaned;
+  const cut = cleaned.slice(0, 220);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/[,;:]$/, '')}…`;
 };
 
 // ── Node gateway (demo_mcp_gateway) checks ──────────────────────────────────
@@ -94,8 +97,10 @@ const ROWS = [
     },
     groovy: {
       done: has(p1azDecisionGroovy, 'rar_payee_not_permitted'),
-      flagged: has(p1azDecisionGroovy, 'PG_LOCAL_RAR_PAYEE_ENFORCE'),
-      note: 'opt-in only — check-groovy-params.sh:78-81 warns against a local RAR DENY here ("P1AZ decides")',
+      // Forwarding the RAR attrs to the PDP IS the enforcement on this path — the
+      // groovy filter deliberately does not DENY locally (p1az-decision.groovy:716-718).
+      byDesign: has(p1azDecisionGroovy, 'parameters.RarMaxAmount'),
+      note: 'forwards RarAuthorizationDetails/RarMaxAmount/RarPermittedPayees so the cloud RarMaxAmount rule decides (p1az-decision.groovy:716-718); the local payee DENY stays opt-in behind PG_LOCAL_RAR_PAYEE_ENFORCE',
     },
   },
   {
@@ -128,45 +133,62 @@ const ROWS = [
   },
 ];
 
+// Shared status vocabulary. Keep in lockstep with the STATUS_LABEL maps in
+// demo_api_ui/src/components/GatewayEnforcementMapPage.jsx and
+// demo_api_ui/src/components/education/GatewayPolicySplitPanel.js.
+const STATUS_LABEL = {
+  done: '✅ enforced',
+  bydesign: '✅ P1AZ owns the decision',
+  flagged: '✅ built · opt-in flag',
+  pending: 'planned — P1AZ covers it today',
+};
+const STATUS_ICON = { done: '✅', bydesign: '✅', flagged: '✅', pending: '⚠️' };
+
+/** 'bydesign' = this gateway hands the check to the cloud PDP on purpose (it
+ * forwards the attributes and P1AZ decides) — covered, not a gap. */
 function status(cell) {
+  if (cell.byDesign) return 'bydesign';
   if (cell.flagged) return cell.done ? 'flagged' : 'pending';
   return cell.done ? 'done' : 'pending';
 }
 
-/** The worse of the two gateways' status for a rule — reuses the existing
- * done/flagged/pending vocabulary, no new tier names. */
+/** The weaker of the two gateways' coverage for a rule. Rank:
+ * pending > flagged > bydesign > done. */
 function worstTier(row) {
   const n = status(row.node);
   const g = status(row.groovy);
   if (n === 'pending' || g === 'pending') return 'pending';
   if (n === 'flagged' || g === 'flagged') return 'flagged';
+  if (n === 'bydesign' || g === 'bydesign') return 'bydesign';
   return 'done';
 }
 
 function verdictTextFor(row, tier) {
-  if (tier === 'done') return 'Caught locally — both gateways';
-  if (tier === 'pending') return 'Would slip through — see the table below';
+  if (tier === 'done') return 'Enforced at both gateways';
+  if (tier === 'pending') return 'P1AZ owns this today · gateway backstop planned';
+  if (tier === 'bydesign') return 'Node enforces locally · IG delegates to P1AZ by design';
   const nodeOk = status(row.node) === 'done';
   const groovyOk = status(row.groovy) === 'done';
-  if (nodeOk && !groovyOk) return 'Node catches it — IG ships this off by default';
-  if (groovyOk && !nodeOk) return 'IG catches it — Node does not yet';
-  return 'Partially covered — see the table below';
+  if (nodeOk && !groovyOk) return 'Enforced at the Node gateway · IG behind an opt-in flag';
+  if (groovyOk && !nodeOk) return 'Enforced at the IG gateway · Node behind an opt-in flag';
+  return 'Enforced — one gateway behind an opt-in flag';
 }
 
 function buildJourneyMermaid() {
   const lines = ['flowchart LR'];
-  lines.push('  REQ["Tool call arrives"] --> P1AZ["P1AZ evaluates"]');
+  lines.push('  REQ["Tool call arrives"] --> P1AZ["P1AZ decides business policy"]');
   for (const row of ROWS) {
-    lines.push(`  P1AZ -.->|can't check| b_${row.id}["${row.label}"]`);
+    lines.push(`  P1AZ -.->|delegates to PEP| b_${row.id}["${row.label}"]`);
   }
   for (const row of ROWS) {
-    lines.push(`  b_${row.id} --> GW["Gateway backstops"]`);
+    lines.push(`  b_${row.id} --> GW["Gateway enforces at the PEP"]`);
   }
   lines.push('  GW --> DEC["Final decision"]');
   lines.push('  classDef done fill:#0a2418,color:#6ee7b7,stroke:#059669,stroke-width:1px');
+  lines.push('  classDef bydesign fill:#062b2b,color:#5eead4,stroke:#0d9488,stroke-width:1px');
   lines.push('  classDef flagged fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:1px,stroke-dasharray:2 2');
   lines.push('  classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4');
-  for (const s of ['done', 'flagged', 'pending']) {
+  for (const s of ['done', 'bydesign', 'flagged', 'pending']) {
     const ids = ROWS.filter((r) => worstTier(r) === s).map((r) => `b_${r.id}`);
     if (ids.length) lines.push(`  class ${ids.join(',')} ${s}`);
   }
@@ -181,24 +203,20 @@ function buildStakes() {
 }
 
 function buildMarkdownTable() {
-  const cell = (c) => {
-    const s = status(c);
-    const icon = s === 'done' ? '✅ enforced' : s === 'flagged' ? '⚠️ built, default OFF' : '❌ gap';
-    return `${icon} — ${c.note}`;
-  };
+  const cell = (c) => `${STATUS_LABEL[status(c)]} — ${c.note}`;
   const rows = ROWS.map((r) => `| ${r.label} | ${r.p1az} | ${cell(r.node)} | ${cell(r.groovy)} |`).join('\n');
-  return `| Rule | Why P1AZ can't | Node gateway | IG gateway (groovy) |\n|---|---|---|---|\n${rows}`;
+  return `| Check | Why the gateway owns it | Node gateway | IG gateway (groovy) |\n|---|---|---|---|\n${rows}`;
 }
 
 const journeyMermaid = buildJourneyMermaid();
 const stakes = buildStakes();
 const markdownTable = buildMarkdownTable();
-const doneCount = ROWS.reduce((n, r) => n + (status(r.node) === 'done' ? 1 : 0) + (status(r.groovy) === 'done' ? 1 : 0), 0);
+const covered = (c) => ['done', 'bydesign', 'flagged'].includes(status(c));
+const liveCount = ROWS.reduce((n, r) => n + (covered(r.node) ? 1 : 0) + (covered(r.groovy) ? 1 : 0), 0);
 
-const stakesMarkdown = stakes.map((s) => {
-  const icon = s.verdictTier === 'done' ? '✅' : s.verdictTier === 'flagged' ? '⚠️' : '❌';
-  return `**${s.label}**\n> ${s.scenario}\n\n${icon} ${s.verdictText}`;
-}).join('\n\n');
+const stakesMarkdown = stakes.map((s) => (
+  `**${s.label}**\n> ${s.scenario}\n\n${STATUS_ICON[s.verdictTier]} ${s.verdictText}`
+)).join('\n\n');
 
 const docOut = `# Gateway Local Enforcement Map
 
@@ -212,19 +230,20 @@ Scanned files: \`snapshots/gen-authorize-snapshot.js\`,
 \`demo_mcp_gateway/src/tokenValidator.ts\`, \`demo_mcp_gateway/src/auth/toolScopes.ts\`,
 \`demo_mcp_gateway/src/tierEnforce.ts\`, \`ping-gateway/scripts/groovy/p1az-decision.groovy\`.
 
-Current state: **${doneCount}/10** gateway-side backstops enforced (5 rules × 2 gateways).
+Current state: **${liveCount}/10** checks live (5 checks × 2 gateways).
 See \`docs/superpowers/plans/2026-08-12-gateway-local-enforcement.md\` for the
-implementation plan that closes the remaining gaps.
+implementation plan behind them.
 
-**Reading the diagram:** the top row (P1AZ) is the cloud PDP — it structurally
-cannot check any of these 5 rules itself (DSL limits, see the table below). Each
-rule branches off, then reconverges at the gateway that checks it instead.
+**Reading the diagram:** P1AZ (the cloud PDP) decides business policy — amount,
+tier, group, step-up, HITL. These 5 checks run at the PEP instead, where the raw
+token claims and call parameters actually live. Each branches to the gateway that
+enforces it, then reconverges on one decision.
 
 \`\`\`mermaid
 ${journeyMermaid}
 \`\`\`
 
-## What's at stake
+## What each check stops
 
 ${stakesMarkdown}
 
@@ -275,4 +294,4 @@ fs.writeFileSync(docPath, docOut);
 fs.writeFileSync(uiPath, uiOut);
 console.log(`Wrote ${path.relative(REPO, docPath)}`);
 console.log(`Wrote ${path.relative(REPO, uiPath)}`);
-console.log(`${doneCount}/10 gateway-side backstops currently enforced.`);
+console.log(`${liveCount}/10 checks currently live.`);

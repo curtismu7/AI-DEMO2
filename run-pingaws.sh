@@ -17,14 +17,17 @@
 #   ./run-pingaws.sh kubeconfig         # install SE kubeconfig into ~/.kube
 #   ./run-pingaws.sh help
 #
-# Namespace is auto-derived from PING_EMAIL / demo_api_server/.env
-# (cmuir@pingidentity.com → ping-devops-cmuir). Override with:
+# Namespace is derived once from PING_EMAIL (cmuir@pingidentity.com →
+# ping-devops-cmuir) and then PINNED to demo_api_server/.env as SE_NAMESPACE=
+# — every later run reuses that pinned value, so it can't silently drift from
+# a leftover shell export. One-off override (loudly logged):
 #   SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh start
 #
 # App: https://ai-demo.ping-devops.com
 #
 # Also deploys the Privilege MCPGW gateway (Helm, k8s/helm/mcpgw) alongside the
-# app — see privilege/deploy-whole-stack.prompt.md.
+# app — required by default, see privilege/deploy-whole-stack.prompt.md.
+# Opt out with SKIP_MCPGW=1.
 #
 # Equivalent low-level commands (still work):
 #   ./run-k8.sh se-all | se-build | se-deploy | se-status | se-undeploy
@@ -60,13 +63,18 @@ Usage:
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
 
-Includes the Privilege MCPGW gateway: `deploy`/`start` also runs `helm upgrade
---install ping-mcpgw k8s/helm/mcpgw` if Secret ping-mcpgw-secrets exists (created
-by create-secrets.sh from ping-mcpgw/procyon/config/proxy-token.env — see
-privilege/deploy-whole-stack.prompt.md). Skipped with a warning if that file/
-secret is absent; the rest of the stack still deploys.
+Includes the Privilege MCPGW gateway: `deploy`/`start` always runs `helm
+upgrade --install ping-mcpgw k8s/helm/mcpgw`, using Secret ping-mcpgw-secrets
+(created by create-secrets.sh from ping-mcpgw/procyon/config/proxy-token.env —
+see privilege/deploy-whole-stack.prompt.md). Required by default: if that
+file/secret is missing, the rest of the stack still deploys but the command
+exits non-zero with remediation instructions. Deliberately skip it with:
+  SKIP_MCPGW=1 ./run-pingaws.sh start
 
-Override namespace:
+Namespace is pinned once per checkout (written to demo_api_server/.env as
+SE_NAMESPACE=...) so every later run targets the same namespace by default —
+no re-deriving, no silent drift from a leftover shell export. Override for a
+single run (loudly logged, does not change the pinned value):
   SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh start
 EOF
 }

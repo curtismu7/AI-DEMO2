@@ -2,7 +2,7 @@
  * InteractiveArchDiagram — simplified live diagram driven by TokenChainContext.
  *
  * NOTE: This component is intentionally a SIMPLIFICATION. It renders the core
- * default path (User, PingOne, BFF/Agent, LLM, MCP Gateway, OLB, Invest,
+ * default path (User, PingOne, BFF/Agent, LLM, Agent Gateway, OLB, Invest,
  * Mortgage) so the inline "live highlighting" stays compact when token-chain
  * events fire. It is NOT the authoritative architecture view. The 2026-05-16
  * §4 fix corrected this from a false pre-gateway 5-node model to the real
@@ -33,8 +33,8 @@ import "./InteractiveArchDiagram.css";
 
 // Real architecture nodes. Corrected 2026-05-16: the prior 5-node model
 // (User, BFF, PingOne, LLM, MCP) implied a false BFF->MCP-direct edge and
-// omitted the MCP Gateway + backend MCP servers. The real default path is
-// User -> BFF/Agent -> MCP Gateway -> backend MCP servers (OLB / Invest)
+// omitted the Agent Gateway + backend MCP servers. The real default path is
+// User -> BFF/Agent -> Agent Gateway -> backend MCP servers (OLB / Invest)
 // and the api_key-disposition mortgage service, with PingOne issuing the
 // RFC 8693 token and the external agent service (demo_agent_service :3006) doing
 // tool selection. The Gateway hop is env-conditional (MCP_GATEWAY_HTTP_URL)
@@ -68,7 +68,7 @@ const NODES = {
   },
   gateway: {
     icon: "GW",
-    label: "MCP Gateway",
+    label: "Agent Gateway",
     sub: "demo_mcp_gateway :3005",
     type: "agent",
   },
@@ -145,7 +145,7 @@ const ARROWS = [
     id: "specialist_tool",
     label: "Narrow tool call",
     claims: {
-      transport: "Specialist -> MCP Gateway (JSON-RPC tools/call)",
+      transport: "Specialist -> Agent Gateway (JSON-RPC tools/call)",
       token: "narrowed access token (least privilege)",
     },
     rfc: "MCP_SPEC",
@@ -275,7 +275,7 @@ export default function InteractiveArchDiagram() {
 
         <Arrow arrow={ARROWS[1]} isActive={activeNodes.has("gateway")} />
 
-        {/* Col 3: MCP Gateway — central router (env-conditional default) */}
+        {/* Col 3: Agent Gateway — central router (env-conditional default) */}
         <div className="iad-col">
           <Node
             nodeKey="gateway"
@@ -289,7 +289,7 @@ export default function InteractiveArchDiagram() {
           />
         </div>
 
-        {/* Specialist Agent issues narrow tool calls back through the MCP Gateway */}
+        {/* Specialist Agent issues narrow tool calls back through the Agent Gateway */}
         <Arrow arrow={ARROWS[4]} isActive={activeNodes.has("specialist")} />
 
         <Arrow arrow={ARROWS[2]} isActive={activeNodes.has("mcp")} />
@@ -331,7 +331,7 @@ export default function InteractiveArchDiagram() {
           ["#34d399", "BFF / AI Agent"],
           ["#f59e0b", "PingOne (OAuth AS)"],
           ["#f472b6", "LLM Provider"],
-          ["#a78bfa", "MCP Gateway"],
+          ["#a78bfa", "Agent Gateway"],
           ["#2dd4bf", "MCP servers (OLB / Invest)"],
           ["#94a3b8", "Mortgage svc (api_key)"],
         ].map(([color, label]) => (

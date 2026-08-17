@@ -84,14 +84,15 @@ def _make_tool(schema: dict, emit_fn: Optional[Callable[[dict], Coroutine]]) -> 
                     timeout=30.0,
                 )
             if resp.status_code != 200:
-                # Retry only on transient failures. 4xx (except 408/429) are caller/
-                # authz errors — ModelRetry would amplify BFF load and risk duplicate
-                # side effects on non-idempotent tools.
+                # Always report the failure back to the model via ModelRetry so it
+                # can explain the real reason (e.g. a 403 policy/authz denial) or
+                # correct its arguments, instead of the run aborting with a bare
+                # RuntimeError that pydantic_ai doesn't special-case (only caught
+                # by run_handler's generic top-level handler, which discards the
+                # message and emits a generic "internal error").
                 body = resp.text[:200]
                 msg = f"Tool '{name}' failed: BFF returned HTTP {resp.status_code}: {body}"
-                if resp.status_code >= 500 or resp.status_code in (408, 429):
-                    raise ModelRetry(msg)
-                raise RuntimeError(msg)
+                raise ModelRetry(msg)
             try:
                 data = resp.json()
             except ValueError as exc:

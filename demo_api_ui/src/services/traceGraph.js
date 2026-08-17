@@ -19,7 +19,7 @@
 // services (future additions) fall through to their raw name in 'Other'.
 const DISPLAY_LABELS = {
   'demo-api-server': 'App Backend (BFF)',
-  'mcp-gateway': 'MCP Gateway',
+  'mcp-gateway': 'Agent Gateway',
   'mcp-server': 'AIDemo MCP Server',
   'mcp-resource-server': 'Investment MCP Server',
   'agent-service': 'AI Agent',

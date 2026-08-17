@@ -6,14 +6,16 @@ import { GATEWAY_ENFORCEMENT_JOURNEY_MERMAID, GATEWAY_ENFORCEMENT_STAKES, GATEWA
 
 const STATUS_LABEL = {
   done: '✅ enforced',
-  flagged: '⚠️ built, default OFF',
-  pending: '❌ gap',
+  bydesign: '✅ P1AZ owns the decision',
+  flagged: '✅ built · opt-in flag',
+  pending: 'planned — P1AZ covers it today',
 };
 
 const VERDICT_STYLE = {
   done: { bg: '#0a2418', fg: '#6ee7b7', border: '#059669', icon: '✅' },
-  flagged: { bg: '#2a1a00', fg: '#fbbf24', border: '#d97706', icon: '⚠️' },
-  pending: { bg: '#2d0a0a', fg: '#fca5a5', border: '#dc2626', icon: '❌' },
+  bydesign: { bg: '#062b2b', fg: '#5eead4', border: '#0d9488', icon: '✅' },
+  flagged: { bg: '#2a1a00', fg: '#fbbf24', border: '#d97706', icon: '✅' },
+  pending: { bg: '#2d0a0a', fg: '#fca5a5', border: '#dc2626', icon: '⚠️' },
 };
 
 /** Renders the generated Mermaid source once on mount. Static, not live-trace —
@@ -63,7 +65,7 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
           <h3 style={{ marginTop: 0 }}>Two enforcement points, two jobs</h3>
           <p>
             This demo has two authorization layers on every agent tool call: the <strong>Agent Gateway</strong>
-            {' '}(a PEP — Policy Enforcement Point, either PingGateway/IG or the Node demo gateway) and{' '}
+            {' '}(a PEP — Policy Enforcement Point, either PingOne Agent Gateway/IG or the Node demo gateway) and{' '}
             <strong>PingOne Authorize</strong> (P1AZ, the PDP — Policy Decision Point). They are deliberately
             split by grain, not duplicated:
           </p>
@@ -78,23 +80,25 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
             </tbody>
           </table>
           <div className="edu-info-box">
-            The gateway is not supposed to re-implement P1AZ's business rules. But P1AZ's decision DSL has real
-            structural limits — it cannot express 5 specific rules a full authorization posture needs. Those 5
-            fall back to the gateway as a local backstop. That's what this page covers.
+            The gateway does not re-implement P1AZ's business rules. Five checks do land on the gateway, because
+            they need the raw token claims and call parameters the PEP holds — set membership over scopes, groups
+            and payees, epoch-second timestamps, the full multi-valued <code>aud</code>. The PDP gets scalars; the
+            PEP has the originals, so it owns those five. That's what this page covers.
           </div>
         </>
       ),
     },
     {
       id: 'why-p1az-cant',
-      label: "Why P1AZ can't",
+      label: 'Why the gateway owns it',
       content: (
         <>
-          <h3 style={{ marginTop: 0 }}>5 rules the cloud PDP's DSL cannot express</h3>
+          <h3 style={{ marginTop: 0 }}>5 checks the PEP owns</h3>
           <p>
-            PingOne Authorize has no policy API for COMPARISON conditions — the cloud policy is a snapshot
-            import, and its DSL is attribute-to-attribute comparison only: no set/contains operator, no array
-            membership, string types only for what it receives. That ceiling is real, not a bug:
+            The cloud policy is a snapshot import, and its DSL compares attribute to attribute: scalars, string
+            types, no set membership. The BFF and gateway flatten what they can into scalars for the PDP —{' '}
+            <code>UserTier</code>, <code>InRequiredGroup</code>, <code>TokenKidKnown</code>. These five keep their
+            original shape (sets, arrays, epoch numbers), so the PEP is where they get checked:
           </p>
           {GATEWAY_ENFORCEMENT_ROWS.map((row) => (
             <div key={row.id} className="edu-info-box" style={{ marginBottom: 10 }}>
@@ -110,16 +114,17 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
       label: 'Enforcement map',
       content: (
         <>
-          <h3 style={{ marginTop: 0 }}>Where each rule is enforced today</h3>
+          <h3 style={{ marginTop: 0 }}>Where each check is enforced today</h3>
           <p>
             Generated from the actual source — not hand-maintained. Re-running{' '}
             <code>node scripts/gen-gateway-enforcement-map.js</code> after a code change updates this diagram
             and <code>docs/gateway-enforcement-map.md</code> together, from the same scan.
           </p>
           <p style={{ fontSize: 13, opacity: 0.8 }}>
-            <strong>Reading the diagram:</strong> P1AZ structurally can't check any of these 5
-            rules — each one branches off, then reconverges at the gateway that checks it
-            instead. Box color shows whether that backstop is live today.
+            <strong>Reading the diagram:</strong> P1AZ decides business policy — amount, tier,
+            group, step-up, HITL. These 5 checks run at the PEP, where the raw token claims and
+            call parameters live. Each branches to the gateway that enforces it, then reconverges
+            on one decision. Box color shows which gateway carries it.
           </p>
           <EnforcementMapDiagram />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginTop: 16 }}>
@@ -138,7 +143,7 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
           </div>
           <table className="edu-table" style={{ marginTop: 16 }}>
             <thead>
-              <tr><th>Rule</th><th>Node gateway</th><th>IG gateway (groovy)</th></tr>
+              <tr><th>Check</th><th>Node gateway</th><th>IG gateway (groovy)</th></tr>
             </thead>
             <tbody>
               {GATEWAY_ENFORCEMENT_ROWS.map((row) => (
@@ -151,9 +156,14 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
             </tbody>
           </table>
           <div className="edu-info-box" style={{ marginTop: 12 }}>
-            RAR payee is deliberately <strong>not</strong> auto-enabled on the IG groovy path even once built —
-            the repo's own <code>ping-gateway/scripts/check-groovy-params.sh</code> warns against a local RAR
-            DENY there ("P1AZ decides"). It ships behind <code>PG_LOCAL_RAR_PAYEE_ENFORCE</code>, default off.
+            On the IG groovy path, P1AZ owns the RAR decision: the filter forwards{' '}
+            <code>RarAuthorizationDetails</code>, <code>RarMaxAmount</code> and{' '}
+            <code>RarPermittedPayees</code>, and the cloud <code>RarMaxAmount</code> rule decides — which is why{' '}
+            <code>ping-gateway/scripts/check-groovy-params.sh</code> warns against a local DENY there ("P1AZ
+            decides"). A local payee DENY is available behind <code>PG_LOCAL_RAR_PAYEE_ENFORCE</code> for the
+            belt-and-braces variant. Separately, <code>ff_rar</code> itself is opt-in because PingOne SaaS accepts{' '}
+            <code>authorization_details</code> on PAR only, so the BFF carries the grant in the TraT{' '}
+            <code>azd</code> envelope; it is minted natively on AIC / PingFederate 11.2+.
           </div>
         </>
       ),
@@ -182,7 +192,7 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
       isOpen={isOpen}
       onClose={onClose}
       title="Gateway vs P1AZ — the decision split"
-      subtitle="Where enforcement lives when the cloud PDP's DSL can't express a rule"
+      subtitle="Which enforcement point owns which decision, and where each check runs"
       tabs={tabs}
       initialTabId={initialTabId || 'overview'}
       width="min(720px, 100vw)"

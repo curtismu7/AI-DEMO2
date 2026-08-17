@@ -66,17 +66,24 @@ export function decisionFromAuditOutcome(
 // propagate into the tool-call response path.
 export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConfig): void {
   try {
-    const url = bffAuditUrl(config);
-    if (!url) return;
     // Stamp the request's correlation id (shared across BFF → gateway → authz)
     // unless the caller already set one, so every audited tool-call outcome in
     // the BFF's LMDB is correlatable back to the originating request.
     const enriched: GatewayAuditEvent = event.correlationId
       ? event
       : { ...event, correlationId: getCorrelationId() };
-    // Same chokepoint, second consumer: the durable audit trail and the
-    // ledger hop now carry the identical `details` object — one computation,
-    // two destinations, so /api/mcp/audit and the ledger can never diverge.
+
+    // The ledger hop is emitted FIRST and independently of the audit URL. These
+    // are two separate sinks with two separate env vars
+    // (BFF_TRANSACTION_HOP_URL vs BFF_INTERNAL_ID_TOKEN_URL); previously an
+    // absent/blank audit URL returned early and silently took the ledger hop
+    // with it, so a deployment could have working hop config and still record
+    // no gateway leg on /transaction-trace. emitHop does its own env check and
+    // no-ops safely when unconfigured.
+    //
+    // Same chokepoint, second consumer: the durable audit trail and the ledger
+    // hop carry the identical `details` object — one computation, two
+    // destinations, so /api/mcp/audit and the ledger can never diverge.
     const decision = decisionFromAuditOutcome(enriched.outcome, enriched.details);
     emitHop({
       phase: 'gateway.authorize',
@@ -93,6 +100,9 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
       status: enriched.outcome === 'failure' ? 'error' : 'ok',
       vertical: enriched.vertical,
     });
+
+    const url = bffAuditUrl(config);
+    if (!url) return;
     axios
       .post(url, enriched, {
         headers: { 'x-internal-gateway-secret': config.bffInternalSecret },

@@ -114,7 +114,7 @@ export default function PrivilegeMcpLearningPage() {
         <button className="plp-back" onClick={() => navigate("/privilege-mcp-client")}>
           Back to Privilege MCP Client
         </button>
-        <h1>PingOne Privilege MCP Gateway</h1>
+        <h1>AI Agent Gateway</h1>
         <p className="plp-subtitle">
           Just-in-time, least-privilege access control for MCP servers — hiding backend
           credentials from AI agents while enforcing tool-level policies with full audit.
@@ -139,7 +139,7 @@ export default function PrivilegeMcpLearningPage() {
           {/* ─── Overview ─── */}
           <Section id="overview" title="Overview">
             <p>
-              PingOne Privilege MCP Gateway is an inline security gateway that enforces
+              AI Agent Gateway is an inline security gateway that enforces
               just-in-time, least-privilege access to MCP (Model Context Protocol) servers.
               It is the recommended approach for workforce and personal-assistant MCP use
               cases where the primary requirement is <strong>MCP access governance</strong>:
@@ -148,11 +148,11 @@ export default function PrivilegeMcpLearningPage() {
             </p>
 
             <div className="plp-callout plp-callout--info">
-              <strong>Privilege vs PingGateway — when to use which:</strong>
+              <strong>Privilege vs PingOne Agent Gateway — when to use which:</strong>
               <ul>
-                <li><strong>Privilege MCP Gateway</strong> — MCP access governance, JIT approvals,
+                <li><strong>AI Agent Gateway</strong> — MCP access governance, JIT approvals,
                   time-bound access, credential protection, tool-level audit. Sits near the agent/client.</li>
-                <li><strong>PingGateway MCP Security Gateway</strong> — downstream token mediation,
+                <li><strong>PingOne Agent Gateway MCP Security Gateway</strong> — downstream token mediation,
                   introspection, transformation, audience/resource handling, RFC 8693 enforcement.
                   Sits near the backend MCP server.</li>
               </ul>
@@ -634,7 +634,7 @@ print(f'{status} — expires {exp.isoformat()}')
               <li>Attach mesh cluster to the app</li>
               <li>Wait for tool discovery (~30s)</li>
               <li>Create policy granting user access to discovered tools</li>
-              <li>Test from the Privilege MCP Client page</li>
+              <li>Test from the AI Agent Gateway Client page</li>
             </ol>
 
             <h3>External resources</h3>

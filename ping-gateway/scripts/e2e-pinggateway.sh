@@ -8,15 +8,18 @@
 #     recipe and let the deterministic Node routing/parity tests stand as the gate.
 #
 # Env:
-#   PG_URL    PingGateway base (default http://localhost:3036 — host port; OrbStack
-#             reserves 3006, so compose publishes 3036).
+#   PG_URL    PingGateway base (default https://localhost:3036 — host port; OrbStack
+#             reserves 3006, so compose publishes 3036). HTTPS since the listener
+#             moved to IG's 8443 TLS connector so the RFC 9728 metadata URL IG
+#             advertises (https://api.ping.demo:3036/...) is actually fetchable.
+#             The cert is mkcert-issued and its SANs cover localhost.
 #   AUTHZ_URL mock authz-server base (default http://localhost:9001).
 #   BANKING_TEST_TOKEN  optional inbound bearer (aud must include mcpgateway.ping.demo,
 #             scope banking:mcp:invoke). When set, the full PERMIT/DENY chain is exercised.
 
 set -uo pipefail
 
-PG_URL="${PG_URL:-http://localhost:3036}"
+PG_URL="${PG_URL:-https://localhost:3036}"
 AUTHZ_URL="${AUTHZ_URL:-http://localhost:9001}"
 GATEWAY_AUD="mcpgateway.ping.demo"
 

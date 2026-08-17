@@ -51,7 +51,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   update_profile:           ['update_contact_email'],
   request_waiver:           ['request_fee_waiver'],
   // Investment
-  view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions'],
+  view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions', 'show_investment'],
   view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],
   view_holdings:            ['view_holdings', 'view_portfolios', 'view_portfolio_value'],
   view_trades:              ['view_trades', 'view_holdings', 'view_portfolios'],
@@ -88,7 +88,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   // University
   view_courses:             ['view_courses', 'view_standing', 'view_enrollment_history'],
   view_standing:            ['view_standing', 'view_courses'],
-  view_enrollment_history:  ['view_enrollment_history', 'view_courses'],
+  view_enrollment_history:  ['view_enrollment_history', 'view_courses', 'show_enrollment'],
   register_course:          ['register_course', 'view_courses'],
   release_transcript:       ['release_transcript', 'view_courses'],
   view_financial_aid:       ['view_financial_aid', 'view_billing'],
@@ -96,7 +96,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   view_degree_audit:        ['view_degree_audit', 'view_courses'],
   pay_tuition_balance:      ['pay_tuition_balance', 'view_billing'],
   // Government
-  view_permits:             ['view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations'],
+  view_permits:             ['view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations', 'show_permit'],
   view_fees:                ['view_fees', 'view_permits', 'view_tax_assessments'],
   view_filings:             ['view_filings', 'view_permits', 'view_complaints'],
   view_complaints:          ['view_complaints', 'view_permits', 'view_filings'],
@@ -111,6 +111,7 @@ const INTENT_TO_PERMITTED_TOOLS = {
   check_seat_availability:  ['check_seat_availability', 'get_flight_status', 'get_airline_bookings'],
   // Manufacturing
   approve_purchase_order:   ['approve_purchase_order', 'view_purchase_orders'],
+  view_work_orders:         ['view_work_orders', 'show_work_order'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
@@ -122,7 +123,7 @@ const READ_ONLY_TOOLS = [
   'get_my_accounts', 'get_account_balance', 'get_my_transactions',
   'get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary',
   'get_investment_transactions', 'get_sensitive_account_details', 'query_user_by_email',
-  'sequential_think',
+  'show_investment', 'sequential_think',
   // Healthcare
   'view_records', 'view_coverage', 'list_appointments', 'show_health_record',
   // Retail
@@ -138,14 +139,16 @@ const READ_ONLY_TOOLS = [
   'view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations',
   'view_business_licenses', 'view_appointments', 'view_tax_assessments',
   'view_records_requests', 'view_complaints', 'view_documents', 'view_payment_history',
-  'view_zoning_info', 'view_notifications',
+  'view_zoning_info', 'view_notifications', 'show_permit',
   // University
   'view_courses', 'view_standing', 'view_enrollment_history',
   'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
   'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
-  'view_library', 'view_scholarships', 'view_advisors',
+  'view_library', 'view_scholarships', 'view_advisors', 'show_enrollment',
   // Airlines
   'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
+  // Manufacturing
+  'view_work_orders', 'show_work_order',
   // Code search (cross-vertical, read-only)
   'code_search', 'get_code', 'list_codebases',
 ];
@@ -173,17 +176,17 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
     'view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations',
     'view_business_licenses', 'view_appointments', 'view_tax_assessments',
     'view_records_requests', 'view_complaints', 'view_documents', 'view_payment_history',
-    'view_zoning_info', 'view_notifications', 'sequential_think',
+    'view_zoning_info', 'view_notifications', 'show_permit', 'sequential_think',
   ],
   university: [
     'view_courses', 'view_standing', 'view_enrollment_history',
     'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
     'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
-    'view_library', 'view_scholarships', 'view_advisors', 'sequential_think',
+    'view_library', 'view_scholarships', 'view_advisors', 'show_enrollment', 'sequential_think',
   ],
   investment: [
     'view_portfolios', 'view_holdings', 'view_trades', 'view_dividends',
-    'view_portfolio_value', 'sequential_think',
+    'view_portfolio_value', 'show_investment', 'sequential_think',
   ],
   airlines: [
     'get_airline_bookings', 'get_flight_status', 'check_seat_availability',
@@ -193,7 +196,7 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
     'view_work_orders', 'view_inventory', 'view_production_history',
     'view_machines', 'view_machine_utilization', 'view_quality_inspections',
     'view_shipments', 'view_purchase_orders', 'view_maintenance_tickets',
-    'view_defects', 'view_scrap_report', 'view_supplier_scorecard', 'sequential_think',
+    'view_defects', 'view_scrap_report', 'view_supplier_scorecard', 'show_work_order', 'sequential_think',
   ],
 };
 

@@ -58,12 +58,12 @@ export default function StepCard({
 
       <div className="step-footer">
         <button
-          className="step-execute-btn"
+          className={`step-execute-btn ${isComplete && statusOk ? 'step-execute-btn--success' : ''}`}
           onClick={handleClick}
           disabled={!isEnabled}
           title={isEnabled ? 'Execute this step' : 'Complete previous steps first'}
         >
-          Execute
+          {isComplete && statusOk ? '✓ Done' : 'Execute'}
         </button>
       </div>
     </div>

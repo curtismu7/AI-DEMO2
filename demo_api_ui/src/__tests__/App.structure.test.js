@@ -26,7 +26,6 @@ vi.mock("../components/ComplianceModalPopout", () => ({ default: () => null }));
 vi.mock("../components/DemoGuidePopout", () => ({ default: () => null }));
 vi.mock("../components/LogoutPage", () => ({ default: () => null }));
 vi.mock("../components/MFATestPage", () => ({ default: () => null }));
-vi.mock("../components/Onboarding", () => ({ default: () => null }));
 vi.mock("../components/PingOneSetupGuidePage", () => ({ default: () => null }));
 vi.mock("../components/PingOneTestPage", () => ({ default: () => null }));
 vi.mock("../components/SelfServicePage", () => ({ default: () => null }));

@@ -477,7 +477,7 @@ async function runMcpToolPipeline(ctx) {
         const hitlChallengeId = params?.[HITL_CHALLENGE_ARG] || null;
         if (hitlChallengeId) { delete params[HITL_CHALLENGE_ARG]; }
 
-        console.log('[mcpToolPipeline] Before authorize-decision:', { tool: tool.name, userSub, tokenScopes: mcpAccessToken?.scope });
+        logger.debug(_CAT, `[mcpToolPipeline] Before authorize-decision: tool=${tool} userSub=${userSub ?? '(none)'}`);
         const mcpAuthz = await deps.evaluateMcpFirstToolGate({
             req,
             tool,
@@ -487,7 +487,7 @@ async function runMcpToolPipeline(ctx) {
             toolParams: params,
             hitlChallengeId,
         });
-        console.log('[mcpToolPipeline] After authorize-decision:', { tool: tool.name, ran: mcpAuthz.ran, blocked: !!mcpAuthz.block, decision: mcpAuthz.block?.body?.decision });
+        logger.debug(_CAT, `[mcpToolPipeline] After authorize-decision: tool=${tool} ran=${mcpAuthz.ran} blocked=${!!mcpAuthz.block} decision=${mcpAuthz.block?.body?.decision ?? '(none)'}`);
         if (mcpAuthz.ran && mcpAuthz.block) {
             deps.emit({
                 phase: 'authorize_denied',
@@ -881,7 +881,24 @@ async function runMcpToolPipeline(ctx) {
         deps.emit({
             phase: 'mcp_remote_begin'
         });
-        deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`, { tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
+        // Walk the MCP authorization handshake before the credentialed call, so
+        // the trace shows both halves: the anonymous tools/call the gateway
+        // answers with 401 + WWW-Authenticate, then the authorized one below.
+        // Gateway path only — direct mode has no HTTP MCP endpoint to challenge.
+        // Evidence only: probeMcpChallenge never throws and its result is unused.
+        if (useGateway) {
+            const challengeProbe = await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+                method: 'tools/call',
+                phase: 'tools/call',
+                gatewayUrl: gatewayHttpUrl,
+                params: { name: tool },
+            });
+            if (challengeProbe.events.length) {
+                tokenEvents.push(...challengeProbe.events);
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+            }
+        }
+        deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`,{ tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
         let result;
         let gwAuditTrail = null;
         // DPoP (RFC 9449): pass the session's ephemeral key so the gateway client signs a
@@ -939,7 +956,7 @@ async function runMcpToolPipeline(ctx) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
         } else {
-            result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId);
+            result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId, { emit: deps.emit });
         }
         deps.appEventLog('mcp', 'info', `MCP tool done ← ${tool} (${Date.now() - startTime}ms)`, { tag: 'mcp/tool', metadata: { tool, durationMs: Date.now() - startTime } });
 
@@ -1344,13 +1361,18 @@ async function runMcpToolPipeline(ctx) {
         if (err.gatewayErrorCode === 'hitl_required') {
             deps.emit({ phase: 'gateway_hitl_required' });
             // A use case that DECLARES a step-up method (UC7 'p1mfa', UC22
-            // 'ciba') presents STEP_UP even when the gateway's wire code was
+            // 'ciba') must present STEP_UP even when the gateway's wire code was
             // hitl_required — the live MCP policy answers HITL for every
             // amount, and this is the same declared-method rule
-            // _applyTransactionPolicy uses on the local-gate path.
+            // _applyTransactionPolicy uses on the local-gate path. This has to
+            // change the RESPONSE BODY, not just the mcpAuthorizeEvaluation
+            // display label below — the label used to say STEP_UP while
+            // `error` stayed 'hitl_required', so the client (and the policy-
+            // conformance checker) never saw the declared override take effect.
+            const declaredStepUpMethod = getUseCaseStepUpMethod(ctx.useCaseId);
             const gwEval = gatewayBlockAuthEval(
                 err.gwAuditTrail,
-                getUseCaseStepUpMethod(ctx.useCaseId) ? 'STEP_UP' : 'HITL_REQUIRED',
+                declaredStepUpMethod ? 'STEP_UP' : 'HITL_REQUIRED',
                 ctx
             );
             if (gwEval) {
@@ -1368,6 +1390,32 @@ async function runMcpToolPipeline(ctx) {
                         filterChain: err.gwAuditTrail.filterChain,
                     })
                 ));
+            }
+            if (declaredStepUpMethod) {
+                const stepUpBody = {
+                    error: 'mcp_step_up_required',
+                    isError: false,
+                    error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
+                    tool,
+                    step_up_method: declaredStepUpMethod,
+                    tokenEvents,
+                    requestJson,
+                    ...(gwEval ? { mcpAuthorizeEvaluation: gwEval } : {}),
+                };
+                try {
+                    const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
+                    deps.publishMcpResultToSse(flowTraceId, {
+                        tool,
+                        result: { error: 'mcp_step_up_required', message: stepUpBody.error_description },
+                        durationMs: Date.now() - startTime,
+                        isDelegated: !!mcpAccessToken,
+                        requestJson,
+                        denied: true,
+                        mcpAuthorizeEvaluation: gwEval || _authEval?.singular || null,
+                        mcpAuthorizeEvaluations: _authEval?.plural || null,
+                    });
+                } catch (_) { /* SSE best-effort */ }
+                return { kind: 'block', httpStatus: 428, tokenEvents, body: stepUpBody };
             }
             const hitlBody = {
                 error: 'hitl_required',
@@ -1660,6 +1708,36 @@ async function runMcpToolPipeline(ctx) {
         deps.emit({
             phase: 'mcp_remote_unreachable'
         });
+        // #67 — When the call is gateway-authoritative the BFF deliberately skips
+        // its own authorize gate (gatewayAuthoritative, ~:452) because the gateway
+        // is the sole PDP. A transport failure reaching the gateway
+        // (GATEWAY_UNREACHABLE/GATEWAY_TIMEOUT, whose messages contain
+        // ECONNREFUSED/"timed out" and so satisfy isConnErr) must NOT silently run
+        // the tool via callToolLocal: that bypasses the gateway, the MCP server,
+        // AND PingOne Authorize (group/tier/RAR/scope), i.e. fail-open on the
+        // money-movement path. Surface the transport error (503/504) instead.
+        // Mirrors the no-bearer (~:385) and exchange-failure (F5, ~:320) paths,
+        // both made non-bypassing. The degraded local-demo affordance is gated
+        // behind the SAME opt-in (default OFF) and marks the result _degraded so
+        // the caller can see the call was not authorized by any policy engine.
+        if (useGateway) {
+            const localFallbackOnGatewayDown =
+                require('./configStore').getEffective('ff_local_fallback_on_exchange_failure') === 'true';
+            if (!localFallbackOnGatewayDown) {
+                deps.emit({ phase: 'gateway_unreachable_no_fallback' });
+                logger.warn(_CAT,
+                    `[MCP Gateway] ${tool} — gateway unreachable/timed out and the ungated local fallback is DISABLED ` +
+                    '(ff_local_fallback_on_exchange_failure=false); surfacing the transport error instead of running unauthorized.'
+                );
+                const gwTimeout = err.code === 'GATEWAY_TIMEOUT' || err.message.includes('timed out');
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+                return { kind: 'error', httpStatus: err.httpStatus || (gwTimeout ? 504 : 503), tokenEvents, body: {
+                    error: gwTimeout ? 'GATEWAY_TIMEOUT' : 'GATEWAY_UNREACHABLE',
+                    message: err.message,
+                    tokenEvents,
+                } };
+            }
+        }
         // ── Local fallback ──────────────────────────────────────────────────────
         const sessionUser = req.session ?.user;
         if (!sessionUser ?.id) {
@@ -1694,7 +1772,11 @@ async function runMcpToolPipeline(ctx) {
             return { kind: 'result', httpStatus: 200, tokenEvents, body: {
                 result,
                 tokenEvents,
-                _localFallback: true
+                _localFallback: true,
+                // #67 — reachable with useGateway only via the opt-in flag; the
+                // gateway (sole PDP) was down, so this ran without any policy
+                // decision. Contract C2: mark degraded so the caller can tell.
+                ...(useGateway ? { _degraded: true, policy_source: 'local-fallback' } : {}),
             } };
         } catch (localErr) {
             deps.emit({

@@ -6,9 +6,9 @@ export async function dispatchUniversityTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_courses': {
+    case 'view_courses': {
       const courses = listCourses();
-      return { courses, count: courses.length };
+      return { courses, count: courses.length, render: 'view_courses' };
     }
     case 'get_course': {
       const id = args.course_id as string;

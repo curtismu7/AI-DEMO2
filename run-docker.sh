@@ -213,6 +213,13 @@ ensure_bind_mounts() {
   # a file is missing or the cert expired.
   bash "${BASEDIR}/scripts/ensure-gateway-mtls-certs.sh"
 
+  # Server keystore for PingGateway's 8443 TLS connector (published as host
+  # 3036). Without it IG cannot start the HTTPS listener, and the RFC 9728
+  # metadata URL it advertises — https://api.ping.demo:3036/.well-known/... —
+  # goes unreachable again. Idempotent; rebuilds only when the mkcert pair is
+  # newer, and no-ops with a warning before the bootstrap has written certs/.
+  bash "${BASEDIR}/scripts/ensure-pinggateway-tls-cert.sh"
+
   # LLM2.json — must be a FILE. Replace a stray Docker-created directory, and
   # placeholder a missing key so the mount is a file (Helix stays unconfigured
   # until a real key is dropped in — the loader tolerates an empty/{} key).

@@ -414,7 +414,7 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-modal-overlay" onClick={() => setShowFlowModal(false)}>
           <div className="cur-flow-modal" onClick={(e) => e.stopPropagation()}>
             <div className="cur-flow-header">
-              <span className="cur-flow-title">Privilege MCP — Request Flow</span>
+              <span className="cur-flow-title">AI Agent Gateway — Request Flow</span>
               <button className="cur-flow-close" onClick={() => setShowFlowModal(false)}>&#x2715;</button>
             </div>
             <div className="cur-flow-body">
@@ -564,7 +564,7 @@ export default function PrivilegeMcpClientPage() {
               <div className="cur-settings-section">
                 <h4 className="cur-settings-section-title">MCP Connection</h4>
                 <label className="cur-field">
-                  <span className="cur-field-label">MCP Gateway URL</span>
+                  <span className="cur-field-label">AI Agent Gateway URL</span>
                   <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
                 </label>
                 <label className="cur-field">
@@ -623,7 +623,7 @@ export default function PrivilegeMcpClientPage() {
             <span className="cur-dot cur-dot--yellow" />
             <span className="cur-dot cur-dot--green" />
           </div>
-          <span className="cur-titlebar-title">Privilege MCP Client — PingOne</span>
+          <span className="cur-titlebar-title">AI Agent Gateway Client — PingOne</span>
         </div>
         <div className="cur-titlebar-center">
           <div className={`cur-status ${(authenticated || mainAppAuthenticated) ? 'cur-status--ok' : ''}`}>

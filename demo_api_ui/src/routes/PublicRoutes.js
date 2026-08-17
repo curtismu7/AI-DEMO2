@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
+import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
@@ -15,7 +16,6 @@ import ComplianceModalPopout from "../components/ComplianceModalPopout";
 import DemoGuidePopout from "../components/DemoGuidePopout";
 import LogoutPage from "../components/LogoutPage";
 import MFATestPage from "../components/MFATestPage";
-import Onboarding from "../components/Onboarding";
 import PingOneSetupGuidePage from "../components/PingOneSetupGuidePage";
 import PingOneTestPage from "../components/PingOneTestPage";
 import PingOneSetup from "../pages/PingOneSetup";
@@ -29,6 +29,8 @@ import McpInspectorPage from "../components/McpInspectorPage";
 import McpGatewayConfig from "../components/McpGatewayConfig";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
+import DavinciLoginPage from "../pages/DavinciLoginPage";
+import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
@@ -116,9 +118,12 @@ export function PrivilegeMcpLearningPageRoute({ user, logout }) {
   );
 }
 
-export function OnboardingRoute({ user }) {
-  if (user && user.role !== "admin") return <Navigate to="/" replace />;
-  return <Onboarding />;
+export function AgentGatewayCapabilitiesPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AgentGatewayCapabilitiesPage />
+    </AppShell>
+  );
 }
 
 export function AgentPageRoute({ user, logout }) {
@@ -167,7 +172,7 @@ export function OAuthAcademyPageRoute({ user, logout }) {
 export function OASDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
-      <OASDemoPage />
+      <OASDemoPage user={user} />
     </AppShell>
   );
 }
@@ -255,6 +260,21 @@ export function SdkLoginPageRoute() {
   // Bare (no AppShell): the SDK sandbox is a self-contained page — no banking app
   // chrome, sidebar, or global education modals.
   return <SdkLoginPage />;
+}
+
+// DaVinci widget login sandbox (public) — drives its own browser-side flow.
+export function DavinciLoginPageRoute() {
+  return <DavinciLoginPage />;
+}
+
+// DaVinci Orchestration explainer — signed-in, AppShell-wrapped (reached from
+// the agent header's More menu, not a pre-login sandbox like SdkLoginPageRoute).
+export function DavinciExplainerRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciExplainerPage />
+    </AppShell>
+  );
 }
 
 // OIDC redirect callback (bare — no shell, it exchanges the code and redirects).

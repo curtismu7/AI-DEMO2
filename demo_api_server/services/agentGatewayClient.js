@@ -54,6 +54,20 @@ async function getAvailableTools(req, agentCCToken, options = {}) {
   const toolsListUrl = `${gatewayUrl}/tools/list`;
   const tokenEvents = [];
 
+  // Walk the MCP authorization handshake before presenting the token, so the
+  // trace shows both halves of the dance. This function and listAvailableTools
+  // below are BOTH discovery entry points — this HTTP one is what the agent run
+  // (routes/agentRun.js) and /demo-agent/init actually call, so instrumenting
+  // only the WS one left the challenge step dark on every real run. Evidence
+  // only: probeMcpChallenge never throws and its result is unused. It resolves
+  // the gateway itself rather than using `gatewayUrl`, because this function's
+  // AGENT_GATEWAY_URL default (localhost:8080) is the legacy tools/list host,
+  // not the MCP endpoint that issues RFC 9728 challenges.
+  await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+    method: 'tools/list',
+    phase: 'tools/list',
+  });
+
   try {
     // Call Agent Gateway with JSON-RPC (per i4ai diagram step 5)
     const rpcPayload = {
@@ -298,6 +312,14 @@ function normalizeGatewayTools(result) {
 async function listAvailableTools(req, agentToken, opts = {}) {
   const { vertical, userSub = null, correlationId } = opts;
   const { mcpListTools, getMcpGatewayWsUrl } = require('./mcpWebSocketClient');
+  // Walk the MCP authorization handshake before presenting the token, so the
+  // trace shows both halves of the dance: the anonymous tools/list the gateway
+  // challenges with 401 + WWW-Authenticate, then the credentialed one below.
+  // Evidence only — probeMcpChallenge never throws and its result is unused.
+  await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+    method: 'tools/list',
+    phase: 'tools/list',
+  });
   // Discovery MUST go through the gateway WS so PingOne Authorize filters tools/list
   // by vertical + scope. The plain MCP server (MCP_SERVER_URL) returns ALL tools
   // unfiltered (it delegates filtering to the gateway). Fall back to the default

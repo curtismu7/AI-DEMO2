@@ -73,6 +73,55 @@ const AIRLINES_TOOLS = new Set([
   'sensitive_passenger_record',
 ]);
 
+// Healthcare vertical (CareConnect) pilot for the Phase-1 SQLite migration.
+// Same physical backend as invest/airlines — demo_mcp_resource_server — so it
+// routes to the 'invest' target. Tool name matches the chip-facing manifest
+// tool exactly (view_records); scope-topology.json's tools.view_records entry
+// already requires only "read", already granted to every session, so no
+// scope-topology change was needed to wire this. get_patient_record is
+// deliberately NOT routed here — no chip in the vertical's manifest calls it.
+const HEALTHCARE_TOOLS = new Set([
+  'view_records',
+]);
+
+// Same pilot pattern as healthcare — government, manufacturing, university.
+// get_permit/get_work_order/get_course deliberately NOT routed: no chip in
+// any of the three manifests calls a single-record lookup.
+const GOVERNMENT_TOOLS = new Set([
+  'view_permits',
+]);
+const MANUFACTURING_TOOLS = new Set([
+  'view_work_orders',
+]);
+const UNIVERSITY_TOOLS = new Set([
+  'view_courses',
+]);
+// workforce and abercrombie-fitch: SAME-NAME shadow, not a rename — the SQLite
+// (resp. mock-JSON) tool name already matches the chip-facing manifest tool.
+// Without this entry it falls through to the default 'olb' target and the BFF's
+// identically-named handler silently answers instead.
+const WORKFORCE_TOOLS = new Set([
+  'list_expenses',
+]);
+const ANF_TOOLS = new Set([
+  'list_anf_orders',
+]);
+// retail: list_orders is a same-name shadow (SQLite tool already matched the
+// chip name, just needed this entry). order_status is a rename from the
+// SQLite server's get_order AND a shape adapter — the handler now returns
+// the order flat with an optional orderId defaulting to the most recent
+// order, matching the BFF's order_status exactly (retailToolHandler.ts).
+// sporting-goods mirrors this identically (list_gear_orders->list_gear,
+// get_gear_order->gear_order_status).
+const RETAIL_TOOLS = new Set([
+  'list_orders',
+  'order_status',
+]);
+const SPORTING_GOODS_TOOLS = new Set([
+  'list_gear',
+  'gear_order_status',
+]);
+
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
 // from jwt-verifier-mcp-server/src/actions/*.ts. Tool names must match exactly.
 const JWT_VERIFIER_TOOLS = new Set([
@@ -128,6 +177,14 @@ const BANKING_DATA_ROUTE_FOR_TOOL: Record<string, 'accounts' | 'transactions'> =
 export function routeTool(toolName: string): BackendTarget {
   if (INVEST_TOOLS.has(toolName))        return 'invest';
   if (AIRLINES_TOOLS.has(toolName))      return 'invest';
+  if (HEALTHCARE_TOOLS.has(toolName))    return 'invest';
+  if (GOVERNMENT_TOOLS.has(toolName))    return 'invest';
+  if (MANUFACTURING_TOOLS.has(toolName)) return 'invest';
+  if (UNIVERSITY_TOOLS.has(toolName))    return 'invest';
+  if (WORKFORCE_TOOLS.has(toolName))     return 'invest';
+  if (ANF_TOOLS.has(toolName))           return 'invest';
+  if (RETAIL_TOOLS.has(toolName))        return 'invest';
+  if (SPORTING_GOODS_TOOLS.has(toolName)) return 'invest';
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
   if (WEATHER_TOOLS.has(toolName))       return 'weather';
   if (BRAVE_TOOLS.has(toolName))         return 'brave';

@@ -178,6 +178,10 @@ services:
       # inside this container (left the A2A explain modal empty for Authorize rules).
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
       PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
+      # Forwarded as X-Authz-Admin-Token by authorize.js's mock-authz-rules proxy
+      # (_authzAdminHeaders()). Must match authz-server's AUTHZ_ADMIN_TOKEN above —
+      # same dev-only default, override via shell env together.
+      AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"
       # Default agent to the local llama.cpp reasoning engine (free, no external
       # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
       # OVERRIDES any persisted /config selection on every read — it is the
@@ -229,6 +233,15 @@ services:
       LLAMACPP_MODEL: "phi-4-mini-instruct"
       # Apple mlx-lm demo agent mode (host mlx_lm.server on :8098; Mac only).
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
+      # Trust the mkcert root so the BFF can complete a TLS handshake with the
+      # demo's own hosts. mcpChallengeProbe follows the RFC 9728 pointer in the
+      # gateway's WWW-Authenticate challenge, which is
+      # https://api.ping.demo:3036/.well-known/... — without this the metadata
+      # leg of the MCP discovery dance fails verification and the token chain
+      # shows the 401 with no authorization server resolved. Bundle = system CAs
+      # PLUS the mkcert root (NODE_EXTRA_CA_CERTS appends, never replaces), same
+      # file the other Node services already use.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
       CODE_SEARCH_DEFAULT_INDEX: ${CODE_SEARCH_DEFAULT_INDEX:-true}
       CODE_SEARCH_REPO_ROOT: /repo
       LLAMAINDEX_AGENT_URL: http://llamaindex-agent:8894
@@ -282,6 +295,14 @@ services:
     # Desktop expose the socket as root:root (mode 660), so group 0 is required.
     # The restart endpoint is admin-gated and only touches two allowlisted
     # containers; this does NOT run the BFF as root.
+    # api.ping.demo is a host /etc/hosts name (mkcert issued the cert for it), so
+    # it does not resolve on the compose network. mcpChallengeProbe follows the
+    # gateway's RFC 9728 pointer literally — https://api.ping.demo:3036/... —
+    # rather than substituting an internal name, because rewriting the URL would
+    # make the token chain claim a document the client was never pointed at.
+    # Mapping the name to the host lets that published port answer.
+    extra_hosts:
+      - "api.ping.demo:host-gateway"
     group_add:
       - "0"
     networks:
@@ -414,6 +435,11 @@ services:
       # so the MCP server trusts all callers on the internal hop.
       MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # Durable MCP audit sink (feeds /audit). config.ts defaults this to
+      # http://localhost:3001/... which, inside this container, is the gateway
+      # itself — not the BFF — so every audit POST silently 404'd/refused and
+      # the Audit page stayed empty. Point it at the BFF explicitly.
+      BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
@@ -768,10 +794,17 @@ services:
       # mcpgateway.ping.demo is still what the forward-unchanged fallback sends, and
       # mcp-resource-server.ping.demo keeps any pinned older caller working.
       # Compose env wins over demo_mcp_resource_server/.env.
-      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
+      # This server's OWN var — MCP_SERVER_RESOURCE_URI means the banking MCP
+      # server's list everywhere else (TECH_DEBT 2026-08-16, T4).
+      MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
+      # Transaction-trace hop ingest — mirrors mcp-gateway's BFF_TRANSACTION_HOP_URL.
+      # BFF_INTERNAL_SECRET isn't wired for local compose (no demo_mcp_resource_server/.env
+      # in the setup flow yet); emitHop() fail-opens without it, so hops just don't
+      # appear locally — same no-op behavior as before this file existed.
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_mcp_resource_server/.env
         required: false
@@ -904,6 +937,12 @@ services:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
       HOST: "0.0.0.0"
+      # HOST above is non-loopback and 9001 is published to the host (see ports:),
+      # so rulesWrite.js's guardOk() now fails closed on PUT /rules and
+      # /rules/reset without this. Dev-only default, override via shell env for
+      # a real value; must match demo-api-server's AUTHZ_ADMIN_TOKEN below so its
+      # /api/authorize/mock-authz-rules proxy can still authenticate.
+      AUTHZ_ADMIN_TOKEN: "${AUTHZ_ADMIN_TOKEN:-dev-authz-admin-token-change-me}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "authz-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
@@ -1107,7 +1146,17 @@ services:
         -file /certs/mkcert-rootCA.pem 2>/dev/null || true;
         rm -f /var/gateway/tmp/ig.pid && exec /opt/gateway/bin/start.sh /var/gateway
     ports:
-      - "3036:8080"
+      # HTTPS, not HTTP. PG_GATEWAY_RESOURCE_ID is https://api.ping.demo:3036/mcp
+      # and IG's McpProtectionFilter derives its RFC 9728 resource_metadata URL
+      # from that value — so a client following the WWW-Authenticate challenge
+      # fetches https://api.ping.demo:3036/.well-known/... . With 3036 mapped to
+      # IG's plaintext 8080 that fetch died in the TLS handshake and the
+      # discovery half of the MCP dance was unreachable from anywhere, host or
+      # container. The resource id cannot move (p1az-decision.groovy checks it as
+      # `aud`), so the listener moves instead: 8443 is IG's TLS connector, see
+      # ping-gateway/config/admin.json. In-stack callers are unaffected — they
+      # use ping-gateway:8080, which stays plaintext.
+      - "3036:8443"
     volumes:
       # /var/gateway is IG's instance dir: it must be writable + EPHEMERAL. The Docker
       # container layer (writable by default) is the Compose equivalent of the k8s
@@ -1145,7 +1194,18 @@ services:
       PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
+      # Unlocks certs/pg-tls/pg-server.p12 for the 8443 TLS connector. IG's
+      # SystemAndEnvSecretStore resolves the secret id pg.tls.keystore.password
+      # to this variable (dots -> underscores, uppercased). Must match the
+      # password scripts/ensure-pinggateway-tls-cert.sh exported the p12 with —
+      # dev-only material for a gitignored local keystore.
+      PG_TLS_KEYSTORE_PASSWORD: "${PG_TLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
+      # apikey-disposition tools (show_mortgage, show_gear_order, ...) validate
+      # against a separate scope on the /mcp/apikey route's own PingOne resource
+      # (PINGONE_RESOURCE_MCP_APIKEY_URI) — see 00-mcp-apikey.json and
+      # agentMcpTokenService.js _performTwoExchangeDelegation.
+      PG_APIKEY_INBOUND_SCOPE: "apikey:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # HITL_SERVICE_URL / HITL_INTERNAL_SECRET are supplied by env_file
       # (ping-gateway/.env, written by refresh-service-envs.js) — NOT here.
@@ -1161,6 +1221,11 @@ services:
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
       BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
+      # Transaction-ledger hop ingest (transaction-hop.groovy). Without this the
+      # gateway leg of /transaction-trace is structurally absent: the Node
+      # gateway's instrumentation is bypassed whenever MCP traffic routes
+      # through PingGateway, which is the default path.
+      BFF_TRANSACTION_HOP_URL: "https://api.ping.demo:3001/internal/transaction-hop"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).

@@ -210,7 +210,13 @@ function buildRetailTools(store) {
           render: 'text',
         };
       case 'cash_out_store_credit': {
+        const _reward = (store.get(userId).rewards || [])[0];
+        const _available = _reward ? _reward.storeCredit : 0;
         const _amt = (params && params.amount != null) ? params.amount : 50;
+        if (_amt > _available) {
+          return { result: { error: `insufficient store credit: $${_available} available` }, render: 'text' };
+        }
+        _reward.storeCredit = _available - _amt;
         return { result: { cashedOut: _amt, to: 'external bank ****1234', status: 'pending step-up' }, render: 'text' };
       }
       case 'api_key_demo':

@@ -54,6 +54,12 @@ data:
   AGUI_HTTP_HOST: "0.0.0.0"
   CHAT_WS_HOST: "0.0.0.0"
   MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+  # mcp-resource-server (invest) pulls this whole map in via envFrom, so it must
+  # get its OWN audience list under its own name — the banking value above is
+  # NOT its list (TECH_DEBT 2026-08-16, T4). Keep in sync with
+  # scope-topology.json resources["Super Banking MCP Invest"].uri; gated by
+  # scripts/check-resource-server-audience-drift.js.
+  MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"

@@ -582,7 +582,14 @@ export default function AgentGatewayTester() {
       }
       try {
         const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: toolName, args });
-        const ok = !data.clientError && data.ok !== false && data.result?.ok !== false;
+        // Mirror the single-send path's failure signals: a throttled (429 /
+        // rate_limited) or authorize-DENY response can still carry ok:true, so
+        // treat those as failures too — otherwise the Chain tab paints a green
+        // "OK" over a call the gateway actually throttled or denied.
+        const stepRateLimited = data.rateLimited || data.error === 'rate_limited' || data.httpStatus === 429;
+        const stepDecision = data.decision || data.gwAuditTrail?.authorize?.decision || null;
+        const ok = !data.clientError && data.ok !== false && data.result?.ok !== false
+          && !stepRateLimited && stepDecision !== 'DENY';
         results.push({ tool: toolName, ok, data });
         setChainResults([...results]);
         const fresh = extractCapturedValues(toolName, unwrapMcpResult(data?.result ?? data?.rpcData));
@@ -1106,7 +1113,7 @@ export default function AgentGatewayTester() {
                           </div>
                         </div>
                       ) : (
-                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingGateway.' }} />
+                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingOne Agent Gateway.' }} />
                       )}
                     </>
                   )}

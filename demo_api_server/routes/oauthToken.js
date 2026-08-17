@@ -97,12 +97,9 @@ function extractRequestMetadata(req, res, next) {
  * Exchange delegated token via RFC 8693 token exchange.
  * Client sends a subject token (typically an ID token) and requests an access token.
  *
- * @flow rfc8693-token-exchange
- * @name RFC 8693 Token Exchange
- * @rfc https://datatracker.ietf.org/doc/html/rfc8693 RFC 8693
- * @actor client-app
- * @to token-exchanger
- * @step 1
+ * Not scriptable by the protocol playground (requires application/x-www-form-
+ * urlencoded body + real client credentials; the playground engine always
+ * sends JSON) — see the self-contained demo at routes/rfc8693Demo.js instead.
  */
 router.post('/token', extractClientCredentials, extractRequestMetadata, async (req, res, next) => {
   try {
@@ -154,11 +151,6 @@ router.post('/token', extractClientCredentials, extractRequestMetadata, async (r
 /**
  * Validate and introspect delegated token via RFC 8693.
  * Token exchanger verifies the subject token and returns token details.
- *
- * @flow rfc8693-token-exchange
- * @actor token-exchanger
- * @to client-app
- * @step 2
  */
 router.post('/introspect', extractRequestMetadata, (req, res, next) => {
   try {

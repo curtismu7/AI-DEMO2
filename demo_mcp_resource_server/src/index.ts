@@ -5,7 +5,7 @@
  *
  * MCP server for investment and airlines tools. Runs over WebSocket (same
  * protocol as banking_mcp_server). Validates inbound token aud ===
- * MCP_SERVER_RESOURCE_URI (mcp-invest.ping.demo — the audience the PingOne
+ * MCP_RESOURCE_SERVER_RESOURCE_URI (mcp-invest.ping.demo — the audience the PingOne
  * "Demo MCP Invest" resource carries; the value is a comma-separated ACCEPTED
  * list, so the gateway audience and the older URI stay valid too).
  *
@@ -18,13 +18,20 @@
  *   POST /mcp                                   — MCP JSON-RPC (for PingGateway,
  *                                                 which has no WS listener)
  *
- * Start: MCP_SERVER_RESOURCE_URI=mcp-invest.ping.demo node dist/index.js
+ * Start: MCP_RESOURCE_SERVER_RESOURCE_URI=mcp-invest.ping.demo node dist/index.js
  */
 
 import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
+import {
+  LEGACY_RESOURCE_URI_ENV,
+  OWN_AUDIENCE,
+  RESOURCE_URI_ENV,
+  resolveAcceptedAudiences,
+  resolveResourceUriEnv,
+} from './server/acceptedAudiences';
 
 interface ResourceDef {
   uri: string;
@@ -39,14 +46,14 @@ interface ResourceDef {
 
 const RESOURCE_CATALOG: ResourceDef[] = [
   { uri: 'banking://accounts', name: 'Bank Accounts', description: 'All bank accounts for the authenticated user', mimeType: 'application/json', requiredScope: 'banking:read', uriTemplate: 'banking://accounts/{accountId}', templateName: 'Bank Account', listTool: 'list_banking_accounts' },
-  { uri: 'healthcare://records', name: 'Patient Records', description: 'All patient records for the authenticated user', mimeType: 'application/json', requiredScope: 'healthcare:read', uriTemplate: 'healthcare://records/{recordId}', templateName: 'Patient Record', listTool: 'list_patient_records' },
-  { uri: 'government://permits', name: 'Government Permits', description: 'All government permits for the authenticated user', mimeType: 'application/json', requiredScope: 'government:read', uriTemplate: 'government://permits/{permitId}', templateName: 'Government Permit', listTool: 'list_permits' },
-  { uri: 'manufacturing://work-orders', name: 'Work Orders', description: 'All work orders for the authenticated user', mimeType: 'application/json', requiredScope: 'manufacturing:read', uriTemplate: 'manufacturing://work-orders/{orderId}', templateName: 'Work Order', listTool: 'list_work_orders' },
-  { uri: 'retail://orders', name: 'Retail Orders', description: 'All retail orders for the authenticated user', mimeType: 'application/json', requiredScope: 'retail:read', uriTemplate: 'retail://orders/{orderId}', templateName: 'Retail Order', listTool: 'list_orders' },
-  { uri: 'sporting-goods://gear-orders', name: 'Gear Orders', description: 'All sporting-goods orders for the authenticated user', mimeType: 'application/json', requiredScope: 'sporting-goods:read', uriTemplate: 'sporting-goods://gear-orders/{orderId}', templateName: 'Gear Order', listTool: 'list_gear_orders' },
-  { uri: 'university://courses', name: 'Courses', description: 'All courses for the authenticated student', mimeType: 'application/json', requiredScope: 'university:read', uriTemplate: 'university://courses/{courseId}', templateName: 'Course', listTool: 'list_courses' },
-  { uri: 'workforce://expenses', name: 'Expenses', description: 'All expense reports for the authenticated employee', mimeType: 'application/json', requiredScope: 'workforce:read', uriTemplate: 'workforce://expenses/{expenseId}', templateName: 'Expense', listTool: 'list_expenses' },
-  { uri: 'anf://orders', name: 'ANF Orders', description: 'All Abercrombie & Fitch orders for the authenticated user', mimeType: 'application/json', requiredScope: 'anf:read', uriTemplate: 'anf://orders/{orderId}', templateName: 'ANF Order', listTool: 'list_anf_orders' },
+  { uri: 'healthcare://records', name: 'Patient Records', description: 'All patient records for the authenticated user', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'healthcare://records/{recordId}', templateName: 'Patient Record', listTool: 'view_records' },
+  { uri: 'government://permits', name: 'Government Permits', description: 'All government permits for the authenticated user', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'government://permits/{permitId}', templateName: 'Government Permit', listTool: 'view_permits' },
+  { uri: 'manufacturing://work-orders', name: 'Work Orders', description: 'All work orders for the authenticated user', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'manufacturing://work-orders/{orderId}', templateName: 'Work Order', listTool: 'view_work_orders' },
+  { uri: 'retail://orders', name: 'Retail Orders', description: 'All retail orders for the authenticated user', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'retail://orders/{orderId}', templateName: 'Retail Order', listTool: 'list_orders' },
+  { uri: 'sporting-goods://gear-orders', name: 'Gear Orders', description: 'All sporting-goods orders for the authenticated user', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'sporting-goods://gear-orders/{orderId}', templateName: 'Gear Order', listTool: 'list_gear' },
+  { uri: 'university://courses', name: 'Courses', description: 'All courses for the authenticated student', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'university://courses/{courseId}', templateName: 'Course', listTool: 'view_courses' },
+  { uri: 'workforce://expenses', name: 'Expenses', description: 'All expense reports for the authenticated employee', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'workforce://expenses/{expenseId}', templateName: 'Expense', listTool: 'list_expenses' },
+  { uri: 'anf://orders', name: 'ANF Orders', description: 'All Abercrombie & Fitch orders for the authenticated user', mimeType: 'application/json', requiredScope: 'read', uriTemplate: 'anf://orders/{orderId}', templateName: 'ANF Order', listTool: 'list_anf_orders' },
   { uri: 'investment://accounts', name: 'Investment Accounts', description: 'All investment accounts for the authenticated user', mimeType: 'application/json', requiredScope: 'invest:read', uriTemplate: 'investment://accounts/{accountId}', templateName: 'Investment Account', listTool: 'get_investment_accounts' },
   { uri: 'airlines://bookings', name: 'Airline Bookings', description: 'All airline bookings for the authenticated passenger', mimeType: 'application/json', requiredScope: 'airlines:read', uriTemplate: 'airlines://bookings/{bookingId}', templateName: 'Airline Booking', listTool: 'get_airline_bookings' },
 ];
@@ -57,7 +64,10 @@ import { filterByScopes } from './tools/toolTypes';
 import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
+import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscover';
+import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
+import { emitHop } from './transactionHop';
 
 // ---------------------------------------------------------------------------
 // MCP Prompts capability — real, usable templates referencing this server's
@@ -111,21 +121,36 @@ if (process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true' && process.env.NODE_E
 
 const PORT = parseInt(process.env.PORT || '8081', 10);
 const HOST = process.env.HOST || '0.0.0.0';
-// MCP_SERVER_RESOURCE_URI may be a comma-separated accepted-audience list (RFC 8693
-// rollout). The FIRST entry is this server's canonical resource URI (RFC 9728
-// metadata, health, logs); the full list feeds aud validation.
-const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'mcp-invest.ping.demo')
-  .split(',').map((s) => s.trim()).filter(Boolean);
+// The accepted-audience list may be comma-separated (RFC 8693 rollout). The
+// FIRST entry is this server's canonical resource URI (RFC 9728 metadata,
+// health, logs); the full list feeds aud validation.
+const RESOURCE_URI_ENV_VALUE = resolveResourceUriEnv();
+const RESOURCE_URI_LIST = resolveAcceptedAudiences(RESOURCE_URI_ENV_VALUE.value);
 const RESOURCE_URI = RESOURCE_URI_LIST[0];
+// Reading the shared banking name still works, but say so — that is the
+// deployment shape T4 exists to retire (shared k8s configmap fanned into this
+// server via envFrom).
+if (RESOURCE_URI_ENV_VALUE.source === LEGACY_RESOURCE_URI_ENV) {
+  console.warn(
+    `[demo-mcp-resource-server] WARNING: falling back to '${LEGACY_RESOURCE_URI_ENV}', which is the ` +
+    `BANKING MCP server's audience list elsewhere. Set '${RESOURCE_URI_ENV}' for this server instead.`
+  );
+}
+if (RESOURCE_URI_ENV_VALUE.value && !RESOURCE_URI_ENV_VALUE.value.includes(OWN_AUDIENCE)) {
+  console.warn(
+    `[demo-mcp-resource-server] WARNING: ${RESOURCE_URI_ENV_VALUE.source} omits this server's own ` +
+    `audience '${OWN_AUDIENCE}' — accepting it anyway. The env value is stale.`
+  );
+}
 const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
 const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-resource-server)';
 
 // Startup env validation
-if (!process.env.MCP_SERVER_RESOURCE_URI) {
+if (!RESOURCE_URI_ENV_VALUE.value) {
   console.warn(
-    '[demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI is not set — ' +
+    `[demo-mcp-resource-server] WARNING: ${RESOURCE_URI_ENV} is not set — ` +
     `using default '${RESOURCE_URI}'. Token audience validation may fail. ` +
-    'Set MCP_SERVER_RESOURCE_URI in demo_api_server/.env'
+    `Set ${RESOURCE_URI_ENV} in demo_api_server/.env`
   );
 }
 
@@ -261,6 +286,13 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             if (scopes.length) scopeHint = `, scope="${scopes.join(' ')}"`;
           }
         } catch { /* ok — malformed body goes through as 200 */ }
+        // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header:
+        // UnsupportedProtocolVersionError MUST ride HTTP 400, not 200.
+        let isUnsupportedProtocolVersion = false;
+        try {
+          const parsed = JSON.parse(s);
+          isUnsupportedProtocolVersion = parsed?.error?.code === -32022;
+        } catch { /* ok — malformed body goes through as 200 */ }
         const sessionHeader = sessionIdForInitialize ? { 'mcp-session-id': sessionIdForInitialize } : {};
         if (isInsufficientScope) {
           res.writeHead(403, {
@@ -268,6 +300,8 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
             'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="insufficient_scope"${scopeHint}, resource_metadata="${RESOURCE_URI}/.well-known/oauth-protected-resource"`,
             ...sessionHeader,
           });
+        } else if (isUnsupportedProtocolVersion) {
+          res.writeHead(400, { 'Content-Type': 'application/json', ...sessionHeader });
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json', ...sessionHeader });
         }
@@ -382,6 +416,36 @@ async function handleMessage(
 
   if (method === 'notifications/initialized') return;
 
+  // MCP spec 2026-07-28: per-request version negotiation. A Modern request
+  // declares its version in params._meta instead of an initialize
+  // handshake. This server doesn't implement Modern behavior yet — reject
+  // cleanly rather than silently running Legacy semantics a Modern caller
+  // never agreed to. server/discover is exempt — its whole purpose is
+  // answering regardless of what version the caller claims.
+  if (method !== 'server/discover') {
+    const requestedVersion = extractRequestedProtocolVersion(msg.params);
+    if (requestedVersion !== undefined && !(SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requestedVersion)) {
+      send(JSON.stringify(buildUnsupportedProtocolVersionError(id, requestedVersion, SUPPORTED_PROTOCOL_VERSIONS)));
+      return;
+    }
+  }
+
+  // MCP spec 2026-07-28: server/discover — servers MUST implement it. Same
+  // identity/capabilities as the initialize handler above.
+  if (method === 'server/discover') {
+    send(rpcResult(id, buildDiscoverResult(
+      {
+        tools: {},
+        resources: { subscribe: false, listChanged: false },
+        logging: {},
+        prompts: { listChanged: false },
+        completions: {},
+      },
+      { name: 'banking-mcp-resource-server', version: '1.0.0' },
+    )));
+    return;
+  }
+
   if (method === 'prompts/list') {
     send(rpcResult(id, { prompts: PROMPTS.map(({ name, description, argsDef }) => ({ name, description, arguments: argsDef })) }));
     return;
@@ -487,14 +551,25 @@ async function handleMessage(
       return;
     }
 
+    // Transaction-trace hop — forwarded by the gateway in msg.params.correlationId
+    // (same field it reads via extractCorrelationId). No-ops without one (e.g. a
+    // caller that bypasses the gateway), matching emitHop's own fail-open contract.
+    const correlationId = typeof msg.params?.correlationId === 'string' ? msg.params.correlationId : undefined;
+    const _startedAt = Date.now();
     try {
       const result = await dispatch(toolName, args, token, decoded.sub);
+      if (correlationId) {
+        emitHop({ phase: 'mcp.tool', op: toolName, correlationId, durationMs: Date.now() - _startedAt, status: 'ok' });
+      }
       send(rpcResult(id, {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         isError: false,
       }));
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
+      if (correlationId) {
+        emitHop({ phase: 'mcp.tool', op: toolName, correlationId, durationMs: Date.now() - _startedAt, status: 'error' });
+      }
       emitLogMessage(send, loggingState, 'error', { tool: toolName, message: errMsg }, 'resource-server.dispatch');
       send(rpcResult(id, { content: [{ type: 'text', text: errMsg }], isError: true }));
     }

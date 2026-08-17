@@ -231,7 +231,7 @@ export default function OAuthHealthDashboard() {
             port: healthInfo.server_endpoints.pingone_auth.port,
           },
           {
-            label: 'MCP Gateway',
+            label: 'Agent Gateway',
             url: healthInfo.server_endpoints.gateway.url,
             port: healthInfo.server_endpoints.gateway.port,
           },

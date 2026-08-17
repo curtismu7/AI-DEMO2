@@ -8,7 +8,7 @@ import type { AddressInfo } from 'net';
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-res-'));
 process.env.AIRLINES_DB_PATH = path.join(tmpDir, 'airlines.db');
 process.env.AIRLINES_SEED_PATH = path.join(__dirname, '..', 'seed', 'airlines.seed.json');
-process.env.MCP_SERVER_RESOURCE_URI = 'mcp-resource-server.ping.demo';
+process.env.MCP_RESOURCE_SERVER_RESOURCE_URI = 'mcp-resource-server.ping.demo';
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
 process.env.PORT = '0';
 
@@ -73,7 +73,7 @@ describe('resources/list', () => {
 
 describe('resources/templates/list', () => {
   it('returns URI templates for scoped verticals', async () => {
-    const r = await post({ jsonrpc: '2.0', id: 1, method: 'resources/templates/list', params: {} }, token('healthcare:read'));
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'resources/templates/list', params: {} }, token('read'));
     const templates = r.json.result.resourceTemplates.map((t: any) => t.uriTemplate);
     expect(templates).toContain('healthcare://records/{recordId}');
   });
@@ -107,10 +107,13 @@ describe('resources/read', () => {
   });
 
   it('returns healthcare records content', async () => {
+    // view_records requires plain 'read' (scope-topology.json's real,
+    // already-granted scope for this tool name) — not the invented
+    // 'healthcare:read' the resource-server catalog entry used to declare.
     const r = await post({
       jsonrpc: '2.0', id: 1, method: 'resources/read',
       params: { uri: 'healthcare://records' },
-    }, token('healthcare:read'));
+    }, token('read'));
     const data = JSON.parse(r.json.result.contents[0].text);
     expect(Array.isArray(data.records)).toBe(true);
   });

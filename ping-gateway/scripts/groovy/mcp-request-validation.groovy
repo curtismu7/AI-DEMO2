@@ -64,6 +64,17 @@ if (method == 'tools/call') {
     // gateway-internal HITL retry marker
     def rawHitlMarker = args['_hitl_challenge_id']
     def hadHitlMarker = args.remove('_hitl_challenge_id') != null
+    // gateway-internal elicitation confirmation markers (parity with the Node
+    // gateway's authorizeMcpRequest.ts). Removed BEFORE the additionalProperties:
+    // false check below so a confirmed re-call is not rejected -32602, and — when
+    // confirmed — re-signalled to P1AZDecision on a request header, exactly like
+    // the HITL receipt. (No elicitationStore one-time-use check exists on the IG
+    // path; the confirmed flag is trusted here, same as the other gateway-internal
+    // control fields on this transport.)
+    def rawElicitConfirmed = args['_elicitation_confirmed']
+    def removedElicitConfirmed = args.remove('_elicitation_confirmed') != null
+    def removedElicitId = args.remove('_elicitation_id') != null
+    def hadElicitMarker = removedElicitConfirmed || removedElicitId
 
     def artifact = new JsonSlurper().parse(new File(SCHEMAS_PATH))
     def entry = artifact.tools[params.name]
@@ -95,9 +106,11 @@ if (method == 'tools/call') {
     // _hitl_challenge_id" (surfaced as 502 backend_execution_failed). Forward
     // the cleaned arguments, matching the Node gateway (authorizeMcpRequest.ts
     // WR-03, index.ts).
-    if (hadHitlMarker) {
+    if (hadHitlMarker || hadElicitMarker) {
         params.arguments = args
         request.entity.setString(JsonOutput.toJson(body))
+    }
+    if (hadHitlMarker) {
         // This filter runs BEFORE P1AZDecision, and the rewrite above just
         // removed the receipt from the body — without a hand-over the receipt
         // verification in p1az-decision.groovy is unreachable and every
@@ -109,6 +122,12 @@ if (method == 'tools/call') {
         // the request goes anywhere further; trust comes from the HITL
         // service's verify call, not from the channel.
         request.headers.put('X-Hitl-Challenge-Id', String.valueOf(rawHitlMarker))
+    }
+    if (rawElicitConfirmed == true) {
+        // Same hand-over rationale as the HITL receipt above: the body rewrite
+        // stripped the confirmation marker, so re-signal it to P1AZDecision on a
+        // per-request header. P1AZDecision consumes (removes) it before forwarding.
+        request.headers.put('X-Elicitation-Confirmed', 'true')
     }
 }
 

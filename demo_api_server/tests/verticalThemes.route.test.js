@@ -20,8 +20,8 @@ jest.mock('../services/verticalManifest', () => ({
   },
 }));
 
-// The route is open to any signed-in user (auth is enforced by the server.js
-// mount, not in-handler), so there is no admin middleware to stub.
+// The route is fully public — server.js mounts it with no auth middleware at
+// all — so there is no admin middleware to stub, and no req.user is required.
 
 const request = require('supertest');
 const express = require('express');
@@ -31,6 +31,14 @@ function buildApp({ user } = { user: { role: 'admin' } }) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => { req.user = user; next(); });
+  app.use('/api/admin', router);
+  return app;
+}
+
+// Mirrors server.js's actual mount — no req.user seeded at all.
+function buildAppNoAuth() {
+  const app = express();
+  app.use(express.json());
   app.use('/api/admin', router);
   return app;
 }
@@ -102,5 +110,13 @@ describe('verticalThemes route', () => {
     const app = buildApp({ user: { role: 'user' } });
     await request(app).put('/api/admin/vertical-themes/banking')
       .send({ cssVars: { '--theme-accent': '#0891B2' } }).expect(200);
+  });
+
+  test('a signed-out visitor (no req.user at all) can read and write', async () => {
+    const app = buildAppNoAuth();
+    await request(app).put('/api/admin/vertical-themes/banking')
+      .send({ cssVars: { '--theme-accent': '#0891B2' } }).expect(200);
+    const res = await request(app).get('/api/admin/vertical-themes').expect(200);
+    expect(res.body).toEqual({ banking: { '--theme-accent': '#0891B2' } });
   });
 });

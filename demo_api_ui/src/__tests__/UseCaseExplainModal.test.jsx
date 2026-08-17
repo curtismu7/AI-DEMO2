@@ -84,7 +84,7 @@ describe('UseCaseExplainModal', () => {
     render(<UseCaseExplainModal uc={UC7} open={true} onClose={() => {}} />);
     // All 4 product labels should appear (from PING_PRODUCTS)
     expect(screen.getAllByText('PingOne').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('PingGateway').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('PingOne Agent Gateway').length).toBeGreaterThan(0);
     expect(screen.getAllByText('PingOne Authorize').length).toBeGreaterThan(0);
     expect(screen.getAllByText('PingOne MFA').length).toBeGreaterThan(0);
   });

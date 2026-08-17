@@ -51,4 +51,17 @@ describe("Focus Mode filmstrip guard", () => {
     expect(classic.includes("ud-focus-mode")).toBe(false);
     expect(classic.includes("TokenChainFilmstrip")).toBe(false);
   });
+
+  // Locked 2026-08-17 (PR #1896): #1784 gated the float-mode filmstrip behind
+  // ba_show_filmstrip === "1", default OFF — the filmstrip silently vanished
+  // for every user who never touched the toggle. Default must stay ON
+  // (unset/anything but "0" shows it); only an explicit toggle-off hides it.
+  test("Ping2026 defaults the filmstrip toggle ON (only \"0\" hides it)", () => {
+    expect(p2026).toMatch(/localStorage\.getItem\("ba_show_filmstrip"\)\s*!==\s*"0"/);
+  });
+
+  const aiAgent = read("../components/AIAgent.js");
+  test("AIAgent's own Movie reel state defaults ON to match", () => {
+    expect(aiAgent).toMatch(/localStorage\.getItem\("ba_show_filmstrip"\)\s*!==\s*"0"/);
+  });
 });

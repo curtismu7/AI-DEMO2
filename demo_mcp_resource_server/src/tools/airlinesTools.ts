@@ -121,6 +121,7 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['airlines:read'],
     readOnly: true,
+    intentHints: ['check my MileagePlus status', 'how many miles do I have', 'what is my loyalty tier'],
   },
   {
     // UC38 — Personal Agent Concierge write action. Deducts loyalty points and
@@ -139,5 +140,6 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     },
     requiredScopes: ['airlines:read', 'airlines:write'],
     readOnly: false,
+    intentHints: ['redeem my miles for an upgrade', 'use points to upgrade my seat', 'upgrade my cabin with loyalty points'],
   },
 ];

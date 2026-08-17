@@ -4,3 +4,17 @@
 # not secrets.
 privilege/postman/Privilege-MCP-Gateway-SE.postman_collection.json:generic-api-key:66
 privilege/ai-demo-whole-stack/postman/Privilege-MCP-Gateway-SE.postman_collection.json:generic-api-key:66
+
+# False positive — public PingOne resource-server audience URL (not a secret;
+# same class of value as PINGONE_RESOURCE_PINGGATEWAY_URI two lines above it,
+# which does not trigger). The literal "3036/mcp/apikey" substring trips the
+# generic-api-key entropy heuristic.
+demo_api_server/.env.example:generic-api-key:146
+ping-gateway/.env.example:generic-api-key:55
+scope-topology.json:generic-api-key:287
+scope-topology.json:generic-api-key:401
+snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json:generic-api-key:27
+snapshots/authorizeSnapshotCloudDelta.test.js:generic-api-key:82
+docs/scope-topology.md:generic-api-key:184
+docs/scope-topology.md:generic-api-key:205
+.claude/HANDOFF-2026-08-17-apikey-tools.md:generic-api-key:93

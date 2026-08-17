@@ -154,11 +154,13 @@ export async function guardToolsList(
 
   try {
     const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean).join(' ');
-    // C1 rule 1 — the token's ACTUAL audience (array ⇒ first entry). Setting this
-    // to config.gatewayResourceUri, as this path used to, made the cloud rule
-    // HasValidMcpAudience compare McpResourceUri to itself — a tautology that
-    // could never deny. Omitted (not fabricated) when the token carries no aud.
-    const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
+    // C1 rule 1 — the token's ACTUAL audience (array ⇒ FULL space-joined list,
+    // matching the Groovy gateway, so mock Rule 0b-2's D-05 anti-bypass still
+    // catches a multi-aud [gateway, upstream] token; truncating to aud[0] defeated
+    // it). Setting this to config.gatewayResourceUri, as this path used to, made
+    // the cloud rule HasValidMcpAudience compare McpResourceUri to itself — a
+    // tautology that could never deny. Omitted (not fabricated) when no aud.
+    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
     const body = {
       parameters: {
         DecisionContext: 'McpToolsList',
@@ -275,7 +277,10 @@ export async function guardToolCall(
   // REQUIRE_RAR_INTENT=true; fail-closed if intent is required but none was declared.
   if (config.requireRarIntent === true) {
     const rarDetails = rarDetailsFromEnvelope(tratClaims ? { azd: tratClaims.azd } : undefined);
-    if (!rarDetails) {
+    // An empty authorization_details ([]) is MISSING intent, not present intent — it
+    // constrains nothing, so it must fail closed like an absent envelope rather than
+    // slip past enforceRarSubset's no-details early return (HTTP-path parity).
+    if (!rarDetails || rarDetails.length === 0) {
       return { permitted: false, reason: 'rar_intent_required: authorization_details required (RFC 9396)' };
     }
     const r = enforceRarSubset(toolName, toolArgs as RarToolArgs, rarDetails);

@@ -329,6 +329,18 @@
   padding: 8px 12px 2px;
 }
 
+/* Collapsible "Live pipeline" section — mirrors TokenChainTraceRail's .tctr-acc */
+.tcfs-chain-acc > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.tcfs-chain-acc > summary::-webkit-details-marker { display: none; }
+.tcfs-chev { transition: transform 0.15s; font-size: 11.5px; color: var(--th-text-muted); }
+.tcfs-chain-acc[open] .tcfs-chev { transform: rotate(90deg); }
+
 .tcfs-empty {
   margin: 10px 12px;
   padding: 16px;
@@ -417,6 +429,24 @@
 
 .tcfs-sheet-close:hover { border-color: #1d4ed8; color: #1d4ed8; }
 
+.tcfs-zoom {
+  display: flex; align-items: center; gap: 2px;
+  margin-left: auto;
+}
+.tcfs-zoom-btn,
+.tcfs-zoom-pct {
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font: inherit; font-size: 12px; font-weight: 700;
+  border-radius: 6px; padding: 4px 8px; cursor: pointer;
+}
+.tcfs-zoom-pct { min-width: 42px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tcfs-zoom-btn:hover:not(:disabled),
+.tcfs-zoom-pct:hover:not(:disabled) { border-color: #1d4ed8; color: #1d4ed8; }
+.tcfs-zoom-btn:disabled,
+.tcfs-zoom-pct:disabled { opacity: 0.4; cursor: default; }
+
 .tcfs-sheet-body {
   flex: 1;
   min-height: 0;
@@ -441,6 +471,10 @@
 :root[data-theme="dark"] .tcfs-sheet-title { color: #cdd7ec; }
 :root[data-theme="dark"] .tcfs-sheet-close { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .tcfs-sheet-close:hover { border-color: #9ec1ff; color: #9ec1ff; }
+:root[data-theme="dark"] .tcfs-zoom-btn,
+:root[data-theme="dark"] .tcfs-zoom-pct { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
+:root[data-theme="dark"] .tcfs-zoom-btn:hover:not(:disabled),
+:root[data-theme="dark"] .tcfs-zoom-pct:hover:not(:disabled) { border-color: #9ec1ff; color: #9ec1ff; }
 
 /* Float-mode wrapper — gives .tcfs children the grid context they expect.
    chain spans full width; spotlight renders to the right on wide screens,

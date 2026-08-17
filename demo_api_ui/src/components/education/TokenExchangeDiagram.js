@@ -268,13 +268,13 @@ export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' 
             {/* PHASE 2: GATEWAY + MCP SERVER               */}
             {/* ═══════════════════════════════════════════ */}
             <div style={{ marginTop: 20 }}>
-              <SectionLabel bg={C.mcp.bg} border={C.mcp.border} color={C.mcp.text}>③ MCP Gateway → MCP Server → Banking API</SectionLabel>
+              <SectionLabel bg={C.mcp.bg} border={C.mcp.border} color={C.mcp.text}>③ Agent Gateway → MCP Server → Banking API</SectionLabel>
             </div>
 
             <Row mt={6}>
               <Actor icon="🏦" label="BFF"                                                  color={C.bff.bg}  border={C.bff.border} />
               <Arrow label="Bearer: Exchanged MCP Token" sublabel="callToolViaGateway" color={C.tok3.border} />
-              <Actor icon="🛡" label="MCP Gateway" sublabel="demo_mcp_gateway :3005&#10;introspect→policy→Authorize" color={C.mcp.bg}  border={C.mcp.border} width={160} />
+              <Actor icon="🛡" label="Agent Gateway" sublabel="demo_mcp_gateway :3005&#10;introspect→policy→Authorize" color={C.mcp.bg}  border={C.mcp.border} width={160} />
               <Arrow label="Forward token unchanged" sublabel="PERMIT → forward as-is" color={C.mcp.border} />
               <Actor icon="🤖" label="MCP Server" sublabel="demo_mcp_server :8080"          color={C.mcp.bg}  border={C.mcp.border} />
               <Arrow label="Banking API call" sublabel="aud ✓  scope ✓  act ✓"            color={C.mcp.border} />
@@ -298,7 +298,7 @@ export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' 
                 [C.tok1.border,  'User Access Token'],
                 [C.tok3.border,  'Exchanged MCP Token'],
                 [C.cc1.border,   'AI Agent CC Token (actor)'],
-                [C.mcp.border,   'MCP Gateway / MCP Server'],
+                [C.mcp.border,   'Agent Gateway / MCP Server'],
                 [C.ping.border,  'PingOne AS'],
               ].map(([color, label]) => (
                 <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

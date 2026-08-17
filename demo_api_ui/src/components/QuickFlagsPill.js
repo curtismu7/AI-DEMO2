@@ -16,7 +16,7 @@ import './QuickFlagsPill.css';
 const QUICK_FLAGS = [
   { id: 'ff_mcp_gateway_jwks',          group: 'Token & Gateway', control: 'segmented', label: 'Token Validation',                modes: [{ value: true, label: '🔐 JWKS' }, { value: false, label: 'Introspect' }] },
   { id: 'ff_mcp_gateway_pinggateway',   group: 'Token & Gateway', control: 'segmented', label: 'Agent Gateway',                   modes: [{ value: true, label: 'Real Agent GW' }, { value: false, label: 'Mock Agent GW (outage)' }] },
-  { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingGateway' }, { value: 'p1az', label: 'P1AZ' }] },
+  { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingOne Agent Gateway' }, { value: 'p1az', label: 'P1AZ' }] },
   { id: 'ff_skip_token_exchange',       group: 'Token & Gateway', control: 'toggle',    label: 'Skip Token Exchange' },
   { id: 'ff_enterprise_managed_mcp_auth', group: 'AuthN / AuthZ', control: 'toggle',    label: 'Enterprise-Managed MCP Auth' },
   { id: 'ff_authorize_real',       group: 'AuthN / AuthZ',   control: 'segmented', label: 'Authorize Engine',                modes: [{ value: true, label: 'Real P1AZ' }, { value: false, label: 'Mock (outage)' }] },

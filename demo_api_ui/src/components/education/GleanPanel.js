@@ -15,7 +15,7 @@ function OverviewTab() {
 
       <img
         src="/images/glean-architecture.png"
-        alt="Glean integration architecture with PingFed, PingAuthorize, CIBA, and MCP Gateway"
+        alt="Glean integration architecture with PingFed, PingAuthorize, CIBA, and Agent Gateway"
         style={{ width: '100%', borderRadius: 8, marginBottom: 16, border: '1px solid var(--border-light, #ddd)' }}
         onError={(e) => { e.target.style.display = 'none'; }}
       />
@@ -55,7 +55,7 @@ function OverviewTab() {
           resource attributes, and contextual signals.
         </li>
         <li>
-          <strong>MCP Gateway</strong> — Sits between Glean and backend MCP servers;
+          <strong>Agent Gateway</strong> — Sits between Glean and backend MCP servers;
           validates inbound tokens, calls PingAuthorize for fine-grained policy evaluation,
           and forwards the original bearer token to MCP servers only on PERMIT.
         </li>
@@ -109,9 +109,9 @@ function CibaTab() {
 function McpGatewayTab() {
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>MCP Gateway Security Pipeline</h3>
+      <h3 style={{ marginTop: 0 }}>Agent Gateway Security Pipeline</h3>
       <p>
-        The MCP Gateway is the enforcement boundary between Glean's AI layer and backend
+        The Agent Gateway is the enforcement boundary between Glean's AI layer and backend
         tool servers. Every tool call passes through the full pipeline:
       </p>
 
@@ -136,7 +136,7 @@ function McpGatewayTab() {
           the actual OAuth tokens; only the gateway handles bearer credentials.
         </li>
         <li>
-          <strong>Per-hop audience isolation</strong> — A token issued for the MCP Gateway
+          <strong>Per-hop audience isolation</strong> — A token issued for the Agent Gateway
           cannot be replayed directly against a backend MCP server (RFC 8707 resource
           indicators enforced).
         </li>
@@ -163,7 +163,7 @@ export default function GleanPanel({ isOpen, onClose, initialTabId }) {
     },
     {
       id: 'gateway',
-      label: 'MCP Gateway',
+      label: 'Agent Gateway',
       content: <McpGatewayTab />,
     },
   ];

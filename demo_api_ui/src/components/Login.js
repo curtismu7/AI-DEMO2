@@ -150,8 +150,6 @@ const Login = () => {
               What is CIBA?
             </button>
             <span style={{ fontSize: '0.8rem', color: '#374151' }}>
-              <Link to="/onboarding">Setup checklist</Link>
-              {' · '}
               <Link to="/setup">Deployment setup</Link>
               {' · '}
               <Link to="/setup/pingone">PingOne reference</Link>
@@ -159,12 +157,6 @@ const Login = () => {
               <span>Admin vs customer: use the Learn bar after sign-in, or the CIBA guide (floating).</span>
             </span>
           </div>
-
-          <p className="login-onboarding-hint" style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.9rem' }}>
-            <Link to="/onboarding" style={{ color: 'var(--brand-navy)', fontWeight: 500 }}>
-              First-time setup — what to configure in PingOne
-            </Link>
-          </p>
 
           <div className="login-footer">
             <p>

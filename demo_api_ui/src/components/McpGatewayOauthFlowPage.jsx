@@ -11,7 +11,7 @@ import "./McpGatewayOauthFlowPage.css";
 const MERMAID_SOURCE = `sequenceDiagram
     participant U as User
     participant A as Agent (OAuth Client)
-    participant G as MCP Gateway (OAuth RS)
+    participant G as Agent Gateway (OAuth RS)
     participant M as MCP Server (Banking, Mock)
     participant P as PingOne (Authorization Server)
 
@@ -152,7 +152,7 @@ export default function McpGatewayOauthFlowPage() {
     <div className="mgof-page">
       <div className="mgof-hero">
         <span className="mgof-eyebrow">demo_mcp_gateway &rarr; demo_mcp_server</span>
-        <h1>MCP Gateway OAuth Flow, As Built</h1>
+        <h1>Agent Gateway OAuth Flow, As Built</h1>
         <p className="mgof-sub">
           The reference MCP OAuth handshake redrawn against the actual code path: HTTP
           transport, one backend (demo_mcp_server, the mock AI Demo MCP Server), token
@@ -176,7 +176,7 @@ export default function McpGatewayOauthFlowPage() {
         {renderError ? (
           <p className="mgof-error">Diagram failed to render: {renderError}</p>
         ) : (
-          <div className="mgof-diagram" ref={containerRef} aria-label="MCP Gateway OAuth flow sequence diagram" />
+          <div className="mgof-diagram" ref={containerRef} aria-label="Agent Gateway OAuth flow sequence diagram" />
         )}
       </div>
 

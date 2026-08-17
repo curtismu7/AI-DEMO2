@@ -179,6 +179,14 @@ Audience: `https://api.ping.demo:3036/mcp`
 
 Native scopes: `gateway:mcp:invoke`
 
+### Super Banking PingGateway MCP - API-Key
+
+Audience: `https://api.ping.demo:3036/mcp/apikey`
+
+Native scopes: `apikey:mcp:invoke`
+
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `workorders:read`, `invest:read`
+
 ### Super Banking A2A Intermediate - Identity Verification Specialist
 
 Audience: `a2a-intermediate-identity.ping.demo`
@@ -194,6 +202,7 @@ Native scopes: `agent:invoke:identity`
 | `demo_mcp_server` | Super Banking MCP Server | `mcpgateway.ping.demo` | yes | Backend MCP tool server. Gateway forwards the inbound bearer UNCHANGED (no re-exchange — see authorizeMcpRequest.ts Step 4 + GatewayTokenPolicy D-05), so the server validates aud === mcpgateway.ping.demo (MCP_SERVER_RESOURCE_URI), the same gateway-targeted audience. PingOne token exchange cannot issue a separate server aud alongside the gateway aud (returns invalid_scope: May not request scopes for multiple resources). |
 | `demo_agent_service` | Super Banking Agent Gateway | `agentgateway.ping.demo` | no | Agent Gateway (Two-Exchange Step 1 audience for the AI Agent client-credentials token). |
 | `ping_gateway` | Super Banking PingGateway MCP | `https://api.ping.demo:3036/mcp` | yes | PingGateway (IG) alternate MCP gateway. Inbound scope spelling is gateway:mcp:invoke (aliases to mcp:invoke). Audience is the RFC 8707 resource URI (local :3036/mcp); k8s may override via deployment.environments.*.pingGatewayResourceUri. |
+| `ping_gateway_apikey` | Super Banking PingGateway MCP - API-Key | `https://api.ping.demo:3036/mcp/apikey` | yes | PingGateway (IG) api-key-disposition route (00-mcp-apikey.json), for show_mortgage/show_gear_order/etc. Distinct audience from ping_gateway so a /mcp-scoped token cannot be replayed against /mcp/apikey. Inbound scope spelling is apikey:mcp:invoke, plus the tool's own mirroredScopes entry. |
 | `demo_a2a_mcp_gateway` | Super Banking A2A MCP Gateway | `mcpgateway-a2a.ping.demo` | yes | A2A specialists Exchange #2 destination — separate from Super Banking MCP Gateway so nested-act SPEL never touches the non-A2A two-exchange flow. Listed in MCP_GW_RESOURCE_URI alongside the shared gateway audience. |
 
 ## App Grants

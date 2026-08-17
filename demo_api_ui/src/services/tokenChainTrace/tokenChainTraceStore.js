@@ -75,9 +75,20 @@ function _gwAuthorizeToAuthorize(ev) {
 // trace.authorize from the event. Called after every tokenEvents mutation so
 // downstream consumers only need to read trace.authorize, never scan tokenEvents.
 function _syncGwAuthorize() {
-  if (trace.authorize) return;
   const gwEv = trace.tokenEvents.find((e) => e && e.id === 'gw-authorize');
-  if (gwEv) trace.authorize = _gwAuthorizeToAuthorize(gwEv);
+  if (!gwEv) return;
+  if (!trace.authorize) {
+    trace.authorize = _gwAuthorizeToAuthorize(gwEv);
+    return;
+  }
+  // A carried gate (beginTrace's { outcome, priorGate }) occupies the slot with
+  // no decision. The gateway's real verdict must still land — otherwise the run
+  // story fabricates "INDETERMINATE" for a run whose only decision was PERMIT.
+  // Keep the gate fields (outcome/priorGate) so ProofStrip still scores UC7/UC8.
+  if (trace.authorize.decision == null) {
+    const fromEv = _gwAuthorizeToAuthorize(gwEv);
+    trace.authorize = { ...fromEv, ...trace.authorize, decision: fromEv.decision };
+  }
 }
 
 const GATE_OUTCOMES = new Set(["STEP_UP", "HITL_REQUIRED"]);

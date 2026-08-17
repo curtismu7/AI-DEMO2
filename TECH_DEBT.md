@@ -7,6 +7,172 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
+
+**Where:** `ping-gateway/.env` (`PG_GATEWAY_RESOURCE_ID=https://api.ping.demo:3036/mcp`),
+consumed as `resourceId` by `ping-gateway/config/routes/01-mcp-olb.json` (and the
+`/apikey`, `/invest` variants), and checked as `aud` by
+`ping-gateway/scripts/groovy/p1az-decision.groovy` (~line 789) and
+`jwks-token-validation.groovy`.
+
+**What's wrong:** one value carries two unrelated contracts. As an OAuth audience
+it only has to be a stable opaque identifier every party agrees on. As the input
+IG's `McpProtectionFilter` derives its RFC 9728 `resource_metadata` URL from, it
+has to be a URL that actually serves a metadata document. Nothing enforces the
+second property, and for months it did not hold: the identifier said `https` on
+port 3036 while the listener there was plaintext, so every `WWW-Authenticate`
+challenge pointed clients at a URL that failed the TLS handshake from the host
+and from inside the compose network alike. Discovery was unreachable and nothing
+reported it, because the audience half kept working perfectly.
+
+**Why not fixed now:** the obvious repair — point the metadata URL at something
+reachable — is unavailable, because changing `PG_GATEWAY_RESOURCE_ID` changes the
+audience every token in the chain is minted against (`MCP_GW_RESOURCE_URI` in
+`docker-compose.yml` lists it, PingOne resources are provisioned with it,
+`scope-topology.json` records it as `pingGatewayResourceUri`). PR #1938 therefore
+moved the LISTENER to match the identifier instead — IG now serves TLS on 8443,
+published as host 3036 — which makes the advertisement true today but leaves the
+coupling in place. The Node gateway does not share the problem: `selfBaseUrl.ts`
+derives its pointer from the request authority, so its challenge is always
+reachable by construction.
+
+**What the real fix looks like:** separate the two roles. Give IG a distinct
+`PG_GATEWAY_METADATA_BASE` (defaulting to the request authority, as the Node
+gateway already does) used only to build the `resource_metadata` URL, leaving
+`PG_GATEWAY_RESOURCE_ID` purely an audience string that never has to be
+dereferenceable. That requires either an IG config knob for the filter's metadata
+base or moving the challenge out of the built-in `McpProtectionFilter` into the
+Groovy that already builds one (`jwks-token-validation.groovy`'s `deny()`), which
+is why it was not attempted alongside a TLS change. Until then, a regression test
+worth having: assert that the URL in the gateway's `WWW-Authenticate` actually
+returns 200 — the failure mode here was silent precisely because nobody followed
+the pointer.
+
+### 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
+
+**Where:** `demo_api_server/routes/davinciLogin.js` (`POST /callback`).
+
+**What's wrong:** the route exchanges the DaVinci widget's authorization code and
+reads the resulting ID token, but never checks it against a stored nonce the way
+`routes/oauth.js`'s callback does (`idPayload.nonce !== expectedNonce`, ~line 266-276)
+and `routes/oauthUser.js`'s does (`idTokenClaims.nonce !== expectedNonce`, ~line
+459-467). Without that check the callback can't detect ID token replay.
+
+**Why not fixed now:** both reference flows generate a nonce themselves and pass
+it into `oauthService.generateAuthorizationUrl(..., nonce)` before redirecting to
+PingOne, so the nonce round-trips through a redirect URL they control. This route's
+flow start is entirely inside the `@forgerock/davinci-client` SDK
+(`demo_api_ui/src/lib/davinciWidgetClient.js`'s `davinci({ config })` /
+`client.start()`/`client.next()`) — checked the installed package's README and
+`dist/src` for `nonce` support and found none, so there's no supported way to set
+or retrieve one through the SDK today. Implementing this would mean either forking
+the SDK's flow-start call or hand-building the DaVinci authorize request outside
+it — both fragile enough to risk breaking the widget flow this fix round wasn't
+scoped to touch.
+
+**Real fix:** once the SDK exposes (or a DaVinci-orchestration-level workaround is
+found for) a way to pass a nonce into the flow's authorize step and have it echo
+back in the ID token, wire up the same pattern as `routes/oauth.js`: generate a
+nonce before the widget starts, store it in `req.session`/PKCE cookie, and verify
+`idPayload.nonce === expectedNonce` in the callback before establishing a session.
+
+### 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
+
+**Where:** `demo_api_server/services/davinciFlowClient.js` (`_getApiToken()`).
+
+**What's wrong:** returns `` `${apiClientId}:${apiClientSecret}` `` and sends it
+as a `Bearer` token to PingOne's orchestrate API. PingOne expects a real OAuth
+access token (client_credentials grant) or `Basic base64(id:secret)` at the
+token endpoint itself — a raw colon-joined pair as a bearer token will 401
+against a live environment. Every consumer of `invokeFlow()` currently runs
+against mocked HTTP in tests, so this has never been exercised live.
+
+**Why not fixed now:** scoped out of the plan's Task 3 (`docs/superpowers/plans/2026-08-17-davinci-orchestration-showcase.md`)
+on purpose — building a full client_credentials grant + token cache wasn't
+needed to land the mockable client shape, and DaVinci console setup (that
+plan's Task 1) hasn't happened yet, so there's no live environment to test
+against regardless.
+
+**Real fix:** implement a real client_credentials token fetch (mirror
+`services/mfaService.js`'s `_getWorkerToken()` pattern) with expiry-aware
+caching, before this client is ever pointed at a live PingOne environment.
+
+### 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
+
+**RESOLVED 2026-08-17.** `demo_mcp_resource_server` now reads
+`MCP_RESOURCE_SERVER_RESOURCE_URI` (falling back to the old name so a container
+or `.env` pinned before the rename keeps working, and logging a warning when it
+does). Every surface that sets it — compose, `k8s/02-configmap.yaml`, the
+privilege Helm template, `.env.example`, `refresh-service-envs.js` — carries the
+invest list under the new name, and `npm run topology:verify` step 9/9
+(`scripts/check-resource-server-audience-drift.js`) derives the canonical URI
+from `scope-topology.json` and fails if any surface drifts or reverts to the
+banking value. The defensive union in `resolveAcceptedAudiences()` stays as
+belt-and-braces. Original entry below, kept for the reasoning.
+
+**Where:** `demo_api_server/scripts/refresh-service-envs.js` (shared default
+`'mcpserver.ping.demo,mcpgateway.ping.demo'` fanned out to every service env),
+`demo_mcp_resource_server/src/index.ts` / `src/server/acceptedAudiences.ts`.
+
+**What's wrong:** everywhere else `MCP_SERVER_RESOURCE_URI` is "the banking MCP
+server's accepted-audience list", but inside demo_mcp_resource_server it means
+"THIS server's accepted list". Only a per-service override in the env writer
+keeps the invest server from inheriting the banking value; a container created
+before the override (or a K8s pod on the shared configmap) rejected every
+gateway exchange-#3 token with `Audience mismatch: got [mcp-invest.ping.demo]`.
+Patched defensively: `resolveAcceptedAudiences()` now always unions the
+server's own canonical audience, so a stale env can no longer break tool calls
+— but the name collision remains.
+
+**Why not fixed now:** renaming the env var touches compose, K8s manifests,
+refresh-service-envs, and docs in one sweep — out of scope for the audience
+fix.
+
+**Real fix:** give the invest server its own env name (e.g.
+`MCP_RESOURCE_SERVER_RESOURCE_URI`), source it from
+`scope-topology.json resources["Super Banking MCP Invest"].uri`, and extend
+`npm run topology:verify` to diff every surface that sets it (compose, K8s,
+env writer) against the topology.
+
+### 2026-08-16 — Node MCP Gateway's HITL retry path never consumes the receipt
+
+**Where:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (~L611-654,
+the `_hitl_challenge_id` retry branch) and `demo_mcp_gateway/src/hitlClient.ts`
+(`getHitlChallengeStatus` + `verifyHitlReceipt`).
+
+**What's wrong:** BUGS.md #35 fixed HITL receipt replay by having
+`demo_hitl_service`'s `POST /challenges/:id/verify` transition the challenge
+to a terminal `consumed` status on its first successful call
+(`demo_hitl_service/src/routes/challenges.js`, `store.consume()` in
+`demo_hitl_service/src/store/challengeStore.js`). That closes the replay gap
+for `ping-gateway/scripts/groovy/p1az-decision.groovy`, the only caller of
+`/verify`. The Node MCP Gateway (`demo_mcp_gateway`) never calls `/verify` —
+it calls `GET /challenges/:id` and re-implements the same binding checks
+locally in `hitlClient.ts#verifyHitlReceipt`, with no call that mutates
+challenge state. So a replayed retry against the same `_hitl_challenge_id`
+through the Node gateway still succeeds every time until the 10-minute TTL,
+identical to the bug BUGS.md #35 describes. Per `ping-gateway/README.md:32-34`,
+`ff_mcp_gateway_pinggateway` **OFF (the default)** routes MCP traffic through
+this unfixed Node gateway path — the fixed PingGateway/Groovy path is opt-in.
+
+**Why not fixed now:** the task scoped the fix to `demo_hitl_service` only
+(minimum diff, don't touch the two consumer services). Closing this gap
+requires either (a) adding a consuming call from `hitlClient.ts` at its one
+use site and a way for `demo_hitl_service`'s `GET /challenges/:id` to
+distinguish that consuming read from the read-only polling done by
+`demo_api_server/services/hitlServiceClient.js` (BFF dashboard) and
+`demo_authz_server/routes/decision.js` (own PDP flow) — both of which also
+call plain `GET /challenges/:id` and must not be treated as consuming — or
+(b) a new dedicated consuming endpoint the Node gateway calls instead of GET.
+Either touches 2-3 more services and needs its own regression pass; out of
+scope for a targeted HITL-service fix in a protected area.
+
+**Real fix:** give the Node gateway path a consuming step equivalent to
+`/verify`'s, without breaking the other `GET /challenges/:id` pollers — e.g.
+a `?consume=true` flag (or dedicated `POST /challenges/:id/consume`) that
+only `hitlClient.ts`'s retry-time call sends, verified against a test that
+replays the Node gateway's retry twice and asserts the second is rejected.
+
 ### 2026-08-15 — mastra_agent: `req.on('close')` fires before the client actually disconnects
 
 **Where:** `mastra_agent/src/runHandler.ts` — `req.on('close', () => abortController.abort())`.

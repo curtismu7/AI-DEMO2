@@ -17,11 +17,12 @@ import http from 'http';
 import os from 'os';
 import path from 'path';
 import type { AddressInfo } from 'net';
+import { __setFetchForTests } from '../src/transactionHop';
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-http-'));
 process.env.AIRLINES_DB_PATH = path.join(tmpDir, 'airlines.db');
 process.env.AIRLINES_SEED_PATH = path.join(__dirname, '..', 'seed', 'airlines.seed.json');
-process.env.MCP_SERVER_RESOURCE_URI = 'mcp-resource-server.ping.demo';
+process.env.MCP_RESOURCE_SERVER_RESOURCE_URI = 'mcp-resource-server.ping.demo';
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
 process.env.PORT = '0';
 
@@ -105,10 +106,40 @@ describe('POST /mcp', () => {
     expect(payload.bookings[0].confirmationNumber).toBe('K7XR2M');
   });
 
+  it('emits a transaction-trace hop when the caller forwards a correlationId', async () => {
+    const hopCalls: Array<{ url: string; body: any }> = [];
+    process.env.BFF_TRANSACTION_HOP_URL = 'http://bff/internal/transaction-hop';
+    process.env.BFF_INTERNAL_SECRET = 'sekrit';
+    __setFetchForTests(async (url: string, init: any) => {
+      hopCalls.push({ url, body: JSON.parse(init.body) });
+      return { ok: true } as any;
+    });
+    try {
+      const r = await post(
+        { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'get_airline_bookings', arguments: {}, correlationId: 'c-http-1' } },
+        token('airlines:read'),
+      );
+      expect(r.status).toBe(200);
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(hopCalls).toHaveLength(1);
+      expect(hopCalls[0].body).toMatchObject({
+        correlationId: 'c-http-1',
+        service: 'mcp-resource-server',
+        phase: 'mcp.tool',
+        op: 'get_airline_bookings',
+        status: 'ok',
+      });
+    } finally {
+      __setFetchForTests(undefined);
+      delete process.env.BFF_TRANSACTION_HOP_URL;
+      delete process.env.BFF_INTERNAL_SECRET;
+    }
+  });
+
   it('filters tools/list by scope, same as the WebSocket path', async () => {
     const r = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, token('airlines:read'));
     const names = r.json.result.tools.map((t: { name: string }) => t.name);
-    expect(names).toEqual(['get_airline_bookings', 'get_flight_status', 'check_seat_availability']);
+    expect(names).toEqual(['get_airline_bookings', 'get_flight_status', 'check_seat_availability', 'get_loyalty_status']);
   });
 
   it('handles initialize without a token check, matching the WS handshake', async () => {
@@ -216,5 +247,55 @@ describe('Completion capability', () => {
   it('declares the completions capability on initialize', async () => {
     const r = await post({ jsonrpc: '2.0', id: 3, method: 'initialize', params: {} }, token('airlines:read'));
     expect(r.json.result.capabilities.completions).toBeDefined();
+  });
+});
+
+// MCP spec 2026-07-28: server/discover — servers MUST implement it. This
+// server is still Legacy-era (2025-11-25 handshake) end-to-end, so
+// supportedVersions stays honestly scoped to that — claiming 2026-07-28
+// before the rest of Modern (stateless _meta negotiation, MRTR, list
+// caching) lands would make this RPC lie to a caller relying on it.
+describe('server/discover', () => {
+  it('answers with resultType complete, supportedVersions, capabilities, and serverInfo', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 1, method: 'server/discover', params: {} }, token('airlines:read'));
+    expect(r.json.result.resultType).toBe('complete');
+    expect(r.json.result.supportedVersions).toEqual(['2025-11-25']);
+    expect(r.json.result.capabilities).toMatchObject({ tools: {} });
+    expect(r.json.result._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: 'banking-mcp-resource-server' });
+  });
+
+  it('still answers when the discover call itself carries Modern _meta — discovery must work regardless of what the caller claims', async () => {
+    const r = await post({
+      jsonrpc: '2.0', id: 2, method: 'server/discover',
+      params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+    }, token('airlines:read'));
+    expect(r.json.result.resultType).toBe('complete');
+  });
+});
+
+// MCP spec 2026-07-28: per-request version negotiation. This server doesn't
+// implement any Modern-era behavior yet — a Modern-shaped request (carrying
+// params._meta.protocolVersion) should be rejected cleanly with
+// UnsupportedProtocolVersionError rather than silently run under Legacy
+// semantics it never declared support for.
+describe('Modern per-request version negotiation (_meta)', () => {
+  it('rejects a request carrying an unsupported Modern _meta.protocolVersion with -32022 and HTTP 400', async () => {
+    const r = await post({
+      jsonrpc: '2.0', id: 9, method: 'tools/list',
+      params: { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } },
+    }, token('airlines:read'));
+    // MCP spec 2026-07-28 Streamable HTTP §Protocol Version Header: this
+    // case MUST be 400 Bad Request, not 200 with a JSON-RPC-level error.
+    expect(r.status).toBe(400);
+    expect(r.json.error).toMatchObject({
+      code: -32022,
+      message: 'Unsupported protocol version',
+      data: { supported: ['2025-11-25'], requested: '2026-07-28' },
+    });
+  });
+
+  it('does not touch an ordinary Legacy request with no _meta.protocolVersion', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 10, method: 'tools/list', params: {} }, token('airlines:read'));
+    expect(r.json.result.tools).toBeDefined();
   });
 });

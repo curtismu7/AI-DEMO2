@@ -1,4 +1,14 @@
-"""Tests for POST /codegraph/query — CodeGraph Explorer SSE endpoint."""
+"""Tests for POST /codegraph/query and /codegraph/reindex — CodeGraph Explorer.
+
+TestCodegraphQuery and TestBuildMessages were rewritten from a stale
+langchain-based suite (`_build_messages`, a `runner.astream_sse(messages)`
+single-list signature, `HumanMessage`/`AIMessage`) that described an
+architecture `src/codegraph/agent.py` no longer has — it now calls
+`runner.astream_sse(question, history)` directly (see test_codegraph_agent.py
+for `_to_msg_history`, the real equivalent of the old message-building step)
+and there is no `_build_messages` function to test. TestCodegraphReindex is
+unchanged — reindexing doesn't touch the agent architecture at all.
+"""
 from __future__ import annotations
 
 import os
@@ -7,10 +17,9 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessage, HumanMessage
 
 import src.api.codegraph_handler as handler
-from src.api.codegraph_handler import router, _build_messages
+from src.api.codegraph_handler import router
 
 app = FastAPI()
 app.include_router(router, prefix="/codegraph")
@@ -30,9 +39,10 @@ def _reset_runner_cache():
 def _mock_runner(*, token: str = "Hello world", error: str | None = None, capture=None):
     runner = MagicMock()
 
-    async def astream_sse(messages):
+    async def astream_sse(question, history):
         if capture is not None:
-            capture["messages"] = messages
+            capture["question"] = question
+            capture["history"] = history
         yield 'data: {"type": "status", "text": "Searching the codebase…"}\n\n'
         if error:
             yield f'data: {{"type": "error", "text": "{error}"}}\n\n'
@@ -46,8 +56,8 @@ def _mock_runner(*, token: str = "Hello world", error: str | None = None, captur
 
 class TestCodegraphQuery:
     def test_returns_sse_stream(self):
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner()), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner()):
             response = client.post("/codegraph/query", json={"question": "How does X work?"})
 
         assert response.status_code == 200
@@ -65,38 +75,50 @@ class TestCodegraphQuery:
         response = client.post("/codegraph/query", json={"question": "   "})
         assert response.status_code == 400
 
-    def test_missing_anthropic_key_still_streams(self):
-        env_without_key = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="ok")), \
-             patch.dict("os.environ", env_without_key, clear=True):
+    def test_index_unavailable_returns_503(self):
+        with patch("src.api.codegraph_handler._index_available", return_value=False), \
+             patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner()):
             response = client.post("/codegraph/query", json={"question": "test"})
-        assert response.status_code == 200
+        assert response.status_code == 503
+        assert "CodeGraph index not available" in response.json()["error"]
 
     def test_agent_creation_failure_returns_503(self):
-        with patch("src.api.codegraph_handler.create_codegraph_agent", side_effect=Exception("DB missing")), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent", side_effect=Exception("DB missing")):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 503
         err = response.json()["error"]
         assert "CodeGraph LLM backend unavailable" in err
         assert "DB missing" in err
 
+    def test_both_index_and_llm_problems_are_reported_together(self):
+        with patch("src.api.codegraph_handler._index_available", return_value=False), \
+             patch("src.api.codegraph_handler.create_codegraph_agent", side_effect=Exception("DB missing")):
+            response = client.post("/codegraph/query", json={"question": "test"})
+        assert response.status_code == 503
+        err = response.json()["error"]
+        assert "CodeGraph index not available" in err
+        assert "CodeGraph LLM backend unavailable" in err
+
     def test_default_history_is_empty(self):
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="x")), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        captured = {}
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent",
+                   return_value=_mock_runner(token="x", capture=captured)):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 200
+        assert captured["history"] == []
 
     def test_done_event_always_emitted(self):
-        with patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="")), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent", return_value=_mock_runner(token="")):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert '"type": "done"' in response.text
 
     def test_stream_error_emits_error_event_then_done(self):
-        with patch("src.api.codegraph_handler.create_codegraph_agent",
-                   return_value=_mock_runner(error="something broke")), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent",
+                   return_value=_mock_runner(error="something broke")):
             response = client.post("/codegraph/query", json={"question": "test"})
         assert response.status_code == 200
         body = response.text
@@ -104,23 +126,28 @@ class TestCodegraphQuery:
         assert "something broke" in body
         assert '"type": "done"' in body
 
-    def test_history_is_passed_to_agent(self):
+    def test_history_is_passed_through_to_the_runner_unchanged(self):
         captured = {}
         history = [
             {"role": "user", "content": "first question"},
             {"role": "assistant", "content": "first answer"},
         ]
-        with patch("src.api.codegraph_handler.create_codegraph_agent",
-                   return_value=_mock_runner(capture=captured)), \
-             patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent",
+                   return_value=_mock_runner(capture=captured)):
             client.post("/codegraph/query", json={"question": "follow up", "history": history})
 
-        msgs = captured.get("messages", [])
-        assert len(msgs) == 3
-        assert isinstance(msgs[0], HumanMessage)
-        assert isinstance(msgs[1], AIMessage)
-        assert isinstance(msgs[2], HumanMessage)
-        assert msgs[2].content == "follow up"
+        assert captured["question"] == "follow up"
+        assert captured["history"] == history
+
+    def test_runner_is_cached_across_requests_with_the_same_env(self):
+        creator = MagicMock(return_value=_mock_runner())
+        with patch("src.api.codegraph_handler._index_available", return_value=True), \
+             patch("src.api.codegraph_handler.create_codegraph_agent", creator), \
+             patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-fixed"}):
+            client.post("/codegraph/query", json={"question": "one"})
+            client.post("/codegraph/query", json={"question": "two"})
+        creator.assert_called_once()
 
 
 _FAKE_INDEXER_WRITE_DEMO_DB = r'''
@@ -250,34 +277,3 @@ class TestCodegraphReindex:
         body = response.json()
         assert "non-zero" in body["error"]
         assert "boom" in body["log"]
-
-
-class TestBuildMessages:
-    def test_converts_history_and_question(self):
-        history = [
-            {"role": "user", "content": "first question"},
-            {"role": "assistant", "content": "first answer"},
-        ]
-        messages = _build_messages("second question", history)
-        assert len(messages) == 3
-        assert isinstance(messages[0], HumanMessage)
-        assert isinstance(messages[1], AIMessage)
-        assert isinstance(messages[2], HumanMessage)
-        assert messages[2].content == "second question"
-
-    def test_empty_history(self):
-        messages = _build_messages("question", [])
-        assert len(messages) == 1
-        assert isinstance(messages[0], HumanMessage)
-        assert messages[0].content == "question"
-
-    def test_unknown_role_is_skipped(self):
-        history = [{"role": "system", "content": "ignored"}]
-        messages = _build_messages("q", history)
-        assert len(messages) == 1
-        assert messages[0].content == "q"
-
-    def test_question_is_last_message(self):
-        messages = _build_messages("final", [{"role": "user", "content": "first"}])
-        assert messages[-1].content == "final"
-        assert isinstance(messages[-1], HumanMessage)

@@ -61,7 +61,7 @@ production strip the header at the edge or replace it with a server-side toggle.
 COMPOSE_PROJECT_NAME=ai-demo docker compose up -d ping-gateway
 ```
 
-Published on host **3036** (`http://localhost:3036`) for curl/testing — **not 3006**, which
+Published on host **3036** (`https://localhost:3036`) for curl/testing — **not 3006**, which
 OrbStack reserves on macOS. In-stack the BFF reaches it by service DNS
 `http://ping-gateway:8080`. Depends on `mcp-server`, `mcp-resource-server`, `authz-server`.
 
@@ -70,7 +70,7 @@ OrbStack reserves on macOS. In-stack the BFF reaches it by service DNS
 ```bash
 cd ping-gateway
 cp .env.example .env   # fill in secrets
-docker compose up -d   # also publishes 3036:8080
+docker compose up -d   # also publishes 3036:8443 (HTTPS)
 ```
 
 ## PingOne prerequisite for the exchange
@@ -145,7 +145,7 @@ AAM's "API Services" are named **`apiServers`** in the Management API.
 | Gateway | `POST /gateways` `{"type":"API_GATEWAY_INTEGRATION","name":...}` |
 | Credential | `POST /gateways/{id}/credentials` `{}` — the secret is returned **only** in this response; the list view omits it |
 | Resource | `POST /resources` — required first; `POST /apiServers` fails with `authorizationServer.resource.id must be provided` otherwise |
-| API server | `POST /apiServers` `{"name":...,"baseUrls":["http://api.ping.demo:3036"],"authorizationServer":{"resource":{"id":...},"type":"PINGONE_SSO"}}` |
+| API server | `POST /apiServers` `{"name":...,"baseUrls":["https://api.ping.demo:3036"],"authorizationServer":{"resource":{"id":...},"type":"PINGONE_SSO"}}` |
 | Operation | `POST /apiServers/{id}/operations` `{"name":...,"methods":["GET"],"paths":[{"pattern":"/aam/health","type":"EXACT"}]}` |
 | Rule | `PUT` the operation with `accessControl` — `{"group":{"groups":[{"id":...}]}}`, or `{"scope":{"matchType":"ANY" (or "ALL"),"scopes":[{"id":...}]}}` (`matchType` is required, no default), or `{"permission":{...}}` |
 | Deploy | `POST /apiServers/{id}/deployment` with `Content-Type: application/vnd.pingidentity.apiServer.deploy+json` — plain JSON returns `415` |
@@ -178,13 +178,13 @@ absent or `false` calls real PingOne.
 ```bash
 # simulated, group present -> 200, api-resource-server health JSON, decision PERMIT
 curl -i -H "X-Authz-Simulated: true" -H "X-Demo-Groups: Full access" \
-     http://api.ping.demo:3036/aam/health
+     https://api.ping.demo:3036/aam/health
 # simulated, no group -> 403, decision DENY, request never reaches the backend
 curl -i -H "X-Authz-Simulated: true" \
-     http://api.ping.demo:3036/aam/health
+     https://api.ping.demo:3036/aam/health
 # real PingOne (once provisioned)
-curl -i -H "Authorization: Bearer $PERMITTED_TOKEN" http://api.ping.demo:3036/aam/health
-curl -i -H "Authorization: Bearer $DENIED_TOKEN"    http://api.ping.demo:3036/aam/health
+curl -i -H "Authorization: Bearer $PERMITTED_TOKEN" https://api.ping.demo:3036/aam/health
+curl -i -H "Authorization: Bearer $DENIED_TOKEN"    https://api.ping.demo:3036/aam/health
 ```
 
 ### Tracing — `X-Gw-Audit-Trail` and the token chain

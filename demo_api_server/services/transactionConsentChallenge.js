@@ -19,6 +19,8 @@ const mfaService = require('./mfaService');
 const recognizeService = require('./recognizeService');
 const { roundToCents } = require('../utils/money');
 const scopeTopology = require('./scopeTopology');
+const davinciFlowClient = require('./davinciFlowClient');
+const appEventService = require('./appEventService');
 
 function getConfirmThreshold(verticalId) {
   const { verticalManifest } = require('./verticalManifest');
@@ -524,6 +526,73 @@ async function confirmChallenge(req, challengeId, opts = {}) {
 }
 
 /**
+ * confirmChallengeViaDaVinci — DaVinci-orchestrated alternative to confirmChallenge,
+ * used only when ff_davinci_orchestration is ON. Invokes the DaVinci transaction-
+ * authorization flow (SSO + Protect + MFA + fraud-queue webhook + Authorize,
+ * see docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md)
+ * instead of the hand-coded OTP/MFA state machine. Fails closed: any DaVinci API
+ * error falls back to confirmChallenge so a transaction is never blocked by a
+ * DaVinci outage.
+ *
+ * @param {import('express').Request} req
+ * @param {string} challengeId
+ * @param {object} [opts]
+ * @param {string} [opts.userName]
+ */
+async function confirmChallengeViaDaVinci(req, challengeId, opts = {}) {
+  const st = store(req.session);
+  pruneExpired(st);
+  const ch = st[challengeId];
+  if (!ch || ch.userId !== req.user.id) {
+    return { ok: false, status: 404, json: { error: 'challenge_not_found', message: 'Unknown or expired consent challenge.' } };
+  }
+  if (ch.status !== 'pending') {
+    return { ok: false, status: 409, json: { error: 'challenge_not_pending', message: 'Challenge already confirmed or consumed.' } };
+  }
+
+  const userName = opts.userName || req.user.username || 'Demo User';
+
+  let flowResult;
+  try {
+    flowResult = await davinciFlowClient.invokeFlow('transactionAuthorization', {
+      Amount: ch.snapshot.amount,
+      TransactionType: ch.snapshot.type,
+      Username: userName,
+    });
+
+    // Guard: flowResult must be a well-formed object with valid decision field
+    if (!flowResult || typeof flowResult !== 'object' || !('decision' in flowResult)) {
+      appEventService.logEvent('davinci', 'warn', 'DaVinci transaction flow returned malformed result — falling back to hand-coded consent path', {
+        tag: 'davinci/fallback/malformed',
+        metadata: { result: typeof flowResult, challengeId: challengeId.slice(0, 8) },
+      });
+      return confirmChallenge(req, challengeId, opts);
+    }
+
+    // Only PERMIT authorizes the transaction; DENY and any other value (INDETERMINATE, typo, etc.) does not
+    if (flowResult.decision !== 'PERMIT') {
+      return { ok: false, status: 403, json: { error: 'davinci_denied', message: 'Transaction denied by DaVinci authorization flow.' } };
+    }
+  } catch (err) {
+    appEventService.logEvent('davinci', 'warn', 'DaVinci transaction flow failed — falling back to hand-coded consent path', {
+      tag: 'davinci/fallback',
+      metadata: { error: err.message, challengeId: challengeId.slice(0, 8) },
+    });
+    return confirmChallenge(req, challengeId, opts);
+  }
+
+  const now = Date.now();
+  ch.status           = 'confirmed';
+  ch.confirmedAt      = now;
+  ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
+  _grantHitlCredit(req, ch);
+  if (flowResult.stepUpCompleted) _grantStepUpCredit(req);
+
+  console.log(`[ConsentChallenge] DaVinci flow confirmed challenge=${challengeId.slice(0, 8)}… user=${req.user.id} decision=${flowResult.decision}`);
+  return { ok: true, challengeId, viaDaVinci: true, confirmExpiresAt: ch.confirmExpiresAt };
+}
+
+/**
  * Shared helper — initiates one-time OTP once contact is known and mutates the challenge.
  * Called by both confirmChallenge (auto-resolved contact) and confirmOnetimeContact (user-supplied).
  */
@@ -1011,6 +1080,7 @@ module.exports = {
   createChallenge,
   getChallenge,
   confirmChallenge,
+  confirmChallengeViaDaVinci,
   reinitMfaDevices,
   confirmOnetimeContact,
   verifyOtp,

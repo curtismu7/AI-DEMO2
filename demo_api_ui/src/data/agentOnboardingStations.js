@@ -9,7 +9,7 @@ export const STATION_LABELS = {
   "agent-studio": "Agent Studio",
   orchestration: "Orchestration",
   "privileges-gw": "Privileges Gateway",
-  pinggateway: "PingGateway",
+  pinggateway: "PingOne Agent Gateway",
   pingauthorize: "PingAuthorize",
   "privilege-discovery": "Browser/Device Discovery",
   "cloud-discovery-iga": "Cloud Discovery",

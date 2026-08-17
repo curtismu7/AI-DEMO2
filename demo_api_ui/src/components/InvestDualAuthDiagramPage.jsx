@@ -7,7 +7,7 @@ const MERMAID_SOURCE = `sequenceDiagram
     autonumber
     box rgb(240,240,255) Normal Flow (MCP RS)
     participant Agent
-    participant GW as MCP Gateway
+    participant GW as Agent Gateway
     participant P1 as PingOne AS
     participant RS as Invest Service<br/>:8081 WebSocket
     end
@@ -24,7 +24,7 @@ const MERMAID_SOURCE = `sequenceDiagram
 
     box rgb(255,245,235) API-Key Flow (Backend App)
     participant Agent2 as Agent
-    participant GW2 as MCP Gateway
+    participant GW2 as Agent Gateway
     participant Vault as Vault
     participant App as Invest Service<br/>:8081/invest HTTP
     end

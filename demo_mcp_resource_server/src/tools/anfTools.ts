@@ -4,10 +4,13 @@ import { dispatchAnfTool } from './anfToolHandler';
 
 export const ANF_TOOLS: McpToolDef[] = [
   {
+    // Already the chip-facing name — scope-topology.json's tools.list_anf_orders
+    // entry requires only "read". Backed by a real SQLite table
+    // (abercrombieDb.ts), mirroring the other migrated verticals.
     name: 'list_anf_orders',
     description: 'List all Abercrombie & Fitch orders for the authenticated user, including product, amount, status, and date.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    requiredScopes: ['anf:read'],
+    requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
       'show my A&F orders',

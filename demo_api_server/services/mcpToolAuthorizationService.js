@@ -782,10 +782,21 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
       { pingOneUserId: subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
     );
     userGroups = resolveDemoUserGroupsForUseCase(useCaseId, userGroups);
+    // Resolve the tier BEFORE any suppression check. The tier is derived from
+    // the same group list but is a separate policy input that live PingOne has
+    // never objected to, so it must survive a UserGroups suppression — that
+    // asymmetry is the whole point of the fix.
     userTier = groupPolicy.resolveUserTier(userGroups, verticalId);
-    requiredGroup = groupPolicy.requiredGroupForTool(tool, verticalId);
-    if (requiredGroup) {
-      inRequiredGroup = userGroups.includes(requiredGroup);
+    if (groupPolicy.areGroupParamsSuppressed()) {
+      // A recent live 400 named parameters.UserGroups. Sending them again would
+      // just reproduce it on every request, so drop the three group inputs for
+      // the suppression window while userTier keeps flowing.
+      userGroups = null;
+    } else {
+      requiredGroup = groupPolicy.requiredGroupForTool(tool, verticalId);
+      if (requiredGroup) {
+        inRequiredGroup = userGroups.includes(requiredGroup);
+      }
     }
   }
 
@@ -1299,15 +1310,23 @@ async function evaluateMcpFirstToolGate(opts) {
     }
 
     // Live PingOne rejects a JS UserGroups array (400 INVALID_VALUE). Self-heal:
-    // turn off ff_authorize_group_policy and retry once without group params.
+    // suppress the group parameters for a few minutes and retry once without
+    // them. Deliberately NOT a config write any more — the old code set
+    // ff_authorize_group_policy=false, which persisted and also stopped
+    // userTier being resolved at all (the flag gates the resolution block
+    // above), silently disarming every tier ceiling until a human noticed.
+    //
+    // userTier is kept in the retry on purpose: PingOne complained about
+    // parameters.UserGroups, not UserTier. Dropping the tier too made the retry
+    // evaluate with UserTier absent -> 'none', so the tier ceilings did not
+    // apply to the very call that was being rescued.
     if (groupPolicy.isUserGroupsAttributeError(err) && groupPolicy.isEnabled(configStore)) {
-      const disabled = await groupPolicy.disableGroupPolicy(configStore);
-      if (disabled) {
+      const suppressed = groupPolicy.suppressGroupParams();
+      if (suppressed) {
         try {
           const {
             requiredGroup: _rg,
             userGroups: _ug,
-            userTier: _ut,
             inRequiredGroup: _irg,
             ...retryArgs
           } = liveDelegationArgs;
