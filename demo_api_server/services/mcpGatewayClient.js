@@ -26,6 +26,7 @@ const axios = require('axios');
 const https = require('node:https');
 const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
+const { getCorrelationId } = require('../utils/correlationContext');
 const nrSegments = require('./nrSegments');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
@@ -157,7 +158,13 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     const body = {
         jsonrpc: '2.0',
-        id:      opts.correlationId || crypto.randomUUID(),
+        // Fall back to the ambient turn id before minting a fresh one. This id
+        // becomes X-Correlation-ID below, which is what the gateway, the authz
+        // server and the MCP server all key their ledger hops on — so a random
+        // uuid here silently files the gateway/mcp legs under their own
+        // one-hop transactions instead of the turn that caused them. Same class
+        // of bug as the WS path's hardcoded JSON-RPC id.
+        id:      opts.correlationId || getCorrelationId() || crypto.randomUUID(),
         method:  'tools/call',
         params:  { name: tool, arguments: params },
     };
