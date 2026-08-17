@@ -105,9 +105,13 @@ jobs:
       - name: REGRESSION_PLAN §1 paths exist
         run: npm run regression:paths
       # Parses App.js's JSX, so it needs @babel/parser — the demo_api_server
-      # install above provides it (see scripts/lib/appRouteAudit.js).
+      # install above provides it (see scripts/lib/appRouteAudit.js). These run
+      # here rather than in the jest job because jest cannot resolve the parser
+      # from a root-level script no matter how it is required.
       - name: Auth-requirement no-drift gate
         run: npm run authz:verify
+      - name: Auth-requirement gate — own tests
+        run: node --test scripts/check-auth-requirements.test.js
       - name: Topology no-drift gate
         run: npm run topology:verify
 

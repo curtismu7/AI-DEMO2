@@ -26,6 +26,12 @@ const { createRequire } = require('node:module');
  * installs demo_api_server. Resolve across all three and fail loudly rather
  * than letting the gate skip itself — a gate that silently passes when its
  * parser is missing is the failure mode this whole file exists to prevent.
+ *
+ * Callers must be plain Node (the CLI gate, `node --test`). Under jest this
+ * throws no matter which resolution trick is used: jest resolves from the
+ * requiring file's directory — the repo root, where CI installs nothing — and
+ * honors neither `require.resolve(..., { paths })` nor `createRequire`. That is
+ * why this module's tests run under node:test in the hygiene job instead.
  */
 function loadParser(root) {
   // createRequire, not require.resolve({ paths }). This file sits at the repo
