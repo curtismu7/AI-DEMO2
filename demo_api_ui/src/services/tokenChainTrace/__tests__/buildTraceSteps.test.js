@@ -124,6 +124,20 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
     expect(stages[4].name).toBe("Backend token exchange");
   });
 
+  test("labels the PingGateway filters a live IG run actually reports", () => {
+    // Confirmed live on the focus-mode dashboard: the IG route emits these three
+    // rather than the Node gateway's GatewayTokenPolicy/mTLS/BackendExchange.
+    const stages = buildGatewayStages([
+      { filter: "McpValidationFilter", result: "passed" },
+      { filter: "McpAuditFilter", result: "passed" },
+      { filter: "McpProtectionFilter", result: "passed" },
+    ], null);
+    expect(stages.map((s) => s.name)).toEqual([
+      "MCP protocol validation", "Audit trail", "MCP resource protection",
+    ]);
+    expect(stages.every((s) => typeof s.note === "string" && s.note.length > 0)).toBe(true);
+  });
+
   test("an unknown future stage still renders rather than being dropped", () => {
     const stages = buildGatewayStages([{ filter: "SomeNewFilter", result: "passed" }], null);
     expect(stages).toHaveLength(1);
@@ -1167,5 +1181,33 @@ describe("buildTraceSteps — dynamic authorize cards (multi-decision)", () => {
     });
     const authorizeSteps = steps.filter((s) => s.baseId === "authorize");
     expect(authorizeSteps[1].status).toBe("active");
+  });
+});
+
+describe("buildTraceSteps — a finished run cannot still be exchanging", () => {
+  const waitingTok = { id: "exchanged-token", status: "waiting", claims: { scope: "read" } };
+  const exStep = (steps) => steps.find((s) => s.id === "exchange");
+
+  test("mid-flight, a waiting exchange is still active", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, tokenEvents: [waitingTok] });
+    expect(exStep(steps).status).toBe("active");
+  });
+
+  test("once the run completes it reads done, not a permanent 'in flight'", () => {
+    // Observed live: the BFF never supersedes the "waiting" event, so the hop
+    // sat on 'in flight' with every downstream hop already done.
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", tokenEvents: [waitingTok] });
+    expect(exStep(steps).status).toBe("done");
+    // The detail block is gated on the same flag — it must fill in too.
+    expect(exStep(steps).detail.response).toBeTruthy();
+  });
+
+  test("a real exchange failure still wins over the completed-run rule", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [waitingTok, { id: "exchange-failed" }],
+    });
+    expect(exStep(steps).status).toBe("error");
   });
 });
