@@ -7,6 +7,30 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
+
+**Where:** `demo_agent_service/tests/vault.test.ts` requires
+`../demo_api_server/lib/vault/index.js`, which requires `argon2`.
+
+**What's wrong:** the suite depends on a sibling package's internals AND on that
+sibling's `node_modules`. `argon2` appears in `demo_api_server/package.json`, not
+in `demo_agent_service`'s, so the test only passes where the sibling happens to
+be installed. That is true on any developer machine and false on a clean runner —
+which is exactly how it surfaced: wiring the suite into CI for the first time
+produced `125 passed, 1 suite failed to load`, with zero failing assertions.
+
+**Why not fixed now:** the CI job installs `demo_api_server`'s deps before
+running this suite, which is the smallest change that makes the job honest. The
+real repair is a decision about the boundary, not a build tweak, and it was not
+the change that found it.
+
+**What the real fix looks like:** either extract the vault into something both
+packages depend on explicitly (a workspace package with its own `argon2`
+dependency), or move the test to `demo_api_server`, where the code and its
+dependency already live. Whichever way, `demo_agent_service` should stop
+reaching into a sibling's `lib/` — a require path with `../` crossing a package
+root is the smell, and it will keep producing environment-dependent green.
+
 ### 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
 
 **Where:** `ping-gateway/.env` (`PG_GATEWAY_RESOURCE_ID=https://api.ping.demo:3036/mcp`),

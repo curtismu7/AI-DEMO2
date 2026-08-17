@@ -8,7 +8,7 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 17 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 19 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     // Each MCP method is TWO requests: the credential-less one the gateway
     // refuses, then the authorized one. Both legs are their own hop.
@@ -16,17 +16,23 @@ describe("buildTraceSteps — empty trace", () => {
       "website", "signin", "prompt", "agent",
       "tools-list-challenge", "tools-list", "llm", "agent-token", "exchange",
       "authorize", "gateway", "api-key-swap",
-      "tools-call-challenge", "mcp", "api", "database", "reply",
+      // A tool call is three MCP messages, not one.
+      "tools-call-challenge", "mcp-initialize", "mcp-initialized", "mcp",
+      "api", "database", "reply",
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
     expect(steps.slice(1).every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]);
   });
 
   test("each MCP method's challenge leg sits immediately before its authorized leg", () => {
     const ids = buildTraceSteps(EMPTY_TRACE).map((s) => s.id);
     expect(ids.indexOf("tools-list") - ids.indexOf("tools-list-challenge")).toBe(1);
-    expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(1);
+    // The tool-call challenge is followed by the MCP lifecycle handshake, so
+    // its authorized leg is three hops later, not one.
+    expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(3);
+    expect(ids.indexOf("mcp-initialize") - ids.indexOf("tools-call-challenge")).toBe(1);
+    expect(ids.indexOf("mcp") - ids.indexOf("mcp-initialized")).toBe(1);
   });
 
   test("tool discovery sits between the agent and the model that consumes the catalog", () => {
@@ -157,6 +163,56 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
       tokenEvents: [{ id: "gw-authorize", decision: "PERMIT" }],
     });
     expect(gwStep(steps).detail.stages).toBeUndefined();
+  });
+});
+
+describe("buildTraceSteps — MCP lifecycle handshake and the second exchange", () => {
+  const byId = (steps, id) => steps.find((s) => s.id === id);
+
+  test("initialize reports the negotiated protocol version and the server it agreed with", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "mcp-initialize", request: { method: "initialize" }, response: { result: { protocolVersion: "2025-11-25" } },
+          negotiatedVersion: "2025-11-25", serverInfo: { name: "banking-mcp", version: "1.2.0" } },
+        { id: "mcp-initialized", request: { jsonrpc: "2.0", method: "notifications/initialized" } },
+      ],
+    });
+    expect(byId(steps, "mcp-initialize").status).toBe("done");
+    expect(byId(steps, "mcp-initialize").detail.kv).toContainEqual(["protocol version", "2025-11-25"]);
+    expect(byId(steps, "mcp-initialize").detail.kv).toContainEqual(["server", "banking-mcp 1.2.0"]);
+  });
+
+  test("the initialized notification says it gets no reply rather than showing an empty response", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "mcp-initialized", request: { jsonrpc: "2.0", method: "notifications/initialized" } }],
+    });
+    const step = byId(steps, "mcp-initialized");
+    expect(step.detail.response).toBeUndefined();
+    expect(step.detail.kv[0][1]).toMatch(/not answered/);
+  });
+
+  test("two-exchange runs get their own exchange #1 hop, immediately before the delegated one", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "two-ex-exchange1", claims: { scope: "agent:invoke", aud: "agentgateway.ping.demo" } },
+        { id: "two-ex-final-token", claims: { scope: "read", act: { sub: "agent-1" } } },
+      ],
+    });
+    const ids = steps.map((s) => s.id);
+    expect(ids).toContain("exchange-1");
+    expect(ids.indexOf("exchange") - ids.indexOf("exchange-1")).toBe(1);
+    expect(byId(steps, "exchange-1").detail.kv).toContainEqual(["scope", "agent:invoke"]);
+  });
+
+  test("a 1-exchange run adds no exchange #1 card", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "exchanged-token", claims: { scope: "read" } }],
+    });
+    expect(steps.map((s) => s.id)).not.toContain("exchange-1");
   });
 });
 

@@ -475,7 +475,15 @@ describe('Client Credentials Token Service', () => {
       const now = Math.floor(Date.now() / 1000);
       const expectedExp = now + 60; // short demo TTL (TOKEN_CONFIG.accessTokenTTL)
 
-      expect(payload.exp).toBeCloseTo(expectedExp, 0);
+      // `now` is sampled AFTER the token was minted, so if the wall clock ticks
+      // between those two points expectedExp is one second ahead of the real
+      // exp. toBeCloseTo(..., 0) tolerates < 0.5, so that ordinary one-second
+      // boundary failed the whole suite (observed live: expected 1786996038,
+      // received 1786996037). Assert the TTL is 60s within a one-second sampling
+      // window instead — that is the property under test, and it cannot be
+      // tripped by which side of a tick the two Date.now() calls landed on.
+      expect(payload.exp).toBeGreaterThanOrEqual(expectedExp - 1);
+      expect(payload.exp).toBeLessThanOrEqual(expectedExp + 1);
       expect(payload.exp).toBeGreaterThan(now);
     });
 

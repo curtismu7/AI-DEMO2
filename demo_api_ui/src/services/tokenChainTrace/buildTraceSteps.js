@@ -6,10 +6,10 @@ import { EDU } from "../../components/education/educationIds";
 export const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
   "tools-list-challenge": "MCP", "tools-list": "MCP", llm: "LLM",
-  "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
+  "agent-token": "BFF", "exchange-1": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY",
-  "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
+  "tools-call-challenge": "MCP", "mcp-initialize": "MCP", "mcp-initialized": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
 };
 
@@ -27,7 +27,7 @@ export const LANES = {
 // list for the same reason `exchange` did — the MCP tab must open on the tool
 // call. `tools-call-challenge` IS part of the call: it is the first of the two
 // requests that invocation actually makes.
-export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp", "api", "database"];
+export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp-initialize", "mcp-initialized", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -41,6 +41,10 @@ const TITLES = {
   "tools-list": "tools/list — tool discovery, token accepted",
   llm: "LLM — reasoning & tool choice",
   "agent-token": "Agent identity token",
+  // Named, not numbered: "Token exchange" is the node label the topology
+  // diagram and its tests have always used for the delegated exchange, so the
+  // NEW hop gets the distinct name rather than renumbering the existing one.
+  "exchange-1": "Agent token narrowing — exchange #1",
   exchange: "Token exchange — delegation",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
@@ -48,6 +52,8 @@ const TITLES = {
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   "tools-call-challenge": "tools/call 401 — no token, gateway challenges",
+  "mcp-initialize": "initialize — MCP session opened",
+  "mcp-initialized": "notifications/initialized — session confirmed",
   mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
@@ -67,12 +73,15 @@ const NARRATIVES = {
   "tools-list": "The second tools/list carries the agent token. PingOne Authorize filters the catalog per vertical and scope, so the model is only ever shown tools this caller may actually invoke.",
   llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
   "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
-  exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
+  "exchange-1": "Two-exchange mode only. The first RFC 8693 call narrows the agent's OWN token before any user delegation happens, so the second exchange starts from least privilege rather than from the agent's full client-credentials scope.",
+  exchange: "The delegated exchange. BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
+  "mcp-initialize": "MCP is a stateful session protocol. Before any tool can run, the client sends initialize and the server answers with the protocol version it agrees to speak plus its capabilities. This is a real round trip that happens on every tool call.",
+  "mcp-initialized": "The client acknowledges the negotiated session. The MCP lifecycle only permits tools/call after this notification — it is the point the session becomes usable.",
   "tools-call-challenge": "The same handshake on invocation: the first tools/call carries no credential, and the gateway answers 401 with the WWW-Authenticate challenge rather than passing an anonymous call through to the MCP server. Nothing executes on this leg.",
   mcp: "The second tools/call carries the delegated token. Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
@@ -90,6 +99,8 @@ const STEP_RFCS = {
   "tools-list-challenge": ["RFC 6750 §3", "RFC 9728"],
   "tools-list": ["MCP tools/list"],
   "tools-call-challenge": ["RFC 6750 §3", "RFC 9728"],
+  "mcp-initialize": ["MCP Lifecycle"],
+  "exchange-1": ["RFC 8693"],
   exchange: ["RFC 8693", "RFC 8707"],
 };
 
@@ -167,6 +178,15 @@ const STEP_SPEC = {
     why: "The agent needs its own verifiable identity so the exchange on the next hop has something real to put in actor_token. Without a separate agent identity there is nothing to prove WHO acted for the user — only that a call arrived.",
     failure: "Reusing the user's token as the agent identity collapses the two parties into one, and the act claim produced by the next hop becomes decorative rather than evidential.",
   },
+  "exchange-1": {
+    refs: [
+      { label: "RFC 8693 §2.1", title: "Token exchange request", href: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1" },
+      { label: "RFC 8707 §2", title: "Resource indicators — audience narrowing", href: "https://www.rfc-editor.org/rfc/rfc8707#section-2" },
+    ],
+    mandate: "Nothing requires two exchanges. RFC 8693 permits chaining them, and each call is an ordinary exchange in its own right: this one presents the agent's client-credentials token as the subject and asks for a narrower scope and audience back.",
+    why: "Two-exchange mode narrows the AGENT before it borrows the USER's authority. Starting the delegated exchange from an already-reduced agent token means the token minted next cannot inherit scope the agent never needed, so a mistake in the second call fails closed rather than issuing something over-broad.",
+    failure: "Reading this hop as the delegation. No user is involved yet and there is no act claim — a token from this step alone proves nothing about acting for anyone. The delegation is the NEXT exchange.",
+  },
   exchange: {
     refs: [
       { label: "RFC 8693 §2.1", title: "Token exchange request", href: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1" },
@@ -221,6 +241,22 @@ const STEP_SPEC = {
     mandate: "No specification covers this hop — it is the deliberate boundary where OAuth ends. The gateway strips the Authorization: Bearer header entirely and attaches a service credential plus the already-resolved user identity (X-API-Key and X-User-Sub).",
     why: "Legacy services that cannot validate OAuth still must not receive the user's bearer. Terminating the token at the gateway means a compromised downstream service holds a rotatable service key scoped to the gateway, never a delegated user token it could replay elsewhere.",
     failure: "Forwarding both the bearer and the API key. The downstream now holds a token it has no reason to have, and the audience restriction that made that token safe has been bypassed by hand.",
+  },
+  "mcp-initialize": {
+    refs: [
+      { label: "MCP 2025-11-25", title: "Lifecycle — initialize / initialized", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle" },
+    ],
+    mandate: "MCP is stateful. The lifecycle requires the client to send initialize and receive the server's chosen protocolVersion and capabilities, then send notifications/initialized, BEFORE issuing any other request. A server may reject a tools/call that arrives on an uninitialized session.",
+    why: "Showing it as its own hop makes the cost and the ordering visible: a tool call is not one message, it is three, and the version the two ends agreed on is negotiated here rather than assumed. The negotiated version also decides which features the rest of the exchange may use.",
+    failure: "Treating MCP like a stateless HTTP API. Reusing a session id past its lifetime, or firing tools/call before the initialized notification, fails in ways that look like an auth problem but are a protocol-state problem.",
+  },
+  "mcp-initialized": {
+    refs: [
+      { label: "MCP 2025-11-25", title: "Lifecycle — initialized notification", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle" },
+    ],
+    mandate: "A notification, not a request: it carries no id and the server sends no reply. Its only job is to mark the session ready.",
+    why: "It is the boundary between negotiation and use. Everything before it settles what the two ends can do; everything after it is the actual work.",
+    failure: "Waiting for a response to it. Nothing answers a JSON-RPC notification, so a client that blocks on one hangs until its own timeout and reports the wrong cause.",
   },
   "tools-call-challenge": {
     refs: [
@@ -763,6 +799,31 @@ export function buildTraceSteps(trace) {
     before: { title: "Before exchange", text: asJson(userTok.claims || {}) },
     after: { title: "After exchange", text: asJson(exTok.claims || {}) },
   } : undefined;
+  // 2-exchange mode makes TWO RFC 8693 calls, and the chain used to show one
+  // card with exchange #1 demoted to a kv row. They are separate round trips to
+  // PingOne producing separate tokens — the first narrows the agent's own
+  // identity, the second mints the delegated MCP token whose nested act chain
+  // records both actors — so the first gets its own hop, immediately before the
+  // one it feeds. 1-exchange runs emit no two-ex-exchange1 and are unchanged:
+  // no extra card appears.
+  if (ex1Tok) {
+    const ex1Scopes = splitScopes((ex1Tok.claims && ex1Tok.claims.scope) || []);
+    steps.push(makeStep("exchange-1", ex1Tok.status === "waiting" ? "active" : "done", {
+      why: ex1Scopes.length
+        ? `Exchange #1 issued the agent's own narrowed token with scope “${ex1Scopes.join(" ")}”.`
+        : "Exchange #1 narrowed the agent's own token before the delegated exchange.",
+      request: ex1Tok.exchangeRequest
+        ? { title: "Exchange #1 request (actual)", text: asJson(ex1Tok.exchangeRequest) }
+        : undefined,
+      response: { title: "Exchange #1 token claims", text: asJson(ex1Tok.claims || {}) },
+      kv: [
+        ex1Tok.claims?.aud != null ? ["audience", asJson(ex1Tok.claims.aud)] : null,
+        ex1Scopes.length ? ["scope", ex1Scopes.join(" ")] : null,
+      ].filter(Boolean),
+      tokenEvent: ex1Tok,
+    }));
+  }
+
   steps.push(makeStep("exchange",
     exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
     exDone || exFailed ? {
@@ -782,8 +843,6 @@ export function buildTraceSteps(trace) {
         exTok.audExpected != null
           ? ["audience", `expected ${exTok.audExpected} · actual ${exTok.audActual}${exTok.audMatches === false ? " (MISMATCH)" : ""}`]
           : null,
-        ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
-          ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
       ].filter(Boolean) : [],
       inspectToken: exTok ? "mcp" : undefined,
       tokenEvent: exTok || undefined,
@@ -1103,6 +1162,39 @@ export function buildTraceSteps(trace) {
   // tools/call the gateway refuses at its own edge, so nothing reaches the MCP
   // server. Sits directly before the authorized call it precedes.
   steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
+
+  // 8d. MCP lifecycle handshake. A tool call is three messages over the MCP
+  // session, not one: initialize (version + capability negotiation),
+  // notifications/initialized (session ready), then tools/call. The first two
+  // were captured by mcpWebSocketClient but never surfaced, so the chain drew
+  // one MCP hop for three round trips.
+  const mcpInit = findEvent(tokenEvents, "mcp-initialize");
+  const mcpInitialized = findEvent(tokenEvents, "mcp-initialized");
+  steps.push(makeStep("mcp-initialize",
+    authorizeFailed ? "notinpath" : mcpInit ? "done" : traceComplete ? "notinpath" : "pending",
+    mcpInit ? {
+      why: mcpInit.negotiatedVersion
+        ? `Client and server negotiated MCP protocol ${mcpInit.negotiatedVersion}.`
+        : "Client opened the MCP session before invoking the tool.",
+      request: mcpInit.request ? { title: "initialize (actual)", text: asJson(mcpInit.request) } : undefined,
+      response: mcpInit.response ? { title: "initialize result", text: asJson(mcpInit.response) } : undefined,
+      kv: [
+        mcpInit.negotiatedVersion ? ["protocol version", String(mcpInit.negotiatedVersion)] : null,
+        mcpInit.serverInfo?.name ? ["server", `${mcpInit.serverInfo.name}${mcpInit.serverInfo.version ? ` ${mcpInit.serverInfo.version}` : ""}`] : null,
+      ].filter(Boolean),
+      moreDetail: { edu: EDU.MCP_PROTOCOL, label: "Learn: MCP Protocol" },
+    } : {}));
+  steps.push(makeStep("mcp-initialized",
+    authorizeFailed ? "notinpath" : mcpInitialized ? "done" : traceComplete ? "notinpath" : "pending",
+    mcpInitialized ? {
+      why: "Session confirmed — the MCP lifecycle allows a tool call only after this notification.",
+      request: mcpInitialized.request
+        ? { title: "notifications/initialized (actual)", text: asJson(mcpInitialized.request) }
+        : undefined,
+      // A notification has no id and gets no reply; saying so beats an empty
+      // response block that looks like missing evidence.
+      kv: [["reply", "none — JSON-RPC notifications are not answered"]],
+    } : {}));
 
   // 9. mcp + 10. api + 11. database — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".

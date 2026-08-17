@@ -40,6 +40,8 @@ jobs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
       ui: ${{ steps.all.outputs['ui'] || steps.filter.outputs['ui'] }}
+      unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
+      python-agents: ${{ steps.all.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
     steps:
       - name: Run every suite for scheduled and manual CI
         if: github.event_name != 'pull_request'
@@ -48,6 +50,8 @@ jobs:
           echo "api-server=true" >> "$GITHUB_OUTPUT"
           echo "decision-services=true" >> "$GITHUB_OUTPUT"
           echo "ui=true" >> "$GITHUB_OUTPUT"
+          echo "unwired-services=true" >> "$GITHUB_OUTPUT"
+          echo "python-agents=true" >> "$GITHUB_OUTPUT"
       - name: Select suites affected by this PR
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
@@ -75,6 +79,21 @@ jobs:
             ui:
               - '.github/workflows/ci.yml'
               - 'demo_api_ui/**'
+            unwired-services:
+              - '.github/workflows/ci.yml'
+              - 'scripts/test-service-suite.sh'
+              - 'demo_agent_service/**'
+              - 'demo_hitl_service/**'
+              - 'demo_mcp_code_search/**'
+              - 'agent_token_service/**'
+              - 'demo_api_resource_server/**'
+              - 'mastra_agent/**'
+            python-agents:
+              - '.github/workflows/ci.yml'
+              - 'langchain_agent/**'
+              - 'openai_agent/**'
+              - 'pydantic_agent/**'
+              - 'llamaindex_agent/**'
 
   gates:
     name: Hygiene + topology gates
@@ -174,6 +193,105 @@ jobs:
           CI: 'true'
       - name: Vite build gate
         run: npm --prefix demo_api_ui run build
+
+  unwired-service-suites:
+    # 2026-08-17: an audit found ~117 test files across ten services that NO job
+    # ran — the same pattern this file already documents three times above
+    # authz-decision-tests, at a scale nobody had measured. Six of them are Node
+    # services, bundled into ONE job for the Actions-budget reason given there.
+    #
+    # Five run BLOCKING (SUITE_BLOCKING=1): each was verified fully green before
+    # being wired up, so a red here is a regression, not inherited debt.
+    #   demo_agent_service 133 · demo_mcp_code_search 32 · agent_token_service 11
+    #   demo_hitl_service · demo_api_resource_server
+    # mastra_agent runs NON-BLOCKING: three pre-existing failures in
+    # tests/runHandler.test.ts that predate this wiring. It still fails the job if
+    # the suite cannot RUN, which is the distinction test-service-suite.sh exists
+    # to draw — "0 tests ran" must not look like "all tests passed".
+    name: Unwired service suites (agent, hitl, code-search, token, resource-server, mastra)
+    needs: changes
+    if: needs.changes.outputs['unwired-services'] == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # demo_agent_service/tests/vault.test.ts imports ACROSS the package
+      # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
+      # demo_api_server dependency. Locally that resolves because the sibling's
+      # node_modules exists; on a clean runner it does not, and the suite failed
+      # to collect (125 tests passed, 1 suite never loaded). Installing the
+      # sibling's deps is the smallest honest fix; the cross-package import
+      # itself is logged in TECH_DEBT.
+      - name: Install demo_api_server deps (demo_agent_service's vault suite imports its lib)
+        run: npm install --prefix demo_api_server --no-audit --no-fund
+      - name: demo_agent_service (blocking)
+        run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-service
+      - name: demo_hitl_service (blocking)
+        run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh hitl-service
+      - name: demo_mcp_code_search (blocking)
+        run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh code-search
+      - name: agent_token_service (blocking)
+        run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-token-service
+      - name: demo_api_resource_server (blocking)
+        run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh api-resource-server
+      # Reports its failures without gating; still fails if the suite cannot run.
+      - name: mastra_agent (non-blocking — pre-existing failures)
+        run: bash scripts/test-service-suite.sh mastra-agent
+
+  python-agent-suites:
+    # The other four uncovered services are Python: langchain_agent (52 test
+    # files — the DEFAULT agent framework per CLAUDE.md), openai_agent,
+    # pydantic_agent, llamaindex_agent. None had ever run in CI.
+    #
+    # Wired non-blocking first because they could not be verified locally (only
+    # langchain_agent has a .venv here). The first CI run supplied the evidence,
+    # and the split is now by measurement rather than assumption:
+    #   langchain_agent   834 passed          -> BLOCKING
+    #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
+    #   openai_agent        1 failed, 39 pass -> continue-on-error
+    #   pydantic_agent      8 failed, 38 pass -> continue-on-error
+    #
+    # WATCH OUT: a continue-on-error step that fails reports conclusion
+    # "success" in the jobs API, and the job goes green too. Neither is evidence
+    # the suite passed — read the step's log output for the pytest summary line.
+    # The two red suites are pre-existing failures (test_run_handler.py in both),
+    # unrelated to the change that wired them up; fix them, then flip.
+    name: Python agent suites (langchain, openai, pydantic, llamaindex)
+    needs: changes
+    if: needs.changes.outputs['python-agents'] == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: langchain_agent (blocking — 834 passing)
+        run: |
+          cd langchain_agent
+          python -m pip install --quiet --upgrade pip
+          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
+          python -m pytest tests/ -q
+      - name: openai_agent (non-blocking — 1 pre-existing failure)
+        continue-on-error: true
+        run: |
+          cd openai_agent
+          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
+          python -m pytest tests/ -q
+      - name: pydantic_agent (non-blocking — 8 pre-existing failures)
+        continue-on-error: true
+        run: |
+          cd pydantic_agent
+          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
+          python -m pytest tests/ -q
+      - name: llamaindex_agent (blocking — 9 passing)
+        run: |
+          cd llamaindex_agent
+          [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
+          python -m pytest tests/ -q
 
   authz-decision-tests:
     # demo_authz_server and demo_mcp_gateway had ~90 test cases that no job ran.

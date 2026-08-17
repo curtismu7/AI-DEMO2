@@ -345,14 +345,18 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
           if (agentToken) initParams.agentToken = agentToken;
           if (userSub) initParams.userSub = userSub;
           if (correlationId) initParams.correlationId = correlationId;
-          ws.send(
-            JSON.stringify({
-              jsonrpc: '2.0',
-              id: INIT_REQUEST_ID,
-              method: 'initialize',
-              params: initParams,
-            })
-          );
+          const initFrame = {
+            jsonrpc: '2.0',
+            id: INIT_REQUEST_ID,
+            method: 'initialize',
+            params: initParams,
+          };
+          // The MCP spec handshake is THREE messages, not one: initialize ->
+          // notifications/initialized -> the follow-up method. Only the last was
+          // captured, so the token chain drew a single MCP hop and the protocol
+          // negotiation that precedes every tool call was invisible.
+          if (frameSink) frameSink.initializeRequest = initFrame;
+          ws.send(JSON.stringify(initFrame));
         });
 
         ws.on('message', (raw) => {
@@ -386,12 +390,10 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
               return;
             }
             phase = 'awaiting_follow';
-            ws.send(
-              JSON.stringify({
-                jsonrpc: '2.0',
-                method: 'notifications/initialized',
-              })
-            );
+            if (frameSink) frameSink.initializeResponse = msg;
+            const initializedFrame = { jsonrpc: '2.0', method: 'notifications/initialized' };
+            if (frameSink) frameSink.initializedNotification = initializedFrame;
+            ws.send(JSON.stringify(initializedFrame));
             // Include agentToken in tool call params for MCP server authentication
             const callParams = { ...followParams };
             if (agentToken) callParams.agentToken = agentToken;
@@ -610,10 +612,14 @@ function mcpListTools(agentToken, userSub, correlationId, opts) {
 }
 
 function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId, opts) {
+  // opts.frameSink lets the caller collect the handshake frames without moving
+  // to the *WithFrames variant (which changes the return shape and is wired only
+  // into the MCP Inspector). mcpToolPipeline passes one so the token chain can
+  // show initialize / notifications/initialized as their own hops.
   return mcpRpc(agentToken, 'tools/call', {
     name: toolName,
     arguments: toolParams || {},
-  }, userSub, correlationId, undefined, opts);
+  }, userSub, correlationId, opts && opts.frameSink, opts);
 }
 
 // Frame-capturing variants for the MCP Inspector teaching surface. Same wire

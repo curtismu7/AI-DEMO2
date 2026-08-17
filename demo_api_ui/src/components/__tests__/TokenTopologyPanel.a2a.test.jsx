@@ -132,7 +132,7 @@ describe('buildA2aTopology', () => {
     const branchNames = [...container.querySelectorAll('.ttp-branch .ttp-name')].map((n) => n.textContent);
     // The tool call is two requests: the refused one and the authorized one.
     // Both hang off the branch, in the order they went out.
-    expect(branchNames).toEqual(['Agent Gateway', 'API-key path', 'tools/call 401', 'MCP server', 'Resource server', 'Database']);
+    expect(branchNames).toEqual(['Agent Gateway', 'API-key path', 'tools/call 401', 'initialize', 'notifications/initialized', 'MCP server', 'Resource server', 'Database']);
     // tools/list is discovery, not the tool call — it belongs on the spine.
     expect(branchNames).not.toContain('tools/list');
     expect([...container.querySelectorAll('.ttp-spine .ttp-name')].map((n) => n.textContent))
