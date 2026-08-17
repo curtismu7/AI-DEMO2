@@ -304,8 +304,8 @@
     "scopeError": "The agent's access token does not carry the gear:read scope. Sign out and sign back in to consent to gear order access, then try \"Show Gear Order\" again."
   },
   "render": {
-    "cancel_order": {"type":"card","fields":[{"label":"Order ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
-    "return_order": {"type":"card","fields":[{"label":"Order ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
+    "cancel_order": {"type":"card","fields":[{"label":"Order ID","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
+    "return_order": {"type":"card","fields":[{"label":"Order ID","path":"id"},{"label":"Product","path":"product"},{"label":"Status","path":"status"}]},
     "cancel_rental": {"type":"card","fields":[{"label":"Rental ID","path":"id"},{"label":"Item","path":"item"},{"label":"Status","path":"status"}]},
     "redeem_points": {"type":"card","fields":[{"label":"Account ID","path":"id"},{"label":"Tier","path":"tier"},{"label":"Points","path":"points"}]},
     "list_payments": {"type":"table","columns":[{"label":"ID","path":"id"},{"label":"Type","path":"type"},{"label":"Last 4","path":"last4"},{"label":"Expiry","path":"expiry"},{"label":"Default","path":"isDefault"}]},

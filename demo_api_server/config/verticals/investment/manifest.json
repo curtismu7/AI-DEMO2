@@ -290,7 +290,7 @@
   },
   "render": {
     "request_fee_tier_review": { "type": "card", "title": "Fee-Tier Review Requested", "fields": [{ "label": "Request #", "path": "requestId" }, { "label": "Portfolio #", "path": "portfolioId" }, { "label": "Status", "path": "status" }, { "label": "Note", "path": "note" } ] },
-    "view_holdings": { "type": "table", "columns": [ { "label": "Symbol", "path": "symbol" }, { "label": "Shares", "path": "shares", "format": "count" }, { "label": "Market value", "path": "marketValue", "format": "money" } ] },
+    "view_holdings": { "type": "table", "columns": [ { "label": "Symbol", "path": "symbol" }, { "label": "Shares", "path": "quantity", "format": "count" }, { "label": "Market value", "path": "marketValue", "format": "money" } ] },
     "portfolios": { "type": "table", "columns": [ { "label": "Portfolio Type", "path": "portfolioType" }, { "label": "Number", "path": "portfolioNumber" }, { "label": "Value", "path": "value", "format": "money" }, { "label": "Currency", "path": "currency" } ] },
     "portfolio_value": { "type": "fieldList", "title": "Portfolio Value", "fields": [ { "label": "Portfolio Type", "path": "portfolioType" }, { "label": "Value", "path": "value", "format": "money" } ] },
     "trades": { "type": "table", "columns": [ { "label": "Type", "path": "type" }, { "label": "Symbol", "path": "symbol" }, { "label": "Amount", "path": "amount", "format": "money" }, { "label": "Date", "path": "date", "format": "date" } ] },
