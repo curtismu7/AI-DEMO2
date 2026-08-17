@@ -17,6 +17,7 @@ import {
 } from '../interfaces/banking';
 import { CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError } from '../utils/CircuitBreaker';
 import { RetryManager, RetryConfig, RetryError } from '../utils/RetryManager';
+import { getCorrelationId } from '../utils/correlationContext';
 
 export interface BankingAPIClientOptions extends Partial<BankingAPIConfig> {
   circuitBreakerConfig?: Partial<CircuitBreakerConfig>;
@@ -102,6 +103,16 @@ export class BankingAPIClient {
         console.log(`Banking API Request: ${config.method?.toUpperCase()} ${config.url}`);
         // Stamp start time for duration tracking
         (config as any)._traceStart = Date.now();
+        // Carry the turn's correlation id back to the BFF. These callbacks run
+        // the active vertical's tool, so they are part of the same transaction
+        // as the mcp.tool hop — but without this header the BFF minted a fresh
+        // id for them and filed their ui.request/response hops as a separate
+        // record, which is what split /transaction-trace into two clusters.
+        // Read per request (not at axios.create) — one client instance serves
+        // many turns, and a construction-time value would pin them all to the
+        // first id.
+        const correlationId = getCorrelationId();
+        if (correlationId) config.headers.set('X-Correlation-ID', correlationId);
         return config;
       },
       (error) => {
