@@ -19,9 +19,14 @@ trap 'rm -rf "$ROOT"' EXIT
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 
 # --- upstream ---
-git init -q --bare "$ROOT/origin.git"
-git clone -q "$ROOT/origin.git" "$ROOT/seed"
+# -b main explicitly: `git init` honours init.defaultBranch, which is `master`
+# on a stock runner. The bare repo's HEAD would then point at a ref this
+# fixture never pushes, the clone below would come up empty, and every check
+# would fail on a missing path rather than on anything real.
+git init -q --bare -b main "$ROOT/origin.git"
+git clone -q "$ROOT/origin.git" "$ROOT/seed" 2>/dev/null
 cd "$ROOT/seed"
+git checkout -q -b main 2>/dev/null || true
 mkdir -p scripts .claude demo_api_server/data
 cp "$WT/scripts/sync-main-checkout.sh" "$WT/scripts/sync-status.sh" "$WT/scripts/park-main-edits.sh" scripts/
 echo "v1" > app.js
@@ -31,6 +36,13 @@ git add -A && git commit -qm init && git branch -M main && git push -qu origin m
 
 # --- the "shared main checkout" ---
 git clone -q "$ROOT/origin.git" "$ROOT/main"
+
+# Fail loudly here rather than 20 checks later with "No such file or directory":
+# an empty clone means the fixture itself is broken, not the code under test.
+if [ ! -f "$ROOT/main/app.js" ]; then
+  echo "FIXTURE BROKEN: clone of the test origin is empty (git $(git --version | awk '{print $3}'))" >&2
+  exit 1
+fi
 
 # --- upstream moves ahead: a code change AND a tracked .claude note ---
 cd "$ROOT/seed"
