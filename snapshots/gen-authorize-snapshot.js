@@ -585,6 +585,12 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     actorCond.condition = { or: { conditions: actors.map((id) => ({
       comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
     })) } };
+    // Content-derived version, same reason as ver() above: PingOne skips an
+    // object whose version is unchanged, and this condition previously KEPT its
+    // committed version when actors were unioned in — so a re-import could
+    // never land a new specialist (found 2026-08-17: cloud held 9 actors, file
+    // held 11+2 infra, and the import would have skipped the fix).
+    actorCond.version = ver('bbbbbbbb', COND.HasValidActorChain, { actors });
   }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
