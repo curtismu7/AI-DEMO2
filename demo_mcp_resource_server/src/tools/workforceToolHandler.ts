@@ -8,7 +8,7 @@ export async function dispatchWorkforceTool(
   switch (toolName) {
     case 'list_expenses': {
       const expenses = listExpenses();
-      return { expenses, count: expenses.length };
+      return { expenses, count: expenses.length, render: 'list_expenses' };
     }
     case 'get_expense': {
       const id = args.expense_id as string;

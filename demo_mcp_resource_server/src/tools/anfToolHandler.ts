@@ -12,7 +12,7 @@ export async function dispatchAnfTool(
 ): Promise<unknown> {
   switch (toolName) {
     case 'list_anf_orders':
-      return { orders: data.orders, count: data.orders.length };
+      return { orders: data.orders, count: data.orders.length, render: 'list_anf_orders' };
     case 'get_anf_order': {
       const id = args.order_id as string;
       const order = data.orders.find((o) => o.id === id);

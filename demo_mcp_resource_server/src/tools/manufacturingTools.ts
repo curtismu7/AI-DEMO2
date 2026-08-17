@@ -6,10 +6,12 @@ export { dispatchManufacturingTool } from './manufacturingToolHandler';
 
 export const MANUFACTURING_TOOLS: McpToolDef[] = [
   {
-    name: 'list_work_orders',
+    // Named to match scope-topology.json's tools.view_work_orders entry
+    // (requiredScopes ["read"]) — same pattern as healthcare's view_records.
+    name: 'view_work_orders',
     description: 'List open work orders for the authenticated user, including status, inventory value, and scheduled shipments.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    requiredScopes: ['manufacturing:read'],
+    requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
       'show my work orders',

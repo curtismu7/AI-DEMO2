@@ -4,10 +4,13 @@ import { dispatchWorkforceTool } from './workforceToolHandler';
 
 export const WORKFORCE_TOOLS: McpToolDef[] = [
   {
+    // Already the chip-facing name (no rename needed, unlike healthcare/
+    // government/manufacturing/university) — scope-topology.json's
+    // tools.list_expenses entry requires only "read".
     name: 'list_expenses',
     description: 'List all expense reports for the authenticated employee, including category, amount, status, and submission date.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    requiredScopes: ['workforce:read'],
+    requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
       'show my expenses',
