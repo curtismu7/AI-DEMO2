@@ -148,11 +148,11 @@ export default function PrivilegeMcpLearningPage() {
             </p>
 
             <div className="plp-callout plp-callout--info">
-              <strong>Privilege vs PingGateway — when to use which:</strong>
+              <strong>Privilege vs PingOne Agent Gateway — when to use which:</strong>
               <ul>
                 <li><strong>Privilege MCP Gateway</strong> — MCP access governance, JIT approvals,
                   time-bound access, credential protection, tool-level audit. Sits near the agent/client.</li>
-                <li><strong>PingGateway MCP Security Gateway</strong> — downstream token mediation,
+                <li><strong>PingOne Agent Gateway MCP Security Gateway</strong> — downstream token mediation,
                   introspection, transformation, audience/resource handling, RFC 8693 enforcement.
                   Sits near the backend MCP server.</li>
               </ul>

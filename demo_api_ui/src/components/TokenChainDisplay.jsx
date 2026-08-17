@@ -2129,11 +2129,11 @@ export function AamDecisionEduBox({ event }) {
         <span className="tcd-edu-icon">
           {isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
         </span>
-        <strong>PingGateway → PingOne Authorize (API Access Management)</strong>
+        <strong>PingOne Agent Gateway → PingOne Authorize (API Access Management)</strong>
       </div>
       <div className="tcd-edu-body">
         <p>
-          Before any per-tool policy runs, PingGateway asks the{" "}
+          Before any per-tool policy runs, PingOne Agent Gateway asks the{" "}
           <strong>Sideband API</strong> whether this <em>request</em> is allowed —
           matching method and path against an API service operation. It sees no
           tool name and no arguments, which is exactly why the fine-grained{" "}

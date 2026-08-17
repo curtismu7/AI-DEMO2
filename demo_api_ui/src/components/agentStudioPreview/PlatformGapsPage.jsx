@@ -21,7 +21,7 @@ const GAPS = [
   },
   {
     title: "Distinct Privileges MCP Gateway",
-    body: "PingOne Privilege handles human privileged-session brokering. An MCP-protocol-aware privilege layer — policy, step-up, and audit specifically for MCP tool calls — isn't its own product; today it's hand-assembled from PingGateway + PingOne Authorize config.",
+    body: "PingOne Privilege handles human privileged-session brokering. An MCP-protocol-aware privilege layer — policy, step-up, and audit specifically for MCP tool calls — isn't its own product; today it's hand-assembled from PingOne Agent Gateway + PingOne Authorize config.",
   },
   {
     title: "Federated cross-product Agent Identity",

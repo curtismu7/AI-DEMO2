@@ -37,7 +37,7 @@ export const ROWS = [
           "Open Agent Studio",
           "Register Agent",
           "Register MCPs, Tools & Resources",
-          "Publish MCP to PingGateway MCP Security Gateway (automatic orchestration)",
+          "Publish MCP to PingOne Agent Gateway MCP Security Gateway (automatic orchestration)",
         ],
       },
       {
@@ -94,7 +94,7 @@ export const ROWS = [
       legendNum: 6,
       items: [
         "Create identity & metadata",
-        "Publish MCP to PingGateway MCP Security Gateway",
+        "Publish MCP to PingOne Agent Gateway MCP Security Gateway",
         "Publish FGA rules to PingAuthorize (as applies)",
         "Register in IGA for AI for governance",
         "Keep metadata synchronized across platforms",
@@ -120,7 +120,7 @@ export const ROWS = [
       {
         key: "pinggateway",
         legendNum: 7,
-        title: "PingGateway MCP Security Gateway",
+        title: "PingOne Agent Gateway MCP Security Gateway",
         bullets: [
           "Secures all MCP communication",
           "Validates OAuth tokens",
@@ -141,7 +141,7 @@ export const ROWS = [
         ],
       },
     ],
-    note: "No duplicate routing. Privilege MCPs go directly to Privilege. Cloud/Platform MCPs go through PingGateway and PingAuthorize.",
+    note: "No duplicate routing. Privilege MCPs go directly to Privilege. Cloud/Platform MCPs go through PingOne Agent Gateway and PingAuthorize.",
   },
   {
     id: "discovery-iga",

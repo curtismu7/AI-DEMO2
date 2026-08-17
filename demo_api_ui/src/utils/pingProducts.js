@@ -2,10 +2,10 @@
 // 4 products, SVG-dot chips, no emoji.
 
 export const PING_PRODUCTS = {
-  idp:   { id: 'idp',   label: 'PingOne',           cssClass: 'pp--idp'   },
-  mfa:   { id: 'mfa',   label: 'PingOne MFA',        cssClass: 'pp--mfa'   },
-  gw:    { id: 'gw',    label: 'PingGateway',        cssClass: 'pp--gw'    },
-  authz: { id: 'authz', label: 'PingOne Authorize',  cssClass: 'pp--authz' },
+  idp:   { id: 'idp',   label: 'PingOne',                cssClass: 'pp--idp'   },
+  mfa:   { id: 'mfa',   label: 'PingOne MFA',            cssClass: 'pp--mfa'   },
+  gw:    { id: 'gw',    label: 'PingOne Agent Gateway',  cssClass: 'pp--gw'    },
+  authz: { id: 'authz', label: 'PingOne Authorize',      cssClass: 'pp--authz' },
   privilege: { id: 'privilege', label: 'PingOne Privilege', cssClass: 'pp--privilege' },
 };
 

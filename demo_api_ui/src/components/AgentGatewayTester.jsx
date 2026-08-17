@@ -1113,7 +1113,7 @@ export default function AgentGatewayTester() {
                           </div>
                         </div>
                       ) : (
-                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingGateway.' }} />
+                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingOne Agent Gateway.' }} />
                       )}
                     </>
                   )}

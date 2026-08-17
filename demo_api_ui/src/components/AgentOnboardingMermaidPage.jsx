@@ -16,7 +16,7 @@ const MERMAID_SOURCE = `flowchart TD
     subgraph ENTRY[" "]
         direction LR
         A1["<b>1. Enterprise Users</b><br/><i>(AI Consumers)</i><br/>${ICON("claude", "Claude")}Claude Desktop &nbsp; ${ICON("cursor", "Cursor")}Cursor<br/>${ICON("vscode", "VS Code")}VS Code (Copilot) &nbsp; ${ICON("openai", "ChatGPT")}ChatGPT Enterprise<br/>&bull; Adds/configures MCPs in AI client<br/>&bull; Opens Agent Studio to register"]
-        A2["<b>2. Developers /<br/>Agent Builders</b><br/>${ICON("azure", "Foundry")}Foundry &nbsp; ${ICON("aws", "AWS")}AWS<br/>${ICON("googlecloud", "Vertex")}Vertex &nbsp; Other Platforms<br/>&bull; Build agent on any platform<br/>&bull; Register agent, MCPs, tools, resources<br/>&bull; Publish to PingGateway (auto)"]
+        A2["<b>2. Developers /<br/>Agent Builders</b><br/>${ICON("azure", "Foundry")}Foundry &nbsp; ${ICON("aws", "AWS")}AWS<br/>${ICON("googlecloud", "Vertex")}Vertex &nbsp; Other Platforms<br/>&bull; Build agent on any platform<br/>&bull; Register agent, MCPs, tools, resources<br/>&bull; Publish to PingOne Agent Gateway (auto)"]
         A3["<b>3. Cloud Discovery</b><br/><i>(Admin)</i><br/>${ICON("azure", "Foundry")}Foundry &nbsp; ${ICON("aws", "AWS")}AWS<br/>${ICON("googlecloud", "Vertex")}Vertex &nbsp; Other Platforms<br/>&bull; Agents discovered in cloud<br/>&bull; Admin notified<br/>&bull; Admin reviews &amp; imports"]
     end
 
@@ -24,12 +24,12 @@ const MERMAID_SOURCE = `flowchart TD
 
     IDM["<b>Identity &amp; Metadata</b><br/><i>(Ping Identity Platform)</i><br/>PingOne &middot; PingFederate &middot; AIC<br/>Create identity &amp; metadata for Agents and MCPs<br/>&bull; Agent Identity, MCP Identity<br/>&bull; Tools, Resources, Prompts Metadata<br/>&bull; Ownership &amp; Attributes"]
 
-    ORCH["<b>Orchestrates onboarding across the Ping platform</b><br/>&#9312; Create identity &amp; metadata<br/>&#9313; Publish MCP to PingGateway<br/>&#9314; Publish FGA rules to PingAuthorize<br/>&#9315; Register in IGA for AI<br/>&#9316; Keep metadata synchronized"]
+    ORCH["<b>Orchestrates onboarding across the Ping platform</b><br/>&#9312; Create identity &amp; metadata<br/>&#9313; Publish MCP to PingOne Agent Gateway<br/>&#9314; Publish FGA rules to PingAuthorize<br/>&#9315; Register in IGA for AI<br/>&#9316; Keep metadata synchronized"]
 
     subgraph GOV[" "]
         direction LR
         PG["<b>P1 Privileges<br/>Agent Gateway</b><br/>&bull; Policy enforcement<br/>&bull; JIT access &amp; secret injection<br/>&bull; Session &amp; activity logging<br/>&bull; Audit all actor activity"]
-        PGW["<b>PingGateway<br/>MCP Security Gateway</b><br/>&bull; Secures all MCP comms<br/>&bull; Validates OAuth tokens<br/>&bull; Token exchange / transform<br/>&bull; Routes authz to PingAuthorize"]
+        PGW["<b>PingOne Agent Gateway<br/>MCP Security Gateway</b><br/>&bull; Secures all MCP comms<br/>&bull; Validates OAuth tokens<br/>&bull; Token exchange / transform<br/>&bull; Routes authz to PingAuthorize"]
         PA["<b>PingAuthorize /<br/>PingOne Authorize</b><br/>&bull; Fine-grained authz decisions<br/>&bull; Policies for tools/resources/APIs<br/>&bull; Context-aware, real-time"]
     end
 
