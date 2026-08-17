@@ -86,3 +86,39 @@ describe("StepDetailPanel", () => {
     expect(screen.queryByText("Completed")).toBeNull();
   });
 });
+
+describe("StepDetailPanel — gateway filter chain", () => {
+  const withStages = {
+    id: "gateway",
+    title: "Agent Gateway — token validated",
+    lane: "GATEWAY",
+    status: "done",
+    detail: {
+      stages: [
+        { raw: "TokenIntrospection", name: "Token introspection", result: "passed", status: "done", note: "RFC 7662 call to PingOne." },
+        { raw: "P1AZDecision", name: "PingOne Authorize decision", result: "forwarded", status: "done", decision: "PERMIT" },
+        { raw: "mTLS", name: "mTLS to MCP server", result: "skipped", status: "notinpath" },
+      ],
+    },
+  };
+
+  it("renders every stage, because this panel is the surface focus mode actually shows", () => {
+    render(<StepDetailPanel step={withStages} />);
+    expect(screen.getByText("Token introspection")).toBeInTheDocument();
+    expect(screen.getByText("PingOne Authorize decision")).toBeInTheDocument();
+    expect(screen.getByText("mTLS to MCP server")).toBeInTheDocument();
+  });
+
+  it("carries the decision and keeps skipped visually distinct from blocked", () => {
+    const { container } = render(<StepDetailPanel step={withStages} />);
+    expect(screen.getByText(/forwarded — PERMIT/)).toBeInTheDocument();
+    const skipped = container.querySelector('.sdp-stage[data-status="notinpath"]');
+    expect(skipped).toBeTruthy();
+    expect(container.querySelector('.sdp-stage[data-status="error"]')).toBeNull();
+  });
+
+  it("renders no stage list when the step carries none", () => {
+    const { container } = render(<StepDetailPanel step={{ ...withStages, detail: {} }} />);
+    expect(container.querySelector(".sdp-stages")).toBeNull();
+  });
+});

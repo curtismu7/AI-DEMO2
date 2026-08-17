@@ -128,6 +128,32 @@ export default function StepDetailPanel({ step, onInspect }) {
         </Section>
       ) : null}
 
+      {/* The Agent Gateway is not one hop — it runs an ordered filter chain, and
+          three of those stages are separate outbound calls (introspection, its
+          OWN PingOne Authorize decision, and its OWN RFC 8693 exchange). This
+          renders in StepDetailPanel rather than only in TraceStepCard because
+          THIS is the shared detail surface: the focus-mode dashboard draws
+          TokenChainFilmstrip + TokenChainNodeRail and never mounts a
+          TraceStepCard at all, so stages added there alone were invisible on the
+          surface the demo actually uses (verified live — zero .tctr-* nodes in
+          that layout). Both the filmstrip and the trace rail render this panel. */}
+      {Array.isArray(d.stages) && d.stages.length > 0 ? (
+        <Section label="Gateway filter chain">
+          <ol className="sdp-stages">
+            {d.stages.map((st) => (
+              <li key={st.raw || st.name} className="sdp-stage" data-status={st.status}>
+                <span className="sdp-stage-name">{st.name}</span>
+                <span className="sdp-stage-result">
+                  {st.result}{st.decision ? ` — ${st.decision}` : ""}
+                  {st.blockedHere ? " (stopped here)" : ""}
+                </span>
+                {st.note ? <span className="sdp-stage-note">{st.note}</span> : null}
+              </li>
+            ))}
+          </ol>
+        </Section>
+      ) : null}
+
       {hasChange ? (
         <Section label="What changed">
           {diff}

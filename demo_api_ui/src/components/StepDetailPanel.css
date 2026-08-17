@@ -225,3 +225,17 @@
 :root[data-theme="dark"] .sdp-rfc { background: var(--th-bg-inset); color: #9ec1ff; }
 :root[data-theme="dark"] .sdp-inspect { background: var(--th-bg-card); border-color: var(--th-border); color: #cdd7ec; }
 :root[data-theme="dark"] .sdp-inspect:hover { border-color: #9ec1ff; color: #9ec1ff; }
+
+/* Agent Gateway filter chain — the ordered stages behind the single Gateway hop.
+   Numbered because the ORDER is the teaching point (introspection, then policy,
+   then the decision, then the exchange), and colour-rail-coded so a blocked
+   stage is findable without reading. `notinpath` (never ran) stays visually
+   distinct from `error` (ran and refused). */
+.sdp-stages { list-style: decimal; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.sdp-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cbd5e1); background: var(--th-bg-inset, #f8fafc); border-radius: 0 4px 4px 0; }
+.sdp-stage[data-status="done"] { border-left-color: #22c55e; }
+.sdp-stage[data-status="error"] { border-left-color: #ef4444; }
+.sdp-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
+.sdp-stage-name { font-weight: 700; }
+.sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: ui-monospace, Menlo, monospace; }
+.sdp-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
