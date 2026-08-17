@@ -58,7 +58,7 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 ## Watch out
 
 - Auth/token/session/UI: protected — state what you won't break before editing.
-- **Which use case / tile needs sign-in is declared in `demo_api_server/config/auth-requirements.json`** (`public` | `user` | `admin`), served to the UI as `uc.auth` on `/api/use-cases`. Gate on that, never on a fresh `isLoggedIn` check; `npm run authz:verify` fails on an unlisted use case or a drifted guest allowlist.
+- **Which use case / tile / route needs sign-in is declared in `demo_api_server/config/auth-requirements.json`** (`public` | `user` | `admin`), served to the UI as `uc.auth` on `/api/use-cases`. Gate on that, never on a fresh `isLoggedIn` check. `npm run authz:verify` fails on an unlisted use case, a drifted guest allowlist, or an App.js route guard that disagrees with the file — add a route or change a guard and update the SoT in the same commit.
 - **Sign-in only works on `local.ping-devops.com:4000`** (passkey rp.id must match the serving host). `api.ping.demo:4000` serves the app but the session cookie lives on the other host, so it shows "Please sign in." Point `E2E_BASE_URL` there too, or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Match existing conventions (error shapes, date handling, import paths) — don't invent.
 - After code edits, run `graphify update .` (AST-only). Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
