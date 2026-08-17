@@ -13,7 +13,7 @@ describe('ALL_TOOLS registry', () => {
     expect(names).toContain('view_permits');
     expect(names).toContain('view_work_orders');
     expect(names).toContain('list_orders');
-    expect(names).toContain('list_gear_orders');
+    expect(names).toContain('list_gear');
     expect(names).toContain('view_courses');
     expect(names).toContain('list_expenses');
     expect(names).toContain('list_anf_orders');

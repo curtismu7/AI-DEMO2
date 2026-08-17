@@ -16,29 +16,64 @@ function checkConformance(tools: any[], scope: string) {
 }
 
 describe('Retail tools', () => {
-  it('conforms', () => checkConformance(RETAIL_TOOLS, 'retail:read'));
-  it('list_orders returns orders array', async () => {
+  it('conforms to McpToolDef shape', () => {
+    for (const t of RETAIL_TOOLS) {
+      expect(t.description.length).toBeGreaterThan(10);
+      expect(Array.isArray(t.intentHints)).toBe(true);
+      expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
+      expect(t.requiredScopes).toContain('read');
+    }
+  });
+  it('list_orders returns orders array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchRetailTool('list_orders', {}) as any;
     expect(Array.isArray(r.orders)).toBe(true);
     expect(r.orders[0]).toHaveProperty('id');
+    expect(r.render).toBe('list_orders');
   });
-  it('get_order returns one by id', async () => {
+  it('order_status with an explicit orderId returns that order, flat, matching the BFF shape', async () => {
     const list = (await dispatchRetailTool('list_orders', {}) as any).orders;
-    const r = await dispatchRetailTool('get_order', { order_id: list[0].id }) as any;
-    expect(r.order.id).toBe(list[0].id);
+    const r = await dispatchRetailTool('order_status', { orderId: list[0].id }) as any;
+    expect(r.id).toBe(list[0].id);
+    expect(r.render).toBe('order_status');
+    expect(r.order).toBeUndefined(); // flat, not {found,order} nested
+  });
+  it('order_status with no orderId defaults to the most recent order (DB is ORDER BY date DESC)', async () => {
+    const list = (await dispatchRetailTool('list_orders', {}) as any).orders;
+    const r = await dispatchRetailTool('order_status', {}) as any;
+    expect(r.id).toBe(list[0].id);
+  });
+  it('order_status returns a plain error for an unknown id, not the old {found:false} shape', async () => {
+    const r = await dispatchRetailTool('order_status', { orderId: 'no-such-order' }) as any;
+    expect(r.error).toBe('order not found');
+    expect(r.found).toBeUndefined();
   });
 });
 
 describe('Sporting-goods tools', () => {
-  it('conforms', () => checkConformance(SPORTING_GOODS_TOOLS, 'sporting-goods:read'));
-  it('list_gear_orders returns orders array', async () => {
-    const r = await dispatchSportingGoodsTool('list_gear_orders', {}) as any;
-    expect(Array.isArray(r.orders)).toBe(true);
+  it('conforms to McpToolDef shape', () => {
+    for (const t of SPORTING_GOODS_TOOLS) {
+      expect(t.description.length).toBeGreaterThan(10);
+      expect(Array.isArray(t.intentHints)).toBe(true);
+      expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
+      expect(t.requiredScopes).toContain('read');
+    }
   });
-  it('get_gear_order returns one by id', async () => {
-    const list = (await dispatchSportingGoodsTool('list_gear_orders', {}) as any).orders;
-    const r = await dispatchSportingGoodsTool('get_gear_order', { order_id: list[0].id }) as any;
-    expect(r.order.id).toBe(list[0].id);
+  it('list_gear returns orders array, stamped for the chip-facing manifest descriptor', async () => {
+    const r = await dispatchSportingGoodsTool('list_gear', {}) as any;
+    expect(Array.isArray(r.orders)).toBe(true);
+    expect(r.render).toBe('list_gear');
+  });
+  it('gear_order_status with an explicit orderId returns that order, flat', async () => {
+    const list = (await dispatchSportingGoodsTool('list_gear', {}) as any).orders;
+    const r = await dispatchSportingGoodsTool('gear_order_status', { orderId: list[0].id }) as any;
+    expect(r.id).toBe(list[0].id);
+    expect(r.render).toBe('gear_order_status');
+    expect(r.order).toBeUndefined();
+  });
+  it('gear_order_status with no orderId defaults to the most recent order', async () => {
+    const list = (await dispatchSportingGoodsTool('list_gear', {}) as any).orders;
+    const r = await dispatchSportingGoodsTool('gear_order_status', {}) as any;
+    expect(r.id).toBe(list[0].id);
   });
 });
 

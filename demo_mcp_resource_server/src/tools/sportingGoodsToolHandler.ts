@@ -6,15 +6,15 @@ export async function dispatchSportingGoodsTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_gear_orders': {
+    case 'list_gear': {
       const orders = listOrders();
-      return { orders, count: orders.length };
+      return { orders, count: orders.length, render: 'list_gear' };
     }
-    case 'get_gear_order': {
-      const id = args.order_id as string;
-      const order = getOrder(id);
-      if (!order) return { found: false, order_id: id };
-      return { found: true, order };
+    case 'gear_order_status': {
+      const orderId = args.orderId as string | undefined;
+      const order = orderId ? getOrder(orderId) : (listOrders()[0] ?? null);
+      if (!order) return { error: 'order not found' };
+      return { ...order, render: 'gear_order_status' };
     }
     default:
       throw new Error(`Unknown sporting-goods tool: ${toolName}`);
