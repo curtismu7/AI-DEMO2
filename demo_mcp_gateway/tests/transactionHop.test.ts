@@ -35,6 +35,21 @@ describe('gateway emitHop', () => {
     expect(calls[0].headers['x-internal-gateway-secret']).toBe('sekrit');
   });
 
+  it('forwards an optional details object into the posted hop body verbatim', async () => {
+    const details = { httpStatus: 403, dpop_bound: true, alert: true, reason: 'insufficient_scope' };
+    runWithCorrelation('c1', () => emitHop({ phase: 'gateway.authorize', op: 'create_transfer', details }));
+    await new Promise((r) => setImmediate(r));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.details).toEqual(details);
+  });
+
+  it('forwards an optional vertical field into the posted hop body verbatim', async () => {
+    runWithCorrelation('c1', () => emitHop({ phase: 'gateway.authorize', op: 'create_transfer', vertical: 'retail' }));
+    await new Promise((r) => setImmediate(r));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.vertical).toBe('retail');
+  });
+
   it('no-ops outside a correlation scope', async () => {
     emitHop({ phase: 'agent.reason' });
     await new Promise((r) => setImmediate(r));

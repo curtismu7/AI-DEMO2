@@ -80,6 +80,10 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
     // with it, so a deployment could have working hop config and still record
     // no gateway leg on /transaction-trace. emitHop does its own env check and
     // no-ops safely when unconfigured.
+    //
+    // Same chokepoint, second consumer: the durable audit trail and the ledger
+    // hop carry the identical `details` object — one computation, two
+    // destinations, so /api/mcp/audit and the ledger can never diverge.
     const decision = decisionFromAuditOutcome(enriched.outcome, enriched.details);
     emitHop({
       phase: 'gateway.authorize',
@@ -92,7 +96,9 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
         by: 'gateway',
         reason: decision.reason,
       },
+      details: enriched.details,
       status: enriched.outcome === 'failure' ? 'error' : 'ok',
+      vertical: enriched.vertical,
     });
 
     const url = bffAuditUrl(config);

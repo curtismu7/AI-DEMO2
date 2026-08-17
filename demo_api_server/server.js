@@ -155,6 +155,7 @@ const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
 const agentGatewayConfigRouter = require('./routes/agentGatewayConfig');
 const mcpAuditRouter = require('./routes/mcpAudit');
+const promptFlowRouter = require('./routes/promptFlow');
 const agentIdentityRoutes = require('./routes/agentIdentity');
 const agentDelegationRoutes = require('./routes/agentDelegation');
 const adminDemoUsersRoutes = require('./routes/adminDemoUsers');
@@ -1210,6 +1211,17 @@ app.use('/api/mcp/audit', (req, res, next) => {
     }
     next();
 }, mcpAuditRouter);
+// Prompt Flow Inspector: admin-only route — reads transactionLedger.lmdb
+// filtered by correlationId. Same gate pattern as /api/mcp/audit above.
+app.use('/api/prompt-flow', (req, res, next) => {
+    if (!req.session ?.user || req.session.user.role !== 'admin') {
+        return res.status(401).json({
+            error: 'admin_required',
+            message: 'Admin session required to access prompt flow trace.'
+        });
+    }
+    next();
+}, promptFlowRouter);
 // Session preview uses session data only — no full JWT validation.
 // Must be registered BEFORE the auth-gated /api/tokens block.
 app.get('/api/tokens/session-preview', async (req, res) => {

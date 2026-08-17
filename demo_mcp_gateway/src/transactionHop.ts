@@ -9,11 +9,13 @@ export interface TransactionHopInput {
   op?: string;
   identity?: Record<string, unknown>;
   decision?: Record<string, unknown>;
+  details?: Record<string, unknown>;
   durationMs?: number;
   status?: 'ok' | 'error';
   correlationId?: string;
   params?: Record<string, unknown>;
   consentRequired?: boolean;
+  vertical?: string;
 }
 
 type FetchLike = (url: string, init: any) => Promise<any>;

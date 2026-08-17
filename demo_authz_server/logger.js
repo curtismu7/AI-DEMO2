@@ -29,29 +29,46 @@ function warn(...args) {
 }
 
 /**
- * Emit a structured audit record for a decision.
+ * Emit a structured audit record for a decision, and return the same record
+ * so callers (routes/decision.js's permit()/deny()/indeterminate() helpers)
+ * can forward it verbatim as the transaction-hop `details` field — one
+ * computed object, two destinations (stdout + ledger), no chance of drift.
  *
  * PERMIT is audited alongside DENY / INDETERMINATE so the stdout trail is
- * complete for a human reading container logs. Note this sink is stdout-only —
- * the machine-readable path the reconciler uses is transactionHop.emitHop.
+ * complete for a human reading container logs. This function itself only
+ * writes stdout — the machine-readable ledger path is transactionHop.emitHop —
+ * but its return value is what the caller forwards into that hop's `details`
+ * field, so the same record now reaches both sinks.
  * @param {'PERMIT'|'DENY'|'INDETERMINATE'} decision
  * @param {string} reason
+ * @param {{decisionId?: string, policyVersion?: string}} [extra] - fields the
+ *   terminal response helpers compute themselves (decision_id/policy_version
+ *   are generated inline in permit()/deny()/indeterminate(), not carried in
+ *   the ALS decision context).
+ * @returns {object} the full record that was logged
  */
-function auditDecision(decision, reason) {
+function auditDecision(decision, reason, extra) {
   const ctx = getDecisionContext();
-  console.log(
-    JSON.stringify({
-      evt: 'authz_decision',
-      decision,
-      reason: reason || null,
-      correlationId: getCorrelationId() || null,
-      decisionContext: ctx.decisionContext || null,
-      tool: ctx.tool || null,
-      sub: ctx.sub || null,
-      actor: ctx.actor || null,
-      workerId: ctx.workerId || null,
-    }),
-  );
+  const record = {
+    evt: 'authz_decision',
+    decision,
+    reason: reason || null,
+    correlationId: getCorrelationId() || null,
+    decisionContext: ctx.decisionContext || null,
+    tool: ctx.tool || null,
+    sub: ctx.sub || null,
+    actor: ctx.actor || null,
+    workerId: ctx.workerId || null,
+    scopes: ctx.scopes || [],
+    rarPresent: ctx.rarPresent || false,
+    intentValid: ctx.intentValid || null,
+    intentMatch: ctx.intentMatch || null,
+    hitlApproved: ctx.hitlApproved || false,
+    decisionId: (extra && extra.decisionId) || null,
+    policyVersion: (extra && extra.policyVersion) || null,
+  };
+  console.log(JSON.stringify(record));
+  return record;
 }
 
 module.exports = { log, warn, auditDecision };
