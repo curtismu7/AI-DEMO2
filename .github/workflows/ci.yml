@@ -246,12 +246,19 @@ jobs:
     # files — the DEFAULT agent framework per CLAUDE.md), openai_agent,
     # pydantic_agent, llamaindex_agent. None had ever run in CI.
     #
-    # continue-on-error per step, deliberately: unlike the Node suites above I
-    # could not verify these green first (only langchain_agent has a local .venv,
-    # so the rest were unrunnable on the machine that wired this up). Claiming
-    # them as gates without evidence would be asserting something unverified.
-    # They RUN and report from day one, which is the point; promote each to a
-    # hard gate once a green run proves it deserves to be one.
+    # Wired non-blocking first because they could not be verified locally (only
+    # langchain_agent has a .venv here). The first CI run supplied the evidence,
+    # and the split is now by measurement rather than assumption:
+    #   langchain_agent   834 passed          -> BLOCKING
+    #   llamaindex_agent    9 passed, 1 skip  -> BLOCKING
+    #   openai_agent        1 failed, 39 pass -> continue-on-error
+    #   pydantic_agent      8 failed, 38 pass -> continue-on-error
+    #
+    # WATCH OUT: a continue-on-error step that fails reports conclusion
+    # "success" in the jobs API, and the job goes green too. Neither is evidence
+    # the suite passed — read the step's log output for the pytest summary line.
+    # The two red suites are pre-existing failures (test_run_handler.py in both),
+    # unrelated to the change that wired them up; fix them, then flip.
     name: Python agent suites (langchain, openai, pydantic, llamaindex)
     needs: changes
     if: needs.changes.outputs['python-agents'] == 'true'
@@ -262,27 +269,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: langchain_agent
-        continue-on-error: true
+      - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
           python -m pip install --quiet --upgrade pip
           [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
           python -m pytest tests/ -q
-      - name: openai_agent
+      - name: openai_agent (non-blocking — 1 pre-existing failure)
         continue-on-error: true
         run: |
           cd openai_agent
           [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
           python -m pytest tests/ -q
-      - name: pydantic_agent
+      - name: pydantic_agent (non-blocking — 8 pre-existing failures)
         continue-on-error: true
         run: |
           cd pydantic_agent
           [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
           python -m pytest tests/ -q
-      - name: llamaindex_agent
-        continue-on-error: true
+      - name: llamaindex_agent (blocking — 9 passing)
         run: |
           cd llamaindex_agent
           [ -f requirements.txt ] && python -m pip install --quiet -r requirements.txt || true
