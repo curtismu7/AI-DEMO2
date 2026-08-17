@@ -332,34 +332,37 @@ export default function TokenChainFilmstrip() {
       </div>
 
       <div className="tcfs-chain">
-        <div className="tcfs-label">
-          {trace.prompt
-            ? `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — "${trace.prompt.message}"`
-            : `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — awaiting agent action`}
-        </div>
+        <details className="tcfs-chain-acc" open>
+          <summary className="tcfs-label">
+            <span className="tcfs-chev">▶</span>
+            {trace.prompt
+              ? `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — "${trace.prompt.message}"`
+              : `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — awaiting agent action`}
+          </summary>
 
-        {viewMode === "live" && steps.length === 0 ? (
-          <div className="tcfs-empty-preview">
-            {PREVIEW_STAGES.map((s) => (
-              <div key={s.id} className="tcfs-empty-chip" style={{ borderColor: s.color, background: s.bg }}>
-                <span className="tcfs-empty-chip-dot" style={{ background: s.color }} />
-                <span className="tcfs-empty-chip-label">{s.label}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="tcfs-track">
-            <TokenChainNodeRail
-              steps={steps}
-              activeId={activeStepId}
-              onPresent={() => {
-                if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
-                setPresenting(true);
-              }}
-              onSelect={(id) => { setActiveStepId(id); setView(null); }}
-            />
-          </div>
-        )}
+          {viewMode === "live" && steps.length === 0 ? (
+            <div className="tcfs-empty-preview">
+              {PREVIEW_STAGES.map((s) => (
+                <div key={s.id} className="tcfs-empty-chip" style={{ borderColor: s.color, background: s.bg }}>
+                  <span className="tcfs-empty-chip-dot" style={{ background: s.color }} />
+                  <span className="tcfs-empty-chip-label">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="tcfs-track">
+              <TokenChainNodeRail
+                steps={steps}
+                activeId={activeStepId}
+                onPresent={() => {
+                  if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
+                  setPresenting(true);
+                }}
+                onSelect={(id) => { setActiveStepId(id); setView(null); }}
+              />
+            </div>
+          )}
+        </details>
       </div>
 
       {presenting ? (
