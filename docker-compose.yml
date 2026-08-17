@@ -418,6 +418,11 @@ services:
       # so the MCP server trusts all callers on the internal hop.
       MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # Durable MCP audit sink (feeds /audit). config.ts defaults this to
+      # http://localhost:3001/... which, inside this container, is the gateway
+      # itself — not the BFF — so every audit POST silently 404'd/refused and
+      # the Audit page stayed empty. Point it at the BFF explicitly.
+      BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
