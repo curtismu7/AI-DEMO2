@@ -201,10 +201,27 @@ test('NNP-6 A-7: consent-only tool (book_appointment), no amount -> INDETERMINAT
   assert.strictEqual(result.reason, 'HITL_CONSENT', 'Expected HITL_CONSENT, got: ' + result.reason);
 });
 
-test('chip-markers: sensitive_holdings (read consent tool, no amount) -> INDETERMINATE reason=HITL_CONSENT', async () => {
+// sensitive_holdings is a2aDelegated in the SoT, so it can no longer reach the
+// HITL_CONSENT branch this test used to assert — two deliberate rules now sit in
+// front of it. Rule 1c DENIES an undelegated call before any challenge is
+// evaluated; Rule 4 then treats a VERIFIED delegation as satisfying consent
+// (`declaresConsent` is `&& !a2aDelegationVerified`), so the delegated call
+// PERMITs. Both branches are pinned below so the pair cannot silently drift.
+// A non-delegated consent tool still yields HITL_CONSENT — see the
+// book_appointment case in NNP-6 A-7 above.
+test('a2a: sensitive_holdings without a specialist delegation -> DENY (Rule 1c, act chain depth 0 < 2)', async () => {
   const result = await decide(readParams({ ToolName: 'sensitive_holdings' }));
-  assert.strictEqual(result.decision, 'INDETERMINATE', 'Expected INDETERMINATE, got ' + result.decision);
-  assert.strictEqual(result.reason, 'HITL_CONSENT', 'Expected HITL_CONSENT, got: ' + result.reason);
+  assert.strictEqual(result.decision, 'DENY', 'Expected DENY, got ' + result.decision);
+  assert.match(result.reason, /a2a_delegation_required/, 'Expected a2a_delegation_required, got: ' + result.reason);
+});
+
+test('a2a: sensitive_holdings via verified specialist delegation -> PERMIT (Rule 4 waives consent)', async () => {
+  const result = await decide(readParams({
+    ToolName: 'sensitive_holdings',
+    ActChainDepth: '2',
+    NestedActClientId: 'generalist-1',
+  }));
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
 });
 
 test('chip-markers: cash_out_store_credit (write step-up tool, no amount) -> INDETERMINATE reason=STEP_UP', async () => {
