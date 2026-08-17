@@ -46,6 +46,24 @@ const { createTokenExchangeError, RFC8693_ERRORS } = require('./rfcCompliantErro
 // allow-list veto was a redundant second authz layer and has been deleted; do
 // not reintroduce a local scope-permit decision here.
 const { MCP_TOOL_SCOPES, getSessionBearerForMcp } = require('./mcpWebSocketClient');
+// api-key-disposition tools: PingGateway (IG) singles these out onto the
+// dedicated /mcp/apikey route (00-mcp-apikey.json), which requires a token
+// audienced for PINGONE_RESOURCE_MCP_APIKEY_URI rather than the plain
+// /mcp route's audience. Keep in sync with mcpGatewayClient.js APIKEY_TOOLS,
+// demo_mcp_gateway/src/router.ts APIKEY_TOOLS, and the IG handler's
+// ROUTE_FOR_TOOL map (apikey-dispatch.groovy).
+const APIKEY_TOOLS = new Set([
+    'show_mortgage',
+    'show_large_purchase',
+    'show_health_record',
+    'show_gear_order',
+    'show_gear_warranty',
+    'show_expense_report',
+    'show_permit',
+    'show_enrollment',
+    'show_work_order',
+    'show_investment',
+]);
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
 const { trackTokenEvent } = require('./tokenChainService');
 const { trackToken } = require('./apiCallTrackerService');
@@ -2401,8 +2419,21 @@ async function _performTwoExchangeDelegation(
     firstHttpResourceUri(configStore.getEffective('pingone_resource_mcp_gateway_uri')) ||
     firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
     firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
+  // api-key-disposition tools (show_mortgage, show_gear_order, ...) go to
+  // PingGateway's dedicated /mcp/apikey route, which requires the token aud
+  // to match PINGONE_RESOURCE_MCP_APIKEY_URI, NOT the plain /mcp audience
+  // above — the two routes are deliberately separate McpProtectionFilter
+  // resourceIds (ping-gateway/config/routes/00-mcp-apikey.json vs
+  // 01-mcp-olb.json) so a /mcp-scoped token can't be replayed against
+  // /mcp/apikey. Without this branch every apikey tool 401'd at PingGateway
+  // with "Access Token resource ID does not match the expected one."
+  const isApikeyTool = usePingGatewayForExchange && APIKEY_TOOLS.has(opts.tool);
+  const apikeyResourceAud = isApikeyTool
+    ? (firstHttpResourceUri(process.env.PINGONE_RESOURCE_MCP_APIKEY_URI) ||
+       firstHttpResourceUri(configStore.getEffective('pingone_resource_mcp_apikey_uri')))
+    : null;
   const pingGatewayResourceAud = usePingGatewayForExchange
-    ? (pingGatewayUriAud || twoExFinalAud)
+    ? (apikeyResourceAud || pingGatewayUriAud || twoExFinalAud)
     : null;
   const finalAudTarget = pingGatewayResourceAud || twoExFinalAud;
   // PingGateway requires the token aud to EXACTLY match its McpProtectionFilter
@@ -2461,7 +2492,13 @@ async function _performTwoExchangeDelegation(
     const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope')
       || configStore.getEffective('pinggateway_invoke_scope')
       || 'gateway:mcp:invoke';
-    const ex2Scopes = usePingGatewayForExchange ? [gatewayInvokeScope] : exchange2RequestedScopes;
+    // apikey:mcp:invoke — separately named for the same PingOne one-scope-name-
+    // per-app-per-resource reason as gateway:mcp:invoke above (see PG_APIKEY_INBOUND_SCOPE
+    // in ping-gateway/config/routes/00-mcp-apikey.json / docker-compose.yml).
+    const apikeyInvokeScope = configStore.getEffective('apikey_mcp_invoke_scope') || 'apikey:mcp:invoke';
+    const ex2Scopes = usePingGatewayForExchange
+      ? (isApikeyTool ? [apikeyInvokeScope] : [gatewayInvokeScope])
+      : exchange2RequestedScopes;
     finalToken = await oauthService.performTokenExchangeAs(
       agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod
     );
