@@ -202,6 +202,22 @@ test("carries an unfulfilled HITL_REQUIRED gate the same way", () => {
   expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBe("HITL_REQUIRED");
 });
 
+test("a gw-authorize PERMIT fills a carried gate's missing decision (gateway-authoritative resume)", () => {
+  // Airlines-style run: the gate carried by beginTrace has outcome/priorGate but
+  // NO decision; the gateway's real PERMIT must land on trace.authorize instead
+  // of being swallowed — otherwise the run story fabricates "INDETERMINATE".
+  tokenChainTraceStore.beginTrace({ prompt: "show my airline bookings" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  tokenChainTraceStore.beginTrace({ prompt: "show my airline bookings" });
+  tokenChainTraceStore.ingestTokenEvent({
+    id: "gw-authorize", decision: "PERMIT", backend: "real", tool: "get_airline_bookings",
+  });
+  const { authorize } = tokenChainTraceStore.getState().trace;
+  expect(authorize.decision).toBe("PERMIT");
+  expect(authorize.outcome).toBe("STEP_UP");
+  expect(authorize.priorGate).toBe("STEP_UP");
+});
+
 test("a DIFFERENT prompt does not inherit the previous run's gate", () => {
   tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
   tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });

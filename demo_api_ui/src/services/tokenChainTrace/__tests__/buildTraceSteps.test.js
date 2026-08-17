@@ -802,6 +802,46 @@ describe("buildRunStory — L0 strip", () => {
   });
 });
 
+describe("buildRunStory — missing decision is never dressed up as INDETERMINATE", () => {
+  // INDETERMINATE is a real P1AZ verdict ("could not evaluate", fail-closed
+  // since #1310). A trace whose authorize slot has no decision recorded must
+  // not claim it — a successful run headline reading "Authorize returned
+  // INDETERMINATE" is a contradiction.
+  const carriedGateTrace = {
+    ...EMPTY_TRACE,
+    outcome: "ok",
+    prompt: { message: "show my airline bookings" },
+    authorize: { outcome: "STEP_UP", priorGate: "STEP_UP" },
+  };
+
+  test("authorize card shows 'no decision recorded', not INDETERMINATE", () => {
+    const steps = buildTraceSteps(carriedGateTrace);
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.decision.outcome).not.toBe("INDETERMINATE");
+    expect(az.detail.decision.outcome).toBe("NOT_RECORDED");
+  });
+
+  test("run story headline omits the decision clause entirely", () => {
+    const steps = buildTraceSteps(carriedGateTrace);
+    const story = buildRunStory(carriedGateTrace, steps);
+    expect(story.headline).toMatch(/completed successfully/i);
+    expect(story.headline).not.toMatch(/INDETERMINATE/);
+    expect(story.headline).not.toMatch(/NOT_RECORDED/);
+  });
+
+  test("a REAL INDETERMINATE decision still surfaces verbatim", () => {
+    const trace = {
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      prompt: { message: "x" },
+      authorize: { decision: "INDETERMINATE", engine: "pingone" },
+    };
+    const steps = buildTraceSteps(trace);
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.decision.outcome).toBe("INDETERMINATE");
+  });
+});
+
 describe("buildTraceSteps — expected DENY (control worked)", () => {
   const expectedDenyTrace = {
     ...EMPTY_TRACE,
