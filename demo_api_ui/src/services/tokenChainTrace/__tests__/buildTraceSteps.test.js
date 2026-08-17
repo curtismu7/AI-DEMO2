@@ -214,6 +214,30 @@ describe("buildTraceSteps — MCP lifecycle handshake and the second exchange", 
     });
     expect(steps.map((s) => s.id)).not.toContain("exchange-1");
   });
+
+  test("on the gateway path the handshake hops explain that the gateway owns the MCP session", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ id: "gw-authorize", decision: "PERMIT", tool: "list_orders" }],
+    });
+    for (const id of ["mcp-initialize", "mcp-initialized"]) {
+      const step = steps.find((s) => s.id === id);
+      expect(step.status).toBe("notinpath");
+      // Must say WHY there is nothing here, not leave an unexplained grey card.
+      expect(step.detail.narrative).toMatch(/gateway is the MCP client/);
+    }
+  });
+
+  test("the direct path keeps the protocol narrative, not the gateway explanation", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [],
+    });
+    const step = steps.find((s) => s.id === "mcp-initialize");
+    expect(step.detail.narrative).not.toMatch(/gateway is the MCP client/);
+  });
 });
 
 describe("buildTraceSteps — pop-out spec content", () => {
