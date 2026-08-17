@@ -60,22 +60,26 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
   const expected = [
     sotResources['Super Banking MCP Gateway'].uri,
     sotResources['Super Banking PingGateway MCP'].uri,
+    sotResources['Super Banking PingGateway MCP - API-Key'].uri,
     sotResources['Super Banking A2A MCP Gateway'].uri,
   ];
   // Literal pin: the identities the runtime accepts — MCP_GW_RESOURCE_URI on the
-  // Node gateway carries exactly these three (groovy acceptedAuds mirrors them).
+  // Node gateway and p1az-decision.groovy's acceptedAuds (PG_GATEWAY_RESOURCE_URI,
+  // PG_GATEWAY_RESOURCE_ID, PG_APIKEY_RESOURCE_ID) carry exactly these four.
   //
-  // The A2A entry was MISSING here and in GATEWAY_RESOURCE_NAMES. Its resource
-  // was added to the SoT after both were written, so the generated snapshot
-  // accepted 2 of the 3 identities the runtime accepts. Importing it would have
-  // made HasValidMcpAudience false for every A2A token — and rule
-  // 45678901-0004 denies NOT that condition — so ALL A2A TRAFFIC WOULD HAVE
-  // BEEN DENIED. Same all-or-nothing shape as the step-0 blocker above, which
-  // is why this list is pinned against the runtime and not just derived: a
+  // The A2A entry was MISSING here and in GATEWAY_RESOURCE_NAMES once before.
+  // Its resource was added to the SoT after both were written, so the generated
+  // snapshot accepted only 2 of the 3 identities the runtime accepted at the
+  // time. Importing it would have made HasValidMcpAudience false for every A2A
+  // token — and rule 45678901-0004 denies NOT that condition — so ALL A2A
+  // TRAFFIC WOULD HAVE BEEN DENIED. Same all-or-nothing shape is why the
+  // api-key-disposition identity (/mcp/apikey — see 00-mcp-apikey.json's
+  // McpProtectionFilter.resourceId) is pinned here too, not just derived: a
   // derivation that silently drops a resource looks correct.
   assert.deepStrictEqual(expected, [
     'mcpgateway.ping.demo',
     'https://api.ping.demo:3036/mcp',
+    'https://api.ping.demo:3036/mcp/apikey',
     'mcpgateway-a2a.ping.demo',
   ]);
 

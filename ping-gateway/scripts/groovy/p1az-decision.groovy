@@ -791,9 +791,10 @@ if (System.getenv('PG_LOCAL_RAR_PAYEE_ENFORCE') == 'true' && rarPermittedPayees)
 // (mcpgateway.ping.demo), so comparing the real aud against the short name alone would
 // have DENIED every request.
 //
-// The gateway answers to BOTH identities — jwks-token-validation.groovy:173-177 accepts
-// either — so McpResourceUri is the STATIC set of both, mirroring the Node gateway, which
-// sends its comma-separated MCP_GW_RESOURCE_URI verbatim (PingOneAuthorizeClient.ts:148).
+// The gateway answers to these identities — jwks-token-validation.groovy:173-177 accepts
+// the first two — so McpResourceUri is the STATIC set of all of them, mirroring the Node
+// gateway, which sends its comma-separated MCP_GW_RESOURCE_URI verbatim
+// (PingOneAuthorizeClient.ts:148).
 //
 // It must NOT be derived from the token under test. Resolving it to "whichever accepted
 // identity the token happened to target" made the PEP pre-compute the PDP's answer: the
@@ -803,10 +804,16 @@ if (System.getenv('PG_LOCAL_RAR_PAYEE_ENFORCE') == 'true' && rarPermittedPayees)
 // is either identity still intersects and PERMITs, while a foreign aud intersects nothing
 // and DENIES — the discrimination is the PDP's to make, not the gateway's.
 def gatewayResourceId = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
+// api-key-disposition tools (show_mortgage, show_gear_order, ...) exchange
+// against a THIRD, distinct resource (/mcp/apikey, see 00-mcp-apikey.json's
+// McpProtectionFilter.resourceId) — its audience must be in the accepted set
+// too, or the cloud PDP's HasValidMcpAudience rule denies every apikey tool
+// call even after McpProtectionFilter itself already passed.
+def apikeyResourceId = System.getenv('PG_APIKEY_RESOURCE_ID') ?: ''
 def audEntries = (rawTokenAud instanceof List
     ? rawTokenAud.collect { it as String }
     : (rawTokenAud ? [rawTokenAud as String] : [])).findAll { it }
-def acceptedAuds   = [gatewayResourceUri, gatewayResourceId].findAll { it }
+def acceptedAuds   = [gatewayResourceUri, gatewayResourceId, apikeyResourceId].findAll { it }
 // C1: array => first entry.
 def tokenAudience  = audEntries ? audEntries[0] : ''
 // Static — a function of configuration only, never of the token being judged.
