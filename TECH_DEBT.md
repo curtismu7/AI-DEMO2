@@ -7,6 +7,27 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
+
+**Where:** `demo_api_server/services/davinciFlowClient.js` (`_getApiToken()`).
+
+**What's wrong:** returns `` `${apiClientId}:${apiClientSecret}` `` and sends it
+as a `Bearer` token to PingOne's orchestrate API. PingOne expects a real OAuth
+access token (client_credentials grant) or `Basic base64(id:secret)` at the
+token endpoint itself — a raw colon-joined pair as a bearer token will 401
+against a live environment. Every consumer of `invokeFlow()` currently runs
+against mocked HTTP in tests, so this has never been exercised live.
+
+**Why not fixed now:** scoped out of the plan's Task 3 (`docs/superpowers/plans/2026-08-17-davinci-orchestration-showcase.md`)
+on purpose — building a full client_credentials grant + token cache wasn't
+needed to land the mockable client shape, and DaVinci console setup (that
+plan's Task 1) hasn't happened yet, so there's no live environment to test
+against regardless.
+
+**Real fix:** implement a real client_credentials token fetch (mirror
+`services/mfaService.js`'s `_getWorkerToken()` pattern) with expiry-aware
+caching, before this client is ever pointed at a live PingOne environment.
+
 ### 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
 
 **Where:** `demo_api_server/scripts/refresh-service-envs.js` (shared default
