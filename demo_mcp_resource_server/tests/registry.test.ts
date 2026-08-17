@@ -9,7 +9,7 @@ describe('ALL_TOOLS registry', () => {
     expect(names).toContain('get_airline_bookings');
     // New verticals
     expect(names).toContain('list_banking_accounts');
-    expect(names).toContain('list_patient_records');
+    expect(names).toContain('view_records');
     expect(names).toContain('list_permits');
     expect(names).toContain('list_work_orders');
     expect(names).toContain('list_orders');
@@ -39,7 +39,7 @@ describe('ALL_TOOLS registry', () => {
   });
 
   it('dispatch routes healthcare tool correctly', async () => {
-    const result = await dispatch('list_patient_records', {}, '', '') as any;
+    const result = await dispatch('view_records', {}, '', '') as any;
     expect(Array.isArray(result.records)).toBe(true);
   });
 });

@@ -6,10 +6,14 @@ export { dispatchHealthcareTool } from './healthcareToolHandler';
 
 export const HEALTHCARE_TOOLS: McpToolDef[] = [
   {
-    name: 'list_patient_records',
+    // Named to match the chip-facing tool scope-topology.json already declares
+    // (tools.view_records, requiredScopes ["read"]) — the same name the BFF's
+    // seed-backed handler used, so routing this to the SQLite backend (router.ts
+    // HEALTHCARE_TOOLS) is a backend swap, not a new tool.
+    name: 'view_records',
     description: 'List all patient records for the authenticated user, including providers, coverage type, and coverage status.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    requiredScopes: ['healthcare:read'],
+    requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
       'show my health records',
