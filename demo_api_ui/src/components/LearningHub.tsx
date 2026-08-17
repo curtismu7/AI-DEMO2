@@ -221,6 +221,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         action: () => {},
       },
       {
+        label: "SPIFFE / SVID Workload Identity",
+        description: "Attested, auto-rotating machine identity — and what PingOne can actually consume",
+        icon: "🔐",
+        action: () => {},
+      },
+      {
         label: "ID-JAG / Cross-App Access",
         description: "Identity across distributed applications",
         icon: "🌉",
@@ -418,6 +424,7 @@ export default function LearningHub() {
       "Intent Auth Standards": () =>
         openEdu(EDU.INTENT_AUTH_STANDARDS, "rfc-foundations"),
       "IETF Standards: Agentic": () => openEdu(EDU.IETF_STANDARDS, "overview"),
+      "SPIFFE / SVID Workload Identity": () => openEdu(EDU.SPIFFE, "what"),
       "ID-JAG / Cross-App Access": () => openEdu(EDU.ID_JAG, "overview"),
       "Architecture Diagram": () =>
         openEdu(EDU.ARCHITECTURE_DIAGRAM, "context"),

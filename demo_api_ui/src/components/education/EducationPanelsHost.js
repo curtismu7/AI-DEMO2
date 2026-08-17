@@ -46,6 +46,7 @@ import RFC8693Panel from "./RFC8693Panel";
 import RFCIndexPanel from "./RFCIndexPanel";
 import SensitiveDataPanel from "./SensitiveDataPanel";
 import ServerCapabilitiesPanel from "./ServerCapabilitiesPanel";
+import SpiffePanel from "./SpiffePanel";
 import StepUpPanel from "./StepUpPanel";
 import TokenChainEducationPanel from "./TokenChainEducationPanel";
 import TokenExchangePanel from "./TokenExchangePanel";
@@ -99,6 +100,7 @@ const PANEL_MAP = {
   [EDU.RFC_8693]: RFC8693Panel,
   [EDU.RFC_INDEX]: RFCIndexPanel,
   [EDU.SENSITIVE_DATA]: SensitiveDataPanel,
+  [EDU.SPIFFE]: SpiffePanel,
   [EDU.STEP_UP]: StepUpPanel,
   [EDU.TOKEN_CHAIN]: TokenChainEducationPanel,
   [EDU.TOKEN_EXCHANGE]: TokenExchangePanel,

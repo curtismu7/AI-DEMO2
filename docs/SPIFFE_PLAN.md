@@ -1,308 +1,275 @@
 # SPIFFE / SPIRE — Implementation Plan (Super Banking demo)
 
-This document defines the integration strategy for **SPIFFE** (Secure Production Identity
-Framework For Everyone) in Super Banking. It follows the same structure as
-`PINGONE_AUTHORIZE_PLAN.md` and should be updated as work progresses.
+**Status:** Phase 0 (education) shipped. Phases A–D not built.
+**Last corrected:** 2026-08-17.
+
+> **This document was rewritten because the previous version was wrong.** Its Phase 2
+> instructed the reader to "Create a JWT Issuer in PingOne → Security → JWT Issuers" so
+> PingOne would trust SPIRE-signed JWTs as `actor_token`. **That feature does not exist.**
+> The old version also named services (`banking_api_server`, `banking_mcp_server`) that
+> were renamed, and an npm package (`@spiffe/spiffe-workload-api`) that is not published.
+> Everything below was verified against Ping's documentation, the live discovery document
+> for environment `01d89b06-66d5-430e-9f28-65636843788b`, the SPIRE GitHub releases API,
+> and the npm registry. Do not re-derive it — see the Decision log.
 
 ---
 
 ## What SPIFFE provides
 
-SPIFFE is a CNCF standard for **cryptographic workload identity**.  Instead of secrets
-(API keys, client_secrets) passed between services, each workload is issued a
-**SVID** (SPIFFE Verifiable Identity Document) — either an **X.509 certificate** or a
-**JWT** — from a trusted authority (SPIRE or any compliant issuer).
+SPIFFE (Secure Production Identity Framework For Everyone) is a CNCF standard for
+cryptographic **workload** identity. Instead of a secret passed between services, each
+workload is issued an **SVID** (SPIFFE Verifiable Identity Document) by a trusted
+authority, after that authority inspects what the process actually is.
 
 | Concept | Description |
-|---------|-------------|
-| **Trust Domain** | Namespace for identities, e.g. `spiffe://bxfinance.demo` |
-| **SPIFFE ID** | URI uniquely identifying one workload, e.g. `spiffe://bxfinance.demo/bff` |
+|---|---|
+| **Trust domain** | Namespace for identities, e.g. `spiffe://bxfinance.demo` |
+| **SPIFFE ID** | URI naming one workload, e.g. `spiffe://bxfinance.demo/bff` |
 | **X.509-SVID** | Short-lived TLS certificate — used for mTLS between workloads |
-| **JWT-SVID** | Short-lived signed JWT — used as a bearer / actor token |
-| **SPIRE** | Reference implementation: SPIRE Server + SPIRE Agent (sidecar) issue SVIDs |
-| **Workload API** | gRPC endpoint (Unix socket) each workload calls to fetch its own SVID |
-| **Trust Bundle** | CA root(s) distributed to all workloads; used to verify peer SVIDs |
+| **JWT-SVID** | Short-lived signed JWT — used as a bearer or actor token |
+| **Workload API** | Local endpoint (Unix socket) each workload calls to fetch its own SVID |
+| **Trust bundle** | CA root(s) distributed to all workloads to verify peers |
+| **Attestation** | The issuer identifies the caller by runtime evidence (container image, k8s service account, process UID) — never by a password |
+
+The user-facing explanation of all of this now lives in the UI:
+`demo_api_ui/src/components/education/SpiffePanel.js` (Learn menu → Security & standards →
+"SPIFFE / SVID workload identity"). Keep the two consistent.
 
 ---
 
-## Why it matters for this demo
+## The blocking constraint: what PingOne can actually consume
 
-Super Banking already demonstrates **RFC 8693 Token Exchange** with an `actor_token` (client
-credentials) to prove *which service* is acting on the user's behalf.  The `act` claim
-carries `client_id` — a PingOne secret.
+Verified against `docs.pingidentity.com` (reached via `llms.txt`) and the live
+`https://auth.pingone.com/01d89b06-.../as/.well-known/openid-configuration`.
 
-SPIFFE makes the actor identity **cryptographically provable and secret-free**:
+| Capability | PingOne verdict | Constraint |
+|---|---|---|
+| `private_key_jwt` with `jwksUrl` or inline `jwks` | **Supported** | Assertion `iss` **and** `sub` must both equal the PingOne `client_id`. `RS256/384/512` only — no ES\*, no EdDSA. `exp` rejected if more than 1h out. `iat`/`jti` not validated. |
+| RFC 8693 token exchange | **Supported** | — |
+| SPIRE-issued JWT as `subject_token` / `actor_token` | **NOT supported** | Docs, verbatim: *"The issuer of the subject token and the actor token matches the issuer of the current PingOne environment."* There is no trusted-external-issuer, token-provider, or attribute-provider object in the PingOne authorization server. |
+| `act` claim on the issued token | Supported, **not automatic** | Requires a custom resource attribute named `act` driven by a PingOne Expression Language expression, plus a `may_act` claim on the subject token. |
+| RFC 8705 mTLS client authentication | **NOT supported** | Four token-endpoint auth methods exist; none is mTLS. Absent from live discovery. |
+| Certificate-bound tokens (`cnf` / `x5t#S256`) | **NOT supported** | No `tls_client_certificate_bound_access_tokens` key. Zero hits across the 902-entry PingOne docs index. |
+| DPoP (RFC 9449) | **NOT supported** | No `dpop_signing_alg_values_supported`, in PingOne *or* PingFederate docs. |
+| SPIFFE / SPIRE | **PingFederate only** | PingFederate's JWT Token Processor 2.0 can trust the SPIRE OIDC Discovery Provider as an issuer, accept a JWT-SVID as an actor token, and land the full `spiffe://…` URI in `act.sub`. The equivalent PingOne guidance uses client secrets and never mentions SPIFFE. |
+| `AI_AGENT` application type | GA 2026-03-31, **licensed** | Behind the Agent IAM Core package. Whether it exists in env `01d89b06` is an open question — see below. |
 
-```
-Current:   actor_token = PingOne client_credentials JWT  (secret-based)
-With SPIFFE: actor_token = SPIFFE JWT-SVID               (cert-based, no secret)
-```
+**Therefore:** PingOne cloud is a closed trust domain. A SPIRE-issued SVID can never be an
+`actor_token` there, and PingOne cannot issue a sender-constrained token at all. A SPIFFE
+ID can only ride along as a non-authenticating custom claim.
 
-It also directly maps to the **"Know Your Agents"** best practice — the AI agent workload has
-a SPIFFE ID as its unforgeable machine identity, independent of OAuth client registration.
+### The one achievable win
 
----
+Register a workload's PingOne application with `private_key_jwt`, point its `jwksUrl` at
+SPIRE's OIDC Discovery Provider, and have the workload sign its client assertion with a
+SPIRE-issued, auto-rotating RSA key. **The static `client_secret` is deleted.** The
+assertion's `iss`/`sub` remain the PingOne `client_id`; the SPIFFE ID is decorative.
 
-## Workload identity map
-
-| Workload | SPIFFE ID | Current auth mechanism |
-|----------|-----------|------------------------|
-| BFF (`banking_api_server`) | `spiffe://bxfinance.demo/bff` | `PINGONE_CORE_CLIENT_SECRET` |
-| MCP Server (`banking_mcp_server`) | `spiffe://bxfinance.demo/mcp-server` | Bearer token in WS header |
-| AI Agent (embedded in BFF) | `spiffe://bxfinance.demo/agent` | `AGENT_OAUTH_CLIENT_SECRET` |
-| PingGateway sidecar | `spiffe://bxfinance.demo/gateway` | mTLS cert (manual) |
-
----
-
-## Integration points
-
-### 1. JWT-SVID as RFC 8693 `actor_token` *(highest value, Phase 2)*
-
-Replace `AGENT_OAUTH_CLIENT_SECRET` with a SPIFFE JWT-SVID in the token exchange request:
-
-```
-POST {issuer}/as/token
-  grant_type = urn:ietf:params:oauth:grant-type:token-exchange
-  subject_token = <user access token>
-  actor_token = <BFF JWT-SVID>               ← replaces client_credentials JWT
-  actor_token_type = urn:ietf:params:oauth:token-type:jwt
-  audience = <mcp_resource_uri>
-```
-
-PingOne must be configured to trust the SPIRE trust bundle as an **external JWT token
-source**.  The resulting MCP token carries `act: { sub: "spiffe://bxfinance.demo/bff" }`
-— a cryptographically verifiable actor identity rather than a guessable `client_id`.
-
-**Files affected:** `agentMcpTokenService.js`, `oauthService.js`, `configStore.js`
+Everything below builds toward that, plus real SPIFFE mTLS on the hops we control.
 
 ---
 
-### 2. mTLS — BFF → MCP WebSocket *(Phase 3)*
+## Phase A — stand up the SPIFFE server (SPIRE)
 
-Currently the BFF opens a WebSocket to `banking_mcp_server` and authenticates with a
-bearer `agentToken`.  With SPIFFE X.509-SVIDs:
+**Component: SPIRE.** The CNCF reference implementation of SPIFFE and the server this
+demo will use.
 
-```
-BFF (X.509-SVID cert)  ──mTLS──▶  MCP Server (validates SPIFFE trust bundle)
-  spiffe://bxfinance.demo/bff       spiffe://bxfinance.demo/mcp-server
-```
+| | |
+|---|---|
+| Project | <https://github.com/spiffe/spire> — CNCF graduated |
+| License | **Apache-2.0** |
+| Version verified | **v1.15.2**, released 2026-07-09 (pin an explicit tag; do not use `latest`) |
+| Images | `ghcr.io/spiffe/spire-server:1.15.2`, `ghcr.io/spiffe/spire-agent:1.15.2` |
+| Helper sidecar | `ghcr.io/spiffe/spiffe-helper:0.11.0` — see Phase B |
+| OIDC bridge | `ghcr.io/spiffe/oidc-discovery-provider:1.15.2` — see Phase C |
 
-- BFF presents its X.509-SVID for the TLS handshake (no separate bearer token).
-- MCP Server validates the BFF's cert against the SPIRE trust bundle — not a static
-  CA cert — so rotation is automatic.
-- MCP Server can inspect the SPIFFE ID and enforce that only
-  `spiffe://bxfinance.demo/bff` is permitted to call tool endpoints.
+SPIRE has two halves: a **server** (the CA and registration authority, holding the trust
+domain's signing keys) and an **agent** per node (which runs the Workload API socket,
+attests local workloads, and hands them SVIDs).
 
-**Files affected:** `mcpWebSocketClient.js`, `banking_mcp_server/src/server.ts`
+### A1. Compose profile
 
----
+Add `spire-server` and `spire-agent` to `docker-compose.yml` behind a new `spiffe`
+profile, following the `rag` profile precedent (`docker-compose.yml:840`) so the lean
+default stack is unaffected. `./run-docker.sh` starts without them; `--profile spiffe`
+opts in.
 
-### 3. Agent workload identity ("Know Your Agents") *(Phase 2)*
+The agent's socket directory must be a shared volume mounted into every workload
+container that needs an SVID.
 
-The AI Agent sub-workload (either embedded in the BFF or running as a separate process)
-gets its own SVID: `spiffe://bxfinance.demo/agent`.
+### A2. Trust domain and workload map
 
-- Every tool call carries the agent's JWT-SVID as the `act` identity.
-- SPIRE can revoke the agent SVID independently of the BFF SVID — clean lifecycle
-  management matching the **"Manage agent lifecycles"** best practice.
-- The Token Chain UI shows the SVID subject in the `act` claim (stronger than `client_id`).
+Trust domain `spiffe://bxfinance.demo` (keep — it already appears in the education
+material). Note the mock route in `demo_api_server/routes/spiffeDemo.js` uses
+`demo.local`; leave that alone, it is a self-contained playground fixture.
 
----
+| Workload | SPIFFE ID | Container | Secret it would replace |
+|---|---|---|---|
+| BFF / API server | `spiffe://bxfinance.demo/bff` | `demo-api-server` | `PINGONE_ADMIN_CLIENT_SECRET` |
+| AI agent identity | `spiffe://bxfinance.demo/agent` | `demo-api-server` (embedded) | `PINGONE_AI_AGENT_CLIENT_SECRET` |
+| MCP gateway | `spiffe://bxfinance.demo/mcp-gateway` | `demo_mcp_gateway` | `MCP_GW_CLIENT_SECRET` |
+| MCP server | `spiffe://bxfinance.demo/mcp-server` | `oauth-mcp` (compose `mcp-server`) | WS bearer header |
 
-### 4. PingGateway SPIFFE bridging *(Phase 4)*
+### A3. Attestation
 
-PingGateway can act as a SPIFFE-aware proxy:
+- **Node attestation** (server trusts agent): use `join_token` for local Compose — simplest
+  thing that works, one token minted at stack start. In Kubernetes (`k8s/`, SE AWS) switch
+  to the `k8s_psat` node attestor.
+- **Workload attestation** (agent identifies the caller): use the `docker` workload
+  attestor locally, selecting on a container label, and `k8s` in-cluster. Registration
+  entries are created with `spire-server entry create -spiffeID … -parentID … -selector …`.
 
-```
-Workload (SVID) ──▶ PingGateway ──▶ PingOne (exchange SVID for OAuth token)
-```
+### A4. Key type — the trap that will bite
 
-This bridges SPIFFE workload identity into PingOne's OAuth ecosystem — workloads
-authenticate via SPIFFE and receive PingOne access tokens without managing secrets.
+PingOne accepts `RS256/384/512` only. SPIRE's defaults are elliptic-curve. The SPIRE
+server config must be set to RSA before any of Phase C works:
 
-Relevant PingGateway filters:  
-- `JwtBuilderFilter` — construct a signed assertion from the SVID claims  
-- `OAuth2ClientCredentialsGrant` / `TokenExchangeFilter` — exchange the assertion for a
-  PingOne token
-
-**References:** `docs/pinggateway-agent-plan.md`, PingGateway SPIFFE integration guide
-
----
-
-## Education panel integration
-
-| Panel | Addition |
-|-------|----------|
-| `BestPracticesPanel.js` — "Know Your Agents" tab | Add SPIFFE workload identity as the cryptographic form of agent classification; SVID vs client_id comparison |
-| `BestPracticesPanel.js` — "Detect Agents" tab | JWT-SVID `sub` in MCP token identifies the agent workload (not just client_id) |
-| `BestPracticesPanel.js` — "Use Delegation" tab | JWT-SVID as `actor_token` in RFC 8693 — secret-free delegation proof |
-| `SpiffePanel.js` *(new)* | Dedicated education drawer: trust domain, SVID lifecycle, SPIRE architecture, comparison with OAuth client_credentials |
-| Token Chain display | Show SPIFFE ID from `act.sub` when it matches `spiffe://` URI pattern |
-
----
-
-## Phased implementation plan
-
-### Phase 1 — Documentation + education (no code change to auth flows)
-
-- [x] Write this plan document (`docs/SPIFFE_PLAN.md`)
-- [ ] Update `BestPracticesPanel.js` — add SPIFFE references to "Know Your Agents" and
-  "Use Delegation" tabs
-- [ ] Create `SpiffePanel.js` education drawer (concepts, SVID lifecycle, workload map)
-- [ ] Register `SPIFFE` in `educationIds.js` and `EducationPanelsHost.js`
-- [ ] Token Chain: detect `spiffe://` URI in `act.sub` and highlight it visually
-
-**Deliverable:** visitors understand SPIFFE from the education panels; no runtime dependency.
-
----
-
-### Phase 2 — JWT-SVID as RFC 8693 actor_token
-
-**Goal:** replace `AGENT_OAUTH_CLIENT_SECRET` with a SPIFFE JWT-SVID for the token exchange.
-
-#### Server changes
-
-1. **`services/spiffeWorkloadClient.js`** — new service  
-   - Connect to SPIRE Agent Workload API (`unix:///tmp/spire-agent/public/api.sock`)  
-   - Expose `getJwtSvid(audience)` → returns a signed JWT-SVID for the given audience  
-   - Expose `getX509Svid()` → returns PEM cert + key for mTLS (Phase 3)  
-   - Use `@spiffe/spiffe-workload-api` npm package
-
-2. **`services/agentMcpTokenService.js`**  
-   - When `SPIFFE_WORKLOAD_API_ADDR` is set: call `spiffeWorkloadClient.getJwtSvid(mcp_resource_uri)` instead of `getAgentClientCredentialsToken()`  
-   - Pass the JWT-SVID as `actor_token` with `actor_token_type = urn:ietf:params:oauth:token-type:jwt`  
-   - Add `spiffe-jwt-svid` token event to the Token Chain display
-
-3. **`services/configStore.js`**  
-   - Add `spiffe_workload_api_addr` config key  
-   - Env alias: `SPIFFE_WORKLOAD_API_ADDR`
-
-4. **`components/Config.js`**  
-   - Add "SPIFFE Workload API Address" text field (alongside the MCP section)
-
-#### PingOne configuration required
-
-1. **Create a JWT Issuer** in PingOne → Security → JWT Issuers  
-   - Issuer URI: SPIRE Server's JWKS endpoint (or inline trust bundle)  
-   - This tells PingOne to trust JWT-SVIDs signed by SPIRE as `actor_token`
-
-2. **Enable Token Exchange** grant on the BFF app  
-   - Add `actor_token_type = urn:ietf:params:oauth:token-type:jwt` to allowed actor token types
-
-**Deliverable:** token exchange works without `AGENT_OAUTH_CLIENT_SECRET`; act claim shows
-`spiffe://bxfinance.demo/bff` instead of `client_id`.
-
----
-
-### Phase 3 — mTLS BFF → MCP server
-
-**Goal:** authenticate the BFF → MCP WebSocket connection with X.509-SVIDs.
-
-1. **`services/mcpWebSocketClient.js`**  
-   - Load X.509-SVID from `spiffeWorkloadClient.getX509Svid()`  
-   - Pass `cert` + `key` + SPIRE CA `bundle` to the `ws` TLS options  
-   - Remove bearer `agentToken` from the WebSocket handshake header (SVID replaces it)
-
-2. **`banking_mcp_server/src/server.ts`**  
-   - Enable `requestCert: true` on the HTTPS/WSS server  
-   - Validate peer certificate SPIFFE ID matches `spiffe://bxfinance.demo/bff`  
-   - Reject connections from unknown SPIFFE IDs
-
-3. **Local dev:** run a lightweight SPIRE dev stack via `docker-compose` alongside the
-   existing services.
-
-**Deliverable:** BFF ↔ MCP connection is mutually authenticated; no bearer tokens on
-the WebSocket.
-
----
-
-### Phase 4 — PingGateway SPIFFE bridging
-
-**Goal:** workloads authenticate to PingGateway using their SVID; PingGateway issues
-PingOne tokens — zero secrets in workload environment variables.
-
-- PingGateway `JwtBuilderFilter` constructs a signed assertion from the SVID
-- `OAuth2ClientCredentialsGrantFilter` or `TokenExchangeFilter` exchanges it for a
-  PingOne access token
-- BFF drops `PINGONE_CORE_CLIENT_SECRET` from its environment
-
-**Dependencies:** Phase 2 + PingGateway 2024.x deployment (see `docs/pinggateway-agent-plan.md`)
-
----
-
-## Environment variables (new)
-
-| Variable | Purpose | Example |
-|----------|---------|---------|
-| `SPIFFE_WORKLOAD_API_ADDR` | SPIRE Agent socket path or address | `unix:///tmp/spire-agent/public/api.sock` |
-| `SPIFFE_TRUST_DOMAIN` | Trust domain for SVID validation | `bxfinance.demo` |
-| `SPIFFE_AUDIENCE` | JWT-SVID audience (= `mcp_resource_uri`) | `https://mcp.bxfinance.com` |
-
----
-
-## npm dependency
-
-```bash
-# Phase 2+
-cd banking_api_server && npm install @spiffe/spiffe-workload-api
+```hcl
+server {
+  trust_domain = "bxfinance.demo"
+  ca_key_type  = "rsa-2048"   # X.509-SVID / CA key
+  jwt_key_type = "rsa-2048"   # JWT-SVID signing key
+}
 ```
 
-Package: [`@spiffe/spiffe-workload-api`](https://www.npmjs.com/package/@spiffe/spiffe-workload-api)  
-Implements the SPIFFE Workload Endpoint spec; works with SPIRE and other compliant agents.
+**Verify these key names against the SPIRE 1.15 configuration reference before writing the
+file** — they are recorded here from the general SPIRE configuration surface, not copied
+from a version-pinned page.
+
+**Deliverable:** `docker compose --profile spiffe up` yields a running SPIRE server and
+agent; `spire-server entry show` lists the four workload entries; a test container can
+fetch an SVID from the Workload API socket.
 
 ---
 
-## Local development setup (SPIRE)
+## Phase B — get the SVID into Node
 
-```yaml
-# docker-compose.dev.yml addition (Phase 2)
-spire-server:
-  image: ghcr.io/spiffe/spire-server:1.9
-  volumes:
-    - ./spire/server.conf:/etc/spire/server/server.conf
-  ports:
-    - "8081:8081"
+**There is no official SPIFFE client library for Node.** The npm registry has no
+`@spiffe/*` Workload API package (the old version of this document cited
+`@spiffe/spiffe-workload-api`, which returns `{"error":"Not found"}`). The packages that
+do match a `spiffe` search are third-party and unvetted.
 
-spire-agent:
-  image: ghcr.io/spiffe/spire-agent:1.9
-  volumes:
-    - /tmp/spire-agent:/tmp/spire-agent
-    - ./spire/agent.conf:/etc/spire/agent/agent.conf
-  depends_on: [spire-server]
-```
+**Use `spiffe-helper` instead** — an official SPIFFE-project sidecar (Apache-2.0, v0.11.0).
+It calls the Workload API, writes the SVID and key to disk as PEM, rewrites them on every
+rotation, and can signal or exec a command afterwards. Node then only has to read files.
 
-SVID registration entries:
-```bash
-# Register BFF workload
-spire-server entry create \
-  -spiffeID spiffe://bxfinance.demo/bff \
-  -parentID spiffe://bxfinance.demo/host \
-  -selector unix:uid:$(id -u node)
+This fits the existing code exactly: `clientAssertionService.getPrivateKeyPem()`
+(`demo_api_server/services/clientAssertionService.js:26`) already returns a PEM string.
 
-# Register MCP server
-spire-server entry create \
-  -spiffeID spiffe://bxfinance.demo/mcp-server \
-  -parentID spiffe://bxfinance.demo/host \
-  -selector unix:uid:$(id -u node)
-```
+New `demo_api_server/services/spiffeWorkloadClient.js`:
+
+- `getJwtSvid(audience)` — read the JWT-SVID written by `spiffe-helper`.
+- `getSigningKeyPem()` / `getKid()` — read the current SVID private key PEM and its key id.
+- Watch the PEM path with `fs.watch` and invalidate the in-process cache on rotation. This
+  is load-bearing: the key changes every few minutes, and any caching that survives
+  rotation produces intermittent `invalid_client` from PingOne — the worst possible
+  failure mode to debug.
+- Config keys `spiffe_svid_path`, `spiffe_key_path`, `spiffe_bundle_path`,
+  `spiffe_trust_domain` registered in `demo_api_server/services/configStore.js`
+  (`FIELD_DEFS`), with env aliases.
+
+**Deliverable:** the BFF can read a live, rotating SVID key pair at runtime.
+
+---
+
+## Phase C — replace one PingOne client secret
+
+Wire the SVID key into the existing `private_key_jwt` path. **No change to
+`oauthService.js:83` `applyTokenEndpointAuth()`** — `private_key_jwt` is already a branch
+there, and `clientAssertionService.resolveAuthMethod()` already decides when to use it.
+
+1. In `clientAssertionService.js`, source the PEM and `kid` from `spiffeWorkloadClient`
+   instead of the static `pingone_client_jwt_private_key` config value, behind a new flag
+   (`ff_spiffe_client_auth`) so the existing behaviour is untouched when off.
+2. Publish SPIRE's JWKS. Run `oidc-discovery-provider`, which serves the trust domain's
+   public keys at a standard OIDC discovery endpoint.
+3. Set the PingOne application's `jwksUrl` to that endpoint.
+
+### The deployment constraint that decides where this can run
+
+**PingOne fetches `jwksUrl` from the public internet over HTTPS, unauthenticated, with no
+custom trust certificate.** A SPIRE OIDC Discovery Provider running in local Docker
+Compose is not reachable from PingOne, so **Phase C cannot be demonstrated on a laptop
+against real PingOne.** Options, in order of preference:
+
+- **Deploy on the SE AWS cluster**, which already has a public hostname
+  (`ai-demo.ping-devops.com`) and ingress — expose the discovery provider on a path there.
+- Inline the JWKS on the PingOne app instead of a URL. **Rejected as the primary path:**
+  SPIRE rotates its JWT signing key, so an inline JWKS goes stale and authentication
+  breaks on the next rotation.
+- A tunnel for local demos. Acceptable for development, not for a repeatable demo.
+
+**Deliverable:** one workload authenticates to PingOne with no `client_secret` anywhere in
+its environment, and its key rotates automatically.
+
+---
+
+## Phase D — SPIFFE mTLS on the hops we own
+
+PingOne is not involved here, so full SPIFFE fidelity is achievable.
+
+1. **BFF → MCP server.** `demo_api_server/services/mcpWebSocketClient.js` presents its
+   X.509-SVID; `oauth-mcp/src/server/DemoMCPServer.ts` (already `requestCert: true` when
+   mTLS is on) validates the peer against the SPIRE trust bundle instead of the SHA-256
+   pin in `oauth-mcp/src/auth/mtlsMiddleware.ts`, and enforces the peer SPIFFE ID.
+2. This replaces statically generated certificates from
+   `scripts/ensure-gateway-mtls-certs.sh` with attested, auto-rotating ones.
+3. **Blocker to clear first:** `MCP_MTLS_ON` is deliberately empty because the Privilege
+   MCP console-configured backend breaks against an mTLS listener
+   (`privilege/PRIVILEGE-MCP.md:444`). That has to be resolved or scoped around before
+   mTLS can be turned on at all.
+4. **Then, and only then**, `demo_api_ui/src/components/TokenChainDisplay.jsx`
+   `fmtActNode()` (~line 2894) can detect a `spiffe://` URI in `act.sub` and render it
+   distinctly. Doing it earlier is dead code — nothing in the demo emits such a value.
+
+---
+
+## What is deliberately NOT in this plan
+
+| Ambition | Why it is out |
+|---|---|
+| JWT-SVID as the RFC 8693 `actor_token` at PingOne | PingOne validates that both exchange tokens were issued by its own environment. Requires PingFederate. |
+| `cnf` / certificate-bound access tokens from PingOne | No RFC 8705, no DPoP, no `cnf` mechanism of any kind. |
+| SPIFFE ID as the authenticated client identity | The client assertion's `iss`/`sub` must equal the PingOne `client_id`. |
+
+If cryptographic workload attestation must reach the `act` chain for a customer story,
+**PingFederate is the component that does it** and PingOne is not — that is a separate
+plan, not a variation of this one.
+
+---
+
+## Open questions
+
+1. **Is the `AI_AGENT` application type licensed in env `01d89b06`?** It is behind the
+   Agent IAM Core package (GA 2026-03-31). Check with the PingOne MCP server or the admin
+   console before designing around it.
+2. **Exact SPIRE 1.15 config key names** for RSA key types (Phase A4).
+3. **Where Phase C runs** given the public-`jwksUrl` constraint — SE AWS is the assumed
+   answer, needs confirming with whoever owns that cluster.
 
 ---
 
 ## Decision log
 
 | Decision | Rationale |
-|----------|-----------|
-| JWT-SVID before X.509-SVID | Easier to integrate with PingOne token exchange (existing JWT Bearer flow); no TLS plumbing changes needed for Phase 2 |
-| `@spiffe/spiffe-workload-api` | Official CNCF package; maintained by SPIFFE project; small footprint |
-| Keep `AGENT_OAUTH_CLIENT_SECRET` as fallback | Graceful degradation — if `SPIFFE_WORKLOAD_API_ADDR` is unset, existing client_credentials flow continues unchanged |
-| Education before code | Phase 1 delivers immediate demo value (education panels) with zero runtime risk |
+|---|---|
+| Corrected this document rather than extending it | The previous Phase 2 depended on a PingOne "JWT Issuers" feature that does not exist; anyone following it would have burned a day before discovering that. |
+| `spiffe-helper` sidecar, not an npm Workload API client | No official SPIFFE Node client is published. `spiffe-helper` is maintained by the SPIFFE project and writes PEMs that the existing `clientAssertionService` already knows how to consume. |
+| SPIRE as the SPIFFE server | CNCF reference implementation, Apache-2.0, actively released (v1.15.2, 2026-07-09). |
+| Education panel before any runtime work | Phase 0 delivers demo value at zero regression risk, and forces the honesty about what is mock versus real. |
+| Keep the existing client-secret path as fallback | With `ff_spiffe_client_auth` off, behaviour is byte-identical to today. |
+| `spiffe://bxfinance.demo` kept as the trust domain | Already used in the education material; the `demo.local` in the playground mock is separate and stays. |
 
 ---
 
 ## References
 
-- [SPIFFE spec](https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE.md)
-- [SPIRE project](https://spiffe.io/docs/latest/spire-about/)
-- [SPIFFE JWT-SVID spec](https://github.com/spiffe/spiffe/blob/main/standards/JWT-SVID.md)
-- [RFC 8693 — OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) — §2.1 actor_token
-- Internal: `banking_api_server/services/agentMcpTokenService.js`, `docs/PINGONE_AUTHORIZE_PLAN.md`, `docs/pinggateway-agent-plan.md`
+- [SPIFFE specification](https://github.com/spiffe/spiffe/blob/main/standards/SPIFFE.md)
+- [SPIRE](https://github.com/spiffe/spire) — Apache-2.0, CNCF graduated
+- [spiffe-helper](https://github.com/spiffe/spiffe-helper) — Apache-2.0
+- [JWT-SVID spec](https://github.com/spiffe/spiffe/blob/main/standards/JWT-SVID.md)
+- [RFC 8693 — OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) §2.1 `actor_token`
+- Ping: "Securing agents with PingFederate" — the only Ping-documented SPIFFE integration
+- Internal: `demo_api_ui/src/components/education/SpiffePanel.js`,
+  `demo_api_server/services/clientAssertionService.js`,
+  `demo_api_server/services/agentMcpTokenService.js`, `docs/RFC-STANDARDS.md`

@@ -96,4 +96,6 @@ export const EDU = {
   KILL_SWITCH: "kill-switch",
   /** Gateway vs P1AZ decision split — coarse (PEP) vs fine (PDP), and where the 5 P1AZ-unexpressable rules fall back to the gateway */
   GATEWAY_POLICY_SPLIT: "gateway-policy-split",
+  /** SPIFFE / SVID — cryptographic workload identity, and what PingOne can vs cannot consume */
+  SPIFFE: "spiffe",
 };

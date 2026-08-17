@@ -211,6 +211,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
           <div style={{ marginTop: 10 }}>
             <EduLink label="may_act / act claims" panelId={EDU.MAY_ACT} tabId="what" onClick={handleEduLink} />
             <EduLink label="Agent Gateway" panelId={EDU.AGENT_GATEWAY} tabId="what" onClick={handleEduLink} />
+            <EduLink label="SPIFFE / SVID workload identity" panelId={EDU.SPIFFE} tabId="what" onClick={handleEduLink} />
           </div>
         </>
       ),
@@ -333,6 +334,7 @@ scope=accounts:read
           <div style={{ marginTop: 10 }}>
             <EduLink label="may_act / act" panelId={EDU.MAY_ACT} tabId="rfc8693" onClick={handleEduLink} />
             <EduLink label="Token Exchange RFC 8693" panelId={EDU.TOKEN_EXCHANGE} tabId="why" onClick={handleEduLink} />
+            <EduLink label="SPIFFE / SVID workload identity" panelId={EDU.SPIFFE} tabId="what" onClick={handleEduLink} />
           </div>
         </>
       ),
