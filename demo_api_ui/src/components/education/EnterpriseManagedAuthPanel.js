@@ -216,7 +216,7 @@ function InThisDemoContent() {
         </p>
         <CrossLink panelId={EDU.TOKEN_EXCHANGE} tabId="why">RFC 8693 Token Exchange</CrossLink>
         <CrossLink panelId={EDU.ID_JAG} tabId="how-it-works">ID-JAG flow</CrossLink>
-        <CrossLink panelId={EDU.AGENT_GATEWAY} tabId="overview">Agent / MCP Gateway</CrossLink>
+        <CrossLink panelId={EDU.AGENT_GATEWAY} tabId="overview">Agent / Agent Gateway</CrossLink>
         <CrossLink panelId={EDU.MCP_PROTOCOL} tabId="what">MCP Protocol</CrossLink>
       </Section>
     </>

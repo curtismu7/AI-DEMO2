@@ -28,7 +28,7 @@ const MERMAID_SOURCE = `flowchart TD
 
     subgraph GOV[" "]
         direction LR
-        PG["<b>P1 Privileges<br/>MCP Gateway</b><br/>&bull; Policy enforcement<br/>&bull; JIT access &amp; secret injection<br/>&bull; Session &amp; activity logging<br/>&bull; Audit all actor activity"]
+        PG["<b>P1 Privileges<br/>Agent Gateway</b><br/>&bull; Policy enforcement<br/>&bull; JIT access &amp; secret injection<br/>&bull; Session &amp; activity logging<br/>&bull; Audit all actor activity"]
         PGW["<b>PingGateway<br/>MCP Security Gateway</b><br/>&bull; Secures all MCP comms<br/>&bull; Validates OAuth tokens<br/>&bull; Token exchange / transform<br/>&bull; Routes authz to PingAuthorize"]
         PA["<b>PingAuthorize /<br/>PingOne Authorize</b><br/>&bull; Fine-grained authz decisions<br/>&bull; Policies for tools/resources/APIs<br/>&bull; Context-aware, real-time"]
     end

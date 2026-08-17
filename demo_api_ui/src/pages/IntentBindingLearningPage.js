@@ -160,7 +160,7 @@ export default function IntentBindingLearningPage() {
             <rect x="470" y="40" width="140" height="60" rx="4" fill="#e8f5e9" stroke="#388e3c" strokeWidth="2" />
             <text x="540" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Token Exchange</text>
             <text x="540" y="77" textAnchor="middle" fontSize="11">with request_uri</text>
-            <text x="540" y="92" textAnchor="middle" fontSize="10" fill="#666">(via MCP Gateway)</text>
+            <text x="540" y="92" textAnchor="middle" fontSize="10" fill="#666">(via Agent Gateway)</text>
 
             <path d="M 610 70 L 640 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
 

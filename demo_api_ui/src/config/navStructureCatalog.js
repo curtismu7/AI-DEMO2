@@ -146,7 +146,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agent Onboarding Flow (Node)",
       "Agent Onboarding Flow Subway (Node)",
       "Agent Onboarding Flow (MM)",
-      "MCP Gateway OAuth Flow (MM)",
+      "Agent Gateway OAuth Flow (MM)",
       "Invest Dual-Auth (MM)",
       "Privilege MCP (MM)",
       "Gateway vs P1AZ Enforcement (MM)",

@@ -1673,7 +1673,7 @@ function A2aDelegationEduBox({ event }) {
             </li>
             <li>
               <span className="tcd-edu-check-lbl">Resource:</span>
-              <span>{event.a2aTool || 'MCP Gateway'}</span>
+              <span>{event.a2aTool || 'Agent Gateway'}</span>
             </li>
           </ul>
           <p className="tcd-edu-detail">

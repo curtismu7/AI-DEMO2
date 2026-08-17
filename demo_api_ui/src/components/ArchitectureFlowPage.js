@@ -349,7 +349,7 @@ const INITIAL_NODES = [
   // A2A (agent-to-agent delegation): the Agent can delegate a narrow sensitive
   // task to the A2A Orchestrator (CrewAI crew), which gets PingOne Authorize
   // approval, then nested RFC 8693 token-exchanges to a Specialist Agent that
-  // calls narrow tools via the MCP Gateway.
+  // calls narrow tools via the Agent Gateway.
   {
     id: "a2a-orch",
     type: "arch",

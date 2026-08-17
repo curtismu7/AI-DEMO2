@@ -29,7 +29,7 @@ test("renders a multi-service trace with cross-service nodes and edges", async (
   await waitFor(() => expect(container.querySelector("svg")).toBeInTheDocument());
   const labels = container.textContent;
   expect(labels).toContain("App Backend (BFF)"); // DISPLAY_LABELS['demo-api-server']
-  expect(labels).toContain("MCP Gateway"); // DISPLAY_LABELS['mcp-gateway']
+  expect(labels).toContain("Agent Gateway"); // DISPLAY_LABELS['mcp-gateway']
   // At least one derived edge is drawn as a dedicated edge path element.
   await waitFor(() =>
     expect(container.querySelectorAll("path.tracing-graph-edge-path").length)

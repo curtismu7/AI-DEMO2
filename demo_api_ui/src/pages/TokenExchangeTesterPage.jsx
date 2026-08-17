@@ -175,7 +175,7 @@ export default function TokenExchangeTesterPage() {
   };
 
   const predefinedAudiences = [
-    { label: 'MCP Gateway', value: 'mcpgateway.ping.demo' },
+    { label: 'Agent Gateway', value: 'mcpgateway.ping.demo' },
     { label: 'Agent Gateway', value: 'agentgateway.ping.demo' },
     { label: 'Enduser', value: 'enduser.ping.demo' },
   ];
