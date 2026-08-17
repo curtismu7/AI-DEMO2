@@ -36,7 +36,12 @@ describe("tokenRailLayout", () => {
     expect(readStoredTokenRailCollapsed()).toBe(true);
   });
 
-  it("treats missing collapsed key as expanded", () => {
+  it("treats missing collapsed key as collapsed", () => {
+    expect(readStoredTokenRailCollapsed()).toBe(true);
+  });
+
+  it("respects an explicit expanded choice", () => {
+    persistTokenRailCollapsed(false);
     expect(readStoredTokenRailCollapsed()).toBe(false);
   });
 });

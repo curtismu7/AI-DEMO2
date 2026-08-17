@@ -167,8 +167,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     () => agentPlacement === "middle",
   );
 
+  // Default ON — only an explicit More › Movie reel toggle-off ("0") hides it.
   const [showFilmstrip, setShowFilmstrip] = useState(() => {
-    try { return localStorage.getItem("ba_show_filmstrip") === "1"; } catch { return false; }
+    try { return localStorage.getItem("ba_show_filmstrip") !== "0"; } catch { return true; }
   });
   useEffect(() => {
     const handler = (e) => setShowFilmstrip(!!e.detail?.on);

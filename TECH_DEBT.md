@@ -7,6 +7,32 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
+
+**Where:** `demo_api_server/scripts/refresh-service-envs.js` (shared default
+`'mcpserver.ping.demo,mcpgateway.ping.demo'` fanned out to every service env),
+`demo_mcp_resource_server/src/index.ts` / `src/server/acceptedAudiences.ts`.
+
+**What's wrong:** everywhere else `MCP_SERVER_RESOURCE_URI` is "the banking MCP
+server's accepted-audience list", but inside demo_mcp_resource_server it means
+"THIS server's accepted list". Only a per-service override in the env writer
+keeps the invest server from inheriting the banking value; a container created
+before the override (or a K8s pod on the shared configmap) rejected every
+gateway exchange-#3 token with `Audience mismatch: got [mcp-invest.ping.demo]`.
+Patched defensively: `resolveAcceptedAudiences()` now always unions the
+server's own canonical audience, so a stale env can no longer break tool calls
+— but the name collision remains.
+
+**Why not fixed now:** renaming the env var touches compose, K8s manifests,
+refresh-service-envs, and docs in one sweep — out of scope for the audience
+fix.
+
+**Real fix:** give the invest server its own env name (e.g.
+`MCP_RESOURCE_SERVER_RESOURCE_URI`), source it from
+`scope-topology.json resources["Super Banking MCP Invest"].uri`, and extend
+`npm run topology:verify` to diff every surface that sets it (compose, K8s,
+env writer) against the topology.
+
 ### 2026-08-16 — Node MCP Gateway's HITL retry path never consumes the receipt
 
 **Where:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (~L611-654,

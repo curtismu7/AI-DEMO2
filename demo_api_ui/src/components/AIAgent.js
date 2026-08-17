@@ -657,11 +657,12 @@ export default function BankingAgent({
       return false;
     }
   });
+  // Default ON — only an explicit Movie reel toggle-off ("0") hides it.
   const [showFilmstrip, setShowFilmstrip] = useState(() => {
     try {
-      return localStorage.getItem("ba_show_filmstrip") === "1";
+      return localStorage.getItem("ba_show_filmstrip") !== "0";
     } catch {
-      return false;
+      return true;
     }
   });
   // Inspectors sub-group — same reasoning as the Configuration group above, but
