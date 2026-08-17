@@ -150,6 +150,7 @@ const ADMIN1 = {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   apiPatch.mockReset();
   apiPatch.mockResolvedValue({ data: {} });
   sendAgentMessage.mockReset();
@@ -228,5 +229,109 @@ describe("signed-in customer", () => {
     await waitFor(() => {
       expect(screen.getByText(/needs an admin sign-in/i)).toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * The other half of the queue: what happens when the login actually lands.
+ *
+ * A step queued while signed out could not arm its flags — arming is
+ * admin-gated, so it would only 401. The flags ride along in sessionStorage
+ * (the OAuth login is a full redirect, so a React ref does not survive it) and
+ * are armed by the resume effect on the way back.
+ *
+ * This path shipped dead twice: first as a ref the redirect destroyed, then
+ * with a restore that ran only on the non-OAuth mount. Both times every other
+ * test stayed green, so it is pinned explicitly here.
+ */
+describe("resuming a queued step after sign-in", () => {
+  const CUSTOMER = { id: "u1", role: "customer", username: "cust" };
+
+  /** What handleLoginAction leaves behind before redirecting to PingOne. */
+  function seedPendingStep({ nl, ucId, flags }) {
+    if (nl) sessionStorage.setItem("bx_agent_pending_nl", nl);
+    if (ucId) sessionStorage.setItem("bx_agent_pending_uc_id", ucId);
+    if (flags) sessionStorage.setItem("bx_agent_pending_flags", JSON.stringify(flags));
+  }
+
+  async function settle() {
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+  }
+
+  it("arms the deferred flags and sends, in that order", async () => {
+    seedPendingStep({
+      nl: "What is my balance?",
+      ucId: "delegated-access-with-proof",
+      flags: ["ff_a2a_delegation"],
+    });
+
+    renderAt("/dashboard", CUSTOMER);
+    await settle();
+
+    await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
+
+    expect(apiPatch).toHaveBeenCalledWith(
+      "/api/admin/feature-flags",
+      { updates: { ff_a2a_delegation: true } },
+      { _noAuthBanner: true },
+    );
+
+    // Armed BEFORE the send. Arming after the step has run is useless — the
+    // whole point is the flag being on for that request.
+    expect(apiPatch.mock.invocationCallOrder[0])
+      .toBeLessThan(sendAgentMessage.mock.invocationCallOrder[0]);
+
+    // The useCaseId survived too; without it the resumed step loses
+    // forceHeuristic and its A2.1/A2.2 stamping.
+    expect(sendAgentMessage).toHaveBeenCalledWith(
+      "What is my balance?",
+      null,
+      expect.objectContaining({ useCaseId: "delegated-access-with-proof" }),
+    );
+  });
+
+  it("consumes the keys so a later run cannot inherit them", async () => {
+    seedPendingStep({
+      nl: "What is my balance?",
+      ucId: "delegated-access-with-proof",
+      flags: ["ff_a2a_delegation"],
+    });
+
+    renderAt("/dashboard", CUSTOMER);
+    await settle();
+
+    expect(sessionStorage.getItem("bx_agent_pending_nl")).toBeNull();
+    expect(sessionStorage.getItem("bx_agent_pending_uc_id")).toBeNull();
+    expect(sessionStorage.getItem("bx_agent_pending_flags")).toBeNull();
+  });
+
+  // Both mount paths must claim these keys, and the OAuth one is the path a real
+  // login takes. It used to claim them only after a pendingNl turned up, deep
+  // inside the session-hydration callback — so when the NL was gone (another
+  // instance won the claim, or hydration failed) the useCaseId and flag list
+  // were left behind, and the NEXT launcher run inherited a step nobody picked.
+  it.each([
+    ["the launcher deep-link mount", "/dashboard"],
+    ["the OAuth return", "/dashboard?oauth=success"],
+  ])("clears a stale ucId and flag list on %s when no pending NL survives", async (_label, path) => {
+    seedPendingStep({ ucId: "delegated-access-with-proof", flags: ["ff_a2a_delegation"] });
+
+    renderAt(path, CUSTOMER);
+    await settle();
+
+    expect(sessionStorage.getItem("bx_agent_pending_uc_id")).toBeNull();
+    expect(sessionStorage.getItem("bx_agent_pending_flags")).toBeNull();
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+  });
+
+  it("survives a corrupt flag list instead of losing the step", async () => {
+    seedPendingStep({ nl: "What is my balance?", ucId: "delegated-access-with-proof" });
+    sessionStorage.setItem("bx_agent_pending_flags", "{not json");
+
+    renderAt("/dashboard", CUSTOMER);
+    await settle();
+
+    // Unarmed is a degraded step; a thrown parse error is a lost one.
+    await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
   });
 });

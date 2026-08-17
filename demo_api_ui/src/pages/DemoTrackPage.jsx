@@ -229,7 +229,12 @@ export default function DemoTrackPage() {
         const flags = requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: slot.match?.tools?.[0] || null });
         if (flags.length) {
           const updates = Object.fromEntries(flags.map((f) => [f, true]));
-          await apiClient.patch("/api/admin/feature-flags", { updates }).catch(() => {});
+          // _noAuthBanner: arming is best effort on an admin-gated route, so its
+          // 401 says nothing about the session — without this it raises the global
+          // re-auth banner over a step that may have answered correctly.
+          await apiClient
+            .patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true })
+            .catch(() => {});
         }
         const prompt = promptFor(step, color, slot);
         if (!prompt) throw new Error("no dispatchable chip for this slot");

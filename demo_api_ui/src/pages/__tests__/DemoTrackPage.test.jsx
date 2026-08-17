@@ -178,9 +178,14 @@ describe("DemoTrackPage", () => {
     // tool) fires only for the armed slot, not for whatever step is active.
     expect(apiClient.post).toHaveBeenCalledWith("/api/demo-track/arm", { stepId: "delegated-access", color: "green" });
     // gateway runtime flag armed before dispatch (launcher contract)
-    expect(apiClient.patch).toHaveBeenCalledWith("/api/admin/feature-flags", expect.objectContaining({
-      updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }),
-    }));
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      "/api/admin/feature-flags",
+      expect.objectContaining({
+        updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }),
+      }),
+      // Arming is best effort; its 401 must not raise the re-auth banner.
+      { _noAuthBanner: true },
+    );
     // a permit must not look dead: the Run button flashes a visible success ack
     await waitFor(() => expect(within(row).getByRole("button", { name: /ran/ })).toBeInTheDocument());
     // and the agent's actual reply is shown so the presenter sees WHAT happened
