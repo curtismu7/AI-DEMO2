@@ -111,7 +111,7 @@ import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
-import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY, BX_AGENT_PENDING_FLAGS_KEY } from "../constants/agentPendingKeys";
+import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY, BX_AGENT_PENDING_FLAGS_KEY, BX_AGENT_PENDING_AUTH_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
 import { useAgentState } from "../hooks/useAgentState";
@@ -515,6 +515,11 @@ export default function BankingAgent({
       if (ucId) {
         sessionStorage.removeItem(BX_AGENT_PENDING_UC_ID_KEY);
         pendingUcIdRef.current = ucId;
+      }
+      const auth = sessionStorage.getItem(BX_AGENT_PENDING_AUTH_KEY);
+      if (auth) {
+        sessionStorage.removeItem(BX_AGENT_PENDING_AUTH_KEY);
+        if (auth === "user" || auth === "admin") pendingUcAuthRef.current = auth;
       }
       const rawFlags = sessionStorage.getItem(BX_AGENT_PENDING_FLAGS_KEY);
       if (rawFlags) {
@@ -3116,7 +3121,14 @@ export default function BankingAgent({
     spinner.show(`Signing in as ${label}…`, "Redirecting to PingOne");
     // Save any pending prompt so it can be re-executed after OAuth return.
     // nlInput holds the current typed/pre-filled text; capture it before navigation.
-    const pendingText = (nlInput || "").trim();
+    //
+    // A demo step queued behind the sign-in prompt is NOT in nlInput — it lives
+    // in nlResumeAfterAuth, and the composer is empty. So nothing was saved for
+    // the one flow this button exists to serve: the visitor signed in and the
+    // step they picked was simply gone. Everything downstream (the useCaseId,
+    // the deferred flags, the auth level) was riding on a pending NL that was
+    // never written.
+    const pendingText = (nlInput || "").trim() || (nlResumeAfterAuth || "").trim();
     if (pendingText) {
       sessionStorageService.setItem(BX_AGENT_PENDING_NL_KEY, pendingText);
     }
@@ -3132,6 +3144,11 @@ export default function BankingAgent({
       if (flagsInFlight?.length) {
         sessionStorage.setItem(BX_AGENT_PENDING_FLAGS_KEY, JSON.stringify(flagsInFlight));
       }
+      // And the level it is waiting for. Without this the resume effect comes
+      // back blind: on a guest-chat surface it then fires during hydration,
+      // while isLoggedIn is still false, and skips the arming it came back to do.
+      const authInFlight = pendingUcAuthRef.current;
+      if (authInFlight) sessionStorage.setItem(BX_AGENT_PENDING_AUTH_KEY, authInFlight);
     } catch (_) {}
     const apiUrl = process.env.REACT_APP_API_URL || window.location.origin;
     if (actionId === "login_admin") {
@@ -7874,7 +7891,16 @@ export default function BankingAgent({
     // The level matters, not just "signed in": a customer session does not
     // satisfy an admin step, and firing on it would send a request the BFF
     // refuses — the same dead end this gate exists to prevent, one level up.
-    const pendingAuth = pendingUcAuthRef.current;
+    //
+    // Deferred flags imply a session even when the level itself is missing.
+    // `isLoggedIn` is derived from an async session hydration, so on a
+    // guest-chat surface `marketingGuestChatEnabled` is true a beat BEFORE
+    // `isLoggedIn` is. Without this the effect fired in that window, skipped the
+    // arming below (which requires isLoggedIn), and the `pendingNlResumeRef`
+    // guard then blocked the later, correctly-authenticated run from retrying —
+    // so the step sent unarmed and the deferred arming never executed at all.
+    const deferredFlags = pendingUcFlagsRef.current;
+    const pendingAuth = pendingUcAuthRef.current || (deferredFlags?.length ? "user" : null);
     const eligible = pendingAuth
       ? (pendingAuth === "admin" ? isAdminUser : isLoggedIn)
       : isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current;
@@ -7894,8 +7920,7 @@ export default function BankingAgent({
     pendingUcIdRef.current = null;
     pendingUcPublicRef.current = false;
     pendingUcAuthRef.current = null;
-    // Flags the step could not arm while signed out (arming is admin-gated).
-    const deferredFlags = pendingUcFlagsRef.current;
+    // Read above, next to the eligibility check that now depends on it.
     pendingUcFlagsRef.current = null;
     let cancelled = false;
     let timerFired = false;

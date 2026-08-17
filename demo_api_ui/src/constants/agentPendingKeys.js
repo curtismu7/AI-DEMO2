@@ -16,3 +16,11 @@ export const BX_AGENT_PENDING_UC_ID_KEY = 'bx_agent_pending_uc_id';
  * a full OAuth redirect, so a React ref does not survive to see it.
  */
 export const BX_AGENT_PENDING_FLAGS_KEY = 'bx_agent_pending_flags';
+
+/**
+ * Auth level the pending step still needs ('user' | 'admin'). Persisted for the
+ * same reason as the flags: without it the resume effect cannot tell a step that
+ * is waiting for a session from one that may run as a guest, and on a
+ * guest-chat surface it fires during hydration — before the session it waited for.
+ */
+export const BX_AGENT_PENDING_AUTH_KEY = 'bx_agent_pending_auth';

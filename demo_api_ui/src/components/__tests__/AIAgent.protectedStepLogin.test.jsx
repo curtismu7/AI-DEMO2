@@ -334,4 +334,86 @@ describe("resuming a queued step after sign-in", () => {
     // Unarmed is a degraded step; a thrown parse error is a lost one.
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
   });
+
+  // Verified against the live stack with an instrumented sessionStorage probe:
+  // before this, clicking the prompt's Sign In wrote NOTHING. handleLoginAction
+  // persisted `nlInput` — the composer — and a queued demo step is not there; it
+  // lives in nlResumeAfterAuth with the composer empty. So the step the visitor
+  // picked was simply gone after login, and every downstream piece (useCaseId,
+  // deferred flags, auth level) was riding on a pending NL never written.
+  it("persists the queued step itself when the visitor signs in", async () => {
+    renderAt("/dashboard");
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sign in to continue/i })).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      screen.getByRole("button", { name: /sign in to continue/i }).click();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(sessionStorage.getItem("bx_agent_pending_nl")).toBe(UC1.trigger.text);
+    expect(sessionStorage.getItem("bx_agent_pending_uc_id")).toBe(UC1.useCaseId);
+    expect(sessionStorage.getItem("bx_agent_pending_auth")).toBe("user");
+  });
+
+  // The sequence a real OAuth return actually produces, and the one the tests
+  // above quietly skip: `user` is null on first render and arrives a beat later,
+  // because isLoggedIn comes from an async session hydration.
+  //
+  // On a guest-chat surface that gap is the bug. `marketingGuestChatEnabled` is
+  // already true while `isLoggedIn` is still false, so the resume effect fired
+  // in that window, skipped the arming (which requires isLoggedIn), and the
+  // pendingNlResumeRef guard then stopped the authenticated re-run from
+  // retrying. The step sent unarmed and the deferred arming never ran at all.
+  //
+  // Mocking the user as present from first render hides this completely — which
+  // is how it shipped twice.
+  it("waits for the session instead of firing during hydration", async () => {
+    seedPendingStep({
+      nl: "What is my balance?",
+      ucId: "delegated-access-with-proof",
+      flags: ["ff_a2a_delegation"],
+    });
+
+    // First render: signed out on a guest-chat surface, exactly as the page
+    // looks for the moment before the session resolves.
+    const { rerender } = render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={null} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+    await settle();
+
+    // Must not have gone yet — there is nothing to arm with and no session.
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+    expect(apiPatch).not.toHaveBeenCalled();
+
+    // Session lands.
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={CUSTOMER} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+    await settle();
+
+    await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
+    expect(apiPatch).toHaveBeenCalledWith(
+      "/api/admin/feature-flags",
+      { updates: { ff_a2a_delegation: true } },
+      { _noAuthBanner: true },
+    );
+    expect(apiPatch.mock.invocationCallOrder[0])
+      .toBeLessThan(sendAgentMessage.mock.invocationCallOrder[0]);
+  });
 });
