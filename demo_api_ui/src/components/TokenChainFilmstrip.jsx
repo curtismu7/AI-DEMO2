@@ -29,6 +29,21 @@ import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import "./TokenChainFilmstrip.css";
 
 const VIEW_MODE_KEY = "tctr:view-mode";
+// Same key TokenChainTraceRail persists under — one text-size setting shared
+// across both surfaces rather than two independently-remembered ones.
+const ZOOM_KEY = "tctr:zoom";
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 1.6;
+const ZOOM_STEP = 0.1;
+
+function readStoredZoom() {
+  try {
+    const v = Number(window.localStorage.getItem(ZOOM_KEY));
+    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1;
+  } catch {
+    return 1;
+  }
+}
 
 // Same ids ChainViewMenu emits; the filmstrip decides what a view is.
 const VIEW_LABELS = {
@@ -70,6 +85,7 @@ export default function TokenChainFilmstrip() {
   const [inspectType, setInspectType] = useState(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
+  const [zoom, setZoom] = useState(readStoredZoom);
   const moreRef = useRef(null);
 
   const tokenChain = useTokenChainOptional();
@@ -84,6 +100,18 @@ export default function TokenChainFilmstrip() {
       /* private mode — session-only */
     }
   }, [viewMode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ZOOM_KEY, String(zoom));
+    } catch {
+      /* private mode — session-only */
+    }
+  }, [zoom]);
+
+  const stepZoom = useCallback((delta) => {
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -185,7 +213,16 @@ export default function TokenChainFilmstrip() {
             steps={steps}
             showTrust={showTrust}
             mcpCount={mcpDone}
-            onOpenView={(id) => { setView(id); setActiveStepId(null); }}
+            onOpenView={(id) => {
+              // Topology opens the existing TokenTopologyPanel modal (App.js),
+              // not an inline sheet view — same event the AIAgent header ⊞ uses.
+              if (id === "topology") {
+                window.dispatchEvent(new CustomEvent("token-topology-open"));
+                return;
+              }
+              setView(id);
+              setActiveStepId(null);
+            }}
           />
           <div className="tcfs-more" ref={moreRef}>
             <button
@@ -219,6 +256,38 @@ export default function TokenChainFilmstrip() {
             aria-label={view ? `${VIEW_LABELS[view] || "Chain"} view` : "Step detail"}>
             <div className="tcfs-sheet-head">
               <span className="tcfs-sheet-title">{view ? VIEW_LABELS[view] || "Chain" : "Step detail"}</span>
+              <div className="tcfs-zoom" role="group" aria-label="Token chain text size">
+                <button
+                  type="button"
+                  className="tcfs-zoom-btn"
+                  onClick={() => stepZoom(-ZOOM_STEP)}
+                  disabled={zoom <= ZOOM_MIN}
+                  title="Smaller text"
+                  aria-label="Decrease token chain text size"
+                >
+                  A-
+                </button>
+                <button
+                  type="button"
+                  className="tcfs-zoom-pct"
+                  onClick={() => setZoom(1)}
+                  disabled={zoom === 1}
+                  title="Reset text size"
+                  aria-label="Reset token chain text size"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  type="button"
+                  className="tcfs-zoom-btn"
+                  onClick={() => stepZoom(ZOOM_STEP)}
+                  disabled={zoom >= ZOOM_MAX}
+                  title="Larger text"
+                  aria-label="Increase token chain text size"
+                >
+                  A+
+                </button>
+              </div>
               <button type="button" className="tcfs-sheet-close" onClick={closeSheet} aria-label="Close detail">
                 ✕
               </button>
@@ -232,7 +301,7 @@ export default function TokenChainFilmstrip() {
                 — invisible. Carrying the class re-uses the rail's palette
                 instead of duplicating 28 declarations that would then have to
                 be kept in sync. */}
-            <div className="tcfs-sheet-body tctr">
+            <div className="tcfs-sheet-body tctr" style={{ zoom }}>
               {view ? renderView() : <StepDetailPanel step={activeStep} onInspect={onInspect} />}
             </div>
           </section>

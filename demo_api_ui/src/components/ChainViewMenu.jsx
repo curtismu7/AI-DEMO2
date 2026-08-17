@@ -1,9 +1,15 @@
 // The rail's non-inline views, behind one trigger.
 //
-// Seven tabs no longer fit once the chain map and the step detail panel are
+// Eight tabs no longer fit once the chain map and the step detail panel are
 // present. Token Chain stays inline because it is the thing being taught; the
-// other six become pop-outs, so a presenter can put Tokens on a second screen
-// beside the chain instead of switching away from it.
+// other seven become pop-outs, so a presenter can put Tokens on a second
+// screen beside the chain instead of switching away from it.
+//
+// Topology is a special case: it's not an inline chain-level view like the
+// other six (there is no renderView() case for it) — it opens the existing
+// TokenTopologyPanel modal via the `token-topology-open` window event, the
+// same mechanism the AIAgent header ⊞ button already uses. Callers must
+// dispatch that event for id "topology" instead of switching a local tab.
 //
 // A <button> and a useState flag, not <details>: the native `open` attribute
 // fights Testing Library's click semantics, and this menu is asserted on.
@@ -25,6 +31,7 @@ const VIEWS = [
   ["simple", "Simple", "The chain as a short stepper."],
   ["detailed", "Detailed", "The chain as a full stepper, claim by claim."],
   ["demoTrack", "Demo Track", "The guided nine-step demo script."],
+  ["topology", "Topology", "Live delegation-chain diagram — nodes appear as the run happens."],
 ];
 
 export default function ChainViewMenu({ steps, onOpenView, showTrust = true, mcpCount = 0 }) {
