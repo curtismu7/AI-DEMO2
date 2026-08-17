@@ -60,7 +60,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
-import { runsSignedOut } from "../utils/useCaseAuth";
+import { runsSignedOut, useCaseAuthLevel, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
@@ -497,9 +497,11 @@ export default function BankingAgent({
    *  step picked signed-out cannot arm until login lands and the resume effect fires.
    *  Mirrored into sessionStorage on login (the ref dies across the OAuth redirect). */
   const pendingUcFlagsRef = useRef(null);
-  /** True when the queued step needs a session, so the resume effect must wait for a
-   *  real login rather than firing on guest-chat eligibility. */
-  const pendingUcNeedsAuthRef = useRef(false);
+  /** The auth level a queued step still needs ('user' | 'admin'), or null when it is
+   *  already satisfied. The resume effect waits for THAT level rather than firing on
+   *  guest-chat eligibility — or on any session, which would send an admin step from
+   *  a customer login the BFF then refuses. */
+  const pendingUcAuthRef = useRef(null);
 
   /**
    * Restore the context a queued step needs, claimed one-shot from sessionStorage.
@@ -1969,6 +1971,9 @@ export default function BankingAgent({
       }
     }
   }, [themeManifest, isLoggedIn, fetchLiveAccounts]);
+
+  /** Admin-level demo steps need this, not just a session. */
+  const isAdminUser = effectiveUser?.role === "admin";
 
   const suggestionList = useMemo(() => {
     if (isConfigEmbeddedFocus) {
@@ -7333,18 +7338,25 @@ export default function BankingAgent({
       // may run" — so a signed-out visitor picking a non-public step sent it,
       // got a 401, and was bounced to PingOne mid-answer instead of seeing the
       // sign-in prompt this branch exists to show. Only the step's own auth
-      // level decides.
-      const stepNeedsAuth = !isLoggedIn && !runsSignedOut(uc);
-      pendingUcNeedsAuthRef.current = stepNeedsAuth;
+      // level decides — and "a session" is not one level: an admin step asks a
+      // signed-in customer for an ADMIN sign-in rather than accepting theirs.
+      const stepAuth = useCaseAuthLevel(uc);
+      const stepNeedsAuth = !viewerMeetsUseCaseAuth(uc, { isLoggedIn, isAdmin: isAdminUser });
+      pendingUcAuthRef.current = stepNeedsAuth ? stepAuth : null;
       // Not eligible to send yet — queue the step anyway (below) and show an
       // actionable sign-in prompt instead of returning with nothing; the resume
-      // effect fires it the moment login lands.
+      // effect fires it the moment the right login lands.
       if (stepNeedsAuth) {
         addMessage(
           "assistant",
-          `${stepLabel} needs you signed in — it'll run as soon as you do.`,
+          stepAuth === "admin"
+            ? `${stepLabel} needs an admin sign-in — it'll run as soon as you're in.`
+            : `${stepLabel} needs you signed in — it'll run as soon as you do.`,
           null,
-          { showLoginPromptAction: true, loginActionId: "login_user" },
+          {
+            showLoginPromptAction: true,
+            loginActionId: stepAuth === "admin" ? "login_admin" : "login_user",
+          },
         );
       } else {
         addMessage("assistant", `Running ${stepLabel}…`);
@@ -7830,8 +7842,13 @@ export default function BankingAgent({
     // A step that needs a session waits for a real one. Without this, guest-chat
     // eligibility on `/dashboard` fired the step the branch above just queued,
     // which is what made the sign-in prompt unreachable there.
-    const eligible = pendingUcNeedsAuthRef.current
-      ? isLoggedIn
+    //
+    // The level matters, not just "signed in": a customer session does not
+    // satisfy an admin step, and firing on it would send a request the BFF
+    // refuses — the same dead end this gate exists to prevent, one level up.
+    const pendingAuth = pendingUcAuthRef.current;
+    const eligible = pendingAuth
+      ? (pendingAuth === "admin" ? isAdminUser : isLoggedIn)
       : isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current;
     if (
       !nlResumeAfterAuth ||
@@ -7848,7 +7865,7 @@ export default function BankingAgent({
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
     pendingUcPublicRef.current = false;
-    pendingUcNeedsAuthRef.current = false;
+    pendingUcAuthRef.current = null;
     // Flags the step could not arm while signed out (arming is admin-gated).
     const deferredFlags = pendingUcFlagsRef.current;
     pendingUcFlagsRef.current = null;

@@ -27,6 +27,7 @@ import { PingProductChip } from '../components/PingProductChip';
 import { productsForUseCase } from '../utils/pingProducts';
 import { markCameFromUseCases } from '../utils/fromUseCasesNav';
 import { runsSignedOut } from '../utils/useCaseAuth';
+import { navigateToAdminOAuthLogin, navigateToCustomerOAuthLogin } from '../utils/authUi';
 import {
   clearCompletedUseCases,
   getCompletedUseCaseIds,
@@ -355,7 +356,7 @@ function FlagGate({ flagId, isOn, loading, onToggle }) {
   );
 }
 
-function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, flagMap, flagsLoading, setFlag }) {
+function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain, onOpen, attackState, chipRunning, chipRunError, chipNeedsLogin, flagMap, flagsLoading, setFlag }) {
   const isChip   = uc.trigger?.type === 'chip';
   const isAttack = uc.trigger?.type === 'attack';
   const isLink   = uc.trigger?.type === 'link';
@@ -495,6 +496,7 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
       {isChip && chipRunError && (
         <p className="uc-sim-result__fetch-error">{chipRunError}</p>
       )}
+      {isChip && <ChipLoginPrompt prompt={chipNeedsLogin} />}
 
       {isRunnable && error && (
         <p className="uc-sim-result__fetch-error">{error}</p>
@@ -524,6 +526,29 @@ function resolveProgressiveTrustActs(useCases) {
       chipText: entry.chipDisplay || uc.trigger?.text || '',
     };
   }).filter(Boolean);
+}
+
+/**
+ * Shown when the BFF refuses a step for want of a session. A dead error string
+ * leaves the visitor stuck on a page whose only fix is a sign-in they were
+ * never offered, so the refusal carries the button that resolves it.
+ * @param {{ prompt: { msg: string, loginAs: 'user' | 'admin' } | null }} props
+ */
+function ChipLoginPrompt({ prompt }) {
+  if (!prompt) return null;
+  const asAdmin = prompt.loginAs === 'admin';
+  return (
+    <p className="uc-sim-result__fetch-error">
+      {prompt.msg}{' '}
+      <button
+        type="button"
+        className="uc-run-btn"
+        onClick={() => (asAdmin ? navigateToAdminOAuthLogin() : navigateToCustomerOAuthLogin())}
+      >
+        {asAdmin ? 'Sign in as admin' : 'Sign in'}
+      </button>
+    </p>
+  );
 }
 
 /**
@@ -561,6 +586,7 @@ function ProgressiveTrustDemoStrip({
           const flagGated = flagId != null && !flagIsOn;
           const chipRunning = chipRun?.id === uc.id && chipRun.state === 'running';
           const chipRunError = chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null;
+          const chipNeedsLogin = chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null;
           const mat = maturityLabel(uc.maturity);
 
           return (
@@ -624,6 +650,7 @@ function ProgressiveTrustDemoStrip({
               {chipRunError && (
                 <p className="uc-sim-result__fetch-error">{chipRunError}</p>
               )}
+              <ChipLoginPrompt prompt={chipNeedsLogin} />
             </li>
           );
         })}
@@ -837,6 +864,18 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       })
       .catch((err) => {
         console.error('Failed to run use case:', err);
+        // The BFF now says WHICH sign-in a refused step wants, so offer it
+        // instead of printing a dead error the visitor can do nothing with.
+        const body = err?.response?.data;
+        if (body?.requiresLogin) {
+          setChipRun({
+            id: uc.id,
+            state: 'needs-login',
+            msg: body.message || 'This step needs you signed in.',
+            loginAs: body.requiredAuth === 'admin' ? 'admin' : 'user',
+          });
+          return;
+        }
         setChipRun({ id: uc.id, state: 'error', msg: formatAxiosError(err, 'Failed to launch scenario') });
       });
   }, [navigate, vertical, recordCompleted]);
@@ -1011,6 +1050,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 attackState={attackStates[uc.id]}
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
                 flagMap={flagMap}
                 flagsLoading={flagsLoading}
                 setFlag={setFlag}
@@ -1037,6 +1077,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 attackState={attackStates[uc.id]}
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
                 flagMap={flagMap}
                 flagsLoading={flagsLoading}
                 setFlag={setFlag}
@@ -1062,6 +1103,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 attackState={attackStates[uc.id]}
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
                 flagMap={flagMap}
                 flagsLoading={flagsLoading}
                 setFlag={setFlag}
@@ -1087,6 +1129,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                 attackState={attackStates[uc.id]}
                 chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                 chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
                 flagMap={flagMap}
                 flagsLoading={flagsLoading}
                 setFlag={setFlag}
@@ -1127,6 +1170,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
                   attackState={attackStates[uc.id]}
                   chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
                   chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                  chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
                   flagMap={flagMap}
                   flagsLoading={flagsLoading}
                   setFlag={setFlag}

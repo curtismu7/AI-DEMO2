@@ -13,6 +13,24 @@ const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases'
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authLevelForUseCase, AUTH_REQUIREMENTS } = require('../config/authRequirements');
 const { authenticateToken } = require('../middleware/auth');
+
+/**
+ * Guest-tolerant auth for /demo/run. Mirrors agentInvokeRoute's local helper:
+ * validate when a credential is present, pass through as a guest when it is
+ * not, and let the route decide from the use case's declared level. Wrapping
+ * `authenticateToken` (rather than replacing it) keeps existing jest mocks of
+ * the auth middleware working.
+ */
+const optionalAuthenticateToken = (req, res, next) => {
+  const hasAuthHeader = !!(req.headers['authorization']?.split(' ')[1]);
+  const hasSessionToken = !!(req.session?.oauthTokens?.accessToken)
+    && req.session.oauthTokens.accessToken !== '_cookie_session';
+  if (!hasAuthHeader && !hasSessionToken) {
+    req.user = null;
+    return next();
+  }
+  return authenticateToken(req, res, next);
+};
 const configStore = require('../services/configStore');
 const { requiredFlagsForUseCase, isFlagOn } = require('../services/demoStepPrerequisites');
 const {
@@ -67,7 +85,14 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/demo/use-cases/run  → execute use case, return trigger text for agent
-router.post('/demo/run', authenticateToken, async (req, res) => {
+//
+// Guest-tolerant, then gated per use case. `authenticateToken` used to refuse
+// every signed-out caller with a bare 401, which is wrong in both directions: a
+// public use case (UC24 Act 1) cannot run at all, and a protected one answers
+// with nothing a client can act on, so the UI could only show a dead error.
+// Now the level in auth-requirements.json decides, and a refusal names what
+// sign-in it wants so the caller can render the button.
+router.post('/demo/run', optionalAuthenticateToken, async (req, res) => {
   const { useCaseId, triggerId } = req.body;
   const vertical = req.body?.vertical || req.query.vertical || 'banking';
 
@@ -84,6 +109,25 @@ router.post('/demo/run', authenticateToken, async (req, res) => {
   const rawUseCase = require('../config/useCases').USE_CASES?.find(u => u.useCaseId === useCaseId);
   if (!rawUseCase) {
     return res.status(400).json({ success: false, error: 'Invalid useCaseId' });
+  }
+
+  // Fails closed: authLevelForUseCase answers 'user' for anything unlisted, so a
+  // new use case is protected until someone declares otherwise.
+  const requiredLevel = authLevelForUseCase(rawUseCase.id);
+  const isAdmin = req.user?.role === 'admin';
+  const meetsLevel = requiredLevel === 'public'
+    || (requiredLevel === 'admin' ? isAdmin : !!req.user);
+  if (!meetsLevel) {
+    return res.status(401).json({
+      success: false,
+      error: 'authentication_required',
+      requiresLogin: true,
+      requiredAuth: requiredLevel,
+      useCaseId,
+      message: requiredLevel === 'admin'
+        ? 'This step needs an admin sign-in.'
+        : 'This step needs you signed in.',
+    });
   }
 
   const useCase = resolveUseCase(rawUseCase.id, vertical);
