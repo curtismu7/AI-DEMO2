@@ -8,7 +8,7 @@
   },
   "scripts": {
     "topology:check": "node scripts/gen-service-topology.js check",
-    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js && node scripts/check-p1az-worker-secret-sync.js && node scripts/gen-demo-flag-map.js --check && node demo_api_server/scripts/useCaseSweep.js --dry-run && node demo_api_server/scripts/check-vertical-coercion.js && node --test scripts/check-pac-policy-drift.test.js && node demo_api_server/scripts/check-protocol-flows-drift.js",
+    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js && node scripts/check-p1az-worker-secret-sync.js && node scripts/gen-demo-flag-map.js --check && node demo_api_server/scripts/useCaseSweep.js --dry-run && node demo_api_server/scripts/check-vertical-coercion.js && node --test scripts/check-pac-policy-drift.test.js && node demo_api_server/scripts/check-protocol-flows-drift.js && bash scripts/sync-scripts.test.sh",
     "test:codegraph-index": "node --test scripts/check-codegraph-demo-index.test.js && bash langchain_agent/scripts/run-codegraph-index-tests.sh",
     "regression:paths": "node scripts/check-regression-plan-paths.js",
     "smoke:pingone-mcp": "node scripts/smoke-pingone-mcp.js",
@@ -18,6 +18,8 @@
     "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
     "topology:verify": "bash scripts/topology-verify.sh",
     "certs:ensure": "bash scripts/ensure-dev-certs.sh",
+    "sync:status": "bash scripts/sync-status.sh",
+    "sync:unblock": "bash scripts/park-main-edits.sh",
     "topology:verify:live": "bash scripts/topology-verify.sh && cd demo_api_server && npm run verify:scopes -- --manifest-diff",
     "test": "bash scripts/run-all-tests.sh",
     "test:api-server": "cd demo_api_server && npm test -- --forceExit",

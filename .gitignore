@@ -110,6 +110,11 @@ demo_api_server/data/persistent/lmdb/data.mdb
 .cursor/mcp.json
 # Personal Claude Code allowlist/settings — never committed (hygiene check 3).
 .claude/settings.local.json
+# Written by scripts/sync-main-checkout.sh on every run; read by npm run sync:status.
+.claude/sync-status.json
+# A .claude note kept aside because it diverged from the tracked copy (see
+# reconcile_parked_docs in scripts/sync-main-checkout.sh).
+.claude/*.md.local
 # SE DevOps kubeconfig backup (credentials — never commit; use install-se-kubeconfig.sh)
 .local/kube/*
 !.local/kube/README.md
