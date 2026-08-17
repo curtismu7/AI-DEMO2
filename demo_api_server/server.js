@@ -1085,9 +1085,35 @@ app.get('/api/sdk-demo/config', (req, res) => {
     }
 });
 
+// DaVinci widget login demo (/davinci-login) — public, non-secret config for
+// @forgerock/davinci-client. flowVersion lets the UI show which A/B version is
+// live (see docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md).
+app.get('/api/davinci-demo/config', (req, res) => {
+    try {
+        const davinciConfig = require('./config/davinci');
+        let redirectUri = configStore.getEffective('pingone_davinci_login_redirect_uri');
+        if (!redirectUri) {
+            const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+            const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+            redirectUri = `${proto}://${host}/davinci-login/callback`;
+        }
+        res.json({
+            wellknown:   getDiscoveryEndpoint(),
+            clientId:    davinciConfig.login.appId,
+            redirectUri,
+            flowVersion: configStore.getEffective('davinci_login_flow_version') || 'v1',
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'davinci_demo_config_failed', message: err.message });
+    }
+});
+
 // SDK demo token store — LMDB-backed custom storage adapter for @forgerock/oidc-client
 // (see routes/sdkDemoTokens.js). Mounted here, next to the public config endpoint.
 app.use('/api/sdk-demo', require('./routes/sdkDemoTokens'));
+
+// DaVinci login callback route — exchanges OIDC code for tokens and establishes session
+app.use('/api/davinci-login', require('./routes/davinciLogin'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
