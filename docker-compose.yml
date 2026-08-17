@@ -233,6 +233,15 @@ services:
       LLAMACPP_MODEL: "phi-4-mini-instruct"
       # Apple mlx-lm demo agent mode (host mlx_lm.server on :8098; Mac only).
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
+      # Trust the mkcert root so the BFF can complete a TLS handshake with the
+      # demo's own hosts. mcpChallengeProbe follows the RFC 9728 pointer in the
+      # gateway's WWW-Authenticate challenge, which is
+      # https://api.ping.demo:3036/.well-known/... — without this the metadata
+      # leg of the MCP discovery dance fails verification and the token chain
+      # shows the 401 with no authorization server resolved. Bundle = system CAs
+      # PLUS the mkcert root (NODE_EXTRA_CA_CERTS appends, never replaces), same
+      # file the other Node services already use.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
       CODE_SEARCH_DEFAULT_INDEX: ${CODE_SEARCH_DEFAULT_INDEX:-true}
       CODE_SEARCH_REPO_ROOT: /repo
       LLAMAINDEX_AGENT_URL: http://llamaindex-agent:8894
@@ -286,6 +295,14 @@ services:
     # Desktop expose the socket as root:root (mode 660), so group 0 is required.
     # The restart endpoint is admin-gated and only touches two allowlisted
     # containers; this does NOT run the BFF as root.
+    # api.ping.demo is a host /etc/hosts name (mkcert issued the cert for it), so
+    # it does not resolve on the compose network. mcpChallengeProbe follows the
+    # gateway's RFC 9728 pointer literally — https://api.ping.demo:3036/... —
+    # rather than substituting an internal name, because rewriting the URL would
+    # make the token chain claim a document the client was never pointed at.
+    # Mapping the name to the host lets that published port answer.
+    extra_hosts:
+      - "api.ping.demo:host-gateway"
     group_add:
       - "0"
     networks:
@@ -1127,7 +1144,17 @@ services:
         -file /certs/mkcert-rootCA.pem 2>/dev/null || true;
         rm -f /var/gateway/tmp/ig.pid && exec /opt/gateway/bin/start.sh /var/gateway
     ports:
-      - "3036:8080"
+      # HTTPS, not HTTP. PG_GATEWAY_RESOURCE_ID is https://api.ping.demo:3036/mcp
+      # and IG's McpProtectionFilter derives its RFC 9728 resource_metadata URL
+      # from that value — so a client following the WWW-Authenticate challenge
+      # fetches https://api.ping.demo:3036/.well-known/... . With 3036 mapped to
+      # IG's plaintext 8080 that fetch died in the TLS handshake and the
+      # discovery half of the MCP dance was unreachable from anywhere, host or
+      # container. The resource id cannot move (p1az-decision.groovy checks it as
+      # `aud`), so the listener moves instead: 8443 is IG's TLS connector, see
+      # ping-gateway/config/admin.json. In-stack callers are unaffected — they
+      # use ping-gateway:8080, which stays plaintext.
+      - "3036:8443"
     volumes:
       # /var/gateway is IG's instance dir: it must be writable + EPHEMERAL. The Docker
       # container layer (writable by default) is the Compose equivalent of the k8s
@@ -1165,6 +1192,12 @@ services:
       PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
+      # Unlocks certs/pg-tls/pg-server.p12 for the 8443 TLS connector. IG's
+      # SystemAndEnvSecretStore resolves the secret id pg.tls.keystore.password
+      # to this variable (dots -> underscores, uppercased). Must match the
+      # password scripts/ensure-pinggateway-tls-cert.sh exported the p12 with —
+      # dev-only material for a gitignored local keystore.
+      PG_TLS_KEYSTORE_PASSWORD: "${PG_TLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       # apikey-disposition tools (show_mortgage, show_gear_order, ...) validate
       # against a separate scope on the /mcp/apikey route's own PingOne resource
