@@ -27,7 +27,11 @@ export default function PolicyConformancePanel({ vertical }) {
     setRows([]);
     setSummary(null);
     try {
-      const res = await apiClient.post('/api/use-cases/conformance/run', { vertical });
+      // Runs every comparable use case sequentially against the live gateway
+      // (12+ real agent turns for banking alone) — apiClient's global 10s
+      // timeout was firing before the batch could finish, so this call never
+      // completed. Override it for this one slow, deliberately-sequential call.
+      const res = await apiClient.post('/api/use-cases/conformance/run', { vertical }, { timeout: 120000 });
       const data = res?.data || {};
       if (!data.success) throw new Error(data.error || 'run failed');
       setRows(data.rows || []);

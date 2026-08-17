@@ -1344,13 +1344,18 @@ async function runMcpToolPipeline(ctx) {
         if (err.gatewayErrorCode === 'hitl_required') {
             deps.emit({ phase: 'gateway_hitl_required' });
             // A use case that DECLARES a step-up method (UC7 'p1mfa', UC22
-            // 'ciba') presents STEP_UP even when the gateway's wire code was
+            // 'ciba') must present STEP_UP even when the gateway's wire code was
             // hitl_required — the live MCP policy answers HITL for every
             // amount, and this is the same declared-method rule
-            // _applyTransactionPolicy uses on the local-gate path.
+            // _applyTransactionPolicy uses on the local-gate path. This has to
+            // change the RESPONSE BODY, not just the mcpAuthorizeEvaluation
+            // display label below — the label used to say STEP_UP while
+            // `error` stayed 'hitl_required', so the client (and the policy-
+            // conformance checker) never saw the declared override take effect.
+            const declaredStepUpMethod = getUseCaseStepUpMethod(ctx.useCaseId);
             const gwEval = gatewayBlockAuthEval(
                 err.gwAuditTrail,
-                getUseCaseStepUpMethod(ctx.useCaseId) ? 'STEP_UP' : 'HITL_REQUIRED',
+                declaredStepUpMethod ? 'STEP_UP' : 'HITL_REQUIRED',
                 ctx
             );
             if (gwEval) {
@@ -1368,6 +1373,32 @@ async function runMcpToolPipeline(ctx) {
                         filterChain: err.gwAuditTrail.filterChain,
                     })
                 ));
+            }
+            if (declaredStepUpMethod) {
+                const stepUpBody = {
+                    error: 'mcp_step_up_required',
+                    isError: false,
+                    error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
+                    tool,
+                    step_up_method: declaredStepUpMethod,
+                    tokenEvents,
+                    requestJson,
+                    ...(gwEval ? { mcpAuthorizeEvaluation: gwEval } : {}),
+                };
+                try {
+                    const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
+                    deps.publishMcpResultToSse(flowTraceId, {
+                        tool,
+                        result: { error: 'mcp_step_up_required', message: stepUpBody.error_description },
+                        durationMs: Date.now() - startTime,
+                        isDelegated: !!mcpAccessToken,
+                        requestJson,
+                        denied: true,
+                        mcpAuthorizeEvaluation: gwEval || _authEval?.singular || null,
+                        mcpAuthorizeEvaluations: _authEval?.plural || null,
+                    });
+                } catch (_) { /* SSE best-effort */ }
+                return { kind: 'block', httpStatus: 428, tokenEvents, body: stepUpBody };
             }
             const hitlBody = {
                 error: 'hitl_required',
