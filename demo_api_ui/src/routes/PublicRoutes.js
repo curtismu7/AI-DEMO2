@@ -29,6 +29,7 @@ import McpInspectorPage from "../components/McpInspectorPage";
 import McpGatewayConfig from "../components/McpGatewayConfig";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
+import DavinciLoginPage from "../pages/DavinciLoginPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
@@ -258,6 +259,11 @@ export function SdkLoginPageRoute() {
   // Bare (no AppShell): the SDK sandbox is a self-contained page — no banking app
   // chrome, sidebar, or global education modals.
   return <SdkLoginPage />;
+}
+
+// DaVinci widget login sandbox (public) — drives its own browser-side flow.
+export function DavinciLoginPageRoute() {
+  return <DavinciLoginPage />;
 }
 
 // OIDC redirect callback (bare — no shell, it exchanges the code and redirects).

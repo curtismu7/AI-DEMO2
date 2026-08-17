@@ -170,6 +170,7 @@ import PublicRoutes, {
   CodeSearchPageRoute,
   ConfigurePage,
   CopilotPageRoute,
+  DavinciLoginPageRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
   LiveUseCaseWorkbenchPageRoute,
@@ -712,6 +713,7 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route path="/davinci-login" element={<DavinciLoginPageRoute />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
