@@ -426,6 +426,12 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // audience before forwarding to the MCP server (act claim identifies the Backend-for-Frontend (BFF)).
   PINGONE_RESOURCE_MCP_SERVER_URI:        { public: true,  default: '' },
 
+  // RFC 8693 Token Exchange — api-key-disposition MCP resource URI (PingGateway
+  // /mcp/apikey route). Distinct audience from PINGONE_RESOURCE_PINGGATEWAY_URI
+  // so a token minted for the plain /mcp route cannot be replayed against
+  // /mcp/apikey — see agentMcpTokenService.js _performTwoExchangeDelegation.
+  PINGONE_RESOURCE_MCP_APIKEY_URI:        { public: true,  default: '' },
+
   // RFC 8693 Token Exchange — langchain chat agent resource URI (Path A).
   // The BFF chat-WS proxy requests a token-exchange to this audience before
   // delivering the token to langchain in session_init. langchain validates
@@ -1160,6 +1166,7 @@ class ConfigStore {
       ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
       ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
       pingone_resource_pinggateway_uri: ['PINGONE_RESOURCE_PINGGATEWAY_URI'],
+      pingone_resource_mcp_apikey_uri:  ['PINGONE_RESOURCE_MCP_APIKEY_URI'],
       ff_authorize_real:          ['FF_AUTHORIZE_REAL'],
       pingone_ai_agent_client_id:       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
       pingone_ai_agent_client_secret:    ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],

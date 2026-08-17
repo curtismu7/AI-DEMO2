@@ -36,7 +36,7 @@
       "config": {
         "requireHttps": false,
         "scopes": [
-          "${empty env['PG_INBOUND_SCOPE'] ? 'gateway:mcp:invoke' : env['PG_INBOUND_SCOPE']}"
+          "${empty env['PG_APIKEY_INBOUND_SCOPE'] ? 'apikey:mcp:invoke' : env['PG_APIKEY_INBOUND_SCOPE']}"
         ],
         "accessTokenResolver": "ApikeyTokenResolver"
       }

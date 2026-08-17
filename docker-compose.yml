@@ -1166,6 +1166,11 @@ services:
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
+      # apikey-disposition tools (show_mortgage, show_gear_order, ...) validate
+      # against a separate scope on the /mcp/apikey route's own PingOne resource
+      # (PINGONE_RESOURCE_MCP_APIKEY_URI) — see 00-mcp-apikey.json and
+      # agentMcpTokenService.js _performTwoExchangeDelegation.
+      PG_APIKEY_INBOUND_SCOPE: "apikey:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # HITL_SERVICE_URL / HITL_INTERNAL_SECRET are supplied by env_file
       # (ping-gateway/.env, written by refresh-service-envs.js) — NOT here.
