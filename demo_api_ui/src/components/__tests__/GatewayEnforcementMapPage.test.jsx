@@ -7,7 +7,7 @@ import { GATEWAY_ENFORCEMENT_ROWS } from '../education/gatewayEnforcementDiagram
 describe('GatewayEnforcementMapPage', () => {
   it('renders a P1AZ column so the table actually compares against P1AZ, not just the two gateways', () => {
     render(<GatewayEnforcementMapPage />);
-    expect(screen.getByText('Why P1AZ can\'t')).toBeInTheDocument();
+    expect(screen.getByText('Why the gateway owns it')).toBeInTheDocument();
     const firstRow = GATEWAY_ENFORCEMENT_ROWS[0];
     expect(screen.getByText(firstRow.p1az)).toBeInTheDocument();
   });

@@ -525,16 +525,20 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               )}
             </div>
           )}
-          <div className="tctr-sec-label">
-            {trace.prompt
-              ? `${viewMode === "live" ? "Live Pipeline" : "Pipeline"} — "${trace.prompt.message}"`
-              : `${viewMode === "live" ? "Live Pipeline" : "Pipeline"} — awaiting agent action`}
-          </div>
-
-          {viewMode === "live" && steps.length === 0 && (
-            <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
-          )}
-          <DemoTrackBand track={track} activeIndex={trackIndex} onSelect={onTrackSelect} />
+          <details className="tctr-acc" open>
+            <summary>
+              <span className="tctr-chev">▶</span>
+              {trace.prompt
+                ? `${viewMode === "live" ? "Live Pipeline" : "Pipeline"} — "${trace.prompt.message}"`
+                : `${viewMode === "live" ? "Live Pipeline" : "Pipeline"} — awaiting agent action`}
+            </summary>
+            <div className="tctr-acc-body">
+              {viewMode === "live" && steps.length === 0 && (
+                <div className="tctr-live-empty">Run an agent flow to build the token chain.</div>
+              )}
+              <DemoTrackBand track={track} activeIndex={trackIndex} onSelect={onTrackSelect} />
+            </div>
+          </details>
           {/* One rendering at a time — Chain Map (presenter-facing nodes +
               Run/Present) or the Step Detail list. */}
           <div className="tctr-chain-tabs" role="tablist" aria-label="Token chain view">

@@ -3,23 +3,24 @@
 // header comment) and this file regenerates in lockstep with docs/gateway-enforcement-map.md.
 
 export const GATEWAY_ENFORCEMENT_JOURNEY_MERMAID = `flowchart LR
-  REQ["Tool call arrives"] --> P1AZ["P1AZ evaluates"]
-  P1AZ -.->|can't check| b_temporal["Temporal exp/iat/nbf"]
-  P1AZ -.->|can't check| b_scope["Per-tool scope membership"]
-  P1AZ -.->|can't check| b_rar["RAR payee allow-list"]
-  P1AZ -.->|can't check| b_d05["D-05 multi-aud anti-bypass"]
-  P1AZ -.->|can't check| b_tier["tiers.groupToTier mapping"]
-  b_temporal --> GW["Gateway backstops"]
-  b_scope --> GW["Gateway backstops"]
-  b_rar --> GW["Gateway backstops"]
-  b_d05 --> GW["Gateway backstops"]
-  b_tier --> GW["Gateway backstops"]
+  REQ["Tool call arrives"] --> P1AZ["P1AZ decides business policy"]
+  P1AZ -.->|delegates to PEP| b_temporal["Temporal exp/iat/nbf"]
+  P1AZ -.->|delegates to PEP| b_scope["Per-tool scope membership"]
+  P1AZ -.->|delegates to PEP| b_rar["RAR payee allow-list"]
+  P1AZ -.->|delegates to PEP| b_d05["D-05 multi-aud anti-bypass"]
+  P1AZ -.->|delegates to PEP| b_tier["tiers.groupToTier mapping"]
+  b_temporal --> GW["Gateway enforces at the PEP"]
+  b_scope --> GW["Gateway enforces at the PEP"]
+  b_rar --> GW["Gateway enforces at the PEP"]
+  b_d05 --> GW["Gateway enforces at the PEP"]
+  b_tier --> GW["Gateway enforces at the PEP"]
   GW --> DEC["Final decision"]
   classDef done fill:#0a2418,color:#6ee7b7,stroke:#059669,stroke-width:1px
+  classDef bydesign fill:#062b2b,color:#5eead4,stroke:#0d9488,stroke-width:1px
   classDef flagged fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:1px,stroke-dasharray:2 2
   classDef pending fill:#2d0a0a,color:#fca5a5,stroke:#dc2626,stroke-width:1px,stroke-dasharray:4 4
   class b_temporal,b_scope,b_d05,b_tier done
-  class b_rar flagged`;
+  class b_rar bydesign`;
 
 export const GATEWAY_ENFORCEMENT_STAKES = [
   {
@@ -27,35 +28,35 @@ export const GATEWAY_ENFORCEMENT_STAKES = [
     "label": "Temporal exp/iat/nbf",
     "scenario": "A token minted hours ago, past the demo's replay window, gets replayed against a tool call — exp alone doesn't catch this, only iat max-age does.",
     "verdictTier": "done",
-    "verdictText": "Caught locally — both gateways"
+    "verdictText": "Enforced at both gateways"
   },
   {
     "id": "scope",
     "label": "Per-tool scope membership",
     "scenario": "A token carries the coarse gateway:mcp:invoke scope but never earned transfer — and tries to call create_transfer anyway.",
     "verdictTier": "done",
-    "verdictText": "Caught locally — both gateways"
+    "verdictText": "Enforced at both gateways"
   },
   {
     "id": "rar",
     "label": "RAR payee allow-list",
     "scenario": "A transfer's granted intent named one payee — the actual call sends the funds somewhere else.",
-    "verdictTier": "flagged",
-    "verdictText": "Node catches it — IG ships this off by default"
+    "verdictTier": "bydesign",
+    "verdictText": "Node enforces locally · IG delegates to P1AZ by design"
   },
   {
     "id": "d05",
     "label": "D-05 multi-aud anti-bypass",
     "scenario": "An agent presents a token whose aud already targets the banking resource server directly — skipping the gateway hop entirely.",
     "verdictTier": "done",
-    "verdictText": "Caught locally — both gateways"
+    "verdictText": "Enforced at both gateways"
   },
   {
     "id": "tier",
     "label": "tiers.groupToTier mapping",
     "scenario": "A Standard-tier caller invokes a PrivateBanking-only tool, or tries to move more than their tier's ceiling.",
     "verdictTier": "done",
-    "verdictText": "Caught locally — both gateways"
+    "verdictText": "Enforced at both gateways"
   }
 ];
 
@@ -63,7 +64,7 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
   {
     "id": "temporal",
     "label": "Temporal exp/iat/nbf",
-    "p1az": "Temporal exp/iat/nbf (mock Rules 0c-0f): the snapshot Timestamp attribute is an ISO 8601 STRING while token claims are epoch-second strings; without a verified CurrentEpoch attribute and confirmed numeric coercion the co",
+    "p1az": "Temporal exp/iat/nbf (mock Rules 0c-0f): the snapshot Timestamp attribute is an ISO 8601 STRING while token claims are epoch-second strings; without a verified CurrentEpoch attribute and confirmed numeric coercion the…",
     "node": {
       "status": "done",
       "note": "iat max-age check in tokenValidator.ts"
@@ -95,8 +96,8 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
       "note": "rarEnforce.ts — unconditional, gated on REQUIRE_RAR_INTENT"
     },
     "groovy": {
-      "status": "flagged",
-      "note": "opt-in only — check-groovy-params.sh:78-81 warns against a local RAR DENY here (\"P1AZ decides\")"
+      "status": "bydesign",
+      "note": "forwards RarAuthorizationDetails/RarMaxAmount/RarPermittedPayees so the cloud RarMaxAmount rule decides (p1az-decision.groovy:716-718); the local payee DENY stays opt-in behind PG_LOCAL_RAR_PAYEE_ENFORCE"
     }
   },
   {
@@ -115,7 +116,7 @@ export const GATEWAY_ENFORCEMENT_ROWS = [
   {
     "id": "tier",
     "label": "tiers.groupToTier mapping",
-    "p1az": "tiers.groupToTier (step 10): mapping a PingOne group ARRAY to a tier needs set membership. The BFF resolves it and sends the scalar UserTier, the same flattening precedent as InRequiredGroup / TokenKidKnown. The tier THR",
+    "p1az": "tiers.groupToTier (step 10): mapping a PingOne group ARRAY to a tier needs set membership. The BFF resolves it and sends the scalar UserTier, the same flattening precedent as InRequiredGroup / TokenKidKnown. The tier…",
     "node": {
       "status": "done",
       "note": "tierEnforce.ts, reads X-User-Tier/X-Tier-Max-Amount-Usd/X-Tier-Restricted-Tools headers from the BFF"

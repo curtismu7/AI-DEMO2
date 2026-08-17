@@ -329,6 +329,18 @@
   padding: 8px 12px 2px;
 }
 
+/* Collapsible "Live pipeline" section — mirrors TokenChainTraceRail's .tctr-acc */
+.tcfs-chain-acc > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.tcfs-chain-acc > summary::-webkit-details-marker { display: none; }
+.tcfs-chev { transition: transform 0.15s; font-size: 11.5px; color: var(--th-text-muted); }
+.tcfs-chain-acc[open] .tcfs-chev { transform: rotate(90deg); }
+
 .tcfs-empty {
   margin: 10px 12px;
   padding: 16px;
