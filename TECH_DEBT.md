@@ -7,6 +7,47 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
+
+**Where:** `ping-gateway/.env` (`PG_GATEWAY_RESOURCE_ID=https://api.ping.demo:3036/mcp`),
+consumed as `resourceId` by `ping-gateway/config/routes/01-mcp-olb.json` (and the
+`/apikey`, `/invest` variants), and checked as `aud` by
+`ping-gateway/scripts/groovy/p1az-decision.groovy` (~line 789) and
+`jwks-token-validation.groovy`.
+
+**What's wrong:** one value carries two unrelated contracts. As an OAuth audience
+it only has to be a stable opaque identifier every party agrees on. As the input
+IG's `McpProtectionFilter` derives its RFC 9728 `resource_metadata` URL from, it
+has to be a URL that actually serves a metadata document. Nothing enforces the
+second property, and for months it did not hold: the identifier said `https` on
+port 3036 while the listener there was plaintext, so every `WWW-Authenticate`
+challenge pointed clients at a URL that failed the TLS handshake from the host
+and from inside the compose network alike. Discovery was unreachable and nothing
+reported it, because the audience half kept working perfectly.
+
+**Why not fixed now:** the obvious repair — point the metadata URL at something
+reachable — is unavailable, because changing `PG_GATEWAY_RESOURCE_ID` changes the
+audience every token in the chain is minted against (`MCP_GW_RESOURCE_URI` in
+`docker-compose.yml` lists it, PingOne resources are provisioned with it,
+`scope-topology.json` records it as `pingGatewayResourceUri`). PR #1938 therefore
+moved the LISTENER to match the identifier instead — IG now serves TLS on 8443,
+published as host 3036 — which makes the advertisement true today but leaves the
+coupling in place. The Node gateway does not share the problem: `selfBaseUrl.ts`
+derives its pointer from the request authority, so its challenge is always
+reachable by construction.
+
+**What the real fix looks like:** separate the two roles. Give IG a distinct
+`PG_GATEWAY_METADATA_BASE` (defaulting to the request authority, as the Node
+gateway already does) used only to build the `resource_metadata` URL, leaving
+`PG_GATEWAY_RESOURCE_ID` purely an audience string that never has to be
+dereferenceable. That requires either an IG config knob for the filter's metadata
+base or moving the challenge out of the built-in `McpProtectionFilter` into the
+Groovy that already builds one (`jwks-token-validation.groovy`'s `deny()`), which
+is why it was not attempted alongside a TLS change. Until then, a regression test
+worth having: assert that the URL in the gateway's `WWW-Authenticate` actually
+returns 200 — the failure mode here was silent precisely because nobody followed
+the pointer.
+
 ### 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
 
 **Where:** `demo_api_server/routes/davinciLogin.js` (`POST /callback`).
