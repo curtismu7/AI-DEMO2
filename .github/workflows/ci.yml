@@ -66,6 +66,7 @@ jobs:
               - 'demo_api_server/data/publicBranchCatalog.js'
               - 'demo_mcp_gateway/**'
               - 'oauth-mcp/**'
+              - 'demo_mcp_resource_server/**'
               - 'snapshots/**'
               - 'scripts/test-service-suite.sh'
               - 'scripts/test-snapshots.sh'
@@ -132,11 +133,17 @@ jobs:
     # DemoMCPServer lifecycle test died on it. Unrun is indistinguishable from
     # passing until someone looks.
     #
-    # These are bundled into ONE job rather than split into three, because the
+    # demo_mcp_resource_server joined 2026-08-17 for the third time this pattern
+    # bit: it had `"test": "jest"` and 168 passing tests, and NO job ran them —
+    # it appeared nowhere in this file. Found while renaming its accepted-audience
+    # env var (TECH_DEBT T4), where the only proof the change was safe came from
+    # a local run.
+    #
+    # These are bundled into ONE job rather than split into four, because the
     # Actions budget documented at the top of this file is the binding
     # constraint — a separate job means another runner and another npm install
-    # for ~90s of tests. Bundling is why this job already spans two services.
-    name: Service suites (authz-server + mcp-gateway + mcp-server)
+    # for ~90s of tests. Bundling is why this job already spans three services.
+    name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
     needs: changes
     if: needs.changes.outputs['decision-services'] == 'true'
     runs-on: ubuntu-latest
@@ -154,6 +161,8 @@ jobs:
         run: npm install --prefix demo_mcp_gateway --no-audit --no-fund
       - name: Install oauth-mcp deps
         run: npm install --prefix oauth-mcp --no-audit --no-fund
+      - name: Install demo_mcp_resource_server deps
+        run: npm install --prefix demo_mcp_resource_server --no-audit --no-fund
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       - name: demo_authz_server suite (node --test, root + tests/)
@@ -165,5 +174,10 @@ jobs:
       # is a regression and must fail the job.
       - name: oauth-mcp suite (Jest, unit)
         run: npm run test:mcp-server
+      # Same contract as oauth-mcp above: no pre-existing-failure tolerance. The
+      # suite is fully green (22 suites / 168 tests) as of this change, so any
+      # red here is a regression and must fail the job.
+      - name: demo_mcp_resource_server suite (Jest)
+        run: npm run test:mcp-resource-server
       - name: Cloud P1AZ snapshot drift + DecisionContext coverage
         run: npm run test:snapshots
