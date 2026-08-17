@@ -192,10 +192,12 @@ beforeEach(() => {
 /**
  * Render signed out (`user={null}`).
  *
- * Path matters: `/` and `/dashboard` are marketing guest-chat surfaces
- * (isPublicMarketingAgentPath), where a signed-out visitor may already chat, so
- * the sign-in prompt never appears there for any use case. Anywhere else only
- * the use case's own level decides — that is where the gate is worth testing.
+ * `/` and `/dashboard` are marketing guest-chat surfaces
+ * (isPublicMarketingAgentPath). That used to decide demo steps too: a signed-out
+ * visitor picking a protected step there sent it, took a 401, and got bounced to
+ * PingOne mid-answer instead of seeing the sign-in prompt. Guest-chat
+ * eligibility is about the page; only the step's own level decides whether the
+ * step may run. Both surfaces are covered below.
  */
 function renderSignedOut(path = "/dashboard") {
   return render(
@@ -261,5 +263,42 @@ describe("protected demo step, signed out, off the marketing surfaces", () => {
       expect(screen.getByText(/needs you signed in/i)).toBeInTheDocument();
     });
     expect(sendAgentMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("protected demo step, signed out, ON a guest-chat surface", () => {
+  // The reported bug. /dashboard allows guest chat, which the gate read as
+  // "this step may run" — so the step sent, 401'd, and redirected to PingOne
+  // instead of queueing behind the prompt this branch exists to show.
+  it.each(["/dashboard", "/"])("queues behind the sign-in prompt on %s", async (path) => {
+    renderSignedOut(path);
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(screen.getByText(/needs you signed in/i)).toBeInTheDocument();
+    });
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not arm flags for a step it cannot run yet", async () => {
+    // Arming is admin-gated; signed out it could only 401. The flags are carried
+    // to the resume path instead, which runs once login lands.
+    expect(requiredFlagsForUseCase(UC1).length).toBeGreaterThan(0);
+
+    renderSignedOut("/dashboard");
+    await runStep(UC1);
+
+    expect(apiPatch).not.toHaveBeenCalled();
+  });
+
+  it("leaves a public step running as before", async () => {
+    // Guard against over-correcting: the gate must still let UC24 through here.
+    renderSignedOut("/dashboard");
+    await runStep(UC24);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Running Demo step 1/i)).toBeInTheDocument();
+    });
+    expect(document.body.textContent).not.toContain("needs you signed in");
   });
 });

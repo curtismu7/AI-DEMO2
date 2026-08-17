@@ -111,7 +111,7 @@ import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
-import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY } from "../constants/agentPendingKeys";
+import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY, BX_AGENT_PENDING_FLAGS_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
 import { useAgentState } from "../hooks/useAgentState";
@@ -494,8 +494,34 @@ export default function BankingAgent({
   /** True when the pending NL belongs to a `public` use case — it may send with no session. */
   const pendingUcPublicRef = useRef(false);
   /** Flags the queued step needs, captured at pick time. Arming is admin-gated, so a
-   *  step picked signed-out cannot arm until login lands and the resume effect fires. */
+   *  step picked signed-out cannot arm until login lands and the resume effect fires.
+   *  Mirrored into sessionStorage on login (the ref dies across the OAuth redirect). */
   const pendingUcFlagsRef = useRef(null);
+  /** True when the queued step needs a session, so the resume effect must wait for a
+   *  real login rather than firing on guest-chat eligibility. */
+  const pendingUcNeedsAuthRef = useRef(false);
+
+  /**
+   * Restore the context a queued step needs, claimed one-shot from sessionStorage.
+   * The OAuth login is a full redirect, so every ref is gone by the time we come
+   * back — only what `handleLoginAction` persisted survives. Both mount paths
+   * (?oauth=success and the plain launcher deep-link) call this.
+   */
+  function claimPendingStepContext() {
+    try {
+      const ucId = sessionStorage.getItem(BX_AGENT_PENDING_UC_ID_KEY);
+      if (ucId) {
+        sessionStorage.removeItem(BX_AGENT_PENDING_UC_ID_KEY);
+        pendingUcIdRef.current = ucId;
+      }
+      const rawFlags = sessionStorage.getItem(BX_AGENT_PENDING_FLAGS_KEY);
+      if (rawFlags) {
+        sessionStorage.removeItem(BX_AGENT_PENDING_FLAGS_KEY);
+        const parsed = JSON.parse(rawFlags);
+        if (Array.isArray(parsed) && parsed.length) pendingUcFlagsRef.current = parsed;
+      }
+    } catch (_) { /* storage blocked or bad JSON — the step still runs, just unarmed */ }
+  }
   const pendingNlResumeRef = useRef(null);
   const nlSendGuardRef = useRef(null);
   if (!nlSendGuardRef.current) nlSendGuardRef.current = makeReentrancyGuard();
@@ -1695,6 +1721,12 @@ export default function BankingAgent({
             setCookieOnlyBffSession(cookieOnly);
             setSessionUser(found);
             if (pendingNl) {
+              // handleLoginAction persisted the useCaseId and the flags this step
+              // still needs armed, but nothing on this path ever read them back —
+              // the effect that does early-returns when oauth=success. The step
+              // therefore resumed without its useCaseId (so no forceHeuristic or
+              // A2.1/A2.2 stamping) and with its flags off.
+              claimPendingStepContext();
               setNlResumeAfterAuth(pendingNl);
             }
             setMessages((prev) => {
@@ -1751,14 +1783,9 @@ export default function BankingAgent({
     if (searchParams.get("oauth") === "success") return; // handled by the oauth effect above
     // BUG 1 fix: always claim ucId BEFORE the early-return so a stale key can't
     // bleed into the next launcher run (e.g. second tab claims the NL first).
-    let pendingUcId = null;
-    try {
-      pendingUcId = sessionStorage.getItem(BX_AGENT_PENDING_UC_ID_KEY);
-      if (pendingUcId) sessionStorage.removeItem(BX_AGENT_PENDING_UC_ID_KEY);
-    } catch (_) {}
+    claimPendingStepContext();
     const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
     if (!pendingNl) return;
-    if (pendingUcId) pendingUcIdRef.current = pendingUcId;
     setNlResumeAfterAuth(pendingNl);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3069,6 +3096,12 @@ export default function BankingAgent({
       const ucIdInFlight = pendingUcIdRef.current
         || sessionStorage.getItem(BX_AGENT_PENDING_UC_ID_KEY);
       if (ucIdInFlight) sessionStorage.setItem(BX_AGENT_PENDING_UC_ID_KEY, ucIdInFlight);
+      // Same reason as the ucId above: the flags the queued step still needs
+      // armed only exist in a ref, and this redirect unmounts the component.
+      const flagsInFlight = pendingUcFlagsRef.current;
+      if (flagsInFlight?.length) {
+        sessionStorage.setItem(BX_AGENT_PENDING_FLAGS_KEY, JSON.stringify(flagsInFlight));
+      }
     } catch (_) {}
     const apiUrl = process.env.REACT_APP_API_URL || window.location.origin;
     if (actionId === "login_admin") {
@@ -7295,10 +7328,18 @@ export default function BankingAgent({
       // queued by a guest would otherwise run its flags unarmed after login.
       pendingUcFlagsRef.current = isLoggedIn ? null : ucFlags;
       pendingNlResumeRef.current = null;
-      // Not eligible to send yet (no session, no guest chat on this path) — queue
-      // the step anyway (below) and show an actionable sign-in prompt instead of
-      // returning with nothing; the resume effect fires it the moment login lands.
-      if (!(isLoggedIn || marketingGuestChatEnabled || runsSignedOut(uc))) {
+      // Guest-chat eligibility is about the PAGE, not the step. `/` and
+      // `/dashboard` allow guests to chat, which used to be read as "this step
+      // may run" — so a signed-out visitor picking a non-public step sent it,
+      // got a 401, and was bounced to PingOne mid-answer instead of seeing the
+      // sign-in prompt this branch exists to show. Only the step's own auth
+      // level decides.
+      const stepNeedsAuth = !isLoggedIn && !runsSignedOut(uc);
+      pendingUcNeedsAuthRef.current = stepNeedsAuth;
+      // Not eligible to send yet — queue the step anyway (below) and show an
+      // actionable sign-in prompt instead of returning with nothing; the resume
+      // effect fires it the moment login lands.
+      if (stepNeedsAuth) {
         addMessage(
           "assistant",
           `${stepLabel} needs you signed in — it'll run as soon as you do.`,
@@ -7786,9 +7827,15 @@ export default function BankingAgent({
   // (or immediately for guest-chat-eligible paths — same gate as the chip/typed
   // send paths above, so a chip that doesn't need auth doesn't wait for it).
   useEffect(() => {
+    // A step that needs a session waits for a real one. Without this, guest-chat
+    // eligibility on `/dashboard` fired the step the branch above just queued,
+    // which is what made the sign-in prompt unreachable there.
+    const eligible = pendingUcNeedsAuthRef.current
+      ? isLoggedIn
+      : isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current;
     if (
       !nlResumeAfterAuth ||
-      !(isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current) ||
+      !eligible ||
       pendingNlResumeRef.current === nlResumeAfterAuth
     ) {
       return;
@@ -7801,6 +7848,7 @@ export default function BankingAgent({
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
     pendingUcPublicRef.current = false;
+    pendingUcNeedsAuthRef.current = false;
     // Flags the step could not arm while signed out (arming is admin-gated).
     const deferredFlags = pendingUcFlagsRef.current;
     pendingUcFlagsRef.current = null;
