@@ -403,7 +403,15 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             steps={steps}
             showTrust={showTrust}
             mcpCount={mcpDone}
-            onOpenView={(viewId) => setTab(VIEW_ID_TO_TAB[viewId] || "chain")}
+            onOpenView={(viewId) => {
+              // Topology opens the existing TokenTopologyPanel modal (App.js),
+              // not an inline tab — same event the AIAgent header ⊞ uses.
+              if (viewId === "topology") {
+                window.dispatchEvent(new CustomEvent("token-topology-open"));
+                return;
+              }
+              setTab(VIEW_ID_TO_TAB[viewId] || "chain");
+            }}
           />
           <div className="tctr-more" ref={moreRef}>
             <button
