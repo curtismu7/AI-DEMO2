@@ -7,9 +7,9 @@ export async function dispatchManufacturingTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_work_orders': {
+    case 'view_work_orders': {
       const workOrders = listWorkOrders();
-      return { workOrders, count: workOrders.length };
+      return { workOrders, count: workOrders.length, render: 'view_work_orders' };
     }
 
     case 'get_work_order': {

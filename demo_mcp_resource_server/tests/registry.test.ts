@@ -10,11 +10,11 @@ describe('ALL_TOOLS registry', () => {
     // New verticals
     expect(names).toContain('list_banking_accounts');
     expect(names).toContain('view_records');
-    expect(names).toContain('list_permits');
-    expect(names).toContain('list_work_orders');
+    expect(names).toContain('view_permits');
+    expect(names).toContain('view_work_orders');
     expect(names).toContain('list_orders');
     expect(names).toContain('list_gear_orders');
-    expect(names).toContain('list_courses');
+    expect(names).toContain('view_courses');
     expect(names).toContain('list_expenses');
     expect(names).toContain('list_anf_orders');
   });

@@ -43,25 +43,47 @@ describe('Sporting-goods tools', () => {
 });
 
 describe('University tools', () => {
-  it('conforms', () => checkConformance(UNIVERSITY_TOOLS, 'university:read'));
-  it('list_courses returns courses array', async () => {
-    const r = await dispatchUniversityTool('list_courses', {}) as any;
+  it('conforms to McpToolDef shape', () => {
+    for (const t of UNIVERSITY_TOOLS) {
+      expect(t.description.length).toBeGreaterThan(10);
+      expect(Array.isArray(t.intentHints)).toBe(true);
+      expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
+    }
+    expect(UNIVERSITY_TOOLS.find((t) => t.name === 'view_courses')?.requiredScopes).toContain('read');
+    expect(UNIVERSITY_TOOLS.find((t) => t.name === 'get_course')?.requiredScopes).toContain('university:read');
+  });
+  it('view_courses returns courses array, stamped for the chip-facing manifest descriptor', async () => {
+    const r = await dispatchUniversityTool('view_courses', {}) as any;
     expect(Array.isArray(r.courses)).toBe(true);
     expect(r.courses[0]).toHaveProperty('id');
+    expect(r.render).toBe('view_courses');
   });
   it('get_course returns one by id', async () => {
-    const list = (await dispatchUniversityTool('list_courses', {}) as any).courses;
+    const list = (await dispatchUniversityTool('view_courses', {}) as any).courses;
     const r = await dispatchUniversityTool('get_course', { course_id: list[0].id }) as any;
     expect(r.course.id).toBe(list[0].id);
   });
 });
 
+// workforce and abercrombie-fitch differ from healthcare/government/manufacturing/
+// university: their SQLite tool name is ALREADY the chip-facing name (list_expenses,
+// list_anf_orders) — no rename, just a router.ts entry so it stops falling through
+// to 'olb' and getting shadowed by the BFF's identically-named handler.
 describe('Workforce tools', () => {
-  it('conforms', () => checkConformance(WORKFORCE_TOOLS, 'workforce:read'));
-  it('list_expenses returns expenses array', async () => {
+  it('conforms to McpToolDef shape', () => {
+    for (const t of WORKFORCE_TOOLS) {
+      expect(t.description.length).toBeGreaterThan(10);
+      expect(Array.isArray(t.intentHints)).toBe(true);
+      expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
+    }
+    expect(WORKFORCE_TOOLS.find((t) => t.name === 'list_expenses')?.requiredScopes).toContain('read');
+    expect(WORKFORCE_TOOLS.find((t) => t.name === 'get_expense')?.requiredScopes).toContain('workforce:read');
+  });
+  it('list_expenses returns expenses array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchWorkforceTool('list_expenses', {}) as any;
     expect(Array.isArray(r.expenses)).toBe(true);
     expect(r.expenses[0]).toHaveProperty('id');
+    expect(r.render).toBe('list_expenses');
   });
   it('get_expense returns one by id', async () => {
     const list = (await dispatchWorkforceTool('list_expenses', {}) as any).expenses;
@@ -71,11 +93,20 @@ describe('Workforce tools', () => {
 });
 
 describe('ANF tools', () => {
-  it('conforms', () => checkConformance(ANF_TOOLS, 'anf:read'));
-  it('list_anf_orders returns orders array', async () => {
+  it('conforms to McpToolDef shape', () => {
+    for (const t of ANF_TOOLS) {
+      expect(t.description.length).toBeGreaterThan(10);
+      expect(Array.isArray(t.intentHints)).toBe(true);
+      expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
+    }
+    expect(ANF_TOOLS.find((t) => t.name === 'list_anf_orders')?.requiredScopes).toContain('read');
+    expect(ANF_TOOLS.find((t) => t.name === 'get_anf_order')?.requiredScopes).toContain('anf:read');
+  });
+  it('list_anf_orders returns orders array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchAnfTool('list_anf_orders', {}) as any;
     expect(Array.isArray(r.orders)).toBe(true);
     expect(r.orders[0]).toHaveProperty('id');
+    expect(r.render).toBe('list_anf_orders');
   });
   it('get_anf_order returns one by id', async () => {
     const list = (await dispatchAnfTool('list_anf_orders', {}) as any).orders;

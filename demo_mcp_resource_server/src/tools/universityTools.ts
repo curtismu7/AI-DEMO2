@@ -4,10 +4,12 @@ import { dispatchUniversityTool } from './universityToolHandler';
 
 export const UNIVERSITY_TOOLS: McpToolDef[] = [
   {
-    name: 'list_courses',
+    // Named to match scope-topology.json's tools.view_courses entry
+    // (requiredScopes ["read"]) — same pattern as healthcare's view_records.
+    name: 'view_courses',
     description: 'List all courses for the authenticated student, including title, type, credits, and grade.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    requiredScopes: ['university:read'],
+    requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
       'show my courses',

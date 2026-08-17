@@ -7,9 +7,9 @@ export async function dispatchGovernmentTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_permits': {
+    case 'view_permits': {
       const permits = listPermits();
-      return { permits, count: permits.length };
+      return { permits, count: permits.length, render: 'view_permits' };
     }
 
     case 'get_permit': {

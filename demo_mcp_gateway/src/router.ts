@@ -84,6 +84,29 @@ const HEALTHCARE_TOOLS = new Set([
   'view_records',
 ]);
 
+// Same pilot pattern as healthcare — government, manufacturing, university.
+// get_permit/get_work_order/get_course deliberately NOT routed: no chip in
+// any of the three manifests calls a single-record lookup.
+const GOVERNMENT_TOOLS = new Set([
+  'view_permits',
+]);
+const MANUFACTURING_TOOLS = new Set([
+  'view_work_orders',
+]);
+const UNIVERSITY_TOOLS = new Set([
+  'view_courses',
+]);
+// workforce and abercrombie-fitch: SAME-NAME shadow, not a rename — the SQLite
+// (resp. mock-JSON) tool name already matches the chip-facing manifest tool.
+// Without this entry it falls through to the default 'olb' target and the BFF's
+// identically-named handler silently answers instead.
+const WORKFORCE_TOOLS = new Set([
+  'list_expenses',
+]);
+const ANF_TOOLS = new Set([
+  'list_anf_orders',
+]);
+
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
 // from jwt-verifier-mcp-server/src/actions/*.ts. Tool names must match exactly.
 const JWT_VERIFIER_TOOLS = new Set([
@@ -140,6 +163,11 @@ export function routeTool(toolName: string): BackendTarget {
   if (INVEST_TOOLS.has(toolName))        return 'invest';
   if (AIRLINES_TOOLS.has(toolName))      return 'invest';
   if (HEALTHCARE_TOOLS.has(toolName))    return 'invest';
+  if (GOVERNMENT_TOOLS.has(toolName))    return 'invest';
+  if (MANUFACTURING_TOOLS.has(toolName)) return 'invest';
+  if (UNIVERSITY_TOOLS.has(toolName))    return 'invest';
+  if (WORKFORCE_TOOLS.has(toolName))     return 'invest';
+  if (ANF_TOOLS.has(toolName))           return 'invest';
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
   if (WEATHER_TOOLS.has(toolName))       return 'weather';
   if (BRAVE_TOOLS.has(toolName))         return 'brave';
