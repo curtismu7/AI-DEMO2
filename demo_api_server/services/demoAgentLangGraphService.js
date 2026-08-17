@@ -1531,7 +1531,10 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
     requiresConsent: false,
     agentConfigured: true,
     tokenEvents,
-    verticalResult: { action, render: (out && out.render) || 'text', data },
+    // No verticalResult on errors: the error payload has no render descriptor,
+    // so the UI's VerticalResult fallback would print the raw {"error":...}
+    // JSON under the ❌ prose. The machine code already rides `error` above.
+    ...(isErr ? {} : { verticalResult: { action, render: (out && out.render) || 'text', data } }),
   };
 }
 
