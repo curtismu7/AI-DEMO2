@@ -16,6 +16,15 @@ const { provisionVerticalGroups } = require('../services/pingOneGroupProvisionSe
 
 const router = express.Router();
 
+// Decision-board pacing. The board asks PingOne Authorize once per gated
+// vertical (~13). Issued as one parallel burst, PingOne rate-limited it and all
+// but the first two came back 429, so the board rendered UNKNOWN rows and the
+// demo could not be shown. Serial + spaced + retried on 429 keeps every row
+// real; the page is human-loaded, so the extra seconds cost nothing.
+const DECISION_SPACING_MS = Number(process.env.GROUP_BOARD_SPACING_MS || 120);
+const RATE_LIMIT_RETRIES = Number(process.env.GROUP_BOARD_RETRIES || 3);
+const RATE_LIMIT_BACKOFF_MS = Number(process.env.GROUP_BOARD_BACKOFF_MS || 400);
+
 /** Admin-only gate for group provisioning. */
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
@@ -136,7 +145,12 @@ router.get('/decision-board', requireSession, async (req, res) => {
       }
     }
 
-    const rows = await Promise.all(targets.map(async (t) => {
+    // One decision at a time, NOT Promise.all. Firing all ~13 in parallel made
+    // PingOne Authorize rate-limit the burst: the first two returned real
+    // decisions and every later one came back 429, so the board rendered
+    // 11 UNKNOWN rows and the demo it exists for could not be shown. A human
+    // loads this page once; a few seconds of serial calls is the right trade.
+    const evaluateRow = async (t) => {
       // Membership is per-vertical because listGroupNamesForVertical filters to
       // that vertical's declared groups — even though one generic group now
       // serves them all, this keeps working if that is ever split again.
@@ -171,7 +185,26 @@ router.get('/decision-board', requireSession, async (req, res) => {
           ...t, inRequiredGroup, source, decision: 'UNKNOWN', codes: [], error: err.message,
         };
       }
-    }));
+    };
+
+    /** True when the failure is PingOne throttling us, which is worth retrying. */
+    const isRateLimited = (row) =>
+      row && row.decision === 'UNKNOWN' && /\(429\)|429\b|rate.?limit/i.test(row.error || '');
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const rows = [];
+    for (const t of targets) {
+      let row = await evaluateRow(t);
+      // Backoff on 429 only. Anything else is a real error and stays UNKNOWN
+      // immediately — retrying a policy_not_found just delays the same answer.
+      for (let attempt = 0; attempt < RATE_LIMIT_RETRIES && isRateLimited(row); attempt += 1) {
+        await sleep(RATE_LIMIT_BACKOFF_MS * (attempt + 1));
+        row = await evaluateRow(t);
+      }
+      rows.push(row);
+      await sleep(DECISION_SPACING_MS);
+    }
 
     rows.sort((a, b) => a.displayName.localeCompare(b.displayName));
     return res.json({

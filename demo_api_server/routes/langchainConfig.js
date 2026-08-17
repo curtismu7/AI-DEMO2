@@ -459,6 +459,22 @@ router.post('/llamacpp/prewarm', async (req, res) => {
     console.log(`[langchainConfig] pre-warmed llamacpp tier ${model} (:${port})`);
     res.json({ ok: true, model, port });
   } catch (error) {
+    // The tier-manager is K8-only: docker-compose.yml gates `tier-manager-k8`
+    // behind the `k8-build` profile and it never starts in compose, so on every
+    // local stack this fetch fails and the dashboard logged a hard 502 on every
+    // single page load. Prewarm is a latency optimization — the model still
+    // loads on first use — so a missing swap manager is "nothing to do", not an
+    // error, and it now reports the same benign shape as the pinned case above.
+    // A 502 here trained everyone to ignore console errors on the dashboard,
+    // which is exactly how a real failure gets missed.
+    const unreachable = /fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|abort/i.test(error.message || '');
+    if (unreachable) {
+      console.log(`[langchainConfig] prewarm skipped — tier-manager not deployed (${model}); the tier loads on first use`);
+      return res.json({
+        ok: true, skipped: true, reason: 'tier-manager-unavailable', model, port,
+      });
+    }
+    // A tier-manager that IS deployed but failing is a genuine error — keep it loud.
     res.status(502).json({ error: 'tier-manager unreachable', message: error.message });
   }
 });
