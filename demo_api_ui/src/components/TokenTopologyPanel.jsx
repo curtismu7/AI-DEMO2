@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { MCP_STEP_IDS } from '../services/tokenChainTrace/buildTraceSteps';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { useTheme } from '../context/ThemeContext';
 import './TokenTopologyPanel.css';
@@ -34,6 +35,78 @@ const STEP_ICONS = {
   api: 'API',
   reply: 'CH',
 };
+
+// Which hops are control points, what verb they apply, and what object they guard.
+// `object` selects the badge glyph; `verb` + `what` render the callout box above
+// the node. Presentation-only vocabulary, so it lives beside STEP_ICONS rather
+// than in the step model — a step-id rename stays a one-file fix either way.
+const ENFORCEMENT = {
+  signin: { verb: 'Block', what: 'Unauthenticated users', object: 'user' },
+  exchange: { verb: 'Control', what: 'Delegated scope + audience', object: 'token' },
+  authorize: { verb: 'Control', what: 'What this agent may do', object: 'action' },
+  stepup: { verb: 'Check', what: 'Human approval (HITL / MFA)', object: 'human' },
+  'intent-binding': { verb: 'Control', what: 'Amount vs declared intent', object: 'intent' },
+  gateway: { verb: 'Block', what: 'Untrusted or mis-scoped tokens', object: 'token' },
+  'api-key-swap': { verb: 'Control', what: 'Credential handed downstream', object: 'key' },
+  mcp: { verb: 'Control', what: 'Access to Services & Tools', object: 'tool' },
+  database: { verb: 'Control', what: 'Access to Documents & Data', object: 'data' },
+};
+
+// Badge/callout colour state. A DENY decision outranks a 'done' status: the hop
+// completed, but it completed by refusing.
+export function enforcementFor(step) {
+  const spec = ENFORCEMENT[step?.baseId || step?.id];
+  if (!spec) return null;
+  const outcome = String(step?.detail?.decision?.outcome || '').toLowerCase();
+  const state = step.status === 'error' || outcome === 'deny'
+    ? 'deny'
+    : step.status === 'active'
+      ? 'live'
+      : outcome === 'permit'
+        ? 'permit'
+        : 'idle';
+  return { ...spec, state };
+}
+
+// Connector label — the lane the hop hands off to.
+export function edgeLabel(nextNode) {
+  return String(nextNode?.lane || '').toUpperCase() || null;
+}
+
+// The tool-call hops hang below the spine as a branch, the way a topology
+// diagram draws "Services & Tools" off the main request path.
+export function partitionSpineBranch(nodes) {
+  const list = Array.isArray(nodes) ? nodes : [];
+  const isBranch = (node) => MCP_STEP_IDS.includes(node?.step?.baseId || node?.id);
+  const firstBranchIdx = list.findIndex(isBranch);
+  return {
+    spine: list.filter((node) => !isBranch(node)),
+    branch: list.filter(isBranch),
+    anchorId: firstBranchIdx > 0 ? list[firstBranchIdx - 1].id : null,
+  };
+}
+
+// Inline SVG so the badge glyph names the guarded object without reaching for a
+// non-allowlisted emoji. `currentColor` lets the state class drive the colour.
+const OBJECT_PATHS = {
+  user: 'M8 8a2.6 2.6 0 1 0 0-5.2A2.6 2.6 0 0 0 8 8Zm-5 5.4c0-2.4 2.2-3.8 5-3.8s5 1.4 5 3.8',
+  token: 'M10.2 3a3 3 0 1 0-2.6 4.5L3 12.1v1.5h1.9v-1.4h1.4v-1.4h1.3l1-1a3 3 0 0 0 1.6-6.8Zm.6 2.6h.01',
+  key: 'M10.2 3a3 3 0 1 0-2.6 4.5L3 12.1v1.5h1.9v-1.4h1.4v-1.4h1.3l1-1a3 3 0 0 0 1.6-6.8Zm.6 2.6h.01',
+  action: 'M8 1.8 13.2 4v4c0 3-2.2 5.3-5.2 6.2C5 13.3 2.8 11 2.8 8V4L8 1.8Z',
+  human: 'M5.2 8.6V4.2a1.1 1.1 0 0 1 2.2 0v3M7.4 7.2V3a1.1 1.1 0 0 1 2.2 0v4.2m0-1.2a1.1 1.1 0 0 1 2.2 0v3.6c0 2.4-1.7 4.2-4 4.2-2 0-3.3-1-4-2.6L2.6 9.4a1.1 1.1 0 0 1 1.8-1.2l.8 1',
+  intent: 'M4 1.8h5l3 3v9.4H4V1.8Zm5 0v3h3M5.8 10l1.4 1.5 3-3.4',
+  tool: 'M10.4 1.9a3.6 3.6 0 0 0-3.1 5.4l-5 5 1.4 1.4 5-5a3.6 3.6 0 0 0 4.7-4.4l-2 2-1.7-1.7 2-2a3.6 3.6 0 0 0-1.3-.7Z',
+  data: 'M8 1.9c2.9 0 5.2.8 5.2 1.8S10.9 5.5 8 5.5 2.8 4.7 2.8 3.7 5.1 1.9 8 1.9Zm5.2 1.8v8.6c0 1-2.3 1.8-5.2 1.8s-5.2-.8-5.2-1.8V3.7M13.2 8c0 1-2.3 1.8-5.2 1.8S2.8 9 2.8 8',
+};
+
+function ObjectIcon({ object }) {
+  const d = OBJECT_PATHS[object] || OBJECT_PATHS.action;
+  return (
+    <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 export function buildObservedTopology(steps) {
   return (Array.isArray(steps) ? steps : [])
@@ -208,7 +281,7 @@ function FormattedValue({ value, depth = 0 }) {
   return <span className="ttp-fv-str">{str(parsed)}</span>;
 }
 
-function NodeBox({ node, step, selected, onClick, animateIn }) {
+function NodeBox({ node, step, selected, onClick, animateIn, nodeRef }) {
   const st = step?.status || 'pending';
   const isOk = st === 'done';
   const isErr = st === 'error';
@@ -218,13 +291,34 @@ function NodeBox({ node, step, selected, onClick, animateIn }) {
   const statusCls = isOk ? 'ok' : isErr ? 'err' : isPend ? 'pend' : 'nd';
 
   const claims = claimsFromStep(step, { truncateReason: true });
+  const enf = enforcementFor(step);
 
   return (
     <div
+      ref={nodeRef}
       className={`ttp-node${selected ? ' selected' : ''}${animateIn ? ' animate-in' : ''}`}
       onClick={onClick}
     >
+      <div className="ttp-callout-slot">
+        {enf && (
+          <>
+            <div className={`ttp-callout ttp-callout--${enf.state}`}>
+              <div className="ttp-callout-verb">{enf.verb}</div>
+              <div className="ttp-callout-what">{enf.what}</div>
+            </div>
+            <div className="ttp-callout-leader" />
+          </>
+        )}
+      </div>
       <div className={`ttp-box${selected ? ' active' : ''}${isPend ? ' pulsing' : ''}`}>
+        {enf && (
+          <span
+            className={`ttp-enf-badge ttp-enf-badge--${enf.state}`}
+            title={`${enf.verb} — ${enf.what}`}
+          >
+            <ObjectIcon object={enf.object} />
+          </span>
+        )}
         <div className={`ttp-status ${statusCls}`}>
           {isPend ? <span className="ttp-pulse-dot" /> : statusMark}
         </div>
@@ -244,6 +338,38 @@ function NodeBox({ node, step, selected, onClick, animateIn }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// One horizontal run of nodes joined by labelled connectors. Used for both the
+// spine and the tool-call branch so they stay visually identical.
+function NodeRow({ nodes, expandedId, onNodeClick, nodeRefs }) {
+  return (
+    <div className="ttp-row">
+      {nodes.map((node, i) => {
+        const { step } = node;
+        const label = edgeLabel(node);
+        return (
+          <React.Fragment key={node.id}>
+            {i > 0 && (
+              <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}`}>
+                {label && <span className="ttp-conn-label">{label}</span>}
+                <div className="ttp-line" />
+                <span className="ttp-arrowhead">▶</span>
+              </div>
+            )}
+            <NodeBox
+              node={node}
+              step={step}
+              selected={expandedId === node.id}
+              animateIn
+              onClick={() => onNodeClick(node.id)}
+              nodeRef={nodeRefs ? (el) => { nodeRefs.current[node.id] = el; } : undefined}
+            />
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -427,6 +553,9 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
   const prevRunId = useRef(null);
   const [inspWidth, setInspWidth] = useState(320);
   const dragging = useRef(false);
+  const nodeRefs = useRef({});
+  const diagramRef = useRef(null);
+  const [branchOffset, setBranchOffset] = useState(0);
 
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
@@ -483,9 +612,26 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
     trace.outcome || trace.routingMode || a2aTopology,
   );
   const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
+  const { spine, branch, anchorId } = partitionSpineBranch(topologyNodes);
   const selectedStep = expandedId
     ? topologyNodes.find((node) => node.id === expandedId)?.step || null
     : null;
+
+  // Align the tool-call branch under the spine node it hangs off. Measured
+  // rather than computed because node width varies with the claim rows; the
+  // spine does not wrap (ttp-row is nowrap), so offsetLeft is stable.
+  useEffect(() => {
+    const measure = () => {
+      const el = anchorId ? nodeRefs.current[anchorId] : null;
+      setBranchOffset(el ? el.offsetLeft : 0);
+    };
+    measure();
+    const target = diagramRef.current;
+    if (!target || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [anchorId, spine.length, branch.length, inspWidth]);
 
   return (
     <DraggableModal
@@ -493,13 +639,13 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
       onClose={onClose}
       title="Token Topology"
       defaultWidth={960}
-      defaultHeight={520}
+      defaultHeight={660}
       storageKey="ba-token-topology-panel"
       footer={null}
       noBackdrop
       zIndex={10001}
       minWidth={580}
-      minHeight={360}
+      minHeight={440}
       className={`ttp-modal ttp-modal--${darkMode ? 'dark' : 'light'}`}
     >
       <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'}>
@@ -533,31 +679,30 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
 
         {/* Main: topology + inspector side-by-side */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
-          <div className="ttp-diagram">
+          <div className="ttp-diagram" ref={diagramRef}>
             {hasActivity ? (
               <>
                 <div className="ttp-label">Live delegated pipeline — nodes appear as evidence arrives</div>
-                <div className="ttp-row">
-                  {topologyNodes.map((node, i) => {
-                    const { step } = node;
-                    return (
-                      <React.Fragment key={node.id}>
-                        {i > 0 && (
-                          <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}`}>
-                            <div className="ttp-line" />
-                            <span className="ttp-arrowhead">▶</span>
-                          </div>
-                        )}
-                        <NodeBox
-                          node={node}
-                          step={step}
-                          selected={expandedId === node.id}
-                          animateIn
-                          onClick={() => handleNodeClick(node.id)}
+                <div className="ttp-graph">
+                  <NodeRow
+                    nodes={spine}
+                    expandedId={expandedId}
+                    onNodeClick={handleNodeClick}
+                    nodeRefs={nodeRefs}
+                  />
+                  {branch.length > 0 && (
+                    <div className="ttp-branch" style={{ marginLeft: branchOffset }}>
+                      <div className="ttp-branch-elbow" aria-hidden="true" />
+                      <div className="ttp-branch-body">
+                        <div className="ttp-branch-label">Services &amp; Tools — delegated tool call</div>
+                        <NodeRow
+                          nodes={branch}
+                          expandedId={expandedId}
+                          onNodeClick={handleNodeClick}
                         />
-                      </React.Fragment>
-                    );
-                  })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

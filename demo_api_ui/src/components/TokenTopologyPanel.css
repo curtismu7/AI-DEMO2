@@ -179,12 +179,119 @@
   color: #6e7681;
   font-family: 'JetBrains Mono', monospace;
 }
+/* Height of the callout band reserved above EVERY node so the boxes stay on one
+   baseline. Connectors offset by the same amount to meet the box, not the callout. */
+.ttp-graph { --ttp-callout-band: 62px; }
+
+.ttp-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
 .ttp-row {
   display: flex;
   align-items: flex-start;
   gap: 0;
-  flex-wrap: wrap;
-  row-gap: 16px;
+  /* nowrap so the branch row's measured offsetLeft alignment stays valid;
+     .ttp-diagram already scrolls horizontally. */
+  flex-wrap: nowrap;
+}
+
+/* ── enforcement callouts ── */
+.ttp-callout-slot {
+  min-height: var(--ttp-callout-band);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+}
+.ttp-callout {
+  background: #0d1117;
+  border: 1px solid #3d444d;
+  border-radius: 6px;
+  padding: 5px 9px;
+  max-width: 170px;
+  text-align: center;
+}
+.ttp-callout-verb {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: #58a6ff;
+}
+.ttp-callout-what {
+  font-size: 9px;
+  line-height: 1.25;
+  color: #8b949e;
+  margin-top: 1px;
+}
+.ttp-callout-leader {
+  height: 10px;
+  border-left: 1px dashed #6e7681;
+}
+.ttp-callout--deny   { border-color: rgba(248,81,73,.55); }
+.ttp-callout--deny  + .ttp-callout-leader { border-left-color: #f85149; }
+.ttp-callout--deny   .ttp-callout-verb { color: #f85149; }
+.ttp-callout--live   { border-color: rgba(251,191,36,.5); }
+.ttp-callout--live  + .ttp-callout-leader { border-left-color: #fbbf24; }
+.ttp-callout--live   .ttp-callout-verb { color: #fbbf24; }
+.ttp-callout--permit { border-color: rgba(63,185,80,.35); }
+.ttp-callout--permit + .ttp-callout-leader { border-left-color: rgba(63,185,80,.6); }
+
+/* Badge sits where the incoming connector meets the box — the guarded object. */
+.ttp-enf-badge {
+  position: absolute;
+  left: -11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid #3d444d;
+  background: #0d1117;
+  color: #6e7681;
+}
+.ttp-enf-badge--deny {
+  border-color: #f85149;
+  background: #f85149;
+  color: #0d1117;
+}
+.ttp-enf-badge--live {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  animation: ttp-pulse 1.4s ease-in-out infinite;
+}
+.ttp-enf-badge--permit {
+  border-color: rgba(63,185,80,.5);
+  color: #3fb950;
+}
+
+/* ── tool-call branch hanging below the spine ── */
+.ttp-branch {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.ttp-branch-elbow {
+  width: 0;
+  margin-left: 74px;
+  border-left: 2px solid #3d444d;
+}
+.ttp-branch-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+}
+.ttp-branch-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-weight: 700;
+  color: #6e7681;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 /* ── topology node (BIGGER) ── */
@@ -301,6 +408,7 @@
 .ttp-lane--llm     { color: #f87171; background: rgba(248,113,113,.1); }
 .ttp-lane--browser { color: #cbd5e1; background: rgba(203,213,225,.1); }
 .ttp-lane--api     { color: #22d3ee; background: rgba(34,211,238,.1);  }
+.ttp-lane--data    { color: #7dd3fc; background: rgba(125,211,252,.1); }
 
 /* token summary claims on node */
 .ttp-node-claims {
@@ -331,20 +439,28 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 24px;
+  /* clear the callout band so the arrow meets the box, not the callout */
+  padding-top: calc(var(--ttp-callout-band, 0px) + 24px);
   flex-shrink: 0;
 }
 .ttp-conn.ghost { opacity: .4; }
 .ttp-line { width: 30px; height: 2px; background: #3d444d; }
 .ttp-arrowhead { color: #3d444d; font-size: 13px; line-height: 1; }
 .ttp-conn-label {
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
   font-family: 'JetBrains Mono', monospace;
-  color: #6e7681;
-  margin-top: 4px;
+  color: #8b949e;
+  background: rgba(139,148,158,.12);
+  border-radius: 9px;
+  padding: 2px 7px;
+  margin-bottom: 5px;
   text-align: center;
   max-width: 90px;
+  white-space: nowrap;
 }
+.ttp-conn.blocked .ttp-conn-label { color: #f85149; background: rgba(248,81,73,.12); }
 .ttp-conn.blocked .ttp-line      { background: rgba(248,81,73,.4); }
 .ttp-conn.blocked .ttp-arrowhead { color: rgba(248,81,73,.4); }
 
@@ -749,6 +865,41 @@
 }
 .ttp-root[data-theme="light"] .ttp-line {
   background: #94a3b8;
+}
+
+/* enforcement callouts + badges + branch — light */
+.ttp-root[data-theme="light"] .ttp-conn-label {
+  background: #e2e8f0;
+}
+.ttp-root[data-theme="light"] .ttp-callout,
+.ttp-root[data-theme="light"] .ttp-enf-badge {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+.ttp-root[data-theme="light"] .ttp-callout-verb { color: #0969da; }
+.ttp-root[data-theme="light"] .ttp-callout-what { color: #475569; }
+.ttp-root[data-theme="light"] .ttp-callout-leader { border-left-color: #94a3b8; }
+.ttp-root[data-theme="light"] .ttp-enf-badge { color: #64748b; }
+.ttp-root[data-theme="light"] .ttp-callout--deny { border-color: #f87171; }
+.ttp-root[data-theme="light"] .ttp-callout--deny .ttp-callout-verb { color: #b91c1c; }
+.ttp-root[data-theme="light"] .ttp-callout--deny + .ttp-callout-leader { border-left-color: #f87171; }
+.ttp-root[data-theme="light"] .ttp-enf-badge--deny {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+.ttp-root[data-theme="light"] .ttp-callout--live { border-color: #d97706; }
+.ttp-root[data-theme="light"] .ttp-callout--live .ttp-callout-verb { color: #b45309; }
+.ttp-root[data-theme="light"] .ttp-callout--live + .ttp-callout-leader { border-left-color: #d97706; }
+.ttp-root[data-theme="light"] .ttp-enf-badge--live { border-color: #d97706; color: #b45309; }
+.ttp-root[data-theme="light"] .ttp-callout--permit { border-color: #86efac; }
+.ttp-root[data-theme="light"] .ttp-callout--permit + .ttp-callout-leader { border-left-color: #4ade80; }
+.ttp-root[data-theme="light"] .ttp-enf-badge--permit { border-color: #4ade80; color: #15803d; }
+.ttp-root[data-theme="light"] .ttp-branch-elbow { border-left-color: #94a3b8; }
+.ttp-root[data-theme="light"] .ttp-branch-label { color: #64748b; }
+.ttp-root[data-theme="light"] .ttp-conn.blocked .ttp-conn-label {
+  color: #b91c1c;
+  background: rgba(248,113,113,.15);
 }
 .ttp-root[data-theme="light"] .ttp-arrowhead {
   color: #94a3b8;
