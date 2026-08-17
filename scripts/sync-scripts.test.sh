@@ -105,6 +105,14 @@ check "app.js now v3" "v3" "$(cat app.js)"
 check "work recoverable on the wip branch" "half-finished" "$(git show "$(git branch --list 'wip/main-*' | tr -d ' *')":src-edit.js 2>&1)"
 check "main is clean after parking" "^$" "$(git status --porcelain | grep -v 'demo_api_server/data' | grep -v '\.local$')"
 
+echo "== A3: the empty case — nothing to park =="
+# Exercises the empty-array path in both scripts. `set -u` plus an empty array
+# is an unbound-variable error on bash < 4.4, so this is the check that would
+# have caught the ${#a[@]} bugs on the macOS shell.
+out="$(bash scripts/park-main-edits.sh 2>&1)"; rc=$?
+check "reports nothing to park on a clean checkout" "nothing to park" "$out"
+check "exits 0 with nothing to park" "0" "$rc"
+
 echo "== A2: refuses to run off main =="
 git switch -qc some-branch
 out="$(bash scripts/park-main-edits.sh 2>&1)"; rc=$?

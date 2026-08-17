@@ -45,12 +45,19 @@ fi
 # a porcelain-line filter, not a `:(exclude)` pathspec — git treats an
 # exclude-only pathspec naming a path that is absent on disk as fatal.
 NOISE_RE='^.. (demo_api_server/data(/|$)|setup-config\.md$)'
+# DIRTY_COUNT rather than ${#DIRTY[@]}: under `set -u` an empty array is an
+# unbound variable on bash < 4.4 (macOS ships 3.2), and "nothing to park" is
+# the common case.
 DIRTY=()
+DIRTY_COUNT=0
 while IFS= read -r line; do
-  [ -n "$line" ] && DIRTY+=("$line")
+  if [ -n "$line" ]; then
+    DIRTY+=("$line")
+    DIRTY_COUNT=$((DIRTY_COUNT + 1))
+  fi
 done < <(git status --porcelain --untracked-files=all | grep -Ev "$NOISE_RE" | grep -Ev '^\?\? \.claude/[^/]+\.md$' || true)
 
-if [ "${#DIRTY[@]}" -eq 0 ]; then
+if [ "$DIRTY_COUNT" -eq 0 ]; then
   echo "$LOG_PREFIX nothing to park — no dirty files outside the tolerated paths."
   [ "$RUN_SYNC" = "1" ] && exec "$(dirname "$0")/sync-main-checkout.sh"
   exit 0
@@ -65,7 +72,7 @@ for line in "${DIRTY[@]}"; do
   FILES+=("$path")
 done
 
-echo "$LOG_PREFIX ${#FILES[@]} file(s) to park:"
+echo "$LOG_PREFIX $DIRTY_COUNT file(s) to park:"
 printf '  %s\n' "${FILES[@]}"
 
 if [ "$DRY_RUN" = "1" ]; then

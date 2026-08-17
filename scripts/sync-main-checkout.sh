@@ -65,8 +65,14 @@ write_status() {
 
 # Put parked .claude docs back exactly as they were — used when the sync did
 # NOT happen, so the checkout ends up in the state we found it in.
+# PARKED_COUNT rather than ${#PARKED_FILES[@]}: under `set -u` an empty array
+# is an unbound variable on bash < 4.4, and the ${#a[@]:-0} form that papers
+# over it is a syntax error on bash 5 (silently tolerated by the 3.2 that ships
+# with macOS — green here, "bad substitution" on the CI runner).
+PARKED_COUNT=0
+
 restore_parked_docs() {
-  [ "${#PARKED_FILES[@]:-0}" -gt 0 ] || { rm -rf "${PARKED_DIR:-}"; return 0; }
+  [ "$PARKED_COUNT" -gt 0 ] || { rm -rf "${PARKED_DIR:-}"; return 0; }
   for doc in "${PARKED_FILES[@]}"; do
     [ -e "$doc" ] || mv "$PARKED_DIR/$doc" "$doc"
   done
@@ -78,7 +84,7 @@ restore_parked_docs() {
 # the parked copy is dropped. Anything else is kept as <name>.local — a diverged
 # local edit is the one thing this script must never throw away.
 reconcile_parked_docs() {
-  [ "${#PARKED_FILES[@]:-0}" -gt 0 ] || { rm -rf "${PARKED_DIR:-}"; return 0; }
+  [ "$PARKED_COUNT" -gt 0 ] || { rm -rf "${PARKED_DIR:-}"; return 0; }
   for doc in "${PARKED_FILES[@]}"; do
     if cmp -s "$PARKED_DIR/$doc" "$doc" 2>/dev/null; then
       rm -f "$PARKED_DIR/$doc"
@@ -140,6 +146,7 @@ while IFS= read -r doc; do
   mkdir -p "$PARKED_DIR/$(dirname "$doc")"
   mv "$doc" "$PARKED_DIR/$doc"
   PARKED_FILES+=("$doc")
+  PARKED_COUNT=$((PARKED_COUNT + 1))
 done < <(git status --porcelain --untracked-files=all -- .claude | sed -n 's|^?? \(\.claude/[^/]*\.md\)$|\1|p')
 
 STASHED=0
