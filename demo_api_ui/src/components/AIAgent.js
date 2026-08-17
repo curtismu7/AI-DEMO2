@@ -9020,6 +9020,16 @@ export default function BankingAgent({
                       >
                         Script
                       </button>
+                      {davinciMode && (
+                        <button
+                          type="button"
+                          className="ba-actions-trigger"
+                          title="Why PingOne DaVinci orchestration — value walkthrough, no live flow required"
+                          onClick={() => { window.location.href = "/davinci-orchestration"; }}
+                        >
+                          DaVinci Orchestration
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

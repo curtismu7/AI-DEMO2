@@ -30,6 +30,7 @@ import McpGatewayConfig from "../components/McpGatewayConfig";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
 import DavinciLoginPage from "../pages/DavinciLoginPage";
+import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
@@ -264,6 +265,16 @@ export function SdkLoginPageRoute() {
 // DaVinci widget login sandbox (public) — drives its own browser-side flow.
 export function DavinciLoginPageRoute() {
   return <DavinciLoginPage />;
+}
+
+// DaVinci Orchestration explainer — signed-in, AppShell-wrapped (reached from
+// the agent header's More menu, not a pre-login sandbox like SdkLoginPageRoute).
+export function DavinciExplainerRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciExplainerPage />
+    </AppShell>
+  );
 }
 
 // OIDC redirect callback (bare — no shell, it exchanges the code and redirects).
