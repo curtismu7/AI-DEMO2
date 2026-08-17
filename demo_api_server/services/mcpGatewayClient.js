@@ -168,6 +168,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         method:  'tools/call',
         params:  { name: tool, arguments: params },
     };
+    // Also ride the correlation id INSIDE params, mirroring the WS client.
+    // PingGateway proxies the JSON-RPC body verbatim but does not forward the
+    // X-Correlation-ID header downstream, so the header alone dies at the
+    // gateway and the MCP server mints its own id — leaving mcp.tool hops in
+    // their own single-hop transactions. params.correlationId is what
+    // correlationFromMessage reads first, and IG's validator only inspects
+    // params.arguments, so this is invisible to schema validation.
+    if (body.id) body.params.correlationId = String(body.id);
 
     // UC18 on PingOne Agent Gateway (IG): arm uc18-rate-limit.groovy via trusted header
     // (Demo Agent Gateway enforces limits in-process instead).
