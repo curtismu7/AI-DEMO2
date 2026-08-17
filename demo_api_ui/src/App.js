@@ -28,6 +28,8 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
+import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
+import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
@@ -1501,6 +1503,14 @@ function AppWithAuth() {
                             <Route
                               path="/gateway-enforcement-map"
                               element={<GatewayEnforcementMapPage />}
+                            />
+                            <Route
+                              path="/resource-server-placement"
+                              element={<ResourceServerPlacementPage />}
+                            />
+                            <Route
+                              path="/resource-server-checkpoint"
+                              element={<ResourceServerCheckpointPage />}
                             />
                             <Route
                               path="/discovery-preview"

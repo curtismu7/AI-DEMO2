@@ -84,6 +84,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Scope Reference",
       "Snapshot Import",
       "Headless Identity Demo",
+      "Resource Server Checkpoint",
     ],
   },
   {
@@ -149,6 +150,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Invest Dual-Auth (MM)",
       "Privilege MCP (MM)",
       "Gateway vs P1AZ Enforcement (MM)",
+      "Resource Server Placement (MM)",
     ],
   },
   {

@@ -710,6 +710,11 @@ export default function AdminSideNav({
           path: "/pingcli",
           icon: "tool",
         },
+        {
+          label: "Resource Server Checkpoint",
+          path: "/resource-server-checkpoint",
+          icon: "pol",
+        },
       ],
     },
     {
@@ -954,6 +959,7 @@ export default function AdminSideNav({
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
         { label: "Privilege MCP (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
         { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
+        { label: "Resource Server Placement (MM)", path: "/resource-server-placement", icon: "arc" },
       ],
     },
     {
