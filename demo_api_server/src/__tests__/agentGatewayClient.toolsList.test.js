@@ -1,5 +1,14 @@
 'use strict';
 jest.mock('axios');
+// getAvailableTools walks the MCP 401 challenge handshake before its own call.
+// That probe is a separate concern with its own suite, and un-mocked it would
+// consume the FIRST axios.post mock below — leaving the tools/list call with
+// `undefined` and failing every assertion here for an unrelated reason.
+jest.mock('../../services/mcpChallengeProbe', () => ({
+  probeMcpChallenge: jest.fn().mockResolvedValue({
+    status: 401, challenge: null, metadata: null, events: [],
+  }),
+}));
 const axios = require('axios');
 const { getAvailableTools } = require('../../services/agentGatewayClient');
 
