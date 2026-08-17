@@ -166,6 +166,7 @@ const agentRunRoutes = require('./routes/agentRun');
 const demoAgentNlRoutes = require('./routes/demoAgentNl');
 const agentInvokeRoutes = require('./routes/agentInvokeRoute');
 const webhookPingOneRoutes = require('./routes/webhookPingOne');
+const webhookDavinciRoutes = require('./routes/webhookDavinci');
 const intentAuthRoutes = require('./routes/intentAuthRoute');
 const langchainConfigRoutes = require('./routes/langchainConfig');
 const lmstudioRoutes = require('./routes/lmstudio');
@@ -507,6 +508,9 @@ app.use(sessionMiddleware);
 // check, which is gone: PingOne cannot sign a request body. See
 // docs/PINGONE-WEBHOOK.md. Batches of 500 events exceed the default 100kb.
 app.use('/webhook', express.json({ limit: '5mb' }), webhookPingOneRoutes);
+// DaVinci showcase flow callbacks — same open-ingest posture as the PingOne
+// webhook above (no signing available from a DaVinci HTTP connector node).
+app.use('/webhook', express.json({ limit: '1mb' }), webhookDavinciRoutes);
 
 // Body parsing middleware
 app.use(express.json());
