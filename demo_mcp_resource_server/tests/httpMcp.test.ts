@@ -22,7 +22,7 @@ import { __setFetchForTests } from '../src/transactionHop';
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-http-'));
 process.env.AIRLINES_DB_PATH = path.join(tmpDir, 'airlines.db');
 process.env.AIRLINES_SEED_PATH = path.join(__dirname, '..', 'seed', 'airlines.seed.json');
-process.env.MCP_SERVER_RESOURCE_URI = 'mcp-resource-server.ping.demo';
+process.env.MCP_RESOURCE_SERVER_RESOURCE_URI = 'mcp-resource-server.ping.demo';
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
 process.env.PORT = '0';
 
