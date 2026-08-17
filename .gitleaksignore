@@ -10,3 +10,10 @@ privilege/ai-demo-whole-stack/postman/Privilege-MCP-Gateway-SE.postman_collectio
 # which does not trigger). The literal "3036/mcp/apikey" substring trips the
 # generic-api-key entropy heuristic.
 demo_api_server/.env.example:generic-api-key:146
+ping-gateway/.env.example:generic-api-key:55
+scope-topology.json:generic-api-key:287
+scope-topology.json:generic-api-key:401
+snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json:generic-api-key:27
+snapshots/authorizeSnapshotCloudDelta.test.js:generic-api-key:82
+docs/scope-topology.md:generic-api-key:184
+docs/scope-topology.md:generic-api-key:205

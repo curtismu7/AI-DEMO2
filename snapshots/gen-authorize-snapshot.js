@@ -118,6 +118,7 @@ const ATTR = {
 const GATEWAY_RESOURCE_NAMES = [
   'Super Banking MCP Gateway',
   'Super Banking PingGateway MCP',
+  'Super Banking PingGateway MCP - API-Key',
   'Super Banking A2A MCP Gateway',
 ];
 // D-05 anti-bypass blacklist — parity with demo_authz_server/scopeTopology.js
