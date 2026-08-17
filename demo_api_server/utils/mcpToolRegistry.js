@@ -7,6 +7,7 @@ const { tool } = require('@langchain/core/tools');
 const { z } = require('zod/v4');
 const { explainTopic } = require('../services/educationTopics.js');
 const { mcpCallTool } = require('../services/mcpWebSocketClient');
+const { getCorrelationId } = require('./correlationContext');
 const { decodeJwtClaims, buildTokenEvent, buildGwAuthorizeEventExtra } = require('../services/agentMcpTokenService');
 const { recordToolCall: recordMcpToolCall } = require('../services/mcpToolAuditStore');
 const mcpGatewayClient = require('../services/mcpGatewayClient');
@@ -77,7 +78,14 @@ async function callMcpToolInternal(toolName, params, agentToken, userId, tokenEv
   const _claims = _decoded?.claims || null;
   const userSub = _claims?.sub || null;
   const _tokenAud = _claims?.aud || null;
-  const correlationId = require('node:crypto').randomUUID();
+  // Prefer the ambient turn id. This value is threaded to the gateway (which
+  // stamps X-Correlation-ID and params.correlationId) and is what ping-gateway,
+  // the authz server and the MCP server all key their ledger hops on — so
+  // minting unconditionally here filed every tool call's gateway/mcp legs under
+  // a transaction of their own, disconnected from the ui.request hop of the turn
+  // that caused them. That was the last reason /transaction-trace showed
+  // fragments instead of one chain.
+  const correlationId = getCorrelationId() || require('node:crypto').randomUUID();
   let gwAuditTrail = null;
 
   // One trace emitter for the success and failure paths. writeTransaction is a
