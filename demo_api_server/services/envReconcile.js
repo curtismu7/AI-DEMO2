@@ -73,6 +73,7 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_resource_mcp_server_uri', 'mcp_resource_uri', 'pingone_resource_mcp_gateway_uri',
   'pingone_resource_agent_gateway_uri', 'agent_gateway_audience', 'ai_agent_intermediate_audience',
   'pingone_resource_two_exchange_uri', 'pingone_resource_pinggateway_uri',
+  'pingone_resource_mcp_apikey_uri',
   'pingone_resource_a2a_intermediate_uri', 'a2a_intermediate_audience',
   'pingone_resource_langchain_agent_uri', 'mcp_gw_resource_uri',
   'enduser_audience', 'ai_agent_audience', 'banking_api_resource_uri',
