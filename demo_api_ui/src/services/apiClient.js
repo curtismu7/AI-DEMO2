@@ -108,7 +108,12 @@ class ApiClient {
         // ── Original error handling ──────────────────────────────────────────
         const originalRequest = error.config;
 
-        if (error.response?.status === 401) {
+        // `_noAuthBanner` — for best-effort background calls whose 401 says
+        // nothing about the user's session (e.g. arming demo feature flags,
+        // which is admin-gated and expected to fail for a guest). Without it a
+        // successful public demo step still got the "please sign in" banner
+        // dropped on top of its answer, because the side-effect call 401'd.
+        if (error.response?.status === 401 && !cfg._noAuthBanner) {
           notifySessionExpiredIfNeeded({
             status: 401,
             body: error.response?.data,

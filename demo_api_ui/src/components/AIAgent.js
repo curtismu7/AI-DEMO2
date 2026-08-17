@@ -72,6 +72,7 @@ import DemoStepsDropdown from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
+import { isPublicUseCase } from "../utils/useCaseAuth";
 import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
@@ -490,6 +491,9 @@ export default function BankingAgent({
   const [nlResumeAfterAuth, setNlResumeAfterAuth] = useState(null);
   /** useCaseId claimed alongside a pending NL (from launcher deep-link); attached to the next send. */
   const pendingUcIdRef = useRef(null);
+  /** True when the queued NL belongs to a use case the auth SoT marks public, so
+   *  the resume effect may fire it without a session on any path. */
+  const pendingUcPublicRef = useRef(false);
   const pendingNlResumeRef = useRef(null);
   const nlSendGuardRef = useRef(null);
   if (!nlSendGuardRef.current) nlSendGuardRef.current = makeReentrancyGuard();
@@ -7218,7 +7222,11 @@ export default function BankingAgent({
     }
     if (!Object.keys(updates).length) return;
     try {
-      await apiClient.patch("/api/admin/feature-flags", { updates });
+      // _noAuthBanner: arming is best effort and the route is admin-gated, so a
+      // guest always 401s here. That 401 is about this call, not the session —
+      // without the opt-out it raised the global re-auth banner over a demo
+      // step that had already answered correctly.
+      await apiClient.patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true });
       console.log(`[ensureRequiredDemoFlags] Auto-enabled ${Object.keys(updates).join(", ")} for ${reason}`);
     } catch (e) {
       console.warn(`[ensureRequiredDemoFlags] Could not auto-enable flags for ${reason}:`, e.message);
@@ -7255,7 +7263,12 @@ export default function BankingAgent({
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
 
-    await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
+    // A public step is defined as runnable with no session, so arming its flags
+    // (admin-gated) can only 401. Skip the call rather than fire and swallow.
+    const ucIsPublic = isPublicUseCase(uc);
+    if (!ucIsPublic) {
+      await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
+    }
 
     if (trigger.type === "chip" && trigger.text) {
       // Reset token chain trace so the proof strip shows this use case
@@ -7266,7 +7279,11 @@ export default function BankingAgent({
       // Not eligible to send yet (no session, no guest chat on this path) — queue
       // the step anyway (below) and show an actionable sign-in prompt instead of
       // returning with nothing; the resume effect fires it the moment login lands.
-      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+      // A step the SoT marks public is eligible regardless of path or session:
+      // this gate used to ask only "signed in, or on a marketing path?", so UC24
+      // got a sign-in prompt anywhere outside `/` and `/dashboard`.
+      pendingUcPublicRef.current = ucIsPublic;
+      if (!(isLoggedIn || marketingGuestChatEnabled || ucIsPublic)) {
         addMessage(
           "assistant",
           `${stepLabel} needs you signed in — it'll run as soon as you do.`,
@@ -7756,7 +7773,7 @@ export default function BankingAgent({
   useEffect(() => {
     if (
       !nlResumeAfterAuth ||
-      !(isLoggedIn || marketingGuestChatEnabled) ||
+      !(isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current) ||
       pendingNlResumeRef.current === nlResumeAfterAuth
     ) {
       return;
@@ -7768,6 +7785,7 @@ export default function BankingAgent({
     // Passed to the BFF so A2.1/A2.2 stamping fires for this run.
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
+    pendingUcPublicRef.current = false;
     let cancelled = false;
     let timerFired = false;
     const timer = setTimeout(async () => {

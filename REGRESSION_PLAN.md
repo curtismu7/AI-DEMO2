@@ -103,6 +103,71 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-17 — Public use cases told guests to sign in; no SoT for which steps need auth
+
+**Files changed:** `demo_api_server/config/use-case-auth.json` (new),
+`demo_api_server/config/useCaseAuth.js` (new),
+`demo_api_server/config/publicGuestActions.js` (new),
+`demo_api_server/config/useCases.js`, `demo_api_server/routes/useCases.js`,
+`demo_api_server/routes/agentRun.js`,
+`demo_api_server/tests/useCaseAuth.test.js` (new),
+`demo_api_server/src/__tests__/useCases.route.test.js`,
+`demo_api_ui/src/utils/useCaseAuth.js` (new, + test),
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/services/apiClient.js`
+(+ `apiClient.noAuthBanner.test.js`), `scripts/verify-usecase-auth.js` (new),
+`package.json`
+
+**What was broken:** running UC24 ("What branches are near me?") signed out
+answered correctly — `POST /api/agent/invoke` returned 200 and rendered all the
+branch cards — and then dropped "For a more personalized experience, please
+sign in." over the top of it. Two independent causes:
+
+1. `handleDemoStepSelect` calls `ensureRequiredDemoFlags` before **every** demo
+   step. That PATCHes `/api/admin/feature-flags`, which is admin-gated, so a
+   guest always 401s. `ensureRequiredDemoFlags` swallowed the error, but the
+   `apiClient` response interceptor had already raised the global
+   `SessionReauthBanner`. On `/` the banner is suppressed by
+   `isAuthenticatedAppSurface`, which is why this only looked broken on app pages.
+2. Every client gate asked "signed in, or on a marketing path?" and never
+   "does this step need a session at all?" — so on any path outside `/` and
+   `/dashboard` a public step got a sign-in prompt instead of running.
+
+There was no source of truth for the question. The only auth-scoping fact in
+the repo was `PUBLIC_GUEST_ACTIONS` in `routes/agentRun.js` — action-level, one
+route, invisible to the UI. The ~55-entry catalog had no auth field at all.
+
+**What was fixed:** added `config/use-case-auth.json` as the SoT (id →
+`public` | `user` | `admin`, covering all 55 catalog entries and all 8 admin
+demo steps). `resolveUseCase` stamps `auth` onto every served entry, so the UI
+reads the same fact the gate checks — no client-side mirror to drift. The chip
+gate, the NL-resume gate and the flag-arming call now consult it, and
+`apiClient` grew a `_noAuthBanner` request flag for best-effort background
+calls whose 401 says nothing about the session. `PUBLIC_GUEST_ACTIONS` moved to
+`config/publicGuestActions.js` so the verify gate can read it without loading
+the route (which opens LMDB stores on require).
+
+**Do not break:**
+- The manifest is a **UI-gating** SoT, not an enforcement point. Server
+  enforcement is unchanged: `PUBLIC_GUEST_ACTIONS` still decides what a guest
+  may run on `/api/agent/run`, and every route keeps its own guard. Do not
+  start trusting `uc.auth` server-side.
+- An id absent from the manifest resolves to `user`, never `public` — both
+  readers fail closed. Keep it that way.
+- `npm run verify:usecase-auth` (also in `hygiene:check`) fails when a catalog
+  entry is missing from the manifest, when an entry is an orphan, and when a
+  `public` chip resolves — in **any** vertical — to an action outside
+  `PUBLIC_GUEST_ACTIONS`. That last check is what stops the UI promising a
+  guest something the server will refuse. Don't weaken it to banking-only.
+- `_noAuthBanner` is for calls whose 401 is expected and uninformative. Do not
+  put it on a call that actually proves the session is gone.
+
+**Verify:** `npm run verify:usecase-auth` → 63 ids covered (38 user, 16 public,
+9 admin). `cd demo_api_server && CI=true npm test -- --forceExit --maxWorkers=4`
+→ 786/788 suites, 9685 passed; the 2 failures are the RFC 9728 load/timing
+flakes (a different test fails each run, and both suites pass in isolation).
+`cd demo_api_ui && npm run test:unit` → 365 files, 3117 passed; `npm run build`
+→ exit 0.
+
 ### 2026-08-16 — Dashboard rail default, movie-reel loss, invest-server audience drift, P1AZ probe INDETERMINATE
 
 **Files changed:** `demo_api_ui/src/utils/tokenRailLayout.js` (+ its test),

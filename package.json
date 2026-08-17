@@ -8,7 +8,7 @@
   },
   "scripts": {
     "topology:check": "node scripts/gen-service-topology.js check",
-    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js && node scripts/check-p1az-worker-secret-sync.js && node scripts/gen-demo-flag-map.js --check && node demo_api_server/scripts/useCaseSweep.js --dry-run && node demo_api_server/scripts/check-vertical-coercion.js && node --test scripts/check-pac-policy-drift.test.js && node demo_api_server/scripts/check-protocol-flows-drift.js && bash scripts/sync-scripts.test.sh",
+    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js && node scripts/check-p1az-worker-secret-sync.js && node scripts/gen-demo-flag-map.js --check && node scripts/verify-usecase-auth.js && node demo_api_server/scripts/useCaseSweep.js --dry-run && node demo_api_server/scripts/check-vertical-coercion.js && node --test scripts/check-pac-policy-drift.test.js && node demo_api_server/scripts/check-protocol-flows-drift.js && bash scripts/sync-scripts.test.sh",
     "test:codegraph-index": "node --test scripts/check-codegraph-demo-index.test.js && bash langchain_agent/scripts/run-codegraph-index-tests.sh",
     "regression:paths": "node scripts/check-regression-plan-paths.js",
     "smoke:pingone-mcp": "node scripts/smoke-pingone-mcp.js",
@@ -38,6 +38,7 @@
     "test:mastra-agent": "cd mastra_agent && npm test",
     "test:agents": "npm run test:openai-agent && npm run test:pydantic-agent && npm run test:mastra-agent",
     "verify:agents": "bash tests/integration/test-agents-e2e.sh",
+    "verify:usecase-auth": "node scripts/verify-usecase-auth.js",
     "test:mcp-inspector": "cd demo_api_server && npm test -- --testPathPattern=mcp-inspector --forceExit",
     "test:bff-tokens": "cd demo_api_server && npm test -- --testPathPattern='redisWireUrl|bffSessionGating' --forceExit --verbose",
     "test:session": "cd demo_api_server && npm run test:session",

@@ -21,11 +21,14 @@
  * @property {Evidence} evidence
  * @property {string[]} codeRefs
  * @property {string} maturity      'works' | 'needs-console-import' | 'needs-build' | 'flag:<name>'
+ * @property {'public'|'user'|'admin'} [auth] stamped by resolveUseCase from config/use-case-auth.json
  * @property {Owasp} owasp
  * @property {string} whatToSay
  * @property {boolean} advanced
  * @property {Object<string, Partial<UseCase> & {thresholds?:object}>} [perVertical]
  */
+
+const { authLevelFor } = require('./useCaseAuth');
 
 const VERTICALS = [
   'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
@@ -1768,13 +1771,20 @@ function getUseCase(id) {
   return USE_CASES.find((u) => u.id === id);
 }
 
-/** Deep-merge a perVertical override over the base entry. @returns {UseCase|undefined} */
+/**
+ * Deep-merge a perVertical override over the base entry.
+ * `auth` is stamped from config/use-case-auth.json rather than stored inline, so
+ * the UI gates read the same SoT the verify gate checks. It is derived from the
+ * base id — a vertical override cannot make a step more or less public.
+ * @returns {UseCase|undefined}
+ */
 function resolveUseCase(id, vertical) {
   const base = getUseCase(id);
   if (!base) return undefined;
+  const auth = authLevelFor(base.id);
   if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
     const { perVertical, match, ...rest } = base;
-    return { ...rest, resourceServer: resolveResourceServer(rest.primaryTool) };
+    return { ...rest, auth, resourceServer: resolveResourceServer(rest.primaryTool) };
   }
   const ov = base.perVertical[vertical];
   const merged = {
@@ -1783,7 +1793,7 @@ function resolveUseCase(id, vertical) {
     trigger: ov.trigger ? { ...base.trigger, ...ov.trigger } : base.trigger,
   };
   const { perVertical, match, ...rest } = merged;
-  return { ...rest, resourceServer: resolveResourceServer(rest.primaryTool) };
+  return { ...rest, auth, resourceServer: resolveResourceServer(rest.primaryTool) };
 }
 
 /** All catalog entries resolved for a vertical. @returns {UseCase[]} */

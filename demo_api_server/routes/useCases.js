@@ -10,6 +10,7 @@
 const express = require('express');
 const router = express.Router();
 const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases');
+const { authLevelFor } = require('../config/useCaseAuth');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
@@ -31,7 +32,12 @@ function pickVertical(req, res) {
 router.get('/', (req, res) => {
   if (req.query.vertical === 'pingone-admin') {
     res.set({ 'Cache-Control': 'private, max-age=60' });
-    return res.json({ vertical: 'pingone-admin', useCases: ADMIN_DEMO_STEPS });
+    // Admin steps bypass resolveUseCase, so stamp `auth` here or the UI would
+    // fall back to its default and treat them like ordinary signed-in steps.
+    return res.json({
+      vertical: 'pingone-admin',
+      useCases: ADMIN_DEMO_STEPS.map((u) => ({ ...u, auth: authLevelFor(u.id) })),
+    });
   }
   const vertical = pickVertical(req, res);
   if (!vertical) return;

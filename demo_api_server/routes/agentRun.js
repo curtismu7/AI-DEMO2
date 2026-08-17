@@ -34,11 +34,10 @@ const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenS
 const { guardPromptInput } = require('../services/promptGuard');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
-// Public catalog actions a signed-out visitor may run. UC24 ("What branches are
-// near me?") is the documented progressive-trust entry point: no Authorize, no
-// Gateway, no token exchange. Keep this list minimal — anything absent is
-// refused, which is what makes the gate in POST /run fail closed.
-const PUBLIC_GUEST_ACTIONS = new Set(['branch_hours']);
+// Public catalog actions a signed-out visitor may run — see config/publicGuestActions.js.
+// This route is still the only place the allowlist is enforced; it moved to config so
+// the use-case auth SoT gate can check against it without loading this module.
+const { PUBLIC_GUEST_ACTIONS } = require('../config/publicGuestActions');
 
 const router = express.Router();
 // Guest-tolerant, matching /api/agent/invoke. The strict middleware returned a
