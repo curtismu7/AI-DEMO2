@@ -1343,7 +1343,13 @@ app.use('/internal', require('./routes/braveMcpFlag'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)
 app.use('/api/path', require('./routes/pathInfo'));
-app.use('/api/path', require('./routes/verticalTool'));
+// transactionTurnMiddleware: a vertical-tool call IS an agent turn — it is what
+// a use-case chip dispatches — so it belongs in the ledger alongside
+// /api/demo-agent. Without it the gateway and MCP hops for a chip-driven tool
+// call had no ui.request/response to attach to and formed their own orphan
+// transaction, which is exactly what /transaction-trace could not explain.
+// Still route-scoped, not app-wide, so the 500-record cap stays meaningful.
+app.use('/api/path', transactionTurnMiddleware, require('./routes/verticalTool'));
 app.use('/api/transactions', (req, res, next) => {
     // Allow Bearer-token requests (MCP server, agent gateway, direct API calls) to bypass
     // the session-cookie check — authenticateToken validates the JWT below.
