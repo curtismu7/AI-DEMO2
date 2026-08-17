@@ -106,6 +106,21 @@ const WORKFORCE_TOOLS = new Set([
 const ANF_TOOLS = new Set([
   'list_anf_orders',
 ]);
+// retail: list_orders is a same-name shadow (SQLite tool already matched the
+// chip name, just needed this entry). order_status is a rename from the
+// SQLite server's get_order AND a shape adapter — the handler now returns
+// the order flat with an optional orderId defaulting to the most recent
+// order, matching the BFF's order_status exactly (retailToolHandler.ts).
+// sporting-goods mirrors this identically (list_gear_orders->list_gear,
+// get_gear_order->gear_order_status).
+const RETAIL_TOOLS = new Set([
+  'list_orders',
+  'order_status',
+]);
+const SPORTING_GOODS_TOOLS = new Set([
+  'list_gear',
+  'gear_order_status',
+]);
 
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
 // from jwt-verifier-mcp-server/src/actions/*.ts. Tool names must match exactly.
@@ -168,6 +183,8 @@ export function routeTool(toolName: string): BackendTarget {
   if (UNIVERSITY_TOOLS.has(toolName))    return 'invest';
   if (WORKFORCE_TOOLS.has(toolName))     return 'invest';
   if (ANF_TOOLS.has(toolName))           return 'invest';
+  if (RETAIL_TOOLS.has(toolName))        return 'invest';
+  if (SPORTING_GOODS_TOOLS.has(toolName)) return 'invest';
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
   if (WEATHER_TOOLS.has(toolName))       return 'weather';
   if (BRAVE_TOOLS.has(toolName))         return 'brave';
