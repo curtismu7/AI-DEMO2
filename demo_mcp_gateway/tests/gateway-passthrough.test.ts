@@ -70,6 +70,38 @@ function makeConfig(passthrough: boolean): GatewayConfig {
 }
 
 describe('mcpServerPassthrough config', () => {
+  // loadConfig() calls required() for the gateway's OAuth identity, which throws
+  // when the var is unset. required()'s stub escape hatch is gated on DEV_BYPASS,
+  // and that is captured at MODULE load (`const DEV_BYPASS = ...` in config.ts) —
+  // so setting MCP_GW_DEV_BYPASS from a test is too late to matter. Seed the real
+  // vars instead; they are read per call through process.env.
+  //
+  // Without this the three tests below threw "Missing required env var:
+  // MCP_GW_CLIENT_ID" before reaching a single assertion. They did not fail the
+  // CI gate because scripts/test-service-suite.sh runs this suite non-blocking,
+  // so the breakage stayed invisible.
+  const REQUIRED_ENV: Record<string, string> = {
+    MCP_GW_CLIENT_ID: 'test-client-id',
+    MCP_GW_CLIENT_SECRET: 'test-client-secret',
+    MCP_GW_RESOURCE_URI: 'test-gateway-resource',
+    PINGONE_TOKEN_ENDPOINT: 'https://auth.test/as/token',
+  };
+  const saved: Record<string, string | undefined> = {};
+
+  beforeAll(() => {
+    for (const [k, v] of Object.entries(REQUIRED_ENV)) {
+      saved[k] = process.env[k];
+      process.env[k] = v;
+    }
+  });
+
+  afterAll(() => {
+    for (const k of Object.keys(REQUIRED_ENV)) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k] as string;
+    }
+  });
+
   it('defaults to false when env var is not set', () => {
     delete process.env.MCP_GW_PASSTHROUGH_TO_MCP_SERVER;
     const cfg = loadConfig();

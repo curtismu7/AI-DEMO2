@@ -30,7 +30,7 @@ import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
 import { classifyWsDeny } from './wsDenyClassifier';
-import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
+import { createHitlChallenge, verifyAndConsumeHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
 import { buildAuthorizeMcpRequest, getRateLimiter } from './middleware/authorizeMcpRequest';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from './auth/toolScopes';
@@ -652,23 +652,22 @@ async function handleMessage(
         send(jsonRpcError(id, -32500, 'HITL service not configured'));
         return;
       }
-      let status;
+      const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
       try {
-        status = await getHitlChallengeStatus(config.hitlServiceUrl, hitlChallengeId);
+        // Verify AND consume server-side. The previous GET + local
+        // verifyHitlReceipt() never mutated challenge state, so the same
+        // _hitl_challenge_id discharged retry after retry until its TTL.
+        verification = await verifyAndConsumeHitlReceipt(config.hitlServiceUrl, hitlChallengeId, {
+          userId: decoded.sub,
+          agentId: decoded.act?.sub,
+          tool: toolName,
+          amount: retryArgs.amount as number | string | undefined,
+          params: retryArgs,
+        });
       } catch {
         send(jsonRpcError(id, -32500, 'Failed to verify HITL challenge'));
         return;
       }
-      const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
-      verification = verifyHitlReceipt(
-        status,
-        decoded.sub,
-        decoded.act?.sub,
-        toolName,
-        Date.now(),
-        retryArgs.amount as number | string | undefined,
-        retryArgs,
-      );
       if (!verification.ok) {
         send(jsonRpcError(id, -32002, verification.message || 'HITL challenge invalid', {
           hitl: true,

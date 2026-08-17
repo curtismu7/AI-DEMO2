@@ -48,7 +48,7 @@ import { buildBankingDataToolResult } from '../bankingDataDispatch';
 import { checkWeatherScope, checkBraveScope } from '../scopePolicies';
 import { validateIntentToken } from '../intentTokenValidator';
 import { validateMethodAndShape, validateToolArgs } from '../validation/mcpRequestValidation';
-import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from '../hitlClient';
+import { createHitlChallenge, verifyAndConsumeHitlReceipt, ReceiptVerification } from '../hitlClient';
 import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from '../gatewayAudit';
 import { verifyDpopProof } from '../dpopVerify';
 import { verifyWebBotAuth } from '../webBotAuthVerify';
@@ -653,17 +653,17 @@ export function buildAuthorizeMcpRequest(
     if (hitlChallengeId && config.hitlServiceUrl) {
       let verification: ReceiptVerification | null = null;
       try {
-        const status = await getHitlChallengeStatus(config.hitlServiceUrl, hitlChallengeId);
         const retryArgs = (toolArgs as Record<string, unknown> | undefined) || {};
-        verification = verifyHitlReceipt(
-          status,
-          decoded.sub,
-          decoded.act?.sub,
-          toolName ?? '',
-          Date.now(),
-          retryArgs.amount as number | string | undefined,
-          retryArgs,
-        );
+        // Verify AND consume server-side. The previous GET + local
+        // verifyHitlReceipt() never mutated challenge state, so the same
+        // _hitl_challenge_id discharged retry after retry until its TTL.
+        verification = await verifyAndConsumeHitlReceipt(config.hitlServiceUrl, hitlChallengeId, {
+          userId: decoded.sub,
+          agentId: decoded.act?.sub,
+          tool: toolName ?? '',
+          amount: retryArgs.amount as number | string | undefined,
+          params: retryArgs,
+        });
       } catch (verifyErr) {
         // HITL service unreachable or threw — fail closed with 503 rather than
         // silently treating the receipt as missing (which would re-issue a new challenge).

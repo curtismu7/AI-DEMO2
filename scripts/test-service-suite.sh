@@ -12,15 +12,22 @@
 # Usage: bash scripts/test-service-suite.sh <authz-server|mcp-gateway>
 #
 # BLOCKING vs NON-BLOCKING
-# Both services carry pre-existing failures that predate this wiring and are out
-# of scope to fix here, so by default a failing test REPORTS but does not fail the
-# gate. What always fails the gate is the suite not running at all — a missing
-# module, a broken config, or a bad invocation. That distinction is the point:
-# "0 tests ran" must never again be indistinguishable from "all tests passed".
+# By default a failing test REPORTS but does not fail the gate. What always fails
+# the gate is the suite not running at all — a missing module, a broken config,
+# or a bad invocation. That distinction is the point: "0 tests ran" must never
+# again be indistinguishable from "all tests passed".
 #
-# Set SUITE_BLOCKING=1 to make test failures fail the gate too. Do that once the
-# pre-existing failures below are fixed; that is the intended end state, and this
-# file is the single place to flip it.
+# Set SUITE_BLOCKING=1 to make test failures fail the gate too. That is the
+# intended end state for every suite here.
+#
+# mcp-gateway reached it on 2026-08-17 and ci.yml now runs it with
+# SUITE_BLOCKING=1 — its 11 pre-existing failures were fixed (6 gateway-auth and
+# 3 gateway-passthrough died in setup before reaching an assertion, 2
+# gateway-server-hardening were flakes), leaving 721/721 green.
+#
+# authz-server still carries pre-existing failures and stays non-blocking until
+# someone fixes them. Until then, read a green "Service suites" for it as "the
+# suite ran", NOT as "the suite passed".
 #
 # Deliberately NOT a pinned allowlist of known-failing test names: this repo runs
 # several agents concurrently in one worktree, so a name list goes stale within

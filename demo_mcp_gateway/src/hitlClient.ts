@@ -89,6 +89,63 @@ export async function getHitlChallengeStatus(
 }
 
 /**
+ * Verify a HITL receipt AND consume it, in one server-side call.
+ *
+ * Replaces `getHitlChallengeStatus()` + local `verifyHitlReceipt()` at the
+ * retry sites. That pairing ran identical binding checks but never mutated
+ * challenge state, so the same `_hitl_challenge_id` could discharge retry after
+ * retry until the 10-minute TTL — the replay hole BUGS.md #35 closed for
+ * PingGateway's Groovy path but not for this one, which is the DEFAULT
+ * (`ff_mcp_gateway_pinggateway` is off by default).
+ *
+ * `POST /challenges/:id/verify` runs the same checks server-side (its
+ * `receiptVerification.js` mirrors `verifyHitlReceipt` message for message) and
+ * calls `store.consume()` on success, so a replay is rejected as
+ * `status: consumed`.
+ *
+ * A rejected receipt is a 200 with `{ ok: false, message }`, NOT a 4xx — the
+ * caller must be able to distinguish "receipt rejected" (deny the retry) from
+ * "HITL service unreachable" (fail closed with a 503). Transport failures throw,
+ * matching `getHitlChallengeStatus`, so existing catch blocks keep failing
+ * closed unchanged.
+ */
+export async function verifyAndConsumeHitlReceipt(
+  hitlServiceUrl: string,
+  challengeId: string,
+  expected: {
+    userId?: string;
+    agentId?: string;
+    tool?: string;
+    amount?: number | string | null;
+    params?: Record<string, unknown> | null;
+  },
+): Promise<ReceiptVerification> {
+  const _secret = process.env.HITL_INTERNAL_SECRET || '';
+  const response = await axios.post(
+    `${hitlServiceUrl}/challenges/${challengeId}/verify`,
+    {
+      userId: expected.userId,
+      agentId: expected.agentId,
+      tool: expected.tool,
+      amount: expected.amount,
+      params: expected.params,
+    },
+    {
+      timeout: 5_000,
+      headers: {
+        ...(_secret ? { 'X-HITL-Internal-Secret': _secret } : {}),
+      },
+    },
+  );
+  const body = (response.data || {}) as ReceiptVerification;
+  // Fail closed on an unexpected body shape rather than defaulting to allow.
+  if (typeof body.ok !== 'boolean') {
+    return { ok: false, message: 'HITL verification returned an unreadable response' };
+  }
+  return body;
+}
+
+/**
  * Phase 2 CR-01 — verify that an approved HITL challenge belongs to the
  * caller, agent, and tool that is retrying `tools/call`.
  *

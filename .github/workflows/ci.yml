@@ -336,13 +336,26 @@ jobs:
         run: npm install --prefix oauth-mcp --no-audit --no-fund
       - name: Install demo_mcp_resource_server deps
         run: npm install --prefix demo_mcp_resource_server --no-audit --no-fund
+      # demo_mcp_gateway's tests/vault.test.ts reaches across the package
+      # boundary into demo_api_server/lib/vault, whose crypto.js requires the
+      # native `argon2` KDF. Without it that suite cannot RUN — which the gate
+      # counts as a failure, so it would sink the SUITE_BLOCKING=1 step below.
+      # Installing the single package rather than all of demo_api_server keeps
+      # this inside the Actions budget documented at the top of this file.
+      # The cross-package coupling itself is tracked in TECH_DEBT (2026-08-17).
+      - name: Install argon2 for demo_mcp_gateway's cross-package vault test
+        run: npm install --prefix demo_api_server argon2 --no-audit --no-fund --no-save
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       - name: demo_authz_server suite (node --test, root + tests/)
         run: npm run test:authz-server
+      # BLOCKING as of 2026-08-17: the suite is fully green (721 tests) now that
+      # the 11 pre-existing failures are fixed — 6 gateway-auth and 3
+      # gateway-passthrough that died in setup before any assertion, plus 2
+      # gateway-server-hardening flakes. A red here is now a regression.
       - name: demo_mcp_gateway suite (Jest, CI=true --maxWorkers=2)
-        run: npm run test:mcp-gateway
-      # Unlike the two above, this one has no pre-existing-failure tolerance:
+        run: SUITE_BLOCKING=1 npm run test:mcp-gateway
+      # Unlike demo_authz_server above, this one has no pre-existing-failure tolerance:
       # the suite is fully green (894 tests) as of this change, so any red here
       # is a regression and must fail the job.
       - name: oauth-mcp suite (Jest, unit)
