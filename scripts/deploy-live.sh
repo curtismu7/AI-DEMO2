@@ -125,7 +125,16 @@ while IFS= read -r f; do
     demo_hitl_service/*)          add_build hitl-service ;;
     langchain_agent/*)            add_build langchain-agent ;;
     llamaindex_agent/*)           add_build llamaindex-agent ;;
-    demo_llm_proxy/*)             add_build llm-proxy ;;
+    # llm-proxy is a real compose service, but run-docker.sh deliberately keeps
+    # it OUT of its SERVICES table: clear_stale_host_listeners() kills whatever
+    # listens on every port in that table, and with LLM_BACKEND=omlx|mlx the
+    # HOST owns :8090. Listing it there would make run-docker.sh shoot the host
+    # LLM backend. So route it through docker compose directly, not run-docker.sh.
+    demo_llm_proxy/*)
+      if [ -z "${LLM_PROXY_NOTED:-}" ]; then
+        LLM_PROXY_NOTED=1
+        note "demo_llm_proxy changed — run-docker.sh does not manage llm-proxy (see its SERVICES table); rebuild it directly: docker compose up -d --build llm-proxy"
+      fi ;;
     mastra_agent/*)               add_build mastra-agent ;;
     demo_mcp_brave/*)             add_build mcp-brave ;;
     demo_mcp_gateway/*)           add_build mcp-gateway ;;
