@@ -1,5 +1,12 @@
 # P1AZ Bulk Decision Requests — demo tab + advisory bulk pre-flight
 
+> **Status: SHIPPED. Archival — no work remains.** Verified 2026-08-17:
+> `demo_api_ui/src/components/BulkDecisionPanel.jsx` and
+> `demo_api_ui/src/config/bulkDecisionBundles.js` provide the demo surface and
+> its bundles; `demo_api_server/services/pingOneAuthorizeService.js` and
+> `services/agentPreflightService.js` carry the bulk decision wiring, gated in
+> `routes/featureFlags.js`.
+
 ## Context
 
 PingOne Authorize supports a **bulk decision request**: up to 20 decision evaluations in a

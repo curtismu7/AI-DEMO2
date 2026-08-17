@@ -1,5 +1,12 @@
 # HANDOFF — Agent hidden under the clinical-split dashboard (2026-07-05)
 
+> **Status: RESOLVED 2026-07-16. Archival — no work remains.** Both issues
+> shipped: `e099ffdd1` tri-states `ff_customer_skin_ping2026` (null = unresolved)
+> so exactly one dashboard ever mounts, ending the race where the loser's unmount
+> cleanup wiped the winner's agent-surface registration; and a module-scope
+> `unauthorizedVerticals` latch in `ConversationSummaryPanel.jsx` stops the 401
+> retry loop. Verified 2026-08-17.
+
 Status snapshot so the next agent can pick this up without clobbering other
 sessions. Written by the token-chain session (branch
 `worktree-fix-token-chain-trace-details`, worktree at

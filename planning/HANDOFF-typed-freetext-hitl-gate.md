@@ -1,7 +1,22 @@
 # HANDOFF — typed free-text transfers dead-end at "Incomplete"
 
-**Status:** open. Root cause located and proven; fix not attempted.
-**Date:** 2026-07-18/19
+**Status:** RESOLVED. Archival — the fix below was implemented; no work remains.
+**Date:** 2026-07-18/19 · **Resolved verified:** 2026-08-17
+
+> The "agent service" option under **Where the fix belongs** is what shipped.
+> `langchain_agent/src/agui/emitter.py` gained `on_hitl_interrupt()`, which emits
+> `RUN_FINISHED` with `outcome={"type": "interrupt", "interrupts": [...]}` and marks
+> the stream terminated so the trailing `on_run_end()` cannot append an
+> outcome-less `RUN_FINISHED` that would clear `hitlPending`. It is called from
+> `src/api/message_processor.py` via `_extract_hitl_interrupt(turn_tool_calls)`,
+> which ends the turn as a pause rather than letting the gate become another
+> tool result the LLM narrates. `demo_agent_service/src/agentRunHandler.ts` emits
+> the same outcome. The BFF already understood it — `routes/agentRun.js`
+> `_recordTraceEvents` persists `status: 'suspended_hitl'` and now also wires a
+> run-scoped consent SSE subscription off that signal.
+>
+> Tests: `tests/agui/test_emitter.py` + `tests/test_hitl_interrupt_extraction.py`,
+> 15 passed.
 
 ## Symptom
 
