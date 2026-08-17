@@ -1870,7 +1870,14 @@ function renderOutcome(res, outcome) {
 }
 
 // POST /api/mcp/tool — call a banking MCP tool
-app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next) => {
+// transactionTurnMiddleware: this route IS an agent turn — a chip or the direct
+// tool caller enters here, and the gateway + MCP hops it causes already land in
+// the ledger under this request's correlation id. Without it the BFF emitted no
+// hop of its own, so those records held gateway + mcp hops and NO
+// demo-api-server hop — the orphan cluster /transaction-trace could not attach
+// to any turn. After requireSession so an unauthenticated probe never files a
+// record and burns the 500-transaction cap.
+app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddleware, async (req, res, next) => {
   // Defense-in-depth: scrub any JWT-shaped string from EVERY json response on
   // this route (tokenEvents success + all error/expiry paths) without editing
   // each res.json call site — keeps the §1-protected gate/branch logic byte-for-
