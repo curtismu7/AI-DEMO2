@@ -39,17 +39,21 @@ describe('POST /consent-challenge/:id/confirm — DaVinci flag routing', () => {
     configStore.getEffective.mockReset();
   });
 
-  test('flag OFF (default): calls confirmChallenge, never confirmChallengeViaDaVinci', async () => {
+  test('flag OFF (default): calls confirmChallenge with no third argument (unchanged from pre-DaVinci behavior), never confirmChallengeViaDaVinci', async () => {
     configStore.getEffective.mockReturnValue(undefined);
     await request(buildApp()).post('/api/transactions/consent-challenge/c1/confirm').send({});
-    expect(txConsent.confirmChallenge).toHaveBeenCalled();
+    expect(txConsent.confirmChallenge).toHaveBeenCalledTimes(1);
+    // No third `opts` argument on the flag-OFF path — passing one changes the
+    // OTP-email greeting fallback inside confirmChallenge (REGRESSION_PLAN §1).
+    expect(txConsent.confirmChallenge.mock.calls[0]).toHaveLength(2);
+    expect(txConsent.confirmChallenge).toHaveBeenCalledWith(expect.anything(), 'c1');
     expect(txConsent.confirmChallengeViaDaVinci).not.toHaveBeenCalled();
   });
 
-  test('flag ON: calls confirmChallengeViaDaVinci, never confirmChallenge', async () => {
+  test('flag ON: calls confirmChallengeViaDaVinci with { userName }, never confirmChallenge', async () => {
     configStore.getEffective.mockImplementation((k) => (k === 'ff_davinci_orchestration' ? 'true' : undefined));
     await request(buildApp()).post('/api/transactions/consent-challenge/c1/confirm').send({});
-    expect(txConsent.confirmChallengeViaDaVinci).toHaveBeenCalled();
+    expect(txConsent.confirmChallengeViaDaVinci).toHaveBeenCalledWith(expect.anything(), 'c1', { userName: 'testuser' });
     expect(txConsent.confirmChallenge).not.toHaveBeenCalled();
   });
 });
