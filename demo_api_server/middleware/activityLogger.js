@@ -1,4 +1,5 @@
 const dataStore = require('../data/store');
+const { emitHop } = require('../services/transactionHop');
 
 // Known sensitive field names (case-insensitive) redacted from requestBody
 // before it's persisted — mirrors the Authorization header redaction below.
@@ -140,6 +141,38 @@ const logActivity = (req, res, next) => {
         duration,
         timestamp: new Date()
       };
+
+      // Also chain this request into the shared transaction ledger as a
+      // 'backend.request' hop — but only when the request arrived carrying an
+      // upstream correlation id (agent/gateway/P1AZ already tagged it), not
+      // for ordinary UI-direct calls where middleware/correlationId.js had to
+      // mint a fresh id locally. Every BFF request gets *some* correlationId,
+      // so gating on presence alone would write a ledger record for every
+      // GET/POST the API serves and flood the 500-record cap
+      // (services/lmdb/transactionLedger.lmdb.js MAX_TRANSACTIONS) with
+      // single-hop noise unrelated to any traced prompt flow.
+      const inboundHeaders = req.headers || {};
+      const hadInboundCorrelationId = Boolean(
+        inboundHeaders['x-request-id'] || inboundHeaders['x-correlation-id']
+      );
+      if (hadInboundCorrelationId) {
+        emitHop({
+          phase: 'backend.request',
+          op: logEntry.endpoint,
+          identity: { sub: userId ? String(userId) : null },
+          durationMs: duration,
+          status: res.statusCode >= 400 ? 'error' : 'ok',
+          details: {
+            username: logEntry.username,
+            action: logEntry.action,
+            ipAddress: logEntry.ipAddress,
+            userAgent: logEntry.userAgent,
+            authorization: logEntry.authorization,
+            requestBody: logEntry.requestBody,
+            responseStatus: logEntry.responseStatus,
+          },
+        });
+      }
 
       // Store the activity log (async, but don't wait for it)
       dataStore.createActivityLog(logEntry).catch(error => {
