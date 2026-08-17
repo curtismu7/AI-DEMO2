@@ -18,6 +18,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { createRequire } = require('node:module');
 
 /**
  * @babel/parser is not a direct dependency of this package. It is present in
@@ -27,10 +28,20 @@ const path = require('node:path');
  * parser is missing is the failure mode this whole file exists to prevent.
  */
 function loadParser(root) {
-  const candidates = [root, path.join(root, 'demo_api_server'), path.join(root, 'demo_api_ui')];
+  // createRequire, not require.resolve({ paths }). This file sits at the repo
+  // ROOT (scripts/lib/), where CI installs no node_modules — and jest resolves
+  // from the requiring file's directory, not the test's package, so under jest
+  // every root-relative lookup missed while the plain-node CLI gate resolved
+  // fine. createRequire anchors resolution to a package that really has the
+  // dependency and uses Node's own resolver, so both contexts agree.
+  const candidates = [
+    path.join(root, 'demo_api_server'),
+    path.join(root, 'demo_api_ui'),
+    root,
+  ];
   for (const base of candidates) {
     try {
-      return require(require.resolve('@babel/parser', { paths: [base] }));
+      return createRequire(path.join(base, 'package.json'))('@babel/parser');
     } catch (_) { /* try the next one */ }
   }
   throw new Error(
