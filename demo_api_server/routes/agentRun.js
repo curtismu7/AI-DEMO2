@@ -457,7 +457,21 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     let toolsResult;
     if (ccTokenResult) {
       try {
-        toolsResult = await agentGatewayClient.getAvailableTools(req, ccTokenResult.access_token);
+        // listAvailableTools, NOT the legacy getAvailableTools. The latter POSTs
+        // to <AGENT_GATEWAY_URL>/tools/list — an endpoint that exists nowhere in
+        // this system: the Node gateway serves only /.well-known, /health,
+        // /admin/* and /mcp, and IG's routes define no /tools/list either. With
+        // AGENT_GATEWAY_URL unset it dialled localhost:8080 (the BFF itself), so
+        // EVERY run failed discovery with ECONNREFUSED and fell back to the
+        // hardcoded 4-tool catalog. That was invisible because
+        // resolveAgentRunTools below discards the catalog anyway for any vertical
+        // with a plugin — the only symptom was a permanently red tools/list step.
+        // listAvailableTools is the WS path agentToolsResolver already uses
+        // successfully in this same process, and it goes THROUGH the gateway, so
+        // PingOne Authorize filters the catalog by vertical and scope.
+        toolsResult = await agentGatewayClient.listAvailableTools(req, ccTokenResult.access_token, {
+          vertical: verticalManifest.resolver.activeIdFor(req),
+        });
       } catch (toolsErr) {
         console.warn('[agentRun] Gateway tools failed, falling back to local catalog:', toolsErr.message);
         toolsResult = { tools: agentGatewayClient.getLocalToolsCatalog(), tokenEvents: [] };
