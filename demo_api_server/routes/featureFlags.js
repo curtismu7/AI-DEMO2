@@ -703,11 +703,30 @@ const FLAG_REGISTRY = [
     category:     'UI / Dashboard',
     description:
       'Selects which agent framework handles POST /api/agent/run requests. ' +
-      '**langchain** — LangChain agent on port 8889, the only supported framework.',
+      '**langchain** (default) — LangChain agent, AG-UI SSE on port 8888. ' +
+      '**openai_agents** / **mastra** / **pydantic_ai** — same POST /run contract, ' +
+      'different SDK; start via `./run-docker.sh agents` first. ' +
+      '**auto** — LLM-backed pick among the four per request (services/agentFrameworkOrchestrator.js); ' +
+      'also requires the three non-langchain containers running.',
     impact: 'Changes take effect immediately — no restart required.',
     type:         'enum',
-    options:      ['langchain'],
+    options:      ['langchain', 'openai_agents', 'mastra', 'pydantic_ai', 'auto'],
     defaultValue: 'langchain',
+  },
+  {
+    id:           'ff_davinci_orchestration',
+    name:         'DaVinci Orchestration Showcase',
+    category:     'UI / Dashboard',
+    description:
+      'When **ON**, high-value transaction step-up routes through the DaVinci ' +
+      'multi-connector flow (SSO + Protect risk score + MFA + fraud-queue webhook + ' +
+      'Authorize) instead of the hand-coded OTP/MFA consent-challenge state machine, ' +
+      'and the DaVinci-widget login page becomes reachable from the nav. ' +
+      '**OFF** (default) — both scenarios run exactly as they do today; no DaVinci ' +
+      'API call is ever made.',
+    impact: 'Falls back to the existing hand-coded path on any DaVinci API failure — never blocks a transaction.',
+    type:         'boolean',
+    defaultValue: false,
   },
   {
     id:           'ff_authorize_rules_panel',

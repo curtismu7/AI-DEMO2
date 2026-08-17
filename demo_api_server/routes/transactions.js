@@ -198,7 +198,11 @@ router.post(
   '/consent-challenge/:challengeId/confirm',
   authenticateToken,
   async (req, res) => {
-    const result = await txConsent.confirmChallenge(req, req.params.challengeId);
+    const useDaVinci = configStore.getEffective('ff_davinci_orchestration') === 'true'
+      || configStore.getEffective('ff_davinci_orchestration') === true;
+    const result = useDaVinci
+      ? await txConsent.confirmChallengeViaDaVinci(req, req.params.challengeId, { userName: req.user.username })
+      : await txConsent.confirmChallenge(req, req.params.challengeId);
     if (!result.ok) return res.status(result.status).json(result.json);
     req.session.save((saveErr) => {
       if (saveErr) console.error('[ConsentChallenge] session save error (confirm):', saveErr);

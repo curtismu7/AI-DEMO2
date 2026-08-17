@@ -665,6 +665,16 @@ export default function BankingAgent({
       return true;
     }
   });
+  // "DaVinci Mode" — pure UI preference (no server flag), surfaces the DaVinci
+  // Orchestration explainer/demo nav entry instead of standard agent chrome.
+  // See docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
+  const [davinciMode, setDavinciMode] = useState(() => {
+    try {
+      return localStorage.getItem("ba_davinci_mode") === "1";
+    } catch {
+      return false;
+    }
+  });
   // Inspectors sub-group — same reasoning as the Configuration group above, but
   // scoped so Demo steps / Live Use Cases / Agent scope stay visible beside it.
   const [inspectorsOpen, setInspectorsOpen] = useState(() => {
@@ -8969,6 +8979,22 @@ export default function BankingAgent({
                       >
                         Movie reel
                       </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={davinciMode}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem("ba_davinci_mode", newVal ? "1" : "0");
+                          } catch {}
+                          setDavinciMode(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-davinci-mode-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Switch this demo between the standard hand-coded flows and PingOne DaVinci-orchestrated flows"
+                      >
+                        DaVinci Mode
+                      </Check>
                       <button
                         type="button"
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
@@ -8994,6 +9020,16 @@ export default function BankingAgent({
                       >
                         Script
                       </button>
+                      {davinciMode && (
+                        <button
+                          type="button"
+                          className="ba-actions-trigger"
+                          title="Why PingOne DaVinci orchestration — value walkthrough, no live flow required"
+                          onClick={() => { window.location.href = "/davinci-orchestration"; }}
+                        >
+                          DaVinci Orchestration
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

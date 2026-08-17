@@ -11,9 +11,13 @@
  */
 
 const mockGetEffective = jest.fn();
+const mockSelectFramework = jest.fn();
 
 jest.mock('../services/configStore', () => ({
   getEffective: mockGetEffective,
+}));
+jest.mock('../services/agentFrameworkOrchestrator', () => ({
+  selectFramework: mockSelectFramework,
 }));
 
 const agentRunRoute = require('../routes/agentRun');
@@ -80,5 +84,31 @@ describe('resolveAgentTarget — framework hostname routing', () => {
   test('unknown framework falls back to langchain hostname', () => {
     mockGetEffective.mockReturnValue('unknown_framework');
     expect(resolveHost(mockGetEffective('llm_framework'))).toBe(FRAMEWORK_HOSTS.langchain);
+  });
+});
+
+describe('resolveAgentTarget — auto framework selection', () => {
+  afterEach(() => {
+    mockGetEffective.mockReset();
+    mockSelectFramework.mockReset();
+  });
+
+  test('llm_framework=auto calls agentFrameworkOrchestrator and routes to its pick', async () => {
+    mockGetEffective.mockReturnValue('auto');
+    mockSelectFramework.mockResolvedValue('mastra');
+
+    const target = await agentRunRoute.__test.resolveAgentTarget({ message: 'hi', vertical: 'super_sports' });
+
+    expect(mockSelectFramework).toHaveBeenCalledWith({ message: 'hi', vertical: 'super_sports' });
+    expect(target).toEqual({ hostname: FRAMEWORK_HOSTS.mastra, port: FRAMEWORK_PORTS.mastra });
+  });
+
+  test('llm_framework=langchain (static) never calls agentFrameworkOrchestrator', async () => {
+    mockGetEffective.mockReturnValue('langchain');
+
+    const target = await agentRunRoute.__test.resolveAgentTarget({ message: 'hi', vertical: 'super_sports' });
+
+    expect(mockSelectFramework).not.toHaveBeenCalled();
+    expect(target).toEqual({ hostname: FRAMEWORK_HOSTS.langchain, port: FRAMEWORK_PORTS.langchain });
   });
 });

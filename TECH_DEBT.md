@@ -7,6 +7,55 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
+
+**Where:** `demo_api_server/routes/davinciLogin.js` (`POST /callback`).
+
+**What's wrong:** the route exchanges the DaVinci widget's authorization code and
+reads the resulting ID token, but never checks it against a stored nonce the way
+`routes/oauth.js`'s callback does (`idPayload.nonce !== expectedNonce`, ~line 266-276)
+and `routes/oauthUser.js`'s does (`idTokenClaims.nonce !== expectedNonce`, ~line
+459-467). Without that check the callback can't detect ID token replay.
+
+**Why not fixed now:** both reference flows generate a nonce themselves and pass
+it into `oauthService.generateAuthorizationUrl(..., nonce)` before redirecting to
+PingOne, so the nonce round-trips through a redirect URL they control. This route's
+flow start is entirely inside the `@forgerock/davinci-client` SDK
+(`demo_api_ui/src/lib/davinciWidgetClient.js`'s `davinci({ config })` /
+`client.start()`/`client.next()`) — checked the installed package's README and
+`dist/src` for `nonce` support and found none, so there's no supported way to set
+or retrieve one through the SDK today. Implementing this would mean either forking
+the SDK's flow-start call or hand-building the DaVinci authorize request outside
+it — both fragile enough to risk breaking the widget flow this fix round wasn't
+scoped to touch.
+
+**Real fix:** once the SDK exposes (or a DaVinci-orchestration-level workaround is
+found for) a way to pass a nonce into the flow's authorize step and have it echo
+back in the ID token, wire up the same pattern as `routes/oauth.js`: generate a
+nonce before the widget starts, store it in `req.session`/PKCE cookie, and verify
+`idPayload.nonce === expectedNonce` in the callback before establishing a session.
+
+### 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
+
+**Where:** `demo_api_server/services/davinciFlowClient.js` (`_getApiToken()`).
+
+**What's wrong:** returns `` `${apiClientId}:${apiClientSecret}` `` and sends it
+as a `Bearer` token to PingOne's orchestrate API. PingOne expects a real OAuth
+access token (client_credentials grant) or `Basic base64(id:secret)` at the
+token endpoint itself — a raw colon-joined pair as a bearer token will 401
+against a live environment. Every consumer of `invokeFlow()` currently runs
+against mocked HTTP in tests, so this has never been exercised live.
+
+**Why not fixed now:** scoped out of the plan's Task 3 (`docs/superpowers/plans/2026-08-17-davinci-orchestration-showcase.md`)
+on purpose — building a full client_credentials grant + token cache wasn't
+needed to land the mockable client shape, and DaVinci console setup (that
+plan's Task 1) hasn't happened yet, so there's no live environment to test
+against regardless.
+
+**Real fix:** implement a real client_credentials token fetch (mirror
+`services/mfaService.js`'s `_getWorkerToken()` pattern) with expiry-aware
+caching, before this client is ever pointed at a live PingOne environment.
+
 ### 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
 
 **Where:** `demo_api_server/scripts/refresh-service-envs.js` (shared default

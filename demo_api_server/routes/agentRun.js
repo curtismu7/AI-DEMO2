@@ -22,6 +22,7 @@
 const express = require('express');
 const http = require('http');
 const configStore = require('../services/configStore');
+const agentFrameworkOrchestrator = require('../services/agentFrameworkOrchestrator');
 const { resolveAgentMode } = require('../services/agentModeResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 const { agentRunStore } = require('../services/agentRunStore');
@@ -172,8 +173,11 @@ const FRAMEWORK_HOSTS = {
   pydantic_ai:   'pydantic-agent',
 };
 
-function resolveAgentTarget() {
-  const framework = configStore.getEffective('llm_framework') || 'langchain';
+async function resolveAgentTarget({ message, vertical } = {}) {
+  let framework = configStore.getEffective('llm_framework') || 'langchain';
+  if (framework === 'auto') {
+    framework = await agentFrameworkOrchestrator.selectFramework({ message, vertical });
+  }
   const port = FRAMEWORK_PORTS[framework] ?? FRAMEWORK_PORTS.langchain;
   const hostname = FRAMEWORK_HOSTS[framework] ?? FRAMEWORK_HOSTS.langchain;
   return { hostname, port };
@@ -603,7 +607,10 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     })}\n\n`);
   }
 
-  const { hostname: agentHost, port: agentPort } = resolveAgentTarget();
+  const { hostname: agentHost, port: agentPort } = await resolveAgentTarget({
+    message: lastUserMessage?.content,
+    vertical: verticalManifest.resolver.activeIdFor(req),
+  });
   const agentPath = '/run';
   const agentFramework = configStore.getEffective('llm_framework') || 'langchain';
 
@@ -815,6 +822,7 @@ module.exports = router;
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
 module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
+  resolveAgentTarget,
   resolveAgentRunTools,
   markRecovered,
   _recordTraceEvents,
