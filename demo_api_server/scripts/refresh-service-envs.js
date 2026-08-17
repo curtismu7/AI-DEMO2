@@ -567,9 +567,14 @@ async function main() {
     ...shared,
     PINGONE_TOKEN_ENDPOINT:      `${asBase}/token`,
     PINGONE_AUTHORIZATION_ENDPOINT: `${asBase}/authorize`,
-    // This server's accepted audiences — NOT the banking MCP server URI. Compose
-    // overrides the same list; without this, native mode rejects mcp-invest tokens.
-    MCP_SERVER_RESOURCE_URI:     investAudList + ',mcpgateway.ping.demo',
+    // This server's accepted audiences under its OWN name — NOT the banking MCP
+    // server URI, which is what MCP_SERVER_RESOURCE_URI means everywhere else
+    // (TECH_DEBT 2026-08-16, T4). Compose overrides the same list; without this,
+    // native mode rejects mcp-invest tokens. `shared` still carries the banking
+    // MCP_SERVER_RESOURCE_URI into this file — harmless now that the server no
+    // longer prefers that name, and the legacy fallback keeps a pinned older
+    // container working.
+    MCP_RESOURCE_SERVER_RESOURCE_URI: investAudList + ',mcpgateway.ping.demo',
     MCP_RESOURCE_SERVER_AUDIENCE: investAudList,
   });
   console.log('[refresh-envs] Wrote demo_mcp_resource_server/.env');

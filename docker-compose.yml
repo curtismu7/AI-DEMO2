@@ -794,7 +794,9 @@ services:
       # mcpgateway.ping.demo is still what the forward-unchanged fallback sends, and
       # mcp-resource-server.ping.demo keeps any pinned older caller working.
       # Compose env wins over demo_mcp_resource_server/.env.
-      MCP_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
+      # This server's OWN var — MCP_SERVER_RESOURCE_URI means the banking MCP
+      # server's list everywhere else (TECH_DEBT 2026-08-16, T4).
+      MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"

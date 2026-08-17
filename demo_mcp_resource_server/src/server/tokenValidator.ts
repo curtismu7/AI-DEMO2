@@ -83,7 +83,7 @@ export async function decodeAndValidate(token: string, expectedAud: string): Pro
     throw new TokenError('Token expired', 'expired_token');
   }
 
-  // MCP_SERVER_RESOURCE_URI may be a comma-separated list of accepted audiences
+  // MCP_RESOURCE_SERVER_RESOURCE_URI may be a comma-separated list of accepted audiences
   // (rollout: own backend URI + gateway URI while both token shapes are live).
   const accepted = expectedAud.split(',').map((s) => s.trim()).filter(Boolean);
   const audList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];

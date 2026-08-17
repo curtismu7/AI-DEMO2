@@ -5,7 +5,7 @@
  *
  * MCP server for investment and airlines tools. Runs over WebSocket (same
  * protocol as banking_mcp_server). Validates inbound token aud ===
- * MCP_SERVER_RESOURCE_URI (mcp-invest.ping.demo — the audience the PingOne
+ * MCP_RESOURCE_SERVER_RESOURCE_URI (mcp-invest.ping.demo — the audience the PingOne
  * "Demo MCP Invest" resource carries; the value is a comma-separated ACCEPTED
  * list, so the gateway audience and the older URI stay valid too).
  *
@@ -18,14 +18,20 @@
  *   POST /mcp                                   — MCP JSON-RPC (for PingGateway,
  *                                                 which has no WS listener)
  *
- * Start: MCP_SERVER_RESOURCE_URI=mcp-invest.ping.demo node dist/index.js
+ * Start: MCP_RESOURCE_SERVER_RESOURCE_URI=mcp-invest.ping.demo node dist/index.js
  */
 
 import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
-import { OWN_AUDIENCE, resolveAcceptedAudiences } from './server/acceptedAudiences';
+import {
+  LEGACY_RESOURCE_URI_ENV,
+  OWN_AUDIENCE,
+  RESOURCE_URI_ENV,
+  resolveAcceptedAudiences,
+  resolveResourceUriEnv,
+} from './server/acceptedAudiences';
 
 interface ResourceDef {
   uri: string;
@@ -115,14 +121,24 @@ if (process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true' && process.env.NODE_E
 
 const PORT = parseInt(process.env.PORT || '8081', 10);
 const HOST = process.env.HOST || '0.0.0.0';
-// MCP_SERVER_RESOURCE_URI may be a comma-separated accepted-audience list (RFC 8693
-// rollout). The FIRST entry is this server's canonical resource URI (RFC 9728
-// metadata, health, logs); the full list feeds aud validation.
-const RESOURCE_URI_LIST = resolveAcceptedAudiences(process.env.MCP_SERVER_RESOURCE_URI);
+// The accepted-audience list may be comma-separated (RFC 8693 rollout). The
+// FIRST entry is this server's canonical resource URI (RFC 9728 metadata,
+// health, logs); the full list feeds aud validation.
+const RESOURCE_URI_ENV_VALUE = resolveResourceUriEnv();
+const RESOURCE_URI_LIST = resolveAcceptedAudiences(RESOURCE_URI_ENV_VALUE.value);
 const RESOURCE_URI = RESOURCE_URI_LIST[0];
-if (process.env.MCP_SERVER_RESOURCE_URI && !process.env.MCP_SERVER_RESOURCE_URI.includes(OWN_AUDIENCE)) {
+// Reading the shared banking name still works, but say so — that is the
+// deployment shape T4 exists to retire (shared k8s configmap fanned into this
+// server via envFrom).
+if (RESOURCE_URI_ENV_VALUE.source === LEGACY_RESOURCE_URI_ENV) {
   console.warn(
-    `[demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI omits this server's own ` +
+    `[demo-mcp-resource-server] WARNING: falling back to '${LEGACY_RESOURCE_URI_ENV}', which is the ` +
+    `BANKING MCP server's audience list elsewhere. Set '${RESOURCE_URI_ENV}' for this server instead.`
+  );
+}
+if (RESOURCE_URI_ENV_VALUE.value && !RESOURCE_URI_ENV_VALUE.value.includes(OWN_AUDIENCE)) {
+  console.warn(
+    `[demo-mcp-resource-server] WARNING: ${RESOURCE_URI_ENV_VALUE.source} omits this server's own ` +
     `audience '${OWN_AUDIENCE}' — accepting it anyway. The env value is stale.`
   );
 }
@@ -130,11 +146,11 @@ const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
 const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-resource-server)';
 
 // Startup env validation
-if (!process.env.MCP_SERVER_RESOURCE_URI) {
+if (!RESOURCE_URI_ENV_VALUE.value) {
   console.warn(
-    '[demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI is not set — ' +
+    `[demo-mcp-resource-server] WARNING: ${RESOURCE_URI_ENV} is not set — ` +
     `using default '${RESOURCE_URI}'. Token audience validation may fail. ` +
-    'Set MCP_SERVER_RESOURCE_URI in demo_api_server/.env'
+    `Set ${RESOURCE_URI_ENV} in demo_api_server/.env`
   );
 }
 
