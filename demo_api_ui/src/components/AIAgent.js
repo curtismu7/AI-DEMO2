@@ -2481,6 +2481,8 @@ export default function BankingAgent({
   // user saw only RFC-info token events and no reply, which made config faults
   // look like a dead agent. Dedupe per error value: useAgentState resets error
   // to null on RUN_STARTED, so each new failure produces exactly one bubble.
+  /** Last prompt handed to an AG-UI run, kept so an auth failure can replay it. */
+  const lastSentPromptRef = useRef(null);
   const aguiErrorBubbleRef = useRef(null);
   useEffect(() => {
     if (!aguiState.error) {
@@ -2491,13 +2493,36 @@ export default function BankingAgent({
     }
     if (aguiErrorBubbleRef.current === aguiState.error) return;
     aguiErrorBubbleRef.current = aguiState.error;
+
+    // A signed-out visitor asking for something that needs a session is not a
+    // failure to debug. The generic bubble told them "Session expired — open
+    // Token Chain, then try again": there was no session to expire, the panel
+    // shows nothing actionable, and trying again fails identically. The demo
+    // step path has offered a sign-in button since #1950; the typed path
+    // reached the same dead end it was built to remove.
+    if (!isLoggedIn && /session expired|unauthorized|not authenticated|authentication required|sign in/i.test(String(aguiState.error))) {
+      // Survive the OAuth redirect so the question is answered, not retyped.
+      try {
+        if (lastSentPromptRef.current) {
+          sessionStorage.setItem(BX_AGENT_PENDING_NL_KEY, lastSentPromptRef.current);
+        }
+      } catch (_) { /* storage blocked — the prompt is lost, the sign-in still works */ }
+      addMessage(
+        "assistant",
+        "That one needs you signed in — I'll answer it as soon as you are.",
+        null,
+        { showLoginPromptAction: true, loginActionId: "login_user" },
+      );
+      return;
+    }
+
     addMessage(
       "error",
       `⚠️ The agent request failed: ${aguiState.error} — open Token Chain or MCP Traffic to see the failing step, then try again.`,
     );
     // addMessage has stable identity for the life of the component; listing it
     // would re-fire this effect on unrelated renders.
-  }, [aguiState.error]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [aguiState.error, isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AG-UI grounding correction → visible chat bubble. Mirrors the error-bubble
   // dedupe pattern above: useAgentState resets lastGroundingCorrection to null
@@ -5931,6 +5956,9 @@ export default function BankingAgent({
         .filter((m) => (m.role === 'user' || m.role === 'assistant')
           && typeof m.content === 'string' && m.content.trim() && !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
+      // Remembered for the auth-failure branch below: nlInput is cleared on
+      // send, so by the time a run fails there is nothing left to replay.
+      lastSentPromptRef.current = text;
       aguiRun({
         threadId,
         runId,

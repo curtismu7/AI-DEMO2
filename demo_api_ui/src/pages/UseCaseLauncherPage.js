@@ -534,7 +534,7 @@ function resolveProgressiveTrustActs(useCases) {
  * never offered, so the refusal carries the button that resolves it.
  * @param {{ prompt: { msg: string, loginAs: 'user' | 'admin' } | null }} props
  */
-function ChipLoginPrompt({ prompt }) {
+export function ChipLoginPrompt({ prompt }) {
   if (!prompt) return null;
   const asAdmin = prompt.loginAs === 'admin';
   return (
