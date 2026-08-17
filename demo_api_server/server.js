@@ -2074,6 +2074,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
           // Investment
           get_investment_accounts: 'view_investments', get_investment_balance: 'view_investments',
           get_portfolio_summary: 'view_investments', get_investment_transactions: 'view_investments',
+          show_investment: 'view_investments',
           // Healthcare
           view_records: 'view_records', view_coverage: 'view_coverage',
           list_appointments: 'list_appointments', book_appointment: 'book_appointment',
@@ -2094,6 +2095,12 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
           request_time_off: 'request_time_off', show_expense_report: 'view_expenses',
           // Mortgage
           show_mortgage: 'view_mortgage',
+          // Government
+          show_permit: 'view_permits',
+          // University
+          show_enrollment: 'view_enrollment_history',
+          // Manufacturing
+          show_work_order: 'view_work_orders',
         };
         _itIntent = _TOOL_TO_INTENT[tool] || tool;
         _itConf = _TOOL_TO_INTENT[tool] ? 0.97 : 0.50;
