@@ -41,6 +41,9 @@ describe('GET /api/use-cases', () => {
       id: 'ADMIN1',
       title: 'List applications',
       trigger: { type: 'chip', text: 'List all PingOne applications in this environment' },
+      // Stamped from config/auth-requirements.json — the UI gates the step on
+      // this instead of re-deciding with its own isLoggedIn check.
+      auth: 'admin',
     });
     expect(res.body.useCases.map((u) => u.id)).toEqual([
       'ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4', 'ADMIN5', 'ADMIN6', 'ADMIN7', 'ADMIN8',
