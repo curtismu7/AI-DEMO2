@@ -333,7 +333,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_agui_enabled:           { public: true, default: 'true'  }, // AG-UI streaming agent via POST /api/agent/run
   ff_activity_narration:     { public: true, default: 'true'  }, // "What's happening" activity narration panel (always visible when on, no toggle)
   ff_agent_clinical_split:   { public: true, default: 'false' }, // 2B refined clinical-split dashboard layout (chat-left, audit-timeline-right) behind feature flag
-  llm_framework:             { public: true, default: 'langchain' }, // Agent framework — langchain only (see routes/featureFlags.js)
+  llm_framework:             { public: true, default: 'langchain' }, // Agent framework — langchain/openai_agents/mastra/pydantic_ai/auto (see routes/featureFlags.js)
+  ff_davinci_orchestration:  { public: true, default: 'false' }, // DaVinci multi-connector showcase (transaction step-up + widget login)
   // Feature-flag registry IDs that were missing from FIELD_DEFS — without an
   // entry getEffective() can't resolve them and the env-override fallback below
   // never applies. defaults MUST match routes/featureFlags.js FLAG_REGISTRY.
