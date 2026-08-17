@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make PingOne DaVinci actually demonstrate multi-connector orchestration in the banking demo (transaction step-up chaining SSO + Protect + MFA + a business-system webhook + Authorize; risk-adaptive login with two A/B-testable flow versions), while the existing hand-coded paths keep working byte-for-byte when DaVinci is off.
+**Goal:** Make PingOne DaVinci actually demonstrate multi-connector orchestration in the banking demo (transaction step-up chaining SSO + Protect + MFA + a business-system webhook + Authorize; risk-adaptive login with two A/B-testable flow versions), while the existing hand-coded paths keep working byte-for-byte when DaVinci is off — and give presenters a one-click "DaVinci Mode" switch in the agent dashboard's More menu, with a value-prop explainer page that needs no live DaVinci setup for quick demos.
 
-**Architecture:** One shared backend client (`davinciFlowClient.js`) invokes DaVinci flows via their orchestrate API. A single new LMDB-backed webhook endpoint (mirroring the existing `webhookPingOne.js` pattern) receives DaVinci's mid-flow and terminal callbacks. A new `ff_davinci_orchestration` admin flag (default OFF) gates both the transaction-flow branch inside `transactionConsentChallenge.js` and the login-flow's visibility — OFF preserves the current hand-coded HITL and redirect-login paths exactly. ON routes the same scenarios through DaVinci, failing closed back to the hand-coded path on any DaVinci API error. The DaVinci flow definitions themselves are authored in DaVinci Studio (no-code, not git-tracked code) — Task 1 is a manual checklist, everything after it is testable code.
+**Architecture:** One shared backend client (`davinciFlowClient.js`) invokes DaVinci flows via their orchestrate API. A single new LMDB-backed webhook endpoint (mirroring the existing `webhookPingOne.js` pattern) receives DaVinci's mid-flow and terminal callbacks. A new `ff_davinci_orchestration` admin flag (default OFF) gates both the transaction-flow branch inside `transactionConsentChallenge.js` and the login-flow's visibility — OFF preserves the current hand-coded HITL and redirect-login paths exactly. ON routes the same scenarios through DaVinci, failing closed back to the hand-coded path on any DaVinci API error. Separately, a client-only "DaVinci Mode" toggle in the agent header's More menu (no admin rights needed, mirrors the existing Movie-reel toggle) surfaces a nav entry to a static explainer page — zero live DaVinci calls, safe for any demo regardless of console setup state — with an optional CTA into the live widget login. The DaVinci flow definitions themselves are authored in DaVinci Studio (no-code, not git-tracked code) — Task 1 is a manual checklist, everything after it is testable code.
 
 **Tech Stack:** Node 22 CommonJS + Express + Jest (`demo_api_server`), React 19 + Vite + Vitest (`demo_api_ui`), `axios`, `lmdb`, `@forgerock/davinci-client`.
 
@@ -1401,6 +1401,232 @@ Expected: PASS, same failure count as baseline (0 expected)
 ```bash
 git add demo_api_ui/src/pages/DavinciLoginPage.jsx demo_api_ui/src/routes/PublicRoutes.js demo_api_ui/src/App.js
 git commit -m "feat(davinci): add /davinci-login widget page and route"
+```
+
+---
+
+---
+
+### Task 11: More-menu "DaVinci Mode" toggle
+
+**Files:**
+- Modify: `demo_api_ui/src/components/AIAgent.js` — add state near the existing `showFilmstrip` declaration (line 661) and a new `Check` toggle in the More popover, inserted immediately after the "Movie reel" toggle (line 8971), before the "Topology" button (line 8972)
+
+**Interfaces:**
+- Produces: `localStorage` key `ba_davinci_mode` (`"1"`/`"0"`, mirrors `ba_show_filmstrip`'s convention exactly), `davinciMode` component state, and a `window.dispatchEvent(new CustomEvent("agent-davinci-mode-toggle", { detail: { on: newVal } }))` broadcast (mirrors the filmstrip toggle's `agent-filmstrip-toggle` event) — Task 12's nav button reads `davinciMode` from the same component, so no other listener is required for this task alone.
+- This is a pure client-side UI preference — it does **not** flip the server-side `ff_davinci_orchestration` flag from Task 5 (that stays an admin-only control, unchanged). "DaVinci Mode" ON only changes what the More menu and dashboard nav *surface*, so any signed-in presenter can flip it instantly for a live demo without admin rights — exactly the "quick demo" requirement.
+
+- [ ] **Step 1: Add the state declaration**
+
+Modify `demo_api_ui/src/components/AIAgent.js`, immediately after the `showFilmstrip` `useState` block (after line 667):
+
+```javascript
+  // "DaVinci Mode" — pure UI preference (no server flag), surfaces the DaVinci
+  // Orchestration explainer/demo nav entry instead of standard agent chrome.
+  // See docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
+  const [davinciMode, setDavinciMode] = useState(() => {
+    try {
+      return localStorage.getItem("ba_davinci_mode") === "1";
+    } catch {
+      return false;
+    }
+  });
+```
+
+- [ ] **Step 2: Add the toggle to the More popover**
+
+Modify `demo_api_ui/src/components/AIAgent.js`, insert immediately after the Movie reel `</Check>` (after line 8971), before the Topology `<button>`:
+
+```jsx
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={davinciMode}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          try {
+                            localStorage.setItem("ba_davinci_mode", newVal ? "1" : "0");
+                          } catch {}
+                          setDavinciMode(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-davinci-mode-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Switch this demo between the standard hand-coded flows and PingOne DaVinci-orchestrated flows"
+                      >
+                        DaVinci Mode
+                      </Check>
+```
+
+- [ ] **Step 3: Manual verification (no automated test — this mirrors untested existing toggles like Movie reel/Dark mode)**
+
+Run: `cd demo_api_ui && npm run build` (gate — confirms no syntax error)
+Expected: exit 0
+
+Then manually: open the agent dashboard, click "More", confirm "DaVinci Mode" appears below "Movie reel" as a switch, toggle it, confirm `localStorage.getItem("ba_davinci_mode")` reflects the new value in devtools, and the toggle state survives a page reload.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add demo_api_ui/src/components/AIAgent.js
+git commit -m "feat(davinci): add DaVinci Mode toggle to agent header More menu"
+```
+
+---
+
+### Task 12: DaVinci Orchestration explainer page + nav entry
+
+**Files:**
+- Create: `demo_api_ui/src/pages/DavinciExplainerPage.jsx`
+- Modify: `demo_api_ui/src/routes/PublicRoutes.js` — add `DavinciExplainerRoute({ user, logout })`, mirroring `McpGatewayConfigRoute` (lines 248-254, `AppShell`-wrapped)
+- Modify: `demo_api_ui/src/App.js` — add the `/davinci-orchestration` route
+- Modify: `demo_api_ui/src/components/AIAgent.js` — add a nav button in the More popover, rendered only when `davinciMode` is true (Task 11), inserted after the "Script" button (after line 8996)
+
+**Interfaces:**
+- Produces: a route at `/davinci-orchestration`, `AppShell`-wrapped (keeps the normal dashboard nav/chrome, unlike the bare `/sdk-login`/`/davinci-login` sandboxes — this page is reached *from* the dashboard by a signed-in presenter). Makes **zero** network calls to DaVinci or the BFF's DaVinci endpoints — pure static/explanatory content, so it always works even with Task 1's console setup incomplete ("quick demos" requirement). Links out to `/davinci-login` (Task 10) as an optional "see it live" CTA.
+- Consumes: nothing live. Content is the competitive/value narrative already written in `docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md`'s Context section (Okta Workflows/Auth0 Actions/Entra ID Governance comparison, DaVinci's vendor-agnostic connector breadth, visual multi-system branching, A/B flow versioning) — reuse that text, do not write new marketing copy from scratch.
+
+- [ ] **Step 1: Write the explainer page**
+
+```jsx
+// demo_api_ui/src/pages/DavinciExplainerPage.jsx
+// Static value-prop page for PingOne DaVinci orchestration — makes NO live
+// DaVinci calls, so it works even before the console setup in
+// docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md's
+// Task 1 is done. Reached from the agent header's More menu when "DaVinci Mode"
+// is on (see AIAgent.js). Optional CTA links to the live widget demo (/davinci-login).
+
+const COMPARISON_ROWS = [
+  { platform: "Okta Workflows", note: "No-code, but locked to the Okta ecosystem." },
+  { platform: "Auth0 Actions", note: "Code-based (JavaScript) extensibility, not a visual no-code canvas." },
+  { platform: "Microsoft Entra ID Governance", note: "Strong only inside the Azure/Microsoft stack." },
+  { platform: "PingOne DaVinci", note: "Vendor-agnostic — 350+ connectors spanning identity AND business/IT systems (Slack, Twilio, ServiceNow, generic HTTP), visual multi-system branching, flow versioning/A-B testing, SaaS/self-managed/hybrid deployment." },
+];
+
+const ORCHESTRATION_STEPS = [
+  "PingOne SSO — look up the user",
+  "PingOne Protect — real-time risk score",
+  "Branch: low risk permits immediately; medium/high risk continues",
+  "PingOne MFA step-up, in parallel with a Generic HTTP connector alerting a fraud queue (a business system, not just an identity service)",
+  "PingOne Authorize — final policy decision",
+  "Generic HTTP connector — writes the result back into this demo's own audit trail",
+];
+
+export default function DavinciExplainerPage() {
+  return (
+    <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px", font: "14px/1.6 -apple-system,sans-serif" }}>
+      <h1 style={{ fontSize: 24 }}>Why PingOne DaVinci Orchestration</h1>
+      <p style={{ color: "#4b5563" }}>
+        A single-connector policy check proves DaVinci can call an API. It does not show why a
+        customer would buy it. The value is orchestrating <em>many</em> connector types — identity
+        AND business systems — on one visual, no-code canvas.
+      </p>
+
+      <h2 style={{ fontSize: 18, marginTop: 28 }}>How this differs from the alternatives</h2>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12 }}>
+        <tbody>
+          {COMPARISON_ROWS.map((row) => (
+            <tr key={row.platform} style={{ borderBottom: "1px solid #e5e7eb" }}>
+              <td style={{ padding: "10px 12px 10px 0", fontWeight: 600, whiteSpace: "nowrap", verticalAlign: "top" }}>
+                {row.platform}
+              </td>
+              <td style={{ padding: "10px 0", color: "#4b5563" }}>{row.note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2 style={{ fontSize: 18, marginTop: 28 }}>What this demo's transaction step-up flow chains together</h2>
+      <ol style={{ color: "#4b5563", paddingLeft: 20 }}>
+        {ORCHESTRATION_STEPS.map((step) => (
+          <li key={step} style={{ marginBottom: 8 }}>{step}</li>
+        ))}
+      </ol>
+      <p style={{ color: "#4b5563" }}>
+        None of that chain is a single API call away — it is exactly the kind of cross-system
+        orchestration a customer would otherwise hand-write and maintain themselves.
+      </p>
+
+      <div style={{ marginTop: 32, display: "flex", gap: 12 }}>
+        <a
+          href="/davinci-login"
+          style={{ display: "inline-block", padding: "10px 18px", borderRadius: 8, background: "#2f81f7", color: "#fff", fontWeight: 600, textDecoration: "none" }}
+        >
+          See the live widget login demo
+        </a>
+      </div>
+      <p style={{ color: "#9ca3af", fontSize: 12, marginTop: 8 }}>
+        Requires the DaVinci console setup in the implementation plan's Task 1. If that has not
+        been done yet on this environment, the live demo page will explain what is missing.
+      </p>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 2: Register the route (PublicRoutes.js)**
+
+Modify `demo_api_ui/src/routes/PublicRoutes.js`, add next to `McpGatewayConfigRoute` (after line 254):
+
+```javascript
+// DaVinci Orchestration explainer — signed-in, AppShell-wrapped (reached from
+// the agent header's More menu, not a pre-login sandbox like SdkLoginPageRoute).
+export function DavinciExplainerRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciExplainerPage />
+    </AppShell>
+  );
+}
+```
+
+(Add `import DavinciExplainerPage from "../pages/DavinciExplainerPage";` near the file's existing page imports.)
+
+- [ ] **Step 3: Register the route (App.js)**
+
+Modify `demo_api_ui/src/App.js`, add the import next to the other Task 10 additions and a new `<Route>` next to `/davinci-login`:
+
+```javascript
+  DavinciLoginPageRoute,
+  DavinciExplainerRoute,
+```
+
+```javascript
+                <Route path="/davinci-login" element={<DavinciLoginPageRoute />} />
+                <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
+```
+
+(Match whatever `user`/`logout` variable names the surrounding routes in `App.js` already use — `McpGatewayConfigRoute`'s existing call site in `App.js` has the exact pattern to copy.)
+
+- [ ] **Step 4: Add the conditional nav button in the More menu**
+
+Modify `demo_api_ui/src/components/AIAgent.js`, insert immediately after the "Script" `</button>` (after line 8996), still inside the same popover `<div>`:
+
+```jsx
+                      {davinciMode && (
+                        <button
+                          type="button"
+                          className="ba-actions-trigger"
+                          title="Why PingOne DaVinci orchestration — value walkthrough, no live flow required"
+                          onClick={() => { window.location.href = "/davinci-orchestration"; }}
+                        >
+                          DaVinci Orchestration
+                        </button>
+                      )}
+```
+
+- [ ] **Step 5: Build and unit-test check**
+
+Run: `cd demo_api_ui && npm run build && npm run test:unit`
+Expected: both exit 0, no new test failures
+
+- [ ] **Step 6: Manual verification**
+
+Turn on "DaVinci Mode" (Task 11's toggle), confirm the "DaVinci Orchestration" button now appears in the More menu, click it, confirm `/davinci-orchestration` renders the explainer content inside the normal dashboard chrome with zero network errors in the console (no DaVinci/BFF calls made by this page itself).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add demo_api_ui/src/pages/DavinciExplainerPage.jsx demo_api_ui/src/routes/PublicRoutes.js demo_api_ui/src/App.js demo_api_ui/src/components/AIAgent.js
+git commit -m "feat(davinci): add DaVinci Orchestration explainer page + More-menu nav entry"
 ```
 
 ---
