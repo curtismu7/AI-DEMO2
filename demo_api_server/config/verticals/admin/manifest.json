@@ -97,6 +97,86 @@
       { "id": "adm-a2a", "label": "Identity Verification Record", "message": "show the identity verification record for this customer", "mode": "both", "challenge": "consent", "tool": "sensitive_customer_identity", "useCaseId": "a2a-delegation", "group": "advanced" }
     ]
   },
+  "render": {
+    "lookup_customer": {
+      "type": "table",
+      "title": "Matching Customers",
+      "columns": [
+        { "label": "ID", "path": "id" },
+        { "label": "Username", "path": "username" },
+        { "label": "Email", "path": "email" },
+        { "label": "First name", "path": "firstName" },
+        { "label": "Last name", "path": "lastName" },
+        { "label": "Role", "path": "role" }
+      ]
+    },
+    "get_customer_profile": {
+      "type": "card",
+      "title": "Customer Profile",
+      "fields": [
+        { "label": "Username", "path": "user.username", "accent": true },
+        { "label": "Email", "path": "user.email" },
+        { "label": "First name", "path": "user.firstName" },
+        { "label": "Last name", "path": "user.lastName" },
+        { "label": "Role", "path": "user.role" },
+        { "label": "ID", "path": "user.id" }
+      ]
+    },
+    "get_customer_accounts": {
+      "type": "table",
+      "title": "Customer Accounts",
+      "columns": [
+        { "label": "Account", "path": "accountNumber" },
+        { "label": "Type", "path": "accountType" },
+        { "label": "Balance", "path": "balance", "format": "money" },
+        { "label": "ID", "path": "id" }
+      ]
+    },
+    "get_customer_transactions": {
+      "type": "table",
+      "title": "Recent Transactions",
+      "columns": [
+        { "label": "Date", "path": "createdAt", "format": "date" },
+        { "label": "Type", "path": "type" },
+        { "label": "Description", "path": "description" },
+        { "label": "Amount", "path": "amount", "format": "money" },
+        { "label": "Status", "path": "status" }
+      ]
+    },
+    "freeze_account": {
+      "type": "card",
+      "title": "Account Freeze",
+      "fields": [
+        { "label": "Account", "path": "accountId" },
+        { "label": "Frozen", "path": "frozen", "accent": true },
+        { "label": "Active", "path": "isActive" }
+      ]
+    },
+    "adjust_balance": {
+      "type": "card",
+      "title": "Balance Adjusted",
+      "fields": [
+        { "label": "Account", "path": "accountId" },
+        { "label": "New balance", "path": "newBalance", "format": "money", "accent": true }
+      ]
+    },
+    "reset_customer_password": {
+      "type": "card",
+      "title": "Password Reset",
+      "fields": [
+        { "label": "Customer", "path": "userId" },
+        { "label": "Reset required", "path": "passwordResetRequired", "accent": true }
+      ]
+    },
+    "delete_customer": {
+      "type": "card",
+      "title": "Customer Deleted",
+      "fields": [
+        { "label": "Customer", "path": "userId" },
+        { "label": "Deleted", "path": "deleted", "accent": true }
+      ]
+    }
+  },
   "scopes": {
     "read": "admin:read",
     "write": "admin:write",
