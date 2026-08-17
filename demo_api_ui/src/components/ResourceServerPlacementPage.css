@@ -1,0 +1,119 @@
+/* ResourceServerPlacementPage.css — single dark theme to match the Mermaid
+   diagram's dark rendering. Same structure as McpGatewayOauthFlowPage.css. */
+
+.rsp-page {
+  --rsp-bg: #0f1115;
+  --rsp-panel: #161a21;
+  --rsp-ink: #e9ecf3;
+  --rsp-ink-2: #9aa2b4;
+  --rsp-border: #2a313c;
+  --rsp-accent: #e0575c;
+  --rsp-hot-bg: rgba(224, 87, 92, 0.1);
+
+  background: var(--rsp-bg);
+  color: var(--rsp-ink);
+  min-height: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+}
+
+.rsp-hero {
+  margin-bottom: 16px;
+}
+.rsp-eyebrow {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rsp-accent);
+  margin-bottom: 8px;
+}
+.rsp-hero h1 {
+  font-size: 22px;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+.rsp-sub {
+  color: var(--rsp-ink-2);
+  font-size: 13px;
+  margin: 0;
+  max-width: 80ch;
+  line-height: 1.5;
+}
+
+.rsp-panel {
+  background: var(--rsp-panel);
+  border: 1px solid var(--rsp-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+.rsp-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+.rsp-error {
+  color: var(--rsp-accent);
+  font-size: 13px;
+  margin: 0;
+}
+
+.rsp-page h2 {
+  font-size: 16px;
+  margin: 28px 0 10px;
+}
+
+.rsp-tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--rsp-border);
+  border-radius: 10px;
+  background: var(--rsp-panel);
+}
+.rsp-tablewrap table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+  min-width: 640px;
+}
+.rsp-tablewrap th,
+.rsp-tablewrap td {
+  text-align: left;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--rsp-border);
+  vertical-align: top;
+}
+.rsp-tablewrap tr:last-child td {
+  border-bottom: none;
+}
+.rsp-tablewrap th {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rsp-ink-2);
+}
+.rsp-row--hot td {
+  background: var(--rsp-hot-bg);
+}
+
+.rsp-rules {
+  padding-left: 20px;
+  max-width: 80ch;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.rsp-rules li {
+  margin-bottom: 8px;
+}
+.rsp-rules strong {
+  color: var(--rsp-ink);
+}
+
+.rsp-footer {
+  color: var(--rsp-ink-2);
+  font-size: 12px;
+  margin-top: 24px;
+  max-width: 80ch;
+}
