@@ -160,6 +160,25 @@ env writer) against the topology.
 
 ### 2026-08-16 — Node MCP Gateway's HITL retry path never consumes the receipt
 
+**RESOLVED 2026-08-17.** Both Node gateway retry sites — HTTP
+(`middleware/authorizeMcpRequest.ts`) and WS (`index.ts`) — now call
+`verifyAndConsumeHitlReceipt()`, which POSTs to the existing consuming
+`POST /challenges/:id/verify` instead of `GET /challenges/:id` plus a local
+re-implementation. The server runs the same binding checks
+(`demo_hitl_service/src/receiptVerification.js` mirrors `verifyHitlReceipt`
+message for message) and calls `store.consume()` on success, so a replayed
+retry is rejected as `status: consumed`.
+
+Neither of the two options sketched below was needed. `/verify` already existed
+and already consumed — the gap was only that this gateway never called it — so
+no new endpoint, no `?consume=true` flag, and none of the read-only
+`GET /challenges/:id` pollers (`demo_api_server/services/hitlServiceClient.js`,
+`demo_authz_server/routes/decision.js`) were touched. `verifyHitlReceipt` stays
+exported and tested as the pure binding helper. Regression guard:
+`demo_mcp_gateway/tests/hitlReceiptConsume.test.ts` asserts the gateway POSTs to
+the consuming endpoint, never GETs, and that a second retry is rejected.
+Original entry below, kept for the reasoning.
+
 **Where:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (~L611-654,
 the `_hitl_challenge_id` retry branch) and `demo_mcp_gateway/src/hitlClient.ts`
 (`getHitlChallengeStatus` + `verifyHitlReceipt`).
