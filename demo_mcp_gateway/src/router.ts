@@ -73,6 +73,17 @@ const AIRLINES_TOOLS = new Set([
   'sensitive_passenger_record',
 ]);
 
+// Healthcare vertical (CareConnect) pilot for the Phase-1 SQLite migration.
+// Same physical backend as invest/airlines — demo_mcp_resource_server — so it
+// routes to the 'invest' target. Tool name matches the chip-facing manifest
+// tool exactly (view_records); scope-topology.json's tools.view_records entry
+// already requires only "read", already granted to every session, so no
+// scope-topology change was needed to wire this. get_patient_record is
+// deliberately NOT routed here — no chip in the vertical's manifest calls it.
+const HEALTHCARE_TOOLS = new Set([
+  'view_records',
+]);
+
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
 // from jwt-verifier-mcp-server/src/actions/*.ts. Tool names must match exactly.
 const JWT_VERIFIER_TOOLS = new Set([
@@ -128,6 +139,7 @@ const BANKING_DATA_ROUTE_FOR_TOOL: Record<string, 'accounts' | 'transactions'> =
 export function routeTool(toolName: string): BackendTarget {
   if (INVEST_TOOLS.has(toolName))        return 'invest';
   if (AIRLINES_TOOLS.has(toolName))      return 'invest';
+  if (HEALTHCARE_TOOLS.has(toolName))    return 'invest';
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
   if (WEATHER_TOOLS.has(toolName))       return 'weather';
   if (BRAVE_TOOLS.has(toolName))         return 'brave';

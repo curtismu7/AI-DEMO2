@@ -7,9 +7,11 @@ export async function dispatchHealthcareTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_patient_records': {
+    case 'view_records': {
       const records = listPatientRecords();
-      return { records, count: records.length };
+      // render keyed by tool name — same convention airlinesToolHandler
+      // documents: the BFF's manifest.json descriptor is keyed "view_records".
+      return { records, count: records.length, render: 'view_records' };
     }
 
     case 'get_patient_record': {

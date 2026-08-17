@@ -16,16 +16,29 @@ function checkToolConformance(tools: any[], scope: string) {
 }
 
 describe('Healthcare tools', () => {
-  it('conforms to McpToolDef shape', () => checkToolConformance(HEALTHCARE_TOOLS, 'healthcare:read'));
+  // view_records deliberately requires only 'read' (matches scope-topology.json's
+  // tools.view_records entry — the chip-facing tool this now backs); the
+  // vertical-namespaced check doesn't apply to it.
+  it('conforms to McpToolDef shape', () => {
+    for (const t of HEALTHCARE_TOOLS) {
+      expect(typeof t.description).toBe('string');
+      expect(t.description.length).toBeGreaterThan(10);
+      expect(Array.isArray(t.intentHints)).toBe(true);
+      expect(t.intentHints.length).toBeGreaterThanOrEqual(3);
+    }
+    expect(HEALTHCARE_TOOLS.find((t) => t.name === 'view_records')?.requiredScopes).toContain('read');
+    expect(HEALTHCARE_TOOLS.find((t) => t.name === 'get_patient_record')?.requiredScopes).toContain('healthcare:read');
+  });
 
-  it('list_patient_records returns patientRecords array', async () => {
-    const result = await dispatchHealthcareTool('list_patient_records', {}) as any;
+  it('view_records returns patientRecords array, stamped for the chip-facing manifest descriptor', async () => {
+    const result = await dispatchHealthcareTool('view_records', {}) as any;
     expect(Array.isArray(result.records)).toBe(true);
     expect(result.records[0]).toHaveProperty('id');
+    expect(result.render).toBe('view_records');
   });
 
   it('get_patient_record returns one record by id', async () => {
-    const list = (await dispatchHealthcareTool('list_patient_records', {}) as any).records;
+    const list = (await dispatchHealthcareTool('view_records', {}) as any).records;
     const id = list[0].id;
     const r = await dispatchHealthcareTool('get_patient_record', { record_id: id }) as any;
     expect(r.record.id).toBe(id);
