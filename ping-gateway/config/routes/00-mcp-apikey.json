@@ -1,5 +1,5 @@
 {
-  "comment": "Phase 3 api-key credential-mediation route (introspection). Validates the inbound token with a LOCAL OAuth2ResourceServerFilter (ApikeyResourceServerFilter) whose introspection provider posts the client creds in the request body (client_secret_post) — NOT the global 'rsFilter', which authenticates introspection with HTTP Basic. The PingOne introspect client is configured for client_secret_post only, so Basic auth is rejected with invalid_client ('Unsupported authentication method') and the token is (incorrectly) reported invalid_token. This mirrors the working OLB route (01-mcp-olb.json), which uses the same body-param introspection chain. McpValidationFilter validates MCP protocol AND buffers the body so p1az-decision and the terminal apikey-dispatch handler can re-read it; p1az-decision authorizes the tool call (PERMIT continues, DENY blocks); apikey-dispatch pulls the vault key via the BFF bridge and calls demo_data_service with X-API-Key. Named 'mcp-apikey-primary' so the JWKS variant ('mcp-apikey-jwks', j<p) wins route selection when its X-Token-Validation header is present (IG selects matching routes by the 'name' field, not filename — mirrors the mcp-olb-jwks/mcp-olb-primary pair).",
+  "comment": "Phase 3 api-key credential-mediation route (introspection). Validates the inbound token with a LOCAL OAuth2ResourceServerFilter (ApikeyResourceServerFilter) whose introspection provider posts the client creds in the request body (client_secret_post) \u2014 NOT the global 'rsFilter', which authenticates introspection with HTTP Basic. The PingOne introspect client is configured for client_secret_post only, so Basic auth is rejected with invalid_client ('Unsupported authentication method') and the token is (incorrectly) reported invalid_token. This mirrors the working OLB route (01-mcp-olb.json), which uses the same body-param introspection chain. McpValidationFilter validates MCP protocol AND buffers the body so p1az-decision and the terminal apikey-dispatch handler can re-read it; p1az-decision authorizes the tool call (PERMIT continues, DENY blocks); apikey-dispatch pulls the vault key via the BFF bridge and calls demo_data_service with X-API-Key. Named 'mcp-apikey-primary' so the JWKS variant ('mcp-apikey-jwks', j<p) wins route selection when its X-Token-Validation header is present (IG selects matching routes by the 'name' field, not filename \u2014 mirrors the mcp-olb-jwks/mcp-olb-primary pair).",
   "name": "mcp-apikey-primary",
   "condition": "${find(request.uri.path, '^/mcp/apikey')}",
   "heap": [
@@ -17,7 +17,9 @@
             }
           }
         ],
-        "handler": { "type": "ClientHandler" }
+        "handler": {
+          "type": "ClientHandler"
+        }
       }
     },
     {
@@ -33,7 +35,9 @@
       "type": "OAuth2ResourceServerFilter",
       "config": {
         "requireHttps": false,
-        "scopes": [ "${empty env['PG_INBOUND_SCOPE'] ? 'gateway:mcp:invoke' : env['PG_INBOUND_SCOPE']}" ],
+        "scopes": [
+          "${empty env['PG_INBOUND_SCOPE'] ? 'gateway:mcp:invoke' : env['PG_INBOUND_SCOPE']}"
+        ],
         "accessTokenResolver": "ApikeyTokenResolver"
       }
     }
@@ -42,6 +46,14 @@
     "type": "Chain",
     "config": {
       "filters": [
+        {
+          "name": "TransactionHop",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "transaction-hop.groovy"
+          }
+        },
         {
           "name": "McpAudit",
           "type": "McpAuditFilter",
@@ -58,12 +70,47 @@
             "resourceServerFilter": "ApikeyResourceServerFilter"
           }
         },
-        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*", "metricsEnabled": true } },
-        { "comment": "Tool-argument validation, mounted after McpValidationFilter (body buffered) and before P1AZDecision — parity with 01-mcp-olb.json. The nine api-key tools are all declared in mcp-tool-schemas.json with empty argument schemas, so a well-formed argument-less call passes and an unknown tool or injected argument now fails closed instead of reaching apikey-dispatch unvalidated.", "name": "McpRequestValidation", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "mcp-request-validation.groovy" } },
-        { "name": "Uc18RateLimit", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "uc18-rate-limit.groovy" } },
-        { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": {
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
+          }
+        },
+        {
+          "comment": "Tool-argument validation, mounted after McpValidationFilter (body buffered) and before P1AZDecision \u2014 parity with 01-mcp-olb.json. The nine api-key tools are all declared in mcp-tool-schemas.json with empty argument schemas, so a well-formed argument-less call passes and an unknown tool or injected argument now fails closed instead of reaching apikey-dispatch unvalidated.",
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
+          }
+        },
+        {
+          "name": "Uc18RateLimit",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "uc18-rate-limit.groovy"
+          }
+        },
+        {
+          "name": "P1AZDecision",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "p1az-decision.groovy"
+          }
+        }
       ],
-      "handler": { "type": "ScriptableHandler", "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" } }
+      "handler": {
+        "type": "ScriptableHandler",
+        "config": {
+          "type": "application/x-groovy",
+          "file": "apikey-dispatch.groovy"
+        }
+      }
     }
   }
 }

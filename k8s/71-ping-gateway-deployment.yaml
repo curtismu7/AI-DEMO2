@@ -68,6 +68,10 @@ spec:
         # accepts it against the mkcert cert (SAN=api.ping.demo).
         - name: BFF_VAULT_KEY_URL
           value: "https://demo-api-server:3001/internal/vault/service-key"
+        # Transaction-ledger hop ingest (transaction-hop.groovy) — same
+        # in-cluster BFF address as the vault bridge above, for the same reason.
+        - name: BFF_TRANSACTION_HOP_URL
+          value: "https://demo-api-server:3001/internal/transaction-hop"
         - name: PG_API_RESOURCE_SERVER_URL
           value: "http://api-resource-server:8082"
         # Point JVM at the mkcert-augmented truststore built in command: above.

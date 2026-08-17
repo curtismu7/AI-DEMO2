@@ -85,6 +85,14 @@
     "config": {
       "filters": [
         {
+          "name": "TransactionHop",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "transaction-hop.groovy"
+          }
+        },
+        {
           "name": "McpAudit",
           "type": "McpAuditFilter",
           "config": {
