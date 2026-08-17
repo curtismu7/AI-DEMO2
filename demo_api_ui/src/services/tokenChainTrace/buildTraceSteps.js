@@ -1170,6 +1170,18 @@ export function buildTraceSteps(trace) {
   // one MCP hop for three round trips.
   const mcpInit = findEvent(tokenEvents, "mcp-initialize");
   const mcpInitialized = findEvent(tokenEvents, "mcp-initialized");
+  // On the gateway path the BFF is NOT the MCP client: it speaks JSON-RPC over
+  // HTTP to the gateway, and the GATEWAY owns the MCP session with the upstream
+  // server. The handshake still happens — one hop further out than the BFF can
+  // observe — so these two hops legitimately have no evidence here. Saying that
+  // beats an unexplained grey card that reads as "this step was skipped".
+  // Confirmed live 2026-08-17: a default-config run (MCP_GATEWAY_HTTP_URL set)
+  // routes through callToolViaGateway, which never touches the WS client's
+  // frame capture that feeds these steps.
+  const gwOwnsMcpSession = (gwSeen || gwDenied) && !mcpInit;
+  const handshakeNarrative = gwOwnsMcpSession
+    ? "Not visible from here: on the Agent Gateway path the BFF sends JSON-RPC over HTTP to the gateway, and the gateway is the MCP client that opens and owns the session with the upstream server. The handshake happens one hop beyond what this trace can see. It appears here only on the direct MCP path, where the BFF speaks the protocol itself."
+    : undefined;
   steps.push(makeStep("mcp-initialize",
     authorizeFailed ? "notinpath" : mcpInit ? "done" : traceComplete ? "notinpath" : "pending",
     mcpInit ? {
@@ -1183,7 +1195,7 @@ export function buildTraceSteps(trace) {
         mcpInit.serverInfo?.name ? ["server", `${mcpInit.serverInfo.name}${mcpInit.serverInfo.version ? ` ${mcpInit.serverInfo.version}` : ""}`] : null,
       ].filter(Boolean),
       moreDetail: { edu: EDU.MCP_PROTOCOL, label: "Learn: MCP Protocol" },
-    } : {}));
+    } : handshakeNarrative ? { narrative: handshakeNarrative } : {}));
   steps.push(makeStep("mcp-initialized",
     authorizeFailed ? "notinpath" : mcpInitialized ? "done" : traceComplete ? "notinpath" : "pending",
     mcpInitialized ? {
@@ -1194,7 +1206,7 @@ export function buildTraceSteps(trace) {
       // A notification has no id and gets no reply; saying so beats an empty
       // response block that looks like missing evidence.
       kv: [["reply", "none — JSON-RPC notifications are not answered"]],
-    } : {}));
+    } : handshakeNarrative ? { narrative: handshakeNarrative } : {}));
 
   // 9. mcp + 10. api + 11. database — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
