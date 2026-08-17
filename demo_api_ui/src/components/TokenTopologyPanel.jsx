@@ -26,8 +26,11 @@ const STEP_ICONS = {
   'tools-list-challenge': '401',
   'tools-list': 'TL',
   'tools-call-challenge': '401',
+  'mcp-initialize': 'IN',
+  'mcp-initialized': 'OK',
   llm: 'ML',
   'agent-token': 'AT',
+  'exchange-1': 'X1',
   exchange: 'TX',
   authorize: 'AZ',
   stepup: '🔑',
@@ -45,6 +48,7 @@ const STEP_ICONS = {
 // than in the step model — a step-id rename stays a one-file fix either way.
 const ENFORCEMENT = {
   signin: { verb: 'Block', what: 'Unauthenticated users', object: 'user' },
+  'exchange-1': { verb: 'Control', what: "Agent's own scope, pre-delegation", object: 'token' },
   exchange: { verb: 'Control', what: 'Delegated scope + audience', object: 'token' },
   authorize: { verb: 'Control', what: 'What this agent may do', object: 'action' },
   stepup: { verb: 'Check', what: 'Human approval (HITL / MFA)', object: 'human' },

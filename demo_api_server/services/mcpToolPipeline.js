@@ -956,7 +956,32 @@ async function runMcpToolPipeline(ctx) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
         } else {
-            result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId, { emit: deps.emit });
+            // Collect the MCP spec handshake so the chain can show it. Three
+            // messages go over this connection — initialize, then
+            // notifications/initialized, then tools/call — and only the last
+            // was ever surfaced.
+            const mcpFrames = {};
+            result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId, { emit: deps.emit, frameSink: mcpFrames });
+            if (mcpFrames.initializeRequest) {
+                const initEvents = [
+                    deps.buildTokenEvent('mcp-initialize', 'MCP handshake — initialize', 'active', null,
+                        `Client opened the MCP session (protocol ${mcpFrames.initializeRequest.params?.protocolVersion || '?'}) before any tool ran.`,
+                        {
+                            rfc: 'MCP 2025-11-25 §Lifecycle',
+                            request: mcpFrames.initializeRequest,
+                            response: mcpFrames.initializeResponse || null,
+                            negotiatedVersion: mcpFrames.initializeResponse?.result?.protocolVersion || null,
+                            serverInfo: mcpFrames.initializeResponse?.result?.serverInfo || null,
+                        }),
+                ];
+                if (mcpFrames.initializedNotification) {
+                    initEvents.push(deps.buildTokenEvent('mcp-initialized', 'MCP handshake — notifications/initialized', 'active', null,
+                        'Client confirmed the negotiated session. Only after this notification may it invoke a tool.',
+                        { rfc: 'MCP 2025-11-25 §Lifecycle', request: mcpFrames.initializedNotification }));
+                }
+                tokenEvents.push(...initEvents);
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+            }
         }
         deps.appEventLog('mcp', 'info', `MCP tool done ← ${tool} (${Date.now() - startTime}ms)`, { tag: 'mcp/tool', metadata: { tool, durationMs: Date.now() - startTime } });
 

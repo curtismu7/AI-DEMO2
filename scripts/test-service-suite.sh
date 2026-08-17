@@ -35,7 +35,19 @@ BLOCKING="${SUITE_BLOCKING:-0}"
 case "$SERVICE" in
   authz-server) DIR="$ROOT/demo_authz_server" ;;
   mcp-gateway)  DIR="$ROOT/demo_mcp_gateway" ;;
-  *) echo "usage: $0 <authz-server|mcp-gateway>" >&2; exit 2 ;;
+  # 2026-08-17: six more services had a `test` script and no CI job at all.
+  # Five are fully green and run as BLOCKING gates from ci.yml (SUITE_BLOCKING=1)
+  # — a red there is a regression. mastra-agent is the exception: three
+  # pre-existing failures in tests/runHandler.test.ts, out of scope to fix in the
+  # change that wired it up, so it runs non-blocking like the two above until
+  # someone fixes them and flips it.
+  agent-service)        DIR="$ROOT/demo_agent_service" ;;
+  hitl-service)         DIR="$ROOT/demo_hitl_service" ;;
+  code-search)          DIR="$ROOT/demo_mcp_code_search" ;;
+  agent-token-service)  DIR="$ROOT/agent_token_service" ;;
+  api-resource-server)  DIR="$ROOT/demo_api_resource_server" ;;
+  mastra-agent)         DIR="$ROOT/mastra_agent" ;;
+  *) echo "usage: $0 <authz-server|mcp-gateway|agent-service|hitl-service|code-search|agent-token-service|api-resource-server|mastra-agent>" >&2; exit 2 ;;
 esac
 
 [ -d "$DIR" ] || { echo "$SERVICE: $DIR not present — skipping"; exit 0; }
