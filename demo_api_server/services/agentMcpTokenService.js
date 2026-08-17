@@ -2495,9 +2495,23 @@ async function _performTwoExchangeDelegation(
     // apikey:mcp:invoke — separately named for the same PingOne one-scope-name-
     // per-app-per-resource reason as gateway:mcp:invoke above (see PG_APIKEY_INBOUND_SCOPE
     // in ping-gateway/config/routes/00-mcp-apikey.json / docker-compose.yml).
+    //
+    // Unlike the coarse gateway path, apikey-dispatch's p1az-decision.groovy ALSO
+    // enforces the tool's own requiredScopes from scope-topology.json (e.g.
+    // show_gear_order -> gear:read) — a real per-tool authz check, not just a
+    // route-selector scope. So the apikey Exchange #2 must carry BOTH the coarse
+    // apikey:mcp:invoke AND the tool's specific scope(s) from effectiveToolScopes
+    // (dropping the generic 'mcp:invoke' added earlier, which isn't a scope this
+    // resource grants). Those tool-specific scope names (gear:read, mortgage:read,
+    // ...) are granted on THIS resource, not on Demo MCP Gateway — see the
+    // apikey-scope-fix provisioning that moved them (PingOne forbids one client
+    // holding the same scope name on two resources).
     const apikeyInvokeScope = configStore.getEffective('apikey_mcp_invoke_scope') || 'apikey:mcp:invoke';
+    const apikeyToolScopes = isApikeyTool
+      ? effectiveToolScopes.filter((s) => s !== 'mcp:invoke')
+      : [];
     const ex2Scopes = usePingGatewayForExchange
-      ? (isApikeyTool ? [apikeyInvokeScope] : [gatewayInvokeScope])
+      ? (isApikeyTool ? [apikeyInvokeScope, ...apikeyToolScopes] : [gatewayInvokeScope])
       : exchange2RequestedScopes;
     finalToken = await oauthService.performTokenExchangeAs(
       agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod
