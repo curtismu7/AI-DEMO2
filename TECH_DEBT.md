@@ -9,6 +9,17 @@ fixed now, what the real fix looks like.
 
 ### 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
 
+**RESOLVED 2026-08-17.** `demo_mcp_resource_server` now reads
+`MCP_RESOURCE_SERVER_RESOURCE_URI` (falling back to the old name so a container
+or `.env` pinned before the rename keeps working, and logging a warning when it
+does). Every surface that sets it — compose, `k8s/02-configmap.yaml`, the
+privilege Helm template, `.env.example`, `refresh-service-envs.js` — carries the
+invest list under the new name, and `npm run topology:verify` step 9/9
+(`scripts/check-resource-server-audience-drift.js`) derives the canonical URI
+from `scope-topology.json` and fails if any surface drifts or reverts to the
+banking value. The defensive union in `resolveAcceptedAudiences()` stays as
+belt-and-braces. Original entry below, kept for the reasoning.
+
 **Where:** `demo_api_server/scripts/refresh-service-envs.js` (shared default
 `'mcpserver.ping.demo,mcpgateway.ping.demo'` fanned out to every service env),
 `demo_mcp_resource_server/src/index.ts` / `src/server/acceptedAudiences.ts`.
