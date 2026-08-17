@@ -2,6 +2,7 @@
 
 jest.mock('../services/configStore', () => ({ getEffective: jest.fn() }));
 const configStore = require('../services/configStore');
+const davinci = require('../config/davinci');
 
 describe('config/davinci', () => {
   const ENV_KEYS = [
@@ -14,7 +15,6 @@ describe('config/davinci', () => {
   const saved = {};
 
   beforeEach(() => {
-    jest.resetModules();
     for (const k of ENV_KEYS) { saved[k] = process.env[k]; delete process.env[k]; }
     configStore.getEffective.mockReset();
   });
@@ -28,7 +28,6 @@ describe('config/davinci', () => {
     process.env.PINGONE_DAVINCI_TRANSACTION_COMPANY_ID = 'co-1';
     process.env.PINGONE_DAVINCI_TRANSACTION_APP_ID = 'app-1';
     process.env.PINGONE_DAVINCI_TRANSACTION_FLOW_ID = 'flow-1';
-    const davinci = require('../config/davinci');
     expect(davinci.transaction).toEqual({ companyId: 'co-1', appId: 'app-1', flowId: 'flow-1' });
   });
 
@@ -36,20 +35,17 @@ describe('config/davinci', () => {
     process.env.PINGONE_DAVINCI_LOGIN_APP_ID = 'login-app';
     process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V1 = 'flow-v1';
     process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V2 = 'flow-v2';
-    const davinci = require('../config/davinci');
     expect(davinci.login).toEqual({ appId: 'login-app', flowIdV1: 'flow-v1', flowIdV2: 'flow-v2' });
   });
 
   test('webhookUrl uses DAVINCI_WEBHOOK_URL when set, ignoring pingone_public_app_url', () => {
     process.env.DAVINCI_WEBHOOK_URL = 'https://example.test/webhook/davinci';
-    const davinci = require('../config/davinci');
     expect(davinci.webhookUrl).toBe('https://example.test/webhook/davinci');
   });
 
   test('webhookUrl falls back to pingone_public_app_url + /webhook/davinci when unset', () => {
     configStore.getEffective.mockImplementation((k) =>
       k === 'pingone_public_app_url' ? 'https://local.ping-devops.com:4000' : undefined);
-    const davinci = require('../config/davinci');
     expect(davinci.webhookUrl).toBe('https://local.ping-devops.com:4000/webhook/davinci');
   });
 });
