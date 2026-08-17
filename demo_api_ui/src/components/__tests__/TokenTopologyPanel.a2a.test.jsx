@@ -2,7 +2,7 @@ import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import TokenTopologyPanel, { buildA2aTopology, buildObservedTopology } from '../TokenTopologyPanel';
+import TokenTopologyPanel, { buildA2aTopology, buildObservedTopology, isUnfired } from '../TokenTopologyPanel';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
@@ -53,7 +53,9 @@ describe('buildA2aTopology', () => {
     expect(buildA2aTopology([{ id: 'exchange', status: 'exchanged' }])).toBeNull();
   });
 
-  it('builds topology nodes only from steps observed in the run', () => {
+  // The topology deliberately keeps hops that never fired: an available-but-unused
+  // control is part of what the diagram reports. They render dimmed (see isUnfired).
+  it('builds topology nodes from every step in the chain, fired or not', () => {
     const topology = buildObservedTopology([
       { id: 'website', title: 'Website — browser', lane: 'BROWSER', status: 'done' },
       { id: 'signin', title: 'Sign-in — user token', lane: 'PINGONE', status: 'pending' },
@@ -62,18 +64,32 @@ describe('buildA2aTopology', () => {
       { id: 'authorize:2', baseId: 'authorize', title: 'PingOne Authorize — policy decision', lane: 'AUTHZ', status: 'error' },
     ]);
 
-    expect(topology.map((node) => node.id)).toEqual(['website', 'stepup', 'authorize:2']);
-    expect(topology.map((node) => node.name)).toEqual(['Website', 'Step-up required', 'PingOne Authorize']);
-    expect(topology[2].icon).toBe('AZ');
+    expect(topology.map((node) => node.id))
+      .toEqual(['website', 'signin', 'stepup', 'api-key-swap', 'authorize:2']);
+    expect(topology.map((node) => node.name))
+      .toEqual(['Website', 'Sign-in', 'Step-up required', 'API-key path', 'PingOne Authorize']);
+    expect(topology[4].icon).toBe('AZ');
   });
 
-  it('starts empty and draws observed boxes and arrows as evidence arrives', () => {
+  it('marks the unfired hops so they can be drawn dimmed', () => {
+    expect(isUnfired({ status: 'pending' })).toBe(true);
+    expect(isUnfired({ status: 'notinpath' })).toBe(true);
+    expect(isUnfired({ status: 'active' })).toBe(false);
+    expect(isUnfired({ status: 'done' })).toBe(false);
+    expect(isUnfired({ status: 'error' })).toBe(false);
+  });
+
+  it('starts empty, then draws the whole chain and un-dims hops as evidence arrives', () => {
+    const nameOf = (node) => node.querySelector('.ttp-name')?.textContent;
+    const firedNames = (container) => [...container.querySelectorAll('.ttp-node:not(.ghost)')].map(nameOf);
+
     const { container } = render(
       <ThemeProvider>
         <TokenTopologyPanel isOpen onClose={() => {}} />
       </ThemeProvider>,
     );
 
+    // Nothing at all until a run starts.
     expect(screen.getByText('Run an agent flow to build the topology.')).toBeInTheDocument();
     expect(screen.queryByText('Website')).not.toBeInTheDocument();
 
@@ -81,26 +97,46 @@ describe('buildA2aTopology', () => {
       tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
     });
 
+    // The full chain is now drawn, including hops with no evidence yet — those
+    // render dimmed rather than being withheld, so the diagram can show where a
+    // control sits even before (or without) it firing.
     expect(screen.getByText('Website')).toBeInTheDocument();
     expect(screen.getByText('Chatbot')).toBeInTheDocument();
-    expect(screen.queryByText('Sign-in')).not.toBeInTheDocument();
-    expect(screen.queryByText('Agent service receives request')).not.toBeInTheDocument();
-    expect(container.querySelectorAll('.ttp-conn')).toHaveLength(1);
+    expect(screen.getByText('Sign-in')).toBeInTheDocument();
+    expect(screen.getByText('Agent service receives request')).toBeInTheDocument();
+    expect(firedNames(container)).toEqual(['Website', 'Chatbot']);
 
     act(() => {
       tokenChainTraceStore.ingestRoutingMode('heuristic');
     });
 
-    expect(screen.getByText('Agent service receives request')).toBeInTheDocument();
+    // Heuristic routing lights up the agent and the (LLM-less) reasoning hop.
     expect(screen.getByText('Heuristics')).toBeInTheDocument();
-    expect(screen.queryByText('Token exchange')).not.toBeInTheDocument();
-    expect([...container.querySelectorAll('.ttp-name')].map((node) => node.textContent)).toEqual([
-      'Website',
-      'Chatbot',
-      'Agent service receives request',
-      'Heuristics',
-    ]);
-    expect(container.querySelectorAll('.ttp-conn')).toHaveLength(3);
+    expect(firedNames(container))
+      .toEqual(['Website', 'Chatbot', 'Agent service receives request', 'Heuristics']);
+    // Sign-in still has no token evidence, so it stays dimmed.
+    expect(firedNames(container)).not.toContain('Sign-in');
+  });
+
+  it('drops the tool-call hops onto a branch below the spine', () => {
+    const { container } = render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+    });
+
+    const branchNames = [...container.querySelectorAll('.ttp-branch .ttp-name')].map((n) => n.textContent);
+    // The tool call is two requests: the refused one and the authorized one.
+    // Both hang off the branch, in the order they went out.
+    expect(branchNames).toEqual(['Agent Gateway', 'API-key path', 'tools/call 401', 'MCP server', 'Resource server', 'Database']);
+    // tools/list is discovery, not the tool call — it belongs on the spine.
+    expect(branchNames).not.toContain('tools/list');
+    expect([...container.querySelectorAll('.ttp-spine .ttp-name')].map((n) => n.textContent))
+      .toContain('tools/list');
   });
 
   it('enriches an already drawn node when detailed evidence arrives', async () => {

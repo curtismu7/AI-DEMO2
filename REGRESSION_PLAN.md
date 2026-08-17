@@ -103,6 +103,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-17 — MCP 401 handshake made real; recordTokenEvent evidence never reached the client
+
+**Files changed:** `demo_api_server/services/mcpChallengeProbe.js` (new, + test),
+`demo_api_server/services/agentGatewayClient.js`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/routes/agentRun.js`,
+`demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` (+ its test),
+`demo_api_ui/src/components/TokenTopologyPanel.jsx` (+ its tests)
+
+**What was broken:**
+- The topology and token chain showed ONE MCP request per method. That was
+  accurate — the BFF holds its agent token before it speaks to the gateway, so
+  it never walked the spec's discovery handshake — but it hid the mechanism the
+  demo exists to teach: the MCP endpoint is an OAuth 2.1 protected resource that
+  challenges an anonymous caller and advertises its authorization server.
+- Separately, `req.recordTokenEvent()` events were invisible to the client.
+  `agentRun.js` seeded `initialTokenEvents` from
+  `buildSessionPreviewTokenEvents()`, which builds a NEW array — not
+  `req.agentContext.tokenEvents`, where `recordTokenEvent` writes. The
+  `tools_list_*` family therefore never reached the trace rail on the happy
+  path (only via the line-376 catch branch).
+
+**What was fixed:**
+- `mcpChallengeProbe.probeMcpChallenge()` issues the JSON-RPC method at
+  `<gateway>/mcp` with NO Authorization header, records the live 401 +
+  `WWW-Authenticate`, then GETs the advertised `resource_metadata` (RFC 9728).
+  Called before `tools/list` (agentGatewayClient) and before `tools/call`
+  (mcpToolPipeline, gateway path only). It never throws and its result is
+  unused by the callers — evidence only.
+- Two new trace steps, `tools-list-challenge` and `tools-call-challenge`, each
+  immediately before the authorized leg it precedes. A 401 is `status: 'done'`
+  (the control working) carrying `decision.outcome: 'DENY'` so the topology
+  badge paints the block; a non-401 answer to an anonymous call is `'error'`.
+- `agentRun.js` merges the `MCP_DISCOVERY_EVENT_TYPES` subset of
+  `req.tokenEvents` into the STATE_SNAPSHOT.
+
+**Do not break:**
+- The probe is evidence-only. Never let its result gate, short-circuit, or
+  delay the authenticated call that follows — swallow every failure.
+- The merge in `agentRun.js` is an allowlist on purpose. Merging all of
+  `req.tokenEvents` adds unrendered internal bookkeeping as Token Chain cards.
+- `buildChallengeStep` keys evidence on BOTH type and `phase`. Both legs emit
+  identical event types; matching on type alone puts the discovery challenge's
+  evidence on the tool-call card too.
+- `MCP_STEP_IDS` includes `tools-call-challenge` but NOT `tools-list-challenge`
+  — discovery stays on the spine, invocation hangs off the branch.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/mcpChallengeProbe.test.js --forceExit`
+· `cd demo_api_ui && npm run test:unit && npm run build`
+
 ### 2026-08-16 — Dashboard rail default, movie-reel loss, invest-server audience drift, P1AZ probe INDETERMINATE
 
 **Files changed:** `demo_api_ui/src/utils/tokenRailLayout.js` (+ its test),

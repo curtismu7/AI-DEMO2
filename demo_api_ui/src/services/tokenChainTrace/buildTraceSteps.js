@@ -4,10 +4,12 @@
 import { EDU } from "../../components/education/educationIds";
 
 export const LANES = {
-  website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
+  website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
+  "tools-list-challenge": "MCP", "tools-list": "MCP", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
-  gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API",
+  gateway: "GATEWAY", "api-key-swap": "GATEWAY",
+  "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
 };
 
@@ -21,13 +23,22 @@ export const LANES = {
 // exchange rather than a tool call, which is not what "MCP" says on the tab.
 // The exchange still has its own step, its own card and its own place in the
 // chain; it is just not counted as an MCP call.
-export const MCP_STEP_IDS = ["gateway", "api-key-swap", "mcp", "api", "database"];
+// `tools-list-challenge` is discovery, not invocation, so it stays out of this
+// list for the same reason `exchange` did — the MCP tab must open on the tool
+// call. `tools-call-challenge` IS part of the call: it is the first of the two
+// requests that invocation actually makes.
+export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
   signin: "Sign-in — User Token acquired",
   prompt: "Chatbot — prompt sent",
   agent: "Agent service receives request",
+  // The node label is the part before the em dash, so the challenge legs read
+  // as their own hop ("tools/list 401") while the authorized legs keep the
+  // labels the topology diagram already used.
+  "tools-list-challenge": "tools/list 401 — no token, gateway challenges",
+  "tools-list": "tools/list — tool discovery, token accepted",
   llm: "LLM — reasoning & tool choice",
   "agent-token": "Agent identity token",
   exchange: "Token exchange — delegation",
@@ -36,7 +47,8 @@ const TITLES = {
   "intent-binding": "Intent Binding Check",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
-  mcp: "MCP server — tool executes",
+  "tools-call-challenge": "tools/call 401 — no token, gateway challenges",
+  mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
   reply: "LLM composes reply → chat",
@@ -51,6 +63,8 @@ const NARRATIVES = {
   signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
   prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
   agent: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
+  "tools-list-challenge": "The first tools/list goes out with NO Authorization header. The gateway refuses it with 401 and a WWW-Authenticate challenge that names its realm and points at its RFC 9728 metadata — that pointer is how a client that arrives holding nothing learns which authorization server to go to.",
+  "tools-list": "The second tools/list carries the agent token. PingOne Authorize filters the catalog per vertical and scope, so the model is only ever shown tools this caller may actually invoke.",
   llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
   "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
   exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
@@ -59,7 +73,8 @@ const NARRATIVES = {
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
-  mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
+  "tools-call-challenge": "The same handshake on invocation: the first tools/call carries no credential, and the gateway answers 401 with the WWW-Authenticate challenge rather than passing an anonymous call through to the MCP server. Nothing executes on this leg.",
+  mcp: "The second tools/call carries the delegated token. Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
   database: "The backend application queries its data store. This hop appears as completed only when the tool result identifies a real SQL data source.",
   reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
@@ -72,6 +87,9 @@ const NARRATIVES = {
 // citation to the pop-out never changes the rail's visual density.
 const STEP_RFCS = {
   signin: ["RFC 6749", "RFC 7636"],
+  "tools-list-challenge": ["RFC 6750 §3", "RFC 9728"],
+  "tools-list": ["MCP tools/list"],
+  "tools-call-challenge": ["RFC 6750 §3", "RFC 9728"],
   exchange: ["RFC 8693", "RFC 8707"],
 };
 
@@ -114,6 +132,25 @@ const STEP_SPEC = {
     mandate: "MCP defines tools/list as the discovery call: the server advertises each tool's name, JSON Schema, and — in this demo — the OAuth scopes that tool requires.",
     why: "The catalog is loaded with its required scopes BEFORE the model reasons, so the delegated token minted two hops later can ask for exactly the scope the chosen tool needs. Discovering scope after the model picks a tool would force either an over-broad token or a second round-trip to the authorization server.",
     failure: "A stale catalog is the classic silent break: the model picks a tool the gateway no longer routes, and the failure surfaces as a 502 at the gateway rather than as an obvious discovery error.",
+  },
+  "tools-list-challenge": {
+    refs: [
+      { label: "RFC 6750 §3", title: "The WWW-Authenticate response header field", href: "https://www.rfc-editor.org/rfc/rfc6750#section-3" },
+      { label: "RFC 9728 §5.1", title: "resource_metadata in the challenge", href: "https://www.rfc-editor.org/rfc/rfc9728#section-5.1" },
+      { label: "MCP Authorization", title: "MCP server as an OAuth 2.1 resource server", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization" },
+    ],
+    mandate: "RFC 6750 §3 requires a protected resource to answer a credential-less request with 401 and a WWW-Authenticate challenge. RFC 9728 §5.1 adds the resource_metadata parameter to that challenge, and the MCP authorization spec makes it mandatory for MCP servers: the 401 must tell the client where to find the metadata document naming this resource's authorization server.",
+    why: "This is the bootstrap the whole MCP dance rests on. A client that arrives holding nothing has no configured issuer, no audience and no scope — the challenge is where it learns all three. The demo issues this request deliberately, without a token, so the chain shows the mechanism rather than only its result: two requests, one refused and one served, against the same endpoint.",
+    failure: "Answering with a bare 401 and no resource_metadata. The refusal is correct and the client is still stuck — it knows it needs a token but not who issues one, so discovery ends in a hardcoded issuer or a support ticket.",
+  },
+  "tools-list": {
+    refs: [
+      { label: "MCP 2025-11-25", title: "tools/list — tool discovery", href: "https://modelcontextprotocol.io/specification/2025-11-25/server/tools" },
+      { label: "RFC 9728", title: "Protected Resource Metadata", href: "https://www.rfc-editor.org/rfc/rfc9728" },
+    ],
+    mandate: "MCP's tools/list returns each tool's name, JSON Schema and — in this demo — the OAuth scopes it requires. The call is itself protected: the gateway answers an unauthenticated or mis-scoped request with 401 plus a WWW-Authenticate header pointing at its RFC 9728 metadata.",
+    why: "Discovery is routed through the gateway rather than straight at the MCP server so PingOne Authorize can filter the catalog by vertical and scope before the model ever sees it. Filtering at discovery, not at invocation, is what makes 'the model proposed a tool it may not call' a rare case instead of the normal case. This is the second of the two requests: the first was refused, and this one carries the agent token the challenge asked for.",
+    failure: "Trusting the catalog as an authorization decision. A filtered tools/list is a usability control, not a security boundary — the gateway still re-checks scope on tools/call, because a client is free to invoke a tool that discovery never advertised.",
   },
   llm: {
     refs: [],
@@ -185,6 +222,15 @@ const STEP_SPEC = {
     why: "Legacy services that cannot validate OAuth still must not receive the user's bearer. Terminating the token at the gateway means a compromised downstream service holds a rotatable service key scoped to the gateway, never a delegated user token it could replay elsewhere.",
     failure: "Forwarding both the bearer and the API key. The downstream now holds a token it has no reason to have, and the audience restriction that made that token safe has been bypassed by hand.",
   },
+  "tools-call-challenge": {
+    refs: [
+      { label: "RFC 6750 §3", title: "The WWW-Authenticate response header field", href: "https://www.rfc-editor.org/rfc/rfc6750#section-3" },
+      { label: "RFC 9728 §5.1", title: "resource_metadata in the challenge", href: "https://www.rfc-editor.org/rfc/rfc9728#section-5.1" },
+    ],
+    mandate: "The same RFC 6750 §3 rule applies to every protected method, not only discovery. An unauthenticated tools/call must be refused with 401 and the same WWW-Authenticate challenge — the resource does not get to be lenient because the client already listed its tools.",
+    why: "Invocation is challenged separately to make the boundary visible: the gateway refuses the anonymous call at its own edge, so nothing reaches the MCP server and no tool code runs. Showing it as its own hop is what distinguishes 'the call was rejected' from 'the tool ran and returned an error'.",
+    failure: "Treating a successful tools/list as a session. If listing a tool implicitly authorized calling it, discovery would become an authentication bypass — which is why this leg is refused on its own terms even though the previous one already was.",
+  },
   mcp: {
     refs: [
       { label: "MCP 2025-11-25", title: "tools/call over JSON-RPC 2.0", href: "https://modelcontextprotocol.io/specification/2025-11-25/server/tools" },
@@ -233,6 +279,19 @@ const splitScopes = (s) =>
 // mode — 1-exchange ("agent-actor-token", "exchanged-token") vs 2-exchange
 // ("two-ex-agent-actor", "two-ex-final-token"). Both must light up the rail.
 const findEvent = (events, ...ids) => events.find((e) => e && ids.includes(e.id)) || null;
+// req.recordTokenEvent() (agentSessionMiddleware) stamps `type`, not `id`, so
+// events it produces — the tools/list family among them — are invisible to
+// findEvent. Match those by type instead of widening findEvent, which would
+// change how every existing id-keyed lookup resolves.
+const findEventByType = (events, ...types) =>
+  (Array.isArray(events) ? events : []).find((e) => e && types.includes(e.type)) || null;
+// The challenge probe runs twice per turn — once before tools/list, once before
+// tools/call — and both legs emit the SAME event types, distinguished only by
+// `phase`. Matching on type alone would put the discovery challenge's evidence
+// on the tool-call card as well.
+const findEventByTypeAndPhase = (events, phase, ...types) =>
+  (Array.isArray(events) ? events : [])
+    .find((e) => e && types.includes(e.type) && e.phase === phase) || null;
 const hasPhase = (phases, name) => phases.some((p) => p && p.phase === name);
 const findPhase = (phases, name) => phases.find((p) => p && p.phase === name) || null;
 const claimsBlock = (title, claims) =>
@@ -454,6 +513,84 @@ export function buildRunStory(trace, steps) {
   return { headline, outcome, bits };
 }
 
+/**
+ * One leg of the MCP authorization handshake: the credential-less request the
+ * gateway refuses, plus the RFC 9728 metadata its challenge pointed at. Shared
+ * by the tools/list and tools/call legs, which emit identical event types and
+ * differ only by `phase`.
+ *
+ * A 401 here is the step SUCCEEDING — it is the control answering correctly, so
+ * it paints done, not error. The error state is reserved for a gateway that let
+ * an anonymous call through (any non-401 status) or that could not be reached.
+ *
+ * @param {string} id      step id ("tools-list-challenge" | "tools-call-challenge")
+ * @param {string} phase   event phase to match ("tools/list" | "tools/call")
+ * @param {Array}  events  trace tokenEvents
+ * @param {boolean} traceComplete
+ */
+export function buildChallengeStep(id, phase, events, traceComplete) {
+  const challenge = findEventByTypeAndPhase(events, phase, "mcp_challenge");
+  const metadata = findEventByTypeAndPhase(events, phase, "mcp_resource_metadata");
+  const metadataErr = findEventByTypeAndPhase(events, phase, "mcp_resource_metadata_error");
+  const probeErr = findEventByTypeAndPhase(events, phase, "mcp_challenge_error");
+  const skipped = findEventByTypeAndPhase(events, phase, "mcp_challenge_skipped");
+
+  const status = challenge
+    ? (challenge.challenged ? "done" : "error")
+    : probeErr
+      ? "error"
+      : (skipped || traceComplete) ? "notinpath" : "pending";
+
+  if (!challenge && !probeErr && !skipped) {
+    return makeStep(id, status, {});
+  }
+
+  const authServers = Array.isArray(metadata?.authorizationServers) ? metadata.authorizationServers : [];
+  return makeStep(id, status, {
+    why: challenge
+      ? (challenge.challenged
+        ? `The gateway refused the credential-less ${challenge.method || phase} with HTTP 401`
+          + (challenge.resourceMetadataUrl ? " and pointed at its RFC 9728 metadata." : ", but published no resource_metadata pointer.")
+        : `The gateway answered a credential-less ${challenge.method || phase} with HTTP ${challenge.status} instead of a 401 challenge — an unauthenticated caller was not refused.`)
+      : probeErr
+        ? `The challenge leg could not be issued (${probeErr.reason || "probe failed"}) — no 401 evidence for this run.`
+        : "No MCP gateway was configured for this run, so there was no protected resource to challenge.",
+    request: challenge
+      ? { title: "Unauthenticated request (actual)",
+          text: `POST ${challenge.url || ""}\n(no Authorization header)\n${asJson({ jsonrpc: "2.0", method: challenge.method || phase })}` }
+      : undefined,
+    response: challenge
+      ? { title: `Challenge response — HTTP ${challenge.status}`,
+          text: `WWW-Authenticate: ${challenge.wwwAuthenticate || "(none)"}\n${asJson(challenge.responseBody ?? {})}` }
+      : undefined,
+    kv: [
+      challenge ? ["status", String(challenge.status)] : null,
+      challenge?.realm ? ["realm", String(challenge.realm)] : null,
+      challenge?.error ? ["error", String(challenge.error)] : null,
+      challenge?.scope ? ["scope demanded", String(challenge.scope)] : null,
+      challenge?.resourceMetadataUrl ? ["resource metadata", String(challenge.resourceMetadataUrl)] : null,
+      metadata?.resource ? ["resource", String(metadata.resource)] : null,
+      authServers.length ? ["authorization server", authServers.join(", ")] : null,
+      metadata?.scopesSupported?.length ? ["scopes supported", metadata.scopesSupported.join(" ")] : null,
+      metadataErr ? ["metadata fetch", String(metadataErr.reason || "failed")] : null,
+      probeErr ? ["probe error", String(probeErr.message || probeErr.reason)] : null,
+    ].filter(Boolean),
+    // DENY is what actually happened and it is the control working, so the step
+    // STATUS stays "done" (no ✗ on the rail) while the decision drives the
+    // topology badge red — the hop completed by refusing, same rule the gateway
+    // hop already follows. The label carries that reading so the pill is not
+    // mistaken for a broken run.
+    decision: challenge?.challenged
+      ? { outcome: "DENY", label: "401 — anonymous caller refused (the control working)" }
+      : undefined,
+    beforeAfter: metadata
+      ? { before: { title: "Challenge (WWW-Authenticate)", text: String(challenge?.wwwAuthenticate || "") },
+          after: { title: "RFC 9728 metadata document", text: asJson(metadata.document || {}) } }
+      : undefined,
+    moreDetail: { edu: EDU.MCP_PROTOCOL, label: "Learn: MCP Protocol" },
+  });
+}
+
 export function buildTraceSteps(trace) {
   const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, authorizeEvaluations, outcome } = trace;
   const isHeuristic = routingMode === "heuristic";
@@ -490,6 +627,37 @@ export function buildTraceSteps(trace) {
       ["routing", "Heuristic intent match"],
       routingDetail?.action ? ["matched action", String(routingDetail.action)] : null,
     ].filter(Boolean),
+  } : {}));
+
+  // 3b. tools/list #1 — the credential-less discovery request the gateway
+  // refuses with 401 + WWW-Authenticate. Its own hop, because it is a real
+  // round trip to the gateway and the first half of the MCP handshake.
+  steps.push(buildChallengeStep("tools-list-challenge", "tools/list", tokenEvents, traceComplete));
+
+  // 3c. tools/list #2 — MCP tool discovery through the gateway, before the model
+  // reasons. The BFF merges these events into the run (routes/agentRun.js), but
+  // they carry `type` rather than `id`, so they need findEventByType.
+  const toolsOk = findEventByType(tokenEvents, "tools_list_success");
+  const toolsFallback = findEventByType(tokenEvents, "tools_list_fallback");
+  const toolsErr = findEventByType(tokenEvents, "tools_list_error", "tools_list_failed");
+  const toolsStarted = findEventByType(tokenEvents, "tools_list_request_started");
+  const toolsEvent = toolsOk || toolsFallback || toolsErr || toolsStarted;
+  const toolsStatus = toolsOk || toolsFallback
+    ? "done"
+    : toolsErr
+      ? "error"
+      : traceComplete
+        ? "notinpath"
+        : toolsStarted ? "active" : "pending";
+  steps.push(makeStep("tools-list", toolsStatus, toolsEvent ? {
+    kv: [
+      toolsOk && toolsOk.permittedCount != null ? ["tools permitted", String(toolsOk.permittedCount)] : null,
+      toolsOk && toolsOk.deniedCount != null ? ["filtered by policy", String(toolsOk.deniedCount)] : null,
+      toolsOk?.vertical ? ["vertical", String(toolsOk.vertical)] : null,
+      toolsFallback ? ["catalog source", `local fallback — ${toolsFallback.reason || "gateway unreachable"}`] : null,
+      toolsErr ? ["error", String(toolsErr.message || toolsErr.code || "tools/list failed")] : null,
+    ].filter(Boolean),
+    response: toolsEvent ? { title: "tools/list event", text: asJson(toolsEvent) } : undefined,
   } : {}));
 
   // 4. llm — heuristic runs skip the model; label/lane become HEURISTICS and mark done
@@ -876,6 +1044,11 @@ export function buildTraceSteps(trace) {
     } : !apiKeySwapDone && traceComplete ? {
       narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
+
+  // 8c. tools/call #1 — the same handshake on invocation: a credential-less
+  // tools/call the gateway refuses at its own edge, so nothing reaches the MCP
+  // server. Sits directly before the authorized call it precedes.
+  steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
 
   // 9. mcp + 10. api + 11. database — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
