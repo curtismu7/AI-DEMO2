@@ -23,6 +23,7 @@
     "test:api-server": "cd demo_api_server && npm test -- --forceExit",
     "test:mcp-server": "cd oauth-mcp && npm run test:unit",
     "test:mcp-server:integration": "cd oauth-mcp && npm run test:integration",
+    "test:mcp-resource-server": "cd demo_mcp_resource_server && CI=true npm test -- --forceExit",
     "test:authz-server": "bash scripts/test-service-suite.sh authz-server",
     "test:mcp-gateway": "bash scripts/test-service-suite.sh mcp-gateway",
     "test:snapshots": "bash scripts/test-snapshots.sh",
