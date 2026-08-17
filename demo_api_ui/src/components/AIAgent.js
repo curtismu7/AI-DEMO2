@@ -60,6 +60,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
+import { runsSignedOut } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
@@ -490,6 +491,8 @@ export default function BankingAgent({
   const [nlResumeAfterAuth, setNlResumeAfterAuth] = useState(null);
   /** useCaseId claimed alongside a pending NL (from launcher deep-link); attached to the next send. */
   const pendingUcIdRef = useRef(null);
+  /** True when the pending NL belongs to a `public` use case — it may send with no session. */
+  const pendingUcPublicRef = useRef(false);
   const pendingNlResumeRef = useRef(null);
   const nlSendGuardRef = useRef(null);
   if (!nlSendGuardRef.current) nlSendGuardRef.current = makeReentrancyGuard();
@@ -7255,18 +7258,26 @@ export default function BankingAgent({
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
 
-    await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
+    // Flag arming PATCHes an admin route, which 401s for a signed-out visitor —
+    // and that 401 raised the global "please sign in" banner over a use case
+    // that had just answered correctly. A public use case never arms flags.
+    if (!runsSignedOut(uc)) {
+      await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
+    }
 
     if (trigger.type === "chip" && trigger.text) {
       // Reset token chain trace so the proof strip shows this use case
       try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
       // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
       pendingUcIdRef.current = uc.useCaseId || null;
+      // The resume effect only sees the queued text, not the use case — carry
+      // the level across so a public step fires without waiting for a session.
+      pendingUcPublicRef.current = runsSignedOut(uc);
       pendingNlResumeRef.current = null;
       // Not eligible to send yet (no session, no guest chat on this path) — queue
       // the step anyway (below) and show an actionable sign-in prompt instead of
       // returning with nothing; the resume effect fires it the moment login lands.
-      if (!(isLoggedIn || marketingGuestChatEnabled)) {
+      if (!(isLoggedIn || marketingGuestChatEnabled || runsSignedOut(uc))) {
         addMessage(
           "assistant",
           `${stepLabel} needs you signed in — it'll run as soon as you do.`,
@@ -7756,7 +7767,7 @@ export default function BankingAgent({
   useEffect(() => {
     if (
       !nlResumeAfterAuth ||
-      !(isLoggedIn || marketingGuestChatEnabled) ||
+      !(isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current) ||
       pendingNlResumeRef.current === nlResumeAfterAuth
     ) {
       return;
@@ -7768,6 +7779,7 @@ export default function BankingAgent({
     // Passed to the BFF so A2.1/A2.2 stamping fires for this run.
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
+    pendingUcPublicRef.current = false;
     let cancelled = false;
     let timerFired = false;
     const timer = setTimeout(async () => {

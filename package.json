@@ -17,6 +17,7 @@
     "snapshot:check": "node snapshots/gen-authorize-snapshot.js --check",
     "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
     "topology:verify": "bash scripts/topology-verify.sh",
+    "authz:verify": "node scripts/check-auth-requirements.js",
     "certs:ensure": "bash scripts/ensure-dev-certs.sh",
     "sync:status": "bash scripts/sync-status.sh",
     "sync:unblock": "bash scripts/park-main-edits.sh",

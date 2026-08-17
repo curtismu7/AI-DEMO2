@@ -11,12 +11,24 @@ const express = require('express');
 const router = express.Router();
 const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
+const { authLevelForUseCase, AUTH_REQUIREMENTS } = require('../config/authRequirements');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { requiredFlagsForUseCase, isFlagOn } = require('../services/demoStepPrerequisites');
 const {
   conformanceSubjects, outcomeFromAgentResponse, outcomeConforms, summarize,
 } = require('../services/useCaseConformance');
+
+/**
+ * Stamp each use case with its SoT auth level so the UI gates on data instead
+ * of re-deciding per call site. Every catalog consumer (Demo steps, the agent's
+ * chip handler, the /use-cases tiles) reads the same field.
+ * @param {object[]} useCases
+ * @returns {object[]}
+ */
+function withAuthLevel(useCases) {
+  return useCases.map((uc) => ({ ...uc, auth: authLevelForUseCase(uc.id) }));
+}
 
 function pickVertical(req, res) {
   const vertical = req.query.vertical || 'banking';
@@ -31,12 +43,18 @@ function pickVertical(req, res) {
 router.get('/', (req, res) => {
   if (req.query.vertical === 'pingone-admin') {
     res.set({ 'Cache-Control': 'private, max-age=60' });
-    return res.json({ vertical: 'pingone-admin', useCases: ADMIN_DEMO_STEPS });
+    return res.json({ vertical: 'pingone-admin', useCases: withAuthLevel(ADMIN_DEMO_STEPS) });
   }
   const vertical = pickVertical(req, res);
   if (!vertical) return;
   res.set({ 'Cache-Control': 'private, max-age=60' });
-  res.json({ vertical, useCases: listUseCases(vertical) });
+  // publicAgentActions rides the catalog so the UI never keeps its own copy of
+  // the guest allowlist — the client gate and agentRun.js answer to one file.
+  res.json({
+    vertical,
+    useCases: withAuthLevel(listUseCases(vertical)),
+    publicAgentActions: AUTH_REQUIREMENTS.publicAgentActions,
+  });
 });
 
 // GET /api/use-cases/:id  → one
@@ -45,7 +63,7 @@ router.get('/:id', (req, res) => {
   if (!vertical) return;
   const useCase = resolveUseCase(req.params.id, vertical);
   if (!useCase) return res.status(404).json({ error: 'unknown_use_case', id: req.params.id });
-  res.json({ useCase });
+  res.json({ useCase: { ...useCase, auth: authLevelForUseCase(useCase.id) } });
 });
 
 // POST /api/demo/use-cases/run  → execute use case, return trigger text for agent
