@@ -211,6 +211,7 @@ export default function EducationBar() {
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AUTHZEN, 'overview')}>AuthZen</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.ID_JAG, 'overview')}>ID-JAG / Cross-App Access</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.IETF_STANDARDS, 'overview')}>IETF standards</button>
+            <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.SPIFFE, 'what')}>SPIFFE / SVID workload identity</button>
           </div>
 
           <div className="edu-bar-panel__section">
