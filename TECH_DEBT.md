@@ -7,6 +7,34 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
+
+**Where:** `demo_api_server/routes/davinciLogin.js` (`POST /callback`).
+
+**What's wrong:** the route exchanges the DaVinci widget's authorization code and
+reads the resulting ID token, but never checks it against a stored nonce the way
+`routes/oauth.js`'s callback does (`idPayload.nonce !== expectedNonce`, ~line 266-276)
+and `routes/oauthUser.js`'s does (`idTokenClaims.nonce !== expectedNonce`, ~line
+459-467). Without that check the callback can't detect ID token replay.
+
+**Why not fixed now:** both reference flows generate a nonce themselves and pass
+it into `oauthService.generateAuthorizationUrl(..., nonce)` before redirecting to
+PingOne, so the nonce round-trips through a redirect URL they control. This route's
+flow start is entirely inside the `@forgerock/davinci-client` SDK
+(`demo_api_ui/src/lib/davinciWidgetClient.js`'s `davinci({ config })` /
+`client.start()`/`client.next()`) — checked the installed package's README and
+`dist/src` for `nonce` support and found none, so there's no supported way to set
+or retrieve one through the SDK today. Implementing this would mean either forking
+the SDK's flow-start call or hand-building the DaVinci authorize request outside
+it — both fragile enough to risk breaking the widget flow this fix round wasn't
+scoped to touch.
+
+**Real fix:** once the SDK exposes (or a DaVinci-orchestration-level workaround is
+found for) a way to pass a nonce into the flow's authorize step and have it echo
+back in the ID token, wire up the same pattern as `routes/oauth.js`: generate a
+nonce before the widget starts, store it in `req.session`/PKCE cookie, and verify
+`idPayload.nonce === expectedNonce` in the callback before establishing a session.
+
 ### 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
 
 **Where:** `demo_api_server/services/davinciFlowClient.js` (`_getApiToken()`).
