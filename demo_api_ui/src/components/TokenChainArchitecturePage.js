@@ -32,7 +32,7 @@ graph LR
     end
 
     subgraph Gateway["🚪 GATEWAY"]
-      GWService["MCP Gateway<br/>route & introspect"]
+      GWService["Agent Gateway<br/>route & introspect"]
       AuthCall["authorize()<br/>check token"]
     end
 
@@ -137,7 +137,7 @@ export default function TokenChainArchitecturePage({ user }) {
       <div>
         <h1>Token Chain Architecture</h1>
         <p style={{ fontSize: '0.95rem', color: '#666', marginTop: '0.5rem' }}>
-          Complete flow: PingOne auth → Agent → Token Exchange → MCP Gateway → Authorization → Resource Servers
+          Complete flow: PingOne auth → Agent → Token Exchange → Agent Gateway → Authorization → Resource Servers
         </p>
       </div>
 

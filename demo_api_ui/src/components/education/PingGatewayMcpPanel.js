@@ -13,7 +13,7 @@ function OverviewTab() {
       <p style={{ fontSize: '0.85rem', marginBottom: '1rem' }}>
         Canonical Ping docs:{' '}
         <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
-          MCP security gateway | PingGateway 2026
+          MCP security gateway | PingOne Agent Gateway 2026
         </a>
         {' '}(Evolving interface stability).
       </p>
@@ -21,11 +21,11 @@ function OverviewTab() {
       <p>
         MCP is an open standard to connect AI agents with AI servers. Exposing services over MCP
         makes them usable by agents — but you still need an appropriate, consistent, documented,
-        and adaptable security model across those assets. PingGateway sits as an MCP gateway so
+        and adaptable security model across those assets. PingOne Agent Gateway sits as an MCP gateway so
         business teams can accelerate AI adoption while IAM/security teams own enforcement.
       </p>
 
-      <h4>What PingGateway protects MCP servers to do</h4>
+      <h4>What PingOne Agent Gateway protects MCP servers to do</h4>
       <p style={{ fontSize: '0.82rem', color: '#374151' }}>
         From the official{' '}
         <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
@@ -45,7 +45,7 @@ function OverviewTab() {
 
       <h4>Architecture</h4>
       <pre className="edu-code">{`┌─────────────┐     ┌──────────────────┐     ┌────────────────┐
-│  BFF / Agent │────▶│   PingGateway    │────▶│   MCP Server   │
+│  BFF / Agent │────▶│   PingOne Agent Gateway    │────▶│   MCP Server   │
 │  (client)    │     │                  │     │                │
 │              │◀────│  • Token check   │◀────│  • tools/list  │
 │              │     │  • Scope enforce │     │  • tools/call  │
@@ -60,7 +60,7 @@ function OverviewTab() {
                     └─────────────┘`}</pre>
 
       <p>
-        PingGateway acts as a <strong>reverse proxy</strong> — the MCP server never receives
+        PingOne Agent Gateway acts as a <strong>reverse proxy</strong> — the MCP server never receives
         unauthenticated traffic. The gateway validates tokens by calling PingOne's introspection
         endpoint or verifying JWT signatures against the JWKS.
       </p>
@@ -78,7 +78,7 @@ function ArchitectureTab() {
 │  Docker Host / K8s Pod             │
 │                                    │
 │  ┌──────────────┐  ┌────────────┐ │
-│  │ PingGateway  │──│ MCP Server │ │
+│  │ PingOne Agent Gateway  │──│ MCP Server │ │
 │  │ :8443 (TLS)  │  │ :8080      │ │
 │  └──────────────┘  └────────────┘ │
 │         │                          │
@@ -90,7 +90,7 @@ function ArchitectureTab() {
       <h4>Option B: Standalone gateway</h4>
       <pre className="edu-code">{`Internet          DMZ                  Private Network
 ─────────    ┌──────────────┐    ┌────────────────────┐
-             │ PingGateway  │    │  MCP Server         │
+             │ PingOne Agent Gateway  │    │  MCP Server         │
   Client ───▶│ Load balanced│───▶│  Not internet-facing│
              │ TLS termination│  │  Internal DNS only  │
              └──────────────┘    └────────────────────┘`}</pre>
@@ -98,7 +98,7 @@ function ArchitectureTab() {
       <h4>Token validation flow</h4>
       <ol>
         <li>Client sends <code>tools/call</code> with <code>Authorization: Bearer &lt;token&gt;</code></li>
-        <li>PingGateway extracts the Bearer token</li>
+        <li>PingOne Agent Gateway extracts the Bearer token</li>
         <li>Gateway calls <code>POST /as/introspect</code> on PingOne (cached for token lifetime)</li>
         <li>If <code>active: true</code> and scopes match → forward to MCP server</li>
         <li>If invalid → return <code>401 Unauthorized</code> before MCP server is reached</li>
@@ -130,7 +130,7 @@ function ArchitectureTab() {
 
       <h4>WebSocket upgrade</h4>
       <p>
-        MCP servers often use WebSocket (Streamable HTTP or legacy stdio-over-WS). PingGateway
+        MCP servers often use WebSocket (Streamable HTTP or legacy stdio-over-WS). PingOne Agent Gateway
         supports WebSocket upgrade — it validates the token on the initial HTTP upgrade request,
         then proxies the WebSocket frames transparently.
       </p>
@@ -141,14 +141,14 @@ function ArchitectureTab() {
 function ComparisonTab() {
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>Custom gateway vs PingGateway</h3>
+      <h3 style={{ marginTop: 0 }}>Custom gateway vs PingOne Agent Gateway</h3>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left' }}>
             <th style={{ padding: '8px' }}>Capability</th>
             <th style={{ padding: '8px' }}>Custom Gateway</th>
-            <th style={{ padding: '8px' }}>PingGateway</th>
+            <th style={{ padding: '8px' }}>PingOne Agent Gateway</th>
           </tr>
         </thead>
         <tbody>
@@ -175,9 +175,9 @@ function ComparisonTab() {
 
       <h4 style={{ marginTop: '1.5rem' }}>When to choose what</h4>
       <ul>
-        <li><strong>Custom gateway</strong> — learning exercise, unique requirements not met by PingGateway, or you already have an API gateway (Kong, Envoy) with OAuth plugins</li>
-        <li><strong>PingGateway</strong> — production deployment, compliance requirements, need audit integration with PingOne, want minimal ongoing maintenance</li>
-        <li><strong>Hybrid</strong> — use your existing API gateway for HTTP routes, add PingGateway specifically for MCP/WebSocket traffic that needs identity-aware proxying</li>
+        <li><strong>Custom gateway</strong> — learning exercise, unique requirements not met by PingOne Agent Gateway, or you already have an API gateway (Kong, Envoy) with OAuth plugins</li>
+        <li><strong>PingOne Agent Gateway</strong> — production deployment, compliance requirements, need audit integration with PingOne, want minimal ongoing maintenance</li>
+        <li><strong>Hybrid</strong> — use your existing API gateway for HTTP routes, add PingOne Agent Gateway specifically for MCP/WebSocket traffic that needs identity-aware proxying</li>
       </ul>
     </div>
   );
@@ -186,9 +186,9 @@ function ComparisonTab() {
 function ConfigTab() {
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>PingGateway configuration example</h3>
+      <h3 style={{ marginTop: 0 }}>PingOne Agent Gateway configuration example</h3>
       <p>
-        PingGateway uses JSON-based route configurations. Below is an example route
+        PingOne Agent Gateway uses JSON-based route configurations. Below is an example route
         that protects an MCP server with token validation and scope enforcement.
       </p>
 
@@ -281,9 +281,9 @@ function ConfigTab() {
 function OfficialFiltersTab() {
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>Official PingGateway MCP filters</h3>
+      <h3 style={{ marginTop: 0 }}>Official PingOne Agent Gateway MCP filters</h3>
       <p>
-        PingGateway ships dedicated MCP filters (Agent Gateway module, Evolving stability).
+        PingOne Agent Gateway ships dedicated MCP filters (Agent Gateway module, Evolving stability).
         They run as a chain before the <code>ReverseProxyHandler</code> that forwards traffic
         to the MCP server.
       </p>
@@ -432,7 +432,7 @@ function OfficialFiltersTab() {
         walks a sample <code>mcp.json</code> route. Key points from that page:
       </p>
       <ul style={{ fontSize: '0.82rem' }}>
-        <li>PingGateway acts as an <strong>OAuth 2.0 resource server (RS)</strong> in front of the MCP server.</li>
+        <li>PingOne Agent Gateway acts as an <strong>OAuth 2.0 resource server (RS)</strong> in front of the MCP server.</li>
         <li><code>McpAuditFilter</code> audits MCP requests into <code>audit/mcp.audit.json</code>.</li>
         <li><code>UriPathRewriteFilter</code> maps gateway <code>/mcp</code> to the MCP server root <code>/</code>.</li>
         <li><code>McpProtectionFilter</code> extends the RS config for MCP (<code>resourceId</code>, AS URI, scopes, <code>resourceIdPointer</code>).</li>
@@ -492,7 +492,7 @@ const tabs = [
   { id: 'overview', label: 'Overview', content: <OverviewTab /> },
   { id: 'architecture', label: 'Architecture', content: <ArchitectureTab /> },
   { id: 'official-filters', label: 'MCP Filters', content: <OfficialFiltersTab /> },
-  { id: 'comparison', label: 'Custom vs PingGateway', content: <ComparisonTab /> },
+  { id: 'comparison', label: 'Custom vs PingOne Agent Gateway', content: <ComparisonTab /> },
   { id: 'config', label: 'Configuration', content: <ConfigTab /> },
 ];
 
@@ -501,7 +501,7 @@ export default function PingGatewayMcpPanel({ isOpen, onClose, initialTabId }) {
     <EducationDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="PingGateway — Securing MCP Servers"
+      title="PingOne Agent Gateway — Securing MCP Servers"
       tabs={tabs}
       initialTabId={initialTabId}
       width="min(700px, 100vw)"

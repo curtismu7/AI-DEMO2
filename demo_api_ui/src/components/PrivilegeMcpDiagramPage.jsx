@@ -171,10 +171,10 @@ export default function PrivilegeMcpDiagramPage() {
   return (
     <div className="pmd-page">
       <div className="pmd-hero">
-        <span className="pmd-eyebrow">Privilege MCP Gateway</span>
-        <h1>Privilege MCP Diagrams</h1>
+        <span className="pmd-eyebrow">AI Agent Gateway</span>
+        <h1>AI Agent Gateway Diagrams</h1>
         <p className="pmd-sub">
-          Architecture and protocol flow for the PingOne Privilege MCP Gateway integration.
+          Architecture and protocol flow for the AI Agent Gateway integration.
           The gateway applies JIT least-privilege authorization to every MCP tool call.
         </p>
       </div>

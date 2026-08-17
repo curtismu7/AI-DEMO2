@@ -1810,7 +1810,7 @@ function useProtocolSource() {
 
   return {
     statusOn: true,
-    statusText: 'Resources / Prompts / Completion / Logging — via MCP Gateway',
+    statusText: 'Resources / Prompts / Completion / Logging — via Agent Gateway',
     left: (
       <>
         <div className="inspector-shell-tree-header"><span>Protocol Methods</span></div>
@@ -1968,7 +1968,7 @@ function useProtocolSource() {
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {lastTiming?.error ? 'Error' : lastTiming ? '200 OK' : '-'}</span>
               <span><strong>Duration:</strong> {lastTiming?.ms != null ? `${lastTiming.ms}ms` : '-'}</span>
-              <span><strong>Transport:</strong> WebSocket JSON-RPC (via MCP Gateway)</span>
+              <span><strong>Transport:</strong> WebSocket JSON-RPC (via Agent Gateway)</span>
             </div>
           </>
         ) : (

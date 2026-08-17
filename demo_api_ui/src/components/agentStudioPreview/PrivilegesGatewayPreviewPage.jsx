@@ -20,7 +20,7 @@ export default function PrivilegesGatewayPreviewPage() {
         <PreviewBanner />
         <div className="asp-hero">
           <span className="asp-eyebrow">Agent Studio · Preview</span>
-          <h1>P1 Privileges MCP Gateway</h1>
+          <h1>AI Agent Gateway</h1>
           <p>Every tool call from a governed agent, permitted or denied.</p>
         </div>
 

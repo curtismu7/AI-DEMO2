@@ -418,6 +418,11 @@ services:
       # so the MCP server trusts all callers on the internal hop.
       MCP_AUTH_DISABLED: "${MCP_AUTH_DISABLED:-false}"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # Durable MCP audit sink (feeds /audit). config.ts defaults this to
+      # http://localhost:3001/... which, inside this container, is the gateway
+      # itself — not the BFF — so every audit POST silently 404'd/refused and
+      # the Audit page stayed empty. Point it at the BFF explicitly.
+      BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
@@ -1176,6 +1181,11 @@ services:
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
       BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
       BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
+      # Transaction-ledger hop ingest (transaction-hop.groovy). Without this the
+      # gateway leg of /transaction-trace is structurally absent: the Node
+      # gateway's instrumentation is bypassed whenever MCP traffic routes
+      # through PingGateway, which is the default path.
+      BFF_TRANSACTION_HOP_URL: "https://api.ping.demo:3001/internal/transaction-hop"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).

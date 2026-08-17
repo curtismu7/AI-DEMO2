@@ -76,7 +76,7 @@ export default function SetupStepVerify({ onEnvDownload }) {
               <div className="verify-panel-title">Services</div>
               <CheckRow label="BFF :3001" status={checks.bff} />
               <CheckRow label="MCP Server :8080" status={checks.mcp} />
-              <CheckRow label="MCP Gateway :3005" status={checks.gateway} />
+              <CheckRow label="Agent Gateway :3005" status={checks.gateway} />
             </div>
             <div className="verify-panel">
               <div className="verify-panel-title">Configuration</div>

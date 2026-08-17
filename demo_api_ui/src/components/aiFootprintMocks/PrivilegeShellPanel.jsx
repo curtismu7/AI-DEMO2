@@ -136,7 +136,7 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
       data-testid="privilege-shell-panel"
     >
       <div className="pvs-head">
-        <strong>Privilege MCP</strong>
+        <strong>AI Agent Gateway</strong>
         <span>PingOne Privilege client</span>
         <button
           type="button"
@@ -156,7 +156,7 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
       ) : null}
       {phase === "signed-out" ? (
         <div className="pvs-connect">
-          <p>Connect this tool to the Privilege MCP gateway to discover tools.</p>
+          <p>Connect this tool to the AI Agent Gateway to discover tools.</p>
           <button type="button" onClick={connect} disabled={busy}>
             Sign in with Privilege
           </button>

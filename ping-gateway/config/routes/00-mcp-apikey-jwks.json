@@ -1,12 +1,28 @@
 {
-  "comment": "Phase 3 api-key route, JWKS-validation variant. Mirrors 00-mcp-apikey.json (mcp-apikey-primary) but validates the inbound token LOCALLY via jwks-token-validation.groovy instead of introspection, selected by the BFF's X-Token-Validation: jwks header (ff_mcp_gateway_jwks). Name 'mcp-apikey-jwks' sorts before 'mcp-apikey-primary' (IG selects by name, not filename) so it wins when the header is present; absent header → its condition fails and mcp-apikey-primary (introspection) matches. McpValidationFilter buffers the body for p1az-decision + the apikey-dispatch handler.",
+  "comment": "Phase 3 api-key route, JWKS-validation variant. Mirrors 00-mcp-apikey.json (mcp-apikey-primary) but validates the inbound token LOCALLY via jwks-token-validation.groovy instead of introspection, selected by the BFF's X-Token-Validation: jwks header (ff_mcp_gateway_jwks). Name 'mcp-apikey-jwks' sorts before 'mcp-apikey-primary' (IG selects by name, not filename) so it wins when the header is present; absent header \u2192 its condition fails and mcp-apikey-primary (introspection) matches. McpValidationFilter buffers the body for p1az-decision + the apikey-dispatch handler.",
   "name": "mcp-apikey-jwks",
   "condition": "${find(request.uri.path, '^/mcp/apikey') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
-  "heap": [ { "name": "SecretsStore", "type": "SystemAndEnvSecretStore", "config": { "format": "PLAIN" } } ],
+  "heap": [
+    {
+      "name": "SecretsStore",
+      "type": "SystemAndEnvSecretStore",
+      "config": {
+        "format": "PLAIN"
+      }
+    }
+  ],
   "handler": {
     "type": "Chain",
     "config": {
       "filters": [
+        {
+          "name": "TransactionHop",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "transaction-hop.groovy"
+          }
+        },
         {
           "name": "McpAudit",
           "type": "McpAuditFilter",
@@ -14,13 +30,55 @@
             "auditService": "AuditService"
           }
         },
-        { "name": "JwksTokenValidation", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "jwks-token-validation.groovy" } },
-        { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*", "metricsEnabled": true } },
-        { "comment": "Tool-argument validation, mounted after McpValidationFilter (body buffered) and before P1AZDecision — parity with 01-mcp-olb.json. The nine api-key tools are all declared in mcp-tool-schemas.json with empty argument schemas, so a well-formed argument-less call passes and an unknown tool or injected argument now fails closed instead of reaching apikey-dispatch unvalidated.", "name": "McpRequestValidation", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "mcp-request-validation.groovy" } },
-        { "name": "Uc18RateLimit", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "uc18-rate-limit.groovy" } },
-        { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
+        {
+          "name": "JwksTokenValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "jwks-token-validation.groovy"
+          }
+        },
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": {
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
+          }
+        },
+        {
+          "comment": "Tool-argument validation, mounted after McpValidationFilter (body buffered) and before P1AZDecision \u2014 parity with 01-mcp-olb.json. The nine api-key tools are all declared in mcp-tool-schemas.json with empty argument schemas, so a well-formed argument-less call passes and an unknown tool or injected argument now fails closed instead of reaching apikey-dispatch unvalidated.",
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
+          }
+        },
+        {
+          "name": "Uc18RateLimit",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "uc18-rate-limit.groovy"
+          }
+        },
+        {
+          "name": "P1AZDecision",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "p1az-decision.groovy"
+          }
+        }
       ],
-      "handler": { "type": "ScriptableHandler", "config": { "type": "application/x-groovy", "file": "apikey-dispatch.groovy" } }
+      "handler": {
+        "type": "ScriptableHandler",
+        "config": {
+          "type": "application/x-groovy",
+          "file": "apikey-dispatch.groovy"
+        }
+      }
     }
   }
 }

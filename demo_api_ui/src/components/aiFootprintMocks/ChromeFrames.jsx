@@ -88,7 +88,7 @@ export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = fals
       </div>
       <div className="afm-vcs-status">
         <span>main*</span>
-        <span>Ping Privilege MCP</span>
+        <span>Ping AI Agent Gateway</span>
       </div>
     </div>
   );

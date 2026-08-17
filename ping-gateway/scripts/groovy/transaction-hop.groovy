@@ -1,0 +1,119 @@
+// ping-gateway/scripts/groovy/transaction-hop.groovy
+//
+// Emits one `gateway.authorize` hop per MCP request into the BFF transaction
+// ledger (/internal/transaction-hop), so /transaction-trace can show the
+// gateway leg of the chain.
+//
+// WHY THIS EXISTS: the ledger's gateway instrumentation lived only in
+// demo_mcp_gateway (the Node gateway, gatewayAudit.ts). When traffic routes
+// through PingGateway instead — the default for the MCP path — that code is
+// bypassed entirely, so NO gateway hop was ever recorded and the trace page
+// could only ever show BFF-side hops. Verified against the live ledger: 300
+// consecutive transactions, zero gateway hops.
+//
+// Mounted as the OUTERMOST filter on the MCP routes so it observes the final
+// response, including denies produced by P1AZDecision (which returns its own
+// response without calling downstream filters — a filter mounted after it
+// would never run).
+//
+// FAIL-OPEN, ALWAYS: the ledger is an observability surface. Losing a hop is
+// acceptable; disturbing a tool call is not. Every failure path here is
+// swallowed, and the POST happens on a daemon thread so a slow/dead BFF can
+// never add latency to the response.
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+def hopUrl = System.getenv('BFF_TRANSACTION_HOP_URL') ?: ''
+def secret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def allowInsecureHostname = System.getenv('PG_ALLOW_INSECURE_VAULT_HOSTNAME') == 'true'
+
+// Correlation: the BFF stamps X-Correlation-ID on every gateway call
+// (mcpGatewayClient.js). Without an inbound id there is nothing to correlate
+// TO, and inventing one here would write an orphan single-hop record that
+// looks like an incomplete transaction in the UI — so skip instead.
+def correlationId = request.headers.getFirst('X-Correlation-ID') ?:
+                    request.headers.getFirst('X-Request-ID') ?: ''
+
+// Deliberately does NOT read request.entity: the tool name and method are
+// already published on the response's X-Gw-Audit-Trail by p1az-decision.groovy,
+// so there is no reason for an observability filter to touch the request body
+// at all. Reading it would put this filter on the critical path for a
+// stream-consumption bug it gains nothing from.
+def startedAt = System.currentTimeMillis()
+
+return next.handle(context, request).thenOnResult({ response ->
+    try {
+        if (!hopUrl || !secret || !correlationId) return
+
+        def durationMs = System.currentTimeMillis() - startedAt
+        def statusCode = -1
+        try { statusCode = response.status.code } catch (Exception ignored) {}
+
+        // Prefer the authoritative decision P1AZDecision already stamped on the
+        // audit trail over guessing from the HTTP status: a JSON-RPC error rides
+        // a 200 envelope, so status alone cannot distinguish a policy DENY from
+        // a successful call.
+        def outcome = null
+        def reason = null
+        def op = null
+        try {
+            def trailRaw = response.headers.getFirst('X-Gw-Audit-Trail')
+            if (trailRaw) {
+                def trail = new JsonSlurper().parseText(trailRaw)
+                def az = trail?.authorize
+                if (az) {
+                    if (az.decision) outcome = az.decision as String
+                    reason = az.reason as String
+                    op = (az.tool ?: az.method) as String
+                }
+            }
+        } catch (Exception ignored) { /* trail absent or unparseable — fall through */ }
+        if (!outcome) outcome = (statusCode >= 400) ? 'DENY' : 'PERMIT'
+
+        def payload = JsonOutput.toJson([
+            phase        : 'gateway.authorize',
+            op           : op,
+            correlationId: correlationId,
+            durationMs   : durationMs,
+            service      : 'ping-gateway',
+            status       : (statusCode >= 400) ? 'error' : 'ok',
+            decision     : [outcome: outcome, by: 'ping-gateway', reason: reason],
+        ])
+
+        // Daemon thread: URLConnection blocks in native I/O, and IG runs this
+        // callback on the Vert.x event loop. Blocking there would stall the
+        // response we just produced (and IG's own http.send deadlocks the loop
+        // outright — see p1az-decision.groovy's helper for the same reasoning).
+        def t = new Thread({
+            try {
+                def conn = new URL(hopUrl).openConnection() as java.net.HttpURLConnection
+                // Same opt-in hostname relaxation the vault bridge uses, and for
+                // the same reason: in-cluster the BFF is addressed as
+                // demo-api-server (ClusterIP DNS), which is not a SAN on the
+                // mkcert cert (SAN=api.ping.demo). Trust still comes from the
+                // JVM truststore — only the NAME check is relaxed, and only when
+                // PG_ALLOW_INSECURE_VAULT_HOSTNAME is explicitly set.
+                if (allowInsecureHostname && conn instanceof javax.net.ssl.HttpsURLConnection) {
+                    conn.setHostnameVerifier({ String hostname, javax.net.ssl.SSLSession session ->
+                        hostname == 'demo-api-server' || hostname == 'api.ping.demo' || hostname == 'localhost'
+                    } as javax.net.ssl.HostnameVerifier)
+                }
+                conn.requestMethod = 'POST'
+                conn.doOutput = true
+                conn.connectTimeout = 2000
+                conn.readTimeout = 2000
+                conn.setRequestProperty('Content-Type', 'application/json')
+                conn.setRequestProperty('x-internal-gateway-secret', secret)
+                conn.outputStream.withWriter('UTF-8') { it.write(payload) }
+                conn.responseCode
+                try { conn.inputStream?.close() } catch (Exception ignored2) {}
+            } catch (Exception e) {
+                logger.warn('[TransactionHop] emit failed: ' + e.message)
+            }
+        } as Runnable)
+        t.daemon = true
+        t.start()
+    } catch (Exception e) {
+        logger.warn('[TransactionHop] hop skipped: ' + e.message)
+    }
+})

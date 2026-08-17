@@ -24,7 +24,7 @@ describe('PingProductLegend', () => {
     const prods = [PING_PRODUCTS.idp, PING_PRODUCTS.gw];
     render(<PingProductLegend products={prods} />);
     expect(screen.getByText('PingOne')).toBeTruthy();
-    expect(screen.getByText('PingGateway')).toBeTruthy();
+    expect(screen.getByText('PingOne Agent Gateway')).toBeTruthy();
   });
   it('renders nothing for empty array', () => {
     const { container } = render(<PingProductLegend products={[]} />);

@@ -153,7 +153,7 @@ const CONFIG_META = {
 		envVar: "PINGONE_RESOURCE_MCP_GATEWAY_URI",
 		format: "URI — e.g. https://mcp-gateway.pingdemo.com",
 		failMsg:
-			"Not set — add PINGONE_RESOURCE_MCP_GATEWAY_URI=<uri> to .env (copy Audience URI from PingOne → Connections → Resource Servers → Demo MCP Gateway)",
+			"Not set — add PINGONE_RESOURCE_MCP_GATEWAY_URI=<uri> to .env (copy Audience URI from PingOne → Connections → Resource Servers → Demo Agent Gateway)",
 	},
 	resourceAgentGatewayUri: {
 		envVar: "PINGONE_RESOURCE_AGENT_GATEWAY_URI",
@@ -673,7 +673,7 @@ export default function PingOneTestPage() {
 					url: resourcesUrl,
 				},
 				resourceMcpGatewayUri: {
-					msg: "Set PINGONE_RESOURCE_MCP_GATEWAY_URI — Audience URI for the MCP Gateway resource server.",
+					msg: "Set PINGONE_RESOURCE_MCP_GATEWAY_URI — Audience URI for the Agent Gateway resource server.",
 					url: resourcesUrl,
 				},
 				resourceAgentGatewayUri: {
@@ -681,7 +681,7 @@ export default function PingOneTestPage() {
 					url: resourcesUrl,
 				},
 				"single-exchange": {
-					msg: 'PingOne error: "At least one scope must be granted" means the MCP Token Exchanger app is missing banking scopes. Fix: PingOne → Applications → Demo AI App - Token Exchanger → Resources tab → add read, write, mcp:invoke from the Demo MCP Gateway resource server. Also enable Token Exchange grant type.',
+					msg: 'PingOne error: "At least one scope must be granted" means the MCP Token Exchanger app is missing banking scopes. Fix: PingOne → Applications → Demo AI App - Token Exchanger → Resources tab → add read, write, mcp:invoke from the Demo Agent Gateway resource server. Also enable Token Exchange grant type.',
 					url: appsUrl,
 				}, // legacy dispatch key — not user-facing; canonical: 1-exchange
 				"double-exchange": {

@@ -155,18 +155,18 @@ function PingOneContent() {
         <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.65 }}>
           <li><strong>Workforce SSO</strong> — employees authenticate once; PingOne issues OIDC ID tokens the MCP client retains.</li>
           <li><strong>Policy surface</strong> — populations, groups, and sign-on policies gate who may obtain ID-JAGs for which MCP resource servers.</li>
-          <li><strong>MCP Authorization Server</strong> — often PingOne (or PingGateway in front of MCP) validates ID-JAGs and issues resource tokens with audience bound to the MCP server.</li>
+          <li><strong>MCP Authorization Server</strong> — often PingOne (or PingOne Agent Gateway in front of MCP) validates ID-JAGs and issues resource tokens with audience bound to the MCP server.</li>
           <li><strong>Account linking</strong> — MCP AS maps IdP <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3 }}>sub</code> (stable) and optional <code style={{ background: '#f1f5f9', padding: '1px 4px', borderRadius: 3 }}>email</code> to local identities.</li>
         </ul>
       </Section>
 
       <Section title="Ping sales narrative">
         <p style={{ margin: 0, fontSize: '0.875rem', color: '#374151', lineHeight: 1.6 }}>
-          Enterprise-managed authorization turns MCP from &ldquo;every employee clicks through OAuth for every server&rdquo; into &ldquo;IT publishes approved MCP servers; employees use corporate SSO.&rdquo; PingOne + PingGateway + PingOne Authorize cover identity, token issuance, and fine-grained tool policy — the same stack this demo uses, extended to the MCP extension model.
+          Enterprise-managed authorization turns MCP from &ldquo;every employee clicks through OAuth for every server&rdquo; into &ldquo;IT publishes approved MCP servers; employees use corporate SSO.&rdquo; PingOne + PingOne Agent Gateway + PingOne Authorize cover identity, token issuance, and fine-grained tool policy — the same stack this demo uses, extended to the MCP extension model.
         </p>
       </Section>
 
-      <CrossLink panelId={EDU.PINGGATEWAY_MCP} tabId="overview">PingGateway MCP security</CrossLink>
+      <CrossLink panelId={EDU.PINGGATEWAY_MCP} tabId="overview">PingOne Agent Gateway MCP security</CrossLink>
       {' '}
       <CrossLink panelId={EDU.PINGONE_AUTHORIZE} tabId="what">PingOne Authorize</CrossLink>
     </>
@@ -198,7 +198,7 @@ function InThisDemoContent() {
           <li>User logs in via PingOne OAuth (Auth Code + PKCE) to the BFF.</li>
           <li>User explicitly connects the AI agent / MCP path (consent-oriented flow).</li>
           <li>BFF performs <strong>RFC 8693 token exchange</strong> (user token + agent actor) to mint MCP-scoped access tokens.</li>
-          <li>PingGateway or demo MCP gateway validates tokens; PingOne Authorize enforces tool policy.</li>
+          <li>PingOne Agent Gateway or demo MCP gateway validates tokens; PingOne Authorize enforces tool policy.</li>
         </ul>
       </Section>
 
@@ -216,7 +216,7 @@ function InThisDemoContent() {
         </p>
         <CrossLink panelId={EDU.TOKEN_EXCHANGE} tabId="why">RFC 8693 Token Exchange</CrossLink>
         <CrossLink panelId={EDU.ID_JAG} tabId="how-it-works">ID-JAG flow</CrossLink>
-        <CrossLink panelId={EDU.AGENT_GATEWAY} tabId="overview">Agent / MCP Gateway</CrossLink>
+        <CrossLink panelId={EDU.AGENT_GATEWAY} tabId="overview">Agent / Agent Gateway</CrossLink>
         <CrossLink panelId={EDU.MCP_PROTOCOL} tabId="what">MCP Protocol</CrossLink>
       </Section>
     </>

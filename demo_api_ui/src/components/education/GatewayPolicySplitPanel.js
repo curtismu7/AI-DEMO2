@@ -63,7 +63,7 @@ export default function GatewayPolicySplitPanel({ isOpen, onClose, initialTabId 
           <h3 style={{ marginTop: 0 }}>Two enforcement points, two jobs</h3>
           <p>
             This demo has two authorization layers on every agent tool call: the <strong>Agent Gateway</strong>
-            {' '}(a PEP — Policy Enforcement Point, either PingGateway/IG or the Node demo gateway) and{' '}
+            {' '}(a PEP — Policy Enforcement Point, either PingOne Agent Gateway/IG or the Node demo gateway) and{' '}
             <strong>PingOne Authorize</strong> (P1AZ, the PDP — Policy Decision Point). They are deliberately
             split by grain, not duplicated:
           </p>
