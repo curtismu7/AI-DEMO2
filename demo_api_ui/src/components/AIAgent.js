@@ -1686,6 +1686,12 @@ export default function BankingAgent({
       // Claimed on effect entry: if session hydration never succeeds the
       // command is intentionally dropped, not retained for a later page load.
       const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
+      // Claimed on effect entry, next to the NL and for the same reason: these
+      // keys are one-shot. Claiming them only when a pendingNl turned up left
+      // them behind whenever it did not (another instance won the claim, or
+      // hydration failed), so a stale useCaseId and a stale flag list bled into
+      // the next launcher run. Same failure the "BUG 1 fix" below prevents.
+      claimPendingStepContext();
 
       // The admin console opens with its own content (group membership, customer
       // lookup, metrics); auto-expanding the agent over it buries the page the
@@ -1723,12 +1729,6 @@ export default function BankingAgent({
             setCookieOnlyBffSession(cookieOnly);
             setSessionUser(found);
             if (pendingNl) {
-              // handleLoginAction persisted the useCaseId and the flags this step
-              // still needs armed, but nothing on this path ever read them back —
-              // the effect that does early-returns when oauth=success. The step
-              // therefore resumed without its useCaseId (so no forceHeuristic or
-              // A2.1/A2.2 stamping) and with its flags off.
-              claimPendingStepContext();
               setNlResumeAfterAuth(pendingNl);
             }
             setMessages((prev) => {

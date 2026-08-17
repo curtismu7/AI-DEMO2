@@ -51,7 +51,12 @@ export default function DelegationChainValuePage() {
       });
       if (flags.length) {
         const updates = Object.fromEntries(flags.map((f) => [f, true]));
-        await apiClient.patch("/api/admin/feature-flags", { updates }).catch(() => {});
+        // _noAuthBanner: arming is best effort on an admin-gated route, so its
+        // 401 says nothing about the session — without this it raises the global
+        // re-auth banner over a run that may have succeeded.
+        await apiClient
+          .patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true })
+          .catch(() => {});
       }
       const res = await apiClient.post("/api/agent/invoke", {
         prompt: entry.prompt,
