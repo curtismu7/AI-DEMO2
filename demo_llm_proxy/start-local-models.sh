@@ -89,18 +89,47 @@ start_model() {
 
   # $extra is intentionally unquoted — it holds optional extra llama-server
   # flags (word-split on spaces; empty for most tiers).
-  llama-server \
-    -m "$model_path" \
-    --host "$LLAMA_LISTEN_HOST" \
-    --port "$port" \
-    --threads "$threads" \
-    --n-gpu-layers "$N_GPU_LAYERS" \
-    --ctx-size "$ctx_size" \
-    --parallel "$N_PARALLEL" \
-    --cache-prompt \
-    --slot-prompt-similarity "$SLOT_SIM" \
-    $extra \
-    >"$log_file" 2>&1 &
+  local -a cmd=(
+    llama-server
+    -m "$model_path"
+    --host "$LLAMA_LISTEN_HOST"
+    --port "$port"
+    --threads "$threads"
+    --n-gpu-layers "$N_GPU_LAYERS"
+    --ctx-size "$ctx_size"
+    --parallel "$N_PARALLEL"
+    --cache-prompt
+    --slot-prompt-similarity "$SLOT_SIM"
+  )
+  # shellcheck disable=SC2206  # deliberate word-split, see above
+  cmd+=( $extra )
+
+  # Detach into a NEW SESSION, or launchd kills the model the moment its
+  # launcher exits.
+  #
+  # com.ai-demo.llama-models runs supervise-swap.sh as a one-shot (RunAtLoad +
+  # StartInterval 300, no KeepAlive) and the plist does not set
+  # AbandonProcessGroup, so when the script returns launchd reaps the whole
+  # process group — including a plain `llama-server ... &` child. Measured
+  # 2026-08-17: the launcher logged "Starting" 148 times and "already loaded"
+  # ZERO times, i.e. it never once found a tier alive from its own previous run.
+  # gpt-oss-20b suffered worst — an 11GB cold load takes ~150s, so it was killed
+  # almost as soon as it reported ready, and the proxy's recurring
+  # "gpt-oss-20b did not become healthy within 180s" was the visible symptom.
+  #
+  # nohup and disown do NOT fix this: nohup only ignores SIGHUP and disown only
+  # edits the shell's job table, while launchd signals the process GROUP. A new
+  # session is required. macOS ships no setsid(1), so perl's POSIX::setsid is
+  # the portable equivalent; exec keeps the PID, so $! below still names the
+  # real llama-server for the pid file.
+  if command -v perl >/dev/null 2>&1; then
+    perl -e 'use POSIX qw(setsid); setsid(); exec @ARGV or die "exec failed: $!\n"' \
+      "${cmd[@]}" >"$log_file" 2>&1 &
+  else
+    echo "⚠️  perl not found — starting $tier without session detach; it will not"
+    echo "    survive its launcher under launchd (see comment above)."
+    "${cmd[@]}" >"$log_file" 2>&1 &
+  fi
 
   local new_pid=$!
   echo "$new_pid" > "$pid_file"
