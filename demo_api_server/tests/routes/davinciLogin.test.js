@@ -11,10 +11,19 @@ jest.mock('../../services/oauthService', () => ({
 const oauthService = require('../../services/oauthService');
 const davinciLoginRoutes = require('../../routes/davinciLogin');
 
-function buildApp() {
+function buildApp(sessionObj) {
   const app = express();
   app.use(express.json());
-  app.use(session({ secret: 'test', resave: false, saveUninitialized: true }));
+  if (sessionObj) {
+    // Inject a persistent session object so tests can verify session state after the request.
+    app.use((req, _res, next) => {
+      req.session = sessionObj;
+      req.session.save = (cb) => cb && cb(null);
+      next();
+    });
+  } else {
+    app.use(session({ secret: 'test', resave: false, saveUninitialized: true }));
+  }
   app.use('/api/davinci-login', davinciLoginRoutes);
   return app;
 }
@@ -28,13 +37,25 @@ describe('POST /api/davinci-login/callback', () => {
       claims: { sub: 'u1', preferred_username: 'demoUser' },
     });
 
-    const res = await request(buildApp())
+    const session = {};
+    const res = await request(buildApp(session))
       .post('/api/davinci-login/callback')
       .send({ code: 'code-1', codeVerifier: 'verifier-1', redirectUri: 'https://local.ping-devops.com:4000/davinci-login/callback' });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
     expect(oauthService.exchangeCodeForToken).toHaveBeenCalledWith('code-1', 'verifier-1', 'https://local.ping-devops.com:4000/davinci-login/callback');
+
+    // Verify session was established with correct tokens and user info.
+    expect(session.oauthTokens).toEqual({
+      accessToken: 'at-1',
+      idToken: 'it-1',
+      expiresAt: session.oauthTokens.expiresAt, // Use the actual value set by the handler
+    });
+    expect(session.user).toEqual({
+      id: 'u1',
+      username: 'demoUser',
+    });
   });
 
   test('missing code is rejected', async () => {

@@ -6,6 +6,7 @@
 'use strict';
 const express = require('express');
 const oauthService = require('../services/oauthService');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const router = express.Router();
 
@@ -28,7 +29,8 @@ router.post('/callback', async (req, res) => {
     };
     return res.json({ ok: true });
   } catch (err) {
-    return res.status(502).json({ error: 'davinci_login_exchange_failed', message: err.message });
+    const normalized = normalizeAxiosError(err, { label: 'DaVinci login token exchange' });
+    return res.status(normalized.httpStatus).json({ error: 'davinci_login_exchange_failed', message: normalized.message });
   }
 });
 
