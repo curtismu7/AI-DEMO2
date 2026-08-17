@@ -574,6 +574,14 @@ const GW_STAGE_META = {
   P1AZDecision: { label: "PingOne Authorize decision", note: "The gateway's OWN policy call — separate from the BFF's earlier one." },
   mTLS: { label: "mTLS to MCP server", note: "Client-certificate hop; skipped unless MCP_MTLS_ON." },
   BackendExchange: { label: "Backend token exchange", note: "RFC 8693 again — re-mints the token for the upstream audience." },
+  // The PingGateway (IG) route emits a DIFFERENT chain from the Node gateway's,
+  // and these three are what a live IG run actually reports — confirmed on the
+  // focus-mode dashboard, where they were rendering under their raw Java class
+  // names via the unknown-stage fallback. The fallback did its job; these give
+  // them the same teaching value the Node gateway's stages already had.
+  McpValidationFilter: { label: "MCP protocol validation", note: "Checks the JSON-RPC envelope and buffers the body so later filters can re-read it." },
+  McpAuditFilter: { label: "Audit trail", note: "Records the hop — this is what stamps X-Gw-Audit-Trail, the header this chain is built from." },
+  McpProtectionFilter: { label: "MCP resource protection", note: "IG's OAuth guard for the MCP endpoint: validates the bearer against the route's resourceId and issues the RFC 9728 challenge on failure." },
 };
 
 // The gateway reports 'passed' | 'forwarded' | 'blocked' | 'skipped'. Map onto
@@ -782,7 +790,18 @@ export function buildTraceSteps(trace) {
   // "sim-exchange-ok" carries the deliberately-deficient delegated token.
   const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token", "sim-exchange-ok");
   const exFailed = findEvent(tokenEvents, "exchange-failed", "sim-exchange-error");
-  const exDone = exTok && exTok.status !== "waiting";
+  // `|| traceComplete`: the BFF emits the exchanged-token event with status
+  // "waiting" and never supersedes it, so exDone stayed false forever. On a
+  // finished run that left the Exchange hop reading "in flight" while every
+  // downstream hop — gateway, MCP, resource server, reply — was already done,
+  // and it also blanked the card's evidence, since the detail block below is
+  // gated on the same flag. Observed live 2026-08-17: node 9 stuck on
+  // tcnr-node--active with nodes 10-15 all tcnr-node--done.
+  //
+  // A completed run cannot still be exchanging, and it cannot have got past the
+  // gateway without a delegated token. A genuine failure sets exFailed, which is
+  // checked before this, so nothing masks a real error.
+  const exDone = exTok && (exTok.status !== "waiting" || traceComplete);
   const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
