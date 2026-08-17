@@ -110,12 +110,7 @@ export default function DavinciExplainerPage() {
     <div className="davinci-explainer" data-theme={theme}>
       <style>{DAVINCI_EXPLAINER_CSS}</style>
 
-      <div className="shell-topbar">
-        <span className="shell-brand">Banking Demo</span>
-        <span className="shell-crumb">
-          Agent Dashboard <span className="sep">&rsaquo;</span> More <span className="sep">&rsaquo;</span> DaVinci Orchestration
-        </span>
-        <span className="shell-pill">DaVinci Mode</span>
+      <div className="davinci-header-actions">
         <button
           type="button"
           className="theme-toggle"
@@ -129,7 +124,7 @@ export default function DavinciExplainerPage() {
         </button>
       </div>
 
-      <main>
+      <div>
         <p className="eyebrow">PingOne DaVinci</p>
         <h1>Why PingOne DaVinci Orchestration</h1>
         <p className="lede">
@@ -189,7 +184,7 @@ export default function DavinciExplainerPage() {
           Static content only &mdash; this page makes no live DaVinci or BFF calls, so it works
           for quick demos regardless of console setup state.
         </p>
-      </main>
+      </div>
     </div>
   );
 }
@@ -252,44 +247,18 @@ const DAVINCI_EXPLAINER_CSS = `
 
 .davinci-explainer * { box-sizing: border-box; }
 
-.davinci-explainer .shell-topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 12px 24px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.davinci-explainer .shell-brand {
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-}
-.davinci-explainer .shell-crumb {
-  color: var(--text-faint);
-  font-size: 12.5px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.davinci-explainer .shell-crumb .sep { opacity: 0.6; }
-.davinci-explainer .shell-pill {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  padding: 4px 10px;
-}
-
-.davinci-explainer main {
+.davinci-explainer .davinci-header-actions {
   max-width: 760px;
   margin: 0 auto;
-  padding: 48px 24px 96px;
+  padding: 16px 24px 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.davinci-explainer > div:last-of-type {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
 }
 
 .davinci-explainer .eyebrow {
