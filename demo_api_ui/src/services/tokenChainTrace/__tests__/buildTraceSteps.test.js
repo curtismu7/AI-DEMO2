@@ -1211,3 +1211,37 @@ describe("buildTraceSteps — a finished run cannot still be exchanging", () => 
     expect(exStep(steps).status).toBe("error");
   });
 });
+
+describe("buildTraceSteps — exchange proven by downstream evidence", () => {
+  const waitingTok = { id: "exchanged-token", status: "waiting", claims: { scope: "read" } };
+  const exStep = (steps) => steps.find((s) => s.id === "exchange");
+
+  // Live runs often finish WITHOUT ever setting a terminal outcome — the reply
+  // streams, the rail shows Reply done, and `outcome` stays null. A fix keyed on
+  // traceComplete alone therefore passed its unit test (which set outcome) and
+  // changed nothing on screen. These pin the signal that actually holds live.
+  test("a gateway hop proves it, with no terminal outcome anywhere", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: null,
+      tokenEvents: [waitingTok, { id: "gw-authorize", decision: "PERMIT" }],
+    });
+    expect(exStep(steps).status).toBe("done");
+    expect(exStep(steps).detail.response).toBeTruthy();
+  });
+
+  test("an MCP result proves it too", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: null,
+      tokenEvents: [waitingTok],
+      mcpResult: { tool: "list_orders", result: { ok: true } },
+    });
+    expect(exStep(steps).status).toBe("done");
+  });
+
+  test("with nothing downstream it is still honestly in flight", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: null, tokenEvents: [waitingTok] });
+    expect(exStep(steps).status).toBe("active");
+  });
+});

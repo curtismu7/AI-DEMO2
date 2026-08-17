@@ -801,7 +801,20 @@ export function buildTraceSteps(trace) {
   // A completed run cannot still be exchanging, and it cannot have got past the
   // gateway without a delegated token. A genuine failure sets exFailed, which is
   // checked before this, so nothing masks a real error.
-  const exDone = exTok && (exTok.status !== "waiting" || traceComplete);
+  // Anything downstream having evidence PROVES the exchange completed: the
+  // gateway cannot have introspected or authorized a delegated token, and MCP
+  // cannot have returned a result, without one. That is a stronger signal than
+  // traceComplete, which live runs frequently never set — the reply streams and
+  // the rail shows Reply done while `outcome` stays null, so an earlier fix
+  // keyed on traceComplete alone still left the hop stuck (verified live: it
+  // passed a unit test that SET outcome:"ok" and changed nothing on screen).
+  const exchangeProvenDownstream = !!(
+    mcpResult
+    || findEvent(tokenEvents, "gw-authorize")
+    || findEvent(tokenEvents, "gw-introspection")
+    || findEvent(tokenEvents, "gw-filter-chain")
+  );
+  const exDone = exTok && (exTok.status !== "waiting" || traceComplete || exchangeProvenDownstream);
   const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
