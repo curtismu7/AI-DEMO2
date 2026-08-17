@@ -23,6 +23,9 @@ const STEP_ICONS = {
   signin: '🔐',
   prompt: 'CH',
   agent: '👤',
+  'tools-list-challenge': '401',
+  'tools-list': 'TL',
+  'tools-call-challenge': '401',
   llm: 'ML',
   'agent-token': 'AT',
   exchange: 'TX',
@@ -46,6 +49,8 @@ const ENFORCEMENT = {
   authorize: { verb: 'Control', what: 'What this agent may do', object: 'action' },
   stepup: { verb: 'Check', what: 'Human approval (HITL / MFA)', object: 'human' },
   'intent-binding': { verb: 'Control', what: 'Amount vs declared intent', object: 'intent' },
+  'tools-list-challenge': { verb: 'Block', what: 'Callers with no credential', object: 'token' },
+  'tools-call-challenge': { verb: 'Block', what: 'Callers with no credential', object: 'token' },
   gateway: { verb: 'Block', what: 'Untrusted or mis-scoped tokens', object: 'token' },
   'api-key-swap': { verb: 'Control', what: 'Credential handed downstream', object: 'key' },
   mcp: { verb: 'Control', what: 'Access to Services & Tools', object: 'tool' },
@@ -108,9 +113,20 @@ function ObjectIcon({ object }) {
   );
 }
 
+// Every step in the chain, including the ones that never fired. A control point
+// that was available and went unused is part of the security story — filtering
+// to observed-only hops made the diagram unable to say "this check exists here
+// but was not needed", which is exactly what the enforcement callouts report.
+// Unfired hops render as ghosts (see NodeRow).
+const UNFIRED_STATUSES = ['pending', 'notinpath'];
+
+export function isUnfired(step) {
+  return UNFIRED_STATUSES.includes(step?.status);
+}
+
 export function buildObservedTopology(steps) {
   return (Array.isArray(steps) ? steps : [])
-    .filter((step) => ['active', 'done', 'error'].includes(step?.status))
+    .filter((step) => ['active', 'done', 'error', ...UNFIRED_STATUSES].includes(step?.status))
     .map((step) => {
       const baseId = step.baseId || step.id;
       const [name, ...descriptionParts] = str(step.title || step.id).split(' — ');
@@ -281,7 +297,7 @@ function FormattedValue({ value, depth = 0 }) {
   return <span className="ttp-fv-str">{str(parsed)}</span>;
 }
 
-function NodeBox({ node, step, selected, onClick, animateIn, nodeRef }) {
+function NodeBox({ node, step, selected, onClick, animateIn, nodeRef, ghost }) {
   const st = step?.status || 'pending';
   const isOk = st === 'done';
   const isErr = st === 'error';
@@ -296,7 +312,7 @@ function NodeBox({ node, step, selected, onClick, animateIn, nodeRef }) {
   return (
     <div
       ref={nodeRef}
-      className={`ttp-node${selected ? ' selected' : ''}${animateIn ? ' animate-in' : ''}`}
+      className={`ttp-node${selected ? ' selected' : ''}${animateIn ? ' animate-in' : ''}${ghost ? ' ghost' : ''}`}
       onClick={onClick}
     >
       <div className="ttp-callout-slot">
@@ -344,16 +360,17 @@ function NodeBox({ node, step, selected, onClick, animateIn, nodeRef }) {
 
 // One horizontal run of nodes joined by labelled connectors. Used for both the
 // spine and the tool-call branch so they stay visually identical.
-function NodeRow({ nodes, expandedId, onNodeClick, nodeRefs }) {
+function NodeRow({ nodes, expandedId, onNodeClick, nodeRefs, className }) {
   return (
-    <div className="ttp-row">
+    <div className={`ttp-row${className ? ' ' + className : ''}`}>
       {nodes.map((node, i) => {
         const { step } = node;
         const label = edgeLabel(node);
+        const unfired = isUnfired(step);
         return (
           <React.Fragment key={node.id}>
             {i > 0 && (
-              <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}`}>
+              <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}${unfired ? ' ghost' : ''}`}>
                 {label && <span className="ttp-conn-label">{label}</span>}
                 <div className="ttp-line" />
                 <span className="ttp-arrowhead">▶</span>
@@ -363,7 +380,8 @@ function NodeRow({ nodes, expandedId, onNodeClick, nodeRefs }) {
               node={node}
               step={step}
               selected={expandedId === node.id}
-              animateIn
+              ghost={unfired}
+              animateIn={!unfired}
               onClick={() => onNodeClick(node.id)}
               nodeRef={nodeRefs ? (el) => { nodeRefs.current[node.id] = el; } : undefined}
             />
@@ -686,6 +704,7 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
                 <div className="ttp-graph">
                   <NodeRow
                     nodes={spine}
+                    className="ttp-spine"
                     expandedId={expandedId}
                     onNodeClick={handleNodeClick}
                     nodeRefs={nodeRefs}

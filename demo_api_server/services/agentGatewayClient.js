@@ -298,6 +298,14 @@ function normalizeGatewayTools(result) {
 async function listAvailableTools(req, agentToken, opts = {}) {
   const { vertical, userSub = null, correlationId } = opts;
   const { mcpListTools, getMcpGatewayWsUrl } = require('./mcpWebSocketClient');
+  // Walk the MCP authorization handshake before presenting the token, so the
+  // trace shows both halves of the dance: the anonymous tools/list the gateway
+  // challenges with 401 + WWW-Authenticate, then the credentialed one below.
+  // Evidence only — probeMcpChallenge never throws and its result is unused.
+  await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+    method: 'tools/list',
+    phase: 'tools/list',
+  });
   // Discovery MUST go through the gateway WS so PingOne Authorize filters tools/list
   // by vertical + scope. The plain MCP server (MCP_SERVER_URL) returns ALL tools
   // unfiltered (it delegates filtering to the gateway). Fall back to the default

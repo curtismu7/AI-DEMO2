@@ -302,9 +302,10 @@
   cursor: pointer;
   user-select: none;
 }
+/* A hop that never fired. Still clickable and still carries its callout: an
+   available-but-unused control is part of what the diagram is reporting. */
 .ttp-node.ghost {
-  opacity: .4;
-  cursor: default;
+  opacity: .5;
 }
 .ttp-node.animate-in {
   animation: ttp-appear .3s ease-out;
@@ -324,7 +325,7 @@
   transition: border-color .15s, background .12s, box-shadow .15s;
   position: relative;
 }
-.ttp-node:not(.ghost) .ttp-box:hover {
+.ttp-node .ttp-box:hover {
   border-color: #2f81f7;
   background: #21262d;
   box-shadow: 0 0 0 1px rgba(47,129,247,.15);
@@ -824,7 +825,7 @@
 }
 .ttp-root[data-theme="light"] .ttp-clear-btn:hover,
 .ttp-root[data-theme="light"] .ttp-ct-row:hover,
-.ttp-root[data-theme="light"] .ttp-node:not(.ghost) .ttp-box:hover {
+.ttp-root[data-theme="light"] .ttp-node .ttp-box:hover {
   color: #0f172a;
   background: #f1f5f9;
   border-color: #64748b;

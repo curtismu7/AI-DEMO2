@@ -200,6 +200,23 @@ function resolveAgentRunTools(currentTools, activeId) {
 // heuristic treats the first red event as the halt point and ghosts every step
 // after it as "did not run" — steps that in fact executed. `recovered` keeps
 // the event red while telling that heuristic to look further down the chain.
+// The recordTokenEvent() families the Token Chain trace rail renders as steps:
+// the MCP 401 challenge handshake (mcpChallengeProbe) and the tools/list
+// discovery outcome (agentGatewayClient). Kept in sync with the step model in
+// demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js.
+const MCP_DISCOVERY_EVENT_TYPES = new Set([
+  'mcp_challenge',
+  'mcp_challenge_error',
+  'mcp_challenge_skipped',
+  'mcp_resource_metadata',
+  'mcp_resource_metadata_error',
+  'tools_list_request_started',
+  'tools_list_success',
+  'tools_list_fallback',
+  'tools_list_error',
+  'tools_list_failed',
+]);
+
 function markRecovered(tokenEvents) {
   return (tokenEvents || []).map((ev) => ({ ...ev, recovered: true }));
 }
@@ -464,6 +481,17 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
     // Merge any token events from tools/list
     initialTokenEvents = [...initialTokenEvents, ...(toolsResult.tokenEvents || [])];
+
+    // req.recordTokenEvent() writes to req.agentContext.tokenEvents, a DIFFERENT
+    // array from the preview that seeded initialTokenEvents above — so the MCP
+    // discovery evidence the trace rail consumes (the 401 challenge, the RFC 9728
+    // metadata, the tools/list outcome) never reached the client. Merge only
+    // those families: the rest of req.tokenEvents is internal bookkeeping the
+    // Token Chain does not render, and dumping it wholesale would add cards.
+    initialTokenEvents = [
+      ...initialTokenEvents,
+      ...(req.tokenEvents || []).filter((e) => e && MCP_DISCOVERY_EVENT_TYPES.has(e.type)),
+    ];
   } catch (err) {
     console.error('[agentRun] Tool resolution error:', err.message);
     // Non-fatal: run with no tools

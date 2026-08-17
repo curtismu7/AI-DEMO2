@@ -881,7 +881,24 @@ async function runMcpToolPipeline(ctx) {
         deps.emit({
             phase: 'mcp_remote_begin'
         });
-        deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`, { tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
+        // Walk the MCP authorization handshake before the credentialed call, so
+        // the trace shows both halves: the anonymous tools/call the gateway
+        // answers with 401 + WWW-Authenticate, then the authorized one below.
+        // Gateway path only — direct mode has no HTTP MCP endpoint to challenge.
+        // Evidence only: probeMcpChallenge never throws and its result is unused.
+        if (useGateway) {
+            const challengeProbe = await require('./mcpChallengeProbe').probeMcpChallenge(req, {
+                method: 'tools/call',
+                phase: 'tools/call',
+                gatewayUrl: gatewayHttpUrl,
+                params: { name: tool },
+            });
+            if (challengeProbe.events.length) {
+                tokenEvents.push(...challengeProbe.events);
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+            }
+        }
+        deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`,{ tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
         let result;
         let gwAuditTrail = null;
         // DPoP (RFC 9449): pass the session's ephemeral key so the gateway client signs a
