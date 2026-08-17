@@ -15,7 +15,7 @@ export const DEFAULT_USE_CASE_AUTH = 'user';
  * @param {{ auth?: string } | null | undefined} uc
  * @returns {'public' | 'user' | 'admin'}
  */
-export function useCaseAuthLevel(uc) {
+export function authLevelForUseCase(uc) {
   const level = uc && typeof uc.auth === 'string' ? uc.auth : '';
   return level === 'public' || level === 'user' || level === 'admin'
     ? level
@@ -28,7 +28,7 @@ export function useCaseAuthLevel(uc) {
  * @returns {boolean}
  */
 export function runsSignedOut(uc) {
-  return useCaseAuthLevel(uc) === 'public';
+  return authLevelForUseCase(uc) === 'public';
 }
 
 /**
@@ -38,7 +38,7 @@ export function runsSignedOut(uc) {
  * @returns {boolean}
  */
 export function viewerMeetsUseCaseAuth(uc, { isLoggedIn = false, isAdmin = false } = {}) {
-  const level = useCaseAuthLevel(uc);
+  const level = authLevelForUseCase(uc);
   if (level === 'public') return true;
   if (level === 'admin') return !!isAdmin;
   return !!isLoggedIn;

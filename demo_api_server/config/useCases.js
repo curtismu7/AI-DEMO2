@@ -1706,7 +1706,10 @@ const RAW_USE_CASES = [
     title: 'Personal Agent Concierge',
     buyerStory: "Users want a trusted agent acting on their behalf — but delegation must require proof of identity and be scoped to what the user explicitly registered.",
     pingOneSolution: 'User authenticates with MFA; BFF verifies the registered personal agent (Agent Builder); RFC 8693 exchange mints a delegated token (sub=user, act=agent) scoped to airlines:read airlines:write.',
-    trigger: { type: 'link', path: '/airlines', label: 'Airlines vertical only — switch vertical to demo' },
+    // `/airlines` is not a route — no match in App.js or routes/*, so this step
+    // fell through to the catch-all and landed the presenter on the wrong page.
+    // `/personal-agent` is the Personal Agent Studio this step is named for.
+    trigger: { type: 'link', path: '/personal-agent', label: 'Airlines vertical only — switch vertical to demo' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
     codeRefs: [

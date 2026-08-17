@@ -99,9 +99,10 @@ vi.mock("../../services/bffAxios", () => ({
 }));
 
 const apiPatch = vi.fn();
+const apiGet = vi.fn();
 vi.mock("../../services/apiClient", () => ({
   default: {
-    get: vi.fn().mockResolvedValue({ data: {} }),
+    get: (...args) => apiGet(...args),
     post: vi.fn().mockResolvedValue({ data: {} }),
     patch: (...args) => apiPatch(...args),
   },
@@ -121,6 +122,7 @@ vi.mock("../../vertical/useVertical", () => ({
 }));
 
 import AIAgent from "../AIAgent";
+import { requiredFlagsForUseCase } from "../../utils/requiredDemoFlags";
 
 const UC1 = {
   id: "UC1",
@@ -152,6 +154,8 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   apiPatch.mockReset();
+  apiGet.mockReset();
+  apiGet.mockResolvedValue({ data: {} });
   apiPatch.mockResolvedValue({ data: {} });
   sendAgentMessage.mockReset();
   sendAgentMessage.mockResolvedValue({ success: true, reply: "ok" });
@@ -246,6 +250,9 @@ describe("signed-in customer", () => {
  */
 describe("resuming a queued step after sign-in", () => {
   const CUSTOMER = { id: "u1", role: "customer", username: "cust" };
+  // Arming PATCHes an admin route. A customer's call 403s, so the deferred
+  // arming can only ever complete for an admin — assert it as one.
+  const ADMIN = { id: "a1", role: "admin", username: "adm" };
 
   /** What handleLoginAction leaves behind before redirecting to PingOne. */
   function seedPendingStep({ nl, ucId, flags }) {
@@ -265,7 +272,7 @@ describe("resuming a queued step after sign-in", () => {
       flags: ["ff_a2a_delegation"],
     });
 
-    renderAt("/dashboard", CUSTOMER);
+    renderAt("/dashboard", ADMIN);
     await settle();
 
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
@@ -322,6 +329,45 @@ describe("resuming a queued step after sign-in", () => {
     expect(sessionStorage.getItem("bx_agent_pending_uc_id")).toBeNull();
     expect(sessionStorage.getItem("bx_agent_pending_flags")).toBeNull();
     expect(sendAgentMessage).not.toHaveBeenCalled();
+  });
+
+  // Arming needs ADMIN, not just a session. A customer's PATCH 403s, and that
+  // failure used to be swallowed — the flag stayed off and the step quietly
+  // misbehaved with nothing said. Reading flags is not gated, so check instead
+  // of writing and speak up only about a flag that is genuinely off.
+  it("tells a customer which flag is off instead of failing silently", async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, status: 200, json: () => Promise.resolve({}),
+    }));
+    // UC1 declares a primaryTool, so the flag it needs is the gateway runtime
+    // one — not ff_a2a_delegation. Mocking the wrong id makes this pass for the
+    // wrong reason (nothing off, so nothing said).
+    expect(requiredFlagsForUseCase(UC1)).toContain("ff_mcp_gateway_pinggateway");
+    apiGet.mockResolvedValue({
+      data: { flags: [{ id: "ff_mcp_gateway_pinggateway", value: false }] },
+    });
+
+    renderAt("/dashboard", CUSTOMER);
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(screen.getByText(/requires an admin sign-in/i)).toBeInTheDocument();
+    });
+    // The doomed write is not attempted at all.
+    expect(apiPatch).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet for a customer when the flags are already on", async () => {
+    apiGet.mockResolvedValue({
+      data: { flags: [{ id: "ff_mcp_gateway_pinggateway", value: true }] },
+    });
+
+    renderAt("/dashboard", CUSTOMER);
+    await runStep(UC1);
+    await settle();
+
+    expect(document.body.textContent).not.toMatch(/requires an admin sign-in/i);
+    expect(apiPatch).not.toHaveBeenCalled();
   });
 
   it("survives a corrupt flag list instead of losing the step", async () => {
@@ -400,7 +446,7 @@ describe("resuming a queued step after sign-in", () => {
       <MemoryRouter initialEntries={["/dashboard"]}>
         <ActivityNarrativeProvider>
           <ProofOfEnforcementProvider>
-            <AIAgent user={CUSTOMER} mode="inline" />
+            <AIAgent user={ADMIN} mode="inline" />
           </ProofOfEnforcementProvider>
         </ActivityNarrativeProvider>
       </MemoryRouter>,
