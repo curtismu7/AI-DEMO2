@@ -109,7 +109,7 @@ export const ROWS = [
       {
         key: "privileges-gw",
         legendNum: 7,
-        title: "P1 Privileges MCP Gateway",
+        title: "AI Agent Gateway",
         bullets: [
           "Policy enforcement for MCP access",
           "JIT access & secret injection",
@@ -153,12 +153,12 @@ export const ROWS = [
         title: "A. Privilege Discovery (Browser / Device Agents)",
         subtitle: "e.g., Claude Desktop, Cursor, VS Code, Browser AI, Device AI",
         bullets: [
-          "Privilege MCP Gateway detects unmanaged AI activity",
+          "AI Agent Gateway detects unmanaged AI activity",
           "Admin notified",
           "Admin reviews & approves onboarding",
           "Metadata synchronized to IGA",
         ],
-        note: "Privilege is the gateway for these MCPs. Traffic goes directly to Privilege MCP Gateway.",
+        note: "Privilege is the gateway for these MCPs. Traffic goes directly to AI Agent Gateway.",
       },
       {
         key: "cloud-discovery-iga",
@@ -263,7 +263,7 @@ export const FLOWS = {
       {
         id: "eu-7",
         title: "Secure Runtime",
-        narrative: "MCP requests flow through the Privileges MCP Gateway; enterprise policies control access to tools, APIs, and resources.",
+        narrative: "MCP requests flow through the AI Agent Gateway; enterprise policies control access to tools, APIs, and resources.",
         activeCardKeys: ["runtime", "privileges-gw", "pinggateway", "pingauthorize"],
       },
     ],
@@ -313,7 +313,7 @@ export const FLOWS = {
       {
         id: "dev-7",
         title: "Runtime",
-        narrative: "The agent securely accesses enterprise resources through the Privileges MCP Gateway.",
+        narrative: "The agent securely accesses enterprise resources through the AI Agent Gateway.",
         activeCardKeys: ["runtime", "privileges-gw", "pinggateway", "pingauthorize"],
       },
     ],
@@ -335,14 +335,14 @@ export const FLOWS = {
           },
           {
             id: "adm-bd-2",
-            title: "Privilege MCP Gateway detects unmanaged AI activity",
-            narrative: "The Privileges MCP Gateway observes MCP/API traffic and flags activity from an AI client it doesn't recognize.",
+            title: "AI Agent Gateway detects unmanaged AI activity",
+            narrative: "The AI Agent Gateway observes MCP/API traffic and flags activity from an AI client it doesn't recognize.",
             activeCardKeys: ["privileges-gw", "privilege-discovery"],
           },
           {
             id: "adm-bd-3",
             title: "Administrator is notified",
-            narrative: "The Privileges MCP Gateway raises an alert to the Identity/Security Administrator.",
+            narrative: "The AI Agent Gateway raises an alert to the Identity/Security Administrator.",
             activeCardKeys: ["entry-admin", "privileges-gw"],
           },
           {

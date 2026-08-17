@@ -20,7 +20,7 @@ const GAPS = [
     body: "Nothing in the current portfolio scans cloud platforms (Foundry, AWS Bedrock, Vertex) or endpoints/browsers for unmanaged AI agents already running. Closer to CASB/EDR territory than classic IAM.",
   },
   {
-    title: "Distinct Privileges MCP Gateway",
+    title: "Distinct AI Agent Gateway",
     body: "PingOne Privilege handles human privileged-session brokering. An MCP-protocol-aware privilege layer — policy, step-up, and audit specifically for MCP tool calls — isn't its own product; today it's hand-assembled from PingOne Agent Gateway + PingOne Authorize config.",
   },
   {
