@@ -144,6 +144,28 @@ function mockReqRes(): { req: Partial<IncomingMessage>; res: Partial<ServerRespo
   return { req, res, ended };
 }
 
+// Several blocks below build a config with introspectionEnabled:false.
+// authorizeMcpRequestCore refuses that combination unless signature
+// verification is possible — "skipping introspection with NO signature
+// verification would leave the pipeline validating nothing at all, while still
+// returning PERMIT. Refuse instead — omission is not permission."
+//
+// With neither PINGONE_JWKS_ENDPOINT nor PINGONE_JWKS_URI set, that guard
+// returned introspection_unavailable and every affected test failed closed with
+// a 503 before reaching a single assertion. Declaring a JWKS endpoint restores
+// the deployed shape these tests were written against. The guard is correct and
+// keeps its own coverage; this only stops it from firing where it was never the
+// behaviour under test.
+let _savedJwksEndpoint: string | undefined;
+beforeAll(() => {
+  _savedJwksEndpoint = process.env.PINGONE_JWKS_ENDPOINT;
+  process.env.PINGONE_JWKS_ENDPOINT = 'https://auth.test/.well-known/jwks.json';
+});
+afterAll(() => {
+  if (_savedJwksEndpoint === undefined) delete process.env.PINGONE_JWKS_ENDPOINT;
+  else process.env.PINGONE_JWKS_ENDPOINT = _savedJwksEndpoint;
+});
+
 // ---------------------------------------------------------------------------
 // Section 1: GatewayTokenPolicy — claim validation (Task 1)
 // ---------------------------------------------------------------------------
@@ -379,7 +401,15 @@ describe('buildAuthorizeMcpRequest middleware', () => {
     jest.resetAllMocks(); // resetAllMocks drains mockResolvedValueOnce queues, clearAllMocks does not
     McpTokenExchangeClient.clearCache();
     forwardSpy = jest.fn().mockResolvedValue(undefined);
-    middleware = buildAuthorizeMcpRequest(stubConfig);
+    // Silence the best-effort audit POST for this block. recordGatewayAudit()
+    // fires at `bffAuditUrl(config)`, derived from bffInternalIdTokenUrl, and
+    // axios.post's mockResolvedValueOnce queue is drained by ANY call
+    // regardless of URL — so an audit request consumes the response the next
+    // assertion expects the decision or exchange call to receive. bffAuditUrl()
+    // returns null on an empty id-token URL, so auditing no-ops here. These
+    // tests cover authorize + RFC 8693 exchange; the audit sink has its own
+    // coverage in gatewayAudit.test.ts.
+    middleware = buildAuthorizeMcpRequest({ ...stubConfig, bffInternalIdTokenUrl: '' });
     const mocks = mockReqRes();
     req = mocks.req;
     res = mocks.res;
