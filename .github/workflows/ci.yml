@@ -39,6 +39,7 @@ jobs:
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
+      ui: ${{ steps.all.outputs['ui'] || steps.filter.outputs['ui'] }}
     steps:
       - name: Run every suite for scheduled and manual CI
         if: github.event_name != 'pull_request'
@@ -46,6 +47,7 @@ jobs:
         run: |
           echo "api-server=true" >> "$GITHUB_OUTPUT"
           echo "decision-services=true" >> "$GITHUB_OUTPUT"
+          echo "ui=true" >> "$GITHUB_OUTPUT"
       - name: Select suites affected by this PR
         if: github.event_name == 'pull_request'
         uses: dorny/paths-filter@6852f92c20ea7fd3b0c25de3b5112db3a98da050 # v3
@@ -70,6 +72,9 @@ jobs:
               - 'snapshots/**'
               - 'scripts/test-service-suite.sh'
               - 'scripts/test-snapshots.sh'
+            ui:
+              - '.github/workflows/ci.yml'
+              - 'demo_api_ui/**'
 
   gates:
     name: Hygiene + topology gates
@@ -119,6 +124,48 @@ jobs:
         run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: Run Jest suite
         run: npm test --prefix demo_api_server
+
+  ui-tests:
+    # demo_api_ui appeared NOWHERE in this file until 2026-08-17 — the fourth
+    # time the pattern documented under authz-decision-tests bit. 3168 vitest
+    # tests and the `npm run build` gate that demo_api_ui/CLAUDE.md calls "the
+    # gate" had never run in CI; the only evidence any UI change was safe came
+    # from whoever remembered to run it locally. Found while merging the MCP
+    # 401-challenge work, where a UI-heavy PR went green with no UI job on it.
+    #
+    # Its own job rather than bundled into api-server-tests: the UI dep tree is
+    # separate and large, so bundling would force a UI install onto every
+    # server-only PR. Gated on the `ui` filter, so it costs a runner only when
+    # demo_api_ui actually changed.
+    #
+    # Both steps matter and neither substitutes for the other — vitest does not
+    # typecheck or resolve the production bundle, and a green test run over a
+    # module that fails `vite build` is exactly the false pass demo_api_ui's
+    # CLAUDE.md warns about.
+    name: UI tests (Vitest) + build
+    needs: changes
+    if: needs.changes.outputs['ui'] == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: demo_api_ui/package.json
+      - name: Install deps
+        run: npm install --prefix demo_api_ui --no-audit --no-fund
+      # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
+      # non-interactive and makes `vitest run` exit non-zero on failure.
+      # `--prefix` goes BEFORE `run`: after a script name npm's parser is
+      # ambiguous about whether a flag is npm's or the script's.
+      - name: Vitest unit suite
+        run: npm --prefix demo_api_ui run test:unit
+        env:
+          CI: 'true'
+      - name: Vite build gate
+        run: npm --prefix demo_api_ui run build
 
   authz-decision-tests:
     # demo_authz_server and demo_mcp_gateway had ~90 test cases that no job ran.
