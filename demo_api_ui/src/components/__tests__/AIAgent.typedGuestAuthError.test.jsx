@@ -13,7 +13,7 @@
  */
 import React from "react";
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
@@ -144,6 +144,50 @@ describe("signed-out visitor, run failed for want of a session", () => {
       expect(document.body.textContent).not.toContain("try again");
     },
   );
+});
+
+// The bubble says "I'll answer it as soon as you are". Keeping that promise
+// means the question must survive the OAuth redirect — a full page load, so a
+// React ref is gone and only sessionStorage carries it. Shipped in #1958
+// asserting only the bubble, and the persistence was silently absent on the
+// typed path (the ref was set at the chip call site, not this one); driving the
+// live stack showed the bubble rendered while bx_agent_pending_nl stayed null.
+describe("the queued question", () => {
+  it("is persisted verbatim so it survives the sign-in redirect", async () => {
+    // Start clean: the run has not failed yet, so the visitor can type.
+    mockAgentError = null;
+    const { rerender } = renderAgent(null);
+
+    const input = await screen.findByPlaceholderText(/Ask about|Message/i);
+    fireEvent.change(input, { target: { value: "What is my account balance?" } });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+      fireEvent.submit(input.closest("form") || input);
+    });
+
+    // The user's turn is on screen — that is what addMessage captured.
+    await waitFor(() => {
+      expect(screen.getByText("What is my account balance?")).toBeInTheDocument();
+    });
+
+    // Now the run fails for want of a session.
+    mockAgentError = "Session expired";
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={null} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/needs you signed in/i)).toBeInTheDocument();
+    });
+    // The exact question, ready for the post-login replay to claim.
+    expect(sessionStorage.getItem("bx_agent_pending_nl")).toBe("What is my account balance?");
+  });
 });
 
 describe("errors that are not about auth", () => {

@@ -2486,7 +2486,8 @@ export default function BankingAgent({
   // user saw only RFC-info token events and no reply, which made config faults
   // look like a dead agent. Dedupe per error value: useAgentState resets error
   // to null on RUN_STARTED, so each new failure produces exactly one bubble.
-  /** Last prompt handed to an AG-UI run, kept so an auth failure can replay it. */
+  /** Last prompt the user sent, captured in addMessage so no send path can miss
+   *  it. Read by the auth-failure branch to persist the question across login. */
   const lastSentPromptRef = useRef(null);
   const aguiErrorBubbleRef = useRef(null);
   useEffect(() => {
@@ -3016,6 +3017,14 @@ export default function BankingAgent({
   function addMessage(role, content, tool, extra = {}) {
     const { id: exId, ...rest } = extra;
     const id = exId || `${Date.now()}`;
+    // Every user turn passes through here — typed, chip, resumed — so this is
+    // the one place that cannot miss one. Instrumenting the send sites instead
+    // is what broke the pending-prompt promise: the chip path set the ref, the
+    // typed path (a different aguiRun call site) did not, and the failure was
+    // silent because nothing renders the ref.
+    if (role === "user" && typeof content === "string" && content.trim()) {
+      lastSentPromptRef.current = content.trim();
+    }
     // Ensure content is always a string for React rendering
     let contentString =
       typeof content === "string" ? content : content == null ? "" : JSON.stringify(content);
@@ -5973,9 +5982,6 @@ export default function BankingAgent({
         .filter((m) => (m.role === 'user' || m.role === 'assistant')
           && typeof m.content === 'string' && m.content.trim() && !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
-      // Remembered for the auth-failure branch below: nlInput is cleared on
-      // send, so by the time a run fails there is nothing left to replay.
-      lastSentPromptRef.current = text;
       aguiRun({
         threadId,
         runId,
