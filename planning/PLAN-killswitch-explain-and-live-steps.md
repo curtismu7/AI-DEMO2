@@ -1,6 +1,18 @@
 # Plan: Kill switch — explain what/why, live steps, scope discoverability
 
-Written 2026-08-10. Not started.
+Written 2026-08-10. **Status: SHIPPED — all three workstreams landed. Archival.**
+Verified 2026-08-17:
+
+- **W1 mechanism explanation** — `KillSwitchConfirmModal.jsx:296` states that
+  PingOne revokes the agent's OAuth token now (RFC 7009) and names the
+  enforcement point.
+- **W2 scope discoverability** — `KillSwitchConfirmModal.jsx:20` takes
+  `initialScope` (default `"instance"`); `ControlPlaneRoster.jsx` splits the
+  trigger into "Stop this instance" (line 302) and "Stop entire agent" (line 309)
+  and passes `initialScope` through.
+- **W3 live step-by-step** — `demo_api_server/services/killSwitchSseHub.js`
+  exists, and `routes/admin.js:880` serves
+  `GET /api/admin/agent/:agentId/kill-switch/events`.
 
 ## Problem
 
