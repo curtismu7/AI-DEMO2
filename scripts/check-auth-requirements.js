@@ -14,18 +14,27 @@
  *   3. a level outside the declared list                        — typo
  *   4. a use case more public than the route it links to        — dead end
  *   5. the BFF guest allowlist disagreeing with publicAgentActions
+ *   6. a public chip whose text does not parse to an allowed action
  *
  * (5) is the one that matters at runtime: agentRun.js decides whether a
  * signed-out caller may run an action, and it fails closed. If the SoT says a
  * use case is public but that allowlist never learned about it, the use case is
  * public in the UI and 401 on the wire.
+ *
+ * (6) closes the gap (5) leaves open. (5) proves the two *lists* agree; it says
+ * nothing about whether a given public chip actually reaches one of those
+ * actions. Chip text is per-vertical — UC24 is "What branches are near me?" in
+ * banking and different wording in the other ten — and the wire gate keys off
+ * the action `parseHeuristic` extracts, not off the use-case id. So one
+ * vertical's phrasing can stop resolving while every list still matches, and
+ * that vertical alone breaks for guests. Checked across all verticals.
  */
 
 const path = require('node:path');
 const fs = require('node:fs');
 
 const ROOT = path.join(__dirname, '..');
-const { USE_CASES } = require(path.join(ROOT, 'demo_api_server/config/useCases'));
+const { USE_CASES, VERTICALS, resolveUseCase } = require(path.join(ROOT, 'demo_api_server/config/useCases'));
 const { ADMIN_DEMO_STEPS } = require(path.join(ROOT, 'demo_api_server/config/admin/demoSteps'));
 const {
   AUTH_REQUIREMENTS, LEVELS, compareLevels, authLevelForUseCase, authLevelForRoute,
@@ -94,6 +103,37 @@ if (!allowlistMatch) {
       `PUBLIC_GUEST_ACTIONS in agentRun.js is [${onTheWire.join(', ')}] but `
       + `publicAgentActions in auth-requirements.json is [${inTheSot.join(', ')}]`,
     );
+  }
+}
+
+// 6. a public chip must actually reach an allowed action, in every vertical
+const publicActions = new Set(AUTH_REQUIREMENTS.publicAgentActions);
+let parseHeuristic;
+try {
+  ({ parseHeuristic } = require(path.join(ROOT, 'demo_api_server/services/nlIntentParser')));
+} catch (err) {
+  fail(`could not load nlIntentParser to check public chip routing: ${err.message}`);
+}
+if (parseHeuristic) {
+  for (const uc of USE_CASES) {
+    if (authLevelForUseCase(uc.id) !== 'public') continue;
+    for (const vertical of VERTICALS) {
+      const trigger = resolveUseCase(uc.id, vertical)?.trigger || {};
+      if (trigger.type !== 'chip' || !trigger.text) continue;
+      let action = '';
+      try {
+        action = String(parseHeuristic(trigger.text)?.banking?.action || '');
+      } catch {
+        action = '';
+      }
+      if (!publicActions.has(action)) {
+        fail(
+          `use case "${uc.id}" is "public" but its ${vertical} chip ("${trigger.text}") `
+          + `resolves to action "${action || '<none>'}", which is not in publicAgentActions — `
+          + 'a signed-out visitor would be refused on the wire',
+        );
+      }
+    }
   }
 }
 

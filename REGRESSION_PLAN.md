@@ -103,6 +103,72 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-17 — Public use cases demanded a sign-in; no SoT for which steps need auth
+
+**Files changed:** `demo_api_server/config/auth-requirements.json` (new),
+`demo_api_server/config/authRequirements.js` (new),
+`demo_api_server/routes/useCases.js`,
+`demo_api_server/tests/authRequirements.test.js` (new),
+`demo_api_server/src/__tests__/useCases.route.test.js`,
+`demo_api_ui/src/utils/useCaseAuth.js` (new, + test),
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.publicUseCase.test.jsx` (new),
+`demo_api_ui/src/pages/UseCaseLauncherPage.js`,
+`demo_api_ui/src/services/apiClient.js` (+ `apiClient.noAuthBanner.test.js`),
+`scripts/check-auth-requirements.js` (new), `package.json`, `CLAUDE.md`
+
+**What was broken:** running UC24 ("What branches are near me?") signed out
+answered correctly — `POST /api/agent/invoke` returned 200 and rendered all
+seven branch cards — and then dropped "For a more personalized experience,
+please sign in." over the top of it. Two independent causes:
+
+1. `handleDemoStepSelect` armed feature flags before **every** demo step via
+   `PATCH /api/admin/feature-flags`. That route is admin-gated, so a guest
+   always 401s. `ensureRequiredDemoFlags` swallowed the error, but the
+   `apiClient` response interceptor had already raised the global
+   `SessionReauthBanner`. On `/` the banner is suppressed by
+   `isAuthenticatedAppSurface`, which is why this only looked broken on app pages.
+2. Every client gate asked "signed in, or on a marketing path?" and never "does
+   this step need a session at all?" — so a public step got a sign-in prompt
+   anywhere outside `/` and `/dashboard`.
+
+Nothing in the repo knew which use cases are public. The only auth-scoping fact
+was `PUBLIC_GUEST_ACTIONS` in `routes/agentRun.js` — action-level, one route,
+invisible to the UI. The ~55-entry catalog had no auth field.
+
+**What was fixed:** `config/auth-requirements.json` is now the SoT — 55 catalog
+entries plus 8 admin demo steps mapped to `public` | `user` | `admin`, the 15
+routes use cases link to, and the guest agent-action list. `GET /api/use-cases`
+stamps `uc.auth` on every entry so the UI has no copy of its own to drift. The
+chip gate, the NL-resume gate, the flag arming in `AIAgent.js` and the launcher
+tile arming in `UseCaseLauncherPage.js` all read it. `apiClient` gained a
+`_noAuthBanner` request flag for best-effort background calls whose 401 says
+nothing about the session.
+
+**Do not break:**
+- The SoT is a **UI-gating** fact, not an enforcement point. `PUBLIC_GUEST_ACTIONS`
+  in `routes/agentRun.js` still decides what a guest may run on `/api/agent/run`,
+  and every route keeps its own guard. Do not start trusting `uc.auth` server-side.
+- An id absent from the SoT resolves to `user`, never `public` — both the server
+  and client readers fail closed. Keep it that way.
+- `npm run authz:verify` (also in `hygiene:check`) is the no-drift gate. Check 5
+  proves the `PUBLIC_GUEST_ACTIONS` literal and `publicAgentActions` agree —
+  it parses that literal out of `agentRun.js` by regex, so **moving or renaming
+  the constant breaks the gate** (it fails loudly rather than silently passing).
+  Check 6 proves each `public` chip's text actually resolves to an allowed
+  action in **every** vertical; chip text is per-vertical, so one vertical's
+  phrasing can stop resolving while both lists still match. Don't reduce it to
+  banking-only.
+- `_noAuthBanner` is for calls whose 401 is expected and uninformative. Do not
+  put it on a call that actually proves the session is gone — the positive
+  control in `apiClient.noAuthBanner.test.js` guards that direction.
+
+**Verify:** `npm run authz:verify` → `OK — 63 use cases, 15 routes, 1 public
+agent action(s)`. Negative-tested both new checks: flipping UC23 to `public`
+trips the route-consistency check, flipping UC1 to `public` trips check 6 with
+11 cross-vertical errors. `cd demo_api_server && CI=true npm test -- --forceExit
+--maxWorkers=4`; `cd demo_api_ui && npm run test:unit && npm run build`.
+
 ### 2026-08-17 — MCP 401 handshake made real; recordTokenEvent evidence never reached the client
 
 **Files changed:** `demo_api_server/services/mcpChallengeProbe.js` (new, + test),
