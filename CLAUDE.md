@@ -70,7 +70,11 @@ Citable facts live in `graphify-out/*.kb.json`: `repo-topology` (service boundar
 
 Use **Super Sports** as the default vertical for manual validation and tests that select a vertical. Keep another vertical only when that test explicitly verifies vertical-specific behavior.
 
-1. Run the checks for what you touched and paste the result line: server → `cd demo_api_server && CI=true npm test -- --forceExit`; UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify`.
+1. Run the checks for what you touched — **scoped by default, not the full suite** — and paste the result line.
+   - Server, scoped (default): `cd demo_api_server && CI=true npx jest <touched test paths> --forceExit`
+   - Server, full: `cd demo_api_server && CI=true npm test -- --forceExit` — only when the change touches shared middleware (auth, session, token exchange, config store), spans more than ~3 route files, or a scoped run came back red in a way that suggests wider breakage.
+   - UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify` (run these only if you touched that surface).
+   - A single-route fix, copy change, or one isolated test file needs the scoped run only. Say which scope you ran.
 2. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
 
 ## AI-DLC (opt-in only)
