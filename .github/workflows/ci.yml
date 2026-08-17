@@ -218,6 +218,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # demo_agent_service/tests/vault.test.ts imports ACROSS the package
+      # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
+      # demo_api_server dependency. Locally that resolves because the sibling's
+      # node_modules exists; on a clean runner it does not, and the suite failed
+      # to collect (125 tests passed, 1 suite never loaded). Installing the
+      # sibling's deps is the smallest honest fix; the cross-package import
+      # itself is logged in TECH_DEBT.
+      - name: Install demo_api_server deps (demo_agent_service's vault suite imports its lib)
+        run: npm install --prefix demo_api_server --no-audit --no-fund
       - name: demo_agent_service (blocking)
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-service
       - name: demo_hitl_service (blocking)
