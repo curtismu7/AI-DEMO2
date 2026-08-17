@@ -38,6 +38,7 @@ const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { parseVerticalParam } = require('../services/nlIntentParser');
+const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
@@ -155,7 +156,16 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     if (verticalRaw !== undefined && verticalRaw !== null && parseVerticalParam(verticalRaw) === null) {
       return res.status(400).json({ error: 'invalid_vertical', message: 'vertical must match [a-z][a-z0-9-]*' });
     }
-    const vertical = parseVerticalParam(verticalRaw);
+    // Body param wins; otherwise fall back to the session's pinned vertical the
+    // same way agentRun.js does. Without this the two agent routes disagreed:
+    // a caller that omitted `vertical` got banking data even in a session that
+    // had switched vertical, because null flows downstream as the banking
+    // fallback. The browser always sends the body param, so this only affects
+    // callers that don't — where silently answering as banking is the worst
+    // available outcome (it reads as "the vertical broke", not "you omitted it").
+    const vertical = parseVerticalParam(verticalRaw)
+      || verticalManifest.resolver.activeIdFor(req)
+      || null;
 
     const promptBlock = guardPromptInput(prompt);
     if (promptBlock) {
