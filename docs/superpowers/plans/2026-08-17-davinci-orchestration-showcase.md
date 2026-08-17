@@ -86,7 +86,7 @@ git commit -m "docs: record DaVinci showcase env vars (console setup complete)"
 
 **Interfaces:**
 - Consumes: nothing (leaf config module) — env vars from Task 1, `configStore.getEffective` for the `pingone_public_app_url` key already used elsewhere in the repo (same key `PINGONE_PUBLIC_APP_URL` maps to).
-- Produces: `module.exports = { apiClientId, apiClientSecret, tokenEndpoint, transaction: { companyId, appId, flowId }, login: { appId, flowIdV1, flowIdV2 }, webhookUrl }` — all getters, mirroring `config/oauth.js`'s lazy-getter shape. `webhookUrl` getter: `process.env.DAVINCI_WEBHOOK_URL || `${configStore.getEffective('pingone_public_app_url') || ''}/webhook/davinci``. Every later task imports this exact shape.
+- Produces: `module.exports = { apiClientId, apiClientSecret, transaction: { companyId, appId, flowId }, login: { appId, flowIdV1, flowIdV2 }, webhookUrl }` — all getters, mirroring `config/oauth.js`'s lazy-getter shape. `webhookUrl` getter: `process.env.DAVINCI_WEBHOOK_URL || `${configStore.getEffective('pingone_public_app_url') || ''}/webhook/davinci``. No `tokenEndpoint` field — Task 3's `davinciFlowClient.js` uses a fixed `ORCHESTRATE_BASE` constant, not a configurable endpoint, so there is nothing for this module to expose there. Every later task imports this exact shape.
 
 - [ ] **Step 1: Write the failing test**
 
