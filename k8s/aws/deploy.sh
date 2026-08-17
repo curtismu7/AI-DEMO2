@@ -50,8 +50,9 @@ GHCR_REGISTRY="ghcr.io/$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')"
 EKS_CLUSTER_NAME="${EKS_CLUSTER_NAME:-}"
 AWS_REGION="${AWS_REGION:-}"
 
-GREEN='\033[0;32m'; BLUE='\033[0;34m'; RED='\033[0;31m'; NC='\033[0m'
+GREEN='\033[0;32m'; BLUE='\033[0;34m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 die()     { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
@@ -224,8 +225,19 @@ done
 # (written + patched with the correct SERVER_URL by create-secrets.sh above).
 # Reuses ENV_PROXY_TOKEN from ping-mcpgw-secrets via --set-file (NOT
 # --set-string, which corrupts long JWTs during Helm's own CLI arg parsing).
-if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
-  if kubectl get secret ping-mcpgw-secrets -n "$NS" -o jsonpath='{.data.ENV_PROXY_TOKEN}' >/tmp/mcpgw-token.b64 2>/dev/null && [[ -s /tmp/mcpgw-token.b64 ]]; then
+#
+# Required on every SE deploy by default — a missing prerequisite fails the
+# whole run (after the rest of the stack has still applied, see the banner at
+# the bottom of this script) rather than silently shipping a demo without it.
+# Opt out with SKIP_MCPGW=1 when the gateway is deliberately not wanted.
+MCPGW_DEPLOY_FAILED=0
+MCPGW_FAILURE_REASON=""
+if [[ -n "${PUBLIC_APP_URL:-}" && "${SKIP_MCPGW:-0}" != "1" ]]; then
+  if ! command -v helm >/dev/null 2>&1; then
+    warn "  helm not installed — Privilege MCPGW gateway cannot be deployed"
+    MCPGW_DEPLOY_FAILED=1
+    MCPGW_FAILURE_REASON="helm is not installed (brew install helm)"
+  elif kubectl get secret ping-mcpgw-secrets -n "$NS" -o jsonpath='{.data.ENV_PROXY_TOKEN}' >/tmp/mcpgw-token.b64 2>/dev/null && [[ -s /tmp/mcpgw-token.b64 ]]; then
     base64 -d </tmp/mcpgw-token.b64 >/tmp/mcpgw-token.txt
     rm -f /tmp/mcpgw-token.b64
     mcpgw_host="${PUBLIC_APP_URL#https://}"
@@ -240,11 +252,11 @@ if [[ -n "${PUBLIC_APP_URL:-}" ]] && command -v helm >/dev/null 2>&1; then
       --set-file mcpgw.proxyToken=/tmp/mcpgw-token.txt
     rm -f /tmp/mcpgw-token.txt
   else
-    warn "  Secret ping-mcpgw-secrets (or its ENV_PROXY_TOKEN key) not found — skipping Privilege MCPGW gateway deploy"
+    warn "  Secret ping-mcpgw-secrets (or its ENV_PROXY_TOKEN key) not found — Privilege MCPGW gateway will NOT be deployed"
     rm -f /tmp/mcpgw-token.b64
+    MCPGW_DEPLOY_FAILED=1
+    MCPGW_FAILURE_REASON="ping-mcpgw/procyon/config/proxy-token.env is missing or its token expired"
   fi
-elif [[ -n "${PUBLIC_APP_URL:-}" ]]; then
-  warn "  helm not installed — skipping Privilege MCPGW gateway deploy"
 fi
 
 if [[ -n "$K8S_NAMESPACE" ]]; then
@@ -315,4 +327,21 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
 else
   kubectl get ingress ai-demo-ingress -n "$NS" 2>/dev/null && \
     echo "ALB hostname shown above under ADDRESS. May take 2-3 minutes to provision." || true
+fi
+
+if [[ "$MCPGW_DEPLOY_FAILED" == "1" ]]; then
+  echo
+  echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
+  echo -e "${RED}  Privilege MCPGW gateway was NOT deployed: $MCPGW_FAILURE_REASON${NC}"
+  echo -e "${RED}  The rest of the stack above deployed fine.${NC}"
+  echo -e "${RED}${NC}"
+  echo -e "${RED}  Fix: get a fresh token (Privilege console > Cloud > Gateways >${NC}"
+  echo -e "${RED}  Add via Docker), then:${NC}"
+  echo -e "${RED}    printf 'ENV_PROXY_TOKEN=%s\\n' 'eyJ...' \\\\${NC}"
+  echo -e "${RED}      > ping-mcpgw/procyon/config/proxy-token.env${NC}"
+  echo -e "${RED}  Then: ./run-pingaws.sh deploy${NC}"
+  echo -e "${RED}${NC}"
+  echo -e "${RED}  To deploy without it on purpose: SKIP_MCPGW=1 ./run-pingaws.sh deploy${NC}"
+  echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
+  exit 1
 fi
