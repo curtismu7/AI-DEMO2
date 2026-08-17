@@ -71,6 +71,27 @@ describe('POST /api/use-cases/demo/run — auth by declared level', () => {
     expect(res.status).toBe(200);
   });
 
+  // UC-NHI2 is the only admin-level entry in USE_CASES today. It is a link
+  // trigger, so this path is not how a presenter reaches it — but the branch
+  // exists, and an untested branch is where the next admin chip breaks.
+  test('a signed-in customer is refused an admin-level use case, and told to sign in as admin', async () => {
+    const res = await request(makeApp({ user: { sub: 'u1', role: 'customer' } }))
+      .post('/api/use-cases/demo/run')
+      .send({ useCaseId: 'nhi-lifecycle-export', vertical: 'banking' });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toMatchObject({ requiresLogin: true, requiredAuth: 'admin' });
+    expect(res.body.message).toMatch(/admin/i);
+  });
+
+  test('an admin may run an admin-level use case', async () => {
+    const res = await request(makeApp({ user: { sub: 'a1', role: 'admin' } }))
+      .post('/api/use-cases/demo/run')
+      .send({ useCaseId: 'nhi-lifecycle-export', vertical: 'banking' });
+
+    expect(res.status).not.toBe(401);
+  });
+
   test('an unknown use case is still a 400, not an auth answer', async () => {
     const res = await request(makeApp())
       .post('/api/use-cases/demo/run')
