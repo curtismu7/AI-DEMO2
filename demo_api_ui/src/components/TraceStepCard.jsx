@@ -282,6 +282,9 @@ export function hasPopoutWorthyDetail(d) {
   if (d.decision) return true;
   if (Array.isArray(d.kv) && d.kv.length > 0) return true;
   if (d.scopeDiff) return true;
+  // Run-specific: the gateway only reports a filter chain for a request it
+  // actually processed, so its presence means there is something to pop out.
+  if (Array.isArray(d.stages) && d.stages.length > 0) return true;
   return false;
 }
 
@@ -327,6 +330,20 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false, us
               : "✗"}{" "}
             {d.decision.label}
           </div>
+        )}
+        {Array.isArray(d.stages) && d.stages.length > 0 && (
+          <ol className="tctr-stages">
+            {d.stages.map((s) => (
+              <li key={s.raw || s.name} className="tctr-stage" data-status={s.status}>
+                <span className="tctr-stage-name">{s.name}</span>
+                <span className="tctr-stage-result">
+                  {s.result}{s.decision ? ` — ${s.decision}` : ""}
+                  {s.blockedHere ? " (stopped here)" : ""}
+                </span>
+                {s.note && <span className="tctr-stage-note">{s.note}</span>}
+              </li>
+            ))}
+          </ol>
         )}
         {d.scopeDiff && (
           <div className="tctr-scope-diff">

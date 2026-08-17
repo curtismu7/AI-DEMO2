@@ -1,4 +1,4 @@
-import { buildTraceSteps, buildRunStory } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory, buildGatewayStages } from "../buildTraceSteps";
 import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
@@ -90,6 +90,73 @@ describe("buildTraceSteps — MCP 401 challenge legs", () => {
       tokenEvents: [{ type: "mcp_challenge_skipped", phase: "tools/list", reason: "no_gateway_configured" }],
     });
     expect(stepById(steps, "tools-list-challenge").status).toBe("notinpath");
+  });
+});
+
+describe("buildTraceSteps — Agent Gateway filter chain", () => {
+  const CHAIN = [
+    { filter: "TokenIntrospection", result: "passed" },
+    { filter: "GatewayTokenPolicy", result: "passed" },
+    { filter: "P1AZDecision", result: "forwarded", decision: "PERMIT" },
+    { filter: "mTLS", result: "skipped" },
+    { filter: "BackendExchange", result: "forwarded" },
+  ];
+  const gwStep = (steps) => steps.find((s) => s.id === "gateway");
+
+  test("maps the gateway's stage vocabulary onto the rail's status vocabulary", () => {
+    const stages = buildGatewayStages(CHAIN, null);
+    expect(stages.map((s) => s.status)).toEqual(["done", "done", "done", "notinpath", "done"]);
+    // A stage that never ran must stay distinct from one that refused.
+    expect(stages[3].status).not.toBe("error");
+    expect(stages[2].decision).toBe("PERMIT");
+  });
+
+  test("renames the raw filter names and keeps the raw one for keying", () => {
+    const stages = buildGatewayStages(CHAIN, null);
+    expect(stages[0].name).toBe("Token introspection");
+    expect(stages[0].raw).toBe("TokenIntrospection");
+    expect(stages[4].name).toBe("Backend token exchange");
+  });
+
+  test("an unknown future stage still renders rather than being dropped", () => {
+    const stages = buildGatewayStages([{ filter: "SomeNewFilter", result: "passed" }], null);
+    expect(stages).toHaveLength(1);
+    expect(stages[0].name).toBe("SomeNewFilter");
+    expect(stages[0].note).toBeUndefined();
+  });
+
+  test("marks the stage that blocked and says so in the why line", () => {
+    const blocked = [
+      { filter: "TokenIntrospection", result: "passed" },
+      { filter: "GatewayTokenPolicy", result: "blocked" },
+    ];
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "gateway_policy_denied", detail: "scope" }],
+      tokenEvents: [{ id: "gw-filter-chain", filterChain: blocked, denyingFilter: "GatewayTokenPolicy" }],
+    });
+    const stages = gwStep(steps).detail.stages;
+    expect(stages[1].status).toBe("error");
+    expect(stages[1].blockedHere).toBe(true);
+    expect(stages[0].blockedHere).toBe(false);
+    expect(gwStep(steps).detail.why).toMatch(/Gateway token policy/);
+  });
+
+  test("reads the chain off gw-authorize when there is no dedicated event", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "gw-authorize", decision: "PERMIT", tool: "get_my_accounts", filterChain: CHAIN, lastFilter: "BackendExchange" }],
+    });
+    expect(gwStep(steps).detail.stages).toHaveLength(5);
+    expect(gwStep(steps).detail.why).toMatch(/Backend token exchange/);
+  });
+
+  test("no filter chain means no stages block, not an empty one", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "gw-authorize", decision: "PERMIT" }],
+    });
+    expect(gwStep(steps).detail.stages).toBeUndefined();
   });
 });
 
