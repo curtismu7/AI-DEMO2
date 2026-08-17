@@ -335,6 +335,30 @@ describe("resuming a queued step after sign-in", () => {
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
   });
 
+  // Verified against the live stack with an instrumented sessionStorage probe:
+  // before this, clicking the prompt's Sign In wrote NOTHING. handleLoginAction
+  // persisted `nlInput` — the composer — and a queued demo step is not there; it
+  // lives in nlResumeAfterAuth with the composer empty. So the step the visitor
+  // picked was simply gone after login, and every downstream piece (useCaseId,
+  // deferred flags, auth level) was riding on a pending NL never written.
+  it("persists the queued step itself when the visitor signs in", async () => {
+    renderAt("/dashboard");
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sign in to continue/i })).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      screen.getByRole("button", { name: /sign in to continue/i }).click();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(sessionStorage.getItem("bx_agent_pending_nl")).toBe(UC1.trigger.text);
+    expect(sessionStorage.getItem("bx_agent_pending_uc_id")).toBe(UC1.useCaseId);
+    expect(sessionStorage.getItem("bx_agent_pending_auth")).toBe("user");
+  });
+
   // The sequence a real OAuth return actually produces, and the one the tests
   // above quietly skip: `user` is null on first render and arrives a beat later,
   // because isLoggedIn comes from an async session hydration.

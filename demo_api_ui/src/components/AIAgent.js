@@ -3121,7 +3121,14 @@ export default function BankingAgent({
     spinner.show(`Signing in as ${label}…`, "Redirecting to PingOne");
     // Save any pending prompt so it can be re-executed after OAuth return.
     // nlInput holds the current typed/pre-filled text; capture it before navigation.
-    const pendingText = (nlInput || "").trim();
+    //
+    // A demo step queued behind the sign-in prompt is NOT in nlInput — it lives
+    // in nlResumeAfterAuth, and the composer is empty. So nothing was saved for
+    // the one flow this button exists to serve: the visitor signed in and the
+    // step they picked was simply gone. Everything downstream (the useCaseId,
+    // the deferred flags, the auth level) was riding on a pending NL that was
+    // never written.
+    const pendingText = (nlInput || "").trim() || (nlResumeAfterAuth || "").trim();
     if (pendingText) {
       sessionStorageService.setItem(BX_AGENT_PENDING_NL_KEY, pendingText);
     }
