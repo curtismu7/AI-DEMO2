@@ -15,6 +15,7 @@
  *   4. a use case more public than the route it links to        — dead end
  *   5. the BFF guest allowlist disagreeing with publicAgentActions
  *   6. a public chip whose text does not parse to an allowed action
+ *   7. an app route whose actual guard disagrees with the SoT   — route drift
  *
  * (5) is the one that matters at runtime: agentRun.js decides whether a
  * signed-out caller may run an action, and it fails closed. If the SoT says a
@@ -28,6 +29,12 @@
  * the action `parseHeuristic` extracts, not off the use-case id. So one
  * vertical's phrasing can stop resolving while every list still matches, and
  * that vertical alone breaks for guests. Checked across all verticals.
+ *
+ * (7) is what stops the route guards from deciding for themselves. They are
+ * still written inline in App.js — deliberately, because RequireAdminLogin
+ * renders an "Log in as admin?" prompt rather than redirecting, and that UX is
+ * worth keeping — but they may no longer disagree with this file. Add a route,
+ * or change a guard, and the SoT must move with it.
  */
 
 const path = require('node:path');
@@ -134,6 +141,59 @@ if (parseHeuristic) {
         );
       }
     }
+  }
+}
+
+// 7. every app route's real guard must match its declared level
+const { auditRouteTrees } = require(path.join(ROOT, 'scripts/lib/appRouteAudit'));
+
+const softRoutes = new Set(AUTH_REQUIREMENTS.softAuthRoutes || []);
+const audited = auditRouteTrees(ROOT).filter(
+  (r) => r.path !== '*' && !r.path.endsWith('/*'),
+);
+// A path can be declared twice (two <Route> entries for `/`); the strictest
+// guard wins, matching how the seed was derived.
+const enforced = new Map();
+const RANK = { public: 0, soft: 1, user: 2, admin: 3 };
+for (const r of audited) {
+  const prev = enforced.get(r.path);
+  if (!prev || RANK[r.level] > RANK[prev]) enforced.set(r.path, r.level);
+}
+
+for (const [routePath, actual] of enforced) {
+  const declaredLevel = AUTH_REQUIREMENTS.routes[routePath];
+  if (!declaredLevel) {
+    fail(`route "${routePath}" is not listed in auth-requirements.json (guard: ${actual})`);
+    continue;
+  }
+  // `soft` means the element reads `user` but renders either way — a
+  // personalized public page. It is declared public, and listed in
+  // softAuthRoutes so the exemption is visible instead of silent.
+  if (actual === 'soft') {
+    if (!softRoutes.has(routePath)) {
+      fail(`route "${routePath}" renders for signed-out visitors but is not in softAuthRoutes`);
+    } else if (declaredLevel !== 'public') {
+      fail(`route "${routePath}" is in softAuthRoutes so it must be declared "public", not "${declaredLevel}"`);
+    }
+    continue;
+  }
+  if (actual !== declaredLevel) {
+    fail(
+      `route "${routePath}" is declared "${declaredLevel}" but App.js enforces "${actual}" `
+      + '— update auth-requirements.json or the guard, they may not disagree',
+    );
+  }
+}
+
+for (const routePath of Object.keys(AUTH_REQUIREMENTS.routes)) {
+  if (!enforced.has(routePath)) {
+    fail(`auth-requirements.json lists route "${routePath}", which no <Route> declares`);
+  }
+}
+
+for (const routePath of softRoutes) {
+  if (!enforced.has(routePath)) {
+    fail(`softAuthRoutes lists "${routePath}", which no <Route> declares`);
   }
 }
 
