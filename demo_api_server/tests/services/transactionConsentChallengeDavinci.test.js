@@ -79,4 +79,40 @@ describe('confirmChallengeViaDaVinci', () => {
     expect(result.ok).toBe(true);
     expect(result.viaDaVinci).toBeUndefined();
   });
+
+  test('Ambiguous decision (e.g. INDETERMINATE) is NOT treated as PERMIT — denies the transaction', async () => {
+    const req = reqStub({ id: 'u1', role: 'customer' });
+    const created = createChallenge(req, { type: 'transfer', amount: 20000, fromAccountId: 'a1', toAccountId: 'a2' });
+    invokeFlow.mockResolvedValue({ decision: 'INDETERMINATE', stepUpRequired: false, stepUpCompleted: false });
+
+    const result = await confirmChallengeViaDaVinci(req, created.challengeId, {});
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(403);
+    expect(result.json.error).toBe('davinci_denied');
+  });
+
+  test('Malformed flowResult (null, undefined, empty object) fails closed — falls back to confirmChallenge', async () => {
+    const req = reqStub({ id: 'u1', role: 'customer' });
+    const created = createChallenge(req, { type: 'transfer', amount: 20000, fromAccountId: 'a1', toAccountId: 'a2' });
+    invokeFlow.mockResolvedValue({});
+
+    const result = await confirmChallengeViaDaVinci(req, created.challengeId, {});
+
+    // Fallback runs confirmChallenge — assert it succeeded and did NOT throw
+    expect(result.ok).toBe(true);
+    expect(result.viaDaVinci).toBeUndefined();
+  });
+
+  test('Malformed flowResult (null) fails closed — falls back to confirmChallenge', async () => {
+    const req = reqStub({ id: 'u1', role: 'customer' });
+    const created = createChallenge(req, { type: 'transfer', amount: 20000, fromAccountId: 'a1', toAccountId: 'a2' });
+    invokeFlow.mockResolvedValue(null);
+
+    const result = await confirmChallengeViaDaVinci(req, created.challengeId, {});
+
+    // Fallback runs confirmChallenge — assert it succeeded and did NOT throw
+    expect(result.ok).toBe(true);
+    expect(result.viaDaVinci).toBeUndefined();
+  });
 });

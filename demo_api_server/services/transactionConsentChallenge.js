@@ -559,16 +559,26 @@ async function confirmChallengeViaDaVinci(req, challengeId, opts = {}) {
       TransactionType: ch.snapshot.type,
       Username: userName,
     });
+
+    // Guard: flowResult must be a well-formed object with valid decision field
+    if (!flowResult || typeof flowResult !== 'object' || !('decision' in flowResult)) {
+      appEventService.logEvent('davinci', 'warn', 'DaVinci transaction flow returned malformed result — falling back to hand-coded consent path', {
+        tag: 'davinci/fallback/malformed',
+        metadata: { result: typeof flowResult, challengeId: challengeId.slice(0, 8) },
+      });
+      return confirmChallenge(req, challengeId, opts);
+    }
+
+    // Only PERMIT authorizes the transaction; DENY and any other value (INDETERMINATE, typo, etc.) does not
+    if (flowResult.decision !== 'PERMIT') {
+      return { ok: false, status: 403, json: { error: 'davinci_denied', message: 'Transaction denied by DaVinci authorization flow.' } };
+    }
   } catch (err) {
     appEventService.logEvent('davinci', 'warn', 'DaVinci transaction flow failed — falling back to hand-coded consent path', {
       tag: 'davinci/fallback',
       metadata: { error: err.message, challengeId: challengeId.slice(0, 8) },
     });
     return confirmChallenge(req, challengeId, opts);
-  }
-
-  if (flowResult.decision === 'DENY') {
-    return { ok: false, status: 403, json: { error: 'davinci_denied', message: 'Transaction denied by DaVinci authorization flow.' } };
   }
 
   const now = Date.now();
