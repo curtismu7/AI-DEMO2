@@ -434,6 +434,10 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   audCond.condition = { or: { conditions: acceptedGatewayAudiences.map((uri) => ({
     comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
   })) } };
+  // Content-derived version (see ver() note): mutate-in-place at a frozen
+  // version means PingOne skips the object on import and a new audience can
+  // never land — the #1311/#1897 trap class.
+  audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, { acceptedGatewayAudiences });
 
   // 1) Generalize RequiresHitlConsent -> consent tool list.
   const hitlCond = byId.get(COND.RequiresHitlConsent);
@@ -447,6 +451,9 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     toolOr(consent),
     { comparison: { left: { attribute: { id: ATTR.HitlApproved } }, op: 'NotEquals', right: { constant: { value: true } } } },
   ] } };
+  // Content-derived version — a consent tool added by a new vertical must move
+  // the version or the import skips it (#1311/#1897 class).
+  hitlCond.version = ver('bbbbbbbb', COND.RequiresHitlConsent, { consent });
 
   // 1b) RequiresA2aDelegation — the UC2 control, and it was BACKWARDS.
   //
@@ -500,6 +507,9 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
         comparison: { left: { attribute: { id: ATTR.ActChainDepth } }, op: 'GreaterThan', right: { constant: { value: '1' } } },
       } } },
     ] } };
+    // Content-derived version — an a2aDelegated tool added by a new vertical
+    // must move the version or the import skips it (#1311/#1897 class).
+    a2aCond.version = ver('bbbbbbbb', COND.RequiresA2aDelegation, { a2aDelegated });
   }
 
   // 1c) The DENY message must describe what the rule now tests.
@@ -581,6 +591,9 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
         `DENY when ActClientId is not one of the ${actors.length} registered chain identities `
         + `(the MCP Token Exchanger, the AI Agent, and each A2A specialist). Validates the RFC 8693 `
         + `delegation chain has a known registered actor. Generated — do not hand-edit the list.`;
+      // The count in this description is exactly what a console reader trusts
+      // ("a stale count is how nobody noticed") — content-derive so it lands.
+      actorRule.version = ver('dddddddd', actorRule.id, { count: actors.length });
     }
     actorCond.condition = { or: { conditions: actors.map((id) => ({
       comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
@@ -596,7 +609,9 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
   const stepUpCond = {
     objectType: 'ConditionDefinition', id: COND.RequiresMcpStepUp,
-    version: 'bbbbbbbb-0013-4321-abcd-000000000013', type: 'CONDITION',
+    // Content-derived: a step-up tool added by a new vertical must move the
+    // version or the import skips it (#1311/#1897 class).
+    version: ver('bbbbbbbb', COND.RequiresMcpStepUp, { stepUp }), type: 'CONDITION',
     name: 'RequiresMcpStepUp', fullName: 'RequiresMcpStepUp',
     description: `ToolName is one of the step-up-gated tools (${stepUp.join(', ')}) AND the user has NOT completed MFA. ` +
       `Fires the step-up obligation on the MCP path. Generated from scope-topology.json (challengeType=step_up) — do not hand-edit.`,
@@ -610,7 +625,8 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // 3) Ensure IsConsentTransaction condition (transaction-path amount consent).
   const txConsentCond = {
     objectType: 'ConditionDefinition', id: COND.IsConsentTransaction,
-    version: 'bbbbbbbb-0014-4321-abcd-000000000014', type: 'CONDITION',
+    // Content-derived: a changed consent threshold must move the version.
+    version: ver('bbbbbbbb', COND.IsConsentTransaction, { CONFIRM_USD }), type: 'CONDITION',
     name: 'IsConsentTransaction', fullName: 'IsConsentTransaction',
     description: `Amount exceeds $${CONFIRM_USD} — the consent (HITL) threshold for transactions. ` +
       `Step-up ($500) and deny ($2,000) take precedence in the BFF obligation classifier.`,
@@ -640,6 +656,9 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   mcpCtxCond.condition = { or: { conditions: MCP_DECISION_CONTEXTS.map((ctx) => ({
     comparison: { left: { attribute: { id: ATTR.DecisionContext } }, op: 'Equals', right: { constant: { value: ctx } } },
   })) } };
+  // Content-derived version — a new DecisionContext must move the version or
+  // the import skips it and the context silently routes to the wrong policy.
+  mcpCtxCond.version = ver('bbbbbbbb', COND.IsMcpFirstToolRequest, { contexts: MCP_DECISION_CONTEXTS });
 
   // 4) Generalize the MCP HITL rule wording (condition ref unchanged — 0010).
   const mcpHitlRule = byId.get(RULE.mcpHitl);
