@@ -301,6 +301,19 @@
 .tctr-decision--permit { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
 .tctr-decision--deny, .tctr-decision--indeterminate { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 .tctr-decision--step_up { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+/* Agent Gateway filter chain — the ordered stages behind the single Gateway hop.
+   A left rail colour-codes each stage so a blocked one is findable without
+   reading; `notinpath` (a stage that never ran) stays visually distinct from
+   `error` (a stage that refused). Numbered because the ORDER is the teaching
+   point: introspection before policy before the decision before the exchange. */
+.tctr-stages { list-style: decimal; margin: 6px 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
+.tctr-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cbd5e1); background: var(--th-surface-2, #f8fafc); border-radius: 0 4px 4px 0; }
+.tctr-stage[data-status="done"] { border-left-color: #22c55e; }
+.tctr-stage[data-status="error"] { border-left-color: #ef4444; }
+.tctr-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
+.tctr-stage-name { font-weight: 700; }
+.tctr-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: ui-monospace, Menlo, monospace; }
+.tctr-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
 .tctr-scope-diff { display: flex; gap: 6px; align-items: center; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; flex-wrap: wrap; margin: 4px 0; }
 .tctr-sc { border-radius: 4px; padding: 1px 6px; background: #e2e8f0; }
 .tctr-sc--gone { text-decoration: line-through; color: var(--th-text-muted); }

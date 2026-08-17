@@ -528,6 +528,43 @@ export function buildRunStory(trace, steps) {
  * @param {Array}  events  trace tokenEvents
  * @param {boolean} traceComplete
  */
+// Human-readable names + one-line purpose for the gateway's filter stages, so
+// the chain says what each one DID rather than echoing a Java class name. Any
+// stage the gateway adds later still renders — it just falls back to its raw
+// name with no blurb, which is better than being dropped.
+const GW_STAGE_META = {
+  TokenIntrospection: { label: "Token introspection", note: "RFC 7662 call to PingOne — is this token still live?" },
+  GatewayTokenPolicy: { label: "Gateway token policy", note: "Local check: audience, scope and the act delegation chain." },
+  P1AZDecision: { label: "PingOne Authorize decision", note: "The gateway's OWN policy call — separate from the BFF's earlier one." },
+  mTLS: { label: "mTLS to MCP server", note: "Client-certificate hop; skipped unless MCP_MTLS_ON." },
+  BackendExchange: { label: "Backend token exchange", note: "RFC 8693 again — re-mints the token for the upstream audience." },
+};
+
+// The gateway reports 'passed' | 'forwarded' | 'blocked' | 'skipped'. Map onto
+// the same vocabulary the rail already uses for step status so one legend
+// covers both. 'skipped' stays distinct from 'blocked': a stage that never ran
+// is not a stage that refused.
+const GW_STAGE_STATUS = {
+  passed: "done", forwarded: "done", blocked: "error", skipped: "notinpath",
+};
+
+/** Shape the gateway's filterChain into the ordered stage list the card renders. */
+export function buildGatewayStages(filterChain, denyingFilter) {
+  if (!Array.isArray(filterChain) || !filterChain.length) return undefined;
+  return filterChain.map((s) => {
+    const meta = GW_STAGE_META[s.filter] || {};
+    return {
+      name: meta.label || s.filter,
+      raw: s.filter,
+      note: meta.note,
+      result: s.result,
+      status: GW_STAGE_STATUS[s.result] || "notinpath",
+      decision: s.decision || undefined,
+      blockedHere: !!denyingFilter && denyingFilter === s.filter,
+    };
+  });
+}
+
 export function buildChallengeStep(id, phase, events, traceComplete) {
   const challenge = findEventByTypeAndPhase(events, phase, "mcp_challenge");
   const metadata = findEventByTypeAndPhase(events, phase, "mcp_resource_metadata");
@@ -928,6 +965,20 @@ export function buildTraceSteps(trace) {
   // introspection not enabled). That alone must not count as "seen" — only
   // real activity does.
   const gwAz = findEvent(tokenEvents, "gw-authorize");
+  // The gateway is not one hop. It runs an ordered filter chain and publishes it
+  // in X-Gw-Authorize-Trail, which mcpToolPipeline forwards on gw-filter-chain
+  // (dedicated event) or as an extra on gw-authorize. Three of those stages are
+  // real outbound calls — RFC 7662 introspection, the gateway's OWN PingOne
+  // Authorize decision (distinct from the BFF's), and its OWN RFC 8693 exchange
+  // for the upstream audience — so collapsing them into a single "Gateway" box
+  // hid both the work and the second PDP call entirely. The evidence was already
+  // on the wire; nothing read it.
+  const gwFilterChainEvent = findEvent(tokenEvents, "gw-filter-chain");
+  const gwStages = (Array.isArray(gwFilterChainEvent?.filterChain) && gwFilterChainEvent.filterChain)
+    || (Array.isArray(gwAz?.filterChain) && gwAz.filterChain)
+    || null;
+  const gwDenyingFilter = gwFilterChainEvent?.denyingFilter || gwAz?.denyingFilter || null;
+  const gwLastFilter = gwFilterChainEvent?.lastFilter || gwAz?.lastFilter || null;
   const gwIntroRaw = findEvent(tokenEvents, "gw-introspection");
   const gwIntro = gwIntroRaw && gwIntroRaw.status !== "skipped" ? gwIntroRaw : null;
   const gwMtls = findEvent(tokenEvents, "gw-mtls");
@@ -947,12 +998,15 @@ export function buildTraceSteps(trace) {
   steps.push(makeStep("gateway",
     authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
+      stages: buildGatewayStages(gwStages, gwDenyingFilter),
       why: gwDenied
         ? "The Agent Gateway blocked this call before it reached the MCP server."
+          + (gwDenyingFilter ? ` The chain stopped at ${GW_STAGE_META[gwDenyingFilter]?.label || gwDenyingFilter}.` : "")
         : (gwAz
           ? `Gateway validated the delegated token`
             + (gwAz.tool ? ` and authorized tool “${gwAz.tool}”` : "")
             + (gwAz.decision ? ` (${gwAz.decision}).` : ".")
+            + (gwLastFilter ? ` It ran its filter chain through ${GW_STAGE_META[gwLastFilter]?.label || gwLastFilter}.` : "")
           : "Gateway processed the inbound delegated bearer on this hop."),
       decision: gwDenied
         ? { outcome: "DENY",
