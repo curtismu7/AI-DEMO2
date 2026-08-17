@@ -25,6 +25,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
+import { OWN_AUDIENCE, resolveAcceptedAudiences } from './server/acceptedAudiences';
 
 interface ResourceDef {
   uri: string;
@@ -117,9 +118,14 @@ const HOST = process.env.HOST || '0.0.0.0';
 // MCP_SERVER_RESOURCE_URI may be a comma-separated accepted-audience list (RFC 8693
 // rollout). The FIRST entry is this server's canonical resource URI (RFC 9728
 // metadata, health, logs); the full list feeds aud validation.
-const RESOURCE_URI_LIST = (process.env.MCP_SERVER_RESOURCE_URI || 'mcp-invest.ping.demo')
-  .split(',').map((s) => s.trim()).filter(Boolean);
+const RESOURCE_URI_LIST = resolveAcceptedAudiences(process.env.MCP_SERVER_RESOURCE_URI);
 const RESOURCE_URI = RESOURCE_URI_LIST[0];
+if (process.env.MCP_SERVER_RESOURCE_URI && !process.env.MCP_SERVER_RESOURCE_URI.includes(OWN_AUDIENCE)) {
+  console.warn(
+    `[demo-mcp-resource-server] WARNING: MCP_SERVER_RESOURCE_URI omits this server's own ` +
+    `audience '${OWN_AUDIENCE}' — accepting it anyway. The env value is stale.`
+  );
+}
 const ACCEPTED_AUDIENCES = RESOURCE_URI_LIST.join(',');
 const RESOURCE_NAME = process.env.MCP_SERVER_RESOURCE_NAME || 'Super Banking MCP Server (mcp-resource-server)';
 

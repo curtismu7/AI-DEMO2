@@ -19,32 +19,40 @@ describe("DashboardTokenRail", () => {
     cleanup();
   });
 
-  it("renders children expanded by default with default width", () => {
+  it("renders collapsed by default with collapsed width", () => {
     render(
       <DashboardTokenRail>
         <div data-testid="rail-child">chain</div>
       </DashboardTokenRail>,
     );
     const rail = screen.getByTestId("dashboard-token-rail");
-    expect(rail).toHaveAttribute("data-collapsed", "false");
+    expect(rail).toHaveAttribute("data-collapsed", "true");
     // Width is set as a CSS custom property on :root (read by the grid's
     // grid-template-columns), not as an inline style on the rail itself.
     expect(
       document.documentElement.style.getPropertyValue("--ud-token-rail-width"),
-    ).toBe(`${TOKEN_RAIL_DEFAULT_WIDTH}px`);
-    expect(screen.getByTestId("rail-child")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-token-rail-resize")).toBeInTheDocument();
+    ).toBe(`${TOKEN_RAIL_COLLAPSED_WIDTH}px`);
+    expect(
+      screen.queryByTestId("dashboard-token-rail-resize"),
+    ).not.toBeInTheDocument();
   });
 
   it("collapses and expands like the side nav toggle", () => {
+    localStorage.setItem(TOKEN_RAIL_COLLAPSED_KEY, "0");
     render(
       <DashboardTokenRail>
         <div>chain</div>
       </DashboardTokenRail>,
     );
+    const rail = screen.getByTestId("dashboard-token-rail");
+    expect(rail).toHaveAttribute("data-collapsed", "false");
+    expect(
+      document.documentElement.style.getPropertyValue("--ud-token-rail-width"),
+    ).toBe(`${TOKEN_RAIL_DEFAULT_WIDTH}px`);
+    expect(screen.getByTestId("dashboard-token-rail-resize")).toBeInTheDocument();
+
     const toggle = screen.getByTestId("dashboard-token-rail-toggle");
     fireEvent.click(toggle);
-    const rail = screen.getByTestId("dashboard-token-rail");
     expect(rail).toHaveAttribute("data-collapsed", "true");
     expect(
       document.documentElement.style.getPropertyValue("--ud-token-rail-width"),

@@ -102,6 +102,53 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-16 — Dashboard rail default, movie-reel loss, invest-server audience drift, P1AZ probe INDETERMINATE
+
+**Files changed:** `demo_api_ui/src/utils/tokenRailLayout.js` (+ its test),
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`,
+`demo_api_ui/src/components/UserDashboardPing2026.test.js`,
+`demo_mcp_resource_server/src/index.ts`,
+`demo_mcp_resource_server/src/server/acceptedAudiences.ts` (new, + test),
+`demo_api_server/scripts/verifyA2aDelegationPolicy.js`
+
+**What was broken:**
+- Live Pipeline token rail opened expanded on the agent dashboard; wanted
+  collapsed by default. The old default ("expanded") was also self-persisted on
+  every mount, so a changed default alone would never reach existing browsers.
+- "Movie reel" filmstrip vanished from the float-placement dashboard: #1784
+  gated it behind `ba_show_filmstrip === "1"` (default OFF) when adding the
+  More › Movie reel toggle.
+- `get_airline_bookings` (and all 7 airlines + 4 invest tools) failed with
+  `Audience mismatch: got [mcp-invest.ping.demo], expected one of
+  [mcpserver.ping.demo, mcpgateway.ping.demo]` when a stale container env fanned
+  the banking MCP server's `MCP_SERVER_RESOURCE_URI` into
+  demo_mcp_resource_server. Checked-in config was correct; only the running
+  env had drifted.
+- `verify:a2a-policy` / `verify:authorize-parity` probes omitted `Amount`, the
+  exact shape live P1AZ evaluates INDETERMINATE (see 2026-08-03 memory; the PEP
+  itself already always sends `Amount: 0`).
+
+**What was fixed:** rail collapse key bumped to `ud_token_rail_collapsed_v2`
+with unset → collapsed; filmstrip gate default ON (`!== "0"`), explicit
+toggle-off still respected; resource server now always accepts its own
+canonical audience `mcp-invest.ping.demo` (`resolveAcceptedAudiences`, warns on
+stale env); probe base params send `Amount: 0` / `TransactionAmount: '0'`.
+
+**Do not break:** the Movie reel toggle must keep writing `ba_show_filmstrip`
+("0" hides); `resolveAcceptedAudiences` must UNION, never replace — first env
+entry stays the canonical RFC 9728 URI; probe `extra` overlays must keep
+overriding the base Amount. Live P1AZ INDETERMINATE always means bad request or
+bad policy — never treat it as permit-pending.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/tokenRailLayout.test.js src/components/__tests__/DashboardTokenRail.test.jsx src/components/UserDashboardPing2026.test.js` ·
+`cd demo_mcp_resource_server && npx jest && npx tsc --noEmit` ·
+`cd demo_api_server && npm run verify:authorize-parity` (control PERMIT, 7/7).
+Known residual: `verify:a2a-policy` FAILs airlines/admin depth-2
+(`mcp-invalid-actor`) until `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
+(already contains all 11 actor ids) is re-imported in the PingOne console.
+
 ### 2026-08-16 — Gateway-unreachable failed OPEN to unauthorized local execution (BUGS.md #67, #68, #69)
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
