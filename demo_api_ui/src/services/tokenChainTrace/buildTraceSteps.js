@@ -333,8 +333,10 @@ function buildAuthorizeDetail(evalObj) {
       : undefined,
     response: responseBody
       ? { title: "Decision response (raw)", text: asJson(responseBody) } : undefined,
-    decision: { outcome: evalObj.decision || "INDETERMINATE",
-      label: `${evalObj.decision || "INDETERMINATE"} — ${evalObj.engine || "?"}${evalObj.decisionContext ? ` (${friendlyDecisionContext(evalObj.decisionContext)})` : ""}` },
+    // No decision on the evaluation = nothing was recorded, NOT a P1AZ
+    // INDETERMINATE (that is a real verdict: "could not evaluate", fail-closed).
+    decision: { outcome: evalObj.decision || "NOT_RECORDED",
+      label: `${evalObj.decision || "no decision recorded"} — ${evalObj.engine || "?"}${evalObj.decisionContext ? ` (${friendlyDecisionContext(evalObj.decisionContext)})` : ""}` },
     kv: [
       ["engine", String(evalObj.engine || "")],
       ["decision id", String(evalObj.decisionId || "")],
@@ -416,7 +418,10 @@ export function buildRunStory(trace, steps) {
   const list = Array.isArray(steps) ? steps : [];
   const errStep = list.find((s) => s && s.status === "error");
   const az = list.find((s) => s && s.id === "authorize");
-  const decision = az?.detail?.decision?.outcome;
+  // Only claim a decision the engine actually returned — NOT_RECORDED is the
+  // display default for an evaluation with no decision field, not a verdict.
+  const rawDecision = az?.detail?.decision?.outcome;
+  const decision = rawDecision && rawDecision !== "NOT_RECORDED" ? rawDecision : null;
   const prompt = trace.prompt?.message;
   // An expected DENY (an expectedOutcome:'DENY' use case whose gateway block fired)
   // is the control working — present it as a successful run, not an error.
@@ -643,9 +648,11 @@ export function buildTraceSteps(trace) {
       ? `Authorize returned ${azEval.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
       : azIsDeny
         ? `Authorize denied this action (${azEval.engine || "policy"}) — the tool call is blocked.`
-        : `Authorize returned ${azEval.decision || "PERMIT"}`
-          + (azEval.decisionContext ? ` for the ${friendlyDecisionContext(azEval.decisionContext)}` : "")
-          + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran."))
+        : azEval.decision == null
+          ? "No Authorize decision was recorded on this trace."
+          : `Authorize returned ${azEval.decision}`
+            + (azEval.decisionContext ? ` for the ${friendlyDecisionContext(azEval.decisionContext)}` : "")
+            + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran."))
     : undefined;
   if (Array.isArray(authorizeEvaluations) && authorizeEvaluations.length) {
     // Multi-decision run (e.g. McpFirstTool gate PERMIT + Transaction/Amount
@@ -678,10 +685,11 @@ export function buildTraceSteps(trace) {
           : undefined,
         response: azEval.response
           ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
-        decision: { outcome: azEval.decision || "INDETERMINATE",
+        // Missing decision = nothing recorded, never claim a P1AZ verdict.
+        decision: { outcome: azEval.decision || "NOT_RECORDED",
           label: azIsSkipped
             ? "SKIPPED — public catalog path"
-            : `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
+            : `${azEval.decision || "no decision recorded"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
         kv: [
           ["engine", String(azEval.engine || "")],
           ["decision id", String(azEval.decisionId || "")],
