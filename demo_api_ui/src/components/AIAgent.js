@@ -493,6 +493,9 @@ export default function BankingAgent({
   const pendingUcIdRef = useRef(null);
   /** True when the pending NL belongs to a `public` use case — it may send with no session. */
   const pendingUcPublicRef = useRef(false);
+  /** Flags the queued step needs, captured at pick time. Arming is admin-gated, so a
+   *  step picked signed-out cannot arm until login lands and the resume effect fires. */
+  const pendingUcFlagsRef = useRef(null);
   const pendingNlResumeRef = useRef(null);
   const nlSendGuardRef = useRef(null);
   if (!nlSendGuardRef.current) nlSendGuardRef.current = makeReentrancyGuard();
@@ -887,11 +890,16 @@ export default function BankingAgent({
     addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
     // Arm the flags this step's backing use case needs (same contract as
     // handleDemoStepSelect) — e.g. the A2A step is dead without ff_a2a_delegation.
-    const greenTool = step.slots?.green?.match?.tools?.[0] || null;
-    await ensureRequiredDemoFlags(
-      requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: greenTool }),
-      `demo track: ${step.stepId}`,
-    );
+    // Only with a session: arming PATCHes an admin route, so signed out it can
+    // only 401. No track step is public — every one exercises token exchange or
+    // authorization — so there is nothing to arm for a guest, ever.
+    if (isLoggedIn) {
+      const greenTool = step.slots?.green?.match?.tools?.[0] || null;
+      await ensureRequiredDemoFlags(
+        requiredFlagsForUseCase({ useCaseId: step.stepId, primaryTool: greenTool }),
+        `demo track: ${step.stepId}`,
+      );
+    }
   }
   function handleTrackStepComplete({ step, index, total, next }) {
     setTrackStep((cur) =>
@@ -7266,8 +7274,13 @@ export default function BankingAgent({
     // Flag arming PATCHes an admin route, which 401s for a signed-out visitor —
     // and that 401 raised the global "please sign in" banner over a use case
     // that had just answered correctly. A public use case never arms flags.
-    if (!runsSignedOut(uc)) {
-      await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
+    //
+    // Nor does anyone without a session: the PATCH could only 401. A non-public
+    // step picked by a guest is queued and re-armed by the resume effect once
+    // login lands, which is the only point where arming can actually succeed.
+    const ucFlags = runsSignedOut(uc) ? [] : requiredFlagsForUseCase(uc);
+    if (ucFlags.length && isLoggedIn) {
+      await ensureRequiredDemoFlags(ucFlags, uc.id);
     }
 
     if (trigger.type === "chip" && trigger.text) {
@@ -7278,6 +7291,9 @@ export default function BankingAgent({
       // The resume effect only sees the queued text, not the use case — carry
       // the level across so a public step fires without waiting for a session.
       pendingUcPublicRef.current = runsSignedOut(uc);
+      // Carry the flags too. Arming above is skipped without a session, so a step
+      // queued by a guest would otherwise run its flags unarmed after login.
+      pendingUcFlagsRef.current = isLoggedIn ? null : ucFlags;
       pendingNlResumeRef.current = null;
       // Not eligible to send yet (no session, no guest chat on this path) — queue
       // the step anyway (below) and show an actionable sign-in prompt instead of
@@ -7785,11 +7801,19 @@ export default function BankingAgent({
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
     pendingUcPublicRef.current = false;
+    // Flags the step could not arm while signed out (arming is admin-gated).
+    const deferredFlags = pendingUcFlagsRef.current;
+    pendingUcFlagsRef.current = null;
     let cancelled = false;
     let timerFired = false;
     const timer = setTimeout(async () => {
       timerFired = true;
       if (cancelled) return;
+      // Arm before sending, not after — the step's whole point is the flag being on.
+      if (deferredFlags?.length && isLoggedIn) {
+        await ensureRequiredDemoFlags(deferredFlags, `${useCaseId || "queued step"} (after sign-in)`);
+        if (cancelled) return;
+      }
       const signal = beginAbortableSend();
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
