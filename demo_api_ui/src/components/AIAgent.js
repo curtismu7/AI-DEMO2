@@ -1786,14 +1786,34 @@ export default function BankingAgent({
   //   2. searchParams.get("oauth") — the oauth path already claims+replays it; skip here.
   // mount-only: claim is one-shot; isInline and searchParams are stable at mount.
   useEffect(() => {
-    if (!isInline) return;
     if (searchParams.get("oauth") === "success") return; // handled by the oauth effect above
-    // BUG 1 fix: always claim ucId BEFORE the early-return so a stale key can't
-    // bleed into the next launcher run (e.g. second tab claims the NL first).
-    claimPendingStepContext();
-    const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
-    if (!pendingNl) return;
-    setNlResumeAfterAuth(pendingNl);
+
+    const claim = () => {
+      // BUG 1 fix: always claim ucId BEFORE the early-return so a stale key can't
+      // bleed into the next launcher run (e.g. second tab claims the NL first).
+      claimPendingStepContext();
+      const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
+      if (!pendingNl) return;
+      setNlResumeAfterAuth(pendingNl);
+    };
+
+    if (isInline) {
+      claim();
+      return undefined;
+    }
+
+    // Not inline. Pages like `/` and the admin console mount ONLY the floating
+    // agent, and gating the claim on isInline stranded the question there: a
+    // guest who typed something needing a session, signed in, and came back got
+    // their key left in sessionStorage and no answer — the exact promise the
+    // sign-in bubble makes. Observed live on `/` after an SSO admin login.
+    //
+    // Inline still wins where both exist: this waits a tick, so an inline
+    // instance mounting alongside claims first and answers in the panel the
+    // user is looking at. claimPendingNl is read-and-remove, so even a tie
+    // replays once.
+    const timer = setTimeout(claim, 300);
+    return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-open when the user prop transitions from null → authenticated user
