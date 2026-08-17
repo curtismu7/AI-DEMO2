@@ -1021,7 +1021,17 @@ describe('mcpToolAuthorizationService', () => {
       expect(result.block.body.error_description).toContain('HITL receipt accepted but authorization engine still requires approval');
     });
 
-    it('auto-disables ff_authorize_group_policy and retries when PingOne rejects UserGroups', async () => {
+    it('suppresses group params and retries when PingOne rejects UserGroups, WITHOUT disabling the flag or dropping the tier', async () => {
+      // Regression guard. This self-heal used to call
+      // groupPolicy.disableGroupPolicy(), writing ff_authorize_group_policy=false
+      // through configStore, and stripped userTier from the retry alongside the
+      // group params. Because the flag also gates whether userTier is resolved at
+      // all, one malformed-UserGroups 400 silently disarmed every tier ceiling —
+      // PERMIT instead of DENY — and stayed that way until a human re-enabled it.
+      // The suppression must be in-memory, and the tier must survive.
+      const groupPolicy = require('../../services/groupPolicy');
+      groupPolicy._resetGroupParamSuppression();
+
       // This case exercises the live PingOne path — leave simulated mode off.
       simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
       configStore.get.mockImplementation((k) => {
@@ -1035,6 +1045,12 @@ describe('mcpToolAuthorizationService', () => {
         'PingOne Authorize decision endpoint evaluation failed (400): ' +
         '{ "details": [ { "target": "parameters.UserGroups", "code": "INVALID_VALUE" } ] }',
       );
+      // Reset before queueing: this mock is shared across the file and earlier
+      // tests leave both call history and unconsumed *Once values behind. Without
+      // this, the rejection below queues BEHIND someone else's value, the
+      // self-heal never fires, and the call-count assertion is satisfied by
+      // accumulated calls — the test passes while proving nothing.
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockReset();
       pingOneAuthorizeService.evaluateMcpToolDelegation
         .mockRejectedValueOnce(userGroupsErr)
         .mockResolvedValueOnce({
@@ -1046,6 +1062,11 @@ describe('mcpToolAuthorizationService', () => {
           raw: {},
         });
 
+      // configStore.setRaw is a module-level automock shared by every test in
+      // this file, and earlier ones write to it. Clear it so the assertion below
+      // can speak about THIS call only.
+      configStore.setRaw.mockClear();
+
       const result = await evaluateMcpFirstToolGate({
         req: { session: { user: { username: 'demoUser' } } },
         tool: 'get_my_accounts',
@@ -1053,10 +1074,26 @@ describe('mcpToolAuthorizationService', () => {
         userSub: 'u1',
       });
 
-      expect(configStore.setRaw).toHaveBeenCalledWith({ ff_authorize_group_policy: 'false' });
+      // The flag is operator-owned config and must never be written by a
+      // self-heal.
+      expect(configStore.setRaw).not.toHaveBeenCalledWith({ ff_authorize_group_policy: 'false' });
+
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation).toHaveBeenCalledTimes(2);
+      const retryArgs = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[1][0];
+      // PingOne objected to UserGroups, so only the group inputs are dropped...
+      expect(retryArgs).not.toHaveProperty('userGroups');
+      expect(retryArgs).not.toHaveProperty('requiredGroup');
+      expect(retryArgs).not.toHaveProperty('inRequiredGroup');
+      // ...and userTier, which it never objected to, still rides along so the
+      // tier ceilings apply to the very call being rescued.
+      expect(retryArgs).toHaveProperty('userTier');
+
       expect(result.permit).toBe(true);
+      // The operator-facing signal is unchanged — DemoAuthzFallbackModal still
+      // shows that the group path degraded.
       expect(result.evaluation.autoDisabledGroupPolicy).toBe(true);
+
+      groupPolicy._resetGroupParamSuppression();
     });
   });
 

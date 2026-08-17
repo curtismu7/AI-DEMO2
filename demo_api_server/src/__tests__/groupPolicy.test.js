@@ -98,11 +98,35 @@ describe('groupPolicy', () => {
     });
   });
 
-  describe('disableGroupPolicy', () => {
-    it('persists ff_authorize_group_policy=false via configStore.setRaw', async () => {
-      const setRaw = jest.fn().mockResolvedValue(undefined);
-      await groupPolicy.disableGroupPolicy({ setRaw });
-      expect(setRaw).toHaveBeenCalledWith({ ff_authorize_group_policy: 'false' });
+  describe('suppressGroupParams', () => {
+    beforeEach(() => groupPolicy._resetGroupParamSuppression());
+    afterEach(() => groupPolicy._resetGroupParamSuppression());
+
+    it('is not suppressed by default', () => {
+      expect(groupPolicy.areGroupParamsSuppressed()).toBe(false);
+    });
+
+    it('suppresses group params after a UserGroups rejection', () => {
+      groupPolicy.suppressGroupParams();
+      expect(groupPolicy.areGroupParamsSuppressed()).toBe(true);
+    });
+
+    it('expires so a transient upstream fault heals itself', () => {
+      const t0 = 1_000_000;
+      groupPolicy.suppressGroupParams(t0);
+      expect(groupPolicy.areGroupParamsSuppressed(t0 + 60_000)).toBe(true);
+      expect(groupPolicy.areGroupParamsSuppressed(t0 + 11 * 60_000)).toBe(false);
+    });
+
+    // The regression this replaced: the old disableGroupPolicy() wrote
+    // ff_authorize_group_policy=false through configStore, which persisted and
+    // also stopped userTier being resolved, silently disarming every tier
+    // ceiling. Suppression must never touch operator-owned config.
+    it('never writes to configStore', () => {
+      const setRaw = jest.fn();
+      groupPolicy.suppressGroupParams();
+      expect(setRaw).not.toHaveBeenCalled();
+      expect(groupPolicy.disableGroupPolicy).toBeUndefined();
     });
   });
 });

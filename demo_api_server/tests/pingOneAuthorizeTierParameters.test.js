@@ -85,17 +85,25 @@ describe('UC21 tier attributes reach PingOne Authorize', () => {
     // back to its 'none' default and no tier rule can fire. Sending a null or ''
     // would instead claim "the tier was resolved and is empty".
     //
-    // ⚠️ This is also the shape of the relocated control's fail-open, and it is
-    // reachable at runtime. mcpToolAuthorizationService.js:1231-1244 self-heals a
-    // live PingOne 400 naming `parameters.UserGroups` (INVALID_VALUE) by calling
-    // groupPolicy.disableGroupPolicy() and retrying with requiredGroup,
-    // userGroups, userTier and inRequiredGroup all stripped. UserTier then
-    // defaults to 'none' in the cloud and EVERY tier ceiling goes dormant —
-    // PERMIT, not DENY. The retry does surface (autoDisabledGroupPolicy ->
-    // DemoAuthzFallbackModal.jsx), but disableGroupPolicy PERSISTS the flag off
-    // via configStore.setRaw, so only the first call after the fault is
-    // announced; every later one is quietly unenforced until the flag is
-    // re-enabled. Treat "tier DENY stopped firing" as "check the flag" first.
+    // ⚠️ This is the shape of the relocated control's fail-open. It USED to be
+    // reachable at runtime: the self-heal for a live PingOne 400 naming
+    // `parameters.UserGroups` (INVALID_VALUE) called groupPolicy
+    // .disableGroupPolicy() and retried with requiredGroup, userGroups, userTier
+    // and inRequiredGroup ALL stripped. UserTier then defaulted to 'none' in the
+    // cloud and every tier ceiling went dormant — PERMIT, not DENY — and because
+    // the disable was a persisted configStore.setRaw, only the first call after
+    // the fault was announced while every later one was quietly unenforced.
+    //
+    // That path is closed. The self-heal now calls groupPolicy
+    // .suppressGroupParams(): in-memory, time-boxed, and narrow to the three
+    // group inputs. userTier is resolved before the suppression check and is
+    // kept in the retry, so tier ceilings keep enforcing through the fault, and
+    // ff_authorize_group_policy is never written. See groupPolicy.test.js and
+    // mcpToolAuthorizationService.groupParamSuppression.test.js.
+    //
+    // The assertion below still pins the underlying contract: a null tier must
+    // OMIT the key rather than send null or '', which would claim "resolved and
+    // empty".
     const params = buildMcpDelegationParameters({ ...baseArgs, userTier: null, amount: 5000 });
 
     expect(params).not.toHaveProperty('UserTier');
