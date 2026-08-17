@@ -151,8 +151,9 @@ const logActivity = (req, res, next) => {
       // GET/POST the API serves and flood the 500-record cap
       // (services/lmdb/transactionLedger.lmdb.js MAX_TRANSACTIONS) with
       // single-hop noise unrelated to any traced prompt flow.
+      const inboundHeaders = req.headers || {};
       const hadInboundCorrelationId = Boolean(
-        req.headers['x-request-id'] || req.headers['x-correlation-id']
+        inboundHeaders['x-request-id'] || inboundHeaders['x-correlation-id']
       );
       if (hadInboundCorrelationId) {
         emitHop({
