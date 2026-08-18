@@ -117,6 +117,40 @@ node -e 'const {SECRET_NAMES}=require("./demo_api_server/scripts/dotenvx-encrypt
 comm -23 /tmp/vault-names.txt /tmp/encrypt-names.txt   # in vault, NOT in encrypt list (review)
 ```
 
+**This only catches secrets that were vault-resident.** Live run 2026-08-18: this
+comparison came back clean, but a direct sweep of the four `.env` files for
+secret-shaped NAMES (`*_SECRET`, `*_KEY`, `*_TOKEN`) turned up ~25 real secrets
+(LLM provider keys, A2A client secrets, encryption master keys) that were added
+to `.env` directly over time and were **never** migrated into the vault — so this
+vault-vs-encrypt-list diff alone could not have found them. `ADDITIONAL_SECRET_NAMES`
+in `dotenvx-encrypt-envs.js` now covers those explicitly. If re-running this
+runbook after more secrets have been added, ALSO sweep for new secret-shaped
+names not yet on `SECRET_NAMES`:
+
+```bash
+node -e '
+const {SECRET_NAMES} = require("./demo_api_server/scripts/dotenvx-encrypt-envs");
+const fs = require("fs");
+const files = ["demo_api_server/.env","demo_agent_service/.env","demo_mcp_gateway/.env","oauth-mcp/.env"];
+const secretLike = /(_SECRET|_KEY|_TOKEN|_PASSWORD|PASSWORD)$/i;
+const encryptSet = new Set(SECRET_NAMES);
+for (const f of files) {
+  for (const line of fs.readFileSync(f, "utf8").split("\n")) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (!m) continue;
+    const [, name, val] = m;
+    if (!secretLike.test(name) || val.trim() === "" || val.startsWith("encrypted:") || encryptSet.has(name)) continue;
+    console.log(`${f}: ${name} is plaintext and not on the encrypt list`);
+  }
+}
+'
+```
+
+Names it turns up are worth a quick judgment call, not an automatic add: `DOTENV_PUBLIC_KEY`
+should stay plaintext by design, `VAULT_PASSWORD` belongs to the vault (not this
+file's own ciphertext), and any intentionally-public demo credential (the
+`DEMO_*_PASSWORD` trio) doesn't need protecting.
+
 For any secret that exists in the vault but not yet in the service `.env` that
 loads it (watch for `HELIX_API_KEY` in particular — it may be persisted via
 configStore rather than `.env`), add it to that service's `.env` from the vault

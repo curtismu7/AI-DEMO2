@@ -14,6 +14,7 @@ const path = require('path');
 
 const {
   SECRET_NAMES,
+  ADDITIONAL_SECRET_NAMES,
   encryptArgs,
   encryptAll,
   readPublicKey,
@@ -43,6 +44,36 @@ describe('SECRET_NAMES', () => {
     // Never encrypt non-secret config.
     expect(SECRET_NAMES).not.toContain('NODE_ENV');
     expect(SECRET_NAMES).not.toContain('PINGONE_ENVIRONMENT_ID');
+  });
+
+  test('includes real secrets found live in the four .env files that were never vault-resident', () => {
+    // Found 2026-08-18: present with real values across the target .env files
+    // but absent from vault-migrate's ALLOWED_ENV_VARS (never migrated into
+    // the vault), so they would otherwise stay plaintext after the cutover.
+    for (const name of ADDITIONAL_SECRET_NAMES) {
+      expect(SECRET_NAMES).toContain(name);
+    }
+    // Spot-check a representative few explicitly (not just the loop above).
+    expect(SECRET_NAMES).toContain('ANTHROPIC_API_KEY');
+    expect(SECRET_NAMES).toContain('GOOGLE_API_KEY');
+    expect(SECRET_NAMES).toContain('GROQ_API_KEY');
+    expect(SECRET_NAMES).toContain('GW_INTROSPECTION_CLIENT_SECRET');
+    expect(SECRET_NAMES).toContain('PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET');
+    expect(SECRET_NAMES).toContain('MCP_SERVER_ENCRYPTION_KEY');
+  });
+
+  test('excludes lookalikes that are not true secrets needing dotenvx encryption', () => {
+    // DOTENV_PUBLIC_KEY is meant to stay plaintext — encrypting it would be
+    // nonsensical (it's the value everything else is encrypted UNDER).
+    expect(SECRET_NAMES).not.toContain('DOTENV_PUBLIC_KEY');
+    // VAULT_PASSWORD belongs to the vault system being retired at Task 8, not
+    // to this file's own dotenvx ciphertext.
+    expect(SECRET_NAMES).not.toContain('VAULT_PASSWORD');
+    // The DEMO_*_PASSWORD trio are intentionally-public demo sign-in
+    // credentials documented for presenters — not access-control secrets.
+    expect(SECRET_NAMES).not.toContain('DEMO_USER_PASSWORD');
+    expect(SECRET_NAMES).not.toContain('DEMO_ADMIN_PASSWORD');
+    expect(SECRET_NAMES).not.toContain('DEMO_DELEGATE_PASSWORD');
   });
 });
 
