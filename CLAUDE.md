@@ -51,8 +51,8 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 
 - `demo_api_server/` — BFF/API, CommonJS+Express+jest+supertest · own `CLAUDE.md`
 - `demo_api_ui/` — React 19.2+Vite 8+**vitest**(not jest)+Playwright · own `CLAUDE.md`
-- `demo_mcp_server/`, `demo_mcp_gateway/` — TypeScript+jest+ts-jest · each own `CLAUDE.md`
-- `demo_mcp_proxy/`, `demo_authz_server/`, `demo_hitl_service/`, `ping-gateway/`
+- `oauth-mcp/` (banking/OLB MCP server), `demo_mcp_gateway/` — TypeScript+jest+ts-jest · each own `CLAUDE.md`
+- `demo_mcp_resource_server/` (invest/SQLite read-path MCP server), `demo_mcp_proxy/`, `demo_authz_server/`, `demo_hitl_service/`, `ping-gateway/`
 - `langchain_agent/` — Python+LangGraph+pytest · own `CLAUDE.md`; `openai_agent/`, `pydantic_agent/` — Python+pytest; `mastra_agent/` — Node
 - `demo_llm_proxy/`, `scripts/`, `docs/`, `planning/`
 
