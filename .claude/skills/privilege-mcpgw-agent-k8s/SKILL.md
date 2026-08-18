@@ -107,6 +107,13 @@ MCP Server URL    http://<RELEASE>-opensearch-mcp-server.<NAMESPACE>.svc.cluster
 Mesh Cluster      <clusterID from the token>
 ```
 
+**The `/sse` here is not the same field as the client URL.** This is the BACKEND
+the gateway proxies to, and `/sse` is what this deployment was registered with and
+works. An MCP client (Postman, Claude, Cursor) connects to the FRONTEND at
+`https://<FRONTEND_NAME>/mcp` — see the Postman note below. Do not "fix" one to
+match the other; they are different ends of the hop, and the server answers on
+both paths, so a mismatch fails during the handshake rather than at connect.
+
 Two field-level traps:
 
 - **The release prefix is part of the service name.** Vendor material shows the URL both with and without it. The chart prefixes every object with the release, so `opensearch-mcp-server.<ns>.svc…` does not resolve and discovery fails in a way that reads like a broken backend.
@@ -139,7 +146,19 @@ curl -sk -o /dev/null -w 'http=%{http_code}\n' -m 8 -H 'Accept: text/event-strea
 # http=200 with curl exiting 28 — the SSE stream stays open until the client timeout
 ```
 
-In Postman: **MCP** request, transport **HTTP** (not STDIO — that is for servers Postman launches as a subprocess), URL `https://<FRONTEND_NAME>/sse`, **no auth**. The agent supplies identity. Postman renders the same 403 as "Couldn't run the request: The MCP server denied this operation" — check with curl before believing it is a Postman problem.
+In Postman: **MCP** request, transport **HTTP** (not STDIO — that is for servers Postman launches as a subprocess), URL `https://<FRONTEND_NAME>/mcp`, **no auth**. The agent supplies identity. Postman renders the same 403 as "Couldn't run the request: The MCP server denied this operation" — check with curl before believing it is a Postman problem.
+
+**It is `/mcp`, not `/sse`.** This said `/sse` and was wrong. Postman's transport
+**HTTP** is MCP Streamable HTTP, which the server exposes at `/mcp`; `/sse` is the
+separate, older SSE transport. The mistake survives review because the probe above
+returns `/sse 200 /mcp 200` — FastMCP serves both, so the wrong URL is reachable
+and only fails later, during the MCP handshake, in a way that reads as a gateway
+or policy fault rather than a wrong path.
+
+The curl probes above deliberately still use `/sse` with
+`Accept: text/event-stream`: they are testing reachability, auth and policy, and a
+long-lived SSE stream is the easiest thing to eyeball (`http=200` with curl exiting
+28). Use `/sse` to probe, `/mcp` in an MCP client.
 
 ## The Mac agent
 

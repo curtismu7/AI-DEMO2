@@ -1,12 +1,17 @@
 ---
 name: verify-ai-demo2
 description: >-
-  Use when running or verifying jest tests from inside a git worktree under
-  .claude/worktrees/ in this repo, or when confirming a code/env change took
-  effect in the running AI-DEMO2 Docker Compose stack (demo-api-server and
-  friends). Covers jest reporting "No tests found, exiting with code 1" with
-  no other explanation, missing node_modules in a fresh worktree, and
-  restart-vs-recreate for Docker service changes.
+  Use when running or verifying tests from a git worktree under
+  .claude/worktrees/ in this repo, when confirming a code/env change actually
+  took effect in the running AI-DEMO2 Docker stack, or BEFORE instrumenting a
+  code path you have only read. Covers the repeat failure where a feature is
+  correct, tested, merged and inert because the code sits where the request
+  never goes; proving a code path runs from container logs; proving a new guard
+  fails without its fix; jest "No tests found" and missing node_modules in a
+  fresh worktree; npx pulling the wrong jest/vitest; restart-vs-recreate for
+  Docker changes; verifying by content rather than by a stamp or a success line;
+  the jest-vs-vitest expect() signature split; and the shared deploy lock, deploy
+  stamp and stash stack when several agent sessions run on one machine.
 ---
 
 # Verify AI-DEMO2
@@ -73,6 +78,85 @@ pre-commit hook that regenerates `mcp-tool-schemas.json` on `git commit` —
 expect it, don't fight it. (`git add` alone does not trigger it — confirmed
 live.)
 
+## Code existing is not evidence it runs (2026-08-18)
+
+The single most expensive mistake in this repo, measured across one day: reading
+a file, seeing the code, and concluding the code executes. It produced three
+merged-and-inert features and two wrong diagnoses, every one of which passed its
+tests and a review.
+
+| shipped green | actually true |
+|---|---|
+| gateway filter stages (#1951) | rendered into `TraceStepCard`, which focus mode never mounts |
+| MCP handshake header (#1977) | put on the gateway's HTTP response; discovery arrives over a WebSocket |
+| MCP handshake in Groovy (#2023) | `olb-token-exchange.groovy` never executes — `grep OlbExchange` in the gateway log returns 0 lines |
+| "the chips restore affects the public route" | `PublicRoutes.AgentPageRoute` is exported and referenced nowhere |
+| first `deploy-live` stamp fix | `filter_running` is called in `$(...)`, so its variable assignments never reached the parent |
+
+**Before instrumenting anything, prove the code path runs.** One log line beats
+any amount of reading:
+
+```bash
+docker logs ai-demo-<service> --since 5m | grep '<a marker from that function>'
+```
+
+If there is no marker, add one, drive the path, and look — do not infer. The
+handshake was finally solved by driving each leg separately and counting
+connections on the MCP server, which took ten minutes and contradicted two days
+of source reading.
+
+**Corollary — a passing test near the change proves nothing about reach.** All
+three inert features had green unit tests. What they lacked was one live
+assertion that the evidence appears in a real response. See
+`demo_api_ui/tests/e2e/chain-hops-reachable.real.spec.js`.
+
+**Corollary — prove the guard fails without the fix.** Revert the change, watch
+the new test go red, restore. A test that has never failed is a guess. This
+caught a stamp fix that was structurally incapable of firing.
+
+## Verifying against the live stack
+
+- **Wait after a deploy.** `deploy-live` returns as soon as containers restart;
+  the BFF needs a moment. A live check run ~8s after a restart failed, then
+  passed twice unchanged. Re-run once before believing a failure.
+- **Verify by content, never by SHA or by a success line.** After
+  `sync-main-checkout.sh`, grep the merged code in
+  `/Users/cmuir/Development/AI-DEMO2` — a launchd sync, another agent session, or
+  a half-finished deploy can all leave the stamp ahead of reality.
+- **Never trust a piped exit code.** `cmd | tail` reports tail's status. Redirect
+  to a file, echo `$?`, then grep the file.
+- **The live specs need a live session.** `.ba-welcome` only renders with zero
+  messages — conversation continuity keeps 30 per user+vertical — so a copy check
+  must click `.ba-start-over-btn` first or it reads an empty array as "missing".
+
+## Two assertion libraries, two runners
+
+`demo_api_server` is jest; `demo_api_ui` is vitest; `tests/e2e` is playwright. The
+failure text does not tell you which you are in.
+
+- `expect(value, "message")` is vitest/playwright only. In jest it throws
+  **"Expect takes at most one argument"**, which reads like a problem with the
+  value. Put the diagnostic inside the assertion instead.
+- Playwright's `expect.poll` prints the **source** of a function `message`, not
+  its value — so the diagnostic written for the failing case is the one thing you
+  cannot read. Use a static string and `console.log` the dynamic part as it
+  arrives.
+
+## Concurrent agent sessions share one machine
+
+Several sessions run against one Docker project, one `.git/deploy-live.last`, and
+one stash stack.
+
+- `deploy-live` now takes a lock and refuses rather than racing. If it says
+  another deploy is running, wait — do not work around it.
+- It will not stamp a range whose services are not up, so a failed deploy leaves
+  the range for the next run. A `Created` container is a broken service, not an
+  absent one.
+- `deploy-live <old> <new>` still writes the stamp. Passing an explicit range for
+  a one-off test corrupts it for everyone; capture the value first and restore it.
+- The stash stack is shared. `git stash apply <sha>` then `drop`, never `pop`,
+  and re-check the SHA before dropping.
+
 ## Quick Reference
 
 | Symptom | Cause | Fix |
@@ -84,3 +168,8 @@ live.)
 | jest can't find `node_modules` in a worktree | worktrees don't inherit installed deps (lockfiles are gitignored repo-wide) | `npm install` in the service dir, or symlink to the main checkout's `node_modules` |
 | `.env` change doesn't take effect after `docker compose restart` | env vars are baked in at container creation | `docker compose up -d <service>` (recreate, not restart) |
 | commit touching `configStore.js` regenerates an unrelated file | pre-commit hook | expected on commit — don't fight it |
+| a feature is correct, tested, merged — and does nothing | the code sits on a path the request never takes | `docker logs <service> \| grep <marker>` before instrumenting; see "Code existing is not evidence it runs" |
+| `npx jest` / `npx vitest` in a worktree runs a DIFFERENT version from `~/.npm/_npx` | worktree has no `node_modules` | symlink the service's `node_modules` from the main checkout and call `./node_modules/.bin/jest` directly |
+| a live check fails seconds after `deploy-live`, passes on re-run | BFF still warming after the restart | re-run once; only investigate if it repeats |
+| `expect(x, 'msg')` fails with "Expect takes at most one argument" | that form is vitest/playwright; this is jest | move the diagnostic into the assertion |
+| deploy-live refuses with "another deploy is running" | another agent session holds the lock | wait for it; do not bypass |
