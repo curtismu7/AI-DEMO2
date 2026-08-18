@@ -80,6 +80,12 @@ demo_api_server/data/runtimeData.json.bak
 # Env backups with a suffix after .bak (e.g. .env.bak-3006) that *.bak misses
 .env.bak*
 **/.env.bak*
+# dotenvx private decryption key (vault→dotenvx cutover). Holds DOTENV_PRIVATE_KEY,
+# which decrypts every encrypted `.env` — same sensitivity as VAULT_PASSWORD was.
+# NEVER commit; delivered at runtime via env only (run.sh/run-docker.sh read it).
+# The encrypted `.env` files themselves stay ignored by the `**/.env` rules above.
+.env.keys
+**/.env.keys
 
 # --- Runtime/generated artifacts (churn on every run — never track) ---
 # Playwright test output
