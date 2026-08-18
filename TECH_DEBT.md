@@ -412,6 +412,12 @@ visual could not be automated (customer sign-in on this host is passkey-based, n
 headless-drivable) — a human glance on `/dashboard` as a customer is the only
 remaining confirmation. Original entry follows.
 
+**REVERSED 2026-08-18.** The human glance happened once #2037 was first served
+(the `ui` container recreate for #2038 was the first deploy to render the rail):
+it overlays the left of the dashboard and the user asked for it to be removed.
+PR #2037 was reverted — `DashboardQuickNav` is back to existing-but-unmounted, which
+is the accepted end state, not debt. Do not re-mount without an explicit request.
+
 **Where:** `demo_api_ui/src/components/DashboardQuickNav.js:21-26`; interacts with
 `App.css:138,140-142,668`.
 
