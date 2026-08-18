@@ -20,6 +20,7 @@ import {
   executeListVerticals,
 } from './publicTools';
 import { verticalHandlerMap } from './verticalHandlers';
+import { apiKeyFeatureHandlerMap } from './apiKeyFeatureHandlers';
 import {
   executeLookupCustomer,
   executeGetCustomerProfile,
@@ -57,6 +58,7 @@ export const handlerMap: Record<string, HandlerFn> = {
   executeGetFeeSchedule,
   executeListVerticals,
   ...verticalHandlerMap,
+  ...apiKeyFeatureHandlerMap,
   executeLookupCustomer,
   executeGetCustomerProfile,
   executeGetCustomerAccounts,

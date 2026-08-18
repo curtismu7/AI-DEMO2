@@ -397,6 +397,14 @@ services:
       MCP_RESOURCE_URL: "http://localhost:8080"
       HTTP_MCP_TRANSPORT_ENABLED: "true"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
+      # api_key feature tools (show_mortgage/show_health_record/...) executed by
+      # this server itself on gateway-less hops (Privilege/Procyon AI Gateway
+      # client → mcp-server direct) — same credential swap the demo mcp-gateway
+      # does on the normal chain. Mirrors mcp-gateway's values below.
+      API_RESOURCE_SERVER_URL: "http://api-resource-server:8082"
+      DEMO_API_RESOURCE_SERVER_KEY: ${API_RESOURCE_SERVER_API_KEY:-mortgage-compose-dev-key}
+      MCP_RESOURCE_SERVER_HTTP_URL: "http://mcp-resource-server:8081"
+      DEMO_MCP_RESOURCE_SERVER_KEY: ${API_RESOURCE_SERVER_API_KEY:-mortgage-compose-dev-key}
       # RFC 8693 rollout: the gateway now exchanges the inbound token for one scoped to
       # this backend's own resource URI (RFC 8707 `resource` param) before forwarding, so
       # MCP server tokens carry aud=mcpserver.ping.demo. MCP_SERVER_RESOURCE_URI accepts a
