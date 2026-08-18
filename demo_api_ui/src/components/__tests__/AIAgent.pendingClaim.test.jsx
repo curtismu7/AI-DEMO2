@@ -93,11 +93,18 @@ vi.mock("../../services/apiClient", () => ({
     patch: vi.fn().mockResolvedValue({ data: {} }),
   },
 }));
+// Mutable so a test can hold the manifest unresolved (activeId null) and then
+// resolve it, which is the real sequence on a full page load.
+let mockVerticalId = "banking";
 vi.mock("../../vertical/useVertical", () => ({
   useVertical: () => ({
-    activeId: "banking",
-    pageManifest: { id: "banking", identity: { displayName: "Super Banking" } },
-    agentManifest: { id: "banking", identity: { displayName: "Super Banking" } },
+    activeId: mockVerticalId,
+    pageManifest: mockVerticalId
+      ? { id: mockVerticalId, identity: { displayName: "Super Banking" } }
+      : null,
+    agentManifest: mockVerticalId
+      ? { id: mockVerticalId, identity: { displayName: "Super Banking" } }
+      : null,
     adminManifest: null, pageMockData: null, isAdminScope: false, isAdmin: false,
     refetch: () => {},
   }),
@@ -144,6 +151,7 @@ function mockSignedInStatus() {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  mockVerticalId = "banking";
   sendAgentMessage.mockReset();
   sendAgentMessage.mockResolvedValue({ success: true, reply: "Your balance is $100." });
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }));
@@ -158,6 +166,56 @@ beforeEach(() => {
 // with no `vertical`, a 200 coming back, and the reply being discarded: no user
 // bubble, a typing indicator that never cleared, and a disabled input until
 // reload. The same run works on an SPA remount, where hydration is already done.
+// The measured difference between the broken and working cases. On a full page
+// load the replay fired before the vertical manifest resolved and the request
+// went out with no `vertical`; after an SPA remount, with the manifest already
+// resolved, the same replay sends `vertical:"retail"` and renders normally.
+describe("before the vertical manifest resolves", () => {
+  it("waits, rather than sending a request whose reply is discarded", async () => {
+    mockVerticalId = null; // manifest not resolved yet
+    mockSignedInStatus();
+    sessionStorage.setItem(PENDING_KEY, QUESTION);
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={signedIn} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+
+    // Manifest resolves — now the replay may go, and carries the vertical.
+    mockVerticalId = "retail";
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={signedIn} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+    await waitFor(() => {
+      expect(sendAgentMessage).toHaveBeenCalledWith(
+        QUESTION,
+        null,
+        expect.objectContaining({ vertical: "retail" }),
+      );
+    });
+  });
+});
+
 describe("while the session check is still in flight", () => {
   it("does not replay the question as a guest", async () => {
     // Status endpoints that never answer — the hydration window, held open.
