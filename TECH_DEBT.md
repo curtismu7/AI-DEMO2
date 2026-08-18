@@ -698,7 +698,13 @@ the old value.
 **Real fix:** align the proxy's advertised protocol version with the gateway's
 (`2025-11-25`), or make it negotiate from the gateway's advertised version.
 
-### [ ] 2026-08-18 — `demo_mcp_proxy` per-caller tools/list cache has no TTL and no size bound
+### [x] 2026-08-18 — `demo_mcp_proxy` per-caller tools/list cache has no TTL and no size bound
+
+**FIXED 2026-08-18 (PR #2042, merged + deployed).** Added a TTL
+(`MCP_PROXY_TOOLS_TTL_MS`, default 30s — re-fetched on expiry) and an LRU size bound
+(`MCP_PROXY_TOOLS_MAX`, default 500), closing both the unbounded-token-accumulation
+window and the scope/vertical staleness window. Regression test
+`demo_mcp_proxy/test/toolCache.test.js`. Original entry follows.
 
 **Where:** `demo_mcp_proxy/server.js:15-124` (`_toolCacheByCaller`, keyed
 `sha256(bearer)`).
@@ -715,7 +721,14 @@ TTL + bound decision consistent with the rest of the MCP layer.
 **Real fix:** give the cache a short TTL and an LRU bound, and key/scope it so a
 vertical or scope change invalidates it.
 
-### [ ] 2026-08-18 — MCP gateway SSE passthrough leaks the upstream connection on client disconnect
+### [x] 2026-08-18 — MCP gateway SSE passthrough leaks the upstream connection on client disconnect
+
+**FIXED 2026-08-18 (PR #2042, merged + deployed).** `pipeGetToUpstream` now destroys
+the upstream request on `req`/`res` `close`, and a real `'timeout'` handler aborts an
+idle upstream (the `timeout` option was previously inert). A settle-once guard
+detaches the close listeners on normal completion, so normal streaming is unchanged.
+Regression test `demo_mcp_gateway/tests/gateway-sse-client-close.test.ts`. Original
+entry follows.
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts:542-591`
 (`pipeGetToUpstream`).
@@ -793,7 +806,17 @@ one-liner, and it interacts with the agent's streaming lifecycle.
 against the running loop (or expose a proper async `_agenerate`) so the poll does
 not block the loop thread.
 
-### [ ] 2026-08-18 — `tokenIntrospectionService`'s deliberate `INTROSPECTION_NOT_CONFIGURED` throw is swallowed, reported as "token inactive"
+### [x] 2026-08-18 — `tokenIntrospectionService`'s deliberate `INTROSPECTION_NOT_CONFIGURED` throw is swallowed, reported as "token inactive"
+
+**FIXED 2026-08-18 (PR #2043, merged + deployed).** The catch now re-throws when
+`err.code === 'INTROSPECTION_NOT_CONFIGURED'` instead of swallowing it, and
+`tokenVerificationService._introspectAsFallback` treats that code as "introspection
+skipped" (returns a warning, `error:null`) rather than "token inactive" — so a valid
+exchanged token is no longer rejected in fail-closed mode when JWKS is momentarily
+down and introspection simply isn't configured. Configured active/inactive behaviour
+unchanged. Regression test
+`tests/services/tokenVerificationService.introspectionFallback.test.js`. Original
+entry follows.
 
 **Where:** `demo_api_server/services/tokenIntrospectionService.js:184` (throw
 inside the `try` opened at 151, whose `catch` at 252-265 returns
@@ -815,7 +838,13 @@ error discrimination needs the auth regression pass.
 the catch when `err.code === 'INTROSPECTION_NOT_CONFIGURED'`) and have the
 fallback treat "not configured" as "introspection skipped", not "inactive".
 
-### [ ] 2026-08-18 — OIDC nonce is not enforced when the returned ID token omits the `nonce` claim
+### [x] 2026-08-18 — OIDC nonce is not enforced when the returned ID token omits the `nonce` claim
+
+**FIXED 2026-08-18 (PR #2043, merged + deployed).** The "nonce requested but ID token
+has none" branch now fails the callback (`error=nonce_missing`) instead of
+`console.warn`-and-proceed, mirroring the existing `nonce_mismatch` path (OIDC Core
+§3.1.3.7). The matching-nonce happy path is unchanged. Regression test
+`tests/oauthUserCallbackNonce.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/routes/oauthUser.js:460-467`.
 
@@ -901,7 +930,10 @@ one file over.
 - **`demo_mcp_gateway/src/auth/tokenValidator.ts:223-226`** — a forced JWKS
   re-fetch on an unknown `kid` passes `force=true`, bypassing the in-flight
   dedupe, so tokens with random `kid`s each trigger a full JWKS round-trip: a
-  cheap amplification vector against PingOne. Bound it to the dedupe / a rate cap.
+  cheap amplification vector against PingOne. **FIXED 2026-08-18 (PR #2042):**
+  forced refreshes now share the in-flight fetch and are rate-capped
+  (`MCP_GW_JWKS_MIN_REFRESH_MS`, default 10s); a genuine rotation still refreshes
+  once. Regression test `tests/tokenValidator-jwksRefetch.test.ts`.
 - **`demo_api_ui/src/components/SessionExpiryTimer.jsx:34-82`** and
   **`RecognizeOverlay.tsx:37-41`** — real defects (mount-once fetch that never
   refetches after silent token refresh → shows "Expired" against a live session;
