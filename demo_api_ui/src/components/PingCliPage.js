@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import SignInPrompt from './SignInPrompt';
 import './PingCliPage.css';
 
 // Fallback runnable set when GET /commands hasn't loaded yet. Server catalog is
@@ -509,6 +510,7 @@ export default function PingCliPage() {
   // finishes with structured JSON the reader can present.
   const [viewMode, setViewMode]   = useState('json');
   const [installedVersion, setInstalledVersion] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const abortRef = useRef(null);
   const outputRef = useRef(null);
 
@@ -597,6 +599,12 @@ export default function PingCliPage() {
       );
 
       if (!res.ok || !res.body) {
+        if (res.status === 401 || res.status === 403) {
+          setNeedsSignIn(true);
+          setOutput('Sign in as admin to run PingCLI commands live. The copyable commands above work without signing in.');
+          finishWithExit(1);
+          return;
+        }
         const text = await res.text().catch(() => '');
         setOutput(text || `HTTP ${res.status}`);
         finishWithExit(1);
@@ -819,6 +827,9 @@ export default function PingCliPage() {
 
       {(showTerminal || runStatus) && (
         <div id="pingcli-output" ref={outputRef} className="pingcli-output" tabIndex={-1}>
+          {needsSignIn && (
+            <SignInPrompt admin message="Running PingCLI live uses the admin API. The copyable commands work without signing in." />
+          )}
           {runStatus && (
             <div
               id="pingcli-run-status"

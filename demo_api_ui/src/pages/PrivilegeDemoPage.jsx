@@ -49,7 +49,7 @@ export default function PrivilegeDemoPage() {
           </div>
           <div className="pd-page__header-links">
             <Link to="/setup">Banking demo setup</Link>
-            <Link to="/">Sign in</Link>
+            <a href="/api/auth/oauth/user/login?return_to=%2Fprivilege-demo">Sign in</a>
           </div>
         </div>
       </header>

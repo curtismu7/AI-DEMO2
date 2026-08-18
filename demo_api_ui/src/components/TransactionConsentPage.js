@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/TransactionConsentPage.js
 import React, { useState } from 'react';
-import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import SignInPrompt from './SignInPrompt';
 import TransactionConsentModal from './TransactionConsentModal';
 import '../styles/appShellPages.css';
 import './TransactionConsentPage.css';
@@ -105,7 +106,10 @@ export default function TransactionConsentPage({ user }) {
   const homePath = user?.role === 'admin' ? '/admin' : '/dashboard';
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    // CIBA push deep-links land here signed out — show the page and ask,
+    // never dump on home. (return_to is a bare path; the ?challenge= param
+    // does not survive login — the push notification link remains the way back.)
+    return <SignInPrompt message="Sign in to review this transfer approval." />;
   }
 
   // Live mode: real challenge from CIBA push

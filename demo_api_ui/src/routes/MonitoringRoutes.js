@@ -15,7 +15,7 @@ import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
 import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
-import RedirectToLogin from "./RedirectToLogin";
+import SignInPrompt from "../components/SignInPrompt";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -34,7 +34,7 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
         <Route path="agent-flow" element={
           !user
-            ? <RedirectToLogin />
+            ? <SignInPrompt />
             : AgentFlowPage
               ? <AgentFlowPage />
               : <Navigate to="/" replace />
@@ -85,8 +85,9 @@ export function SequenceDiagramRoute({ user, logout }) {
 }
 
 export function LogsRoute({ user, logout }) {
-  if (!user) return <RedirectToLogin />;
-  // Standalone pop-out page — no AppShell chrome (side nav / TopNav).
+  // Standalone pop-out page — no AppShell chrome (side nav / TopNav), so the
+  // signed-out state is the bare prompt card, not the full SignInRequired page.
+  if (!user) return <SignInPrompt />;
   return <LogViewerPage />;
 }
 
@@ -99,16 +100,16 @@ export function McpInspectorRoute({ user, logout }) {
 }
 
 export function WebMcpRoute({ user, logout }) {
-  if (!user) return <RedirectToLogin />;
   return (
     <AppShell user={user} logout={logout}>
-      <WebMcpPanel />
+      {user ? <WebMcpPanel /> : <SignInPrompt />}
     </AppShell>
   );
 }
 
 export function AgentFlowInspectorRoute({ user }) {
-  if (!user) return <RedirectToLogin />;
+  // App.js catch-all already supplies TopNav + main-content — bare card only.
+  if (!user) return <SignInPrompt />;
   // Mounted under App.js catch-all which already supplies TopNav + main-content
   // (+ side nav). Do not nest another shell — a second .main-content also got
   // the sidebar width offset and left empty space on the right.

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notifySuccess, notifyError } from '../utils/appToast';
+import { navigateToCustomerOAuthLogin } from '../utils/authUi';
+import SignInPrompt from './SignInPrompt';
 import { loadPublicConfig } from '../services/configService';
 import './SecurityCenter.css';
 
@@ -22,6 +24,7 @@ export default function SecurityCenter({ user }) {
   const [devices, setDevices] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
 
   // Current BFF session — backs the Overview and Sessions tabs. /api/auth/session
   // returns only the caller's own session; PingOne exposes no list-all-sessions
@@ -60,8 +63,13 @@ export default function SecurityCenter({ user }) {
   const fetchDevices = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
+    setNeedsSignIn(false);
     try {
       const res = await fetch('/api/auth/mfa/devices', { credentials: 'include' });
+      if (res.status === 401) {
+        setNeedsSignIn(true);
+        throw new Error('Sign in to view your MFA devices.');
+      }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || `Server error ${res.status}`);
@@ -417,7 +425,8 @@ export default function SecurityCenter({ user }) {
       <div>
         <h3 style={{ marginTop: 0 }}>MFA Devices</h3>
         {loading && <p className="demo-unavailable">Loading devices...</p>}
-        {fetchError && <p style={{ color: '#dc2626' }}>{fetchError}</p>}
+        {fetchError && needsSignIn && <SignInPrompt message="Sign in to view and manage your MFA devices." />}
+        {fetchError && !needsSignIn && <p style={{ color: '#dc2626' }}>{fetchError}</p>}
         {!loading && !fetchError && devices !== null && (
           <>
             {devices.length === 0 ? (
@@ -565,7 +574,18 @@ export default function SecurityCenter({ user }) {
                   ? 'Checking...'
                   : session.authenticated
                     ? <span className="security-status--ok">Active</span>
-                    : <span className="security-status--warn">Not signed in</span>}
+                    : (
+                      <span className="security-status--warn">
+                        Not signed in{' '}
+                        <button
+                          type="button"
+                          className="security-signin-link"
+                          onClick={() => navigateToCustomerOAuthLogin('/security')}
+                        >
+                          Sign in
+                        </button>
+                      </span>
+                    )}
               </div>
             </div>
           </div>

@@ -12,6 +12,7 @@
 // polls GET /api/transactions/my and badges each row by clientType.
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import "./UngovernedAgentPage.css";
 
@@ -136,7 +137,14 @@ function RecentTransfersWidget() {
         <p className="ungov-widget__empty">
           Sign in as a bank customer to see live transfers. The seeded demo
           customer (<code>john.doe</code>) is the account the sidecar and OpenCLI
-          drive.
+          drive.{" "}
+          <button
+            type="button"
+            className="ungov-widget__signin"
+            onClick={() => navigateToCustomerOAuthLogin('/ungoverned-agent')}
+          >
+            Sign in
+          </button>
         </p>
       )}
       {status === "error" && (

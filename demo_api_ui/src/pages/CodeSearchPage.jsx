@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import CodebaseUploader from '../components/CodebaseUploader';
+import SignInPrompt from '../components/SignInPrompt';
 import CodeSearchAsk from '../components/CodeSearchAsk';
 import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
@@ -35,6 +36,7 @@ export function CodeSearchPage() {
   const [indexError, setIndexError] = useState('');
   const [defaultStatus, setDefaultStatus] = useState({ state: 'idle', filesIndexed: 0, chunksCreated: 0, error: null });
   const [rightTab, setRightTab] = useState('ask'); // 'ask' | 'search'
+  const [needsSignIn, setNeedsSignIn] = useState(false);
 
   // Persist codebases to localStorage. Safe now that state is seeded from
   // localStorage on the first render, so this never writes an empty array over
@@ -100,6 +102,12 @@ export function CodeSearchPage() {
     const pollStatus = async () => {
       try {
         const res = await fetch('/api/code-search/default-status');
+        if (res.status === 401 && !cancelled) {
+          // Guest visitor: the whole /api/code-search surface needs a session —
+          // surface a sign-in ask instead of polling into silence forever.
+          setNeedsSignIn(true);
+          return;
+        }
         if (!res.ok || cancelled) return;
         const status = await res.json();
         setDefaultStatus(status);
@@ -235,6 +243,14 @@ export function CodeSearchPage() {
       handleSearch();
     }
   };
+
+  if (needsSignIn) {
+    return (
+      <div className="code-search-page">
+        <SignInPrompt message="Code search needs a signed-in session to query the index." />
+      </div>
+    );
+  }
 
   return (
     <div className="code-search-page">

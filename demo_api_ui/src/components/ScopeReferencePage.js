@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import AdminSubPageShell from './AdminSubPageShell';
+import SignInPrompt from './SignInPrompt';
 import '../styles/appShellPages.css';
 import './ScopeReferencePage.css';
 
@@ -17,16 +18,22 @@ export default function ScopeReferencePage() {
   const [markdown, setMarkdown] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNeedsSignIn(false);
     try {
       const [liveRes, vocabRes] = await Promise.all([
         fetch('/api/admin/scope-audit/resources', { credentials: 'include' }),
         fetch('/api/admin/config/scope-vocabulary', { credentials: 'include' }),
       ]);
       const liveData = await liveRes.json();
+      if (liveRes.status === 401 || liveRes.status === 403) {
+        setNeedsSignIn(true);
+        throw new Error(liveData.error || `HTTP ${liveRes.status}`);
+      }
       if (!liveRes.ok) throw new Error(liveData.error || `HTTP ${liveRes.status}`);
       setResources(liveData.resources || []);
       setEnvInfo({ environment: liveData.environment, region: liveData.region });
@@ -61,7 +68,11 @@ export default function ScopeReferencePage() {
         <div className="scope-ref__state">Loading resources and scopes from PingOne…</div>
       )}
 
-      {!loading && error && (
+      {!loading && error && needsSignIn && (
+        <SignInPrompt admin message="Live scope data comes from the admin Management API." />
+      )}
+
+      {!loading && error && !needsSignIn && (
         <div className="scope-ref__state scope-ref__state--error">
           <strong>Could not load scopes from PingOne.</strong>
           <div className="scope-ref__state-detail">{error}</div>

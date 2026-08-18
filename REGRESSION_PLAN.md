@@ -106,35 +106,52 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
-### 2026-08-18 — Signed-out visits to user-level routes silently bounced to home
+### 2026-08-18 — Signed-out visitors dead-ended (silent home bounce, dead "sign in" text, raw 401s)
 
-**Files changed:** `demo_api_ui/src/routes/RedirectToLogin.js` (new),
-`demo_api_ui/src/App.js`, `demo_api_ui/src/routes/MonitoringRoutes.js`,
-`scripts/lib/appRouteAudit.js`, `scripts/check-auth-requirements.test.js`
+**Files changed:** `demo_api_ui/src/components/SignInPrompt.js` (new),
+`demo_api_ui/src/routes/SignInRequired.js` (new), `demo_api_ui/src/App.js`,
+`demo_api_ui/src/routes/MonitoringRoutes.js`, `demo_api_ui/src/App.css`,
+`scripts/lib/appRouteAudit.js`, `scripts/check-auth-requirements.test.js`,
+plus 16 page components (see below).
 
-**What was broken:** every user-level route guard (`/protocol-playground`,
-`/check`, `/tracing`, `/use-cases`, 13 in App.js plus 4 in MonitoringRoutes)
-rendered `<Navigate to="/" replace />` for signed-out visitors — the URL
-silently landed on home and read as a broken link.
+**What was broken:** (a) every user-level route guard (13 in App.js, 4 in
+MonitoringRoutes) rendered `<Navigate to="/" replace />` for signed-out
+visitors — the URL silently landed on home; (b) an app-wide scan found 16
+public surfaces that rendered but dead-ended signed out: "sign in" text with
+no working control (SelfServicePage's Login button navigated to `/login`,
+itself a home redirect; RunReportPage, UngovernedAgentPage, ActivityLogs,
+OAuthAcademyPage, AccessIdTokenPathPage, ClientCredentialsResourcePage,
+MgmtApiRunnerPage, PrivilegeDemoPage's header link), raw-`fetch` pages that
+showed raw 401s or blank panels with no CTA and no global banner
+(ScopeReferencePage, PingCliPage, SecurityCenter, CodeSearchPage,
+ResourceServerJourneyPage), a hollow all-"—" Profile, and a CIBA
+deep-link (TransactionConsentPage) that bounced to home.
 
-**What was fixed:** signed-out visitors on user-level routes now render
-`<RedirectToLogin />`, which sends them into the BFF sign-in flow
-(`navigateToCustomerOAuthLogin(pathname)`) with `return_to` back to the page.
-Standing rule: an auth failure must ask for login, never dump on home.
+**What was fixed — the standing pattern:** always display the page, then ask.
+`SignInPrompt` (components/) is the one sign-in CTA card: customer variant →
+`navigateToCustomerOAuthLogin(path)`; `admin` variant → `startRoleSwitch`
+(admin-backed surfaces: MgmtApiRunner, ScopeReference, PingCli live-run).
+`SignInRequired` (routes/) wraps it in TopNav + main-content for route-level
+guards. Nested-chrome contexts (inside AppShell / the catch-all shell) use
+bare `SignInPrompt` — SignInRequired there would double the TopNav.
 `Navigate to="/"` remains only for non-auth denials (feature flag off on
 `/use-cases*`, missing AgentFlowPage prop) and the intentional `/login` alias.
 
 **Do not break:** auth *levels* did not change — auth-requirements.json is
-untouched. `scripts/lib/appRouteAudit.js` now classifies `<RedirectToLogin`
-inside a user-testing element expression as a `user` gate; removing that
-branch makes `authz:verify` report every converted route as `soft` drift.
-`return_to` must stay a bare path — the BFF's `sanitizePostLoginReturnPath`
-rejects query strings. Admin guards (`AdminRoute` toast, `RequireAdminLogin`
-modal) were deliberately left alone.
+untouched. `scripts/lib/appRouteAudit.js` classifies `<SignInRequired` /
+`<SignInPrompt` inside a user-testing element expression as a `user` gate;
+removing that branch makes `authz:verify` report every converted route as
+`soft` drift. `return_to` must stay a bare path — the BFF's
+`sanitizePostLoginReturnPath` rejects query strings (the CIBA `?challenge=`
+param does not survive login; the push link remains the way back). Admin
+guards (`AdminRoute` toast, `RequireAdminLogin` modal) were deliberately left
+alone. Known remaining gap: `/user-accounts` and `/transactions` (non-admin
+branch) show hardcoded mock balances to guests — fake data, tracked
+separately, not a sign-in-prompt problem.
 
 **Verify:** `node scripts/check-auth-requirements.js` OK 153 routes ·
 `node --test scripts/check-auth-requirements.test.js` 9/9 ·
-`demo_api_ui`: vitest 3254 passed, `npm run build` exit 0.
+`demo_api_ui`: vitest 380 files / 3254 passed, `npm run build` exit 0.
 
 ### 2026-08-18 — MCP Inspector toasted "timeout of 10000ms exceeded" while calls succeeded
 

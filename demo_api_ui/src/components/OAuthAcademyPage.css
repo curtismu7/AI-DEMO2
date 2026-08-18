@@ -386,3 +386,19 @@
   border-radius: 6px;
   padding: 12px;
 }
+
+.oauth-academy-page .oa-signin-btn {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.35rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.oauth-academy-page .oa-signin-btn:hover {
+  background: #1d4ed8;
+}

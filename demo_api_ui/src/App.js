@@ -195,7 +195,8 @@ import PublicRoutes, {
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
-import RedirectToLogin from "./routes/RedirectToLogin";
+import SignInRequired from "./routes/SignInRequired";
+import SignInPrompt from "./components/SignInPrompt";
 import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
@@ -776,7 +777,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -794,7 +795,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -809,7 +810,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -824,7 +825,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -840,7 +841,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -855,7 +856,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -892,7 +893,7 @@ function AppWithAuth() {
                   path="/use-cases"
                   element={
                     loading ? null : !user ? (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     ) : appFlags.showUseCaseLauncher ? (
                       <UseCasesPageRoute
                         user={user}
@@ -909,7 +910,7 @@ function AppWithAuth() {
                   path="/use-cases/live"
                   element={
                     loading ? null : !user ? (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     ) : appFlags.showUseCaseLauncher ? (
                       <LiveUseCaseWorkbenchPageRoute user={user} logout={logout} />
                     ) : (
@@ -927,7 +928,7 @@ function AppWithAuth() {
                     loading ? null : user ? (
                       <GroupPolicyBoardPageRoute user={user} logout={logout} />
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -954,7 +955,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -996,7 +997,7 @@ function AppWithAuth() {
                         </main>
                       </>
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -1006,7 +1007,7 @@ function AppWithAuth() {
                     loading ? null : user ? (
                       <ProtocolPlaygroundPageRoute user={user} logout={logout} />
                     ) : (
-                      <RedirectToLogin />
+                      <SignInRequired />
                     )
                   }
                 />
@@ -1553,7 +1554,9 @@ function AppWithAuth() {
                                 user ? (
                                   <AdminTokenComplianceAudit />
                                 ) : (
-                                  <RedirectToLogin />
+                                  // Catch-all shell already supplies TopNav +
+                                  // main-content — bare prompt card only.
+                                  <SignInPrompt />
                                 )
                               }
                             />

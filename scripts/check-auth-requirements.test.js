@@ -64,11 +64,11 @@ describe('App.js route guard audit', () => {
     assert.equal(levelOf(routes, '/check'), 'user');
   });
 
-  it('reports the loading/user/RedirectToLogin shape as a user guard', () => {
+  it('reports the loading/user/SignInRequired shape as a user guard', () => {
     const routes = auditSource(`
       export default function App() {
         return <Routes>
-          <Route path="/check" element={loading ? null : user ? (<CheckPage />) : (<RedirectToLogin />)} />
+          <Route path="/check" element={loading ? null : user ? (<CheckPage />) : (<SignInRequired />)} />
         </Routes>;
       }
     `);

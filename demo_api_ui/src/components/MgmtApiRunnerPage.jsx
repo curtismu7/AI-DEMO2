@@ -7,6 +7,7 @@
 // op.group, middle = param form, right = Response/curl tabs.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import InspectorShell from './shared/InspectorShell';
+import SignInPrompt from './SignInPrompt';
 import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
 import JsonHighlight from './shared/JsonHighlight';
@@ -157,7 +158,7 @@ export default function MgmtApiRunnerPage() {
         statusOn={false}
         statusText="Sign in required"
         left={<div className="inspector-shell-tree-header"><span>Operations</span></div>}
-        middle={<div className="inspector-shell-form-empty">Please sign in as admin.</div>}
+        middle={<SignInPrompt admin message="The Management API Runner needs an admin session." />}
         right={<div className="inspector-shell-output-empty">Please sign in as admin.</div>}
       />
     );

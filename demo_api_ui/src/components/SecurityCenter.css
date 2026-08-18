@@ -94,3 +94,13 @@
   color: var(--brand-error, #F44336);
   font-weight: 600;
 }
+
+.security-signin-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}

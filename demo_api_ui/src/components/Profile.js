@@ -3,6 +3,7 @@ import { MdCheckCircle } from 'react-icons/md';
 import { toast } from 'react-toastify';
 import bffAxios from '../services/bffAxios';
 import AgentAccessCard from './AgentAccessCard';
+import SignInPrompt from './SignInPrompt';
 import './Profile.css';
 
 function DeviceIcon({ type }) {
@@ -180,6 +181,20 @@ export default function Profile({ user }) {
 
   const accountStatus = user?.enabled === false ? 'DISABLED' : 'ACCOUNT OK';
   const mfaEnabled = devices.length > 0 ? 'Yes' : 'No';
+
+  // Signed out: don't render a hollow profile (every field "—", empty device
+  // list) as if it were real — show the page heading and ask.
+  if (!user) {
+    return (
+      <div className="up-page">
+        <div className="up-heading">
+          <h1>User Portal</h1>
+          <p>Manage your profile and multi-factor authentication devices.</p>
+        </div>
+        <SignInPrompt message="Sign in to view and manage your profile." />
+      </div>
+    );
+  }
 
   return (
     <div className="up-page">
