@@ -5,6 +5,14 @@ const router = express.Router();
 const { authenticateToken, requireScopes } = require('../middleware/auth');
 const verticalDispatch = require('../services/verticalDispatch');
 
+// The caller's investment account is the single seeded portfolio (profile.portfolioId),
+// which is exactly what GET /accounts returns as the one account id. A :accountId that
+// doesn't match it is not the caller's account — 404 rather than silently serving the
+// caller's own default portfolio under someone else's id.
+function ownsAccount(data, accountId) {
+  return !!data && !!data.profile && accountId === data.profile.portfolioId;
+}
+
 /**
  * Portfolio summary — backs the A2A Investment Advisor specialist's
  * get_portfolio_summary tool (demo_mcp_resource_server). Reuses the investment
@@ -17,6 +25,9 @@ router.get('/accounts/:accountId/portfolio', authenticateToken, requireScopes(['
   const plugin = verticalDispatch.resolvePlugin('investment');
   const store = plugin.getDataStore();
   const data = store.get(req.user.id);
+  if (!ownsAccount(data, req.params.accountId)) {
+    return res.status(404).json({ error: 'account not found', accountId: req.params.accountId, status: 'not_found' });
+  }
   res.json({
     accountId: req.params.accountId,
     portfolioId: data.profile.portfolioId,
@@ -55,6 +66,9 @@ router.get('/accounts/:accountId/balance', authenticateToken, requireScopes(['re
   const plugin = verticalDispatch.resolvePlugin('investment');
   const store = plugin.getDataStore();
   const data = store.get(req.user.id);
+  if (!ownsAccount(data, req.params.accountId)) {
+    return res.status(404).json({ error: 'account not found', accountId: req.params.accountId, status: 'not_found' });
+  }
   res.json({
     accountId: req.params.accountId,
     totalValue: data.profile.totalValue,
