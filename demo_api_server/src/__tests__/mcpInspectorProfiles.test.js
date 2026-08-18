@@ -38,7 +38,7 @@ jest.mock('../../services/mcpWebSocketClient', () => {
 
 jest.mock('../../config/runtimeSettings', () => ({ get: (key) => (key === 'stepUpEnabled' ? false : undefined) }));
 
-const mockGetMcpUrl = jest.fn(() => 'https://api.pingone.com/v1/environments/env-123/mcp');
+const mockGetMcpUrl = jest.fn(() => 'https://mcp.pingone.com/admin/env-123/mcp');
 jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
   getMcpUrl: (...args) => mockGetMcpUrl(...args),
 }));
@@ -349,7 +349,7 @@ describe('Generic MCP Inspector — profiles', () => {
       expect(res.body._source).toBe('profile');
       expect(res.body.tools).toEqual([{ name: 'read_users' }]);
       expect(mockHttpListTools).toHaveBeenCalledWith({
-        url: 'https://api.pingone.com/v1/environments/env-123/mcp',
+        url: 'https://mcp.pingone.com/admin/env-123/mcp',
         authHeader: 'Authorization',
         authValue: 'Bearer admin-mcp-token',
       });

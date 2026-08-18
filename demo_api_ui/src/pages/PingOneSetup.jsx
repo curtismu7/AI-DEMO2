@@ -161,11 +161,11 @@ export default function PingOneSetup() {
 
                 <div className={`step ${results.steps.gatewayConnectivity.success ? 'passed' : 'failed'}`}>
                   <div className="step-title">
-                    {results.steps.gatewayConnectivity.success ? '✓' : '✗'} Gateway Connectivity
+                    {results.steps.gatewayConnectivity.success ? '✓' : '✗'} Hosted MCP Connectivity
                   </div>
                   <div className="step-detail">
                     {results.steps.gatewayConnectivity.success
-                      ? 'MCP gateway is reachable'
+                      ? 'Hosted PingOne MCP server is reachable'
                       : `Failed: ${results.steps.gatewayConnectivity.error}`}
                   </div>
                 </div>

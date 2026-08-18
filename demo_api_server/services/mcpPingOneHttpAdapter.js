@@ -27,9 +27,12 @@ const TIMEOUT_MS = 30_000;
 let _msgId = 0;
 let _toolsCache = null; // cached tools/list result for the process lifetime
 
-function _mcpUrl() {
-    const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
-    const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+// Single source of truth for the hosted MCP URL format. Optional overrides let
+// callers (e.g. the /pingone-setup connectivity test) build the URL for a
+// submitted region/envId instead of the configured one.
+function _mcpUrl(overrides = {}) {
+    const region = overrides.region || process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
+    const envId = overrides.envId || process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
     if (!envId) throw new Error('PingOne MCP: environment ID not configured');
     return `https://mcp.pingone.${region}/admin/${envId}/mcp`;
 }
@@ -190,4 +193,4 @@ function _resetToolsCache() {
     _toolsCache = null;
 }
 
-module.exports = { listTools, getCachedToolNames, callTool, getWorkerTokenDecoded, getMcpUrl: _mcpUrl, _resetToolsCache };
+module.exports = { listTools, getCachedToolNames, callTool, getWorkerTokenDecoded, getMcpUrl: _mcpUrl, extractJsonRpc: _extractJsonRpc, _resetToolsCache };
