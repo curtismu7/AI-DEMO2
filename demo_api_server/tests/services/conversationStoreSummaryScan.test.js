@@ -68,14 +68,26 @@ describe('conversationStore excludes summaries from message scans', () => {
 
   it('prune does not delete summaries (they lack .timestamp)', () => {
     const u = 'u-prune';
-    store.saveSummary(u, 'retail', [{ role: 'user', content: 'seed' }], 0, 1);
-    // Cross MAX_MESSAGES_PER_THREAD so the prune branch actually runs.
-    for (let i = 0; i < store.MAX_MESSAGES_PER_THREAD + 5; i += 1) {
-      store.saveMessage(u, 'retail', 'assistant', `m${i}`, { timestamp: Date.now() + i });
-    }
+    // The message key embeds Date.now(); in a tight loop many writes share one
+    // millisecond, so how many distinct messages actually persist depends on
+    // wall-clock speed (a source of CI flakiness). Advance a mocked clock so
+    // every write lands in its own millisecond → distinct key → no collision,
+    // isolating this test from timing while still exercising the real prune path.
+    let clock = 1_700_000_000_000;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => (clock += 1));
+    try {
+      store.saveSummary(u, 'retail', [{ role: 'user', content: 'seed' }], 0, 1);
+      // Cross MAX_MESSAGES_PER_THREAD so the prune branch actually runs.
+      for (let i = 0; i < store.MAX_MESSAGES_PER_THREAD + 5; i += 1) {
+        store.saveMessage(u, 'retail', 'assistant', `m${i}`);
+      }
 
-    // Summary survived the prune, and the thread was trimmed to the cap.
-    expect(store.getSummaries(u, 'retail')).toHaveLength(1);
-    expect(store.getThreadSize(u, 'retail')).toBe(store.MAX_MESSAGES_PER_THREAD);
+      // Summary survived the prune, and the thread was trimmed to exactly the cap
+      // (all 500 real messages retained; the 5 oldest dropped, the summary kept).
+      expect(store.getSummaries(u, 'retail')).toHaveLength(1);
+      expect(store.getThreadSize(u, 'retail')).toBe(store.MAX_MESSAGES_PER_THREAD);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });

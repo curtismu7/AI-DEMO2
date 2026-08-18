@@ -5,12 +5,15 @@ const router = express.Router();
 const { authenticateToken, requireScopes } = require('../middleware/auth');
 const verticalDispatch = require('../services/verticalDispatch');
 
-// The caller's investment account is the single seeded portfolio (profile.portfolioId),
-// which is exactly what GET /accounts returns as the one account id. A :accountId that
-// doesn't match it is not the caller's account — 404 rather than silently serving the
-// caller's own default portfolio under someone else's id.
+// Ids the caller legitimately owns: the top-level investment account
+// (profile.portfolioId, what GET /accounts returns) AND each of its sub-portfolio
+// ids (data.portfolios[].id, e.g. PF-01). A :accountId matching none of these is
+// foreign/unknown — 404 rather than silently serving the caller's own default
+// portfolio under someone else's id.
 function ownsAccount(data, accountId) {
-  return !!data && !!data.profile && accountId === data.profile.portfolioId;
+  if (!data || !data.profile) return false;
+  if (accountId === data.profile.portfolioId) return true;
+  return Array.isArray(data.portfolios) && data.portfolios.some((p) => p.id === accountId);
 }
 
 /**
