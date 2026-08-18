@@ -150,6 +150,35 @@ Verified live too, signed in as `demoUser`: 13 rows, all `tokenPresented: true`,
 `inRequiredGroup: true`. The board mints directly, so its token carries no A2A act
 chain. That is a product question, tracked in `TECH_DEBT.md` — not a regression.
 
+### 2026-08-18 — Malformed `_pkce` cookie threw a 500 out of the OAuth callback
+
+**Files changed:** `demo_api_server/services/pkceStateCookie.js`,
+`demo_api_server/tests/pkceStateCookie.test.js`
+
+**What was broken:** `readPkceCookie` could throw on attacker-controlled cookie
+text. `crypto.timingSafeEqual` raises `RangeError` when the buffers differ in
+length, and it sat OUTSIDE the function's `try`; `decodeURIComponent` raises
+`URIError` on a malformed escape like `%ZZ`, in `_parseCookieHeader` and again in
+`readPkceCookie`. Both propagated into `routes/oauth.js:215` /
+`routes/oauthUser.js:414` as a 500 or error redirect — even when the session
+still held valid PKCE state, which is the case this cookie exists only to back up.
+Reproduced directly: `_pkce=abc.zz` → RangeError, `_pkce=%ZZ` → URIError.
+
+**What was fixed:** all three points now return `null`, so the caller falls
+through to the session path. `_verify`'s comparison moved inside the existing
+`try` (matching `services/authStateCookie.js`); both `decodeURIComponent` calls
+fall back to the raw value.
+
+**Do not break:** this must stay a *reject*, never an *accept*. A wrong
+signature, a tampered payload, a cookie signed with another secret and an expired
+cookie must all still yield `null`. Never move the comparison back outside the
+`try`, and never let a decode failure produce a value that skips verification.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/pkceStateCookie.test.js
+--forceExit` — 8 cases covering the two crash shapes plus tamper, wrong-secret,
+expiry, and the `clearPkceCookie` append behaviour that keeps logout from
+dropping the `_auth` clear.
+
 ### 2026-08-18 — Cased transaction `type` skipped every authorization gate
 
 **Files changed:** `demo_api_server/routes/transactions.js`,

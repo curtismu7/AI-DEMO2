@@ -403,6 +403,46 @@ regression check.
 check first) and return `null` on any comparison error, matching
 `authStateCookie.js`.
 
+**RESOLVED 2026-08-18 (branch `worktree-fix-pkce-cookie-timingsafe`).**
+
+*What the issue really was:* exactly as described, and reproduced against the real
+module before touching it — but there were **two** throws reachable from cookie
+text, not one:
+
+```
+readPkceCookie({headers:{cookie:'_pkce=abc.zz'}})  -> THROWS RangeError  Input buffers must have the same byte length
+readPkceCookie({headers:{cookie:'_pkce=%ZZ'}})     -> THROWS URIError    URI malformed
+```
+
+The second is the same defect one frame further out: `_parseCookieHeader` calls
+`decodeURIComponent` on every cookie value, and a malformed escape throws there —
+before `_verify` is ever reached. Fixing only the `timingSafeEqual` call would
+have left the 500 reachable with a one-character cookie, and the entry would have
+read as closed.
+
+*What the fix was:* `demo_api_server/services/pkceStateCookie.js`, three
+non-throwing points, all returning `null` so the caller falls through to the
+session that this cookie only ever backs up:
+
+- `_verify` — `timingSafeEqual` moved inside the existing `try`, matching
+  `services/authStateCookie.js`, which has always done it this way.
+- `_parseCookieHeader` — per-value `decodeURIComponent` falls back to the raw
+  text, so an undecodable cookie fails signature verification instead of throwing.
+- `readPkceCookie` — its own second `decodeURIComponent` guarded the same way.
+
+*What was deliberately NOT changed:* verification strength. A wrong signature, a
+tampered payload, a cookie signed with a different secret, and an expired cookie
+all still return `null`. The fix converts "cannot verify" from *throw* to
+*reject*; it never converts it to *accept*. Pinned by
+`demo_api_server/tests/pkceStateCookie.test.js`, which asserts the tamper and
+wrong-secret cases alongside the two crash cases — a fail-open regression here
+would be far worse than the 500 this fixes.
+
+*Note for whoever touches `authStateCookie.js`:* its `_verify` is correct, but its
+`_parseCookieHeader` is the same unguarded shape this fix repaired. It was left
+alone because nothing in this session showed it reached — but it is the same code,
+one file over.
+
 ### 2026-08-18 — Honourable mentions from the audit (lower confidence / not yet load-bearing)
 
 - **`demo_mcp_gateway/src/auth/tokenValidator.ts:223-226`** — a forced JWKS
