@@ -5,8 +5,12 @@ Started from one question: *"in the MCP dance we call once for the tool list, ge
 chasing it surfaced a class of bug worth understanding before touching this area.
 
 Repo state at handoff: `main` = `3f7cf2628`, main checkout synced, Docker stack
-deployed and serving it. Twelve PRs merged (#1935, #1938, #1939, #1946, #1948,
-#1949, #1951, #1953, #1956, #1960, #1964, #1965, #1966, #1968).
+deployed and serving it. PRs merged: #1935, #1938, #1939, #1946, #1948, #1949,
+#1951, #1953, #1956, #1960, #1964, #1965, #1966, #1968, #1971.
+
+**Follow-up session 2026-08-18** added #1975 (mastra abort), #1977 (gateway
+handshake — merged but INERT, see Open items 2), #1982 (regression fix for
+#1949). Open items amended accordingly.
 
 ---
 
@@ -90,8 +94,12 @@ under their raw name rather than being dropped; add labels to `GW_STAGE_META`.
    plaintext port. `PG_GATEWAY_RESOURCE_ID` is a live token audience so it could
    not move; the listener moved to TLS instead (#1938). See `TECH_DEBT.md`.
 3. **`agentRun` called an endpoint that does not exist.** `/tools/list` is served
-   by nothing; `AGENT_GATEWAY_URL` was unset so it dialled the BFF itself. Now
-   uses `listAvailableTools` (WS, real gateway).
+   by nothing; `AGENT_GATEWAY_URL` was unset so it dialled the BFF itself.
+   **The first fix (#1949) was itself wrong** — it passed the agent
+   client-credentials token, which has no `sub`, so the gateway rejected it and
+   discovery still fell back to the hardcoded BANKING catalog. Corrected in
+   #1982 to reuse `agentToolsResolver`, which resolves a DELEGATED token.
+   Confirmed live: `tools/list — tools permitted 20`.
 4. **A `localStorage` spy that only worked on Node 26.** CI runs Node 22; the
    Storage methods live in different places. Never spy on `localStorage` — use
    `vi.stubGlobal`.
@@ -123,44 +131,86 @@ summary line, never the conclusion.
 
 ## Open items
 
-### 1. Three red agent suites — one shared cause, evidenced
+> **Amended 2026-08-18.** Items 1 and 2 were worked after the original handoff.
+> Item 1 is resolved. Item 2 turned out to be wrong about WHERE the fix belongs —
+> read it before touching the handshake.
 
-`mastra_agent` (3), `openai_agent` (1), `pydantic_agent` (8), all in
-`runHandler` / `test_run_handler`. All three implement the **same guard**:
+### 1. Three red agent suites — RESOLVED for mastra (#1975)
+
+Not stale tests. One production bug: `handleRun` aborted from `req.on('close')`,
+and Node emits that when the REQUEST BODY completes, not on client disconnect. So
+the run aborted after a single stream part, no text reached the emitter, and the
+`anyVisibleOutput` guard correctly reported "no usable response". Proven with a
+print inside the loop:
 
 ```
-mastra_agent/src/aguiEmitter.ts:27      anyVisibleOutput
-openai_agent/src/agui_emitter.py:39     (identical message)
-pydantic_agent/src/agui_emitter.py:18   _any_visible_output
+[DIAG] req close -> abort            <- before the stream even starts
+[DIAG] part 1 {"type":"tool-call",...}
+[DIAG] BREAK: aborted after 1 parts
 ```
 
-It turns "stream produced nothing visible" into `RUN_ERROR` instead of
-`RUN_FINISHED` — exactly what the suites assert against.
+**The guard was right; the abort above it was wrong.** The tempting fix — relaxing
+`anyVisibleOutput` — would have buried a live streaming bug. Fixed by listening on
+`res` instead. `mastra_agent` 33/36 → 36/36 and is now a BLOCKING gate.
 
-**Established for `mastra_agent`:** fails in isolation (not flaky, not shared
-state). Zero stream parts reach the emitter. Yet the mock's shape matches what
-the handler reads (`part.type === 'text-delta'`, `part.textDelta`), `buildAgent`
-returns the mocked `Agent` directly, and nothing memoises a generator to exhaust.
+**Still open:** `openai_agent` (1) and `pydantic_agent` (8) fail the same way and
+share the same guard, but they are FastAPI — the `req`/`res` close semantics do
+NOT carry over. Deliberately not pattern-matched. Someone should diagnose them
+directly.
 
-**Unresolved:** why `for await (const part of stream.fullStream)` iterates zero
-times when the mock yields four parts. Suspects: ts-jest async-generator interop,
-or the mock not applying. Prove it with a print inside the loop.
+### 2. Gateway upstream MCP handshake — ATTEMPTED, INERT (#1977). See TECH_DEBT.
 
-**Decide before fixing:** the guard was likely added *after* these tests. If so
-the fix is the tests. If instead the handlers genuinely stopped seeing stream
-output, it is a live bug in three agent frameworks. **Opposite fixes — do not
-guess.**
+The original text below was right about the goal and wrong about the target.
+`X-Gw-Mcp-Handshake` was added to the **Node** gateway (`demo_mcp_gateway`), but
+tool calls go to **PingGateway (IG)**:
 
-### 2. Gateway's own upstream MCP handshake
-`initialize` / `notifications/initialized` only populate on the direct path. On
-the gateway path the BFF is not the MCP client — the gateway is. The cards say so
-now (#1960). To make it visible, extend `X-Gw-Audit-Trail` (which already carries
-`filterChain`) with the upstream `initialize`. Needs a `demo_mcp_gateway` change.
+```
+[GW→PingGateway] REQUEST: url=http://ping-gateway:8080/mcp
+MCP_GATEWAY_HTTP_URL=http://ping-gateway:8080
+```
 
-### 3. TECH_DEBT entries
+A live `list_orders` call returns the gateway and challenge events but no
+`mcp-initialize` / `mcp-initialized`. The code is correct and tested; it simply
+never runs in this configuration. **Do not delete it** — it is live support for
+the non-default Node-gateway path.
+
+The tell was already on screen: the filter stages that render are
+`McpValidationFilter`, `McpAuditFilter`, `McpProtectionFilter` — IG names, which
+we had even written labels for. Right code, wrong host; the same shape as the
+`TraceStepCard` mistake above.
+
+Full analysis and the two candidate fixes are in `TECH_DEBT.md` (2026-08-18).
+
+### 3. A regression this session introduced and fixed — worth knowing about
+
+#1949 switched agent-run discovery off a dead endpoint but passed the agent
+CLIENT-CREDENTIALS token, which carries no `sub`. The gateway rejected it
+("Empty or missing token payload") and every run silently fell back to the
+hardcoded BANKING catalog — so in a non-banking vertical the model had nothing
+relevant and often made no tool call at all. Fixed in #1982 by reusing
+`agentToolsResolver`, which resolves a delegated token. Confirmed live:
+`tools/list — tools permitted 20`.
+
+**If you are reading agent behaviour recorded on 2026-08-17 between #1949 and
+#1982, treat it as suspect.**
+
+### 4. TECH_DEBT entries
 - `PG_GATEWAY_RESOURCE_ID` is both the token audience and the metadata URL source
 - `demo_agent_service` tests import across the package boundary into
   `demo_api_server/lib/vault` (needs the sibling's `argon2`)
+- The handshake-on-the-wrong-gateway analysis (2026-08-18)
+- No check proves a chain hop is reachable on the gateway actually in use
+  (2026-08-18)
+
+### 5. Not verified, and not claimed
+
+The handshake hops have never been seen filling on the gateway path, for the
+reason in item 2. Separately, the local model frequently answers "List my orders"
+without invoking a tool even with 20 tools permitted and history cleared, so live
+runs often do not exercise the tool path at all. Any live check here must
+distinguish "feature broken" from "run never exercised it" — assert the hop ids in
+the response `tokenEvents`, and treat a run with no `tools/call` hop as
+inconclusive rather than as a failure.
 
 ---
 
