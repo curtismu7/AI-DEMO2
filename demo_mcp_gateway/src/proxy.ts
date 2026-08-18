@@ -98,6 +98,9 @@ export function proxyJsonRpc(
     const ws = new WebSocket(backendWsUrl, wsOptions);
 
     let initialized = false;
+    // Filled when this call performs the upstream MCP handshake; attached to the
+    // response below so callers can report it without changing the RPC contract.
+    let handshake: { initialize: { protocolVersion: string | null; serverInfo: Record<string, unknown> | null }; initialized: boolean } | undefined;
     // WR-04: capture the handshake timer so it can be cleared on every
     // settle path. Without this, each proxied call leaves a dangling 10s
     // timer + closure over ws/reject alive until it fires (resource leak
@@ -151,6 +154,20 @@ export function proxyJsonRpc(
       // Step 1: handle initialize response → send notifications/initialized → send real request
       if (!initialized && msg.id === 'gw-init') {
         initialized = true;
+        // Record the lifecycle for the Token Chain. THIS is the MCP client on
+        // the gateway path — traced live 2026-08-18, the BFF never speaks the
+        // protocol here, so without reporting it from this function the chain
+        // can only say "not visible from here". The equivalent capture in
+        // GatewayServer.ts covers the HTTP proxy path; discovery comes through
+        // here over WebSocket, which is why that one never fired for tools/list.
+        const initResult = (msg as unknown as { result?: Record<string, unknown> }).result;
+        handshake = {
+          initialize: {
+            protocolVersion: (initResult?.protocolVersion as string) || null,
+            serverInfo: (initResult?.serverInfo as Record<string, unknown>) ?? null,
+          },
+          initialized: true,
+        };
         ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }));
         const _cid2 = getCorrelationId();
         let outRequest: JsonRpcRequest = request;
@@ -180,6 +197,11 @@ export function proxyJsonRpc(
         clearTimeout(handshakeTimer);
         signal?.removeEventListener('abort', onAbort);
         ws.close();
+        // Non-enumerable so it cannot leak into a JSON.stringify of the RPC
+        // response and change what any existing caller sends on the wire.
+        if (handshake) {
+          Object.defineProperty(msg, '_gwHandshake', { value: handshake, enumerable: false });
+        }
         resolve(msg);
       }
     });
