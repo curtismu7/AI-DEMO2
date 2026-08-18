@@ -246,8 +246,8 @@ export default function QuickFlagsPill({ user }) {
   const pillLabel = !flagsById
     ? (loadFailed ? 'Flags –' : '…')
     : pillFlag?.value
-      ? '🔐 JWKS'
-      : 'Introspect';
+      ? 'Configuration: JWKS'
+      : 'Configuration: Introspect';
 
   const pillTitle = 'Quick feature flags — token validation mode and demo switches';
 
