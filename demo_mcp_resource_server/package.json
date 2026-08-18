@@ -9,6 +9,7 @@
     "dev": "nodemon --exec \"node --experimental-sqlite -r ts-node/register\" src/index.ts",
     "start": "node --experimental-sqlite dist/index.js",
     "test": "jest",
+    "seeds:gen": "node scripts/gen-seeds-from-bff.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

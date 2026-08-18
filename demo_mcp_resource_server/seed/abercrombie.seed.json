@@ -3,6 +3,9 @@
     {
       "id": "ANF-10482",
       "product": "Essential Popover Hoodie",
+      "sku": "ANF-157-243",
+      "size": "M",
+      "color": "Heather Oat",
       "amount": 80,
       "status": "Delivered",
       "date": "2026-07-28"
@@ -10,6 +13,9 @@
     {
       "id": "ANF-10519",
       "product": "Curve Love High Rise 90s Relaxed Jean",
+      "sku": "ANF-155-489",
+      "size": "28 Regular",
+      "color": "Medium Wash",
       "amount": 90,
       "status": "Shipped",
       "date": "2026-08-01"
@@ -17,6 +23,9 @@
     {
       "id": "ANF-10544",
       "product": "Sloane Tailored Pant",
+      "sku": "ANF-156-772",
+      "size": "M",
+      "color": "Black",
       "amount": 90,
       "status": "Processing",
       "date": "2026-08-03"
