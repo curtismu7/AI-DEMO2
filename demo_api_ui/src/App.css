@@ -1926,6 +1926,9 @@
   background: transparent;
   flex: 0 0 6px;
   min-width: 6px;
+  /* Grids with align-items:start collapse an empty item to zero height,
+     leaving nothing to grab — always span the full row/column. */
+  align-self: stretch;
 }
 
 .divider-drag-handle:hover,
