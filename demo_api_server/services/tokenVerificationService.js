@@ -76,6 +76,17 @@ async function _introspectAsFallback(token, alg, kid, jwksFailureReason) {
     }
     return { verified: false, claims: null, alg, kid, error: errorMsg, warning: null, fallbackMethod: 'introspection' };
   } catch (introErr) {
+    // "Introspection not configured" means the fallback was unavailable — the
+    // check was SKIPPED, not that the token is inactive. Surface it as a warning
+    // (never an error) so a valid exchanged token isn't rejected in fail-closed
+    // mode just because introspection happens to be off. This is distinct from a
+    // real introspection error (network/auth), which still honours FAIL_OPEN below.
+    if (introErr.code === 'INTROSPECTION_NOT_CONFIGURED') {
+      const warning = `JWKS unavailable (${jwksFailureReason}); introspection not configured — verification skipped.`;
+      logger.warn(LOG_CATEGORIES.AUTHENTICATION,
+        'tokenVerificationService: introspection fallback skipped — not configured');
+      return { verified: false, claims: null, alg, kid, warning, error: null, fallbackMethod: 'none' };
+    }
     logger.warn(LOG_CATEGORIES.AUTHENTICATION,
       `tokenVerificationService: introspection fallback also failed — ${introErr.message}`);
     const warning = `JWKS unavailable (${jwksFailureReason}); introspection fallback failed: ${introErr.message}`;

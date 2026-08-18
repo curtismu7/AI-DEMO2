@@ -463,7 +463,12 @@ router.get('/callback', async (req, res) => {
         return redirectEndUserOAuthSpaFailure(req, res, { error: 'nonce_mismatch' });
       }
     } else if (expectedNonce && tokenData.id_token && !idTokenClaims.nonce) {
-      console.warn('[oauth/user/callback] ID token has no nonce claim');
+      // OIDC Core §3.1.3.7: when the client sent a nonce it MUST verify a matching
+      // one is present in the ID token. A missing nonce here is a verification
+      // failure (a replayed/forged ID token could simply omit it), so fail the
+      // callback exactly like the nonce-mismatch path above — never warn-and-proceed.
+      console.error('[oauth/user/callback] ID token missing nonce claim — nonce was requested');
+      return redirectEndUserOAuthSpaFailure(req, res, { error: 'nonce_missing' });
     }
 
     // Get user information from PingOne Core

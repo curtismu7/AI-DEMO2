@@ -250,6 +250,10 @@ async function validateToken(token, opts = {}) {
 
     return result;
   } catch (error) {
+    // "Not configured" is a deliberate signal, not a failure — let it propagate
+    // so the caller can tell "introspection skipped" from "PingOne said inactive"
+    // (a {valid:false} return). Already warn-logged above; don't re-log as an error.
+    if (error.code === 'INTROSPECTION_NOT_CONFIGURED') throw error;
     logger.error(LOG_CATEGORIES.ERROR, 'Token introspection failed', {
       error: error.message,
       endpoint: process.env.PINGONE_INTROSPECTION_ENDPOINT,
