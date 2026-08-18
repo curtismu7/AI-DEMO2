@@ -291,6 +291,21 @@ describe('a2aDelegated entries arm ff_a2a_delegation', () => {
     expect(wrong).toEqual([]);
   });
 
+  // Flipping the registry default is NOT enough on its own: getEffective prefers a
+  // persisted value, so an environment that ever stored 'false' stays off forever
+  // and never sees the new default. Measured on the live stack — the flag read
+  // 'false' with the default already 'true' and no FF_A2A_DELEGATION env var
+  // anywhere. Source-scanned rather than booted, matching the other startup tasks
+  // in server.js; the behaviour itself was confirmed live (the log line fired and
+  // the flag flipped to true on restart).
+  test('startup clears a persisted ff_a2a_delegation=false', () => {
+    const src = require('fs').readFileSync(require.resolve('../server.js'), 'utf8');
+    expect(src).toMatch(/deleteRaw\('ff_a2a_delegation'\)/);
+    // Only a stored FALSE is cleared — never a write, and a stored 'true' is left be.
+    expect(src).toMatch(/stored === 'false'/);
+    expect(src).not.toMatch(/setRaw\(\s*\{\s*ff_a2a_delegation/);
+  });
+
   test('ff_a2a_delegation defaults ON', () => {
     const { FLAG_REGISTRY, REGISTRY, registry } = require('../services/configStore');
     const reg = FLAG_REGISTRY || REGISTRY || registry;
