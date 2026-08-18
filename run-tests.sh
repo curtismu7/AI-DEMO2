@@ -36,16 +36,35 @@ ok()   { echo -e "${GREEN}✓ $1${NC}"; }
 warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
 fail() { echo -e "${RED}✗ $1${NC}"; exit 1; }
 
+# ── Toolchain preflight ──────────────────────────────────────────────────────
+# Refuse to verify when a service's node_modules — or the specific tool binary
+# about to run — is missing. A fresh worktree inherits no node_modules, and
+# letting npm/npx fetch a stray toolchain on the fly turns "toolchain missing"
+# into a false-green (or a misleading babel/"test failed" error) that reads like
+# a clean run. Fail loudly and name the fix instead of installing silently.
+#   Usage: require_toolchain <service_dir> <bin> [<bin> ...]
+require_toolchain() {
+  local dir="$1"; shift
+  local svc; svc="$(basename "$dir")"
+
+  if [[ ! -d "$dir/node_modules" ]]; then
+    fail "refusing to verify: $svc/node_modules is missing — run \`npm ci\` in $svc first"
+  fi
+
+  local bin
+  for bin in "$@"; do
+    if [[ ! -x "$dir/node_modules/.bin/$bin" ]]; then
+      fail "refusing to verify: $svc/node_modules/.bin/$bin is missing — run \`npm ci\` in $svc first"
+    fi
+  done
+}
+
 # ── API Unit / Integration Tests ────────────────────────────────────────────
 
 run_api_tests() {
   banner "API Server Tests (Jest)"
+  require_toolchain "$ROOT/demo_api_server" jest
   cd "$ROOT/demo_api_server"
-
-  if [[ ! -d node_modules ]]; then
-    warn "node_modules not found — running npm install first"
-    npm install --silent
-  fi
 
   if [[ "$MODE" == "unit" ]]; then
     echo "Running core regression suite (step-up-gate, authorize-gate, runtime-settings-api, transaction-flows)..."
@@ -62,12 +81,8 @@ run_api_tests() {
 
 run_ui_vite_smoke() {
   banner "UI Vite resolve smoke"
+  require_toolchain "$ROOT/demo_api_ui" vite
   cd "$ROOT/demo_api_ui"
-
-  if [[ ! -d node_modules ]]; then
-    warn "node_modules not found — running npm install first"
-    npm install --silent
-  fi
 
   npm run test:vite
   ok "UI Vite resolve smoke completed"
@@ -77,16 +92,13 @@ run_ui_vite_smoke() {
 
 run_e2e_tests() {
   banner "Playwright E2E UI Tests"
+  require_toolchain "$ROOT/demo_api_ui" playwright
   cd "$ROOT/demo_api_ui"
 
-  if [[ ! -d node_modules ]]; then
-    warn "node_modules not found — running npm install first"
-    npm install --silent
-  fi
-
-  # Check Playwright browsers are installed
-  if ! npx playwright --version > /dev/null 2>&1; then
-    warn "Playwright not found — run: npm install && npx playwright install chromium"
+  # Confirm the local Playwright CLI runs. --no-install so a missing binary
+  # errors explicitly instead of npx fetching a stray one.
+  if ! npx --no-install playwright --version > /dev/null 2>&1; then
+    warn "Playwright not found — run: npm ci && npx playwright install chromium"
     return 1
   fi
 
