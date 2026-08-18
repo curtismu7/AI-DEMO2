@@ -102,6 +102,48 @@ else
   NEW="${NEW:-$(git rev-parse HEAD)}"
 fi
 
+# The per-range checks below only see services the deployed range touched. The
+# observed failure (2026-08-18, ping-gateway; jaeger + mcp-server found the same
+# way) was a container in `created` with NO changes in range — invisible to every
+# per-range check on every subsequent run, so the skip sustained itself forever.
+# This asserts the WHOLE compose project on every terminal path. A container that
+# does not exist is a profiled service deliberately off; one in `created` was
+# asked for and never started — nothing legitimate leaves it there. `exited` may
+# be an operator's deliberate stop mid-debug, so it warns rather than fails.
+assert_stack_health() {
+  local rows name state status created="" unhealthy="" stopped=""
+  rows="$(docker ps -a --filter label=com.docker.compose.project=ai-demo \
+          --format '{{.Names}}\t{{.State}}\t{{.Status}}' 2>/dev/null || true)"
+  while IFS=$'\t' read -r name state status; do
+    [ -z "$name" ] && continue
+    case "$state" in
+      created|restarting) created="$created $name" ;;
+      exited|paused|dead) stopped="$stopped $name" ;;
+      running) case "$status" in *"(unhealthy)"*) unhealthy="$unhealthy $name" ;; esac ;;
+    esac
+  done <<<"$rows"
+  [ -n "${stopped// /}" ] && echo "[deploy-live] note: stopped containers (deliberate? verify):$stopped"
+  if [ -n "${created// /}" ] || [ -n "${unhealthy// /}" ]; then
+    echo "[deploy-live] STACK UNHEALTHY —${created:+ created-but-never-started:$created}${unhealthy:+ unhealthy:$unhealthy}"
+    echo "[deploy-live] This is independent of the deployed range: the stack is NOT fully serving."
+    echo "[deploy-live] Fix: ./run-docker.sh restart <svc>   (container names above, minus the ai-demo- prefix)"
+    return 1
+  fi
+  return 0
+}
+
+if [ "${STAMP_BOOTSTRAP:-0}" = "1" ] && [ "$OLD" != "$NEW" ]; then
+  # Same uncertainty as the OLD == NEW bootstrap branch below, but this side used
+  # to deploy silently: with no stamp, OLD fell back to the checkout's pre-sync
+  # HEAD — exactly the signal the stamp exists to replace, because the launchd
+  # sync usually advances the checkout first. Anything the containers were behind
+  # by BEFORE this run is not in PRE..NEW and gets skipped. Deploying the range is
+  # still the best effort available; claiming it is complete is not.
+  echo "[deploy-live] WARNING: no deploy stamp — deploying ${OLD:0:12}..${NEW:0:12} as a best effort."
+  echo "[deploy-live] Cannot tell whether the containers were current before this run. If anything"
+  echo "[deploy-live] looks stale afterwards, deploy an explicit range: scripts/deploy-live.sh <old-sha> ${NEW:0:12}"
+fi
+
 if [ "$OLD" = "$NEW" ]; then
   if [ "${STAMP_BOOTSTRAP:-0}" = "1" ]; then
     # No stamp yet, so "checkout did not move" is the ONLY signal available —
@@ -116,9 +158,11 @@ if [ "$OLD" = "$NEW" ]; then
       printf '%s\n' "$NEW" > "$STAMP"
       echo "[deploy-live] stamped ${NEW:0:12} — later runs will compare against it."
     fi
+    assert_stack_health || exit 1
     exit 0
   fi
   echo "[deploy-live] containers already serve ${NEW:0:12} — nothing to deploy"
+  assert_stack_health || exit 1
   exit 0
 fi
 
@@ -268,6 +312,7 @@ if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
   fi
   [ "$DRY_RUN" = "1" ] || printf '%s\n' "$NEW" > "$STAMP"
   echo "[deploy-live] no running service is affected by this range — done"
+  assert_stack_health || exit 1
   exit 0
 fi
 
@@ -313,5 +358,9 @@ if [ -n "${NOT_UP// /}" ] || [ -n "${BROKEN_SET// /}" ]; then
   echo "[deploy-live] stamp left at ${OLD:0:12} so the next run retries this range."
   exit 1
 fi
+# Stamp first: the touched services DID take this range, and withholding the
+# stamp over an unrelated dead container would make later runs re-deploy code
+# that already landed. The non-zero exit is the escalation, not the stamp.
 printf '%s\n' "$NEW" > "$STAMP"
+assert_stack_health || exit 1
 echo "[deploy-live] done — live stack serves ${NEW:0:12}"
