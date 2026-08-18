@@ -15,6 +15,7 @@ import ExecutionEngine from '../../services/executionEngine';
  */
 export default function ProtocolViewer({ flowSpec, executionState, onExecutionStateChange, dark = false }) {
   const [engine, setEngine] = useState(null);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   // Recreate engine when flowSpec changes
   useEffect(() => {
@@ -33,18 +34,26 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
   }
 
   const handleExecute = async () => {
+    if (isExecuting) return;
+    setIsExecuting(true);
     try {
-      await engine.executeAll();
+      // Progress callback pushes state after every step so results stream
+      // into the activity panel instead of appearing all at once at the end.
+      await engine.executeAll((state) => onExecutionStateChange(state));
       onExecutionStateChange(engine.getState());
     } catch (err) {
       onExecutionStateChange({
         ...engine.getState(),
         error: err.message || 'Execution failed'
       });
+    } finally {
+      setIsExecuting(false);
     }
   };
 
   const handleStep = async () => {
+    if (isExecuting) return;
+    setIsExecuting(true);
     try {
       const nextStep = flowSpec.steps[executionState.results.length];
       if (nextStep) {
@@ -56,6 +65,8 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
         ...engine.getState(),
         error: err.message || 'Step execution failed'
       });
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -73,6 +84,8 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
   };
 
   const handleStepCardExecute = async (stepId) => {
+    if (isExecuting) return;
+    setIsExecuting(true);
     try {
       await engine.executeStep(stepId);
       onExecutionStateChange(engine.getState());
@@ -81,6 +94,8 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
         ...engine.getState(),
         error: err.message || 'Step execution failed'
       });
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -128,6 +143,7 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
             onReset={handleReset}
             stepCount={executionState.results.length}
             totalSteps={flowSpec.steps?.length || 0}
+            isExecuting={isExecuting}
           />
         </div>
 

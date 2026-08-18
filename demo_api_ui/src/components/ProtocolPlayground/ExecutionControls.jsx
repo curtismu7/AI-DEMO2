@@ -5,14 +5,17 @@ export default function ExecutionControls({
   onStep,
   onReset,
   stepCount,
-  totalSteps
+  totalSteps,
+  isExecuting = false
 }) {
   const isComplete = stepCount >= totalSteps;
 
   return (
     <div className="execution-controls">
       <div className="controls-progress">
-        <span className="progress-text">Step {stepCount} of {totalSteps}</span>
+        <span className="progress-text">
+          {isExecuting ? `Executing step ${Math.min(stepCount + 1, totalSteps)} of ${totalSteps}` : `Step ${stepCount} of ${totalSteps}`}
+        </span>
         <div className="progress-bar">
           <div
             className="progress-fill"
@@ -25,20 +28,27 @@ export default function ExecutionControls({
         <button
           className="btn btn-primary"
           onClick={onExecute}
-          disabled={isComplete}
+          disabled={isComplete || isExecuting}
         >
-          Execute All
+          {isExecuting ? (
+            <>
+              <span className="pp-spinner" aria-hidden="true" /> Executing
+            </>
+          ) : (
+            'Execute All'
+          )}
         </button>
         <button
           className="btn btn-default"
           onClick={onStep}
-          disabled={isComplete}
+          disabled={isComplete || isExecuting}
         >
           Next Step
         </button>
         <button
           className="btn btn-default"
           onClick={onReset}
+          disabled={isExecuting}
         >
           Reset
         </button>

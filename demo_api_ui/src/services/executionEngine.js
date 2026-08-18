@@ -175,9 +175,11 @@ class ExecutionEngine {
 
   /**
    * Execute all steps in the flow sequentially
+   * @param {function} [onProgress] - called with getState() after each step
+   *   (success or recorded failure) so the UI can render progress live
    * @returns {Promise<Array>} Array of results, one per step
    */
-  async executeAll() {
+  async executeAll(onProgress) {
     const results = [];
 
     if (!this.flowSpec || !this.flowSpec.steps || this.flowSpec.steps.length === 0) {
@@ -203,6 +205,7 @@ class ExecutionEngine {
         this.state.results.push(failure);
         results.push(failure);
       }
+      onProgress?.(this.getState());
     }
 
     return results;

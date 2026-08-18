@@ -352,6 +352,32 @@ describe('ExecutionEngine', () => {
       expect(results[1].stepId).toBe('step-2');
     });
 
+    it('calls onProgress with accumulated state after each step', async () => {
+      const mockResponse = {
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        data: {}
+      };
+
+      vi.spyOn(axios, 'create').mockReturnValue({
+        get: vi.fn().mockResolvedValue(mockResponse),
+        post: vi.fn().mockResolvedValue(mockResponse),
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn()
+      });
+
+      engine = new ExecutionEngine(mockFlowSpec);
+
+      const onProgress = vi.fn();
+      await engine.executeAll(onProgress);
+
+      expect(onProgress).toHaveBeenCalledTimes(2);
+      expect(onProgress.mock.calls[0][0].results).toHaveLength(1);
+      expect(onProgress.mock.calls[1][0].results).toHaveLength(2);
+    });
+
     it('stops on error if stopOnError is true', async () => {
       const flowWithStopOnError = {
         steps: [
