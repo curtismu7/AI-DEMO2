@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/VerticalSwitcher.jsx
 import { useState, useEffect } from 'react';
 import { useVertical } from '../vertical/useVertical';
+import { getCachedJson } from '../services/cachedStatusService';
 import ThemeZonePanel from './ThemeZonePanel';
 import './VerticalSwitcher.css';
 
@@ -17,7 +18,34 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
   useEffect(() => {
     const onAuth = () => setAuthed(true);
     window.addEventListener('userAuthenticated', onAuth);
-    return () => window.removeEventListener('userAuthenticated', onAuth);
+    // `userAuthenticated` fires once per session (guarded in useAuth), so a
+    // switcher mounting AFTER it fired (e.g. Config page, Demo Data page) never
+    // hears it and the picker stays hidden. Seed current auth state on mount
+    // from the same status endpoints useAuth checks (cached + deduped, so no
+    // extra round-trips), while keeping the listener for later logins.
+    let cancelled = false;
+    (async () => {
+      const endpoints = [
+        '/api/auth/oauth/status',
+        '/api/auth/oauth/user/status',
+        '/api/auth/session',
+      ];
+      for (const url of endpoints) {
+        try {
+          const { data } = await getCachedJson(url);
+          if (data && data.authenticated) {
+            if (!cancelled) setAuthed(true);
+            return;
+          }
+        } catch {
+          /* not authenticated on this endpoint — try the next */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      window.removeEventListener('userAuthenticated', onAuth);
+    };
   }, []);
 
   useEffect(() => {

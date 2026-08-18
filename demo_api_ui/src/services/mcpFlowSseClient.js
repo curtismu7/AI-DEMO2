@@ -19,7 +19,16 @@ export function openMcpFlowSse(traceId, onEvent) {
     return () => {};
   }
 
+  // A transient disconnect makes EventSource fire onerror while the browser
+  // auto-reconnects. Permanently closing on the first error kills that
+  // reconnect and drops the rest of the pipeline — including the stream_end
+  // that legitimately ends the stream. So only close on a terminal condition;
+  // let stream_end own normal completion.
+  const MAX_CONSECUTIVE_ERRORS = 6;
+  let consecutiveErrors = 0;
+
   const handleMessage = (ev) => {
+    consecutiveErrors = 0;
     try {
       const data = JSON.parse(ev.data);
       onEvent(data);
@@ -33,9 +42,18 @@ export function openMcpFlowSse(traceId, onEvent) {
 
   es.addEventListener('message', handleMessage);
   es.onerror = () => {
-    try {
-      es.close();
-    } catch (_) {}
+    consecutiveErrors += 1;
+    // Close only when the browser has given up (readyState CLOSED) or too many
+    // errors arrive without an intervening message — otherwise let the built-in
+    // reconnect run so remaining events (and stream_end) still arrive.
+    if (
+      es.readyState === EventSource.CLOSED ||
+      consecutiveErrors >= MAX_CONSECUTIVE_ERRORS
+    ) {
+      try {
+        es.close();
+      } catch (_) {}
+    }
   };
 
   return () => {

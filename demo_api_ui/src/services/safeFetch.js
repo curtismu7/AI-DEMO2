@@ -74,8 +74,13 @@ export function useSafeFetch(url, options = {}) {
     loading: true,
   });
 
+  // Bump a nonce so the fetch effect re-runs — without it, refetch only flips
+  // loading:true and the effect deps never change, leaving an infinite spinner.
+  const [refetchNonce, setRefetchNonce] = React.useState(0);
+
   const refetch = React.useCallback(() => {
     setState({ data: null, error: null, loading: true });
+    setRefetchNonce((n) => n + 1);
   }, []);
 
   React.useEffect(() => {
@@ -114,7 +119,7 @@ export function useSafeFetch(url, options = {}) {
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, options.skip, options.method, ...(options.deps || [])]);
+  }, [url, options.skip, options.method, refetchNonce, ...(options.deps || [])]);
 
   return { ...state, refetch };
 }
