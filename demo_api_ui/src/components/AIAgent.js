@@ -315,9 +315,22 @@ export default function BankingAgent({
   const isBottomDock = isInline && embeddedDockBottom;
   const isConfigEmbeddedFocus = embeddedFocus === "config";
   const splitChrome = Boolean(splitColumnChrome && isInline);
-  // Phase 246: also show Actions popout for dashboard inline agents that use distinctFloatingChrome
-  const useActionsPopout =
-    !isInline || Boolean(distinctFloatingChrome && isInline);
+  // Named for a popout that no longer exists. Phase 246 routed dashboard inline
+  // agents to the Actions popout; Task 7 then deleted that popout — a comment
+  // further down this file says the trigger was removed because
+  // `ba-actions-popout` "no longer exists anywhere in this file". The flag was
+  // left pointing at it, so on every production mount it meant "render no
+  // actions at all": App.js, AgentPage.js and PublicRoutes.js all pass
+  // distinctFloatingChrome, and DemoGuidePopout is not inline. Measured
+  // 2026-08-18 on a live /dashboard: zero .ba-action-chip in the DOM.
+  //
+  // What it hid is not only chips — the same branch carries the session-refresh
+  // row, the suggestion chip, the guest chip grid INCLUDING the sign-in prompt,
+  // and ba-left-auth. The guest-mode login affordance was unreachable too.
+  //
+  // So the condition now says what it means: the left column is for inline
+  // mounts. Float mode keeps its own chrome and is unchanged.
+  const useActionsPopout = !isInline;
   const { preset: industryPreset } = useIndustryBranding();
   const brandShortName = industryPreset.shortName;
   const edu = useEducationUIOptional();

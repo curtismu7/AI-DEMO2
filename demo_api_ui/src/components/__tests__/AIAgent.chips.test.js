@@ -1171,3 +1171,37 @@ describe("Header controls portal", () => {
     document.body.removeChild(host);
   });
 });
+
+
+// ─── The left column is reachable again ──────────────────────────────────────
+// `useActionsPopout` was named for a popout Task 7 deleted, and it gated the ONLY
+// call site of renderActionGroups. Every production mount set it, so no
+// .ba-action-chip existed anywhere in the running app — measured live on
+// /dashboard 2026-08-18, before and after opening the More trigger.
+//
+// These pin the mount shapes the real routes use. App.js, AgentPage.js and
+// PublicRoutes.js all pass distinctFloatingChrome; if the flag ever gates on it
+// again, the first test goes red instead of the chips quietly vanishing for
+// another few months.
+describe("action chips render on the mounts production actually uses", () => {
+  it("dashboard shape (inline + distinctFloatingChrome) renders chips", () => {
+    const { container } = renderAgent({
+      user: customerUser,
+      mode: "inline",
+      distinctFloatingChrome: true,
+    });
+    expect(container.querySelectorAll(".ba-action-chip").length).toBeGreaterThan(0);
+  });
+
+  it("bare inline still renders chips — the pre-existing path is unchanged", () => {
+    const { container } = renderAgent({ user: customerUser, mode: "inline" });
+    expect(container.querySelectorAll(".ba-action-chip").length).toBeGreaterThan(0);
+  });
+
+  it("float mode keeps its own chrome and grows no left column", () => {
+    // Float is the one surface the flag SHOULD suppress: it has its own panel
+    // chrome. Restoring the inline column must not leak into it.
+    const { container } = renderAgent({ user: customerUser, mode: "float" });
+    expect(container.querySelectorAll(".ba-left-col").length).toBe(0);
+  });
+});
