@@ -15,6 +15,12 @@
 const crypto = require('node:crypto');
 const argon2 = require('argon2');
 
+// The AEAD primitives were relocated to lib/aead.js so the vault can be removed
+// later without breaking the two non-vault LMDB stores that also use them.
+// Re-exported here so the vault and its existing tests keep importing them from
+// this module during the transition (removed in a later phase).
+const { aeadSeal, aeadOpen } = require('../aead');
+
 /**
  * Argon2id parameters — FROZEN. Do not change without bumping the on-disk
  * format version and adding a migration path.
@@ -52,49 +58,6 @@ async function deriveKek(password, saltBuf) {
   const kek = Buffer.from(raw);
   if (Buffer.isBuffer(raw)) raw.fill(0);
   return kek;
-}
-
-/**
- * AEAD-seal `plaintext` under `key` (AES-256-GCM with a fresh random 12-byte IV).
- *
- * @param {Buffer|string} plaintext
- * @param {Buffer} key  32 bytes
- * @returns {{ iv: Buffer, tag: Buffer, ct: Buffer }}
- */
-function aeadSeal(plaintext, key) {
-  if (!Buffer.isBuffer(key) || key.length !== 32) {
-    throw new Error('key must be 32 bytes');
-  }
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  const pt = Buffer.isBuffer(plaintext) ? plaintext : Buffer.from(plaintext, 'utf8');
-  const ct = Buffer.concat([cipher.update(pt), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return { iv, tag, ct };
-}
-
-/**
- * AEAD-open a previously-sealed payload. Throws on tag mismatch (caller sees
- * the bare node:crypto error — DO NOT wrap with a leakier message).
- *
- * @param {{ iv: Buffer, tag: Buffer, ct: Buffer }} payload
- * @param {Buffer} key  32 bytes
- * @returns {Buffer} decrypted plaintext
- */
-function aeadOpen(payload, key) {
-  if (!Buffer.isBuffer(key) || key.length !== 32) {
-    throw new Error('key must be 32 bytes');
-  }
-  const { iv, tag, ct } = payload;
-  if (!Buffer.isBuffer(iv) || iv.length !== 12) {
-    throw new Error('iv must be 12 bytes');
-  }
-  if (!Buffer.isBuffer(tag) || tag.length !== 16) {
-    throw new Error('tag must be 16 bytes');
-  }
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(ct), decipher.final()]);
 }
 
 /**

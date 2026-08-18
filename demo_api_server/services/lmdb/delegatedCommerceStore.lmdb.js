@@ -2,7 +2,7 @@
 
 const crypto = require('node:crypto');
 const { openEnv } = require('./openEnv');
-const { aeadSeal, aeadOpen } = require('../../lib/vault/crypto');
+const { aeadSeal, aeadOpen } = require('../../lib/aead');
 
 const DB_NAME = 'delegated_commerce_registrations';
 const CREDENTIAL_SALT = 'delegated-commerce-credential-v1';

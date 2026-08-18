@@ -15,7 +15,7 @@
  */
 const crypto = require('node:crypto');
 const { openEnv } = require('./openEnv');
-const { aeadSeal, aeadOpen } = require('../../lib/vault/crypto');
+const { aeadSeal, aeadOpen } = require('../../lib/aead');
 
 const DB_NAME = 'sdk_demo_tokens';
 
