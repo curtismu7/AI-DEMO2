@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
+const { getMcpUrl, extractJsonRpc } = require('../services/mcpPingOneHttpAdapter');
 
 // GET /api/pingone/setup/defaults - Return the worker credentials from the
 // server .env so the setup form can pre-fill them. No auth required so the
@@ -35,14 +36,10 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const region = configStore.getEffective('pingone_region') || 'com';
-    const configuredGatewayUrl = configStore.getEffective('mcp_gateway_http_url') || process.env.DEMO_API_BASE_URL;
-    const gatewayUrl = configuredGatewayUrl || 'https://api.ping.demo:3036';
-
-    if (!configuredGatewayUrl) {
-      console.warn('PingOne setup: using default gateway URL (not configured via configStore or DEMO_API_BASE_URL)');
-    }
-
     const tokenEndpoint = `https://auth.pingone.${region}/${environmentId}/as/token`;
+    // Hosted PingOne MCP server URL — built by the adapter (single source of
+    // truth for the https://mcp.pingone.{region}/admin/{envId}/mcp format).
+    const mcpUrl = getMcpUrl({ region, envId: environmentId });
 
     const results = {
       tokenAcquisition: { success: false, error: null },
@@ -69,34 +66,45 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.json(buildResponse(results, false));
     }
 
+    // One streamable-HTTP JSON-RPC POST to the hosted PingOne MCP server
+    // validates both reachability (the server accepted the worker token) and
+    // the tools/list result. The hosted server is stateless — no initialize
+    // handshake or session id (see mcpPingOneHttpAdapter, which the agent
+    // path uses to make the same call).
+    let mcpResponse;
     try {
-      await axios.get(`${gatewayUrl}/.well-known/mcp`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        timeout: 5000,
-      });
-      results.gatewayConnectivity.success = true;
-    } catch (err) {
-      results.gatewayConnectivity.error = err.response?.statusText || err.message;
-      return res.json(buildResponse(results, false));
-    }
-
-    try {
-      const toolsResponse = await axios.post(
-        `${gatewayUrl}/mcp/tools/list`,
-        { jsonrpc: '2.0', method: 'tools/list', id: 1 },
+      mcpResponse = await axios.post(
+        mcpUrl,
+        { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
           },
-          timeout: 5000,
+          timeout: 10000,
+          // Keep the raw body; extractJsonRpc handles JSON or SSE framing.
+          responseType: 'text',
+          transformResponse: (d) => d,
         }
       );
-      results.toolCall.success = true;
-      results.toolCall.tools = toolsResponse.data.result?.tools || [];
-      results.toolCall.toolsFound = results.toolCall.tools.length;
+      results.gatewayConnectivity.success = true;
     } catch (err) {
-      results.toolCall.error = err.response?.data?.error || err.message;
+      const status = err.response?.status;
+      results.gatewayConnectivity.error = status ? `HTTP ${status}` : err.message;
+      return res.json(buildResponse(results, false));
+    }
+
+    try {
+      const rpc = extractJsonRpc(mcpResponse.data);
+      if (rpc?.error) throw new Error(rpc.error.message || 'MCP JSON-RPC error');
+      const tools = rpc?.result?.tools;
+      if (!Array.isArray(tools)) throw new Error('tools/list returned no tools array');
+      results.toolCall.success = true;
+      results.toolCall.tools = tools;
+      results.toolCall.toolsFound = tools.length;
+    } catch (err) {
+      results.toolCall.error = err.message;
     }
 
     return res.json(buildResponse(results, results.toolCall.success));
@@ -112,7 +120,7 @@ function buildResponse(results, allPassed) {
     steps: results,
     nextSteps: allPassed ? [
       'Restart BFF: ./run-docker.sh restart demo-api-server',
-      'Verify in UI: Navigate to http://localhost:3000',
+      'Verify in UI: Navigate to https://local.ping-devops.com:4000',
       'Test agent actions that use MCP tools',
     ] : [
       'Check credentials in PingOne console',

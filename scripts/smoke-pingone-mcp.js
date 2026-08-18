@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * smoke-pingone-mcp.js — end-to-end health check for the HOSTED PingOne MCP
- * server (the admin-plane MCP at api.pingone.{region}/v1/environments/{envId}/mcp,
+ * server (the admin-plane MCP at mcp.pingone.{region}/admin/{envId}/mcp,
  * NOT the repo's own banking MCP servers).
  *
  * Two checks, both must pass (exit 0) or the script exits 1 with the reason:
@@ -79,8 +79,11 @@ async function main() {
   }
   const { access_token: token } = await tokenRes.json();
 
-  // 2. tools/list against the hosted MCP endpoint
-  const mcpUrl = `https://api.pingone.${region}/v1/environments/${envId}/mcp`;
+  // 2. tools/list against the hosted MCP endpoint.
+  // URL format: single source of truth is getMcpUrl() in
+  // demo_api_server/services/mcpPingOneHttpAdapter.js — inlined here because
+  // this script is deliberately dependency-free (node builtins + fetch only).
+  const mcpUrl = `https://mcp.pingone.${region}/admin/${envId}/mcp`;
   const mcpRes = await fetch(mcpUrl, {
     method: 'POST',
     headers: {

@@ -15,6 +15,8 @@ const path = require('path');
 const {
   SECRET_NAMES,
   ADDITIONAL_SECRET_NAMES,
+  BFF_BOOTSTRAP_MARKER,
+  assertBffDecryptCapable,
   encryptArgs,
   encryptAll,
   readPublicKey,
@@ -110,6 +112,39 @@ describe('readPublicKey', () => {
   });
 });
 
+describe('assertBffDecryptCapable (recurrence guard, 2026-08-18 incident)', () => {
+  // The incident: all four .env files were encrypted while server.js had no
+  // dotenvx decrypt path (plan Task 5 never re-ran after its Step-0 STOP), so
+  // the BFF restarted into raw ciphertext. The guard makes that sequencing
+  // mistake impossible: no bootstrap in server.js → the encrypt run refuses.
+
+  test('refuses when the entrypoint lacks the dotenvx bootstrap', () => {
+    const entrypoint = tmpFile('server.js', "require('newrelic');\nrequire('dotenv').config();\n");
+    expect(() => assertBffDecryptCapable({ entrypoint })).toThrow(
+      /refusing to encrypt demo_api_server\/\.env: server\.js has no dotenvx bootstrap/,
+    );
+  });
+
+  test('refuses when the entrypoint cannot be read at all', () => {
+    const entrypoint = path.join(os.tmpdir(), 'does-not-exist-anywhere', 'server.js');
+    expect(() => assertBffDecryptCapable({ entrypoint })).toThrow(/no dotenvx bootstrap/);
+  });
+
+  test('proceeds when the bootstrap require is present', () => {
+    const entrypoint = tmpFile(
+      'server.js',
+      `${BFF_BOOTSTRAP_MARKER}.bootstrapDotenvx();\nrequire('newrelic');\n`,
+    );
+    expect(() => assertBffDecryptCapable({ entrypoint })).not.toThrow();
+  });
+
+  test('the REAL server.js passes the guard (bootstrap is actually wired)', () => {
+    // Defaults resolve to the repo's demo_api_server/server.js — this ties the
+    // guard to reality instead of only to fixtures.
+    expect(() => assertBffDecryptCapable()).not.toThrow();
+  });
+});
+
 describe('encryptAll', () => {
   // Fake dotenvx: on `encrypt -f <file>`, if the file has no DOTENV_PUBLIC_KEY it
   // "generates" one, in the REAL dotenvx output shape — quoted value plus the
@@ -129,6 +164,30 @@ describe('encryptAll', () => {
     };
     return { run, calls };
   }
+
+  test('refuses BEFORE encrypting anything when the BFF bootstrap is absent', () => {
+    const a = tmpFile('.env', 'HELIX_API_KEY=secretA\n');
+    const bareEntrypoint = tmpFile('server.js', "require('newrelic');\n");
+    const { run, calls } = makeFakeDotenvx('pub-MUST-NOT-APPEAR');
+
+    expect(() => encryptAll({ files: [a], runDotenvx: run, bffEntrypoint: bareEntrypoint }))
+      .toThrow(/refusing to encrypt demo_api_server\/\.env/);
+
+    // The refusal must come before ANY mutation: no dotenvx invocation, file untouched.
+    expect(calls).toHaveLength(0);
+    expect(fs.readFileSync(a, 'utf8')).toBe('HELIX_API_KEY=secretA\n');
+  });
+
+  test('proceeds when the BFF bootstrap is present in the entrypoint', () => {
+    const a = tmpFile('.env', 'HELIX_API_KEY=secretA\n');
+    const okEntrypoint = tmpFile('server.js', `${BFF_BOOTSTRAP_MARKER}.bootstrapDotenvx();\nrequire('newrelic');\n`);
+    const { run, calls } = makeFakeDotenvx('pub-GENERATED-G');
+
+    const res = encryptAll({ files: [a], runDotenvx: run, bffEntrypoint: okEntrypoint });
+
+    expect(calls).toHaveLength(1);
+    expect(res.encrypted).toEqual([a]);
+  });
 
   test('fresh: generates one keypair, then shares it across all files', () => {
     const a = tmpFile('.env', 'HELIX_API_KEY=secretA\nNODE_ENV=development\n');

@@ -246,18 +246,41 @@ Expected new log lines: `[DOTENVX] Auto-loaded DOTENV_PRIVATE_KEY from …` and
 
 ## Step D — VALIDATE (before any Task 8 vault deletion)
 
-**D.1 — each service loaded its secrets (not ciphertext).** No `encrypted:` value
-should reach a decrypted secret. Check boot logs for successful secret load and
-the absence of decrypt errors:
+**D.1 — each service loaded its secrets (not ciphertext) — BEHAVIORAL, from
+logs.** Do NOT use `docker exec ... printenv` here: container-level env is the
+RAW ciphertext BY DESIGN after the cutover — compose `env_file:` injects the
+encrypted `.env` verbatim at container creation, and decryption happens inside
+each Node process, never propagating back to the container env. A printenv-style
+check therefore fails forever on a perfectly healthy stack (this exact false
+alarm happened live on 2026-08-18). Validate what the processes DO instead:
 
 ```bash
+# 1. The incident signature must be ABSENT: no service may log a ciphertext
+#    value as if it were a secret (2026-08-18: `user_secret=encr...`,
+#    `collector.encrypted:...` from New Relic, `Decryption failed` from
+#    ConfigStore).
 for c in ai-demo-api-server ai-demo-mcp-gateway ai-demo-agent-service ai-demo-mcp-server; do
-  echo "== $c =="; docker logs "$c" --since 3m 2>&1 | grep -iE 'secret|dotenv|decrypt|refus|missing_key' | tail -20
+  echo "== $c =="
+  docker logs "$c" --since 5m 2>&1 \
+    | grep -iE 'encrypted:[A-Za-z0-9+/]{8}|collector\.encrypted|Decryption failed|DECRYPTION_FAILED' \
+    && echo "FAIL: ciphertext reached application code" \
+    || echo "OK: no ciphertext in application log lines"
 done
+
+# 2. POSITIVE evidence the BFF decrypt bootstrap ran (not just absence of errors):
+docker logs ai-demo-api-server --since 5m 2>&1 | grep '\[dotenvx\] bootstrap'
+# expect: "[dotenvx] bootstrap: decrypted .env applied — N value(s) set, ..."
+
+# 3. The login flow reads a REAL secret: sign in at local.ping-devops.com:4000,
+#    then confirm the masked secret prefix is not ciphertext:
+docker logs ai-demo-api-server --since 5m 2>&1 | grep '\[oauth/user/login\] env_id='
+# The `user_secret=` field must NOT read `encr...` — that is the first 4 chars
+# of `encrypted:...` through the log mask, and was the live incident's tell.
 ```
 
-A secret still holding an `encrypted:BASE64…` value means the key did not reach
-that container — recheck Step C. (Do not print the decrypted values themselves.)
+Any hit in check 1, a missing bootstrap line in check 2, or `user_secret=encr...`
+in check 3 means the key did not reach that container — recheck Step C. (Do not
+print the decrypted values themselves.)
 
 **D.2 — the service-key bridge serves a real key.** The BFF's internal bridge
 resolves `DEMO_API_RESOURCE_SERVER_KEY` from the (now decrypted) env. It requires
@@ -274,21 +297,38 @@ curl -sk -H "x-internal-gateway-secret: $SEC" \
 `404 key_unset` here means `DEMO_API_RESOURCE_SERVER_KEY` did not decrypt into the
 BFF — fix before proceeding.
 
-**D.3 — §4 identity invariant: gateway and oauth-mcp receive byte-identical
-`PINGONE_MCP_GATEWAY_*`.** Compare hashes across containers (never print the
-secret):
+**D.3 — §4 identity invariant: the gateway's exchange client is still the client
+oauth-mcp introspects — FUNCTIONAL, not printenv.** `docker exec ... printenv`
+comparisons prove nothing after the cutover: both containers' env holds the RAW
+ciphertext BY DESIGN (identical ciphertext would even false-PASS while
+decrypting to different or garbage values, and the decrypted values never appear
+in container env). Prove the identity pair the way it is actually used — one
+introspected gateway call end-to-end:
+
+1. Sign in at `local.ping-devops.com:4000` (Super Sports) and run one
+   gateway-routed agent chip (e.g. the transfer chip — the same one D.4 uses).
+   It must complete with real data — not "Insufficient scope", not "Gateway
+   Policy Denied", not a 401 toast.
+
+2. Confirm from both sides' logs that introspection worked during that window:
 
 ```bash
-for c in ai-demo-mcp-gateway ai-demo-mcp-server ai-demo-api-server; do
-  printf '%s ' "$c"
-  docker exec "$c" sh -lc 'printenv PINGONE_MCP_GATEWAY_CLIENT_ID | tr -d "\n" | sha256sum' 2>/dev/null | cut -c1-16
-done
-# The gateway and oauth-mcp (mcp-server) CLIENT_ID hashes MUST match. Repeat for
-# PINGONE_MCP_GATEWAY_CLIENT_SECRET.
+# Gateway side — no introspection/auth failures:
+docker logs ai-demo-mcp-gateway --since 5m 2>&1 \
+  | grep -iE '\[GatewayIntrospection\]|invalid_client' \
+  || echo "OK: no introspection failures logged"
+
+# oauth-mcp side (mcp-server) — no rejected-token errors:
+docker logs ai-demo-mcp-server --since 5m 2>&1 \
+  | grep -iE 'invalid_client|introspect[a-z]* (fail|error)|401' \
+  || echo "OK: no introspection failures logged"
 ```
 
-If the hashes diverge, the exchange client no longer matches the introspection
-client — every gateway tool call will 401. STOP and reconcile before Task 8.
+If the identity pair diverged, the tool call in step 1 fails: oauth-mcp
+introspects the gateway's exchanged token as a DIFFERENT PingOne client, PingOne
+returns `active: false`, and every gateway tool call 401s. That failing call —
+not a printenv hash — is the §4 regression signal. STOP and reconcile before
+Task 8.
 
 **D.4 — smoke the demo.** Sign in on `local.ping-devops.com:4000`, run an
 agent chip that exercises the gateway (e.g. a Super Sports transfer), and a

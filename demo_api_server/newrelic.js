@@ -1,7 +1,11 @@
 'use strict';
 /**
  * New Relic APM configuration.
- * Required as the FIRST require() in server.js — before dotenv, before Sentry.
+ * Required in server.js before Sentry and all app modules. The ONLY require
+ * allowed above it is the dotenvx bootstrap (services/dotenvxBootstrap.js):
+ * this file reads NR_LICENSE_KEY at require time, so an encrypted .env must
+ * already be decrypted into process.env — 2026-08-18 incident: with ciphertext
+ * in env the agent resolved `collector.encrypted:....nr-data.net`.
  * No-op at runtime when NR_LICENSE_KEY is absent (agent stays dormant).
  */
 exports.config = {

@@ -203,7 +203,7 @@ const FLAG_REGISTRY = [
     category:     'MCP Server',
     description:
       'When **ON**, the BFF routes PingOne admin tool calls to the hosted PingOne MCP server over ' +
-      'HTTP (`https://api.pingone.{region}/v1/environments/{envId}/mcp`), authenticated with a ' +
+      'HTTP (`https://mcp.pingone.{region}/admin/{envId}/mcp`), authenticated with a ' +
       'worker `client_credentials` token, bypassing the custom MCP gateway. The hosted MCP feature ' +
       'must be enabled on the environment and worker credentials configured. ' +
       'When **OFF** (default), the existing custom MCP gateway continues to handle all tool calls.',

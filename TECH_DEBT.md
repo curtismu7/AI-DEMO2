@@ -40,7 +40,22 @@ third handle following the file's own drag pattern (`onAgentWidthResizeMouseDown
 shape + `--ud-banking-col-width` var) in BOTH dashboard variants, and
 re-baseline the UserDashboard sha256 canary in `UserDashboardPing2026.test.js`.
 
-### 2026-08-18 — deploy-live reports success while a core service stays down, and keeps skipping it forever
+### [x] 2026-08-18 — deploy-live reports success while a core service stays down, and keeps skipping it forever
+
+**RESOLVED 2026-08-18 (branch `worktree-deploy-live-truthful`).** Two halves, the
+first of which had already landed by the time this was paid off: `filter_running`
+now records exists-but-not-running services (`BROKEN_FILE`), withholds the stamp
+and exits 1, and a post-deploy poll re-reads docker instead of trusting exit
+codes. This branch adds the entry's remaining "minimum" fix: `assert_stack_health()`
+scans the WHOLE `com.docker.compose.project=ai-demo` project on every terminal
+path (no-op, bootstrap, no-affected, done) — so a container in `created` with no
+changes in range, the self-sustaining case, now fails the run by name instead of
+hiding forever. `created`/`restarting`/`(unhealthy)` fail; `exited` warns (an
+operator's deliberate stop mid-debug is legitimate); absent-entirely stays fine
+(profiled service). The stamp is still written on the done path — the touched
+services did take the range; the non-zero exit is the escalation, not the stamp.
+Verified: synthetic-row test (both branches) + live dry-run. Original entry
+follows.
 
 **Where:** `scripts/deploy-live.sh` — `filter_running()` (~line 205) and the
 `running_containers` list it is built from (line 197).
@@ -512,7 +527,17 @@ while `isDemoMode` is only true when `!user`), but it hides an unguarded
 money-creation path (`to` credited full, `from` clamps at `Math.max(0, …)`) worth
 removing before it is ever wired live.
 
-### [ ] 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
+### [x] 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
+
+**RESOLVED 2026-08-18 (branch `worktree-deploy-live-truthful`).** The
+`STAMP_BOOTSTRAP && OLD != NEW` case now emits its own WARNING before deploying:
+the range is deployed as a best effort (that part was always right), but the run
+says out loud that it cannot tell whether the containers were current before it,
+and how to pass an explicit range if anything looks stale — the same honesty the
+`OLD == NEW` branch already had. The deeper "derive the running SHA from the
+containers themselves" idea was not taken: the stamp bootstrap is one-time per
+clone and the warning closes the silent half at one branch's cost. Original
+entry follows.
 
 **Where:** `scripts/deploy-live.sh:42-58` — the `STAMP_BOOTSTRAP` path, and the
 `OLD = NEW` branch at `:62-77` that owns the warning.
@@ -1088,6 +1113,17 @@ INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
 `project-indeterminate-two-meanings`.
 
 ### [ ] 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
+
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-lmdb-mapsize-watch`) — part (1)
+only.** `openEnv()` now stats `data.mdb` at startup and logs size vs `mapSize`;
+at >= 80% it switches to a `console.error` naming `MDB_MAP_FULL` and saying to
+measure per-DB sizes and prune/compact before raising the ceiling. Threshold
+logic is a pure exported `mapSizeReport()` with tests
+(`tests/services/lmdbMapSizeWatch.test.js`). Part (2) — establishing why 84MB
+accumulated (suspect: dead entries from the pre-#1976 broken delete), measuring
+per-DB sizes, and the compaction-vs-raise decision — is deliberately NOT done
+here and keeps this entry open; `mapSize` itself is unchanged. Original entry
+follows.
 
 **Where:** `demo_api_server/services/lmdb/openEnv.js` — `mapSize: 128 * 1024 * 1024`.
 
@@ -2309,6 +2345,22 @@ Failing that, at minimum name the paths distinctly in code so nobody reads one
 as the whole.
 
 ### [ ] 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
+
+**SEED-FILE HALF RESOLVED 2026-08-18 (branch `worktree-seed-single-source`) —
+entry stays OPEN for runtime write-divergence.** The resource-server seeds are
+now DERIVED from the BFF seeds: `demo_mcp_resource_server/scripts/gen-seeds-from-bff.mjs`
+(`npm run seeds:gen`) writes each `seed/<v>.seed.json` as a pure extraction of
+the migrated entity from `config/verticals/<v>/seed.json`, and
+`tests/seedParity.test.ts` was upgraded from id-match to **full-record deep
+equality**, failing with a pointer at the generator. The case list lives once in
+`seed/parity-cases.json`, shared by both. Proven live: the deep gate immediately
+caught real drift the id-only guard had passed — abercrombie's resource seed had
+silently lost `sku`/`size`/`color` (regenerated; its SQLite schema projects 5
+columns at ingest, so tool output is unchanged — the served shape is decided in
+the db module, not by seed truncation). What remains open is exactly the deeper
+half already scoped below: a BFF-side write is invisible to the SQLite copy
+regardless of seed agreement — the real fix is still finishing the migration.
+Original entry follows.
 
 **INTERIM GUARD ADDED 2026-08-18 (PR #2072) — entry stays OPEN for the real fix.**
 `demo_mcp_resource_server/tests/seedParity.test.ts` now asserts the migrated

@@ -3389,7 +3389,7 @@ class PingOneProvisionService {
 
       // Step 32b: Create PingOne MCP Server app (developer tooling — not a demo runtime component)
       // This app is the OAuth client that AI assistants (Claude Code, Cursor, etc.) use to connect
-      // to the HOSTED PingOne MCP server (https://api.pingone.{region}/v1/environments/{envId}/mcp)
+      // to the HOSTED PingOne MCP server (https://mcp.pingone.{region}/admin/{envId}/mcp)
       // so developers can administer the PingOne tenant via natural language.
       //
       // Type MUST be WORKER (admin plane). A NATIVE_APP token only ever carries
