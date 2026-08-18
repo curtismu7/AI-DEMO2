@@ -579,9 +579,15 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
         }
         middle={
           <>
-            <div className="inspector-shell-form-header">
-              <div className="inspector-shell-form-header__name">Evaluate</div>
-              <div className="inspector-shell-form-header__desc">Send a real decision request to the selected endpoint.</div>
+            <div className="inspector-shell-form-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flexShrink: 0 }}>
+                <div className="inspector-shell-form-header__name">Evaluate</div>
+                <div className="inspector-shell-form-header__desc">Send a real decision request to the selected endpoint.</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {err && <span style={{ color: '#dc2626', fontSize: '12px' }}>❌ {err}</span>}
+                <button style={S.evalBtn} onClick={run} disabled={running || !endpointId}>{running ? 'Evaluating…' : 'Evaluate (live)'}</button>
+              </div>
             </div>
             <div className="inspector-shell-form-body">
               {pendingTest && (
@@ -664,10 +670,6 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                   </tbody>
                 </table>
               )}
-            </div>
-            <div className="inspector-shell-form-actions">
-              <button style={S.evalBtn} onClick={run} disabled={running || !endpointId}>{running ? 'Evaluating…' : 'Evaluate (live)'}</button>
-              {err && <span style={{ color: '#dc2626', fontSize: '12px', marginLeft: '8px' }}>❌ {err}</span>}
             </div>
           </>
         }
