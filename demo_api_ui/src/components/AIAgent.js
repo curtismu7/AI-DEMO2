@@ -60,7 +60,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
-import { runsSignedOut, useCaseAuthLevel, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
+import { runsSignedOut, authLevelForUseCase, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
@@ -1690,13 +1690,22 @@ export default function BankingAgent({
       // double-execute of a banking command; REGRESSION_PLAN §4 2026-05-18).
       // Claimed on effect entry: if session hydration never succeeds the
       // command is intentionally dropped, not retained for a later page load.
-      const pendingNl = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
-      // Claimed on effect entry, next to the NL and for the same reason: these
-      // keys are one-shot. Claiming them only when a pendingNl turned up left
-      // them behind whenever it did not (another instance won the claim, or
-      // hydration failed), so a stale useCaseId and a stale flag list bled into
-      // the next launcher run. Same failure the "BUG 1 fix" below prevents.
-      claimPendingStepContext();
+      // Only the primary inline instance claims — the same contract the sibling
+      // mount effect below states ("floating copy skips"), which this effect
+      // never enforced. claimPendingNl is deliberately destructive one-shot, so
+      // with more than one AIAgent mounted both raced for it: whichever ran
+      // first took the NL and the other got null. When the winner was not the
+      // instance driving the visible chat, the step was claimed and then never
+      // replayed anywhere.
+      //
+      // Guarding the CLAIM rather than the whole effect on purpose: the session
+      // hydration, the auto-open and the oauth param stripping below must still
+      // run for every instance.
+      const pendingNl = isInline ? claimPendingNl(BX_AGENT_PENDING_NL_KEY) : null;
+      // One-shot too, and claimed beside the NL: claiming them only when a
+      // pendingNl turned up left them behind whenever it did not, so a stale
+      // useCaseId and flag list bled into the next launcher run.
+      if (isInline) claimPendingStepContext();
 
       // The admin console opens with its own content (group membership, customer
       // lookup, metrics); auto-expanding the agent over it buries the page the
@@ -7337,6 +7346,31 @@ export default function BankingAgent({
       if (id) updates[id] = true;
     }
     if (!Object.keys(updates).length) return;
+
+    // Arming needs ADMIN, not just a session — a signed-in customer's PATCH
+    // 403s. That failure was swallowed, so the flag stayed off and the step
+    // quietly misbehaved with nothing said. Reading the flags is not gated
+    // (GET answers for anyone), so check instead of writing, and only speak up
+    // when a flag this step needs is actually off. Silent when they are already
+    // on, which is the common case — otherwise every tool chip would nag, since
+    // they all require ff_mcp_gateway_pinggateway.
+    if (!isAdminUser) {
+      try {
+        const { data } = await apiClient.get("/api/admin/feature-flags", { _silent: true });
+        const off = Object.keys(updates).filter(
+          (id) => data?.flags?.find((f) => f.id === id)?.value === false,
+        );
+        if (off.length) {
+          addMessage(
+            "assistant",
+            `${reason} needs ${off.join(", ")} enabled, and turning flags on requires an admin sign-in. `
+            + "The step will still run, but it may not behave as scripted.",
+          );
+        }
+      } catch (_) { /* best effort — never block the step on a status read */ }
+      return;
+    }
+
     try {
       // _noAuthBanner: arming is best effort and the route is admin-gated, so
       // any signed-out caller 401s here. That 401 is about this call, not the
@@ -7411,7 +7445,7 @@ export default function BankingAgent({
       // sign-in prompt this branch exists to show. Only the step's own auth
       // level decides — and "a session" is not one level: an admin step asks a
       // signed-in customer for an ADMIN sign-in rather than accepting theirs.
-      const stepAuth = useCaseAuthLevel(uc);
+      const stepAuth = authLevelForUseCase(uc);
       const stepNeedsAuth = !viewerMeetsUseCaseAuth(uc, { isLoggedIn, isAdmin: isAdminUser });
       pendingUcAuthRef.current = stepNeedsAuth ? stepAuth : null;
       // Not eligible to send yet — queue the step anyway (below) and show an
@@ -10522,8 +10556,15 @@ export default function BankingAgent({
               tools={mcpToolsList}
               onToolSelect={(tool) => {
                 setShowMcpToolsModal(false);
-                addMessage('user', `Call ${tool.name}`, 'tool_selected');
-                handleSubmit({ agentMode: agentMode || 'helix' });
+                // Was `handleSubmit({ agentMode: agentMode || 'helix' })` — neither
+                // identifier exists in this component, so picking a tool threw a
+                // ReferenceError and the turn never ran. ESLint reported both as
+                // no-undef errors the whole time.
+                //
+                // sendAsNl is the same path the chat box uses, and it adds the
+                // user message itself, so the manual addMessage that used to sit
+                // here would double it.
+                sendAsNl(`Call ${tool.name}`);
               }}
             />
 
