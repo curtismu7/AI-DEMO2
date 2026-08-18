@@ -7,6 +7,250 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
+
+**Where:** `demo_mcp_resource_server/seed/*.seed.json` (10 files) and
+`demo_api_server/config/verticals/<vertical>/seed.json` (+ `data.js`), read
+through `demo_mcp_resource_server/src/db/<vertical>Db.ts` and the BFF's own
+store respectively.
+
+**What's wrong:** the SQLite migration moved exactly one or two READ tools per
+vertical onto `demo_mcp_resource_server` (list + get). Every write action and
+every other read still runs against the BFF's seed store. So one vertical now
+answers "show my orders" out of `retail.db` and "cancel my order" out of
+`config/verticals/retail/seed.json`, from two independently maintained seed
+files that were never derived from each other — `retail.seed.json` is 1.0K next
+to the BFF's 7.9K. A cancel applied on the BFF side is invisible to the next
+list; the demo shows a cancelled order as still open, and no test or gate
+notices because each half is internally consistent. It only reads as correct
+because the demo scripts happen to exercise the two halves in an order where
+the divergence does not show.
+
+**Why not fixed now:** the migration was deliberately scoped to the read path
+per vertical (PRs #1913, #1914, #1916, #1918) and shipping it that way was the
+right call — the alternative was moving all 8 verticals' write surfaces in one
+sweep. The split is the cost of that decision, not an accident.
+
+**What the real fix looks like:** either finish the migration (writes move to
+the resource server, the BFF store becomes a client of it) or generate both
+seeds from one checked-in source so the two halves cannot describe different
+worlds. Interim guard worth having regardless: a test that loads both seeds for
+a vertical and asserts the record ids match — divergence is currently invisible
+until someone demos the wrong combination of chips. `abercrombie-fitch.mock.json`
+still sits in the resource server's seed directory next to the real
+`abercrombie.seed.json` it replaced (#1918) — an artifact of the same split.
+
+### 2026-08-17 — Unrouted resource-server tools declare scopes that exist nowhere, and nothing checks
+
+**Where:** `demo_mcp_resource_server/src/tools/*Tools.ts` — `healthcare:read`
+(`get_patient_record`), `government:read` (`get_permit`), `anf:read`
+(`get_anf_order`), `banking:read`, and the rest of each vertical's second tool.
+
+**What's wrong:** those strings are not scopes. `grep` them in
+`scope-topology.json` and every one returns zero hits — only `airlines:read` was
+ever registered. They survive because `router.ts` deliberately routes just the
+one migrated tool per vertical, so the tool carrying the invented scope is never
+reached. The moment anyone routes it — the obvious next step, and the exact
+motion the last four PRs performed — the call 403s on a scope the platform has
+never heard of. That is how the whole migration started: every vertical's
+`requiredScopes` was an invented `<vertical>:read`, and the fix in each case was
+to replace it with the plain `read` that `scope-topology.json` already declared
+for that tool. The unrouted half was left holding the original bug.
+
+**Why not fixed now:** each PR corrected the scope on the tool it routed and
+left the others untouched, which kept the diffs honest and reviewable. The
+generalisation — every declared scope must resolve — was never the change in
+front of anyone.
+
+**What the real fix looks like:** a check in `npm run topology:verify` that
+walks every `requiredScopes` entry in `demo_mcp_resource_server/src/tools/` and
+fails on any string that is not a scope in `scope-topology.json`. It is a dozen
+lines, it would have caught this class before the first vertical shipped, and it
+turns "route the second tool" from a live-403 discovery into a build failure.
+
+### 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
+
+**Where:** `ping-gateway/scripts/groovy/transaction-hop.groovy` (~line 71,
+`if (!outcome) outcome = (statusCode >= 400) ? 'DENY' : 'PERMIT'`), reading the
+`X-Gw-Audit-Trail` header that `p1az-decision.groovy` stamps.
+
+**What's wrong:** the hop emitter prefers the authoritative decision off the
+audit trail — correctly, because a JSON-RPC error rides a 200 envelope and
+status alone cannot tell a policy DENY from a successful call. But when the
+trail is absent or unparseable the `catch` falls through silently and the
+outcome is INFERRED from the status code, and the emitted hop records that guess
+in the same `decision.outcome` field, with the same `by: 'ping-gateway'`
+attribution, as a real PDP verdict. Nothing in the payload marks it as inferred.
+So `/transaction-trace` can display a confident `PERMIT` for a request whose
+policy decision was never read — which is the one thing an authorization trace
+exists to rule out. The fallback is right to exist (fail-open is correct for an
+observability surface); recording it as indistinguishable from the real thing is
+not.
+
+Two smaller gaps in the same hop: the PDP's own detail — statements/obligations,
+policy id, evaluation latency — is dropped, only `outcome`/`reason`/`op`
+survive; and because the decision is folded into the transport hop rather than
+carried as its own, a trace cannot separate "IG enforced this" from "PingOne
+Authorize decided this."
+
+**Why not fixed now:** the instrumentation is recent and deliberately fail-open,
+and this is a fidelity question about what the ledger records rather than a
+break in it. It was found while checking a stale claim that the boundary was
+uninstrumented at all — it is not.
+
+**What the real fix looks like:** carry the provenance, not just the value —
+add a `source: 'trail' | 'inferred'` (or `authoritative: false`) to the emitted
+`decision` object and surface it in the trace UI, so a guessed outcome reads as
+a guess. Then, if the PDP detail is wanted, emit a distinct `authz.decision` hop
+from the same trail data rather than a second emitter in the decision script,
+which would duplicate the telemetry that already flows.
+
+### 2026-08-17 — The P1AZ snapshot generator still pins 7 object versions by hand, and nothing rejects a new one
+
+**Where:** `snapshots/gen-authorize-snapshot.js` — `ver()` derives a version
+from content for the attribute/condition/statement/rule builders, but 7 objects
+still carry literal `version: 'aaaaaaaa-00NN-…'` strings (the RAR set at ~959-1004,
+`mcpStepUp` at 674, `txConsent` at 690/706).
+
+**What's wrong:** PingOne skips any import object whose version is unchanged, so
+a pinned version on an object whose CONTENT is generated from
+`scope-topology.json` makes the import a silent no-op — the file imports
+"successfully" and the cloud keeps the old policy. That is exactly what happened
+twice: `AdminRoleOnWriteTool` (#1311) and `HasValidActorChain` (#1897), the
+second one costing a live `verify:a2a-policy` failure that read as a policy bug.
+PR #1905 converted 7 more objects to `ver()`, but the distinction that matters —
+"this object's content is static, so a literal is safe" versus "this object
+mutates from a source of truth, so a literal is a bug" — exists only in whoever
+is editing the file's head. Nothing in the generator, the tests, or `--check`
+tells the two apart.
+
+**Why not fixed now:** #1897 and #1905 fixed the objects that were already
+demonstrably wrong. Deciding the general rule means auditing all 7 remaining
+literals to confirm each is genuinely static, which was not the change that
+found the trap.
+
+**What the real fix looks like:** make `ver()` the only way to produce a version
+— every object derives from its own content, static ones included, at which
+point a literal in this file is a lint failure rather than a judgement call.
+Cheaper interim: a test asserting no `version: '` literal appears in the
+generator, with an explicit allowlist for any object deliberately frozen, so
+adding one is a deliberate act with a comment attached.
+
+### 2026-08-17 — `abercrombie-fitch` carries render descriptors for tools its own allowlist excludes
+
+**Where:** `demo_api_server/config/verticals/abercrombie-fitch/index.js`
+(`ALLOWED_TOOL_NAMES`, filtering the tools it borrows from
+`../retail/tools`) versus the descriptors in its `manifest.json`.
+
+**What's wrong:** A&F builds its tool set from retail's and filters it through a
+name allowlist, but the manifest kept descriptors for tools the filter removes —
+the 2026-08-17 render-descriptor audit counted 4 orphans. They are inert today,
+which is the problem: a descriptor pointing at a tool that cannot be called is
+indistinguishable, by reading the manifest, from one that is load-bearing, and
+the audit that found the real descriptor bugs (#1898, #1901, #1903) had to check
+each by hand to tell them apart.
+
+**Why not fixed now:** cosmetic — no user-visible symptom, and it was found
+during an audit whose scope was descriptors that actually break rendering.
+
+**What the real fix looks like:** drop the orphans, and add the inverse
+assertion to the manifest-schema suite that already validates descriptors: every
+descriptor must name a tool the vertical actually exposes. The suite currently
+checks descriptor shape, not descriptor reachability, which is why a borrowed-
+and-filtered tool set can accumulate these unnoticed.
+
+### 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
+
+**Where:** `scripts/check-resource-server-audience-drift.js` (`npm run
+topology:verify` step 9/9), which derives one canonical URI from
+`scope-topology.json resources["Super Banking MCP Invest"].uri` and diffs the
+handful of surfaces that set `MCP_RESOURCE_SERVER_RESOURCE_URI`.
+
+**What's wrong:** `scope-topology.json` is the source of truth for *every*
+audience in the chain — banking MCP server, MCP gateway, PingGateway, the A2A
+and privilege resources — but only one of them is gated. The gate was written
+to close the specific collision that produced `Audience mismatch: got
+[mcp-invest.ping.demo], expected one of [mcpserver.ping.demo,
+mcpgateway.ping.demo]` across all 7 airline and 4 invest tools, and it is shaped
+around that one variable name and that one resource entry. Any other audience
+can still drift between `scope-topology.json`, compose, `k8s/02-configmap.yaml`,
+the Helm templates and `refresh-service-envs.js` without a check firing. The
+failure mode is the same every time and it is invisible until a tool call fails
+at runtime in one vertical: checked-in config reads correct, only the running
+env is wrong.
+
+**Why not fixed now:** the audience fix that found it was scoped to the invest
+server. Generalising means deciding what the canonical mapping from a
+`scope-topology.json` resource to an env var on a given surface actually is —
+today that relationship is implicit and one-off per service.
+
+**What the real fix looks like:** declare the resource-to-env-var binding in
+`scope-topology.json` itself (each resource names the var and the surfaces that
+must carry it), then rewrite the step-9 checker to iterate that table instead of
+hard-coding `OWN_VAR` / `TOPOLOGY_RESOURCE`. One gate, every audience, and a new
+resource is covered the day it is added rather than the day it breaks a demo.
+
+### 2026-08-17 — Nothing fails a build when a P1AZ request omits an attribute the policy requires
+
+**Where:** `demo_api_server/scripts/verifyA2aDelegationPolicy.js` and
+`scripts/verifyAuthorizeCloudParity.js` (both live-only, neither in CI);
+`demo_api_server/tests/pingOneAuthorizeIndeterminate.test.js`.
+
+**What's wrong:** live PingOne Authorize returns `INDETERMINATE` only when the
+request or the policy is wrong — a missing or null attribute the Trust Framework
+references, a failed attribute fetch, a malformed payload, or an unenforceable
+obligation. It is never a legitimate outcome for this demo, so it should be
+impossible to ship a caller that provokes it. Today nothing prevents it: the
+probes learned to send `Amount: 0` / `TransactionAmount: '0'` only after
+`verify:a2a-policy` started evaluating INDETERMINATE against a shape the real PEP
+never sends, and any new caller can omit the same attribute the same way. The
+existing unit test asserts the enforcement behaviour once INDETERMINATE comes
+back; it does not assert that we never ask a question that produces one. The live
+verifiers that would catch it run by hand against a real environment.
+
+**Why not fixed now:** the fix that found this was a two-line probe-parameter
+change. A real guard needs a shared definition of the request contract, and the
+policy half of that contract lives in a PingOne snapshot that is imported through
+the console — `snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json`
+already carries all 11 actor ids, but `verify:a2a-policy` still FAILs airlines and
+admin depth-2 with `mcp-invalid-actor` until someone re-imports it, and nothing in
+the repo can tell that the live environment has diverged.
+
+**What the real fix looks like:** extract the attribute set the Trust Framework
+requires into one checked-in contract (derivable from the snapshot), have every
+decision caller — PEP, both verifiers, tests — build its request from it, and add
+an offline test that a caller omitting a required attribute fails at build time
+rather than at evaluation time. Pair it with a snapshot-parity check so
+"policy in the console is older than policy in the repo" is a reported condition
+instead of a residual note in `REGRESSION_PLAN.md`.
+
+### 2026-08-17 — `DashboardTokenRail` persists its own default on mount, so every default flip costs a storage-key bump
+
+**Where:** `demo_api_ui/src/components/DashboardTokenRail.jsx` (~line 49, the
+`useEffect(() => persistTokenRailCollapsed(collapsed), [collapsed])`), reading
+`demo_api_ui/src/utils/tokenRailLayout.js` `readStoredTokenRailCollapsed()`.
+
+**What's wrong:** the effect fires on first render, so the value the component
+merely *defaulted* to is written to `localStorage` as though the user had chosen
+it. From then on the stored value shadows the default forever. That is why
+flipping the Live Pipeline rail to collapsed-by-default could not be done by
+changing the default alone — every existing browser already had the old default
+persisted — and why the key had to be bumped to `ud_token_rail_collapsed_v2`. The
+same trap is now armed for the next flip, and the width effect above it has the
+identical shape. `REGRESSION_PLAN.md` §0 records the workaround ("bump the key
+again if the default ever changes") rather than the cause.
+
+**Why not fixed now:** the change that found it was a default flip under a
+locked-UI area, and correcting the persistence semantics would have altered
+behaviour beyond the flip.
+
+**What the real fix looks like:** persist only on user action — write inside the
+collapse toggle handler and the resize handler — and let an absent key keep
+meaning "no preference". Then a default is genuinely a default: changing it
+reaches every browser that never touched the control, and the key never needs
+another version suffix. Guarded by asserting that mounting the rail writes
+nothing to `localStorage`.
+
 ### 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
 
 **Where:** `demo_agent_service/tests/vault.test.ts` requires
