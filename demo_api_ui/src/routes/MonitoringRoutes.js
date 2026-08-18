@@ -15,6 +15,7 @@ import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
 import WebMcpPanel from "../components/WebMcpPanel";
 import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
+import RedirectToLogin from "./RedirectToLogin";
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
@@ -32,9 +33,11 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
         <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
         <Route path="agent-flow" element={
-          user && AgentFlowPage
-            ? <AgentFlowPage />
-            : <Navigate to="/" replace />
+          !user
+            ? <RedirectToLogin />
+            : AgentFlowPage
+              ? <AgentFlowPage />
+              : <Navigate to="/" replace />
         } />
         {/* Live app-events stream (oauth / mcp / HITL / …). HTTP audit table kept at api-activity. */}
         <Route path="activity-log" element={<ActivityLogPage />} />
@@ -82,7 +85,7 @@ export function SequenceDiagramRoute({ user, logout }) {
 }
 
 export function LogsRoute({ user, logout }) {
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <RedirectToLogin />;
   // Standalone pop-out page — no AppShell chrome (side nav / TopNav).
   return <LogViewerPage />;
 }
@@ -96,7 +99,7 @@ export function McpInspectorRoute({ user, logout }) {
 }
 
 export function WebMcpRoute({ user, logout }) {
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <RedirectToLogin />;
   return (
     <AppShell user={user} logout={logout}>
       <WebMcpPanel />
@@ -105,7 +108,7 @@ export function WebMcpRoute({ user, logout }) {
 }
 
 export function AgentFlowInspectorRoute({ user }) {
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <RedirectToLogin />;
   // Mounted under App.js catch-all which already supplies TopNav + main-content
   // (+ side nav). Do not nest another shell — a second .main-content also got
   // the sidebar width offset and left empty space on the right.

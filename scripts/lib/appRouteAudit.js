@@ -11,7 +11,8 @@
  *
  * Guard shapes in App.js today:
  *   <RequireAdminLogin user={user}>…</RequireAdminLogin>   -> admin
- *   loading ? null : user ? (…) : <Navigate to="/" replace/> -> user
+ *   loading ? null : user ? (…) : <RedirectToLogin/>       -> user
+ *   loading ? null : user ? (…) : <Navigate to="/" replace/> -> user (legacy)
  *   user ? <A/> : <B/>  (no redirect)                      -> soft
  *   anything else                                          -> public
  */
@@ -72,7 +73,9 @@ function guardFromElementExpression(exprSrc) {
   const testsUser = /\buser\s*(\?|&&)/.test(exprSrc);
   if (!testsUser) return null;
   // Only a redirect makes it a real gate; `user ? <A/> : <B/>` renders either way.
-  return /<Navigate\s+to="\/"/.test(exprSrc) ? 'user' : 'soft';
+  // <RedirectToLogin/> is the signed-out → BFF login redirect; <Navigate to="/">
+  // remains only for non-auth denials (e.g. feature flag off) and legacy guards.
+  return /<RedirectToLogin\b|<Navigate\s+to="\/"/.test(exprSrc) ? 'user' : 'soft';
 }
 
 function strongest(a, b) {

@@ -106,6 +106,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — Signed-out visits to user-level routes silently bounced to home
+
+**Files changed:** `demo_api_ui/src/routes/RedirectToLogin.js` (new),
+`demo_api_ui/src/App.js`, `demo_api_ui/src/routes/MonitoringRoutes.js`,
+`scripts/lib/appRouteAudit.js`, `scripts/check-auth-requirements.test.js`
+
+**What was broken:** every user-level route guard (`/protocol-playground`,
+`/check`, `/tracing`, `/use-cases`, 13 in App.js plus 4 in MonitoringRoutes)
+rendered `<Navigate to="/" replace />` for signed-out visitors — the URL
+silently landed on home and read as a broken link.
+
+**What was fixed:** signed-out visitors on user-level routes now render
+`<RedirectToLogin />`, which sends them into the BFF sign-in flow
+(`navigateToCustomerOAuthLogin(pathname)`) with `return_to` back to the page.
+Standing rule: an auth failure must ask for login, never dump on home.
+`Navigate to="/"` remains only for non-auth denials (feature flag off on
+`/use-cases*`, missing AgentFlowPage prop) and the intentional `/login` alias.
+
+**Do not break:** auth *levels* did not change — auth-requirements.json is
+untouched. `scripts/lib/appRouteAudit.js` now classifies `<RedirectToLogin`
+inside a user-testing element expression as a `user` gate; removing that
+branch makes `authz:verify` report every converted route as `soft` drift.
+`return_to` must stay a bare path — the BFF's `sanitizePostLoginReturnPath`
+rejects query strings. Admin guards (`AdminRoute` toast, `RequireAdminLogin`
+modal) were deliberately left alone.
+
+**Verify:** `node scripts/check-auth-requirements.js` OK 153 routes ·
+`node --test scripts/check-auth-requirements.test.js` 9/9 ·
+`demo_api_ui`: vitest 3254 passed, `npm run build` exit 0.
+
 ### 2026-08-18 — MCP Inspector toasted "timeout of 10000ms exceeded" while calls succeeded
 
 **Files changed:** `demo_api_ui/src/services/apiClient.js`,
