@@ -189,7 +189,11 @@ router.get('/decision-board', requireSession, async (req, res) => {
         // result rather than throwing, so the only way to say WHY is to read it.
         const minted = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, t.tool);
         if (minted && minted.token) {
-          tokenClaims = agentMcpTokenService.decodeJwtClaims(minted.token);
+          // decodeJwtClaims returns { header, claims } — NOT the claims. Reading
+          // .aud straight off it is always undefined, which made every row report
+          // "no aud claim" against a perfectly good token. Every other caller in
+          // routes/ already unwraps .claims; this was the one that did not.
+          tokenClaims = agentMcpTokenService.decodeJwtClaims(minted.token)?.claims || null;
           // A token that mints fine but carries no readable `aud` is its own
           // failure, and it used to be the ONE case with no explanation: the
           // refusal branches below all set tokenError, so a row reading

@@ -37,6 +37,17 @@ const { verticalManifest } = require('../services/verticalManifest');
 const PRIVILEGED = 'AI_Demo_Privileged';
 const router = require('../routes/groupMembership');
 
+// decodeJwtClaims returns { header, claims }, NOT the claims. Every mock in this
+// file goes through this helper so it cannot drift back to the flat shape — an
+// earlier flat mock made the route's `.aud` read undefined for every row while
+// this suite stayed green, so the test asserted the bug rather than the contract.
+const decoded = (claims) => ({ header: { alg: 'RS256', typ: 'JWT' }, claims });
+
+// A real JWT (unsigned — decodeJwtClaims does no verification), so the guard
+// below compares the mock against the actual implementation, not a second guess.
+const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+const REAL_JWT = `${b64u({ alg: 'RS256', typ: 'JWT' })}.${b64u({ aud: 'mcpgateway.ping.demo' })}.sig`;
+
 async function callBoard() {
   const layer = router.stack.find(
     (l) => l.route && l.route.path === '/decision-board' && l.route.methods.get,
@@ -63,10 +74,10 @@ describe('decision-board presents a real token', () => {
 
   it('forwards the minted token audience and act chain to the PDP', async () => {
     agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: 'jwt.for.mcp' });
-    agentMcpTokenService.decodeJwtClaims.mockReturnValue({
+    agentMcpTokenService.decodeJwtClaims.mockReturnValue(decoded({
       aud: 'mcpgateway.ping.demo',
       act: { sub: 'agent-1', act: { sub: 'generalist-1' } },
-    });
+    }));
 
     const payload = await callBoard();
 
@@ -80,7 +91,7 @@ describe('decision-board presents a real token', () => {
 
   it('mints one token per row, for that row own tool', async () => {
     agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: 'jwt.for.mcp' });
-    agentMcpTokenService.decodeJwtClaims.mockReturnValue({ aud: 'mcpgateway.ping.demo' });
+    agentMcpTokenService.decodeJwtClaims.mockReturnValue(decoded({ aud: 'mcpgateway.ping.demo' }));
 
     const payload = await callBoard();
 
@@ -135,5 +146,46 @@ describe('decision-board presents a real token', () => {
       expect(row.tokenPresented).toBe(false);
       expect(row.tokenError).toBe('no user token');
     }
+  });
+
+  // ── the shape this suite got wrong ──
+  //
+  // The route read `.aud` straight off decodeJwtClaims' return value. That is
+  // { header, claims }, so `.aud` was ALWAYS undefined: every row reported
+  // "minted token carries no aud claim", sent no TokenAudience to the PDP, and
+  // the board could not show PERMIT no matter who was in which group. The mint
+  // was fine the whole time. It survived because the mock in this file returned
+  // a flat { aud } — the test encoded the same misreading as the code, so green
+  // meant "both agree", not "the route is right".
+  //
+  // 20 other suites mock this function with the correct { claims: {...} } shape.
+  // This one was the outlier.
+  it('the mock shape matches what decodeJwtClaims really returns', () => {
+    const real = jest.requireActual('../services/agentMcpTokenService').decodeJwtClaims;
+    const actual = real(REAL_JWT);
+
+    expect(Object.keys(actual).sort()).toEqual(['claims', 'header']);
+    expect(actual.claims.aud).toBe('mcpgateway.ping.demo');
+    // Reading the audience off the top level is the bug — pin that it is absent.
+    expect(actual.aud).toBeUndefined();
+    // And the helper every mock here goes through must have that same shape.
+    expect(Object.keys(decoded({ aud: 'x' })).sort()).toEqual(Object.keys(actual).sort());
+  });
+
+  it('a flat-claims mock produces NO audience — the route must unwrap .claims', async () => {
+    // Written to fail against the old route: with the flat shape the route used
+    // to read, tokenAudience would still arrive at the PDP. It must not.
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: REAL_JWT });
+    agentMcpTokenService.decodeJwtClaims.mockReturnValue({ aud: 'mcpgateway.ping.demo' });
+
+    const payload = await callBoard();
+
+    const args = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0];
+    expect('tokenAudience' in args).toBe(false);
+    expect(payload.rows.every((r) => r.tokenPresented === false)).toBe(true);
+    // The flat shape has no .claims at all, so this lands on the decode branch
+    // rather than the missing-aud one — either way the row is honest and the PDP
+    // is not handed an audience the route never actually read.
+    expect(payload.rows[0].tokenError).toMatch(/no claims could be decoded/);
   });
 });

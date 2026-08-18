@@ -106,6 +106,50 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — Decision board read `.aud` off the JWT wrapper, not the claims (#2015)
+
+**Files changed:** `demo_api_server/routes/groupMembership.js`,
+`demo_api_server/tests/groupDecisionBoardToken.test.js`
+
+**What was broken:** `decodeJwtClaims()` returns `{ header, claims }`. The board
+did `tokenClaims = decodeJwtClaims(minted.token)` and then read `tokenClaims.aud`,
+which is **always** `undefined`. So every row reported "minted token carries no aud
+claim", no `TokenAudience` reached the PDP, and the PDP fail-closed on
+`mcp-invalid-audience` before the group rule was ever evaluated — the board could
+not show PERMIT for anyone, in any group. The mint was correct the whole time.
+
+Three prior fixes on this surface each uncovered the next (429 burst #1969,
+audience deny #1972, mint reason #1976/#1983) and the honest conclusion drawn from
+the last one — "the mint returns a token with no readable `aud`" — was a symptom
+this same line had manufactured.
+
+**What was fixed:** `decodeJwtClaims(minted.token)?.claims || null`. One line. Every
+other caller in `routes/` already unwrapped `.claims`.
+
+**Why it survived a green suite:** `groupDecisionBoardToken.test.js` mocked
+`decodeJwtClaims` as a flat `{ aud: ... }` — alone among 21 suites that mock it, the
+other 20 use the real `{ claims: {...} }` shape. The test encoded the same
+misreading as the code, so passing meant "the test and the route agree", not "the
+route is right".
+
+**Do not break:** `decodeJwtClaims` returns the **wrapper**. Unwrap `.claims` for
+claim reads; pass the whole object only to `buildTokenEvent`, which documents that
+shape. Any new mock of this function must return `{ header, claims }`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/groupDecisionBoardToken.test.js
+tests/groupDecisionBoard.test.js tests/groupDecisionBoardRateLimit.test.js --forceExit`
+— 16/16. Two guards were added and proven red against the old line: one compares the
+suite's mock against what the **real** `decodeJwtClaims` returns for an actual JWT
+(`jest.requireActual`), the other feeds the route a deliberately flat mock and asserts
+no audience reaches the PDP.
+
+Verified live too, signed in as `demoUser`: 13 rows, all `tokenPresented: true`, no
+`tokenError`, `mcp-invalid-audience` gone from every row, two rows PERMIT.
+
+**Left visible underneath:** 11 rows deny on `mcp-invalid-a2a-generalist` with
+`inRequiredGroup: true`. The board mints directly, so its token carries no A2A act
+chain. That is a product question, tracked in `TECH_DEBT.md` — not a regression.
+
 ### 2026-08-18 — Cased transaction `type` skipped every authorization gate
 
 **Files changed:** `demo_api_server/routes/transactions.js`,
@@ -234,9 +278,12 @@ now reports that as the row's reason instead of a bare UNKNOWN.
 optimization. All three knobs are env-overridable (`GROUP_BOARD_SPACING_MS`,
 `GROUP_BOARD_RETRIES`, `GROUP_BOARD_BACKOFF_MS`) — tune there, not in code.
 
-**Still open:** the board cannot yet show PERMIT. The mint succeeds but returns a
-token with no readable `aud`, so the audience check has nothing to match. Tracked in
-`TECH_DEBT.md`; the honest UNKNOWN-with-a-reason is the current end state.
+**Correction (2026-08-18, PR #2015):** the "still open" note that stood here —
+the mint returns a token with no readable `aud` — was wrong, and wrong because of
+this same instrumentation. `decodeJwtClaims` returns `{ header, claims }`; the
+board read `.aud` off the wrapper, so the audience was always `undefined` and the
+row reported a mint failure that never happened. The board shows PERMIT now.
+See the 2026-08-18 entry on the claims shape.
 
 **Warning about verifying this one:** `groupsForUser(username, vertical, {})` with
 no `pingOneUserId` reads the **manifest**, not live membership. It returned 2 groups
