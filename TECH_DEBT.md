@@ -85,6 +85,17 @@ still sits in the resource server's seed directory next to the real
 
 ### 2026-08-17 — Unrouted resource-server tools declare scopes that exist nowhere, and nothing checks
 
+**GATED 2026-08-17.** `scripts/check-tool-scope-registration.js` now fails the
+build on any `requiredScopes` string that is not a scope or alias in
+`scope-topology.json` (`npm run topology:verify` step 10/10). The 8 known-bad
+declarations are listed in `UNROUTED_UNREGISTERED` and exempted ONLY while
+nothing routes them — the checker greps `demo_mcp_gateway/src/router.ts` and
+fails the moment one is named there, which is precisely the "route it and it
+403s" trap. A stale entry (allowlisted tool no longer declared anywhere) also
+fails, so the exemption list cannot outlive what it excuses. The 8 declarations
+themselves are UNCHANGED and still wrong — that part is deliberately not fixed;
+see below. Original entry follows.
+
 **Where:** `demo_mcp_resource_server/src/tools/*Tools.ts` — `healthcare:read`
 (`get_patient_record`), `government:read` (`get_permit`), `anf:read`
 (`get_anf_order`), `banking:read`, and the rest of each vertical's second tool.
@@ -110,6 +121,18 @@ walks every `requiredScopes` entry in `demo_mcp_resource_server/src/tools/` and
 fails on any string that is not a scope in `scope-topology.json`. It is a dozen
 lines, it would have caught this class before the first vertical shipped, and it
 turns "route the second tool" from a live-403 discovery into a build failure.
+
+**What is still open after the gate:** the 8 declarations are still wrong, just
+now enforced. Collapsing them to the plain `read` their routed siblings use was
+considered and rejected: `read` is carried by every session, and these are
+single-record lookups (`get_patient_record`, `get_banking_account`), so that
+would quietly turn "unreachable" into "readable by anyone" the day someone
+routes one. Neither is the SoT-registration path free — unlike the migrated
+tools, these have no `tools.<name>` entry in `scope-topology.json` either, so
+there is nothing to match against; giving them real least-privilege scopes means
+adding both the tool and the scope to the SoT and provisioning them in PingOne,
+which mutates a live environment. That decision belongs to whoever actually
+needs one of these tools routed, and the gate now forces them to make it.
 
 ### 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
 
