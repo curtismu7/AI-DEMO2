@@ -53,17 +53,30 @@ const TARGET_ENV_FILES = [
 // (two are already in the allowlist — the Set dedupes them).
 const SECRET_NAMES = Array.from(new Set([...ALLOWED_ENV_VARS, ...SERVICE_KEY_ENV_NAMES]));
 
+/**
+ * Real dotenvx output quotes the value and always appends a trailing
+ * `# -fk <keysFile>` hint comment, e.g.:
+ *   DOTENV_PUBLIC_KEY="026ace...054e2" # -fk ../.env.keys
+ * A naive `(.*)$` capture swallows that comment into the value; only stripping
+ * a LEADING quote then leaves the trailing quote + comment text glued on,
+ * which breaks dotenvx's hex parse the moment that garbage is seeded into the
+ * next file. Match the quoted-or-bare TOKEN explicitly instead of the rest of
+ * the line, so the comment is never part of the capture.
+ */
 function readPublicKey(envFile, fsImpl = fs) {
   if (!fsImpl.existsSync(envFile)) return null;
-  const m = fsImpl.readFileSync(envFile, 'utf8').match(/^DOTENV_PUBLIC_KEY=(.*)$/m);
-  return m ? m[1].replace(/^["']|["']$/g, '').trim() : null;
+  const m = fsImpl
+    .readFileSync(envFile, 'utf8')
+    .match(/^DOTENV_PUBLIC_KEY=(?:"([^"]*)"|'([^']*)'|(\S+))/m);
+  if (!m) return null;
+  return (m[1] ?? m[2] ?? m[3] ?? '').trim();
 }
 
 /** Prepend DOTENV_PUBLIC_KEY to a file that lacks one, so it adopts the shared key. */
 function seedPublicKey(envFile, publicKey, fsImpl = fs) {
   const cur = fsImpl.readFileSync(envFile, 'utf8');
   if (/^DOTENV_PUBLIC_KEY=/m.test(cur)) return false; // already keyed — leave it
-  fsImpl.writeFileSync(envFile, `DOTENV_PUBLIC_KEY=${publicKey}\n${cur}`);
+  fsImpl.writeFileSync(envFile, `DOTENV_PUBLIC_KEY="${publicKey}"\n${cur}`);
   return true;
 }
 
