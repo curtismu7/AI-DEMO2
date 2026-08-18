@@ -2656,21 +2656,57 @@ Two loose ends confirm it was left behind rather than decided:
 - `renderActionGroups`, `ACTION_GROUPS`, `useCustomChips`, `verticalSuggestionChips`
   and the `.ba-action-chip` / `.ba-action-group` CSS are all still carried.
 
+**Measured 2026-08-18.** Every production mount sets the flag:
+
+| mount | props | `useActionsPopout` |
+|---|---|---|
+| `App.js:1705` | `distinctFloatingChrome` | true |
+| `pages/AgentPage.js:13` | `mode="inline" distinctFloatingChrome` | true |
+| `routes/PublicRoutes.js:134` | `mode="inline" distinctFloatingChrome` | true |
+| `components/DemoGuidePopout.jsx:84` | no `mode` — not inline | true |
+
+What that strands:
+
+- `renderActionGroups` — `AIAgent.js` lines 1002–1106 (~105)
+- the JSX branch holding its only call site — lines 10696–11065 (~370)
+- 34 chips in `ACTION_GROUPS`
+- 60 rules in `AIAgent.css` matching the chip classes
+
+**Two corrections to the first pass, both of which change the "delete" option.**
+
+*`agentActions.js` is NOT fully dead.* The entry above implies it is. `ACTIONS` is
+read at `AIAgent.js:1217` to label a completed HITL consent, and
+`getStepSkipExplanation` is passed to a child at `AIAgent.js:11527`. Both are
+reachable and have nothing to do with chips. Only the `ACTION_GROUPS` uses at
+lines 859/866 (chip collapse state) and those inside `renderActionGroups` are
+dead. Deleting the module would break the consent label.
+
+*The unreachable branch is not only chips.* It also contains the session-refresh
+row, `ba-suggestion`, the guest chip grid **including the login prompt**,
+`ba-left-auth`, and the track chips. All equally unreachable — so the guest-mode
+login affordance in there is dead too — but "delete the chips" really means
+deleting the entire left column.
+
+**So delete is not the small option.** It is a real refactor of a ~370-line branch
+with the reachable pieces (`ACTIONS`, `getStepSkipExplanation`) preserved.
+Restoring is cheaper to try: flip the gate for the dashboard mount and look at
+what renders.
+
 **Why it matters beyond dead code:** chips are the deterministic tool-call path
 (`forceHeuristic`). With no chip in the DOM, a UI-level test cannot drive a tool
 call at all, which is why `chain-hops-visible.real.spec.js` can assert only the
 discovery leg and has to report the tools/call and gateway hops instead of
 asserting them.
 
-**Why not fixed here:** whether chips should come back is a product decision, not
-a cleanup. "Use Cases" / "Live Use Cases" / "Demo steps" are present and may be
-their intended replacement — in which case the fix is to delete the orphaned
-chip code and correct the welcome copy, not to restore a rail. Guessing either
-way would be a UI change nobody asked for, on a protected surface.
+**Why not fixed here:** whether chips come back is a product decision, not a
+cleanup. "Use Cases" / "Live Use Cases" / "Demo steps" are present and may be
+their intended replacement. Guessing either way would be a UI change nobody asked
+for, on a protected surface.
 
 **How to check:** log in, open `/dashboard`, and count
 `document.querySelectorAll('.ba-action-chip').length`. Non-zero means this was
-resolved.
+resolved. Measured today: 0, before and after opening the `More` trigger (which
+holds Topology / Floating token chain / Script, not chips).
 
 ### 2026-08-18 — Concurrent deploys raced on one Docker project and one stamp (FIXED)
 
