@@ -13,6 +13,68 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
+
+**Where:** `scripts/deploy-live.sh:42-58` — the `STAMP_BOOTSTRAP` path, and the
+`OLD = NEW` branch at `:62-77` that owns the warning.
+
+**What's wrong:** the script already solves the hard half of this. `.git/deploy-live.last`
+records **what the containers last had deployed** rather than what the checkout
+was a moment ago, precisely because the 15-minute launchd sync usually advances
+the checkout first (#2000, and its comment says so). When that stamp is missing —
+first run on a clone, or it names a commit the repo no longer has after a
+force-push — it falls back to `OLD=PRE`, the checkout's pre-sync HEAD.
+
+The fallback is documented and reasonable. What is not is that the script says so
+in only one of the two ways it can be wrong:
+
+- `OLD == NEW` (checkout did not move): prints "no deploy stamp yet and the
+  checkout did not move this run … Cannot tell whether the containers are
+  current", and tells you to pass an explicit range. Correct and loud.
+- `OLD != NEW` (the sync moved the checkout this run): **silently** deploys
+  `PRE..NEW` — and `PRE` is exactly the signal the script's own comment calls
+  unreliable. Anything the containers were behind by before this run is skipped,
+  and the final line still reads `live stack serves <NEW>`.
+
+**Measured 2026-08-18.** Containers were running `df0bd3904`. The stamp did not
+exist yet — the code that writes it shipped in `73b4977ff` (#2000), i.e. inside
+the very range that had not been deployed. The no-arg dry run offered:
+
+```
+[deploy-live] 53449195ef1a -> 73b4977ff040 (6 files)
+[deploy-live] DRY RUN — would run: ./run-docker.sh restart ping-gateway
+```
+
+The true range from what was actually running was 12 files and also required
+`ui`:
+
+```
+[deploy-live] df0bd3904b46 -> 73b4977ff040 (12 files)
+[deploy-live] DRY RUN — would run: ./run-docker.sh restart ui ping-gateway
+```
+
+So the UI would have been left stale while the run reported success — the exact
+failure this script was written to end, reached through its one unguarded path.
+
+**Why not fixed now:** found while deploying, not while working on the script,
+and the window is genuinely narrow — the bootstrap is one-time per clone, and the
+run that hits it also writes the stamp, so every later no-arg run is correct.
+That narrowness is also why it will be met by whoever is least equipped to
+recognise it: someone on a fresh clone, deploying for the first time.
+
+**Real fix:** make the two branches say the same thing. In the bootstrap path,
+emit the existing "cannot tell whether the containers are current — pass an
+explicit range" warning whenever the stamp was missing, not only when
+`OLD == NEW`; deploying `PRE..NEW` as a best effort is fine, claiming it is
+complete is not. Better still, derive the running SHA from the containers
+themselves (the checkout is bind-mounted, so a marker file or a
+`docker exec … git rev-parse` equivalent would make the stamp advisory rather
+than load-bearing) — then no bootstrap case exists at all.
+
+Related: `project-deploy-live-explicit-range-skips-sync` in memory records the
+opposite hazard (explicit range does NOT sync). Both are the same shape: the
+script cannot observe the thing it reports on, so it reports on what it can see.
+
 ### 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
 
 A five-service audit (BFF, UI, MCP gateway/proxy/resource, Python/Node agents,
