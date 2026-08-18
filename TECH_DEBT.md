@@ -1600,7 +1600,21 @@ claiming done" section as its own numbered step. The entry is right that the
 scripts are the smaller half — the ad-hoc `cmd | tail` an agent types to read a
 script's output is not fixed by anything inside the script.
 
-### [ ] 2026-08-18 — A fresh worktree cannot verify anything, and every failure mode looks like a pass
+### [x] 2026-08-18 — A fresh worktree cannot verify anything, and every failure mode looks like a pass
+
+**FIXED 2026-08-18 (PR #2071, merged).** `run-tests.sh` had three points
+(`run_api_tests`, `run_ui_vite_smoke`, `run_e2e_tests`) that silently ran
+`npm install` when `node_modules` was absent — the exact "stray toolchain
+masquerading as a clean run" trap. Replaced all three with a shared
+a shared `require_toolchain` guard that refuses with a clear message
+("refusing to verify: SERVICE/node_modules is missing — run npm ci in SERVICE
+first") and exits non-zero when the service's `node_modules` or the specific
+`node_modules/.bin/<tool>` is missing; the Playwright probe now uses
+`npx --no-install` so a missing local tool errors instead of downloading a stray
+one. Verified end-to-end: a fresh worktree running `run-tests.sh unit` now refuses
+and exits 1 instead of silently proceeding. (Covers the run-tests.sh path; ad-hoc
+`npx jest`/`npx tsc` typed directly in a shell are still on the operator — the
+`verify-ai-demo2` skill documents that.) Original entry follows.
 
 **Where:** any worktree created without `npm ci` in the service being changed.
 
@@ -2249,6 +2263,21 @@ Failing that, at minimum name the paths distinctly in code so nobody reads one
 as the whole.
 
 ### [ ] 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
+
+**INTERIM GUARD ADDED 2026-08-18 (PR #2072) — entry stays OPEN for the real fix.**
+`demo_mcp_resource_server/tests/seedParity.test.ts` now asserts the migrated
+entity's record ids match between the two seed files for all 8 verticals that keep a
+comparable `seed.json` on both sides (retail/sporting-goods/abercrombie-fitch/
+government/healthcare/manufacturing/university/workforce; banking and airlines are
+documented exclusions with no parallel BFF `seed.json`). Investigation finding: the
+ids ALREADY match today — the size gap the entry cites is because the BFF seed
+carries many *other* entity types (rewards, wishlist, returns…), not because the
+migrated set diverges — so this is a green tripwire for the *next* one-sided seed
+edit, not a red gate. It catches **seed-file** divergence only; it does NOT close the
+deeper **runtime write-divergence** (a BFF-side cancel is invisible to the resource
+server's SQLite copy regardless of seed agreement) that the real fix — finish the
+migration, or generate both seeds from one source — must address. Seeds were not
+rewritten. Original entry follows.
 
 **Where:** `demo_mcp_resource_server/seed/*.seed.json` (10 files) and
 `demo_api_server/config/verticals/<vertical>/seed.json` (+ `data.js`), read
