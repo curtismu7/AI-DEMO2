@@ -332,8 +332,6 @@
 /* --- Mermaid diagrams --- */
 
 .pp-diagrams {
-  flex: 1;
-  min-height: 300px;
   display: flex;
   flex-direction: column;
   gap: 16px;
