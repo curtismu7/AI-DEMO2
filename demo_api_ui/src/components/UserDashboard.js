@@ -998,6 +998,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       ) {
         setTotpModalOpen(false);
         setMfaChallengeExpired(true);
+        setAgentTriggeredStepUp(false);
         return;
       }
       setTotpError(
@@ -1043,9 +1044,15 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       }
       setOtpModalOpen(false);
       setOtpCode("");
-      setAgentTriggeredStepUp(false);
-      notifySuccess("Identity verified — resuming agent request…");
-      window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
+      notifySuccess(
+        agentTriggeredStepUp
+          ? "Identity verified — resuming agent request…"
+          : "Identity verified — please retry your transaction.",
+      );
+      if (agentTriggeredStepUp) {
+        setAgentTriggeredStepUp(false);
+        window.dispatchEvent(new CustomEvent("cibaStepUpApproved"));
+      }
     } catch (err) {
       if (
         err.response?.status === 401 &&
@@ -1063,6 +1070,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       ) {
         setOtpModalOpen(false);
         setMfaChallengeExpired(true);
+        setAgentTriggeredStepUp(false);
         return;
       }
       setOtpError(
@@ -1071,7 +1079,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     } finally {
       setOtpSubmitting(false);
     }
-  }, [otpCode, otpDaId, otpDeviceId]);
+  }, [otpCode, otpDaId, otpDeviceId, agentTriggeredStepUp]);
 
   // Keep refs current so stale closures (timers, event listeners) can call latest functions
   useEffect(() => {
@@ -1114,6 +1122,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         ) {
           setPushPolling(false);
           setPushModalOpen(false);
+          setAgentTriggeredStepUp(false);
           notifyError(
             "Push notification timed out or was denied. Please try again.",
           );
@@ -1128,23 +1137,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     stepUpVerifyHrefRef.current = stepUpVerifyHref;
   }, [stepUpVerifyHref]);
 
-  /** Clears step-up gate state and dismisses the persistent step-up toast. */
-  const dismissStepUp = useCallback(() => {
-    setStepUpRequired(false);
-    setCibaAuthReqId(null);
-    setCibaStatus("idle");
-    setCibaAcr("");
-    toast.dismiss("customer-step-up");
-  }, []);
-
-  /** Enter the step-up gate from a 428 body (method + ACR for CIBA). Inverse of dismissStepUp. */
-  const beginStepUp = useCallback((d) => {
-    setStepUpMethod(d?.step_up_method || "email");
-    setCibaAcr(d?.step_up_acr || "");
-    setCibaStatus("idle");
-    setStepUpRequired(true);
-  }, []);
-
   /** Cancel the auto-initiate countdown (agent-triggered flows). */
   const cancelAutoInitiate = useCallback(() => {
     if (autoInitiateTimerRef.current) {
@@ -1152,6 +1144,24 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       autoInitiateTimerRef.current = null;
     }
     setAgentCountdown(0);
+  }, []);
+
+  /** Clears step-up gate state and dismisses the persistent step-up toast. */
+  const dismissStepUp = useCallback(() => {
+    cancelAutoInitiate();
+    setStepUpRequired(false);
+    setCibaAuthReqId(null);
+    setCibaStatus("idle");
+    setCibaAcr("");
+    toast.dismiss("customer-step-up");
+  }, [cancelAutoInitiate]);
+
+  /** Enter the step-up gate from a 428 body (method + ACR for CIBA). Inverse of dismissStepUp. */
+  const beginStepUp = useCallback((d) => {
+    setStepUpMethod(d?.step_up_method || "email");
+    setCibaAcr(d?.step_up_acr || "");
+    setCibaStatus("idle");
+    setStepUpRequired(true);
   }, []);
 
   // Poll CIBA status when a request is in flight
@@ -1254,8 +1264,10 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       }
     };
     window.addEventListener("agentStepUpRequested", onAgentStepUp);
-    return () =>
+    return () => {
       window.removeEventListener("agentStepUpRequested", onAgentStepUp);
+      cancelAutoInitiate();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Step-up MFA (428): persistent warning toast with verify actions (replaces inline banner). */
@@ -1266,6 +1278,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     }
 
     const onToastClosed = () => {
+      cancelAutoInitiate();
       setStepUpRequired(false);
       setCibaAuthReqId(null);
       setCibaStatus("idle");
