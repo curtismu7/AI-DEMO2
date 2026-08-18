@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 import DiagramExportBar from "./DiagramExportBar";
+import { useThemeOptional } from "../context/ThemeContext";
 import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
 
@@ -132,6 +133,7 @@ const LEGEND = [
 
 export default function PrivilegeGatewayTopologyPage() {
   const containerRef = useRef(null);
+  const { darkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState("agent");
   const [source, setSource] = useState(AGENT_SOURCE);
   const [renderError, setRenderError] = useState(null);
@@ -147,7 +149,7 @@ export default function PrivilegeGatewayTopologyPage() {
     setRenderError(null);
     mermaid.initialize({
       startOnLoad: false,
-      theme: "dark",
+      theme: darkMode ? "dark" : "default",
       securityLevel: "loose",
       flowchart: { useMaxWidth: true },
     });
@@ -167,12 +169,12 @@ export default function PrivilegeGatewayTopologyPage() {
     }
     render();
     return () => { cancelled = true; };
-  }, [source]);
+  }, [source, darkMode]);
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
 
   return (
-    <div className="pmd-page">
+    <div className="pmd-page pgt-page">
       <div className="pmd-hero">
         <span className="pmd-eyebrow">PingOne Privilege · MCP Gateway</span>
         <h1>Privilege Gateway Topologies</h1>
