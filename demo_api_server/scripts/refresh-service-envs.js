@@ -58,24 +58,6 @@ function writeEnvFile(filePath, vars) {
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
 }
 
-/**
- * Intent-token verifier key for a gateway .env, mirroring the BFF's signing-key
- * resolution (services/intentTokenService.js: INTENT_TOKEN_SECRET || SESSION_SECRET).
- *
- * BOTH gateway paths verify the same HMAC-SHA256 Intent Token the BFF mints:
- * the Node gateway (demo_mcp_gateway/src/intentTokenValidator.ts) and PingGateway
- * (ping-gateway/scripts/groovy/p1az-decision.groovy). Each derives its key as
- * INTENT_TOKEN_SECRET ?? SESSION_SECRET, so both env writers must emit that SAME
- * derived value or a token the BFF signs fails on one path (no_signing_key when the
- * key is absent, invalid_signature when it drifts from the BFF's). Single-sourcing
- * it here keeps the two gateways from diverging again. Returns '' when neither is
- * set — both verifiers then fail closed (Node: no_signing_key; Groovy: omits the
- * IntentTokenValid/IntentMatchesTool evidence).
- */
-function intentTokenSecret(apiVars) {
-  return apiVars.INTENT_TOKEN_SECRET || apiVars.SESSION_SECRET || '';
-}
-
 /** Upsert a single key in an existing .env without rewriting the whole file. */
 function upsertEnvKey(filePath, key, value) {
   if (!fs.existsSync(filePath)) return;
@@ -522,12 +504,12 @@ async function main() {
     // INTENT_TOKEN_SECRET || SESSION_SECRET; this file never emitted either, so
     // getSigningKey() threw and every gw_audit_trail on the Node path reported
     // IntentTokenValid='false' / IntentTokenError='no_signing_key' — the HMAC
-    // verifier shipped as dead code. The SAME value is already written to
-    // ping-gateway/.env below; the two gateways must share it or a token the BFF
-    // signs verifies on one path and fails on the other. Same env-block override
-    // rule as BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via
-    // env_file, never pinned in compose `environment:`.
-    INTENT_TOKEN_SECRET:               intentTokenSecret(apiVars),
+    // verifier shipped as dead code. Same resolution order the BFF signs with
+    // (services/intentTokenService.js) and the ping-gateway/.env block below, so
+    // both gateways verify with the SAME key. Same env-block override rule as
+    // BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via env_file,
+    // never pinned in compose `environment:`.
+    INTENT_TOKEN_SECRET:               fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
   });
   console.log('[refresh-envs] Wrote demo_mcp_gateway/.env');
 
@@ -702,9 +684,10 @@ async function main() {
     // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the
     // filter found no key and silently omitted its decision keys
     // (IntentTokenValid / IntentMatchesTool) — the verification shipped as dead
-    // code on the running stack. Same derivation the Node gateway writer uses
-    // (intentTokenSecret) so both gateways verify with the SAME key the BFF signs.
-    INTENT_TOKEN_SECRET:            intentTokenSecret(apiVars),
+    // code on the running stack. Mirror the BFF's own resolution order
+    // (services/intentTokenService.js) so both sides derive the SAME key
+    // whichever one is actually configured.
+    INTENT_TOKEN_SECRET:            fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_API_RESOURCE_SERVER_URL:        'http://api-resource-server:8082',
     // HITL is enforced at this gateway now: p1az-decision.groovy turns a PingOne
@@ -756,14 +739,7 @@ async function main() {
   console.log('[refresh-envs] All service .env files refreshed from PingOne.');
 }
 
-// Only run the PingOne-querying generator when invoked directly (run.sh,
-// pingone:refresh-envs). Exporting the pure helpers lets tests exercise them
-// without any network. require.main === module holds for `node <this file>`.
-if (require.main === module) {
-  main().catch(err => {
-    console.error('[refresh-envs] Fatal error:', err.message);
-    process.exit(1);
-  });
-}
-
-module.exports = { intentTokenSecret, parseEnv, writeEnvFile, upsertEnvKey };
+main().catch(err => {
+  console.error('[refresh-envs] Fatal error:', err.message);
+  process.exit(1);
+});
