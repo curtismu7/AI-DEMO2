@@ -651,3 +651,15 @@
 .activity-log::-webkit-scrollbar-thumb:hover {
   background-color: var(--pp-scrollbar-hover);
 }
+
+/* Drag handle between sidebar and viewer (see shared/InspectorShell.css) */
+.protocol-playground__resize-handle {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.protocol-playground__resize-handle:hover,
+.protocol-playground__resize-handle:active {
+  background: var(--pp-border);
+}

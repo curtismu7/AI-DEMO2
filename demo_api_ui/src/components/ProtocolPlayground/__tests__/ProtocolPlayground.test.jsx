@@ -120,6 +120,27 @@ describe('ProtocolPlayground wiring', () => {
     expect(screen.queryByText(/No activity yet/)).not.toBeInTheDocument();
   });
 
+  test('dragging the separator resizes the sidebar and persists the width', () => {
+    window.localStorage.removeItem('pp-sidebar-width');
+    const { container } = render(<ProtocolPlayground />);
+
+    const sidebar = container.querySelector('.protocol-playground__sidebar');
+    expect(sidebar.style.flex).toBe('0 0 260px');
+
+    fireEvent.mouseDown(screen.getByRole('separator'), { clientX: 300 });
+    fireEvent.mouseMove(document, { clientX: 420 });
+    fireEvent.mouseUp(document);
+
+    expect(sidebar.style.flex).toBe('0 0 380px');
+    expect(window.localStorage.getItem('pp-sidebar-width')).toBe('380');
+
+    // Clamp: dragging far left stops at the minimum.
+    fireEvent.mouseDown(screen.getByRole('separator'), { clientX: 400 });
+    fireEvent.mouseMove(document, { clientX: 0 });
+    fireEvent.mouseUp(document);
+    expect(sidebar.style.flex).toBe('0 0 180px');
+  });
+
   test('completing step 1 via its own Execute button enables step 2\'s button', async () => {
     const { container } = render(<ProtocolPlayground />);
 
