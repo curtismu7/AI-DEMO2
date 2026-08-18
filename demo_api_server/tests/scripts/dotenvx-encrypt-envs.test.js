@@ -54,18 +54,46 @@ describe('encryptArgs', () => {
   });
 });
 
+describe('readPublicKey', () => {
+  test('parses a real dotenvx-quoted line with its trailing "-fk" hint comment', () => {
+    // This is the ACTUAL format the real dotenvx CLI writes (quoted value +
+    // trailing `# -fk <path>` comment) — not the bare `KEY=value` shape a naive
+    // mock might use. Reproduces a real corruption: the old regex captured the
+    // whole line remainder (including the comment) and only stripped a LEADING
+    // quote, so seedPublicKey() then wrote the comment text into every
+    // downstream file's DOTENV_PUBLIC_KEY value, breaking dotenvx's hex parse
+    // on the very next file.
+    const a = tmpFile(
+      '.env',
+      'DOTENV_PUBLIC_KEY="026ace04193c595dc73de7ba534b84dcf8e86066aa6f74d21ab5127e984bf054e2" # -fk ../.env.keys\nSESSION_SECRET=encrypted:abc\n',
+    );
+    const key = readPublicKey(a);
+    expect(key).toBe('026ace04193c595dc73de7ba534b84dcf8e86066aa6f74d21ab5127e984bf054e2');
+    expect(key.length % 2).toBe(0); // valid hex has even length
+    expect(key).not.toMatch(/[^0-9a-f]/i); // pure hex, no stray quote/comment chars
+  });
+
+  test('parses an unquoted line with no comment (first-run seeded value)', () => {
+    const a = tmpFile('.env', 'DOTENV_PUBLIC_KEY=pub-EXISTING\nHELIX_API_KEY=encrypted:...\n');
+    expect(readPublicKey(a)).toBe('pub-EXISTING');
+  });
+});
+
 describe('encryptAll', () => {
   // Fake dotenvx: on `encrypt -f <file>`, if the file has no DOTENV_PUBLIC_KEY it
-  // "generates" one (as real dotenvx does on first encrypt of an unkeyed file).
+  // "generates" one, in the REAL dotenvx output shape — quoted value plus the
+  // trailing `# -fk <keysFile>` hint comment it always appends.
   function makeFakeDotenvx(generatedPub) {
     const calls = [];
     const run = (args) => {
       calls.push(args);
       const fi = args.indexOf('-f');
       const file = args[fi + 1];
+      const fki = args.indexOf('-fk');
+      const keysFile = args[fki + 1];
       const cur = fs.readFileSync(file, 'utf8');
       if (!/^DOTENV_PUBLIC_KEY=/m.test(cur)) {
-        fs.writeFileSync(file, `DOTENV_PUBLIC_KEY=${generatedPub}\n${cur}`);
+        fs.writeFileSync(file, `DOTENV_PUBLIC_KEY="${generatedPub}" # -fk ${keysFile}\n${cur}`);
       }
     };
     return { run, calls };
