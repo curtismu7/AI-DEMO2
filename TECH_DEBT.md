@@ -7,6 +7,60 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — 687 error-level lint findings, 455 of them false, hiding the real ones
+
+**Where:** `demo_api_ui` ESLint config — no test-environment globals declared
+for the vitest specs or `src/setupTests.js`.
+
+**What's wrong:** `npx eslint src` reports **687 error-level findings**. The
+breakdown:
+
+```
+455  no-undef                                 <- almost all vitest globals
+ 48  testing-library/no-node-access
+ 39  testing-library/prefer-screen-queries
+ 35  testing-library/prefer-find-by
+ 32  testing-library/render-result-naming-convention
+ 28  import/first
+```
+
+The `no-undef` mass is `describe`, `it`, `expect`, `vi`, `globalThis` in test
+files and `setupTests.js` — all genuinely defined at runtime. They are config
+gaps, not bugs. But they are reported at the same severity as a real one, and
+they outnumber the real ones roughly 200:1.
+
+The consequence is not hypothetical. `AIAgent.js` contained
+
+```js
+handleSubmit({ agentMode: agentMode || 'helix' })
+```
+
+where neither identifier existed anywhere in the file — a guaranteed
+`ReferenceError` on every MCP-tools selection. ESLint had been reporting both as
+`no-undef` **errors** the whole time. They were dismissed repeatedly across a
+long session as "the pre-existing baseline" because the *count* never changed,
+and nobody read the contents of a 687-line error list. It was found by reading
+the list line by line, not by the tooling surfacing it.
+
+Two real production errors sat inside 455 false ones. That is a signal-to-noise
+problem, not a discipline problem — no reviewer reliably reads 687 lines to find
+2.
+
+**Why not fixed now:** the fix touches the shared ESLint config for the whole UI
+package, which affects every contributor's editor and any lint gate in CI. It
+was found mid-incident while fixing an unrelated defect, and changing lint
+severity across the package during that would have obscured which findings the
+fix was responsible for.
+
+**What the real fix looks like:** declare the test environment so the false
+`no-undef` mass disappears — an `env: { 'vitest-globals/env': true }` override
+(or equivalent `globals` block) scoped to `**/__tests__/**`, `**/*.test.*` and
+`setupTests.js`. Once the count reflects reality, `no-undef` is worth gating on
+in CI, because in this codebase it means "this line throws at runtime." The
+`testing-library/*` and `import/first` findings should be triaged separately —
+they are style, and reporting them at `error` alongside a crash is part of what
+flattened the signal.
+
 ### 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
 
 **Where:** `demo_api_ui/src/components/__tests__/AIAgent.*.test.jsx` — the shared
