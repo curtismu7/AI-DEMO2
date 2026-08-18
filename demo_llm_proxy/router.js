@@ -100,7 +100,13 @@ const TIERS = [
   // Experimental — evaluating as a faster tool-calling alternative to gpt-oss-20b
   // on CPU-only nodes. Groq itself deprecated this model's hosted-API preview in
   // favor of larger models, so treat tool-call reliability as unproven here too.
-  { name: 'llama-3-groq-8b-tool-use', port: 8093, size: '8B', host: tierHost('LLAMA_TIER3_HOST') },
+  // `pinOnly` encodes the invariant in the comment above as data: this tier is
+  // reachable ONLY when a route explicitly targets it (LLM_PROXY_PIN_TIER=8093,
+  // or a model= pin resolving to class 2 in MODEL_CLASS). It must never be a
+  // health-based substitution target for a lower class — smallestLoadedCovering
+  // skips it unless the requested class equals its index. keyword classification
+  // (classifyText) only ever emits class 0 or 1, so it can never reach it.
+  { name: 'llama-3-groq-8b-tool-use', port: 8093, size: '8B', host: tierHost('LLAMA_TIER3_HOST'), pinOnly: true },
 ].map((t) => ({ ...t, healthy: false, load: 0, lastCheck: 0 }));
 
 const PIN_TIER_INDEX = Number.isFinite(PIN_TIER_PORT) && PIN_TIER_PORT > 0
@@ -222,11 +228,23 @@ async function checkHealth() {
 // Serve with the smallest LOADED tier whose capability covers the request;
 // swap up (unloading everything else) only when nothing loaded covers it.
 let lastRequestAt = Date.now();
-let swapInFlight = null; // { cls, promise } — single-flight; concurrent asks coalesce
+// `swapInFlight` coalesces concurrent asks for the SAME class (single-flight).
+// `swapChain` is a GLOBAL lock: every swap runs behind the previous one, so a
+// cross-class swap waits for the in-flight one instead of starting a second
+// tier-manager ensure concurrently — which would unload the tier the first swap
+// just loaded (ECONNRESET/502, or a full poll to a now-dead tier).
+let swapInFlight = null; // { cls, promise }
+let swapChain = Promise.resolve();
 
 function smallestLoadedCovering(cls) {
   for (let i = cls; i < TIERS.length; i++) {
-    if (TIERS[i].healthy) return TIERS[i];
+    if (!TIERS[i].healthy) continue;
+    // Never let health-based substitution (i > cls) fall onto a pin-only tier
+    // (e.g. the unproven :8093). It may be served only when the route targets
+    // its class exactly (i === cls) — i.e. an explicit LLM_PROXY_PIN_TIER or a
+    // model= pin, never a substitute-up for a lower class.
+    if (TIERS[i].pinOnly && i !== cls) continue;
+    return TIERS[i];
   }
   return null;
 }
@@ -258,11 +276,15 @@ async function drainInFlight() {
 }
 
 // Swap so that TIERS[cls] is the loaded tier. Single-flight: a swap already
-// heading to the same class is awaited, not duplicated.
+// heading to the same class is awaited, not duplicated. Cross-class swaps are
+// serialized behind `swapChain` — one tier-manager ensure runs at a time, so a
+// second swap can never unload the tier a first swap just loaded. The per-swap
+// SWAP_TIMEOUT_MS deadline is measured from when this swap actually starts
+// (after any queued swap ahead of it completes).
 function swapTo(cls) {
   if (swapInFlight && swapInFlight.cls === cls) return swapInFlight.promise;
   const target = TIERS[cls];
-  const promise = (async () => {
+  const promise = swapChain.then(async () => {
     console.log(`[proxy] swap → ${target.name} (:${target.port}) — draining in-flight requests`);
     await drainInFlight();
     await callTierManager(target.port);
@@ -284,10 +306,14 @@ function swapTo(cls) {
       await new Promise((r) => setTimeout(r, SWAP_POLL_MS));
     }
     throw new Error(`${target.name} did not become healthy within ${SWAP_TIMEOUT_MS / 1000}s`);
-  })().finally(() => {
-    if (swapInFlight && swapInFlight.promise === promise) swapInFlight = null;
   });
-  swapInFlight = { cls, promise };
+  const entry = { cls, promise };
+  swapInFlight = entry;
+  // Advance the global lock even if this swap rejects, so one failure cannot
+  // wedge the queue. Clear the single-flight slot when this swap settles, unless
+  // a newer swap has already taken the slot.
+  swapChain = promise.catch(() => {});
+  promise.finally(() => { if (swapInFlight === entry) swapInFlight = null; });
   return promise;
 }
 
@@ -306,18 +332,22 @@ async function selectTier(cls) {
 // tier so the big model's memory is freed. Disabled when IDLE_DECAY_MS <= 0
 // (demo keep-warm) or when a pin is set — decaying after a pin forced the next
 // request to sit through a multi-minute reload (or 503 with the downgrade guard).
-setInterval(() => {
-  if (IDLE_DECAY_DISABLED || PIN_TIER_INDEX >= 0) return;
-  // A resident tier is meant to stay warm; decaying it away would re-introduce
-  // the swap on the next request — the exact stall residency exists to remove.
-  if (TIERS.slice(1).some((t) => RESIDENT_PORTS.has(t.port))) return;
-  if (Date.now() - lastRequestAt < IDLE_DECAY_MS) return;
-  if (swapInFlight) return;
-  const biggerLoaded = TIERS.slice(1).some((t) => t.healthy);
-  if (!biggerLoaded) return;
-  console.log(`[proxy] idle ${Math.round(IDLE_DECAY_MS / 1000)}s — decaying to ${TIERS[0].name}`);
-  swapTo(0).catch((err) => console.error(`[proxy] idle decay failed: ${err.message}`));
-}, 60000);
+// Guarded by require.main so `require('./router.js')` (unit tests) does not start
+// a non-unref'd timer that pins live tier state and keeps the process alive.
+if (require.main === module) {
+  setInterval(() => {
+    if (IDLE_DECAY_DISABLED || PIN_TIER_INDEX >= 0) return;
+    // A resident tier is meant to stay warm; decaying it away would re-introduce
+    // the swap on the next request — the exact stall residency exists to remove.
+    if (TIERS.slice(1).some((t) => RESIDENT_PORTS.has(t.port))) return;
+    if (Date.now() - lastRequestAt < IDLE_DECAY_MS) return;
+    if (swapInFlight) return;
+    const biggerLoaded = TIERS.slice(1).some((t) => t.healthy);
+    if (!biggerLoaded) return;
+    console.log(`[proxy] idle ${Math.round(IDLE_DECAY_MS / 1000)}s — decaying to ${TIERS[0].name}`);
+    swapTo(0).catch((err) => console.error(`[proxy] idle decay failed: ${err.message}`));
+  }, 60000);
+}
 
 // ── Proxy setup ────────────────────────────────────────────────────────────
 const proxy = httpProxy.createProxyServer({ changeOrigin: true });
@@ -518,6 +548,11 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// ── Runtime side effects ────────────────────────────────────────────────────
+// Only when launched directly (`node router.js`). Guarding lets tests
+// `require('./router.js')` for its pure functions without binding :8090 or
+// starting non-unref'd health/startup timers that would keep the process alive.
+if (require.main === module) {
 // ── Periodic health checks ─────────────────────────────────────────────────
 setInterval(checkHealth, HEALTH_INTERVAL_MS);
 checkHealth(); // initial probe
@@ -551,3 +586,7 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+} // end require.main === module
+
+// Exported for unit tests only (no effect on `node router.js`).
+module.exports = { TIERS, swapTo, smallestLoadedCovering };
