@@ -142,29 +142,46 @@ survive the OAuth redirect.
 
 ---
 
-## HALF-FIXED — a resumed run loses the question
+## FIXED (both halves) — a resumed run used to lose the question
 
-**This section previously said FIXED. That was wrong twice, and the corrections
-are the useful part.** Not a regression from this work — it was reachable from
-the queued-question paths above, which is how it surfaced.
+**This section said FIXED once before, incorrectly. It is now backed by a paired
+live measurement on both send paths.** Not a regression from this work — it was
+reachable from the queued-question paths above, which is how it surfaced.
 
-The defect has two independent halves, in two different sessions' hands:
+The defect had two independent halves, each necessary, neither sufficient:
 
-| Half | What it does | State |
+| Half | What it fixes | Landed |
 |---|---|---|
-| Claim survives the effect re-invoke | `claimPendingNl` is destructive one-shot; its result was held in a closure local, so the invocation that claimed it was torn down and the survivor re-read an emptied key | branch `fix-oauth-resume-claim` (ai-demo2-de), **not yet merged** |
-| Replay waits for a complete request | the send fired before the vertical manifest resolved, so it went out with no `vertical` and its reply was discarded | **merged, #1981** |
+| Claim into a ref | `claimPendingNl` is destructive one-shot; its result was held in a closure local, so the invocation that claimed it was torn down and the survivor re-read an emptied key | #1985 (ai-demo2-de) |
+| Replay waits for a complete request | the send fired before the vertical manifest resolved, went out with no `vertical`, and its reply was discarded | #1981 |
 
-Measured live, each half alone:
+Each half alone, measured live — note they fail in *different* places, which is
+what proved both were needed:
 
 ```
-both halves live:   claim ✓  fetch ✓ (no `vertical`)  -> reply dropped, panel BRICKED
-#1981 alone:        claim ✓  no fetch at all          -> question dropped, panel usable
+ref fix alone:   claim ok  send WITHOUT `vertical`  -> reply dropped, panel BRICKED
+vertical alone:  claim ok  no send at all           -> question dropped, panel usable
 ```
 
-So #1981 turned "agent unusable until reload" into "question silently lost" —
-an improvement, not a fix. The pair is needed: the ref keeps the value alive
-across the longer window the vertical gate introduces.
+Both halves live (`293a28f1c`), both send paths, container verified by content
+first (`claimedPendingNlRef` 7, `const authOk` 1):
+
+```
+typed guest question:  claim t=3163 -> send /api/agent/invoke hasVertical:TRUE -> 200
+                       "Your balances: • checking (**3896) — $5000.00 USD …"
+demo step UC1:         claim t=2939 -> send /api/agent/invoke hasVertical:TRUE -> 200
+                       "Your balances: …"
+```
+
+Exactly one claim, one send, one reply per run on both paths — the exactly-once
+guarantee (REGRESSION_PLAN §4) holds, and this was the first run in which the
+send was ever *scheduled*, so `pendingNlResumeRef` was finally exercised rather
+than assumed.
+
+**Both paths converge on `/api/agent/invoke` and diverge only upstream.** Two
+sessions measured this defect and disagreed for hours because each probe sat at
+a different point on one funnel — not because there were two endpoints. Put the
+probe at the convergence.
 
 **Two earlier claims in this doc were wrong and are corrected here:**
 
@@ -187,11 +204,17 @@ That contrast was the whole diagnosis, and no amount of reading the component
 produced it. Reading produced four plausible, wrong answers: `isInline`,
 hydration order, SSE trace mismatch, and guest-chat eligibility.
 
-**Next step:** land `fix-oauth-resume-claim`, then re-run the live flow (guest
-types on `/dashboard` -> sign-in prompt -> PingOne -> back) and confirm the
-question is both sent AND rendered. Do not trust unit tests alone here — they
-were green for #1962, #1967, #1973 and #1981 while the live behaviour stayed
-broken.
+**Do not trust unit tests alone here.** They were green for #1962, #1967, #1973
+and #1981 while the live behaviour stayed broken. The only instrument that
+produced truth was a Playwright init script wrapping `sessionStorage` and
+`fetch` before app code ran, driven through the real flow.
+
+**Known remaining gap (mine):** the vertical gate has no timeout. On a surface
+where the manifest never resolves, the queued question is now dropped silently
+instead of sent badly — and a silent drop is indistinguishable from "this path
+was never watched", which is exactly the ambiguity that cost two sessions hours.
+Being fixed as a bounded wait whose expiry is *visible* (the question is handed
+back to the composer with a note), not logged.
 
 The original write-up follows, unchanged.
 
