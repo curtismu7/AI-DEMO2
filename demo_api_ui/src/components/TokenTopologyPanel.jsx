@@ -26,8 +26,6 @@ const STEP_ICONS = {
   'tools-list-challenge': '401',
   'tools-list': 'TL',
   'tools-call-challenge': '401',
-  'mcp-initialize': 'IN',
-  'mcp-initialized': 'OK',
   llm: 'ML',
   'agent-token': 'AT',
   'exchange-1': 'X1',

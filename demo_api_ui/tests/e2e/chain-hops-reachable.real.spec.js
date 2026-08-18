@@ -62,7 +62,17 @@ const REQUIRED = [
 // Present or absent depending on WHICH gateway is configured. Reported, never
 // asserted — failing on these would just encode today's deployment.
 const CONFIG_DEPENDENT = [
-  ['mcp-initialize', 'upstream MCP handshake — Node gateway only, inert on IG (#1977)'],
+  // Correctly absent here: the Agent Gateway opens its MCP session to DISCOVER
+  // tools, so these land on /api/demo-agent/tools (see the discovery test below,
+  // where they are asserted), not on an invoke response. Measured 2026-08-18 —
+  // the tool-call leg produces initialize / notifications/initialized /
+  // tools/list on the MCP server and no tools/call at all.
+  //
+  // The old label here read "Node gateway only, inert on IG (#1977)". That was
+  // true of #1977's plumbing and is no longer true of anything: #2049 carries the
+  // handshake in the tools/list _meta and it is verified live. Left in this list
+  // because ABSENT is the right answer for THIS leg, not because it is broken.
+  ['mcp-initialize', 'MCP handshake — belongs to the discovery leg, asserted there'],
   ['mcp-initialized', 'ditto'],
   ['two-ex-exchange1', 'first RFC 8693 call — two-exchange mode only'],
 ];
@@ -152,5 +162,19 @@ test.describe('token-chain hops are reachable on the configured gateway', () => 
     expect(body.degraded, `discovery degraded: ${body.degradedReason || 'no reason given'}`)
       .toBeFalsy();
     expect(challengePhases(body), 'the tools/list leg was probed').toContain('tools/list');
+
+    // The MCP lifecycle. This is the leg that opens the session: the Agent
+    // Gateway is the MCP client here and runs initialize ->
+    // notifications/initialized -> tools/list -> close, per call.
+    //
+    // Asserted rather than reported, because it is now verified live (#2049) and
+    // because it took three attempts to get here — #1977 put the report on the
+    // gateway's HTTP response header while discovery arrives over a WebSocket,
+    // and #2023 instrumented a Groovy script that never executes. Both shipped
+    // green. If this ever goes quiet again, that is a regression, not a
+    // configuration difference, and it should fail rather than print a note.
+    expect(ids, 'the gateway reported the MCP session it opened').toContain('mcp-initialize');
+    expect(ids, 'and the notification that makes the session usable')
+      .toContain('mcp-initialized');
   });
 });
