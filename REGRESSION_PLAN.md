@@ -106,6 +106,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — DaVinci widget callback accepted ID tokens with no replay protection
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginPage.jsx`, plus new tests
+`demo_api_server/tests/davinciLoginNonce.test.js` and
+`demo_api_ui/src/pages/__tests__/DavinciLoginPage.test.jsx`.
+
+**What was broken:** `POST /api/davinci-login/callback` exchanged the widget's
+authorization code and established a session with no OIDC nonce verification
+(OIDC Core §3.1.3.7) — a replayed or substituted ID token was accepted. Logged
+as tech debt as "blocked on the SDK", but `@forgerock/davinci-client`'s
+`client.start(StartOptions)` accepts a `query` object merged into the
+`/authorize` URL, so a nonce can round-trip through PingOne.
+
+**What was fixed:** new `POST /api/davinci-login/nonce` binds a single-use
+nonce to the session; the page passes it via `client.start({ query: { nonce } })`;
+the callback consumes the session nonce before spending the code and fails
+`401 nonce_missing`/`nonce_mismatch` unless the ID token echoes it exactly.
+
+**Do not break:** the callback's exchange → existing-user-only lookup →
+`session.regenerate` → `session.save` sequence is unchanged and must stay
+(no auto-create, no auto-admin — this route is the customer sandbox, distinct
+from `routes/oauth.js`). The nonce is single-use: read-and-delete before the
+exchange, so a failed attempt can never retry against the same value.
+`routes/oauth.js`, `routes/oauthUser.js`, and `oauthService` untouched.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/davinciLoginNonce.test.js --forceExit`
+(5/5, verified 5/5 red against the pre-fix route);
+`cd demo_api_ui && npm run test:unit -- src/pages/__tests__/DavinciLoginPage.test.jsx`
+(2/2) and `npm run build` (exit 0).
+
 ### 2026-08-18 — PingOneAuthorizePage console tab missed the SignInPrompt sweep
 
 **Files changed:** `demo_api_ui/src/components/PingOneAuthorizePage.jsx`.
