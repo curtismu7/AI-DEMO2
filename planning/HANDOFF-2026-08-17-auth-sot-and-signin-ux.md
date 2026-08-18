@@ -142,33 +142,56 @@ survive the OAuth redirect.
 
 ---
 
-## FIXED — a resumed run bricked the agent panel
+## HALF-FIXED — a resumed run loses the question
 
-Root-caused and fixed after this doc was first written; kept in full because the
-*method* is the transferable part. **Not a regression from this work** — it was
-reachable from the queued-question paths above, which is how it surfaced.
+**This section previously said FIXED. That was wrong twice, and the corrections
+are the useful part.** Not a regression from this work — it was reachable from
+the queued-question paths above, which is how it surfaced.
 
-**Cause:** `/dashboard` is a guest-chat surface, so `marketingGuestChatEnabled`
-reads true for the entire window before `isLoggedIn` flips. Reloading it while
-signed in therefore replayed the queued question ~250ms in **as a guest**,
-before the vertical manifest resolved, and the answer landed in state that no
-longer rendered. Guest-chat eligibility now counts only once the session check
-has answered either way (`sessionResolved`). A real guest is unaffected — the
-flag flips as soon as the check returns "no session".
+The defect has two independent halves, in two different sessions' hands:
 
-**What found it, after three wrong hypotheses:** instrumenting the *running app*
+| Half | What it does | State |
+|---|---|---|
+| Claim survives the effect re-invoke | `claimPendingNl` is destructive one-shot; its result was held in a closure local, so the invocation that claimed it was torn down and the survivor re-read an emptied key | branch `fix-oauth-resume-claim` (ai-demo2-de), **not yet merged** |
+| Replay waits for a complete request | the send fired before the vertical manifest resolved, so it went out with no `vertical` and its reply was discarded | **merged, #1981** |
+
+Measured live, each half alone:
+
+```
+both halves live:   claim ✓  fetch ✓ (no `vertical`)  -> reply dropped, panel BRICKED
+#1981 alone:        claim ✓  no fetch at all          -> question dropped, panel usable
+```
+
+So #1981 turned "agent unusable until reload" into "question silently lost" —
+an improvement, not a fix. The pair is needed: the ref keeps the value alive
+across the longer window the vertical gate introduces.
+
+**Two earlier claims in this doc were wrong and are corrected here:**
+
+1. **`sessionResolved` (#1973) did not fix it.** It gated the guest-chat arm of
+   the eligibility check, but `isLoggedIn` flips fast on a signed-in reload, so
+   the replay went out through the `isLoggedIn` arm and behaviour was unchanged.
+   Verified by deploying it and re-running the repro.
+2. **The vertical gate alone did not fix it either** — see the table.
+
+**What found it, after four wrong hypotheses:** instrumenting the *running app*
 via a Playwright init script that wrapped `sessionStorage` and `fetch` before any
-app code ran. The trace settled it in one reload:
+app code ran, then comparing a full page load against an SPA remount:
 
 ```
-t=1976  claim   AIAgent.js:1229
-t=2248  fetch   {"prompt":"…","flowTraceId":"…"}   <- no `vertical`
-t=4582  200                                        <- reply discarded
+full reload:  t=1976 claim -> t=2248 fetch (no `vertical`) -> t=4582 200, discarded
+SPA remount:  claim -> fetch with `vertical:"retail"` -> both bubbles render
 ```
 
-The same replay on an SPA remount (hydration already done) sends
-`vertical:"retail"` and renders both bubbles. That contrast was the whole
-diagnosis, and no amount of reading the component produced it.
+That contrast was the whole diagnosis, and no amount of reading the component
+produced it. Reading produced four plausible, wrong answers: `isInline`,
+hydration order, SSE trace mismatch, and guest-chat eligibility.
+
+**Next step:** land `fix-oauth-resume-claim`, then re-run the live flow (guest
+types on `/dashboard` -> sign-in prompt -> PingOne -> back) and confirm the
+question is both sent AND rendered. Do not trust unit tests alone here — they
+were green for #1962, #1967, #1973 and #1981 while the live behaviour stayed
+broken.
 
 The original write-up follows, unchanged.
 
