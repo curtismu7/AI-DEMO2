@@ -156,18 +156,50 @@ going further.
 
 ## Step C — restart the stack with `DOTENV_PRIVATE_KEY` set
 
-`run.sh` / `run-docker.sh` auto-load `DOTENV_PRIVATE_KEY` from `.env.keys` and run
-a decrypt preflight (fails fast if the key can't decrypt an encrypted `.env`).
+**How the key actually reaches each container (Docker mode).** `.env.keys` is
+delivered as a SECOND `env_file:` entry on each of the four secret-loading
+services in `docker-compose.yml`, alongside their existing `./<service>/.env`
+entry:
+
+```yaml
+env_file:
+  - path: ./demo_api_server/.env
+    required: true
+  - path: ./.env.keys
+    required: false
+```
+
+This is deliberately **not** a compose `environment:` entry — `environment:`
+always overrides `env_file:` for the same key, even on a day the key doesn't yet
+exist in the env_file, which is exactly the footgun `scripts/check-fresh-clone-
+hygiene.js`'s `compose-env-shadow` check exists to catch (PR #911/#914: the same
+pattern silently zeroed a different secret in production). It is also
+deliberately **not** a line inside each service's own `.env`: that file is the
+ciphertext `DOTENV_PRIVATE_KEY` decrypts, so writing the key into the same file
+it decrypts would defeat encryption-at-rest — a leaked `.env` would carry its own
+decryption key. `.env.keys` stays a separate, gitignored file for exactly this
+reason (same separation `VAULT_PASSWORD`, living in `demo_api_server/.env`, keeps
+from the SEPARATE `secrets.vault` file it decrypts — never itself).
+
+Because delivery is via `env_file:`, nothing needs to be exported into the shell
+that runs `docker compose up` — Compose reads `.env.keys` off disk directly, the
+same way it already reads each service's own `.env`. `run-docker.sh`'s
+`dotenvx_preflight` only VERIFIES `.env.keys` decrypts the encrypted `.env`
+before `up` (fail-fast, mirroring `vault_preflight`) — it does not need to (and
+no longer does) export the key for compose interpolation.
 
 Docker (recreate so env changes take effect — a plain `restart` re-uses baked env):
 
 ```bash
-./run-docker.sh start          # dotenvx_preflight verifies + exports the key, then `up -d`
+./run-docker.sh start          # dotenvx_preflight verifies .env.keys, then `up -d`
 # or, for just the four secret services:
 # ./run-docker.sh build demo-api-server mcp-server mcp-gateway agent-service
 ```
 
-Native:
+Native mode reaches the key differently (there is no compose `env_file:` to lean
+on): `run.sh` auto-loads `DOTENV_PRIVATE_KEY` from `.env.keys` into the shell and
+exports it directly to each `npm start` it launches — the same channel
+`VAULT_PASSWORD` already uses for native processes.
 
 ```bash
 ./run.sh                       # [DOTENVX] preflight lines confirm the key decrypts

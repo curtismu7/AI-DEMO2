@@ -312,14 +312,34 @@ vault_preflight() {
 
 # ── dotenvx preflight (vault→dotenvx cutover) ─────────────────────────────────
 # The BFF, MCP Gateway, Agent Service, and MCP Server decrypt their own dotenvx-
-# encrypted `.env` at startup with one shared DOTENV_PRIVATE_KEY. Unlike
-# VAULT_PASSWORD (which rides in via env_file), the private key CANNOT live in the
-# encrypted `.env`, so we load it from the gitignored `.env.keys` and EXPORT it —
-# each service block passes `DOTENV_PRIVATE_KEY: ${DOTENV_PRIVATE_KEY:-}` (an
-# interpolation, never a YAML literal), so `docker compose up` needs it in this
-# process env. When no `.env` is encrypted (current plaintext state / un-migrated
-# machines) this is a transparent no-op. The decrypt check uses a TEMP COPY so it
-# can never mutate a real `.env`. Mirrors vault_preflight; never echoes the key.
+# encrypted `.env` at startup with one shared DOTENV_PRIVATE_KEY.
+#
+# Delivery is via each service's OWN `env_file:` list in docker-compose.yml — a
+# second entry pointing at the repo-root `./.env.keys` (gitignored), alongside its
+# primary `./<service>/.env` entry. Compose reads env_file content directly off
+# disk; this preflight does NOT need to export DOTENV_PRIVATE_KEY into this
+# process's env for that to work.
+#
+# Deliberately NOT delivered via compose `environment:` — `environment:` ALWAYS
+# overrides `env_file:` for the same key, even when the key is absent from the
+# env_file today, so an empty-default `DOTENV_PRIVATE_KEY: "${DOTENV_PRIVATE_KEY:-}"`
+# silently blanks a real value the moment anyone adds that key to the env_file
+# later (see PR #911/#914 and the compose-env-shadow hygiene check, which fails
+# the build on exactly this pattern).
+#
+# Also deliberately NOT a line inside each service's own `.env`: that file IS the
+# ciphertext DOTENV_PRIVATE_KEY decrypts, so co-locating the key with what it
+# decrypts would defeat encryption-at-rest (a leaked `.env` would carry its own
+# key). The migration plan's architecture keeps `.env.keys` a SEPARATE gitignored
+# file for exactly this reason — the same separation VAULT_PASSWORD (in
+# demo_api_server/.env) keeps from the SEPARATE secrets.vault file it decrypts,
+# never itself.
+#
+# This preflight's only job is fail-fast verification before `up` — mirroring
+# vault_preflight, which likewise doesn't need to export VAULT_PASSWORD (env_file
+# already supplies it). The decrypt check uses a TEMP COPY so it can never mutate
+# a real `.env`. When no `.env` is encrypted (current plaintext state / un-migrated
+# machines) this is a transparent no-op. Never echoes the key.
 dotenvx_preflight() {
   local enc_file=""
   local f
@@ -334,21 +354,20 @@ dotenvx_preflight() {
   done
   [[ -n "$enc_file" ]] || { ok "No encrypted .env — services use plaintext .env / process.env values."; return 0; }
 
-  # Auto-load DOTENV_PRIVATE_KEY from .env.keys (repo root, then demo_api_server)
-  # when not already set. Only that one key is extracted; the file is never sourced.
-  if [[ -z "${DOTENV_PRIVATE_KEY:-}" ]]; then
-    local kf
-    for kf in "$BASEDIR/.env.keys" "$BASEDIR/demo_api_server/.env.keys"; do
-      [[ -f "$kf" ]] || continue
-      DOTENV_PRIVATE_KEY=$(grep -E '^DOTENV_PRIVATE_KEY=' "$kf" 2>/dev/null | head -1 | sed 's/^DOTENV_PRIVATE_KEY=//; s/^"//; s/"$//' | tr -d "'" || true)
-      [[ -n "$DOTENV_PRIVATE_KEY" ]] && break
-    done
+  # Read DOTENV_PRIVATE_KEY from the repo-root ./.env.keys — the SAME file each
+  # service's env_file list now references, so this verifies exactly what Compose
+  # is about to deliver (not a differently-valued sibling file). Only that one key
+  # is extracted; the file is never sourced.
+  local kf="$BASEDIR/.env.keys"
+  local key="${DOTENV_PRIVATE_KEY:-}"
+  if [[ -z "$key" && -f "$kf" ]]; then
+    key=$(grep -E '^DOTENV_PRIVATE_KEY=' "$kf" 2>/dev/null | head -1 | sed 's/^DOTENV_PRIVATE_KEY=//; s/^"//; s/"$//' | tr -d "'" || true)
   fi
 
-  if [[ -z "${DOTENV_PRIVATE_KEY:-}" ]]; then
-    err "Encrypted .env detected (${enc_file}) but DOTENV_PRIVATE_KEY is not set."
+  if [[ -z "$key" ]]; then
+    err "Encrypted .env detected (${enc_file}) but no DOTENV_PRIVATE_KEY in ${kf}."
     err "The BFF, MCP Gateway, Agent Service, and MCP Server would load ciphertext and fail."
-    err "Fix: create .env.keys (npm --prefix demo_api_server run secrets:encrypt) or export DOTENV_PRIVATE_KEY."
+    err "Fix: create .env.keys (npm --prefix demo_api_server run secrets:encrypt)."
     exit 1
   fi
 
@@ -364,20 +383,17 @@ dotenvx_preflight() {
     local tmp rc=0
     tmp="$(mktemp)"
     cp "$enc_file" "$tmp"
-    DOTENV_PRIVATE_KEY="$DOTENV_PRIVATE_KEY" "$bin" decrypt -f "$tmp" >/dev/null 2>&1 || rc=$?
+    DOTENV_PRIVATE_KEY="$key" "$bin" decrypt -f "$tmp" >/dev/null 2>&1 || rc=$?
     rm -f "$tmp"
     if [[ "$rc" -ne 0 ]]; then
-      err "DOTENV_PRIVATE_KEY is set but does NOT decrypt ${enc_file} (wrong or rotated key)."
-      err "Fix the key in .env.keys (or export the correct DOTENV_PRIVATE_KEY) before ./run-docker.sh."
+      err "DOTENV_PRIVATE_KEY in ${kf} does NOT decrypt ${enc_file} (wrong or rotated key)."
+      err "Fix the key in .env.keys before ./run-docker.sh."
       exit 1
     fi
-    ok "encrypted .env verified — DOTENV_PRIVATE_KEY decrypts it."
+    ok "encrypted .env verified — .env.keys decrypts it."
   else
     warn "Could not run dotenvx decrypt preflight (binary unavailable) — services will validate at boot."
   fi
-
-  # Export so `docker compose up`'s ${DOTENV_PRIVATE_KEY:-} interpolation resolves.
-  export DOTENV_PRIVATE_KEY
 }
 
 # ── Git sync preflight ────────────────────────────────────────────────────────
@@ -1427,8 +1443,9 @@ cmd_start() {
   # Verify the encrypted secrets.vault decrypts before `up` — the BFF fails fast
   # (exit 1) if the vault is present but VAULT_PASSWORD is unset/wrong.
   vault_preflight
-  # Same for dotenvx-encrypted `.env` files: verify + export DOTENV_PRIVATE_KEY so
-  # the per-service compose interpolation resolves. No-op until the cutover runs.
+  # Same for dotenvx-encrypted `.env` files: verify .env.keys decrypts them before
+  # `up` (delivery to containers is via each service's env_file list, not this
+  # shell). No-op until the cutover runs.
   dotenvx_preflight
   echo ""
 
