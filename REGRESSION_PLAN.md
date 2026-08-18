@@ -57,6 +57,9 @@ minimal diff.
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
 | Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `langchain_agent/tests/test_codegraph_index_guard.py`, `langchain_agent/tests/test_build_codegraph.py`, `langchain_agent/tests/test_ensure_index.py`, `langchain_agent/tests/test_retrieve.py` |
 | Agent dashboard token-rail + filmstrip defaults (locked 2026-08-17, PR #1896) | Live Pipeline rail (float placement) defaults **collapsed** — `demo_api_ui/src/utils/tokenRailLayout.js` `readStoredTokenRailCollapsed()`, key `ud_token_rail_collapsed_v2` (unset → collapsed; bumped from `_v1` because the old default self-persisted `"0"` on every mount, so a bare default flip alone would never reach existing browsers). **The self-persisting default is fixed (2026-08-18): `DashboardTokenRail.jsx` writes storage only from the toggle handler and the end of a resize drag, never from a mount effect, so an absent key means "no preference" and a future default flip does NOT need another key bump.** Do not move `persistTokenRailCollapsed`/`persistTokenRailWidth` back into a `useEffect`. Movie-reel filmstrip defaults **shown** — `ba_show_filmstrip` read as `!== "0"` in BOTH `AIAgent.js` (writer) and `UserDashboardPing2026.js` (listener); an explicit toggle-off must still persist "0" and stay hidden. Guarded by `demo_api_ui/src/utils/__tests__/tokenRailLayout.test.js`, `demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`, `demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js` |
+| HITL receipt single-use on the Node gateway (locked 2026-08-17, PR #1959) | `demo_mcp_gateway/src/hitlClient.ts` `verifyAndConsumeHitlReceipt()` — must post to the **consuming** `/challenges/:id/verify`, and **both** transports must call it: HTTP `middleware/authorizeMcpRequest.ts` and WebSocket `index.ts`. A non-consuming verify lets one human approval authorize unlimited tool calls |
+| tools/list backend outage scope (locked 2026-08-18, PR #1980) | `demo_mcp_gateway/src/toolsListHealth.ts` — `'total'` (zero live backends read) vs `'partial'` (some answered). Only `'total'` may clear the outage; "any success clears everything" reported a healthy gateway serving a truncated tool list |
+| MCP gateway suite is a blocking, serial gate (locked 2026-08-18, PR #1980) | `.github/workflows/ci.yml` (`SUITE_BLOCKING=1 npm run test:mcp-gateway`), `scripts/test-service-suite.sh` (`mcp-gateway` → `DEFAULT_WORKERS=1`). Eight suites bind a real listening socket and race at 2 workers (`socket hang up`); serial is also faster (6.5s vs ~19s). Do not raise the worker count and do not make the job non-blocking |
 
 ---
 
@@ -102,6 +105,159 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-08-18 — Movie reel switch governed the copy nobody was looking at (#1994)
+
+**Files changed:** `demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js`
+
+**What was broken:** reported as "we lost movie roll on agent dashboard". The reel
+was never lost. `UserDashboardPing2026` renders `TokenChainFilmstrip` **twice** —
+the Focus Mode copy (chain along the bottom) and the float/bottom-dock copy — and
+only the float copy was gated on `showFilmstrip`. Focus Mode is the default layout,
+so `More › Movie reel` flipped state, wrote `localStorage`, fired its event, and
+changed nothing on screen.
+
+Diagnosed live before any edit: a fresh browser profile (no stored preference, so
+the default ON) rendered **25 `tcfs` nodes with `.tcfs-float-host` absent** — the
+reel on screen was the ungated branch. Note the DOM prefix is `tcfs`, not
+`filmstrip`; grepping for the friendly name finds nothing and reads as "missing".
+
+**What was fixed:** both copies now sit behind the same state. Separately,
+`<details className="tctr-acc" open>` in `TokenChainTraceRail` lost its `open` —
+it was the only accordion in the file carrying it, so the dashboard led with a Live
+Pipeline that is empty until an agent run happens.
+
+**Do not break:** the default stays **ON** (#1784 once defaulted it off and the reel
+silently vanished for everyone who had never touched the toggle). Every
+`TokenChainFilmstrip` render must be gated; a run must not force the pipeline
+accordion open.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- src/__tests__/FocusModeFilmstripGuard.test.js`
+— two new guards: every render is gated, and `showFilmstrip &&` guards never fall
+behind render count (currently 2 and 2), so a **third** render site added ungated
+fails loudly instead of silently.
+
+### 2026-08-18 — A partial tools/list backend outage reported the gateway healthy (#1980)
+
+**Files changed:** `demo_mcp_gateway/src/toolsListHealth.ts`,
+`scripts/test-service-suite.sh`, `.github/workflows/ci.yml`
+
+**What was broken:** `toolsListHealth` cleared the outage whenever *any* backend
+answered. With `olb` down and `invest` up, `clearToolsListBackendOutage()` ran and
+health said fine — the operator saw a healthy gateway serving a truncated tool list.
+
+**What was fixed:** outages carry a scope — `'total'` (zero live backends read) or
+`'partial'` (some answered, some did not); only `'total'` takes the old path.
+
+**Do not break:** the `ToolsListOutageScope` union and the rule that a partial
+outage is still an outage. Do not restore "any success clears everything".
+
+**Verify:** `npm run test:mcp-gateway` — **735/735**, and the CI job is now
+`SUITE_BLOCKING=1`, i.e. a gateway failure fails the build rather than being
+recorded and ignored. That gate is only safe because the suite is deterministic:
+`DEFAULT_WORKERS=1` for `mcp-gateway` (eight suites bind a real listening socket;
+at 2 workers they raced and threw `socket hang up`). Serial is also *faster* here —
+6.5s vs ~19s. Do not raise its worker count to match the other services.
+
+### 2026-08-18 — Conversation store called a delete API LMDB does not have (#1976)
+
+**Files changed:** `demo_api_server/services/lmdb/conversationStore.lmdb.js`
+
+**What was broken:** `db.deleteSync(key)` at two sites. LMDB exposes `removeSync`;
+`deleteSync` is undefined, so every delete path threw and surfaced as a 500 — the
+`hero-shown` 500s another session had logged as "not reproducible" were this.
+
+**What was fixed:** both call sites use `removeSync`.
+
+**Do not break:** it is `removeSync`. A `replace_all` fixed only one of the two
+sites here (indentation differed) — count the occurrences, don't assume.
+
+**Verify:** `grep -c removeSync demo_api_server/services/lmdb/conversationStore.lmdb.js`
+→ `2`, and zero `deleteSync` anywhere in `services/lmdb/`.
+
+### 2026-08-18 — Group-policy decision board rate-limited itself into UNKNOWN (#1969, #1972, #1976)
+
+**Files changed:** `demo_api_server/routes/groupMembership.js`
+
+**What was broken:** the board fired every row's decision through `Promise.all`.
+PingOne rate-limited the burst and **11 of 13 rows came back UNKNOWN** — a board
+whose whole purpose is showing PERMIT vs DENY per group showed almost nothing.
+Two further layers behind it: rows were scored against a placeholder rather than a
+real token, and when a mint failed the row said UNKNOWN without saying why.
+
+**What was fixed:** decisions are serialized with `DECISION_SPACING_MS` (120ms)
+between them and `RATE_LIMIT_RETRIES` (3) attempts at `RATE_LIMIT_BACKOFF_MS`
+(400ms, linear) when a row comes back rate-limited; each row mints its own token via
+`resolveMcpAccessTokenWithEvents`; a mint that yields no readable JWT or no `aud`
+now reports that as the row's reason instead of a bare UNKNOWN.
+
+**Do not break:** the serialization. `Promise.all` over rows is the bug, not an
+optimization. All three knobs are env-overridable (`GROUP_BOARD_SPACING_MS`,
+`GROUP_BOARD_RETRIES`, `GROUP_BOARD_BACKOFF_MS`) — tune there, not in code.
+
+**Still open:** the board cannot yet show PERMIT. The mint succeeds but returns a
+token with no readable `aud`, so the audience check has nothing to match. Tracked in
+`TECH_DEBT.md`; the honest UNKNOWN-with-a-reason is the current end state.
+
+**Warning about verifying this one:** `groupsForUser(username, vertical, {})` with
+no `pingOneUserId` reads the **manifest**, not live membership. It returned 2 groups
+while the live lookup returned `groups: []`. Manifest membership is not evidence.
+
+### 2026-08-18 — Every dashboard load 502'd on a service compose never starts (#1969)
+
+**Files changed:** `demo_api_server/routes/langchainConfig.js`
+
+**What was broken:** the LLM prewarm call 502'd on every dashboard load. `tier-manager-k8`
+is profiled `k8-build` and does not exist under compose, so an unreachable host was
+being reported as a server error — noise that trains you to ignore 502s.
+
+**What was fixed:** connectivity signatures (`ECONNREFUSED`/`ENOTFOUND`/`EAI_AGAIN`
+and friends) return `{ ok: true, skipped: true, reason: 'tier-manager-unavailable' }`.
+
+**Do not break:** only connectivity failures are downgraded. A tier manager that is
+*present* and answers with an error must still 502 — do not widen the catch to all
+errors.
+
+### 2026-08-17 — HITL receipt verified but never consumed on the Node gateway (#1959)
+
+**Files changed:** `demo_mcp_gateway/src/hitlClient.ts`,
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`, `demo_mcp_gateway/src/index.ts`
+
+**What was broken:** #1858 made approved receipts single-use in the HITL service, but
+the Node MCP Gateway called the **non-consuming** verify endpoint. One human approval
+could therefore be replayed for unlimited tool calls on the gateway path — the exact
+gap #1858 closed, still open on a second transport.
+
+**What was fixed:** `verifyAndConsumeHitlReceipt()` posts to the consuming
+`/challenges/:id/verify`, and **both** call sites use it — HTTP
+(`middleware/authorizeMcpRequest.ts:660`) and WebSocket (`index.ts:664`).
+
+**Do not break:** both transports. WS is the gateway's primary ingress and has been
+the forgotten half before — §4 2026-08-15 (UC18 rate limiting enforced on HTTP only).
+Fixing an auth gap on one transport is half a fix.
+
+**Verify:** `npm run test:mcp-gateway`; `grep -c verifyAndConsumeHitlReceipt demo_mcp_gateway/src/index.ts demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`
+must show the import **and** the call in each.
+
+### 2026-08-17 — deploy-live compared the checkout SHA against itself (#1954)
+
+**Files changed:** `scripts/deploy-live.sh`
+
+**What was broken:** the script decided what to rebuild by diffing the checkout SHA
+against the checkout SHA — always empty, so a merge that changed a service could
+deploy nothing and report success. `demo_llm_proxy/*` also aborted the run outright
+via `add_build llm-proxy`, which `run-docker.sh` cannot build.
+
+**What was fixed:** the range is measured against a `deploy-live.last` stamp in the
+git common dir; the first run announces itself as a bootstrap rather than pretending
+to a diff; `demo_llm_proxy/*` emits a note instead of aborting.
+
+**Do not break:** the stamp advances **only** after a successful deploy. Do not
+reintroduce a self-comparison, and do not pipe this script through `| tail` — a run
+that aborts with exit 1 then reads as exit 0, and the unadvanced stamp is the only
+remaining signal.
 
 ### 2026-08-18 — Token rail persisted its own default from a mount effect
 
