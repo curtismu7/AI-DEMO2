@@ -64,10 +64,31 @@ deliberately left intact so legit agent retries still resume.
   pixel-level signed-in visual is unconfirmed (customer sign-in is passkey — not
   headless-automatable); needs a human glance on `/dashboard`.
 
-## Remaining open (logged in TECH_DEBT, not started)
+## Deferred §1 findings — batch 1 fixed
 
-- The 11 earlier deferred §1 findings (gateway proxy protocol/SSE, LLM-proxy
-  routing, helix event-loop, introspection-not-configured, OIDC nonce, pkce cookie).
+Clean, self-contained fixes done + deployed:
+- **PR #2042** (mcp-gateway + mcp-proxy rebuilt): proxy tools/list cache TTL+bound;
+  gateway SSE upstream teardown on client close; unknown-kid JWKS dedupe + rate cap.
+- **PR #2043** (demo-api-server): introspection-not-configured propagation; OIDC
+  nonce enforced when the ID token omits the claim.
+- pkce-cookie `timingSafeEqual` was already fixed earlier in **PR #2017** (no-op).
+
+## Still deferred — need a decision / infra / frozen surface (NOT blind-fixable)
+
+- **LLM proxy** swap-race (730) + pin-tier reachable (751) — the LLM tiers are a
+  frozen surface (`feedback-llm-settings-frozen`); router-logic change needs sign-off.
+- **helix_llm** event-loop block (771) — async refactor.
+- **intent-token `no_signing_key`** (1622) — needs a signing key provisioned for the
+  Node gateway (config/secret), not a code fix.
+- **`olb` tools/list timeout** (1599) — backend-liveness investigation, not a patch.
+- **caller-scope-miss** (1569) — entry says the scopeless request is deliberate;
+  resolution is a product decision (grant scope vs deny with a better reason).
+- **MCP-handshake on Node gateway** (1152) — needs an IG Groovy filter.
+- **proxy protocol-version** (675) — depends whether the Node gateway is the intended
+  upstream for `demo_mcp_proxy`.
+
+## Other open (noted)
+
 - `saveMessage` intra-ms seq is not zero-padded (11+-message single-ms burst would
   sort lexicographically) — unreachable given fsync spacing; noted only.
 - Docs-refresh todo: re-verify cited line numbers post-merge; fix stale
