@@ -3123,3 +3123,39 @@ which resolves one range against one service set.
 **How to check:** stop a service that has pending changes and run `deploy-live`.
 It must exit non-zero, name that service, and leave `.git/deploy-live.last`
 untouched. Verified 2026-08-18 with a `Created` container.
+
+### 2026-08-18 — The MCP Inspector cannot invoke the tools it lists
+
+**Where:** `demo_api_server/routes/mcpInspector.js` (`POST /api/mcp/inspector/invoke`).
+
+**What's wrong:** the Inspector's catalog returns 242 tools, and invoking the
+FIRST one fails:
+
+```
+[inspector] invoking catalogued tool: get_my_accounts
+[inspector] invoke status=502
+{"error":"mcp_invoke_failed","message":"Insufficient scope for tool 'get_my_accounts'"}
+```
+
+This is not the out-of-vertical case. `list_invoices` also 502s there, but
+correctly — it is a sporting-goods tool and the Inspector's catalog is banking,
+so "Insufficient scope" is the scope check working. `get_my_accounts` is a core
+banking tool the Inspector itself offers, and tools run fine through the agent
+path.
+
+The route resolves its token with `forceDirectMcpAudience: true`, dialling the
+MCP server directly rather than through PingGateway, so it carries a different
+token than every other surface. That is the first place to look.
+
+**Why it matters:** this is a demo surface whose whole purpose is showing the
+real protocol. It advertises 242 tools and runs none of them.
+
+**Found by** `demo_api_ui/tests/e2e/mcp-inspector.real.spec.js`, added 2026-08-18
+— nothing drove this page before, which is why a 502 on its primary action went
+unnoticed. That spec deliberately takes the tool FROM the catalog rather than
+naming one: an earlier version hardcoded `list_invoices` and would have reported
+working scope enforcement as a bug.
+
+**Status:** the third test in that spec is RED on purpose. It states the bar —
+whatever the Inspector lists, it must be able to invoke — rather than being
+softened to match current behaviour.
