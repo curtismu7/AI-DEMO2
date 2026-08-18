@@ -39,3 +39,26 @@ test("admin does not render the quick nav (AdminSideNav is used instead)", () =>
     screen.queryByRole("navigation", { name: /quick navigation/i }),
   ).not.toBeInTheDocument();
 });
+
+// The rail is mounted app-wide (App.js) gated on a signed-in non-admin being on
+// a DashboardQuickNav route. These lock the render contract App.js relies on.
+test("renders the rail for a signed-in non-admin on a gated route", () => {
+  renderNav({ role: "user" }, "/dashboard");
+  expect(
+    screen.getByRole("navigation", { name: /quick navigation/i }),
+  ).toBeInTheDocument();
+});
+
+test("does not render on a non-gated route", () => {
+  renderNav({ role: "user" }, "/self-service");
+  expect(
+    screen.queryByRole("navigation", { name: /quick navigation/i }),
+  ).not.toBeInTheDocument();
+});
+
+test("does not render when signed out (no user)", () => {
+  renderNav(null, "/dashboard");
+  expect(
+    screen.queryByRole("navigation", { name: /quick navigation/i }),
+  ).not.toBeInTheDocument();
+});
