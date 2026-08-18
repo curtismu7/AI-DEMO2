@@ -40,6 +40,46 @@ done
 # runs first.
 STAMP="$(git rev-parse --path-format=absolute --git-common-dir)/deploy-live.last"
 
+# ── Serialize deploys ────────────────────────────────────────────────────────
+# One machine, one Docker project (`ai-demo`), one stamp file — but often several
+# agent sessions. Two concurrent runs break each other two ways, both observed
+# live on 2026-08-18:
+#
+#   1. `docker compose` renames the old container before creating the new one, so
+#      two overlapping runs collide:
+#        Conflict. The container name "/<hash>_ai-demo-mcp-gateway" is already
+#        in use by container "<id>"
+#      That aborted the run with exit 1, having restarted nothing it was asked to.
+#   2. The stamp is global. The other session's run finished and wrote the NEW
+#      sha, so the failed run's next attempt read OLD == NEW and reported
+#      "containers already serve <sha> — nothing to deploy" while the ui
+#      container still served the previous bundle. A failed deploy presented as a
+#      completed one, caught only by checking the page by hand.
+#
+# mkdir is atomic on every filesystem this runs on — that is the whole reason it
+# is used here rather than a test-then-create on a plain file. Refuse rather than
+# queue: a waiting deploy would still be diffing a range computed before the
+# other run moved the stamp.
+LOCK="$(git rev-parse --path-format=absolute --git-common-dir)/deploy-live.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  holder="$(cat "$LOCK/pid" 2>/dev/null || echo '?')"
+  # A crashed run leaves the directory behind. Reclaim it only when the recorded
+  # pid is genuinely gone, so a slow-but-alive deploy is never stolen from it.
+  if [ "$holder" != "?" ] && ! kill -0 "$holder" 2>/dev/null; then
+    echo "[deploy-live] clearing stale lock from pid $holder (no longer running)"
+    rm -rf "$LOCK"
+    mkdir "$LOCK" 2>/dev/null || { echo "[deploy-live] could not take the lock"; exit 1; }
+  else
+    echo "[deploy-live] another deploy is running (pid $holder) — refusing to run concurrently."
+    echo "[deploy-live] Two runs race on the same containers and the same stamp, which"
+    echo "[deploy-live] silently leaves services stale under a success line. Wait for it"
+    echo "[deploy-live] to finish, then re-run: scripts/deploy-live.sh"
+    exit 1
+  fi
+fi
+printf '%s\n' "$$" > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT
+
 if [ -z "$OLD" ]; then
   PRE="$(git rev-parse HEAD)"
   ./scripts/sync-main-checkout.sh

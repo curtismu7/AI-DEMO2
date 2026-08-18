@@ -2644,3 +2644,55 @@ way would be a UI change nobody asked for, on a protected surface.
 **How to check:** log in, open `/dashboard`, and count
 `document.querySelectorAll('.ba-action-chip').length`. Non-zero means this was
 resolved.
+
+### 2026-08-18 — Concurrent deploys raced on one Docker project and one stamp (FIXED)
+
+**Where:** `scripts/deploy-live.sh`.
+
+**What happened:** several agent sessions share one machine, one Docker compose
+project (`ai-demo`) and one `.git/deploy-live.last`. Two runs overlapped and
+broke each other twice over:
+
+1. `docker compose` renames the old container before creating the new one, so the
+   second run collided mid-swap and died:
+
+   ```
+   Conflict. The container name "/<hash>_ai-demo-mcp-gateway" is already in use
+   by container "<id>"
+   ```
+
+   Exit 1, having restarted nothing it was asked to — the `ui` service in that
+   run's plan was never reached.
+
+2. The stamp is global. The OTHER session's run finished and wrote the new sha,
+   so the failed run's next attempt read `OLD == NEW` and announced
+   `containers already serve <sha> — nothing to deploy` while `ui` still served
+   the previous bundle. **A failed deploy presented as a completed one.** It was
+   caught only by loading the page and reading the copy, which was still the old
+   string.
+
+The timeline is what settled it — the stamp's mtime was ~1 minute AFTER the last
+command of the failing session, so that session did not write it:
+
+| time | event |
+|---|---|
+| 07:11:44 | session A deploy — exit 1, nothing restarted |
+| 07:12:24 | session A retry — "already serve abd0377d" |
+| 07:12:42 | session A restarts `ui` by hand |
+| 07:13:40 | stamp written — by session B |
+
+**Fixed by** an atomic `mkdir` lock at the top of the script. A second run refuses
+with a message naming the holder's pid instead of racing; a lock whose recorded
+pid is gone is reclaimed automatically. Refusal happens BEFORE the `EXIT` trap is
+installed, so a refused run cannot delete the live holder's lock — verified, not
+assumed. A refusing run also never touches the stamp, so the range stays intact
+for the next attempt.
+
+**Why refuse rather than queue:** a waiting run would resume with a range computed
+before the other run moved the stamp, which is the same wrong answer arrived at
+more slowly.
+
+**Related:** #2010 documents a DIFFERENT hole in the same script — the `OLD != NEW`
+path silently deploying `PRE..NEW`. That one is about the fallback being
+unreliable; this one is about two runs corrupting each other. Both end the same
+way: a stale service under a success line.
