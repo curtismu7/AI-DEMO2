@@ -11,7 +11,8 @@
  *
  * Guard shapes in App.js today:
  *   <RequireAdminLogin user={user}>…</RequireAdminLogin>   -> admin
- *   loading ? null : user ? (…) : <Navigate to="/" replace/> -> user
+ *   loading ? null : user ? (…) : <SignInRequired/>        -> user
+ *   loading ? null : user ? (…) : <Navigate to="/" replace/> -> user (legacy)
  *   user ? <A/> : <B/>  (no redirect)                      -> soft
  *   anything else                                          -> public
  */
@@ -71,8 +72,11 @@ function guardFromElementExpression(exprSrc) {
   if (/RequireAdminLogin/.test(exprSrc)) return 'admin';
   const testsUser = /\buser\s*(\?|&&)/.test(exprSrc);
   if (!testsUser) return null;
-  // Only a redirect makes it a real gate; `user ? <A/> : <B/>` renders either way.
-  return /<Navigate\s+to="\/"/.test(exprSrc) ? 'user' : 'soft';
+  // Only a real signed-out gate counts; `user ? <A/> : <B/>` renders either way.
+  // <SignInRequired/> / <SignInPrompt/> are the signed-out sign-in ask (page
+  // chrome + prompt card / bare card); <Navigate to="/"> remains only for
+  // non-auth denials (e.g. feature flag off) and legacy guards.
+  return /<SignInRequired\b|<SignInPrompt\b|<Navigate\s+to="\/"/.test(exprSrc) ? 'user' : 'soft';
 }
 
 function strongest(a, b) {

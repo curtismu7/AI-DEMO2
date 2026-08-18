@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import PageNav from './PageNav';
+import SignInPrompt from './SignInPrompt';
 import ApiCallDisplay from './ApiCallDisplay';
 
 const BUCKET_ORDER = ['AI Agent', 'Banking', 'Identity', 'Admin'];
@@ -352,14 +353,7 @@ const ActivityLogs = ({ user, onLogout }) => {
           <div className="card">
             <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
               {authRequired || !user ? (
-                <>
-                  <h3>Sign in to view API activity</h3>
-                  <p style={{ color: '#64748b' }}>
-                    HTTP activity logs require an authenticated session.
-                    For the live oauth / mcp / HITL event stream, open{' '}
-                    <a href="/monitoring/activity-log">Activity Log</a>.
-                  </p>
-                </>
+                <SignInPrompt message="HTTP activity logs require an authenticated session. For the live oauth / mcp / HITL event stream, open Activity Log under Monitoring." />
               ) : (
                 <>
                   <h3>No activity logs found</h3>

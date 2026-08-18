@@ -332,3 +332,17 @@
     align-items: flex-start;
   }
 }
+
+.ungov-widget__signin {
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ungov-widget__signin:hover {
+  background: #1d4ed8;
+}

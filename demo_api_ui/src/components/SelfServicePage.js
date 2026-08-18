@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import './SelfServicePage.css';
 
 const SelfServicePage = () => {
@@ -532,7 +533,7 @@ const SelfServicePage = () => {
                 <p>Please sign in to view your profile.</p>
                 <button
                   className="ssp-submit-btn"
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigateToCustomerOAuthLogin('/self-service')}
                 >
                   Login
                 </button>

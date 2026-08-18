@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { notifySessionExpiredIfNeeded } from '../utils/authUi';
+import SignInPrompt from './SignInPrompt';
 import ResourceServerTester from './ResourceServerTester';
 import '../styles/appShellPages.css';
 import './ClientCredentialsResourcePage.css';
@@ -77,6 +78,7 @@ export default function ClientCredentialsResourcePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(null);
 
   useEffect(() => {
@@ -89,6 +91,7 @@ export default function ClientCredentialsResourcePage() {
         const status = err.response?.status;
         notifySessionExpiredIfNeeded({ status, body: err.response?.data });
         if (status === 401) {
+          setNeedsSignIn(true);
           setError('Your sign-in session has expired. Sign in again to view this resource server.');
         } else {
           setError(err.response?.data?.message || 'Failed to load CC resource server data.');
@@ -120,7 +123,11 @@ export default function ClientCredentialsResourcePage() {
     return (
       <div className="app-page-shell ccrsp-page">
         <div className="app-page-card ccrsp-error-card">
-          <p>⚠️ {error}</p>
+          {needsSignIn ? (
+            <SignInPrompt message={error} />
+          ) : (
+            <p>⚠️ {error}</p>
+          )}
         </div>
       </div>
     );

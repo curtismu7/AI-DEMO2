@@ -4,6 +4,7 @@ import { HERO_VARIANTS } from "../config/heroVariants";
 import "./OAuthAcademyPage.css";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { sendAgentMessage } from "../services/demoAgentService";
+import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import AgentConsentModal from "./AgentConsentModal";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { MarkdownContent } from "./shared/MarkdownText";
@@ -144,6 +145,7 @@ const OAuthAcademyPage = () => {
           content:
             "Please sign in first — then I can run real OAuth flows and show every token hop.",
           pending: false,
+          needAuth: true,
         });
         return;
       }
@@ -302,7 +304,18 @@ const OAuthAcademyPage = () => {
                 <div className="msg-avatar">
                   {msg.role === "user" ? "You" : "OA"}
                 </div>
-                <div className="message-bubble">{renderBubbleContent(msg.content)}</div>
+                <div className="message-bubble">
+                  {renderBubbleContent(msg.content)}
+                  {msg.needAuth && (
+                    <button
+                      type="button"
+                      className="oa-signin-btn"
+                      onClick={() => navigateToCustomerOAuthLogin('/oauth-academy')}
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

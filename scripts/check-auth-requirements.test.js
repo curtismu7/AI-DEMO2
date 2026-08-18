@@ -64,6 +64,17 @@ describe('App.js route guard audit', () => {
     assert.equal(levelOf(routes, '/check'), 'user');
   });
 
+  it('reports the loading/user/SignInRequired shape as a user guard', () => {
+    const routes = auditSource(`
+      export default function App() {
+        return <Routes>
+          <Route path="/check" element={loading ? null : user ? (<CheckPage />) : (<SignInRequired />)} />
+        </Routes>;
+      }
+    `);
+    assert.equal(levelOf(routes, '/check'), 'user');
+  });
+
   // The one a regex gets wrong: no guard on the Route itself, one on an
   // ancestor. 29 admin routes in App.js look exactly like this.
   it('attributes an ancestor guard to every route inside it', () => {

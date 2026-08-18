@@ -180,6 +180,12 @@ export default function RunReportPage({ user }) {
         </header>
         <div className="empty-state">
           <p>Sign in to view your run reports.</p>
+          <button
+            className="demo-result__login-btn"
+            onClick={() => navigateToCustomerOAuthLogin('/reports')}
+          >
+            Sign in
+          </button>
         </div>
       </div>
     );

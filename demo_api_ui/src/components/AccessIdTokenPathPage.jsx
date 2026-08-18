@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import bffAxios from "../services/bffAxios";
+import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import "./AccessIdTokenPathPage.css";
 
@@ -85,6 +86,14 @@ export default function AccessIdTokenPathPage() {
     return (
       <div className="aitp-container">
         <div className="aitp-error">{userMessage}</div>
+        {(errorStatus === 401 || errorStatus === 412 || error === "id_token_missing") && (
+          <button
+            className="aitp-back-btn"
+            onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}
+          >
+            Sign in
+          </button>
+        )}
         <button
           className="aitp-back-btn"
           onClick={() => navigate("/dashboard")}

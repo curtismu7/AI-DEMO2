@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
+import SignInPrompt from '../components/SignInPrompt';
 import { SERVERS } from '../components/ResourceServerInterstitial';
 import './ResourceServerJourneyPage.css';
 
@@ -240,6 +241,7 @@ export default function ResourceServerJourneyPage() {
   const [inflowData, setInflowData] = useState(null);
   const [verticalData, setVerticalData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('rsj-theme') || 'dark');
 
   const toggleTheme = useCallback(() => {
@@ -253,9 +255,13 @@ export default function ResourceServerJourneyPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const fetches = [bffAxios.get('/api/resource-server/summary-inflow').catch(() => null)];
+    const on401 = (e) => {
+      if (e.response?.status === 401) setNeedsSignIn(true);
+      return null;
+    };
+    const fetches = [bffAxios.get('/api/resource-server/summary-inflow').catch(on401)];
     if (rsType === 'apikey' && toolName) {
-      fetches.push(bffAxios.get(`/api/resource-server/vertical-record?tool=${encodeURIComponent(toolName)}`).catch(() => null));
+      fetches.push(bffAxios.get(`/api/resource-server/vertical-record?tool=${encodeURIComponent(toolName)}`).catch(on401));
     }
     Promise.all(fetches).then(([inflowRes, vertRes]) => {
       if (cancelled) return;
@@ -282,6 +288,10 @@ export default function ResourceServerJourneyPage() {
       </header>
 
       <div className="rsj-body">
+        {needsSignIn && (
+          <SignInPrompt message="Sign in to see the live token and data proof for this resource server." />
+        )}
+
         {/* Split view: token left / data right */}
         <div className="rsj-split">
           {/* Left: credential/token */}
