@@ -1160,7 +1160,7 @@ inconsistency in consent, not a failure.
 **Real fix:** show the same prompt-plus-button the other paths use. The
 persistence and replay machinery it needs already exists.
 
-### [ ] 2026-08-18 — `POST /api/conversations/:userId/:vertical/hero-shown` 500s on a normal signed-in load
+### [x] 2026-08-18 — `POST /api/conversations/:userId/:vertical/hero-shown` 500s on a normal signed-in load
 
 **Where:** `demo_api_server/routes/conversations.js:229`.
 
@@ -1213,10 +1213,44 @@ inside the `try` and defaulted (`req.body || {}`), and the catch logs
 `err.stack || err.message` instead of `err.message` alone. The next occurrence
 names its own cause instead of costing another session.
 
-*Still open:* the original 500 has no confirmed cause. If it recurs the log line
-now says which layer failed. The most plausible remaining candidate is not
-specific to this route — see the new LMDB `mapSize` headroom entry at the top of
-this file.
+**RESOLVED 2026-08-18.** The original 500 *does* have a confirmed cause, and it
+had already been fixed the day before — the "partly resolved" pass above simply
+never connected the two.
+
+*What the issue really was:* `saveMessage` → `_pruneThreadIfNeeded` called
+`db.deleteSync(key)`, which the lmdb-js handle does not define (the API is
+`removeSync`). The prune only runs once a thread exceeds
+`MAX_MESSAGES_PER_THREAD = 500`, and `demouser:retail` had grown past it (the same
+oversized thread behind the 84MB store in the `mapSize` entry). So every
+hero-shown write triggered the prune, the prune threw
+`TypeError: db.deleteSync is not a function`, and the handler's catch turned it
+into the 500 seen on **every** dashboard load — not the once-off the "partly
+resolved" note assumed. Neither the `me` alias (resolved since July at
+`routes/conversations.js:40`) nor the body-above-`try` path (Express 4 sets
+`req.body = {}`, so unreachable here) was ever the cause; both were real but
+adjacent cleanups.
+
+*Why it "could not be reproduced":* the live-stack probes above all wrote to
+*fresh* threads well under the 500-message cap, so the prune branch never ran.
+The bug is only reachable on an over-cap thread.
+
+*What the fix was:* `db.deleteSync` → `db.removeSync` at both call sites in
+`conversationStore.lmdb.js`, shipped in **PR #1976** (commit `5d92b23fa`,
+2026-08-17) with store-level guard `tests/services/conversationStoreDelete.test.js`
+— whose own docstring names this exact hero-shown 500. That landed the day before
+this entry's investigation, which is why the 500 was already gone by the time
+anyone tried to reproduce it.
+
+*What this pass added:* `tests/routes/conversationsHeroShown.test.js` — the
+missing **route-level** guard. It drives `POST /api/conversations/me/:vertical/hero-shown`
+through the real router + real store and asserts (1) 200 with the greeting
+persisted under the resolved `req.user.sub`, never under literal `me`, and (2) a
+hero-shown write onto an at-cap thread runs the prune path and still returns 200
+— the precise scenario that 500'd pre-#1976. No production code changed: the bug
+was already fixed; only the through-the-route regression was uncovered.
+
+The remaining LMDB `mapSize` headroom concern is real but unrelated to this 500 —
+see that entry at the top of the file; it is deliberately *not* fixed here.
 
 ### [ ] 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
 
