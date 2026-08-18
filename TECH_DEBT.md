@@ -170,12 +170,31 @@ running stack, and the `*.real.spec.js` Playwright suites that could host it
 require `local.ping-devops.com:4000` and therefore never run in CI — which is
 why they caught none of this class today.
 
-**What the real fix looks like:** a small live smoke script, run deliberately
-rather than in CI, that drives one tool call and asserts the expected hop ids
-appear in the response's `tokenEvents` for the CURRENTLY CONFIGURED gateway. Cheap
-to write, and it is the only thing that would have caught #1977 before merge.
-Until then, treat "tests pass" on any chain hop as evidence about the model, not
-about what a demo will show.
+**RESOLVED 2026-08-18** — `demo_api_ui/tests/e2e/chain-hops-reachable.real.spec.js`.
+Two tests, run deliberately (`npm run test:e2e:real -- chain-hops-reachable`):
+one drives a tool call via `/api/agent/invoke` and asserts `mcp_challenge`,
+`gw-authorize` and `gw-filter-chain`; the other drives discovery via
+`/api/demo-agent/tools` and asserts the `tools/list` challenge plus
+`degraded === false` (the shape #1949 took). Hops that depend on which gateway is
+active are reported, never asserted, so the check does not encode today's
+deployment. Verified green live, 97 tools discovered.
+
+Two things had to be true for it to be worth anything, and both were measured:
+
+- It asserts only ids the preview fallback cannot synthesize.
+  `buildSessionPreviewTokenEvents` emits `user-token` / `exchange` /
+  introspection when the real chain fails to resolve, so an assertion on those
+  passes on a stack with no working gateway at all.
+- Run against the Inspector route — which passes `forceDirectMcpAudience: true`
+  and bypasses PingGateway — the same request returned 12 token events, the
+  entire two-exchange chain, and **none** of the three asserted ids. The
+  assertions discriminate.
+
+Still true, and the reason this is a smoke check rather than a CI gate: it needs
+`local.ping-devops.com:4000`, so nothing runs it automatically. A chain hop that
+passes unit tests is still evidence about the model, not about what a demo will
+show — run this before believing otherwise.
+
 ### 2026-08-18 — A piped verification command reports the pipe's exit code, so a failed deploy reads as success
 
 **Where:** every `./scripts/deploy-live.sh ... | tail`, `npm test | grep`,
