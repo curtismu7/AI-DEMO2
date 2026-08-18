@@ -52,9 +52,24 @@ function Identity({ identity }) {
 function Decision({ decision }) {
   if (!decision || decision.outcome === "n/a") return null;
   const denied = decision.outcome === "deny";
+  // 'inferred' means the gateway could not read the PDP's stamped decision and
+  // guessed the outcome from the HTTP status. Surface it so a guess never reads
+  // as a confirmed policy verdict — the one thing an authorization trace exists
+  // to rule out. Trail-sourced (authoritative) decisions, and any hop that
+  // carries no provenance, render exactly as before.
+  const inferred = decision.source === "inferred";
   return (
     <div className={`ttrace-decision ${denied ? "deny" : "permit"}`}>
       {denied ? "❌ DENY" : "✓ PERMIT"}
+      {inferred ? (
+        <span
+          className="ttrace-inferred"
+          data-testid="decision-inferred"
+          title="Inferred from the HTTP status — the gateway could not read the policy decision, so this outcome is a guess, not a confirmed PDP verdict."
+        >
+          inferred
+        </span>
+      ) : null}
       {decision.reason ? <span className="ttrace-reason">{decision.reason}</span> : null}
     </div>
   );

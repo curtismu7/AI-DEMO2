@@ -200,6 +200,20 @@
 .ttrace-decision.permit { color: #047857; }
 .ttrace-reason { font-weight: 400; color: #6b7280; margin-left: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
+/* A status-inferred outcome is a guess, not a confirmed PDP verdict — amber so it
+   reads as caution and never as an authoritative decision. Self-contained pill
+   background (like the reconciliation pills) so it stays legible in dark mode. */
+.ttrace-inferred {
+  font-size: 11px;
+  font-weight: 600;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 0 6px;
+  margin-left: 8px;
+}
+
 /* The band that cuts across the spine at the offending hop. */
 .ttrace-violation {
   list-style: none;

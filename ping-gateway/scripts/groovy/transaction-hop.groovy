@@ -54,6 +54,15 @@ return next.handle(context, request).thenOnResult({ response ->
         // a 200 envelope, so status alone cannot distinguish a policy DENY from
         // a successful call.
         def outcome = null
+        // Provenance of `outcome`: 'trail' once it is read from the PDP's stamped
+        // X-Gw-Audit-Trail (the authoritative verdict), 'inferred' when the trail is
+        // absent/unparseable and it falls through to the status-code guess below.
+        // The two are recorded in the SAME decision.outcome field, so without this
+        // marker /transaction-trace could not tell a real policy DENY/PERMIT from a
+        // guess — and a JSON-RPC error rides a 200 envelope, so status alone cannot
+        // distinguish a policy DENY from a successful call. Default 'inferred': any
+        // path that does not explicitly read the decision from the trail is a guess.
+        def outcomeSource = 'inferred'
         def reason = null
         def op = null
         try {
@@ -62,12 +71,19 @@ return next.handle(context, request).thenOnResult({ response ->
                 def trail = new JsonSlurper().parseText(trailRaw)
                 def az = trail?.authorize
                 if (az) {
-                    if (az.decision) outcome = az.decision as String
+                    if (az.decision) {
+                        outcome = az.decision as String
+                        outcomeSource = 'trail'
+                    }
                     reason = az.reason as String
                     op = (az.tool ?: az.method) as String
                 }
             }
         } catch (Exception ignored) { /* trail absent or unparseable — fall through */ }
+        // FAIL-OPEN (see file header): the ledger is an observability surface, so a
+        // missing/unparseable trail must still record a hop. Infer the outcome from
+        // the HTTP status, leaving outcomeSource='inferred' so the trace UI reads it
+        // as a guess rather than a confirmed PDP verdict.
         if (!outcome) outcome = (statusCode >= 400) ? 'DENY' : 'PERMIT'
 
         def payload = JsonOutput.toJson([
@@ -77,7 +93,7 @@ return next.handle(context, request).thenOnResult({ response ->
             durationMs   : durationMs,
             service      : 'ping-gateway',
             status       : (statusCode >= 400) ? 'error' : 'ok',
-            decision     : [outcome: outcome, by: 'ping-gateway', reason: reason],
+            decision     : [outcome: outcome, by: 'ping-gateway', reason: reason, source: outcomeSource],
         ])
 
         // Daemon thread: URLConnection blocks in native I/O, and IG runs this

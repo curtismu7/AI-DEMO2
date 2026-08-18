@@ -237,6 +237,71 @@ describe("TransactionTracePage", () => {
     });
   });
 
+  // A gateway.authorize hop whose outcome the gateway could not read from the PDP
+  // trail (X-Gw-Audit-Trail absent/unparseable) is guessed from the HTTP status and
+  // stamped decision.source: "inferred". It must visibly read as a guess.
+  const DETAIL_INFERRED = {
+    correlationId: "c-inferred",
+    traceId: "abcd1234abcd1234abcd1234abcd1234",
+    startedAt: "2026-07-18T14:19:44.000Z",
+    endedAt: "2026-07-18T14:19:45.000Z",
+    hops: [
+      {
+        seq: 1,
+        ts: "2026-07-18T14:19:44.000Z",
+        service: "ping-gateway",
+        phase: "gateway.authorize",
+        op: "get_balance",
+        decision: { outcome: "PERMIT", by: "ping-gateway", reason: null, source: "inferred" },
+        source: "emit",
+      },
+    ],
+    verdict: { status: "PASS", violations: [] },
+    reconciliation: { status: "MATCH", diffs: [], sources: {} },
+  };
+
+  function listFor(detail) {
+    return {
+      transactions: [
+        { correlationId: detail.correlationId, startedAt: detail.startedAt, endedAt: detail.endedAt, hopCount: detail.hops.length },
+      ],
+    };
+  }
+
+  it("marks a status-inferred gateway decision as a guess, not a confirmed verdict", async () => {
+    vi.stubGlobal("fetch", vi.fn((url) =>
+      String(url).includes(`/${DETAIL_INFERRED.correlationId}`)
+        ? jsonOk(DETAIL_INFERRED)
+        : jsonOk(listFor(DETAIL_INFERRED))));
+    render(<TransactionTracePage />);
+    await waitFor(() => expect(screen.getByText("c-inferred")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /c-inferred/ }));
+
+    await waitFor(() => expect(screen.getByTestId("decision-inferred")).toBeInTheDocument());
+    expect(screen.getByTestId("decision-inferred")).toHaveTextContent(/inferred/i);
+  });
+
+  it("does not mark a trail-sourced (authoritative) gateway decision as inferred", async () => {
+    const authoritative = {
+      ...DETAIL_INFERRED,
+      correlationId: "c-trail",
+      hops: [
+        {
+          ...DETAIL_INFERRED.hops[0],
+          decision: { outcome: "PERMIT", by: "ping-gateway", reason: null, source: "trail" },
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn((url) =>
+      String(url).includes("/c-trail") ? jsonOk(authoritative) : jsonOk(listFor(authoritative))));
+    render(<TransactionTracePage />);
+    await waitFor(() => expect(screen.getByText("c-trail")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /c-trail/ }));
+
+    await waitFor(() => expect(screen.getByText(/✓ PERMIT/)).toBeInTheDocument());
+    expect(screen.queryByTestId("decision-inferred")).not.toBeInTheDocument();
+  });
+
   it("still renders a violation with a null hopSeq instead of dropping it", async () => {
     const detail = {
       ...DETAIL_FAIL,
