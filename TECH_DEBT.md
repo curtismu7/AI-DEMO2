@@ -13,6 +13,318 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
+
+A five-service audit (BFF, UI, MCP gateway/proxy/resource, Python/Node agents,
+scripts/gateway) surfaced ~27 fresh defects not already in this file. The
+low-risk ones — script/infra, Python agent retry/timeout, and standalone UI —
+were fixed in grouped PRs. The entries below are the ones left deferred because
+they sit on REGRESSION_PLAN §1 protected surfaces (transactions, OAuth callback,
+token caches, MCP gateway auth, LLM proxy) and each needs its own reviewed pass.
+Two are **security-relevant** and flagged as such — decide on those first.
+
+### 2026-08-18 — SECURITY: a capitalised `type` skips the entire transaction authorization/HITL/step-up/scope layer
+
+**FIXED 2026-08-18 (PR #2007, pending merge).** `type` is normalised
+(`String(type||'').toLowerCase().trim()`) immediately after destructure, so every
+gate sees the canonical form. Regression test proves `"Transfer"` / `"  transfer  "`
+/ `"WithDrawal"` take the identical step-up/HITL/authz path; logged in
+REGRESSION_PLAN §4. No blanket type rejection added (deposit legitimately returns
+`type_not_in_scope` when `ff_authorize_deposits` is off). Original entry follows.
+
+**Where:** `demo_api_server/routes/transactions.js:419` (`type` destructured raw
+from `req.body`, never normalised), gated against exact-lowercase lists in
+`services/transactionAuthorizationService.js:149-161` (`AUTHORIZE_TYPES`) and
+`routes/transactions.js:557` (`writeOperations`).
+
+**What's wrong:** `POST /api/transactions` with `{"type":"Transfer","amount":9000,...}`
+(capital T, above the HITL/step-up threshold) makes `evaluateTransactionPolicy`
+return `{ran:false, reason:'type_not_in_scope'}`, so PingOne DENY, HITL consent
+and RFC 9470 step-up are all skipped; the write-scope check is skipped too.
+Execution falls through to `dataStore.applyTransfer(...)` (~755, which ignores
+`type`) and the funds move with no policy decision, no consent, no step-up
+recorded. The hard `max_transaction_amount` gate (~480) still fires because it
+does not read `type`, but every type-driven control is bypassed. This is the
+highest-severity finding of the audit.
+
+**Why not fixed now:** it is on a §1 protected transfer-consent path and the user
+scoped this round to safe, non-§1 fixes — a control-bypass fix on that surface
+must be done deliberately with the regression pass, not folded into a batch.
+
+**Real fix:** normalise `type` (`String(type||'').toLowerCase().trim()`) once at
+the top of the handler before any gate reads it, and add a test that
+`{"type":"Transfer"}` and `{"type":"transfer"}` take identical authorization
+paths. Consider rejecting unknown `type` values outright rather than treating
+"not in scope" as "no controls apply".
+
+### 2026-08-18 — SECURITY: MCP gateway rate-limit bucket is keyed on an unverified `sub`, so a forged token starves a victim
+
+**FIXED 2026-08-18 (PR #2008, pending merge).** The `check()` moved to AFTER token
+validation on both transports (WS after `validateInboundToken`; HTTP after
+introspection+policy), keyed on the verified subject — so forged/inactive tokens
+are rejected `401` before the limiter runs and can only exhaust the attacker's own
+bucket. Regression test proves 10 forged `sub=<victim>` requests are each `401`,
+never `429`, and the real victim keeps its full allowance. Original entry follows.
+
+**Where:** `demo_mcp_gateway/src/index.ts:508-533` (WS path) and
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts:275-288` (HTTP path).
+
+**What's wrong:** the UC18 limiter runs *before* `validateInboundToken`/
+introspection and derives its key `${sub}:${tool}` from a raw base64 decode of
+the bearer payload. The in-code comment claims a forged `sub` only wastes a slot
+in the attacker's own bucket — the reverse is true. An attacker sends
+garbage-signed JWTs with `sub=<victim>`; each `check()` consumes a slot in the
+victim's bucket before the signature check rejects the call, and after
+`GATEWAY_RATE_LIMIT_MAX_REQUESTS` (default 20) the legitimate victim gets
+`-32429 rate_limited` on that tool for the window.
+
+**Why not fixed now:** §1 gateway auth surface; reordering the limiter after
+token validation (or keying on the verified subject only) is a behavioural change
+to the gateway's request pipeline that needs its own blast-radius check.
+
+**Real fix:** key the limiter on the *verified* subject — move the `check()`
+after `validateInboundToken`, or fall back to the source IP for unverified
+tokens so an unauthenticated caller can only exhaust its own bucket.
+
+### 2026-08-18 — MCP gateway WS `close` cancels the call timeout without settling the promise, hanging the request forever
+
+**Where:** `demo_mcp_gateway/src/proxy.ts:187-190` (`ws.on('close')`), awaited by
+`src/index.ts:960` with the `inFlightCalls` cleanup `finally` at ~974.
+
+**What's wrong:** on `close` the handler runs `clearTimeout(timer)` /
+`clearTimeout(handshakeTimer)` but never rejects. If a backend completes the
+handshake then closes cleanly without answering the proxied request (crash
+mid-call, policy-close, restart), `proxyJsonRpc` never resolves and its 30s
+safety timeout has just been cancelled — the promise hangs indefinitely, the
+client never gets a JSON-RPC response for that id, and the `inFlightCalls` entry
+leaks because the `finally` never runs.
+
+**Why not fixed now:** §1 gateway internals; the fix must reject with the right
+JSON-RPC error shape without regressing the normal-close path.
+
+**Real fix:** in the `close` handler, reject any still-pending call for that
+socket with a transport-closed error before clearing timers, so the `finally`
+cleans up `inFlightCalls`.
+
+### 2026-08-18 — MCP gateway introspection cache is unbounded and never pruned
+
+**Where:** `demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts:26,155,176`.
+
+**What's wrong:** `_cache.set(...)` has no size cap and no sweep; expired entries
+are only skipped on `get`, never deleted. Every distinct inbound token (they
+rotate per login/exchange; even garbage tokens get their `{active:false}` result
+cached) adds a permanent map entry for the process lifetime. The sibling exchange
+cache was hardened with `cacheInsertWithEviction` (`boundedTokenCache.ts`, HI-06);
+this one was missed, so memory grows monotonically and a caller spraying random
+bearers inflates it at will.
+
+**Why not fixed now:** §1 gateway auth; small but should land with the other
+gateway-cache hardening and a test.
+
+**Real fix:** route this cache through the same `cacheInsertWithEviction` bound +
+periodic sweep the exchange cache already uses.
+
+### 2026-08-18 — `demo_mcp_proxy` pins `MCP-Protocol-Version: 2025-03-26`, which the Node gateway hard-rejects
+
+**Where:** `demo_mcp_proxy/server.js:38`; rejected by
+`demo_mcp_gateway/src/server/GatewayServer.ts:727-736` (expects `2025-11-25`,
+`proxy.ts:31`). Wired to the Node gateway by `docker-compose.yml:1116`
+(`MCP_GATEWAY_HTTP_URL: http://mcp-gateway:3005`).
+
+**What's wrong:** every `mcpRpc` the sidecar makes is `tools/list`/`tools/call`
+with the stale header, so `GET /tools` and `POST /tools/:name` return 400
+`unsupported_protocol_version` before auth even runs — whenever the proxy is
+pointed at the Node gateway.
+
+**Why not fixed now:** the version string is a one-liner, but it touches the MCP
+transport contract; verify the gateway truly is the intended upstream for this
+sidecar (vs PingGateway) before bumping, and that no other consumer depends on
+the old value.
+
+**Real fix:** align the proxy's advertised protocol version with the gateway's
+(`2025-11-25`), or make it negotiate from the gateway's advertised version.
+
+### 2026-08-18 — `demo_mcp_proxy` per-caller tools/list cache has no TTL and no size bound
+
+**Where:** `demo_mcp_proxy/server.js:15-124` (`_toolCacheByCaller`, keyed
+`sha256(bearer)`).
+
+**What's wrong:** entries are deleted only on an MCP error; a successful fetch is
+cached forever. (a) tokens rotate per session, so the map grows unbounded for the
+process lifetime; (b) while a token stays valid, a change of scope or of vertical
+that alters the gateway's filtered tools/list (greyed/denied tools, a vertical
+switch via header) is never reflected — the proxy serves the first catalog it saw.
+
+**Why not fixed now:** batched with the gateway-cache hardening above; needs a
+TTL + bound decision consistent with the rest of the MCP layer.
+
+**Real fix:** give the cache a short TTL and an LRU bound, and key/scope it so a
+vertical or scope change invalidates it.
+
+### 2026-08-18 — MCP gateway SSE passthrough leaks the upstream connection on client disconnect
+
+**Where:** `demo_mcp_gateway/src/server/GatewayServer.ts:542-591`
+(`pipeGetToUpstream`).
+
+**What's wrong:** it never watches `req`/`res` for `close`. When the SSE client
+goes away the upstream GET is not destroyed (`pipe` only unpipes, it does not
+destroy the source), and the request's `timeout` option (~560) is inert because
+no `'timeout'` listener is attached. Each abandoned SSE stream holds an upstream
+socket (and the pending middleware promise) until the upstream itself ends, so
+browser reconnect loops accumulate zombie upstream connections.
+
+**Why not fixed now:** §1 gateway; the teardown must destroy the upstream without
+regressing normal stream completion.
+
+**Real fix:** on `res`/`req` `close`, destroy the upstream request; attach a real
+`'timeout'` handler that aborts it.
+
+### 2026-08-18 — LLM proxy: cross-class swaps race and unload each other's just-loaded tier
+
+**Where:** `demo_llm_proxy/router.js:262-292` (`swapTo`); serialised at
+`tier-manager.js:78-84`. (Distinct from the known warmup positional-tier issue.)
+
+**What's wrong:** `swapInFlight` coalesces only same-class swaps; a concurrent
+request for a different class starts a second swap and overwrites `swapInFlight`.
+Because `ensure` "stops every other tier", the second queued ensure unloads the
+first swap's just-loaded target. Classic swap mode, no residents: concurrent
+phi-4-mini + gpt-oss → swap A starts streaming on :8096, then `ensure(8091)`
+kills :8096 mid-response → ECONNRESET / 502, or the loser polls a dead tier for
+the full `SWAP_TIMEOUT_MS` (180s) before a 503.
+
+**Why not fixed now:** LLM proxy is a delicate, effectively-frozen surface
+(memory: `feedback-llm-settings-frozen`); a swap-serialisation change needs its
+own soak test.
+
+**Real fix:** serialise swaps across all classes (single global swap lock/queue),
+or reject/queue a cross-class swap while one is in flight rather than clobbering
+`swapInFlight`.
+
+### 2026-08-18 — LLM proxy: the pin-only experimental tier is reachable by normal classification
+
+**Where:** `demo_llm_proxy/router.js:227-232` (`smallestLoadedCovering`), against
+the invariant stated at ~100-103.
+
+**What's wrong:** lines 100-103 promise the `llama-3-groq-8b-tool-use` tier
+(:8093, class 2, tool-reliability "unproven") is reached only via explicit
+`LLM_PROXY_PIN_TIER=8093`, never by keyword classification — but the coverage
+loop iterates `i = cls … TIERS.length-1` and returns index 2 whenever it is
+healthy and the intended tiers are not. If :8096 is down (crash/swap window) while
+:8093 happens to be up, class-1 agent tool-loop requests are silently served by
+the smaller unproven model — exactly the "agent shows no result, nothing in the
+logs" degradation the downgrade-refusal guard (~477-494) exists to prevent (that
+guard only fires on pin-capped routing, not health-based substitution).
+
+**Why not fixed now:** same frozen LLM-proxy surface.
+
+**Real fix:** exclude pin-only tiers from `smallestLoadedCovering` unless the
+active route is a pin, so health-based substitution cannot fall onto :8093.
+
+### 2026-08-18 — `helix_llm._generate` blocks the FastAPI event loop for up to ~35s
+
+**Where:** `langchain_agent/src/agent/helix_llm.py:372-377`.
+
+**What's wrong:** when called on a thread with a running loop (its own comment:
+"Inside an already-running loop (e.g. FastAPI)"), it submits `asyncio.run(...)` to
+a thread pool and then calls `future.result(timeout=POLL_TIMEOUT_SECONDS + 5)` —
+a synchronous blocking wait on the event-loop thread. Any sync LangChain
+`.invoke()` path hitting Helix freezes the whole FastAPI/WebSocket loop for the
+Helix create-conversation + 1s-interval poll (up to 35s): every other session's
+SSE/WS stalls, keepalives stop, clients time out.
+
+**Why not fixed now:** the honest fix is an async refactor of this path, not a
+one-liner, and it interacts with the agent's streaming lifecycle.
+
+**Real fix:** make the sync `_generate` path use `run_coroutine_threadsafe`
+against the running loop (or expose a proper async `_agenerate`) so the poll does
+not block the loop thread.
+
+### 2026-08-18 — `tokenIntrospectionService`'s deliberate `INTROSPECTION_NOT_CONFIGURED` throw is swallowed, reported as "token inactive"
+
+**Where:** `demo_api_server/services/tokenIntrospectionService.js:184` (throw
+inside the `try` opened at 151, whose `catch` at 252-265 returns
+`{valid:false, error:'token_introspection_failed'}` with no re-throw).
+
+**What's wrong:** the throw is meant to propagate so callers can tell
+"skipped/not-configured" from "PingOne said inactive", but it never escapes. When
+introspection is unset (common in the demo), `tokenVerificationService._introspectAsFallback`
+(~57-77) gets `{valid:false}`, takes the "inactive per RFC 7662" branch, and in
+fail-closed mode rejects a genuinely valid exchanged token whenever JWKS was
+momentarily unavailable and introspection simply is not configured. The in-code
+comment referencing `agentMcpTokenService` is also stale (that service uses JWKS
+now).
+
+**Why not fixed now:** §1 token-verification path; changing the fallback's
+error discrimination needs the auth regression pass.
+
+**Real fix:** let the `INTROSPECTION_NOT_CONFIGURED` code propagate (re-throw in
+the catch when `err.code === 'INTROSPECTION_NOT_CONFIGURED'`) and have the
+fallback treat "not configured" as "introspection skipped", not "inactive".
+
+### 2026-08-18 — OIDC nonce is not enforced when the returned ID token omits the `nonce` claim
+
+**Where:** `demo_api_server/routes/oauthUser.js:460-467`.
+
+**What's wrong:** nonce is validated only inside `if (expectedNonce && idTokenClaims.nonce)`;
+the `else if (expectedNonce && tokenData.id_token && !idTokenClaims.nonce)`
+branch merely `console.warn`s and proceeds. Per OIDC Core §3.1.3.7, when the
+client sent a `nonce` it MUST verify a matching one is present — a login where
+`expectedNonce` was set but the ID token comes back with no `nonce` (misconfigured
+mapping, or a replayed/substituted token stripped of `nonce`) is accepted and a
+session established, defeating the replay protection.
+
+**Why not fixed now:** §1 OAuth callback; related to the known `davinciLogin.js`
+nonce gap but a distinct route — should land with a nonce-enforcement pass across
+callbacks.
+
+**Real fix:** in the `!idTokenClaims.nonce` branch, fail the callback (reject/
+redirect to error) instead of warning, so a missing nonce when one was requested
+is treated as verification failure.
+
+### 2026-08-18 — `pkceStateCookie._verify` calls `timingSafeEqual` outside its try/catch, so a malformed cookie 500s the OAuth callback
+
+**Where:** `demo_api_server/services/pkceStateCookie.js:53` (call at 53, `try`
+opens at 54); `readPkceCookie` calls `_verify` outside its own `try` (116 vs 118).
+Callers: `routes/oauth.js:215`, `routes/oauthUser.js:414`.
+
+**What's wrong:** `crypto.timingSafeEqual` throws `RangeError` on unequal buffer
+lengths (reproduced). A malformed/truncated/crafted `_pkce` cookie whose signature
+segment decodes to a length other than 32 makes the throw propagate into the
+callback handler and surface as a 500 / error redirect, even when the session
+already holds valid PKCE state the fallback was meant to use. The sibling
+`services/authStateCookie.js:55-60` wraps the identical call in try/catch and
+returns `null` — the correct behaviour.
+
+**Why not fixed now:** §1 OAuth path; trivial fix but must land with the callback
+regression check.
+
+**Real fix:** move the `timingSafeEqual` call inside the try/catch (or length-
+check first) and return `null` on any comparison error, matching
+`authStateCookie.js`.
+
+### 2026-08-18 — Honourable mentions from the audit (lower confidence / not yet load-bearing)
+
+- **`demo_mcp_gateway/src/auth/tokenValidator.ts:223-226`** — a forced JWKS
+  re-fetch on an unknown `kid` passes `force=true`, bypassing the in-flight
+  dedupe, so tokens with random `kid`s each trigger a full JWKS round-trip: a
+  cheap amplification vector against PingOne. Bound it to the dedupe / a rate cap.
+- **`demo_api_ui/src/components/SessionExpiryTimer.jsx:34-82`** and
+  **`RecognizeOverlay.tsx:37-41`** — real defects (mount-once fetch that never
+  refetches after silent token refresh → shows "Expired" against a live session;
+  `load`/`error` attached to an already-settled script tag → retry hangs at
+  "Loading face ID…") but both components are currently orphaned (imported only by
+  their own tests), so no user-visible failure today. Fix if either gets wired up.
+- **`langchain_agent/src/storage/token_cache.py:66`** — `ttl_seconds=0` falls to
+  the default via a falsy check, but the class is never instantiated (imported
+  only in `storage/__init__.py`), so no runtime impact today.
+- **`scripts/sync-status.sh:23`** — computes "behind" against the local
+  `origin/main` ref without fetching, so if the launchd sync job is dead (the
+  scenario the script exists to surface) it can print "in sync" while GitHub is
+  ahead; partially mitigated by the printed last-sync age.
+- **Repo-map staleness:** root `CLAUDE.md` lists `demo_mcp_server/`, which does
+  not exist (only `demo_mcp_resource_server/` and `oauth-mcp/`). Fold into the
+  "reports/docs updated to current codebase" follow-up.
+
 ### 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
 
 **Where:** `demo_authz_server/routes/decision.js` (12 `STEP_UP` / `HITL_CONSENT`
