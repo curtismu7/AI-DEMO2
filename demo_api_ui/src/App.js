@@ -996,7 +996,11 @@ function AppWithAuth() {
                 <Route
                   path="/protocol-playground"
                   element={
-                    <ProtocolPlaygroundPageRoute user={user} logout={logout} />
+                    loading ? null : user ? (
+                      <ProtocolPlaygroundPageRoute user={user} logout={logout} />
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
                   }
                 />
                 {/* Monitoring outer routes — explicit so customers navigating from /dashboard don't hit
