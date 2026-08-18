@@ -2710,7 +2710,7 @@ with the fix reverted.
 `npm run test:e2e:real -- chain-hops-visible` still prints
 `[ui] UNRESOLVED after reply:` if the old symptom ever returns live.
 
-### [ ] 2026-08-18 — The agent's action chips cannot render on any production route
+### 2026-08-18 — The agent's action chips cannot render on any production route (RESTORED)
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — `renderActionGroups()`
 (~line 1002) and its single call site (~line 10909).
@@ -2787,10 +2787,18 @@ call at all, which is why `chain-hops-visible.real.spec.js` can assert only the
 discovery leg and has to report the tools/call and gateway hops instead of
 asserting them.
 
-**Why not fixed here:** whether chips come back is a product decision, not a
-cleanup. "Use Cases" / "Live Use Cases" / "Demo steps" are present and may be
-their intended replacement. Guessing either way would be a UI change nobody asked
-for, on a protected surface.
+**RESOLVED — restored.** The owner chose restore over delete. `useActionsPopout`
+is now `!isInline`: the condition says what it means, and the popout it was named
+for is gone. Inline mounts (dashboard, AgentPage, PublicRoutes) get the left
+column back — chips, the session-refresh row, the suggestion chip, and the guest
+grid with its sign-in prompt, which had been unreachable too. Float mode keeps
+its own chrome and is untouched.
+
+Guarded by three tests in `AIAgent.chips.test.js` pinning the mount shapes the
+real routes use, including one asserting float grows no left column. The
+dashboard one is verified to FAIL with the old condition restored — without that
+check it would pass for the wrong reason, since bare `mode="inline"` always
+worked.
 
 **How to check:** log in, open `/dashboard`, and count
 `document.querySelectorAll('.ba-action-chip').length`. Non-zero means this was
