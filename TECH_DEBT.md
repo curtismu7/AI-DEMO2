@@ -16,6 +16,65 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### 2026-08-18 — deploy-live reports success while a core service stays down, and keeps skipping it forever
+
+**Where:** `scripts/deploy-live.sh` — `filter_running()` (~line 205) and the
+`running_containers` list it is built from (line 197).
+
+**What's wrong:** the script only restarts services whose container is already
+running:
+
+```sh
+running_containers="$(docker ps --format '{{.Names}}' ...)"     # excludes `created`
+...
+else
+  note "$svc changed but its container is not running — skipped ..."
+```
+
+`note()` appends to `NOTES`. It does not set a failure flag, so the run prints
+`[deploy-live] done — live stack serves <sha>` and **exits 0**.
+
+The failure is self-sustaining, which is what makes it worse than a one-off miss:
+a container that is not running is skipped, being skipped means it is never
+started, and so it is not running for the next deploy either. Every subsequent
+run repeats the note and exits 0. Nothing escalates.
+
+**Observed 2026-08-18:** after a deploy of `a86e96f24fc1` that exited 0 and
+printed its success line, `ai-demo-ping-gateway` sat in state `created` — never
+started, no logs, exit code 0, container created inside that deploy's window.
+`ping-gateway` has **no compose profile**; it is a core service selected at
+runtime by `ff_mcp_gateway_pinggateway`, which `MCP_GATEWAY_RUNTIME_FLAGS`
+requires ON for **any** MCP tool chip. So the stack was serving without its IG
+gateway while every signal said the deploy succeeded. Recovered with
+`./run-docker.sh restart ping-gateway`.
+
+Caught only because the containers were enumerated by hand afterwards
+(`docker ps -a --filter label=com.docker.compose.project=ai-demo` and grep out
+the healthy ones). Nothing in the deploy path would have surfaced it.
+
+**Not claimed:** that `deploy-live.sh` *created* the stuck container. Compose
+recreates during a run and something in that sequence left it un-started; the
+cause is unproven. The defect recorded here is the reporting and the permanent
+skip, both of which are in this script and are true regardless of what stopped
+the container.
+
+**Why not fixed now:** deciding what a non-running service should DO is a
+judgement call this entry should not make silently. Starting it is not obviously
+right — some services are deliberately down (profiled, `k8-build`, an operator
+mid-debug), and `deploy-live` restarting them would be its own surprise.
+
+**Real fix:** separate "deliberately absent" from "should be up and isn't".
+Minimum: after the restarts, assert that every container in the compose project
+is `running` (and `healthy` where a healthcheck exists), and exit non-zero
+naming the ones that are not — the same shape as the `PIPESTATUS`/`-o pipefail`
+discipline already required of scripts under `scripts/`. Better: have
+`filter_running` distinguish a service that is *absent by design* from one in
+`created`/`exited`, and escalate the second from a note to a failure.
+
+**Related:** the `| tail` masking entry below — same class. A command's exit
+status describing something other than the thing you care about, with the real
+state visible only if you look for it deliberately.
+
 ### 2026-08-18 — `ff_a2a_delegation` should not exist as a switch at all
 
 **Where:** `demo_api_server/services/configStore.js` (registry),
