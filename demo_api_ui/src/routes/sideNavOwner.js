@@ -21,7 +21,11 @@ export function isNoChromeRoute(pathNorm) {
     pathNorm === "/sdk-login" ||
     pathNorm === "/sdk-login/callback" ||
     // UC22 CIBA approve popup: bare modal page — no sidebar / agent FAB.
-    pathNorm === "/ciba-approve"
+    pathNorm === "/ciba-approve" ||
+    // Personal-agent pop-out client window: bare route, no nav shell (App.js
+    // route comment) — was missing from this list, so signed-in users got the
+    // full global sidebar inside the popup.
+    pathNorm === "/personal-agent/client"
   );
 }
 

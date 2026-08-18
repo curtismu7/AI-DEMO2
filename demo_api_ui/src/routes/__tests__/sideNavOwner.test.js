@@ -28,6 +28,8 @@ describe("side-nav ownership", () => {
     ["/pingone-authorize", null, "app"], // bare route — used to have NO nav for guests
     ["/dashboard", null, "app"],
     ["/logs", null, "shell"], // no-chrome stays no-chrome for guests too
+    // Pop-out client window is a bare popup — no global sidebar inside it.
+    ["/personal-agent/client", user, "shell"],
   ];
 
   it.each(cases)("%s (user=%s) is owned by %s", (pathname, u, owner) => {
