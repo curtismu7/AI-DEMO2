@@ -106,6 +106,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — BFF read raw ciphertext after the dotenvx cutover (live incident, rolled back)
+
+**Files changed:** `demo_api_server/server.js` (top), new
+`demo_api_server/services/dotenvxBootstrap.js`, `demo_api_server/newrelic.js`
+(comment), `demo_api_server/package.json` (+`@dotenvx/dotenvx`),
+`demo_api_server/scripts/dotenvx-encrypt-envs.js` (recurrence guard),
+`docs/superpowers/plans/2026-08-18-vault-dotenvx-cutover-runbook.md` (D.1/D.3).
+
+**What was broken:** the cutover runbook encrypted all four services' `.env`
+files, but the BFF had no dotenvx decrypt path (plan Task 5 hit a Step-0 STOP
+and never re-ran). On restart the BFF read raw ciphertext from env: the login
+client secret was literally `encrypted:...`, `CONFIG_ENCRYPTION_KEY` was
+ciphertext ("Decryption failed — possible key mismatch"), and New Relic — which
+derives its collector hostname FROM `NR_LICENSE_KEY` at require time — tried to
+resolve `collector.encrypted:....nr-data.net`. The runbook's D.1/D.3 validation
+used `docker exec ... printenv`, which reads the container-level env — ciphertext
+BY DESIGN post-cutover — so it could only ever produce false alarms.
+
+**What was fixed:** `bootstrapDotenvx()` is now the FIRST require in
+`server.js` — before `require('newrelic')` — decrypting an encrypted `.env`
+into `process.env` when `DOTENV_PRIVATE_KEY` is present (a pre-set env value
+that is itself `encrypted:...` ciphertext is replaced; every other pre-set
+value still wins; plaintext `.env` is an exact silent pass-through; the key is
+deleted from env after use). The vault load path is deliberately UNCHANGED
+(belt-and-braces until plan Task 8). `dotenvx-encrypt-envs.js` now REFUSES to
+encrypt anything unless `server.js` contains the bootstrap. Runbook D.1/D.3
+were rewritten to behavioral checks (log evidence + one introspected gateway
+call), keeping D.2.
+
+**Do not break:** the dotenvx bootstrap require must stay ABOVE
+`require('newrelic')` in `server.js` (a static test locks this); the vault
+loader/`helixKeyMigration` startup path stays intact until Task 8; the encrypt
+tooling's `assertBffDecryptCapable` guard must keep running before any
+encryption.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/services/dotenvxBootstrap.test.js tests/scripts/dotenvx-encrypt-envs.test.js
+--forceExit` (all green), plus the full BFF suite.
+
 ### 2026-08-18 — PingOneAuthorizePage console tab missed the SignInPrompt sweep
 
 **Files changed:** `demo_api_ui/src/components/PingOneAuthorizePage.jsx`.

@@ -1,5 +1,15 @@
-// New Relic APM must be the absolute first require — before Sentry, before dotenv.
-// No-op when NR_LICENSE_KEY is absent (agent_enabled: false in newrelic.js).
+// dotenvx bootstrap — MUST run before require('newrelic'). The NR agent derives
+// its collector hostname FROM NR_LICENSE_KEY at require time (2026-08-18
+// incident: with a dotenvx-encrypted .env and no in-process decrypt, NR tried to
+// resolve `collector.encrypted:....nr-data.net` and every secret consumer read
+// raw ciphertext). With a plaintext .env this is a pass-through no-op — see
+// services/dotenvxBootstrap.js.
+require('./services/dotenvxBootstrap').bootstrapDotenvx();
+
+// New Relic APM must be required before Sentry and all app modules — the ONLY
+// thing allowed above it is the dotenvx bootstrap, which NR itself depends on
+// for a decrypted NR_LICENSE_KEY. No-op when NR_LICENSE_KEY is absent
+// (agent_enabled: false in newrelic.js).
 require('newrelic');
 
 // Sentry must be required before anything else so it can auto-instrument the app.
