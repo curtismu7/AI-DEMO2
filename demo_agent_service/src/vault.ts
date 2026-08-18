@@ -1,181 +1,150 @@
 'use strict';
 
 /**
- * demo-agent-service vault loader (architectural parity with
- * demo_mcp_gateway/src/vault.ts, Phase 269 Plan 04).
+ * demo-agent-service secret loader (dotenvx).
  *
- * Reads selected entries from the BFF-side encrypted vault at `secrets.vault`
- * and copies them into `process.env` BEFORE the agent's existing loadConfig()
- * runs. This lets operators store the agent's OAuth client secret
- * (AGENT_CLIENT_SECRET) and the shared MCP gateway resource URI in the vault
- * instead of .env, the same way the gateway already does for MCP_GW_*.
+ * Loads the agent's secrets from its OWN `.env` via `@dotenvx/dotenvx`.config(),
+ * then copies ONLY allowlisted names into process.env. This REPLACES the former
+ * loader that reached into `demo_api_server/lib/vault` — that cross-package
+ * coupling (and the argon2/KEK/DEK vault machinery) is gone.
  *
- * Allowlist: only entries whose NAME matches
+ * Backward compatible with a PLAINTEXT `.env`: dotenvx.config() reads a plain
+ * `.env` exactly like dotenv.config(), and decrypts encrypted values only when
+ * they are present AND a decryption key (DOTENV_PRIVATE_KEY env / `.env.keys`)
+ * is available. Encrypting `.env` is a later migration step — today the agent
+ * still boots with its secrets from the current plaintext `.env`, so this loader
+ * neither requires an encrypted `.env` nor a DOTENV_PRIVATE_KEY to exist yet.
+ *
+ * Allowlist (unchanged from the vault loader): only names matching
  *   /^(AGENT_|MCP_GW_|PROVIDER_|HELIX_|BFF_INTERNAL_)[A-Z0-9_]+$/
- * are copied. Non-matching entries are logged via logger.warn and skipped.
- * This is critical: a stolen vault file with an entry like
- *   LD_PRELOAD=/evil.so
- * MUST NOT set process.env.LD_PRELOAD (T-269-17). The only delta from the
- * gateway allowlist is the added `AGENT_` prefix (covers AGENT_CLIENT_ID,
- * AGENT_CLIENT_SECRET); MCP_GW_RESOURCE_URI is already matched by MCP_GW_.
+ * are copied into process.env. dotenvx parses `.env` into a PRIVATE throwaway
+ * object (the `processEnv` option), never the real process.env, so this loader
+ * itself can only ever write allowlisted names — a non-allowlisted name in
+ * `.env` (e.g. an injected LD_PRELOAD) is never written to process.env BY THIS
+ * LOADER. Non-secret config (PINGONE_*, LLM_*, …) is NOT this loader's job: it
+ * reaches process.env through the top-of-module dotenv.config() in
+ * index.ts/config.ts, exactly as before. Non-allowlisted names are skipped
+ * silently here (in the merged-`.env` model they are legitimate config, not
+ * suspicious vault entries — warning on each would flood boot logs).
  *
- * Vercel: bypassed when VERCEL=1 — consistent with the BFF (Plan 03) and the
- * gateway (Plan 04).
+ * Vercel: bypassed when VERCEL=1 (consistent with the BFF and the gateway).
  *
- * Error logging discipline (T-269-20): logger.error receives only the error
- * message, never the underlying stack trace. Stack traces would leak Argon2
- * / KEK / DEK internal symbol names from the vault library.
+ * Secret hygiene: DOTENV_PRIVATE_KEY (the decrypt key, if supplied via env) is
+ * deleted from process.env after a successful load — same intent as the old
+ * `delete process.env.VAULT_PASSWORD`: shrink the /proc/<pid>/environ leak
+ * window. This loader no longer depends on VAULT_PASSWORD at all.
  *
- * VAULT_PASSWORD lifecycle (T-269-06): immediately after vault.close(), we
- * `delete process.env.VAULT_PASSWORD` to shrink the /proc/<pid>/environ leak
- * window from "process lifetime" to "first ~10ms of startup".
+ * Error logging discipline: logger.error receives only the error message, never
+ * a stack trace.
  */
 
 import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import * as dotenvx from '@dotenvx/dotenvx';
 
-// The vault library is CommonJS over in demo_api_server. We require it via
-// a relative path. No TS types exist for it. Using `require()` with an
-// eslint disable + cast keeps the diff small and avoids a .d.ts file.
-// demo_agent_service is a sibling of demo_api_server under the repo
-// root, identical to the gateway, so the relative path is the same.
-const VAULT_LIB_PATH = '../../demo_api_server/lib/vault';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let vaultLib: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any
-  vaultLib = require(VAULT_LIB_PATH);
-} catch (err) {
-  // ONLY "the module isn't here" is expected — the agent image genuinely ships
-  // without demo_api_server. A bare `catch {}` also swallowed every other
-  // require-time failure: a broken argon2 native build, a syntax error in the
-  // vault library, a partially-installed dependency. Each of those left
-  // vaultLib null and the service reporting reason 'no_vault_file' — a wrong
-  // answer that reads as normal. Anything that is not this exact module going
-  // missing is a real defect and must surface.
-  const e = err as NodeJS.ErrnoException & { message: string };
-  const isMissingVaultLib =
-    e.code === 'MODULE_NOT_FOUND' && e.message.includes(VAULT_LIB_PATH);
-  if (!isMissingVaultLib) throw err;
-}
-
-// REPO_ROOT resolves up from this file:
-//   compiled: demo_agent_service/dist/vault.js  → ../.. → repo root
-//   source:   demo_agent_service/src/vault.ts   → ../.. → repo root
-// Both layouts land on the same repo root (tsconfig outDir ./dist,
-// rootDir ./src — identical to the gateway).
-const REPO_ROOT = resolve(__dirname, '..', '..');
-const DEFAULT_VAULT_PATH = join(REPO_ROOT, 'secrets.vault');
+// The service's own `.env`. Resolves the same for both layouts:
+//   compiled: demo_agent_service/dist/vault.js → ../ → demo_agent_service
+//   source:   demo_agent_service/src/vault.ts  → ../ → demo_agent_service
+const SERVICE_ROOT = resolve(__dirname, '..');
+const DEFAULT_ENV_PATH = join(SERVICE_ROOT, '.env');
 const DEFAULT_ALLOWED = /^(AGENT_|MCP_GW_|PROVIDER_|HELIX_|BFF_INTERNAL_)[A-Z0-9_]+$/;
 
 export interface VaultLoadResult {
   loaded: boolean;
   entries: number;
-  reason?: 'vercel' | 'no_vault_file' | 'vault_lib_unavailable';
+  reason?: 'vercel' | 'no_env_file' | 'dotenv_error';
 }
 
 export interface VaultLoadOpts {
-  vaultPath?: string;
-  password?: string;
+  envPath?: string;
   logger?: Pick<Console, 'log' | 'warn' | 'error'>;
   allowedPrefixes?: RegExp;
   isVercel?: boolean;
 }
 
 /**
- * Load allowlisted vault entries into process.env. See module docstring above
- * for the allowlist, Vercel bypass, and VAULT_PASSWORD lifecycle rules.
- * Callers (demo_agent_service/src/index.ts) MUST await loadVaultIntoEnv
- * before invoking loadConfig().
+ * Load allowlisted secrets from the service's dotenvx `.env` into process.env.
+ * Exported name + return shape are preserved so src/index.ts's call site is
+ * unchanged. Kept async (dotenvx.config is synchronous, but callers `await`
+ * this) to preserve that contract.
  */
 export async function loadVaultIntoEnv(opts: VaultLoadOpts = {}): Promise<VaultLoadResult> {
-  const vaultPath = opts.vaultPath ?? process.env.VAULT_PATH ?? DEFAULT_VAULT_PATH;
-  const password = opts.password ?? process.env.VAULT_PASSWORD;
+  const envPath = opts.envPath ?? DEFAULT_ENV_PATH;
   const logger = opts.logger ?? console;
   const allowed = opts.allowedPrefixes ?? DEFAULT_ALLOWED;
   const isVercel = opts.isVercel ?? (process.env.VERCEL === '1');
 
   if (isVercel) {
     logger.log(
-      '[Agent vault] Vercel detected — skipping vault load (use Encrypted Environment Variables)',
+      '[Agent secrets] Vercel detected — skipping .env load (use Encrypted Environment Variables)',
     );
     return { loaded: false, entries: 0, reason: 'vercel' };
   }
 
-  // The vault library is absent whenever the agent runs from its own image:
-  // docker-compose builds agent-service with `context: ./demo_agent_service`,
-  // so demo_api_server is not in the build context and the require above always
-  // fails. This branch is therefore the ONLY branch that runs under Compose.
-  //
-  // It used to return silently, and with reason 'no_vault_file' — claiming a
-  // missing file when the file may be mounted and readable. Result: every
-  // AGENT_/MCP_GW_/BFF_INTERNAL_ secret quietly came from .env instead of the
-  // vault, the `!password` fail-fast below was unreachable, and nothing in the
-  // logs said so. Say it out loud, and honour VAULT_REQUIRED the way the BFF's
-  // loader does so a deployment that depends on the vault fails instead of
-  // degrading.
-  if (vaultLib === null) {
-    const vaultIntended = existsSync(vaultPath) || Boolean(password);
-    const msg =
-      '[Agent vault] vault library not available in this image (' +
-      VAULT_LIB_PATH +
-      ') — vault entries will NOT be loaded';
-    if (String(process.env.VAULT_REQUIRED).toLowerCase() === 'true') {
-      logger.error(msg + ' and VAULT_REQUIRED=true — refusing to start');
-      throw new Error(msg + ' and VAULT_REQUIRED=true — refusing to start');
+  // Missing `.env` and dotenvx-config failure share ONE loud-vs-warn handler,
+  // mirroring the old vault loader's "library unavailable" branch:
+  //   - SECRETS_REQUIRED (or legacy VAULT_REQUIRED) = true → fatal.
+  //   - otherwise, if secrets were plainly expected (a `.env` is present, or a
+  //     DOTENV_PRIVATE_KEY was supplied) → error level, non-fatal fallback.
+  //   - otherwise → warn; the process runs on process.env only.
+  const unavailable = (
+    reason: 'no_env_file' | 'dotenv_error',
+    detail: string,
+  ): VaultLoadResult => {
+    const secretsExpected = existsSync(envPath) || Boolean(process.env.DOTENV_PRIVATE_KEY);
+    const required =
+      String(process.env.SECRETS_REQUIRED).toLowerCase() === 'true' ||
+      String(process.env.VAULT_REQUIRED).toLowerCase() === 'true';
+    if (required) {
+      const m = detail + ' and SECRETS_REQUIRED=true — refusing to start';
+      logger.error(m);
+      throw new Error(m);
     }
-    if (vaultIntended) {
-      // A vault file or a password is present, so somebody expected this to
-      // work. Loudest non-fatal signal available.
-      logger.error(msg + ' — falling back to process.env (set VAULT_REQUIRED=true to make this fatal)');
+    if (secretsExpected) {
+      logger.error(
+        detail + ' — falling back to process.env (set SECRETS_REQUIRED=true to make this fatal)',
+      );
     } else {
-      logger.warn(msg + ' — no vault file and no VAULT_PASSWORD, using process.env only');
+      logger.warn(detail + ' — using process.env only');
     }
-    return { loaded: false, entries: 0, reason: 'vault_lib_unavailable' };
+    return { loaded: false, entries: 0, reason };
+  };
+
+  if (!existsSync(envPath)) {
+    return unavailable('no_env_file', '[Agent secrets] no .env at ' + envPath);
   }
 
-  if (!existsSync(vaultPath)) {
-    logger.log('[Agent vault] no vault file at ' + vaultPath + ' — using process.env only');
-    return { loaded: false, entries: 0, reason: 'no_vault_file' };
-  }
-
-  if (!password) {
-    const msg = '[Agent vault] secrets.vault exists but VAULT_PASSWORD not set — refusing to start';
-    logger.error(msg);
-    throw new Error(msg);
-  }
-
-  let vault;
+  // dotenvx parses into a PRIVATE object, never the real process.env — we
+  // allowlist-copy below. quiet: suppress dotenvx's own banner. strict defaults
+  // to false, so a decrypt/parse error is returned in `error`, not thrown.
+  const parsedEnv: Record<string, string> = {};
+  let result: dotenvx.DotenvConfigOutput;
   try {
-    vault = await vaultLib.openVault(vaultPath, password, { caller: 'agent-service' });
+    result = dotenvx.config({ path: envPath, processEnv: parsedEnv, quiet: true });
   } catch (err) {
-    // Log error message ONLY — never the stack trace (T-269-20: stack-traces
-    // leak argon2 / kek / dek internal symbol names from the vault library).
-    const e = err as Error;
-    logger.error('[Agent vault] open failed:', e.message);
-    throw err;
+    // strict is off so this should not fire, but never let a stack trace leak.
+    return unavailable(
+      'dotenv_error',
+      '[Agent secrets] dotenvx config failed: ' + (err as Error).message,
+    );
   }
+  if (result.error) {
+    return unavailable(
+      'dotenv_error',
+      '[Agent secrets] dotenvx config failed: ' + result.error.message,
+    );
+  }
+
+  // The decrypt key has served its purpose; shrink its env-leak window.
+  if (process.env.DOTENV_PRIVATE_KEY) delete process.env.DOTENV_PRIVATE_KEY;
 
   let entryCount = 0;
-  try {
-    for (const name of vault.list() as string[]) {
-      if (!allowed.test(name)) {
-        logger.warn('[Agent vault] skipping non-allowlisted entry: ' + name);
-        continue;
-      }
-      process.env[name] = vault.read(name);
-      entryCount++;
-    }
-  } finally {
-    try {
-      vault.close();
-    } catch {
-      /* close is best-effort; KEK already zeroed in error paths */
-    }
-    delete process.env.VAULT_PASSWORD;
+  for (const [name, value] of Object.entries(result.parsed ?? parsedEnv)) {
+    if (!allowed.test(name)) continue; // non-secret config — not this loader's job
+    process.env[name] = value;
+    entryCount++;
   }
 
-  logger.log('[Agent vault] loaded ' + entryCount + ' entries from ' + vaultPath);
+  logger.log('[Agent secrets] loaded ' + entryCount + ' allowlisted entries from ' + envPath);
   return { loaded: true, entries: entryCount };
 }
