@@ -49,9 +49,16 @@ function _verify(value) {
   const sig = value.slice(dot + 1);
   const secret = process.env.SESSION_SECRET || 'dev-fallback';
   const expected = crypto.createHmac('sha256', secret).update(enc).digest('base64url');
-  // Constant-time comparison to prevent timing attacks
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   try {
+    // Constant-time comparison to prevent timing attacks. INSIDE the try on
+    // purpose: timingSafeEqual throws RangeError when the buffers differ in
+    // length, so a truncated or crafted `_pkce` whose signature segment is not
+    // 43 base64url chars used to throw out of here, through readPkceCookie, and
+    // into the OAuth callback as a 500 — even when the session still held the
+    // valid PKCE state this cookie is only a fallback for. A cookie we cannot
+    // verify is a cookie we do not trust: return null and let the session path
+    // answer. Matches services/authStateCookie.js, which already does this.
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
     return Buffer.from(enc, 'base64url').toString('utf8');
   } catch {
     return null;
@@ -68,7 +75,18 @@ function _parseCookieHeader(req) {
     header.split(';').map((part) => {
       const eq = part.indexOf('=');
       if (eq < 0) return [part.trim(), ''];
-      return [part.slice(0, eq).trim(), decodeURIComponent(part.slice(eq + 1).trim())];
+      const raw = part.slice(eq + 1).trim();
+      // decodeURIComponent throws URIError on malformed escapes ('%ZZ'), which
+      // is attacker-controlled input on a public callback. Fall back to the raw
+      // value so a junk cookie fails signature verification below instead of
+      // throwing a 500 out of the read.
+      let value;
+      try {
+        value = decodeURIComponent(raw);
+      } catch {
+        value = raw;
+      }
+      return [part.slice(0, eq).trim(), value];
     })
   );
 }
@@ -113,7 +131,16 @@ function readPkceCookie(req) {
   const cookies = _parseCookieHeader(req);
   const raw = cookies[COOKIE_NAME];
   if (!raw) return null;
-  const payload = _verify(decodeURIComponent(raw));
+  // _parseCookieHeader already decoded once; this second decode is historical.
+  // Kept (a double-encoded value in a live browser would still read) but made
+  // non-throwing for the same reason as above.
+  let decoded;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    decoded = raw;
+  }
+  const payload = _verify(decoded);
   if (!payload) return null;
   try {
     const obj = JSON.parse(payload);
