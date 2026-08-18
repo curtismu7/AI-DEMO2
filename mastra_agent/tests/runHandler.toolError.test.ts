@@ -78,6 +78,10 @@ function makeReqRes(body: Record<string, unknown>) {
   const res = {
     setHeader: () => {},
     flushHeaders: () => {},
+    // handleRun subscribes to res 'close' to abort on client disconnect. A fake
+    // response standing in for an Express Response has to offer it, or the
+    // handler throws before it streams anything.
+    on: () => {},
     write: (chunk: string) => {
       for (const line of chunk.split('\n')) {
         if (line.startsWith('data: ')) events.push(JSON.parse(line.slice(6)));
