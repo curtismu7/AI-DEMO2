@@ -121,12 +121,97 @@ function renderAgent(mode) {
   );
 }
 
+/**
+ * The component resolves its own session from these three endpoints. Returning
+ * `{}` (as a bare fetch mock does) takes the "no session found" branch, which is
+ * NOT the path a signed-in reload takes — and the live defect lives on the other
+ * branch. Answer them like a real signed-in session does.
+ */
+function mockSignedInStatus() {
+  global.fetch = vi.fn((url) => {
+    const u = String(url);
+    const body = u.includes("/api/auth/oauth/user/status")
+      ? { authenticated: true, user: { id: "u1", role: "customer", username: "cust" } }
+      : u.includes("/api/auth/session")
+        ? { authenticated: true, user: { id: "u1", role: "customer", username: "cust" }, hasTokens: true }
+        : u.includes("/api/auth/oauth/status")
+          ? { authenticated: false }
+          : {};
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+  });
+}
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   sendAgentMessage.mockReset();
   sendAgentMessage.mockResolvedValue({ success: true, reply: "Your balance is $100." });
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }));
+});
+
+// The live defect, reproduced at its cause.
+//
+// `/dashboard` is a guest-chat surface, so `marketingGuestChatEnabled` reads
+// true for the whole window before `isLoggedIn` flips. Reloading it while
+// SIGNED IN therefore replayed the queued question ~250ms in, as a guest,
+// before the vertical manifest resolved — the probe showed the body going out
+// with no `vertical`, a 200 coming back, and the reply being discarded: no user
+// bubble, a typing indicator that never cleared, and a disabled input until
+// reload. The same run works on an SPA remount, where hydration is already done.
+describe("while the session check is still in flight", () => {
+  it("does not replay the question as a guest", async () => {
+    // Status endpoints that never answer — the hydration window, held open.
+    global.fetch = vi.fn(() => new Promise(() => {}));
+    sessionStorage.setItem(PENDING_KEY, QUESTION);
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={null} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 700));
+    });
+
+    // Sending here is the bug: the answer would be discarded mid-hydration.
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("a resumed run on a signed-in reload", () => {
+  it("shows the question and the reply, and does not strand the panel", async () => {
+    mockSignedInStatus();
+    sessionStorage.setItem(PENDING_KEY, QUESTION);
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <ActivityNarrativeProvider>
+          <ProofOfEnforcementProvider>
+            <AIAgent user={signedIn} mode="inline" />
+          </ProofOfEnforcementProvider>
+        </ActivityNarrativeProvider>
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 600));
+    });
+
+    await waitFor(() => {
+      expect(sendAgentMessage).toHaveBeenCalledWith(QUESTION, null, expect.anything());
+    });
+    // The question the visitor asked must be on screen…
+    expect(screen.getByText(QUESTION)).toBeInTheDocument();
+    // …and so must the answer, rather than a typing indicator that never clears.
+    await waitFor(() => {
+      expect(screen.getByText(/Your balance is \$100\./)).toBeInTheDocument();
+    });
+  });
 });
 
 describe("a question queued before sign-in", () => {
