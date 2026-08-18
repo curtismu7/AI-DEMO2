@@ -205,6 +205,28 @@ export class McpTokenExchangeClient {
       requestScopes = [BACKEND_DISCOVERY_SCOPE[backend]];
     }
 
+    // On the CALL path there is no discovery fallback — deliberately, since
+    // inventing a scope the caller does not hold would manufacture authority, and
+    // `sends no scope without the flag — the tools/call path is unchanged` pins
+    // that. So the scope-less exchange still goes out and PingOne still rejects
+    // it. What it answers with is `invalid_scope: May not request scopes for
+    // multiple resources` — an error about resource ambiguity that says nothing
+    // about the real cause, observed live on every sensitive_order_history call
+    // as a recurring error-level failure pointing at the wrong thing.
+    //
+    // Say the real cause HERE, before the request, and leave the behaviour
+    // exactly as tested. Diagnosability was the defect; the failure itself is
+    // correct and deliberate.
+    if (requestScopes.length === 0) {
+      console.warn(
+        `[GW] scope-less RFC 8693 exchange to backend=${backend} (resource=${targetAud}): ` +
+        `subject token carries [${subjectScopes.join(', ') || 'none'}], this backend accepts ` +
+        `[${[...allowed].join(', ') || 'none'}] — no overlap. PingOne will reject this as ` +
+        `"May not request scopes for multiple resources", which names neither. Grant the caller ` +
+        `one of the backend's scopes, or add it to that resource's mirroredScopes.`,
+      );
+    }
+
     const key = cacheKey(subjectToken, targetAud, requestScopes);
     const cached = _cache.get(key);
     if (cached && cached.expiresAt > Date.now() + 5000) {

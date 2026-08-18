@@ -190,6 +190,17 @@ router.get('/decision-board', requireSession, async (req, res) => {
         const minted = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, t.tool);
         if (minted && minted.token) {
           tokenClaims = agentMcpTokenService.decodeJwtClaims(minted.token);
+          // A token that mints fine but carries no readable `aud` is its own
+          // failure, and it used to be the ONE case with no explanation: the
+          // refusal branches below all set tokenError, so a row reading
+          // tokenPresented:false with tokenError:null could only mean this —
+          // which required deducing the state from the ABSENCE of an error.
+          // That is the same silence this instrumentation exists to remove.
+          if (!tokenClaims) {
+            tokenError = 'minted token is not a readable JWT — no claims could be decoded';
+          } else if (tokenClaims.aud == null) {
+            tokenError = 'minted token carries no aud claim, so no audience can be presented';
+          }
         } else if (minted) {
           // Keep this a STRING. describeBlockedToken() returns an HTTP envelope
           // ({ httpStatus, body }) meant for a route to send, not a message —
