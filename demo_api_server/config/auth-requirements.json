@@ -195,7 +195,7 @@
     "/privilege-mcp-learning": "public",
     "/privileges-gateway-preview": "public",
     "/profile": "public",
-    "/protocol-playground": "public",
+    "/protocol-playground": "user",
     "/reports": "public",
     "/resource-server": "public",
     "/resource-server-cc": "public",
