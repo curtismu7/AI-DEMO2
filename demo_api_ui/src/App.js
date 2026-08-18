@@ -59,6 +59,7 @@ import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
 import EmbeddedAgentDock from "./components/EmbeddedAgentDock";
+import DashboardQuickNav from "./components/DashboardQuickNav";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
 import DemoConfigPage from "./components/DemoConfigPage";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
@@ -206,6 +207,7 @@ import {
   isMonitoringRoute,
   isPublicMarketingAgentPath,
   isPingOneAdminAgentRoute,
+  isDashboardQuickNavRoute,
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
@@ -441,6 +443,15 @@ function AppWithAuth() {
   /** Nav rail / layout flags — computed declaratively so React className is always in sync. */
   const isOnDashboard = pathname === "/dashboard";
 
+  /** Left quick-nav rail (DashboardQuickNav): signed-in non-admins on the gated
+   *  routes only. Mirrors DashboardQuickNav's own internal guard so the mount and
+   *  the `App--has-quick-nav` className (which engages the pre-designed FAB stack
+   *  geometry in App.css) turn on and off together. Admins get AdminSideNav. */
+  const showDashboardQuickNav =
+    Boolean(user) &&
+    user?.role !== "admin" &&
+    isDashboardQuickNavRoute(pathname, user);
+
   /** Floating agent: dashboard homes only. Embedded dock: those routes plus `/config` (setup-focused assistant). */
   const onDashboardAgentRoute = isBankingAgentDashboardRoute(pathname);
   const onEmbeddedDockRoute = isEmbeddedAgentDockRoute(pathname);
@@ -549,7 +560,7 @@ function AppWithAuth() {
           <ProofOfEnforcementProvider vertical={activeVerticalId || undefined} enabled={!!user}>
           <ActivityNarrativeProvider>
             <div
-              className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}`}
+              className={`App end-user-nano${isOnDashboard ? " App--on-dashboard" : ""}${hasEmbeddedDockLayout ? " App--has-embedded-dock" : ""}${sessionReauth ? " App--session-reauth" : ""}${showDashboardQuickNav ? " App--has-quick-nav" : ""}`}
             >
               <OfflineBanner />
               <ToastContainer
@@ -576,6 +587,7 @@ function AppWithAuth() {
                   agentRevoked={agentRevoked}
                 />
               )}
+              {showDashboardQuickNav && <DashboardQuickNav user={user} />}
               {/* Auth check in flight — every route below renders null until `loading`
                   resolves, which left a blank content area under the side nav/dock.
                   Show a branded loading card in that same slot instead.
