@@ -370,11 +370,20 @@ class ChatHelix(BaseChatModel):
             except RuntimeError:
                 loop = None
             if loop is not None and loop.is_running():
-                # Inside an already-running loop (e.g. FastAPI) — use a thread executor
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    future = pool.submit(asyncio.run, self._call_helix_async(messages, tools=tools))
-                    content = future.result(timeout=POLL_TIMEOUT_SECONDS + 5)
+                # We are on a running event-loop thread (e.g. FastAPI). A sync
+                # .invoke() here cannot await the Helix round-trip (create-
+                # conversation + up to POLL_TIMEOUT_SECONDS of 1s polling)
+                # without blocking the loop and starving every other session's
+                # SSE/WebSocket traffic — that block is inherent to returning a
+                # synchronous result, so there is no non-blocking sync path.
+                # Refuse and direct callers to the async API, which never blocks
+                # the loop. All in-repo callers already use ainvoke/astream.
+                raise RuntimeError(
+                    "ChatHelix._generate() was called on a running event loop. "
+                    "Call the model via its async API (ainvoke / astream) instead "
+                    "— _agenerate performs the Helix round-trip without blocking "
+                    "the event loop."
+                )
             elif loop is not None:
                 content = loop.run_until_complete(self._call_helix_async(messages, tools=tools))
             else:
