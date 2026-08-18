@@ -933,6 +933,8 @@ export class GatewayServer {
     // For non-initialize requests without a caller-supplied session ID, do the
     // MCP handshake (initialize → notifications/initialized) to get a session ID.
     let sessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
+    // Filled only when THIS request performed the upstream handshake.
+    let mcpHandshake: { initialize: Record<string, unknown>; initialized: boolean; sessionId: string | null } | undefined;
     if (!isInitialize && !isNotification && !sessionId) {
       const initBody = JSON.stringify({
         jsonrpc: '2.0',
@@ -952,6 +954,27 @@ export class GatewayServer {
           httpsAgent: this.upstreamHttpsAgent,
         });
         sessionId = initResp.headers[MCP_SESSION_HEADER] as string | undefined;
+        // Record the handshake for the Token Chain. On the gateway path the BFF
+        // is NOT the MCP client — the gateway is — so initialize and
+        // notifications/initialized happen here, one hop beyond anything the BFF
+        // can observe. Without this the chain could only say "not visible from
+        // here". Reported on its own header rather than folded into
+        // X-Gw-Audit-Trail, which authorizeMcpRequest has already stamped by the
+        // time this code runs.
+        let initResult: Record<string, unknown> | undefined;
+        try {
+          const parsed = JSON.parse(Buffer.from(initResp.data as ArrayBuffer).toString('utf8'));
+          initResult = parsed?.result;
+        } catch { /* non-JSON body: report the handshake without server detail */ }
+        mcpHandshake = {
+          initialize: {
+            status: initResp.status,
+            protocolVersion: (initResult?.protocolVersion as string) || MCP_PROTOCOL_VERSION,
+            serverInfo: initResult?.serverInfo ?? null,
+          },
+          initialized: false,
+          sessionId: sessionId ?? null,
+        };
         if (sessionId) {
           // Send notifications/initialized — upstream expects this before any tool call
           const notifHeaders = { ...baseHeaders, [MCP_SESSION_HEADER]: sessionId };
@@ -960,6 +983,7 @@ export class GatewayServer {
             JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
             { headers: notifHeaders, timeout: 5_000, validateStatus: () => true, httpsAgent: this.upstreamHttpsAgent },
           );
+          if (mcpHandshake) mcpHandshake.initialized = true;
         }
       } catch (err) {
         const axErr = err as AxiosError;
@@ -992,6 +1016,7 @@ export class GatewayServer {
       if (upstreamSession) responseHeaders[MCP_SESSION_HEADER] = upstreamSession;
       const upstreamWwwAuth = upstream.headers['www-authenticate'] as string | undefined;
       if (upstreamWwwAuth) responseHeaders['WWW-Authenticate'] = upstreamWwwAuth;
+      if (mcpHandshake) responseHeaders['X-Gw-Mcp-Handshake'] = JSON.stringify(mcpHandshake);
 
       res.writeHead(upstream.status, responseHeaders);
       res.end(Buffer.from(upstream.data));

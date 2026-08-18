@@ -740,6 +740,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     // Extract audit trail header if present (set by gateway on all responses)
     const gwAuditTrail = _parseGwAuditTrail(response);
+    const gwMcpHandshake = _parseGwMcpHandshake(response);
+    if (gwMcpHandshake) {
+        console.log('[GW→PingGateway] UPSTREAM MCP HANDSHAKE: %j', gwMcpHandshake);
+    }
     if (gwAuditTrail) {
         console.log('[GW→PingGateway] AUDIT TRAIL: %j', gwAuditTrail);
     } else {
@@ -796,7 +800,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             : permit;
     }
 
-    return { result, gwAuditTrail: trailOut };
+    return { result, gwAuditTrail: trailOut, gwMcpHandshake };
 }
 
 /**
@@ -817,6 +821,24 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
  * header on ALL responses including 403 denials, so it must be read before any
  * status-based throw if the P1AZ decision is to survive into the token chain.
  */
+/**
+ * Parse the gateway's X-Gw-Mcp-Handshake header — the upstream MCP lifecycle it
+ * performed on our behalf (initialize -> notifications/initialized). On the
+ * gateway path the BFF is not the MCP client, so this is the ONLY way that
+ * handshake can reach the Token Chain. Returns null when absent (a request that
+ * reused a session, or a gateway predating the header) or unparseable.
+ */
+function _parseGwMcpHandshake(response) {
+    const h = response && response.headers && response.headers['x-gw-mcp-handshake'];
+    if (!h) return null;
+    try {
+        return JSON.parse(h);
+    } catch (err) {
+        console.warn('[mcpGatewayClient] Could not parse X-Gw-Mcp-Handshake header:', err.message);
+        return null;
+    }
+}
+
 function _parseGwAuditTrail(response) {
     const h = response && response.headers && response.headers['x-gw-audit-trail'];
     if (!h) return null;
@@ -1028,6 +1050,7 @@ module.exports = {
     // Shared with routes/aamProbe.js: the AAM route stamps the same
     // X-Gw-Audit-Trail header, so it reuses this parser rather than a second one.
     _parseGwAuditTrail,
+    _parseGwMcpHandshake,
     // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
     _extractGatewayDenyFields,
     _syntheticWeatherScopeTrail,
