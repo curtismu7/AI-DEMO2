@@ -7989,9 +7989,18 @@ export default function BankingAgent({
     // the replay use the real session — the same run works on an SPA remount,
     // where hydration is already done.
     const guestChatSettled = marketingGuestChatEnabled && sessionResolved;
-    const eligible = pendingAuth
+    const authOk = pendingAuth
       ? (pendingAuth === "admin" ? isAdminUser : isLoggedIn)
       : isLoggedIn || guestChatSettled || pendingUcPublicRef.current;
+    // Auth is not the only thing that has to have settled. On a full page load
+    // the replay fired ~2.2s in, before the vertical manifest resolved: the
+    // probe showed the request going out with NO `vertical`, a 200 coming back,
+    // and the reply discarded — no user bubble, a typing indicator that never
+    // cleared, and a disabled input until reload. The same replay after an SPA
+    // remount, where the manifest is already resolved, sends
+    // `vertical:"retail"` and renders normally. Waiting for it is what
+    // distinguishes the two.
+    const eligible = authOk && !!effectiveVerticalId;
     if (
       !nlResumeAfterAuth ||
       !eligible ||
