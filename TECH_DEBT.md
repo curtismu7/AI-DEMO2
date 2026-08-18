@@ -7,6 +7,102 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — `authLevelForUseCase` names two different functions, one taking an id and one taking an object
+
+**Where:** `demo_api_server/config/authRequirements.js:32` takes a use-case **id**
+(`authLevelForUseCase('UC24')`); `demo_api_ui/src/utils/useCaseAuth.js:18` takes a
+**catalog object** (`authLevelForUseCase(uc)`). The UI one was `useCaseAuthLevel`
+until it was renamed into the collision.
+
+**What's wrong:** the same name across the BFF/UI boundary with different inputs
+and nothing to catch a mix-up. Passing an object to the server helper returns the
+`user` default (the object is not a key); passing an id to the UI helper returns
+the same default (`uc.auth` is undefined). Both fail **closed and silently** —
+the safest possible wrong answer, which is exactly why it would sit unnoticed.
+
+**Why not fixed now:** both are correct at their own call sites today, and a
+rename touches SoT plumbing that four PRs had just stabilised.
+
+**Real fix:** name them for their input — `authLevelForUseCaseId(id)` on the
+server, `authLevelOf(uc)` in the UI — or let the UI helper accept either and
+normalise.
+
+### 2026-08-18 — The queued-question resume is held together by two tuned timeouts
+
+**Where:** `demo_api_ui/src/components/AIAgent.js` — the 300ms floating-instance
+claim delay (#1967) and `RESUME_VERTICAL_WAIT_MS = 8000` (#1986).
+
+**What's wrong:** both numbers were chosen against *observed* behaviour on one
+machine — the vertical manifest resolves in ~2s, an inline instance mounts within
+300ms of a floating one — not from anything the code guarantees, and nothing
+notices if that stops holding. A slower load pushes the manifest past 8s and the
+visitor gets their question handed back for no reason they can see. A slower
+inline mount lets the floating instance win a claim it should have lost —
+harmless today only because `claimPendingNl` is read-and-remove, so the guard is
+doing the work, not the delay.
+
+**Why not fixed now:** the alternative is an explicit readiness signal from the
+vertical manifest plus an instance handshake between agent copies. Both are real
+work; the timeouts close a user-visible defect today.
+
+**Real fix:** have the vertical context expose a resolved/failed state the resume
+can await instead of racing, and let instances register so the claim goes to the
+visible one by identity rather than by arrival order.
+
+### 2026-08-18 — A guest typing a banking prompt is redirected to PingOne mid-sentence, with no way to decline
+
+**Where:** `demo_api_ui/src/components/AIAgent.js:6440` — the
+`marketingGuestChatEnabled` branch in `dispatchNlResult`.
+
+**What's wrong:** it calls `handleLoginAction("login_user")` directly, so a
+signed-out visitor typing "what is my balance" on `/` or `/dashboard` is thrown
+to PingOne without being asked. Everything else built this session does the
+opposite: #1952/#1958 replaced dead ends with a *"needs you signed in"* bubble
+and a **Sign in to continue** button, so the visitor chooses. This path predates
+that and was never brought into line. Observed live: the redirect fires before
+any bubble renders.
+
+**Why not fixed now:** it is not broken — the question is persisted and replayed
+after login (verified live), so the visitor does get their answer. It is an
+inconsistency in consent, not a failure.
+
+**Real fix:** show the same prompt-plus-button the other paths use. The
+persistence and replay machinery it needs already exists.
+
+### 2026-08-18 — `POST /api/conversations/:userId/:vertical/hero-shown` 500s on a normal signed-in load
+
+**Where:** `demo_api_server/routes/conversations.js:229`.
+
+**What's wrong:** observed live on `/dashboard`, signed in as `demouser` in the
+`retail` vertical: `POST /api/conversations/me/retail/hero-shown → 500`. The
+handler's only 500 path is `conversationStore.saveMessage(...)` throwing, caught
+at line 249. The `userId` on the wire is the literal string `me`, not a subject
+id — worth checking whether the store rejects that, or whether it is unrelated.
+
+**Why not fixed now:** found while chasing an unrelated agent defect; nothing the
+user sees breaks (the hero greeting still renders). It is console noise that
+makes real errors harder to spot, which is its own cost.
+
+**Real fix:** reproduce with a session, read the logged `err.message`, and either
+fix the store call or stop calling it with a placeholder `userId`.
+
+### 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
+
+**Where:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ChipLoginPrompt`
+(#1952), rendered when `/api/use-cases/demo/run` refuses with `requiresLogin`.
+
+**What's wrong:** the page is `user`-gated, so a signed-out visitor never reaches
+it and the customer branch cannot fire. The admin branch needs a signed-in
+customer running an `admin` use case, and `UC-NHI2` is the only one in the
+catalog — with a `link` trigger, not a chip. Both branches are live code that
+only unit tests touch.
+
+**Why not fixed now:** it is correct and costs nothing to keep. Deleting it would
+be wrong the moment `/use-cases` opens up or an admin chip is added.
+
+**Real fix:** nothing in the code — but walk this path live before trusting it,
+because that will be its first real exercise.
+
 ### 2026-08-18 — The MCP handshake is reported by the Node gateway, which is not the gateway in the path
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` (the `X-Gw-Mcp-Handshake`
