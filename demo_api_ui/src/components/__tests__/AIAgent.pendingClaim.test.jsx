@@ -216,6 +216,44 @@ describe("before the vertical manifest resolves", () => {
   });
 });
 
+// The gate added in #1981 had no timeout, so a surface whose manifest never
+// resolves dropped the question silently — and a silent drop is
+// indistinguishable from "this path was never watched", which is the ambiguity
+// that cost two sessions hours on this defect. The wait is bounded, and the
+// expiry hands the question back where the user can see and send it.
+describe("when the vertical manifest never resolves", () => {
+  it("gives the question back to the composer instead of dropping it", async () => {
+    vi.useFakeTimers();
+    try {
+      mockVerticalId = null; // never resolves
+      mockSignedInStatus();
+      sessionStorage.setItem(PENDING_KEY, QUESTION);
+
+      render(
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <ActivityNarrativeProvider>
+            <ProofOfEnforcementProvider>
+              <AIAgent user={signedIn} mode="inline" />
+            </ProofOfEnforcementProvider>
+          </ActivityNarrativeProvider>
+        </MemoryRouter>,
+      );
+
+      // Past the 8s deadline.
+      await act(async () => { await vi.advanceTimersByTimeAsync(9000); });
+
+      // Never sent — a request without a vertical is the bug this gate exists for.
+      expect(sendAgentMessage).not.toHaveBeenCalled();
+      // But the visitor can see what happened and act on it.
+      expect(screen.getByText(/haven't asked that yet/i)).toBeInTheDocument();
+      const box = screen.getByPlaceholderText(/Ask about|Message/i);
+      expect(box).toHaveValue(QUESTION);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("while the session check is still in flight", () => {
   it("does not replay the question as a guest", async () => {
     // Status endpoints that never answer — the hydration window, held open.

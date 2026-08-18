@@ -207,6 +207,16 @@ import AgentGroundedAnswerCard from "./AgentGroundedAnswerCard";
 /** Agent modes that invoke a frontier LLM on every query — used for the model advisory. */
 const FRONTIER_MODES = ["claude"];
 
+/**
+ * How long a queued-question replay waits for the vertical manifest before
+ * giving the question back to the user. The replay must not send without a
+ * vertical (the reply is discarded — see the resume effect), but it must not
+ * wait forever either: that turns a visible failure into a silent one. Measured
+ * resolution on a normal full page load is ~2s, so this is generous headroom
+ * without stranding anyone for long.
+ */
+const RESUME_VERTICAL_WAIT_MS = 8000;
+
 // PURE_LLM_MODES / PURE_LLM_LABELS come from the shared SSOT (config/agentModes.js).
 // They are the pure single-brain LLM modes: when the selected provider is
 // unavailable we must NOT silently answer with heuristics — we tell the user and
@@ -493,6 +503,10 @@ export default function BankingAgent({
    *  is only meaningful after that — before it, isLoggedIn is false simply
    *  because nothing has resolved yet. */
   const [sessionResolved, setSessionResolved] = useState(false);
+  /** Deadline for the queued-question replay's wait on the vertical manifest. */
+  const resumeVerticalDeadlineRef = useRef(null);
+  /** Bumped when that deadline lands, purely to re-run the resume effect. */
+  const [resumeWaitTick, setResumeWaitTick] = useState(0);
   /** useCaseId claimed alongside a pending NL (from launcher deep-link); attached to the next send. */
   const pendingUcIdRef = useRef(null);
   /** True when the pending NL belongs to a `public` use case — it may send with no session. */
@@ -8030,14 +8044,43 @@ export default function BankingAgent({
     // remount, where the manifest is already resolved, sends
     // `vertical:"retail"` and renders normally. Waiting for it is what
     // distinguishes the two.
-    const eligible = authOk && !!effectiveVerticalId;
     if (
       !nlResumeAfterAuth ||
-      !eligible ||
+      !authOk ||
       pendingNlResumeRef.current === nlResumeAfterAuth
     ) {
       return;
     }
+    // Bounded, and the expiry is VISIBLE. Waiting forever would trade a broken
+    // reply for a silently vanished question — and a silent drop is
+    // indistinguishable from "this path was never watched", which is exactly the
+    // ambiguity that cost two sessions hours on this defect. So: wait for the
+    // manifest, but if it never arrives, hand the question back to the composer
+    // and say so, rather than logging into the void.
+    if (!effectiveVerticalId) {
+      if (resumeVerticalDeadlineRef.current == null) {
+        resumeVerticalDeadlineRef.current = Date.now() + RESUME_VERTICAL_WAIT_MS;
+      }
+      const remaining = resumeVerticalDeadlineRef.current - Date.now();
+      if (remaining > 0) {
+        // Re-evaluate once the deadline lands; the manifest resolving first
+        // re-runs this effect on its own via effectiveVerticalId.
+        const wait = setTimeout(() => setResumeWaitTick((n) => n + 1), remaining + 20);
+        return () => clearTimeout(wait);
+      }
+      const stranded = nlResumeAfterAuth;
+      resumeVerticalDeadlineRef.current = null;
+      setNlResumeAfterAuth(null);
+      pendingNlResumeRef.current = null;
+      setNlInput(stranded);
+      addMessage(
+        "assistant",
+        "I couldn't finish loading this workspace, so I haven't asked that yet — "
+          + "it's back in the box below, ready to send.",
+      );
+      return;
+    }
+    resumeVerticalDeadlineRef.current = null;
     const text = nlResumeAfterAuth;
     // Mark that we've consumed this value so effect won't re-execute on subsequent renders
     pendingNlResumeRef.current = text;
@@ -8121,7 +8164,7 @@ export default function BankingAgent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
-  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, sessionResolved, effectiveVerticalId]);
+  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, sessionResolved, effectiveVerticalId, resumeWaitTick]);
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
