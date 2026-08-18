@@ -16,22 +16,22 @@ const AGENT_SOURCE = `flowchart LR
     end
 
     subgraph device["User Device"]
-        client["MCP Client"]
-        agent["Priv Agent<br/>opensearch.default.applications.procyon.ai:8643"]
+        client["MCP Client<br/>(Postman, IDE, agent app)"]
+        agent["Priv Agent<br/>https://opensearch.default.applications.procyon.ai:8643/sse"]
     end
 
     subgraph k8s["K8s cluster — ‹you›-ping-devops"]
-        gw["MCP Gateway<br/>mcpgw.‹namespace›.svc.cluster.local:8680"]
-        mcp["MCP Server<br/>opensearch-mcp-server /sse"]
+        gw["MCP Gateway<br/>http://mcpgw.‹namespace›.svc.cluster.local:8680"]
+        mcp["MCP Server<br/>http://‹release›-opensearch-mcp-server.‹namespace›.svc.cluster.local/sse"]
     end
 
-    console <-.- s1(("1")) -. "config sync" .-> proxy
-    console -.- s2(("2")) -. "gRPC: proxy config" .-> agent
-    gw --- s3(("3")) -- "standing outbound link<br/>(Priv wants 8680; ingress only allows 443)" --> proxy
-    client --- s4(("4")) -- "MCP request" --> agent
-    agent --- s5(("5")) -- "TLS tunnel" --> proxy
-    proxy --- s6(("6")) -- "rides the link from 3<br/>policy evaluated at gateway" --> gw
-    gw --- s7(("7")) -- "permitted tool call" --> mcp
+    console <-.- s1(("1")) -. "config sync<br/>(gateway registered via ENV_PROXY_TOKEN)" .-> proxy
+    console -.- s2(("2")) -. "gRPC: proxy config<br/>(agent installed via onboarding magic link)" .-> agent
+    gw --- s3(("3")) -- "standing outbound link, TLS :443<br/>(Priv wants gateway on 8680;<br/>ingress only allows 443)" --> proxy
+    client --- s4(("4")) -- "MCP request<br/>HTTPS :8643 /sse" --> agent
+    agent --- s5(("5")) -- "TLS tunnel :443" --> proxy
+    proxy --- s6(("6")) -- "rides the link from 3<br/>JIT policy evaluated at gateway" --> gw
+    gw --- s7(("7")) -- "permitted tool call<br/>HTTP /sse, cluster-local" --> mcp
 
     classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
     classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
@@ -53,19 +53,19 @@ const AGENTLESS_SOURCE = `flowchart LR
     end
 
     subgraph device["User Device"]
-        client["MCP Client"]
+        client["MCP Client<br/>(Postman, IDE, agent app)"]
     end
 
     subgraph k8s["K8s cluster — ‹you›-ping-devops"]
-        ingress["Ingress<br/>‹you›-agentless-mcpgw.ping-devops.com:443<br/>/opensearch-mcp-server/mcp"]
-        gw["MCP Gateway<br/>mcpgw.‹namespace›.svc.cluster.local:8680"]
-        mcp["MCP Server<br/>opensearch-mcp-server"]
+        ingress["Ingress<br/>https://‹you›-agentless-mcpgw.ping-devops.com:443<br/>/opensearch-mcp-server/mcp"]
+        gw["MCP Gateway<br/>http://mcpgw.‹namespace›.svc.cluster.local:8680"]
+        mcp["MCP Server<br/>http://opensearch-mcp-server.‹namespace›.svc.cluster.local/sse"]
     end
 
-    console -.- s1(("1")) -. "gRPC: proxy config" .-> gw
-    client --- s2(("2")) -- "HTTPS + OIDC sign-in<br/>(PingOne auth code flow)" --> ingress
-    ingress --- s3(("3")) -- "route to gateway<br/>policy evaluated" --> gw
-    gw --- s4(("4")) -- "permitted tool call" --> mcp
+    console -.- s1(("1")) -. "gRPC: proxy config<br/>(proxyToken from Helm install)" .-> gw
+    client --- s2(("2")) -- "HTTPS :443 + OIDC auth code<br/>auth.pingone.com/‹env-id›/as/authorize<br/>redirect: gateway DNS /callback" --> ingress
+    ingress --- s3(("3")) -- "route to gateway :8680<br/>JIT policy evaluated" --> gw
+    gw --- s4(("4")) -- "permitted tool call<br/>HTTP /sse, cluster-local" --> mcp
 
     classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
     classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
@@ -83,23 +83,23 @@ const AGENTLESS_SOURCE = `flowchart LR
 
 const AGENT_STEPS = [
   { heading: "Setup — happens once" },
-  { n: 1, text: "Console and public proxy sync configuration — the policies you author in the Priv console land on the proxy mesh." },
-  { n: 2, text: "Console pushes proxy config to the installed Priv Agent over gRPC, giving it a local frontend on :8643." },
-  { n: 3, text: "Gateway dials out from the cluster and holds a standing link to the public proxy — this replaces any inbound route." },
+  { n: 1, text: "Console and public proxy (proxy-us-west-2.privilege.pingone.com:443) sync configuration. The gateway is registered in the console under Gateways > Add New > Add via Docker — Cluster ID of your choice, Host IP set to the gateway DNS (e.g. https://cj-mcpgw.ping-devops.com) — which issues the ENV_PROXY_TOKEN you pass to the privgateway Helm chart as mcpgw.proxyToken." },
+  { n: 2, text: "The Priv Agent is installed from an onboarding magic link (Directory > Users > your admin user > Services > Privilege > Generate Onboarding Link). Once connected, the console pushes proxy config to it over gRPC and the agent exposes a local MCP frontend at https://opensearch.default.applications.procyon.ai:8643/sse." },
+  { n: 3, text: "The gateway (http://mcpgw.‹namespace›.svc.cluster.local:8680) dials out and holds a standing TLS link to the public proxy on 443 — Priv expects the gateway on 8680 and the cluster ingress only allows standard ports, so nothing connects inbound to it." },
   { heading: "Request path — every call" },
-  { n: 4, text: "MCP client sends its request to the agent's local frontend, which carries the user's device identity." },
-  { n: 5, text: "Agent tunnels the request to the public proxy over TLS on 443." },
-  { n: 6, text: "Proxy routes the request down the standing link from step 3; the gateway evaluates policy (user, tool, time window) before anything proceeds." },
-  { n: 7, text: "Gateway forwards the permitted tool call to the OpenSearch MCP server over /sse; denied calls stop at step 6." },
+  { n: 4, text: "MCP client (the doc demos with Postman) sends its request over HTTPS to the agent's local frontend on :8643/sse, which carries the user's device identity (Secure Enclave key store, tenant binding)." },
+  { n: 5, text: "Agent tunnels the request over TLS on 443 to proxy-us-west-2.privilege.pingone.com." },
+  { n: 6, text: "Proxy routes the request down the standing link from step 3; the gateway evaluates the JIT policy you authored under Agentic Apps > opensearch-mcp-server > Policy (allowed tools, users, start/end time window) before anything proceeds." },
+  { n: 7, text: "Gateway forwards the permitted tool call over cluster-local HTTP to http://‹release›-opensearch-mcp-server.‹namespace›.svc.cluster.local/sse; denied calls stop at step 6." },
 ];
 
 const AGENTLESS_STEPS = [
   { heading: "Setup — happens once" },
-  { n: 1, text: "Console pushes proxy config to the gateway over gRPC — the gateway registered itself with the proxy token you passed to Helm." },
+  { n: 1, text: "Console pushes proxy config to the gateway over gRPC — the gateway registered itself with the proxyToken you passed to the agentless-mcpgw Helm chart, alongside the OIDC values (oidc.clientId / clientSecret / authUrl / tokenUrl / userUrl) of the \"MCP Gateway\" PingOne web app." },
   { heading: "Request path — every call" },
-  { n: 2, text: "Client calls the ingress URL over HTTPS; on first contact the gateway's PingOne OIDC client runs the authorization-code sign-in and the user authenticates." },
-  { n: 3, text: "Ingress routes to the gateway service on 8680, which evaluates policy against the signed-in PingOne user." },
-  { n: 4, text: "Gateway forwards the permitted tool call to the OpenSearch MCP server; denied calls stop at step 3." },
+  { n: 2, text: "Client calls https://‹you›-agentless-mcpgw.ping-devops.com/opensearch-mcp-server/mcp over HTTPS 443. On first contact the gateway's PingOne OIDC client runs the authorization-code sign-in (Client Secret Basic) against https://auth.pingone.com/‹env-id›/as/authorize, exchanges the code at /as/token, and reads identity from /as/userinfo; the redirect URI is the gateway DNS + /callback." },
+  { n: 3, text: "Ingress routes to the gateway service on 8680, which evaluates the JIT policy (Agentic Apps > opensearch-mcp-server > Policy: allowed tools, users, time window) against the signed-in PingOne user." },
+  { n: 4, text: "Gateway forwards the permitted tool call over cluster-local HTTP to http://opensearch-mcp-server.‹namespace›.svc.cluster.local/sse; denied calls stop at step 3." },
 ];
 
 export const TABS = [
@@ -184,6 +184,14 @@ export default function PrivilegeGatewayTopologyPage() {
           configuration; solid lines are the data path. Guillemets (‹ ›) mark
           values you substitute.
         </p>
+        <a
+          className="pmd-link pgt-doc-link"
+          href="https://pingidentity.atlassian.net/wiki/x/SwDRwg"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Setup guide: PingOne Privilege MCP Gateway — Instructional Demo Setup
+        </a>
       </div>
 
       <div className="pmd-tabs">
@@ -243,7 +251,15 @@ export default function PrivilegeGatewayTopologyPage() {
       </ol>
 
       <p className="pmd-footer">
-        Source: <em>PingOne Privilege MCP Gateway: Instructional Demo Setup</em>{" "}
+        Source:{" "}
+        <a
+          className="pmd-link"
+          href="https://pingidentity.atlassian.net/wiki/x/SwDRwg"
+          target="_blank"
+          rel="noreferrer"
+        >
+          PingOne Privilege MCP Gateway: Instructional Demo Setup
+        </a>{" "}
         (SE Confluence), Figures 1–2. Both variants end at the same OpenSearch
         MCP server; what changes is how the client's identity and traffic reach
         the gateway. Pick one variant per Helm release — never mix{" "}
