@@ -32,37 +32,29 @@ describe('requiredDemoFlags', () => {
     ).toEqual(GATEWAY);
   });
 
-  test('A2A slug alone yields the A2A flag plus the gateway flags without catalog', () => {
-    expect(requiredFlagsForUseCaseId('a2a-delegation'))
-      .toEqual(['ff_a2a_delegation', ...GATEWAY]);
+  // ff_a2a_delegation was removed — delegation is always on — so no entry or
+  // slug arms it anymore. These pin the removal so it cannot creep back.
+  test('A2A slug alone yields only the gateway flags without catalog', () => {
+    expect(requiredFlagsForUseCaseId('a2a-delegation')).toEqual(GATEWAY);
   });
 
-  test('UC2.5 id forces ff_a2a_delegation even when maturity is works', () => {
+  test('UC2.5 id with maturity works and no primaryTool arms nothing', () => {
     expect(
       requiredFlagsForUseCase({
         id: 'UC2.5',
         useCaseId: 'a2a-orchestrator-learning',
         maturity: 'works',
       }),
-    ).toEqual(['ff_a2a_delegation']);
+    ).toEqual([]);
   });
 
-  it('requires ff_a2a_delegation for a2a-generalist-mismatch', () => {
-    expect(requiredFlagsForUseCase({ useCaseId: 'a2a-generalist-mismatch', primaryTool: 'sensitive_holdings' }))
-      .toContain('ff_a2a_delegation');
+  it('a2a-generalist-mismatch needs only the gateway flags', () => {
+    const flags = requiredFlagsForUseCase({ useCaseId: 'a2a-generalist-mismatch', primaryTool: 'sensitive_holdings' });
+    expect(flags).toEqual(GATEWAY);
+    expect(flags).not.toContain('ff_a2a_delegation');
   });
 
-  // The catalog serves a2aDelegated from scope-topology. Arming on that flag —
-  // rather than on a list of use-case ids kept by hand — is what makes UC37 safe:
-  // it calls get_portfolio_summary (a2aDelegated) while its maturity names a
-  // different flag, so every hand-kept list missed it and the tile could be
-  // launched into an Authorize deny that looks nothing like a missing flag.
-  test('a2aDelegated on the entry arms ff_a2a_delegation on its own', () => {
-    expect(requiredFlagsForUseCase({ useCaseId: 'something-else', a2aDelegated: true }))
-      .toContain('ff_a2a_delegation');
-  });
-
-  test('UC37-shaped entry arms BOTH its maturity flag and ff_a2a_delegation', () => {
+  test('UC37-shaped entry arms its maturity flag plus the gateway flags, never A2A', () => {
     const flags = requiredFlagsForUseCase({
       id: 'UC37',
       useCaseId: 'verified-trust-a2a-assertion',
@@ -71,7 +63,7 @@ describe('requiredDemoFlags', () => {
       a2aDelegated: true,
     });
     expect(flags).toContain('ff_verified_trust_a2a');
-    expect(flags).toContain('ff_a2a_delegation');
+    expect(flags).not.toContain('ff_a2a_delegation');
   });
 
   test('a non-delegated entry is not dragged into requiring A2A', () => {

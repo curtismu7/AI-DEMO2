@@ -6,7 +6,7 @@
  * (for A2A) whether Agent 2 PingOne credentials are loaded into config.
  *
  * Catalog SoT for flag-gated maturity (`flag:<id>`). Extra flags that are
- * required even when maturity is `works` (e.g. UC2.5 → ff_a2a_delegation)
+ * required even when maturity is `works` (e.g. MCP gateway runtime flags)
  * live here so the agent auto-enable path and step-verification share one list.
  */
 
@@ -15,7 +15,6 @@ const {
   clientSecretKey,
   specialistForVertical,
 } = require('../config/a2aSpecialists');
-const { isA2aDelegatedTool } = require('./scopeTopology');
 
 /** Use-case slugs that always need A2A delegation armed. */
 const A2A_USE_CASE_IDS = new Set([
@@ -105,19 +104,12 @@ function requiredFlagsForUseCase(uc) {
     const id = uc.maturity.slice('flag:'.length).trim();
     if (id) flags.add(id);
   }
-  if (
-    // scope-topology's a2aDelegated flag is the load-bearing check — a tool
-    // reachable only through a two-hop chain cannot succeed with A2A off, and it
-    // denies on policy in a way that looks nothing like a missing flag. UC37 was
-    // exactly that case. Kept in sync with the UI mirror in
-    // demo_api_ui/src/utils/requiredDemoFlags.js.
-    isA2aDelegatedTool(uc.primaryTool)
-    || A2A_USE_CASE_IDS.has(uc.useCaseId)
-    || uc.id === 'UC2.5'
-    || uc.primaryTool === 'delegate_to_specialist'
-  ) {
-    flags.add('ff_a2a_delegation');
-  }
+  // This used to also arm ff_a2a_delegation for A2A use cases. That flag was
+  // removed: the a2aDelegated tools are reachable ONLY through the two-hop
+  // chain (Authorize denies ActChainDepth < 2 for exactly those tools), so the
+  // OFF state had no demo to tell — delegation is now unconditional and there
+  // is nothing left to arm. Kept in sync with the UI mirror in
+  // demo_api_ui/src/utils/requiredDemoFlags.js.
   if (needsMcpGatewayRuntime(uc)) {
     for (const f of MCP_GATEWAY_RUNTIME_FLAGS) flags.add(f);
   }

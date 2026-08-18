@@ -9,7 +9,6 @@ jest.mock('../../services/scopeTopology', () => ({
   isA2aDelegatedTool: jest.fn(),
 }));
 jest.mock('../../services/a2aDelegationService', () => ({
-  isA2aEnabled: jest.fn(),
   delegateToSpecialist: jest.fn(),
 }));
 jest.mock('../../services/bffMcpToolExecutor', () => ({
@@ -75,7 +74,6 @@ describe('agent reason-loop plugin routing helpers', () => {
     // exactly like dispatchVerticalIntent's heuristic path already does.
     it('routes a directly-called a2aDelegated tool through delegation, not the plugin/BFF path', async () => {
       scopeTopology.isA2aDelegatedTool.mockImplementation((n) => n === 'sensitive_patient_records');
-      a2aDelegationService.isA2aEnabled.mockReturnValue(true);
       a2aDelegationService.delegateToSpecialist.mockResolvedValue({
         token: 'specialist-token',
         specialist: 'Records Specialist',
@@ -110,16 +108,5 @@ describe('agent reason-loop plugin routing helpers', () => {
       expect(dispatch.executeToolFor).toHaveBeenCalled();
     });
 
-    it('skips the fast-path when ff_a2a_delegation is off (direct call, DENY is the answer)', async () => {
-      scopeTopology.isA2aDelegatedTool.mockImplementation((n) => n === 'sensitive_patient_records');
-      a2aDelegationService.isA2aEnabled.mockReturnValue(false);
-      dispatch.executeToolFor.mockResolvedValue({ result: { error: 'denied' }, render: null });
-      const exec = __test.resolveExecuteTool('healthcare', {
-        userId: 'u', userToken: 't', req: {}, tokenEvents: [], sessionId: 's',
-      });
-      await exec('sensitive_patient_records', {});
-      expect(a2aDelegationService.delegateToSpecialist).not.toHaveBeenCalled();
-      expect(dispatch.executeToolFor).toHaveBeenCalled();
-    });
   });
 });

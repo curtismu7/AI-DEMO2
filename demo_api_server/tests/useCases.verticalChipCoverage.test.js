@@ -34,8 +34,8 @@ const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService
 const A2A_UNROUTABLE = /specialist/i;
 /**
  * The actual criterion behind that regex: these chips' heuristics live in the
- * A2A overlay, which verticalDispatch only merges when ff_a2a_delegation is on,
- * and this gate parses with the flag off. "specialist" happened to appear in
+ * A2A overlay, which verticalDispatch merges only for specialist verticals,
+ * and this gate parses without the overlay. "specialist" happened to appear in
  * UC2/UC2.5's wording; UC2.6's vertical-neutral trigger does not contain it.
  * Same exemption, keyed on identity instead of phrasing (mirrors
  * A2A_OVERLAY_USE_CASE_IDS in useCases.primaryTool.test.js).

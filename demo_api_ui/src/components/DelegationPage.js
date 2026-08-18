@@ -498,7 +498,7 @@ function DemoTalkTrackPanel() {
             {
               num: 4,
               heading: 'Stage 3 — Agent to agent (A2A)',
-              text: 'With ff_a2a_delegation on, use the "hand off to a specialist" chip. Read the nested act chain.',
+              text: 'Use the "hand off to a specialist" chip. Read the nested act chain.',
               quote: 'The specialist inherits only what the handoff granted. The full chain — Maya to agent to specialist — is in the token, and Authorize evaluates every link. No ambient authority, even between agents.',
             },
             {

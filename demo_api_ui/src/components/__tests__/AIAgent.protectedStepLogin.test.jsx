@@ -269,7 +269,7 @@ describe("resuming a queued step after sign-in", () => {
     seedPendingStep({
       nl: "What is my balance?",
       ucId: "delegated-access-with-proof",
-      flags: ["ff_a2a_delegation"],
+      flags: ["ff_rar"],
     });
 
     renderAt("/dashboard", ADMIN);
@@ -279,7 +279,7 @@ describe("resuming a queued step after sign-in", () => {
 
     expect(apiPatch).toHaveBeenCalledWith(
       "/api/admin/feature-flags",
-      { updates: { ff_a2a_delegation: true } },
+      { updates: { ff_rar: true } },
       { _noAuthBanner: true },
     );
 
@@ -301,7 +301,7 @@ describe("resuming a queued step after sign-in", () => {
     seedPendingStep({
       nl: "What is my balance?",
       ucId: "delegated-access-with-proof",
-      flags: ["ff_a2a_delegation"],
+      flags: ["ff_rar"],
     });
 
     renderAt("/dashboard", CUSTOMER);
@@ -321,7 +321,7 @@ describe("resuming a queued step after sign-in", () => {
     ["the launcher deep-link mount", "/dashboard"],
     ["the OAuth return", "/dashboard?oauth=success"],
   ])("clears a stale ucId and flag list on %s when no pending NL survives", async (_label, path) => {
-    seedPendingStep({ ucId: "delegated-access-with-proof", flags: ["ff_a2a_delegation"] });
+    seedPendingStep({ ucId: "delegated-access-with-proof", flags: ["ff_rar"] });
 
     renderAt(path, CUSTOMER);
     await settle();
@@ -340,7 +340,7 @@ describe("resuming a queued step after sign-in", () => {
       ok: true, status: 200, json: () => Promise.resolve({}),
     }));
     // UC1 declares a primaryTool, so the flag it needs is the gateway runtime
-    // one — not ff_a2a_delegation. Mocking the wrong id makes this pass for the
+    // one — not ff_rar. Mocking the wrong id makes this pass for the
     // wrong reason (nothing off, so nothing said).
     expect(requiredFlagsForUseCase(UC1)).toContain("ff_mcp_gateway_pinggateway");
     apiGet.mockResolvedValue({
@@ -421,7 +421,7 @@ describe("resuming a queued step after sign-in", () => {
     seedPendingStep({
       nl: "What is my balance?",
       ucId: "delegated-access-with-proof",
-      flags: ["ff_a2a_delegation"],
+      flags: ["ff_rar"],
     });
 
     // First render: signed out on a guest-chat surface, exactly as the page
@@ -456,7 +456,7 @@ describe("resuming a queued step after sign-in", () => {
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
     expect(apiPatch).toHaveBeenCalledWith(
       "/api/admin/feature-flags",
-      { updates: { ff_a2a_delegation: true } },
+      { updates: { ff_rar: true } },
       { _noAuthBanner: true },
     );
     expect(apiPatch.mock.invocationCallOrder[0])

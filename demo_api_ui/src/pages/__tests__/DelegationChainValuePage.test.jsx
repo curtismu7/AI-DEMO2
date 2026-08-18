@@ -49,17 +49,22 @@ describe("DelegationChainValuePage", () => {
     );
   });
 
-  it("arms ff_a2a_delegation before invoking — an unarmed flag drops the A2A overlay heuristics", async () => {
+  it("arms the MCP gateway runtime flags before invoking (A2A itself is always on)", async () => {
     render(<DelegationChainValuePage />);
     fireEvent.click(screen.getAllByText("Run")[0]);
 
     await waitFor(() =>
       expect(apiClient.patch).toHaveBeenCalledWith(
         "/api/admin/feature-flags",
-        { updates: expect.objectContaining({ ff_a2a_delegation: true }) },
+        { updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }) },
         // Arming is best effort; its 401 must not raise the re-auth banner.
         { _noAuthBanner: true },
       ),
+    );
+    expect(apiClient.patch).not.toHaveBeenCalledWith(
+      "/api/admin/feature-flags",
+      { updates: expect.objectContaining({ ff_a2a_delegation: true }) },
+      expect.anything(),
     );
   });
 

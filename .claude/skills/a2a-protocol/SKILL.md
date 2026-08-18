@@ -18,7 +18,7 @@ Two layers share the name "A2A". Do not collapse them.
 
 ## Hard rules
 
-1. **A2A use cases only** — gate on `ff_a2a_delegation` / UC2 + UC2.5. Never run protocol handoff on ordinary agent runs.
+1. **A2A use cases only** — UC2 + UC2.5 (delegation is always on; `ff_a2a_delegation` was removed). Never run protocol handoff on ordinary agent runs.
 2. **PingOne always** for A2A hop auth (no Keycloak). Pattern mirrors [magic_8_ball_security](https://github.com/a2aproject/a2a-samples/tree/main/samples/java/agents/magic_8_ball_security) (bearer CredentialService → server validates JWT) with PingOne as the IdP.
 3. **Nested-act MCP token ≠ A2A wire bearer.** Wire hop uses generalist client_credentials; MCP/gateway still uses Exchange #2 nested-`act` token.
 4. **All specialists** in `config/a2aSpecialists.js` get an Agent Card + JSON-RPC mount.
@@ -46,7 +46,7 @@ Base URL for cards uses `PUBLIC_APP_URL` (default `https://api.ping.demo:3001`).
 
 - Existing nested-act exchanges and MCP Authorize path
 - Session cookie auth on `/api/*`
-- Non-A2A agent frameworks / vertical tools when `ff_a2a_delegation` is off
+- Non-A2A agent frameworks / vertical tools
 
 ## Learning Hub
 

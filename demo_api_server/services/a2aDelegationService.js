@@ -32,8 +32,8 @@
  *    chain end to end.
  *  - Least-privilege: Agent 2 is granted ONLY `invest:read`, so T_invest cannot
  *    read checking accounts or move money — provable at the gateway/Authorize gate.
- *  - Gated behind ff_a2a_delegation; additive and isolated from the single- and
- *    two-exchange paths in agentMcpTokenService.js.
+ *  - Always on (the a2aDelegated tools have no non-delegated path); additive and
+ *    isolated from the single- and two-exchange paths in agentMcpTokenService.js.
  *
  * The two exchange steps are dependency-injectable (opts.deps) so the chain can be
  * unit-tested without a live PingOne tenant.
@@ -100,13 +100,6 @@ function deriveSpecialistScopes(specialist, scopeTopo) {
     }
   }
   return [...set];
-}
-
-/** A2A is enabled only when the feature flag is on. */
-function isA2aEnabled(cfg) {
-  const store = cfg || defaultConfigStore();
-  const v = store.getEffective('ff_a2a_delegation');
-  return v === true || v === 'true';
 }
 
 /**
@@ -261,10 +254,6 @@ async function delegateToSpecialist(req, opts = {}) {
   const vertical = opts.vertical;
 
   const base = { token: null, tokenEvents, claims: null, userSub: null, vertical };
-
-  if (!isA2aEnabled(cfg)) {
-    return { ...base, error: 'a2a_delegation_disabled' };
-  }
 
   const specialist = specialistForVertical(vertical);
   if (!specialist) {
@@ -538,9 +527,6 @@ async function probeGeneralistMismatch(req, opts = {}) {
   const vertical = opts.vertical;
   const base = { tokenEvents, decision: null, reason: null, simulated: true };
 
-  if (!isA2aEnabled(cfg)) {
-    return { ...base, error: 'a2a_delegation_disabled' };
-  }
   const specialist = specialistForVertical(vertical);
   if (!specialist) {
     return { ...base, error: `No A2A specialist configured for vertical "${vertical}"` };
@@ -607,7 +593,6 @@ function countActDepth(act) {
 }
 
 module.exports = {
-  isA2aEnabled,
   resolveA2aConfig,
   delegateToSpecialist,
   probeGeneralistMismatch,

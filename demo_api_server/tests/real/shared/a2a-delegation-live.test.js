@@ -13,8 +13,9 @@
  * saw it. This suite closes that hole by asserting the REPLY CONTENT for every
  * vertical's UC2 sensitive-delegation chip.
  *
- * Skips (not fails) when ff_a2a_delegation is off or the session couldn't be
- * established — same convention as the rest of tests/real/.
+ * Skips (not fails) when the session couldn't be established — same
+ * convention as the rest of tests/real/. (A2A delegation is always on;
+ * ff_a2a_delegation was removed.)
  */
 
 const { createBffClient } = require('../helpers/bffClient');
@@ -46,14 +47,6 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
     it(`${vertical}: "${chipText}" delegates and returns real data, not a DENY`, async () => {
       if (!sessionOk) {
         console.warn(`[a2a-live] no session — skipping ${vertical}`);
-        return;
-      }
-
-      const flags = await client.get('/api/admin/feature-flags').catch(() => null);
-      const flagList = flags && flags.status === 200 ? (flags.data.flags || flags.data || []) : [];
-      const a2aFlag = Array.isArray(flagList) ? flagList.find((f) => f && f.id === 'ff_a2a_delegation') : null;
-      if (a2aFlag && (a2aFlag.value === false || a2aFlag.value === 'false')) {
-        console.warn('[a2a-live] ff_a2a_delegation is off — skipping (DENY is the correct answer with it off)');
         return;
       }
 

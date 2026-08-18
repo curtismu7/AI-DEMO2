@@ -100,7 +100,7 @@ const MOCK_USE_CASES = [
     expectedOutcome: 'PERMIT with act-chain depth',
     evidence: {},
     codeRefs: [],
-    maturity: 'flag:ff_a2a_delegation',
+    maturity: 'flag:ff_fixture_gate',
     owasp: {},
     whatToSay: 'Try A2A delegation.',
     advanced: false,
@@ -225,7 +225,7 @@ describe('UseCaseLauncherPage', () => {
         return Promise.resolve({
           data: {
             flags: [
-              { id: 'ff_a2a_delegation', value: false },
+              { id: 'ff_fixture_gate', value: false },
               { id: 'ff_authorize_group_policy', value: false },
               { id: 'ff_dpop', value: false },
               { id: 'ff_rar', value: false },
@@ -454,7 +454,7 @@ describe('UseCaseLauncherPage', () => {
     // UC2 now renders in both the Demo section and Foundations (no cross-section
     // dedup) — assert presence, not a single occurrence.
     await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/ff_a2a_delegation/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ff_fixture_gate/).length).toBeGreaterThan(0);
     const buttons = screen.getAllByRole('button', { name: /^run$/i });
     const autoEnableRuns = buttons.filter(
       (b) => !b.disabled && b.title?.includes('auto-enable'),
@@ -480,11 +480,11 @@ describe('UseCaseLauncherPage', () => {
     // dedup), so two identical flag toggles exist — clicking either produces
     // the same PATCH, since flag state is global, not per-card. Click the first.
     await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
-    const toggles = screen.getAllByRole('switch', { name: /Enable ff_a2a_delegation/i });
+    const toggles = screen.getAllByRole('switch', { name: /Enable ff_fixture_gate/i });
     fireEvent.click(toggles[0]);
     expect(apiClient.patch).toHaveBeenCalledWith(
       '/api/admin/feature-flags',
-      { updates: { ff_a2a_delegation: true } }
+      { updates: { ff_fixture_gate: true } }
     );
     await waitFor(() => {
       const allBtns = screen.getAllByRole('button', { name: /^run$/i });
@@ -521,7 +521,7 @@ describe('UseCaseLauncherPage', () => {
     await waitFor(() => {
       expect(apiClient.patch).toHaveBeenCalledWith(
         '/api/admin/feature-flags',
-        { updates: { ff_a2a_delegation: true } },
+        { updates: { ff_fixture_gate: true } },
         // Arming is best effort — its 401 must not raise the re-auth banner.
         { _noAuthBanner: true },
       );
@@ -641,11 +641,11 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
-    // UC2 (Step 2) is maturity 'flag:ff_a2a_delegation'. Use an exact string
+    // UC2 (Step 2) is maturity 'flag:ff_fixture_gate'. Use an exact string
     // match (not a regex) — the card also renders a "Flag-gated:
-    // ff_a2a_delegation" maturity badge that a loose regex would also match,
+    // ff_fixture_gate" maturity badge that a loose regex would also match,
     // which is unrelated to Demo/Happy-Path duplication.
-    expect(within(demoSection).getByText('ff_a2a_delegation')).toBeInTheDocument();
+    expect(within(demoSection).getByText('ff_fixture_gate')).toBeInTheDocument();
   });
 
   it('does not render a Demo section when none of its script ids are present', async () => {
@@ -751,7 +751,7 @@ describe('UseCaseLauncherPage', () => {
         return Promise.resolve({
           data: {
             flags: [
-              { id: 'ff_a2a_delegation', value: false },
+              { id: 'ff_fixture_gate', value: false },
               { id: 'ff_authorize_group_policy', value: false },
               { id: 'ff_dpop', value: false },
               { id: 'ff_rar', value: false },

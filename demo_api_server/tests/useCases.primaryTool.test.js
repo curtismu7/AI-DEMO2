@@ -35,8 +35,8 @@ const NON_MCP_PRIMARY_TOOLS = new Set(['delegate_to_specialist']);
 const A2A_UNROUTABLE = /specialist/i;
 /**
  * The real reason those chips are unroutable here: their heuristics live in the
- * A2A overlay, which verticalDispatch only merges when ff_a2a_delegation is on
- * (a2aActiveFor), and this gate parses with the flag off. Matching on the word
+ * A2A overlay, which verticalDispatch merges only for specialist verticals
+ * (a2aActiveFor), and this gate parses without the overlay. Matching on the word
  * "specialist" happened to cover UC2/UC2.5 because their phrasing contains it —
  * it is not the actual criterion, and UC2.6's deliberately neutral trigger
  * ("simulate an agent identity mismatch") exposed that. Exempt by identity.
@@ -202,18 +202,14 @@ describe('every vertical chip routes to its OWN stored primaryTool', () => {
   );
 });
 
-// ── A2A arming: derived from the SoT flag, not a hand-kept id list ──
+// ── A2A: the SoT a2aDelegated field, and the removed ff_a2a_delegation flag ──
 //
-// ff_a2a_delegation now defaults ON (configStore registry) because an
-// a2aDelegated tool cannot succeed without it — Authorize denies ActChainDepth
-// < 2 for exactly those tools, and the resulting deny looks nothing like a
-// missing flag. Belt and braces: the tile also arms the flag before running, so
-// a demo cannot be launched into that deny by mistake.
-//
-// UC37 is why this is derived rather than listed: it calls get_portfolio_summary
-// (a2aDelegated) but its maturity is flag:ff_verified_trust_a2a, so every
-// hand-kept list missed it.
-describe('a2aDelegated entries arm ff_a2a_delegation', () => {
+// ff_a2a_delegation was REMOVED: an a2aDelegated tool is reachable only through
+// the two-hop chain (Authorize denies ActChainDepth < 2 for exactly those
+// tools), so the OFF state had no demo to tell — delegation is unconditional.
+// The a2aDelegated field itself stays: it is the SoT marker of two-hop tools
+// (UC37 is why it is derived from primaryTool rather than hand-listed).
+describe('a2aDelegated SoT field, with ff_a2a_delegation removed', () => {
   const { listUseCases } = require('../config/useCases');
   const { requiredFlagsForUseCase } = require('../services/demoStepPrerequisites');
   const { isA2aDelegatedTool } = require('../services/scopeTopology');
@@ -230,18 +226,20 @@ describe('a2aDelegated entries arm ff_a2a_delegation', () => {
     }
   });
 
-  test('EVERY entry whose primary tool is a2aDelegated requires the flag', () => {
+  test('NO entry arms ff_a2a_delegation — the flag was removed, delegation is always on', () => {
     const flagged = catalog.filter((u) => isA2aDelegatedTool(u.primaryTool || ''));
     expect(flagged.length).toBeGreaterThan(0);
-    for (const uc of flagged) {
-      expect(requiredFlagsForUseCase(uc)).toContain('ff_a2a_delegation');
+    for (const uc of catalog) {
+      expect(requiredFlagsForUseCase(uc)).not.toContain('ff_a2a_delegation');
     }
   });
 
-  test('UC37 arms it — the case every hand-kept list missed', () => {
+  test('UC37 (the case every hand-kept list missed) still needs only the gateway runtime flags', () => {
     const uc37 = catalog.find((u) => u.id === 'UC37');
     expect(uc37.primaryTool).toBe('get_portfolio_summary');
-    expect(requiredFlagsForUseCase(uc37)).toContain('ff_a2a_delegation');
+    expect(requiredFlagsForUseCase(uc37)).toEqual(
+      expect.arrayContaining(['ff_mcp_gateway_pinggateway']),
+    );
   });
 
   // ── the invariant, not just the current values ──
@@ -276,46 +274,33 @@ describe('a2aDelegated entries arm ff_a2a_delegation', () => {
     expect(drifted).toEqual([]);
   });
 
-  test('arming follows the resolved tool in every vertical', () => {
+  test('no vertical arms ff_a2a_delegation for any use case', () => {
     const { VERTICALS } = require('../config/useCases');
     const wrong = [];
     for (const v of VERTICALS) {
       for (const uc of listUseCases(v)) {
-        const armed = requiredFlagsForUseCase(uc).includes('ff_a2a_delegation');
-        const needed = isA2aDelegatedTool(uc.primaryTool || '');
-        // Needed implies armed. (Armed without needed is legitimate — the three
-        // A2A use-case ids arm it by name whatever tool a vertical maps in.)
-        if (needed && !armed) { wrong.push(`${v}/${uc.id}: ${uc.primaryTool}`); }
+        if (requiredFlagsForUseCase(uc).includes('ff_a2a_delegation')) {
+          wrong.push(`${v}/${uc.id}: ${uc.primaryTool}`);
+        }
       }
     }
     expect(wrong).toEqual([]);
   });
 
-  // Flipping the registry default is NOT enough on its own: getEffective prefers a
-  // persisted value, so an environment that ever stored 'false' stays off forever
-  // and never sees the new default. Measured on the live stack — the flag read
-  // 'false' with the default already 'true' and no FF_A2A_DELEGATION env var
-  // anywhere. Source-scanned rather than booted, matching the other startup tasks
-  // in server.js; the behaviour itself was confirmed live (the log line fired and
-  // the flag flipped to true on restart).
-  test('startup clears a persisted ff_a2a_delegation=false', () => {
+  // The flag is gone, but a persisted value in a live LMDB outlives the registry
+  // entry — getEffective would just return the orphan to any future re-use of the
+  // key. Startup therefore deletes ANY stored ff_a2a_delegation (never writes).
+  // Source-scanned rather than booted, matching the other startup tasks.
+  test('startup removes any persisted ff_a2a_delegation orphan', () => {
     const src = require('fs').readFileSync(require.resolve('../server.js'), 'utf8');
     expect(src).toMatch(/deleteRaw\('ff_a2a_delegation'\)/);
-    // Only a stored FALSE is cleared — never a write, and a stored 'true' is left be.
-    expect(src).toMatch(/stored === 'false'/);
     expect(src).not.toMatch(/setRaw\(\s*\{\s*ff_a2a_delegation/);
   });
 
-  test('ff_a2a_delegation defaults ON', () => {
-    const { FLAG_REGISTRY, REGISTRY, registry } = require('../services/configStore');
-    const reg = FLAG_REGISTRY || REGISTRY || registry;
-    if (reg && reg.ff_a2a_delegation) {
-      expect(String(reg.ff_a2a_delegation.default)).toBe('true');
-    } else {
-      // Registry is not exported — assert the source instead, which is what the
-      // runtime reads. A default of 'false' here is the bug this pins.
-      const src = require('fs').readFileSync(require.resolve('../services/configStore'), 'utf8');
-      expect(src).toMatch(/ff_a2a_delegation:\s*\{[^}]*default:\s*'true'/);
-    }
+  test('ff_a2a_delegation is gone from the registry and the admin flag cards', () => {
+    const cfgSrc = require('fs').readFileSync(require.resolve('../services/configStore'), 'utf8');
+    expect(cfgSrc).not.toMatch(/ff_a2a_delegation:\s*\{/);
+    const cardsSrc = require('fs').readFileSync(require.resolve('../routes/featureFlags'), 'utf8');
+    expect(cardsSrc).not.toMatch(/ff_a2a_delegation/);
   });
 });

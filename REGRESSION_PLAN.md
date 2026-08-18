@@ -106,6 +106,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — ff_a2a_delegation removed; A2A delegation is unconditional
+
+**Files changed:** `demo_api_server/services/{a2aDelegationService,a2aProtocolServer,verticalDispatch,demoAgentLangGraphService,demoStepPrerequisites,configStore,stepVerificationExpectations}.js`, `routes/{agentTool,featureFlags,useCases,groupMembership}.js`, `config/useCases.js`, `config/verticals/a2a/index.js`, `server.js`, `demo_api_ui/src/utils/requiredDemoFlags.js` + 7 UI copy files, 30 regenerated step-verification fixtures, ~12 test files, 4 live specs.
+
+**What was broken:** the tools flagged `a2aDelegated` in scope-topology are reachable ONLY through the two-hop chain (Authorize denies `ActChainDepth < 2` for exactly those tools), so `ff_a2a_delegation=false` broke UC2/UC2.5/UC2.6/UC37 as an opaque Authorize DENY that looks nothing like a missing flag. The OFF state had no demo to tell; the switch existed only as a foot-gun (TECH_DEBT 2026-08-18).
+
+**What was fixed:** the flag is gone — five gates unconditional, `isA2aEnabled` deleted, registry entry + `FF_A2A_DELEGATION` aliases removed, admin card removed, UC2/UC2.6 maturity → `works`, both arming mirrors stripped, UI copy swept. Startup now deletes ANY persisted `ff_a2a_delegation` value (the orphan a live LMDB would otherwise keep forever).
+
+**Do not break:** the A2A protocol router (`/a2a/specialists`) is now ALWAYS mounted — do not reintroduce a flag gate; delegation failures must surface as delegation errors (missing Agent 2 credentials, exchange failure), never as a feature toggle. The catalog's `a2aDelegated` field remains the SoT marker of two-hop tools and must keep being derived from `primaryTool`. `stepVerificationExpectations.worksChipExpectationsFor` must keep excluding chips the (always-on) A2A overlay heuristics intercept (`specialist`, `agent identity mismatch` phrasings).
+
+**Verify:** `cd demo_api_server && CI=true npm test -- --forceExit` (all step-verification + A2A suites); `cd demo_api_ui && npm run test:unit && npm run build`; live: UC2, UC2.5, UC2.6, UC37 chips on the running stack with no flag anywhere.
+
 ### 2026-08-18 — PingOneAuthorizePage console tab missed the SignInPrompt sweep
 
 **Files changed:** `demo_api_ui/src/components/PingOneAuthorizePage.jsx`.

@@ -263,8 +263,6 @@ const NL_FAILURE_MESSAGES = {
     "Token exchange failed — turn on Agent Gateway routing (Admin → Feature flags: ff_mcp_gateway_pinggateway), then try again.",
   invalid_scope:
     "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway, then retry.",
-  a2a_delegation_disabled:
-    "A2A delegation isn't enabled — turning it on automatically. Try the step again in a moment.",
   pingone_admin_group_required:
     "PingOne Authorize denied this — its group-membership policy requires the signed-in user to be in the 'pingone-admin' group, which this session isn't. Add the user to that group, then try again.",
   pingone_admin_group_lookup_unavailable:
@@ -963,7 +961,8 @@ export default function BankingAgent({
     setTrackStep({ step, index, total, completed: false, next: null });
     addMessage("assistant", `Step ${index + 1} — ${step.title}\n"${step.buyerStory}"`);
     // Arm the flags this step's backing use case needs (same contract as
-    // handleDemoStepSelect) — e.g. the A2A step is dead without ff_a2a_delegation.
+    // handleDemoStepSelect) — e.g. MCP tool steps are dead without the gateway
+    // runtime flags.
     // Only with a session: arming PATCHes an admin route, so signed out it can
     // only 401. No track step is public — every one exercises token exchange or
     // authorization — so there is nothing to arm for a guest, ever.
@@ -7412,7 +7411,7 @@ export default function BankingAgent({
 
   /**
    * Arm every feature flag a demo chip / use case needs so presenters are not
-   * blocked by a default-off flag (e.g. ff_a2a_delegation).
+   * blocked by a default-off flag (e.g. ff_rar).
    * @param {string[]} flagIds
    * @param {string} [reason]
    */
@@ -11645,7 +11644,6 @@ export default function BankingAgent({
                       // Reset feature flags that demo steps may have auto-enabled
                       apiClient.patch("/api/admin/feature-flags", {
                         updates: {
-                          ff_a2a_delegation: false,
                           ff_ciba: false,
                           ff_rar: false,
                           ff_dpop: false,

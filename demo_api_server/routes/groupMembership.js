@@ -156,9 +156,9 @@ router.get('/decision-board', requireSession, async (req, res) => {
      * row's reporting below is identical for both mint paths and a delegation
      * refusal reads as a refusal, not as a policy verdict on the user's groups.
      *
-     * A2A can be switched off (ff_a2a_delegation). When it is, the row says so
-     * rather than presenting a one-hop token that would deny for a reason the
-     * operator cannot see.
+     * Delegation can still fail (missing Agent 2 credentials, exchange error).
+     * When it does, the row says so rather than presenting a one-hop token that
+     * would deny for a reason the operator cannot see.
      */
     const mintDelegated = async (t) => {
       const d = await a2aDelegationService.delegateToSpecialist(req, {
@@ -168,8 +168,7 @@ router.get('/decision-board', requireSession, async (req, res) => {
       });
       if (d && d.token) { return { token: d.token }; }
       // Falling back to the one-hop mint rather than presenting nothing.
-      // ff_a2a_delegation defaults to false, so this is the DEFAULT path, not an
-      // edge case. Presenting no token at all makes the PDP answer
+      // Presenting no token at all makes the PDP answer
       // mcp-invalid-audience — strictly less informative than the
       // mcp-invalid-a2a-generalist ("delegation required") it returns when it can
       // see a real one-hop chain. The row keeps the better verdict AND says why it

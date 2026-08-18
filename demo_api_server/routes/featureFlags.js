@@ -306,24 +306,6 @@ const FLAG_REGISTRY = [
   },
 
   {
-    id:           'ff_a2a_delegation',
-    name:         'A2A — Agent-to-Agent specialist delegation (RFC 8693 nested-act)',
-    category:     'A2A Delegation',
-    description:
-      'Enables chained RFC 8693 token exchange for specialist delegation. When a heuristic tool is ' +
-      'flagged `a2aDelegated: true` in scope-topology.json, the generalist agent (Agent 1) delegates ' +
-      'to a per-vertical specialist (Agent 2) via a nested `act` chain instead of the standard BFF preflight. ' +
-      'Exchange #1: user token → Agent 1 delegated token (aud: a2a-intermediate). ' +
-      'Exchange #2: Exchange #1 token + specialist actor → nested-act token (aud: mcpgateway).',
-    impact:
-      'ON = heuristic A2A tools (e.g. sensitive_patient_records) route through executeA2aDelegation, producing a ' +
-      '"Delegation complete" response with act-chain depth. ' +
-      'OFF (default) = A2A tools fall through to the standard BFF preflight.',
-    type:         'boolean',
-    defaultValue: false,
-  },
-
-  {
     id:           'ff_verified_trust_a2a',
     name:         'Verified Trust — signed agent assertion on A2A delegation',
     category:     'A2A Delegation',

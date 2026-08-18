@@ -2,7 +2,9 @@
 
 /**
  * A2A Protocol specialist servers (@a2a-js/sdk) — one Agent Card + JSON-RPC
- * mount per vertical in a2aSpecialists. Gated by ff_a2a_delegation.
+ * mount per vertical in a2aSpecialists. Always on: the a2aDelegated tools are
+ * reachable ONLY through the two-hop chain, so these endpoints are a required
+ * subsystem, not a feature.
  */
 
 const crypto = require('crypto');
@@ -18,7 +20,6 @@ const {
   specialistForVertical,
   verticalsWithSpecialist,
 } = require('../config/a2aSpecialists');
-const { isA2aEnabled } = require('./a2aDelegationService');
 const { buildSpecialistAgentCard } = require('./a2aAgentCardService');
 const {
   requireA2aPingOneBearer,
@@ -96,17 +97,6 @@ function createSpecialistProtocolHandler(vertical, cfg) {
 function createA2aProtocolRouter(opts = {}) {
   const getCfg = opts.configStore || defaultConfigStore;
   const router = express.Router();
-
-  router.use((req, res, next) => {
-    const cfg = typeof getCfg === 'function' ? getCfg() : getCfg;
-    if (!isA2aEnabled(cfg)) {
-      return res.status(404).json({
-        error: 'a2a_disabled',
-        message: 'A2A protocol endpoints require ff_a2a_delegation',
-      });
-    }
-    return next();
-  });
 
   for (const vertical of verticalsWithSpecialist()) {
     const built = createSpecialistProtocolHandler(vertical, typeof getCfg === 'function' ? getCfg() : getCfg);

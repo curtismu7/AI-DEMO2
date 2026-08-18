@@ -41,13 +41,12 @@ export default function DelegationChainValuePage() {
   const run = useCallback(async (entry) => {
     setStatus((s) => ({ ...s, [entry.key]: "running" }));
     try {
-      // Both runs are gated by ff_a2a_delegation: the A2A overlay's heuristics
-      // are only merged into dispatch when it is on, so an unarmed flag makes
-      // the trigger phrase fall through to "unknown action" instead of running.
+      // A2A delegation itself is always on; only the MCP gateway runtime flags
+      // still need arming for the tool dispatch to succeed.
       const flags = requiredFlagsForUseCase({
         useCaseId: null,
         primaryTool: entry.primaryTool,
-        maturity: "flag:ff_a2a_delegation",
+        maturity: "works",
       });
       if (flags.length) {
         const updates = Object.fromEntries(flags.map((f) => [f, true]));

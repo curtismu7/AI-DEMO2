@@ -104,7 +104,7 @@ export const DELEGATION_TOUR_STEPS = [
     action: {
       label: "Go to the agent",
       route: "/dashboard",
-      hint: "Requires ff_a2a_delegation ON. Use the 'hand off to a specialist' chip (use-case a2a-delegation) and read the nested act chain in the Token Chain.",
+      hint: "Use the 'hand off to a specialist' chip (use-case a2a-delegation) and read the nested act chain in the Token Chain.",
     },
   },
   {

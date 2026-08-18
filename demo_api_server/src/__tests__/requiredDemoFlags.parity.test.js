@@ -122,8 +122,9 @@ describe('requiredDemoFlags parity (UI mirror vs server SoT)', () => {
   test('catalog-less A2A fallback still includes the gateway flags', () => {
     // The UI fallback fires when a chip is clicked before the catalog loads.
     // An A2A case dispatches delegate_to_specialist, so it needs them too.
+    // (ff_a2a_delegation itself was removed — delegation is always on.)
     const fallback = norm(client.requiredFlagsForUseCaseId('a2a-delegation'));
     expect(fallback).toEqual(expect.arrayContaining(server.MCP_GATEWAY_RUNTIME_FLAGS));
-    expect(fallback).toContain('ff_a2a_delegation');
+    expect(fallback).not.toContain('ff_a2a_delegation');
   });
 });

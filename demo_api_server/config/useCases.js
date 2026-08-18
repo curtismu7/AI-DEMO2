@@ -306,7 +306,7 @@ const RAW_USE_CASES = [
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'a2a-agent1-actor', 'a2a-exchange1', 'a2a-agent2-actor', 'a2a-exchange2', 'tool-dispatched'], activity: ['token', 'delegate', 'authorize', 'mcp'] },
     codeRefs: ['demo_api_server/services/a2aDelegationService.js', 'demo_api_server/services/demoAgentLangGraphService.js'],
-    maturity: 'flag:ff_a2a_delegation',
+    maturity: 'works',
     owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
     whatToSay: 'Generalist hands off to specialist — the nested act claim shows the full chain back to the user.',
     advanced: false,
@@ -371,7 +371,7 @@ const RAW_USE_CASES = [
       'demo_api_server/services/demoAgentLangGraphService.js',
       'demo_authz_server/routes/decision.js',
     ],
-    maturity: 'flag:ff_a2a_delegation',
+    maturity: 'works',
     owasp: { threats: ['T9', 'T13'], sections: ['§4.2.3', '§4.3'] },
     whatToSay: 'Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for.',
     advanced: false,
@@ -1750,10 +1750,10 @@ function deepFreeze(o) {
 
 /**
  * True when the entry's primary tool is only reachable through a two-hop A2A
- * chain. Served to the UI so a tile can arm ff_a2a_delegation from the SoT flag
- * instead of a hand-kept list of use-case ids — UC37 calls get_portfolio_summary
- * and was missing from every such list, so it could be launched with A2A off and
- * fail on an Authorize deny that looks nothing like a missing flag.
+ * chain. Served to the UI as `a2aDelegated` so surfaces can label the delegated
+ * path from the SoT flag instead of a hand-kept list of use-case ids. (It used
+ * to drive arming ff_a2a_delegation; that flag is gone — delegation is always
+ * on — but the SoT field remains the one truthful marker of the two-hop tools.)
  */
 function isA2aDelegatedPrimaryTool(tool) {
   if (!tool) return false;

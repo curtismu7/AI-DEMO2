@@ -184,7 +184,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
           </Callout>
           <h3>When it runs</h3>
           <p style={{ color: '#374151' }}>
-            Only UC2 / UC2.5 with <code>ff_a2a_delegation</code> on. Ordinary agent chats do not hit A2A protocol endpoints.
+            Only UC2 / UC2.5. Ordinary agent chats do not hit A2A protocol endpoints.
             Every vertical specialist exposes{' '}
             <code>/a2a/specialists/&lt;vertical&gt;/.well-known/agent-card.json</code>.
           </p>

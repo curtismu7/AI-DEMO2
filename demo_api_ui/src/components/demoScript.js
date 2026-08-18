@@ -15,7 +15,7 @@ export const DEMO_SCRIPT = {
     "Run `bash scripts/preflight-demo.sh` about 10 min before showtime.",
     "Log in on local.ping-devops.com:4000 (sign-in only works on that host).",
     "ff_use_cases_launcher ON; NODE_ENV must NOT be production (attack-sim is blocked in prod).",
-    "ff_rar and ff_a2a_delegation auto-arm when their step runs - no manual toggle.",
+    "ff_rar auto-arms when its step runs - no manual toggle.",
     "Closer pre-check: open /ai-control-plane and confirm a LIVE row exists.",
   ],
   intro:

@@ -119,8 +119,7 @@ router.post('/agent-tool', async (req, res) => {
     // service instead — the specialist chain is where authorization happens.
     // Lazy requires: keep route load free of the agent-service module graph.
     let raw;
-    const { isA2aEnabled } = require('../services/a2aDelegationService');
-    const a2aVertical = isA2aEnabled() ? verticalForA2aTool(tool) : null;
+    const a2aVertical = verticalForA2aTool(tool);
     if (a2aVertical) {
       const { executeA2aDelegation } = require('../services/demoAgentLangGraphService');
       raw = await executeA2aDelegation(
