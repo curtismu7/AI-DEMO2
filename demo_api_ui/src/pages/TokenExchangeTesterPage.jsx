@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenExchangeTesterPage.css';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import InlineSpinner from '../components/shared/InlineSpinner';
@@ -24,6 +25,12 @@ function claimSummary(claims) {
  * RFC 8693 Token Exchange Tester — single (subject-only) or double (subject + agent → MCP).
  */
 export default function TokenExchangeTesterPage() {
+  const { size: leftWidth, handleProps: leftHandleProps } = useDividerDrag({
+    min: 300,
+    max: 640,
+    initial: 380,
+    storageKey: 'tet-left-width',
+  });
   const [mode, setMode] = useState('single');
   const [audience, setAudience] = useState('mcpgateway.ping.demo');
   const [scopes, setScopes] = useState('read write');
@@ -278,7 +285,7 @@ export default function TokenExchangeTesterPage() {
           <a href={LOGIN_URL}>Customer Sign In</a>
         </div>
       ) : (
-        <div className="tet-grid">
+        <div className="tet-grid" style={{ '--tet-left-w': `${leftWidth}px` }}>
           <div className="tet-col-left">
             <div className="tet-section-label">Exchange Configuration</div>
             <form onSubmit={handleExchange} className="tet-form">
@@ -375,6 +382,8 @@ export default function TokenExchangeTesterPage() {
               </>
             )}
           </div>
+
+          <div className="divider-drag-handle" aria-label="Resize token panel" {...leftHandleProps} />
 
           <div className="tet-col-right">
             {error && (

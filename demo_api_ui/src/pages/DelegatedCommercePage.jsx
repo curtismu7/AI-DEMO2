@@ -1,4 +1,5 @@
 import React from "react";
+import useDividerDrag from "../hooks/useDividerDrag";
 import "./DelegatedCommercePage.css";
 import apiClient from "../services/apiClient";
 import { callMcpTool } from "../services/demoAgentService";
@@ -88,6 +89,19 @@ function ConsentModal({ open, scopes, onScopesChange, onClose, onConfirm, busy }
 }
 
 export default function DelegatedCommercePage({ user }) {
+  const { size: seqWidth, handleProps: seqHandleProps } = useDividerDrag({
+    min: 220,
+    max: 420,
+    initial: 250,
+    storageKey: "dcp-sequence-width",
+  });
+  const { size: proofWidth, handleProps: proofHandleProps } = useDividerDrag({
+    min: 310,
+    max: 520,
+    initial: 350,
+    storageKey: "dcp-proof-width",
+    invert: true, // proof rail sits right of its divider
+  });
   const { setSurfaceHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = React.useState(null);
   const agentHostRef = React.useCallback((node) => setAgentHostEl(node), []);
@@ -404,7 +418,10 @@ export default function DelegatedCommercePage({ user }) {
         </AvailabilityBadge>
       </section>
 
-      <div className="dc-layout">
+      <div
+        className="dc-layout"
+        style={{ "--dcp-seq-w": `${seqWidth}px`, "--dcp-proof-w": `${proofWidth}px` }}
+      >
         <aside className="dc-card dc-sequence">
           <div className="dc-card-head"><h2>Guided sequence</h2><span>{completed.length} of 4</span></div>
           {STEPS.map((step, index) => (
@@ -429,6 +446,8 @@ export default function DelegatedCommercePage({ user }) {
             </button>
           </div>
         </aside>
+
+        <div className="divider-drag-handle" aria-label="Resize sequence rail" {...seqHandleProps} />
 
         <section className="dc-card dc-workspace">
           <div className="dc-card-head">
@@ -512,6 +531,8 @@ export default function DelegatedCommercePage({ user }) {
             </div>
           )}
         </section>
+
+        <div className="divider-drag-handle" aria-label="Resize proof rail" {...proofHandleProps} />
 
         <aside className="dc-proof">
           <div className="dc-card dc-agent-card">

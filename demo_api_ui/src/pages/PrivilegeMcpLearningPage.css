@@ -46,7 +46,7 @@
 }
 
 .plp-sidebar {
-  width: 220px;
+  width: var(--plp-nav-w, 220px);
   padding: 1.5rem 1rem;
   border-right: 1px solid #21262d;
   position: sticky;

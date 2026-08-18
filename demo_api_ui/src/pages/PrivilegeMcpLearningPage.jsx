@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import useDividerDrag from "../hooks/useDividerDrag";
 import "./PrivilegeMcpLearningPage.css";
 
 const ARCH_SECTIONS = [
@@ -102,6 +103,12 @@ function Section({ id, title, children }) {
 export default function PrivilegeMcpLearningPage() {
   const [activeSection, setActiveSection] = useState("overview");
   const navigate = useNavigate();
+  const { size: navWidth, handleProps: navHandleProps } = useDividerDrag({
+    min: 180,
+    max: 400,
+    initial: 220,
+    storageKey: "plp-sidebar-width",
+  });
 
   const scrollTo = (id) => {
     setActiveSection(id);
@@ -121,7 +128,7 @@ export default function PrivilegeMcpLearningPage() {
         </p>
       </header>
 
-      <div className="plp-layout">
+      <div className="plp-layout" style={{ "--plp-nav-w": `${navWidth}px` }}>
         <nav className="plp-sidebar">
           {ARCH_SECTIONS.map((s) => (
             <button
@@ -134,6 +141,8 @@ export default function PrivilegeMcpLearningPage() {
             </button>
           ))}
         </nav>
+
+        <div className="divider-drag-handle" aria-label="Resize section navigation" {...navHandleProps} />
 
         <main className="plp-content">
           {/* ─── Overview ─── */}

@@ -27,10 +27,11 @@
 /* Two-column grid: tokens left, results right */
 .tet-grid {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: var(--tet-left-w, 380px) 6px 1fr;
 }
 @media (max-width: 900px) {
   .tet-grid { grid-template-columns: 1fr; }
+  .tet-grid > .divider-drag-handle { display: none; }
 }
 
 .tet-col-left {

@@ -14,6 +14,7 @@ import {
   loadPublicConfig,
 } from "../../services/configService";
 import bffAxios from "../../services/bffAxios";
+import useDividerDrag from "../../hooks/useDividerDrag";
 import { useAgentUiMode } from "../../context/AgentUiModeContext";
 import { useEducationUI } from "../../context/EducationUIContext";
 import { useIndustryBranding } from "../../context/IndustryBrandingContext";
@@ -1810,6 +1811,12 @@ const UnifiedConfigurationPage: FC<{
 }> = ({ user }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { size: sidebarWidth, handleProps: sidebarHandleProps } = useDividerDrag({
+    min: 180,
+    max: 420,
+    initial: 250,
+    storageKey: "configure-sidebar-width",
+  });
 
   const initialUrlTab = resolveConfigurationTab(searchParams);
   const [state, setState] = useState<ConfigurationState>(() => ({
@@ -3569,7 +3576,10 @@ const UnifiedConfigurationPage: FC<{
       )}
 
       {currentTab && (
-        <div className="configuration-content">
+        <div
+          className="configuration-content"
+          style={{ "--cfg-sidebar-w": `${sidebarWidth}px` } as React.CSSProperties}
+        >
           <div className="configuration-sidebar">
             <SectionNavigation
               sections={currentTab.sections}
@@ -3577,7 +3587,11 @@ const UnifiedConfigurationPage: FC<{
               onSectionChange={handleSectionChange}
             />
           </div>
-
+          <div
+            className="divider-drag-handle"
+            aria-label="Resize settings navigation"
+            {...sidebarHandleProps}
+          />
           <div className="configuration-main">
             <div className="configuration-section">
               <h2 className="configuration-section__title">

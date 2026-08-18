@@ -1917,3 +1917,18 @@
 .signin-prompt__btn:hover {
   background: #1d4ed8;
 }
+
+/* Shared split-pane divider handle (useDividerDrag consumers). Grid pages give
+   it a 6px track; flex pages get the flex-basis here. Hide it wherever the
+   page's own media query stacks its columns. */
+.divider-drag-handle {
+  cursor: col-resize;
+  background: transparent;
+  flex: 0 0 6px;
+  min-width: 6px;
+}
+
+.divider-drag-handle:hover,
+.divider-drag-handle:active {
+  background: var(--th-border-strong);
+}

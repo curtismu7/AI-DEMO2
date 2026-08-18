@@ -80,12 +80,15 @@
   border-radius: 12px;
   padding: 16px;
   display: grid;
-  grid-template-columns: 230px 1fr;
-  gap: 16px;
+  grid-template-columns: var(--rsc-scenarios-w, 230px) 6px 1fr;
+  gap: 5px;
 }
 @media (max-width: 760px) {
   .rsc-lab {
     grid-template-columns: 1fr;
+  }
+  .rsc-lab > .divider-drag-handle {
+    display: none;
   }
 }
 

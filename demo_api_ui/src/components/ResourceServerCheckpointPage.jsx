@@ -5,6 +5,7 @@
 // canned payloads matching the sideband contract pinned in
 // demo_authz_server/routes/sideband.js; not wired to the live stack.
 import React, { useState } from "react";
+import useDividerDrag from "../hooks/useDividerDrag";
 import "./ResourceServerCheckpointPage.css";
 
 const FLOW_STEPS = [
@@ -193,6 +194,12 @@ const TEACH = [
 export default function ResourceServerCheckpointPage() {
   const [active, setActive] = useState("balance");
   const s = SCENARIOS[active];
+  const { size: scenarioWidth, handleProps: scenarioHandleProps } = useDividerDrag({
+    min: 180,
+    max: 420,
+    initial: 230,
+    storageKey: "rsc-scenarios-width",
+  });
 
   return (
     <div className="rsc-page">
@@ -217,7 +224,7 @@ export default function ResourceServerCheckpointPage() {
       </div>
 
       <h2>Try it — pick what the agent attempts</h2>
-      <div className="rsc-lab">
+      <div className="rsc-lab" style={{ "--rsc-scenarios-w": `${scenarioWidth}px` }}>
         <div className="rsc-scenarios">
           <div className="rsc-sc-label">Agent tool call</div>
           {Object.entries(SCENARIOS).map(([key, sc]) => (
@@ -232,6 +239,8 @@ export default function ResourceServerCheckpointPage() {
             </button>
           ))}
         </div>
+
+        <div className="divider-drag-handle" aria-label="Resize scenario list" {...scenarioHandleProps} />
 
         <div className="rsc-stage">
           <div className="rsc-flowstrip">

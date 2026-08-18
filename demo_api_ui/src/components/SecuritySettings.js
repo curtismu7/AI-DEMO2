@@ -4,6 +4,7 @@ import { notifySuccess, notifyError } from '../utils/appToast';
 import { useEducationUI } from '../context/EducationUIContext';
 import { EDU } from './education/educationIds';
 import AdminSubPageShell from './AdminSubPageShell';
+import useDividerDrag from '../hooks/useDividerDrag';
 import PageNav from './PageNav';
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -157,6 +158,13 @@ function MultiSelect({ value = [], options, onChange, disabled }) {
 
 const SecuritySettings = ({ user, onLogout }) => {
   const { open } = useEducationUI();
+  const { size: historyWidth, handleProps: historyHandleProps } = useDividerDrag({
+    min: 280,
+    max: 640,
+    initial: 380,
+    storageKey: 'security-settings-history-width',
+    invert: true, // history rail sits right of its divider
+  });
   const [settings, setSettings] = useState(null);
   const [form, setForm] = useState(null);
   const [authorizeStatus, setAuthorizeStatus] = useState(null);
@@ -311,7 +319,7 @@ const SecuritySettings = ({ user, onLogout }) => {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `1fr 6px ${historyWidth}px`, gap: '9px', alignItems: 'start' }}>
 
         {/* Settings form */}
         <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
@@ -425,6 +433,8 @@ const SecuritySettings = ({ user, onLogout }) => {
             </div>
           </div>
         </div>
+
+        <div className="divider-drag-handle" aria-label="Resize change history" style={{ alignSelf: 'stretch' }} {...historyHandleProps} />
 
         {/* Change history sidebar */}
         <div style={{ background: 'white', borderRadius: '8px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>

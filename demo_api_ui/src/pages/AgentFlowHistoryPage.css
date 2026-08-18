@@ -35,9 +35,7 @@
 /* ── Left: history sidebar ─────────────────────────────────────────────── */
 
 .afh-sidebar {
-  flex: 0 0 28%;
-  max-width: 360px;
-  min-width: 260px;
+  flex: 0 0 var(--afh-sidebar-w, 28%);
   overflow-y: auto;
   display: flex;
   flex-direction: column;

@@ -27,6 +27,7 @@ import AdminSubPageShell from './AdminSubPageShell';
 import HistoryModal from './HistoryModal';
 import { DiagramControls } from './diagram';
 import TokenChainTraceRail from './TokenChainTraceRail';
+import useDividerDrag from '../hooks/useDividerDrag';
 import './ArchitectureDiagramPage.css';
 
 const ZOOM_STEP = 0.25;
@@ -306,6 +307,13 @@ export default function ArchitectureDiagramPage({
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [showChainPanel, setShowChainPanel] = useState(false);
+  const { size: tokenSideWidth, handleProps: tokenSideHandleProps } = useDividerDrag({
+    min: 320,
+    max: 560,
+    initial: 360,
+    storageKey: 'arch-token-side-width',
+    invert: true, // token card sits right of its divider
+  });
   const zoomIn    = () => setZoom((z) => Math.min(ZOOM_MAX, parseFloat((z + ZOOM_STEP).toFixed(2))));
   const zoomOut   = () => setZoom((z) => Math.max(ZOOM_MIN, parseFloat((z - ZOOM_STEP).toFixed(2))));
   const zoomReset = () => setZoom(1.0);
@@ -356,7 +364,10 @@ export default function ArchitectureDiagramPage({
         )}
 
         {/* Body: diagram + token side panel */}
-        <div className={`arch-diagram-body${hasCard ? ' arch-diagram-body--with-card' : ''}`}>
+        <div
+          className={`arch-diagram-body${hasCard ? ' arch-diagram-body--with-card' : ''}`}
+          style={{ '--arch-token-side-w': `${tokenSideWidth}px` }}
+        >
           <div className="arch-diagram-scroll-wrapper">
             <div className="arch-diagram-container" style={{ width: `${zoom * 100}%` }}>
               <img src={imageSrc} alt={imageAlt || title} className="arch-diagram-img" />
@@ -375,6 +386,9 @@ export default function ArchitectureDiagramPage({
             </div>
           </div>
 
+          {hasCard && (
+            <div className="divider-drag-handle" aria-label="Resize token card" {...tokenSideHandleProps} />
+          )}
           {hasCard && (
             <div className="arch-token-side">
               <TokenCard

@@ -75,9 +75,12 @@
 
 .dc-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr) minmax(310px, 390px);
-  gap: 16px;
+  grid-template-columns: var(--dcp-seq-w, 250px) 6px minmax(420px, 1fr) 6px var(--dcp-proof-w, 350px);
+  gap: 5px;
   align-items: start;
+}
+.dc-layout > .divider-drag-handle {
+  align-self: stretch;
 }
 
 .dc-card-head {
@@ -156,6 +159,7 @@
 
 @media (max-width: 1180px) {
   .dc-layout { grid-template-columns: 230px minmax(420px, 1fr); }
+  .dc-layout > .divider-drag-handle { display: none; }
   .dc-proof { grid-column: 1 / -1; position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dc-trace { grid-column: 1 / -1; }
 }
