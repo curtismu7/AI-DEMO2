@@ -106,6 +106,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — PingOneAuthorizePage console tab missed the SignInPrompt sweep
+
+**Files changed:** `demo_api_ui/src/components/PingOneAuthorizePage.jsx`.
+
+**What was broken:** the Live Policy Console tab's `pingone-live-policy` and
+`pingone-policies` fetches 401 when signed out (both routes are
+`authenticateToken`-only, not admin-gated). The page had no 401 handling, so
+it fell through to a raw axios error banner ("Request failed with status code
+401") plus the unrelated `workerConfigured` fallback, which reads as
+"credentials not configured" even when they are — `data` stays `null` after a
+failed fetch, so `notConfigured = !data?.workerConfigured` is always true.
+This page was missed by the same-day sweep above; `/pingone-authorize` is
+declared `public` in `auth-requirements.json` on purpose (the page must always
+render) but nothing inside it asked the user to sign in.
+
+**What was fixed:** added `needsLogin` state, set on a 401 from either fetch;
+the console tab renders a bare `<SignInPrompt>` (nested-chrome pattern, same
+as `MgmtApiRunnerPage`) instead of the error/warning banners when set.
+
+**Do not break:** the `workerConfigured`/`notConfigured` banner still exists
+for the real case — an authenticated session whose worker creds genuinely
+aren't set — that branch is unchanged, only now reached after `needsLogin` is
+ruled out. `auth-requirements.json` was not touched; the route stays `public`.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0);
+`npx vitest run PingOneAuthorizePage` (16/16 passed, pre-existing suite,
+unmodified — no new signed-out-state test added).
+
 ### 2026-08-18 — Signed-out visitors dead-ended (silent home bounce, dead "sign in" text, raw 401s)
 
 **Files changed:** `demo_api_ui/src/components/SignInPrompt.js` (new),
