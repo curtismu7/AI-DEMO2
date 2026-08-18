@@ -194,6 +194,17 @@ services:
       AGENT_SERVICE_HOST: "langchain-agent"
       HITL_SERVICE_URL: "http://hitl-service:3009"
       AGENT_SERVICE_URL: "http://agent-service:3006"
+      # Web Bot Auth: the origin the BFF advertises in Signature-Agent, which the
+      # GATEWAY then fetches for the key directory. Unset, mcpGatewayClient falls
+      # back to http://localhost:3001 — and inside the gateway container that is
+      # the GATEWAY, not the BFF, so the fetch always failed:
+      #   "[GW] Web Bot Auth monitor: key directory fetch failed
+      #    (http://localhost:3001/.well-known/http-message-signatures-directory)"
+      # wbaMode is 'monitor', so nothing blocked and a monitor that had NEVER
+      # verified anything looked exactly like one finding nothing wrong.
+      # https + service name because the BFF serves TLS on 3001 and the gateway
+      # mounts the mkcert CA bundle (NODE_EXTRA_CA_CERTS), so it validates.
+      WBA_SIGNATURE_AGENT_URL: "https://demo-api-server:3001"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
       # Pin MCP audiences so stale demo_api_server/.env cannot fail startupConfigGuard.
       # Both keys map to the mcpServer role and MUST include mcpserver.ping.demo
