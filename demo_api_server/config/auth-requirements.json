@@ -190,6 +190,7 @@
     "/policy-decision-trace": "public",
     "/postman": "admin",
     "/privilege-demo": "public",
+    "/privilege-gateway-topologies": "public",
     "/privilege-mcp-client": "public",
     "/privilege-mcp-diagrams": "public",
     "/privilege-mcp-learning": "public",

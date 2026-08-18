@@ -958,6 +958,7 @@ export default function AdminSideNav({
         { label: "Agent Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
         { label: "AI Agent Gateway (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
+        { label: "Privilege Gateway Topologies (MM)", path: "/privilege-gateway-topologies", icon: "arc" },
         { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
         { label: "Resource Server Placement (MM)", path: "/resource-server-placement", icon: "arc" },
       ],
