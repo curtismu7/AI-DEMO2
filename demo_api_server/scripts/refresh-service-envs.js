@@ -500,6 +500,16 @@ async function main() {
     GW_INTROSPECTION_CLIENT_ID:        creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:    creds.mcpExchangerSecret,
     GW_INTROSPECTION_ENDPOINT:         `${asBase}/introspect`,
+    // Intent-token verifier key. intentTokenValidator.ts resolves
+    // INTENT_TOKEN_SECRET || SESSION_SECRET; this file never emitted either, so
+    // getSigningKey() threw and every gw_audit_trail on the Node path reported
+    // IntentTokenValid='false' / IntentTokenError='no_signing_key' — the HMAC
+    // verifier shipped as dead code. Same resolution order the BFF signs with
+    // (services/intentTokenService.js) and the ping-gateway/.env block below, so
+    // both gateways verify with the SAME key. Same env-block override rule as
+    // BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via env_file,
+    // never pinned in compose `environment:`.
+    INTENT_TOKEN_SECRET:               fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
   });
   console.log('[refresh-envs] Wrote demo_mcp_gateway/.env');
 

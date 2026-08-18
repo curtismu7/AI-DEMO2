@@ -25,8 +25,19 @@ const VALID_PAYLOAD = {
 };
 
 describe('validateIntentToken', () => {
+  const savedIntent = process.env.INTENT_TOKEN_SECRET;
+  const savedSession = process.env.SESSION_SECRET;
+
   beforeEach(() => {
     process.env.INTENT_TOKEN_SECRET = TEST_SECRET;
+    delete process.env.SESSION_SECRET;
+  });
+
+  afterEach(() => {
+    if (savedIntent === undefined) delete process.env.INTENT_TOKEN_SECRET;
+    else process.env.INTENT_TOKEN_SECRET = savedIntent;
+    if (savedSession === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = savedSession;
   });
 
   test('returns valid=true and toolPermitted=true when tool is in permitted_tools', () => {
@@ -71,5 +82,41 @@ describe('validateIntentToken', () => {
   test('returns valid=false for malformed token (wrong part count)', () => {
     const result = validateIntentToken('not.a.valid.jwt.parts', 'create_transfer');
     expect(result.valid).toBe(false);
+  });
+
+  // ── deploy-wiring regression coverage ──────────────────────────────────────
+  // The Node gateway's env (demo_mcp_gateway/.env, written by
+  // refresh-service-envs.js) failed to carry INTENT_TOKEN_SECRET/SESSION_SECRET,
+  // so getSigningKey() threw and every gw_audit_trail reported
+  // IntentTokenValid='false' / IntentTokenError='no_signing_key'. These cases pin
+  // the three outcomes that fix (env now supplies the BFF's key) turns on.
+
+  test('returns no_signing_key when neither secret is configured (pre-fix symptom)', () => {
+    delete process.env.INTENT_TOKEN_SECRET;
+    delete process.env.SESSION_SECRET;
+    const token = makeToken(VALID_PAYLOAD);
+    const result = validateIntentToken(token, 'create_transfer');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('no_signing_key');
+  });
+
+  test('verifies a token minted under the SESSION_SECRET fallback', () => {
+    // setup-env.sh writes only SESSION_SECRET, and the BFF signs with it — so the
+    // gateway must verify with that same fallback once the env supplies it.
+    delete process.env.INTENT_TOKEN_SECRET;
+    process.env.SESSION_SECRET = TEST_SECRET;
+    const token = makeToken(VALID_PAYLOAD, TEST_SECRET);
+    const result = validateIntentToken(token, 'create_transfer');
+    expect(result.valid).toBe(true);
+    expect(result.toolPermitted).toBe(true);
+  });
+
+  test('rejects a token signed with a different key as invalid_signature', () => {
+    // Guards against the gateway secret drifting from the BFF's: a valid-looking
+    // token signed with the wrong key must fail closed, never verify.
+    const token = makeToken(VALID_PAYLOAD, 'some-other-secret-that-is-not-the-real-one!!');
+    const result = validateIntentToken(token, 'create_transfer');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('invalid_signature');
   });
 });
