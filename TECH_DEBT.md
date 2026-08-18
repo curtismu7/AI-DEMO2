@@ -1408,10 +1408,14 @@ moving them a fourth time:
 | hops next to `tools-list` | honest, but blank on any chain built from one invoke response |
 | rows on the `tools-list` hop | current |
 
-`TITLES` / `NARRATIVES` / `STEP_SPEC` entries for both ids are deliberately kept:
-the teaching text is accurate, `TokenTopologyPanel` still keys badges off the ids,
-and a future discovery-detail surface will want them. A comment above them says no
-step uses them, so nobody hunts for the hop.
+`TITLES` / `NARRATIVES` / `STEP_RFCS` / `STEP_SPEC` entries for both ids are
+REMOVED, along with `TokenTopologyPanel`'s badge rows for them. Keeping them was
+argued for at first — the teaching text was good — but retained metadata for a hop
+that no longer exists is the same trap as retained code that no longer runs: it
+reads as coverage and sends the next reader looking for a step. The MCP lifecycle
+teaching moved onto the `tools-list` spec, which is the hop that actually performs
+initialize / notifications/initialized, and the removed text is in git history if a
+discovery-detail surface ever wants it verbatim.
 
 The token EVENTS are unchanged and still asserted live in
 `chain-hops-reachable.real.spec.js` — the gateway still reports the handshake; only

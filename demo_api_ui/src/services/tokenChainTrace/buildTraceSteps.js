@@ -9,7 +9,7 @@ export const LANES = {
   "agent-token": "BFF", "exchange-1": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY",
-  "tools-call-challenge": "MCP", "mcp-initialize": "MCP", "mcp-initialized": "MCP", mcp: "MCP", api: "API",
+  "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
 };
 
@@ -58,14 +58,6 @@ const TITLES = {
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   "tools-call-challenge": "tools/call 401 — no token, gateway challenges",
-  // NOTE: no step is built for these two ids any more — the MCP session is
-  // opened during discovery, so its evidence hangs off the `tools-list` hop
-  // instead (see 8d). The titles/narratives/specs below are kept because the
-  // teaching text is still accurate and a future discovery-detail surface will
-  // want it; TokenTopologyPanel also still keys badges off these ids. If you
-  // are looking for the hop, it does not exist by design.
-  "mcp-initialize": "initialize — MCP session opened",
-  "mcp-initialized": "notifications/initialized — session confirmed",
   mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
@@ -92,8 +84,6 @@ const NARRATIVES = {
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
-  "mcp-initialize": "MCP is a stateful session protocol. Before the server will answer anything, the client sends initialize and the server replies with the protocol version it agrees to speak plus its capabilities. On this stack the Agent Gateway is that client, and it opens the session to discover tools — traced live: the session is negotiated, used for tools/list, and closed again before any tool call is made.",
-  "mcp-initialized": "The client acknowledges the negotiated session. The MCP lifecycle only permits requests after this notification — it is the point the session becomes usable, and the gateway sends it on every connection it opens.",
   "tools-call-challenge": "The same handshake on invocation: the first tools/call carries no credential, and the gateway answers 401 with the WWW-Authenticate challenge rather than passing an anonymous call through to the MCP server. Nothing executes on this leg.",
   mcp: "The second tools/call carries the delegated token. Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
@@ -111,7 +101,6 @@ const STEP_RFCS = {
   "tools-list-challenge": ["RFC 6750 §3", "RFC 9728"],
   "tools-list": ["MCP tools/list"],
   "tools-call-challenge": ["RFC 6750 §3", "RFC 9728"],
-  "mcp-initialize": ["MCP Lifecycle"],
   "exchange-1": ["RFC 8693"],
   exchange: ["RFC 8693", "RFC 8707"],
 };
@@ -169,11 +158,21 @@ const STEP_SPEC = {
   "tools-list": {
     refs: [
       { label: "MCP 2025-11-25", title: "tools/list — tool discovery", href: "https://modelcontextprotocol.io/specification/2025-11-25/server/tools" },
+      { label: "MCP 2025-11-25", title: "Lifecycle — initialize / initialized", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle" },
       { label: "RFC 9728", title: "Protected Resource Metadata", href: "https://www.rfc-editor.org/rfc/rfc9728" },
     ],
     mandate: "MCP's tools/list returns each tool's name, JSON Schema and — in this demo — the OAuth scopes it requires. The call is itself protected: the gateway answers an unauthenticated or mis-scoped request with 401 plus a WWW-Authenticate header pointing at its RFC 9728 metadata.",
     why: "Discovery is routed through the gateway rather than straight at the MCP server so PingOne Authorize can filter the catalog by vertical and scope before the model ever sees it. Filtering at discovery, not at invocation, is what makes 'the model proposed a tool it may not call' a rare case instead of the normal case. This is the second of the two requests: the first was refused, and this one carries the agent token the challenge asked for.",
     failure: "Trusting the catalog as an authorization decision. A filtered tools/list is a usability control, not a security boundary — the gateway still re-checks scope on tools/call, because a client is free to invoke a tool that discovery never advertised.",
+    // The MCP lifecycle is taught here because this is the hop that performs it.
+    // MCP is stateful: the client must send initialize, receive the server's
+    // chosen protocolVersion and capabilities, and send notifications/initialized
+    // before issuing anything else. On this stack the Agent Gateway is that
+    // client and it does all three to answer THIS request, then closes the
+    // session — so the negotiated version shows up in this hop's detail rather
+    // than on a tool call that reuses nothing. Treating MCP as a stateless HTTP
+    // API is the classic error: firing a request before the initialized
+    // notification fails in a way that looks like auth and is protocol state.
   },
   llm: {
     refs: [],
@@ -253,22 +252,6 @@ const STEP_SPEC = {
     mandate: "No specification covers this hop — it is the deliberate boundary where OAuth ends. The gateway strips the Authorization: Bearer header entirely and attaches a service credential plus the already-resolved user identity (X-API-Key and X-User-Sub).",
     why: "Legacy services that cannot validate OAuth still must not receive the user's bearer. Terminating the token at the gateway means a compromised downstream service holds a rotatable service key scoped to the gateway, never a delegated user token it could replay elsewhere.",
     failure: "Forwarding both the bearer and the API key. The downstream now holds a token it has no reason to have, and the audience restriction that made that token safe has been bypassed by hand.",
-  },
-  "mcp-initialize": {
-    refs: [
-      { label: "MCP 2025-11-25", title: "Lifecycle — initialize / initialized", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle" },
-    ],
-    mandate: "MCP is stateful. The lifecycle requires the client to send initialize and receive the server's chosen protocolVersion and capabilities, then send notifications/initialized, BEFORE issuing any other request. A server may reject a tools/call that arrives on an uninitialized session.",
-    why: "Showing it as its own hop makes the cost and the ordering visible: a tool call is not one message, it is three, and the version the two ends agreed on is negotiated here rather than assumed. The negotiated version also decides which features the rest of the exchange may use.",
-    failure: "Treating MCP like a stateless HTTP API. Reusing a session id past its lifetime, or firing tools/call before the initialized notification, fails in ways that look like an auth problem but are a protocol-state problem.",
-  },
-  "mcp-initialized": {
-    refs: [
-      { label: "MCP 2025-11-25", title: "Lifecycle — initialized notification", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle" },
-    ],
-    mandate: "A notification, not a request: it carries no id and the server sends no reply. Its only job is to mark the session ready.",
-    why: "It is the boundary between negotiation and use. Everything before it settles what the two ends can do; everything after it is the actual work.",
-    failure: "Waiting for a response to it. Nothing answers a JSON-RPC notification, so a client that blocks on one hangs until its own timeout and reports the wrong cause.",
   },
   "tools-call-challenge": {
     refs: [
