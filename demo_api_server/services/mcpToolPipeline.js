@@ -1088,37 +1088,6 @@ async function runMcpToolPipeline(ctx) {
                 tokenEvents.push(gwMcpAuditEvent);
                 gwEvents.push(gwMcpAuditEvent);
             }
-            // The gateway is the MCP client on this path: olb-token-exchange.groovy
-            // sends `initialize`, gets an Mcp-Session-Id, and only then forwards the
-            // tool call. Two round trips that the chain used to draw as one box,
-            // labelled "not visible from here" — true only because nothing published
-            // it. p1az-decision.groovy now folds it into the audit trail.
-            //
-            // `mcp-initialize` is the id buildTraceSteps already looks for, so the
-            // hop lights up with no UI change. `notifications/initialized` is
-            // deliberately NOT emitted: the gateway never sends it, and inventing a
-            // hop that did not happen is worse than the gap it would paper over.
-            if (gwAuditTrail.handshake && gwAuditTrail.handshake.performed) {
-                const hs = gwAuditTrail.handshake;
-                const gwHandshakeEvent = deps.buildTokenEvent(
-                    'mcp-initialize',
-                    'MCP initialize — session opened by the gateway',
-                    hs.status === 200 ? 'active' : 'failed',
-                    null,
-                    `The Agent Gateway opened the MCP session before forwarding the tool call: `
-                        + `initialize returned HTTP ${hs.status} and the server issued a session id `
-                        + `(${hs.sessionIdPrefix}…). The BFF never speaks the MCP protocol on this `
-                        + `path — the gateway is the client.`,
-                    {
-                        negotiatedVersion: hs.protocolVersion,
-                        clientInfo: hs.clientInfo,
-                        sessionIdPrefix: hs.sessionIdPrefix,
-                        initializedSent: hs.initializedSent,
-                    }
-                );
-                tokenEvents.push(gwHandshakeEvent);
-                gwEvents.push(gwHandshakeEvent);
-            }
             if (gwAuditTrail.mtls) {
                 const mtlsRes = gwAuditTrail.mtls;
                 const status = mtlsRes.enabled ? 'active' : 'skipped';

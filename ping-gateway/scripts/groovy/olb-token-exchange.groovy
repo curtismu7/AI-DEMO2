@@ -254,34 +254,6 @@ if (!sessionId) {
 }
 logger.info('[OlbExchange] MCP session established: ' + sessionId)
 
-// ── Publish the handshake for the token chain ────────────────────────────────
-// The chain drew ONE box for what is really two round trips, because the BFF is
-// not the MCP client on this path — the gateway is, and it opens the session
-// here. p1az-decision.groovy folds this into X-Gw-Audit-Trail on the way out,
-// the same way it already does for attributes['mtlsResult'].
-//
-// Only what actually happened goes in. This script sends `initialize` and then
-// the tool call; it never sends `notifications/initialized`, so nothing here
-// claims it did — the chain keeps saying that hop was not observed rather than
-// drawing a step that never ran.
-//
-// The session id is truncated deliberately: it is a live session handle, and the
-// chain renders this to the browser.
-try {
-    attributes['handshakeResult'] = [
-        performed      : true,
-        method         : 'initialize',
-        status         : initResp.code,
-        protocolVersion: '2025-11-25',
-        clientInfo     : [name: 'PingGateway', version: '2026.3'],
-        sessionIdPrefix: sessionId.take(8),
-        initializedSent: false,
-    ]
-} catch (Exception e) {
-    // Never let telemetry break a working tool call.
-    logger.warn('[OlbExchange] could not record handshake for the token chain: ' + e.message)
-}
-
 // ── Forward tool call directly via httpPostJson (bypasses ReverseProxyHandler) ─
 // reason: request.entity can be consumed by upstream filters (McpValidation,
 // P1AZDecision both read the body); the ReverseProxyHandler then forwards an
