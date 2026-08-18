@@ -89,7 +89,10 @@ function main() {
 
   if (envId && pingoneClient) {
     config.mcpServers.pingone = config.mcpServers.pingone || {};
-    config.mcpServers.pingone.url = `https://api.pingone.com/v1/environments/${envId}/mcp`;
+    // URL format: single source of truth is getMcpUrl() in
+    // demo_api_server/services/mcpPingOneHttpAdapter.js — inlined here because
+    // this script is deliberately dependency-free (node builtins only).
+    config.mcpServers.pingone.url = `https://mcp.pingone.com/admin/${envId}/mcp`;
     config.mcpServers.pingone.auth = config.mcpServers.pingone.auth || {};
     config.mcpServers.pingone.auth.CLIENT_ID = pingoneClient;
   }
