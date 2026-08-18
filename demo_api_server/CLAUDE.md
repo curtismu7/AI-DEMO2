@@ -34,8 +34,11 @@ CI=true npm run test:unit                # core regression, fastest
 ```
 
 **`CI=true` is mandatory.** Without it supertest suites flake and a green run
-proves nothing. Running jest from a git worktree also needs a
-`--testPathIgnorePatterns` override — see the `verify-ai-demo2` skill.
+proves nothing. Running jest from a worktree needs **no** flags — `jest.config.js`
+detects a worktree and drops its own excludes (PR #950). Do **not** pass
+`--testPathIgnorePatterns`: it REPLACES the ignore list rather than adding to it,
+so an override that omits `/tests/real/` runs the live-stack suites against the
+running demo. See the `verify-ai-demo2` skill.
 
 ## Error responses — `{ error }`
 
