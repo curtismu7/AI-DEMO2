@@ -27,10 +27,18 @@ jest.mock('../services/agentMcpTokenService', () => ({
   resolveMcpAccessTokenWithEvents: jest.fn(),
   decodeJwtClaims: jest.fn(),
 }));
+// a2aDelegated tools mint through the specialist chain instead (#2017). Without
+// this mock those rows would reach the REAL delegation service and fail for a
+// reason that has nothing to do with what this file is testing.
+jest.mock('../services/a2aDelegationService', () => ({
+  delegateToSpecialist: jest.fn(),
+}));
 
 const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
 const membershipService = require('../services/pingOneGroupMembershipService');
 const agentMcpTokenService = require('../services/agentMcpTokenService');
+const a2aDelegationService = require('../services/a2aDelegationService');
+const scopeTopology = require('../services/scopeTopology');
 const groupPolicy = require('../services/groupPolicy');
 const { verticalManifest } = require('../services/verticalManifest');
 
@@ -70,7 +78,13 @@ describe('decision-board presents a real token', () => {
     pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
       decision: 'PERMIT', raw: { statements: [{ code: 'mcp-tool-authorized' }] },
     });
+    a2aDelegationService.delegateToSpecialist.mockResolvedValue({ token: 'jwt.for.mcp' });
   });
+
+  // Rows whose tool is a2aDelegated take the specialist path; the refusal cases
+  // below drive the DIRECT mint, so they assert over these rows only. The
+  // delegated refusal has its own coverage in groupDecisionBoardA2a.test.js.
+  const directRows = (payload) => payload.rows.filter((r) => !scopeTopology.isA2aDelegatedTool(r.tool));
 
   it('forwards the minted token audience and act chain to the PDP', async () => {
     agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: 'jwt.for.mcp' });
@@ -97,7 +111,10 @@ describe('decision-board presents a real token', () => {
 
     // Compare as multisets: rows are sorted by displayName after evaluation,
     // so mint order and row order legitimately differ.
-    const tools = agentMcpTokenService.resolveMcpAccessTokenWithEvents.mock.calls.map((c) => c[1]).sort();
+    const tools = [
+      ...agentMcpTokenService.resolveMcpAccessTokenWithEvents.mock.calls.map((c) => c[1]),
+      ...a2aDelegationService.delegateToSpecialist.mock.calls.map((c) => c[1].tool),
+    ].sort();
     expect(tools).toEqual(payload.rows.map((r) => r.tool).sort());
   });
 
@@ -113,7 +130,8 @@ describe('decision-board presents a real token', () => {
 
     const payload = await callBoard();
 
-    for (const row of payload.rows) {
+    expect(directRows(payload).length).toBeGreaterThan(0);
+    for (const row of directRows(payload)) {
       expect(row.tokenPresented).toBe(false);
       expect(row.tokenError).toBe(
         'user_token_forwarding_disabled: Raw user-token forwarding to MCP is disabled.',
@@ -130,7 +148,7 @@ describe('decision-board presents a real token', () => {
 
     const payload = await callBoard();
 
-    expect(payload.rows[0].tokenError).toMatch(/need_auth/);
+    expect(directRows(payload)[0].tokenError).toMatch(/need_auth/);
   });
 
   it('OMITS tokenAudience when the mint fails — never sends an empty string', async () => {
@@ -140,9 +158,11 @@ describe('decision-board presents a real token', () => {
 
     const payload = await callBoard();
 
-    const args = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0];
+    const args = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls
+      .map((c) => c[0])
+      .find((a) => !scopeTopology.isA2aDelegatedTool(a.toolName));
     expect('tokenAudience' in args).toBe(false);
-    for (const row of payload.rows) {
+    for (const row of directRows(payload)) {
       expect(row.tokenPresented).toBe(false);
       expect(row.tokenError).toBe('no user token');
     }

@@ -1014,12 +1014,30 @@ Verified live, signed in as `demoUser` on the real stack: 13 rows, every one
 from every row** — it had previously denied all 13. Two rows now PERMIT
 (`HITL,mcp-tool-authorized`).
 
-**Newly visible underneath it** (not this fix's scope): with `inRequiredGroup:
-true` on all 13 rows, 11 still deny on `mcp-invalid-a2a-generalist`. The board
-presents a directly-minted token, so it carries no A2A act chain for the tools
-whose rule requires one. Whether the board should mint a delegated token or
-those rows should be presented differently is a product question, not a bug in
-the audience path. It was invisible while audience denied everything first.
+**Newly visible underneath it, then ADDRESSED 2026-08-18 (PR #2017):** with
+`inRequiredGroup: true` on all 13 rows, 11 denied on
+`mcp-invalid-a2a-generalist`. Authorize's `DenyA2aDelegationRequired` rule
+denies `ActChainDepth < 2` for exactly the tools flagged `a2aDelegated` in
+scope-topology — verified: the 10 flagged tools are precisely the ones that
+denied, and the 2 unflagged ones are the 2 that PERMITted. The board minted a
+one-hop token, so those rows denied on delegation shape and never reached the
+group rule; membership could not move them.
+
+Those rows now mint through `a2aDelegationService.delegateToSpecialist()` — the
+same chain the real call path uses — keyed on the scope-topology flag rather
+than the tool-name list in `pac/policies/mcp-delegation.yaml`, so the two cannot
+drift apart silently.
+
+**`ff_a2a_delegation` defaults to `false`**, so the fallback is the DEFAULT path,
+not an edge case: the row is probed with the one-hop token (keeping the
+informative `mcp-invalid-a2a-generalist` verdict rather than the
+`mcp-invalid-audience` you get by presenting nothing) and `tokenError` states
+that delegation was unavailable and why.
+
+**Not verified live with the flag ON.** The flag-off path is confirmed on the
+real stack; the delegated branch is unit-tested only. The admin
+feature-flag endpoint now requires a bearer token, and flipping a live demo flag
+is the operator's call, not something to route around an auth gate for.
 
 ### 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
 

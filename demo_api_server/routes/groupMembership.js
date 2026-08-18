@@ -11,6 +11,8 @@ const groupPolicy = require('../services/groupPolicy');
 const pingOneGroupMembershipService = require('../services/pingOneGroupMembershipService');
 const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
 const agentMcpTokenService = require('../services/agentMcpTokenService');
+const a2aDelegationService = require('../services/a2aDelegationService');
+const scopeTopology = require('../services/scopeTopology');
 const { verticalManifest } = require('../services/verticalManifest');
 const { requireSession } = require('../middleware/auth');
 const { provisionVerticalGroups } = require('../services/pingOneGroupProvisionService');
@@ -146,6 +148,39 @@ router.get('/decision-board', requireSession, async (req, res) => {
       }
     }
 
+    /**
+     * Mint the two-hop token an a2aDelegated tool is actually called with.
+     *
+     * Returns the SAME envelope resolveMcpAccessTokenWithEvents does — { token }
+     * on success, { token: null, blockCode, blockMessage } on refusal — so the
+     * row's reporting below is identical for both mint paths and a delegation
+     * refusal reads as a refusal, not as a policy verdict on the user's groups.
+     *
+     * A2A can be switched off (ff_a2a_delegation). When it is, the row says so
+     * rather than presenting a one-hop token that would deny for a reason the
+     * operator cannot see.
+     */
+    const mintDelegated = async (t) => {
+      const d = await a2aDelegationService.delegateToSpecialist(req, {
+        vertical: t.verticalId,
+        tool: t.tool,
+        subtask: `group-policy decision board probe for ${t.tool}`,
+      });
+      if (d && d.token) { return { token: d.token }; }
+      // Falling back to the one-hop mint rather than presenting nothing.
+      // ff_a2a_delegation defaults to false, so this is the DEFAULT path, not an
+      // edge case. Presenting no token at all makes the PDP answer
+      // mcp-invalid-audience — strictly less informative than the
+      // mcp-invalid-a2a-generalist ("delegation required") it returns when it can
+      // see a real one-hop chain. The row keeps the better verdict AND says why it
+      // could not be probed as delegated.
+      return {
+        token: null,
+        fallback: await agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, t.tool),
+        note: `a2a delegation unavailable (${(d && d.error) || 'no token returned'}) — probed with a one-hop token, which this tool denies by design`,
+      };
+    };
+
     // One decision at a time, NOT Promise.all. Firing all ~13 in parallel made
     // PingOne Authorize rate-limit the burst: the first two returned real
     // decisions and every later one came back 429, so the board rendered
@@ -180,6 +215,7 @@ router.get('/decision-board', requireSession, async (req, res) => {
       // way to get a real answer: the decision below is now the same question
       // the PEP asks, with the same evidence.
       let tokenClaims = null;
+      let a2aNote = null;
       let tokenError = null;
       try {
         // WithEvents, not resolveMcpAccessToken: the plain wrapper returns just
@@ -187,7 +223,21 @@ router.get('/decision-board', requireSession, async (req, res) => {
         // tokenPresented:false with no reason at all — "it didn't work" and
         // nothing more. The blocked path sets need_auth / blockedReason on the
         // result rather than throwing, so the only way to say WHY is to read it.
-        const minted = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, t.tool);
+        // An a2aDelegated tool is reachable ONLY through a specialist delegated by
+        // the generalist — Authorize's DenyA2aDelegationRequired rule denies
+        // ActChainDepth < 2 for exactly these tools. A directly-minted token is
+        // therefore the wrong evidence: the row denied on the delegation shape and
+        // never reached the group rule, so membership could not move it. That is the
+        // same failure the audience bug had (#2016), one rule later.
+        //
+        // The SoT is scope-topology's `a2aDelegated` flag, NOT the tool-name list in
+        // pac/policies/mcp-delegation.yaml — the two agree today (verified: the 10
+        // flagged tools are exactly the ones that denied), and reading the flag keeps
+        // them from drifting apart silently.
+        let minted = scopeTopology.isA2aDelegatedTool(t.tool)
+          ? await mintDelegated(t)
+          : await agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, t.tool);
+        if (minted && minted.note) { a2aNote = minted.note; minted = minted.fallback; }
         if (minted && minted.token) {
           // decodeJwtClaims returns { header, claims } — NOT the claims. Reading
           // .aud straight off it is always undefined, which made every row report
@@ -224,6 +274,9 @@ router.get('/decision-board', requireSession, async (req, res) => {
         // more useful than a blank.
         tokenError = err.message;
       }
+      // A real mint failure outranks the note — the note explains why the probe is
+      // one-hop, not why there is no token.
+      if (a2aNote && !tokenError) { tokenError = a2aNote; }
       const tokenAudience = tokenClaims && tokenClaims.aud != null
         ? (Array.isArray(tokenClaims.aud) ? tokenClaims.aud.join(' ') : String(tokenClaims.aud))
         : null;
