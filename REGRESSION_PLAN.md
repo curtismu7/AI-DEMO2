@@ -106,6 +106,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — MCP Inspector toasted "timeout of 10000ms exceeded" while calls succeeded
+
+**Files changed:** `demo_api_ui/src/services/apiClient.js`,
+`demo_api_ui/src/services/__tests__/apiClient.inspectorTimeout.test.js` (new)
+
+**What was broken:** `apiClient`'s blanket 10s axios timeout aborted
+`/api/mcp/inspector/*` calls in the browser while the BFF was still inside its
+own upstream budgets — 15s for the MCP WebSocket/HTTP transports, 30s for stdio
+and the hosted PingOne MCP adapter. A slow-but-successful tools/list or
+tools/call stacked contextless "timeout of 10000ms exceeded" toasts (the
+timeout error has no `response`, so `formatAxiosError` falls through to the raw
+axios message) over an inspector that was actually working.
+
+**What was fixed:** a request interceptor in `apiClient` raises `timeout` to
+35s for URLs starting with `/api/mcp/inspector/` — above every server-side
+budget, one place for all inspector surfaces (McpInspectorPage, McpInspector
+embedded in McpGatewayConfig). All other URLs keep the 10s default.
+
+**Do not break:** the interceptor is registered **fourth** —
+`apiClient.session.test.js` and `apiClient.noAuthBanner.test.js` index request
+interceptors [0..2] by registration order, so new interceptors go after it. If
+a BFF MCP transport budget is ever raised above 30s, raise the 35s to match.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/services/__tests__/apiClient.inspectorTimeout.test.js` — 2/2, plus `npm run build` exit 0.
+
 ### 2026-08-18 — Decision board read `.aud` off the JWT wrapper, not the claims (#2015)
 
 **Files changed:** `demo_api_server/routes/groupMembership.js`,

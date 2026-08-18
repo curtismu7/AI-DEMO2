@@ -60,6 +60,20 @@ class ApiClient {
       (error) => Promise.reject(error)
     );
 
+    // ── MCP inspector — client timeout must outlive the BFF's upstream budgets ─
+    // The BFF gives MCP transports 15s (WebSocket, HTTP) to 30s (stdio, hosted
+    // PingOne MCP) before answering or falling back. The 10s default above would
+    // abort these in the browser while the server call goes on to succeed.
+    // Registered after the auth interceptor — tests index request interceptors
+    // [0..2] by registration order.
+    this.client.interceptors.request.use(
+      (config) => {
+        if ((config.url || '').startsWith('/api/mcp/inspector/')) config.timeout = 35000;
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
     // ── Traffic capture — record response (success + error) ───────────────────
     this.client.interceptors.response.use(
       (response) => {
