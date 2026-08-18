@@ -8,19 +8,20 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 19 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 17 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     // Each MCP method is TWO requests: the credential-less one the gateway
     // refuses, then the authorized one. Both legs are their own hop.
     expect(steps.map((s) => s.id)).toEqual([
       "website", "signin", "prompt", "agent",
-      // The MCP session is opened for DISCOVERY. Traced live 2026-08-18: driving
-      // the tool-call leg alone produced 2x initialize, 2x
-      // notifications/initialized and 2x tools/list on the MCP server, and no
-      // tools/call at all. The gateway negotiates a session, lists tools, and
-      // closes it — before any tool call exists. These hops used to sit next to
-      // the tool call, which taught a session-per-invocation that does not happen.
-      "tools-list-challenge", "tools-list", "mcp-initialize", "mcp-initialized",
+      // No initialize / notifications/initialized hops. The MCP session is opened
+      // by the gateway during DISCOVERY — traced live 2026-08-18, the tool-call
+      // leg produces initialize / notifications/initialized / tools/list on the
+      // MCP server and no tools/call at all. As their own cards they claimed a
+      // session per invocation; next to discovery they sat blank on any chain
+      // built from one invoke response. The evidence hangs off `tools-list`
+      // instead — see the discovery-hop test below.
+      "tools-list-challenge", "tools-list",
       "llm", "agent-token", "exchange",
       "authorize", "gateway", "api-key-swap",
       "tools-call-challenge", "mcp",
@@ -28,20 +29,18 @@ describe("buildTraceSteps — empty trace", () => {
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
     expect(steps.slice(1).every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
   });
 
   test("each MCP method's challenge leg sits immediately before its authorized leg", () => {
     const ids = buildTraceSteps(EMPTY_TRACE).map((s) => s.id);
-    // Discovery's challenge is followed by its authorized leg, and the session
-    // handshake belongs to THAT leg — the gateway opens the session in order to
-    // list tools (traced live 2026-08-18).
+    // Both methods are now a challenge immediately followed by their authorized
+    // leg, with nothing wedged between: the session handshake is no longer a hop
+    // at all (its evidence hangs off tools-list).
     expect(ids.indexOf("tools-list") - ids.indexOf("tools-list-challenge")).toBe(1);
-    expect(ids.indexOf("mcp-initialize") - ids.indexOf("tools-list")).toBe(1);
-    expect(ids.indexOf("mcp-initialized") - ids.indexOf("mcp-initialize")).toBe(1);
-    // With the handshake moved to discovery, the tool call is once again a
-    // challenge immediately followed by its authorized leg.
     expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(1);
+    expect(ids).not.toContain("mcp-initialize");
+    expect(ids).not.toContain("mcp-initialized");
   });
 
   test("tool discovery sits between the agent and the model that consumes the catalog", () => {
@@ -192,28 +191,44 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
 describe("buildTraceSteps — MCP lifecycle handshake and the second exchange", () => {
   const byId = (steps, id) => steps.find((s) => s.id === id);
 
-  test("initialize reports the negotiated protocol version and the server it agreed with", () => {
+  // The handshake is reported on the hop that CAUSED it. The gateway opens the
+  // MCP session in order to list tools, so discovery owns that evidence — not a
+  // pair of standalone cards implying a session per tool call.
+  const DISCOVERY_EVENTS = [
+    { type: "tools_list_success", permittedCount: 97, deniedCount: 3, vertical: "banking" },
+    { id: "mcp-initialize", negotiatedVersion: "2025-11-25",
+      serverInfo: { name: "banking-mcp", version: "1.2.0" }, performedBy: "agent-gateway" },
+    { id: "mcp-initialized", performedBy: "agent-gateway" },
+  ];
+
+  test("the discovery hop reports the MCP session it opened", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, tokenEvents: DISCOVERY_EVENTS });
+    const kv = byId(steps, "tools-list").detail.kv;
+    expect(kv).toContainEqual(["MCP session", "initialize -> 2025-11-25 -> notifications/initialized"]);
+    expect(kv).toContainEqual(["MCP server", "banking-mcp 1.2.0"]);
+    // Who the client is matters: on this path it is the gateway, not the BFF.
+    expect(kv).toContainEqual(["session opened by", "agent-gateway"]);
+  });
+
+  test("it does not claim the notification when only initialize was reported", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       tokenEvents: [
-        { id: "mcp-initialize", request: { method: "initialize" }, response: { result: { protocolVersion: "2025-11-25" } },
-          negotiatedVersion: "2025-11-25", serverInfo: { name: "banking-mcp", version: "1.2.0" } },
-        { id: "mcp-initialized", request: { jsonrpc: "2.0", method: "notifications/initialized" } },
+        { type: "tools_list_success", permittedCount: 1 },
+        { id: "mcp-initialize", negotiatedVersion: "2025-11-25" },
       ],
     });
-    expect(byId(steps, "mcp-initialize").status).toBe("done");
-    expect(byId(steps, "mcp-initialize").detail.kv).toContainEqual(["protocol version", "2025-11-25"]);
-    expect(byId(steps, "mcp-initialize").detail.kv).toContainEqual(["server", "banking-mcp 1.2.0"]);
+    const kv = byId(steps, "tools-list").detail.kv;
+    expect(kv).toContainEqual(["MCP session", "initialize -> 2025-11-25"]);
   });
 
-  test("the initialized notification says it gets no reply rather than showing an empty response", () => {
+  test("a run with no handshake evidence adds no session rows", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
-      tokenEvents: [{ id: "mcp-initialized", request: { jsonrpc: "2.0", method: "notifications/initialized" } }],
+      tokenEvents: [{ type: "tools_list_success", permittedCount: 1 }],
     });
-    const step = byId(steps, "mcp-initialized");
-    expect(step.detail.response).toBeUndefined();
-    expect(step.detail.kv[0][1]).toMatch(/not answered/);
+    const keys = byId(steps, "tools-list").detail.kv.map(([k]) => k);
+    expect(keys).not.toContain("MCP session");
   });
 
   test("two-exchange runs get their own exchange #1 hop, immediately before the delegated one", () => {
@@ -238,28 +253,26 @@ describe("buildTraceSteps — MCP lifecycle handshake and the second exchange", 
     expect(steps.map((s) => s.id)).not.toContain("exchange-1");
   });
 
-  test("on the gateway path the handshake hops explain that the gateway owns the MCP session", () => {
+  // These two replace a pair of tests that required the handshake hops to carry
+  // an explanation ("the gateway owns the MCP session") so they never rendered as
+  // unexplained grey cards. That intent is preserved by construction now: there
+  // is no card to explain. A hop that cannot exist cannot mislead.
+  test("no handshake hop is drawn on the gateway path", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "ok",
       tokenEvents: [{ id: "gw-authorize", decision: "PERMIT", tool: "list_orders" }],
     });
-    for (const id of ["mcp-initialize", "mcp-initialized"]) {
-      const step = steps.find((s) => s.id === id);
-      expect(step.status).toBe("notinpath");
-      // Must say WHY there is nothing here, not leave an unexplained grey card.
-      expect(step.detail.narrative).toMatch(/gateway is the MCP client/);
-    }
+    const ids = steps.map((s) => s.id);
+    expect(ids).not.toContain("mcp-initialize");
+    expect(ids).not.toContain("mcp-initialized");
   });
 
-  test("the direct path keeps the protocol narrative, not the gateway explanation", () => {
-    const steps = buildTraceSteps({
-      ...EMPTY_TRACE,
-      outcome: "ok",
-      tokenEvents: [],
-    });
-    const step = steps.find((s) => s.id === "mcp-initialize");
-    expect(step.detail.narrative).not.toMatch(/gateway is the MCP client/);
+  test("nor on a run with no gateway evidence at all", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", tokenEvents: [] });
+    const ids = steps.map((s) => s.id);
+    expect(ids).not.toContain("mcp-initialize");
+    expect(ids).not.toContain("mcp-initialized");
   });
 });
 

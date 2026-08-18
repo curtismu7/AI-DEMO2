@@ -1387,11 +1387,35 @@ absent from `/api/agent/invoke`, because the tool-call leg produces no
 `tools/call` on the MCP server at all — measured, see above. The spec reports both
 legs separately; read the `[list]` line, not the `[hops]` line.
 
-**Still open, and a design question rather than a bug:** a chain rendered from a
-single invoke response shows these hops empty, because the session was negotiated
-on the earlier discovery request. Whether the UI should carry discovery evidence
-forward into the run's chain — and how to do that without implying the session was
-opened for the tool call — nobody has decided.
+**DECIDED 2026-08-18: shown on discovery, not as hops of its own.** The owner
+chose this over carrying discovery evidence forward into the run chain. The
+`mcp-initialize` / `mcp-initialized` STEPS are gone; their evidence now hangs off
+the `tools-list` hop that caused the session, as `MCP session`, `MCP server` and
+`session opened by` rows plus a `handshake` detail block.
+
+Why this and not the alternative: filling the hops from an earlier request makes
+the chain look complete, but a viewer reads two cards between the gateway and the
+MCP call as a session negotiated for that call. That is the fiction this whole
+thread has been removing. Reporting the session on the hop that opened it says the
+true thing and adds no card that is blank most of the time.
+
+The step ids are now history in three positions, which is worth knowing before
+moving them a fourth time:
+
+| shape | why it was wrong |
+|---|---|
+| hops between gateway and MCP call | claimed a session per tool invocation |
+| hops next to `tools-list` | honest, but blank on any chain built from one invoke response |
+| rows on the `tools-list` hop | current |
+
+`TITLES` / `NARRATIVES` / `STEP_SPEC` entries for both ids are deliberately kept:
+the teaching text is accurate, `TokenTopologyPanel` still keys badges off the ids,
+and a future discovery-detail surface will want them. A comment above them says no
+step uses them, so nobody hunts for the hop.
+
+The token EVENTS are unchanged and still asserted live in
+`chain-hops-reachable.real.spec.js` — the gateway still reports the handshake; only
+the rendering moved.
 
 ### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 

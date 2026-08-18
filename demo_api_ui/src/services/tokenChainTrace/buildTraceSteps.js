@@ -58,6 +58,12 @@ const TITLES = {
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   "tools-call-challenge": "tools/call 401 — no token, gateway challenges",
+  // NOTE: no step is built for these two ids any more — the MCP session is
+  // opened during discovery, so its evidence hangs off the `tools-list` hop
+  // instead (see 8d). The titles/narratives/specs below are kept because the
+  // teaching text is still accurate and a future discovery-detail surface will
+  // want it; TokenTopologyPanel also still keys badges off these ids. If you
+  // are looking for the hop, it does not exist by design.
   "mcp-initialize": "initialize — MCP session opened",
   "mcp-initialized": "notifications/initialized — session confirmed",
   mcp: "MCP server — tool executes, token accepted",
@@ -686,7 +692,7 @@ export function buildTraceSteps(trace) {
   // path (mTLS off, gateway not in route, OAuth-bearer path with no API-key
   // swap, no step-up demanded). Mirrors TokenChainDisplay's notinpath bucket.
   const traceComplete = outcome === "ok" || outcome === "error";
-  let steps = [];
+  const steps = [];
 
   // 0. Website (Browser) — always considered active/done
   steps.push(makeStep("website", "done", { narrative: "Browser securely sending requests over HTTP-only session cookie API." }));
@@ -724,6 +730,9 @@ export function buildTraceSteps(trace) {
   // 3c. tools/list #2 — MCP tool discovery through the gateway, before the model
   // reasons. The BFF merges these events into the run (routes/agentRun.js), but
   // they carry `type` rather than `id`, so they need findEventByType.
+  // Emitted by agentGatewayClient off the gateway's tools/list _meta (#2049).
+  const mcpInitEvent = findEvent(tokenEvents, "mcp-initialize");
+  const mcpInitializedEvent = findEvent(tokenEvents, "mcp-initialized");
   const toolsOk = findEventByType(tokenEvents, "tools_list_success");
   const toolsFallback = findEventByType(tokenEvents, "tools_list_fallback");
   const toolsErr = findEventByType(tokenEvents, "tools_list_error", "tools_list_failed");
@@ -743,8 +752,34 @@ export function buildTraceSteps(trace) {
       toolsOk?.vertical ? ["vertical", String(toolsOk.vertical)] : null,
       toolsFallback ? ["catalog source", `local fallback — ${toolsFallback.reason || "gateway unreachable"}`] : null,
       toolsErr ? ["error", String(toolsErr.message || toolsErr.code || "tools/list failed")] : null,
+      // The MCP session this discovery opened. The Agent Gateway is the MCP
+      // client on this path and runs initialize -> notifications/initialized ->
+      // tools/list -> close, per call (traced live 2026-08-18; the tool-call leg
+      // produces no tools/call on the MCP server at all).
+      //
+      // Shown HERE rather than as two hops of its own. As separate cards between
+      // the gateway and the MCP call they claimed a session is negotiated per
+      // tool invocation, which is false; moved next to discovery they were
+      // honest but sat empty on any chain built from a single invoke response,
+      // because the session belongs to the earlier request. Attaching the
+      // evidence to the hop that caused it says the true thing without adding a
+      // card that is blank most of the time.
+      mcpInitEvent?.negotiatedVersion
+        ? ["MCP session", `initialize -> ${mcpInitEvent.negotiatedVersion}`
+            + (mcpInitializedEvent ? " -> notifications/initialized" : "")]
+        : null,
+      mcpInitEvent?.serverInfo?.name
+        ? ["MCP server", `${mcpInitEvent.serverInfo.name}`
+            + (mcpInitEvent.serverInfo.version ? ` ${mcpInitEvent.serverInfo.version}` : "")]
+        : null,
+      mcpInitEvent?.performedBy
+        ? ["session opened by", String(mcpInitEvent.performedBy)]
+        : null,
     ].filter(Boolean),
     response: toolsEvent ? { title: "tools/list event", text: asJson(toolsEvent) } : undefined,
+    handshake: mcpInitEvent
+      ? { initialize: mcpInitEvent, initialized: mcpInitializedEvent || null }
+      : undefined,
   } : {}));
 
   // 4. llm — heuristic runs skip the model; label/lane become HEURISTICS and mark done
@@ -1226,50 +1261,20 @@ export function buildTraceSteps(trace) {
   // server. Sits directly before the authorized call it precedes.
   steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
 
-  // 8d. MCP lifecycle handshake. A tool call is three messages over the MCP
-  // session, not one: initialize (version + capability negotiation),
-  // notifications/initialized (session ready), then tools/call. The first two
-  // were captured by mcpWebSocketClient but never surfaced, so the chain drew
-  // one MCP hop for three round trips.
-  const mcpInit = findEvent(tokenEvents, "mcp-initialize");
-  const mcpInitialized = findEvent(tokenEvents, "mcp-initialized");
-  // On the gateway path the BFF is NOT the MCP client: it speaks JSON-RPC over
-  // HTTP to the gateway, and the GATEWAY owns the MCP session with the upstream
-  // server. The handshake still happens — one hop further out than the BFF can
-  // observe — so these two hops legitimately have no evidence here. Saying that
-  // beats an unexplained grey card that reads as "this step was skipped".
-  // Confirmed live 2026-08-17: a default-config run (MCP_GATEWAY_HTTP_URL set)
-  // routes through callToolViaGateway, which never touches the WS client's
-  // frame capture that feeds these steps.
-  const gwOwnsMcpSession = (gwSeen || gwDenied) && !mcpInit;
-  const handshakeNarrative = gwOwnsMcpSession
-    ? "Not visible from here: on the Agent Gateway path the BFF sends JSON-RPC over HTTP to the gateway, and the gateway is the MCP client that opens and owns the session with the upstream server. The handshake happens one hop beyond what this trace can see. It appears here only on the direct MCP path, where the BFF speaks the protocol itself."
-    : undefined;
-  steps.push(makeStep("mcp-initialize",
-    authorizeFailed ? "notinpath" : mcpInit ? "done" : traceComplete ? "notinpath" : "pending",
-    mcpInit ? {
-      why: mcpInit.negotiatedVersion
-        ? `Client and server negotiated MCP protocol ${mcpInit.negotiatedVersion}.`
-        : "Client opened the MCP session before invoking the tool.",
-      request: mcpInit.request ? { title: "initialize (actual)", text: asJson(mcpInit.request) } : undefined,
-      response: mcpInit.response ? { title: "initialize result", text: asJson(mcpInit.response) } : undefined,
-      kv: [
-        mcpInit.negotiatedVersion ? ["protocol version", String(mcpInit.negotiatedVersion)] : null,
-        mcpInit.serverInfo?.name ? ["server", `${mcpInit.serverInfo.name}${mcpInit.serverInfo.version ? ` ${mcpInit.serverInfo.version}` : ""}`] : null,
-      ].filter(Boolean),
-      moreDetail: { edu: EDU.MCP_PROTOCOL, label: "Learn: MCP Protocol" },
-    } : handshakeNarrative ? { narrative: handshakeNarrative } : {}));
-  steps.push(makeStep("mcp-initialized",
-    authorizeFailed ? "notinpath" : mcpInitialized ? "done" : traceComplete ? "notinpath" : "pending",
-    mcpInitialized ? {
-      why: "Session confirmed — the MCP lifecycle allows a tool call only after this notification.",
-      request: mcpInitialized.request
-        ? { title: "notifications/initialized (actual)", text: asJson(mcpInitialized.request) }
-        : undefined,
-      // A notification has no id and gets no reply; saying so beats an empty
-      // response block that looks like missing evidence.
-      kv: [["reply", "none — JSON-RPC notifications are not answered"]],
-    } : handshakeNarrative ? { narrative: handshakeNarrative } : {}));
+  // 8d. The MCP lifecycle handshake is NOT a hop here.
+  // A tool call over an already-open session is one message, not three. The
+  // session is opened by the Agent Gateway during tool DISCOVERY — traced live
+  // 2026-08-18: the tool-call leg produces initialize /
+  // notifications/initialized / tools/list on the MCP server and no tools/call
+  // at all, on a connection opened and closed per discovery request.
+  //
+  // Two earlier shapes were both wrong. As cards between the gateway and the MCP
+  // call they claimed a session is negotiated per invocation. Moved next to
+  // discovery they were honest but blank on any chain built from a single invoke
+  // response, because the session belongs to the earlier request. The evidence
+  // now hangs off the `tools-list` hop that caused it (see `handshake` in its
+  // detail), so the chain states the protocol correctly and carries no card that
+  // is empty most of the time.
 
   // 9. mcp + 10. api + 11. database — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
@@ -1356,33 +1361,6 @@ export function buildTraceSteps(trace) {
     replyStep.lane = "HEURISTICS";
   }
   steps.push(replyStep);
-
-  // ── Put the MCP handshake where it actually happens ─────────────────────────
-  // These two hops are BUILT down here because they need gateway and authorize
-  // state that is not resolved until this point, but they do not BELONG here.
-  // Traced live 2026-08-18 by driving each leg separately: running discovery
-  // alone opened three connections on the MCP server, and running the tool call
-  // alone produced 2x initialize, 2x notifications/initialized, 2x tools/list —
-  // and no tools/call whatsoever. The session is opened, used for tools/list,
-  // and closed, all before any tool call exists.
-  //
-  // Rendered between the gateway and the MCP call, they told the viewer the
-  // session is negotiated per tool invocation. It is not. Moving them next to
-  // tools-list is the difference between a chain that teaches the protocol and
-  // one that teaches a plausible fiction.
-  //
-  // Repositioned rather than reordered in place: hoisting the construction would
-  // mean hoisting gwSeen/gwDenied/authorizeFailed with it, which is a far larger
-  // change to a protected surface for the same rendered result.
-  const toolsListAt = steps.findIndex((s) => s.id === "tools-list");
-  if (toolsListAt !== -1) {
-    const handshake = steps.filter((s) => s.id === "mcp-initialize" || s.id === "mcp-initialized");
-    if (handshake.length) {
-      const rest = steps.filter((s) => s.id !== "mcp-initialize" && s.id !== "mcp-initialized");
-      const at = rest.findIndex((s) => s.id === "tools-list") + 1;
-      steps = [...rest.slice(0, at), ...handshake, ...rest.slice(at)];
-    }
-  }
 
   return steps.map((s, i) => ({ ...s, num: i + 1 }));
 }

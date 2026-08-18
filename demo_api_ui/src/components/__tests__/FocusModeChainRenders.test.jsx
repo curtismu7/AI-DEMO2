@@ -150,50 +150,51 @@ describe("a hop that never ran says so", () => {
 });
 
 
-// ─── The handshake sits with discovery, not with the tool call ───────────────
-// Traced live 2026-08-18: driving the tool-call leg alone produced 2x
-// initialize, 2x notifications/initialized, 2x tools/list on the MCP server and
-// NO tools/call. The gateway opens a session, lists tools, and closes it — all
-// before a tool call exists. Rendering these hops between the gateway and the
-// MCP call taught the opposite: that a session is negotiated per invocation.
+// ─── The handshake is not a hop at all ──────────────────────────────────────
+// Traced live 2026-08-18: the tool-call leg produced initialize /
+// notifications/initialized / tools/list on the MCP server and NO tools/call.
+// The gateway opens a session to list tools and closes it, before a tool call
+// exists.
+//
+// This file has now pinned three different answers, which is the useful part of
+// the history: first the hops sat between the gateway and the MCP call (claiming
+// a session per invocation), then next to tools-list (honest, but blank on any
+// chain built from a single invoke response, because the session belongs to the
+// earlier request). They are no longer hops — the evidence hangs off the
+// `tools-list` hop that caused it, asserted in buildTraceSteps.test.js.
 import { buildTraceSteps } from "../../services/tokenChainTrace/buildTraceSteps";
 
-describe("MCP handshake hops belong to the discovery leg", () => {
+describe("the MCP session is reported on discovery, not as its own hop", () => {
   const idsFor = (events) =>
     buildTraceSteps({ prompt: "List my orders", tokenEvents: events, phases: [] })
       .map((s) => s.id);
 
   const withHandshake = [
     { id: "user-token", status: "active", claims: { sub: "u1" } },
-    { id: "mcp-initialize", status: "active", negotiatedVersion: "2025-11-25" },
-    { id: "mcp-initialized", status: "active" },
+    { type: "tools_list_success", permittedCount: 97 },
+    { id: "mcp-initialize", negotiatedVersion: "2025-11-25", performedBy: "agent-gateway" },
+    { id: "mcp-initialized", performedBy: "agent-gateway" },
   ];
 
-  it("places initialize immediately after tools-list", () => {
+  it("draws no initialize / initialized hop even when the evidence is present", () => {
     const ids = idsFor(withHandshake);
-    const list = ids.indexOf("tools-list");
-    const init = ids.indexOf("mcp-initialize");
-    expect(list, `no tools-list hop; saw ${ids.join(", ")}`).toBeGreaterThan(-1);
-    expect(init).toBe(list + 1);
-    expect(ids.indexOf("mcp-initialized")).toBe(list + 2);
+    expect(ids).not.toContain("mcp-initialize");
+    expect(ids).not.toContain("mcp-initialized");
   });
 
-  it("keeps them before the gateway and the MCP call, not after", () => {
-    const ids = idsFor(withHandshake);
-    const init = ids.indexOf("mcp-initialize");
-    for (const later of ["gateway", "mcp"]) {
-      const at = ids.indexOf(later);
-      if (at !== -1) expect(init, `${later} should come after the handshake`).toBeLessThan(at);
-    }
+  it("reports the session on the discovery hop instead", () => {
+    const steps = buildTraceSteps({ prompt: "x", tokenEvents: withHandshake, phases: [] });
+    const kv = steps.find((s) => s.id === "tools-list").detail.kv;
+    expect(kv.some(([k]) => k === "MCP session"), `saw ${JSON.stringify(kv)}`).toBe(true);
   });
 
-  it("does not invent handshake hops when the run produced none", () => {
-    // Absent evidence the steps still exist as pending/notinpath placeholders,
-    // but they must never claim to have run.
-    const ids = idsFor([{ id: "user-token", status: "active", claims: { sub: "u1" } }]);
-    const steps = buildTraceSteps({ prompt: "x", tokenEvents: [{ id: "user-token", status: "active" }], phases: [] });
-    const init = steps.find((s) => s.id === "mcp-initialize");
-    if (init) expect(init.status).not.toBe("done");
-    expect(ids).toContain("tools-list");
+  it("still renders the discovery hop in the focus-mode tree", () => {
+    // The point of this file: the model being right is not evidence anyone can
+    // see it. Drive the real components.
+    render(<TokenChainFilmstrip />);
+    act(() => tokenChainTraceStore.beginTrace({ prompt: "List my orders" }));
+    act(() => tokenChainTraceStore.ingestTokenEvents(withHandshake));
+    const nodes = [...document.querySelectorAll(".tcnr-node")].map((n) => n.textContent);
+    expect(nodes.some((t) => /tools\/list/.test(t)), `saw ${nodes.join(" | ")}`).toBe(true);
   });
 });
