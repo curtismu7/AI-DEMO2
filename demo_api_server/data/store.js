@@ -388,7 +388,14 @@ class DataStore {
 
   async createTransaction(transactionData) {
     const id = uuidv4();
-    const transaction = { id, ...transactionData, createdAt: new Date(), status: 'completed' };
+    // Preserve a caller-supplied createdAt/status (e.g. seeded sample history with
+    // real dates); only default them when absent. `id` is always freshly generated.
+    const transaction = {
+      id,
+      ...transactionData,
+      createdAt: transactionData.createdAt ?? new Date(),
+      status: transactionData.status ?? 'completed',
+    };
     this.transactions.set(id, transaction);
     await this.persistAllData();
     return transaction;

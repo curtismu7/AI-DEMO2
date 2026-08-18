@@ -5,6 +5,17 @@ const router = express.Router();
 const { authenticateToken, requireScopes } = require('../middleware/auth');
 const verticalDispatch = require('../services/verticalDispatch');
 
+// Ids the caller legitimately owns: the top-level investment account
+// (profile.portfolioId, what GET /accounts returns) AND each of its sub-portfolio
+// ids (data.portfolios[].id, e.g. PF-01). A :accountId matching none of these is
+// foreign/unknown — 404 rather than silently serving the caller's own default
+// portfolio under someone else's id.
+function ownsAccount(data, accountId) {
+  if (!data || !data.profile) return false;
+  if (accountId === data.profile.portfolioId) return true;
+  return Array.isArray(data.portfolios) && data.portfolios.some((p) => p.id === accountId);
+}
+
 /**
  * Portfolio summary — backs the A2A Investment Advisor specialist's
  * get_portfolio_summary tool (demo_mcp_resource_server). Reuses the investment
@@ -17,6 +28,9 @@ router.get('/accounts/:accountId/portfolio', authenticateToken, requireScopes(['
   const plugin = verticalDispatch.resolvePlugin('investment');
   const store = plugin.getDataStore();
   const data = store.get(req.user.id);
+  if (!ownsAccount(data, req.params.accountId)) {
+    return res.status(404).json({ error: 'account not found', accountId: req.params.accountId, status: 'not_found' });
+  }
   res.json({
     accountId: req.params.accountId,
     portfolioId: data.profile.portfolioId,
@@ -55,6 +69,9 @@ router.get('/accounts/:accountId/balance', authenticateToken, requireScopes(['re
   const plugin = verticalDispatch.resolvePlugin('investment');
   const store = plugin.getDataStore();
   const data = store.get(req.user.id);
+  if (!ownsAccount(data, req.params.accountId)) {
+    return res.status(404).json({ error: 'account not found', accountId: req.params.accountId, status: 'not_found' });
+  }
   res.json({
     accountId: req.params.accountId,
     totalValue: data.profile.totalValue,

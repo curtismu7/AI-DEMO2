@@ -220,24 +220,54 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
         userAccounts = await addMissingBankingAccount(req.user.id, userAccounts, SPEC_BY_TYPE.credit_card);
       }
     }
+    // Banking identifiers (SWIFT/IBAN/branch, masked account number) are only
+    // meaningful for the banking vertical. Fabricating them for healthcare /
+    // retail / workforce accounts stamped banking-shaped defaults onto records
+    // that have no such fields. Emit them with defaults for banking (output
+    // byte-identical to before); for every other vertical, surface these fields
+    // only when the account genuinely carries them — never invented.
+    const isBanking = activeVertical === 'banking';
     res.json({
-      accounts: userAccounts.map(account => ({
-        id: account.id,
-        accountType: account.accountType,
-        name: account.name,
-        balance: account.balance,
-        currency: account.currency,
-        status: account.status || 'active',
-        accountNumber: account.accountNumber || ('****' + (account.accountNumberFull || '').slice(-4)),
-        swiftCode: account.swiftCode || 'CHASUS33',
-        iban: account.iban || '',
-        branchName: account.branchName || 'Super Banking Main Branch',
-        branchCode: account.branchCode || '001',
-        openedDate: account.openedDate || null,
-        accountHolderName: req.user && (req.user.name || (req.user.given_name ? req.user.given_name + ' ' + (req.user.family_name || '') : null) || req.user.sub) || '',
-        createdAt: account.createdAt,
-        notes: account.notes || null,
-      })),
+      accounts: userAccounts.map(account => {
+        const holderName = (req.user && (req.user.name || (req.user.given_name ? req.user.given_name + ' ' + (req.user.family_name || '') : null) || req.user.sub)) || '';
+        if (isBanking) {
+          return {
+            id: account.id,
+            accountType: account.accountType,
+            name: account.name,
+            balance: account.balance,
+            currency: account.currency,
+            status: account.status || 'active',
+            accountNumber: account.accountNumber || ('****' + (account.accountNumberFull || '').slice(-4)),
+            swiftCode: account.swiftCode || 'CHASUS33',
+            iban: account.iban || '',
+            branchName: account.branchName || 'Super Banking Main Branch',
+            branchCode: account.branchCode || '001',
+            openedDate: account.openedDate || null,
+            accountHolderName: holderName,
+            createdAt: account.createdAt,
+            notes: account.notes || null,
+          };
+        }
+        const acct = {
+          id: account.id,
+          accountType: account.accountType,
+          name: account.name,
+          balance: account.balance,
+          currency: account.currency,
+          status: account.status || 'active',
+          openedDate: account.openedDate || null,
+          accountHolderName: holderName,
+          createdAt: account.createdAt,
+          notes: account.notes || null,
+        };
+        if (account.accountNumber) acct.accountNumber = account.accountNumber;
+        if (account.swiftCode) acct.swiftCode = account.swiftCode;
+        if (account.iban) acct.iban = account.iban;
+        if (account.branchName) acct.branchName = account.branchName;
+        if (account.branchCode) acct.branchCode = account.branchCode;
+        return acct;
+      }),
     });
   } catch (error) {
     console.error('Error getting user accounts:', error);

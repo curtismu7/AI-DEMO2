@@ -53,13 +53,21 @@ router.param('userId', (req, res, next, userId) => {
  */
 router.get('/:userId/:vertical/history', (req, res) => {
   const { userId, vertical } = req.params;
-  const limit = parseInt(req.query.limit || conversationStore.DEFAULT_HISTORY_LIMIT, 10);
 
   if (!userId || !vertical) {
     return res.status(400).json({ error: 'userId and vertical are required' });
   }
 
-  const history = conversationStore.getHistory(userId, vertical, Math.min(limit, 100));
+  // Sanitize `limit`: a non-numeric value (e.g. ?limit=abc) parsed to NaN and
+  // `Math.min(NaN, 100)` = NaN defeated the cap; negatives passed unclamped.
+  // Fall back to the default when not finite, then clamp into [1, 100].
+  const parsedLimit = parseInt(req.query.limit, 10);
+  const safeLimit = Math.min(
+    Math.max(Number.isFinite(parsedLimit) ? parsedLimit : conversationStore.DEFAULT_HISTORY_LIMIT, 1),
+    100,
+  );
+
+  const history = conversationStore.getHistory(userId, vertical, safeLimit);
   return res.json({ messages: history, count: history.length });
 });
 
