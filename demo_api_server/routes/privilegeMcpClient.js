@@ -70,6 +70,45 @@ function sanitizeReturnTo(value) {
   return value;
 }
 
+// ---------------------------------------------------------------------------
+// Agent-based AI Gateway frontends (*.applications.procyon.ai)
+// The workstation's Priv Agent resolves these names to its local listener and
+// injects the device-bound identity itself, so requests must carry no
+// Authorization header and need no Privilege SSO sign-in. Inside Docker the
+// agent's DNS proxy is invisible — dial host.docker.internal instead — and the
+// listener serves a procyon TenantRoot chain no CA store trusts.
+// ---------------------------------------------------------------------------
+function isProcyonAgentUrl(url) {
+  try {
+    return new URL(url).hostname.endsWith('.applications.procyon.ai');
+  } catch {
+    return false;
+  }
+}
+
+let procyonDispatcher = null;
+function getProcyonDispatcher() {
+  if (!procyonDispatcher) {
+    const dns = require('dns');
+    const { Agent } = require('undici');
+    procyonDispatcher = new Agent({
+      connect: {
+        rejectUnauthorized: false,
+        lookup(hostname, options, cb) {
+          // Docker: reach the host's Priv Agent listener via host.docker.internal.
+          // Native: that name doesn't resolve — fall back to the OS resolver,
+          // which the agent's DNS proxy answers with 127.0.0.1.
+          dns.lookup('host.docker.internal', options, (err, ...rest) => {
+            if (err) return dns.lookup(hostname, options, cb);
+            cb(null, ...rest);
+          });
+        },
+      },
+    });
+  }
+  return procyonDispatcher;
+}
+
 
 
 // ---------------------------------------------------------------------------
@@ -234,6 +273,11 @@ async function refreshAccessToken(session) {
 async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRetry = true) {
   if (!session.config.mcpUrl) throw new Error('MCP URL is required');
 
+  // The Priv Agent is the identity on procyon frontends — never attach or
+  // refresh a Privilege SSO bearer there.
+  const procyon = isProcyonAgentUrl(session.config.mcpUrl);
+  if (procyon) withAuth = false;
+
   if (withAuth && accessTokenExpiring(session)) {
     await refreshAccessToken(session);
   }
@@ -265,7 +309,12 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
 
   emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
 
-  const response = await fetch(targetUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+  const response = await fetch(targetUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    ...(procyon ? { dispatcher: getProcyonDispatcher() } : {}),
+  });
   const text = await response.text();
   const parsed = decodeMcpBody(text);
 
@@ -500,12 +549,24 @@ async function beginOAuthFlow(session, req) {
 router.get('/state', (req, res) => {
   const session = getClientSession(req);
   const mainAppAuth = Boolean(req.session?.oauthTokens?.accessToken);
+  // Known gateway frontends the UI offers as presets. The agent URL defaults to
+  // the registered opensearch app; override with PRIVILEGE_AGENT_MCPGW_URL when
+  // a different app is registered in the Privilege console.
+  const presets = [
+    { label: 'Agentless gateway (nginx)', url: process.env.PRIVILEGE_MCPGW_URL || '' },
+    {
+      label: 'AI Gateway via Priv Agent',
+      url: process.env.PRIVILEGE_AGENT_MCPGW_URL
+        || 'https://opensearch.default.applications.procyon.ai:8643/mcp',
+    },
+  ].filter((p) => p.url);
   res.json({
     config: session.config,
     oauth: { authenticated: Boolean(session.oauth.accessToken), expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
+    presets,
   });
 });
 
@@ -622,7 +683,7 @@ router.get('/auth/callback', async (req, res) => {
 router.post('/tools/list', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
-    if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
     await ensureMcpSessionInitialized(session);
     const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/list', params: {} };
     let data;
@@ -648,7 +709,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
 router.post('/tools/call', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
-    if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated.' });
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated.' });
     await ensureMcpSessionInitialized(session);
     const { name, arguments: args } = req.body || {};
     const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args || {} } };
@@ -673,7 +734,7 @@ router.post('/tools/call', express.json(), async (req, res) => {
 router.post('/rpc', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
-    if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated.' });
+    if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) return res.status(401).json({ error: 'Not authenticated.' });
     const body = req.body || {};
     const method = body?.method || '';
     if (method && method !== 'initialize' && method !== 'notifications/initialized') {
@@ -745,10 +806,13 @@ router.post('/chat', express.json(), async (req, res) => {
     if (!session.config.mcpUrl) {
       return res.status(400).json({ error: 'Set MCP URL first.', steps });
     }
-    if (!session.config.clientId) {
+    // Procyon frontends need no OAuth client and no sign-in — the Priv Agent
+    // on the workstation supplies the identity.
+    const procyon = isProcyonAgentUrl(session.config.mcpUrl);
+    if (!session.config.clientId && !procyon) {
       return res.json({ reply: 'OAuth Client ID is missing. Set Client ID and click Sign In.', steps: ['missing_client_id'] });
     }
-    if (!session.oauth.accessToken) {
+    if (!session.oauth.accessToken && !procyon) {
       // Need OAuth first — build auth URL for redirect
       const authUrl = await beginOAuthFlow(session, req);
       return res.json({ reply: 'Please complete OAuth login first.', authUrl: authUrl.toString(), steps: ['oauth_required'] });

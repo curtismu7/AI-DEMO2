@@ -43,6 +43,7 @@ export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
+  const [presets, setPresets] = useState([]);
   const [authenticated, setAuthenticated] = useState(false);
   const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
@@ -148,6 +149,7 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => {
     api('/state').then((s) => {
       setConfig(s.config || config);
+      setPresets(Array.isArray(s.presets) ? s.presets : []);
       setAuthenticated(Boolean(s.oauth?.authenticated));
       setMainAppAuthenticated(Boolean(s.mainAppAuthenticated));
       setUser(s.user || null);
@@ -563,6 +565,21 @@ export default function PrivilegeMcpClientPage() {
             <div className="cur-settings-body">
               <div className="cur-settings-section">
                 <h4 className="cur-settings-section-title">MCP Connection</h4>
+                {presets.length > 0 && (
+                  <label className="cur-field">
+                    <span className="cur-field-label">Gateway Preset</span>
+                    <select
+                      className="cur-input"
+                      value={presets.find((p) => p.url === config.mcpUrl)?.url || ''}
+                      onChange={(e) => { if (e.target.value) setConfig({ ...config, mcpUrl: e.target.value }); }}
+                    >
+                      <option value="">Custom</option>
+                      {presets.map((p) => (
+                        <option key={p.url} value={p.url}>{p.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label className="cur-field">
                   <span className="cur-field-label">AI Agent Gateway URL</span>
                   <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
