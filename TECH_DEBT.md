@@ -746,7 +746,20 @@ regressing normal stream completion.
 **Real fix:** on `res`/`req` `close`, destroy the upstream request; attach a real
 `'timeout'` handler that aborts it.
 
-### [ ] 2026-08-18 — LLM proxy: cross-class swaps race and unload each other's just-loaded tier
+### [x] 2026-08-18 — LLM proxy: cross-class swaps race and unload each other's just-loaded tier
+
+**FIXED 2026-08-18 (PR #2048, merged — on disk, NOT yet live in the running
+proxy).** A global `swapChain` lock now runs every swap behind the previous one, so
+a concurrent different-class swap waits instead of overwriting `swapInFlight` and
+firing a second `ensure` that unloads the first swap's just-loaded tier; a failed
+swap advances the chain (`.catch`) so it can't wedge the queue. Same-class coalescing
+and per-swap `SWAP_TIMEOUT_MS` unchanged. Router-logic only — no tier ports/model
+names/`LLAMACPP_MAX_TOKENS`/`SWAP_TIMEOUT_MS`/config values touched (frozen surface).
+Regression test in `demo_llm_proxy/router.test.js` (mock tier servers; not verified
+against a live model backend). **Deploy note:** `run-docker.sh`/`deploy-live.sh` do
+NOT manage `llm-proxy` — it goes live only on a deliberate `docker compose up -d
+--build llm-proxy`, left to the owner of the frozen LLM surface. Original entry
+follows.
 
 **Where:** `demo_llm_proxy/router.js:262-292` (`swapTo`); serialised at
 `tier-manager.js:78-84`. (Distinct from the known warmup positional-tier issue.)
@@ -767,7 +780,17 @@ own soak test.
 or reject/queue a cross-class swap while one is in flight rather than clobbering
 `swapInFlight`.
 
-### [ ] 2026-08-18 — LLM proxy: the pin-only experimental tier is reachable by normal classification
+### [x] 2026-08-18 — LLM proxy: the pin-only experimental tier is reachable by normal classification
+
+**FIXED 2026-08-18 (PR #2048, merged — on disk, NOT yet live in the running
+proxy).** `:8093` (`llama-3-groq-8b-tool-use`) is now marked `pinOnly: true` and
+`smallestLoadedCovering` skips pin-only tiers on substitution (`i !== cls`), so it is
+returned only when a route targets class 2 exactly (explicit `LLM_PROXY_PIN_TIER` /
+`model=` pin) — never as a health-based substitute-up for a lower class
+(`classifyText` only emits class 0/1). `pinOnly` is a minimal marker encoding the
+existing 100-103 invariant as data; no tier values changed (frozen surface).
+Regression test in `demo_llm_proxy/router.test.js`. Same deploy note as the entry
+above — goes live only on a deliberate `llm-proxy` rebuild. Original entry follows.
 
 **Where:** `demo_llm_proxy/router.js:227-232` (`smallestLoadedCovering`), against
 the invariant stated at ~100-103.
@@ -787,7 +810,19 @@ guard only fires on pin-capped routing, not health-based substitution).
 **Real fix:** exclude pin-only tiers from `smallestLoadedCovering` unless the
 active route is a pin, so health-based substitution cannot fall onto :8093.
 
-### [ ] 2026-08-18 — `helix_llm._generate` blocks the FastAPI event loop for up to ~35s
+### [x] 2026-08-18 — `helix_llm._generate` blocks the FastAPI event loop for up to ~35s
+
+**FIXED 2026-08-18 (PR #2050, merged + deployed).** A sync function on the loop
+thread cannot await the Helix round-trip without blocking that thread, so a
+"non-blocking sync path" is physically impossible — and the correct async entry
+`_agenerate` already exists and is what every real caller uses (`message_processor.py`
+→ `ainvoke`; LangGraph → `astream_events`; grep found no sync `.invoke`/`.stream` on
+any graph/model in `src`). So on a running loop `_generate` now refuses immediately
+with a `RuntimeError` pointing at the async API instead of freezing the loop. The
+non-loop sync path, `_agenerate`, streaming, poll interval and timeout constants are
+all unchanged. Regression test `tests/test_helix_llm.py::TestEventLoopNotBlocked`
+(25 passed). Tradeoff: a future sync `.invoke()` from inside the loop now errors
+clearly rather than silently stalling all sessions. Original entry follows.
 
 **Where:** `langchain_agent/src/agent/helix_llm.py:372-377`.
 

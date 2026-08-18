@@ -73,11 +73,19 @@ Clean, self-contained fixes done + deployed:
   nonce enforced when the ID token omits the claim.
 - pkce-cookie `timingSafeEqual` was already fixed earlier in **PR #2017** (no-op).
 
-## Still deferred — need a decision / infra / frozen surface (NOT blind-fixable)
+## Deferred §1 — batch 2 fixed (LLM-proxy + Helix)
 
-- **LLM proxy** swap-race (730) + pin-tier reachable (751) — the LLM tiers are a
-  frozen surface (`feedback-llm-settings-frozen`); router-logic change needs sign-off.
-- **helix_llm** event-loop block (771) — async refactor.
+- **PR #2048 — LLM proxy** (router logic only, frozen surface honored): global
+  swap-chain lock (cross-class swaps no longer unload each other); `pinOnly` marker
+  so `:8093` is never a classification substitute. Merged — **on disk, not yet live
+  in the running proxy** (deploy-live doesn't manage `llm-proxy`; owner rebuilds it
+  deliberately: `docker compose up -d --build llm-proxy`).
+- **PR #2050 — Helix** event-loop: `_generate` on a running loop now raises pointing
+  at `_agenerate` (which every real caller uses) instead of freezing the loop.
+  Merged + deployed (langchain-agent rebuilt).
+
+## Still deferred — need a decision / infra (NOT blind-fixable)
+
 - **intent-token `no_signing_key`** (1622) — needs a signing key provisioned for the
   Node gateway (config/secret), not a code fix.
 - **`olb` tools/list timeout** (1599) — backend-liveness investigation, not a patch.
