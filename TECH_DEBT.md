@@ -7,6 +7,140 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
+
+**Where:** `demo_api_ui/src/components/__tests__/AIAgent.*.test.jsx` — the shared
+harness, e.g. `renderAt(path, user = null)` in
+`AIAgent.protectedStepLogin.test.jsx:166`, which mounts `<AIAgent user={user} …>`
+with the user already resolved.
+
+**What's wrong:** in the real app `user` arrives asynchronously. `isLoggedIn`
+is `!!(user || sessionUser)`, both resolved after mount, so there is a window
+on every load where the component is mounted and signed-out-looking before the
+session lands. Effects fire in that window, and the OAuth return is *the* moment
+it matters. The harness never creates that window, so any defect that lives in
+it is unreachable from the suite.
+
+This is not theoretical. On 2026-08-17/18 the queued-question resume defect
+(#1963) was shipped as fixed **three times** against a green suite. Each round
+the tests passed because they encoded an ordering that never happens in a
+browser. The measurement that finally found the cause had to be taken in the
+running app. A test added afterwards (`waits for the session instead of firing
+during hydration`) reproduces it only by rendering `user={null}` first and then
+re-rendering with a user — nothing about the default harness suggests that is
+the load-bearing detail.
+
+**Why not fixed now:** each fix was scoped to one defect on a REGRESSION_PLAN
+§1 surface, mid-incident, and re-shaping the shared harness would have changed
+every agent spec at the same time. Doing it while the underlying bug was still
+unidentified would also have meant changing the instrument and the subject in
+the same step.
+
+**What the real fix looks like:** make the async arrival the default. A
+`renderAtHydrating()` helper that mounts with `user={null}` and flips after a
+tick, used by any spec touching auth-dependent effects — so the hydration window
+exists unless a test opts out, rather than existing only when someone remembers
+to build it by hand. At minimum, a comment on `renderAt` saying what it does not
+simulate.
+
+### 2026-08-18 — `GET /api/mcp/inspector/tools` is unauthenticated, and the UI grouping implied otherwise
+
+**Where:** `demo_api_server/routes/mcpInspector.js:382` (`router.get('/tools')`),
+mounted at `demo_api_server/server.js:1190` (`app.use('/api/mcp/inspector', …)`).
+
+**What's wrong:** neither the route nor the mount carries auth middleware.
+Measured against the running stack:
+
+```
+curl -sk -o /dev/null -w "%{http_code}" https://api.ping.demo:3001/api/mcp/inspector/tools
+200          # no cookie at all
+```
+
+The full MCP tool inventory is readable by anyone who can reach the API host.
+That may well be intended for a demo — but nothing states it, and the UI
+actively implied the opposite by filing "MCP Tools" under `ACTION_GROUPS.admin`,
+where the whole group is stripped for non-admins. So the control read as
+admin-gated while the data was public, and #1978 opened the UI on the grounds
+that it was hiding something already reachable.
+
+The risk is the inverse of the usual one: a reviewer looking at the UI
+concludes access is restricted and does not check the endpoint. If the tool
+inventory should in fact be restricted, the fix is on the server and the UI
+grouping was never protection.
+
+**Why not fixed now:** #1978 was a role-visibility change. Adding auth to a
+route that many surfaces already call unauthenticated is a behavioural change
+needing its own blast-radius check, and this is a demo where a readable tool
+list is plausibly deliberate.
+
+**What the real fix looks like:** decide explicitly, then make the code say so.
+Either add the middleware and let the UI grouping mean what it looks like, or
+leave it open and note on the route that it is intentionally public so the next
+reader does not infer protection from the chip's placement. Generally: UI
+grouping is not an authorization boundary and should not be read as one.
+
+### 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
+
+**Where:** `demo_api_ui/src/components/AIAgent.js` `ensureRequiredDemoFlags`,
+against the admin-gated `PATCH /api/admin/feature-flags`.
+
+**What's wrong:** most demo steps declare required flags — every step with a
+`primaryTool` needs `ff_mcp_gateway_pinggateway`, A2A steps also need
+`ff_a2a_delegation`. Arming them is an admin-only write. A presenter signed in
+as a customer therefore cannot arm anything, and before #1970 the 403 was
+swallowed: the flag stayed off and the step quietly misbehaved with nothing
+said.
+
+#1970 made the failure visible (check flag state, name the flags that are
+actually off, skip the doomed write) but did not close the gap — a customer
+still cannot run a flag-gated step correctly without someone else flipping the
+flag. It presents as a working demo giving subtly wrong output, which is the
+worst failure mode for a demo.
+
+Currently masked: both flags are ON in env `01d89b06`, so nothing misbehaves
+today. It bites the first time a flag is off.
+
+**Why not fixed now:** the fix is a product decision, not a bug fix — either
+demo flags stop being admin-gated, or steps stop depending on runtime arming.
+Both are larger than the visibility fix that surfaced the gap.
+
+**What the real fix looks like:** most likely a separate presenter-scoped
+endpoint for demo-flag arming that does not require full admin, or seeding the
+demo flags ON at provisioning so no runtime arming is needed. Failing either,
+the step catalog should refuse to offer a flag-gated step to a role that cannot
+arm it, rather than running it degraded.
+
+### 2026-08-18 — `renderActionGroups()` never mounted on `/dashboard` for either role
+
+**Where:** `demo_api_ui/src/components/AIAgent.js:10866` —
+`{isLoggedIn && renderActionGroups()}`.
+
+**What's wrong:** with a live session on `/dashboard`, `document.querySelectorAll('.ba-action-group')`
+returned **0** for a customer and 0 for an admin on the banking vertical, while
+`isLoggedIn` was true. The action chips (`account`, `transaction`, `ai`,
+`testing`, `attacks`, and `admin` for admins) render nowhere on that surface, so
+some enclosing container is not mounting.
+
+Not established: whether that is correct-by-design (these chips may be intended
+only for a surface not exercised here) or a real regression. What is certain is
+that it cannot be determined from the call site — the condition there is just
+`isLoggedIn`, and the gating actually lives in an ancestor.
+
+Consequence already paid: #1978 changed which roles are offered "MCP Tools" and
+merged on unit evidence alone, because the rendered chip could not be located in
+the running app to confirm placement.
+
+**Why not fixed now:** it needs a decision about intended surface before any
+code change, and #1978 was a role-visibility fix that had no business also
+relocating a UI region.
+
+**What the real fix looks like:** establish which surfaces are meant to show
+action groups. If `/dashboard` is one, find the ancestor that is not mounting
+and fix it. If it is not, move the condition to the call site so it reads
+`{isLoggedIn && surfaceShowsActions && renderActionGroups()}` — the current form
+claims the only requirement is a session, which is false and cost a
+verification.
+
 ### 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — `nlResumeAfterAuth` is set
