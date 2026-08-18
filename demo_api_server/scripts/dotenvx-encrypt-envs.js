@@ -44,6 +44,33 @@ const { SERVICE_KEY_ENV_NAMES } = require('./ensure-service-keys');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SHARED_KEYS_FILE = path.join(REPO_ROOT, '.env.keys');
 
+// Recurrence guard (2026-08-18 incident): this tool encrypted all four services'
+// `.env` files while the BFF entrypoint had NO dotenvx decrypt path (plan Task 5
+// hit a Step-0 STOP and was never re-run) — on restart the BFF read raw
+// ciphertext (login client secret literally `encrypted:...`, ConfigStore key
+// mismatch, New Relic resolving `collector.encrypted:...`). Never encrypt until
+// the BFF entrypoint provably contains the bootstrap that decrypts.
+const BFF_ENTRYPOINT = path.join(REPO_ROOT, 'demo_api_server', 'server.js');
+const BFF_BOOTSTRAP_MARKER = "require('./services/dotenvxBootstrap')";
+
+/** Throw (refusing the whole run) unless server.js carries the dotenvx bootstrap. */
+function assertBffDecryptCapable({ entrypoint = BFF_ENTRYPOINT, fsImpl = fs } = {}) {
+  let src = '';
+  try {
+    src = fsImpl.readFileSync(entrypoint, 'utf8');
+  } catch (_err) {
+    src = '';
+  }
+  if (!src.includes(BFF_BOOTSTRAP_MARKER)) {
+    throw new Error(
+      'refusing to encrypt demo_api_server/.env: server.js has no dotenvx bootstrap '
+      + `(${BFF_BOOTSTRAP_MARKER} not found in ${entrypoint}) — secrets would become `
+      + 'unreadable at startup (2026-08-18 incident). Merge the BFF bootstrap '
+      + '(services/dotenvxBootstrap.js, required before newrelic) first, then re-run.',
+    );
+  }
+}
+
 // The four secret-loading services already on @dotenvx/dotenvx loaders
 // (BFF + agent + gateway + oauth-mcp). Their `.env` files are the ones encrypted.
 const TARGET_ENV_FILES = [
@@ -153,7 +180,11 @@ function encryptAll({
   runDotenvx = resolveDotenvxRunner(),
   fsImpl = fs,
   log = console.log,
+  bffEntrypoint = BFF_ENTRYPOINT,
 } = {}) {
+  // Refuse BEFORE touching any file — see the incident note on the guard above.
+  assertBffDecryptCapable({ entrypoint: bffEntrypoint, fsImpl });
+
   const present = files.filter((f) => fsImpl.existsSync(f));
   if (present.length === 0) {
     log('[dotenvx-encrypt] No target .env files found — nothing to encrypt.');
@@ -186,6 +217,9 @@ module.exports = {
   SECRET_NAMES,
   ADDITIONAL_SECRET_NAMES,
   SHARED_KEYS_FILE,
+  BFF_ENTRYPOINT,
+  BFF_BOOTSTRAP_MARKER,
+  assertBffDecryptCapable,
   readPublicKey,
   seedPublicKey,
   encryptArgs,
