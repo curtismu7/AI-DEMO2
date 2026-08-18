@@ -313,15 +313,18 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-09 (2): an admin_token_forbidden 403 now falls back to
-  // demo data instead of an error toast, so an admin can view the customer
-  // dashboard without being forced through a PingOne login. Earlier same-day
-  // baseline: dropped the StaleSessionBanner mount and import. Previous
-  // 2026-08-07: guard 401 redirect when propUser is null (guest/lazy-auth).
+  // Re-baselined 2026-08-18: customer-dashboard step-up lifecycle fixes —
+  // guard the email-OTP agent-resume broadcast on agentTriggeredStepUp (FIX 6),
+  // clear the CIBA auto-initiate timers in dismissStepUp / toast onClose /
+  // effect cleanup (FIX 7), and reset agentTriggeredStepUp on the push-timeout,
+  // TOTP-expiry and OTP-expiry failure paths (FIX 8). Earlier 2026-08-09 (2):
+  // an admin_token_forbidden 403 now falls back to demo data instead of an
+  // error toast. Earlier same-day: dropped the StaleSessionBanner mount and
+  // import. Previous 2026-08-07: guard 401 redirect when propUser is null.
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "85f25bbd874253fb7dd9e505bb71541bfd7e2464e0eea2f65aeabfcc0ea250a1";
+    "69dbbdf0484644c5f539feb60438d243142e6e498fcd2cae5fd1707063efb366";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);
