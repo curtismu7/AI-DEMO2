@@ -2759,3 +2759,46 @@ more slowly.
 path silently deploying `PRE..NEW`. That one is about the fallback being
 unreliable; this one is about two runs corrupting each other. Both end the same
 way: a stale service under a success line.
+
+### 2026-08-18 — Three test-authoring traps that each read as a real failure
+
+Small, but each one cost a debug cycle by producing an error that pointed
+somewhere other than the mistake. Grouped because they share a cause: this repo
+runs two assertion libraries and two test runners, and the failure text does not
+say which one you are in.
+
+**1. `expect` takes one argument in jest, two in vitest/playwright.**
+`demo_api_ui` (vitest) and `tests/e2e` (playwright) both allow
+`expect(value, "message").toBe(...)`. `demo_api_server` is jest, which rejects it
+with:
+
+```
+Expect takes at most one argument.
+```
+
+That reads as a problem with the value being asserted, not with the call shape.
+Put the diagnostic inside the assertion instead — `expect(list).toContain(x)`
+prints the list on failure anyway.
+
+**2. Playwright's `expect.poll` does not evaluate a function `message`.**
+
+```js
+await expect.poll(fn, { message: () => `saw: ${calls.join(', ')}` })
+```
+
+On failure Playwright prints the SOURCE of that arrow function rather than its
+value, so the diagnostic you wrote specifically for the failing case is the one
+thing you cannot read. Use a static string and `console.log` the dynamic part as
+it arrives — a live run's diagnostics have to be emitted before the assertion
+that needs them.
+
+**3. `.ba-welcome` only renders when the transcript is empty.**
+Conversation continuity persists the last 30 messages per user+vertical, so on a
+real stack the agent panel usually has history and the welcome copy is absent —
+`$$eval('.ba-welcome')` returns `[]`, which looks exactly like "the copy is
+missing" when verifying a copy change. Click `.ba-start-over-btn` first. Applies
+to any live check of first-run UI.
+
+**Why this is here rather than in a test README:** all three were hit while
+verifying other work today, and each briefly looked like a product bug. The cost
+is not the mistake, it is the detour.
