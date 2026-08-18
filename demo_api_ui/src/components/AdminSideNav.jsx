@@ -477,6 +477,7 @@ export default function AdminSideNav({
         { label: "AI Agent Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
+        { label: "Privilege Gateway Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       ],
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
