@@ -79,6 +79,15 @@ CA_BUNDLE_ARG=()
 if [ -f "$ASSET_ROOT/certs/ca-bundle-with-mkcert.pem" ]; then
   CA_BUNDLE_ARG=(--from-file=ca-bundle-with-mkcert.pem="$ASSET_ROOT/certs/ca-bundle-with-mkcert.pem")
 fi
+# pg-server.p12: PingGateway's admin.json (HTTPS 3036 change, 2026-08-17) fatals
+# at startup with "The file related to the keystore does not exist" without it.
+# Generated locally by scripts/ensure-pinggateway-tls-cert.sh (gitignored).
+PG_TLS_ARG=()
+if [ -f "$ASSET_ROOT/certs/pg-tls/pg-server.p12" ]; then
+  PG_TLS_ARG=(--from-file=pg-server.p12="$ASSET_ROOT/certs/pg-tls/pg-server.p12")
+else
+  warn "  certs/pg-tls/pg-server.p12 missing — ping-gateway will crash-loop on its admin.json keystore; run scripts/ensure-pinggateway-tls-cert.sh and re-run this script"
+fi
 # Server-side apply: the CA bundle pushes the secret past the 256KB
 # last-applied-configuration annotation limit of client-side apply.
 kubectl create secret generic tls-certs \
@@ -87,6 +96,7 @@ kubectl create secret generic tls-certs \
   --from-file=tls.key="$ASSET_ROOT/certs/api.ping.demo+2-key.pem" \
   --from-file=rootCA.pem="$ASSET_ROOT/certs/rootCA.pem" \
   "${CA_BUNDLE_ARG[@]}" \
+  "${PG_TLS_ARG[@]}" \
   --dry-run=client -o yaml | kubectl apply --server-side --force-conflicts -f -
 info "tls-certs secret applied."
 

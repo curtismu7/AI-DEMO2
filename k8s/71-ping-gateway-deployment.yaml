@@ -87,6 +87,12 @@ spec:
         # PingOne .../decisionEndpoints/{id} and returns INVALID_REQUEST (HTTP 400).
         - name: PG_GATEWAY_RESOURCE_URI
           value: "mcpgateway.ping.demo"
+        # admin.json's KeyStoreSecretStore resolves secret id
+        # pg.tls.keystore.password via SystemAndEnvSecretStore to this env var.
+        # Same dev-only default compose uses; the p12 is exported with it by
+        # scripts/ensure-pinggateway-tls-cert.sh.
+        - name: PG_TLS_KEYSTORE_PASSWORD
+          value: "changeit"
         volumeMounts:
         # emptyDir gives IG a writable instance dir. Routes, config, and scripts
         # are overlaid by configMap mounts below — the emptyDir mount must come
@@ -95,6 +101,13 @@ spec:
           mountPath: /var/gateway
         - name: tls-certs
           mountPath: /certs
+          readOnly: true
+        # admin.json (HTTPS 3036) fatals at startup unless
+        # /certs/pg-tls/pg-server.p12 exists — nested mount so the keystore
+        # lands where the shared config expects it (compose mounts certs/
+        # wholesale; the k8s secret is flat).
+        - name: pg-tls-keystore
+          mountPath: /certs/pg-tls
           readOnly: true
         - name: gateway-config
           mountPath: /var/gateway/config/admin.json
@@ -201,6 +214,17 @@ spec:
       - name: tls-certs
         secret:
           secretName: tls-certs
+      # Projects only pg-server.p12 (added by create-secrets.sh when
+      # certs/pg-tls/pg-server.p12 exists). optional so a cluster without the
+      # key still mounts an empty dir — IG then fails with its own clear
+      # "keystore does not exist" instead of an opaque mount error.
+      - name: pg-tls-keystore
+        secret:
+          secretName: tls-certs
+          optional: true
+          items:
+          - key: pg-server.p12
+            path: pg-server.p12
       - name: gateway-config
         configMap:
           name: ping-gateway-config
