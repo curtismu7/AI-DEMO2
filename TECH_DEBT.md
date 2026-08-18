@@ -150,6 +150,14 @@ tokens so an unauthenticated caller can only exhaust its own bucket.
 
 ### 2026-08-18 — MCP gateway WS `close` cancels the call timeout without settling the promise, hanging the request forever
 
+**FIXED 2026-08-18 (PR #2013, merged + deployed).** The `close` handler now rejects
+any still-pending call for that socket with `Backend closed connection before
+responding to <method>` BEFORE clearing the timers, guarded by the existing
+`settled` flag so an already-answered close is never double-settled — the awaiting
+caller's `finally` then runs and cleans `inFlightCalls`. Regression test
+`tests/proxy-close-pending.test.ts` (rejects-not-hangs + no-double-settle) at the
+`proxyJsonRpc` level. Original entry follows.
+
 **Where:** `demo_mcp_gateway/src/proxy.ts:187-190` (`ws.on('close')`), awaited by
 `src/index.ts:960` with the `inFlightCalls` cleanup `finally` at ~974.
 
@@ -169,6 +177,13 @@ socket with a transport-closed error before clearing timers, so the `finally`
 cleans up `inFlightCalls`.
 
 ### 2026-08-18 — MCP gateway introspection cache is unbounded and never pruned
+
+**FIXED 2026-08-18 (PR #2013, merged + deployed).** Both introspection inserts now
+route through `cacheInsertWithEviction` (`boundedTokenCache.ts`, made generic over
+`{ expiresAt }`) with a 1000-entry cap + FIFO eviction, and the get-path deletes
+expired entries instead of only skipping them. Live-token hit/expiry semantics
+preserved. Regression test `tests/boundedIntrospectionCache.test.ts`. Original
+entry follows.
 
 **Where:** `demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts:26,155,176`.
 
