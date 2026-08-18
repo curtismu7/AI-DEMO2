@@ -130,6 +130,12 @@ class DynamicClientRegistration:
                         message=f"Client registration failed: {error_text}",
                     )
 
+            except aiohttp.ClientResponseError as e:
+                # Don't retry client response errors (they already went through status code handling above)
+                logger.error(
+                    f"Client registration failed with client response error: {e}"
+                )
+                raise
             except aiohttp.ClientError as e:
                 if attempt < max_retries - 1:
                     wait_time = backoff_seconds * (2**attempt)
@@ -228,6 +234,12 @@ class DynamicClientRegistration:
                         message=f"Client deletion failed: {error_text}",
                     )
 
+            except aiohttp.ClientResponseError as e:
+                # Don't retry client response errors (they already went through status code handling above)
+                logger.error(
+                    f"Client deletion failed with client response error: {e}"
+                )
+                raise
             except aiohttp.ClientError as e:
                 if attempt < max_retries - 1:
                     wait_time = backoff_seconds * (2**attempt)
