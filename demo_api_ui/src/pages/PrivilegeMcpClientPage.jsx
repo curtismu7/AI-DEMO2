@@ -729,7 +729,7 @@ export default function PrivilegeMcpClientPage() {
           </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
-          <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
+          <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">&#x2699;&#xFE0E;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
