@@ -2288,6 +2288,22 @@ as the whole.
 
 ### [ ] 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
 
+**SEED-FILE HALF RESOLVED 2026-08-18 (branch `worktree-seed-single-source`) —
+entry stays OPEN for runtime write-divergence.** The resource-server seeds are
+now DERIVED from the BFF seeds: `demo_mcp_resource_server/scripts/gen-seeds-from-bff.mjs`
+(`npm run seeds:gen`) writes each `seed/<v>.seed.json` as a pure extraction of
+the migrated entity from `config/verticals/<v>/seed.json`, and
+`tests/seedParity.test.ts` was upgraded from id-match to **full-record deep
+equality**, failing with a pointer at the generator. The case list lives once in
+`seed/parity-cases.json`, shared by both. Proven live: the deep gate immediately
+caught real drift the id-only guard had passed — abercrombie's resource seed had
+silently lost `sku`/`size`/`color` (regenerated; its SQLite schema projects 5
+columns at ingest, so tool output is unchanged — the served shape is decided in
+the db module, not by seed truncation). What remains open is exactly the deeper
+half already scoped below: a BFF-side write is invisible to the SQLite copy
+regardless of seed agreement — the real fix is still finishing the migration.
+Original entry follows.
+
 **INTERIM GUARD ADDED 2026-08-18 (PR #2072) — entry stays OPEN for the real fix.**
 `demo_mcp_resource_server/tests/seedParity.test.ts` now asserts the migrated
 entity's record ids match between the two seed files for all 8 verticals that keep a

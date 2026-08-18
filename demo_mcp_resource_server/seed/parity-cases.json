@@ -1,0 +1,14 @@
+{
+  "comment": "Single source for which resource-server seed derives from which BFF seed. Read by scripts/gen-seeds-from-bff.mjs (writes the seed files) and tests/seedParity.test.ts (fails on drift). banking and airlines are excluded: no comparable BFF seed.json exists (banking's data plane is the original banking store; airlines' lives in config/verticals/airlines/index.js).",
+  "cases": [
+    { "label": "retail", "resourceSeed": "retail.seed.json", "bffDir": "retail", "entity": "orders" },
+    { "label": "sporting-goods", "resourceSeed": "sportingGoods.seed.json", "bffDir": "sporting-goods", "entity": "orders" },
+    { "label": "abercrombie-fitch", "resourceSeed": "abercrombie.seed.json", "bffDir": "abercrombie-fitch", "entity": "orders" },
+    { "label": "government", "resourceSeed": "government.seed.json", "bffDir": "government", "entity": "permits" },
+    { "label": "healthcare", "resourceSeed": "healthcare.seed.json", "bffDir": "healthcare", "entity": "patientRecords" },
+    { "label": "manufacturing", "resourceSeed": "manufacturing.seed.json", "bffDir": "manufacturing", "entity": "workOrders" },
+    { "label": "university", "resourceSeed": "university.seed.json", "bffDir": "university", "entity": "courses" },
+    { "label": "workforce", "resourceSeed": "workforce.seed.json", "bffDir": "workforce", "entity": "expenses" }
+  ],
+  "excluded": ["banking (BFF has no seed.json)", "airlines (BFF data lives in index.js)"]
+}
