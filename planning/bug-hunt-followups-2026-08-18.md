@@ -23,18 +23,24 @@ as grouped PRs; the rest are logged in `TECH_DEBT.md` (2026-08-18 audit block).
       (bounded via `cacheInsertWithEviction`, 1000 cap, expired entries deleted).
       21 tests, merged + deployed (`mcp-gateway` rebuilt).
 
-## TODO — next round: 10 new bugs in Customer Dashboard UI + Backend
+## DONE — next round: 10 new bugs in Customer Dashboard UI + Backend
 
-Hunt a fresh batch (target 10) NOT already in TECH_DEBT, scoped to:
+Two-investigator audit (customer dashboard UI + backend data plane), all 10
+verified in source and logged in the TECH_DEBT round-2 block. Not yet fixed.
 
-- **Customer dashboard UI** — `demo_api_ui` customer/user dashboard surfaces
-  (`UserDashboard.js`, `UserDashboardPing2026.js`, `Dashboard.js`, the token
-  rail, account/transaction/AI chips, use-case launcher on the customer path).
-- **Backend** — `demo_api_server` routes/services on the customer data plane
-  (transactions, accounts, conversations, use-cases, session/auth glue).
+Backend (5): conversation summaries share the message key-prefix (history replays
+a summary as newest); `createTransaction` clobbers caller `createdAt`/`status`;
+GET history `limit` unsanitised (NaN defeats the 100 cap); `GET /accounts/my`
+serves banking `CHASUS33`/branch defaults to every vertical; `investment`
+`:accountId` ignored → 200 with the default portfolio.
 
-Exclude everything already in TECH_DEBT. Verify each in source (file:line +
-concrete failure scenario) before listing.
+UI (5): Email-OTP verify fires the agent-resume event unconditionally; CIBA
+auto-initiate timers survive Dismiss/unmount → back-channel auth after cancel;
+`agentTriggeredStepUp` never reset on failure paths (stale-state leak); QuickNav
+stack-height off-by-one overrides the correct CSS default; run-story `<li>` keyed
+by a 48-char prefix collides and drops a row.
+
+Fix round not started — ask to proceed.
 
 ## TODO — refresh reports/docs to current servers + codebase
 
