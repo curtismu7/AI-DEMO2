@@ -69,6 +69,15 @@ export function proxyJsonRpc(
     // twice, and the abort listener must know not to fire post-settle.
     let settled = false;
 
+    // Diagnostics timing for the handshake-timeout path (TECH_DEBT 2026-08-18:
+    // intermittent `olb` handshake timeout). startedAt is the connection
+    // attempt; openedAt is when the WS actually opened. On a handshake timeout
+    // the difference between them (connect latency) vs the wait-for-initialize
+    // (elapsed - connect) tells "socket never opened / slow connect" apart from
+    // "opened but the backend never answered initialize" — different failures.
+    const startedAt = Date.now();
+    let openedAt = 0;
+
     const timer = setTimeout(() => {
       settled = true;
       ws.terminate();
@@ -113,6 +122,7 @@ export function proxyJsonRpc(
     });
 
     ws.on('open', () => {
+      openedAt = Date.now();
       // MCP handshake: initialize
       const _cid = getCorrelationId();
       const initParams: Record<string, unknown> = {
@@ -129,13 +139,22 @@ export function proxyJsonRpc(
       };
       ws.send(JSON.stringify(initMsg));
 
-      // Handshake timeout guard
+      // Handshake timeout guard. Enrich the rejection with structured
+      // diagnostics (code + timeout value + elapsed-to-failure + connect
+      // latency) so the fan-out caller can log why `olb` vanished from the
+      // catalog. `.message` is left as-is so existing message-based callers
+      // (resource-server proxy, tools/call catch) are unaffected.
       handshakeTimer = setTimeout(() => {
         if (!initialized) {
           settled = true;
           signal?.removeEventListener('abort', onAbort);
           ws.terminate();
-          reject(new Error('MCP handshake timeout'));
+          reject(Object.assign(new Error('MCP handshake timeout'), {
+            code: 'handshake_timeout',
+            timeoutMs: HANDSHAKE_TIMEOUT_MS,
+            elapsedMs: Date.now() - startedAt,
+            connectMs: openedAt ? openedAt - startedAt : null,
+          }));
         }
       }, HANDSHAKE_TIMEOUT_MS);
     });

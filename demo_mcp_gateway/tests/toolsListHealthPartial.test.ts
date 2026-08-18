@@ -18,6 +18,7 @@ import {
   recordToolsListBackendOutage,
   clearToolsListBackendOutage,
   toolsListBackendOutage,
+  formatToolsListBackendFailure,
 } from '../src/toolsListHealth';
 
 describe('toolsListHealth', () => {
@@ -69,5 +70,52 @@ describe('toolsListHealth', () => {
     // An empty failure list is the all-healthy signal.
     recordToolsListBackendOutage([], 4);
     expect(toolsListBackendOutage()).toBeNull();
+  });
+});
+
+describe('formatToolsListBackendFailure', () => {
+  it('emits a structured diagnostic for a handshake timeout (backend + timeout + elapsed + connect)', () => {
+    // Shape of the error proxy.ts attaches on the handshake-timeout path.
+    const reason = Object.assign(new Error('MCP handshake timeout'), {
+      code: 'handshake_timeout',
+      timeoutMs: 10_000,
+      elapsedMs: 10_012,
+      connectMs: 3,
+    });
+
+    const line = formatToolsListBackendFailure('olb', reason);
+
+    // The documented symptom prefix survives so existing greps still hit.
+    expect(line).toContain('[GW] tools/list failed for backend=olb');
+    expect(line).toContain('reason=handshake_timeout');
+    expect(line).toContain('timeoutMs=10000');
+    expect(line).toContain('elapsedMs=10012');
+    expect(line).toContain('connectMs=3');
+    expect(line).toContain('attempts=1');
+    // Rules out pool exhaustion by construction — proxy opens a fresh WS each call.
+    expect(line).toContain('pool=none(fresh-ws-per-request)');
+  });
+
+  it('renders connectMs=n/a when the socket never opened before timing out', () => {
+    const reason = Object.assign(new Error('MCP handshake timeout'), {
+      code: 'handshake_timeout',
+      timeoutMs: 10_000,
+      elapsedMs: 10_000,
+      connectMs: null,
+    });
+
+    expect(formatToolsListBackendFailure('olb', reason)).toContain('connectMs=n/a');
+  });
+
+  it('distinguishes a non-timeout failure as reason=other with the raw message', () => {
+    const line = formatToolsListBackendFailure(
+      'invest',
+      new Error('Backend closed connection before responding to tools/list'),
+    );
+
+    expect(line).toContain('[GW] tools/list failed for backend=invest');
+    expect(line).toContain('reason=other');
+    expect(line).not.toContain('handshake_timeout');
+    expect(line).toContain('Backend closed connection before responding to tools/list');
   });
 });
