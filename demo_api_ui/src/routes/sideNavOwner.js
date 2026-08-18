@@ -21,7 +21,11 @@ export function isNoChromeRoute(pathNorm) {
     pathNorm === "/sdk-login" ||
     pathNorm === "/sdk-login/callback" ||
     // UC22 CIBA approve popup: bare modal page — no sidebar / agent FAB.
-    pathNorm === "/ciba-approve"
+    pathNorm === "/ciba-approve" ||
+    // Personal-agent pop-out client window: bare route, no nav shell (App.js
+    // route comment) — was missing from this list, so signed-in users got the
+    // full global sidebar inside the popup.
+    pathNorm === "/personal-agent/client"
   );
 }
 
@@ -33,13 +37,16 @@ export function normalizePath(pathname) {
 /**
  * True when App.js renders the global <AdminSideNav> for this location.
  * Home hosts full-bleed layouts and wants no side nav.
+ *
+ * Guests get the side nav too (2026-08-18): it used to be signed-in only,
+ * which left signed-out visitors with a nav on AppShell routes but none on
+ * bare routes (/pingone-authorize, /telemetry, guard pages) — an
+ * inconsistency that read as "the nav is missing". AdminSideNav is
+ * null-user safe and role-filters its items.
  */
-export function appRendersSideNav({ pathname, user }) {
+export function appRendersSideNav({ pathname }) {
   const pathNorm = normalizePath(pathname);
-  // /dashboard shows the side nav even logged-out (guests see demo data there,
-  // same as the rest of the page — see App.js's /dashboard route comment).
-  if (pathNorm === "/dashboard") return true;
-  return Boolean(user) && !isNoChromeRoute(pathNorm) && pathNorm !== "/";
+  return !isNoChromeRoute(pathNorm) && pathNorm !== "/";
 }
 
 /**

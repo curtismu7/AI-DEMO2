@@ -37,8 +37,11 @@ describe('NewRelicRoute', () => {
         <ThemeProvider><NewRelicRoute user={null} logout={() => {}} /></ThemeProvider>
       </MemoryRouter>,
     );
-    // The side nav is the thing PR #1452 dropped; it must be back even logged out.
-    await waitFor(() => expect(screen.getByRole('navigation')).toBeInTheDocument());
+    // The guest side nav (the thing PR #1452 dropped) is now owned by App.js
+    // for ALL visitors — sideNavOwner.test.js guards that. The shell must NOT
+    // render a second one (the double-sidebar bug), but its TopNav chrome must.
+    await waitFor(() => expect(screen.getByRole('banner')).toBeInTheDocument());
+    expect(screen.queryByRole('navigation')).toBeNull();
   });
 
   it('renders the dashboard, not the PingOne panel', async () => {
@@ -66,7 +69,8 @@ describe('PingOneEventsRoute', () => {
         screen.getByText(/PingOne Events/i, { selector: '.pingone-event-panel__title' }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    // Nav ownership moved to App.js (sideNavOwner.test.js) — no shell copy.
+    expect(screen.queryByRole('navigation')).toBeNull();
   });
 });
 
@@ -80,8 +84,9 @@ describe('P1AzRoute', () => {
         <ThemeProvider><P1AzRoute user={null} logout={() => {}} /></ThemeProvider>
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByRole('navigation')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('stat-PERMIT')).toHaveTextContent('2'));
+    // Nav ownership moved to App.js (sideNavOwner.test.js) — no shell copy.
+    expect(screen.queryByRole('navigation')).toBeNull();
   });
 });
 
@@ -99,7 +104,8 @@ describe('TokenExchangeRoute', () => {
         <ThemeProvider><TokenExchangeRoute user={null} logout={() => {}} /></ThemeProvider>
       </MemoryRouter>,
     );
-    await waitFor(() => expect(screen.getByRole('navigation')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('stat-ok')).toHaveTextContent('7'));
+    // Nav ownership moved to App.js (sideNavOwner.test.js) — no shell copy.
+    expect(screen.queryByRole('navigation')).toBeNull();
   });
 });
