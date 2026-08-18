@@ -13,6 +13,7 @@ import BulkDecisionPanel from './BulkDecisionPanel';
 import InspectorShell from './shared/InspectorShell';
 import PacEditorLaunch from './PacEditorLaunch';
 import InspectorTabs from './shared/InspectorTabs';
+import SignInPrompt from './SignInPrompt';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
@@ -886,6 +887,7 @@ export default function PingOneAuthorizePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [recent, setRecent] = useState({ decisions: [], error: null, loading: false });
   const [enabling, setEnabling] = useState(false);
@@ -901,7 +903,9 @@ export default function PingOneAuthorizePage() {
         const res = await bffAxios.get('/api/authorize/pingone-policies');
         if (!cancelled) setPoliciesState({ policies: res.data?.policies || [], loading: false, error: null, note: res.data?.note || null });
       } catch (e) {
-        if (!cancelled) setPoliciesState({ policies: [], loading: false, error: e.response?.data?.message || e.response?.data?.error || e.message, note: null });
+        if (cancelled) return;
+        if (e.response?.status === 401) setNeedsLogin(true);
+        setPoliciesState({ policies: [], loading: false, error: e.response?.data?.message || e.response?.data?.error || e.message, note: null });
       }
     })();
     return () => { cancelled = true; };
@@ -919,7 +923,11 @@ export default function PingOneAuthorizePage() {
         return res.data?.transactionEndpointId || eps[0]?.id || '';
       });
     } catch (e) {
-      setError(e.response?.data?.message || e.message);
+      if (e.response?.status === 401) {
+        setNeedsLogin(true);
+      } else {
+        setError(e.response?.data?.message || e.message);
+      }
     } finally { setLoading(false); }
   }, []);
 
@@ -1037,7 +1045,11 @@ export default function PingOneAuthorizePage() {
         </div>
       )}
 
-      {tab === 'console' && (loading ? (
+      {tab === 'console' && (needsLogin ? (
+        <div style={{ padding: '40px' }}>
+          <SignInPrompt message="The PingOne Authorize Live Policy Console needs a signed-in session." />
+        </div>
+      ) : loading ? (
         <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
       ) : (
         <>
