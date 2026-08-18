@@ -14,10 +14,16 @@ describe("buildTraceSteps — empty trace", () => {
     // refuses, then the authorized one. Both legs are their own hop.
     expect(steps.map((s) => s.id)).toEqual([
       "website", "signin", "prompt", "agent",
-      "tools-list-challenge", "tools-list", "llm", "agent-token", "exchange",
+      // The MCP session is opened for DISCOVERY. Traced live 2026-08-18: driving
+      // the tool-call leg alone produced 2x initialize, 2x
+      // notifications/initialized and 2x tools/list on the MCP server, and no
+      // tools/call at all. The gateway negotiates a session, lists tools, and
+      // closes it — before any tool call exists. These hops used to sit next to
+      // the tool call, which taught a session-per-invocation that does not happen.
+      "tools-list-challenge", "tools-list", "mcp-initialize", "mcp-initialized",
+      "llm", "agent-token", "exchange",
       "authorize", "gateway", "api-key-swap",
-      // A tool call is three MCP messages, not one.
-      "tools-call-challenge", "mcp-initialize", "mcp-initialized", "mcp",
+      "tools-call-challenge", "mcp",
       "api", "database", "reply",
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
@@ -27,12 +33,15 @@ describe("buildTraceSteps — empty trace", () => {
 
   test("each MCP method's challenge leg sits immediately before its authorized leg", () => {
     const ids = buildTraceSteps(EMPTY_TRACE).map((s) => s.id);
+    // Discovery's challenge is followed by its authorized leg, and the session
+    // handshake belongs to THAT leg — the gateway opens the session in order to
+    // list tools (traced live 2026-08-18).
     expect(ids.indexOf("tools-list") - ids.indexOf("tools-list-challenge")).toBe(1);
-    // The tool-call challenge is followed by the MCP lifecycle handshake, so
-    // its authorized leg is three hops later, not one.
-    expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(3);
-    expect(ids.indexOf("mcp-initialize") - ids.indexOf("tools-call-challenge")).toBe(1);
-    expect(ids.indexOf("mcp") - ids.indexOf("mcp-initialized")).toBe(1);
+    expect(ids.indexOf("mcp-initialize") - ids.indexOf("tools-list")).toBe(1);
+    expect(ids.indexOf("mcp-initialized") - ids.indexOf("mcp-initialize")).toBe(1);
+    // With the handshake moved to discovery, the tool call is once again a
+    // challenge immediately followed by its authorized leg.
+    expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(1);
   });
 
   test("tool discovery sits between the agent and the model that consumes the catalog", () => {

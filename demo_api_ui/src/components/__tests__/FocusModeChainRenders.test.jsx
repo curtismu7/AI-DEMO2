@@ -148,3 +148,52 @@ describe("a hop that never ran says so", () => {
     expect(exchange.textContent).not.toMatch(/not required/);
   });
 });
+
+
+// ─── The handshake sits with discovery, not with the tool call ───────────────
+// Traced live 2026-08-18: driving the tool-call leg alone produced 2x
+// initialize, 2x notifications/initialized, 2x tools/list on the MCP server and
+// NO tools/call. The gateway opens a session, lists tools, and closes it — all
+// before a tool call exists. Rendering these hops between the gateway and the
+// MCP call taught the opposite: that a session is negotiated per invocation.
+import { buildTraceSteps } from "../../services/tokenChainTrace/buildTraceSteps";
+
+describe("MCP handshake hops belong to the discovery leg", () => {
+  const idsFor = (events) =>
+    buildTraceSteps({ prompt: "List my orders", tokenEvents: events, phases: [] })
+      .map((s) => s.id);
+
+  const withHandshake = [
+    { id: "user-token", status: "active", claims: { sub: "u1" } },
+    { id: "mcp-initialize", status: "active", negotiatedVersion: "2025-11-25" },
+    { id: "mcp-initialized", status: "active" },
+  ];
+
+  it("places initialize immediately after tools-list", () => {
+    const ids = idsFor(withHandshake);
+    const list = ids.indexOf("tools-list");
+    const init = ids.indexOf("mcp-initialize");
+    expect(list, `no tools-list hop; saw ${ids.join(", ")}`).toBeGreaterThan(-1);
+    expect(init).toBe(list + 1);
+    expect(ids.indexOf("mcp-initialized")).toBe(list + 2);
+  });
+
+  it("keeps them before the gateway and the MCP call, not after", () => {
+    const ids = idsFor(withHandshake);
+    const init = ids.indexOf("mcp-initialize");
+    for (const later of ["gateway", "mcp"]) {
+      const at = ids.indexOf(later);
+      if (at !== -1) expect(init, `${later} should come after the handshake`).toBeLessThan(at);
+    }
+  });
+
+  it("does not invent handshake hops when the run produced none", () => {
+    // Absent evidence the steps still exist as pending/notinpath placeholders,
+    // but they must never claim to have run.
+    const ids = idsFor([{ id: "user-token", status: "active", claims: { sub: "u1" } }]);
+    const steps = buildTraceSteps({ prompt: "x", tokenEvents: [{ id: "user-token", status: "active" }], phases: [] });
+    const init = steps.find((s) => s.id === "mcp-initialize");
+    if (init) expect(init.status).not.toBe("done");
+    expect(ids).toContain("tools-list");
+  });
+});

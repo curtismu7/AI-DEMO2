@@ -132,8 +132,15 @@ describe('buildA2aTopology', () => {
     const branchNames = [...container.querySelectorAll('.ttp-branch .ttp-name')].map((n) => n.textContent);
     // The tool call is two requests: the refused one and the authorized one.
     // Both hang off the branch, in the order they went out.
-    expect(branchNames).toEqual(['Agent Gateway', 'API-key path', 'tools/call 401', 'initialize', 'notifications/initialized', 'MCP server', 'Resource server', 'Database']);
-    // tools/list is discovery, not the tool call — it belongs on the spine.
+    expect(branchNames).toEqual(['Agent Gateway', 'API-key path', 'tools/call 401', 'MCP server', 'Resource server', 'Database']);
+    // Discovery belongs on the spine — and the MCP session handshake is part of
+    // discovery, not of the tool call. Traced live 2026-08-18: the tool-call leg
+    // produced initialize / notifications/initialized / tools/list on the MCP
+    // server and no tools/call, so the session is opened to list tools and closed
+    // again before any invocation. It used to hang off this branch, which drew a
+    // session negotiated per tool call.
+    expect(branchNames).not.toContain('initialize');
+    expect(branchNames).not.toContain('notifications/initialized');
     expect(branchNames).not.toContain('tools/list');
     expect([...container.querySelectorAll('.ttp-spine .ttp-name')].map((n) => n.textContent))
       .toContain('tools/list');
