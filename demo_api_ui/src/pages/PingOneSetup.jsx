@@ -228,6 +228,18 @@ export default function PingOneSetup() {
               <li><strong>Admin Roles:</strong> Ensure the app has Environment Admin &amp; Identity Data Admin roles</li>
             </ul>
           </div>
+
+          {/* Hosted Remote MCP Server */}
+          <div className="help-section">
+            <h3>🔌 Connect an IDE (hosted Remote MCP Server)</h3>
+            <p>
+              For interactive OAuth access from Claude Code, Cursor, or VS Code — separate from
+              the worker credentials above — connect to PingOne&apos;s hosted admin MCP server:
+            </p>
+            <code className="mcp-url">
+              https://mcp.pingone.com/admin/{credentials.environmentId || '{envId}'}/mcp
+            </code>
+          </div>
         </div>
       </div>
     </div>

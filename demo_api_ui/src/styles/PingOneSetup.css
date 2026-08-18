@@ -295,3 +295,16 @@
 .help-section strong {
   color: #007bff;
 }
+
+.mcp-url {
+  display: block;
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 4px;
+  color: var(--text-primary, #000);
+  font-family: var(--font-family-mono);
+  font-size: 0.9em;
+  word-break: break-all;
+}
