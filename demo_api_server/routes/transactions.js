@@ -418,6 +418,17 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     let { fromAccountId, toAccountId, amount, type, description, userId } = req.body;
 
+    // Normalize the transaction type ONCE, up front, before any gate reads it.
+    // Every downstream authorization gate matches on exact lowercase
+    // (write-scope `writeOperations.includes(type)`, PingOne Authorize
+    // `AUTHORIZE_TYPES.includes(type)`, HITL consent, RFC 9470 step-up) and the
+    // recorded value is stored from this same variable. Without normalization a
+    // cased/whitespaced type like "Transfer" or " transfer " slips past every
+    // gate as `type_not_in_scope` yet still moves funds via applyTransfer.
+    // Canonical form is lowercase — matching the hardcoded 'withdrawal'/'deposit'
+    // literals the transfer branch already records. See REGRESSION_PLAN.md §4.
+    type = String(type || '').toLowerCase().trim();
+
     // Re-hydrate accounts from Redis snapshot in case this Lambda was cold-started.
     // Must run before any getAccountById lookup below.
     if (req.user.role !== 'admin') {
