@@ -379,6 +379,17 @@ router.get('/tools/events', requireSession, (req, res) => {
 });
 
 // GET /api/mcp/inspector/tools — live tools/list from MCP server, or local catalog when no MCP bearer / MCP down
+//
+// INTENTIONALLY UNAUTHENTICATED. Verified against the running stack: this
+// returns 200 with no cookie and no bearer. That is deliberate for a demo whose
+// point is showing the tool surface, and several callers already rely on it.
+//
+// It is stated here because the UI implied the opposite: "MCP Tools" sits in
+// `ACTION_GROUPS.admin`, whose whole group is stripped for non-admins, so the
+// control read as admin-gated while the data was public. A reviewer who checks
+// the chip's placement and stops there draws the wrong conclusion. UI grouping
+// is not an authorization boundary and must never be read as one — if this
+// inventory should be restricted, the middleware goes here, not in the menu.
 router.get('/tools', async (req, res) => {
   // tools/list is read-only metadata (names + schemas, no execution, no account
   // data) — it does not need step-up MFA. The real agent only requires step-up

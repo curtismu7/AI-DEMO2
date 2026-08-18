@@ -107,3 +107,44 @@ describe("focus mode renders what the chain claims", () => {
     expect(inFlight).toHaveLength(0);
   });
 });
+
+
+// A run where the model answered from context — no tool call, so no gateway
+// evidence and no MCP result. The BFF still emits the exchanged-token event with
+// status "waiting", and nothing will ever supersede it.
+const NO_TOOL_CALL_EVENTS = [
+  { id: "user-token", status: "active", claims: { sub: "u1", scope: "read" } },
+  { type: "mcp_challenge", phase: "tools/list", method: "tools/list", status: 401, challenged: true,
+    url: "https://gw.example/mcp", wwwAuthenticate: 'Bearer realm="PingOne"', realm: "PingOne" },
+  { id: "exchanged-token", status: "waiting", claims: { scope: "read" } },
+];
+
+describe("a hop that never ran says so", () => {
+  test("Exchange reads 'not required', not 'in flight', when no tool was called", () => {
+    render(<TokenChainFilmstrip />);
+    act(() => tokenChainTraceStore.beginTrace({ prompt: "show my invoices" }));
+    act(() => tokenChainTraceStore.ingestTokenEvents(NO_TOOL_CALL_EVENTS));
+    // The reply is what makes the run finished. `outcome` is deliberately never
+    // set — live runs stream the reply and leave it null, which is the trap that
+    // made the first version of the #1966 fix pass its test and change nothing.
+    act(() => tokenChainTraceStore.ingestLlmReply("You have 3 invoices."));
+
+    const exchange = [...document.querySelectorAll(".tcnr-node")]
+      .find((n) => /Exchange/.test(n.textContent));
+    expect(exchange, "an Exchange node is rendered").toBeTruthy();
+    expect(exchange.textContent).toMatch(/not required/);
+    expect(exchange.textContent).not.toMatch(/in flight/);
+  });
+
+  test("a genuinely in-flight exchange is still reported as in flight", () => {
+    render(<TokenChainFilmstrip />);
+    act(() => tokenChainTraceStore.beginTrace({ prompt: "show my invoices" }));
+    act(() => tokenChainTraceStore.ingestTokenEvents(NO_TOOL_CALL_EVENTS));
+    // No reply yet — the run is mid-flight, so the hop must NOT claim it was
+    // unnecessary. This is the guard against the fix over-reaching.
+    const exchange = [...document.querySelectorAll(".tcnr-node")]
+      .find((n) => /Exchange/.test(n.textContent));
+    expect(exchange.textContent).toMatch(/in flight/);
+    expect(exchange.textContent).not.toMatch(/not required/);
+  });
+});

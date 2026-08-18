@@ -54,9 +54,25 @@ const makeConfig = (overrides: Partial<GatewayConfig> = {}): GatewayConfig => ({
   ...overrides,
 } as unknown as GatewayConfig);
 
-// Injectable deps: introspection always active, authorize always PERMIT
+// Decode the `sub` claim from a JWT's (unverified) payload. Used by the mocks
+// below to model introspection binding the verified subject to the presented
+// token — the same subject the (relocated) rate limiter now keys on.
+function subOf(token: string): string {
+  try {
+    const payload = token.split('.')[1];
+    if (payload) {
+      const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'));
+      if (claims?.sub) return String(claims.sub);
+    }
+  } catch { /* fall through */ }
+  return 'user-123';
+}
+
+// Injectable deps: introspection active (echoing the token's subject, as real
+// introspection does), authorize always PERMIT. The rate limiter runs AFTER
+// introspection and keys on this verified subject.
 const PERMIT_DEPS = {
-  introspect: async () => ({ active: true, sub: 'user-123', exp: Math.floor(Date.now() / 1000) + 3600 }),
+  introspect: async (t: string) => ({ active: true, sub: subOf(t), exp: Math.floor(Date.now() / 1000) + 3600 }),
   authorize: async () => ({ decision: 'PERMIT' as const }),
 };
 
@@ -197,6 +213,92 @@ describe('UC18 rate-limiting in buildAuthorizeMcpRequest', () => {
     const auditTrailArg = fakeRes.setHeader.mock.calls.find((c: any[]) => c[0] === 'X-Gw-Audit-Trail')[1];
     const auditTrail = JSON.parse(auditTrailArg);
     expect(auditTrail.rateLimit).toEqual({ limited: true, retryAfterMs: expect.any(Number) });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SECURITY REGRESSION: unauthenticated rate-limit DoS against a chosen victim.
+//
+// The limiter used to key its bucket on a `sub` decoded straight from the
+// UNVERIFIED bearer, and ran BEFORE token validation. An attacker could send
+// garbage-signed JWTs carrying sub=<victim>; each call consumed a slot in the
+// VICTIM's bucket before the signature/introspection check rejected the request.
+// After GATEWAY_RATE_LIMIT_MAX_REQUESTS forged calls the real victim was denied
+// with 429 on that tool — an unauthenticated DoS against a chosen user.
+//
+// The fix moves the check AFTER introspection and keys it on the verified
+// subject, so a forged token is rejected (401) before it can touch any bucket.
+// This test proves N forged requests do NOT consume or deny the victim's bucket.
+// ---------------------------------------------------------------------------
+describe('UC18 rate-limiting — forged token cannot exhaust a victim bucket', () => {
+  const VICTIM_SUB = 'victim-user';
+
+  // Genuine victim token — introspection confirms it active.
+  const genuineVictimToken = [
+    'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9',
+    Buffer.from(JSON.stringify({ sub: VICTIM_SUB, aud: 'mcpgateway.ping.demo', exp: 9999999999 })).toString('base64url'),
+    'genuine-signature',
+  ].join('.');
+
+  // Forged token — same claimed sub=<victim>, but a bad/garbage signature.
+  // Real introspection reports it inactive (modelled by the deps below).
+  const forgedVictimToken = [
+    'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0',
+    Buffer.from(JSON.stringify({ sub: VICTIM_SUB, aud: 'mcpgateway.ping.demo', exp: 9999999999, forged: true })).toString('base64url'),
+    'GARBAGE_SIGNATURE',
+  ].join('.');
+
+  // Introspection accepts the genuine token and rejects the forged one — the
+  // real gateway behaviour a bad signature produces. authorize always PERMITs.
+  const INTROSPECT_VERIFIES_SIGNATURE = {
+    introspect: async (t: string) => {
+      if (subOf(t) === VICTIM_SUB && /GARBAGE_SIGNATURE$/.test(t)) {
+        return { active: false, exp: 0 };
+      }
+      return { active: true, sub: subOf(t), exp: Math.floor(Date.now() / 1000) + 3600 };
+    },
+    authorize: async () => ({ decision: 'PERMIT' as const }),
+  };
+
+  async function call(config: GatewayConfig, bearerToken: string) {
+    const middleware = buildAuthorizeMcpRequest(config, INTROSPECT_VERIFIES_SIGNATURE);
+    const fakeRes = makeFakeRes();
+    // The 401 (inactive-token) path builds a WWW-Authenticate header via
+    // selfBaseUrl(req, ...), which reads req.headers/req.socket — supply both.
+    const fakeReq = { headers: {}, socket: {} };
+    await middleware(bearerToken, TOOL_CALL_BODY, fakeReq as any, fakeRes as any, async () => { /* forwarded */ });
+    return fakeRes;
+  }
+
+  afterEach(() => {
+    _resetLimiterForTest();
+    delete process.env.GATEWAY_RATE_LIMIT_ENABLED;
+    delete process.env.GATEWAY_RATE_LIMIT_MAX_REQUESTS;
+    delete process.env.GATEWAY_RATE_LIMIT_WINDOW_MS;
+  });
+
+  it('N forged sub=<victim> requests do NOT consume or deny the victim real bucket', async () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 3, rateLimitWindowMs: 10000 });
+
+    // Attacker floods far past the limit with garbage-signed tokens for the victim.
+    for (let i = 0; i < 10; i++) {
+      const res = await call(config, forgedVictimToken);
+      // Rejected as an invalid token (401) — never rate-limited (429), because
+      // the forged token is stopped by introspection before the limiter runs.
+      expect(res.statusCode).toBe(401);
+      expect(res.statusCode).not.toBe(429);
+    }
+
+    // The genuine victim now spends its full, untouched allowance: all 3 pass.
+    for (let i = 0; i < 3; i++) {
+      const res = await call(config, genuineVictimToken);
+      expect(res.statusCode).not.toBe(429);
+    }
+
+    // Only the victim's OWN 4th genuine call is throttled — the limiter still
+    // works for authenticated callers; the forged flood contributed nothing.
+    const throttled = await call(config, genuineVictimToken);
+    expect(throttled.statusCode).toBe(429);
   });
 });
 

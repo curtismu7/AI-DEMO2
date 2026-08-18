@@ -1,0 +1,36 @@
+# docker-compose.worktree.yml — point the shared stack at a worktree's source.
+#
+# NOT auto-merged (that is docker-compose.override.yml's job). It is passed
+# explicitly by scripts/serve-worktree.sh, which also pins --project-directory to
+# the MAIN checkout. That pin is the whole trick: a worktree carries no gitignored
+# files, so launching a stack *from* one silently starves every service of its
+# .env — each env_file entry is `required: false`, so Compose skips it without a
+# word and ping-gateway comes up "healthy" while missing PG_OLB_SCOPE. Keeping the
+# project directory on main resolves every env_file, ./certs and ./scripts path
+# there, while the source mounts below point at the worktree by ABSOLUTE path.
+#
+# Unset WORKTREE_SRC_ROOT and every mount falls back to the project directory —
+# i.e. the main checkout, the same stack you had before this file existed.
+#
+# Only the two services that bind-mount source are repointed. Every other service
+# needs a rebuild to pick up code, so there is nothing to redirect.
+#
+# Persistent state is unaffected: LMDB, config.db and banking.db live under
+# /app/data/persistent, which is the named volume `ai-demo-bff-data`, not a bind
+# mount. Repointing does not sign you out or revert a persisted feature flag.
+
+services:
+
+  demo-api-server:
+    volumes:
+      - ${WORKTREE_SRC_ROOT:-.}/demo_api_server:/app
+      - /app/node_modules
+
+  ui:
+    volumes:
+      # Both targets must move together. The base file mounts ./demo_api_ui/src at
+      # /app/src; leaving that alone would shadow the worktree's src with main's,
+      # and you would edit a file whose changes never appear.
+      - ${WORKTREE_SRC_ROOT:-.}/demo_api_ui:/app
+      - ${WORKTREE_SRC_ROOT:-.}/demo_api_ui/src:/app/src
+      - /app/node_modules

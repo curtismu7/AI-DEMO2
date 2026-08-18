@@ -120,9 +120,16 @@ export default function EventStreamPanel({ onClose }) {
     if (mode !== 'float') return;
     setIsDragging(true);
     handleDragStart(e);
-    const cleanup = () => setIsDragging(false);
-    document.addEventListener('pointerup', cleanup, { once: true });
-    document.addEventListener('pointercancel', cleanup, { once: true });
+    // One AbortController drives both listeners: whichever of pointerup /
+    // pointercancel fires first aborts the signal and removes BOTH, so the
+    // sibling that never fired doesn't leak on document.
+    const ac = new AbortController();
+    const cleanup = () => {
+      setIsDragging(false);
+      ac.abort();
+    };
+    document.addEventListener('pointerup', cleanup, { once: true, signal: ac.signal });
+    document.addEventListener('pointercancel', cleanup, { once: true, signal: ac.signal });
   }, [mode, handleDragStart]);
 
   return (

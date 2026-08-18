@@ -52,7 +52,11 @@ if [[ -n "$CONFLICTS" ]]; then
   echo "  Run:  git pull --rebase origin $BRANCH"
   echo "  Then resolve any conflicts before pushing."
   echo ""
-  read -r -p "Push anyway? (y/N) " REPLY
+  if [[ -r /dev/tty ]]; then
+    read -r -p "Push anyway? (y/N) " REPLY </dev/tty
+  else
+    REPLY=""  # non-interactive (no terminal): keep the abort default
+  fi
   if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
     echo "Push aborted."
     exit 1
