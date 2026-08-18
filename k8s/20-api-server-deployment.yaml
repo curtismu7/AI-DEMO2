@@ -53,6 +53,14 @@ spec:
         # BFF_INTERNAL_SECRET is a real value, so this cannot 503 the demo.
         - name: VAULT_INTERNAL_STRICT
           value: "true"
+        # Open-access Privilege MCP hop: mcp-server (30-mcp-server-deployment.yaml)
+        # runs MCP_AUTH_DISABLED=true and swaps the un-exchangeable 'disabled'
+        # placeholder for a worker token minted by this BFF's
+        # POST /api/path/demo-subject-token — which 404s unless the BFF also
+        # declares the flag. Without it every banking DATA tool fails Step 9 with
+        # PingOne "Cannot parse token claims for request param 'subject_token'".
+        - name: MCP_AUTH_DISABLED
+          value: "true"
         # Persist structured logs + the unified token-chain trace to the PVC
         # mounted at /var/log/aidemo (survives pod restarts; queryable while the
         # pod runs). Set here (not the shared configmap) so only the BFF — which
