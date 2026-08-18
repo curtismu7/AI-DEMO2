@@ -525,7 +525,12 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               )}
             </div>
           )}
-          <details className="tctr-acc" open>
+          {/* Collapsed by default. This was the one `tctr-acc` carrying `open`;
+              its sibling below already opens closed, so the rail now behaves
+              consistently and the dashboard does not lead with a pipeline that
+              is empty until an agent run happens. One click still expands it,
+              and a run does not force it open — the user's choice sticks. */}
+          <details className="tctr-acc">
             <summary>
               <span className="tctr-chev">▶</span>
               {trace.prompt
