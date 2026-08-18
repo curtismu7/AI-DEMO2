@@ -11089,7 +11089,11 @@ export default function BankingAgent({
                   <div className="ba-welcome">
                     <p>
                       {isLoggedIn
-                        ? "Type a message or use Actions to explore."
+                        // "Actions" named a chip rail that no production route can render any
+                        // more (its only call site sits behind `!useActionsPopout`,
+                        // which is true on every mount). Point at Use Cases, which
+                        // is present whenever this logged-in welcome shows.
+                        ? "Type a message, or open Use Cases to explore."
                         : marketingGuestChatEnabled
                           ? isConfigured
                             ? "Ask about OAuth or try a suggestion - we will open PingOne only when you need banking."

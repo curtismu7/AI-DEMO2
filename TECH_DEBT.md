@@ -2166,3 +2166,54 @@ with the fix reverted.
 
 `npm run test:e2e:real -- chain-hops-visible` still prints
 `[ui] UNRESOLVED after reply:` if the old symptom ever returns live.
+
+### 2026-08-18 — The agent's action chips cannot render on any production route
+
+**Where:** `demo_api_ui/src/components/AIAgent.js` — `renderActionGroups()`
+(~line 1002) and its single call site (~line 10909).
+
+**What's wrong:** `renderActionGroups()` has exactly one call site, and it sits
+inside `{!useActionsPopout && (…)}`. But:
+
+```js
+const useActionsPopout =
+  !isInline || Boolean(distinctFloatingChrome && isInline);
+```
+
+Every production mount makes that true — `App.js` (`distinctFloatingChrome`),
+`AgentPage.js` (`mode="inline" distinctFloatingChrome`), `PublicRoutes.js`
+(`distinctFloatingChrome`), `DemoGuidePopout.jsx` (not inline). So the branch
+that renders the chips is unreachable, and no `.ba-action-chip` exists anywhere
+in the running app. Confirmed live on `/dashboard`: 0 `.ba-action-chip`, 0
+`.ba-action-group`, 0 `.ba-chips-toolbar`, both before and after opening the
+`More` trigger (which holds Topology / Floating token chain / Script).
+
+The name is now a lie: `useActionsPopout` reads as "actions live in a popout",
+but Task 7 deleted that popout — a comment in the same file says the trigger was
+removed because `ba-actions-popout` "no longer exists anywhere in this file". The
+flag's real current meaning is "render no actions at all".
+
+Two loose ends confirm it was left behind rather than decided:
+
+- The welcome copy read **"Type a message or use Actions to explore."** with no
+  Actions affordance on that surface. Corrected to "Type a message, or open Use
+  Cases to explore." — the stale instruction is gone, but the orphaned chip code
+  below is untouched and still the open question.
+- `renderActionGroups`, `ACTION_GROUPS`, `useCustomChips`, `verticalSuggestionChips`
+  and the `.ba-action-chip` / `.ba-action-group` CSS are all still carried.
+
+**Why it matters beyond dead code:** chips are the deterministic tool-call path
+(`forceHeuristic`). With no chip in the DOM, a UI-level test cannot drive a tool
+call at all, which is why `chain-hops-visible.real.spec.js` can assert only the
+discovery leg and has to report the tools/call and gateway hops instead of
+asserting them.
+
+**Why not fixed here:** whether chips should come back is a product decision, not
+a cleanup. "Use Cases" / "Live Use Cases" / "Demo steps" are present and may be
+their intended replacement — in which case the fix is to delete the orphaned
+chip code and correct the welcome copy, not to restore a rail. Guessing either
+way would be a UI change nobody asked for, on a protected surface.
+
+**How to check:** log in, open `/dashboard`, and count
+`document.querySelectorAll('.ba-action-chip').length`. Non-zero means this was
+resolved.
