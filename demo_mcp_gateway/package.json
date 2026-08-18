@@ -47,6 +47,7 @@
       "**/tests/**/*.test.ts",
       "**/__tests__/**/*.test.ts"
     ],
+    "testTimeout": 20000,
     "forceExit": true
   },
   "engines": {

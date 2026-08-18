@@ -16,6 +16,14 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import supertest from 'supertest';
 import type { GatewayConfig } from '../src/config';
 
+// Timing note: this suite drives a REAL listening socket through supertest, so
+// it is sensitive in a way pure-unit specs are not — the cancellation case below
+// timed out in CI (--maxWorkers=2, alongside three other services) while passing
+// locally. The ceiling now comes from "testTimeout" in this package's jest
+// config, raised for every supertest-backed suite here rather than file by file:
+// four of the eight have flaked on timing, and the suite is a BLOCKING gate as
+// of #1959, so a flake reddens CI for everyone.
+
 jest.mock('../src/proxy', () => ({
   proxyJsonRpc: jest.fn(),
   MCP_PROTOCOL_VERSION: '2025-11-25',

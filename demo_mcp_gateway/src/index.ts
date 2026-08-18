@@ -324,12 +324,16 @@ async function handleMessage(
         console.warn(`[GW] tools/list failed for backend=${backendLabels[i]}:`, r.reason instanceof Error ? r.reason.message : r.reason);
       }
     }
-    // A TOTAL backend failure is not a partial outage: every live catalog entry
-    // is gone and what ships is the gateway-owned static list alone, which looks
-    // like a healthy tools/list to the UI. Record it for /health and say so once
-    // per window — the per-backend warns above scroll past unnoticed at this rate.
-    if (failedBackends.length === results.length) {
-      recordToolsListBackendOutage([...failedBackends]);
+    // Report ANY failed backend, not just a total wipeout. A total failure ships
+    // the gateway-owned static list alone; a partial one silently drops just that
+    // backend's tools, which reads to a caller as "tool not found" rather than
+    // "backend down". This branch used to clear the signal whenever even one
+    // backend answered, so a single backend stuck in timeout reported healthy —
+    // observed live with `olb`. recordToolsListBackendOutage classifies total vs
+    // partial from the attempted count; the per-backend warns above scroll past
+    // unnoticed at this rate, which is what /health is for.
+    if (failedBackends.length) {
+      recordToolsListBackendOutage([...failedBackends], results.length);
     } else {
       clearToolsListBackendOutage();
     }
