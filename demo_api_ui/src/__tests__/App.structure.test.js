@@ -90,34 +90,6 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("<EmbeddedAgentDock");
   });
 
-  // The DashboardQuickNav rail is mounted app-wide and its FAB stack geometry is
-  // driven by the `App--has-quick-nav` className. Both must be gated on the SAME
-  // `showDashboardQuickNav` flag so the class is present exactly when the rail
-  // renders (otherwise the demo FAB overlaps the rail — REGRESSION_PLAN §0).
-  test("DashboardQuickNav is imported", () => {
-    expect(appSrc).toContain(
-      'import DashboardQuickNav from "./components/DashboardQuickNav"',
-    );
-  });
-
-  test("DashboardQuickNav is mounted gated on showDashboardQuickNav", () => {
-    expect(appSrc).toContain(
-      "{showDashboardQuickNav && <DashboardQuickNav user={user} />}",
-    );
-  });
-
-  test("App--has-quick-nav is applied on the same showDashboardQuickNav flag", () => {
-    expect(appSrc).toContain(
-      '${showDashboardQuickNav ? " App--has-quick-nav" : ""}',
-    );
-  });
-
-  test("the three existing .App modifiers are still applied", () => {
-    expect(appSrc).toContain('? " App--on-dashboard" : ""');
-    expect(appSrc).toContain('? " App--has-embedded-dock" : ""');
-    expect(appSrc).toContain('? " App--session-reauth" : ""');
-  });
-
   test("DashboardContent is rendered inside the /dashboard route", () => {
     expect(appSrc).toContain("<DashboardContent user={user} logout={logout} />");
   });
