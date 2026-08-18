@@ -64,7 +64,13 @@ function mcpRpc(method, params, bearerToken) {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
-        'MCP-Protocol-Version': '2025-03-26',
+        // Both upstreams the proxy is wired to reject any other value on a
+        // non-initialize request: the Node gateway 400s
+        // `unsupported_protocol_version` unless this equals its
+        // MCP_PROTOCOL_VERSION (2025-11-25), and PingGateway's MCP path is
+        // built around 2025-11-25 too. The proxy is stateless (no initialize
+        // handshake), so it must advertise the accepted version outright.
+        'MCP-Protocol-Version': '2025-11-25',
         ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
       },
     };
