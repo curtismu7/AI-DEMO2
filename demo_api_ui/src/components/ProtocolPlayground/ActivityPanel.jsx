@@ -38,6 +38,39 @@ function synthesizeEvent(result) {
   };
 }
 
+/** Full wire detail for one step: request, response, decoded token. */
+function EntryDetail({ result }) {
+  if (!result.request && !result.response) return null;
+
+  return (
+    <div className="entry-detail-group">
+      {result.request && (
+        <details className="entry-detail" open>
+          <summary>
+            <span className="entry-detail__tag">Request</span>
+            <span className="entry-detail__meta">{result.request.method} {result.request.url}</span>
+          </summary>
+          <JSONViewer data={result.request} />
+        </details>
+      )}
+      {result.response && (
+        <details className="entry-detail" open>
+          <summary>
+            <span className="entry-detail__tag">Response</span>
+            <span className="entry-detail__meta">
+              HTTP {result.response.status}{result.response.statusText ? ` ${result.response.statusText}` : ''}
+            </span>
+          </summary>
+          <JSONViewer data={result.response} />
+        </details>
+      )}
+      {result.decodedToken?.isValid && (
+        <TokenInspector token={result.decodedToken} />
+      )}
+    </div>
+  );
+}
+
 export default function ActivityPanel({ results, error }) {
   const logRef = useRef(null);
   const entries = Array.isArray(results) ? results : [];
@@ -48,7 +81,6 @@ export default function ActivityPanel({ results, error }) {
     }
   }, [results]);
 
-  const lastResult = entries.length > 0 ? entries[entries.length - 1] : null;
   const message = errorText(error);
   const needsSignIn = entries.some((result) => result.response?.status === 401);
 
@@ -74,42 +106,30 @@ export default function ActivityPanel({ results, error }) {
         {entries.length === 0 ? (
           <div className="activity-empty">No activity yet. Click Execute or Next Step.</div>
         ) : (
-          <div>
-            {entries.map((result) => {
-              const realEvents = result.response?.body?.tokenChainEvents;
-              const hasRealEvents = Array.isArray(realEvents) && realEvents.length > 0;
+          entries.map((result) => {
+            const realEvents = result.response?.body?.tokenChainEvents;
+            const hasRealEvents = Array.isArray(realEvents) && realEvents.length > 0;
+            const synthesized = hasRealEvents ? null : synthesizeEvent(result);
 
-              if (hasRealEvents) {
-                return (
-                  <div key={result.stepId}>
-                    {realEvents.map((event, idx) => (
-                      <TokenChainEventCard key={idx} event={event} />
-                    ))}
-                  </div>
-                );
-              }
-
-              const synthesized = synthesizeEvent(result);
-              return synthesized ? (
-                <TokenChainEventCard key={result.stepId} event={synthesized} />
-              ) : null;
-            })}
-          </div>
+            return (
+              <div key={result.stepId} className="activity-entry-block">
+                {hasRealEvents ? (
+                  realEvents.map((event, idx) => (
+                    <TokenChainEventCard key={idx} event={event} />
+                  ))
+                ) : synthesized ? (
+                  <TokenChainEventCard event={synthesized} />
+                ) : result.error ? (
+                  <TokenChainEventCard
+                    event={{ label: result.stepId, status: 'error', explanation: result.error }}
+                  />
+                ) : null}
+                <EntryDetail result={result} />
+              </div>
+            );
+          })
         )}
       </div>
-
-      {lastResult?.response && (
-        <div className="activity-details">
-          <details className="raw-response-toggle">
-            <summary>Raw response</summary>
-            <JSONViewer data={lastResult.response} />
-          </details>
-
-          {lastResult.decodedToken?.isValid && (
-            <TokenInspector token={lastResult.decodedToken} />
-          )}
-        </div>
-      )}
     </div>
   );
 }
