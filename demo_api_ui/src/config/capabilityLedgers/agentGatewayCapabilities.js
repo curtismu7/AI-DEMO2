@@ -15,6 +15,7 @@ export const AGENT_GATEWAY_GROUPS = [
   { id: 'validate-audit', label: 'Validate & audit MCP requests' },
   { id: 'throttle-transform', label: 'Throttle requests & transform tokens' },
   { id: 'oauth-policy-metadata', label: 'Enforce OAuth, policy & metadata controls' },
+  { id: 'secrets', label: 'Secure service secrets' },
 ];
 
 export const AGENT_GATEWAY_CAPABILITIES = [
@@ -81,6 +82,14 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     oneLiner: 'RFC 9396 rich-authorization-request subset check — the actual tool-call params must be covered by what was granted.',
     evidence: { code: 'Node Gateway only — no Groovy equivalent exists yet: demo_mcp_gateway/src/rarEnforce.ts:1-41' },
     relatedUCIds: ['UC14b'],
+  },
+  {
+    id: 'secrets-dotenvx',
+    group: 'secrets',
+    title: 'Load secrets via an open-source vault (dotenvx)',
+    oneLiner: 'The gateway, the banking MCP server, and the agent service each load their credentials from their OWN .env via the open-source @dotenvx/dotenvx loader with a strict name allowlist — the former cross-package argon2/KEK/DEK vault (secrets.vault + VAULT_PASSWORD) is gone. Agent Gateway (PingGateway) reads the same names straight from container env.',
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/vault.ts · MCP server: oauth-mcp/src/vault.ts · Agent service: demo_agent_service/src/vault.ts' },
+    relatedUCIds: ['UC1'],
   },
 ];
 
