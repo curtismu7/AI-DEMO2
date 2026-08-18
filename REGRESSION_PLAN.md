@@ -106,6 +106,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — Cased transaction `type` skipped every authorization gate
+
+**Files changed:** `demo_api_server/routes/transactions.js`,
+`demo_api_server/src/__tests__/step-up-gate.test.js`
+
+**What was broken:** `POST /api/transactions` destructured `type` raw from
+`req.body` and never normalized it. Every authorization gate matches on exact
+lowercase — `transactionAuthorizationService`'s `AUTHORIZE_TYPES.includes(type)`,
+the write-scope `writeOperations.includes(type)`, and the type checks that route
+into HITL consent / RFC 9470 step-up. So `{"type":"Transfer","amount":9000}`
+(capital T, or whitespaced ` transfer `) returned `{ran:false,
+reason:'type_not_in_scope'}` → PingOne-Authorize DENY, HITL consent, step-up, and
+write-scope were ALL skipped, and execution still fell through to
+`dataStore.applyTransfer(...)` — funds moved with no controls. Only the hard
+`max_transaction_amount` gate still fired.
+
+**What was fixed:** normalize once, up front, right after the destructure:
+`type = String(type || '').toLowerCase().trim();` — chosen over normalizing only
+the compared value because every gate AND the recorded value read the same
+variable, so a single canonical form guarantees no gate can be bypassed and the
+stored type stays consistent with the `'withdrawal'`/`'deposit'` literals the
+transfer branch already records. No blanket rejection of unknown types was added:
+`deposit` legitimately returns `type_not_in_scope` when `ff_authorize_deposits` is
+off, so rejecting non-gated types would break a real flow — normalization alone
+closes the bypass.
+
+**Do not break:** legit lowercase `transfer`/`withdrawal`/`deposit` flows still
+gate exactly as before; the delegate-restriction block, HITL consent 428, and
+step-up 428 paths are unchanged. Do not "restore" original casing on the compared
+value — the gate must see lowercase.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/step-up-gate.test.js
+services/transactionAuthorizationService --forceExit` — new SECURITY describe block
+asserts `"Transfer"`, `"  transfer  "`, and `"WithDrawal"` take the identical 428
+step-up path as canonical lowercase, and that the policy engine receives the
+normalized type.
+
 ### 2026-08-18 — Movie reel switch governed the copy nobody was looking at (#1994)
 
 **Files changed:** `demo_api_ui/src/components/UserDashboardPing2026.js`,

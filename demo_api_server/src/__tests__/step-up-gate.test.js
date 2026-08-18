@@ -700,4 +700,103 @@ describe('Step-Up MFA Gate — POST /api/transactions', () => {
       expect(res.status).not.toBe(428);
     });
   });
+
+  // ── Security regression: type normalization before the authorization gate ────
+  // A cased or whitespaced `type` ("Transfer", " transfer ") must take the
+  // IDENTICAL authorization path as the canonical "transfer". Before the fix,
+  // routes/transactions.js passed the raw body value straight to the gate, whose
+  // matching is exact-lowercase (`includes(type)`), so a capital-T "Transfer"
+  // returned type_not_in_scope — skipping step-up/HITL/policy/write-scope — while
+  // funds still moved via applyTransfer. Normalizing once up front closes it.
+  describe('SECURITY: cased/whitespaced type cannot bypass the gate', () => {
+    const gateTrippingSettings = {
+      stepUpEnabled: true,
+      stepUpAmountThreshold: 250,
+      stepUpAcrValue: 'Multi_factor',
+      stepUpTransactionTypes: ['transfer', 'withdrawal'],
+      stepUpWithdrawalsAlways: false,
+    };
+
+    // Baseline: canonical lowercase "transfer" trips the step-up gate.
+    it('baseline — lowercase "transfer" returns 428 step_up_required', async () => {
+      runtimeSettings.update(gateTrippingSettings, 'test');
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send({
+          fromAccountId: 'test-account-id',
+          toAccountId: 'test-account-id',
+          amount: 500,
+          type: 'transfer',
+          description: 'Baseline transfer',
+        });
+
+      expect(res.status).toBe(428);
+      expect(res.body.error).toBe('step_up_required');
+    });
+
+    it('capital-T "Transfer" takes the identical path — 428, not type_not_in_scope', async () => {
+      runtimeSettings.update(gateTrippingSettings, 'test');
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send({
+          fromAccountId: 'test-account-id',
+          toAccountId: 'test-account-id',
+          amount: 500,
+          type: 'Transfer',
+          description: 'Capital-T transfer attack',
+        });
+
+      expect(res.status).toBe(428);
+      expect(res.body.error).toBe('step_up_required');
+
+      // The gate saw the canonical lowercase form, not the raw "Transfer".
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].type).toBe('transfer');
+    });
+
+    it('whitespaced " transfer " takes the identical path — 428', async () => {
+      runtimeSettings.update(gateTrippingSettings, 'test');
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send({
+          fromAccountId: 'test-account-id',
+          toAccountId: 'test-account-id',
+          amount: 500,
+          type: '  transfer  ',
+          description: 'Whitespaced transfer attack',
+        });
+
+      expect(res.status).toBe(428);
+      expect(res.body.error).toBe('step_up_required');
+
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].type).toBe('transfer');
+    });
+
+    it('mixed-case "WithDrawal" trips the withdrawal gate too', async () => {
+      runtimeSettings.update(gateTrippingSettings, 'test');
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send({
+          fromAccountId: 'test-account-id',
+          amount: 500,
+          type: 'WithDrawal',
+          description: 'Mixed-case withdrawal attack',
+        });
+
+      expect(res.status).toBe(428);
+      expect(res.body.error).toBe('step_up_required');
+
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].type).toBe('withdrawal');
+    });
+  });
 });
