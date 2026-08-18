@@ -131,8 +131,11 @@ function saveMessage(userId, vertical, role, content, metadata = {}) {
     start: keyPrefix,
     end: `${keyPrefix}￿`,
   })) {
+    // The seq is always the final `:`-delimited segment of the key
+    // (`${userId}:${vertical}:${timestampPadded}:${seq}`). Read it from the end
+    // so the lookup stays correct even if userId/vertical ever contain a `:`.
     const parts = key.split(':');
-    const keySeq = parseInt(parts[4] || '0', 10);
+    const keySeq = parseInt(parts[parts.length - 1] || '0', 10);
     if (keySeq >= seq) seq = keySeq + 1;
   }
 
