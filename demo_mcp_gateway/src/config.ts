@@ -1,7 +1,16 @@
 'use strict';
 
-import dotenv from 'dotenv';
-dotenv.config();
+// dotenvx is a drop-in for dotenv here: config() loads the gateway's `.env`
+// into process.env exactly like dotenv.config(), and additionally decrypts any
+// encrypted values when a DOTENV_PRIVATE_KEY / `.env.keys` is present. Backward
+// compatible with a PLAINTEXT `.env` — encrypting `.env` is a later migration
+// step, so this neither requires an encrypted `.env` nor a key to exist yet.
+// quiet: suppress dotenvx's own boot banner; ignore MISSING_ENV_FILE so a
+// missing `.env` is silent (dotenv.config() was silent — the gateway routinely
+// starts with env supplied by Docker/k8s and no co-located `.env`). Together
+// these keep this a faithful drop-in for the former `dotenv.config()`.
+import * as dotenvx from '@dotenvx/dotenvx';
+dotenvx.config({ quiet: true, ignore: ['MISSING_ENV_FILE'] });
 
 import * as crypto from 'node:crypto';
 

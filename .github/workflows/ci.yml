@@ -341,15 +341,6 @@ jobs:
         run: npm install --prefix oauth-mcp --no-audit --no-fund
       - name: Install demo_mcp_resource_server deps
         run: npm install --prefix demo_mcp_resource_server --no-audit --no-fund
-      # demo_mcp_gateway's tests/vault.test.ts reaches across the package
-      # boundary into demo_api_server/lib/vault, whose crypto.js requires the
-      # native `argon2` KDF. Without it that suite cannot RUN — which the gate
-      # counts as a failure, so it would sink the SUITE_BLOCKING=1 step below.
-      # Installing the single package rather than all of demo_api_server keeps
-      # this inside the Actions budget documented at the top of this file.
-      # The cross-package coupling itself is tracked in TECH_DEBT (2026-08-17).
-      - name: Install argon2 for demo_mcp_gateway's cross-package vault test
-        run: npm install --prefix demo_api_server argon2 --no-audit --no-fund --no-save
       # node --test recursion differs by Node major; keep both globs so the
       # tests/ suites (UC16, tier) are never silently skipped.
       - name: demo_authz_server suite (node --test, root + tests/)
