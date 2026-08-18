@@ -1013,7 +1013,6 @@ export default function AdminSideNav({
         { label: "App Configuration", path: "/configure", icon: "fix" },
         { label: "OAuth Debug", path: "/configure?tab=debug", icon: "dbg" },
         { label: "Postman Collections", path: "/postman", icon: "msg" },
-        { label: "Vault", path: "/admin/vault", icon: "vault" },
       ],
     },
     {

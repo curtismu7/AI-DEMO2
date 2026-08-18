@@ -1428,7 +1428,6 @@ app.use('/api/admin', authenticateToken, adminRoutes);
 app.use('/api/control-plane', require('./routes/controlPlane'));
 app.use('/api/admin/management', adminManagementRoutes);
 app.use('/api/admin/setup', setupWizardRoutes);
-app.use('/api/admin/vault', authenticateToken, require('./routes/adminVault'));
 app.use('/api/admin/diagrams', authenticateToken, diagramsRoutes);
 app.use('/api/arch-events', authenticateToken, archEventsRoutes);
 app.use('/api/dev', devToolsRoutes);
