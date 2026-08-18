@@ -12,7 +12,8 @@
     var(--brand-dashboard-header-end, #1d4ed8) 100%
   ) !important;
   border-bottom: none;
-  height: 56px;
+  /* No fixed height: the container wraps to a second row below 1280px
+     (TopNav.css) and a pinned height painted that row outside the bar. */
 }
 
 /* Brand name */

@@ -951,9 +951,21 @@
   padding-top: 5.5rem;
 }
 
+/* The sidenav is position: fixed, so the padding above never reaches it —
+   without this its expand toggle sits hidden under the banner (z 10050). */
+.App.App--session-reauth .admin-side-nav {
+  top: 5.5rem;
+  height: calc(100vh - 5.5rem);
+}
+
 @media (max-width: 520px) {
   .App.App--session-reauth {
     padding-top: 6.5rem;
+  }
+
+  .App.App--session-reauth .admin-side-nav {
+    top: 6.5rem;
+    height: calc(100vh - 6.5rem);
   }
 }
 
