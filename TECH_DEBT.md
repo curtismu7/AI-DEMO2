@@ -1351,7 +1351,7 @@ the protocol says they belong.
 On the evidence above that is the wrong position — the session is opened and
 closed during discovery, before any tool call exists.
 
-#### Attempt 3 (#2049) — DONE IN CODE, NOT YET PROVEN LIVE
+#### Attempt 3 (#2049) — VERIFIED LIVE 2026-08-18. This entry is closed.
 
 Two halves shipped on that PR:
 
@@ -1367,30 +1367,31 @@ Two halves shipped on that PR:
   `index.ts` folds it into the `tools/list` `_meta`; `agentGatewayClient` emits
   `mcp-initialize` / `mcp-initialized` beside `tools_list_success`.
 
-**The transport half is exactly as unproven as #1977 and #2023 were when they
-merged.** Gateway tsc is clean and 99 suites / 754 tests pass, three of the four
-new gateway tests fail with the capture removed — and none of that is evidence
-the hop appears in a real run. Both previous attempts had the same standing and
-both were inert. `demo_mcp_gateway` is a baked image, so verification needs
-merge → rebuild → deploy, which is why it could not be done before merging.
-
-**Do this before believing it works:**
+**Verified on the live stack after merge and a gateway rebuild:**
 
 ```
-scripts/deploy-live.sh                                   # rebuilds mcp-gateway
-cd demo_api_ui && npm run test:e2e:real -- chain-hops-reachable
+[list] 97 tools, events: ["mcp_challenge","mcp_resource_metadata",
+                          "mcp-initialize","mcp-initialized","tools_list_success"]
 ```
 
-`mcp-initialize` is reported there under CONFIG_DEPENDENT. If it still prints
-ABSENT, attempt 3 failed the same way as the first two and should be reverted
-rather than left dormant — a third inert instrumentation in the tree is worse
-than none, because it reads as coverage.
+Real events from a real run — the thing neither #1977 nor #2023 ever produced.
+What made the difference was not better code: it was tracing where the handshake
+happens before writing any. Both earlier attempts were argued from reading the
+source.
 
-**If it fires, one thing is still open:** the hops populate on the DISCOVERY
-request (`/api/demo-agent/tools`), not on `/api/agent/invoke`. A chain rendered
-from a single invoke response will still show them empty. Whether the UI should
-carry discovery evidence forward into the run's chain is a design question nobody
-has answered.
+**Do not revert on an ABSENT reading from the invoke leg.** An earlier version of
+this entry said to revert if `chain-hops-reachable` printed ABSENT. That
+instruction is now wrong, and following it would delete working code. The hops
+appear on the DISCOVERY response (`/api/demo-agent/tools`) and are correctly
+absent from `/api/agent/invoke`, because the tool-call leg produces no
+`tools/call` on the MCP server at all — measured, see above. The spec reports both
+legs separately; read the `[list]` line, not the `[hops]` line.
+
+**Still open, and a design question rather than a bug:** a chain rendered from a
+single invoke response shows these hops empty, because the session was negotiated
+on the earlier discovery request. Whether the UI should carry discovery evidence
+forward into the run's chain — and how to do that without implying the session was
+opened for the tool call — nobody has decided.
 
 ### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
