@@ -2,10 +2,15 @@
  * Main entry point for the AI Demo MCP Server
  */
 
-import dotenv from 'dotenv';
+import * as dotenvx from '@dotenvx/dotenvx';
 
-// Load environment variables from .env file
-dotenv.config();
+// Load environment variables from .env. dotenvx is a drop-in for dotenv and is
+// backward-compatible with a plaintext .env; it decrypts encrypted values only
+// when a DOTENV_PRIVATE_KEY / .env.keys is present (encryption is a later
+// migration step). This top-level load carries the NON-secret config
+// (GW_INTROSPECTION_CLIENT_ID, MCP_SERVER_*, LOG_*, …); loadVaultIntoEnv() below
+// re-applies just the allowlisted secrets. quiet: suppress dotenvx's banner.
+dotenvx.config({ quiet: true });
 
 import { loadConfiguration, validateConfiguration, ConfigurationError } from './config';
 import { loadVaultIntoEnv } from './vault';

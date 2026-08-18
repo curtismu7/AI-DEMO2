@@ -51,6 +51,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^2.21.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opentelemetry/auto-instrumentations-node": "^0.59.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
