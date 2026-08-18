@@ -133,9 +133,14 @@
   scrollbar-width: thin;
 }
 
+/* flex-start, not the flex default `stretch`: the track is a flex row, so a
+   stretched item makes every card as tall as the tallest one. The Exchange hop
+   carries a 7-scope struck-through diff, so on a real run every other card grew
+   ~90px of dead white below its own text. Cards now size to their own content. */
 .tcnr-item {
   flex: none;
   display: flex;
+  align-items: flex-start;
 }
 
 .tcnr-node {
@@ -195,11 +200,18 @@
   color: var(--th-text);
 }
 
+/* Clamped to two lines so one long scope diff cannot set the height of the whole
+   strip. The full text stays in the step detail panel, which is where it is read.
+   Font size unchanged — the 11px floor from REGRESSION_PLAN §4 still holds. */
 .tcnr-node-fact {
   font-size: 11px;
   line-height: 1.3;
   color: var(--th-text-muted);
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* status — semantic, independent of the per-vertical accent */
