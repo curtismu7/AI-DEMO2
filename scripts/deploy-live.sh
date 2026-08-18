@@ -78,6 +78,8 @@ if ! mkdir "$LOCK" 2>/dev/null; then
   fi
 fi
 printf '%s\n' "$$" > "$LOCK/pid"
+# Extended below once the temp files exist; keep a lock-only trap until then so
+# an early exit still releases it.
 trap 'rm -rf "$LOCK"' EXIT
 
 if [ -z "$OLD" ]; then
@@ -203,13 +205,41 @@ container_of() {
     *) echo "ai-demo-$1" ;;
   esac
 }
+# A container that EXISTS but is not running is a different thing from one that
+# was never started, and conflating them is what let a dead service pass for a
+# current one. `docker ps` lists only running containers, so a service sitting in
+# `Created` or `Exited` looked identical to an optional profile service that is
+# deliberately off: both got skipped with a note, and the run went on to stamp
+# the new SHA as deployed. Observed 2026-08-18 — ping-gateway sat in `Created`
+# while deploy-live reported "nothing to deploy" on the next run.
+all_containers="$(docker ps -a --format '{{.Names}}' 2>/dev/null || true)"
+
+# filter_running is invoked as `X="$(filter_running "$X")"`, and command
+# substitution runs in a SUBSHELL — anything it assigns to a variable is
+# discarded when that subshell exits. The script's own note() calls from inside
+# this function have therefore never printed: every "changed but its container is
+# not running" warning has been silently dropped. Side effects go through files,
+# which survive the subshell.
+BROKEN_FILE="$(mktemp)"
+SKIP_NOTES_FILE="$(mktemp)"
+trap 'rm -rf "$LOCK" "$BROKEN_FILE" "$SKIP_NOTES_FILE"' EXIT
+
 filter_running() {
-  local out="" svc
+  local out="" svc name
   for svc in $1; do
-    if grep -qx "$(container_of "$svc")" <<<"$running_containers"; then
+    name="$(container_of "$svc")"
+    if grep -qx "$name" <<<"$running_containers"; then
       out="$out $svc"
+    elif grep -qx "$name" <<<"$all_containers"; then
+      # Exists but is not up: this service HAS changes and cannot take them.
+      # Distinct from "never started" — an optional profile service that is
+      # deliberately off is fine to skip, a half-deployed one is not. Recorded so
+      # the stamp is withheld rather than claiming the containers serve code this
+      # service is not running.
+      echo "$svc" >> "$BROKEN_FILE"
+      echo "[deploy-live] note: $svc changed but its container exists and is NOT running — it cannot take this deploy" >> "$SKIP_NOTES_FILE"
     else
-      note "$svc changed but its container is not running — skipped (start it via run-docker.sh if wanted)"
+      echo "[deploy-live] note: $svc changed but its container is not running — skipped (start it via run-docker.sh if wanted)" >> "$SKIP_NOTES_FILE"
     fi
   done
   echo "$out"
@@ -222,10 +252,20 @@ for svc in $BUILD_SET; do
 done
 
 [ -n "$NOTES" ] && printf '%s' "$NOTES"
+[ -s "$SKIP_NOTES_FILE" ] && cat "$SKIP_NOTES_FILE"
+BROKEN_SET="$(sort -u "$BROKEN_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
 
 if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
-  # Nothing to touch means the running containers already serve this range, so
-  # advance the stamp — otherwise every later run re-diffs from the same old SHA.
+  # "Nothing to touch" is only good news when nothing NEEDED touching. If a
+  # service has changes in this range and its container is down, stamping here
+  # would record those changes as deployed and every later run would skip them —
+  # the stale-under-a-success-line failure this script exists to end.
+  if [ -n "${BROKEN_SET// /}" ]; then
+    echo "[deploy-live] NOT stamping: $BROKEN_SET changed but is not running."
+    echo "[deploy-live] Start it, then re-run — until then this range is undeployed:"
+    echo "[deploy-live]   ./run-docker.sh restart $BROKEN_SET"
+    exit 1
+  fi
   [ "$DRY_RUN" = "1" ] || printf '%s\n' "$NEW" > "$STAMP"
   echo "[deploy-live] no running service is affected by this range — done"
   exit 0
@@ -247,6 +287,31 @@ if [ -n "${RESTART_SET// /}" ]; then
   echo "[deploy-live] ./run-docker.sh restart$RESTART_SET"
   # shellcheck disable=SC2086
   ./run-docker.sh restart $RESTART_SET
+fi
+# The stamp is a claim that the containers serve $NEW. Verify it instead of
+# assuming it: `run-docker.sh restart` has returned success while leaving a
+# container in `Created` (2026-08-18, ping-gateway), and the stamp written on
+# that run made the next one report "nothing to deploy" over a dead service.
+# Re-read docker rather than trusting our own exit codes.
+# Poll rather than sampling once: a just-recreated container takes a moment to
+# move from Created to running, and a single immediate check would fail good
+# deploys. A guard that cries wolf gets ignored, which would cost more than the
+# silence it replaced. 15s is far longer than the observed transition and still
+# far shorter than any real startup hang.
+NOT_UP=""
+for _ in $(seq 1 15); do
+  after_containers="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
+  NOT_UP=""
+  for svc in $RESTART_SET $BUILD_SET; do
+    grep -qx "$(container_of "$svc")" <<<"$after_containers" || NOT_UP="$NOT_UP $svc"
+  done
+  [ -z "${NOT_UP// /}" ] && break
+  sleep 1
+done
+if [ -n "${NOT_UP// /}" ] || [ -n "${BROKEN_SET// /}" ]; then
+  echo "[deploy-live] deploy INCOMPLETE — not up:${NOT_UP:-  (none)}${BROKEN_SET:+  not running: $BROKEN_SET}"
+  echo "[deploy-live] stamp left at ${OLD:0:12} so the next run retries this range."
+  exit 1
 fi
 printf '%s\n' "$NEW" > "$STAMP"
 echo "[deploy-live] done — live stack serves ${NEW:0:12}"

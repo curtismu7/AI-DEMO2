@@ -3031,3 +3031,52 @@ to any live check of first-run UI.
 **Why this is here rather than in a test README:** all three were hit while
 verifying other work today, and each briefly looked like a product bug. The cost
 is not the mistake, it is the detour.
+
+### 2026-08-18 — deploy-live stamped ranges it had not deployed (FIXED)
+
+**Where:** `scripts/deploy-live.sh`.
+
+**What was wrong:** the stamp is a claim that the containers serve a given SHA,
+and it was written without checking whether that was true. Two paths let it lie,
+both hit live:
+
+1. `filter_running` selected services with `docker ps`, which lists only RUNNING
+   containers. A service sitting in `Created` or `Exited` looked exactly like an
+   optional profile service that is deliberately off: skipped with a note, and
+   the run then stamped the new SHA as deployed. `ping-gateway` sat in `Created`
+   while the next run reported `containers already serve <sha> — nothing to
+   deploy`. Its changes were recorded as shipped and would never have been
+   retried.
+2. Nothing verified the outcome. `run-docker.sh restart` returned success having
+   left a container in `Created`, and the stamp went in on that success.
+
+**Fixed by** distinguishing *broken* from *absent*, and by verifying before
+stamping:
+
+- a container that EXISTS but is not running is now an error, not a skip — it has
+  changes it cannot take, so the stamp is withheld and the run exits non-zero
+  naming the service
+- after deploying, docker is re-read to confirm every touched service is up;
+  if any is not, the stamp stays at the old SHA so the next run retries the range
+- a container that does not exist at all still skips quietly, which is the
+  legitimate case the original behaviour was written for
+
+**Found while fixing it — `filter_running` ran in a subshell.** It is called as
+`X="$(filter_running "$X")"`, and command substitution forks: every variable it
+assigned was discarded on return. That silently disabled the function's own
+`note()` calls, so *every* "changed but its container is not running" warning
+this script has ever produced was thrown away before anyone could read it. The
+first version of this fix inherited the same bug and did nothing — the guard
+never fired because `BROKEN_SET` never reached the parent. Side effects now go
+through temp files.
+
+**Still true, and not fixed here:** the stamp remains global. It records what the
+containers serve, not what each service serves, so it cannot express "ui is
+current but ping-gateway is two commits behind". The verification above closes
+the way that state was reached silently; per-service stamps would be the way to
+represent it directly, and that is a real refactor of the path→service mapping,
+which resolves one range against one service set.
+
+**How to check:** stop a service that has pending changes and run `deploy-live`.
+It must exit non-zero, name that service, and leave `.git/deploy-live.last`
+untouched. Verified 2026-08-18 with a `Created` container.
