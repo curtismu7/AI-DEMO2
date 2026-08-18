@@ -53,13 +53,23 @@ code (removed) — the real FAB overlap traces to never-applied `.App--has-quick
 classes, still open as a protected-layout follow-up; the CIBA-poll retry path was
 deliberately left intact so legit agent retries still resume.
 
+## Cleared after the UI round
+
+- **`saveMessage` seq bug — FIXED (PR #2036, merged + deployed).** Reads the seq
+  from the last key segment; deterministic same-ms regression test.
+- **FAB overlap — RESOLVED.** Investigation found the rail was never mounted, so no
+  overlap existed. Per decision, the rail was WIRED UP (PR #2037): mounted for
+  signed-in non-admins + `App--has-quick-nav` applied so the FAB geometry engages
+  (verified on deployed CSS: FAB → 464px, flush below the 7×44 rail). Only the
+  pixel-level signed-in visual is unconfirmed (customer sign-in is passkey — not
+  headless-automatable); needs a human glance on `/dashboard`.
+
 ## Remaining open (logged in TECH_DEBT, not started)
 
-- `saveMessage` seq-index `[4]` vs `[3]` → same-ms writes drop messages under load.
-- Demo-FAB overlap via never-applied `.App--has-quick-nav` / `.App--has-nav-dash`
-  classes (the real cause behind round-2 #9).
 - The 11 earlier deferred §1 findings (gateway proxy protocol/SSE, LLM-proxy
   routing, helix event-loop, introspection-not-configured, OIDC nonce, pkce cookie).
+- `saveMessage` intra-ms seq is not zero-padded (11+-message single-ms burst would
+  sort lexicographically) — unreachable given fsync spacing; noted only.
 - Docs-refresh todo: re-verify cited line numbers post-merge; fix stale
   `demo_mcp_server` repo-map entry in CLAUDE.md.
 
