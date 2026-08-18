@@ -151,6 +151,18 @@ should stay plaintext by design, `VAULT_PASSWORD` belongs to the vault (not this
 file's own ciphertext), and any intentionally-public demo credential (the
 `DEMO_*_PASSWORD` trio) doesn't need protecting.
 
+**Known dotenvx limitation, live 2026-08-18:** encrypting the SAME plaintext
+value under multiple different key names failed to decrypt at the real ~65-name,
+4-file scale (`ensure-service-keys.js`'s four `DEMO_*_KEY` aliases, all one
+value) — `[DECRYPTION_FAILED]`, dotenvx cites
+[dotenvx/dotenvx#757](https://github.com/dotenvx/dotenvx/issues/757). A minimal
+repro (one file, 3 duplicate names) did NOT reproduce it, so this is
+scale/interaction-specific, not a blanket "never duplicate a value" rule. Those
+four names are excluded from encryption in `DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES`
+(`dotenvx-encrypt-envs.js`) and stay plaintext — the same protection they had
+before this migration, not a regression. Revisit if dotenvx fixes #757, or if a
+future duplicate-value secret is added and needs the same treatment.
+
 For any secret that exists in the vault but not yet in the service `.env` that
 loads it (watch for `HELIX_API_KEY` in particular — it may be persisted via
 configStore rather than `.env`), add it to that service's `.env` from the vault

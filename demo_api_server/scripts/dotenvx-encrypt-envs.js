@@ -118,12 +118,35 @@ const ADDITIONAL_SECRET_NAMES = Object.freeze([
   'PINGONE_A2A_IDENTITY_AGENT_CLIENT_SECRET',
 ]);
 
+// Found 2026-08-18, live: dotenvx fails to decrypt when the SAME plaintext value
+// is encrypted under multiple different key names within the real ~65-name,
+// 4-file run — `ensure-service-keys.js`'s four DEMO_*_KEY names deliberately
+// share one identical value (one API key, four aliases), and on restart the BFF
+// logged `[DECRYPTION_FAILED] could not decrypt DEMO_API_RESOURCE_SERVER_KEY,
+// DEMO_MCP_RESOURCE_SERVER_KEY, DEMO_INVEST_SERVICE_KEY, DEMO_MORTGAGE_SERVICE_KEY`
+// (dotenvx cites https://github.com/dotenvx/dotenvx/issues/757). A minimal 3-name
+// repro (one file, duplicate value, both combined and sequential -k invocations)
+// did NOT reproduce it — so this is scale/interaction-specific to the real run,
+// not a general "duplicate value" rule, and none of the other 35+ secrets that
+// DID encrypt correctly are believed to be at similar risk. Rather than chase an
+// upstream bug on a live shared system, these four are excluded from dotenvx
+// encryption and stay plaintext — the SAME protection level they already had
+// before this migration (no regression). `ensure-service-keys.js` still
+// provisions their value normally; only the `-k` (encrypt) step skips them.
+const DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES = Object.freeze([
+  'DEMO_API_RESOURCE_SERVER_KEY',
+  'DEMO_MCP_RESOURCE_SERVER_KEY',
+  'DEMO_INVEST_SERVICE_KEY',
+  'DEMO_MORTGAGE_SERVICE_KEY',
+]);
+
 // Only TRUE secrets are encrypted. Single source of truth for the secret list is
 // vault-migrate's closed allowlist; the four service-key names and the
-// additional-secrets list above are unioned on (the Set dedupes overlaps).
+// additional-secrets list above are unioned on (the Set dedupes overlaps), minus
+// the dotenvx duplicate-value bug exclusions.
 const SECRET_NAMES = Array.from(
   new Set([...ALLOWED_ENV_VARS, ...SERVICE_KEY_ENV_NAMES, ...ADDITIONAL_SECRET_NAMES]),
-);
+).filter((name) => !DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES.includes(name));
 
 /**
  * Real dotenvx output quotes the value and always appends a trailing
@@ -216,6 +239,7 @@ module.exports = {
   TARGET_ENV_FILES,
   SECRET_NAMES,
   ADDITIONAL_SECRET_NAMES,
+  DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES,
   SHARED_KEYS_FILE,
   BFF_ENTRYPOINT,
   BFF_BOOTSTRAP_MARKER,
