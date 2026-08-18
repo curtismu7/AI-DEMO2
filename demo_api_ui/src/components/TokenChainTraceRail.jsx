@@ -130,7 +130,13 @@ export function buildLiveTokenChainSteps(steps, trace) {
 
   const complete = trace?.outcome === "ok" || trace?.outcome === "error";
   const projected = !complete
-    ? source.filter((step) => ["active", "done", "error"].includes(step.status))
+    // `|| detail.notRequired`: a hop marked "not required" is notinpath, and
+    // this filter would drop it from an incomplete trace entirely — so the
+    // Exchange hop would silently VANISH mid-run instead of explaining itself,
+    // which is worse than the "in flight" it replaced. It has earned its place:
+    // it carries the reason the step did not run.
+    ? source.filter((step) => ["active", "done", "error"].includes(step.status)
+      || step.detail?.notRequired)
     : source.map((step) => {
     const baseId = step.baseId || step.id;
     if (step.status === "notinpath" && SKIPPED_STEP_REASONS[baseId]) {

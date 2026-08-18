@@ -153,7 +153,12 @@ function statusFact(step) {
     case "active":
       return "in flight";
     case "notinpath":
-      return "not in this path";
+      // A hop that did not run because it was never needed reads as "not
+      // required"; "not in this path" would state a routing fact instead, and
+      // the difference matters on the exchange hop, which a viewer expects to
+      // see run. The status itself stays `notinpath` so every other surface
+      // that buckets statuses keeps working unchanged.
+      return step.detail?.notRequired ? "not required" : "not in this path";
     case "pending":
       return "waiting";
     case "denied":
