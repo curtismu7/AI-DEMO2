@@ -11,6 +11,14 @@ from agents import FunctionTool, RunContextWrapper
 
 logger = logging.getLogger(__name__)
 
+# Read timeout for the BFF /internal/agent-tool callback. The BFF does RFC 8693
+# token exchange + PingOne Authorize + optional HITL gating, which can exceed
+# 30s under load. A spurious timeout errors the run *while the BFF may still be
+# completing the tool*, so a retry can double a non-idempotent action (e.g. a
+# transfer). Use a generous, configurable read timeout and a short connect
+# timeout. Shares BFF_TOOL_TIMEOUT_SECONDS with the langchain adapter.
+_BFF_TOOL_TIMEOUT_SECONDS = float(os.environ.get("BFF_TOOL_TIMEOUT_SECONDS", "120"))
+
 # Hosts the shared internal secret (BFF_INTERNAL_SECRET) may be sent to. The BFF
 # supplies the tool-callback URL in the run payload (its cert is for
 # api.ping.demo, not the agent's own BFF_BASE_URL host), so we must accept a
@@ -99,16 +107,32 @@ def _make_tool(schema: dict, run_ctx: RunCtx, sink: Optional[Callable[[dict], Co
                     tool_name, sorted(args.keys()) if isinstance(args, dict) else "n/a",
                     run_ctx["session_id"])
         logger.debug("[BffTool] %s args=%s session=%s", tool_name, args, run_ctx["session_id"])
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                run_ctx["bff_tool_url"],
-                json={"tool": tool_name, "args": args, "sessionId": run_ctx["session_id"]},
-                headers={
-                    "x-internal-gateway-secret": run_ctx["bff_internal_secret"],
-                    "x-session-id": run_ctx["session_id"],
-                    "Content-Type": "application/json",
-                },
-            )
+        _timeout = httpx.Timeout(_BFF_TOOL_TIMEOUT_SECONDS, connect=10.0)
+        try:
+            async with httpx.AsyncClient(timeout=_timeout) as client:
+                resp = await client.post(
+                    run_ctx["bff_tool_url"],
+                    json={"tool": tool_name, "args": args, "sessionId": run_ctx["session_id"]},
+                    headers={
+                        "x-internal-gateway-secret": run_ctx["bff_internal_secret"],
+                        "x-session-id": run_ctx["session_id"],
+                        "Content-Type": "application/json",
+                    },
+                )
+        except httpx.TimeoutException:
+            logger.error("[BffTool] %s timed out after %ss", tool_name, _BFF_TOOL_TIMEOUT_SECONDS)
+            # Return a tool-result STRING (not a raised error) so the run does not
+            # abort in a way that invites a blind retry of a possibly-completed,
+            # non-idempotent operation (e.g. a transfer).
+            return json.dumps({
+                "error": (
+                    f"Tool '{tool_name}' did not respond within "
+                    f"{int(_BFF_TOOL_TIMEOUT_SECONDS)}s. It may still be processing "
+                    "on the server. Do NOT retry automatically — ask the user to "
+                    "verify the result (e.g. check recent transactions) before "
+                    "trying again."
+                )
+            })
         if resp.status_code != 200:
             body = resp.text[:200]
             logger.error("[BffTool] %s HTTP %s: %s", tool_name, resp.status_code, body)
