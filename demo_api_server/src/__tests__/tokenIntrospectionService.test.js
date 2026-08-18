@@ -134,15 +134,18 @@ describe('tokenIntrospectionService — introspect as the token issuer (never th
     expect(result.valid).toBe(false);
   });
 
-  test('returns valid:false (does not throw) and skips the HTTP call when no issuing client is configured', async () => {
+  test('throws INTROSPECTION_NOT_CONFIGURED (skips the HTTP call) when no issuing client is configured', async () => {
     // No opts, no dedicated introspection client, no user app → not configured.
     // The Worker remaining set must NOT be used as a fallback.
     delete process.env.PINGONE_USER_CLIENT_ID;
     delete process.env.PINGONE_USER_CLIENT_SECRET;
 
-    const result = await introspectionService.validateToken(buildJwt({ client_id: 'x' }));
-
-    expect(result.valid).toBe(false);
+    // "Not configured" must PROPAGATE so callers can tell "introspection skipped"
+    // from "PingOne said inactive" — a swallowed {valid:false} conflated the two
+    // and let the JWKS-fallback reject valid exchanged tokens (see
+    // tokenVerificationService introspection-fallback test).
+    await expect(introspectionService.validateToken(buildJwt({ client_id: 'x' })))
+      .rejects.toMatchObject({ code: 'INTROSPECTION_NOT_CONFIGURED' });
     expect(axios.post).not.toHaveBeenCalled();
   });
 });
