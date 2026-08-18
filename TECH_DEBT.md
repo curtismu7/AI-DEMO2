@@ -1669,7 +1669,22 @@ callers. If yes, grant the scope or add it to the resource's `mirroredScopes` in
 `scope-topology.json`; if no, deny at the gateway with a scope-mismatch reason so
 the caller learns it from the response rather than from a gateway log.
 
-### [ ] 2026-08-18 — `olb` tools/list times out; its tools vanish from the catalog and callers see "tool not found"
+### [~] 2026-08-18 — `olb` tools/list times out; its tools vanish from the catalog and callers see "tool not found"
+
+**INSTRUMENTED 2026-08-18 (PR #2054, merged + deployed) — root cause not yet
+diagnosed (not reproducible on demand).** Investigation ruled out the pool-exhaustion
+hypothesis: `proxy.ts::proxyJsonRpc` opens a fresh WebSocket per request — there is no
+connection pool and `MCP_WS_MAX_CONCURRENT` does not exist in the codebase. The
+timeout is `HANDSHAKE_TIMEOUT_MS = 10_000` and fires only when the socket OPENED but
+`initialize` went unanswered for 10s (a never-opening socket trips the 30s call
+timeout — a different message). Added structured, greppable diagnostics on the
+failure path: the timeout rejection now carries `code: 'handshake_timeout'`,
+`timeoutMs`, `elapsedMs`, `connectMs`; `formatToolsListBackendFailure()` emits one
+line keeping the `tools/list failed for backend=<id>` prefix plus
+`reason=… timeoutMs=… elapsedMs=… connectMs=… attempts=1 pool=none(fresh-ws-per-request)`.
+No retry added (it would mask the signal and add ~10s + load to a struggling
+backend). So the next occurrence produces data to correlate with mcp-server
+restarts/cold starts. `[~]` = instrumented, not cured. Original entry follows.
 
 **Where:** `demo_mcp_gateway/src/index.ts` tools/list fan-out; backend `olb`
 (`mcpserver.ping.demo`, WebSocket).
@@ -1692,7 +1707,26 @@ reproducing on demand.
 time, and establish whether it correlates with mcp-server restarts, cold starts,
 or connection-pool exhaustion (`MCP_WS_MAX_CONCURRENT`).
 
-### [ ] 2026-08-18 — Intent tokens cannot be validated on the Node gateway path (`no_signing_key`)
+### [x] 2026-08-18 — Intent tokens cannot be validated on the Node gateway path (`no_signing_key`)
+
+**FIXED 2026-08-18 (PR #2055, merged + deployed) — was a deploy-wiring gap, not a
+missing key.** Investigation: the BFF signs intent tokens HMAC-SHA256 with
+`INTENT_TOKEN_SECRET || SESSION_SECRET` (`intentTokenService.js`); PingGateway
+verifies with the same secret (`p1az-decision.groovy`) and reports
+`IntentTokenValid:true` because `refresh-service-envs.js` writes that secret into
+`ping-gateway/.env`. The Node gateway's validator (`intentTokenValidator.ts`) already
+read the SAME `INTENT_TOKEN_SECRET || SESSION_SECRET` — it was simply never written
+into `demo_mcp_gateway/.env`, so `getSigningKey()` threw `no_signing_key`. The fix is
+one line in the env writer: emit `INTENT_TOKEN_SECRET` to the gateway `.env` verbatim
+in the same form as ping-gateway (no new secret, no rotation, no value committed —
+the existing symmetric secret is already shared to PingGateway by design). Regression
+guards: `src/__tests__/refreshServiceEnvs.intentSecret.test.js` now covers the gateway
+block; `intentTokenValidator.test.ts` adds no-key / SESSION_SECRET-fallback /
+wrong-key cases. **Effective when** the gateway `.env` is regenerated
+(`refresh-service-envs`) and the container restarts; still latent behind
+`ff_mcp_gateway_pinggateway` (Node path off by default). **How to confirm:** flip to
+the Node path and assert `IntentTokenValid:true` in the `gw_audit_trail`. Original
+entry follows.
 
 **Where:** `demo_mcp_gateway` intent-token validation; visible in every
 `gw_audit_trail` from that path as

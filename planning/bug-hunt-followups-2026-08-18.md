@@ -84,11 +84,20 @@ Clean, self-contained fixes done + deployed:
   at `_agenerate` (which every real caller uses) instead of freezing the loop.
   Merged + deployed (langchain-agent rebuilt).
 
-## Still deferred — need a decision / infra (NOT blind-fixable)
+## Deferred §1 — batch 3 (intent-token + olb)
 
-- **intent-token `no_signing_key`** (1622) — needs a signing key provisioned for the
-  Node gateway (config/secret), not a code fix.
-- **`olb` tools/list timeout** (1599) — backend-liveness investigation, not a patch.
+- **PR #2055 — intent-token `no_signing_key`** (1622): turned out to be a
+  deploy-wiring gap, not a missing key — the Node gateway validator already read
+  `INTENT_TOKEN_SECRET || SESSION_SECRET`; it was just never written into the
+  gateway `.env`. One-line env-writer fix (no new secret). Merged + deployed;
+  effective when the gateway `.env` regenerates + `ff_mcp_gateway_pinggateway` flips.
+- **PR #2054 — `olb` tools/list timeout** (1599): INSTRUMENTED, not cured (not
+  reproducible on demand). Ruled out pool exhaustion (`MCP_WS_MAX_CONCURRENT` doesn't
+  exist; fresh WS per request); added structured `reason/timeoutMs/elapsedMs/connectMs`
+  diagnostics so the next occurrence produces data. Merged + deployed.
+
+## Still deferred — need a decision (NOT blind-fixable)
+
 - **caller-scope-miss** (1569) — entry says the scopeless request is deliberate;
   resolution is a product decision (grant scope vs deny with a better reason).
 - **MCP-handshake on Node gateway** (1152) — needs an IG Groovy filter.
