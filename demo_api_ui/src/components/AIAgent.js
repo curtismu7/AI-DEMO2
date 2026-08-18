@@ -6600,9 +6600,10 @@ export default function BankingAgent({
         } catch (_) {}
         addMessage(
           "assistant",
-          "Taking you to PingOne — after you sign in you’ll return here and we’ll continue with that request.",
+          "That one needs you signed in — I'll answer it as soon as you are.",
+          null,
+          { showLoginPromptAction: true, loginActionId: "login_user" },
         );
-        handleLoginAction("login_user");
         return;
       }
       const p = normalizeBankingParams(params);
