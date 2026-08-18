@@ -1067,6 +1067,17 @@ INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
 
 ### [ ] 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
 
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-lmdb-mapsize-watch`) — part (1)
+only.** `openEnv()` now stats `data.mdb` at startup and logs size vs `mapSize`;
+at >= 80% it switches to a `console.error` naming `MDB_MAP_FULL` and saying to
+measure per-DB sizes and prune/compact before raising the ceiling. Threshold
+logic is a pure exported `mapSizeReport()` with tests
+(`tests/services/lmdbMapSizeWatch.test.js`). Part (2) — establishing why 84MB
+accumulated (suspect: dead entries from the pre-#1976 broken delete), measuring
+per-DB sizes, and the compaction-vs-raise decision — is deliberately NOT done
+here and keeps this entry open; `mapSize` itself is unchanged. Original entry
+follows.
+
 **Where:** `demo_api_server/services/lmdb/openEnv.js` — `mapSize: 128 * 1024 * 1024`.
 
 **What's wrong:** LMDB's `mapSize` is a hard wall, not a hint. Every write past it
