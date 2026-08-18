@@ -7,6 +7,79 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — The MCP handshake is reported by the Node gateway, which is not the gateway in the path
+
+**Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` (the `X-Gw-Mcp-Handshake`
+header added in #1977), consumed by `demo_api_server/services/mcpGatewayClient.js`
+(`_parseGwMcpHandshake`) and `mcpToolPipeline.js`.
+
+**What's wrong:** #1977 set out to make the MCP lifecycle handshake
+(`initialize` → `notifications/initialized`) visible on the gateway path, since
+the BFF is not the MCP client there and cannot observe it. The implementation is
+correct and tested — and inert, because it was added to the **Node** gateway
+while tool calls go to **PingGateway (IG)**:
+
+```
+[GW→PingGateway] REQUEST: url=http://ping-gateway:8080/mcp
+MCP_GATEWAY_HTTP_URL=http://ping-gateway:8080
+```
+
+Verified live: a real `list_orders` call returns `gw-introspection`,
+`gw-authorize`, `gw-filter-chain` and the two `mcp_challenge` events, but no
+`mcp-initialize` / `mcp-initialized`. The header is never set because the code
+that sets it never runs.
+
+The tell was already on screen and went unread: the filter stages rendering in
+the chain are `McpValidationFilter`, `McpAuditFilter`, `McpProtectionFilter` —
+IG filter names, which #1965 even added labels for. Same shape as putting the
+gateway stages in `TraceStepCard`, a component the focus-mode dashboard never
+mounts: right code, wrong host.
+
+**Why not fixed now:** IG is a product. It performs the handshake inside
+`McpProtectionFilter`/its upstream client, not in code this repo owns, so there
+is no `forwardToUpstream` to instrument. Emitting the header from IG means a
+Groovy filter in `ping-gateway/scripts/groovy/` that can observe the upstream
+session negotiation — a different piece of work from the Node-side change, and
+not one to start at the tail of the session that found it.
+
+**What the real fix looks like:** either (a) an IG Groovy filter that records the
+upstream `initialize` response and stamps `X-Gw-Mcp-Handshake` in the same place
+`transaction-hop.groovy` already posts to the BFF, or (b) accept that the
+handshake is unobservable on the IG path and keep the honest "not visible from
+here" narrative #1960 added, treating the Node-gateway header as dormant support
+for the non-default path. Do not delete the existing plumbing either way — it is
+live and correct whenever `mcp_demo_gateway_url` is the active gateway.
+
+**How to check whether it is fixed:** drive a tool call and assert
+`mcp-initialize` appears in the returned `tokenEvents` — not that the code exists.
+
+### 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
+
+**Where:** `demo_api_ui/src/components/__tests__/FocusModeChainRenders.test.jsx`
+(the render guard), and the whole `buildTraceSteps` step model.
+
+**What's wrong:** the guard added on 2026-08-17 closed one hole — it renders the
+real focus-mode component tree and asserts the DOM, so a feature can no longer
+ship into a component nobody mounts. It cannot catch the sibling failure: a hop
+whose EVIDENCE is produced by a service that is not in the request path. The
+handshake entry above is exactly that, and the guard passes for it, because the
+guard feeds the store a fixture rather than a live run.
+
+Three hops now depend on which gateway is active, and nothing states that
+dependency in code: the filter stages (IG and Node emit different chains), the
+handshake (Node only), and the 401 challenge (both, via the BFF's own probe).
+
+**Why not fixed now:** the honest check is an end-to-end assertion against a
+running stack, and the `*.real.spec.js` Playwright suites that could host it
+require `local.ping-devops.com:4000` and therefore never run in CI — which is
+why they caught none of this class today.
+
+**What the real fix looks like:** a small live smoke script, run deliberately
+rather than in CI, that drives one tool call and asserts the expected hop ids
+appear in the response's `tokenEvents` for the CURRENTLY CONFIGURED gateway. Cheap
+to write, and it is the only thing that would have caught #1977 before merge.
+Until then, treat "tests pass" on any chain hop as evidence about the model, not
+about what a demo will show.
 ### 2026-08-18 — A piped verification command reports the pipe's exit code, so a failed deploy reads as success
 
 **Where:** every `./scripts/deploy-live.sh ... | tail`, `npm test | grep`,
