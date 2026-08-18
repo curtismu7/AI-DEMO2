@@ -40,7 +40,22 @@ third handle following the file's own drag pattern (`onAgentWidthResizeMouseDown
 shape + `--ud-banking-col-width` var) in BOTH dashboard variants, and
 re-baseline the UserDashboard sha256 canary in `UserDashboardPing2026.test.js`.
 
-### 2026-08-18 — deploy-live reports success while a core service stays down, and keeps skipping it forever
+### [x] 2026-08-18 — deploy-live reports success while a core service stays down, and keeps skipping it forever
+
+**RESOLVED 2026-08-18 (branch `worktree-deploy-live-truthful`).** Two halves, the
+first of which had already landed by the time this was paid off: `filter_running`
+now records exists-but-not-running services (`BROKEN_FILE`), withholds the stamp
+and exits 1, and a post-deploy poll re-reads docker instead of trusting exit
+codes. This branch adds the entry's remaining "minimum" fix: `assert_stack_health()`
+scans the WHOLE `com.docker.compose.project=ai-demo` project on every terminal
+path (no-op, bootstrap, no-affected, done) — so a container in `created` with no
+changes in range, the self-sustaining case, now fails the run by name instead of
+hiding forever. `created`/`restarting`/`(unhealthy)` fail; `exited` warns (an
+operator's deliberate stop mid-debug is legitimate); absent-entirely stays fine
+(profiled service). The stamp is still written on the done path — the touched
+services did take the range; the non-zero exit is the escalation, not the stamp.
+Verified: synthetic-row test (both branches) + live dry-run. Original entry
+follows.
 
 **Where:** `scripts/deploy-live.sh` — `filter_running()` (~line 205) and the
 `running_containers` list it is built from (line 197).
@@ -490,7 +505,17 @@ while `isDemoMode` is only true when `!user`), but it hides an unguarded
 money-creation path (`to` credited full, `from` clamps at `Math.max(0, …)`) worth
 removing before it is ever wired live.
 
-### [ ] 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
+### [x] 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
+
+**RESOLVED 2026-08-18 (branch `worktree-deploy-live-truthful`).** The
+`STAMP_BOOTSTRAP && OLD != NEW` case now emits its own WARNING before deploying:
+the range is deployed as a best effort (that part was always right), but the run
+says out loud that it cannot tell whether the containers were current before it,
+and how to pass an explicit range if anything looks stale — the same honesty the
+`OLD == NEW` branch already had. The deeper "derive the running SHA from the
+containers themselves" idea was not taken: the stamp bootstrap is one-time per
+clone and the warning closes the silent half at one branch's cost. Original
+entry follows.
 
 **Where:** `scripts/deploy-live.sh:42-58` — the `STAMP_BOOTSTRAP` path, and the
 `OLD = NEW` branch at `:62-77` that owns the warning.
