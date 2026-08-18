@@ -23,7 +23,39 @@ data-plane routes/services surfaced 10 fresh defects not already in this file.
 None were fixed in the same pass — they are correctness/consistency gaps found
 while auditing, logged for a deliberate round. Backend first, then UI.
 
-### [ ] 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
+### [ ] 2026-08-18 — `saveMessage` reads the sequence from the wrong key segment, so same-millisecond writes collide and drop messages
+
+**Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `saveMessage`
+(the seq-dedup read of `key.split(':')[4]`).
+
+**What's wrong:** the LMDB key is `${userId}:${vertical}:${15digitTs}:${seq}`, so the
+sequence is segment index **`[3]`**, but `saveMessage` reads `key.split(':')[4]`
+(one past the end). Because the timestamp is `Date.now()`, several messages written
+in the same millisecond share the `${ts}` portion, and the mis-indexed seq read
+fails to disambiguate them, so same-millisecond writes collide and overwrite each
+other. The count of distinct persisted messages then depends on machine speed —
+this is exactly what made the round-2 prune test read 500 locally but 469 on the
+faster CI runner, and it is a genuine data-loss-under-load bug in its own right, not
+just a test artefact.
+
+**Why not fixed now:** found while making the round-2 summary-scan test deterministic
+(the test was fixed with a mocked clock; the underlying write-path bug was left
+untouched as out of scope for that PR). It is a write-path change in a §1-adjacent
+store and deserves its own fix + a concurrency test.
+
+**Real fix:** read the seq from segment `[3]` (or key by a monotonic counter rather
+than wall-clock ms), and add a test that writes N messages in a tight loop without a
+mocked clock and asserts all N persist.
+
+### [x] 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** All four message scans now
+apply an `_isMessage()` value-shape guard (real messages have string `.role` +
+`.content`; summaries don't), and `getHistory` collects `limit` *real* messages
+rather than capping at the DB level — so a `_summary:` entry can no longer surface
+as the newest turn or evict real ones, and prune no longer mis-orders summaries.
+Regression test `tests/services/conversationStoreSummaryScan.test.js` (made
+deterministic with a mocked clock). Original entry follows.
 
 **Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `getHistory`
 (~180-190), `getThreadSize` (~225-232), `_pruneThreadIfNeeded` (~144-160),
@@ -50,7 +82,13 @@ surface, not a drive-by.
 separate sub-prefix scanned only by the summary reader, or an end bound that stops
 before `_` — and give a summary object a `timestamp` so prune orders it correctly.
 
-### [ ] 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
+### [x] 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** Now
+`createdAt: transactionData.createdAt ?? new Date()` and
+`status: transactionData.status ?? 'completed'`, with `id` always generated — a
+caller-supplied value is preserved, defaults still apply when absent. Regression
+test `tests/createTransactionPreservesCallerFields.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/data/store.js:391` —
 `const transaction = { id, ...transactionData, createdAt: new Date(), status: 'completed' };`
@@ -73,7 +111,12 @@ it is a small contract decision, not a one-liner.
 **Real fix:** only default `createdAt`/`status` when the caller did not supply them
 (`createdAt: transactionData.createdAt ?? new Date()`, same for `status`).
 
-### [ ] 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
+### [x] 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** `limit` is coerced to a finite
+number (fallback to the default) then clamped to `[1,100]` before `getHistory`, so
+`?limit=abc` (NaN) and `?limit=-1` can no longer defeat the cap. Regression test
+`tests/routes/conversationsHistoryLimitClamp.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/routes/conversations.js:56,62`.
 
@@ -91,7 +134,12 @@ NaN/negative cases alongside the fix.
 **Real fix:** coerce and clamp — `Math.min(Math.max(1, Number.isFinite(n) ? n : DEFAULT), 100)`
 before calling `getHistory`.
 
-### [ ] 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
+### [x] 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** SWIFT/IBAN/branch/masked-account
+defaults are emitted only for the banking vertical; other verticals surface those
+fields only when the account genuinely carries them. Banking output byte-identical.
+Regression test `tests/routes/accountsMyBankingFields.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/routes/accounts.js:232-234`.
 
@@ -109,7 +157,16 @@ about which of these fields are even meaningful outside banking.
 **Real fix:** only emit banking-shaped fields when the vertical is banking (or when
 the account actually carries them), rather than defaulting them in for all.
 
-### [ ] 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
+### [x] 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** `/portfolio` and `/balance` now
+validate ownership — an `ownsAccount` check accepts `profile.portfolioId` or any
+`data.portfolios[].id`, and a genuinely foreign/unknown id returns 404. The
+caller's real/default account is unchanged. Regression test
+`tests/routes/investmentAccountOwnership.test.js`. (The first fix keyed only on
+`profile.portfolioId` and 404'd the caller's own sub-portfolio ids — caught by CI
+against the pre-existing `investment.route.test.js`, then corrected.) Original
+entry follows.
 
 **Where:** `demo_api_server/routes/investment.js:16-29,54-66`.
 

@@ -40,7 +40,16 @@ auto-initiate timers survive Dismiss/unmount → back-channel auth after cancel;
 stack-height off-by-one overrides the correct CSS default; run-story `<li>` keyed
 by a 48-char prefix collides and drops a row.
 
-Fix round not started — ask to proceed.
+**Backend 5/5 fixed — PR #2022, merged + deployed** (demo-api-server restarted).
+CI caught 2 reds a scoped run missed (investment ownership over-strict; a
+nondeterministic prune test) — both reconciled before merge. Fixing the backend
+also surfaced a new latent bug now logged in TECH_DEBT: `saveMessage` reads the
+seq from key segment `[4]` instead of `[3]`, so same-millisecond writes collide
+and drop messages under load.
+
+**UI 5 — not started.** The step-up cluster (#6-8: unconditional agent-resume on
+Email-OTP, CIBA timers surviving dismiss, `agentTriggeredStepUp` not reset on
+failure) is the priority — it can fire a real auth the user did not request.
 
 ## TODO — refresh reports/docs to current servers + codebase
 
