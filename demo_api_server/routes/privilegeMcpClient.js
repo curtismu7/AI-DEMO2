@@ -582,6 +582,11 @@ router.post('/config', express.json(), (req, res) => {
   );
   session.config = { ...session.config, ...patch };
   resetMcpState(session);
+  // Force express-session to issue the cookie (saveUninitialized: false) so the
+  // saved config survives to the next request. Without this a client with no
+  // prior session — procyon frontends skip the /auth/start that used to do it —
+  // gets a fresh session on tools/list and the config silently reverts.
+  if (req.session) req.session.privilegeMcpConfigured = true;
   emitEvent(session, 'config', { config: session.config });
   res.json({ ok: true, config: session.config });
 });
