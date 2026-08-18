@@ -1333,3 +1333,39 @@ one reported bug — bigger surface than a bug fix warrants.
 itself must stay skip-shaped on the BFF side for gateway-authoritative
 requests — see `mcpToolPipeline.js:456`. Client-side normalization must not
 try to make the server stop being honest about that.
+
+### 2026-08-18 — The chain's Exchange hop reads "in flight" after a finished run
+
+**Where:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` — the
+`exDone` computation added by #1966.
+
+**What's wrong:** on the dashboard's typed-chat path (AG-UI, `POST
+/api/agent/run`), a completed run renders:
+
+```
+5 MCP  tools/list 401   status 401
+6 MCP  tools/list       tools permitted 20
+7 LLM  LLM              tokens used prompt 0
+8 BFF  Exchange         in flight      <-- never resolves
+9 LLM  Reply            no token change
+```
+
+The run is over — Reply is rendered — and the Exchange hop still reads "in
+flight". #1966 fixed the case where an exchange HAD completed by keying `exDone`
+on downstream evidence (`gw-authorize`, `gw-filter-chain`, an MCP result). Here
+the model answered without calling a tool, so no downstream evidence exists and
+none ever will, and the hop sits unresolved forever.
+
+**Why it matters:** a viewer cannot tell "still working" from "this never
+happened". That is the same complaint that started the visibility work — if the
+chain stops, it must say why.
+
+**Why not fixed now:** it is not a code question, it is a product one — what
+SHOULD that hop say when no tool call occurred and no exchange was ever needed?
+"Not required" and "skipped — no tool call" are both defensible and read very
+differently in a demo. `buildTraceSteps` is protected chain surface; guessing
+here is how #1966 shipped a fix that changed nothing on screen.
+
+**How to see it:** `npm run test:e2e:real -- chain-hops-visible` prints
+`[ui] UNRESOLVED after reply:` whenever it occurs. The check reports it rather
+than failing, precisely so the decision above stays a decision.
