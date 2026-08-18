@@ -4,11 +4,7 @@
  * Base styles come from PingOneMcpInspector.css (p1mcp-* classes).
  */
 
-/* Red dot for failure/error scenarios in the tree */
-.p1mcp-tree-item__dot--error {
-  background: #ef4444 !important;
-  box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
-}
+/* (error-dot rule removed — scenario rows now use InspectorListItem dot="sensitive") */
 
 /* Tree item text truncation */
 .tst-tree-item-text {

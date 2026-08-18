@@ -9,8 +9,10 @@
 import React, { useState, useCallback } from 'react';
 import bffAxios from '../services/bffAxios';
 import JsonHighlight from './shared/JsonHighlight';
+import InspectorShell from './shared/InspectorShell';
+import InspectorListItem from './shared/InspectorListItem';
+import InspectorTabs from './shared/InspectorTabs';
 import { notifySessionExpiredIfNeeded, navigateToCustomerOAuthLogin } from '../utils/authUi';
-import './PingOneMcpInspector.css';
 import './ResourceServerTester.css';
 
 const DEFAULT_PROBE_TARGETS = ['/api/resource-server/accounts', '/api/resource-server/transactions'];
@@ -40,25 +42,25 @@ const OPERATIONS = [
     id: 'reveal',
     name: 'Show Token',
     desc: 'Reveals the exact JWT being submitted and its decoded claims, so you can see which token this resource server is evaluating before running a check.',
-    dotClass: '',
+    dot: 'default',
   },
   {
     id: 'validate',
     name: 'Real RS Validation',
     desc: 'Verifies the JWT signature against PingOne JWKS, then checks audience, expiry and scope - exactly what a real resource server enforces.',
-    dotClass: 'p1mcp-tree-item__dot--write',
+    dot: 'write',
   },
   {
     id: 'decode',
     name: 'Decode + Policy',
     desc: 'Decodes the token without verifying its signature and shows whether its audience, expiry and scope would pass this resource server policy.',
-    dotClass: '',
+    dot: 'default',
   },
   {
     id: 'probe',
     name: 'Live Request Probe',
     desc: 'Sends a real request to a protected endpoint with this token as the bearer, and shows the actual response - including a 401/403 rejection.',
-    dotClass: 'p1mcp-tree-item__dot--sensitive',
+    dot: 'sensitive',
   },
 ];
 
@@ -210,7 +212,7 @@ export default function ResourceServerTester({
           {result.claims && (
             <div style={{ marginTop: 14 }}>
               <div className="rst-raw-label">Decoded Claims</div>
-              <pre className="p1mcp-output-code" style={{ marginTop: 6 }}>
+              <pre className="inspector-shell-output-code" style={{ marginTop: 6 }}>
                 <JsonHighlight value={result.claims} />
               </pre>
             </div>
@@ -232,7 +234,7 @@ export default function ResourceServerTester({
           <RuleList rules={result.rules} />
           {result.claims && (
             <div style={{ marginTop: 14 }}>
-              <pre className="p1mcp-output-code">
+              <pre className="inspector-shell-output-code">
                 <JsonHighlight value={result.claims} />
               </pre>
             </div>
@@ -256,7 +258,7 @@ export default function ResourceServerTester({
               <SignInButton />
             </div>
           )}
-          <pre className="p1mcp-output-code" style={{ marginTop: 14 }}>
+          <pre className="inspector-shell-output-code" style={{ marginTop: 14 }}>
             <JsonHighlight value={result.body} />
           </pre>
         </div>
@@ -272,7 +274,7 @@ export default function ResourceServerTester({
     const claims = result.claims || result.body;
     if (!claims) return <div style={{ color: '#64748b', fontSize: 13 }}>No claims data available for this operation.</div>;
     return (
-      <pre className="p1mcp-output-code">
+      <pre className="inspector-shell-output-code">
         <JsonHighlight value={claims} />
       </pre>
     );
@@ -283,211 +285,189 @@ export default function ResourceServerTester({
     const result = currentRunner.result;
     // Show the full raw response JSON
     return (
-      <pre className="p1mcp-output-code">
+      <pre className="inspector-shell-output-code">
         <JsonHighlight value={result} deep />
       </pre>
     );
   };
 
-  return (
-    <div className="p1mcp-page">
-      {/* Top bar */}
-      <div className="p1mcp-topbar">
-        <span className="p1mcp-topbar__dot" />
-        <h1>Resource Server Tester</h1>
-        <span className="p1mcp-topbar__status">
-          Token: {activeLabel}
-        </span>
-        <div className="p1mcp-topbar__right">
-          <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>
-            {OPERATIONS.length} operations
-          </span>
-        </div>
+  const left = (
+    <>
+      <div className="inspector-shell-tree-header">
+        <span>Operations</span>
       </div>
-
-      {/* Three-column grid */}
-      <div className="p1mcp-grid">
-        {/* Column 1: Tree */}
-        <div className="p1mcp-col-tree">
-          <div className="p1mcp-tree-header">
-            <span>Operations</span>
-          </div>
-          <div className="p1mcp-tree-body">
-            {/* Operations group */}
-            <div className="p1mcp-tree-group">
-              <div className="p1mcp-tree-group__label">Test Operations</div>
-              {OPERATIONS.map((op) => (
-                <div
-                  key={op.id}
-                  className={`p1mcp-tree-item ${selectedOp?.id === op.id ? 'p1mcp-tree-item--active' : ''}`}
-                  onClick={() => selectOp(op)}
-                >
-                  <span className={`p1mcp-tree-item__dot ${op.dotClass}`} />
-                  <span>{op.name}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Token source group */}
-            <div className="p1mcp-tree-group" style={{ marginTop: 16 }}>
-              <div className="p1mcp-tree-group__label">Token Source</div>
-              {sources.map((s) => (
-                <div
-                  key={s.value}
-                  className={`p1mcp-tree-item ${source === s.value ? 'p1mcp-tree-item--active' : ''}`}
-                  onClick={() => setSource(s.value)}
-                >
-                  <span className="p1mcp-tree-item__dot" style={{ background: source === s.value ? '#22c55e' : '#475569' }} />
-                  <span>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Tree footer: intro text */}
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #cbd5e1', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
-            {intro}
-          </div>
+      <div className="inspector-shell-tree-body">
+        <div className="inspector-shell-tree-group__label">Test Operations</div>
+        {OPERATIONS.map((op) => (
+          <InspectorListItem
+            key={op.id}
+            label={op.name}
+            active={selectedOp?.id === op.id}
+            dot={op.dot}
+            onClick={() => selectOp(op)}
+          />
+        ))}
+        <div className="inspector-shell-tree-group__label" style={{ marginTop: 16 }}>
+          Token Source
         </div>
-
-        {/* Column 2: Form */}
-        <div className="p1mcp-col-form">
-          {selectedOp ? (
-            <>
-              <div className="p1mcp-form-header">
-                <div className="p1mcp-form-header__name">{selectedOp.name}</div>
-                <div className="p1mcp-form-header__desc">{selectedOp.desc}</div>
-              </div>
-              <div className="p1mcp-form-actions p1mcp-form-actions--top">
-                <button
-                  className="p1mcp-btn-call"
-                  onClick={executeOp}
-                  disabled={!ready || (currentRunner && currentRunner.loading)}
-                >
-                  {currentRunner && currentRunner.loading ? 'Running...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={clearOutput}>Clear</button>
-              </div>
-              <div className="p1mcp-form-body">
-                {/* Token source display */}
-                <div className="p1mcp-field">
-                  <label>Token Source</label>
-                  <input type="text" value={activeLabel} readOnly />
-                </div>
-
-                {/* Paste JWT textarea if that source is selected */}
-                {source === 'paste' && (
-                  <div className="p1mcp-field">
-                    <label>
-                      JWT
-                      <span className="req"> *</span>
-                      <span className="type">string</span>
-                    </label>
-                    <textarea
-                      placeholder="eyJ..."
-                      value={pasted}
-                      onChange={(e) => setPasted(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                )}
-
-                {/* Probe target selection */}
-                {selectedOp.id === 'probe' && (
-                  <div className="p1mcp-field">
-                    <label>
-                      Target Endpoint
-                      <span className="req"> *</span>
-                      <span className="type">select</span>
-                    </label>
-                    <select
-                      style={{
-                        width: '100%',
-                        padding: '8px 10px',
-                        fontSize: 13,
-                        fontFamily: "'SF Mono', monospace",
-                        background: '#ffffff',
-                        border: '1px solid #94a3b8',
-                        borderRadius: 4,
-                        color: '#1e293b',
-                      }}
-                      value={probeTarget}
-                      onChange={(e) => setProbeTarget(e.target.value)}
-                    >
-                      {probeTargets.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Ready indicator */}
-                {!ready && (
-                  <div style={{ color: '#f87171', fontSize: 12, marginTop: 8 }}>
-                    Paste a JWT token above to enable execution.
-                  </div>
-                )}
-              </div>
-              <div className="p1mcp-form-actions">
-                <button
-                  className="p1mcp-btn-call"
-                  onClick={executeOp}
-                  disabled={!ready || (currentRunner && currentRunner.loading)}
-                >
-                  {currentRunner && currentRunner.loading ? 'Running...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={clearOutput}>Clear</button>
-                {currentRunner && currentRunner.error && (
-                  <span className="p1mcp-form-error">Error</span>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="p1mcp-form-empty">
-              Select an operation from the tree to inspect and execute it.
-            </div>
-          )}
-        </div>
-
-        {/* Column 3: Output */}
-        <div className="p1mcp-col-output">
-          <div className="p1mcp-output-tabs">
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'result' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('result')}
-            >Result</button>
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'claims' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('claims')}
-            >Claims</button>
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'raw' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('raw')}
-            >Raw Response</button>
-          </div>
-          {currentRunner && (currentRunner.result || currentRunner.error) ? (
-            <>
-              <div className="p1mcp-output-body">
-                {currentRunner.error && (
-                  <ErrorLine error={currentRunner.error} status={currentRunner.status} />
-                )}
-                {currentRunner.result && outputTab === 'result' && renderResultTab()}
-                {currentRunner.result && outputTab === 'claims' && renderClaimsTab()}
-                {currentRunner.result && outputTab === 'raw' && renderRawTab()}
-              </div>
-              <div className="p1mcp-output-footer">
-                <span><strong>Status:</strong> {currentRunner.error ? `Error${currentRunner.status ? ` (${currentRunner.status})` : ''}` : 'OK'}</span>
-                <span><strong>Operation:</strong> {selectedOp?.name || '-'}</span>
-                <span><strong>Token:</strong> {activeLabel}</span>
-              </div>
-            </>
-          ) : (
-            <div className="p1mcp-output-empty">
-              {selectedOp ? 'Click Execute to run the operation and see results here.' : 'Select an operation and execute it to see results.'}
-            </div>
-          )}
-        </div>
+        {sources.map((s) => (
+          <InspectorListItem
+            key={s.value}
+            label={s.label}
+            active={source === s.value}
+            onClick={() => setSource(s.value)}
+          />
+        ))}
       </div>
+      {/* Tree footer: intro text (no shell footer class — page-owned, as in McpInspectorPage) */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid #cbd5e1', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+        {intro}
+      </div>
+    </>
+  );
+
+  const executeButtons = (
+    <>
+      <button
+        className="inspector-shell-btn-call"
+        onClick={executeOp}
+        disabled={!ready || (currentRunner && currentRunner.loading)}
+      >
+        {currentRunner && currentRunner.loading ? 'Running...' : 'Execute'}
+      </button>
+      <button className="inspector-shell-btn-clear" onClick={clearOutput}>Clear</button>
+    </>
+  );
+
+  const middle = selectedOp ? (
+    <>
+      <div className="inspector-shell-form-header">
+        <div className="inspector-shell-form-header__name">{selectedOp.name}</div>
+        <div className="inspector-shell-form-header__desc">{selectedOp.desc}</div>
+      </div>
+      <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+        {executeButtons}
+      </div>
+      <div className="inspector-shell-form-body">
+        {/* Token source display */}
+        <div className="inspector-shell-field">
+          <label>Token Source</label>
+          <input type="text" value={activeLabel} readOnly />
+        </div>
+
+        {/* Paste JWT textarea if that source is selected */}
+        {source === 'paste' && (
+          <div className="inspector-shell-field">
+            <label>
+              JWT
+              <span className="req"> *</span>
+              <span className="type">string</span>
+            </label>
+            <textarea
+              placeholder="eyJ..."
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              rows={4}
+            />
+          </div>
+        )}
+
+        {/* Probe target selection */}
+        {selectedOp.id === 'probe' && (
+          <div className="inspector-shell-field">
+            <label>
+              Target Endpoint
+              <span className="req"> *</span>
+              <span className="type">select</span>
+            </label>
+            <select
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                fontSize: 13,
+                fontFamily: "'SF Mono', monospace",
+                background: '#ffffff',
+                border: '1px solid #94a3b8',
+                borderRadius: 4,
+                color: '#1e293b',
+              }}
+              value={probeTarget}
+              onChange={(e) => setProbeTarget(e.target.value)}
+            >
+              {probeTargets.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Ready indicator */}
+        {!ready && (
+          <div style={{ color: '#f87171', fontSize: 12, marginTop: 8 }}>
+            Paste a JWT token above to enable execution.
+          </div>
+        )}
+      </div>
+      <div className="inspector-shell-form-actions">
+        {executeButtons}
+        {currentRunner && currentRunner.error && (
+          <span className="inspector-shell-form-error">Error</span>
+        )}
+      </div>
+    </>
+  ) : (
+    <div className="inspector-shell-form-empty">
+      Select an operation from the tree to inspect and execute it.
     </div>
+  );
+
+  const right = (
+    <>
+      <InspectorTabs
+        tabs={[
+          { key: 'result', label: 'Result' },
+          { key: 'claims', label: 'Claims' },
+          { key: 'raw', label: 'Raw Response' },
+        ]}
+        activeKey={outputTab}
+        onChange={setOutputTab}
+      />
+      {currentRunner && (currentRunner.result || currentRunner.error) ? (
+        <>
+          <div className="inspector-shell-output-body">
+            {currentRunner.error && (
+              <ErrorLine error={currentRunner.error} status={currentRunner.status} />
+            )}
+            {currentRunner.result && outputTab === 'result' && renderResultTab()}
+            {currentRunner.result && outputTab === 'claims' && renderClaimsTab()}
+            {currentRunner.result && outputTab === 'raw' && renderRawTab()}
+          </div>
+          <div className="inspector-shell-output-footer">
+            <span><strong>Status:</strong> {currentRunner.error ? `Error${currentRunner.status ? ` (${currentRunner.status})` : ''}` : 'OK'}</span>
+            <span><strong>Operation:</strong> {selectedOp?.name || '-'}</span>
+            <span><strong>Token:</strong> {activeLabel}</span>
+          </div>
+        </>
+      ) : (
+        <div className="inspector-shell-output-empty">
+          {selectedOp ? 'Click Execute to run the operation and see results here.' : 'Select an operation and execute it to see results.'}
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <InspectorShell
+      title="Resource Server Tester"
+      statusText={`Token: ${activeLabel}`}
+      actions={
+        <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center' }}>
+          {OPERATIONS.length} operations
+        </span>
+      }
+      left={left}
+      middle={middle}
+      right={right}
+    />
   );
 }

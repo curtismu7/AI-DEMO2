@@ -120,14 +120,16 @@ describe('ProtocolPlayground wiring', () => {
     expect(screen.queryByText(/No activity yet/)).not.toBeInTheDocument();
   });
 
-  test('dragging the separator resizes the sidebar and persists the width', () => {
+  test('dragging the separators resizes sidebar and activity rail, persisted', () => {
     window.localStorage.removeItem('pp-sidebar-width');
+    window.localStorage.removeItem('pp-activity-width');
     const { container } = render(<ProtocolPlayground />);
 
     const sidebar = container.querySelector('.protocol-playground__sidebar');
     expect(sidebar.style.flex).toBe('0 0 260px');
 
-    fireEvent.mouseDown(screen.getByRole('separator'), { clientX: 300 });
+    const sidebarHandle = screen.getByRole('separator', { name: 'Resize protocol list column' });
+    fireEvent.mouseDown(sidebarHandle, { clientX: 300 });
     fireEvent.mouseMove(document, { clientX: 420 });
     fireEvent.mouseUp(document);
 
@@ -135,10 +137,19 @@ describe('ProtocolPlayground wiring', () => {
     expect(window.localStorage.getItem('pp-sidebar-width')).toBe('380');
 
     // Clamp: dragging far left stops at the minimum.
-    fireEvent.mouseDown(screen.getByRole('separator'), { clientX: 400 });
+    fireEvent.mouseDown(sidebarHandle, { clientX: 400 });
     fireEvent.mouseMove(document, { clientX: 0 });
     fireEvent.mouseUp(document);
     expect(sidebar.style.flex).toBe('0 0 180px');
+
+    // Right activity rail is inverted: dragging left grows it.
+    const rail = container.querySelector('.activity-section');
+    expect(rail.style.flex).toBe('0 0 420px');
+    fireEvent.mouseDown(screen.getByRole('separator', { name: 'Resize activity column' }), { clientX: 800 });
+    fireEvent.mouseMove(document, { clientX: 700 });
+    fireEvent.mouseUp(document);
+    expect(rail.style.flex).toBe('0 0 520px');
+    expect(window.localStorage.getItem('pp-activity-width')).toBe('520');
   });
 
   test('completing step 1 via its own Execute button enables step 2\'s button', async () => {
