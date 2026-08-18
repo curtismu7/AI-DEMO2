@@ -142,33 +142,79 @@ survive the OAuth redirect.
 
 ---
 
-## FIXED — a resumed run bricked the agent panel
+## FIXED (both halves) — a resumed run used to lose the question
 
-Root-caused and fixed after this doc was first written; kept in full because the
-*method* is the transferable part. **Not a regression from this work** — it was
+**This section said FIXED once before, incorrectly. It is now backed by a paired
+live measurement on both send paths.** Not a regression from this work — it was
 reachable from the queued-question paths above, which is how it surfaced.
 
-**Cause:** `/dashboard` is a guest-chat surface, so `marketingGuestChatEnabled`
-reads true for the entire window before `isLoggedIn` flips. Reloading it while
-signed in therefore replayed the queued question ~250ms in **as a guest**,
-before the vertical manifest resolved, and the answer landed in state that no
-longer rendered. Guest-chat eligibility now counts only once the session check
-has answered either way (`sessionResolved`). A real guest is unaffected — the
-flag flips as soon as the check returns "no session".
+The defect had two independent halves, each necessary, neither sufficient:
 
-**What found it, after three wrong hypotheses:** instrumenting the *running app*
+| Half | What it fixes | Landed |
+|---|---|---|
+| Claim into a ref | `claimPendingNl` is destructive one-shot; its result was held in a closure local, so the invocation that claimed it was torn down and the survivor re-read an emptied key | #1985 (ai-demo2-de) |
+| Replay waits for a complete request | the send fired before the vertical manifest resolved, went out with no `vertical`, and its reply was discarded | #1981 |
+
+Each half alone, measured live — note they fail in *different* places, which is
+what proved both were needed:
+
+```
+ref fix alone:   claim ok  send WITHOUT `vertical`  -> reply dropped, panel BRICKED
+vertical alone:  claim ok  no send at all           -> question dropped, panel usable
+```
+
+Both halves live (`293a28f1c`), both send paths, container verified by content
+first (`claimedPendingNlRef` 7, `const authOk` 1):
+
+```
+typed guest question:  claim t=3163 -> send /api/agent/invoke hasVertical:TRUE -> 200
+                       "Your balances: • checking (**3896) — $5000.00 USD …"
+demo step UC1:         claim t=2939 -> send /api/agent/invoke hasVertical:TRUE -> 200
+                       "Your balances: …"
+```
+
+Exactly one claim, one send, one reply per run on both paths — the exactly-once
+guarantee (REGRESSION_PLAN §4) holds, and this was the first run in which the
+send was ever *scheduled*, so `pendingNlResumeRef` was finally exercised rather
+than assumed.
+
+**Both paths converge on `/api/agent/invoke` and diverge only upstream.** Two
+sessions measured this defect and disagreed for hours because each probe sat at
+a different point on one funnel — not because there were two endpoints. Put the
+probe at the convergence.
+
+**Two earlier claims in this doc were wrong and are corrected here:**
+
+1. **`sessionResolved` (#1973) did not fix it.** It gated the guest-chat arm of
+   the eligibility check, but `isLoggedIn` flips fast on a signed-in reload, so
+   the replay went out through the `isLoggedIn` arm and behaviour was unchanged.
+   Verified by deploying it and re-running the repro.
+2. **The vertical gate alone did not fix it either** — see the table.
+
+**What found it, after four wrong hypotheses:** instrumenting the *running app*
 via a Playwright init script that wrapped `sessionStorage` and `fetch` before any
-app code ran. The trace settled it in one reload:
+app code ran, then comparing a full page load against an SPA remount:
 
 ```
-t=1976  claim   AIAgent.js:1229
-t=2248  fetch   {"prompt":"…","flowTraceId":"…"}   <- no `vertical`
-t=4582  200                                        <- reply discarded
+full reload:  t=1976 claim -> t=2248 fetch (no `vertical`) -> t=4582 200, discarded
+SPA remount:  claim -> fetch with `vertical:"retail"` -> both bubbles render
 ```
 
-The same replay on an SPA remount (hydration already done) sends
-`vertical:"retail"` and renders both bubbles. That contrast was the whole
-diagnosis, and no amount of reading the component produced it.
+That contrast was the whole diagnosis, and no amount of reading the component
+produced it. Reading produced four plausible, wrong answers: `isInline`,
+hydration order, SSE trace mismatch, and guest-chat eligibility.
+
+**Do not trust unit tests alone here.** They were green for #1962, #1967, #1973
+and #1981 while the live behaviour stayed broken. The only instrument that
+produced truth was a Playwright init script wrapping `sessionStorage` and
+`fetch` before app code ran, driven through the real flow.
+
+**Known remaining gap (mine):** the vertical gate has no timeout. On a surface
+where the manifest never resolves, the queued question is now dropped silently
+instead of sent badly — and a silent drop is indistinguishable from "this path
+was never watched", which is exactly the ambiguity that cost two sessions hours.
+Being fixed as a bounded wait whose expiry is *visible* (the question is handed
+back to the composer with a note), not logged.
 
 The original write-up follows, unchanged.
 
