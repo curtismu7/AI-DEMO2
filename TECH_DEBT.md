@@ -7,6 +7,49 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
+
+**Where:** `demo_api_ui/src/components/AIAgent.js` — `nlResumeAfterAuth` is set
+from at least three places (the OAuth-return effect, the launcher deep-link
+mount effect, `handleDemoStepSelect`), and the queued value then leaves through
+`sendAgentMessage` on the resume effect's path or through `sendAsNl` /
+the AG-UI run on others.
+
+**What's wrong:** there is no single point that observes every resume send. A
+typed guest question and an `agent-demo-step-select` demo step both queue into
+the same state and both call themselves "the resume", but they exit through
+different functions hitting different endpoints. Nothing in the code signals
+that, so an instrument placed on one path reads as a measurement of the resume
+mechanism as a whole.
+
+This is not hypothetical — it cost a full debugging cycle on 2026-08-18. Two
+sessions measured the same feature and got contradictory numbers, and both were
+right: a probe at the `sendAgentMessage` line reported `resumeSends: 0` while a
+probe at the storage/fetch boundary saw a send go out at t=3412ms. The
+disagreement was read as a defect for a while before it was recognised as two
+narrow instruments on two different paths.
+
+The sharper consequence is diagnostic. #1981 gates the replay on
+`effectiveVerticalId` with no timeout or fallback, so a surface where the
+manifest never resolves drops the queued question **silently**. From outside the
+component that is indistinguishable from a false zero on one path — same
+symptom, no fetch, no error. The next person debugging a lost question starts
+from an ambiguous signal and cannot disambiguate it without an in-component
+probe.
+
+**Why not fixed now:** the fix that found this (#1985, the ref-held claim) is
+one line of state plumbing on a `REGRESSION_PLAN` §1 surface, landing beside a
+second fix (#1981) from another session. Adding a dispatch-path refactor to
+that would have made a two-half coordinated change into a three-way one, with
+the paired live validation still outstanding.
+
+**What the real fix looks like:** one instrumentation and dispatch point
+downstream of the convergence, that every resume send passes through regardless
+of which dispatcher queued it — so `resumeSends` means what its name says, and
+a silent drop is distinguishable from a path the instrument does not watch.
+Failing that, at minimum name the paths distinctly in code so nobody reads one
+as the whole.
+
 ### 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
 
 **Where:** `demo_mcp_resource_server/seed/*.seed.json` (10 files) and

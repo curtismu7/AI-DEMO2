@@ -103,6 +103,64 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-18 — Queued question lost on OAuth return: one-shot claim held in a closure local
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+
+**What was broken:** a question or demo step queued behind the sign-in prompt was
+silently lost after the visitor signed in. Issue #1963. Three separate sessions
+attributed it to three different causes — NL never persisted, a hydration race,
+and the wrong AIAgent instance winning the claim — and all three were wrong.
+Each was measured and eliminated (see the issue), and every measurement aimed at
+the session came back healthy, which is what made it so durable.
+
+The actual cause: `claimPendingNl` is deliberately destructive one-shot (it
+removes the key so exactly one instance replays it — §4 2026-05-18,
+double-executed banking command). Its result was assigned to a **closure local**
+inside the OAuth-return effect. That effect is re-invoked, and the first
+invocation's retry timers are torn down by its cleanup — so the invocation that
+successfully claimed the value was the one thrown away, and the invocation that
+survived re-read an already-emptied key and got `null`.
+
+Instrumented inside the component on a live OAuth return:
+
+```
+entry   isInline=true  rawNl="hand off to a specialist"
+claimed isInline=true  pendingNl="hand off to a specialist"
+entry   isInline=true  rawNl=null            <- effect runs again
+claimed isInline=true  pendingNl=null        <- nothing left to claim
+retry   found=true     pendingNl=null  willReplay=false
+```
+
+`found` was `true` throughout. The session was never the problem.
+
+**What was fixed:** the claim goes into a ref (`claimedPendingNlRef`) that
+outlives the re-invoke, and is consumed at the point of replay rather than at
+claim time.
+
+**Do not break:**
+- Do not move the claimed value back into a local, and do not clear the ref at
+  claim time. Both reintroduce this exactly.
+- The exactly-once guarantee still holds and must: the sessionStorage key is
+  removed on first claim, the ref holds the value, and the ref is nulled as it
+  is handed to `setNlResumeAfterAuth`. Verified live — one handoff, one send.
+- This is **one of two halves**. #1981 gates the replay on `effectiveVerticalId`
+  so the request carries a vertical. Measured separately by ai-demo2-20: this
+  fix alone sends without a vertical and the reply is dropped; #1981 alone never
+  sends at all because the value is gone before eligibility. Removing either
+  reopens the bug in a different disguise.
+
+**Known follow-up, not fixed here:** `effectiveVerticalId = forceVertical ||
+activeVerticalId` has no timeout or fallback, and #1981's gate has no escape
+hatch — if the manifest never resolves on some surface the queued question is
+now silently never sent. Flagged by ai-demo2-18. A permanent silent drop is
+harder to notice than a broken render.
+
+**Verify:** guest queues a step on `/dashboard`, signs in through PingOne,
+returns to `?oauth=success` — the step replays and its request carries a
+`vertical`. The unit suite cannot see this class of bug: it mocks `user` as
+present from first render, so the effect re-invoke window never exists.
+
 ### 2026-08-17 — Public use cases demanded a sign-in; no SoT for which steps need auth
 
 **Files changed:** `demo_api_server/config/auth-requirements.json` (new),
