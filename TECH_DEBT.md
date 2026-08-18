@@ -286,6 +286,193 @@ pointing at the requesting worktree. Two supporting fixes already landed:
 checkout SHA against itself (#1944), so a correct post-merge deploy is one
 command; and `npm run sync:status` names the blocking files, though only if you
 think to run it.
+### 2026-08-18 — 687 error-level lint findings, 455 of them false, hiding the real ones
+
+**Where:** `demo_api_ui` ESLint config — no test-environment globals declared
+for the vitest specs or `src/setupTests.js`.
+
+**What's wrong:** `npx eslint src` reports **687 error-level findings**. The
+breakdown:
+
+```
+455  no-undef                                 <- almost all vitest globals
+ 48  testing-library/no-node-access
+ 39  testing-library/prefer-screen-queries
+ 35  testing-library/prefer-find-by
+ 32  testing-library/render-result-naming-convention
+ 28  import/first
+```
+
+The `no-undef` mass is `describe`, `it`, `expect`, `vi`, `globalThis` in test
+files and `setupTests.js` — all genuinely defined at runtime. They are config
+gaps, not bugs. But they are reported at the same severity as a real one, and
+they outnumber the real ones roughly 200:1.
+
+The consequence is not hypothetical. `AIAgent.js` contained
+
+```js
+handleSubmit({ agentMode: agentMode || 'helix' })
+```
+
+where neither identifier existed anywhere in the file — a guaranteed
+`ReferenceError` on every MCP-tools selection. ESLint had been reporting both as
+`no-undef` **errors** the whole time. They were dismissed repeatedly across a
+long session as "the pre-existing baseline" because the *count* never changed,
+and nobody read the contents of a 687-line error list. It was found by reading
+the list line by line, not by the tooling surfacing it.
+
+Two real production errors sat inside 455 false ones. That is a signal-to-noise
+problem, not a discipline problem — no reviewer reliably reads 687 lines to find
+2.
+
+**Why not fixed now:** the fix touches the shared ESLint config for the whole UI
+package, which affects every contributor's editor and any lint gate in CI. It
+was found mid-incident while fixing an unrelated defect, and changing lint
+severity across the package during that would have obscured which findings the
+fix was responsible for.
+
+**What the real fix looks like:** declare the test environment so the false
+`no-undef` mass disappears — an `env: { 'vitest-globals/env': true }` override
+(or equivalent `globals` block) scoped to `**/__tests__/**`, `**/*.test.*` and
+`setupTests.js`. Once the count reflects reality, `no-undef` is worth gating on
+in CI, because in this codebase it means "this line throws at runtime." The
+`testing-library/*` and `import/first` findings should be triaged separately —
+they are style, and reporting them at `error` alongside a crash is part of what
+flattened the signal.
+
+### 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
+
+**Where:** `demo_api_ui/src/components/__tests__/AIAgent.*.test.jsx` — the shared
+harness, e.g. `renderAt(path, user = null)` in
+`AIAgent.protectedStepLogin.test.jsx:166`, which mounts `<AIAgent user={user} …>`
+with the user already resolved.
+
+**What's wrong:** in the real app `user` arrives asynchronously. `isLoggedIn`
+is `!!(user || sessionUser)`, both resolved after mount, so there is a window
+on every load where the component is mounted and signed-out-looking before the
+session lands. Effects fire in that window, and the OAuth return is *the* moment
+it matters. The harness never creates that window, so any defect that lives in
+it is unreachable from the suite.
+
+This is not theoretical. On 2026-08-17/18 the queued-question resume defect
+(#1963) was shipped as fixed **three times** against a green suite. Each round
+the tests passed because they encoded an ordering that never happens in a
+browser. The measurement that finally found the cause had to be taken in the
+running app. A test added afterwards (`waits for the session instead of firing
+during hydration`) reproduces it only by rendering `user={null}` first and then
+re-rendering with a user — nothing about the default harness suggests that is
+the load-bearing detail.
+
+**Why not fixed now:** each fix was scoped to one defect on a REGRESSION_PLAN
+§1 surface, mid-incident, and re-shaping the shared harness would have changed
+every agent spec at the same time. Doing it while the underlying bug was still
+unidentified would also have meant changing the instrument and the subject in
+the same step.
+
+**What the real fix looks like:** make the async arrival the default. A
+`renderAtHydrating()` helper that mounts with `user={null}` and flips after a
+tick, used by any spec touching auth-dependent effects — so the hydration window
+exists unless a test opts out, rather than existing only when someone remembers
+to build it by hand. At minimum, a comment on `renderAt` saying what it does not
+simulate.
+
+### 2026-08-18 — `GET /api/mcp/inspector/tools` is unauthenticated, and the UI grouping implied otherwise
+
+**Where:** `demo_api_server/routes/mcpInspector.js:382` (`router.get('/tools')`),
+mounted at `demo_api_server/server.js:1190` (`app.use('/api/mcp/inspector', …)`).
+
+**What's wrong:** neither the route nor the mount carries auth middleware.
+Measured against the running stack:
+
+```
+curl -sk -o /dev/null -w "%{http_code}" https://api.ping.demo:3001/api/mcp/inspector/tools
+200          # no cookie at all
+```
+
+The full MCP tool inventory is readable by anyone who can reach the API host.
+That may well be intended for a demo — but nothing states it, and the UI
+actively implied the opposite by filing "MCP Tools" under `ACTION_GROUPS.admin`,
+where the whole group is stripped for non-admins. So the control read as
+admin-gated while the data was public, and #1978 opened the UI on the grounds
+that it was hiding something already reachable.
+
+The risk is the inverse of the usual one: a reviewer looking at the UI
+concludes access is restricted and does not check the endpoint. If the tool
+inventory should in fact be restricted, the fix is on the server and the UI
+grouping was never protection.
+
+**Why not fixed now:** #1978 was a role-visibility change. Adding auth to a
+route that many surfaces already call unauthenticated is a behavioural change
+needing its own blast-radius check, and this is a demo where a readable tool
+list is plausibly deliberate.
+
+**What the real fix looks like:** decide explicitly, then make the code say so.
+Either add the middleware and let the UI grouping mean what it looks like, or
+leave it open and note on the route that it is intentionally public so the next
+reader does not infer protection from the chip's placement. Generally: UI
+grouping is not an authorization boundary and should not be read as one.
+
+### 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
+
+**Where:** `demo_api_ui/src/components/AIAgent.js` `ensureRequiredDemoFlags`,
+against the admin-gated `PATCH /api/admin/feature-flags`.
+
+**What's wrong:** most demo steps declare required flags — every step with a
+`primaryTool` needs `ff_mcp_gateway_pinggateway`, A2A steps also need
+`ff_a2a_delegation`. Arming them is an admin-only write. A presenter signed in
+as a customer therefore cannot arm anything, and before #1970 the 403 was
+swallowed: the flag stayed off and the step quietly misbehaved with nothing
+said.
+
+#1970 made the failure visible (check flag state, name the flags that are
+actually off, skip the doomed write) but did not close the gap — a customer
+still cannot run a flag-gated step correctly without someone else flipping the
+flag. It presents as a working demo giving subtly wrong output, which is the
+worst failure mode for a demo.
+
+Currently masked: both flags are ON in env `01d89b06`, so nothing misbehaves
+today. It bites the first time a flag is off.
+
+**Why not fixed now:** the fix is a product decision, not a bug fix — either
+demo flags stop being admin-gated, or steps stop depending on runtime arming.
+Both are larger than the visibility fix that surfaced the gap.
+
+**What the real fix looks like:** most likely a separate presenter-scoped
+endpoint for demo-flag arming that does not require full admin, or seeding the
+demo flags ON at provisioning so no runtime arming is needed. Failing either,
+the step catalog should refuse to offer a flag-gated step to a role that cannot
+arm it, rather than running it degraded.
+
+### 2026-08-18 — `renderActionGroups()` never mounted on `/dashboard` for either role
+
+**Where:** `demo_api_ui/src/components/AIAgent.js:10866` —
+`{isLoggedIn && renderActionGroups()}`.
+
+**What's wrong:** with a live session on `/dashboard`, `document.querySelectorAll('.ba-action-group')`
+returned **0** for a customer and 0 for an admin on the banking vertical, while
+`isLoggedIn` was true. The action chips (`account`, `transaction`, `ai`,
+`testing`, `attacks`, and `admin` for admins) render nowhere on that surface, so
+some enclosing container is not mounting.
+
+Not established: whether that is correct-by-design (these chips may be intended
+only for a surface not exercised here) or a real regression. What is certain is
+that it cannot be determined from the call site — the condition there is just
+`isLoggedIn`, and the gating actually lives in an ancestor.
+
+Consequence already paid: #1978 changed which roles are offered "MCP Tools" and
+merged on unit evidence alone, because the rendered chip could not be located in
+the running app to confirm placement.
+
+**Why not fixed now:** it needs a decision about intended surface before any
+code change, and #1978 was a role-visibility fix that had no business also
+relocating a UI region.
+
+**What the real fix looks like:** establish which surfaces are meant to show
+action groups. If `/dashboard` is one, find the ancestor that is not mounting
+and fix it. If it is not, move the condition to the call site so it reads
+`{isLoggedIn && surfaceShowsActions && renderActionGroups()}` — the current form
+claims the only requirement is a session, which is false and cost a
+verification.
 
 ### 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
 
@@ -365,6 +552,17 @@ still sits in the resource server's seed directory next to the real
 
 ### 2026-08-17 — Unrouted resource-server tools declare scopes that exist nowhere, and nothing checks
 
+**GATED 2026-08-17.** `scripts/check-tool-scope-registration.js` now fails the
+build on any `requiredScopes` string that is not a scope or alias in
+`scope-topology.json` (`npm run topology:verify` step 10/10). The 8 known-bad
+declarations are listed in `UNROUTED_UNREGISTERED` and exempted ONLY while
+nothing routes them — the checker greps `demo_mcp_gateway/src/router.ts` and
+fails the moment one is named there, which is precisely the "route it and it
+403s" trap. A stale entry (allowlisted tool no longer declared anywhere) also
+fails, so the exemption list cannot outlive what it excuses. The 8 declarations
+themselves are UNCHANGED and still wrong — that part is deliberately not fixed;
+see below. Original entry follows.
+
 **Where:** `demo_mcp_resource_server/src/tools/*Tools.ts` — `healthcare:read`
 (`get_patient_record`), `government:read` (`get_permit`), `anf:read`
 (`get_anf_order`), `banking:read`, and the rest of each vertical's second tool.
@@ -390,6 +588,18 @@ walks every `requiredScopes` entry in `demo_mcp_resource_server/src/tools/` and
 fails on any string that is not a scope in `scope-topology.json`. It is a dozen
 lines, it would have caught this class before the first vertical shipped, and it
 turns "route the second tool" from a live-403 discovery into a build failure.
+
+**What is still open after the gate:** the 8 declarations are still wrong, just
+now enforced. Collapsing them to the plain `read` their routed siblings use was
+considered and rejected: `read` is carried by every session, and these are
+single-record lookups (`get_patient_record`, `get_banking_account`), so that
+would quietly turn "unreachable" into "readable by anyone" the day someone
+routes one. Neither is the SoT-registration path free — unlike the migrated
+tools, these have no `tools.<name>` entry in `scope-topology.json` either, so
+there is nothing to match against; giving them real least-privilege scopes means
+adding both the tool and the scope to the SoT and provisioning them in PingOne,
+which mutates a live environment. That decision belongs to whoever actually
+needs one of these tools routed, and the gate now forces them to make it.
 
 ### 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
 

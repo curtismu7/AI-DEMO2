@@ -23,6 +23,15 @@ Every one of these was learned the expensive way. Check them before theorising.
    `mcpgw` too, so **this is not confirmed to unblock PingOne-issued client
    tokens** — only the discovery/challenge layer is proven. See "The PingOne
    token wall" below.
+   ⚠️ **Corrected 2026-08-18 (user report).** The Privilege gateway — now named
+   **AI Gateway** — is run with OAuth in the field, on the agent-based and
+   agentless SE deployments alike. So do **not** repeat this doc's older
+   conclusion that OAuth against the gateway is unavailable or that a challenge
+   cannot be obtained. That conclusion was drawn from string-searching
+   `cyonproxy` plus probes of our own local enrollment; it never described the
+   SE/vendor deployments, and it is not a statement about what the product
+   supports. Settle any specific claim by probing the deployment in front of
+   you.
 1. **The MCP+OAuth frontend is port `8623` (`-mcpgw` on this binary), not
    `8620`.** This is the **opposite** of the pre-2026-08-12 fact for `cyonproxy`,
    where 8620 was correct and 8623 was the mTLS mesh port. On `mcpgw`, `-listen`
@@ -113,8 +122,11 @@ A front-door PASS followed by an authenticated `403` means the console policy la
 (they are time-boxed), not that the gateway broke.
 
 `WWW-Authenticate` on a **tokenless** 401 is a separate gate — the one that would
-unblock PingOne-issued client tokens. No published build emits it (see "The PingOne
-token wall"), so its absence is expected, not a misconfiguration.
+unblock PingOne-issued client tokens. `mcpgw` does emit it (confirmed live), and
+the AI Gateway is run with OAuth in the field; an older revision of this doc
+claimed no published build emitted it, which was a statement about `cyonproxy`
+string contents, not about the product. If your deployment does not return the
+header, probe it as a real problem rather than assuming it is expected.
 
 ## Architecture
 
@@ -251,8 +263,10 @@ Supporting detail for `cyonproxy`, kept for history:
   `POST https://aidemo.mcpgw.local.ping-devops.com/mcp` → `HTTP/2 401` same body.
 - Backend reachable from inside the compose network:
   `POST http://mcp-server:8080/mcp` → `200`.
-- **The 401 carries no `WWW-Authenticate` header**, so a browser never learns where
-  to authenticate. Vendor-binary gap — see below.
+- **The 401 carried no `WWW-Authenticate` header** on this local `cyonproxy`
+  enrollment, so a browser never learned where to authenticate. Read as a fact
+  about that container on that date, not about the product: OAuth against the
+  AI Gateway is in field use (see item 0).
 - **A PingOne bearer token fails `kid` comparison.** Tested through nginx to 8620:
 
   ```
@@ -377,15 +391,16 @@ even for `cyonproxy`. Three facts, each verified 2026-08-10, **for `cyonproxy`**
 2. The **binary never references the file itself** — proxy-log grep for
    `SERVER_URL`/`authorize`/`oidc` after clean restart: zero hits, both tenants,
    both modes. (Confirmed reversed on `mcpgw` — see above.)
-3. **`cyonproxy` does not implement the OIDC challenge those values exist for** —
-   `grep -a` over `/procyon/bin/cyonproxy` v1.260806 finds zero occurrences of
-   `authorization_uri` / `MCP OAuth Server` / `oauth-protected-resource`. **Confirmed
-   live on `mcpgw` (our current binary) that it does emit this challenge** — see
-   "The PingOne token wall".
+3. **`grep -a` over `/procyon/bin/cyonproxy` v1.260806 finds zero occurrences of
+   `authorization_uri` / `MCP OAuth Server` / `oauth-protected-resource`.**
+   **Confirmed live on `mcpgw` (our current binary) that it does emit this
+   challenge** — see "The PingOne token wall". ⚠️ Do not extrapolate the string
+   search into "OAuth is unavailable on the gateway": the AI Gateway is run with
+   OAuth in the field (item 0). Absent strings in one binary build bound what
+   that build emits, nothing more.
 
-So, for `cyonproxy`: keeping the file correct did not make a missing
-`WWW-Authenticate` challenge appear — that was a vendor-binary gap, not a config
-error, for that binary. On `mcpgw` the file's correctness matters much more
+So, for `cyonproxy`: keeping the file correct did not make a
+`WWW-Authenticate` challenge appear on that binary. On `mcpgw` the file's correctness matters much more
 directly: it is read eagerly and a missing/invalid file is now a fatal, crash-looping
 error, not a silently-ignored one. Deck file map, all three present in our
 container: `/var/lib/procyon/config/pingone.env` (bind mount of
@@ -876,7 +891,7 @@ conflicts. Use `./run-docker.sh`, which pins the project name/directory.
 | Host tried matches what the console shows, still `Domain not found` | The console UI displays a different domain than the object holds (`…privilege.pingone.com` vs `…procyon.ai`) | Read `FrontEndName.Elems` from the console applications API, never from the UI |
 | `403 User <id> doesn't have access to MCP app <name>` | **Progress, not a regression.** Auth passed and routing matched; Privilege is enforcing policy | Author a policy binding that user to that MCP application resource |
 | A previously working call goes back to `403 … doesn't have access` | Console policies can be created **time-boxed** (1h, 2h). An expired policy fails exactly like a missing one | Check the policy is still live before debugging anything else |
-| `401` with **no** `WWW-Authenticate` header, on `mcpgw` (current binary) | Unexpected — the binary should emit one (confirmed live on another cluster). Check `-mcpconfpath`/`pingone.env` are actually mounted and readable; a crash-looped container answering through a stale connection can look like this too | Verify the container is actually running `mcpgw`, not a leftover `cyonproxy` container. `cyonproxy` never emitted this header — that gap is historical, not current |
+| `401` with **no** `WWW-Authenticate` header, on `mcpgw` (current binary) | Unexpected — the binary should emit one (confirmed live on another cluster). Check `-mcpconfpath`/`pingone.env` are actually mounted and readable; a crash-looped container answering through a stale connection can look like this too | Verify the container is actually running `mcpgw`, not a leftover `cyonproxy` container. Our local `cyonproxy` enrollment never emitted this header; that is a fact about that build, not about whether OAuth works on the AI Gateway (it does — see "Read this first" item 0) |
 | A bare `401 Bearer Token not found.` treated as proof of routing | On `cyonproxy`'s `:8620` the bearer check ran **before** host evaluation — `garbage.nowhere.example.com` returned the same 401 (verified 2026-08-10). Not re-verified on `mcpgw`'s `:8623` | Only a request carrying a token exercises routing. Do not use a tokenless 401 as a routing signal, on either binary |
 | `cyctl` fails in ways that look like auth errors | `--apigw` pointed at `https://privilege.pingone.com` — the data-plane host | Use `https://console.privilege.pingone.com` |
 | `401 User is not authorized` on a console-API write | Object ownership, **not** header shape. Application objects do not list the console user under `WrOwners.ObjectRef`; `/v1/userpreferences/...` does, which is why one PUT succeeds and the rest 401 | The API is list + create only for these objects. Copying the working PUT's headers does not help — that was tried |
