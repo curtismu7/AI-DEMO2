@@ -142,10 +142,35 @@ survive the OAuth redirect.
 
 ---
 
-## OPEN — a resumed run bricks the agent panel
+## FIXED — a resumed run bricked the agent panel
 
-**Not a regression from this work.** Reachable from the queued-question paths
-above, so it will be hit by anyone testing them.
+Root-caused and fixed after this doc was first written; kept in full because the
+*method* is the transferable part. **Not a regression from this work** — it was
+reachable from the queued-question paths above, which is how it surfaced.
+
+**Cause:** `/dashboard` is a guest-chat surface, so `marketingGuestChatEnabled`
+reads true for the entire window before `isLoggedIn` flips. Reloading it while
+signed in therefore replayed the queued question ~250ms in **as a guest**,
+before the vertical manifest resolved, and the answer landed in state that no
+longer rendered. Guest-chat eligibility now counts only once the session check
+has answered either way (`sessionResolved`). A real guest is unaffected — the
+flag flips as soon as the check returns "no session".
+
+**What found it, after three wrong hypotheses:** instrumenting the *running app*
+via a Playwright init script that wrapped `sessionStorage` and `fetch` before any
+app code ran. The trace settled it in one reload:
+
+```
+t=1976  claim   AIAgent.js:1229
+t=2248  fetch   {"prompt":"…","flowTraceId":"…"}   <- no `vertical`
+t=4582  200                                        <- reply discarded
+```
+
+The same replay on an SPA remount (hydration already done) sends
+`vertical:"retail"` and renders both bubbles. That contrast was the whole
+diagnosis, and no amount of reading the component produced it.
+
+The original write-up follows, unchanged.
 
 ### Repro
 
@@ -177,28 +202,26 @@ sessionStorage.setItem('bx_agent_pending_nl', 'What is my account balance?')
 - **Message collapsing** — no collapsed container in the DOM
 - **The response** — 200 with content (a legitimate P1AZ `DENY`, see below)
 
-### Why it is not yet patched
+### Why reading the code did not find it
 
 `sendAgentMessage` awaits only `fetch` + `res.json()`, both of which completed,
-so `nlLoading` should clear in its `finally`. The resume effect calls
-`addMessage("user", text)` *before* the send, so the bubble should exist. **Both
-observations contradict the code as written**, which means the model is still
-wrong somewhere. `AIAgent.js` is REGRESSION_PLAN §1; a speculative patch here is
-how the last two over-claims happened.
+so `nlLoading` "should" have cleared in its `finally`. The resume effect calls
+`addMessage("user", text)` *before* the send, so the bubble "should" have
+existed. Both were true statements about the code and both were useless, because
+the send belonged to a render pass whose state was already being discarded.
+Three hypotheses (`isInline`, hydration order, SSE trace mismatch) each survived
+a reading of the source and died on contact with a probe.
 
-### Suggested next step
+### What actually worked
 
-An instrumented build with source maps — log at four points and reload once:
+`page.addInitScript()` to wrap `sessionStorage` and `fetch` **before app code
+runs**, then one reload. The claim, the outgoing body, and the response all
+timestamped in a single trace — and the missing `vertical` in that body is what
+identified the hydration window as the culprit. Comparing it against an SPA
+remount (where the same code path works) isolated the cause in one more step.
 
-1. the mount claim (`claimPendingNl` return value)
-2. the resume effect's eligibility branch (which arm it takes)
-3. `addMessage("user", …)` entry
-4. the resume `finally`
-
-That distinguishes "the effect never ran" from "it ran and its state was
-discarded" in a single reproduction. A watchdog that clears `nlLoading` after N
-seconds would unbrick the panel but treats the symptom, not the cause — worth
-doing *after* the cause is known, not instead.
+Worth reaching for earlier next time: it took ~5 minutes and settled what an
+hour of reading could not.
 
 ### Incidental findings from the same trace
 
