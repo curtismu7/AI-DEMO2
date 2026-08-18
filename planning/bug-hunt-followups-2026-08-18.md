@@ -46,10 +46,12 @@ Confirm the audit-referenced anchors still match live code, and fix stale docs:
 
 ## Security items to fast-track (decide first)
 
-Two audit findings are security-relevant and were deliberately NOT auto-patched
-(they sit on §1 protected surfaces):
+Two audit findings are security-relevant. Both now fixed (regression-guarded,
+separate PRs, pending merge):
 
-- [ ] **transactions.js case-sensitive `type`** — `{"type":"Transfer"}` skips
-      PingOne-Authorize / HITL / step-up / write-scope. HIGH.
-- [ ] **MCP gateway rate-limit keyed on unverified `sub`** — forged token starves
-      a victim's per-tool bucket.
+- [x] **transactions.js case-sensitive `type`** — `{"type":"Transfer"}` skipped
+      PingOne-Authorize / HITL / step-up / write-scope. HIGH. **PR #2007** —
+      normalize on ingest + regression test, REGRESSION_PLAN §4 logged.
+- [x] **MCP gateway rate-limit keyed on unverified `sub`** — forged token starved
+      a victim's per-tool bucket. **PR #2008** — limiter moved after token
+      validation, keyed on verified subject (WS + HTTP) + regression test.

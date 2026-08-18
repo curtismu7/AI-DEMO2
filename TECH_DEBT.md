@@ -19,6 +19,13 @@ Two are **security-relevant** and flagged as such — decide on those first.
 
 ### 2026-08-18 — SECURITY: a capitalised `type` skips the entire transaction authorization/HITL/step-up/scope layer
 
+**FIXED 2026-08-18 (PR #2007, pending merge).** `type` is normalised
+(`String(type||'').toLowerCase().trim()`) immediately after destructure, so every
+gate sees the canonical form. Regression test proves `"Transfer"` / `"  transfer  "`
+/ `"WithDrawal"` take the identical step-up/HITL/authz path; logged in
+REGRESSION_PLAN §4. No blanket type rejection added (deposit legitimately returns
+`type_not_in_scope` when `ff_authorize_deposits` is off). Original entry follows.
+
 **Where:** `demo_api_server/routes/transactions.js:419` (`type` destructured raw
 from `req.body`, never normalised), gated against exact-lowercase lists in
 `services/transactionAuthorizationService.js:149-161` (`AUTHORIZE_TYPES`) and
@@ -45,6 +52,13 @@ paths. Consider rejecting unknown `type` values outright rather than treating
 "not in scope" as "no controls apply".
 
 ### 2026-08-18 — SECURITY: MCP gateway rate-limit bucket is keyed on an unverified `sub`, so a forged token starves a victim
+
+**FIXED 2026-08-18 (PR #2008, pending merge).** The `check()` moved to AFTER token
+validation on both transports (WS after `validateInboundToken`; HTTP after
+introspection+policy), keyed on the verified subject — so forged/inactive tokens
+are rejected `401` before the limiter runs and can only exhaust the attacker's own
+bucket. Regression test proves 10 forged `sub=<victim>` requests are each `401`,
+never `429`, and the real victim keeps its full allowance. Original entry follows.
 
 **Where:** `demo_mcp_gateway/src/index.ts:508-533` (WS path) and
 `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts:275-288` (HTTP path).
