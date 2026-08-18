@@ -489,6 +489,10 @@ export default function BankingAgent({
   const [pendingLlmFallback, setPendingLlmFallback] = useState(null);
   /** Set when returning from PingOne with a pending banking NL line to run after session exists. */
   const [nlResumeAfterAuth, setNlResumeAfterAuth] = useState(null);
+  /** True once the session check has answered, either way. Guest-chat eligibility
+   *  is only meaningful after that — before it, isLoggedIn is false simply
+   *  because nothing has resolved yet. */
+  const [sessionResolved, setSessionResolved] = useState(false);
   /** useCaseId claimed alongside a pending NL (from launcher deep-link); attached to the next send. */
   const pendingUcIdRef = useRef(null);
   /** True when the pending NL belongs to a `public` use case — it may send with no session. */
@@ -2047,7 +2051,12 @@ export default function BankingAgent({
       } else {
         setMcpAuthMode("consumer");
       }
-    });
+      // Whatever the answer, the question "is this visitor signed in?" is now
+      // settled. Until it is, `marketingGuestChatEnabled` reads true on `/` and
+      // `/dashboard` purely because isLoggedIn has not flipped yet — see the
+      // resume effect, which must not act on that transient.
+      setSessionResolved(true);
+    }).catch(() => setSessionResolved(true));
   }, []);
 
   // P1 — When the BFF returns cookieOnlyBffSession:true, poll /api/auth/session
@@ -7961,9 +7970,19 @@ export default function BankingAgent({
     // so the step sent unarmed and the deferred arming never executed at all.
     const deferredFlags = pendingUcFlagsRef.current;
     const pendingAuth = pendingUcAuthRef.current || (deferredFlags?.length ? "user" : null);
+    // Guest-chat eligibility only counts once the session check has answered.
+    // Live repro (2026-08-17): reloading /dashboard while SIGNED IN replayed the
+    // queued question ~250ms in, as a guest — isLoggedIn had not flipped yet and
+    // /dashboard is a guest-chat surface, so this read true. The send went out
+    // before the vertical manifest resolved (no `vertical` in the body), and its
+    // reply was discarded: no user bubble, a typing indicator that never
+    // cleared, and a disabled input until reload. Waiting for the answer makes
+    // the replay use the real session — the same run works on an SPA remount,
+    // where hydration is already done.
+    const guestChatSettled = marketingGuestChatEnabled && sessionResolved;
     const eligible = pendingAuth
       ? (pendingAuth === "admin" ? isAdminUser : isLoggedIn)
-      : isLoggedIn || marketingGuestChatEnabled || pendingUcPublicRef.current;
+      : isLoggedIn || guestChatSettled || pendingUcPublicRef.current;
     if (
       !nlResumeAfterAuth ||
       !eligible ||
@@ -8054,7 +8073,7 @@ export default function BankingAgent({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
-  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, effectiveVerticalId]);
+  }, [nlResumeAfterAuth, isLoggedIn, marketingGuestChatEnabled, sessionResolved, effectiveVerticalId]);
 
   // Cancel any in-flight agent request when this instance unmounts OR the
   // route changes away from where it was issued — prevents state updates on
