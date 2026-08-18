@@ -1140,12 +1140,26 @@ if (outcome == 'PERMIT' && !obligationKind) {
         // costs the token chain its gw-* events, so it must never throw.
         def finalJson = auditTrailJson
         try {
+            def extra = [:]
             def mtlsRes = attributes['mtlsResult']
             if (mtlsRes != null) {
-                finalJson = JsonOutput.toJson(auditTrail + [mtls: mtlsRes])
+                extra['mtls'] = mtlsRes
+            }
+            // Same reason as mtls, one hop further in: olb-token-exchange.groovy
+            // opens the MCP session (initialize → Mcp-Session-Id) before it
+            // forwards the tool call, so the gateway — not the BFF — is the MCP
+            // client here. Without this the chain drew a single box for two real
+            // round trips and told the viewer the handshake was "not visible
+            // from here", which was true only because nobody published it.
+            def handshakeRes = attributes['handshakeResult']
+            if (handshakeRes != null) {
+                extra['handshake'] = handshakeRes
+            }
+            if (!extra.isEmpty()) {
+                finalJson = JsonOutput.toJson(auditTrail + extra)
             }
         } catch (Exception e) {
-            logger.warn('[P1AZDecision] could not attach mtls to audit trail (' +
+            logger.warn('[P1AZDecision] could not attach mtls/handshake to audit trail (' +
                 e.message + ') — emitting the pre-call trail')
         }
         chainResp.headers.put('X-Gw-Audit-Trail', [finalJson])

@@ -947,23 +947,50 @@ IG filter names, which #1965 even added labels for. Same shape as putting the
 gateway stages in `TraceStepCard`, a component the focus-mode dashboard never
 mounts: right code, wrong host.
 
-**Why not fixed now:** IG is a product. It performs the handshake inside
-`McpProtectionFilter`/its upstream client, not in code this repo owns, so there
-is no `forwardToUpstream` to instrument. Emitting the header from IG means a
-Groovy filter in `ping-gateway/scripts/groovy/` that can observe the upstream
-session negotiation — a different piece of work from the Node-side change, and
-not one to start at the tail of the session that found it.
+**RESOLVED 2026-08-18** — and the paragraph that used to sit here was wrong about
+why it was hard, which is the part worth keeping.
 
-**What the real fix looks like:** either (a) an IG Groovy filter that records the
-upstream `initialize` response and stamps `X-Gw-Mcp-Handshake` in the same place
-`transaction-hop.groovy` already posts to the BFF, or (b) accept that the
-handshake is unobservable on the IG path and keep the honest "not visible from
-here" narrative #1960 added, treating the Node-gateway header as dormant support
-for the non-default path. Do not delete the existing plumbing either way — it is
-live and correct whenever `mcp_demo_gateway_url` is the active gateway.
+It assumed IG performs the handshake inside `McpProtectionFilter` or its own
+upstream client, "not in code this repo owns". It does not.
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy` — a script in this repo,
+on the `mcp-olb-primary` route that serves `^/mcp` — sends the `initialize` call
+itself, reads the `Mcp-Session-Id` off the response, and only then forwards the
+tool call. The handshake was never unobservable. Nobody had read that script.
 
-**How to check whether it is fixed:** drive a tool call and assert
-`mcp-initialize` appears in the returned `tokenEvents` — not that the code exists.
+The fix follows a path already in place for mTLS:
+
+1. `olb-token-exchange.groovy` records the initialize it just performed on
+   `attributes['handshakeResult']`, exactly as it already does for
+   `attributes['mtlsResult']`.
+2. `p1az-decision.groovy` folds that into `X-Gw-Audit-Trail` inside its existing
+   `thenOnResult` callback — the same place, and the same fail-safe, that already
+   attaches mtls.
+3. `mcpToolPipeline.js` turns the trail entry into an `mcp-initialize` token
+   event, next to where it emits `gw-mtls`.
+
+`buildTraceSteps` already had an `mcp-initialize` step waiting for that id, so no
+UI change was needed to light the hop.
+
+**`notifications/initialized` is deliberately still not emitted.** The gateway
+does not send it — it goes straight from `initialize` to the tool call — so the
+trail carries `initializedSent: false` and the chain reports that hop as not
+observed. Drawing a step that never ran would be worse than the gap it papers
+over. The narrative for that hop was updated to say which of the two it is,
+otherwise it would have degraded into an unexplained grey card the moment
+`mcp-initialize` started arriving.
+
+The Node-gateway plumbing from #1977 is untouched and still correct for the
+non-default `mcp_demo_gateway_url` path.
+
+**Guards:** `demo_api_server/tests/mcpToolPipeline.gatewayHandshake.test.js` (4
+tests, verified to fail with the emission reverted) and two render tests in
+`FocusModeChainRenders.test.jsx`. Both Groovy scripts were compile-checked
+against the gateway's own `groovy-4.0.28.jar` before merge — a syntax error there
+takes out the auth path, so "it looks fine" was not good enough.
+
+**How to check it live:** drive a tool call and assert `mcp-initialize` appears in
+the returned `tokenEvents` — `npm run test:e2e:real -- chain-hops-reachable`
+already reports it under CONFIG_DEPENDENT.
 
 ### 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
