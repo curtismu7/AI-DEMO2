@@ -130,7 +130,18 @@ data-plane routes/services surfaced 10 fresh defects not already in this file.
 None were fixed in the same pass — they are correctness/consistency gaps found
 while auditing, logged for a deliberate round. Backend first, then UI.
 
-### [ ] 2026-08-18 — `saveMessage` reads the sequence from the wrong key segment, so same-millisecond writes collide and drop messages
+### [x] 2026-08-18 — `saveMessage` reads the sequence from the wrong key segment, so same-millisecond writes collide and drop messages
+
+**FIXED 2026-08-18 (PR #2036, merged + deployed).** The seq is now read from the
+final key segment (`parts[parts.length - 1]`) instead of the out-of-range `[4]` —
+minimal, and robust even if `userId`/`vertical` ever contain a `:`. Key format and
+chronological ordering unchanged. Regression test
+`tests/services/conversationStoreConcurrentWrites.test.js` freezes `Date.now` to
+force same-ms writes (a real-clock loop can't reproduce it — each `putSync` fsyncs
+~6ms apart, which is the nondeterminism that hid the bug); verified pre-fix the
+`[4]` code loses 7 of 9 messages in a burst. Noted follow-up: the intra-ms seq is
+not zero-padded, so an 11+-message single-ms burst would sort lexicographically —
+unreachable given the fsync spacing, left per minimum-code. Original entry follows.
 
 **Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `saveMessage`
 (the seq-dedup read of `key.split(':')[4]`).
@@ -384,11 +395,22 @@ and that class (plus `.App--has-nav-dash`) is **never applied to any DOM element
 (grep-confirmed). So the off-by-one wrote a variable nothing read. The fix removed
 the dead `useEffect` entirely, making the already-correct, breakpoint-aware CSS
 default `calc(7 * var(--stack-fab-height))` the single source of truth; a test locks
-the non-admin count at 7. **Still open:** the demo-FAB overlap this override was
-*meant* to prevent has a different root cause — the never-applied
-`.App--has-quick-nav` / `.App--has-nav-dash` classes — a larger change in protected
-FAB layout, not attempted here and unverifiable without a live browser. Original
-entry follows.
+the non-admin count at 7.
+
+**FOLLOW-UP RESOLVED 2026-08-18 (investigation + PR #2037, merged + deployed).** The
+"overlap" was moot: `DashboardQuickNav` was **never mounted** (imported only by its
+own tests), so no rail rendered and no overlap could occur — the described "overlaps
+the 7th button" geometry was impossible in the running app. Per the requester's
+decision the rail was then WIRED UP (#2037): mounted for signed-in non-admins on the
+gated routes, with `App--has-quick-nav` applied on exactly that condition so the
+pre-designed `App.css` geometry engages. `App--has-nav-dash` was deliberately not
+added — it gates a different, unmounted single-FAB nav concept, not this rail.
+Geometry verified live on the deployed CSS: with the class applied,
+`--stack-fab-top-demo` resolves to `calc(156px + 7×44px)` = 464px, i.e. the demo FAB
+is pushed flush below the 156–464px rail — no overlap. The pixel-level signed-in
+visual could not be automated (customer sign-in on this host is passkey-based, not
+headless-drivable) — a human glance on `/dashboard` as a customer is the only
+remaining confirmation. Original entry follows.
 
 **Where:** `demo_api_ui/src/components/DashboardQuickNav.js:21-26`; interacts with
 `App.css:138,140-142,668`.
