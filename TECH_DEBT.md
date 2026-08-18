@@ -2133,8 +2133,10 @@ flag's real current meaning is "render no actions at all".
 
 Two loose ends confirm it was left behind rather than decided:
 
-- The welcome copy still reads **"Type a message or use Actions to explore."**
-  There is no Actions affordance on that surface.
+- The welcome copy read **"Type a message or use Actions to explore."** with no
+  Actions affordance on that surface. Corrected to "Type a message, or open Use
+  Cases to explore." — the stale instruction is gone, but the orphaned chip code
+  below is untouched and still the open question.
 - `renderActionGroups`, `ACTION_GROUPS`, `useCustomChips`, `verticalSuggestionChips`
   and the `.ba-action-chip` / `.ba-action-group` CSS are all still carried.
 
