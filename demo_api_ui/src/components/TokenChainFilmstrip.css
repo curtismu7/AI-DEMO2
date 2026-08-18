@@ -14,15 +14,19 @@
    branches, and the frozen classic dashboard, are untouched. */
 .dashboard-content.ud-body.ud-focus-mode {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* The agent takes the wider half: the spotlight is static intro copy until a
+     step is picked, while the transcript is the thing being read the whole demo. */
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   grid-template-areas:
     "strip strip"
     "agent spotlight"
     "chain chain";
   /* Rows size to content, except the agent/spotlight row which takes the rest.
      Without this the strip row inherited the stretch and grew far beyond its
-     content. */
-  grid-template-rows: auto minmax(0, 1fr) auto;
+     content. The agent row also carries a floor: on a 13" laptop an expanded
+     22-step chain is ~240px of `auto`, and it took every one of those pixels
+     out of the transcript. */
+  grid-template-rows: auto minmax(220px, 1fr) minmax(0, auto);
   align-items: stretch;
 }
 
@@ -31,6 +35,35 @@
   grid-area: strip;
   min-width: 0;
   align-self: start;
+}
+
+/* ── One config row, not two ───────────────────────────────────────────────
+ *
+ * AIAgent.js portals two sibling groups in here — .ba-hg--strip (agent mode,
+ * routing, wiring, Flow Detail/More/Guide) and .ba-hg--demo (Demo steps, Live
+ * Use Cases, Inspectors, Agent scope, Clear progress). Each carries its own
+ * 36px min-height, padding and bottom border, so the strip costs ~80px of a
+ * ~830px laptop viewport, and the strip is a CHILD of the agent column, so
+ * every one of those pixels comes out of the transcript.
+ *
+ * `display: contents` drops both boxes and promotes their controls into
+ * .ba-header-tools, which is already a wrapping flex row. One bar, one border,
+ * one min-height; the controls themselves are untouched and still wrap on a
+ * narrow column. Focus Mode only — the floating and bottom-dock agents keep
+ * their two-group chrome.
+ */
+.dashboard-content.ud-body.ud-focus-mode .ud-dashboard-config-strip .ba-header-tools {
+  justify-content: flex-start;
+  gap: 6px;
+  background: var(--ba-surface, var(--th-bg-inset));
+  border-bottom: 1px solid var(--ba-border, var(--th-border));
+  padding: 4px 10px;
+  min-height: 36px;
+}
+
+.dashboard-content.ud-body.ud-focus-mode .ud-dashboard-config-strip .ba-hg--strip,
+.dashboard-content.ud-body.ud-focus-mode .ud-dashboard-config-strip .ba-hg--demo {
+  display: contents;
 }
 
 /* ── Focus Mode fits the screen; history is a scrollback ───────────────────
@@ -104,6 +137,40 @@
   display: none;
 }
 
+/* ── The agent header on one line ─────────────────────────────────────────
+ *
+ * The subtitle ("Customer · Demo User") repeats what the page's own top bar
+ * already shows two rows above it, and costs ~25px of transcript on a laptop.
+ * The title, status dot, session id and Sign out all stay.
+ *
+ * `!important` is not decoration here: AIAgent.css:6746 sets
+ * `.ba-header { padding: 10px 14px !important }`, and an earlier attempt at
+ * this block was deleted for losing exactly that fight (see the note above).
+ */
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-subtitle {
+  display: none;
+}
+
+.ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .ba-header {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+}
+
+/* ── No page footer in Focus Mode ─────────────────────────────────────────
+ *
+ * The footer is a 58px brand slab and Focus Mode never scrolls, so it is 58px
+ * of a fixed budget spent on a logo the presenter already has in the top bar.
+ *
+ * `:has()` because the footer is App.js's sibling of the dashboard subtree, not
+ * a descendant — there is no ancestor class to hang this on without a JSX
+ * change. Supported in every browser this demo is presented from; in one that
+ * lacks it the selector is simply ignored and the footer stays, which is
+ * today's behaviour.
+ */
+body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
+  display: none;
+}
+
 /* The transcript takes every pixel the column has left and scrolls itself. */
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline .banking-agent-messages,
 .ud-focus-mode.ud-focus-mode .banking-agent-panel.ba-mode-inline.ba-split-column .banking-agent-messages {
@@ -132,11 +199,16 @@
   background: var(--th-bg-card);
 }
 
+/* Capped, and it scrolls itself. An expanded 22-step chain is ~240px of `auto`
+   row, taken straight out of the transcript on a laptop; the cap is what stops
+   a longer run from taking more. Tall screens still get the full 240px. */
 .tcfs-chain {
   grid-area: chain;
   min-width: 0;
   border-top: 1px solid var(--th-border);
   background: var(--th-bg-card);
+  max-height: clamp(112px, 26vh, 240px);
+  overflow-y: auto;
 }
 
 .tcfs-spotlight-empty {
@@ -385,6 +457,34 @@
 .tcfs-track {
   padding: 0 12px;
   overflow-x: auto;
+}
+
+/* ── Short viewports: the chain map gets denser, not smaller-typed ─────────
+ * A 13" laptop is ~800px tall and pays the same node cost as a 27" monitor.
+ * Narrower cards and a one-line fact, but every font size is left alone — the
+ * 11px floor from REGRESSION_PLAN §4 exists because a shrunk rail was
+ * unreadable in a demo. Focus Mode's chain only; the vertical rail on the ~20
+ * other surfaces is untouched. */
+@media (max-height: 860px) {
+  .tcfs-chain .tcnr {
+    padding: 6px 0 2px;
+    margin-bottom: 4px;
+  }
+
+  .tcfs-chain .tcnr-node {
+    width: 108px;
+    padding: 5px 7px;
+    gap: 3px;
+  }
+
+  .tcfs-chain .tcnr-node-n {
+    width: 19px;
+    height: 19px;
+  }
+
+  .tcfs-chain .tcnr-node-fact {
+    -webkit-line-clamp: 1;
+  }
 }
 
 /* The sheet is what lets detail win without the chain crowding the agent. */
