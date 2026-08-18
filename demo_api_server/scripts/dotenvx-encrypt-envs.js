@@ -26,8 +26,13 @@
  *     seeded into the remaining files before they are encrypted.
  *
  * Selective encryption: `dotenvx encrypt -k <NAME>` per secret name. The set is
- * the vault migration allowlist (single source of truth) unioned with the four
- * service-key names — exactly the values that were vault-resident before.
+ * the vault migration allowlist (single source of truth for what the OLD vault
+ * held) unioned with the four service-key names AND `ADDITIONAL_SECRET_NAMES`
+ * below (real secrets added to these `.env` files directly over time, never
+ * vault-resident, so `vault-migrate.js`'s allowlist never had to know about
+ * them). `vault-migrate.js`'s list intentionally stays scoped to vault history
+ * — it is a real record, still read by the vault CLIs until Task 8 — rather
+ * than being widened to mean "everything dotenvx should encrypt".
  */
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -48,10 +53,50 @@ const TARGET_ENV_FILES = [
   path.join(REPO_ROOT, 'oauth-mcp', '.env'),
 ];
 
+// Found 2026-08-18 during the cutover runbook: real secrets present across the
+// four target `.env` files that were never migrated into the vault (added
+// directly to `.env` after the vault's allowlist was last updated), so they
+// were never covered by ALLOWED_ENV_VARS. Deliberately excludes lookalikes
+// that are NOT secrets needing encryption: `DOTENV_PUBLIC_KEY` (meant to stay
+// plaintext — that's the whole point of it), `VAULT_PASSWORD` (belongs to the
+// vault being retired at Task 8, not this file's own ciphertext), and the
+// `DEMO_*_PASSWORD` trio (intentionally-public demo sign-in credentials
+// documented for presenters, not access-control secrets).
+const ADDITIONAL_SECRET_NAMES = Object.freeze([
+  'GW_INTROSPECTION_CLIENT_SECRET',
+  'PINGONE_AGENT_CLIENT_SECRET',
+  'PINGONE_CLIENT_SECRET',
+  'PINGONE_MCP_EXCHANGER_CLIENT_SECRET',
+  'PRIVILEGE_SSO_CLIENT_SECRET',
+  'HITL_INTERNAL_SECRET',
+  'MCP_SERVER_ENCRYPTION_KEY',
+  'LANGCHAIN_ENCRYPTION_MASTER_KEY',
+  'ENCRYPTION_KEY',
+  'ANTHROPIC_API_KEY',
+  'GOOGLE_API_KEY',
+  'GROQ_API_KEY',
+  'NR_LICENSE_KEY',
+  'NR_USER_API_KEY',
+  'NR_CLI_API_KEY',
+  'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_TAX_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_PASSENGER_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_IDENTITY_AGENT_CLIENT_SECRET',
+]);
+
 // Only TRUE secrets are encrypted. Single source of truth for the secret list is
-// vault-migrate's closed allowlist; the four service-key names are unioned on
-// (two are already in the allowlist — the Set dedupes them).
-const SECRET_NAMES = Array.from(new Set([...ALLOWED_ENV_VARS, ...SERVICE_KEY_ENV_NAMES]));
+// vault-migrate's closed allowlist; the four service-key names and the
+// additional-secrets list above are unioned on (the Set dedupes overlaps).
+const SECRET_NAMES = Array.from(
+  new Set([...ALLOWED_ENV_VARS, ...SERVICE_KEY_ENV_NAMES, ...ADDITIONAL_SECRET_NAMES]),
+);
 
 /**
  * Real dotenvx output quotes the value and always appends a trailing
@@ -139,6 +184,7 @@ function encryptAll({
 module.exports = {
   TARGET_ENV_FILES,
   SECRET_NAMES,
+  ADDITIONAL_SECRET_NAMES,
   SHARED_KEYS_FILE,
   readPublicKey,
   seedPublicKey,
