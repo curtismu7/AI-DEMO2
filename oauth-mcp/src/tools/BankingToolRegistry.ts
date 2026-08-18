@@ -1065,7 +1065,7 @@ export class BankingToolRegistry {
       name: 'show_mortgage',
       title: 'Mortgage Account',
       description: 'Retrieve the user\'s mortgage account details including property address, loan amount, current balance, interest rate, monthly payment, and next payment date. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the mortgage backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['mortgage:read'],
       handler: 'executeShowMortgage',
       readOnly: true,
@@ -1079,7 +1079,7 @@ export class BankingToolRegistry {
       name: 'show_health_record',
       title: 'Health Record',
       description: 'Retrieve the user\'s latest health record including record type, provider, facility, visit date, covered amount, copay, status, and coverage plan. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the healthcare backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['records:read'],
       handler: 'executeShowHealthRecord',
       readOnly: true,
@@ -1093,7 +1093,7 @@ export class BankingToolRegistry {
       name: 'show_investment',
       title: 'Portfolio Status',
       description: 'Retrieve the user\'s investment portfolio status including portfolio id, holder, total value, cash sweep, and holdings. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the investment backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['invest:read'],
       handler: 'executeShowInvestment',
       readOnly: true,
@@ -1107,7 +1107,7 @@ export class BankingToolRegistry {
       name: 'show_gear_order',
       title: 'Gear Order',
       description: 'Retrieve the user\'s latest gear order including item, category, amount, status, delivery date, loyalty points earned, and member tier. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the sporting-goods backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['gear:read'],
       handler: 'executeShowGearOrder',
       readOnly: true,
@@ -1121,7 +1121,7 @@ export class BankingToolRegistry {
       name: 'show_gear_warranty',
       title: 'Gear Warranty',
       description: 'Retrieve the user\'s gear warranty record including covered item, coverage tier, start and expiry dates, claims used, and claim limit. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the sporting-goods backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['gear:read'],
       handler: 'executeShowGearWarranty',
       readOnly: true,
@@ -1135,7 +1135,7 @@ export class BankingToolRegistry {
       name: 'show_expense_report',
       title: 'Expense Report',
       description: 'Retrieve the user\'s latest expense report including category, description, amount, submission date, status, approver, and reimbursement date. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the workforce backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['expense:read'],
       handler: 'executeShowExpenseReport',
       readOnly: true,
@@ -1149,7 +1149,7 @@ export class BankingToolRegistry {
       name: 'show_permit',
       title: 'Permit Status',
       description: 'Retrieve the resident\'s permit status including permit type, subject, jurisdiction, issue/expiry dates, fees owed, status, and inspector. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the government backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['permits:read'],
       handler: 'executeShowPermit',
       readOnly: true,
@@ -1163,7 +1163,7 @@ export class BankingToolRegistry {
       name: 'show_enrollment',
       title: 'Enrollment Status',
       description: 'Retrieve the student\'s enrollment status including program, term, standing, enrolled and earned credits, GPA, tuition balance, and holds. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the university backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['transcript:read'],
       handler: 'executeShowEnrollment',
       readOnly: true,
@@ -1177,7 +1177,7 @@ export class BankingToolRegistry {
       name: 'show_work_order',
       title: 'Work Order Status',
       description: 'Retrieve the operator\'s work order status including product, type, line, quantity, completed quantity, value, status, and due date. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the manufacturing backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['workorders:read'],
       handler: 'executeShowWorkOrder',
       readOnly: true,
@@ -1191,7 +1191,7 @@ export class BankingToolRegistry {
       name: 'show_large_purchase',
       title: 'Large Purchase',
       description: 'Retrieve the user\'s latest large purchase record including product, SKU, category, amount, status, estimated delivery, rewards points earned, and retailer. Routes through the MCP gateway api_key disposition — the gateway drops the OAuth bearer and calls the retail backend with a service API key.',
-      requiresUserAuth: true,
+      requiresUserAuth: false, // api_key disposition: bearer dropped, service key used — no user-token exchange
       requiredScopes: ['largepurchase:read'],
       handler: 'executeShowLargePurchase',
       readOnly: true,

@@ -54,6 +54,26 @@ spec:
         # internal hop (mirrors docker-compose.yml's mcp-server default).
         - name: MCP_AUTH_DISABLED
           value: "true"
+        # api_key feature tools (show_mortgage/show_health_record/...) executed
+        # by this server itself on the gateway-less Privilege/Procyon hop — the
+        # same credential swap the demo mcp-gateway does on the normal chain.
+        # Keys come from ai-demo-secrets, aligned with the backends by
+        # create-secrets.sh align_service_api_keys().
+        - name: API_RESOURCE_SERVER_URL
+          value: "http://api-resource-server:8082"
+        - name: MCP_RESOURCE_SERVER_HTTP_URL
+          value: "http://mcp-resource-server:8081"
+        - name: DEMO_API_RESOURCE_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: DEMO_API_RESOURCE_SERVER_KEY
+        - name: DEMO_MCP_RESOURCE_SERVER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: DEMO_MCP_RESOURCE_SERVER_KEY
+              optional: true
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://jaeger:4317"
         - name: OTEL_SERVICE_NAME
