@@ -13,6 +13,223 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### 2026-08-18 — Bug-hunt round 2: customer-dashboard UI + backend data plane (10 findings)
+
+A second audit scoped to the signed-in customer dashboard and the customer
+data-plane routes/services surfaced 10 fresh defects not already in this file.
+None were fixed in the same pass — they are correctness/consistency gaps found
+while auditing, logged for a deliberate round. Backend first, then UI.
+
+### 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
+
+**Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `getHistory`
+(~180-190), `getThreadSize` (~225-232), `_pruneThreadIfNeeded` (~144-160),
+`isSummarizationNeeded` (~324-329); summary written at ~278.
+
+**What's wrong:** messages are keyed `${userId}:${vertical}:${15digitTs}:${seq}`,
+summaries `${userId}:${vertical}:_summary:${id}`. Every thread scan ranges over
+`[prefix, prefix+￿]`, and `_` (0x5F) sorts AFTER the digits (0x30-0x39), so a
+`_summary:` key falls inside the range and sorts last. `getHistory` scans in
+reverse, so once any summary exists it is returned as the most-recent "message"
+and replayed into the LLM as a fake turn (a summary object has `.summary`, no
+`.role`/`.content`). The same in-range inclusion inflates `getThreadSize` and the
+returned `threadSize`, skews `isSummarizationNeeded`'s turn/token math, and —
+because a summary object has no `.timestamp` (only `createdAt`), so
+`value.timestamp||0` is 0 — makes prune delete summaries FIRST when a thread
+exceeds 500. Repro: `POST /api/conversations/:u/:v/summarize?range=0-5` then
+`GET .../history` returns the summary object at the tail as the latest turn.
+
+**Why not fixed now:** found while auditing; touches the LMDB key scheme and the
+range bounds of four methods at once — a scoped correctness fix with its own test
+surface, not a drive-by.
+
+**Real fix:** give summaries a key space the message scans cannot reach — a
+separate sub-prefix scanned only by the summary reader, or an end bound that stops
+before `_` — and give a summary object a `timestamp` so prune orders it correctly.
+
+### 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
+
+**Where:** `demo_api_server/data/store.js:391` —
+`const transaction = { id, ...transactionData, createdAt: new Date(), status: 'completed' };`
+
+**What's wrong:** the trailing `createdAt`/`status` clobber whatever the spread
+carried. `provisionDemoAccounts` (`routes/accounts.js:134-147`, via
+`POST /api/accounts/reset-demo`) authors 11 sample transactions with deliberate
+2024-02/2024-03 dates; all are discarded and every row stamped with the current
+time (and they carry no `date` field), so reset-demo history collapses to one
+identical timestamp instead of a historical spread. The same clobber makes
+`restoreTransactionsFromSnapshot` (`routes/transactions.js:44`) and
+`verticalAccountSnapshots.restoreVertical` (`services/verticalAccountSnapshots.js:125-127`)
+lose every restored transaction's original `createdAt`/`status` on cold-start or
+vertical switch-back.
+
+**Why not fixed now:** cosmetic-looking but it silently corrupts demo data; the
+fix must decide per-caller whether a supplied `createdAt`/`status` should win, so
+it is a small contract decision, not a one-liner.
+
+**Real fix:** only default `createdAt`/`status` when the caller did not supply them
+(`createdAt: transactionData.createdAt ?? new Date()`, same for `status`).
+
+### 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
+
+**Where:** `demo_api_server/routes/conversations.js:56,62`.
+
+**What's wrong:** `const limit = parseInt(req.query.limit || DEFAULT_HISTORY_LIMIT, 10)`
+then `getHistory(userId, vertical, Math.min(limit, 100))`. A non-numeric
+`?limit=abc` yields `NaN`, and `Math.min(NaN, 100)` is `NaN`, passed straight to
+`db.getRange({ limit: NaN })` — the 100-message cap no longer applies and the full
+thread (up to the 500 ceiling) is returned and replayed. Negative values
+(`?limit=-1`) also pass unclamped. Repro: `GET /api/conversations/me/banking/history?limit=x`
+dumps the entire thread.
+
+**Why not fixed now:** found while auditing; trivial but wants a test for the
+NaN/negative cases alongside the fix.
+
+**Real fix:** coerce and clamp — `Math.min(Math.max(1, Number.isFinite(n) ? n : DEFAULT), 100)`
+before calling `getHistory`.
+
+### 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
+
+**Where:** `demo_api_server/routes/accounts.js:232-234`.
+
+**What's wrong:** `swiftCode: account.swiftCode || 'CHASUS33'`,
+`branchName: account.branchName || 'Super Banking Main Branch'`, and the
+`iban`/masked-`accountNumber` fallbacks apply unconditionally. Non-banking seed
+accounts (healthcare, retail, workforce) have no `swiftCode`/`branchName`, so a
+healthcare or retail account card is served with SWIFT `CHASUS33` and branch
+"Super Banking Main Branch." Repro: switch a session to healthcare, load accounts —
+the card carries banking-only identifiers.
+
+**Why not fixed now:** found while auditing; the fix needs a per-vertical decision
+about which of these fields are even meaningful outside banking.
+
+**Real fix:** only emit banking-shaped fields when the vertical is banking (or when
+the account actually carries them), rather than defaulting them in for all.
+
+### 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
+
+**Where:** `demo_api_server/routes/investment.js:16-29,54-66`.
+
+**What's wrong:** `/accounts/:accountId/portfolio` and `/accounts/:accountId/balance`
+call `store.get(req.user.id)` and return the user's single portfolio while echoing
+`accountId: req.params.accountId` back in the body. Nothing checks the requested
+account exists or belongs to the caller; any `accountId` yields a 200 labelled with
+that id but populated from the one portfolio. Benign only because the seed gives one
+portfolio per user — it mislabels the response and would return the wrong record the
+moment a second account exists.
+
+**Why not fixed now:** no visible symptom with today's single-portfolio seed; found
+while auditing input validation.
+
+**Real fix:** look the account up by `:accountId`, scoped to the caller, and 404 when
+it does not exist or is not theirs.
+
+### 2026-08-18 — Customer dashboard fires the agent-resume event on the Email-OTP path even with no agent involved
+
+**Where:** `demo_api_ui/src/components/UserDashboard.js:1044-1048` (`handleVerifyOtp`);
+mirrored in `UserDashboardPing2026.js`.
+
+**What's wrong:** `handleVerifyOtp` unconditionally runs `setAgentTriggeredStepUp(false)`,
+toasts "Identity verified — resuming agent request…", and dispatches
+`cibaStepUpApproved` — with no `if (agentTriggeredStepUp)` guard, unlike the TOTP
+(~980), push-poll (~1107) and CIBA-poll (~1176) success paths which all guard on
+the flag. Repro: signed-in customer starts a manual transfer ≥ $250, hits the 428
+step-up, picks "Verify via Email", enters a valid OTP → sees "resuming agent
+request…" with no agent involved, and `cibaStepUpApproved` broadcasts to
+`AIAgent.js:2287`, which re-fires `pendingStepUpActionRef.current` if any stale
+pending agent action exists.
+
+**Why not fixed now:** REGRESSION_PLAN §1 step-up/consent surface; found while
+auditing, needs the same guarded pattern its siblings use plus a test.
+
+**Real fix:** guard the resume broadcast on `agentTriggeredStepUp`, matching the
+TOTP/push/CIBA success paths.
+
+### 2026-08-18 — Agent CIBA auto-initiate timers survive Dismiss and unmount, firing a back-channel auth after the user cancelled
+
+**Where:** `demo_api_ui/src/components/UserDashboard.js:1231-1238`
+(`autoInitiateTimerRef` t1/t2/t3), cleared only by `cancelAutoInitiate` (~1149,
+wired solely to the Cancel button); mirrored in `UserDashboardPing2026.js:1346-1348`.
+
+**What's wrong:** neither `dismissStepUp` (~1132-1138), the toast `onClose`/
+`onToastClosed` (~1268), nor the effect cleanup (~1257, which only removes the
+listener) clears the timers. Repro: agent requests a CIBA step-up → 3s countdown
+→ user clicks Dismiss (or navigates off `/dashboard`) within those 3s. `stepUpRequired`
+goes false and the toast closes, but `t3` still fires ~3s later, calling
+`handleCibaStepUp()` → a real CIBA back-channel auth is POSTed and the 5s poll
+starts with no visible UI, after the user explicitly dismissed. On unmount it also
+`setAgentCountdown`/`setCibaStatus` after teardown.
+
+**Why not fixed now:** §1 step-up surface; found while auditing, needs the timers
+cleared from every teardown path plus a test.
+
+**Real fix:** clear `autoInitiateTimerRef` in `dismissStepUp`, the toast close
+handler, and the effect cleanup — not just in the Cancel button handler.
+
+### 2026-08-18 — `agentTriggeredStepUp` is never reset on step-up FAILURE paths, leaking stale state into the next manual step-up
+
+**Where:** `demo_api_ui/src/components/UserDashboard.js` — push
+`PUSH_CONFIRMATION_TIMED_OUT`/`FAILED` (~1111-1119), TOTP `challenge_expired`
+(~995-1002), OTP `challenge_expired` (~1060-1066).
+
+**What's wrong:** all three failure/expiry paths leave `agentTriggeredStepUp === true`.
+Repro: an agent-triggered step-up times out or expires; later the user starts a
+manual transfer step-up. Because the stale flag is still true, the success path
+renders "resuming agent request…" and (push/CIBA/TOTP) dispatches `cibaStepUpApproved`
+for an action the user performed by hand — stale state leaking across attempts.
+Compounds the two findings above.
+
+**Why not fixed now:** §1 step-up surface; found while auditing, part of the same
+flag-lifecycle cleanup as the two above.
+
+**Real fix:** reset `agentTriggeredStepUp` (and any paired pending-action ref) on
+every step-up failure/expiry/cancel path, not only on success.
+
+### 2026-08-18 — `DashboardQuickNav` stack-height count is off by one for customers and overrides the correct CSS default
+
+**Where:** `demo_api_ui/src/components/DashboardQuickNav.js:21-26`; interacts with
+`App.css:138,140-142,668`.
+
+**What's wrong:** `count = 6 + (isAdmin ? 2 : 0)`, but a non-admin renders 7 buttons
+(Home, Dashboard, Agent, Settings, Learning Log, API, Logs). The effect writes
+`--quick-nav-stack-height = 6 * 44 = 264px` onto `.App`, overriding the correct CSS
+default `calc(7 * var(--stack-fab-height))` (App.css:138). So `--stack-fab-top-demo`
+(derived at App.css:140-142) is 44px too high and the demo FAB stack overlaps the
+last quick-nav button. It also hardcodes `44` while the CSS var drops to `42px` at a
+breakpoint (App.css:668), so at that width the override is wrong on both count and
+unit.
+
+**Why not fixed now:** cosmetic overlap; found while auditing. The real fix is to
+stop recomputing in JS a value CSS already knows.
+
+**Real fix:** count the buttons actually rendered (or let the CSS default stand and
+remove the JS override), and read the fab height from the CSS var rather than the
+hardcoded `44`.
+
+### 2026-08-18 — Run-story bullets keyed by a 48-char text prefix collide and drop a row
+
+**Where:** `demo_api_ui/src/components/TokenChainTraceRail.jsx:527` —
+`<li key={b.slice(0, 48)}>`.
+
+**What's wrong:** two run-story bullets that share their first 48 characters produce
+the same React key, so one is dropped from render (React de-dupes siblings by key).
+Long bullets with a common prefix (e.g. two "Exchanged token for backend …" lines
+differing only in a trailing id) are exactly this shape.
+
+**Why not fixed now:** low-impact rendering glitch; found while auditing.
+
+**Real fix:** key by index (or a stable bullet id) rather than a text-prefix slice.
+
+**Honourable mentions (not counted):** `demo_api_server/data/store.js` `applyTransfer`
+deletes the per-account `_transferLocks` entry unconditionally in `finally`, breaking
+mutual exclusion — but the critical section is fully synchronous so the event loop
+already serialises it and no overdraft results (redundant lock, buggy delete, no
+fund-correctness failure). And `demo_api_ui/.../UserDashboard.js:1494-1522`
+(`applyDemoTransaction`) is effectively dead (all callers early-return on `if (!user)`
+while `isDemoMode` is only true when `!user`), but it hides an unguarded
+money-creation path (`to` credited full, `from` clamps at `Math.max(0, …)`) worth
+removing before it is ever wired live.
+
 ### 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
 
 **Where:** `scripts/deploy-live.sh:42-58` — the `STAMP_BOOTSTRAP` path, and the
