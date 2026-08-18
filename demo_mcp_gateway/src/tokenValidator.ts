@@ -66,6 +66,11 @@ interface JwksResponse {
 let _jwksCache: JwkKey[] | null = null;
 let _jwksCacheTime = 0;
 const _JWKS_TTL_MS = 5 * 60 * 1000; // 5 minutes
+// Unknown-kid amplification guard: minimum spacing between FORCED refreshes.
+// A forced refresh bypasses the TTL (so a real key rotation is picked up
+// promptly), but must not let a burst of tokens carrying random kids open one
+// JWKS round-trip each. Refreshes are rate-capped to at most one per interval.
+const _JWKS_MIN_REFRESH_MS = parseInt(process.env.MCP_GW_JWKS_MIN_REFRESH_MS || '10000', 10);
 
 function _fetchUrl(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -85,8 +90,16 @@ async function _fetchJwks(endpoint: string, force = false): Promise<JwkKey[]> {
   if (!force && _jwksCache && now - _jwksCacheTime < _JWKS_TTL_MS) {
     return _jwksCache;
   }
-  // Deduplicate concurrent cache-miss requests: all callers share one in-flight fetch.
-  if (!force && _jwksFetchInFlight) return _jwksFetchInFlight;
+  // Rate-cap forced refreshes (unknown-kid path). If we refreshed within
+  // _JWKS_MIN_REFRESH_MS and still hold keys, reuse them — the caller then fails
+  // closed on "no matching key". A genuine rotation still refreshes once the
+  // interval elapses; a burst of random kids cannot fan out to unbounded fetches.
+  if (force && _jwksCache && now - _jwksCacheTime < _JWKS_MIN_REFRESH_MS) {
+    return _jwksCache;
+  }
+  // Deduplicate concurrent fetches: cache-miss AND forced-refresh callers share
+  // one in-flight fetch, so concurrent unknown-kid tokens cannot each open one.
+  if (_jwksFetchInFlight) return _jwksFetchInFlight;
   const inflight: Promise<JwkKey[]> = _fetchUrl(endpoint)
     .then((raw) => {
       const parsed = JSON.parse(raw) as JwksResponse;
@@ -104,7 +117,7 @@ async function _fetchJwks(endpoint: string, force = false): Promise<JwkKey[]> {
     .finally(() => {
       if (_jwksFetchInFlight === inflight) _jwksFetchInFlight = null;
     });
-  if (!force) _jwksFetchInFlight = inflight;
+  _jwksFetchInFlight = inflight;
   return inflight;
 }
 

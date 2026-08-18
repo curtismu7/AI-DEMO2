@@ -12,10 +12,39 @@ const PORT = parseInt(process.env.PORT || '8895', 10);
 
 // Tool list cache — keyed per caller (tools/list is scope/vertical-dependent),
 // cleared for that caller on any MCP error so it refreshes on next request.
+// A successful entry was previously cached for the process lifetime, so (a)
+// rotating tokens accumulated without bound and (b) scope/vertical changes that
+// alter the gateway's filtered tools/list were never picked up. Entries now
+// carry a TTL (re-fetched on expiry) and the map is size-bounded (LRU eviction).
 const _toolCacheByCaller = new Map();
+const _TOOL_CACHE_TTL_MS = parseInt(process.env.MCP_PROXY_TOOLS_TTL_MS || '30000', 10);
+const _TOOL_CACHE_MAX = parseInt(process.env.MCP_PROXY_TOOLS_MAX || '500', 10);
 
 function cacheKeyFor(bearerToken) {
   return bearerToken ? createHash('sha256').update(bearerToken).digest('hex') : '';
+}
+
+// Returns cached tools for the caller, or undefined if absent or expired.
+function toolCacheGet(cacheKey) {
+  const entry = _toolCacheByCaller.get(cacheKey);
+  if (!entry) return undefined;
+  if (Date.now() - entry.ts >= _TOOL_CACHE_TTL_MS) {
+    _toolCacheByCaller.delete(cacheKey);
+    return undefined;
+  }
+  // LRU touch: re-insert so the most-recently-used key sorts last for eviction.
+  _toolCacheByCaller.delete(cacheKey);
+  _toolCacheByCaller.set(cacheKey, entry);
+  return entry.tools;
+}
+
+function toolCacheSet(cacheKey, tools) {
+  _toolCacheByCaller.set(cacheKey, { tools, ts: Date.now() });
+  // Evict oldest entries when over the size bound (Map preserves insertion order).
+  while (_toolCacheByCaller.size > _TOOL_CACHE_MAX) {
+    const oldest = _toolCacheByCaller.keys().next().value;
+    _toolCacheByCaller.delete(oldest);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,11 +144,13 @@ const server = http.createServer(async (req, res) => {
     const bearer = bearerFrom(req);
     const cacheKey = cacheKeyFor(bearer);
     try {
-      if (!_toolCacheByCaller.has(cacheKey)) {
+      let tools = toolCacheGet(cacheKey);
+      if (tools === undefined) {
         const result = await mcpRpc('tools/list', {}, bearer);
-        _toolCacheByCaller.set(cacheKey, result.tools || []);
+        tools = result.tools || [];
+        toolCacheSet(cacheKey, tools);
       }
-      return send(res, 200, { tools: _toolCacheByCaller.get(cacheKey) });
+      return send(res, 200, { tools });
     } catch (err) {
       _toolCacheByCaller.delete(cacheKey);
       return send(res, err.status || 502, { error: err.message });
@@ -145,6 +176,12 @@ const server = http.createServer(async (req, res) => {
   send(res, 404, { error: 'Not found' });
 });
 
-server.listen(PORT, () => {
-  console.log(`[mcp-proxy] Listening on :${PORT}  →  ${MCP_BASE}/mcp`);
-});
+// Only bind the port when run directly (node server.js) — importing the module
+// (e.g. from tests) must not start listening.
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`[mcp-proxy] Listening on :${PORT}  →  ${MCP_BASE}/mcp`);
+  });
+}
+
+module.exports = { server, cacheKeyFor, toolCacheGet, toolCacheSet, _toolCacheByCaller };

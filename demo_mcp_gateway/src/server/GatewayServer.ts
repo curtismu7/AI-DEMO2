@@ -550,6 +550,24 @@ export class GatewayServer {
       if (sessionId) outHeaders[MCP_SESSION_HEADER] = sessionId;
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const transport = upstreamTarget.protocol === 'https:' ? require('https') : require('http');
+      // Settle-once guard so the teardown paths below (client close / upstream
+      // timeout / upstream end) resolve the Promise exactly once and detach the
+      // client-close listeners on normal completion.
+      let settled = false;
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        req.removeListener('close', onClientClose);
+        res.removeListener('close', onClientClose);
+        resolve();
+      };
+      const onClientClose = (): void => {
+        // The SSE consumer went away. pipe() only unpipes — it never destroys the
+        // source — so without this the upstream GET (and its socket) leaks for the
+        // process lifetime. Destroy it to release the connection, then settle.
+        upstreamReq.destroy();
+        finish();
+      };
       const upstreamReq = transport.request(
         {
           hostname: upstreamTarget.hostname,
@@ -576,17 +594,25 @@ export class GatewayServer {
           if (wwwAuth) sseHeaders['WWW-Authenticate'] = wwwAuth;
           res.writeHead(upstreamRes.statusCode ?? 200, sseHeaders);
           upstreamRes.pipe(res, { end: true });
-          upstreamRes.on('end', resolve);
-          upstreamRes.on('error', () => resolve());
+          upstreamRes.on('end', finish);
+          upstreamRes.on('error', finish);
         },
       );
+      // The `timeout` request option only ARMS the socket timer; it fires nothing
+      // on its own. Attach a real handler so an idle upstream is actually aborted.
+      upstreamReq.on('timeout', () => {
+        upstreamReq.destroy(new Error('upstream_timeout'));
+      });
       upstreamReq.on('error', () => {
-        if (!res.headersSent) {
+        if (!settled && !res.headersSent) {
           res.writeHead(502, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'upstream_unavailable' }));
         }
-        resolve();
+        finish();
       });
+      // Tear the upstream down if the client disconnects before the stream ends.
+      req.on('close', onClientClose);
+      res.on('close', onClientClose);
       upstreamReq.end();
     });
   }
