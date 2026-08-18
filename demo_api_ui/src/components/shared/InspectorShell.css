@@ -274,6 +274,20 @@
 }
 .inspector-shell-btn-call:hover { background: #1d4ed8; }
 .inspector-shell-btn-call:disabled { opacity: 0.5; cursor: not-allowed; }
+.inspector-shell-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+  animation: inspector-shell-spin 0.7s linear infinite;
+}
+@keyframes inspector-shell-spin {
+  to { transform: rotate(360deg); }
+}
 .inspector-shell-btn-clear {
   padding: 9px 14px;
   font-size: 13px;
