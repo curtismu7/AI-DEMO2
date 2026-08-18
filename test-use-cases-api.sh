@@ -45,11 +45,24 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────
 echo "  → Running use case: $USECASE_ID"
 
-RESPONSE=$(curl $INSECURE -s -X POST "$API_BASE/api/use-cases/demo/run" \
+RESPONSE=$(curl $INSECURE -s -w "\n%{http_code}" -X POST "$API_BASE/api/use-cases/demo/run" \
   -H "Content-Type: application/json" \
   -d "{\"useCaseId\": \"$USECASE_ID\"}")
 
-echo "  ✓ Use case executed"
+# Split the trailing status line (-w) from the JSON body.
+RUN_HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+RESPONSE=$(echo "$RESPONSE" | sed '$d')
+
+# curl -s exits 0 even on HTTP 500 — fail explicitly on an error status or body.
+if [ "$RUN_HTTP_CODE" -ge 400 ] 2>/dev/null || echo "$RESPONSE" | grep -q '"error"'; then
+  echo "  ✗ Use case run FAILED (HTTP $RUN_HTTP_CODE)"
+  echo "  Response: $RESPONSE"
+  echo ""
+  echo "❌ E2E API Test FAILED"
+  exit 1
+fi
+
+echo "  ✓ Use case executed (HTTP $RUN_HTTP_CODE)"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────
