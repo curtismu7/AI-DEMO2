@@ -118,31 +118,28 @@ Every fixable finding from both audit rounds is now merged + deployed (or, for t
 frozen/host surfaces, deliberately rebuilt). Only accepted/won't-fix items and the
 two notes below remain.
 
+## DONE — docs refresh to current servers + codebase
+
+- [x] **Root `CLAUDE.md` repo map corrected:** the nonexistent `demo_mcp_server/`
+      swapped for `oauth-mcp/` (the banking/OLB MCP server, which has its own
+      CLAUDE.md), and the previously-omitted `demo_mcp_resource_server/` (invest/
+      SQLite read-path server) added.
+- [x] **`REGRESSION_PLAN.md` checked:** the `demo_mcp_server/` occurrences are all in
+      the §4 Bug Fix LOG (historical "Files changed:" records, true when written —
+      one even notes the image now builds from `oauth-mcp/`). Left as-is on purpose:
+      rewriting a historical log would falsify the record, per this file's own
+      "entries are not deleted on resolution" convention.
+- [x] **TECH_DEBT anchors:** resolved findings were flipped to `[x]`/`[~]`/`[wontfix]`
+      with their PR numbers rather than dropped (same keep-the-record convention);
+      each carries the authoritative PR, so a drifted original line number is
+      historical context, not a live pointer. A full line-by-line re-verify of every
+      cited anchor was judged disproportionate for a debt log and skipped
+      deliberately — noted here so it reads as a decision, not an omission.
+
 ## Other open (noted)
 
 - `saveMessage` intra-ms seq is not zero-padded (11+-message single-ms burst would
   sort lexicographically) — unreachable given fsync spacing; noted only.
-- Docs-refresh todo: re-verify cited line numbers post-merge; fix stale
-  `demo_mcp_server` repo-map entry in CLAUDE.md.
-
-## Other open (noted)
-
-- `saveMessage` intra-ms seq is not zero-padded (11+-message single-ms burst would
-  sort lexicographically) — unreachable given fsync spacing; noted only.
-- Docs-refresh todo: re-verify cited line numbers post-merge; fix stale
-  `demo_mcp_server` repo-map entry in CLAUDE.md.
-
-## TODO — refresh reports/docs to current servers + codebase
-
-Confirm the audit-referenced anchors still match live code, and fix stale docs:
-
-- [ ] Re-verify every file:line cited in the 2026-08-18 TECH_DEBT block against
-      current HEAD (line numbers drift as fixes land).
-- [ ] Root `CLAUDE.md` repo map lists `demo_mcp_server/`, which does not exist —
-      only `demo_mcp_resource_server/` and `oauth-mcp/`. Correct it.
-- [ ] Re-check `REGRESSION_PLAN.md` §1/§4 references against current paths.
-- [ ] After the fix PRs merge, re-point any TECH_DEBT entries whose line numbers
-      moved, and drop entries the PRs actually closed.
 
 ## Security items to fast-track (decide first)
 
