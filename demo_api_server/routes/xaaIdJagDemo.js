@@ -18,6 +18,9 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  * @flow xaa
  * @name XAA / ID-JAG
  * @rfc https://datatracker.ietf.org/doc/html/draft-looker-app-driven-authorization-16 App-Driven AuthZ
+ * @why XAA / ID-JAG covers cross-domain delegation: a client with an identity in its home domain exchanges its ID token for an ID-JAG assertion the target domain's authorization server accepts — cross-company access rooted in one home identity, with no shared user store and no second login.
+ * @example Airline status getting you into a partner lounge: the partner does not have you in its member database — it accepts an assertion from your airline and issues its own lounge pass. Here, the foreign domain's AS mints its own access token from the ID-JAG.
+ * @ai An agent working across two companies' APIs — booking travel, filing an insurance claim — gets a per-domain token in each, every one traceable to the same home identity that delegated the task.
  * @actor client-app
  * @to idp-a
  * @step 1

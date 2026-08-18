@@ -91,7 +91,10 @@ router.get('/status', (req, res) => {
  *
  * @flow ciba-hitl
  * @name CIBA / HITL
- * @rfc https://datatracker.ietf.org/doc/html/rfc9110 RFC 9110
+ * @rfc https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html OpenID CIBA 1.0
+ * @why CIBA (Client-Initiated Backchannel Authentication) decouples approval from the device where a request started: the client asks the authorization server to authenticate a user, and the user approves on their own device — a push notification or app prompt — with no browser redirect anywhere in the flow. HITL (human-in-the-loop) applies the same shape to authorization: a sensitive action pauses until a named human explicitly approves it.
+ * @example You phone your bank's call center. Before the agent can discuss your account, the bank pushes an approval prompt to your mobile banking app — you tap Approve on your phone and the call proceeds. The call center never saw your password.
+ * @ai An AI agent has no browser and no human sitting next to it. CIBA is how it requests a real person's explicit approval — "approve this $500 transfer" lands on the account owner's device, and the agent stays blocked until a human answers.
  * @actor client-app
  * @to human-approver
  * @step 1

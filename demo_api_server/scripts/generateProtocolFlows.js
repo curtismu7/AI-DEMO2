@@ -32,7 +32,8 @@ function captureLeadingProse(jsdocComment) {
 }
 
 /**
- * Parse JSDoc comments for @flow, @name, @rfc, @title, @actor, @to, @step, @body, @expects, @branch tags
+ * Parse JSDoc comments for @flow, @name, @rfc, @title, @actor, @to, @step, @body, @expects, @branch,
+ * @why, @example, @ai tags
  */
 function parseFlowAnnotation(jsdocComment) {
   const lines = jsdocComment.split('\n');
@@ -72,6 +73,12 @@ function parseFlowAnnotation(jsdocComment) {
       result.expects = value.trim();
     } else if (tag === 'body') {
       result.body = value.trim();
+    } else if (tag === 'why') {
+      result.why = value.trim();
+    } else if (tag === 'example') {
+      result.example = value.trim();
+    } else if (tag === 'ai') {
+      result.ai = value.trim();
     } else if (tag === 'branch') {
       if (!result.branches) result.branches = [];
       result.branches.push(value.trim());
@@ -185,7 +192,7 @@ function buildFlowSpecs(routes) {
   const flows = {};
 
   for (const { annotation } of routes) {
-    const { flowId, displayName, prose, rfcUrl, rfcLabel, stepTitle, actor, toActor, step, expects, body, branches, method, endpoint } = annotation;
+    const { flowId, displayName, prose, rfcUrl, rfcLabel, stepTitle, actor, toActor, step, expects, body, branches, method, endpoint, why, example, ai } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -205,13 +212,17 @@ function buildFlowSpecs(routes) {
       flows[flowId].name = displayName;
     }
 
-    // Set flow-level spec from first annotation with @rfc (prose is captured from each annotation)
+    // Set flow-level spec from first annotation with @rfc. @why overrides the
+    // leading prose (which doubles as the step description); @example and @ai
+    // are optional explainer paragraphs.
     if (rfcUrl && rfcLabel && !flows[flowId].spec) {
       flows[flowId].spec = {
         url: rfcUrl,
         label: rfcLabel,
         title: displayName || toTitleCase(flowId),
-        why: prose
+        why: why || prose,
+        ...(example && { example }),
+        ...(ai && { ai })
       };
     }
 

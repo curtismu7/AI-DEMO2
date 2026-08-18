@@ -29,6 +29,13 @@ export default function ProtocolExplainer({ spec }) {
         </p>
       )}
 
+      {spec.example && (
+        <p className="pp-explainer__para">
+          <span className="pp-explainer__lead">Real-world example</span>
+          {spec.example}
+        </p>
+      )}
+
       {spec.ai && (
         <p className="pp-explainer__para pp-explainer__para--ai">
           <span className="pp-explainer__lead">Why it matters for AI agents</span>

@@ -78,7 +78,10 @@ router.get('/', (req, res) => {
  * authorization server issues its tokens and which scopes it accepts.
  *
  * @flow resource-metadata
- * @rfc https://datatracker.ietf.org/doc/html/rfc8414 RFC 8414
+ * @rfc https://datatracker.ietf.org/doc/html/rfc9728 RFC 9728
+ * @why Protected Resource Metadata (RFC 9728) lets an API publish a .well-known document declaring which authorization server issues its tokens and which scopes it accepts. Clients discover how to authorize against a resource instead of being hand-configured for it.
+ * @example This is how MCP authorization bootstraps: an MCP client hits a protected server, gets a 401 pointing at the resource metadata, reads which authorization server to use, and starts the right OAuth flow — zero out-of-band setup. Like a door that lists which badge office issues the badges it accepts.
+ * @ai Agents connect to tool servers they have never seen before. Discovery metadata is what lets that happen safely at runtime instead of via config files written by a human in advance.
  * @actor client-app
  * @to resource-server
  * @step 1

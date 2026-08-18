@@ -32,6 +32,9 @@ function deriveRequestUri(clientId, redirectUri) {
  * @flow par
  * @name PAR
  * @rfc https://datatracker.ietf.org/doc/html/rfc9126 RFC 9126
+ * @why PAR (Pushed Authorization Requests) moves authorization parameters off the front channel: normally they travel through the browser as a query string — visible, tamperable, logged in history. With PAR the client pushes them directly to the authorization server over an authenticated backchannel and receives a one-time request_uri; the redirect carries only that opaque reference.
+ * @example Like handing your paperwork to the bank clerk in person and getting a ticket number, instead of writing your account details on a postcard that passes through every intermediate hand. A malicious browser extension that rewrites redirect URLs has nothing to rewrite.
+ * @ai The intent of the flow is fixed and integrity-protected before anything user-facing happens — an agent (or anything between it and the AS) cannot quietly alter scope, redirect target, or amount mid-redirect.
  * @actor client-app
  * @to auth-server
  * @step 1

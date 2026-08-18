@@ -40,6 +40,9 @@ function classifyParPushError(message) {
  * @flow rar
  * @name RAR
  * @rfc https://datatracker.ietf.org/doc/html/rfc9396 RFC 9396
+ * @why RAR (Rich Authorization Requests) replaces coarse scopes with structured authorization_details — type, amount, account, action — so the authorization server grants exactly one described transaction, and policy can enforce the difference between what was asked and what was granted.
+ * @example Instead of a token with a broad payments scope, the token says "one transfer, up to $100, from checking, to this payee". A $2,000 transfer attempt with that token is denied by policy, not by hoping the client behaves.
+ * @ai The agent declares its intent up front in machine-checkable form. Here PingOne Authorize compares the amount the agent actually requests against its declared $100 intent cap and returns PERMIT or DENY — overreach is caught at the policy layer.
  * @actor client-app
  * @to auth-server
  * @step 1

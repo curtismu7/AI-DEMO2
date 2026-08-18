@@ -30,6 +30,9 @@ function deriveCode(codeChallenge) {
  * @flow pkce
  * @name PKCE
  * @rfc https://datatracker.ietf.org/doc/html/rfc7636 RFC 7636
+ * @why PKCE (Proof Key for Code Exchange) protects the authorization code, which travels back through a redirect other software on the device can observe. The client invents a one-time secret, sends only its hash (code_challenge) when the flow starts, and must present the original (code_verifier) to redeem the code — so an intercepted code is useless on its own.
+ * @example A coat-check ticket that only matches your stub. A rogue app on your phone registers the same redirect scheme and captures the authorization code — and gets nothing, because it cannot produce the verifier that hashes to the challenge. Mandatory for public clients in OAuth 2.1.
+ * @ai Any agent running where it cannot keep a client secret — a desktop, a container image someone can inspect — is a public client. PKCE is what makes its code flow safe without a secret.
  * @actor client-app
  * @to auth-server
  * @step 1

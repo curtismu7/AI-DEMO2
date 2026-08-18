@@ -24,6 +24,9 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  * @flow rfc8693-token-exchange
  * @name RFC 8693 Token Exchange
  * @rfc https://datatracker.ietf.org/doc/html/rfc8693 RFC 8693
+ * @why Token Exchange (RFC 8693) trades one token for another at the authorization server: narrower audience, narrower scope, and an act claim recording who is acting on whose behalf. No service ever forwards the user's original token — each hop gets a token minted for exactly that hop.
+ * @example A valet key: starts the car, will not open the trunk. In a microservice chain, the gateway exchanges the user's token for a service-scoped token per downstream call, so a compromised downstream service holds a token good for almost nothing.
+ * @ai This is the backbone of this demo. Every agent hop — BFF to agent, agent to MCP — is a fresh exchange, so the token that reaches a tool server is scoped to that one call, and the nested act chain is a cryptographic audit trail of every delegation.
  * @actor client-app
  * @to token-exchanger
  * @step 1

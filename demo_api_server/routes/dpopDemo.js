@@ -31,6 +31,9 @@ function deriveToken(dpopProof) {
  * @flow dpop
  * @name DPoP
  * @rfc https://datatracker.ietf.org/doc/html/rfc9449 RFC 9449
+ * @why DPoP (Demonstrating Proof of Possession) fixes the bearer-token problem: a plain bearer token is like cash — whoever holds it can spend it. DPoP binds the access token to a private key the client keeps, and every API call must carry a fresh proof signed with that key, so the token alone is worthless to anyone who steals it.
+ * @example An access token leaks through a logging pipeline or a compromised proxy. Against a DPoP-protected API the replay fails: the attacker has the token but cannot produce the signed proof, because the private key never left the legitimate client.
+ * @ai Agent tokens pass through many hands — queues, tool servers, traces, logs. Sender-constraining them means an exfiltrated token from any of those hops cannot be replayed by whoever finds it.
  * @actor client-app
  * @to gateway
  * @step 1

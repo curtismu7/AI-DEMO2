@@ -24,7 +24,11 @@
 }
 
 .json-string {
-  color: #4ade80;
+  color: #15803d;
+}
+
+.protocol-playground.dark .json-string {
+  color: #86efac;
 }
 
 .json-number {
@@ -53,10 +57,6 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .json-string {
-    color: #86efac;
-  }
-
   .json-number {
     color: #fcd34d;
   }
