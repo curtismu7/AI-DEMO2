@@ -232,7 +232,14 @@ while auditing input validation.
 **Real fix:** look the account up by `:accountId`, scoped to the caller, and 404 when
 it does not exist or is not theirs.
 
-### [ ] 2026-08-18 — Customer dashboard fires the agent-resume event on the Email-OTP path even with no agent involved
+### [x] 2026-08-18 — Customer dashboard fires the agent-resume event on the Email-OTP path even with no agent involved
+
+**FIXED 2026-08-18 (PR #2031, merged + deployed).** `handleVerifyOtp` now guards the
+resume on `if (agentTriggeredStepUp)`, matching the TOTP/push/CIBA/FIDO2 siblings —
+a manual OTP verify no longer toasts "resuming agent request…" nor dispatches
+`cibaStepUpApproved`. Fixed in both `UserDashboard.js` and `UserDashboardPing2026.js`.
+Regression covered by `UserDashboardPing2026.stepUpLifecycle.test.js`. Original
+entry follows.
 
 **Where:** `demo_api_ui/src/components/UserDashboard.js:1044-1048` (`handleVerifyOtp`);
 mirrored in `UserDashboardPing2026.js`.
@@ -253,7 +260,14 @@ auditing, needs the same guarded pattern its siblings use plus a test.
 **Real fix:** guard the resume broadcast on `agentTriggeredStepUp`, matching the
 TOTP/push/CIBA success paths.
 
-### [ ] 2026-08-18 — Agent CIBA auto-initiate timers survive Dismiss and unmount, firing a back-channel auth after the user cancelled
+### [x] 2026-08-18 — Agent CIBA auto-initiate timers survive Dismiss and unmount, firing a back-channel auth after the user cancelled
+
+**FIXED 2026-08-18 (PR #2031, merged + deployed).** `cancelAutoInitiate` (which
+clears the t1/t2/t3 timers) is now called from `dismissStepUp`, the toast `onClose`,
+and the `agentStepUpRequested` effect cleanup — not only the Cancel button — so a
+real CIBA back-channel auth can no longer fire after Dismiss or navigation mid-
+countdown. Fixed in both dashboard files. Regression test asserts unmount clears
+with a positive control (fires=1 mounted vs 0 unmounted). Original entry follows.
 
 **Where:** `demo_api_ui/src/components/UserDashboard.js:1231-1238`
 (`autoInitiateTimerRef` t1/t2/t3), cleared only by `cancelAutoInitiate` (~1149,
@@ -274,7 +288,16 @@ cleared from every teardown path plus a test.
 **Real fix:** clear `autoInitiateTimerRef` in `dismissStepUp`, the toast close
 handler, and the effect cleanup — not just in the Cancel button handler.
 
-### [ ] 2026-08-18 — `agentTriggeredStepUp` is never reset on step-up FAILURE paths, leaking stale state into the next manual step-up
+### [x] 2026-08-18 — `agentTriggeredStepUp` is never reset on step-up FAILURE paths, leaking stale state into the next manual step-up
+
+**FIXED 2026-08-18 (PR #2031, merged + deployed).** `agentTriggeredStepUp` is now
+reset on the three terminal failure/expiry paths (push timeout/failed, TOTP
+`challenge_expired`, OTP `challenge_expired`) in both dashboard files. The
+CIBA-poll error path was deliberately left untouched — it shows a Retry that must
+resume the same agent attempt, so resetting there would break the legitimate agent
+CIBA retry; only genuinely terminal paths reset. Note: `pendingStepUpActionRef`
+does not exist in either file, so only the flag is reset (the round-2 entry's
+mention of a paired ref was a guess). Original entry follows.
 
 **Where:** `demo_api_ui/src/components/UserDashboard.js` — push
 `PUSH_CONFIRMATION_TIMED_OUT`/`FAILED` (~1111-1119), TOTP `challenge_expired`
@@ -293,7 +316,20 @@ flag-lifecycle cleanup as the two above.
 **Real fix:** reset `agentTriggeredStepUp` (and any paired pending-action ref) on
 every step-up failure/expiry/cancel path, not only on success.
 
-### [ ] 2026-08-18 — `DashboardQuickNav` stack-height count is off by one for customers and overrides the correct CSS default
+### [x] 2026-08-18 — `DashboardQuickNav` stack-height count is off by one for customers and overrides the correct CSS default
+
+**FIXED 2026-08-18 (PR #2028, merged + deployed) — but the premise was partly
+wrong.** The JS override (`count = 6 + …`, hardcoded `* 44`) turned out to be
+**inert**: its only consumer is the `.App--has-quick-nav` rule (`App.css:140-142`),
+and that class (plus `.App--has-nav-dash`) is **never applied to any DOM element**
+(grep-confirmed). So the off-by-one wrote a variable nothing read. The fix removed
+the dead `useEffect` entirely, making the already-correct, breakpoint-aware CSS
+default `calc(7 * var(--stack-fab-height))` the single source of truth; a test locks
+the non-admin count at 7. **Still open:** the demo-FAB overlap this override was
+*meant* to prevent has a different root cause — the never-applied
+`.App--has-quick-nav` / `.App--has-nav-dash` classes — a larger change in protected
+FAB layout, not attempted here and unverifiable without a live browser. Original
+entry follows.
 
 **Where:** `demo_api_ui/src/components/DashboardQuickNav.js:21-26`; interacts with
 `App.css:138,140-142,668`.
@@ -314,7 +350,12 @@ stop recomputing in JS a value CSS already knows.
 remove the JS override), and read the fab height from the CSS var rather than the
 hardcoded `44`.
 
-### [ ] 2026-08-18 — Run-story bullets keyed by a 48-char text prefix collide and drop a row
+### [x] 2026-08-18 — Run-story bullets keyed by a 48-char text prefix collide and drop a row
+
+**FIXED 2026-08-18 (PR #2028, merged + deployed).** `key={b.slice(0, 48)}` changed to
+`key={i}` (the index the map callback already provides), so two bullets sharing a
+48-char prefix no longer collide. Regression test drives two colliding bullets
+through the real component. Original entry follows.
 
 **Where:** `demo_api_ui/src/components/TokenChainTraceRail.jsx:527` —
 `<li key={b.slice(0, 48)}>`.

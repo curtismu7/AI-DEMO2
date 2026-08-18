@@ -47,9 +47,21 @@ also surfaced a new latent bug now logged in TECH_DEBT: `saveMessage` reads the
 seq from key segment `[4]` instead of `[3]`, so same-millisecond writes collide
 and drop messages under load.
 
-**UI 5 — not started.** The step-up cluster (#6-8: unconditional agent-resume on
-Email-OTP, CIBA timers surviving dismiss, `agentTriggeredStepUp` not reset on
-failure) is the priority — it can fire a real auth the user did not request.
+**UI 5/5 fixed — PR #2031 (step-up cluster #6-8) + PR #2028 (rendering #9-10),
+both merged + deployed** (ui restarted). Notes: #9's JS override was inert dead
+code (removed) — the real FAB overlap traces to never-applied `.App--has-quick-nav`
+classes, still open as a protected-layout follow-up; the CIBA-poll retry path was
+deliberately left intact so legit agent retries still resume.
+
+## Remaining open (logged in TECH_DEBT, not started)
+
+- `saveMessage` seq-index `[4]` vs `[3]` → same-ms writes drop messages under load.
+- Demo-FAB overlap via never-applied `.App--has-quick-nav` / `.App--has-nav-dash`
+  classes (the real cause behind round-2 #9).
+- The 11 earlier deferred §1 findings (gateway proxy protocol/SSE, LLM-proxy
+  routing, helix event-loop, introspection-not-configured, OIDC nonce, pkce cookie).
+- Docs-refresh todo: re-verify cited line numbers post-merge; fix stale
+  `demo_mcp_server` repo-map entry in CLAUDE.md.
 
 ## TODO — refresh reports/docs to current servers + codebase
 
