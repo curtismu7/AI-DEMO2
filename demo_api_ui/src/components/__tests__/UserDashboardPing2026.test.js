@@ -313,7 +313,10 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-18: customer-dashboard step-up lifecycle fixes —
+  // Re-baselined 2026-08-18 (2): register both resize drags' teardown in a
+  // dragCleanupRef invoked on unmount, so a route change mid-drag no longer
+  // leaks document listeners / a stuck body cursor (same fix as
+  // EmbeddedAgentDock). Earlier 2026-08-18: customer-dashboard step-up lifecycle fixes —
   // guard the email-OTP agent-resume broadcast on agentTriggeredStepUp (FIX 6),
   // clear the CIBA auto-initiate timers in dismissStepUp / toast onClose /
   // effect cleanup (FIX 7), and reset agentTriggeredStepUp on the push-timeout,
@@ -324,7 +327,7 @@ test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "69dbbdf0484644c5f539feb60438d243142e6e498fcd2cae5fd1707063efb366";
+    "56153c286455abb0bc35f8b560ebb8a49b1bfef3ee0c343811a926f6697e25c5";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

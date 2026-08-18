@@ -1,24 +1,9 @@
 // demo_api_ui/src/components/shared/InspectorShell.jsx
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import useDividerDrag from '../../hooks/useDividerDrag';
 import './InspectorShell.css';
 
-const WIDTHS_KEY = 'inspector-shell-panel-widths';
 const LEFT_COLLAPSED_KEY = 'inspector-shell-left-collapsed';
-const MIN_LEFT = 160;
-const MAX_LEFT = 480;
-const MIN_MIDDLE = 260;
-const MAX_MIDDLE = 640;
-const DEFAULT_WIDTHS = { left: 240, middle: 380 };
-
-function loadWidths() {
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(WIDTHS_KEY));
-    if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.middle)) return saved;
-  } catch {
-    // Malformed or unavailable storage (private browsing, quota) — use defaults.
-  }
-  return DEFAULT_WIDTHS;
-}
 
 function loadLeftCollapsed() {
   try {
@@ -47,9 +32,22 @@ export default function InspectorShell({
   middle,
   right,
 }) {
-  const [widths, setWidths] = useState(loadWidths);
+  // Widths moved from one combined JSON key to per-column keys when the drag
+  // logic converged on useDividerDrag — a stored pre-migration width resets
+  // once to the defaults.
+  const { size: leftWidth, handleProps: leftHandleProps } = useDividerDrag({
+    min: 160,
+    max: 480,
+    initial: 240,
+    storageKey: 'inspector-shell-left-width',
+  });
+  const { size: middleWidth, handleProps: middleHandleProps } = useDividerDrag({
+    min: 260,
+    max: 640,
+    initial: 380,
+    storageKey: 'inspector-shell-middle-width',
+  });
   const [leftCollapsed, setLeftCollapsed] = useState(loadLeftCollapsed);
-  const dragRef = useRef(null);
 
   const toggleLeftCollapsed = useCallback(() => {
     setLeftCollapsed((prev) => {
@@ -62,50 +60,6 @@ export default function InspectorShell({
       return next;
     });
   }, []);
-
-  const onDragMove = useCallback((e) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const delta = e.clientX - drag.startX;
-    if (drag.which === 'left') {
-      const next = Math.min(Math.max(drag.startWidth + delta, MIN_LEFT), MAX_LEFT);
-      setWidths((w) => ({ ...w, left: next }));
-    } else {
-      const next = Math.min(Math.max(drag.startWidth + delta, MIN_MIDDLE), MAX_MIDDLE);
-      setWidths((w) => ({ ...w, middle: next }));
-    }
-  }, []);
-
-  const onDragEnd = useCallback(() => {
-    dragRef.current = null;
-    document.removeEventListener('mousemove', onDragMove);
-    document.removeEventListener('mouseup', onDragEnd);
-    setWidths((w) => {
-      try {
-        window.localStorage.setItem(WIDTHS_KEY, JSON.stringify(w));
-      } catch {
-        // Ignore write failures (private browsing, quota).
-      }
-      return w;
-    });
-  }, [onDragMove]);
-
-  const onDragStart = useCallback(
-    (which) => (e) => {
-      dragRef.current = { which, startX: e.clientX, startWidth: widths[which] };
-      document.addEventListener('mousemove', onDragMove);
-      document.addEventListener('mouseup', onDragEnd);
-    },
-    [widths, onDragMove, onDragEnd],
-  );
-
-  // If the component unmounts mid-drag (e.g. a route change while the mouse
-  // button is still held), remove the listeners added in onDragStart so they
-  // don't linger on `document` for the rest of the SPA session.
-  useEffect(() => () => {
-    document.removeEventListener('mousemove', onDragMove);
-    document.removeEventListener('mouseup', onDragEnd);
-  }, [onDragMove, onDragEnd]);
 
   return (
     <div className="inspector-shell-page">
@@ -143,8 +97,8 @@ export default function InspectorShell({
         }
         style={{
           gridTemplateColumns: leftCollapsed
-            ? `0px 0px ${widths.middle}px 6px 1fr`
-            : `${widths.left}px 6px ${widths.middle}px 6px 1fr`,
+            ? `0px 0px ${middleWidth}px 6px 1fr`
+            : `${leftWidth}px 6px ${middleWidth}px 6px 1fr`,
         }}
       >
         <div
@@ -159,20 +113,16 @@ export default function InspectorShell({
         </div>
         <div
           className="inspector-shell-resize-handle"
-          onMouseDown={onDragStart('left')}
-          role="separator"
-          aria-orientation="vertical"
           aria-label="Resize tool list column"
           aria-hidden={leftCollapsed || undefined}
           style={leftCollapsed ? { pointerEvents: 'none' } : undefined}
+          {...leftHandleProps}
         />
         <div className="inspector-shell-col-middle">{middle}</div>
         <div
           className="inspector-shell-resize-handle"
-          onMouseDown={onDragStart('middle')}
-          role="separator"
-          aria-orientation="vertical"
           aria-label="Resize form column"
+          {...middleHandleProps}
         />
         <div className="inspector-shell-col-right">{right}</div>
       </div>

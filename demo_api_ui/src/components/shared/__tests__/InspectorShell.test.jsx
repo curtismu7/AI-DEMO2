@@ -144,10 +144,9 @@ describe('InspectorShell', () => {
     fireEvent.mouseMove(document, { clientX: 320 });
     fireEvent.mouseUp(document);
 
-    expect(JSON.parse(window.localStorage.getItem('inspector-shell-panel-widths'))).toEqual({
-      left: 320,
-      middle: 380,
-    });
+    // Per-column keys since the drag logic converged on useDividerDrag; the
+    // middle key is only written when its own divider is dragged.
+    expect(window.localStorage.getItem('inspector-shell-left-width')).toBe('320');
 
     unmount();
     const { container: container2 } = render(<InspectorShell title="X" />);
