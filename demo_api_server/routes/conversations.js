@@ -228,17 +228,22 @@ router.get('/admin/queue-stats', (req, res) => {
  */
 router.post('/:userId/:vertical/hero-shown', express.json(), (req, res) => {
   const { userId, vertical } = req.params;
-  const { greeting, imageUrl } = req.body;
 
   if (!userId || !vertical) {
     return res.status(400).json({ error: 'userId and vertical are required' });
   }
 
-  if (!greeting || !imageUrl) {
-    return res.status(400).json({ error: 'greeting and imageUrl are required' });
-  }
-
   try {
+    // Body read INSIDE the try on purpose. It used to sit above it, so a throw
+    // here (`req.body` absent when no parser matched the request) escaped to
+    // Express's default handler as a 500 that logged NOTHING — the one 500 shape
+    // this route could produce that left no trace to investigate.
+    const { greeting, imageUrl } = req.body || {};
+
+    if (!greeting || !imageUrl) {
+      return res.status(400).json({ error: 'greeting and imageUrl are required' });
+    }
+
     conversationStore.saveMessage(userId, vertical, 'assistant', greeting, {
       heroGreeting: true,
       imageUrl,
@@ -246,7 +251,10 @@ router.post('/:userId/:vertical/hero-shown', express.json(), (req, res) => {
     });
     return res.json({ saved: true });
   } catch (err) {
-    console.error('[conversations.POST.hero-shown] Error:', err.message);
+    // Stack, not just message: the reported 500 here was never explained because
+    // `err.message` alone does not say whether the store, the body, or the LMDB
+    // env failed.
+    console.error('[conversations.POST.hero-shown] Error:', err.stack || err.message);
     return res.status(500).json({ error: 'failed to save hero info' });
   }
 });

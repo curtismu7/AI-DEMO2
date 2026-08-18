@@ -67,6 +67,32 @@ describe("DashboardTokenRail", () => {
     expect(localStorage.getItem(TOKEN_RAIL_COLLAPSED_KEY)).toBe("0");
   });
 
+  // Guards the fix for the self-persisting default: the rail used to write its
+  // own default to localStorage from a mount effect, so the stored value shadowed
+  // the default forever and a default flip could only reach existing browsers by
+  // bumping the storage key. An absent key must keep meaning "no preference".
+  it("writes nothing to localStorage on mount", () => {
+    render(
+      <DashboardTokenRail>
+        <div>chain</div>
+      </DashboardTokenRail>,
+    );
+    expect(localStorage.getItem(TOKEN_RAIL_COLLAPSED_KEY)).toBeNull();
+    expect(localStorage.getItem(TOKEN_RAIL_WIDTH_KEY)).toBeNull();
+  });
+
+  it("leaves an existing stored preference untouched on mount", () => {
+    localStorage.setItem(TOKEN_RAIL_COLLAPSED_KEY, "0");
+    localStorage.setItem(TOKEN_RAIL_WIDTH_KEY, "400");
+    render(
+      <DashboardTokenRail>
+        <div>chain</div>
+      </DashboardTokenRail>,
+    );
+    expect(localStorage.getItem(TOKEN_RAIL_COLLAPSED_KEY)).toBe("0");
+    expect(localStorage.getItem(TOKEN_RAIL_WIDTH_KEY)).toBe("400");
+  });
+
   it("restores collapsed state from localStorage", () => {
     localStorage.setItem(TOKEN_RAIL_COLLAPSED_KEY, "1");
     localStorage.setItem(TOKEN_RAIL_WIDTH_KEY, "400");

@@ -11,7 +11,7 @@ const express = require('express');
 const router = express.Router();
 const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
-const { authLevelForUseCase, AUTH_REQUIREMENTS } = require('../config/authRequirements');
+const { authLevelForUseCaseId, AUTH_REQUIREMENTS } = require('../config/authRequirements');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
@@ -45,7 +45,7 @@ const {
  * @returns {object[]}
  */
 function withAuthLevel(useCases) {
-  return useCases.map((uc) => ({ ...uc, auth: authLevelForUseCase(uc.id) }));
+  return useCases.map((uc) => ({ ...uc, auth: authLevelForUseCaseId(uc.id) }));
 }
 
 function pickVertical(req, res) {
@@ -81,7 +81,7 @@ router.get('/:id', (req, res) => {
   if (!vertical) return;
   const useCase = resolveUseCase(req.params.id, vertical);
   if (!useCase) return res.status(404).json({ error: 'unknown_use_case', id: req.params.id });
-  res.json({ useCase: { ...useCase, auth: authLevelForUseCase(useCase.id) } });
+  res.json({ useCase: { ...useCase, auth: authLevelForUseCaseId(useCase.id) } });
 });
 
 // POST /api/demo/use-cases/run  → execute use case, return trigger text for agent
@@ -111,9 +111,9 @@ router.post('/demo/run', optionalAuthenticateToken, async (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid useCaseId' });
   }
 
-  // Fails closed: authLevelForUseCase answers 'user' for anything unlisted, so a
+  // Fails closed: authLevelForUseCaseId answers 'user' for anything unlisted, so a
   // new use case is protected until someone declares otherwise.
-  const requiredLevel = authLevelForUseCase(rawUseCase.id);
+  const requiredLevel = authLevelForUseCaseId(rawUseCase.id);
   const isAdmin = req.user?.role === 'admin';
   const meetsLevel = requiredLevel === 'public'
     || (requiredLevel === 'admin' ? isAdmin : !!req.user);

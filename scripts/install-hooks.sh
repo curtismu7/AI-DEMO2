@@ -3,7 +3,7 @@
 # Run once after cloning to activate the project git hooks.
 # Safe to run multiple times.
 
-set -e
+set -eo pipefail # pipefail: `a | b` must report a's failure, not b's
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOOKS_DIR="$REPO_ROOT/.githooks"

@@ -60,7 +60,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
-import { runsSignedOut, authLevelForUseCase, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
+import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
 import VerticalResult from "./VerticalResult";
@@ -7507,7 +7507,7 @@ export default function BankingAgent({
       // sign-in prompt this branch exists to show. Only the step's own auth
       // level decides — and "a session" is not one level: an admin step asks a
       // signed-in customer for an ADMIN sign-in rather than accepting theirs.
-      const stepAuth = authLevelForUseCase(uc);
+      const stepAuth = authLevelOf(uc);
       const stepNeedsAuth = !viewerMeetsUseCaseAuth(uc, { isLoggedIn, isAdmin: isAdminUser });
       pendingUcAuthRef.current = stepNeedsAuth ? stepAuth : null;
       // Not eligible to send yet — queue the step anyway (below) and show an

@@ -6,7 +6,7 @@
 #              handling prerequisites, dependencies, and Docker startup.
 # ==============================================================
 
-set -e # Exit immediately if a command exits with a non-zero status.
+set -eo pipefail # Exit on non-zero status; pipefail so `a | b` reports a's failure
 
 echo "--- 🚀 AI Demo Master Bootstrap Script Starting ---"
 

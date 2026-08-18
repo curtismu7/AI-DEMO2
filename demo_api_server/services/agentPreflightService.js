@@ -345,11 +345,11 @@ async function evaluateBatch({ req, tools }) {
   let userTier = null;
   const groupPolicyEnabled = groupPolicy.isEnabled(configStore);
   if (groupPolicyEnabled) {
-    userGroups = await groupPolicy.groupsForUser(
+    ({ groups: userGroups } = await groupPolicy.groupsForUser(
       req.session?.user?.username,
       activeVerticalId,
       { pingOneUserId: facts.subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
-    );
+    ));
     userTier = groupPolicy.resolveUserTier(userGroups, activeVerticalId);
   }
 

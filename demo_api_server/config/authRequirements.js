@@ -27,7 +27,7 @@ const RANK = new Map(LEVELS.map((level, i) => [level, i]));
  * @param {string} id
  * @returns {'public'|'user'|'admin'}
  */
-function authLevelForUseCase(id) {
+function authLevelForUseCaseId(id) {
   return AUTH_REQUIREMENTS.useCases[id] || DEFAULT_LEVEL;
 }
 
@@ -43,7 +43,7 @@ function authLevelForRoute(path) {
 
 /** @param {string} id @returns {boolean} true when the use case runs signed out. */
 function isPublicUseCase(id) {
-  return authLevelForUseCase(id) === 'public';
+  return authLevelForUseCaseId(id) === 'public';
 }
 
 /**
@@ -58,7 +58,7 @@ module.exports = {
   AUTH_REQUIREMENTS,
   LEVELS,
   DEFAULT_LEVEL,
-  authLevelForUseCase,
+  authLevelForUseCaseId,
   authLevelForRoute,
   isPublicUseCase,
   compareLevels,
