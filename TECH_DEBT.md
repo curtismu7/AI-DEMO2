@@ -7,6 +7,48 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
+
+**Where:** `demo_authz_server/routes/decision.js` (12 `STEP_UP` / `HITL_CONSENT`
+sites) versus the cloud PingOne Authorize decision endpoint; 55 source files and
+40 test files reference the value.
+
+**What's wrong:** one word carries two unrelated meanings.
+
+- **Cloud P1AZ** returns `INDETERMINATE` when evaluation FAILED — missing
+  attribute, attribute provider unreachable, malformed payload. It should be
+  treated as an error and failed closed.
+- **`demo_authz_server`** returns it deliberately as a PAUSE: `reason=STEP_UP`
+  when an amount crosses the step-up band, `reason=HITL_CONSENT` between confirm
+  and step-up. UC7 and UC8 are built on it; `tests/decision.test.js` pins it with
+  26 assertions.
+
+Anyone acting on "INDETERMINATE means something is broken" deletes a working
+flow. Anyone acting on "INDETERMINATE means step-up" silently swallows a real
+cloud evaluation error. The meaning currently lives in `reason`, not `decision`,
+so nothing in the type tells a reader which they have.
+
+Baseline captured live 2026-08-18 (real subject and actor, five verticals):
+`$600 → INDETERMINATE/STEP_UP`, `$300 → INDETERMINATE/HITL_CONSENT`,
+`$100 → PERMIT`, `$2500 → DENY` ceiling. In 45 minutes of ordinary traffic
+`demo_authz_server` logged ZERO indeterminate and the cloud endpoint returned
+clean `PERMIT`s — today the value only ever appears as the intended pause, so
+this is a clarity defect rather than an outage.
+
+**Why not fixed now:** the user chose the full obligation-based rework over the
+cheaper rename, and asked for a plan before any code. Scope is 55 source files,
+40 test files and PingGateway's Groovy `p1az-decision`, in a REGRESSION_PLAN §1
+area covering UC7 and UC8 — not something to start at the end of a session.
+
+**Real fix:** `docs/superpowers/plans/2026-08-18-indeterminate-rework.md` — five
+independently-shippable phases beginning with characterisation tests that capture
+today's behaviour before anything moves. It also records the cheaper alternative
+(rename the pause to `CHALLENGE`/`PENDING`, no behavioural change, the 26
+assertions become a rename) in case the trade looks different on reading. Two
+traps apply directly: `obligatory:false` is NOT safe to treat as optional, and an
+INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
+`project-indeterminate-two-meanings`.
+
 ### 2026-08-18 — `authLevelForUseCase` names two different functions, one taking an id and one taking an object
 
 **Where:** `demo_api_server/config/authRequirements.js:32` takes a use-case **id**
