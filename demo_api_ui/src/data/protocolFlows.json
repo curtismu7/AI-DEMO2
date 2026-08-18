@@ -46,10 +46,10 @@
     "spec": {
       "url": "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html",
       "label": "OpenID CIBA 1.0",
-      "title": "Client-Initiated Backchannel Authentication (+ Human-in-the-Loop)",
-      "why": "CIBA decouples authentication from the device where a request started: the client asks the authorization server to authenticate a user, and the user approves on their own device — a push notification, an app prompt — with no browser redirect anywhere in the flow. HITL applies the same shape to authorization: a sensitive action pauses until a named human explicitly approves it.",
-      "example": "You phone your bank’s call center. Before the agent can discuss your account, the bank pushes an approval prompt to your mobile banking app — you tap Approve on your phone, and the call proceeds. The call center never saw your password.",
-      "ai": "An AI agent has no browser and no human sitting next to it. CIBA is how it requests a real person’s explicit approval — \"approve this $500 transfer\" lands on the account owner’s device, and the agent stays blocked until a human answers."
+      "title": "CIBA / HITL",
+      "why": "CIBA (Client-Initiated Backchannel Authentication) decouples approval from the device where a request started: the client asks the authorization server to authenticate a user, and the user approves on their own device — a push notification or app prompt — with no browser redirect anywhere in the flow. HITL (human-in-the-loop) applies the same shape to authorization: a sensitive action pauses until a named human explicitly approves it.",
+      "example": "You phone your bank's call center. Before the agent can discuss your account, the bank pushes an approval prompt to your mobile banking app — you tap Approve on your phone and the call proceeds. The call center never saw your password.",
+      "ai": "An AI agent has no browser and no human sitting next to it. CIBA is how it requests a real person's explicit approval — \"approve this $500 transfer\" lands on the account owner's device, and the agent stays blocked until a human answers."
     }
   },
   "dpop": {
@@ -104,8 +104,8 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc9449",
       "label": "RFC 9449",
-      "title": "DPoP — Demonstrating Proof of Possession",
-      "why": "A plain bearer token is like cash: whoever holds it can spend it. DPoP binds the access token to a private key the client keeps, and every API call must carry a fresh proof signed with that key — so the token alone is worthless to anyone who steals it.",
+      "title": "DPoP",
+      "why": "DPoP (Demonstrating Proof of Possession) fixes the bearer-token problem: a plain bearer token is like cash — whoever holds it can spend it. DPoP binds the access token to a private key the client keeps, and every API call must carry a fresh proof signed with that key, so the token alone is worthless to anyone who steals it.",
       "example": "An access token leaks through a logging pipeline or a compromised proxy. Against a DPoP-protected API the replay fails: the attacker has the token but cannot produce the signed proof, because the private key never left the legitimate client.",
       "ai": "Agent tokens pass through many hands — queues, tool servers, traces, logs. Sender-constraining them means an exfiltrated token from any of those hops cannot be replayed by whoever finds it."
     }
@@ -143,9 +143,9 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc9396",
       "label": "RFC 9396",
-      "title": "RAR — Rich Authorization Requests",
-      "why": "Scopes are coarse: \"payments\" authorizes a whole category. RAR replaces them with structured authorization_details — type, amount, account, action — so the authorization server grants exactly one described transaction, and the resource can enforce the difference between what was asked and what was granted.",
-      "example": "Instead of a token with a payments scope, the token says \"one transfer, up to $100, from checking, to this payee\". A $2,000 transfer attempt with that token is denied by policy, not by hoping the client behaves.",
+      "title": "RAR",
+      "why": "RAR (Rich Authorization Requests) replaces coarse scopes with structured authorization_details — type, amount, account, action — so the authorization server grants exactly one described transaction, and policy can enforce the difference between what was asked and what was granted.",
+      "example": "Instead of a token with a broad payments scope, the token says \"one transfer, up to $100, from checking, to this payee\". A $2,000 transfer attempt with that token is denied by policy, not by hoping the client behaves.",
       "ai": "The agent declares its intent up front in machine-checkable form. Here PingOne Authorize compares the amount the agent actually requests against its declared $100 intent cap and returns PERMIT or DENY — overreach is caught at the policy layer."
     }
   },
@@ -203,8 +203,8 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc9126",
       "label": "RFC 9126",
-      "title": "PAR — Pushed Authorization Requests",
-      "why": "Normally authorization parameters travel through the browser as a query string — visible, tamperable, logged in history. PAR has the client push them directly to the authorization server over an authenticated backchannel first, receiving a one-time request_uri; the front-channel redirect carries only that opaque reference.",
+      "title": "PAR",
+      "why": "PAR (Pushed Authorization Requests) moves authorization parameters off the front channel: normally they travel through the browser as a query string — visible, tamperable, logged in history. With PAR the client pushes them directly to the authorization server over an authenticated backchannel and receives a one-time request_uri; the redirect carries only that opaque reference.",
       "example": "Like handing your paperwork to the bank clerk in person and getting a ticket number, instead of writing your account details on a postcard that passes through every intermediate hand. A malicious browser extension that rewrites redirect URLs has nothing to rewrite.",
       "ai": "The intent of the flow is fixed and integrity-protected before anything user-facing happens — an agent (or anything between it and the AS) cannot quietly alter scope, redirect target, or amount mid-redirect."
     }
@@ -259,8 +259,8 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc7636",
       "label": "RFC 7636",
-      "title": "PKCE — Proof Key for Code Exchange",
-      "why": "The authorization code travels back through a redirect that other software on the device can observe or intercept. PKCE makes the code useless on its own: the client invents a one-time secret, sends only its hash (code_challenge) when the flow starts, and must present the original (code_verifier) to redeem the code.",
+      "title": "PKCE",
+      "why": "PKCE (Proof Key for Code Exchange) protects the authorization code, which travels back through a redirect other software on the device can observe. The client invents a one-time secret, sends only its hash (code_challenge) when the flow starts, and must present the original (code_verifier) to redeem the code — so an intercepted code is useless on its own.",
       "example": "A coat-check ticket that only matches your stub. A rogue app on your phone registers the same redirect scheme and captures the authorization code — and gets nothing, because it cannot produce the verifier that hashes to the challenge. Mandatory for public clients in OAuth 2.1.",
       "ai": "Any agent running where it cannot keep a client secret — a desktop, a container image someone can inspect — is a public client. PKCE is what makes its code flow safe without a secret."
     }
@@ -309,8 +309,8 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc9728",
       "label": "RFC 9728",
-      "title": "OAuth 2.0 Protected Resource Metadata",
-      "why": "An API publishes a .well-known document declaring which authorization server issues its tokens and which scopes it accepts. Clients discover how to authorize against a resource instead of being hand-configured for it.",
+      "title": "Resource Metadata",
+      "why": "Protected Resource Metadata (RFC 9728) lets an API publish a .well-known document declaring which authorization server issues its tokens and which scopes it accepts. Clients discover how to authorize against a resource instead of being hand-configured for it.",
       "example": "This is how MCP authorization bootstraps: an MCP client hits a protected server, gets a 401 pointing at the resource metadata, reads which authorization server to use, and starts the right OAuth flow — zero out-of-band setup. Like a door that lists which badge office issues the badges it accepts.",
       "ai": "Agents connect to tool servers they have never seen before. Discovery metadata is what lets that happen safely at runtime instead of via config files written by a human in advance."
     }
@@ -370,9 +370,9 @@
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/rfc8693",
       "label": "RFC 8693",
-      "title": "OAuth 2.0 Token Exchange",
-      "why": "Trade one token for another at the authorization server: narrower audience, narrower scope, and an act claim recording who is acting on whose behalf. No service ever forwards the user’s original token — each hop gets a token minted for exactly that hop.",
-      "example": "A valet key: starts the car, will not open the trunk. In a microservice chain, the gateway exchanges the user’s token for a service-scoped token per downstream call, so a compromised downstream service holds a token good for almost nothing.",
+      "title": "RFC 8693 Token Exchange",
+      "why": "Token Exchange (RFC 8693) trades one token for another at the authorization server: narrower audience, narrower scope, and an act claim recording who is acting on whose behalf. No service ever forwards the user's original token — each hop gets a token minted for exactly that hop.",
+      "example": "A valet key: starts the car, will not open the trunk. In a microservice chain, the gateway exchanges the user's token for a service-scoped token per downstream call, so a compromised downstream service holds a token good for almost nothing.",
       "ai": "This is the backbone of this demo. Every agent hop — BFF to agent, agent to MCP — is a fresh exchange, so the token that reaches a tool server is scoped to that one call, and the nested act chain is a cryptographic audit trail of every delegation."
     }
   },
@@ -425,9 +425,9 @@
     "branches": [],
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-spiffe-bearer-token-09",
-      "label": "SPIFFE Bearer Token (draft)",
-      "title": "SPIFFE Workload Identity — JWT-SVID",
-      "why": "Workloads get cryptographic identity from the platform itself: a SPIRE agent attests what the workload is (this pod, this binary, this node) and issues it a short-lived JWT-SVID. No API keys baked into images, no secrets in environment variables, automatic rotation.",
+      "label": "SPIFFE Bearer Token",
+      "title": "SPIFFE",
+      "why": "SPIFFE gives workloads cryptographic identity from the platform itself: a SPIRE agent attests what the workload is (this pod, this binary, this node) and issues it a short-lived JWT-SVID. No API keys baked into images, no secrets in environment variables, automatic rotation.",
       "example": "An employee badge issued by building security after checking your employment records — versus a door code taped under the desk. A leaked container image contains no credential worth stealing, because identity is attested at runtime, not stored.",
       "ai": "Agent fleets scale up and down constantly. Platform-attested identity means each agent instance proves what it is without anyone provisioning or rotating a secret for it."
     }
@@ -486,10 +486,10 @@
     "branches": [],
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-12",
-      "label": "Transaction Tokens (draft)",
-      "title": "Transaction Tokens",
-      "why": "The edge service swaps the caller’s token for a short-lived txn-token that pins the context of this one request — who called, what they asked for, which workload chain handled it. Every internal hop can verify the original request context instead of trusting whoever called it last.",
-      "example": "A numbered work order stapled to a job as it moves through a shop floor: any station can check what was actually ordered, rather than trusting the previous station’s word for it. A compromised internal service cannot invent a \"transfer $10,000\" job from a \"check balance\" request.",
+      "label": "Transaction Tokens",
+      "title": "TXN Tokens",
+      "why": "Transaction Tokens pin the context of one request: the edge service swaps the caller's token for a short-lived txn-token recording who called, what they asked for, and which workload chain handled it. Every internal hop can verify the original request context instead of trusting whoever called it last.",
+      "example": "A numbered work order stapled to a job as it moves through a shop floor: any station can check what was actually ordered, rather than trusting the previous station's word for it. A compromised internal service cannot invent a \"transfer $10,000\" job from a \"check balance\" request.",
       "ai": "Agent requests fan out across many internal services. A txn-token makes the original human request travel with the work, so deep services enforce against what the user actually asked — not what an intermediate agent claims they asked."
     }
   },
@@ -546,11 +546,11 @@
     "branches": [],
     "spec": {
       "url": "https://datatracker.ietf.org/doc/html/draft-looker-app-driven-authorization-16",
-      "label": "App-Driven AuthZ (draft)",
-      "title": "XAA / ID-JAG — Cross-Domain Identity Assertion",
-      "why": "A client with an identity in its home domain exchanges its ID token for an ID-JAG assertion the target domain’s authorization server accepts — cross-company access rooted in one home identity, with no shared user store and no second login.",
-      "example": "Airline status getting you into a partner lounge: the partner does not have you in its member database — it accepts an assertion from your airline and issues its own lounge pass. Here, the foreign domain’s AS mints its own access token from the ID-JAG.",
-      "ai": "An agent working across two companies’ APIs — booking travel, filing an insurance claim — gets a per-domain token in each, every one traceable to the same home identity that delegated the task."
+      "label": "App-Driven AuthZ",
+      "title": "XAA / ID-JAG",
+      "why": "XAA / ID-JAG covers cross-domain delegation: a client with an identity in its home domain exchanges its ID token for an ID-JAG assertion the target domain's authorization server accepts — cross-company access rooted in one home identity, with no shared user store and no second login.",
+      "example": "Airline status getting you into a partner lounge: the partner does not have you in its member database — it accepts an assertion from your airline and issues its own lounge pass. Here, the foreign domain's AS mints its own access token from the ID-JAG.",
+      "ai": "An agent working across two companies' APIs — booking travel, filing an insurance claim — gets a per-domain token in each, every one traceable to the same home identity that delegated the task."
     }
   }
 }

@@ -18,6 +18,9 @@ const { mintDemoJwt, decodeDemoJwt } = require('../utils/demoJwt');
  * @flow txn-tokens
  * @name TXN Tokens
  * @rfc https://datatracker.ietf.org/doc/html/draft-ietf-oauth-transaction-tokens-12 Transaction Tokens
+ * @why Transaction Tokens pin the context of one request: the edge service swaps the caller's token for a short-lived txn-token recording who called, what they asked for, and which workload chain handled it. Every internal hop can verify the original request context instead of trusting whoever called it last.
+ * @example A numbered work order stapled to a job as it moves through a shop floor: any station can check what was actually ordered, rather than trusting the previous station's word for it. A compromised internal service cannot invent a "transfer $10,000" job from a "check balance" request.
+ * @ai Agent requests fan out across many internal services. A txn-token makes the original human request travel with the work, so deep services enforce against what the user actually asked — not what an intermediate agent claims they asked.
  * @actor edge-service
  * @to txn-token-service
  * @step 1

@@ -23,6 +23,9 @@ const TRUST_DOMAIN = 'demo.local';
  * @flow spiffe
  * @name SPIFFE
  * @rfc https://datatracker.ietf.org/doc/html/draft-ietf-oauth-spiffe-bearer-token-09 SPIFFE Bearer Token
+ * @why SPIFFE gives workloads cryptographic identity from the platform itself: a SPIRE agent attests what the workload is (this pod, this binary, this node) and issues it a short-lived JWT-SVID. No API keys baked into images, no secrets in environment variables, automatic rotation.
+ * @example An employee badge issued by building security after checking your employment records — versus a door code taped under the desk. A leaked container image contains no credential worth stealing, because identity is attested at runtime, not stored.
+ * @ai Agent fleets scale up and down constantly. Platform-attested identity means each agent instance proves what it is without anyone provisioning or rotating a secret for it.
  * @actor workload-a
  * @to spire-agent
  * @step 1
