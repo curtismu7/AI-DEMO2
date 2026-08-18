@@ -46,6 +46,17 @@ export default function PrivilegeMcpClientPage() {
   const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [presets, setPresets] = useState([]);
+  // Gateway switch in flight (agent <-> agentless). The sessionStorage flag lets
+  // the overlay survive the OAuth redirect and show again from first paint on
+  // the ?auth=success return, until tools are rediscovered from the new gateway.
+  const savedMcpUrlRef = useRef('');
+  const [switching, setSwitching] = useState(() => {
+    try { return sessionStorage.getItem('cur_priv_switching') === '1'; } catch { return false; }
+  });
+  const clearSwitching = useCallback(() => {
+    setSwitching(false);
+    try { sessionStorage.removeItem('cur_priv_switching'); } catch { /* storage disabled */ }
+  }, []);
   const [authenticated, setAuthenticated] = useState(false);
   const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
@@ -167,6 +178,7 @@ export default function PrivilegeMcpClientPage() {
   useEffect(() => {
     api('/state').then((s) => {
       setConfig(s.config || config);
+      savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
       setAuthenticated(Boolean(s.oauth?.authenticated));
       setMainAppAuthenticated(Boolean(s.mainAppAuthenticated));
@@ -215,7 +227,11 @@ export default function PrivilegeMcpClientPage() {
         if (s.oauth?.authenticated) setAuthenticated(true);
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       }).catch(() => {});
-      refreshTools();
+      refreshTools().finally(clearSwitching);
+    } else {
+      // Stale switch flag (auth error, silent_failed, or back-button out of the
+      // redirect) — never leave the overlay stuck.
+      clearSwitching();
     }
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
@@ -227,10 +243,25 @@ export default function PrivilegeMcpClientPage() {
   }, []);
 
   const saveConfig = async () => {
+    const urlChanged = Boolean(config.mcpUrl) && config.mcpUrl !== savedMcpUrlRef.current;
     try {
       await api('/config', { method: 'POST', body: config });
-      appendChat('system', 'Configuration saved.');
+      savedMcpUrlRef.current = config.mcpUrl;
+      if (!urlChanged) {
+        appendChat('system', 'Configuration saved.');
+        return;
+      }
+      // Gateway changed (agent <-> agentless): the two frontends have different
+      // OAuth front doors, so re-auth against the new one. The redirect lands
+      // back on ?auth=success, which rediscovers tools and clears the overlay.
+      setSwitching(true);
+      setTools([]);
+      setSelectedTool(null);
+      try { sessionStorage.setItem('cur_priv_switching', '1'); } catch { /* storage disabled */ }
+      const data = await api('/auth/start', { method: 'POST' });
+      window.location.href = data.authUrl;
     } catch (err) {
+      clearSwitching();
       appendChat('system', `Save failed: ${err.message}`);
     }
   };
@@ -408,6 +439,14 @@ export default function PrivilegeMcpClientPage() {
 
   return (
     <div className="cur-ide" data-cur-theme={pageTheme}>
+      {switching && (
+        <div className="cur-modal-overlay cur-switch-overlay" role="status" aria-label="Switching gateway">
+          <div className="cur-switch-box">
+            <div className="cur-thinking-dots"><span /><span /><span /></div>
+            <span>Switching gateway...</span>
+          </div>
+        </div>
+      )}
       {showPresent && (
         <div className="ptt-present-overlay">
           <ToolsTable tools={tools} presentMode onClose={() => setShowPresent(false)} />
