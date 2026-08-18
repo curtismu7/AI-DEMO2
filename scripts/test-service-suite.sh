@@ -39,9 +39,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE="${1:-}"
 BLOCKING="${SUITE_BLOCKING:-0}"
 
+# Jest workers per service. 2 is the repo-wide cap; mcp-gateway needs 1 because
+# its supertest suites bind real sockets and contend at 2 (see the invocation
+# below for the measurements).
+DEFAULT_WORKERS=2
+
 case "$SERVICE" in
   authz-server) DIR="$ROOT/demo_authz_server" ;;
-  mcp-gateway)  DIR="$ROOT/demo_mcp_gateway" ;;
+  mcp-gateway)  DIR="$ROOT/demo_mcp_gateway"; DEFAULT_WORKERS=1 ;;
   # 2026-08-17: six more services had a `test` script and no CI job at all.
   # All six now run as BLOCKING gates from ci.yml (SUITE_BLOCKING=1) — a red
   # there is a regression. mastra-agent was wired non-blocking for three
@@ -112,9 +117,21 @@ if [ "$SERVICE" = "authz-server" ]; then
   failed=$(grep -E '^ℹ fail '  "$log" | tail -1 | awk '{print $3}')
 else
   cd "$DIR" || exit 1
-  # CI=true + --maxWorkers=2: higher worker counts flake the supertest suites in
+  # CI=true + --maxWorkers=N: higher worker counts flake the supertest suites in
   # this repo (demo_api_server/jest.config.js caps the same way under CI).
-  CI=true npx jest --forceExit --maxWorkers=2 >"$log" 2>&1
+  #
+  # mcp-gateway runs at 1. Eight of its suites bind a REAL listening socket via
+  # supertest, and at 2 workers they flake two different ways — `socket hang up`
+  # and jest timeouts — with a different suite failing each run (observed across
+  # gateway-server, gateway-server-hardening, gateway-get-delete-middleware and
+  # gateway-http-progress-cancellation in a single day). Since #1959 this is a
+  # BLOCKING gate, so an intermittent red here stops everyone.
+  #
+  # Serial costs nothing: measured 735/735 in 6.5s at 1 worker against ~19s at 2,
+  # twice in a row, because the contention IS the slowness. Override with
+  # SUITE_MAX_WORKERS to experiment.
+  workers="${SUITE_MAX_WORKERS:-$DEFAULT_WORKERS}"
+  CI=true npx jest --forceExit --maxWorkers="$workers" >"$log" 2>&1
   rc=$?
   plain=$(sed -E 's/\x1b\[[0-9;]*m//g' "$log")
   if ! grep -qE '^Tests:' <<<"$plain"; then
