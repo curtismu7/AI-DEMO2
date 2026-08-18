@@ -10,6 +10,7 @@ const configStore = require('../services/configStore');
 const groupPolicy = require('../services/groupPolicy');
 const pingOneGroupMembershipService = require('../services/pingOneGroupMembershipService');
 const pingOneAuthorizeService = require('../services/pingOneAuthorizeService');
+const agentMcpTokenService = require('../services/agentMcpTokenService');
 const { verticalManifest } = require('../services/verticalManifest');
 const { requireSession } = require('../middleware/auth');
 const { provisionVerticalGroups } = require('../services/pingOneGroupProvisionService');
@@ -163,6 +164,37 @@ router.get('/decision-board', requireSession, async (req, res) => {
       }
       const inRequiredGroup = Boolean(t.requiredGroup && groups.includes(t.requiredGroup));
 
+      // Mint the SAME token the PEP would present for this tool, and read the
+      // audience and act chain off it.
+      //
+      // Without this the board sent no TokenAudience at all. That is the honest
+      // encoding for a caller that never read a token (see the C1 preamble in
+      // pingOneAuthorizeService: absent values are omitted, never fabricated) —
+      // but it also meant the PDP fail-closed on mcp-invalid-audience before the
+      // group rule was ever reached, so EVERY row denied for the same reason no
+      // matter who was in which group. The page claims "change the membership
+      // and every row moves with it"; it could not move.
+      //
+      // Fabricating the expected URI would have been a one-line fix and is
+      // exactly what C1 rule 1 forbids. Presenting a real token is the honest
+      // way to get a real answer: the decision below is now the same question
+      // the PEP asks, with the same evidence.
+      let tokenClaims = null;
+      let tokenError = null;
+      try {
+        const mcpToken = await agentMcpTokenService.resolveMcpAccessToken(req, t.tool);
+        if (mcpToken) tokenClaims = agentMcpTokenService.decodeJwtClaims(mcpToken);
+      } catch (err) {
+        // Keep going with no audience rather than dropping the row: a row that
+        // says DENY/mcp-invalid-audience with tokenError set is still true, and
+        // more useful than a blank.
+        tokenError = err.message;
+      }
+      const tokenAudience = tokenClaims && tokenClaims.aud != null
+        ? (Array.isArray(tokenClaims.aud) ? tokenClaims.aud.join(' ') : String(tokenClaims.aud))
+        : null;
+      const act = (tokenClaims && tokenClaims.act) || null;
+
       try {
         const r = await pingOneAuthorizeService.evaluateMcpToolDelegation({
           userId: pingOneUserId,
@@ -172,17 +204,31 @@ router.get('/decision-board', requireSession, async (req, res) => {
           requiredGroup: t.requiredGroup,
           userGroups: groups,
           inRequiredGroup,
+          // Omitted (not '') when the mint failed — same contract as the PEP.
+          ...(tokenAudience != null ? { tokenAudience } : {}),
+          ...(act ? {
+            actClientId: act.client_id || act.sub || '',
+            nestedActClientId: (act.act && (act.act.client_id || act.act.sub)) || '',
+            actChainDepth: act.act ? 2 : 1,
+          } : {}),
           userTier: groupPolicy.resolveUserTier(groups, t.verticalId),
         });
         const codes = ((r.raw && r.raw.statements) || []).map((s) => s.code).filter(Boolean);
         return {
           ...t, inRequiredGroup, source, decision: r.decision, codes,
+          // Say whether a real token backed this decision. A row that denied
+          // because no token could be minted must not be read as a policy
+          // verdict on the user's membership.
+          tokenPresented: tokenAudience != null,
+          ...(tokenError ? { tokenError } : {}),
         };
       } catch (err) {
         // A failed probe must read as UNKNOWN, never as PERMIT. A board that
         // shows green when it could not ask is worse than one that shows nothing.
         return {
           ...t, inRequiredGroup, source, decision: 'UNKNOWN', codes: [], error: err.message,
+          tokenPresented: tokenAudience != null,
+          ...(tokenError ? { tokenError } : {}),
         };
       }
     };
