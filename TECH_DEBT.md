@@ -1747,12 +1747,29 @@ none ever will, and the hop sits unresolved forever.
 happened". That is the same complaint that started the visibility work — if the
 chain stops, it must say why.
 
-**Why not fixed now:** it is not a code question, it is a product one — what
-SHOULD that hop say when no tool call occurred and no exchange was ever needed?
-"Not required" and "skipped — no tool call" are both defensible and read very
-differently in a demo. `buildTraceSteps` is protected chain surface; guessing
-here is how #1966 shipped a fix that changed nothing on screen.
+**RESOLVED 2026-08-18** — the wording was decided ("Not required") and the hop
+now reads `not required` with the reason attached: "No token exchange was needed
+— the agent answered from context without calling a tool, so no delegated MCP
+token was ever requested."
 
-**How to see it:** `npm run test:e2e:real -- chain-hops-visible` prints
-`[ui] UNRESOLVED after reply:` whenever it occurs. The check reports it rather
-than failing, precisely so the decision above stays a decision.
+Two things shaped the fix, and both are worth knowing before touching it again:
+
+- It reuses the existing `notinpath` STATUS rather than introducing a new one.
+  Roughly fifteen surfaces bucket statuses (TokenFlowDetailModal,
+  TokenTopologyPanel, TraceStepCard, TokenChainPresenter, the clinical panes…);
+  a new status string would have rendered unlabelled or unstyled on every one of
+  them. Only the node rail's one-line fact is overridden, keyed on
+  `detail.notRequired`.
+- `buildLiveTokenChainSteps` drops everything that is not active/done/error while
+  a trace is incomplete — and live traces usually never set `outcome`. Left
+  alone, the fix would have made the Exchange hop VANISH mid-run instead of
+  explaining itself, which is worse than the "in flight" it replaced. The filter
+  now keeps a hop that carries `notRequired`.
+
+Guarded by two tests in `FocusModeChainRenders.test.jsx` — one that the hop says
+"not required" after a reply with no tool call, one that a genuinely in-flight
+exchange still says "in flight" so the fix cannot over-reach. Verified to FAIL
+with the fix reverted.
+
+`npm run test:e2e:real -- chain-hops-visible` still prints
+`[ui] UNRESOLVED after reply:` if the old symptom ever returns live.
