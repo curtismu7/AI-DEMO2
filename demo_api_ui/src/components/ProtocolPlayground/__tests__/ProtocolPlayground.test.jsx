@@ -113,9 +113,10 @@ describe('ProtocolPlayground wiring', () => {
 
     // ActivityPanel renders each result as a TokenChainEventCard built by
     // synthesizeEvent — "<METHOD> <url>" as the label and "HTTP <status>" as
-    // the explanation. It used to print the raw stepId and status code.
-    expect(await screen.findByText('POST /api/oauth/token/token')).toBeInTheDocument();
-    expect(screen.getByText(/HTTP 200/)).toBeInTheDocument();
+    // the explanation — plus an inline Request detail whose summary repeats
+    // the same "<METHOD> <url>" string, hence findAllByText.
+    expect((await screen.findAllByText('POST /api/oauth/token/token')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/HTTP 200/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/No activity yet/)).not.toBeInTheDocument();
   });
 
