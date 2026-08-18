@@ -543,7 +543,7 @@ function useBankingSource() {
               {selectedTool.description && <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>}
             </div>
             <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-              <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling...</> : 'Execute'}</button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569', marginLeft: 12 }}>
                 <input
@@ -601,7 +601,7 @@ function useBankingSource() {
               )}
             </div>
             <div className="inspector-shell-form-actions">
-              <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling...</> : 'Execute'}</button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
               {formError && <span className="inspector-shell-form-error">{formError}</span>}
             </div>
@@ -867,7 +867,7 @@ function usePingOneSource() {
           {selectedTool.description && <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>}
         </div>
         <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-          <button className="inspector-shell-btn-call" onClick={callTool} disabled={calling || !enabled}>{calling ? 'Calling…' : 'Execute'}</button>
+          <button className="inspector-shell-btn-call" onClick={callTool} disabled={calling || !enabled}>{calling ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling…</> : 'Execute'}</button>
           <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
         </div>
         <div className="inspector-shell-form-body">
@@ -890,7 +890,7 @@ function usePingOneSource() {
           )}
         </div>
         <div className="inspector-shell-form-actions">
-          <button className="inspector-shell-btn-call" onClick={callTool} disabled={calling || !enabled}>{calling ? 'Calling…' : 'Execute'}</button>
+          <button className="inspector-shell-btn-call" onClick={callTool} disabled={calling || !enabled}>{calling ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling…</> : 'Execute'}</button>
           <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
           {formError && <span className="inspector-shell-form-error">{formError}</span>}
         </div>
@@ -1548,7 +1548,7 @@ function useCustomServerSource() {
           )}
         </div>
         <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-          <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+          <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling...</> : 'Execute'}</button>
           <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
         </div>
         <div className="inspector-shell-form-body">
@@ -1571,7 +1571,7 @@ function useCustomServerSource() {
           )}
         </div>
         <div className="inspector-shell-form-actions">
-          <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+          <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling...</> : 'Execute'}</button>
           <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
           {formError && <span className="inspector-shell-form-error">{formError}</span>}
         </div>
@@ -1877,7 +1877,7 @@ function useProtocolSource() {
               <div className="inspector-shell-form-header__name">{selectedMethod.method}</div>
             </div>
             <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-              <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling...</> : 'Execute'}</button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#475569', marginLeft: 12 }}>
                 <input
@@ -1938,7 +1938,7 @@ function useProtocolSource() {
               )}
             </div>
             <div className="inspector-shell-form-actions">
-              <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-call" onClick={handleExecute} disabled={busy}>{busy ? <><span className="inspector-shell-spinner" aria-hidden="true" />Calling...</> : 'Execute'}</button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
               {formError && <span className="inspector-shell-form-error">{formError}</span>}
             </div>
