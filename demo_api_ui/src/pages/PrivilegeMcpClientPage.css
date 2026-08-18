@@ -501,6 +501,21 @@ select.cur-input { cursor: pointer; }
   max-height: 200px;
 }
 
+/* Gateway-switch overlay — sits above every modal while the client re-auths
+   against the newly selected gateway and rediscovers its tools. */
+.cur-switch-overlay { z-index: 2000; }
+.cur-switch-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  background: #2d2640;
+  color: #a78bfa;
+  font-size: 13px;
+}
+.cur-ide[data-cur-theme="light"] .cur-switch-box { background: #ede9fe; color: #6d28d9; }
+
 .cur-thinking-dots {
   display: flex;
   gap: 3px;
