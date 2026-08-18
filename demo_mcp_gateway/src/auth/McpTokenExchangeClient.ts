@@ -90,6 +90,68 @@ function exchangeError(err: unknown, backend: string, targetAud: string): Error 
   return err instanceof Error ? err : new Error(String(err));
 }
 
+export interface ScopeMismatchReason {
+  /** Backend the call routed to (olb | invest | jwtverifier). */
+  backend: 'olb' | 'invest' | 'jwtverifier';
+  /** Scopes the caller's subject token actually carries. */
+  subjectScopes: string[];
+  /** Scopes this backend's resource server accepts (native + mirrored). */
+  backendScopes: string[];
+  /** Caller-facing sentence naming BOTH sets and how to fix it. */
+  reason: string;
+}
+
+/**
+ * Recover a caller-facing scope-mismatch reason from a REJECTED exchange.
+ *
+ * The tools/call path deliberately sends the exchange scope-less when the
+ * caller∩backend scope intersection is empty — that request behaviour is pinned
+ * by the "sends no scope without the flag" contract in exchangeForBackend and is
+ * NOT changed here. PingOne then answers that scope-less exchange with
+ *   invalid_scope: May not request scopes for multiple resources
+ * — a message about resource ambiguity that names NEITHER the caller's scopes
+ * nor the backend's, so the real cause never reaches the caller and was only
+ * ever visible in a gateway log.
+ *
+ * This maps that specific rejection back into the two scope sets, recovered from
+ * the subject token and the backend topology, so a caller (HTTP or WS transport)
+ * can DENY with a clear reason learned from the RESPONSE. It performs no
+ * exchange and does not invent or grant any scope.
+ *
+ * Returns null for every OTHER failure (leaving the generic
+ * token_exchange_failed path untouched), and null when the scopes DO overlap
+ * (so an unrelated multi-resource error is never mislabeled a scope mismatch).
+ */
+export function scopeMismatchReasonFromExchangeError(
+  err: unknown,
+  subjectToken: string,
+  toolName?: string,
+): ScopeMismatchReason | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  // Gate on PingOne's empty-intersection signature ONLY — a bare `invalid_scope`
+  // (which other exchange failures also carry) must NOT be mislabeled.
+  if (!/multiple resources/i.test(msg)) return null;
+
+  const target = toolName ? routeTool(toolName) : 'olb';
+  const backend: 'olb' | 'invest' | 'jwtverifier' =
+    target === 'invest' || target === 'jwtverifier' ? target : 'olb';
+  const decoded = jwt.decode(subjectToken) as { scope?: string } | null;
+  const subjectScopes = (decoded?.scope || '').split(' ').filter(Boolean);
+  const backendScopes = resourceScopesForBackend(backend);
+  const allowed = new Set(backendScopes);
+  // Confirm the intersection really is empty — the same test exchangeForBackend
+  // makes. If the caller DOES hold a backend scope, this multi-resource error
+  // came from something else; do not mask it as a scope mismatch.
+  if (subjectScopes.some((s) => allowed.has(s))) return null;
+
+  const reason =
+    `scope mismatch — this call to backend '${backend}' needs one of its scopes ` +
+    `[${backendScopes.join(', ') || 'none'}], but your token carries ` +
+    `[${subjectScopes.join(', ') || 'none'}] with no overlap. Grant the caller one ` +
+    `of the backend's scopes, or add it to that resource's mirroredScopes.`;
+  return { backend, subjectScopes, backendScopes, reason };
+}
+
 export class McpTokenExchangeClient {
   constructor(private readonly config: GatewayConfig) {}
 

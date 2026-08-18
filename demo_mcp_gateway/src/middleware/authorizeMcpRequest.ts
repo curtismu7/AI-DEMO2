@@ -34,7 +34,7 @@ import { PingOneAuthorizeClient, policySourceForEngine, actChainDepth } from '..
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
-import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
+import { McpTokenExchangeClient, scopeMismatchReasonFromExchangeError } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
 import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../config';
 import { getScopesForGatewayTool, getChallengeTypeForTool, evaluateScopeDecisionUnconditionally } from '../auth/toolScopes';
@@ -1302,12 +1302,20 @@ export function buildAuthorizeMcpRequest(
       const errMsg = err instanceof Error ? err.message : String(err);
       const axiosData = (err as any)?.response?.data;
       const detail = axiosData?.error_description || axiosData?.error || errMsg;
+      // Map PingOne's opaque empty-intersection rejection ("May not request
+      // scopes for multiple resources") into a clear scope-mismatch reason that
+      // names BOTH scope sets, so the caller learns the real cause from this
+      // response instead of only a gateway log. Every other failure keeps the
+      // generic token_exchange_failed body unchanged.
+      const mismatch = scopeMismatchReasonFromExchangeError(err, bearerToken, toolName);
       teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
-      auditTrail.backend = { target: routeTool(toolName || ''), audience: null, exchanged: false, error: detail };
+      auditTrail.backend = { target: routeTool(toolName || ''), audience: null, exchanged: false, error: mismatch ? mismatch.reason : detail };
       sendRpcError(502, parsedBody.id, {
         code: -32500,
-        message: `Token exchange failed: ${detail}`,
-        data: { error: 'token_exchange_failed', detail },
+        message: `Token exchange failed: ${mismatch ? mismatch.reason : detail}`,
+        data: mismatch
+          ? { error: 'token_exchange_failed', reason: 'scope_mismatch', detail: mismatch.reason, subject_scopes: mismatch.subjectScopes, backend_scopes: mismatch.backendScopes, backend: mismatch.backend }
+          : { error: 'token_exchange_failed', detail },
       });
       return;
     }
