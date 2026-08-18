@@ -972,16 +972,30 @@ Three fixes deep on this surface already, each exposing the next: a 429 burst
 (#1972), and the mint hid its own reason (#1976, #1983). What remains is why a
 successfully minted MCP token carries no readable `aud`.
 
-**Why not fixed now:** the answer is inside `agentMcpTokenService`'s exchange
-chain, not the board, and this is the fourth consecutive change to an authz path
-in one session. The instrumentation to diagnose it now exists and reports
-honestly (`tokenPresented`, `tokenError`), which was the prerequisite.
+**RESOLVED 2026-08-18 (PR #2015) — and the diagnosis above was WRONG.** The
+mint was never the problem. `decodeJwtClaims` returns `{ header, claims }`, not
+the claims; the board read `.aud` straight off it, so the audience was always
+`undefined` for a perfectly good token. Every other caller in `routes/` already
+unwrapped `.claims` — this was the one that did not.
 
-**Real fix:** trace what `resolveMcpAccessTokenWithEvents` returns for a
-group-gated tool — whether the token is opaque, whether `decodeJwtClaims` fails,
-or whether the exchange returns a token minted for a different audience — then
-fix at that layer. Verify by loading `/group-policy` signed in and watching rows
-flip PERMIT↔DENY as the membership toggle runs.
+The deduction recorded above ("`tokenError` stays null on exactly one code
+path") was sound reasoning applied to a symptom the instrumentation had
+manufactured. `groupDecisionBoardToken.test.js` mocked `decodeJwtClaims` with a
+flat `{ aud }` — the only one of 21 suites to do so — so the test asserted the
+same misreading as the code and stayed green. That is the durable lesson here:
+green meant "the test and the route agree", not "the route is right".
+
+Verified live, signed in as `demoUser` on the real stack: 13 rows, every one
+`tokenPresented: true` with no `tokenError`, and **`mcp-invalid-audience` absent
+from every row** — it had previously denied all 13. Two rows now PERMIT
+(`HITL,mcp-tool-authorized`).
+
+**Newly visible underneath it** (not this fix's scope): with `inRequiredGroup:
+true` on all 13 rows, 11 still deny on `mcp-invalid-a2a-generalist`. The board
+presents a directly-minted token, so it carries no A2A act chain for the tools
+whose rule requires one. Whether the board should mint a delegated token or
+those rows should be presented differently is a product question, not a bug in
+the audience path. It was invisible while audience denied everything first.
 
 ### 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
 
