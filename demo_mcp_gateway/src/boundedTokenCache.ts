@@ -26,10 +26,10 @@ export interface CachedToken {
  * The `while` terminates: `cache.keys().next().value` is `undefined` only on an
  * empty map (guarded by `break`), and each iteration deletes exactly one key.
  */
-export function cacheInsertWithEviction(
-  cache: Map<string, CachedToken>,
+export function cacheInsertWithEviction<T extends { expiresAt: number }>(
+  cache: Map<string, T>,
   key: string,
-  value: CachedToken,
+  value: T,
   max: number,
 ): void {
   if (cache.size >= max) {

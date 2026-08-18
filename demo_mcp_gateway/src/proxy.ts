@@ -185,6 +185,18 @@ export function proxyJsonRpc(
     });
 
     ws.on('close', () => {
+      // If the backend completed the handshake then closed the socket without
+      // answering the proxied request (crash mid-call, policy-close, restart),
+      // the call is still pending. Reject it BEFORE clearing the timers so the
+      // awaiting code's finally runs and inFlightCalls is cleaned — otherwise
+      // the promise hangs forever (its safety timeout is cleared just below).
+      // Guarded by `settled` so an already-answered close (Step 2's ws.close(),
+      // terminate on timeout/abort/error) is not double-settled.
+      if (!settled) {
+        settled = true;
+        signal?.removeEventListener('abort', onAbort);
+        reject(new Error(`Backend closed connection before responding to ${request.method}`));
+      }
       clearTimeout(timer);
       clearTimeout(handshakeTimer);
     });
