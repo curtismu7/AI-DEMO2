@@ -51,4 +51,31 @@ describe('requiredDemoFlags', () => {
     expect(requiredFlagsForUseCase({ useCaseId: 'a2a-generalist-mismatch', primaryTool: 'sensitive_holdings' }))
       .toContain('ff_a2a_delegation');
   });
+
+  // The catalog serves a2aDelegated from scope-topology. Arming on that flag —
+  // rather than on a list of use-case ids kept by hand — is what makes UC37 safe:
+  // it calls get_portfolio_summary (a2aDelegated) while its maturity names a
+  // different flag, so every hand-kept list missed it and the tile could be
+  // launched into an Authorize deny that looks nothing like a missing flag.
+  test('a2aDelegated on the entry arms ff_a2a_delegation on its own', () => {
+    expect(requiredFlagsForUseCase({ useCaseId: 'something-else', a2aDelegated: true }))
+      .toContain('ff_a2a_delegation');
+  });
+
+  test('UC37-shaped entry arms BOTH its maturity flag and ff_a2a_delegation', () => {
+    const flags = requiredFlagsForUseCase({
+      id: 'UC37',
+      useCaseId: 'verified-trust-a2a-assertion',
+      maturity: 'flag:ff_verified_trust_a2a',
+      primaryTool: 'get_portfolio_summary',
+      a2aDelegated: true,
+    });
+    expect(flags).toContain('ff_verified_trust_a2a');
+    expect(flags).toContain('ff_a2a_delegation');
+  });
+
+  test('a non-delegated entry is not dragged into requiring A2A', () => {
+    expect(requiredFlagsForUseCase({ useCaseId: 'plain', primaryTool: 'get_account_balance' }))
+      .not.toContain('ff_a2a_delegation');
+  });
 });

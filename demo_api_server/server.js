@@ -2509,6 +2509,35 @@ async function runBackgroundStartupTasks() {
         console.warn('[lmdb-sync] OAuth endpoint sync failed (non-fatal):', err.message);
     }
 
+    // ── A2A delegation: un-stick an environment that persisted OFF ───────────
+    // ff_a2a_delegation now defaults ON because the tools flagged a2aDelegated in
+    // scope-topology are reachable ONLY through a two-hop chain — Authorize denies
+    // ActChainDepth < 2 for exactly those tools, so with A2A off they cannot
+    // succeed by any path, and they fail as a policy DENY that looks nothing like
+    // a missing flag.
+    //
+    // Changing the registry default is not enough on its own. getEffective prefers
+    // a persisted value over the default, so any environment that ever stored
+    // 'false' stays off forever and the new default never reaches it. Measured on
+    // the live demo stack: the flag read 'false' with the default already flipped
+    // to 'true' and no FF_A2A_DELEGATION env var anywhere — a stored value was the
+    // only thing it could be.
+    //
+    // Only a stored FALSE is removed. A stored 'true' is left alone (same outcome,
+    // and no reason to touch it), and this never writes a value — it deletes the
+    // override so the default governs.
+    try {
+        const cfg = require('./services/configStore');
+        await cfg.ensureInitialized();
+        const stored = String(cfg.get('ff_a2a_delegation') ?? '').trim().toLowerCase();
+        if (stored === 'false') {
+            cfg.deleteRaw('ff_a2a_delegation');
+            console.log('[a2a] cleared a persisted ff_a2a_delegation=false; the ON default now applies');
+        }
+    } catch (err) {
+        console.warn('[a2a] could not reconcile ff_a2a_delegation (non-fatal):', err.message);
+    }
+
     // ── Credential rotation detector ─────────────────────────────────────────
     // Warns when a non-bootstrap secret key has a different value in LMDB vs .env.
     // LMDB wins for these keys (Vault > LMDB > .env), so a rotated .env credential

@@ -201,3 +201,121 @@ describe('every vertical chip routes to its OWN stored primaryTool', () => {
     },
   );
 });
+
+// ── A2A arming: derived from the SoT flag, not a hand-kept id list ──
+//
+// ff_a2a_delegation now defaults ON (configStore registry) because an
+// a2aDelegated tool cannot succeed without it — Authorize denies ActChainDepth
+// < 2 for exactly those tools, and the resulting deny looks nothing like a
+// missing flag. Belt and braces: the tile also arms the flag before running, so
+// a demo cannot be launched into that deny by mistake.
+//
+// UC37 is why this is derived rather than listed: it calls get_portfolio_summary
+// (a2aDelegated) but its maturity is flag:ff_verified_trust_a2a, so every
+// hand-kept list missed it.
+describe('a2aDelegated entries arm ff_a2a_delegation', () => {
+  const { listUseCases } = require('../config/useCases');
+  const { requiredFlagsForUseCase } = require('../services/demoStepPrerequisites');
+  const { isA2aDelegatedTool } = require('../services/scopeTopology');
+
+  const catalog = listUseCases('banking');
+
+  test('the catalog serves a2aDelegated so the UI can arm from it', () => {
+    const flagged = catalog.filter((u) => u.a2aDelegated === true);
+    expect(flagged.length).toBeGreaterThan(0);
+    for (const uc of flagged) { expect(isA2aDelegatedTool(uc.primaryTool)).toBe(true); }
+    // and it is never claimed for a tool that is not flagged
+    for (const uc of catalog.filter((u) => u.a2aDelegated !== true)) {
+      expect(isA2aDelegatedTool(uc.primaryTool || '')).toBe(false);
+    }
+  });
+
+  test('EVERY entry whose primary tool is a2aDelegated requires the flag', () => {
+    const flagged = catalog.filter((u) => isA2aDelegatedTool(u.primaryTool || ''));
+    expect(flagged.length).toBeGreaterThan(0);
+    for (const uc of flagged) {
+      expect(requiredFlagsForUseCase(uc)).toContain('ff_a2a_delegation');
+    }
+  });
+
+  test('UC37 arms it — the case every hand-kept list missed', () => {
+    const uc37 = catalog.find((u) => u.id === 'UC37');
+    expect(uc37.primaryTool).toBe('get_portfolio_summary');
+    expect(requiredFlagsForUseCase(uc37)).toContain('ff_a2a_delegation');
+  });
+
+  // ── the invariant, not just the current values ──
+  //
+  // a2aDelegated is DERIVED from primaryTool, and 199 perVertical overrides change
+  // primaryTool (healthcare UC2: get_portfolio_summary -> sensitive_patient_records).
+  // So the field has to be recomputed on resolve, not stamped once — and it has to
+  // exist on the RAW array too, because requiredFlagsForUseCaseId and the parity
+  // test pass USE_CASES straight through. A first version stamped it only in
+  // resolveUseCase's output, and every raw-entry path silently lost the
+  // requirement: no error, no failing assertion, just a tile that arms one flag
+  // short. These pin both halves.
+  test('every RAW catalog entry carries a2aDelegated matching the SoT', () => {
+    for (const uc of require('../config/useCases').USE_CASES) {
+      expect(typeof uc.a2aDelegated).toBe('boolean');
+      expect(uc.a2aDelegated).toBe(isA2aDelegatedTool(uc.primaryTool || ''));
+    }
+  });
+
+  test('every RESOLVED entry, in every vertical, matches ITS OWN primaryTool', () => {
+    const { VERTICALS } = require('../config/useCases');
+    const drifted = [];
+    for (const v of VERTICALS) {
+      for (const uc of listUseCases(v)) {
+        if (uc.a2aDelegated !== isA2aDelegatedTool(uc.primaryTool || '')) {
+          drifted.push(`${v}/${uc.id}: a2aDelegated=${uc.a2aDelegated} tool=${uc.primaryTool}`);
+        }
+      }
+    }
+    // A perVertical override that swaps in a delegated tool without the field
+    // following it lands here — the case the recompute exists for.
+    expect(drifted).toEqual([]);
+  });
+
+  test('arming follows the resolved tool in every vertical', () => {
+    const { VERTICALS } = require('../config/useCases');
+    const wrong = [];
+    for (const v of VERTICALS) {
+      for (const uc of listUseCases(v)) {
+        const armed = requiredFlagsForUseCase(uc).includes('ff_a2a_delegation');
+        const needed = isA2aDelegatedTool(uc.primaryTool || '');
+        // Needed implies armed. (Armed without needed is legitimate — the three
+        // A2A use-case ids arm it by name whatever tool a vertical maps in.)
+        if (needed && !armed) { wrong.push(`${v}/${uc.id}: ${uc.primaryTool}`); }
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  // Flipping the registry default is NOT enough on its own: getEffective prefers a
+  // persisted value, so an environment that ever stored 'false' stays off forever
+  // and never sees the new default. Measured on the live stack — the flag read
+  // 'false' with the default already 'true' and no FF_A2A_DELEGATION env var
+  // anywhere. Source-scanned rather than booted, matching the other startup tasks
+  // in server.js; the behaviour itself was confirmed live (the log line fired and
+  // the flag flipped to true on restart).
+  test('startup clears a persisted ff_a2a_delegation=false', () => {
+    const src = require('fs').readFileSync(require.resolve('../server.js'), 'utf8');
+    expect(src).toMatch(/deleteRaw\('ff_a2a_delegation'\)/);
+    // Only a stored FALSE is cleared — never a write, and a stored 'true' is left be.
+    expect(src).toMatch(/stored === 'false'/);
+    expect(src).not.toMatch(/setRaw\(\s*\{\s*ff_a2a_delegation/);
+  });
+
+  test('ff_a2a_delegation defaults ON', () => {
+    const { FLAG_REGISTRY, REGISTRY, registry } = require('../services/configStore');
+    const reg = FLAG_REGISTRY || REGISTRY || registry;
+    if (reg && reg.ff_a2a_delegation) {
+      expect(String(reg.ff_a2a_delegation.default)).toBe('true');
+    } else {
+      // Registry is not exported — assert the source instead, which is what the
+      // runtime reads. A default of 'false' here is the bug this pins.
+      const src = require('fs').readFileSync(require.resolve('../services/configStore'), 'utf8');
+      expect(src).toMatch(/ff_a2a_delegation:\s*\{[^}]*default:\s*'true'/);
+    }
+  });
+});

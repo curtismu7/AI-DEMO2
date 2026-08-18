@@ -15,6 +15,7 @@ const {
   clientSecretKey,
   specialistForVertical,
 } = require('../config/a2aSpecialists');
+const { isA2aDelegatedTool } = require('./scopeTopology');
 
 /** Use-case slugs that always need A2A delegation armed. */
 const A2A_USE_CASE_IDS = new Set([
@@ -105,7 +106,13 @@ function requiredFlagsForUseCase(uc) {
     if (id) flags.add(id);
   }
   if (
-    A2A_USE_CASE_IDS.has(uc.useCaseId)
+    // scope-topology's a2aDelegated flag is the load-bearing check — a tool
+    // reachable only through a two-hop chain cannot succeed with A2A off, and it
+    // denies on policy in a way that looks nothing like a missing flag. UC37 was
+    // exactly that case. Kept in sync with the UI mirror in
+    // demo_api_ui/src/utils/requiredDemoFlags.js.
+    isA2aDelegatedTool(uc.primaryTool)
+    || A2A_USE_CASE_IDS.has(uc.useCaseId)
     || uc.id === 'UC2.5'
     || uc.primaryTool === 'delegate_to_specialist'
   ) {
