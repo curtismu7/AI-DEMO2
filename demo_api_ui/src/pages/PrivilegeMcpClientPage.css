@@ -948,6 +948,11 @@ select.cur-input { cursor: pointer; }
 }
 .cur-flow-trigger:hover { border-color: #007acc; color: #fff; }
 
+/* Settings gear — bigger and red so it stands out in the titlebar. The
+   U+FE0E selector forces the text glyph so the CSS color applies. */
+.cur-settings-gear { font-size: 18px; padding: 0 10px; line-height: 1; color: #ef4444; }
+.cur-settings-gear:hover { color: #f87171; }
+
 .cur-flow-modal {
   background: #161b22;
   border: 1px solid #30363d;
