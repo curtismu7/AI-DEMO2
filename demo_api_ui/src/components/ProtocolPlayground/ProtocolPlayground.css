@@ -415,6 +415,21 @@
   gap: 8px;
 }
 
+.pp-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: -1px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: pp-spin 0.7s linear infinite;
+}
+
+@keyframes pp-spin {
+  to { transform: rotate(360deg); }
+}
+
 .controls-buttons .btn-default {
   background-color: var(--pp-btn-bg);
   color: var(--pp-btn-text);
