@@ -901,6 +901,7 @@ async function runMcpToolPipeline(ctx) {
         deps.appEventLog('mcp', 'info', `MCP tool call → ${tool}`,{ tag: 'mcp/tool', metadata: { tool, gatewayUrl: useGateway ? gatewayHttpUrl : mcpUrl, via: useGateway ? 'gateway' : 'direct' } });
         let result;
         let gwAuditTrail = null;
+        let gwMcpHandshake = null;
         // DPoP (RFC 9449): pass the session's ephemeral key so the gateway client signs a
         // per-hop proof. Only when ff_dpop is on AND Phase A minted a key during token
         // resolution — never create one here.
@@ -951,7 +952,7 @@ async function runMcpToolPipeline(ctx) {
                     );
                 }
             } catch (_) { /* best-effort */ }
-            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups }));
+            ({ result, gwAuditTrail, gwMcpHandshake } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
@@ -962,6 +963,32 @@ async function runMcpToolPipeline(ctx) {
             // was ever surfaced.
             const mcpFrames = {};
             result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId, { emit: deps.emit, frameSink: mcpFrames });
+            // The GATEWAY performed the MCP lifecycle upstream on this path — the
+            // BFF speaks JSON-RPC over HTTP to the gateway and is not the MCP
+            // client — so these events come off its X-Gw-Mcp-Handshake header
+            // rather than from a local frameSink. Same event ids either way, so
+            // the chain's mcp-initialize / mcp-initialized hops light up on both
+            // the gateway and the direct path.
+            if (gwMcpHandshake && gwMcpHandshake.initialize) {
+                const hs = gwMcpHandshake;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'mcp-initialize', 'MCP handshake — initialize (by the gateway)', 'active', null,
+                    `The Agent Gateway opened the MCP session upstream (protocol ${hs.initialize.protocolVersion || '?'}) before forwarding the tool call.`,
+                    {
+                        rfc: 'MCP 2025-11-25 §Lifecycle',
+                        performedBy: 'agent-gateway',
+                        negotiatedVersion: hs.initialize.protocolVersion || null,
+                        serverInfo: hs.initialize.serverInfo || null,
+                        response: hs.initialize,
+                    }));
+                if (hs.initialized) {
+                    tokenEvents.push(deps.buildTokenEvent(
+                        'mcp-initialized', 'MCP handshake — notifications/initialized (by the gateway)', 'active', null,
+                        'The gateway confirmed the negotiated session upstream; only then did it forward the tool call.',
+                        { rfc: 'MCP 2025-11-25 §Lifecycle', performedBy: 'agent-gateway', sessionId: hs.sessionId || null }));
+                }
+                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
+            }
             if (mcpFrames.initializeRequest) {
                 const initEvents = [
                     deps.buildTokenEvent('mcp-initialize', 'MCP handshake — initialize', 'active', null,
