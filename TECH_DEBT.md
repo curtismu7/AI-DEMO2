@@ -68,33 +68,42 @@ fails on any string that is not a scope in `scope-topology.json`. It is a dozen
 lines, it would have caught this class before the first vertical shipped, and it
 turns "route the second tool" from a live-403 discovery into a build failure.
 
-### 2026-08-17 — The PingOne/IG decision boundary emits no ledger hop, so the transaction trace is structurally one hop short
+### 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
 
-**Where:** `ping-gateway/scripts/groovy/p1az-decision.groovy` (~1260 lines) —
-zero `emitHop` call sites.
+**Where:** `ping-gateway/scripts/groovy/transaction-hop.groovy` (~line 71,
+`if (!outcome) outcome = (statusCode >= 400) ? 'DENY' : 'PERMIT'`), reading the
+`X-Gw-Audit-Trail` header that `p1az-decision.groovy` stamps.
 
-**What's wrong:** the transaction-trace ledger is now instrumented at the MCP
-gateway (`gatewayAudit.ts`, `gateway.authorize`) and the resource server
-(`index.ts`, `mcp.tool`), so a turn's trace looks complete. It is not: the
-authorization decision itself — the single hop a viewer most wants to see, where
-PingOne Authorize returns PERMIT/DENY and IG enforces it — never enters the
-ledger, because the Groovy that makes the call has no wiring to emit one. The
-trace therefore renders a chain that jumps from gateway to tool with the policy
-decision invisible, and nothing in the UI distinguishes "no decision happened"
-from "the decision was never recorded."
+**What's wrong:** the hop emitter prefers the authoritative decision off the
+audit trail — correctly, because a JSON-RPC error rides a 200 envelope and
+status alone cannot tell a policy DENY from a successful call. But when the
+trail is absent or unparseable the `catch` falls through silently and the
+outcome is INFERRED from the status code, and the emitted hop records that guess
+in the same `decision.outcome` field, with the same `by: 'ping-gateway'`
+attribution, as a real PDP verdict. Nothing in the payload marks it as inferred.
+So `/transaction-trace` can display a confident `PERMIT` for a request whose
+policy decision was never read — which is the one thing an authorization trace
+exists to rule out. The fallback is right to exist (fail-open is correct for an
+observability surface); recording it as indistinguishable from the real thing is
+not.
 
-**Why not fixed now:** the two Node boundaries were instrumented from inside
-services that already had a ledger client. The Groovy has none — closing this
-means a new HTTP POST from IG back to the BFF, inside a security-critical script
-in a runtime nothing else in the repo touches, with failure semantics to decide
-(a ledger write must never be able to fail a decision). That is real work, not
-the tail of the change that found it.
+Two smaller gaps in the same hop: the PDP's own detail — statements/obligations,
+policy id, evaluation latency — is dropped, only `outcome`/`reason`/`op`
+survive; and because the decision is folded into the transport hop rather than
+carried as its own, a trace cannot separate "IG enforced this" from "PingOne
+Authorize decided this."
 
-**What the real fix looks like:** a small fire-and-forget emitter in the Groovy
-— best-effort POST to the BFF's ledger endpoint, hard-bounded timeout, every
-failure swallowed and logged, called after the decision is computed and never in
-its path. Pair it with a test that a trace for a gateway-mediated turn contains
-a decision hop, so the gap cannot silently reopen.
+**Why not fixed now:** the instrumentation is recent and deliberately fail-open,
+and this is a fidelity question about what the ledger records rather than a
+break in it. It was found while checking a stale claim that the boundary was
+uninstrumented at all — it is not.
+
+**What the real fix looks like:** carry the provenance, not just the value —
+add a `source: 'trail' | 'inferred'` (or `authoritative: false`) to the emitted
+`decision` object and surface it in the trace UI, so a guessed outcome reads as
+a guess. Then, if the PDP detail is wanted, emit a distinct `authz.decision` hop
+from the same trail data rather than a second emitter in the decision script,
+which would duplicate the telemetry that already flows.
 
 ### 2026-08-17 — The P1AZ snapshot generator still pins 7 object versions by hand, and nothing rejects a new one
 
