@@ -518,6 +518,29 @@ describe("Server status chips in header", () => {
   });
 });
 
+// ─── MCP Tools is open to every role ─────────────────────────────────────────
+
+describe("MCP Tools action visibility", () => {
+  // It reads GET /api/mcp/inspector/tools, which has no auth middleware and
+  // answers 200 with no cookie — the listing was already public, so grouping it
+  // under `admin` hid a read-only view from a role the server serves anyway.
+  it("is offered to a customer, not just an admin", () => {
+    renderAgent({ user: customerUser, mode: "inline" });
+    expect(screen.getByText("MCP Tools")).toBeInTheDocument();
+  });
+
+  it("still hides the genuinely admin-only actions from a customer", () => {
+    renderAgent({ user: customerUser, mode: "inline" });
+    // Same group MCP Tools came from — only that one action crosses over.
+    expect(screen.queryByText("Query User")).not.toBeInTheDocument();
+  });
+
+  it("still shows it to an admin", () => {
+    renderAgent({ user: adminUser, mode: "inline" });
+    expect(screen.getByText("MCP Tools")).toBeInTheDocument();
+  });
+});
+
 // ─── Config-focus mode chips ──────────────────────────────────────────────────
 
 describe("Config-focus embedded mode — limited action chips", () => {

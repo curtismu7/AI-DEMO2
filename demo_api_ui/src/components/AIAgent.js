@@ -1008,8 +1008,17 @@ export default function BankingAgent({
       const logoutAction = ACTION_GROUPS.account?.filter((a) => a.id === "logout") || [];
       groupsToRender = { admin: [...(ACTION_GROUPS.admin || []), ...logoutAction] };
     } else if (effectiveUser?.role !== "admin") {
-      const { admin: _admin, ...rest } = groupsToRender;
-      groupsToRender = rest;
+      const { admin: adminGroup, ...rest } = groupsToRender;
+      // "MCP Tools" is not actually admin-only. It reads
+      // GET /api/mcp/inspector/tools, which has no auth middleware and answers
+      // 200 with no cookie at all — so the listing was already public, and
+      // grouping it under `admin` only hid a read-only view from the customer
+      // role that the server serves to anyone. Surfaced for every role under
+      // its own heading; the rest of the admin group is still stripped.
+      const openToEveryRole = (adminGroup || []).filter((a) => a.id === "mcp_tools");
+      groupsToRender = openToEveryRole.length
+        ? { ...rest, tools: openToEveryRole }
+        : rest;
     }
 
     return (
