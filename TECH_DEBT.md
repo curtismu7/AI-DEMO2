@@ -695,6 +695,25 @@ checkout's own HEAD blob is written (`git show <checkout-HEAD-sha>:<path>`).
 not a code change to make unilaterally — and tightening the hook to cover Bash
 writes would harden the workaround without removing the reason for it.
 
+**RESOLVED 2026-08-18 (PR #2009).** `npm run serve:worktree here` points the
+running stack at the calling worktree: `--project-directory` stays on the main
+checkout so all 37 `env_file` entries still resolve, and only the two source
+mounts move (`ui` and `demo-api-server` are the only services that bind-mount
+source). No argument prints which checkout each container is actually serving;
+`main` hands it back. Verified live end to end — repointed, proved the container
+read the worktree's files and Vite served its `src`, confirmed the BFF kept its
+178 env vars, then handed back.
+
+Deliberately NOT a per-worktree parallel stack: OAuth `redirect_uri` values are
+registered per port in PingOne, so a second stack on another port cannot sign in
+until someone edits the PingOne app. One stack with a visible owner is the shape
+that works.
+
+**Still true:** the hard-block hook covers `Write`/`Edit` only, and a `python3`
+heredoc via Bash still reaches the shared checkout. That is now a gap without a
+motive rather than a gap with one — the reason to go around the guardrail is
+gone. Original framing follows.
+
 **Real fix:** give sessions a sanctioned way to test against the running stack
 without touching the shared tree — a compose override or scratch bind-mount
 pointing at the requesting worktree. Two supporting fixes already landed:
