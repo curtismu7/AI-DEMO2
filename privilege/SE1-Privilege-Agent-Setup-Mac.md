@@ -38,6 +38,44 @@ The PDF assumes one machine per persona. The agent stores its identity in the **
 
 Fallbacks if a single Mac cannot hold both: a second Mac, a second macOS user account, or the Windows 11 VM path in the companion doc.
 
+## Check the existing pairing first
+
+The agent may already be installed and paired to a different tenant — several of these environments have been used from the same Mac. Read the current state before generating any onboarding link.
+
+From the shell:
+
+```bash
+ls -d "/Applications/PingOne Privilege.app"
+defaults read "/Applications/PingOne Privilege.app/Contents/Info.plist" CFBundleShortVersionString
+pgrep -fli privilege        # expect cyonagent_mac and enclave
+open -a "PingOne Privilege" # foreground the window
+```
+
+Then read the agent's **General** panel. `~/Library/Application Support/procyon-agent/config.json` will not answer this — it carries only `controllerURL`, `version`, `homepath`. The pairing itself lives in the Secure Enclave and is not readable from disk, the keychain dump, or any file.
+
+| Tenant ID shown | What it means | Do |
+|---|---|---|
+| `a32ebaed-d454-4f5a-9575-697cfcb6f822` | Already paired to the shared demo Agent environment | Skip install and pairing. Go to step 7 (MFA) and the demo script |
+| Any other tenant | Paired elsewhere — the agent holds one tenant at a time | Re-pair: full steps below |
+| App absent, or no `cyonagent_mac` process | Not installed or not running | Full steps below |
+
+**Order matters when re-pairing.** Do not disconnect the current pairing until you hold a valid onboarding link. Links are one-time use and expire in about 2 hours, so disconnecting first can leave the agent unpaired with nothing to pair to. Generate the link, then disconnect (broken-chain icon, bottom left of the agent window), then run the link.
+
+**What re-pairing costs.** The previous tenant's device identity is gone. Recovering it means generating a fresh onboarding link in *that* tenant, which needs console access there. Confirm you still have it before clearing a pairing you may want back.
+
+Observed on this Mac, 2026-08-18 — the case this section exists for:
+
+```text
+App Version   2.0.47
+Key Store     SecureEnclave
+Connected     proxy-us-west-2.privilege.pingone.com:443
+Tenant Name   AI-Reference-Demo
+Tenant ID     5f4badd1-7d97-48e9-84aa-9f15d72ad84f
+MFA Enabled   Disabled
+```
+
+Wrong tenant for the shared demo, so a re-pair was required. `MFA Enabled: Disabled` is what step 7 fixes.
+
 ## Steps
 
 ### 1. Claim the Platform Admin account
