@@ -204,10 +204,12 @@ jobs:
     # being wired up, so a red here is a regression, not inherited debt.
     #   demo_agent_service 133 · demo_mcp_code_search 32 · agent_token_service 11
     #   demo_hitl_service · demo_api_resource_server
-    # mastra_agent runs NON-BLOCKING: three pre-existing failures in
-    # tests/runHandler.test.ts that predate this wiring. It still fails the job if
-    # the suite cannot RUN, which is the distinction test-service-suite.sh exists
-    # to draw — "0 tests ran" must not look like "all tests passed".
+    # mastra_agent is BLOCKING too since #1975 fixed the three runHandler.test.ts
+    # failures this comment used to describe (they came from aborting on req
+    # 'close' rather than res 'close'; measured green here, 36 passed / 0 failed).
+    # test-service-suite.sh still fails the job if a suite cannot RUN, which is
+    # the distinction it exists to draw — "0 tests ran" must not look like
+    # "all tests passed".
     name: Unwired service suites (agent, hitl, code-search, token, resource-server, mastra)
     needs: changes
     if: needs.changes.outputs['unwired-services'] == 'true'

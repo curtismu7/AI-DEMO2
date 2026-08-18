@@ -828,6 +828,29 @@ leave it open and note on the route that it is intentionally public so the next
 reader does not infer protection from the chip's placement. Generally: UI
 grouping is not an authorization boundary and should not be read as one.
 
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-batch2-0818`) — decided, not
+gated.**
+
+*The decision:* leave the endpoint open. It is a demo whose point is showing the
+tool surface, several callers already reach it without a session, and adding
+middleware to a route that many surfaces call unauthenticated is a behavioural
+change with no security benefit here — the inventory is names and JSON schemas,
+no execution and no account data.
+
+*What the issue really was:* not the openness. It was that **nothing said so**,
+while the UI actively implied the opposite by filing "MCP Tools" under
+`ACTION_GROUPS.admin`, where the whole group is stripped for non-admins. The
+control read as admin-gated while the data was public, so a reviewer who checks
+the chip's placement and stops there draws exactly the wrong conclusion. That is
+the inverse of the usual risk: the danger is a review that *does not happen*.
+
+*What the fix was:* `demo_api_server/routes/mcpInspector.js` — the `/tools` route
+now carries an explicit `INTENTIONALLY UNAUTHENTICATED` block recording the
+measured behaviour (200 with no cookie and no bearer), why it is deliberate, and
+the general rule this case exists to teach: **UI grouping is not an authorization
+boundary and must never be read as one.** If the inventory should ever be
+restricted, the middleware goes on the route, not in the menu.
+
 ### 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` `ensureRequiredDemoFlags`,
@@ -1108,6 +1131,50 @@ descriptor must name a tool the vertical actually exposes. The suite currently
 checks descriptor shape, not descriptor reachability, which is why a borrowed-
 and-filtered tool set can accumulate these unnoticed.
 
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-batch2-0818`).**
+
+*What the issue really was:* the orphan count was right — 4, confirmed by loading
+every vertical and diffing `manifest.render` against the tools it actually
+exposes: `view_subscriptions`, `pause_subscription`, `view_price_alerts`,
+`remove_price_alert`. All four are retail tools that `ALLOWED_TOOL_NAMES` filters
+out of A&F.
+
+**But the entry's proposed assertion was wrong, and writing it as stated would
+have broken the build.** "Every descriptor must name a tool the vertical actually
+exposes" is false in this repo — a descriptor key is reached three ways, and the
+audit found live examples of all three:
+
+1. it names an exposed tool (the common case);
+2. a handler returns it explicitly — `return { result, render: 'portfolio_value' }`
+   — which is how `investment` reaches `portfolio_value`, `trades`,
+   `dividend_summary` and how `oauth-teaching` reaches `token_pair`;
+3. a **service-level** map names it for a tool no vertical lists — today
+   `A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' }` in
+   `services/demoAgentLangGraphService.js`, the only reason `investment`'s
+   `portfolio_summary` is live.
+
+Applied naively, the entry's rule flags 6 healthy descriptors across two
+verticals. The guard would have been reverted on its first red build and the
+lesson lost with it.
+
+*What the fix was:*
+
+- Dropped the 4 orphan descriptors from
+  `demo_api_server/config/verticals/abercrombie-fitch/manifest.json`.
+- Added `demo_api_server/src/__tests__/verticalRenderReachability.test.js`,
+  which encodes all three reachability sources and runs per-vertical. Across all
+  14 verticals with a `render` block it now reports zero orphans.
+
+One subtlety the test comments call out: source (2) is scanned **per-vertical,
+not through borrowed modules**. `retail/tools.js` does contain
+`render: 'pause_subscription'`, but that branch belongs to a tool A&F's allowlist
+removes — counting it would mark the exact orphans this test exists to catch as
+reachable.
+
+*Verified the guard bites:* injecting a `zz_orphan_probe` descriptor into the A&F
+manifest fails the suite with `Received + "zz_orphan_probe"`. A guard nobody has
+watched fail is not a guard.
+
 ### 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
 
 **Where:** `scripts/check-resource-server-audience-drift.js` (`npm run
@@ -1259,6 +1326,38 @@ dependency), or move the test to `demo_api_server`, where the code and its
 dependency already live. Whichever way, `demo_agent_service` should stop
 reaching into a sibling's `lib/` — a require path with `../` crossing a package
 root is the smell, and it will keep producing environment-dependent green.
+
+**STILL OPEN — but both fixes this entry proposes are wrong. Re-scoped
+2026-08-18 (branch `worktree-techdebt-batch2-0818`) after auditing the code.**
+
+*Why "move the test to `demo_api_server`" is wrong:* `vault.test.ts` tests
+`demo_agent_service`'s OWN loader — `loadVaultIntoEnv` from `../src/vault`, whose
+one behavioural delta from the gateway's copy is the `AGENT_` allowlist prefix.
+It only reaches across the boundary to *build the fixture vault* it then loads.
+Moving it would put a test of `demo_agent_service` code in another package.
+
+*Why "extract to a workspace package" is bigger than it looks:* the crossing is
+**deliberate at runtime**, not just in tests. `demo_agent_service/src/vault.ts:42`
+sets `VAULT_LIB_PATH = '../../demo_api_server/lib/vault'` and requires it on
+purpose, and `tests/vault.libUnavailable.test.ts` exists specifically to assert
+the behaviour when that sibling is **absent** — which is the normal case in the
+agent-service image, where `demo_api_server` is never shipped. Extracting the
+vault would change that runtime contract and the container layout that depends
+on it, not just a `require` path.
+
+*What is actually true today:* `.github/workflows/ci.yml` installs the sibling's
+deps (`npm install --prefix demo_api_server`) before the suite, with a comment
+pointing here. That works and is honest about why it exists. The residual cost is
+one full package install on a job that otherwise needs none.
+
+*Real fix, restated:* pick one deliberately — (a) publish the vault as a workspace
+package that BOTH services depend on explicitly, and update the image layout and
+`vault.libUnavailable.test.ts`'s premise with it; or (b) give
+`demo_agent_service` its own test-only fixture builder so the suite stops needing
+the sibling's `argon2` at all, leaving `src/vault.ts`'s deliberate runtime
+crossing as the only one. (b) is much the smaller change and removes the CI
+install; it costs a second implementation of the vault write path used only by
+tests.
 
 ### 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
 
@@ -1597,6 +1696,30 @@ one reported bug — bigger surface than a bug fix warrants.
 itself must stay skip-shaped on the BFF side for gateway-authoritative
 requests — see `mcpToolPipeline.js:456`. Client-side normalization must not
 try to make the server stop being honest about that.
+
+**ALREADY RESOLVED — verified 2026-08-18. No code change needed; this entry was
+stale.**
+
+*What happened:* PR **#1795** (`refactor(trace): deduplicate gw-authorize fallback
+across 4 call sites`) landed the split fix this entry specified, one helper per
+side:
+
+- **Server** — `demo_api_server/utils/gwAuthorizeUtils.js` exports
+  `gwAuthorizeEventFrom(tokenEvents)`, now the single implementation behind
+  `stepVerificationExpectations.js:345` (consumer #3) and
+  `attackSimulatorService.js:315` (consumer #4).
+- **Client** — `tokenChainTrace/tokenChainTraceStore.js` gained
+  `_gwAuthorizeToAuthorize()` + `_syncGwAuthorize()`, which set `trace.authorize`
+  from the event after every `tokenEvents` mutation, exactly as the entry
+  proposed. Consumers now read `trace.authorize` and nothing else:
+  `ProofOfEnforcementContext.js:76` (consumer #2) records this in place —
+  "from the gw-authorize token event, so no separate fallback is needed here".
+
+`buildTraceSteps.js` (consumer #1) still contains `findEvent(tokenEvents,
+"gw-authorize")` at lines 813 and 1058, which reads like a survivor but is not:
+813 uses the event's mere existence as a downstream-liveness probe
+(`exchangeProvenDownstream`) and 1058 pulls `filterChain` off it. Neither
+re-derives the authorize decision, which is the fact this entry was about.
 
 ### 2026-08-18 — The chain's Exchange hop reads "in flight" after a finished run
 
