@@ -18,7 +18,16 @@ export default function DavinciLoginPage() {
     setError(null);
     try {
       const client = await getDavinciClient();
-      const result = await client.start();
+      // OIDC replay protection: the BFF binds a nonce to this session and
+      // /api/davinci-login/callback verifies the ID token echoes it. The SDK
+      // merges StartOptions.query into the /authorize URL.
+      const nonceRes = await fetch("/api/davinci-login/nonce", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      if (!nonceRes.ok) throw new Error(`Could not start a login flow (HTTP ${nonceRes.status})`);
+      const { nonce } = await nonceRes.json();
+      const result = await client.start({ query: { nonce } });
       if (isSdkError(result)) throw new Error(result.error || "Could not start the DaVinci flow");
       setNode(result);
       setStatus("collecting");

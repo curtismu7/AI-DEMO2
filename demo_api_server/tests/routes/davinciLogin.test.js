@@ -18,6 +18,13 @@ const oauthService = require('../../services/oauthService');
 const dataStore = require('../../data/store');
 const davinciLoginRoutes = require('../../routes/davinciLogin');
 
+// The callback now enforces OIDC nonce replay verification: the session must
+// carry the nonce issued by POST /nonce, and the ID token must echo it (see
+// tests/davinciLoginNonce.test.js for the dedicated nonce suite). Tests here
+// seed `davinciLoginNonce` and build a decodable ID token that echoes it.
+const idTokenWithNonce = (nonce, claims = {}) =>
+  'h.' + Buffer.from(JSON.stringify({ ...claims, nonce })).toString('base64url') + '.s';
+
 function buildApp(sessionObj) {
   const app = express();
   app.use(express.json());
@@ -47,9 +54,10 @@ describe('POST /api/davinci-login/callback', () => {
   test('valid code exchanges tokens and establishes a session for an existing demo user', async () => {
     // Real oauthService.exchangeCodeForToken shape: raw PingOne token response
     // (snake_case), no `.claims` property.
+    const idToken = idTokenWithNonce('nonce-1');
     oauthService.exchangeCodeForToken.mockResolvedValue({
       access_token: 'at-1',
-      id_token: 'it-1',
+      id_token: idToken,
       refresh_token: 'rt-1',
       expires_in: 3600,
       token_type: 'Bearer',
@@ -59,7 +67,7 @@ describe('POST /api/davinci-login/callback', () => {
     oauthService.createUserFromOAuth.mockReturnValue({ id: 'u1', username: 'demoUser', role: 'customer' });
     dataStore.getUserByUsername.mockReturnValue({ id: 'u1', username: 'demoUser', role: 'customer' });
 
-    const session = {};
+    const session = { davinciLoginNonce: 'nonce-1' };
     const res = await request(buildApp(session))
       .post('/api/davinci-login/callback')
       .send({ code: 'code-1', codeVerifier: 'verifier-1', redirectUri: 'https://local.ping-devops.com:4000/davinci-login/callback' });
@@ -74,7 +82,7 @@ describe('POST /api/davinci-login/callback', () => {
     // and the real user record from dataStore — not an invented `.claims` shape.
     expect(session.oauthTokens).toEqual({
       accessToken: 'at-1',
-      idToken: 'it-1',
+      idToken,
       refreshToken: 'rt-1',
       expiresAt: session.oauthTokens.expiresAt, // Use the actual value set by the handler
       tokenType: 'Bearer',
@@ -92,7 +100,7 @@ describe('POST /api/davinci-login/callback', () => {
   test('unknown demo user is rejected, not auto-created', async () => {
     oauthService.exchangeCodeForToken.mockResolvedValue({
       access_token: 'at-2',
-      id_token: 'it-2',
+      id_token: idTokenWithNonce('nonce-2'),
       refresh_token: 'rt-2',
       expires_in: 3600,
       token_type: 'Bearer',
@@ -102,7 +110,7 @@ describe('POST /api/davinci-login/callback', () => {
     oauthService.createUserFromOAuth.mockReturnValue({ id: 'u2', username: 'strangerUser', role: 'customer' });
     dataStore.getUserByUsername.mockReturnValue(null);
 
-    const session = {};
+    const session = { davinciLoginNonce: 'nonce-2' };
     const res = await request(buildApp(session))
       .post('/api/davinci-login/callback')
       .send({ code: 'code-2', codeVerifier: 'verifier-2', redirectUri: 'https://local.ping-devops.com:4000/davinci-login/callback' });
@@ -116,7 +124,7 @@ describe('POST /api/davinci-login/callback', () => {
   test('session regenerate failure aborts login', async () => {
     oauthService.exchangeCodeForToken.mockResolvedValue({
       access_token: 'at-3',
-      id_token: 'it-3',
+      id_token: idTokenWithNonce('nonce-3'),
       refresh_token: 'rt-3',
       expires_in: 3600,
       token_type: 'Bearer',
@@ -128,7 +136,7 @@ describe('POST /api/davinci-login/callback', () => {
 
     const app = express();
     app.use(express.json());
-    const session = {};
+    const session = { davinciLoginNonce: 'nonce-3' };
     app.use((req, _res, next) => {
       req.session = session;
       req.session.regenerate = (cb) => cb(new Error('store unavailable'));

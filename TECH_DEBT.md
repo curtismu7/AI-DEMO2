@@ -2817,7 +2817,28 @@ worth having: assert that the URL in the gateway's `WWW-Authenticate` actually
 returns 200 — the failure mode here was silent precisely because nobody followed
 the pointer.
 
-### [ ] 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
+### [x] 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
+
+**FIXED 2026-08-18 (branch `worktree-davinci-nonce-verify`) — and the entry's
+"blocked on the SDK" premise was wrong.** `@forgerock/davinci-client` (2.1.1) has
+no *named* nonce feature, but `client.start()` officially accepts typed
+`StartOptions.query` params that are merged into the `/authorize` URL
+(`dist/src/lib/davinci.api.js`, `existingParams.set(key, value)`) — so a standard
+OIDC `nonce` can ride the authorize request and PingOne echoes it in the ID
+token. No fork, no hand-built authorize request. Fix: new
+`POST /api/davinci-login/nonce` binds a single-use `crypto.randomBytes(16)` nonce
+to the session; `DavinciLoginPage.start()` fetches it and passes
+`client.start({ query: { nonce } })`; `/callback` consumes the session nonce
+(read-and-delete before the code is spent) and fails `401 nonce_missing` /
+`nonce_mismatch` when the ID token does not echo it — strict, never
+warn-and-proceed, same rule as `routes/oauthUser.js` post-#2043. Regression tests
+`tests/davinciLoginNonce.test.js` (5 cases incl. single-use replay; verified all
+5 red against the pre-fix route) and
+`src/pages/__tests__/DavinciLoginPage.test.jsx` (UI half pins the nonce wiring).
+Caveat: nothing in the UI posts to `/callback` yet (the page stops at "Signed
+in." and the SDK does no PKCE, so no caller can supply `codeVerifier`) — the
+verification is live the day that wiring lands, and the callback now refuses
+nonce-less logins rather than silently accepting them. Original entry follows.
 
 **Where:** `demo_api_server/routes/davinciLogin.js` (`POST /callback`).
 
