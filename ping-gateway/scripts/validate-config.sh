@@ -17,7 +17,7 @@ ENV_EXAMPLE="$PG_DIR/.env.example"
 fail=0
 
 echo "== JSON validity =="
-JSON_FILES=("$ROUTES_DIR"/*.json "$PG_DIR/config/admin.json")
+JSON_FILES=("$ROUTES_DIR"/*.json "$PG_DIR/config/admin.json" "$PG_DIR/config/config.json")
 for f in "${JSON_FILES[@]}"; do
   if jq empty "$f" >/dev/null 2>&1; then
     echo "  ok   $(basename "$f")"
@@ -35,7 +35,7 @@ if [ ! -f "$ENV_EXAMPLE" ]; then
 fi
 
 # Collect every ${env['VAR']} referenced across the route files.
-referenced="$(grep -ohE "\\\$\{env\['[^']+'\]\}" "$ROUTES_DIR"/*.json \
+referenced="$(grep -ohE "\\\$\{env\['[^']+'\]\}" "$ROUTES_DIR"/*.json "$PG_DIR/config/config.json" \
   | sed -E "s/.*\['([^']+)'\].*/\1/" | sort -u)"
 
 # Keys defined in .env.example (left of the first =).

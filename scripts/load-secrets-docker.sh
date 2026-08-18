@@ -23,11 +23,10 @@ if command -v op &>/dev/null && op account get &>/dev/null; then
 
     if op item get "$item_name" --vault "$DEMO_VAULT" >/dev/null 2>&1; then
       echo "[INFO] Exporting $svc secrets..."
-      op item get "$item_name" --vault "$DEMO_VAULT" --format json | \
-        jq -r '.fields[] | "\(.label)=\(.value)"' | \
-        while read -r line; do
-          export "$line"
-        done
+      while read -r line; do
+        export "$line"
+      done < <(op item get "$item_name" --vault "$DEMO_VAULT" --format json | \
+        jq -r '.fields[] | "\(.label)=\(.value)"')
     else
       echo "[WARN] Item '$item_name' not found. Skipping $svc."
     fi

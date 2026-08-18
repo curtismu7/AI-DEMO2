@@ -99,7 +99,7 @@ run_e2e_tests() {
   echo ""
 
   # Check if API server is running
-  if curl -s http://localhost:3001/api/healthz > /dev/null 2>&1; then
+  if curl -k -f -s https://localhost:3001/api/healthz > /dev/null 2>&1; then
     ok "API server is reachable on :3001"
     npm run test:e2e
     ok "Playwright E2E tests completed"
