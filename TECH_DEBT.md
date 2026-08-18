@@ -2032,7 +2032,22 @@ pointing at the requesting worktree. Two supporting fixes already landed:
 checkout SHA against itself (#1944), so a correct post-merge deploy is one
 command; and `npm run sync:status` names the blocking files, though only if you
 think to run it.
-### [ ] 2026-08-18 — 687 error-level lint findings, 455 of them false, hiding the real ones
+### [x] 2026-08-18 — 687 error-level lint findings, 455 of them false, hiding the real ones
+
+**RESOLVED 2026-08-18 (branch `worktree-trustworthy-gates`).** Error count at
+resolution time had grown to 731; after the fix it is **0** (295 warnings). The
+`no-undef` mass turned out to be entirely `vi` (480) + `globalThis` (6) — the
+entry's diagnosis held. Fix in `package.json#eslintConfig`: `env.es2020` (for
+`globalThis`), a test-file override (`__tests__`, `*.test.*`, `setupTests.js`,
+`test-utils`) declaring `vi` and demoting the `testing-library/*` +
+`jest/no-conditional-expect` style rules to `warn`; `import/first` demoted to
+`warn` globally (ESM imports hoist — stylistic, not a crash); and
+`jest/valid-expect` OFF for test files because vitest legitimately supports the
+two-arg `expect(value, message)` form the jest plugin flags. Error-level now
+means "this line throws at runtime" and is worth gating on. The two real
+production errors the original entry found (`AIAgent.js` `handleSubmit`) were
+already fixed in that incident; zero real `no-undef` remained. Original entry
+follows.
 
 **Where:** `demo_api_ui` ESLint config — no test-environment globals declared
 for the vitest specs or `src/setupTests.js`.
@@ -2087,6 +2102,18 @@ they are style, and reporting them at `error` alongside a crash is part of what
 flattened the signal.
 
 ### [ ] 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
+
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-trustworthy-gates`).**
+`AIAgent.protectedStepLogin.test.jsx` now has `renderAtHydrating(path)` —
+mounts `user={null}` (the window every real load has), returns
+`resolveSession(user)` to land the session, so assertions can run inside the
+hydration window — and `renderAt` carries the entry's requested warning comment
+naming #1963 and pointing at the hydrating helper. The existing
+"waits for the session instead of firing during hydration" spec was converted
+to it. STILL OPEN: hydration-first is not yet the DEFAULT across the other
+AIAgent specs — each still mounts with `user` resolved; converting them (or
+lifting the helper into a shared test util) is the remaining work. Original
+entry follows.
 
 **Where:** `demo_api_ui/src/components/__tests__/AIAgent.*.test.jsx` — the shared
 harness, e.g. `renderAt(path, user = null)` in
