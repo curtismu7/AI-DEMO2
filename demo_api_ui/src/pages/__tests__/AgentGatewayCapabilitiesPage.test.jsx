@@ -3,10 +3,12 @@ import { render, screen } from '@testing-library/react';
 import AgentGatewayCapabilitiesPage from '../AgentGatewayCapabilitiesPage';
 
 describe('AgentGatewayCapabilitiesPage', () => {
-  it('renders the Agent Gateway title and all 7 capability cards without any network call', () => {
+  it('renders the Agent Gateway title and every capability card without any network call', () => {
     render(<AgentGatewayCapabilitiesPage />);
     expect(screen.getByRole('heading', { level: 1, name: /Agent Gateway/ })).toBeInTheDocument();
     expect(screen.getByTestId('cap-card-mcp-validation')).toBeInTheDocument();
+    expect(screen.getByTestId('cap-card-weather-tx-scope')).toBeInTheDocument();
+    expect(screen.getByTestId('cap-card-secrets-dotenvx')).toBeInTheDocument();
     expect(screen.getByTestId('cap-card-audit-logging')).toBeInTheDocument();
     expect(screen.getByTestId('cap-card-rate-limiting')).toBeInTheDocument();
     expect(screen.getByTestId('cap-card-token-transformation')).toBeInTheDocument();

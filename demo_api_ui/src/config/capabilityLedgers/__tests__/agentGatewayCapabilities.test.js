@@ -6,8 +6,8 @@ import {
 } from '../agentGatewayCapabilities';
 
 describe('agentGatewayCapabilities', () => {
-  it('has exactly 8 capabilities', () => {
-    expect(AGENT_GATEWAY_CAPABILITIES).toHaveLength(8);
+  it('has exactly 9 capabilities', () => {
+    expect(AGENT_GATEWAY_CAPABILITIES).toHaveLength(9);
   });
 
   it('every capability has a unique id, a known group, a one-liner, and evidence', () => {
@@ -25,11 +25,19 @@ describe('agentGatewayCapabilities', () => {
     }
   });
 
-  it('groups split 3/2/3 across validate-audit, throttle-transform, oauth-policy-metadata', () => {
+  it('groups split 3/2/3/1 across validate-audit, throttle-transform, oauth-policy-metadata, secrets', () => {
     const counts = AGENT_GATEWAY_GROUPS.map(
       (g) => AGENT_GATEWAY_CAPABILITIES.filter((c) => c.group === g.id).length,
     );
-    expect(counts).toEqual([3, 2, 3]);
+    expect(counts).toEqual([3, 2, 3, 1]);
+  });
+
+  it('the secrets capability cites the dotenvx loader in all three services', () => {
+    const cap = AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'secrets-dotenvx');
+    expect(cap.oneLiner).toMatch(/dotenvx/);
+    expect(cap.evidence.code).toContain('demo_mcp_gateway/src/vault.ts');
+    expect(cap.evidence.code).toContain('oauth-mcp/src/vault.ts');
+    expect(cap.evidence.code).toContain('demo_agent_service/src/vault.ts');
   });
 
   it('the metadata-controls (RAR) capability cites no Groovy/PingGateway equivalent', () => {
