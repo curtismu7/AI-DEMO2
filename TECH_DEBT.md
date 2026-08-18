@@ -1273,6 +1273,49 @@ merged before anyone drove a real tool call. `npm run test:e2e:real --
 chain-hops-reachable` reports this hop under CONFIG_DEPENDENT and takes 30
 seconds.
 
+#### Measured 2026-08-18 — where the handshake actually happens
+
+Before attempting a third time, this was traced by driving each leg separately
+and reading container logs, rather than by reading code. The result contradicts
+both previous attempts AND the correction above.
+
+**The MCP client is `demo_mcp_gateway` — the Node gateway.** Running the
+discovery leg alone opened 3 connections on `ai-demo-mcp-server`; running the
+tool-call leg alone opened 2, and `ai-demo-mcp-gateway` logged exactly 2
+`[GW] tools/list` in the same window. So #1977 targeted the RIGHT service. It was
+not the wrong gateway.
+
+**But the handshake rides the discovery leg, not the tool call.** During the
+tool-call leg the MCP server saw:
+
+```
+2 : initialize
+2 : notifications/initialized
+2 : tools/list
+```
+
+and **no `tools/call` at all**. The lifecycle belongs to tool discovery. Note
+this also settles the earlier claim in #2023 that `notifications/initialized` is
+never sent — it is sent, on every connection.
+
+**Why #1977 is still inert:** it stamps `X-Gw-Mcp-Handshake` on the Node
+gateway's HTTP proxy response (`GatewayServer.ts`, ~line 1045). Discovery does
+not use that path — `agentGatewayClient.listAvailableTools` calls `mcpListTools`
+with `getMcpGatewayWsUrl()`, i.e. a **WebSocket**. An HTTP response header cannot
+reach a WebSocket caller. Right service, right data, wrong transport.
+
+**What a fourth attempt should do:** carry the handshake in the WS `tools/list`
+result — the gateway already returns `_meta` there (`_meta.deniedTools`,
+`_meta.authzEngine` are consumed today) — and have `listAvailableTools` turn it
+into `mcp-initialize` / `mcp-initialized` events beside the existing
+`tools_list_success`. The hops then belong to the discovery leg, which is where
+the protocol says they belong.
+
+**And they must be modelled as discovery hops, not tool-call hops.** Today
+`buildTraceSteps` places `mcp-initialize` between the gateway and the MCP call.
+On the evidence above that is the wrong position — the session is opened and
+closed during discovery, before any tool call exists.
+
 ### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
 **Where:** `demo_api_ui/src/components/__tests__/FocusModeChainRenders.test.jsx`
