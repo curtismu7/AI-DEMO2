@@ -565,7 +565,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        dragCleanupRef.current = null;
       };
+      dragCleanupRef.current = onUp;
       document.body.style.cursor = "ns-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -594,7 +596,9 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        dragCleanupRef.current = null;
       };
+      dragCleanupRef.current = onUp;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -602,6 +606,14 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     },
     [agentColWidth],
   );
+
+  // Unmounting mid-drag (role switch, route change with the button held) must
+  // not leak the document listeners or leave body cursor/userSelect overridden
+  // — same fix EmbeddedAgentDock carries via its dragCleanupRef.
+  const dragCleanupRef = useRef(null);
+  useEffect(() => () => {
+    if (dragCleanupRef.current) dragCleanupRef.current();
+  }, []);
 
   /** Toggle expanded state for account profile details */
   const toggleAccountProfile = useCallback((accountId) => {

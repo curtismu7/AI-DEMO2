@@ -16,6 +16,30 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-18 — customer-dashboard banking column is the one dashboard pane without a resize handle
+
+**Where:** `demo_api_ui/src/components/UserDashboard.css` `.ud-body--dashboard-split3`
+(first grid track, `minmax(240px, 260px)`), rendered by `UserDashboard.js` /
+`UserDashboardPing2026.js` when agent placement is "middle",
+`ff_show_agent_in_middle` is ON, and Focus mode is OFF.
+
+**What's wrong:** the agent and token-rail columns drag-resize; the banking
+column does not. The resizable-columns rollout (PRs #2086/#2091, phase 3
+branch) deliberately skipped it twice: the 3-column-with-banking state never
+rendered during verification (live stack was first in `--no-banking`, then in
+Focus mode, where the banking column is not mounted at all), and the grid's
+own comment ("Token rail | Banking | Agent") does not match DOM child order
+(agent, banking, token rail) — so the track-to-column mapping could not be
+confirmed without mutating live demo state (feature flags / focus mode) that
+the presenter owns. jsdom cannot verify grid geometry either.
+
+**Real fix:** in a session where mutating demo state is acceptable (or on a
+throwaway stack), turn Focus mode off with placement "middle" + banking ON,
+confirm which grid track the banking column actually occupies, then add a
+third handle following the file's own drag pattern (`onAgentWidthResizeMouseDown`
+shape + `--ud-banking-col-width` var) in BOTH dashboard variants, and
+re-baseline the UserDashboard sha256 canary in `UserDashboardPing2026.test.js`.
+
 ### 2026-08-18 — deploy-live reports success while a core service stays down, and keeps skipping it forever
 
 **Where:** `scripts/deploy-live.sh` — `filter_running()` (~line 205) and the

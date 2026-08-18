@@ -162,7 +162,6 @@ vi.mock("../AdminSubPageShell", () => ({ default: ({ children, lead }) => (
 vi.mock("./education/educationIds", () => ({ EDU: {} }), { virtual: true });
 vi.mock("../education/educationIds", () => ({ EDU: {} }));
 // Dashboard child components that can't render in jsdom
-vi.mock("../SplitPaneLayout", () => ({ default: ({ children }) => <div>{children}</div> }));
 vi.mock("../ArchitectureTabsPanel", () => ({ default: () => null }));
 vi.mock("../ApiCallsModal", () => ({ default: () => null }));
 vi.mock("../DevToolsOverlay", () => ({ default: () => null }));

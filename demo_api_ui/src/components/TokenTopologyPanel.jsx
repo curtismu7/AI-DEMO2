@@ -7,6 +7,7 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import { MCP_STEP_IDS } from '../services/tokenChainTrace/buildTraceSteps';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { useTheme } from '../context/ThemeContext';
+import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenTopologyPanel.css';
 
 // Coerce any value to a renderable string — trace data can contain {message} objects
@@ -571,29 +572,15 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
   const [expandedId, setExpandedId] = useState(null);
   const prevRunId = useRef(null);
-  const [inspWidth, setInspWidth] = useState(320);
-  const dragging = useRef(false);
+  const { size: inspWidth, handleProps: inspHandleProps } = useDividerDrag({
+    min: 200,
+    max: 600,
+    initial: 320,
+    invert: true, // inspector pane sits right of its divider
+  });
   const nodeRefs = useRef({});
   const diagramRef = useRef(null);
   const [branchOffset, setBranchOffset] = useState(0);
-
-  const handleResizeStart = useCallback((e) => {
-    e.preventDefault();
-    dragging.current = true;
-    const startX = e.clientX;
-    const startW = inspWidth;
-    const onMove = (ev) => {
-      const delta = startX - ev.clientX;
-      setInspWidth(Math.max(200, Math.min(600, startW + delta)));
-    };
-    const onUp = () => {
-      dragging.current = false;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }, [inspWidth]);
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
@@ -752,7 +739,7 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
 
           {selectedStep ? (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}>
-              <div className="ttp-resize-handle" onMouseDown={handleResizeStart} />
+              <div className="ttp-resize-handle" {...inspHandleProps} />
               <Inspector
                 step={selectedStep}
                 topologyNodes={topologyNodes}
@@ -761,7 +748,7 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
             </div>
           ) : hasActivity && (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}>
-              <div className="ttp-resize-handle" onMouseDown={handleResizeStart} />
+              <div className="ttp-resize-handle" {...inspHandleProps} />
               <div className="ttp-insp-empty">
                 <div className="ttp-insp-empty-icon">🔑</div>
                 <div className="ttp-insp-empty-text">Click a node to inspect its token details</div>

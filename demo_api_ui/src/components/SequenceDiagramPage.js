@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import useDividerDrag from "../hooks/useDividerDrag";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import DiagramExportBar from "./DiagramExportBar";
 /**
@@ -3175,7 +3176,11 @@ export default function SequenceDiagramPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [currentStepIdx, setCurrentStepIdx] = useState(-1);
   const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(280); // resizable panel width
+  const { size: leftPanelWidth, handleProps: leftPanelHandleProps } = useDividerDrag({
+    min: 240,
+    max: 500,
+    initial: 280,
+  });
   const [zoomLevel, setZoomLevel] = useState(100); // zoom percentage
   const diagramRef = useRef(null);
   const pausedStepIdx = useRef(-1);
@@ -3292,26 +3297,6 @@ export default function SequenceDiagramPage() {
 
   const handleResetZoom = () => {
     setZoomLevel(100);
-  };
-
-  const handleMouseDownResize = (e) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = leftPanelWidth;
-
-    const handleMouseMove = (moveEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      const newWidth = Math.max(240, Math.min(500, startWidth + deltaX));
-      setLeftPanelWidth(newWidth);
-    };
-
-    const handleMouseUp = () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
   };
 
   return (
@@ -3522,7 +3507,7 @@ export default function SequenceDiagramPage() {
           {/* Resize Handle */}
           <button
             type="button"
-            onMouseDown={handleMouseDownResize}
+            {...leftPanelHandleProps}
             style={{
               position: "absolute",
               right: 0,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { applyChildOrder } from "../config/navStructureCatalog";
+import useDividerDrag from "../hooks/useDividerDrag";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
 import apiClient from "../services/apiClient";
@@ -230,12 +231,18 @@ export default function AdminSideNav({
   // because this is a standing preference, not per-tab state like the expanded
   // group below — someone who expands it should not have to do so every tab.
   const [collapsed, setCollapsed] = useState(readStoredCollapsed);
-  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
+  // Width now persists (it never did before convergence on useDividerDrag);
+  // collapse state was already persisted separately.
+  const { size: sidebarWidth, handleProps: resizeHandleProps } = useDividerDrag({
+    min: MIN_WIDTH,
+    max: MAX_WIDTH,
+    initial: DEFAULT_WIDTH,
+    storageKey: "admin-side-nav-width",
+  });
   const [navFilter, setNavFilter] = useState("");
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
   const [navOrder, setNavOrder] = useState(null);
   const [childOrder, setChildOrder] = useState(null);
-  const isResizing = useRef(false);
   const showPacEditorLink = isLocalHost();
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
@@ -281,32 +288,6 @@ export default function AdminSideNav({
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-
-  const startResize = useCallback(
-    (e) => {
-      if (collapsed) return;
-      e.preventDefault();
-      isResizing.current = true;
-      const startX = e.clientX;
-      const startW = sidebarWidth;
-      const onMove = (me) => {
-        if (!isResizing.current) return;
-        const next = Math.min(
-          MAX_WIDTH,
-          Math.max(MIN_WIDTH, startW + (me.clientX - startX)),
-        );
-        setSidebarWidth(next);
-      };
-      const onUp = () => {
-        isResizing.current = false;
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-      };
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    },
-    [collapsed, sidebarWidth],
-  );
 
   // Role-scoped expansion state: a group the user opened should stay open
   // until they open a different one, even across sidebar remounts and the
@@ -1417,7 +1398,7 @@ export default function AdminSideNav({
         // biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag affordance; keyboard users resize via the collapse toggle.
         <div
           className="admin-side-nav__resize-handle"
-          onMouseDown={startResize}
+          {...resizeHandleProps}
         />
       )}
 

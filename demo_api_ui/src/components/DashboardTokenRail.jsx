@@ -79,7 +79,9 @@ export default function DashboardTokenRail({ children }) {
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        dragCleanupRef.current = null;
       };
+      dragCleanupRef.current = onUp;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -87,6 +89,13 @@ export default function DashboardTokenRail({ children }) {
     },
     [collapsed, width],
   );
+
+  // Unmounting mid-drag must not leak the document listeners or leave the
+  // body cursor/userSelect overridden (same fix EmbeddedAgentDock carries).
+  const dragCleanupRef = useRef(null);
+  useEffect(() => () => {
+    if (dragCleanupRef.current) dragCleanupRef.current();
+  }, []);
 
   const handleToggle = useCallback(() => {
     const next = !collapsed;

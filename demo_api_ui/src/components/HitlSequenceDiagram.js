@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import useDividerDrag from "../hooks/useDividerDrag";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import TokenStepIndicator from "./TokenStepIndicator";
 
@@ -1818,7 +1819,11 @@ export default function HitlSequenceDiagram() {
   const [isPaused, setIsPaused] = useState(false);
   const [currentStepIdx, setCurrentStepIdx] = useState(-1);
   const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(300);
+  const { size: leftPanelWidth, handleProps: leftPanelHandleProps } = useDividerDrag({
+    min: 240,
+    max: 500,
+    initial: 300,
+  });
   const [zoomLevel, setZoomLevel] = useState(100);
   const simTimeouts = useRef([]);
   const pausedStepIdx = useRef(-1);
@@ -1902,22 +1907,6 @@ export default function HitlSequenceDiagram() {
     pausedStepIdx.current = idx;
   }, [isPaused, applyStep]);
 
-  const handleMouseDownResize = (e) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = leftPanelWidth;
-    const onMove = (ev) => {
-      const newWidth = Math.max(240, Math.min(500, startWidth + ev.clientX - startX));
-      setLeftPanelWidth(newWidth);
-    };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-
   const arrowSteps = steps.filter((s) => s.step);
   return (
     <div style={{ background: "#fff", display: "flex", flexDirection: "column", height: "100%" }}>
@@ -1977,7 +1966,7 @@ export default function HitlSequenceDiagram() {
         <button
           type="button"
           aria-label="Resize panel"
-          onMouseDown={handleMouseDownResize}
+          {...leftPanelHandleProps}
           style={{ width: 4, cursor: "col-resize", background: "#e2e8f0", flexShrink: 0, border: "none", padding: 0, outline: "none" }}
         />
         {/* SVG area */}
