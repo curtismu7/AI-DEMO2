@@ -21,9 +21,15 @@ describe("side-nav ownership", () => {
     ["/agent", user, "shell"],
     ["/sdk-login", user, "shell"],
     ["/", user, "shell"], // home is full-bleed: App.js opts out
-    ["/use-cases", null, "shell"], // logged out: App.js opts out
-    ["/self-service", null, "shell"],
-    ["/dashboard", null, "app"], // /dashboard keeps its nav even logged out
+    // Guests get the same nav as signed-in users (2026-08-18): App.js owns it
+    // everywhere except home and the no-chrome routes, signed in or not.
+    ["/use-cases", null, "app"],
+    ["/self-service", null, "app"],
+    ["/pingone-authorize", null, "app"], // bare route — used to have NO nav for guests
+    ["/dashboard", null, "app"],
+    ["/logs", null, "shell"], // no-chrome stays no-chrome for guests too
+    // Pop-out client window is a bare popup — no global sidebar inside it.
+    ["/personal-agent/client", user, "shell"],
   ];
 
   it.each(cases)("%s (user=%s) is owned by %s", (pathname, u, owner) => {
