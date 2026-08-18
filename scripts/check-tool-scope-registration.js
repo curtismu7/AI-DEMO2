@@ -97,10 +97,37 @@ const registered = new Set([
 // 2. Every requiredScopes declaration in the resource server's tool files.
 //
 // These are TS object literals, not JSON, and pulling in a TS parser for two
-// fields is not worth it — the declarations are single-line and uniform
-// (`name: 'x'` ... `requiredScopes: ['a', 'b']`), enforced by toolTypes.ts.
-// Each `requiredScopes` is attributed to the nearest preceding `name:`.
+// fields is not worth it. Matching is done over the WHOLE file rather than line
+// by line: a `requiredScopes: [` split across lines by a formatter used to slip
+// past unmatched, and a gate that silently validates nothing is worse than no
+// gate. Each `requiredScopes` is attributed to the nearest preceding `name:`,
+// by source offset.
 // ---------------------------------------------------------------------------
+
+/**
+ * Blank out comments so prose that merely looks like a declaration (several of
+ * these files document the pattern in comments) cannot be read as one. Replaces
+ * with spaces to keep every later offset — and so line numbers — intact.
+ * @param {string} src
+ * @returns {string}
+ */
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
+}
+
+/**
+ * 1-based line number of a source offset.
+ * @param {string} src
+ * @param {number} index
+ * @returns {number}
+ */
+function lineAt(src, index) {
+  let line = 1;
+  for (let i = 0; i < index; i += 1) if (src[i] === '\n') line += 1;
+  return line;
+}
 
 if (!fs.existsSync(TOOLS_DIR)) {
   console.error(`❌ tools directory not found at ${TOOLS_DIR}`);
@@ -113,30 +140,48 @@ const refs = [];
 const declaredTools = new Set();
 
 for (const file of fs.readdirSync(TOOLS_DIR).filter((f) => f.endsWith('.ts')).sort()) {
-  const lines = fs.readFileSync(path.join(TOOLS_DIR, file), 'utf8').split('\n');
+  const src = stripComments(fs.readFileSync(path.join(TOOLS_DIR, file), 'utf8'));
+
+  /** @type {{index: number, kind: 'name'|'scopes', value: string}[]} */
+  const hits = [];
+  for (const m of src.matchAll(/\bname:\s*['"]([^'"]+)['"]/g)) {
+    hits.push({ index: m.index, kind: 'name', value: m[1] });
+  }
+  // [\s\S]*? so a multi-line array is one match, lazy so it stops at its own ].
+  for (const m of src.matchAll(/\brequiredScopes:\s*\[([\s\S]*?)\]/g)) {
+    hits.push({ index: m.index, kind: 'scopes', value: m[1] });
+  }
+  hits.sort((a, b) => a.index - b.index);
+
   let currentTool = null;
-  lines.forEach((raw, i) => {
-    // Ignore comment lines — several files document the pattern in prose that
-    // otherwise looks exactly like a declaration.
-    const line = raw.replace(/^\s*(\/\/|\*).*$/, '');
-    const nameMatch = line.match(/\bname:\s*'([^']+)'/);
-    if (nameMatch) {
-      currentTool = nameMatch[1];
+  for (const hit of hits) {
+    if (hit.kind === 'name') {
+      currentTool = hit.value;
       declaredTools.add(currentTool);
+      continue;
     }
-    const scopesMatch = line.match(/\brequiredScopes:\s*\[([^\]]*)\]/);
-    if (!scopesMatch) return;
-    for (const m of scopesMatch[1].matchAll(/'([^']+)'/g)) {
-      refs.push({ tool: currentTool || '(unknown)', scope: m[1], file, line: i + 1 });
+    for (const s of hit.value.matchAll(/['"]([^'"]+)['"]/g)) {
+      refs.push({
+        tool: currentTool || '(unknown)',
+        scope: s[1],
+        file,
+        line: lineAt(src, hit.index),
+      });
     }
-  });
+  }
 }
 
 // ---------------------------------------------------------------------------
 // 3. What the gateway actually routes.
+//
+// Comments are stripped here too: router.ts documents which tools are
+// deliberately NOT routed, and reading those mentions as routing would fail the
+// build for saying so out loud.
 // ---------------------------------------------------------------------------
 
-const routerSrc = fs.existsSync(ROUTER) ? fs.readFileSync(ROUTER, 'utf8') : '';
+const routerSrc = fs.existsSync(ROUTER)
+  ? stripComments(fs.readFileSync(ROUTER, 'utf8'))
+  : '';
 /** @param {string} tool */
 function isRouted(tool) {
   return new RegExp(`'${tool}'|"${tool}"`).test(routerSrc);

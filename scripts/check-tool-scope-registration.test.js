@@ -123,6 +123,48 @@ test('allowlisted tool FAILS the moment the router references it', () => {
   assert.match(out, /routed/i);
 });
 
+test('validates a requiredScopes array split across lines', () => {
+  const root = fixture({
+    scopes: ['read'],
+    tools: `
+      {
+        name: 'get_patient_record',
+        requiredScopes: [
+          'healthcare:read',
+        ],
+      },
+    `,
+  });
+  const { code, out } = run(root);
+  assert.strictEqual(code, 1, 'a multi-line array must not slip past unvalidated');
+  assert.match(out, /healthcare:read/);
+  assert.match(out, /get_patient_record/);
+});
+
+test('validates double-quoted scopes and names', () => {
+  const root = fixture({
+    scopes: ['read'],
+    tools: `{ name: "get_permit", requiredScopes: ["government:read"] },`,
+  });
+  const { code, out } = run(root);
+  assert.strictEqual(code, 1);
+  assert.match(out, /government:read/);
+  assert.match(out, /get_permit/);
+});
+
+test('a tool named only in a router comment does not count as routed', () => {
+  const root = fixture({
+    scopes: ['read'],
+    tools: `{ name: 'get_patient_record', requiredScopes: ['healthcare:read'] },`,
+    router: `
+      // 'get_patient_record' is deliberately NOT routed — no chip calls it.
+      const HEALTHCARE_TOOLS = new Set(['view_records']);
+    `,
+  });
+  const { code, out } = run(root, ['get_patient_record']);
+  assert.strictEqual(code, 0, out);
+});
+
 test('allowlist entry for a tool that no longer exists is reported as stale', () => {
   const root = fixture({
     scopes: ['read'],
