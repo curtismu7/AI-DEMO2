@@ -31,15 +31,22 @@ describe('UnifiedTokenFlowInspector — OAuth Token Inspector error handling', (
     // bffAxios has no server to talk to in this test environment, so
     // fetchTokenData's real request genuinely fails and lands in the
     // fetch_failed branch — exercising the real error path, not a mock.
+    //
+    // That real request is also why the waits below are explicit. How long jsdom
+    // takes to reject an XHR to a nonexistent server is not controlled by this
+    // test, and findBy*/waitFor default to 1000ms: idle, the rejection lands in
+    // a few ms and the test passes; under a full-suite run sharing CPU it can
+    // exceed a second, and the test failed while passing in isolation — which
+    // reads as pollution and is really just the clock.
     renderInspector();
-    const retryBtn = await screen.findByRole('button', { name: 'Try again' });
+    const retryBtn = await screen.findByRole('button', { name: 'Try again' }, { timeout: 15000 });
     expect(screen.getByText(/Failed to Load Token Data/i)).toBeInTheDocument();
 
     // Clicking it re-triggers the fetch without throwing.
     fireEvent.click(retryBtn);
     await waitFor(() => {
       expect(screen.getByText(/Failed to Load Token Data/i)).toBeInTheDocument();
-    });
+    }, { timeout: 15000 });
   });
 });
 
