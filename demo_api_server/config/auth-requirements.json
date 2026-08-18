@@ -91,7 +91,6 @@
     "/admin/retail": "admin",
     "/admin/sporting-goods": "admin",
     "/admin/university": "admin",
-    "/admin/vault": "admin",
     "/admin/verticals": "admin",
     "/admin/workforce": "admin",
     "/agent-builder": "admin",

@@ -18,7 +18,6 @@ import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
 import AdminSideNav from "./components/AdminSideNav";
 import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
-import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
 import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
 import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
@@ -1253,14 +1252,6 @@ function AppWithAuth() {
                                     user={user}
                                     onLogout={logout}
                                   />
-                                </RequireAdminLogin>
-                              }
-                            />
-                            <Route
-                              path="/admin/vault"
-                              element={
-                                <RequireAdminLogin user={user}>
-                                  <AdminVaultPage />
                                 </RequireAdminLogin>
                               }
                             />
