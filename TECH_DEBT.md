@@ -1140,7 +1140,17 @@ work; the timeouts close a user-visible defect today.
 can await instead of racing, and let instances register so the claim goes to the
 visible one by identity rather than by arrival order.
 
-### [ ] 2026-08-18 — A guest typing a banking prompt is redirected to PingOne mid-sentence, with no way to decline
+### [x] 2026-08-18 — A guest typing a banking prompt is redirected to PingOne mid-sentence, with no way to decline
+
+**FIXED 2026-08-18 (PR #2067, merged + deployed).** The `marketingGuestChatEnabled`
+branch no longer calls `handleLoginAction("login_user")` directly — it renders the
+same "needs you signed in" bubble + **Sign in to continue** button (`showLoginPromptAction`,
+the #1952/#1958 pattern), so the visitor chooses. The existing
+`BX_AGENT_PENDING_NL_KEY` persist/replay machinery is reused unchanged — the typed
+question is still replayed after login. Only the timing changed (on click, not
+automatic). Regression test `AIAgent.guestBankingSignIn.test.jsx` asserts the bubble+
+button render, no auto-redirect fires, the question is queued, and the click triggers
+login. Original entry follows.
 
 **Where:** `demo_api_ui/src/components/AIAgent.js:6440` — the
 `marketingGuestChatEnabled` branch in `dispatchNlResult`.
@@ -2328,7 +2338,21 @@ scopes that exist nowhere`) — verified. `scripts/topology-verify.sh:96` runs
 gate rather than an advisory script, and `npm run topology:verify` is the entry
 point the root `CLAUDE.md` already tells you to run for cross-service changes.
 
-### [ ] 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
+### [x] 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
+
+**FIXED 2026-08-18 (PR #2068, merged + deployed) — primary gap only.** The hop now
+carries provenance: `transaction-hop.groovy` stamps `source: 'trail'` when the
+outcome came from the parsed `X-Gw-Audit-Trail` and `source: 'inferred'` when it fell
+back to the status code (fail-open fallback preserved; the `outcome`/`by`/`reason`
+shape is unchanged so downstream consumers keep working). `TransactionTracePage.jsx`
+renders an amber "inferred" tag only when `decision.source === 'inferred'`, so a
+guessed PERMIT visibly reads as a guess; authoritative and no-provenance hops render
+as before. Used `source` (not `authoritative`, which §4 already overloads for
+"gateway-as-PDP"). Groovy was verified by reading (no in-repo Groovy harness); 2 UI
+tests cover the tag. **Still open (deliberately out of scope):** the two secondary
+gaps this entry notes — dropped PDP statement/obligation detail, and folding the
+decision into the transport hop rather than a separate `authz.decision` hop.
+Original entry follows.
 
 **Where:** `ping-gateway/scripts/groovy/transaction-hop.groovy` (~line 71,
 `if (!outcome) outcome = (statusCode >= 400) ? 'DENY' : 'PERMIT'`), reading the
