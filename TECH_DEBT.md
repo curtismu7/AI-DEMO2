@@ -5,7 +5,10 @@ correct enough to ship, not worth blocking the fix that found them. Not a bug
 log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
-fixed now, what the real fix looks like.
+fixed now, what the real fix looks like. Every entry heading carries a status
+checkbox — `[x]` = paid off (has a RESOLVED/FIXED block), `[ ]` = still open
+(PARTLY RESOLVED stays unchecked). Tick the box in the same commit that adds
+the resolution block.
 
 An entry that has since been paid off keeps its original text and gains a
 **RESOLVED** block naming the branch, what the issue actually turned out to be
@@ -13,14 +16,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### 2026-08-18 — Bug-hunt round 2: customer-dashboard UI + backend data plane (10 findings)
+### [ ] 2026-08-18 — Bug-hunt round 2: customer-dashboard UI + backend data plane (10 findings)
 
 A second audit scoped to the signed-in customer dashboard and the customer
 data-plane routes/services surfaced 10 fresh defects not already in this file.
 None were fixed in the same pass — they are correctness/consistency gaps found
 while auditing, logged for a deliberate round. Backend first, then UI.
 
-### 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
+### [ ] 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
 
 **Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `getHistory`
 (~180-190), `getThreadSize` (~225-232), `_pruneThreadIfNeeded` (~144-160),
@@ -47,7 +50,7 @@ surface, not a drive-by.
 separate sub-prefix scanned only by the summary reader, or an end bound that stops
 before `_` — and give a summary object a `timestamp` so prune orders it correctly.
 
-### 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
+### [ ] 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
 
 **Where:** `demo_api_server/data/store.js:391` —
 `const transaction = { id, ...transactionData, createdAt: new Date(), status: 'completed' };`
@@ -70,7 +73,7 @@ it is a small contract decision, not a one-liner.
 **Real fix:** only default `createdAt`/`status` when the caller did not supply them
 (`createdAt: transactionData.createdAt ?? new Date()`, same for `status`).
 
-### 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
+### [ ] 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
 
 **Where:** `demo_api_server/routes/conversations.js:56,62`.
 
@@ -88,7 +91,7 @@ NaN/negative cases alongside the fix.
 **Real fix:** coerce and clamp — `Math.min(Math.max(1, Number.isFinite(n) ? n : DEFAULT), 100)`
 before calling `getHistory`.
 
-### 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
+### [ ] 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
 
 **Where:** `demo_api_server/routes/accounts.js:232-234`.
 
@@ -106,7 +109,7 @@ about which of these fields are even meaningful outside banking.
 **Real fix:** only emit banking-shaped fields when the vertical is banking (or when
 the account actually carries them), rather than defaulting them in for all.
 
-### 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
+### [ ] 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
 
 **Where:** `demo_api_server/routes/investment.js:16-29,54-66`.
 
@@ -124,7 +127,7 @@ while auditing input validation.
 **Real fix:** look the account up by `:accountId`, scoped to the caller, and 404 when
 it does not exist or is not theirs.
 
-### 2026-08-18 — Customer dashboard fires the agent-resume event on the Email-OTP path even with no agent involved
+### [ ] 2026-08-18 — Customer dashboard fires the agent-resume event on the Email-OTP path even with no agent involved
 
 **Where:** `demo_api_ui/src/components/UserDashboard.js:1044-1048` (`handleVerifyOtp`);
 mirrored in `UserDashboardPing2026.js`.
@@ -145,7 +148,7 @@ auditing, needs the same guarded pattern its siblings use plus a test.
 **Real fix:** guard the resume broadcast on `agentTriggeredStepUp`, matching the
 TOTP/push/CIBA success paths.
 
-### 2026-08-18 — Agent CIBA auto-initiate timers survive Dismiss and unmount, firing a back-channel auth after the user cancelled
+### [ ] 2026-08-18 — Agent CIBA auto-initiate timers survive Dismiss and unmount, firing a back-channel auth after the user cancelled
 
 **Where:** `demo_api_ui/src/components/UserDashboard.js:1231-1238`
 (`autoInitiateTimerRef` t1/t2/t3), cleared only by `cancelAutoInitiate` (~1149,
@@ -166,7 +169,7 @@ cleared from every teardown path plus a test.
 **Real fix:** clear `autoInitiateTimerRef` in `dismissStepUp`, the toast close
 handler, and the effect cleanup — not just in the Cancel button handler.
 
-### 2026-08-18 — `agentTriggeredStepUp` is never reset on step-up FAILURE paths, leaking stale state into the next manual step-up
+### [ ] 2026-08-18 — `agentTriggeredStepUp` is never reset on step-up FAILURE paths, leaking stale state into the next manual step-up
 
 **Where:** `demo_api_ui/src/components/UserDashboard.js` — push
 `PUSH_CONFIRMATION_TIMED_OUT`/`FAILED` (~1111-1119), TOTP `challenge_expired`
@@ -185,7 +188,7 @@ flag-lifecycle cleanup as the two above.
 **Real fix:** reset `agentTriggeredStepUp` (and any paired pending-action ref) on
 every step-up failure/expiry/cancel path, not only on success.
 
-### 2026-08-18 — `DashboardQuickNav` stack-height count is off by one for customers and overrides the correct CSS default
+### [ ] 2026-08-18 — `DashboardQuickNav` stack-height count is off by one for customers and overrides the correct CSS default
 
 **Where:** `demo_api_ui/src/components/DashboardQuickNav.js:21-26`; interacts with
 `App.css:138,140-142,668`.
@@ -206,7 +209,7 @@ stop recomputing in JS a value CSS already knows.
 remove the JS override), and read the fab height from the CSS var rather than the
 hardcoded `44`.
 
-### 2026-08-18 — Run-story bullets keyed by a 48-char text prefix collide and drop a row
+### [ ] 2026-08-18 — Run-story bullets keyed by a 48-char text prefix collide and drop a row
 
 **Where:** `demo_api_ui/src/components/TokenChainTraceRail.jsx:527` —
 `<li key={b.slice(0, 48)}>`.
@@ -230,7 +233,7 @@ while `isDemoMode` is only true when `!user`), but it hides an unguarded
 money-creation path (`to` credited full, `from` clamps at `Math.max(0, …)`) worth
 removing before it is ever wired live.
 
-### 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
+### [ ] 2026-08-18 — `deploy-live.sh` warns about its unreliable fallback only when the checkout did not move
 
 **Where:** `scripts/deploy-live.sh:42-58` — the `STAMP_BOOTSTRAP` path, and the
 `OLD = NEW` branch at `:62-77` that owns the warning.
@@ -292,7 +295,7 @@ Related: `project-deploy-live-explicit-range-skips-sync` in memory records the
 opposite hazard (explicit range does NOT sync). Both are the same shape: the
 script cannot observe the thing it reports on, so it reports on what it can see.
 
-### 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
+### [ ] 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
 
 A five-service audit (BFF, UI, MCP gateway/proxy/resource, Python/Node agents,
 scripts/gateway) surfaced ~27 fresh defects not already in this file. The
@@ -302,7 +305,7 @@ they sit on REGRESSION_PLAN §1 protected surfaces (transactions, OAuth callback
 token caches, MCP gateway auth, LLM proxy) and each needs its own reviewed pass.
 Two are **security-relevant** and flagged as such — decide on those first.
 
-### 2026-08-18 — SECURITY: a capitalised `type` skips the entire transaction authorization/HITL/step-up/scope layer
+### [x] 2026-08-18 — SECURITY: a capitalised `type` skips the entire transaction authorization/HITL/step-up/scope layer
 
 **FIXED 2026-08-18 (PR #2007, pending merge).** `type` is normalised
 (`String(type||'').toLowerCase().trim()`) immediately after destructure, so every
@@ -346,7 +349,7 @@ failure this entry did: `"Transfer"` returned `type_not_in_scope` and skipped
 PingOne-Authorize DENY, HITL consent, step-up and write-scope while
 `applyTransfer` still moved funds.
 
-### 2026-08-18 — SECURITY: MCP gateway rate-limit bucket is keyed on an unverified `sub`, so a forged token starves a victim
+### [x] 2026-08-18 — SECURITY: MCP gateway rate-limit bucket is keyed on an unverified `sub`, so a forged token starves a victim
 
 **FIXED 2026-08-18 (PR #2008, pending merge).** The `check()` moved to AFTER token
 validation on both transports (WS after `validateInboundToken`; HTTP after
@@ -382,7 +385,7 @@ consume its OWN bucket — it can no longer deny a victim's."* The key is still
 `${sub}:${tool}`, but `sub` is now a verified claim, which is the property this
 entry was about. Metering remains scoped to `tools/call`.
 
-### 2026-08-18 — MCP gateway WS `close` cancels the call timeout without settling the promise, hanging the request forever
+### [x] 2026-08-18 — MCP gateway WS `close` cancels the call timeout without settling the promise, hanging the request forever
 
 **FIXED 2026-08-18 (PR #2013, merged + deployed).** The `close` handler now rejects
 any still-pending call for that socket with `Backend closed connection before
@@ -410,7 +413,7 @@ JSON-RPC error shape without regressing the normal-close path.
 socket with a transport-closed error before clearing timers, so the `finally`
 cleans up `inFlightCalls`.
 
-### 2026-08-18 — MCP gateway introspection cache is unbounded and never pruned
+### [x] 2026-08-18 — MCP gateway introspection cache is unbounded and never pruned
 
 **FIXED 2026-08-18 (PR #2013, merged + deployed).** Both introspection inserts now
 route through `cacheInsertWithEviction` (`boundedTokenCache.ts`, made generic over
@@ -442,7 +445,7 @@ is imported by both `auth/GatewayIntrospectionClient.ts:15` and
 previously held a byte-for-byte-identical private copy, so the extraction also
 retired the duplication.
 
-### 2026-08-18 — `demo_mcp_proxy` pins `MCP-Protocol-Version: 2025-03-26`, which the Node gateway hard-rejects
+### [ ] 2026-08-18 — `demo_mcp_proxy` pins `MCP-Protocol-Version: 2025-03-26`, which the Node gateway hard-rejects
 
 **Where:** `demo_mcp_proxy/server.js:38`; rejected by
 `demo_mcp_gateway/src/server/GatewayServer.ts:727-736` (expects `2025-11-25`,
@@ -462,7 +465,7 @@ the old value.
 **Real fix:** align the proxy's advertised protocol version with the gateway's
 (`2025-11-25`), or make it negotiate from the gateway's advertised version.
 
-### 2026-08-18 — `demo_mcp_proxy` per-caller tools/list cache has no TTL and no size bound
+### [ ] 2026-08-18 — `demo_mcp_proxy` per-caller tools/list cache has no TTL and no size bound
 
 **Where:** `demo_mcp_proxy/server.js:15-124` (`_toolCacheByCaller`, keyed
 `sha256(bearer)`).
@@ -479,7 +482,7 @@ TTL + bound decision consistent with the rest of the MCP layer.
 **Real fix:** give the cache a short TTL and an LRU bound, and key/scope it so a
 vertical or scope change invalidates it.
 
-### 2026-08-18 — MCP gateway SSE passthrough leaks the upstream connection on client disconnect
+### [ ] 2026-08-18 — MCP gateway SSE passthrough leaks the upstream connection on client disconnect
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts:542-591`
 (`pipeGetToUpstream`).
@@ -497,7 +500,7 @@ regressing normal stream completion.
 **Real fix:** on `res`/`req` `close`, destroy the upstream request; attach a real
 `'timeout'` handler that aborts it.
 
-### 2026-08-18 — LLM proxy: cross-class swaps race and unload each other's just-loaded tier
+### [ ] 2026-08-18 — LLM proxy: cross-class swaps race and unload each other's just-loaded tier
 
 **Where:** `demo_llm_proxy/router.js:262-292` (`swapTo`); serialised at
 `tier-manager.js:78-84`. (Distinct from the known warmup positional-tier issue.)
@@ -518,7 +521,7 @@ own soak test.
 or reject/queue a cross-class swap while one is in flight rather than clobbering
 `swapInFlight`.
 
-### 2026-08-18 — LLM proxy: the pin-only experimental tier is reachable by normal classification
+### [ ] 2026-08-18 — LLM proxy: the pin-only experimental tier is reachable by normal classification
 
 **Where:** `demo_llm_proxy/router.js:227-232` (`smallestLoadedCovering`), against
 the invariant stated at ~100-103.
@@ -538,7 +541,7 @@ guard only fires on pin-capped routing, not health-based substitution).
 **Real fix:** exclude pin-only tiers from `smallestLoadedCovering` unless the
 active route is a pin, so health-based substitution cannot fall onto :8093.
 
-### 2026-08-18 — `helix_llm._generate` blocks the FastAPI event loop for up to ~35s
+### [ ] 2026-08-18 — `helix_llm._generate` blocks the FastAPI event loop for up to ~35s
 
 **Where:** `langchain_agent/src/agent/helix_llm.py:372-377`.
 
@@ -557,7 +560,7 @@ one-liner, and it interacts with the agent's streaming lifecycle.
 against the running loop (or expose a proper async `_agenerate`) so the poll does
 not block the loop thread.
 
-### 2026-08-18 — `tokenIntrospectionService`'s deliberate `INTROSPECTION_NOT_CONFIGURED` throw is swallowed, reported as "token inactive"
+### [ ] 2026-08-18 — `tokenIntrospectionService`'s deliberate `INTROSPECTION_NOT_CONFIGURED` throw is swallowed, reported as "token inactive"
 
 **Where:** `demo_api_server/services/tokenIntrospectionService.js:184` (throw
 inside the `try` opened at 151, whose `catch` at 252-265 returns
@@ -579,7 +582,7 @@ error discrimination needs the auth regression pass.
 the catch when `err.code === 'INTROSPECTION_NOT_CONFIGURED'`) and have the
 fallback treat "not configured" as "introspection skipped", not "inactive".
 
-### 2026-08-18 — OIDC nonce is not enforced when the returned ID token omits the `nonce` claim
+### [ ] 2026-08-18 — OIDC nonce is not enforced when the returned ID token omits the `nonce` claim
 
 **Where:** `demo_api_server/routes/oauthUser.js:460-467`.
 
@@ -599,7 +602,7 @@ callbacks.
 redirect to error) instead of warning, so a missing nonce when one was requested
 is treated as verification failure.
 
-### 2026-08-18 — `pkceStateCookie._verify` calls `timingSafeEqual` outside its try/catch, so a malformed cookie 500s the OAuth callback
+### [x] 2026-08-18 — `pkceStateCookie._verify` calls `timingSafeEqual` outside its try/catch, so a malformed cookie 500s the OAuth callback
 
 **Where:** `demo_api_server/services/pkceStateCookie.js:53` (call at 53, `try`
 opens at 54); `readPkceCookie` calls `_verify` outside its own `try` (116 vs 118).
@@ -660,7 +663,7 @@ would be far worse than the 500 this fixes.
 alone because nothing in this session showed it reached — but it is the same code,
 one file over.
 
-### 2026-08-18 — Honourable mentions from the audit (lower confidence / not yet load-bearing)
+### [ ] 2026-08-18 — Honourable mentions from the audit (lower confidence / not yet load-bearing)
 
 - **`demo_mcp_gateway/src/auth/tokenValidator.ts:223-226`** — a forced JWKS
   re-fetch on an unknown `kid` passes `force=true`, bypassing the in-flight
@@ -683,7 +686,7 @@ one file over.
   not exist (only `demo_mcp_resource_server/` and `oauth-mcp/`). Fold into the
   "reports/docs updated to current codebase" follow-up.
 
-### 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
+### [ ] 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
 
 **Where:** `demo_authz_server/routes/decision.js` (12 `STEP_UP` / `HITL_CONSENT`
 sites) versus the cloud PingOne Authorize decision endpoint; 55 source files and
@@ -725,7 +728,7 @@ traps apply directly: `obligatory:false` is NOT safe to treat as optional, and a
 INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
 `project-indeterminate-two-meanings`.
 
-### 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
+### [ ] 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
 
 **Where:** `demo_api_server/services/lmdb/openEnv.js` — `mapSize: 128 * 1024 * 1024`.
 
@@ -759,7 +762,7 @@ as a fleet of unexplained 500s. (2) Establish why 84MB accumulated at all —
 old delete never removed. Measure per-DB sizes before raising the ceiling; a
 compaction may be the actual fix.
 
-### 2026-08-18 — `authLevelForUseCase` names two different functions, one taking an id and one taking an object
+### [x] 2026-08-18 — `authLevelForUseCase` names two different functions, one taking an id and one taking an object
 
 **Where:** `demo_api_server/config/authRequirements.js:32` takes a use-case **id**
 (`authLevelForUseCase('UC24')`); `demo_api_ui/src/utils/useCaseAuth.js:18` takes a
@@ -802,7 +805,7 @@ things and adds a branch whose wrong side is still silent. Behaviour unchanged �
 rename only. `scripts/check-auth-requirements.js` still reports
 `OK — 63 use cases, 153 routes, 1 public agent action(s)`.
 
-### 2026-08-18 — The queued-question resume is held together by two tuned timeouts
+### [ ] 2026-08-18 — The queued-question resume is held together by two tuned timeouts
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — the 300ms floating-instance
 claim delay (#1967) and `RESUME_VERTICAL_WAIT_MS = 8000` (#1986).
@@ -824,7 +827,7 @@ work; the timeouts close a user-visible defect today.
 can await instead of racing, and let instances register so the claim goes to the
 visible one by identity rather than by arrival order.
 
-### 2026-08-18 — A guest typing a banking prompt is redirected to PingOne mid-sentence, with no way to decline
+### [ ] 2026-08-18 — A guest typing a banking prompt is redirected to PingOne mid-sentence, with no way to decline
 
 **Where:** `demo_api_ui/src/components/AIAgent.js:6440` — the
 `marketingGuestChatEnabled` branch in `dispatchNlResult`.
@@ -844,7 +847,7 @@ inconsistency in consent, not a failure.
 **Real fix:** show the same prompt-plus-button the other paths use. The
 persistence and replay machinery it needs already exists.
 
-### 2026-08-18 — `POST /api/conversations/:userId/:vertical/hero-shown` 500s on a normal signed-in load
+### [ ] 2026-08-18 — `POST /api/conversations/:userId/:vertical/hero-shown` 500s on a normal signed-in load
 
 **Where:** `demo_api_server/routes/conversations.js:229`.
 
@@ -902,7 +905,7 @@ now says which layer failed. The most plausible remaining candidate is not
 specific to this route — see the new LMDB `mapSize` headroom entry at the top of
 this file.
 
-### 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
+### [ ] 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
 
 **Where:** `demo_api_ui/src/pages/UseCaseLauncherPage.js` — `ChipLoginPrompt`
 (#1952), rendered when `/api/use-cases/demo/run` refuses with `requiresLogin`.
@@ -919,7 +922,7 @@ be wrong the moment `/use-cases` opens up or an admin chip is added.
 **Real fix:** nothing in the code — but walk this path live before trusting it,
 because that will be its first real exercise.
 
-### 2026-08-18 — The MCP handshake is reported by the Node gateway, which is not the gateway in the path
+### [ ] 2026-08-18 — The MCP handshake is reported by the Node gateway, which is not the gateway in the path
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` (the `X-Gw-Mcp-Handshake`
 header added in #1977), consumed by `demo_api_server/services/mcpGatewayClient.js`
@@ -965,7 +968,7 @@ live and correct whenever `mcp_demo_gateway_url` is the active gateway.
 **How to check whether it is fixed:** drive a tool call and assert
 `mcp-initialize` appears in the returned `tokenEvents` — not that the code exists.
 
-### 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
+### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
 **Where:** `demo_api_ui/src/components/__tests__/FocusModeChainRenders.test.jsx`
 (the render guard), and the whole `buildTraceSteps` step model.
@@ -1011,7 +1014,7 @@ Still true, and the reason this is a smoke check rather than a CI gate: it needs
 passes unit tests is still evidence about the model, not about what a demo will
 show — run this before believing otherwise.
 
-### 2026-08-18 — A piped verification command reports the pipe's exit code, so a failed deploy reads as success
+### [x] 2026-08-18 — A piped verification command reports the pipe's exit code, so a failed deploy reads as success
 
 **Where:** every `./scripts/deploy-live.sh ... | tail`, `npm test | grep`,
 `npx jest | tail` invocation — agent-run and human alike.
@@ -1077,7 +1080,7 @@ claiming done" section as its own numbered step. The entry is right that the
 scripts are the smaller half — the ad-hoc `cmd | tail` an agent types to read a
 script's output is not fixed by anything inside the script.
 
-### 2026-08-18 — A fresh worktree cannot verify anything, and every failure mode looks like a pass
+### [ ] 2026-08-18 — A fresh worktree cannot verify anything, and every failure mode looks like a pass
 
 **Where:** any worktree created without `npm ci` in the service being changed.
 
@@ -1106,7 +1109,7 @@ for a clean run.
 `npx --no-install` would also turn the silent-download cases into an explicit
 failure.
 
-### 2026-08-18 — `groupsForUser` cannot tell a caller whether it answered live or from the manifest
+### [x] 2026-08-18 — `groupsForUser` cannot tell a caller whether it answered live or from the manifest
 
 **Where:** `demo_api_server/services/groupPolicy.js` — `groupsForUser()` /
 `groupsForUserSync()`; correct handling in
@@ -1176,7 +1179,7 @@ it into the code as a comment, because `docs/LIVE-PINGONE-RUNBOOK.md:108` depend
 on it: enable `ff_authorize_group_policy` before the groups exist and "no gate"
 becomes "a gate that denies everyone".
 
-### 2026-08-18 — Shared jest automocks let an assertion pass on a different test's call
+### [ ] 2026-08-18 — Shared jest automocks let an assertion pass on a different test's call
 
 **Where:** `demo_api_server/src/__tests__/mcpToolAuthorizationService.test.js`
 (fixed there); the pattern is repo-wide wherever a module-level `jest.mock()`
@@ -1202,7 +1205,7 @@ jest config so call history cannot leak between tests, then fix the fallout. Tha
 converts this class from "silently passing" to "loudly failing", which is the
 only way to find the rest.
 
-### 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
+### [ ] 2026-08-18 — UI probes have no settle contract, so "the page renders nothing" is unreliable
 
 **Where:** ad-hoc Playwright scripts driving the live stack; the recipe lives in
 memory (`playwright-live-ui-drive-recipe`), not in the repo.
@@ -1230,7 +1233,7 @@ the settle strategy (fixed wait plus a content assertion, never `networkidle`),
 and active-vertical resolution — so a probe asserts it reached a usable page
 before reporting what it did or did not find.
 
-### 2026-08-18 — The group-policy board cannot produce a PERMIT, so the demo it exists for cannot be shown
+### [x] 2026-08-18 — The group-policy board cannot produce a PERMIT, so the demo it exists for cannot be shown
 
 **Where:** `demo_api_server/routes/groupMembership.js` (`GET /api/groups/decision-board`)
 → `agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, tool)`.
@@ -1278,7 +1281,7 @@ whose rule requires one. Whether the board should mint a delegated token or
 those rows should be presented differently is a product question, not a bug in
 the audience path. It was invisible while audience denied everything first.
 
-### 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
+### [ ] 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
 
 **Where:** `demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts` —
 `exchangeForBackend`, the `requestScopes.length === 0` case.
@@ -1308,7 +1311,7 @@ callers. If yes, grant the scope or add it to the resource's `mirroredScopes` in
 `scope-topology.json`; if no, deny at the gateway with a scope-mismatch reason so
 the caller learns it from the response rather than from a gateway log.
 
-### 2026-08-18 — `olb` tools/list times out; its tools vanish from the catalog and callers see "tool not found"
+### [ ] 2026-08-18 — `olb` tools/list times out; its tools vanish from the catalog and callers see "tool not found"
 
 **Where:** `demo_mcp_gateway/src/index.ts` tools/list fan-out; backend `olb`
 (`mcpserver.ping.demo`, WebSocket).
@@ -1331,7 +1334,7 @@ reproducing on demand.
 time, and establish whether it correlates with mcp-server restarts, cold starts,
 or connection-pool exhaustion (`MCP_WS_MAX_CONCURRENT`).
 
-### 2026-08-18 — Intent tokens cannot be validated on the Node gateway path (`no_signing_key`)
+### [ ] 2026-08-18 — Intent tokens cannot be validated on the Node gateway path (`no_signing_key`)
 
 **Where:** `demo_mcp_gateway` intent-token validation; visible in every
 `gw_audit_trail` from that path as
@@ -1355,7 +1358,7 @@ bypass. Provisioning a signing key for the gateway is its own config change.
 verify against), then confirm `IntentTokenValid: true` on that path before
 anyone flips the routing flag.
 
-### 2026-08-18 — Testing against the live stack requires editing the shared checkout, and the guardrail only covers two tools
+### [x] 2026-08-18 — Testing against the live stack requires editing the shared checkout, and the guardrail only covers two tools
 
 **Where:** the worktree rule in `CLAUDE.md`, the `Write`/`Edit` hard-block hook,
 and `docker-compose.yml` — which bind-mounts the SHARED checkout into
@@ -1405,7 +1408,7 @@ pointing at the requesting worktree. Two supporting fixes already landed:
 checkout SHA against itself (#1944), so a correct post-merge deploy is one
 command; and `npm run sync:status` names the blocking files, though only if you
 think to run it.
-### 2026-08-18 — 687 error-level lint findings, 455 of them false, hiding the real ones
+### [ ] 2026-08-18 — 687 error-level lint findings, 455 of them false, hiding the real ones
 
 **Where:** `demo_api_ui` ESLint config — no test-environment globals declared
 for the vitest specs or `src/setupTests.js`.
@@ -1459,7 +1462,7 @@ in CI, because in this codebase it means "this line throws at runtime." The
 they are style, and reporting them at `error` alongside a crash is part of what
 flattened the signal.
 
-### 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
+### [ ] 2026-08-18 — Agent tests pass `user` at first render, so a whole class of auth-timing bug is invisible
 
 **Where:** `demo_api_ui/src/components/__tests__/AIAgent.*.test.jsx` — the shared
 harness, e.g. `renderAt(path, user = null)` in
@@ -1495,7 +1498,7 @@ exists unless a test opts out, rather than existing only when someone remembers
 to build it by hand. At minimum, a comment on `renderAt` saying what it does not
 simulate.
 
-### 2026-08-18 — `GET /api/mcp/inspector/tools` is unauthenticated, and the UI grouping implied otherwise
+### [x] 2026-08-18 — `GET /api/mcp/inspector/tools` is unauthenticated, and the UI grouping implied otherwise
 
 **Where:** `demo_api_server/routes/mcpInspector.js:382` (`router.get('/tools')`),
 mounted at `demo_api_server/server.js:1190` (`app.use('/api/mcp/inspector', …)`).
@@ -1554,7 +1557,7 @@ the general rule this case exists to teach: **UI grouping is not an authorizatio
 boundary and must never be read as one.** If the inventory should ever be
 restricted, the middleware goes on the route, not in the menu.
 
-### 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
+### [ ] 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` `ensureRequiredDemoFlags`,
 against the admin-gated `PATCH /api/admin/feature-flags`.
@@ -1585,7 +1588,7 @@ demo flags ON at provisioning so no runtime arming is needed. Failing either,
 the step catalog should refuse to offer a flag-gated step to a role that cannot
 arm it, rather than running it degraded.
 
-### 2026-08-18 — `renderActionGroups()` never mounted on `/dashboard` for either role
+### [ ] 2026-08-18 — `renderActionGroups()` never mounted on `/dashboard` for either role
 
 **Where:** `demo_api_ui/src/components/AIAgent.js:10866` —
 `{isLoggedIn && renderActionGroups()}`.
@@ -1616,7 +1619,7 @@ and fix it. If it is not, move the condition to the call site so it reads
 claims the only requirement is a session, which is false and cost a
 verification.
 
-### 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
+### [ ] 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — `nlResumeAfterAuth` is set
 from at least three places (the OAuth-return effect, the launcher deep-link
@@ -1659,7 +1662,7 @@ a silent drop is distinguishable from a path the instrument does not watch.
 Failing that, at minimum name the paths distinctly in code so nobody reads one
 as the whole.
 
-### 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
+### [ ] 2026-08-17 — Every migrated vertical now has two seed stores and nothing keeps them agreeing
 
 **Where:** `demo_mcp_resource_server/seed/*.seed.json` (10 files) and
 `demo_api_server/config/verticals/<vertical>/seed.json` (+ `data.js`), read
@@ -1692,7 +1695,7 @@ until someone demos the wrong combination of chips. `abercrombie-fitch.mock.json
 still sits in the resource server's seed directory next to the real
 `abercrombie.seed.json` it replaced (#1918) — an artifact of the same split.
 
-### 2026-08-17 — Unrouted resource-server tools declare scopes that exist nowhere, and nothing checks
+### [x] 2026-08-17 — Unrouted resource-server tools declare scopes that exist nowhere, and nothing checks
 
 **GATED 2026-08-17.** `scripts/check-tool-scope-registration.js` now fails the
 build on any `requiredScopes` string that is not a scope or alias in
@@ -1749,7 +1752,7 @@ scopes that exist nowhere`) — verified. `scripts/topology-verify.sh:96` runs
 gate rather than an advisory script, and `npm run topology:verify` is the entry
 point the root `CLAUDE.md` already tells you to run for cross-service changes.
 
-### 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
+### [ ] 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
 
 **Where:** `ping-gateway/scripts/groovy/transaction-hop.groovy` (~line 71,
 `if (!outcome) outcome = (statusCode >= 400) ? 'DENY' : 'PERMIT'`), reading the
@@ -1786,7 +1789,7 @@ a guess. Then, if the PDP detail is wanted, emit a distinct `authz.decision` hop
 from the same trail data rather than a second emitter in the decision script,
 which would duplicate the telemetry that already flows.
 
-### 2026-08-17 — The P1AZ snapshot generator still pins 7 object versions by hand, and nothing rejects a new one
+### [ ] 2026-08-17 — The P1AZ snapshot generator still pins 7 object versions by hand, and nothing rejects a new one
 
 **Where:** `snapshots/gen-authorize-snapshot.js` — `ver()` derives a version
 from content for the attribute/condition/statement/rule builders, but 7 objects
@@ -1817,7 +1820,7 @@ Cheaper interim: a test asserting no `version: '` literal appears in the
 generator, with an explicit allowlist for any object deliberately frozen, so
 adding one is a deliberate act with a comment attached.
 
-### 2026-08-17 — `abercrombie-fitch` carries render descriptors for tools its own allowlist excludes
+### [x] 2026-08-17 — `abercrombie-fitch` carries render descriptors for tools its own allowlist excludes
 
 **Where:** `demo_api_server/config/verticals/abercrombie-fitch/index.js`
 (`ALLOWED_TOOL_NAMES`, filtering the tools it borrows from
@@ -1884,7 +1887,7 @@ reachable.
 manifest fails the suite with `Received + "zz_orphan_probe"`. A guard nobody has
 watched fail is not a guard.
 
-### 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
+### [ ] 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
 
 **Where:** `scripts/check-resource-server-audience-drift.js` (`npm run
 topology:verify` step 9/9), which derives one canonical URI from
@@ -1915,7 +1918,7 @@ must carry it), then rewrite the step-9 checker to iterate that table instead of
 hard-coding `OWN_VAR` / `TOPOLOGY_RESOURCE`. One gate, every audience, and a new
 resource is covered the day it is added rather than the day it breaks a demo.
 
-### 2026-08-17 — Nothing fails a build when a P1AZ request omits an attribute the policy requires
+### [ ] 2026-08-17 — Nothing fails a build when a P1AZ request omits an attribute the policy requires
 
 **Where:** `demo_api_server/scripts/verifyA2aDelegationPolicy.js` and
 `scripts/verifyAuthorizeCloudParity.js` (both live-only, neither in CI);
@@ -1949,7 +1952,7 @@ rather than at evaluation time. Pair it with a snapshot-parity check so
 "policy in the console is older than policy in the repo" is a reported condition
 instead of a residual note in `REGRESSION_PLAN.md`.
 
-### 2026-08-17 — `DashboardTokenRail` persists its own default on mount, so every default flip costs a storage-key bump
+### [x] 2026-08-17 — `DashboardTokenRail` persists its own default on mount, so every default flip costs a storage-key bump
 
 **Where:** `demo_api_ui/src/components/DashboardTokenRail.jsx` (~line 49, the
 `useEffect(() => persistTokenRailCollapsed(collapsed), [collapsed])`), reading
@@ -2012,7 +2015,7 @@ mounting writes neither key, and mounting does not overwrite an existing stored
 preference. Both assert through `localStorage.getItem` — deliberately **not** a
 spy, per the Node 22 CI / Node 26 local storage-spy trap.
 
-### 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
+### [ ] 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
 
 **Where:** `demo_agent_service/tests/vault.test.ts` requires
 `../demo_api_server/lib/vault/index.js`, which requires `argon2`.
@@ -2068,7 +2071,7 @@ crossing as the only one. (b) is much the smaller change and removes the CI
 install; it costs a second implementation of the vault write path used only by
 tests.
 
-### 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
+### [ ] 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
 
 **Where:** `ping-gateway/.env` (`PG_GATEWAY_RESOURCE_ID=https://api.ping.demo:3036/mcp`),
 consumed as `resourceId` by `ping-gateway/config/routes/01-mcp-olb.json` (and the
@@ -2109,7 +2112,7 @@ worth having: assert that the URL in the gateway's `WWW-Authenticate` actually
 returns 200 — the failure mode here was silent precisely because nobody followed
 the pointer.
 
-### 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
+### [ ] 2026-08-17 — `davinciLogin.js`'s `/callback` has no ID-token nonce replay verification
 
 **Where:** `demo_api_server/routes/davinciLogin.js` (`POST /callback`).
 
@@ -2137,7 +2140,7 @@ back in the ID token, wire up the same pattern as `routes/oauth.js`: generate a
 nonce before the widget starts, store it in `req.session`/PKCE cookie, and verify
 `idPayload.nonce === expectedNonce` in the callback before establishing a session.
 
-### 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
+### [ ] 2026-08-17 — `davinciFlowClient._getApiToken()` is a placeholder, not a real token fetch
 
 **Where:** `demo_api_server/services/davinciFlowClient.js` (`_getApiToken()`).
 
@@ -2158,7 +2161,7 @@ against regardless.
 `services/mfaService.js`'s `_getWorkerToken()` pattern) with expiry-aware
 caching, before this client is ever pointed at a live PingOne environment.
 
-### 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
+### [x] 2026-08-16 — `MCP_SERVER_RESOURCE_URI` means two different things across services
 
 **RESOLVED 2026-08-17.** `demo_mcp_resource_server` now reads
 `MCP_RESOURCE_SERVER_RESOURCE_URI` (falling back to the old name so a container
@@ -2195,7 +2198,7 @@ fix.
 `npm run topology:verify` to diff every surface that sets it (compose, K8s,
 env writer) against the topology.
 
-### 2026-08-16 — Node MCP Gateway's HITL retry path never consumes the receipt
+### [x] 2026-08-16 — Node MCP Gateway's HITL retry path never consumes the receipt
 
 **RESOLVED 2026-08-17.** Both Node gateway retry sites — HTTP
 (`middleware/authorizeMcpRequest.ts`) and WS (`index.ts`) — now call
@@ -2253,7 +2256,7 @@ a `?consume=true` flag (or dedicated `POST /challenges/:id/consume`) that
 only `hitlClient.ts`'s retry-time call sends, verified against a test that
 replays the Node gateway's retry twice and asserts the second is rejected.
 
-### 2026-08-15 — mastra_agent: `req.on('close')` fires before the client actually disconnects
+### [x] 2026-08-15 — mastra_agent: `req.on('close')` fires before the client actually disconnects
 
 **Where:** `mastra_agent/src/runHandler.ts` — `req.on('close', () => abortController.abort())`.
 
@@ -2308,7 +2311,7 @@ comment fix actually shipped. Recorded here rather than quietly patched, because
 "the PR says it was annotated" is exactly the kind of second-hand claim this file
 exists to stop people trusting.
 
-### 2026-08-12 — oauth-mcp encrypted-storage CBC mode has no integrity check
+### [x] 2026-08-12 — oauth-mcp encrypted-storage CBC mode has no integrity check
 
 **Where:** `oauth-mcp/src/utils/encryption.ts` — uses `aes-256-cbc`.
 
@@ -2345,7 +2348,7 @@ it is simply still readable, and every new write is authenticated. Wrong-key
 decryption now fails deterministically on the auth tag instead of ~1-in-256
 returning corrupted plaintext.
 
-### 2026-08-12 — oauth-mcp DCR: two follow-ups from the final review
+### [ ] 2026-08-12 — oauth-mcp DCR: two follow-ups from the final review
 
 **Where:** `oauth-mcp/src/oauth/OAuthRouter.ts`, `oauth-mcp/src/oauth/TokenIssuer.ts`.
 
@@ -2379,7 +2382,7 @@ precedence) before falling back to `MCP_SERVER_RESOURCE_URI[0]`. (2) once
 DCR is meant to be exercised for real, set `DCR_INITIAL_ACCESS_TOKEN` in
 the deployment's env and document the value's provenance/rotation.
 
-### 2026-08-11 — gw-authorize fallback duplicated across two client consumers
+### [x] 2026-08-11 — gw-authorize fallback duplicated across two client consumers
 
 **Where:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
 (around line 594) and `demo_api_ui/src/context/ProofOfEnforcementContext.js`
@@ -2463,7 +2466,7 @@ side:
 (`exchangeProvenDownstream`) and 1058 pulls `filterChain` off it. Neither
 re-derives the authorize decision, which is the fact this entry was about.
 
-### 2026-08-18 — The chain's Exchange hop reads "in flight" after a finished run
+### [x] 2026-08-18 — The chain's Exchange hop reads "in flight" after a finished run
 
 **Where:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` — the
 `exDone` computation added by #1966.
@@ -2516,7 +2519,7 @@ with the fix reverted.
 `npm run test:e2e:real -- chain-hops-visible` still prints
 `[ui] UNRESOLVED after reply:` if the old symptom ever returns live.
 
-### 2026-08-18 — The agent's action chips cannot render on any production route
+### [ ] 2026-08-18 — The agent's action chips cannot render on any production route
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — `renderActionGroups()`
 (~line 1002) and its single call site (~line 10909).
