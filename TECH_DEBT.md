@@ -316,12 +316,31 @@ running stack, and the `*.real.spec.js` Playwright suites that could host it
 require `local.ping-devops.com:4000` and therefore never run in CI — which is
 why they caught none of this class today.
 
-**What the real fix looks like:** a small live smoke script, run deliberately
-rather than in CI, that drives one tool call and asserts the expected hop ids
-appear in the response's `tokenEvents` for the CURRENTLY CONFIGURED gateway. Cheap
-to write, and it is the only thing that would have caught #1977 before merge.
-Until then, treat "tests pass" on any chain hop as evidence about the model, not
-about what a demo will show.
+**RESOLVED 2026-08-18** — `demo_api_ui/tests/e2e/chain-hops-reachable.real.spec.js`.
+Two tests, run deliberately (`npm run test:e2e:real -- chain-hops-reachable`):
+one drives a tool call via `/api/agent/invoke` and asserts `mcp_challenge`,
+`gw-authorize` and `gw-filter-chain`; the other drives discovery via
+`/api/demo-agent/tools` and asserts the `tools/list` challenge plus
+`degraded === false` (the shape #1949 took). Hops that depend on which gateway is
+active are reported, never asserted, so the check does not encode today's
+deployment. Verified green live, 97 tools discovered.
+
+Two things had to be true for it to be worth anything, and both were measured:
+
+- It asserts only ids the preview fallback cannot synthesize.
+  `buildSessionPreviewTokenEvents` emits `user-token` / `exchange` /
+  introspection when the real chain fails to resolve, so an assertion on those
+  passes on a stack with no working gateway at all.
+- Run against the Inspector route — which passes `forceDirectMcpAudience: true`
+  and bypasses PingGateway — the same request returned 12 token events, the
+  entire two-exchange chain, and **none** of the three asserted ids. The
+  assertions discriminate.
+
+Still true, and the reason this is a smoke check rather than a CI gate: it needs
+`local.ping-devops.com:4000`, so nothing runs it automatically. A chain hop that
+passes unit tests is still evidence about the model, not about what a demo will
+show — run this before believing otherwise.
+
 ### 2026-08-18 — A piped verification command reports the pipe's exit code, so a failed deploy reads as success
 
 **Where:** every `./scripts/deploy-live.sh ... | tail`, `npm test | grep`,
@@ -1578,3 +1597,39 @@ one reported bug — bigger surface than a bug fix warrants.
 itself must stay skip-shaped on the BFF side for gateway-authoritative
 requests — see `mcpToolPipeline.js:456`. Client-side normalization must not
 try to make the server stop being honest about that.
+
+### 2026-08-18 — The chain's Exchange hop reads "in flight" after a finished run
+
+**Where:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` — the
+`exDone` computation added by #1966.
+
+**What's wrong:** on the dashboard's typed-chat path (AG-UI, `POST
+/api/agent/run`), a completed run renders:
+
+```
+5 MCP  tools/list 401   status 401
+6 MCP  tools/list       tools permitted 20
+7 LLM  LLM              tokens used prompt 0
+8 BFF  Exchange         in flight      <-- never resolves
+9 LLM  Reply            no token change
+```
+
+The run is over — Reply is rendered — and the Exchange hop still reads "in
+flight". #1966 fixed the case where an exchange HAD completed by keying `exDone`
+on downstream evidence (`gw-authorize`, `gw-filter-chain`, an MCP result). Here
+the model answered without calling a tool, so no downstream evidence exists and
+none ever will, and the hop sits unresolved forever.
+
+**Why it matters:** a viewer cannot tell "still working" from "this never
+happened". That is the same complaint that started the visibility work — if the
+chain stops, it must say why.
+
+**Why not fixed now:** it is not a code question, it is a product one — what
+SHOULD that hop say when no tool call occurred and no exchange was ever needed?
+"Not required" and "skipped — no tool call" are both defensible and read very
+differently in a demo. `buildTraceSteps` is protected chain surface; guessing
+here is how #1966 shipped a fix that changed nothing on screen.
+
+**How to see it:** `npm run test:e2e:real -- chain-hops-visible` prints
+`[ui] UNRESOLVED after reply:` whenever it occurs. The check reports it rather
+than failing, precisely so the decision above stays a decision.
