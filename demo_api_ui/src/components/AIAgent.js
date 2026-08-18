@@ -501,6 +501,16 @@ export default function BankingAgent({
    *  step picked signed-out cannot arm until login lands and the resume effect fires.
    *  Mirrored into sessionStorage on login (the ref dies across the OAuth redirect). */
   const pendingUcFlagsRef = useRef(null);
+  /**
+   * The NL claimed on the OAuth return, held across effect re-invocations.
+   *
+   * `claimPendingNl` is destructive one-shot. Holding its result in a closure
+   * local meant a re-invoked effect lost it: the first invocation took the
+   * value and had its retry timers torn down by cleanup, and the invocation
+   * that survived read the now-empty key and got null. A ref outlives the
+   * re-invoke, so the claim is made once and consumed once.
+   */
+  const claimedPendingNlRef = useRef(null);
   /** The auth level a queued step still needs ('user' | 'admin'), or null when it is
    *  already satisfied. The resume effect waits for THAT level rather than firing on
    *  guest-chat eligibility — or on any session, which would send an admin step from
@@ -1714,11 +1724,25 @@ export default function BankingAgent({
       // Guarding the CLAIM rather than the whole effect on purpose: the session
       // hydration, the auto-open and the oauth param stripping below must still
       // run for every instance.
-      const pendingNl = isInline ? claimPendingNl(BX_AGENT_PENDING_NL_KEY) : null;
-      // One-shot too, and claimed beside the NL: claiming them only when a
-      // pendingNl turned up left them behind whenever it did not, so a stale
-      // useCaseId and flag list bled into the next launcher run.
-      if (isInline) claimPendingStepContext();
+      // Claim into a REF, not a closure local. This effect is re-invoked (React
+      // re-runs it, and the first invocation's retry timers are torn down by its
+      // cleanup). With the value in a local, the invocation that claimed it was
+      // the one thrown away, and the surviving invocation re-read an
+      // already-emptied key and got null — so `found` was true, the session was
+      // fine, and there was simply nothing left to replay. Measured directly:
+      // entry(rawNl="…") -> claimed("…") -> entry(rawNl=null) -> claimed(null)
+      // -> retry(found=true, pendingNl=null).
+      //
+      // The ref outlives the re-invoke, so the key is claimed once and the value
+      // survives to whichever invocation actually reaches the replay.
+      if (isInline && claimedPendingNlRef.current == null) {
+        claimedPendingNlRef.current = claimPendingNl(BX_AGENT_PENDING_NL_KEY);
+        // One-shot too, and claimed beside the NL: claiming them only when a
+        // pendingNl turned up left them behind whenever it did not, so a stale
+        // useCaseId and flag list bled into the next launcher run.
+        claimPendingStepContext();
+      }
+      const pendingNl = claimedPendingNlRef.current;
 
       // The admin console opens with its own content (group membership, customer
       // lookup, metrics); auto-expanding the agent over it buries the page the
@@ -1755,8 +1779,14 @@ export default function BankingAgent({
           if (found) {
             setCookieOnlyBffSession(cookieOnly);
             setSessionUser(found);
-            if (pendingNl) {
-              setNlResumeAfterAuth(pendingNl);
+            // Consume here, not at claim time. Clearing the ref as it is handed
+            // over keeps the exactly-once guarantee the destructive claim exists
+            // for (REGRESSION_PLAN §4 2026-05-18, double-executed banking
+            // command) — a later retry, or a re-invoked effect, finds it empty.
+            if (claimedPendingNlRef.current) {
+              const toReplay = claimedPendingNlRef.current;
+              claimedPendingNlRef.current = null;
+              setNlResumeAfterAuth(toReplay);
             }
             setMessages((prev) => {
               const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
