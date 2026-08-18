@@ -36,6 +36,10 @@ npm run build
 It's wired into the repo's `.mcp.json` as `banking-dev`. Restart Claude Code /
 Cursor to pick it up.
 
+`dist/` and `node_modules/` are gitignored, so a fresh clone (or new machine)
+that skips the build shows the server as `CONNECTION_CLOSED` in `/mcp` — that
+error means "not built yet", not a code problem. Run the two commands above.
+
 ## What it deliberately does NOT do
 
 See [`.planning/DEV_MCP_SERVERS_PLAN.md`](../../.planning/DEV_MCP_SERVERS_PLAN.md)
