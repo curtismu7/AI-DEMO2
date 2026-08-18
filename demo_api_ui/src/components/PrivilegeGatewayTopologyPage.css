@@ -6,6 +6,12 @@
   margin-bottom: 12px;
 }
 
+.pgt-doc-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
 .pgt-legend {
   display: flex;
   flex-wrap: wrap;
