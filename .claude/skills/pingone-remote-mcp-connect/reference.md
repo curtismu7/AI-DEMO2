@@ -36,7 +36,7 @@ NA Example
 Replace your worker app clientID and environment ID and paste in terminal
 
 ```bash
-claude mcp add --transport http --client-id {clientId} --callback-port 7474 pingone https://api.pingone.com/v1/environments/{envId}/mcp
+claude mcp add --transport http --client-id {clientId} --callback-port 7474 pingone https://mcp.pingone.com/admin/{envId}/mcp
 ```
 
 **Github Copilot**

@@ -23,7 +23,7 @@
       ]
     },
     "pingone": {
-      "url": "https://api.pingone.com/v1/environments/<PINGONE_ENVIRONMENT_ID>/mcp",
+      "url": "https://mcp.pingone.com/admin/<PINGONE_ENVIRONMENT_ID>/mcp",
       "auth": {
         "CLIENT_ID": "<PINGONE_MCP_OAUTH_CLIENT_ID>"
       }

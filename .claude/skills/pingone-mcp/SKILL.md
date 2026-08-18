@@ -8,7 +8,7 @@ description: Use when reading or updating PingOne resources during development â
 The HOSTED PingOne MCP server is the preferred way to read/update PingOne
 state during development. It is PingOne's own admin-plane endpoint:
 
-    https://api.pingone.{region}/v1/environments/{envId}/mcp
+    https://mcp.pingone.{region}/admin/{envId}/mcp
 
 `envId`/`region` come from `demo_api_server/.env` (`PINGONE_ENVIRONMENT_ID`,
 `PINGONE_REGION`). Do NOT confuse it with this repo's data-plane MCP servers
