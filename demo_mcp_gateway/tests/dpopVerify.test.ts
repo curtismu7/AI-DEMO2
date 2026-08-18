@@ -74,7 +74,15 @@ describe('verifyDpopProof (RFC 9449)', () => {
     const k = makeKey();
     const proof = signProof(k, { htu: 'https://gw/mcp', ath: ath(TOKEN) });
     const parts = proof.split('.');
-    const forged = `${parts[0]}.${parts[1]}.${parts[2].slice(0, -2)}AA`;
+    // Mutate to a character the signature does NOT already end with. Hardcoding
+    // 'AA' made this test fail roughly once in 4096 runs: when the real
+    // signature happened to end in 'AA' the "forged" proof was byte-identical to
+    // the valid one, so it verified and ok came back true. Seen in CI
+    // 2026-08-18. A security test that occasionally reports a forgery as
+    // accepted teaches people to re-run it.
+    const tail = parts[2].slice(-2);
+    const forged = `${parts[0]}.${parts[1]}.${parts[2].slice(0, -2)}${tail === 'AA' ? 'BB' : 'AA'}`;
+    expect(forged).not.toBe(proof);
     const r = verifyDpopProof({ proof: forged, htu: '/mcp', htm: 'POST', accessToken: TOKEN, expectedJkt: k.jkt });
     expect(r.ok).toBe(false);
     expect(r.reason).toBe('bad signature');
