@@ -21,7 +21,7 @@
  */
 
 import axios from 'axios';
-import { McpTokenExchangeClient } from '../src/auth/McpTokenExchangeClient';
+import { McpTokenExchangeClient, scopeMismatchReasonFromExchangeError } from '../src/auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../src/config';
 
 jest.mock('axios');
@@ -99,5 +99,77 @@ describe('scope-less exchange diagnostics', () => {
 
     const warned = warnSpy.mock.calls.map((c) => String(c[0])).join('\n');
     expect(warned).not.toMatch(/scope-less/i);
+  });
+});
+
+/**
+ * The pre-flight warning above is a LOG. This maps the same empty-intersection
+ * rejection into a caller-FACING reason so the caller learns it from the
+ * response body, not a gateway log — WITHOUT changing the exchange request,
+ * which still goes out scope-less as the two contracts below re-assert.
+ */
+describe('scopeMismatchReasonFromExchangeError — caller-facing reason', () => {
+  // What exchangeError() actually throws for this rejection: an opaque message
+  // about resource ambiguity that names neither the caller's nor the backend's scopes.
+  const opaqueRejection = new Error(
+    'RFC 8693 exchange to backend=olb (resource=mcpserver.ping.demo) rejected with ' +
+    'HTTP 400 — invalid_scope: May not request scopes for multiple resources',
+  );
+
+  it('names BOTH scope sets — the caller holds purchase:read, olb accepts none of it', () => {
+    const m = scopeMismatchReasonFromExchangeError(opaqueRejection, foreignScopeToken, 'get_my_accounts');
+    expect(m).not.toBeNull();
+    expect(m!.backend).toBe('olb');
+    expect(m!.subjectScopes).toEqual(['purchase:read']); // what the caller holds
+    expect(m!.backendScopes).toContain('read');           // what the backend accepts
+    expect(m!.backendScopes).toContain('mcp:invoke');
+    expect(m!.backendScopes).not.toContain('purchase:read');
+    // The sentence names both sets so the caller can act on it.
+    expect(m!.reason).toContain('purchase:read');
+    expect(m!.reason).toContain('read');
+    expect(m!.reason).toMatch(/scope mismatch/i);
+    expect(m!.reason).toMatch(/mirroredScopes|Grant the caller/);
+  });
+
+  it('returns null for a bare invalid_scope — the generic exchange-failure path is untouched', () => {
+    // Same signal the caller tests inject; must NOT be relabeled a scope mismatch.
+    expect(scopeMismatchReasonFromExchangeError(new Error('invalid_scope'), foreignScopeToken, 'get_my_accounts')).toBeNull();
+    expect(scopeMismatchReasonFromExchangeError(new Error('Backend error'), foreignScopeToken, 'get_my_accounts')).toBeNull();
+  });
+
+  it('returns null when the caller DOES hold a backend scope — never masks an unrelated multi-resource error', () => {
+    const overlapToken = [
+      Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
+      Buffer.from(JSON.stringify({ sub: 'u1', scope: 'read' })).toString('base64url'),
+      '',
+    ].join('.');
+    expect(scopeMismatchReasonFromExchangeError(opaqueRejection, overlapToken, 'get_my_accounts')).toBeNull();
+  });
+});
+
+/**
+ * Preservation guard — the two TESTED contracts this diagnosability fix must not
+ * disturb, re-asserted here in one place. The fix is caller-side only; the
+ * exchange request behaviour and cache semantics of exchangeForBackend are
+ * unchanged. (The canonical copies live in mcpTokenExchangeClient.test.ts.)
+ */
+describe('preserved contracts (exchangeForBackend is unchanged)', () => {
+  const gatewayOnlyToken = [
+    Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
+    Buffer.from(JSON.stringify({ sub: 'u1', scope: 'gateway:mcp:invoke' })).toString('base64url'),
+    '',
+  ].join('.');
+
+  it('sends no scope without the flag — the tools/call path is unchanged', async () => {
+    const client = new McpTokenExchangeClient(config);
+    await client.exchangeForBackend(gatewayOnlyToken, 'olb');
+    expect(new URLSearchParams(String(mockedPost.mock.calls[1][1])).get('scope')).toBeNull();
+  });
+
+  it('cache isolation — a discovery-scoped token is not served to a later call-path exchange', async () => {
+    const client = new McpTokenExchangeClient(config);
+    await client.exchangeForBackend(gatewayOnlyToken, 'olb', { allowDiscoveryScopeFallback: true });
+    const second = await client.exchangeForBackend(gatewayOnlyToken, 'olb');
+    expect(second.cached).toBe(false);
   });
 });

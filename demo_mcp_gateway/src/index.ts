@@ -26,7 +26,7 @@ import { routeTool, backendWsUrl, backendHttpMcpUrl } from './router';
 import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
-import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
+import { McpTokenExchangeClient, scopeMismatchReasonFromExchangeError } from './auth/McpTokenExchangeClient';
 import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse, MCP_PROTOCOL_VERSION } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz } from './pingAuthorizeGuard';
 import { classifyWsDeny } from './wsDenyClassifier';
@@ -935,8 +935,15 @@ async function handleMessage(
       const errMsg = err instanceof Error ? err.message : String(err);
       const axiosData = (err as any)?.response?.data;
       const detail = axiosData?.error_description || axiosData?.error || errMsg;
-      console.error(`[GW] Token exchange failed for ${toolName}:`, detail);
-      send(jsonRpcError(id, -32500, `Token exchange failed: ${detail}`, { error: 'token_exchange_failed', detail }));
+      // Parity with the HTTP path (authorizeMcpRequest.ts): map PingOne's opaque
+      // empty-intersection rejection into a clear scope-mismatch reason naming
+      // BOTH scope sets; every other failure keeps the generic body unchanged.
+      const mismatch = scopeMismatchReasonFromExchangeError(err, token, toolName);
+      console.error(`[GW] Token exchange failed for ${toolName}:`, mismatch ? mismatch.reason : detail);
+      send(jsonRpcError(id, -32500, `Token exchange failed: ${mismatch ? mismatch.reason : detail}`,
+        mismatch
+          ? { error: 'token_exchange_failed', reason: 'scope_mismatch', detail: mismatch.reason, subject_scopes: mismatch.subjectScopes, backend_scopes: mismatch.backendScopes, backend: mismatch.backend }
+          : { error: 'token_exchange_failed', detail }));
       return;
     }
 
