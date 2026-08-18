@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useDividerDrag from '../../hooks/useDividerDrag';
 import SequenceDiagram from './SequenceDiagram';
 import StepCard from './StepCard';
 import ActivityPanel from './ActivityPanel';
@@ -16,6 +17,13 @@ import ExecutionEngine from '../../services/executionEngine';
 export default function ProtocolViewer({ flowSpec, executionState, onExecutionStateChange, dark = false }) {
   const [engine, setEngine] = useState(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  const { size: activityWidth, handleProps: activityHandleProps } = useDividerDrag({
+    min: 300,
+    max: 700,
+    initial: 420,
+    storageKey: 'pp-activity-width',
+    invert: true, // rail sits right of its divider — dragging left grows it
+  });
 
   // Recreate engine when flowSpec changes
   useEffect(() => {
@@ -147,7 +155,12 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
           />
         </div>
 
-        <div className="activity-section">
+        <div
+          className="protocol-playground__resize-handle"
+          aria-label="Resize activity column"
+          {...activityHandleProps}
+        />
+        <div className="activity-section" style={{ flex: `0 0 ${activityWidth}px` }}>
           <ActivityPanel
             results={executionState.results}
             error={executionState.error}

@@ -5,7 +5,9 @@
 import React, { useState } from 'react';
 import apiClient from '../services/apiClient';
 import JsonHighlight from './shared/JsonHighlight';
-import './PingOneMcpInspector.css';
+import InspectorShell from './shared/InspectorShell';
+import InspectorListItem from './shared/InspectorListItem';
+import InspectorTabs from './shared/InspectorTabs';
 import './TokenSecurityTester.css';
 
 const SCENARIOS = [
@@ -82,63 +84,43 @@ export default function TokenSecurityTester() {
     setOutputTab('result');
   };
 
-  return (
-    <div className="p1mcp-page">
-      {/* Top bar */}
-      <div className="p1mcp-topbar">
-        <span className="p1mcp-topbar__dot" />
-        <h1>Token Security Tester</h1>
-        <span className="p1mcp-topbar__status">
-          Educational demonstration &mdash; {SCENARIOS.length} scenarios
-        </span>
-        <div className="p1mcp-topbar__right">
-          <span className="tst-topbar-badge">Demo Only</span>
-        </div>
+  const left = (
+    <>
+      <div className="inspector-shell-tree-header">
+        <span>Scenarios ({SCENARIOS.length})</span>
       </div>
+      <div className="inspector-shell-tree-body">
+        <div className="inspector-shell-tree-group__label">Failure Scenarios</div>
+        {SCENARIOS.map((scenario) => (
+          <InspectorListItem
+            key={scenario.id}
+            label={scenario.name}
+            active={selectedScenario?.id === scenario.id}
+            dot="sensitive"
+            onClick={() => selectScenario(scenario)}
+          />
+        ))}
+      </div>
+    </>
+  );
 
-      {/* Three-column grid */}
-      <div className="p1mcp-grid">
-        {/* Column 1: Tree - Scenarios */}
-        <div className="p1mcp-col-tree">
-          <div className="p1mcp-tree-header">
-            <span>Scenarios ({SCENARIOS.length})</span>
-          </div>
-          <div className="p1mcp-tree-body">
-            <div className="p1mcp-tree-group">
-              <div className="p1mcp-tree-group__label">Failure Scenarios</div>
-              {SCENARIOS.map((scenario) => (
-                <div
-                  key={scenario.id}
-                  className={`p1mcp-tree-item ${selectedScenario?.id === scenario.id ? 'p1mcp-tree-item--active' : ''}`}
-                  onClick={() => selectScenario(scenario)}
-                >
-                  <span className="p1mcp-tree-item__dot p1mcp-tree-item__dot--error" />
-                  <span className="tst-tree-item-text">{scenario.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Column 2: Form */}
-        <div className="p1mcp-col-form">
-          {selectedScenario ? (
-            <>
-              <div className="p1mcp-form-header">
-                <div className="p1mcp-form-header__name">{selectedScenario.name}</div>
-                <div className="p1mcp-form-header__desc">{selectedScenario.description}</div>
-              </div>
-              <div className="p1mcp-form-actions p1mcp-form-actions--top">
-                <button
-                  className="p1mcp-btn-call"
-                  onClick={handleExecute}
-                  disabled={loading}
-                >
-                  {loading ? 'Executing...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={handleClear}>Clear</button>
-              </div>
-              <div className="p1mcp-form-body">
+  const middle = selectedScenario ? (
+    <>
+      <div className="inspector-shell-form-header">
+        <div className="inspector-shell-form-header__name">{selectedScenario.name}</div>
+        <div className="inspector-shell-form-header__desc">{selectedScenario.description}</div>
+      </div>
+      <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+        <button
+          className="inspector-shell-btn-call"
+          onClick={handleExecute}
+          disabled={loading}
+        >
+          {loading ? 'Executing...' : 'Execute'}
+        </button>
+        <button className="inspector-shell-btn-clear" onClick={handleClear}>Clear</button>
+      </div>
+      <div className="inspector-shell-form-body">
                 <div className="tst-demo-notice">
                   <span className="tst-demo-notice__icon">&#x26A0;</span>
                   <span className="tst-demo-notice__text">
@@ -147,82 +129,73 @@ export default function TokenSecurityTester() {
                   </span>
                 </div>
 
-                <div className="tst-scenario-info">
-                  <div className="p1mcp-field">
-                    <label>Scenario ID <span className="type">string</span></label>
-                    <input type="text" value={selectedScenario.id} readOnly />
-                  </div>
-                  <div className="p1mcp-field">
-                    <label>API Endpoint <span className="type">POST</span></label>
-                    <input
-                      type="text"
-                      value={`/api/test/token-validation/scenario/${selectedScenario.id}`}
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <details className="tst-about-scenarios">
-                  <summary>About These Scenarios</summary>
-                  <div className="tst-about-scenarios__body">
-                    <p>
-                      These test scenarios demonstrate how the MCP server validates tokens and
-                      rejects requests that violate security controls. Each scenario intentionally
-                      violates a different rule:
-                    </p>
-                    <ul>
-                      <li><strong>Wrong Scope:</strong> Token lacks required OAuth scopes.</li>
-                      <li><strong>Wrong Audience:</strong> Token issued for a different service.</li>
-                      <li><strong>Missing Act:</strong> Token lacks RFC 8693 delegation proof.</li>
-                      <li><strong>Agent Token on User Endpoint:</strong> Agent token used on user-level API.</li>
-                      <li><strong>Expired Token:</strong> Token past expiration time.</li>
-                    </ul>
-                  </div>
-                </details>
-              </div>
-              <div className="p1mcp-form-actions">
-                <button
-                  className="p1mcp-btn-call"
-                  onClick={handleExecute}
-                  disabled={loading}
-                >
-                  {loading ? 'Executing...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={handleClear}>Clear</button>
-                {error && <span className="p1mcp-form-error">{error}</span>}
-              </div>
-            </>
-          ) : (
-            <div className="p1mcp-form-empty">
-              Select a scenario from the tree to inspect and execute it.
-            </div>
-          )}
+        <div className="tst-scenario-info">
+          <div className="inspector-shell-field">
+            <label>Scenario ID <span className="type">string</span></label>
+            <input type="text" value={selectedScenario.id} readOnly />
+          </div>
+          <div className="inspector-shell-field">
+            <label>API Endpoint <span className="type">POST</span></label>
+            <input
+              type="text"
+              value={`/api/test/token-validation/scenario/${selectedScenario.id}`}
+              readOnly
+            />
+          </div>
         </div>
 
-        {/* Column 3: Output */}
-        <div className="p1mcp-col-output">
-          <div className="p1mcp-output-tabs">
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'result' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('result')}
-            >Result</button>
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'teaching' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('teaching')}
-            >Teaching</button>
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'token' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('token')}
-            >Token Details</button>
-            <button
-              className={`p1mcp-output-tab ${outputTab === 'raw' ? 'p1mcp-output-tab--active' : ''}`}
-              onClick={() => setOutputTab('raw')}
-            >Request/Response</button>
+        <details className="tst-about-scenarios">
+          <summary>About These Scenarios</summary>
+          <div className="tst-about-scenarios__body">
+            <p>
+              These test scenarios demonstrate how the MCP server validates tokens and
+              rejects requests that violate security controls. Each scenario intentionally
+              violates a different rule:
+            </p>
+            <ul>
+              <li><strong>Wrong Scope:</strong> Token lacks required OAuth scopes.</li>
+              <li><strong>Wrong Audience:</strong> Token issued for a different service.</li>
+              <li><strong>Missing Act:</strong> Token lacks RFC 8693 delegation proof.</li>
+              <li><strong>Agent Token on User Endpoint:</strong> Agent token used on user-level API.</li>
+              <li><strong>Expired Token:</strong> Token past expiration time.</li>
+            </ul>
           </div>
+        </details>
+      </div>
+      <div className="inspector-shell-form-actions">
+        <button
+          className="inspector-shell-btn-call"
+          onClick={handleExecute}
+          disabled={loading}
+        >
+          {loading ? 'Executing...' : 'Execute'}
+        </button>
+        <button className="inspector-shell-btn-clear" onClick={handleClear}>Clear</button>
+        {error && <span className="inspector-shell-form-error">{error}</span>}
+      </div>
+    </>
+  ) : (
+    <div className="inspector-shell-form-empty">
+      Select a scenario from the tree to inspect and execute it.
+    </div>
+  );
 
-          {result ? (
-            <>
-              <div className="p1mcp-output-body">
+  const right = (
+    <>
+      <InspectorTabs
+        tabs={[
+          { key: 'result', label: 'Result' },
+          { key: 'teaching', label: 'Teaching' },
+          { key: 'token', label: 'Token Details' },
+          { key: 'raw', label: 'Request/Response' },
+        ]}
+        activeKey={outputTab}
+        onChange={setOutputTab}
+      />
+
+      {result ? (
+        <>
+          <div className="inspector-shell-output-body">
                 {outputTab === 'result' && (
                   <div className="tst-result-panel">
                     <div className="tst-result-row">
@@ -262,7 +235,7 @@ export default function TokenSecurityTester() {
                 )}
 
                 {outputTab === 'token' && (
-                  <pre className="p1mcp-output-code">
+                  <pre className="inspector-shell-output-code">
                     <JsonHighlight
                       value={result.token_details || { message: 'No token details available' }}
                       deep
@@ -271,7 +244,7 @@ export default function TokenSecurityTester() {
                 )}
 
                 {outputTab === 'raw' && (
-                  <pre className="p1mcp-output-code">
+                  <pre className="inspector-shell-output-code">
                     <JsonHighlight
                       value={{
                         request: result.request || null,
@@ -283,21 +256,30 @@ export default function TokenSecurityTester() {
                 )}
               </div>
 
-              <div className="p1mcp-output-footer">
-                <span><strong>Status:</strong> {result.http_status || 'Error'}</span>
-                <span><strong>Scenario:</strong> {result.scenario_name || selectedScenario?.name}</span>
-                <span><strong>Type:</strong> Token Validation</span>
-              </div>
-            </>
-          ) : (
-            <div className="p1mcp-output-empty">
-              {selectedScenario
-                ? 'Click Execute to run the scenario and see the result here.'
-                : 'Select a scenario and execute it to see results.'}
-            </div>
-          )}
+          <div className="inspector-shell-output-footer">
+            <span><strong>Status:</strong> {result.http_status || 'Error'}</span>
+            <span><strong>Scenario:</strong> {result.scenario_name || selectedScenario?.name}</span>
+            <span><strong>Type:</strong> Token Validation</span>
+          </div>
+        </>
+      ) : (
+        <div className="inspector-shell-output-empty">
+          {selectedScenario
+            ? 'Click Execute to run the scenario and see the result here.'
+            : 'Select a scenario and execute it to see results.'}
         </div>
-      </div>
-    </div>
+      )}
+    </>
+  );
+
+  return (
+    <InspectorShell
+      title="Token Security Tester"
+      statusText={`Educational demonstration — ${SCENARIOS.length} scenarios`}
+      actions={<span className="tst-topbar-badge">Demo Only</span>}
+      left={left}
+      middle={middle}
+      right={right}
+    />
   );
 }
