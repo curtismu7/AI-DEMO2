@@ -48,7 +48,7 @@ import { generateGatewayCerts, GatewayCerts } from './mtls';
 import type { MtlsOptions } from './proxy';
 import { recordGatewayAudit, auditOutcomeFromResponse, scopeAlertDetails } from './gatewayAudit';
 import { GATEWAY_TOOLS } from './gatewayTools';
-import { recordToolsListBackendOutage, clearToolsListBackendOutage } from './toolsListHealth';
+import { recordToolsListBackendOutage, clearToolsListBackendOutage, formatToolsListBackendFailure } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
 
@@ -321,7 +321,11 @@ async function handleMessage(
         if (Array.isArray(tools)) allTools.push(...tools);
       } else {
         failedBackends.push(backendLabels[i]);
-        console.warn(`[GW] tools/list failed for backend=${backendLabels[i]}:`, r.reason instanceof Error ? r.reason.message : r.reason);
+        // Structured, greppable diagnostic. On a handshake timeout this carries
+        // timeoutMs / elapsedMs / connectMs (from proxy.ts) so the recurrence
+        // can be correlated with mcp-server restarts or cold starts next time —
+        // TECH_DEBT 2026-08-18. Failure path only; never logs on success.
+        console.warn(formatToolsListBackendFailure(backendLabels[i], r.reason));
       }
     }
     // Report ANY failed backend, not just a total wipeout. A total failure ships

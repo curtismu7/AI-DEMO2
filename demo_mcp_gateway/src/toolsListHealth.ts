@@ -93,3 +93,48 @@ export function clearToolsListBackendOutage(): void {
 export function toolsListBackendOutage(): ToolsListOutage | null {
   return _outage;
 }
+
+/**
+ * Fields proxy.ts attaches to a handshake-timeout rejection (see the enriched
+ * reject in proxyJsonRpc). Read structurally here so the fan-out can log them.
+ */
+interface HandshakeTimeoutReason {
+  code?: string;
+  message?: string;
+  timeoutMs?: number;
+  elapsedMs?: number;
+  connectMs?: number | null;
+}
+
+/**
+ * Structured, greppable one-liner for a single backend's tools/list failure,
+ * emitted by the fan-out in index.ts. For a handshake timeout it surfaces the
+ * configured timeout, the elapsed-to-failure, and the connect latency captured
+ * in proxy.ts — the data TECH_DEBT (2026-08-18, `olb` handshake timeout) asked
+ * for to correlate the timeout with mcp-server restarts or cold starts.
+ *
+ * It reports `pool=none(fresh-ws-per-request)` deliberately: the proxy opens a
+ * fresh WebSocket per request, so connection-pool exhaustion (the TECH_DEBT note
+ * cited `MCP_WS_MAX_CONCURRENT`, which does not exist in this codebase) is ruled
+ * out as the mechanism by construction — one less hypothesis to chase next time.
+ * `attempts=1` reflects that the fan-out makes a single handshake attempt (no
+ * retry); the field is present so the number is legible if a retry is ever added.
+ *
+ * Keeps the `tools/list failed for backend=<id>` prefix that TECH_DEBT documents
+ * as the symptom so an operator grepping that string still gets a hit — now with
+ * the diagnostics appended. Only ever called on the failure path.
+ */
+export function formatToolsListBackendFailure(backend: string, reason: unknown): string {
+  const base = `[GW] tools/list failed for backend=${backend}`;
+  const e = reason as HandshakeTimeoutReason | undefined;
+  if (e && e.code === 'handshake_timeout') {
+    const connect = e.connectMs == null ? 'n/a' : String(e.connectMs);
+    return (
+      `${base} reason=handshake_timeout timeoutMs=${e.timeoutMs} ` +
+      `elapsedMs=${e.elapsedMs} connectMs=${connect} attempts=1 ` +
+      `pool=none(fresh-ws-per-request)`
+    );
+  }
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  return `${base} reason=other attempts=1 message=${JSON.stringify(msg)}`;
+}

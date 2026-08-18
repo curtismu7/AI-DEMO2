@@ -63,4 +63,34 @@ describe('proxyJsonRpc handshake timer (WR-04)', () => {
 
     expect(lastSocket.terminate.mock.calls.length).toBe(terminateCallsBefore);
   });
+
+  it('rejects a stalled handshake with structured timeout diagnostics', async () => {
+    // Diagnostics regression (TECH_DEBT 2026-08-18): a backend that accepts the
+    // socket but never answers `initialize` must reject with code + timeout +
+    // elapsed + connect so the fan-out can log why the backend vanished.
+    const p = proxyJsonRpc('ws://localhost:8080', 'token', {
+      jsonrpc: '2.0',
+      id: 7,
+      method: 'tools/list',
+    });
+    // Capture the rejection now so it is never an unhandled rejection.
+    const settled = p.then(
+      () => { throw new Error('handshake should not resolve'); },
+      (e) => e,
+    );
+
+    // Socket opens, but the backend never replies to gw-init.
+    lastSocket.emit('open');
+    jest.advanceTimersByTime(10_000);
+
+    const err = (await settled) as Error & {
+      code?: string; timeoutMs?: number; elapsedMs?: number; connectMs?: number | null;
+    };
+    expect(err.message).toBe('MCP handshake timeout');
+    expect(err.code).toBe('handshake_timeout');
+    expect(err.timeoutMs).toBe(10_000);
+    expect(err.elapsedMs).toBeGreaterThanOrEqual(10_000);
+    expect(typeof err.connectMs).toBe('number');
+    expect(lastSocket.terminate).toHaveBeenCalled();
+  });
 });
