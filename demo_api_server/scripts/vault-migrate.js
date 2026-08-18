@@ -74,6 +74,12 @@ const ALLOWED_ENV_VARS = Object.freeze([
   'PINGONE_SESSION_SECRET',
   'PINGONE_INTROSPECTION_CLIENT_SECRET',
   'POSTHOG_API_KEY',
+  // Added 2026-08-18 (dotenvx cutover audit): present in demo_api_server/.env
+  // and read as a configStore precedence fallback (pingone_client_secret,
+  // authorize_worker_client_secret, pingone_worker_token_client_secret) but
+  // absent from this allowlist, so it was missed by the dotenvx encrypt step
+  // and stayed plaintext while its sibling worker secrets were encrypted.
+  'PINGONE_WORKER_CLIENT_SECRET',
   // Phase 269 / Plan 04: mortgage service API key stored in vault and loaded
   // by MCP Gateway's DEMO_ allowlist prefix. Must be present here so that
   // vault:migrate-from-env copies it from .env on a fresh install.
