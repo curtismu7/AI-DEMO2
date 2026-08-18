@@ -96,13 +96,34 @@ Clean, self-contained fixes done + deployed:
   exist; fresh WS per request); added structured `reason/timeoutMs/elapsedMs/connectMs`
   diagnostics so the next occurrence produces data. Merged + deployed.
 
-## Still deferred — need a decision (NOT blind-fixable)
+## Deferred §1 — batch 4 resolved (owner decisions)
 
-- **caller-scope-miss** (1569) — entry says the scopeless request is deliberate;
-  resolution is a product decision (grant scope vs deny with a better reason).
-- **MCP-handshake on Node gateway** (1152) — needs an IG Groovy filter.
-- **proxy protocol-version** (675) — depends whether the Node gateway is the intended
-  upstream for `demo_mcp_proxy`.
+- **caller-scope-miss** (1569) — DECISION: deny with a clear reason. **PR #2059**
+  maps PingOne's `invalid_scope` to a caller-facing `scope_mismatch` (naming both
+  scope sets) without changing the request; the two tested contracts preserved.
+  Merged + deployed.
+- **proxy protocol-version** (675) — DECISION: investigate then fix. Node gateway
+  confirmed the compose-default upstream; **PR #2058** bumped the header to
+  `2025-11-25`. Merged + deployed (mcp-proxy rebuilt directly — not deploy-live
+  managed).
+- **MCP-handshake on Node gateway** (1152) — DECISION: leave / accept unobservable.
+  Marked WON'T FIX; the Node-gateway header stays as dormant support for the
+  non-default path. No code.
+- **LLM-proxy #2048** — made live by a deliberate `llm-proxy` rebuild (frozen
+  surface, owner-approved); container healthy.
+
+## Fully cleared
+
+Every fixable finding from both audit rounds is now merged + deployed (or, for the
+frozen/host surfaces, deliberately rebuilt). Only accepted/won't-fix items and the
+two notes below remain.
+
+## Other open (noted)
+
+- `saveMessage` intra-ms seq is not zero-padded (11+-message single-ms burst would
+  sort lexicographically) — unreachable given fsync spacing; noted only.
+- Docs-refresh todo: re-verify cited line numbers post-merge; fix stale
+  `demo_mcp_server` repo-map entry in CLAUDE.md.
 
 ## Other open (noted)
 
