@@ -43,11 +43,11 @@ case "$SERVICE" in
   authz-server) DIR="$ROOT/demo_authz_server" ;;
   mcp-gateway)  DIR="$ROOT/demo_mcp_gateway" ;;
   # 2026-08-17: six more services had a `test` script and no CI job at all.
-  # Five are fully green and run as BLOCKING gates from ci.yml (SUITE_BLOCKING=1)
-  # — a red there is a regression. mastra-agent is the exception: three
-  # pre-existing failures in tests/runHandler.test.ts, out of scope to fix in the
-  # change that wired it up, so it runs non-blocking like the two above until
-  # someone fixes them and flips it.
+  # All six now run as BLOCKING gates from ci.yml (SUITE_BLOCKING=1) — a red
+  # there is a regression. mastra-agent was wired non-blocking for three
+  # runHandler failures; they were one production bug (abort on req 'close',
+  # which Node fires when the request BODY completes rather than on client
+  # disconnect) and it now passes 36/36.
   agent-service)        DIR="$ROOT/demo_agent_service" ;;
   hitl-service)         DIR="$ROOT/demo_hitl_service" ;;
   code-search)          DIR="$ROOT/demo_mcp_code_search" ;;

@@ -237,9 +237,12 @@ jobs:
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh agent-token-service
       - name: demo_api_resource_server (blocking)
         run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh api-resource-server
-      # Reports its failures without gating; still fails if the suite cannot run.
-      - name: mastra_agent (non-blocking — pre-existing failures)
-        run: bash scripts/test-service-suite.sh mastra-agent
+      # Was non-blocking for 3 failures in runHandler.test.ts. Those turned out to
+      # be one production bug — handleRun aborted on req 'close', which Node
+      # fires when the REQUEST BODY completes, not on client disconnect — so the
+      # stream was cut off after a single part. Fixed; 36/36 green; now gates.
+      - name: mastra_agent (blocking — 36 passing)
+        run: SUITE_BLOCKING=1 bash scripts/test-service-suite.sh mastra-agent
 
   python-agent-suites:
     # The other four uncovered services are Python: langchain_agent (52 test

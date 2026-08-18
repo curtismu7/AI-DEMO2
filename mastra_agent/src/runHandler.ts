@@ -34,7 +34,16 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
   // away, so a disconnected browser doesn't keep the run (and its BFF calls)
   // burning.
   const abortController = new AbortController();
-  req.on('close', () => abortController.abort());
+  // res, NOT req. On a consumed IncomingMessage Node emits 'close' once the
+  // REQUEST BODY has been fully received — which for a POST is immediately —
+  // not when the client disconnects. Listening on req therefore aborted the run
+  // before the model stream had produced anything: the loop below broke after a
+  // single part, no text ever reached the emitter, and onRunEnd's
+  // anyVisibleOutput guard turned a healthy run into RUN_ERROR ("The model
+  // didn't return a usable response"). That is what made three runHandler tests
+  // fail. res 'close' is the signal that actually means the client went away,
+  // and on a completed response it fires after the loop is already done.
+  res.on('close', () => abortController.abort());
   const runCtx: RunCtx = {
     bffToolUrl: resolveBffToolUrl(ctx.bffToolUrl as string | undefined, cfg.bffToolUrl),
     bffInternalSecret: cfg.bffInternalSecret,
