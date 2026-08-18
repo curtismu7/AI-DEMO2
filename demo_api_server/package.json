@@ -85,6 +85,7 @@
     "vault:delete": "node scripts/vault.js delete",
     "vault:rotate": "node scripts/vault.js rotate",
     "vault:migrate-from-env": "node scripts/vault-migrate.js",
+    "secrets:encrypt": "node scripts/dotenvx-encrypt-envs.js",
     "build": "echo 'API server - no build required'",
     "install-client": "cd ../demo_api_ui && npm install",
     "heroku-postbuild": "npm run install-client && npm run build",

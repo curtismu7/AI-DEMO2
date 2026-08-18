@@ -73,6 +73,26 @@ if [[ -z "${VAULT_PASSWORD:-}" ]]; then
   unset _env_candidate _vp
 fi
 
+# ── Auto-load DOTENV_PRIVATE_KEY from .env.keys ───────────────────────────────
+# vault→dotenvx cutover: the encrypted per-service `.env` files decrypt with one
+# shared DOTENV_PRIVATE_KEY, delivered at runtime exactly like VAULT_PASSWORD.
+# It lives in the gitignored repo-root `.env.keys` (written by
+# `npm --prefix demo_api_server run secrets:encrypt`). Only DOTENV_PRIVATE_KEY is
+# extracted; the file is never sourced. Absent file / plaintext `.env` = no-op.
+if [[ -z "${DOTENV_PRIVATE_KEY:-}" ]]; then
+  for _keys_candidate in "${BASEDIR}/.env.keys" "${BASEDIR}/demo_api_server/.env.keys"; do
+    if [[ -f "$_keys_candidate" ]]; then
+      _dpk=$(grep -E '^DOTENV_PRIVATE_KEY=' "$_keys_candidate" 2>/dev/null | head -1 | sed 's/^DOTENV_PRIVATE_KEY=//' | sed 's/^"//' | sed 's/"$//' | tr -d "'" || true)
+      if [[ -n "$_dpk" ]]; then
+        export DOTENV_PRIVATE_KEY="$_dpk"
+        echo "[DOTENVX] Auto-loaded DOTENV_PRIVATE_KEY from ${_keys_candidate}"
+        break
+      fi
+    fi
+  done
+  unset _keys_candidate _dpk
+fi
+
 # ── Allow localhost override via PUBLIC_APP_URL in demo_api_server/.env ──────
 # If PUBLIC_APP_URL is set to a localhost URL, skip the api.ping.demo hostname,
 # /etc/hosts setup, and mkcert — run plain HTTP on localhost instead.
@@ -1395,6 +1415,59 @@ if [[ -f "$VAULT_FILE" ]]; then
   echo "[VAULT] secrets.vault detected — passing VAULT_PASSWORD to vault-aware services."
 fi
 
+# ── dotenvx decrypt preflight (vault→dotenvx cutover) ────────────────────────
+# The BFF, MCP Gateway, Agent Service, and MCP Server load secrets from their own
+# dotenvx-encrypted `.env` at startup. If any `.env` is encrypted (carries a
+# DOTENV_PUBLIC_KEY line) but DOTENV_PRIVATE_KEY is unset or wrong, they would
+# boot with ciphertext for their secrets and fail far downstream. Verify up front
+# — mirrors the vault preflight above. When no `.env` is encrypted (the current
+# plaintext state, and every un-migrated machine), this is a transparent no-op.
+# The decrypt check runs against a TEMP COPY so it can never mutate a real `.env`.
+_dotenvx_enc_file=""
+for _svc_env in \
+  "$BASEDIR/demo_api_server/.env" \
+  "$BASEDIR/demo_agent_service/.env" \
+  "$BASEDIR/demo_mcp_gateway/.env" \
+  "$BASEDIR/oauth-mcp/.env"; do
+  if [[ -f "$_svc_env" ]] && grep -qE '^DOTENV_PUBLIC_KEY=' "$_svc_env" 2>/dev/null; then
+    _dotenvx_enc_file="$_svc_env"
+    break
+  fi
+done
+if [[ -n "$_dotenvx_enc_file" ]]; then
+  if [[ -z "${DOTENV_PRIVATE_KEY:-}" ]]; then
+    echo "[ERROR] Encrypted .env detected (${_dotenvx_enc_file}) but DOTENV_PRIVATE_KEY is not set."
+    echo "        The BFF, MCP Gateway, Agent Service, and MCP Server will load ciphertext and fail."
+    echo "        Fix: put DOTENV_PRIVATE_KEY in .env.keys (npm --prefix demo_api_server run secrets:encrypt)"
+    echo "        or export DOTENV_PRIVATE_KEY=... before ./run.sh."
+    exit 1
+  fi
+  _dotenvx_bin=""
+  for _cand in \
+    "$BASEDIR/demo_mcp_gateway/node_modules/.bin/dotenvx" \
+    "$BASEDIR/oauth-mcp/node_modules/.bin/dotenvx" \
+    "$BASEDIR/demo_agent_service/node_modules/.bin/dotenvx"; do
+    [[ -x "$_cand" ]] && { _dotenvx_bin="$_cand"; break; }
+  done
+  if [[ -n "$_dotenvx_bin" ]]; then
+    _dx_tmp="$(mktemp)"
+    cp "$_dotenvx_enc_file" "$_dx_tmp"
+    _dx_rc=0
+    DOTENV_PRIVATE_KEY="$DOTENV_PRIVATE_KEY" "$_dotenvx_bin" decrypt -f "$_dx_tmp" >/dev/null 2>&1 || _dx_rc=$?
+    rm -f "$_dx_tmp"
+    if [[ "$_dx_rc" -ne 0 ]]; then
+      echo "[ERROR] DOTENV_PRIVATE_KEY is set but does NOT decrypt ${_dotenvx_enc_file} (wrong or rotated key)."
+      echo "        Fix: export the correct DOTENV_PRIVATE_KEY (from .env.keys) before ./run.sh."
+      exit 1
+    fi
+    echo "[DOTENVX] encrypted .env verified — DOTENV_PRIVATE_KEY decrypts it."
+  else
+    echo "[DOTENVX][warn] Could not run dotenvx decrypt preflight (binary unavailable); services will validate at boot."
+  fi
+  echo "[DOTENVX] passing DOTENV_PRIVATE_KEY to dotenvx-aware services."
+fi
+unset _dotenvx_enc_file _svc_env _dotenvx_bin _cand _dx_tmp _dx_rc
+
 # refresh_service_envs: query PingOne by app name and write a correct .env
 # for every service.  Replaces the old ensure_service_env / patch_* chain.
 # Falls back silently if PingOne is unreachable — services start with whatever
@@ -1453,6 +1526,7 @@ echo "[LAUNCH] Starting Demo API Server on ${API_HOST}:${API_PORT}..."
   SSL_KEY_FILE="${KEY_FILE}" \
   VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
   VAULT_PATH="${VAULT_PATH:-}" \
+  DOTENV_PRIVATE_KEY="${DOTENV_PRIVATE_KEY:-}" \
   CRASH_GUARD="${CRASH_GUARD:-1}" \
   BFF_DEV="${BFF_DEV:-0}" \
   nohup bash -c 'if [[ "${BFF_DEV:-0}" == "1" ]]; then exec npm run dev; else exec npm start; fi' > "${LOG_API}" 2>&1
@@ -1477,6 +1551,7 @@ if [[ -d "$BASEDIR/oauth-mcp" ]]; then
     cd "$BASEDIR/oauth-mcp"
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
+    DOTENV_PRIVATE_KEY="${DOTENV_PRIVATE_KEY:-}" \
     NODE_EXTRA_CA_CERTS="${NODE_EXTRA_CA_CERTS:-}" \
     OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
     OTEL_SERVICE_NAME="mcp-server" \
@@ -1512,6 +1587,7 @@ if [[ -d "$BASEDIR/demo_mcp_gateway" ]]; then
     cd "$BASEDIR/demo_mcp_gateway"
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
+    DOTENV_PRIVATE_KEY="${DOTENV_PRIVATE_KEY:-}" \
     GW_INTROSPECTION_ENDPOINT="${GW_INTROSPECTION_ENDPOINT:-http://localhost:9001/as/introspect}" \
     OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
     OTEL_SERVICE_NAME="mcp-gateway" \
@@ -1566,6 +1642,7 @@ if [[ -d "$BASEDIR/demo_agent_service" ]]; then
     BFF_TOOL_URL="http://127.0.0.1:${API_PORT}/internal/agent-tool" \
     VAULT_PASSWORD="${VAULT_PASSWORD:-}" \
     VAULT_PATH="${VAULT_PATH:-}" \
+    DOTENV_PRIVATE_KEY="${DOTENV_PRIVATE_KEY:-}" \
     OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT}" \
     OTEL_SERVICE_NAME="agent-service" \
     NODE_OPTIONS="${OTEL_NODE_OPTIONS}" \
