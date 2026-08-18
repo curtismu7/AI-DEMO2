@@ -31,6 +31,23 @@ function _db() {
 }
 
 /**
+ * True for real conversation messages, false for summary entries (or any other
+ * non-message value). Summaries live under `${prefix}_summary:${id}` keys and
+ * `_` (0x5F) sorts AFTER the digits that lead every message key, so a bare
+ * `[prefix, prefix+￿]` range scan pulls them in. Summary objects carry no
+ * `role`/`content` (they have `summary`/`method`/`createdAt` instead), so a
+ * value-shape guard excludes them regardless of key ordering and without
+ * depending on any stored-key format. The dedicated summary reader
+ * (`getSummaries`) uses the `_summary:` sub-prefix and is unaffected.
+ * @private
+ */
+function _isMessage(value) {
+  return !!value && typeof value === 'object'
+    && typeof value.role === 'string'
+    && typeof value.content === 'string';
+}
+
+/**
  * Generate a unique summary ID.
  * @returns {string} - e.g., "sum_a1b2c3d4"
  */
@@ -145,6 +162,9 @@ function _pruneThreadIfNeeded(userId, vertical, prefix) {
     start: prefix,
     end: `${prefix}￿`,
   })) {
+    // Never prune summaries — they lack `.timestamp`, so a bare `value.timestamp||0`
+    // sorted them to 0 and deleted them first. Only real messages count/prune.
+    if (!_isMessage(value)) continue;
     messages.push({ key, timestamp: value.timestamp || 0 });
   }
 
@@ -176,14 +196,19 @@ function getHistory(userId, vertical, limit = DEFAULT_HISTORY_LIMIT) {
   const prefix = `${userId}:${vertical}:`;
   const messages = [];
 
-  // Reverse-range scan to get the newest messages first
+  // Reverse-range scan to get the newest messages first. Summaries sort AFTER
+  // all message keys (leading `_` > digits), so in reverse they appear first —
+  // a DB-level `limit` would let them evict real messages from the window and
+  // could surface a summary as the newest "message". Skip non-messages and stop
+  // once we have `limit` real messages instead.
   for (const { key, value } of db.getRange({
     start: `${prefix}￿`,
     end: prefix,
     reverse: true,
-    limit,
   })) {
-    if (value) messages.push(value);
+    if (!_isMessage(value)) continue;
+    messages.push(value);
+    if (messages.length >= limit) break;
   }
 
   // Reverse back to chronological order (oldest first)
@@ -222,11 +247,11 @@ function getThreadSize(userId, vertical) {
   const prefix = `${userId}:${vertical}:`;
   let count = 0;
 
-  for (const _ of db.getRange({
+  for (const { value } of db.getRange({
     start: prefix,
     end: `${prefix}￿`,
   })) {
-    count++;
+    if (_isMessage(value)) count++; // exclude summary entries from the thread size
   }
 
   return count;
@@ -320,12 +345,13 @@ function isSummarizationNeeded(userId, vertical) {
   const prefix = `${userId}:${vertical}:`;
   const messages = [];
 
-  // Collect all messages for this thread
+  // Collect all messages for this thread (summary entries excluded — they are
+  // not turns and must not inflate the turn-count / token-budget triggers).
   for (const { key, value } of db.getRange({
     start: prefix,
     end: `${prefix}￿`,
   })) {
-    if (value) messages.push(value);
+    if (_isMessage(value)) messages.push(value);
   }
 
   if (messages.length === 0) return null;

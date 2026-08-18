@@ -23,7 +23,39 @@ data-plane routes/services surfaced 10 fresh defects not already in this file.
 None were fixed in the same pass — they are correctness/consistency gaps found
 while auditing, logged for a deliberate round. Backend first, then UI.
 
-### [ ] 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
+### [ ] 2026-08-18 — `saveMessage` reads the sequence from the wrong key segment, so same-millisecond writes collide and drop messages
+
+**Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `saveMessage`
+(the seq-dedup read of `key.split(':')[4]`).
+
+**What's wrong:** the LMDB key is `${userId}:${vertical}:${15digitTs}:${seq}`, so the
+sequence is segment index **`[3]`**, but `saveMessage` reads `key.split(':')[4]`
+(one past the end). Because the timestamp is `Date.now()`, several messages written
+in the same millisecond share the `${ts}` portion, and the mis-indexed seq read
+fails to disambiguate them, so same-millisecond writes collide and overwrite each
+other. The count of distinct persisted messages then depends on machine speed —
+this is exactly what made the round-2 prune test read 500 locally but 469 on the
+faster CI runner, and it is a genuine data-loss-under-load bug in its own right, not
+just a test artefact.
+
+**Why not fixed now:** found while making the round-2 summary-scan test deterministic
+(the test was fixed with a mocked clock; the underlying write-path bug was left
+untouched as out of scope for that PR). It is a write-path change in a §1-adjacent
+store and deserves its own fix + a concurrency test.
+
+**Real fix:** read the seq from segment `[3]` (or key by a monotonic counter rather
+than wall-clock ms), and add a test that writes N messages in a tight loop without a
+mocked clock and asserts all N persist.
+
+### [x] 2026-08-18 — Conversation summaries share the message key-prefix, so history replays a summary as the newest turn
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** All four message scans now
+apply an `_isMessage()` value-shape guard (real messages have string `.role` +
+`.content`; summaries don't), and `getHistory` collects `limit` *real* messages
+rather than capping at the DB level — so a `_summary:` entry can no longer surface
+as the newest turn or evict real ones, and prune no longer mis-orders summaries.
+Regression test `tests/services/conversationStoreSummaryScan.test.js` (made
+deterministic with a mocked clock). Original entry follows.
 
 **Where:** `demo_api_server/services/lmdb/conversationStore.lmdb.js` — `getHistory`
 (~180-190), `getThreadSize` (~225-232), `_pruneThreadIfNeeded` (~144-160),
@@ -50,7 +82,13 @@ surface, not a drive-by.
 separate sub-prefix scanned only by the summary reader, or an end bound that stops
 before `_` — and give a summary object a `timestamp` so prune orders it correctly.
 
-### [ ] 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
+### [x] 2026-08-18 — `createTransaction` overwrites any caller-supplied `createdAt`/`status`, collapsing seeded transaction history
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** Now
+`createdAt: transactionData.createdAt ?? new Date()` and
+`status: transactionData.status ?? 'completed'`, with `id` always generated — a
+caller-supplied value is preserved, defaults still apply when absent. Regression
+test `tests/createTransactionPreservesCallerFields.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/data/store.js:391` —
 `const transaction = { id, ...transactionData, createdAt: new Date(), status: 'completed' };`
@@ -73,7 +111,12 @@ it is a small contract decision, not a one-liner.
 **Real fix:** only default `createdAt`/`status` when the caller did not supply them
 (`createdAt: transactionData.createdAt ?? new Date()`, same for `status`).
 
-### [ ] 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
+### [x] 2026-08-18 — GET conversation history `limit` is unsanitised, so the 100-message cap is silently defeated
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** `limit` is coerced to a finite
+number (fallback to the default) then clamped to `[1,100]` before `getHistory`, so
+`?limit=abc` (NaN) and `?limit=-1` can no longer defeat the cap. Regression test
+`tests/routes/conversationsHistoryLimitClamp.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/routes/conversations.js:56,62`.
 
@@ -91,7 +134,12 @@ NaN/negative cases alongside the fix.
 **Real fix:** coerce and clamp — `Math.min(Math.max(1, Number.isFinite(n) ? n : DEFAULT), 100)`
 before calling `getHistory`.
 
-### [ ] 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
+### [x] 2026-08-18 — `GET /api/accounts/my` serves hardcoded banking identifiers for every vertical
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** SWIFT/IBAN/branch/masked-account
+defaults are emitted only for the banking vertical; other verticals surface those
+fields only when the account genuinely carries them. Banking output byte-identical.
+Regression test `tests/routes/accountsMyBankingFields.test.js`. Original entry follows.
 
 **Where:** `demo_api_server/routes/accounts.js:232-234`.
 
@@ -109,7 +157,16 @@ about which of these fields are even meaningful outside banking.
 **Real fix:** only emit banking-shaped fields when the vertical is banking (or when
 the account actually carries them), rather than defaulting them in for all.
 
-### [ ] 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
+### [x] 2026-08-18 — `investment` portfolio/balance ignore the `:accountId` path param and 200 with the default portfolio
+
+**FIXED 2026-08-18 (PR #2022, merged + deployed).** `/portfolio` and `/balance` now
+validate ownership — an `ownsAccount` check accepts `profile.portfolioId` or any
+`data.portfolios[].id`, and a genuinely foreign/unknown id returns 404. The
+caller's real/default account is unchanged. Regression test
+`tests/routes/investmentAccountOwnership.test.js`. (The first fix keyed only on
+`profile.portfolioId` and 404'd the caller's own sub-portfolio ids — caught by CI
+against the pre-existing `investment.route.test.js`, then corrected.) Original
+entry follows.
 
 **Where:** `demo_api_server/routes/investment.js:16-29,54-66`.
 
@@ -950,23 +1007,50 @@ IG filter names, which #1965 even added labels for. Same shape as putting the
 gateway stages in `TraceStepCard`, a component the focus-mode dashboard never
 mounts: right code, wrong host.
 
-**Why not fixed now:** IG is a product. It performs the handshake inside
-`McpProtectionFilter`/its upstream client, not in code this repo owns, so there
-is no `forwardToUpstream` to instrument. Emitting the header from IG means a
-Groovy filter in `ping-gateway/scripts/groovy/` that can observe the upstream
-session negotiation — a different piece of work from the Node-side change, and
-not one to start at the tail of the session that found it.
+**RESOLVED 2026-08-18** — and the paragraph that used to sit here was wrong about
+why it was hard, which is the part worth keeping.
 
-**What the real fix looks like:** either (a) an IG Groovy filter that records the
-upstream `initialize` response and stamps `X-Gw-Mcp-Handshake` in the same place
-`transaction-hop.groovy` already posts to the BFF, or (b) accept that the
-handshake is unobservable on the IG path and keep the honest "not visible from
-here" narrative #1960 added, treating the Node-gateway header as dormant support
-for the non-default path. Do not delete the existing plumbing either way — it is
-live and correct whenever `mcp_demo_gateway_url` is the active gateway.
+It assumed IG performs the handshake inside `McpProtectionFilter` or its own
+upstream client, "not in code this repo owns". It does not.
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy` — a script in this repo,
+on the `mcp-olb-primary` route that serves `^/mcp` — sends the `initialize` call
+itself, reads the `Mcp-Session-Id` off the response, and only then forwards the
+tool call. The handshake was never unobservable. Nobody had read that script.
 
-**How to check whether it is fixed:** drive a tool call and assert
-`mcp-initialize` appears in the returned `tokenEvents` — not that the code exists.
+The fix follows a path already in place for mTLS:
+
+1. `olb-token-exchange.groovy` records the initialize it just performed on
+   `attributes['handshakeResult']`, exactly as it already does for
+   `attributes['mtlsResult']`.
+2. `p1az-decision.groovy` folds that into `X-Gw-Audit-Trail` inside its existing
+   `thenOnResult` callback — the same place, and the same fail-safe, that already
+   attaches mtls.
+3. `mcpToolPipeline.js` turns the trail entry into an `mcp-initialize` token
+   event, next to where it emits `gw-mtls`.
+
+`buildTraceSteps` already had an `mcp-initialize` step waiting for that id, so no
+UI change was needed to light the hop.
+
+**`notifications/initialized` is deliberately still not emitted.** The gateway
+does not send it — it goes straight from `initialize` to the tool call — so the
+trail carries `initializedSent: false` and the chain reports that hop as not
+observed. Drawing a step that never ran would be worse than the gap it papers
+over. The narrative for that hop was updated to say which of the two it is,
+otherwise it would have degraded into an unexplained grey card the moment
+`mcp-initialize` started arriving.
+
+The Node-gateway plumbing from #1977 is untouched and still correct for the
+non-default `mcp_demo_gateway_url` path.
+
+**Guards:** `demo_api_server/tests/mcpToolPipeline.gatewayHandshake.test.js` (4
+tests, verified to fail with the emission reverted) and two render tests in
+`FocusModeChainRenders.test.jsx`. Both Groovy scripts were compile-checked
+against the gateway's own `groovy-4.0.28.jar` before merge — a syntax error there
+takes out the auth path, so "it looks fine" was not good enough.
+
+**How to check it live:** drive a tool call and assert `mcp-initialize` appears in
+the returned `tokenEvents` — `npm run test:e2e:real -- chain-hops-reachable`
+already reports it under CONFIG_DEPENDENT.
 
 ### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
@@ -1274,12 +1358,30 @@ Verified live, signed in as `demoUser` on the real stack: 13 rows, every one
 from every row** — it had previously denied all 13. Two rows now PERMIT
 (`HITL,mcp-tool-authorized`).
 
-**Newly visible underneath it** (not this fix's scope): with `inRequiredGroup:
-true` on all 13 rows, 11 still deny on `mcp-invalid-a2a-generalist`. The board
-presents a directly-minted token, so it carries no A2A act chain for the tools
-whose rule requires one. Whether the board should mint a delegated token or
-those rows should be presented differently is a product question, not a bug in
-the audience path. It was invisible while audience denied everything first.
+**Newly visible underneath it, then ADDRESSED 2026-08-18 (PR #2017):** with
+`inRequiredGroup: true` on all 13 rows, 11 denied on
+`mcp-invalid-a2a-generalist`. Authorize's `DenyA2aDelegationRequired` rule
+denies `ActChainDepth < 2` for exactly the tools flagged `a2aDelegated` in
+scope-topology — verified: the 10 flagged tools are precisely the ones that
+denied, and the 2 unflagged ones are the 2 that PERMITted. The board minted a
+one-hop token, so those rows denied on delegation shape and never reached the
+group rule; membership could not move them.
+
+Those rows now mint through `a2aDelegationService.delegateToSpecialist()` — the
+same chain the real call path uses — keyed on the scope-topology flag rather
+than the tool-name list in `pac/policies/mcp-delegation.yaml`, so the two cannot
+drift apart silently.
+
+**`ff_a2a_delegation` defaults to `false`**, so the fallback is the DEFAULT path,
+not an edge case: the row is probed with the one-hop token (keeping the
+informative `mcp-invalid-a2a-generalist` verdict rather than the
+`mcp-invalid-audience` you get by presenting nothing) and `tokenError` states
+that delegation was unavailable and why.
+
+**Not verified live with the flag ON.** The flag-off path is confirmed on the
+real stack; the delegated branch is unit-tested only. The admin
+feature-flag endpoint now requires a bearer token, and flipping a live demo flag
+is the operator's call, not something to route around an auth gate for.
 
 ### [ ] 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
 
@@ -2554,21 +2656,109 @@ Two loose ends confirm it was left behind rather than decided:
 - `renderActionGroups`, `ACTION_GROUPS`, `useCustomChips`, `verticalSuggestionChips`
   and the `.ba-action-chip` / `.ba-action-group` CSS are all still carried.
 
+**Measured 2026-08-18.** Every production mount sets the flag:
+
+| mount | props | `useActionsPopout` |
+|---|---|---|
+| `App.js:1705` | `distinctFloatingChrome` | true |
+| `pages/AgentPage.js:13` | `mode="inline" distinctFloatingChrome` | true |
+| `routes/PublicRoutes.js:134` | `mode="inline" distinctFloatingChrome` | true |
+| `components/DemoGuidePopout.jsx:84` | no `mode` — not inline | true |
+
+What that strands:
+
+- `renderActionGroups` — `AIAgent.js` lines 1002–1106 (~105)
+- the JSX branch holding its only call site — lines 10696–11065 (~370)
+- 34 chips in `ACTION_GROUPS`
+- 60 rules in `AIAgent.css` matching the chip classes
+
+**Two corrections to the first pass, both of which change the "delete" option.**
+
+*`agentActions.js` is NOT fully dead.* The entry above implies it is. `ACTIONS` is
+read at `AIAgent.js:1217` to label a completed HITL consent, and
+`getStepSkipExplanation` is passed to a child at `AIAgent.js:11527`. Both are
+reachable and have nothing to do with chips. Only the `ACTION_GROUPS` uses at
+lines 859/866 (chip collapse state) and those inside `renderActionGroups` are
+dead. Deleting the module would break the consent label.
+
+*The unreachable branch is not only chips.* It also contains the session-refresh
+row, `ba-suggestion`, the guest chip grid **including the login prompt**,
+`ba-left-auth`, and the track chips. All equally unreachable — so the guest-mode
+login affordance in there is dead too — but "delete the chips" really means
+deleting the entire left column.
+
+**So delete is not the small option.** It is a real refactor of a ~370-line branch
+with the reachable pieces (`ACTIONS`, `getStepSkipExplanation`) preserved.
+Restoring is cheaper to try: flip the gate for the dashboard mount and look at
+what renders.
+
 **Why it matters beyond dead code:** chips are the deterministic tool-call path
 (`forceHeuristic`). With no chip in the DOM, a UI-level test cannot drive a tool
 call at all, which is why `chain-hops-visible.real.spec.js` can assert only the
 discovery leg and has to report the tools/call and gateway hops instead of
 asserting them.
 
-**Why not fixed here:** whether chips should come back is a product decision, not
-a cleanup. "Use Cases" / "Live Use Cases" / "Demo steps" are present and may be
-their intended replacement — in which case the fix is to delete the orphaned
-chip code and correct the welcome copy, not to restore a rail. Guessing either
-way would be a UI change nobody asked for, on a protected surface.
+**Why not fixed here:** whether chips come back is a product decision, not a
+cleanup. "Use Cases" / "Live Use Cases" / "Demo steps" are present and may be
+their intended replacement. Guessing either way would be a UI change nobody asked
+for, on a protected surface.
 
 **How to check:** log in, open `/dashboard`, and count
 `document.querySelectorAll('.ba-action-chip').length`. Non-zero means this was
-resolved.
+resolved. Measured today: 0, before and after opening the `More` trigger (which
+holds Topology / Floating token chain / Script, not chips).
+
+### 2026-08-18 — Concurrent deploys raced on one Docker project and one stamp (FIXED)
+
+**Where:** `scripts/deploy-live.sh`.
+
+**What happened:** several agent sessions share one machine, one Docker compose
+project (`ai-demo`) and one `.git/deploy-live.last`. Two runs overlapped and
+broke each other twice over:
+
+1. `docker compose` renames the old container before creating the new one, so the
+   second run collided mid-swap and died:
+
+   ```
+   Conflict. The container name "/<hash>_ai-demo-mcp-gateway" is already in use
+   by container "<id>"
+   ```
+
+   Exit 1, having restarted nothing it was asked to — the `ui` service in that
+   run's plan was never reached.
+
+2. The stamp is global. The OTHER session's run finished and wrote the new sha,
+   so the failed run's next attempt read `OLD == NEW` and announced
+   `containers already serve <sha> — nothing to deploy` while `ui` still served
+   the previous bundle. **A failed deploy presented as a completed one.** It was
+   caught only by loading the page and reading the copy, which was still the old
+   string.
+
+The timeline is what settled it — the stamp's mtime was ~1 minute AFTER the last
+command of the failing session, so that session did not write it:
+
+| time | event |
+|---|---|
+| 07:11:44 | session A deploy — exit 1, nothing restarted |
+| 07:12:24 | session A retry — "already serve abd0377d" |
+| 07:12:42 | session A restarts `ui` by hand |
+| 07:13:40 | stamp written — by session B |
+
+**Fixed by** an atomic `mkdir` lock at the top of the script. A second run refuses
+with a message naming the holder's pid instead of racing; a lock whose recorded
+pid is gone is reclaimed automatically. Refusal happens BEFORE the `EXIT` trap is
+installed, so a refused run cannot delete the live holder's lock — verified, not
+assumed. A refusing run also never touches the stamp, so the range stays intact
+for the next attempt.
+
+**Why refuse rather than queue:** a waiting run would resume with a range computed
+before the other run moved the stamp, which is the same wrong answer arrived at
+more slowly.
+
+**Related:** #2010 documents a DIFFERENT hole in the same script — the `OLD != NEW`
+path silently deploying `PRE..NEW`. That one is about the fallback being
+unreliable; this one is about two runs corrupting each other. Both end the same
+way: a stale service under a success line.
 
 ### 2026-08-18 — Three test-authoring traps that each read as a real failure
 

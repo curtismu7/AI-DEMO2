@@ -1239,6 +1239,19 @@ export function buildTraceSteps(trace) {
   const handshakeNarrative = gwOwnsMcpSession
     ? "Not visible from here: on the Agent Gateway path the BFF sends JSON-RPC over HTTP to the gateway, and the gateway is the MCP client that opens and owns the session with the upstream server. The handshake happens one hop beyond what this trace can see. It appears here only on the direct MCP path, where the BFF speaks the protocol itself."
     : undefined;
+  // The gateway now PUBLISHES its initialize (p1az-decision folds
+  // olb-token-exchange's handshake into X-Gw-Audit-Trail), so mcpInit exists on
+  // the gateway path and the narrative above correctly stops applying. But that
+  // same gateway never sends notifications/initialized, so without this the
+  // second hop would lose its explanation and render as an unexplained grey
+  // card — the reader would take "no evidence" for "this was skipped".
+  //
+  // Say which it is. `initializedSent === false` is the gateway asserting it did
+  // not send the notification, which is different from nobody having looked.
+  const gwSkippedInitialized = !!(mcpInit && mcpInit.initializedSent === false);
+  const initializedNarrative = gwSkippedInitialized
+    ? "The Agent Gateway opened the session with initialize but did not send notifications/initialized before calling the tool — the upstream server accepts the call without it. This hop is reported as not observed rather than drawn as a step that ran."
+    : handshakeNarrative;
   steps.push(makeStep("mcp-initialize",
     authorizeFailed ? "notinpath" : mcpInit ? "done" : traceComplete ? "notinpath" : "pending",
     mcpInit ? {
@@ -1263,7 +1276,7 @@ export function buildTraceSteps(trace) {
       // A notification has no id and gets no reply; saying so beats an empty
       // response block that looks like missing evidence.
       kv: [["reply", "none — JSON-RPC notifications are not answered"]],
-    } : handshakeNarrative ? { narrative: handshakeNarrative } : {}));
+    } : initializedNarrative ? { narrative: initializedNarrative } : {}));
 
   // 9. mcp + 10. api + 11. database — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
