@@ -7,6 +7,149 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+### 2026-08-18 — The group-policy board cannot produce a PERMIT, so the demo it exists for cannot be shown
+
+**Where:** `demo_api_server/routes/groupMembership.js` (`GET /api/groups/decision-board`)
+→ `agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, tool)`.
+
+**What's wrong:** the board's premise is "change the membership below and every
+row moves with it". Membership now demonstrably moves — `inRequiredGroup` flips
+`false → true` across all 13 rows when the toggle runs — but no decision moves
+with it. Every row stays `DENY` on `mcp-invalid-audience`.
+
+The cause is one layer below the board. Each row mints the token the PEP would
+present (#1972) so the decision is asked with real evidence rather than a
+fabricated audience. That mint SUCCEEDS — it returns a token — but
+`decodeJwtClaims(token).aud` yields nothing, so no audience is presented and the
+PDP fail-closes on audience before the group rule is ever reached. Deduction, not
+guesswork: `tokenError` stays null on exactly one code path, the one where
+`minted.token` is truthy.
+
+Three fixes deep on this surface already, each exposing the next: a 429 burst
+(#1969) hid the audience deny, the audience deny hid the empty-`aud` mint
+(#1972), and the mint hid its own reason (#1976, #1983). What remains is why a
+successfully minted MCP token carries no readable `aud`.
+
+**Why not fixed now:** the answer is inside `agentMcpTokenService`'s exchange
+chain, not the board, and this is the fourth consecutive change to an authz path
+in one session. The instrumentation to diagnose it now exists and reports
+honestly (`tokenPresented`, `tokenError`), which was the prerequisite.
+
+**Real fix:** trace what `resolveMcpAccessTokenWithEvents` returns for a
+group-gated tool — whether the token is opaque, whether `decodeJwtClaims` fails,
+or whether the exchange returns a token minted for a different audience — then
+fix at that layer. Verify by loading `/group-policy` signed in and watching rows
+flip PERMIT↔DENY as the membership toggle runs.
+
+### 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
+
+**Where:** `demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts` —
+`exchangeForBackend`, the `requestScopes.length === 0` case.
+
+**What's wrong:** on the call path the requested scope is `subject scopes ∩
+target-resource scopes`. When that intersection is empty the exchange goes out
+with `scope=` omitted, and PingOne rejects it with `invalid_scope: May not
+request scopes for multiple resources` — an error about resource ambiguity that
+names neither the caller's scopes nor the backend's. Observed live as a recurring
+error-level failure on every `sensitive_order_history` call: a token carrying
+`purchase:read` against `backend=olb` (`mcpserver.ping.demo`), which accepts 27
+scopes, none of them that one.
+
+A pre-flight warning naming both scope sets now precedes it (#1983), so the cause
+is diagnosable — but the underlying condition stands: those tool calls cannot
+succeed, and the only signal is a log line.
+
+**Why not fixed now:** the scope-less request is deliberate and tested
+(`sends no scope without the flag — the tools/call path is unchanged`) —
+inventing a scope the caller does not hold would manufacture authority. Making it
+fail locally instead broke that contract plus a cache-isolation test; rewriting
+those to fit would have been making the evidence match the conclusion. The defect
+that could be fixed without touching the contract — diagnosability — was.
+
+**Real fix:** decide whether these tools are meant to be reachable by such
+callers. If yes, grant the scope or add it to the resource's `mirroredScopes` in
+`scope-topology.json`; if no, deny at the gateway with a scope-mismatch reason so
+the caller learns it from the response rather than from a gateway log.
+
+### 2026-08-18 — `olb` tools/list times out; its tools vanish from the catalog and callers see "tool not found"
+
+**Where:** `demo_mcp_gateway/src/index.ts` tools/list fan-out; backend `olb`
+(`mcpserver.ping.demo`, WebSocket).
+
+**What's wrong:** `[GW] tools/list failed for backend=olb: MCP handshake timeout`
+recurred 5 times in 45 minutes while every other backend answered. That backend's
+tools are then simply absent from the merged catalog, so an agent asking for one
+gets "tool not found" rather than "backend down".
+
+`/health` now reports partial outages (#1980) — before that it actively CLEARED
+the signal whenever any backend answered, so this read as healthy. Visibility is
+fixed; the timeout itself is not diagnosed.
+
+**Why not fixed now:** the visibility gap was the reportable defect and was
+fixable in one place. Why the `olb` WebSocket handshake intermittently times out
+is a separate investigation into that backend's startup/liveness, and it was not
+reproducing on demand.
+
+**Real fix:** instrument the handshake path with the timeout value and elapsed
+time, and establish whether it correlates with mcp-server restarts, cold starts,
+or connection-pool exhaustion (`MCP_WS_MAX_CONCURRENT`).
+
+### 2026-08-18 — Intent tokens cannot be validated on the Node gateway path (`no_signing_key`)
+
+**Where:** `demo_mcp_gateway` intent-token validation; visible in every
+`gw_audit_trail` from that path as
+`IntentTokenValid: "false", IntentTokenError: "no_signing_key"`.
+
+**What's wrong:** the Node gateway cannot verify intent tokens at all — it has no
+signing key — so `IntentTokenValid` is always false there. The same call through
+PingGateway reports `IntentTokenValid: "true", IntentMatchesTool: "true"`, so the
+token itself is fine; only this path cannot check it.
+
+`INTENT_TOKEN_REQUIRED` is declared fail-open on `/health`, so this is disclosed
+rather than silent, and nothing is currently bypassed because MCP traffic routes
+through PingGateway in the compose stack. It becomes live the moment
+`ff_mcp_gateway_pinggateway` flips to the Node path.
+
+**Why not fixed now:** found while auditing for silent failures, and the
+enforcement posture is already published — this is a latent gap, not an active
+bypass. Provisioning a signing key for the gateway is its own config change.
+
+**Real fix:** give the Node gateway the intent-token signing key (or the JWKS to
+verify against), then confirm `IntentTokenValid: true` on that path before
+anyone flips the routing flag.
+
+### 2026-08-18 — Testing against the live stack requires editing the shared checkout, and the guardrail only covers two tools
+
+**Where:** the worktree rule in `CLAUDE.md`, the `Write`/`Edit` hard-block hook,
+and `docker-compose.yml` — which bind-mounts the SHARED checkout into
+`demo-api-server` and friends.
+
+**What's wrong:** two rules collide. Edits must happen in a worktree because
+concurrent sessions share one index; but Docker serves the shared checkout, so
+the only way to exercise a change against the running stack is to put it there —
+which backs off `sync-main-checkout.sh` and stops every other session's deploys.
+
+Four sessions hit this in one day. The hard-block hook covers `Write`/`Edit`;
+a peer session reported reaching the same file through a `python3` heredoc via
+Bash with no prompt, so the guardrail constrains the obvious path while the
+workflow supplies a reason to find another.
+
+Recovery is also non-obvious: restoring the file from `origin/main` is NOT enough
+once main has moved past the checkout's HEAD — it stays dirty until the
+checkout's own HEAD blob is written (`git show <checkout-HEAD-sha>:<path>`).
+
+**Why not fixed now:** this is a workflow/tooling decision for the repo owner,
+not a code change to make unilaterally — and tightening the hook to cover Bash
+writes would harden the workaround without removing the reason for it.
+
+**Real fix:** give sessions a sanctioned way to test against the running stack
+without touching the shared tree — a compose override or scratch bind-mount
+pointing at the requesting worktree. Two supporting fixes already landed:
+`deploy-live.sh` now compares against what was last deployed rather than the
+checkout SHA against itself (#1944), so a correct post-merge deploy is one
+command; and `npm run sync:status` names the blocking files, though only if you
+think to run it.
+
 ### 2026-08-18 — Two dispatch paths converge on the resume state but leave through different send functions
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` — `nlResumeAfterAuth` is set
