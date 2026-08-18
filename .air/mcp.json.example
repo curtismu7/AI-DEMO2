@@ -2,7 +2,7 @@
     "mcpServers": {
         "pingone": {
             "type": "remote",
-            "url": "https://api.pingone.com/v1/environments/<PINGONE_ENVIRONMENT_ID>/mcp"
+            "url": "https://mcp.pingone.com/admin/<PINGONE_ENVIRONMENT_ID>/mcp"
         },
         "banking-dev-mcp": {
             "type": "stdio",

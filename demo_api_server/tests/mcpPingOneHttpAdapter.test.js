@@ -63,7 +63,7 @@ describe('mcpPingOneHttpAdapter', () => {
       expect(tools).toHaveLength(2);
       expect(tools[0].name).toBe('listApplications');
       const [url, body, cfg] = post.mock.calls[0];
-      expect(url).toBe('https://api.pingone.com/v1/environments/env-123/mcp');
+      expect(url).toBe('https://mcp.pingone.com/admin/env-123/mcp');
       expect(body).toMatchObject({ jsonrpc: '2.0', method: 'tools/list' });
       expect(cfg.headers.Authorization).toBe('Bearer worker-token-abc');
     });

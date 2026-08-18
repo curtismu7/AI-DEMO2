@@ -16,7 +16,7 @@ PingOne exposes an MCP server two ways. Pick one before doing anything else:
 | Path | Transport | Best for |
 |---|---|---|
 | **A — local binary (stdio)** | `pingone-mcp-server` run locally via Homebrew | Most reliable across IDEs at time of writing — no browser-redirect/session edge cases |
-| **B — hosted Remote MCP** | HTTP, `https://api.pingone.com/v1/environments/{envId}/mcp` | No local install; depends on your tenant having the feature enabled and your IDE's HTTP-MCP OAuth support being solid |
+| **B — hosted Remote MCP** | HTTP, `https://mcp.pingone.com/admin/{envId}/mcp` | No local install; depends on your tenant having the feature enabled and your IDE's HTTP-MCP OAuth support being solid |
 
 Source material for this skill saw the two paths disagree on reliability at
 different points — hosted HTTP is the one to verify live with a `tools/list`
@@ -129,7 +129,7 @@ Shared env values: `PINGONE_MCP_ENVIRONMENT_ID`, `PINGONE_AUTHORIZATION_CODE_CLI
 ```
 
 Remove any pre-existing hosted-HTTP `"url": "https://api.pingone.com/.../mcp"`
-entry for `pingone` — it conflicts.
+or `"url": "https://mcp.pingone.com/admin/.../mcp"` entry for `pingone` — it conflicts.
 
 **VS Code** — `.vscode/mcp.json`:
 
@@ -167,8 +167,8 @@ VS Code: reload → start `pingOne`, completes a browser login on
 
 ## Path B — hosted Remote MCP (HTTP)
 
-Endpoint: `https://api.pingone.com/v1/environments/{envId}/mcp` (swap region
-if your tenant isn't `com`: `api.pingone.{region}`).
+Endpoint: `https://mcp.pingone.com/admin/{envId}/mcp` (swap region
+if your tenant isn't `com`: `mcp.pingone.{region}`).
 
 ### B1. Prerequisites specific to this path
 
@@ -202,7 +202,7 @@ claude mcp add --transport http \
   --client-id {clientId} \
   --callback-port 7474 \
   pingone \
-  "https://api.pingone.com/v1/environments/{envId}/mcp"
+  "https://mcp.pingone.com/admin/{envId}/mcp"
 ```
 
 Authorize when prompted (`/mcp` in an interactive session if it doesn't

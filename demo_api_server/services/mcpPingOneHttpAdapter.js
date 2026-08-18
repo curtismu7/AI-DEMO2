@@ -5,7 +5,7 @@
  * Adapter for PingOne's HOSTED remote MCP server (Streamable HTTP transport).
  * Replaces the local `pingone-mcp-server` stdio binary: instead of spawning a
  * process, it POSTs MCP JSON-RPC (`tools/list` / `tools/call`) to
- *   https://api.pingone.{region}/v1/environments/{envId}/mcp
+ *   https://mcp.pingone.{region}/admin/{envId}/mcp
  * authenticated with a worker `client_credentials` token (the same worker app
  * that backs Management API calls — its admin roles determine the tool set).
  *
@@ -31,7 +31,7 @@ function _mcpUrl() {
     const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
     const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
     if (!envId) throw new Error('PingOne MCP: environment ID not configured');
-    return `https://api.pingone.${region}/v1/environments/${envId}/mcp`;
+    return `https://mcp.pingone.${region}/admin/${envId}/mcp`;
 }
 
 /**

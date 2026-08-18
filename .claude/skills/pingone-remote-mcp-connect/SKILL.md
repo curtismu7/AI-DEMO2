@@ -2,7 +2,7 @@
 name: pingone-remote-mcp-connect
 description: >-
   Connects IDE MCP clients (Claude Code, Cursor, VS Code, GitHub Copilot) to the
-  PingOne hosted Remote MCP Server at api.pingone.com/v1/environments/{envId}/mcp.
+  PingOne hosted Remote MCP Server at mcp.pingone.com/admin/{envId}/mcp.
   Use when the user asks to connect PingOne MCP, set up port 7474 OAuth callback,
   configure a Worker app for MCP client auth, or troubleshoot missing PingOne MCP tools.
 ---
@@ -12,11 +12,11 @@ description: >-
 PingOne's **hosted admin-plane MCP** endpoint:
 
 ```text
-https://api.pingone.com/v1/environments/{envId}/mcp
+https://mcp.pingone.com/admin/{envId}/mcp
 ```
 
 Replace `{envId}` with `PINGONE_ENVIRONMENT_ID` from `demo_api_server/.env`.
-Use region `com` unless your tenant is elsewhere (`api.pingone.{region}`).
+Use region `com` unless your tenant is elsewhere (`mcp.pingone.{region}`).
 
 This skill covers **interactive OAuth client setup** (Authorization Code + PKCE on
 port **7474**). For BFF/script access via worker `client_credentials`, see
@@ -63,7 +63,7 @@ claude mcp add --transport http \
   --client-id {clientId} \
   --callback-port 7474 \
   pingone \
-  "https://api.pingone.com/v1/environments/{envId}/mcp"
+  "https://mcp.pingone.com/admin/{envId}/mcp"
 ```
 
 Authorize when prompted (`/mcp` in an interactive session if needed).
@@ -75,7 +75,7 @@ Authorize when prompted (`/mcp` in an interactive session if needed).
 
 ```json
 "pingone": {
-  "url": "https://api.pingone.com/v1/environments/<PINGONE_ENVIRONMENT_ID>/mcp",
+  "url": "https://mcp.pingone.com/admin/<PINGONE_ENVIRONMENT_ID>/mcp",
   "auth": {
     "CLIENT_ID": "<worker-oauth-client-id-from-step-1>"
   }
