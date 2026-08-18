@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import ToolsTable from '../components/privilege/ToolsTable';
+import DraggableModal from '../components/DraggableModal';
+import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -58,6 +60,7 @@ export default function PrivilegeMcpClientPage() {
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [toolSearch, setToolSearch] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
   const [showPresent, setShowPresent] = useState(false);
@@ -92,6 +95,21 @@ export default function PrivilegeMcpClientPage() {
     setSelectedTool(name);
     setToolSelectNonce((n) => n + 1);
     setActiveTab('tools');
+  }, []);
+  // Fresh-demo reset: wipe chat, events, results, and discovered tools but keep
+  // the Privilege sign-in and gateway config. The empty /config POST resets the
+  // server-side MCP session (resetMcpState) without changing any config value.
+  const clearActivity = useCallback(() => {
+    setChatMessages([]);
+    setChatInput('');
+    setEvents([]);
+    setToolResults([]);
+    setRawRpcResult('');
+    setTools([]);
+    setSelectedTool(null);
+    setSelectedScope(null);
+    setToolSearch('');
+    api('/config', { method: 'POST', body: {} }).catch(() => { /* page state already cleared */ });
   }, []);
   const [envVars, setEnvVars] = useState(null);
   const [envDirty, setEnvDirty] = useState(false);
@@ -554,6 +572,18 @@ export default function PrivilegeMcpClientPage() {
         </div>
       )}
 
+      {/* Learning Guide — draggable/resizable modal instead of a page navigation */}
+      <DraggableModal
+        isOpen={showGuide}
+        onClose={() => setShowGuide(false)}
+        title="AI Agent Gateway Guide"
+        defaultWidth={960}
+        defaultHeight={720}
+        storageKey="privilege-guide-modal"
+      >
+        <PrivilegeMcpLearningPage />
+      </DraggableModal>
+
       {/* Settings Modal */}
       {showSettings && (
         <div className="cur-modal-overlay" onClick={() => setShowSettings(false)}>
@@ -658,7 +688,8 @@ export default function PrivilegeMcpClientPage() {
           >
             {pageTheme === 'dark' ? 'Light' : 'Dark'}
           </button>
-          <button className="cur-flow-trigger" onClick={() => navigate('/privilege-mcp-learning')} title="Learning Guide">Guide</button>
+          <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
+          <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
