@@ -678,7 +678,20 @@ is imported by both `auth/GatewayIntrospectionClient.ts:15` and
 previously held a byte-for-byte-identical private copy, so the extraction also
 retired the duplication.
 
-### [ ] 2026-08-18 — `demo_mcp_proxy` pins `MCP-Protocol-Version: 2025-03-26`, which the Node gateway hard-rejects
+### [x] 2026-08-18 — `demo_mcp_proxy` pins `MCP-Protocol-Version: 2025-03-26`, which the Node gateway hard-rejects
+
+**FIXED 2026-08-18 (PR #2058, merged + deployed).** Investigation confirmed the Node
+gateway IS a real upstream: `docker-compose.yml:1116` bakes
+`MCP_GATEWAY_HTTP_URL: http://mcp-gateway:3005` as the proxy default (and
+`run-docker.sh`/`k8s/deploy.sh` make it runtime-selectable); the proxy is stateless
+(never sends `initialize`) and sends the version header on every request, so an
+authenticated `tools/list`/`tools/call` reaches the gateway's version check and 400s
+on the stale value. Both upstreams (Node gateway and PingGateway scripts) want
+`2025-11-25`. Fix: one line, `2025-03-26` → `2025-11-25`, with a test that drives a
+real `GET /tools` through the proxy and asserts the emitted header. (`400s before
+auth` was slightly imprecise — bearer/token checks run first; the version 400 hits
+the authenticated case.) No current in-repo consumer calls the proxy's `/tools`, so
+it was not user-visible, but the wired upstream rejected it. Original entry follows.
 
 **Where:** `demo_mcp_proxy/server.js:38`; rejected by
 `demo_mcp_gateway/src/server/GatewayServer.ts:727-736` (expects `2025-11-25`,
@@ -1222,7 +1235,17 @@ be wrong the moment `/use-cases` opens up or an admin chip is added.
 **Real fix:** nothing in the code — but walk this path live before trusting it,
 because that will be its first real exercise.
 
-### [ ] 2026-08-18 — The MCP handshake is reported by the Node gateway, which is not the gateway in the path
+### [wontfix] 2026-08-18 — The MCP handshake is reported by the Node gateway, which is not the gateway in the path
+
+**ACCEPTED / WON'T FIX 2026-08-18 (owner decision).** The handshake is observable
+only on the Node gateway path; real traffic goes through IG (PingGateway), where it
+is unobservable without a custom Groovy filter — recording it there is a
+disproportionate amount of product-path work for the value. Decision: keep the honest
+"not visible from here" narrative (#1960) and treat the Node-gateway `X-Gw-Mcp-Handshake`
+header as dormant, correct support for the non-default path (live whenever
+`mcp_demo_gateway_url` is the active gateway). The existing plumbing stays — do not
+delete it. Reopen only if the IG-path handshake becomes worth a Groovy filter.
+Original entry follows.
 
 **Where:** `demo_mcp_gateway/src/server/GatewayServer.ts` (the `X-Gw-Mcp-Handshake`
 header added in #1977), consumed by `demo_api_server/services/mcpGatewayClient.js`
@@ -1723,7 +1746,21 @@ real stack; the delegated branch is unit-tested only. The admin
 feature-flag endpoint now requires a bearer token, and flipping a live demo flag
 is the operator's call, not something to route around an auth gate for.
 
-### [ ] 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
+### [x] 2026-08-18 — A caller token whose scopes miss the backend can never call it, and the error names the wrong cause
+
+**FIXED 2026-08-18 (PR #2059, merged + deployed) — deny with a clear caller-facing
+reason (owner's decision).** Rather than change the request (the round-1 trap that
+broke two tested contracts), a shared helper
+`scopeMismatchReasonFromExchangeError()` maps PingOne's `invalid_scope: multiple
+resources` response — gated on that signature AND a confirmed-empty
+subject∩backend intersection so it never mislabels other failures — into the
+caller-facing response on BOTH transports (HTTP + WS). Same envelope, now with
+`data.reason: "scope_mismatch"`, `data.subject_scopes`, `data.backend_scopes`,
+`data.backend`, and a message naming both sets, so the caller learns the cause from
+the response instead of a gateway log. `exchangeForBackend` is untouched, so the two
+deliberate contracts hold — confirmed passing in isolation: "sends no scope without
+the flag — the tools/call path is unchanged" and the cache-isolation test. Full
+gateway suite 755 passed. Original entry follows.
 
 **Where:** `demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts` —
 `exchangeForBackend`, the `requestScopes.length === 0` case.
