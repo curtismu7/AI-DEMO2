@@ -18,6 +18,10 @@ as grouped PRs; the rest are logged in `TECH_DEBT.md` (2026-08-18 audit block).
       test:unit 3226 pass, build exit 0.
 - [x] **PR #2001** — TECH_DEBT.md updated with all deferred/protected findings +
       this tracker.
+- [x] **PR #2013** — first 2 deferred items cleared: MCP gateway WS-close hang
+      (settle pending call before clearing timers) + unbounded introspection cache
+      (bounded via `cacheInsertWithEviction`, 1000 cap, expired entries deleted).
+      21 tests, merged + deployed (`mcp-gateway` rebuilt).
 
 ## TODO — next round: 10 new bugs in Customer Dashboard UI + Backend
 
