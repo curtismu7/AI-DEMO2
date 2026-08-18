@@ -1,5 +1,4 @@
 // banking_api_ui/src/components/DashboardQuickNav.js
-import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { isDashboardQuickNavRoute } from '../utils/embeddedAgentFabVisibility';
 import './DashboardQuickNav.css';
@@ -15,16 +14,11 @@ export default function DashboardQuickNav({ user }) {
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
-  useEffect(() => {
-    if (!user || !isDashboardQuickNavRoute(pathname, user)) return;
-    // Home + Dashboard + Agent + [Banking admin] + [Config admin] + Settings + Learning Log + API + Logs
-    const count = 6 + (isAdmin ? 2 : 0);
-    const height = count * 44; // gap: 0, no inter-button spacing
-    // Must target .App directly — CSS declares --quick-nav-stack-height on .App.App--has-quick-nav,
-    // which shadows any value inherited from documentElement.
-    const appEl = document.querySelector('.App');
-    if (appEl) appEl.style.setProperty('--quick-nav-stack-height', `${height}px`);
-  }, [isAdmin, user, pathname]);
+  // Stack height is owned entirely by CSS: `--quick-nav-stack-height`
+  // resolves to `calc(7 * var(--stack-fab-height))` (App.css), which matches the
+  // 7 buttons a non-admin renders below and tracks the --stack-fab-height
+  // breakpoint (44px → 42px). No JS override — a hardcoded height here would
+  // drift from the real button count and ignore that breakpoint.
 
   // Admin users get AdminSideNav instead — hide DashboardQuickNav for them
   if (!user || isAdmin || !isDashboardQuickNavRoute(pathname, user)) {

@@ -524,8 +524,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
               <div className="tctr-story-headline">{runStory.headline}</div>
               {runStory.bits.length > 0 && (
                 <ul className="tctr-story-bits">
-                  {runStory.bits.map((b) => (
-                    <li key={b.slice(0, 48)}>{b}</li>
+                  {runStory.bits.map((b, i) => (
+                    <li key={i}>{b}</li>
                   ))}
                 </ul>
               )}
