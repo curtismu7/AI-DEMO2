@@ -1316,6 +1316,47 @@ the protocol says they belong.
 On the evidence above that is the wrong position — the session is opened and
 closed during discovery, before any tool call exists.
 
+#### Attempt 3 (#2049) — DONE IN CODE, NOT YET PROVEN LIVE
+
+Two halves shipped on that PR:
+
+- **Position (verified).** The hops moved next to `tools-list`, `MCP_STEP_IDS`
+  stopped listing them — `TokenTopologyPanel` partitions spine from branch off
+  that list, so while they were in it the topology drew the session as part of
+  the invocation, the same wrong claim on a second surface — and the narratives
+  stopped saying the handshake "happens on every tool call". Guarded by three
+  tests, two verified to fail with the reposition reverted.
+
+- **Transport (NOT verified).** `proxy.ts` captures the initialize result it
+  already receives and attaches it non-enumerably to the resolved response;
+  `index.ts` folds it into the `tools/list` `_meta`; `agentGatewayClient` emits
+  `mcp-initialize` / `mcp-initialized` beside `tools_list_success`.
+
+**The transport half is exactly as unproven as #1977 and #2023 were when they
+merged.** Gateway tsc is clean and 99 suites / 754 tests pass, three of the four
+new gateway tests fail with the capture removed — and none of that is evidence
+the hop appears in a real run. Both previous attempts had the same standing and
+both were inert. `demo_mcp_gateway` is a baked image, so verification needs
+merge → rebuild → deploy, which is why it could not be done before merging.
+
+**Do this before believing it works:**
+
+```
+scripts/deploy-live.sh                                   # rebuilds mcp-gateway
+cd demo_api_ui && npm run test:e2e:real -- chain-hops-reachable
+```
+
+`mcp-initialize` is reported there under CONFIG_DEPENDENT. If it still prints
+ABSENT, attempt 3 failed the same way as the first two and should be reverted
+rather than left dormant — a third inert instrumentation in the tree is worse
+than none, because it reads as coverage.
+
+**If it fires, one thing is still open:** the hops populate on the DISCOVERY
+request (`/api/demo-agent/tools`), not on `/api/agent/invoke`. A chain rendered
+from a single invoke response will still show them empty. Whether the UI should
+carry discovery evidence forward into the run's chain is a design question nobody
+has answered.
+
 ### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
 **Where:** `demo_api_ui/src/components/__tests__/FocusModeChainRenders.test.jsx`
