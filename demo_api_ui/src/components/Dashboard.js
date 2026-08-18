@@ -9,6 +9,7 @@ import {
   notifyInfo,
 } from "../utils/appToast";
 import bffAxios from "../services/bffAxios";
+import useDividerDrag from "../hooks/useDividerDrag";
 import { resolveSessionUser } from "../services/sessionResolver";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -39,6 +40,12 @@ import AdminDemoControlStrip from "./AdminDemoControlStrip";
 import GroupMembershipToggle from "./GroupMembershipToggle";
 
 const Dashboard = ({ user, onLogout }) => {
+  const { size: tokenColWidth, handleProps: tokenColHandleProps } = useDividerDrag({
+    min: 320,
+    max: 560,
+    initial: 380,
+    storageKey: "admin-dash-token-col-width",
+  });
   // Fetch and display current user token in the token chain
   useCurrentUserTokenEvent();
   const location = useLocation();
@@ -548,6 +555,7 @@ const Dashboard = ({ user, onLogout }) => {
               id="admin-dashboard-main"
               tabIndex={-1}
               className="admin-dash-main--split"
+              style={{ "--admin-token-col-w": `${tokenColWidth}px` }}
             >
               {/* Token chain — grouped card (inspector includes its own title) */}
               <section
@@ -557,6 +565,8 @@ const Dashboard = ({ user, onLogout }) => {
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
               </section>
+
+              <div className="divider-drag-handle" aria-label="Resize token chain column" {...tokenColHandleProps} />
 
               {/* Col-2 wrapper: all right-column sections scroll together */}
               <div className="admin-dash-col2">

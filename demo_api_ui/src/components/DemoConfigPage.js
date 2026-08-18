@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import useDividerDrag from "../hooks/useDividerDrag";
 import "../styles/appShellPages.css";
 import "./DemoConfigPage.css";
 import { NAV_STRUCTURE_CATALOG, applyChildOrder } from "../config/navStructureCatalog";
@@ -14,6 +15,13 @@ function applyOrder(catalog, navOrder) {
 }
 
 export default function DemoConfigPage() {
+  const { size: railWidth, handleProps: railHandleProps } = useDividerDrag({
+    min: 240,
+    max: 520,
+    initial: 300,
+    storageKey: "demo-config-rail-width",
+    invert: true, // rail sits right of its divider
+  });
   const [hiddenLabels, setHiddenLabels] = useState([]);
   const [navOrder, setNavOrder] = useState(null);
   const [groups, setGroups] = useState(() => NAV_STRUCTURE_CATALOG);
@@ -344,7 +352,7 @@ export default function DemoConfigPage() {
       {loading ? (
         <div className="dc-loading">Loading…</div>
       ) : (
-        <div className="dc-layout">
+        <div className="dc-layout" style={{ "--dc-rail-w": `${railWidth}px` }}>
           <section className="dc-panel">
             <div className="dc-panel__head">
               <h2>Sidebar groups</h2>
@@ -469,6 +477,8 @@ export default function DemoConfigPage() {
               </button>
             </div>
           </section>
+
+          <div className="divider-drag-handle" aria-label="Resize saved-configs rail" {...railHandleProps} />
 
           <aside className="dc-configs">
             <h2>Saved configs</h2>

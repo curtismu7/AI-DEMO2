@@ -124,9 +124,14 @@
 main.admin-dash-main--split {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(320px, 380px) 1fr;
-  gap: 1rem;
+  grid-template-columns: var(--admin-token-col-w, 380px) 6px 1fr;
+  gap: 5px;
   align-items: start;
+}
+
+main.admin-dash-main--split > .divider-drag-handle {
+  grid-column: 2;
+  align-self: stretch;
 }
 
 /* Token Chain: column 1 — self-contained scroll box, max viewport height (64px nav + 56px toolbar) */
@@ -138,7 +143,7 @@ main.admin-dash-main--split .dash-shell-card--token {
 
 /* Col-2 wrapper: single scrollable cell so all right-column cards sit flush together */
 main.admin-dash-main--split .admin-dash-col2 {
-  grid-column: 2;
+  grid-column: 3;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
   display: flex;
@@ -148,6 +153,9 @@ main.admin-dash-main--split .admin-dash-col2 {
 
 /* Responsive: single column below 1024px regardless of mode */
 @media (max-width: 1024px) {
+  main.admin-dash-main--split > .divider-drag-handle {
+    display: none;
+  }
   main.admin-dash-main--split {
     display: block;
   }

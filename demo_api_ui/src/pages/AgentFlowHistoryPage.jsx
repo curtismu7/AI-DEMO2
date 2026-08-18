@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import AgentRunTimeline from '../components/AgentRunTimeline';
+import useDividerDrag from '../hooks/useDividerDrag';
 import './AgentFlowHistoryPage.css';
 
 const PAGE_TITLE = 'Agent & Token Flow History';
@@ -35,6 +36,12 @@ function truncatePrompt(prompt) {
 }
 
 export default function AgentFlowHistoryPage() {
+  const { size: sidebarWidth, handleProps: sidebarHandleProps } = useDividerDrag({
+    min: 260,
+    max: 520,
+    initial: 320,
+    storageKey: 'afh-sidebar-width',
+  });
   const [runs, setRuns] = useState(null); // null = loading
   const [loadError, setLoadError] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
@@ -82,7 +89,7 @@ export default function AgentFlowHistoryPage() {
         </p>
       </div>
 
-      <div className="afh-body">
+      <div className="afh-body" style={{ '--afh-sidebar-w': `${sidebarWidth}px` }}>
         <aside className="afh-sidebar" aria-label="Run history">
           {runs === null && <div className="afh-sidebar-empty">Loading runs…</div>}
           {loadError && (
@@ -126,6 +133,8 @@ export default function AgentFlowHistoryPage() {
             );
           })}
         </aside>
+
+        <div className="divider-drag-handle" aria-label="Resize run history" {...sidebarHandleProps} />
 
         <main className="afh-detail">
           {selectedRun ? (

@@ -193,9 +193,7 @@
 }
 
 .arch-token-side {
-  flex: 0 0 360px;
-  min-width: 320px;
-  max-width: 380px;
+  flex: 0 0 var(--arch-token-side-w, 360px);
   align-self: flex-start;
   position: sticky;
   top: 8px;

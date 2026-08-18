@@ -154,8 +154,8 @@
 .chk-row .chev { color: var(--text-muted); font-size: 12px; }
 
 /* ---- rail + detail (master-detail) ---- */
-.split { display: grid; grid-template-columns: 232px 1fr; gap: 16px; align-items: start; }
-@media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+.split { display: grid; grid-template-columns: var(--rail-w, 232px) 6px 1fr; gap: 5px; align-items: start; }
+@media (max-width: 720px) { .split { grid-template-columns: 1fr; } .split > .divider-drag-handle { display: none; } }
 .rail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; }
 .rail-item { display: flex; align-items: center; gap: 10px; padding: 10px 11px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--text); }
 .rail-item:hover { background: var(--surface-2); color: var(--text); }

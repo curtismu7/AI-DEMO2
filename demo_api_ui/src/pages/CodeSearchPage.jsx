@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import CodebaseUploader from '../components/CodebaseUploader';
 import SignInPrompt from '../components/SignInPrompt';
+import useDividerDrag from '../hooks/useDividerDrag';
 import CodeSearchAsk from '../components/CodeSearchAsk';
 import SearchResults from '../components/SearchResults';
 import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
@@ -37,6 +38,12 @@ export function CodeSearchPage() {
   const [defaultStatus, setDefaultStatus] = useState({ state: 'idle', filesIndexed: 0, chunksCreated: 0, error: null });
   const [rightTab, setRightTab] = useState('ask'); // 'ask' | 'search'
   const [needsSignIn, setNeedsSignIn] = useState(false);
+  const { size: leftPanelWidth, handleProps: leftPanelHandleProps } = useDividerDrag({
+    min: 320,
+    max: 720,
+    initial: 440,
+    storageKey: 'code-search-left-width',
+  });
 
   // Persist codebases to localStorage. Safe now that state is seeded from
   // localStorage on the first render, so this never writes an empty array over
@@ -254,7 +261,7 @@ export function CodeSearchPage() {
 
   return (
     <div className="code-search-page">
-      <div className="search-container">
+      <div className="search-container" style={{ '--cs-left-w': `${leftPanelWidth}px` }}>
         <div className="search-panel-left">
           <CodebaseUploader
             onUpload={handleUpload}
@@ -310,6 +317,8 @@ export function CodeSearchPage() {
             </div>
           )}
         </div>
+
+        <div className="divider-drag-handle" aria-label="Resize codebase panel" {...leftPanelHandleProps} />
 
         <div className="search-panel-right">
           <div className="cs-tabs">

@@ -4,6 +4,7 @@ import apiClient from '../services/apiClient';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonFormView from './shared/JsonFormView';
+import useDividerDrag from '../hooks/useDividerDrag';
 import './AgentGatewayConfigEditor.css';
 
 const API = '/api/admin/agent-gateway';
@@ -17,6 +18,12 @@ function restartTargetsForType(type) {
 }
 
 export default function AgentGatewayConfigEditor() {
+  const { size: pickerWidth, handleProps: pickerHandleProps } = useDividerDrag({
+    min: 200,
+    max: 460,
+    initial: 260,
+    storageKey: 'agc-picker-width',
+  });
   const [files, setFiles] = useState([]);
   const [restartCaps, setRestartCaps] = useState({ enabled: true, socket: false });
   const [selectedId, setSelectedId] = useState(null);
@@ -210,7 +217,7 @@ export default function AgentGatewayConfigEditor() {
       <p className="agc-intro">View, validate, and edit the gateway&apos;s JSON config files.
         Route files reload automatically (~10s); core &amp; scope-topology files need a restart.</p>
 
-      <div className="agc-layout">
+      <div className="agc-layout" style={{ '--agc-picker-w': `${pickerWidth}px` }}>
         {/* File picker */}
         <aside className="agc-sidebar">
           {Object.entries(grouped).map(([group, items]) => (
@@ -232,6 +239,8 @@ export default function AgentGatewayConfigEditor() {
             </div>
           ))}
         </aside>
+
+        <div className="divider-drag-handle" aria-label="Resize file picker" {...pickerHandleProps} />
 
         {/* Editor + validation */}
         <main className="agc-main">

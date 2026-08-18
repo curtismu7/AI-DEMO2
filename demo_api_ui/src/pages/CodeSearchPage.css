@@ -13,8 +13,8 @@
 
 .search-container {
   display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 20px;
+  grid-template-columns: var(--cs-left-w, 440px) 6px 1fr;
+  gap: 7px;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -582,6 +582,10 @@
 @media (max-width: 1024px) {
   .search-container {
     grid-template-columns: 1fr;
+  }
+
+  .search-container > .divider-drag-handle {
+    display: none;
   }
 
   .search-panel-left {

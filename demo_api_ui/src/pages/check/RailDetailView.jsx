@@ -1,6 +1,7 @@
 // demo_api_ui/src/pages/check/RailDetailView.jsx
 import React, { useState } from 'react';
 import { worst, groupByCategory } from './status';
+import useDividerDrag from '../../hooks/useDividerDrag';
 
 export default function RailDetailView({ catalog, results, verdict }) {
   const cats = groupByCategory(catalog, results);
@@ -10,9 +11,15 @@ export default function RailDetailView({ catalog, results, verdict }) {
   const checks = cats[activeCategory] || [];
   const done = checks.map((c) => c.result?.status).filter(Boolean);
   const cls = worst(done);
+  const { size: railWidth, handleProps } = useDividerDrag({
+    min: 180,
+    max: 420,
+    initial: 232,
+    storageKey: 'check-rail-width',
+  });
 
   return (
-    <div className="split">
+    <div className="split" style={{ '--rail-w': `${railWidth}px` }}>
       <aside className="rail">
         {categories.map((category) => {
           const catChecks = cats[category];
@@ -36,6 +43,7 @@ export default function RailDetailView({ catalog, results, verdict }) {
           );
         })}
       </aside>
+      <div className="divider-drag-handle" aria-label="Resize category rail" {...handleProps} />
       <div className="detail-pane">
         <div className="detail-head">
           <span className={`s-${cls}`}><span className="chk-light" /></span>

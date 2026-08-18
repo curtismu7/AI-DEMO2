@@ -383,7 +383,7 @@
 }
 
 .configuration-sidebar {
-  width: 250px;
+  width: var(--cfg-sidebar-w, 250px);
   flex-shrink: 0;
   padding: 1rem 0;
 }
