@@ -39,16 +39,20 @@ export default function DashboardTokenRail({ children }) {
       : TOKEN_RAIL_MIN_WIDTH,
   );
   const isResizing = useRef(false);
+  const dragWidth = useRef(width);
 
+  // Reflect state into the CSS var only. Persistence deliberately does NOT live
+  // in an effect: an effect fires on first render, so the value the component
+  // merely DEFAULTED to would be written as though the user had chosen it, and
+  // from then on the stored value shadows the default forever. That is why
+  // flipping this rail to collapsed-by-default needed the storage key bumped to
+  // `_v2` instead of just changing the default. Writes now happen only in the
+  // toggle handler and at the end of a drag, so an absent key keeps meaning
+  // "no preference" and the next default change reaches every untouched browser.
   useEffect(() => {
-    persistTokenRailWidth(width);
     const w = collapsed ? TOKEN_RAIL_COLLAPSED_WIDTH : width;
     document.documentElement.style.setProperty("--ud-token-rail-width", `${w}px`);
   }, [width, collapsed]);
-
-  useEffect(() => {
-    persistTokenRailCollapsed(collapsed);
-  }, [collapsed]);
 
   /** Drag left edge: move left = wider (rail sits on the right). */
   const startResize = useCallback(
@@ -58,16 +62,19 @@ export default function DashboardTokenRail({ children }) {
       isResizing.current = true;
       const startX = e.clientX;
       const startW = width;
+      dragWidth.current = startW;
       const onMove = (me) => {
         if (!isResizing.current) return;
         const next = Math.min(
           TOKEN_RAIL_MAX_WIDTH,
           Math.max(TOKEN_RAIL_MIN_WIDTH, startW + (startX - me.clientX)),
         );
+        dragWidth.current = next;
         setWidth(next);
       };
       const onUp = () => {
         isResizing.current = false;
+        persistTokenRailWidth(dragWidth.current);
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
         document.body.style.cursor = "";
@@ -82,8 +89,10 @@ export default function DashboardTokenRail({ children }) {
   );
 
   const handleToggle = useCallback(() => {
-    setCollapsed((c) => !c);
-  }, []);
+    const next = !collapsed;
+    persistTokenRailCollapsed(next);
+    setCollapsed(next);
+  }, [collapsed]);
 
   const effectiveWidth = collapsed ? TOKEN_RAIL_COLLAPSED_WIDTH : width;
 

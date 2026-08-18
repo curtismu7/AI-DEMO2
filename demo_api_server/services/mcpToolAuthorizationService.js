@@ -776,11 +776,11 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
   if (groupPolicy.isEnabled(configStore)
     || shouldApplyEntitlementTierDemo(useCaseId)
     || shouldApplyGroupPolicyDemo(useCaseId)) {
-    userGroups = await groupPolicy.groupsForUser(
+    ({ groups: userGroups } = await groupPolicy.groupsForUser(
       req.session?.user?.username,
       verticalId,
       { pingOneUserId: subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
-    );
+    ));
     userGroups = resolveDemoUserGroupsForUseCase(useCaseId, userGroups);
     // Resolve the tier BEFORE any suppression check. The tier is derived from
     // the same group list but is a separate policy input that live PingOne has

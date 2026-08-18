@@ -44,7 +44,7 @@ const ROOT = path.join(__dirname, '..');
 const { USE_CASES, VERTICALS, resolveUseCase } = require(path.join(ROOT, 'demo_api_server/config/useCases'));
 const { ADMIN_DEMO_STEPS } = require(path.join(ROOT, 'demo_api_server/config/admin/demoSteps'));
 const {
-  AUTH_REQUIREMENTS, LEVELS, compareLevels, authLevelForUseCase, authLevelForRoute,
+  AUTH_REQUIREMENTS, LEVELS, compareLevels, authLevelForUseCaseId, authLevelForRoute,
 } = require(path.join(ROOT, 'demo_api_server/config/authRequirements'));
 
 const failures = [];
@@ -85,7 +85,7 @@ for (const uc of USE_CASES) {
   // Strip query/hash — /privilege-demo?tab=setup and /x#rar are the same route.
   const routePath = target.split(/[?#]/)[0];
   if (!(routePath in AUTH_REQUIREMENTS.routes)) continue; // unlisted routes use the default
-  const ucLevel = authLevelForUseCase(uc.id);
+  const ucLevel = authLevelForUseCaseId(uc.id);
   const routeLevel = authLevelForRoute(routePath);
   if (compareLevels(ucLevel, routeLevel) < 0) {
     fail(
@@ -123,7 +123,7 @@ try {
 }
 if (parseHeuristic) {
   for (const uc of USE_CASES) {
-    if (authLevelForUseCase(uc.id) !== 'public') continue;
+    if (authLevelForUseCaseId(uc.id) !== 'public') continue;
     for (const vertical of VERTICALS) {
       const trigger = resolveUseCase(uc.id, vertical)?.trigger || {};
       if (trigger.type !== 'chip' || !trigger.text) continue;

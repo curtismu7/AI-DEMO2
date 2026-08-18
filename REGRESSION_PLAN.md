@@ -56,7 +56,7 @@ minimal diff.
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
 | Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `langchain_agent/tests/test_codegraph_index_guard.py`, `langchain_agent/tests/test_build_codegraph.py`, `langchain_agent/tests/test_ensure_index.py`, `langchain_agent/tests/test_retrieve.py` |
-| Agent dashboard token-rail + filmstrip defaults (locked 2026-08-17, PR #1896) | Live Pipeline rail (float placement) defaults **collapsed** — `demo_api_ui/src/utils/tokenRailLayout.js` `readStoredTokenRailCollapsed()`, key `ud_token_rail_collapsed_v2` (unset → collapsed; bumped from `_v1` because the old default self-persisted `"0"` on every mount, so a bare default flip alone would never reach existing browsers — bump the key again if the default ever changes). Movie-reel filmstrip defaults **shown** — `ba_show_filmstrip` read as `!== "0"` in BOTH `AIAgent.js` (writer) and `UserDashboardPing2026.js` (listener); an explicit toggle-off must still persist "0" and stay hidden. Guarded by `demo_api_ui/src/utils/__tests__/tokenRailLayout.test.js`, `demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`, `demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js` |
+| Agent dashboard token-rail + filmstrip defaults (locked 2026-08-17, PR #1896) | Live Pipeline rail (float placement) defaults **collapsed** — `demo_api_ui/src/utils/tokenRailLayout.js` `readStoredTokenRailCollapsed()`, key `ud_token_rail_collapsed_v2` (unset → collapsed; bumped from `_v1` because the old default self-persisted `"0"` on every mount, so a bare default flip alone would never reach existing browsers). **The self-persisting default is fixed (2026-08-18): `DashboardTokenRail.jsx` writes storage only from the toggle handler and the end of a resize drag, never from a mount effect, so an absent key means "no preference" and a future default flip does NOT need another key bump.** Do not move `persistTokenRailCollapsed`/`persistTokenRailWidth` back into a `useEffect`. Movie-reel filmstrip defaults **shown** — `ba_show_filmstrip` read as `!== "0"` in BOTH `AIAgent.js` (writer) and `UserDashboardPing2026.js` (listener); an explicit toggle-off must still persist "0" and stay hidden. Guarded by `demo_api_ui/src/utils/__tests__/tokenRailLayout.test.js`, `demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`, `demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js` |
 
 ---
 
@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-08-18 — Token rail persisted its own default from a mount effect
+
+**Files changed:** `demo_api_ui/src/components/DashboardTokenRail.jsx`,
+`demo_api_ui/src/components/__tests__/DashboardTokenRail.test.jsx`
+
+**What was broken:** `useEffect(() => persistTokenRailCollapsed(collapsed), [collapsed])`
+fires on first render, so the value the component merely *defaulted* to was written
+to `localStorage` as though the user had chosen it — and from then on the stored
+value shadowed the default forever. That is why flipping the rail to
+collapsed-by-default (#1896) could not be done by changing the default alone and
+needed the key bumped to `ud_token_rail_collapsed_v2`. The width effect one line
+above had the identical shape.
+
+**What was fixed:** persistence moved out of the effects and into the user actions
+— `persistTokenRailCollapsed` into `handleToggle`, `persistTokenRailWidth` into the
+drag's `onUp` (final width tracked in a `dragWidth` ref). The surviving effect only
+writes the `--ud-token-rail-width` CSS var. `tokenRailLayout.js` and the storage key
+are unchanged.
+
+**Do not break:** unset key still means collapsed; an explicit toggle still persists
+`"1"`/`"0"`; mounting the rail must write **nothing** to `localStorage`. Never move
+these writes back into a `useEffect` — and do not compute the new value inside the
+`setCollapsed` updater, which StrictMode may double-invoke.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- src/components/__tests__/DashboardTokenRail.test.jsx`
+— includes "writes nothing to localStorage on mount" and "leaves an existing stored
+preference untouched on mount". Asserted via `localStorage.getItem`, never a spy
+(Node 22 CI vs Node 26 local).
 
 ### 2026-08-18 — Queued question lost on OAuth return: one-shot claim held in a closure local
 

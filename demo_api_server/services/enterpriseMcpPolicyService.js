@@ -61,7 +61,11 @@ async function listPingOneGroupNames(userId) {
 /** Demo fallback when PingOne Management API is unavailable. */
 function demoGroupsForUser(req) {
   const username = req.session?.user?.username;
-  const fromPolicy = groupPolicy.groupsForUser(username);
+  // groupsForUserSync, not groupsForUser: this function is synchronous, and the
+  // async one returned a Promise here whose `.length` was always undefined — so
+  // the manifest branch could never fire. No pingOneUserId is available on this
+  // path anyway, which is exactly what groupsForUserSync is for.
+  const fromPolicy = groupPolicy.groupsForUserSync(username);
   if (fromPolicy.length) return fromPolicy;
   const allowed = getAllowedGroups();
   if (username && allowed.includes(username)) return [username];

@@ -7,6 +7,12 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+An entry that has since been paid off keeps its original text and gains a
+**RESOLVED** block naming the branch, what the issue actually turned out to be
+(not always what the entry guessed), and what the fix was. Entries are not
+deleted on resolution — the wrong guess is often the more useful half of the
+record.
+
 ### 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
 
 **Where:** `demo_authz_server/routes/decision.js` (12 `STEP_UP` / `HITL_CONSENT`
@@ -49,6 +55,40 @@ traps apply directly: `obligatory:false` is NOT safe to treat as optional, and a
 INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
 `project-indeterminate-two-meanings`.
 
+### 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
+
+**Where:** `demo_api_server/services/lmdb/openEnv.js` — `mapSize: 128 * 1024 * 1024`.
+
+**What's wrong:** LMDB's `mapSize` is a hard wall, not a hint. Every write past it
+throws `MDB_MAP_FULL`, and this env backs conversations, sessions, nav configs and
+the operator's persistent config — 14 named DBs. Measured today inside
+`ai-demo-api-server`:
+
+```
+-rw-r--r-- 1 appuser appgroup 88522752 Aug 18 03:47 data.mdb   # 84.4M of 128M
+```
+
+At the ceiling, every LMDB write path 500s at once, and `data.mdb` never shrinks
+back on its own — so the failure is permanent from the operator's point of view
+and looks like "the whole BFF broke" rather than "a disk-shaped limit was reached".
+The `maxDbs: 32` line above it carries a comment explaining its headroom;
+`mapSize` carries none, and no check, alert or startup log reports how close the
+store is.
+
+**Why not fixed now:** found while trying to reproduce the `hero-shown` 500 (see
+that entry), which is a plausible-but-unconfirmed symptom of exactly this. Raising
+the number is a one-character change with a real consequence — `mapSize` is the
+virtual address reservation, so it should be raised deliberately, not
+opportunistically, and the pruning question below is the more interesting half.
+
+**Real fix:** two parts. (1) Log the store's size against `mapSize` at startup and
+fail loudly above some fraction of it, so this shows up as a warning rather than
+as a fleet of unexplained 500s. (2) Establish why 84MB accumulated at all —
+`conversationStore` prunes at `MAX_MESSAGES_PER_THREAD = 500` per thread, and PR
+#1976 repaired a broken LMDB delete API, so some of this may be dead entries the
+old delete never removed. Measure per-DB sizes before raising the ceiling; a
+compaction may be the actual fix.
+
 ### 2026-08-18 — `authLevelForUseCase` names two different functions, one taking an id and one taking an object
 
 **Where:** `demo_api_server/config/authRequirements.js:32` takes a use-case **id**
@@ -68,6 +108,29 @@ rename touches SoT plumbing that four PRs had just stabilised.
 **Real fix:** name them for their input — `authLevelForUseCaseId(id)` on the
 server, `authLevelOf(uc)` in the UI — or let the UI helper accept either and
 normalise.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+
+*What the issue really was:* what the entry described, and its own framing is why
+this was worth paying off. Both helpers fail **closed and silently**, so a mix-up
+produces no error, no log and no failing test — it produces a sign-in prompt on a
+use case that should be public, or the reverse, and it reads as bad config.
+Nothing in the linter or the test suite could have caught it, because
+`authLevelForUseCase(x)` is a valid call on both sides of the boundary for any `x`.
+
+*What the fix was:* the entry's first option — name each helper for the input it
+accepts, so the collision cannot be written down.
+
+- `demo_api_server/config/authRequirements.js` → `authLevelForUseCaseId(id)`,
+  call sites updated in `routes/useCases.js` (3), `scripts/check-auth-requirements.js`
+  (2), `tests/authRequirements.test.js`.
+- `demo_api_ui/src/utils/useCaseAuth.js` → `authLevelOf(uc)`, call sites updated
+  in `components/AIAgent.js` and `utils/__tests__/useCaseAuth.test.js`.
+
+Rejected the "accept either and normalise" option: it keeps one name meaning two
+things and adds a branch whose wrong side is still silent. Behaviour unchanged —
+rename only. `scripts/check-auth-requirements.js` still reports
+`OK — 63 use cases, 153 routes, 1 public agent action(s)`.
 
 ### 2026-08-18 — The queued-question resume is held together by two tuned timeouts
 
@@ -127,6 +190,47 @@ makes real errors harder to spot, which is its own cost.
 
 **Real fix:** reproduce with a session, read the logged `err.message`, and either
 fix the store call or stop calling it with a placeholder `userId`.
+
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+The 500 could **not** be reproduced. What was fixed is the reason nobody could
+explain it.
+
+*What was actually tried:* the exact request replayed against the live stack with
+a real signed-in `demoUser` session (`tests/real/helpers/session.js`
+`resolveSession('enduser')`, run from inside `ai-demo-api-server` so it used the
+container's own env):
+
+| probe | result |
+|---|---|
+| `POST /api/conversations/me/retail/hero-shown`, synthetic body | `200 {"saved":true}` |
+| same, with the **real** payload from `GET /api/verticals/retail/hero` | `200` |
+| 8 concurrent POSTs to one thread (the StrictMode double-write shape) | `200` × 8 |
+| same request sent as `application/x-www-form-urlencoded` | `200` |
+| `conversationStore.saveMessage(...)` called directly in the container | `OK` |
+
+The `me` alias is therefore not the cause: `router.param('userId')` resolves it to
+`req.user.sub` before the handler runs (`routes/conversations.js:40`), and the
+store accepts everything the route can hand it.
+
+*What the issue really was — at least in part:* **the entry's premise was wrong.**
+It said "the handler's only 500 path is `conversationStore.saveMessage(...)`
+throwing, caught at line 249". There was a second path: `const { greeting, imageUrl }
+= req.body;` sat **above** the `try`, so a throw there escaped to Express's default
+error handler as a 500 that logged **nothing**. That is the only 500 this route
+could emit with no `[conversations.POST.hero-shown] Error` line to find — which
+fits a 500 seen once and never explained. (Not reachable on Express 4, which sets
+`req.body = {}`; `demo_api_server` pins `^4.18.2` and runs 4.22.2. It becomes
+reachable on Express 5, where an unmatched parser leaves `req.body` `undefined`.)
+
+*What the fix was:* `demo_api_server/routes/conversations.js` — body read moved
+inside the `try` and defaulted (`req.body || {}`), and the catch logs
+`err.stack || err.message` instead of `err.message` alone. The next occurrence
+names its own cause instead of costing another session.
+
+*Still open:* the original 500 has no confirmed cause. If it recurs the log line
+now says which layer failed. The most plausible remaining candidate is not
+specific to this route — see the new LMDB `mapSize` headroom entry at the top of
+this file.
 
 ### 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
 
@@ -244,6 +348,46 @@ already has `set -euo pipefail`, most helpers do not. (2) A stated rule in
 `${PIPESTATUS[0]}` — never conclude from a piped command's status. Cheap to
 state, and it retires a whole class of false green.
 
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`), with a
+deliberate scope reduction — read the audit before assuming the whole class is
+retired.**
+
+*What the issue really was:* the mechanism is exactly as the entry describes, but
+its premise about the blast radius was measurably wrong. It says "`deploy-live.sh`
+already has `set -euo pipefail`, most helpers do not". Audited all 39 scripts
+under `scripts/` for a `set -` line **anywhere in the file**, not just near the top:
+
+- **30 already set `pipefail`** — including `deploy-live.sh`, as the entry said.
+- **9 do not.** Of those, only 4 declare `set -e` at all — so only those 4 are
+  scripts where "a subcommand's failure should matter" is already the author's
+  stated intent.
+
+This was never a 39-script problem. It was a 4-script problem plus a habit.
+
+*What the fix was — part 1, the scripts:* added `-o pipefail` to the three that
+declare `set -e` and carry a pipeline whose first stage matters:
+
+- `scripts/load-secrets-docker.sh` — the real one. `op item get … | jq …`: when
+  `op` fails, `jq` reads empty input, succeeds, and the script continues with no
+  secrets loaded and exit 0.
+- `scripts/install-hooks.sh`, `scripts/install-master.sh`.
+
+**Deliberately not changed, and why:** `scripts/render-diagrams.sh` also has
+`set -e`, but line 20 is `FLOWS=$(ls …/*.mmd 2>/dev/null | wc -l | tr -d ' ')` — a
+deliberately tolerant `ls` whose failure is the normal "no diagrams" case.
+`pipefail` there converts a supported state into an abort: a behaviour change
+disguised as hardening. The other five (`demo-terminal.sh`, `llm-warmup.sh`,
+`pac-common.sh`, `ping-email.sh`, `preflight-demo.sh`) do not set `-e`, so
+`pipefail` would change nothing except the `$?` of pipelines whose status nothing
+reads — and `pac-common.sh` is **sourced**, so a `set` in it leaks into the
+caller's shell. Blanket-applying the entry's "every script under `scripts/`"
+would have been wrong in six places.
+
+*What the fix was — part 2, the habit:* added the rule to `CLAUDE.md`'s "Before
+claiming done" section as its own numbered step. The entry is right that the
+scripts are the smaller half — the ad-hoc `cmd | tail` an agent types to read a
+script's output is not fixed by anything inside the script.
+
 ### 2026-08-18 — A fresh worktree cannot verify anything, and every failure mode looks like a pass
 
 **Where:** any worktree created without `npm ci` in the service being changed.
@@ -300,6 +444,48 @@ already does internally, and make the manifest path impossible to mistake for a
 directory read. `project-group-policy-provision-before-flag` in memory says "live
 lookup beats manifest" for exactly this reason; the API should enforce it rather
 than rely on the caller remembering.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+
+*What the issue really was:* the entry called this a reporting gap — "only in what
+a caller can safely conclude" — and said "nothing is currently wrong in production
+behaviour, the callers that matter happen to pass `pingOneUserId`". Auditing every
+caller in order to change the return shape showed that was not true. There are
+four callers and the fourth is broken:
+
+```js
+// services/enterpriseMcpPolicyService.js:64, inside the SYNCHRONOUS demoGroupsForUser()
+const fromPolicy = groupPolicy.groupsForUser(username);   // async — returns a Promise
+if (fromPolicy.length) return fromPolicy;                 // Promise.length === undefined
+```
+
+`groupsForUser` is `async`, so `fromPolicy` is a Promise, `.length` is `undefined`,
+the branch is **never** taken, and the manifest fallback this function exists to
+provide has never once fired — it drops to the `getAllowedGroups()` username match
+instead. That is the entry's own thesis proving itself: an async array-returning
+helper is easy to misuse in a way nothing observes. It stayed invisible because
+both the right and the wrong answer are "some array".
+
+*What the fix was:* the entry's stated fix.
+
+- `services/groupPolicy.js` — `groupsForUser()` now returns `{ groups, source }`,
+  `source` being `'pingone'` for a real directory read and `'manifest'` for the
+  vertical manifest's claim about users like this one. The two no longer share a
+  shape, so a caller cannot silently conflate them. `groupsForUserSync()` is
+  unchanged: its name already says manifest-only and it is the honest choice on a
+  path with no PingOne id.
+- Destructured at the three real callers — `mcpToolAuthorizationService.js:779`,
+  `mcpToolPipeline.js:948`, `agentPreflightService.js:348`. Behaviour identical.
+- `enterpriseMcpPolicyService.js:64` switched to `groupsForUserSync(username)`,
+  which is what that synchronous function meant all along. **This is a real
+  behaviour change:** the manifest branch can now fire where it previously could
+  not. It affects only the demo fallback taken when the PingOne Management API is
+  unavailable.
+
+Kept the "an empty array from a *successful* live call still wins" rule and wrote
+it into the code as a comment, because `docs/LIVE-PINGONE-RUNBOOK.md:108` depends
+on it: enable `ff_authorize_group_policy` before the groups exist and "no gate"
+becomes "a gate that denies everyone".
 
 ### 2026-08-18 — Shared jest automocks let an assertion pass on a different test's call
 
@@ -994,6 +1180,42 @@ meaning "no preference". Then a default is genuinely a default: changing it
 reaches every browser that never touched the control, and the key never needs
 another version suffix. Guarded by asserting that mounting the rail writes
 nothing to `localStorage`.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+
+*What the issue really was:* as described — `useEffect` runs after the first
+render, so an effect whose only job is "persist this state" cannot tell a value
+the user chose from a value the component defaulted to. It writes both. The cost
+is not the write; it is that from that moment the stored value **shadows the
+default forever**, which makes changing a default unreachable for every browser
+that ever loaded the page. `ud_token_rail_collapsed_v2` is the scar from the first
+time that bill came due, and the width effect one line above had the identical
+shape with the same bill waiting.
+
+*What the fix was:* `demo_api_ui/src/components/DashboardTokenRail.jsx` —
+persistence moved out of the effects and into the user actions.
+
+- The remaining `useEffect` reflects `collapsed`/`width` into the
+  `--ud-token-rail-width` CSS var only. No storage writes.
+- `persistTokenRailCollapsed()` moved into `handleToggle`, which computes `next`
+  from `collapsed` and depends on it — rather than writing from inside the
+  `setCollapsed` updater, which StrictMode may double-invoke.
+- `persistTokenRailWidth()` moved into the drag's `onUp`, with the in-flight width
+  held in a `dragWidth` ref so mouseup sees the final value. One write per drag
+  instead of one per mousemove.
+- `utils/tokenRailLayout.js` untouched — the key stays `ud_token_rail_collapsed_v2`
+  and an unset key still reads as collapsed.
+
+*What is now true that was not:* an absent key means "no preference", so the next
+default flip reaches every browser that never touched the control, and the key
+never needs another version suffix. `REGRESSION_PLAN.md` §1 recorded the
+workaround ("bump the key again if the default ever changes") as if it were the
+rule; that row now records the cause and the guard instead.
+
+*Guarded by* two new cases in `components/__tests__/DashboardTokenRail.test.jsx`:
+mounting writes neither key, and mounting does not overwrite an existing stored
+preference. Both assert through `localStorage.getItem` — deliberately **not** a
+spy, per the Node 22 CI / Node 26 local storage-spy trap.
 
 ### 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
 

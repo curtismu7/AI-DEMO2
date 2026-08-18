@@ -10,7 +10,7 @@
 # Fallback: If 1Password unavailable, sources .env.local (gitignored) instead.
 # Never commits or stores secrets in repo.
 
-set -e
+set -eo pipefail # pipefail: `a | b` must report a's failure, not b's
 
 DEMO_VAULT="Banking Demo"
 SERVICES=("demo_api_server" "oauth-mcp" "langchain_agent" "demo_mcp_gateway" "ping_gateway")
