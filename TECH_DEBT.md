@@ -1308,6 +1308,90 @@ merged before anyone drove a real tool call. `npm run test:e2e:real --
 chain-hops-reachable` reports this hop under CONFIG_DEPENDENT and takes 30
 seconds.
 
+#### Measured 2026-08-18 — where the handshake actually happens
+
+Before attempting a third time, this was traced by driving each leg separately
+and reading container logs, rather than by reading code. The result contradicts
+both previous attempts AND the correction above.
+
+**The MCP client is `demo_mcp_gateway` — the Node gateway.** Running the
+discovery leg alone opened 3 connections on `ai-demo-mcp-server`; running the
+tool-call leg alone opened 2, and `ai-demo-mcp-gateway` logged exactly 2
+`[GW] tools/list` in the same window. So #1977 targeted the RIGHT service. It was
+not the wrong gateway.
+
+**But the handshake rides the discovery leg, not the tool call.** During the
+tool-call leg the MCP server saw:
+
+```
+2 : initialize
+2 : notifications/initialized
+2 : tools/list
+```
+
+and **no `tools/call` at all**. The lifecycle belongs to tool discovery. Note
+this also settles the earlier claim in #2023 that `notifications/initialized` is
+never sent — it is sent, on every connection.
+
+**Why #1977 is still inert:** it stamps `X-Gw-Mcp-Handshake` on the Node
+gateway's HTTP proxy response (`GatewayServer.ts`, ~line 1045). Discovery does
+not use that path — `agentGatewayClient.listAvailableTools` calls `mcpListTools`
+with `getMcpGatewayWsUrl()`, i.e. a **WebSocket**. An HTTP response header cannot
+reach a WebSocket caller. Right service, right data, wrong transport.
+
+**What a fourth attempt should do:** carry the handshake in the WS `tools/list`
+result — the gateway already returns `_meta` there (`_meta.deniedTools`,
+`_meta.authzEngine` are consumed today) — and have `listAvailableTools` turn it
+into `mcp-initialize` / `mcp-initialized` events beside the existing
+`tools_list_success`. The hops then belong to the discovery leg, which is where
+the protocol says they belong.
+
+**And they must be modelled as discovery hops, not tool-call hops.** Today
+`buildTraceSteps` places `mcp-initialize` between the gateway and the MCP call.
+On the evidence above that is the wrong position — the session is opened and
+closed during discovery, before any tool call exists.
+
+#### Attempt 3 (#2049) — DONE IN CODE, NOT YET PROVEN LIVE
+
+Two halves shipped on that PR:
+
+- **Position (verified).** The hops moved next to `tools-list`, `MCP_STEP_IDS`
+  stopped listing them — `TokenTopologyPanel` partitions spine from branch off
+  that list, so while they were in it the topology drew the session as part of
+  the invocation, the same wrong claim on a second surface — and the narratives
+  stopped saying the handshake "happens on every tool call". Guarded by three
+  tests, two verified to fail with the reposition reverted.
+
+- **Transport (NOT verified).** `proxy.ts` captures the initialize result it
+  already receives and attaches it non-enumerably to the resolved response;
+  `index.ts` folds it into the `tools/list` `_meta`; `agentGatewayClient` emits
+  `mcp-initialize` / `mcp-initialized` beside `tools_list_success`.
+
+**The transport half is exactly as unproven as #1977 and #2023 were when they
+merged.** Gateway tsc is clean and 99 suites / 754 tests pass, three of the four
+new gateway tests fail with the capture removed — and none of that is evidence
+the hop appears in a real run. Both previous attempts had the same standing and
+both were inert. `demo_mcp_gateway` is a baked image, so verification needs
+merge → rebuild → deploy, which is why it could not be done before merging.
+
+**Do this before believing it works:**
+
+```
+scripts/deploy-live.sh                                   # rebuilds mcp-gateway
+cd demo_api_ui && npm run test:e2e:real -- chain-hops-reachable
+```
+
+`mcp-initialize` is reported there under CONFIG_DEPENDENT. If it still prints
+ABSENT, attempt 3 failed the same way as the first two and should be reverted
+rather than left dormant — a third inert instrumentation in the tree is worse
+than none, because it reads as coverage.
+
+**If it fires, one thing is still open:** the hops populate on the DISCOVERY
+request (`/api/demo-agent/tools`), not on `/api/agent/invoke`. A chain rendered
+from a single invoke response will still show them empty. Whether the UI should
+carry discovery evidence forward into the run's chain is a design question nobody
+has answered.
+
 ### [x] 2026-08-18 — Nothing proves a token-chain hop is reachable on the gateway actually in use
 
 **Where:** `demo_api_ui/src/components/__tests__/FocusModeChainRenders.test.jsx`
@@ -3149,3 +3233,39 @@ which resolves one range against one service set.
 **How to check:** stop a service that has pending changes and run `deploy-live`.
 It must exit non-zero, name that service, and leave `.git/deploy-live.last`
 untouched. Verified 2026-08-18 with a `Created` container.
+
+### 2026-08-18 — The MCP Inspector cannot invoke the tools it lists
+
+**Where:** `demo_api_server/routes/mcpInspector.js` (`POST /api/mcp/inspector/invoke`).
+
+**What's wrong:** the Inspector's catalog returns 242 tools, and invoking the
+FIRST one fails:
+
+```
+[inspector] invoking catalogued tool: get_my_accounts
+[inspector] invoke status=502
+{"error":"mcp_invoke_failed","message":"Insufficient scope for tool 'get_my_accounts'"}
+```
+
+This is not the out-of-vertical case. `list_invoices` also 502s there, but
+correctly — it is a sporting-goods tool and the Inspector's catalog is banking,
+so "Insufficient scope" is the scope check working. `get_my_accounts` is a core
+banking tool the Inspector itself offers, and tools run fine through the agent
+path.
+
+The route resolves its token with `forceDirectMcpAudience: true`, dialling the
+MCP server directly rather than through PingGateway, so it carries a different
+token than every other surface. That is the first place to look.
+
+**Why it matters:** this is a demo surface whose whole purpose is showing the
+real protocol. It advertises 242 tools and runs none of them.
+
+**Found by** `demo_api_ui/tests/e2e/mcp-inspector.real.spec.js`, added 2026-08-18
+— nothing drove this page before, which is why a 502 on its primary action went
+unnoticed. That spec deliberately takes the tool FROM the catalog rather than
+naming one: an earlier version hardcoded `list_invoices` and would have reported
+working scope enforcement as a bug.
+
+**Status:** the third test in that spec is RED on purpose. It states the bar —
+whatever the Inspector lists, it must be able to invoke — rather than being
+softened to match current behaviour.

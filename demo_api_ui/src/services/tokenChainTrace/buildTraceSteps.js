@@ -27,7 +27,13 @@ export const LANES = {
 // list for the same reason `exchange` did — the MCP tab must open on the tool
 // call. `tools-call-challenge` IS part of the call: it is the first of the two
 // requests that invocation actually makes.
-export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp-initialize", "mcp-initialized", "mcp", "api", "database"];
+// Hops that belong to the TOOL CALL. The MCP lifecycle handshake is not one of
+// them: traced live 2026-08-18, the gateway opens a session, lists tools and
+// closes it, all before a tool call exists — so initialize /
+// notifications/initialized sit with discovery on the spine, not on the
+// tool-call branch. TokenTopologyPanel partitions spine vs branch off this
+// list, so leaving them here drew the session as part of the invocation.
+export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -80,8 +86,8 @@ const NARRATIVES = {
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
-  "mcp-initialize": "MCP is a stateful session protocol. Before any tool can run, the client sends initialize and the server answers with the protocol version it agrees to speak plus its capabilities. This is a real round trip that happens on every tool call.",
-  "mcp-initialized": "The client acknowledges the negotiated session. The MCP lifecycle only permits tools/call after this notification — it is the point the session becomes usable.",
+  "mcp-initialize": "MCP is a stateful session protocol. Before the server will answer anything, the client sends initialize and the server replies with the protocol version it agrees to speak plus its capabilities. On this stack the Agent Gateway is that client, and it opens the session to discover tools — traced live: the session is negotiated, used for tools/list, and closed again before any tool call is made.",
+  "mcp-initialized": "The client acknowledges the negotiated session. The MCP lifecycle only permits requests after this notification — it is the point the session becomes usable, and the gateway sends it on every connection it opens.",
   "tools-call-challenge": "The same handshake on invocation: the first tools/call carries no credential, and the gateway answers 401 with the WWW-Authenticate challenge rather than passing an anonymous call through to the MCP server. Nothing executes on this leg.",
   mcp: "The second tools/call carries the delegated token. Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
@@ -680,7 +686,7 @@ export function buildTraceSteps(trace) {
   // path (mTLS off, gateway not in route, OAuth-bearer path with no API-key
   // swap, no step-up demanded). Mirrors TokenChainDisplay's notinpath bucket.
   const traceComplete = outcome === "ok" || outcome === "error";
-  const steps = [];
+  let steps = [];
 
   // 0. Website (Browser) — always considered active/done
   steps.push(makeStep("website", "done", { narrative: "Browser securely sending requests over HTTP-only session cookie API." }));
@@ -1350,6 +1356,33 @@ export function buildTraceSteps(trace) {
     replyStep.lane = "HEURISTICS";
   }
   steps.push(replyStep);
+
+  // ── Put the MCP handshake where it actually happens ─────────────────────────
+  // These two hops are BUILT down here because they need gateway and authorize
+  // state that is not resolved until this point, but they do not BELONG here.
+  // Traced live 2026-08-18 by driving each leg separately: running discovery
+  // alone opened three connections on the MCP server, and running the tool call
+  // alone produced 2x initialize, 2x notifications/initialized, 2x tools/list —
+  // and no tools/call whatsoever. The session is opened, used for tools/list,
+  // and closed, all before any tool call exists.
+  //
+  // Rendered between the gateway and the MCP call, they told the viewer the
+  // session is negotiated per tool invocation. It is not. Moving them next to
+  // tools-list is the difference between a chain that teaches the protocol and
+  // one that teaches a plausible fiction.
+  //
+  // Repositioned rather than reordered in place: hoisting the construction would
+  // mean hoisting gwSeen/gwDenied/authorizeFailed with it, which is a far larger
+  // change to a protected surface for the same rendered result.
+  const toolsListAt = steps.findIndex((s) => s.id === "tools-list");
+  if (toolsListAt !== -1) {
+    const handshake = steps.filter((s) => s.id === "mcp-initialize" || s.id === "mcp-initialized");
+    if (handshake.length) {
+      const rest = steps.filter((s) => s.id !== "mcp-initialize" && s.id !== "mcp-initialized");
+      const at = rest.findIndex((s) => s.id === "tools-list") + 1;
+      steps = [...rest.slice(0, at), ...handshake, ...rest.slice(at)];
+    }
+  }
 
   return steps.map((s, i) => ({ ...s, num: i + 1 }));
 }

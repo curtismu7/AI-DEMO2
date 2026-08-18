@@ -327,6 +327,31 @@ async function listAvailableTools(req, agentToken, opts = {}) {
   const serverUrl = getMcpGatewayWsUrl() || undefined;
   const result = await mcpListTools(agentToken, userSub, correlationId, { vertical, serverUrl });
   if (req?.recordTokenEvent) {
+    // The MCP session the gateway opened to answer this tools/list. On this path
+    // the BFF is NOT the MCP client — demo_mcp_gateway is, and it performs
+    // initialize -> notifications/initialized -> tools/list -> close per call
+    // (traced live 2026-08-18 against ai-demo-mcp-server). Reported here rather
+    // than on the tool call because that is where it actually happens: the
+    // tool-call leg produced no tools/call on the MCP server at all.
+    //
+    // #1977 tried to carry this on an HTTP response header, but discovery comes
+    // through a WebSocket, so nothing ever reached the caller. It rides the
+    // tools/list _meta now, alongside deniedTools / authzEngine.
+    const hs = result?._meta?.mcpHandshake;
+    if (hs) {
+      req.recordTokenEvent('mcp-initialize', {
+        negotiatedVersion: hs.initialize?.protocolVersion || null,
+        serverInfo: hs.initialize?.serverInfo || null,
+        performedBy: 'agent-gateway',
+      });
+      // Only claim the notification when the gateway says it sent one. It does
+      // send it on every connection, but asserting that from this side would be
+      // inferring protocol behaviour instead of reporting it — the mistake that
+      // put a false `initializedSent: false` into the tree in #2023.
+      if (hs.initialized) {
+        req.recordTokenEvent('mcp-initialized', { performedBy: 'agent-gateway' });
+      }
+    }
     const tools = result?.tools || [];
     const denied = result?._meta?.deniedTools || [];
     req.recordTokenEvent('tools_list_success', {

@@ -309,6 +309,19 @@ async function handleMessage(
     ]);
 
     const allTools: unknown[] = [];
+    // The MCP session the gateway opens to answer THIS tools/list. proxy.ts
+    // attaches it to the response it resolves; the first backend that performed
+    // a handshake is representative — they all speak the same protocol version
+    // to the same upstream family, and the chain draws one session, not three.
+    //
+    // This is the piece that made #1977 inert. That change reported the
+    // handshake on the HTTP proxy response header, but discovery reaches the
+    // gateway over a WebSocket (agentGatewayClient -> mcpListTools ->
+    // getMcpGatewayWsUrl), so no header ever reached the caller. Traced live
+    // 2026-08-18: the tool-call leg produced initialize /
+    // notifications/initialized / tools/list on the MCP server and no
+    // tools/call — the session belongs to discovery, and so does this report.
+    let discoveryHandshake: Record<string, unknown> | undefined;
     // HI-04: surface backend failures in _meta. Previously a partial outage
     // returned a shorter tools list with zero signal, and callers might
     // conclude they had the full menu. The _meta block reports which
@@ -319,6 +332,10 @@ async function handleMessage(
       if (r.status === 'fulfilled') {
         const tools = (r.value as any)?.result?.tools;
         if (Array.isArray(tools)) allTools.push(...tools);
+        if (!discoveryHandshake) {
+          const hs = (r.value as any)?._gwHandshake;
+          if (hs) discoveryHandshake = hs;
+        }
       } else {
         failedBackends.push(backendLabels[i]);
         // Structured, greppable diagnostic. On a handshake timeout this carries
@@ -418,6 +435,7 @@ async function handleMessage(
       meta.failedBackends = failedBackends;
       meta.warning = `Backend(s) unreachable: ${failedBackends.join(', ')}. The tool list is incomplete.`;
     }
+    if (discoveryHandshake) meta.mcpHandshake = discoveryHandshake;
     if (Object.keys(meta).length > 0) responseResult._meta = meta;
     send(JSON.stringify({ jsonrpc: '2.0', id, result: responseResult }));
     return;
