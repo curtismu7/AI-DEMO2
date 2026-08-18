@@ -45,6 +45,20 @@ const NOT_MY_TOOL = Symbol.for('verticalDispatch.NOT_MY_TOOL');
 /** A2A handoff chips need the specialist path, not a plain tool call. */
 const A2A_UNROUTABLE = /specialist/i;
 
+// Actions the A2A overlay owns. They are dispatched by the A2A interception with
+// real req/vertical context, NOT by the active vertical's plugin — so executing
+// one against that plugin is a category error, not a broken chip.
+//
+// Why this is by tool ownership and not by chip wording: A2A_UNROUTABLE above
+// matches on "specialist", which covers UC2/UC2.5 but not UC2.6 ("simulate an
+// agent identity mismatch"). UC2.6 passed only because ff_a2a_delegation
+// defaulted OFF, so the overlay heuristics were never registered and the chip
+// resolved to its primaryTool by accident. With the flag ON it resolves to
+// a2a_generalist_mismatch and this harness has nothing to execute it with.
+const A2A_OVERLAY_ACTIONS = new Set(
+  require('../config/verticals/a2a').getTools().map((t) => t.name),
+);
+
 /** Every (vertical, chip) pair the catalog resolves, deduped by trigger text. */
 function chipEntries() {
   const out = [];
@@ -80,6 +94,7 @@ function chipEntries() {
       } catch (_e) {
         /* routing itself is gated by useCases.primaryTool.test.js */
       }
+      if (action && A2A_OVERLAY_ACTIONS.has(action)) continue;
       out.push({ vertical, id: u.id, text: t.text, tool: uc.primaryTool, def, plugin, action, params });
     }
   }

@@ -16,6 +16,54 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### 2026-08-18 — `ff_a2a_delegation` should not exist as a switch at all
+
+**Where:** `demo_api_server/services/configStore.js` (registry),
+`services/a2aDelegationService.js` (`isA2aEnabled`), and its five runtime gates.
+
+**What's wrong:** A2A delegation is not an optional behaviour. The tools flagged
+`a2aDelegated` in `scope-topology.json` are reachable **only** through a two-hop
+chain — Authorize's `DenyA2aDelegationRequired` denies `ActChainDepth < 2` for
+exactly those tools. With the flag off, those tools cannot succeed by any path;
+the demo does not degrade, it breaks, and it breaks as an Authorize DENY that
+looks nothing like a missing flag. There is no demo that the OFF state tells.
+
+Half-fixed today (PR pending as of this entry): the registry default moved
+`'false'` → `'true'`, and the tile now arms the flag from the served
+`a2aDelegated` field rather than a hand-kept list of use-case ids. That closes
+the accident. It does not remove the ability to turn a required subsystem off.
+
+**Why not fixed now:** removing a flag is not a one-line deletion, and the parts
+that would break are not all obvious. Measured, excluding tests and docs:
+
+| Surface | Count | What removal means |
+|---|---|---|
+| `isA2aEnabled()` call sites | 5 | `routes/agentTool.js`, `services/a2aProtocolServer.js:102`, `services/demoAgentLangGraphService.js` (×2), `services/a2aDelegationService.js:265`. Each becomes unconditional — but `a2aProtocolServer` currently returns a specific 403 (`A2A protocol endpoints require ff_a2a_delegation`) that some caller may depend on |
+| configStore registry | 1 | delete the entry. **A persisted `'false'` in a live LMDB outlives the registry change** — needs a migration or an explicit cleanup step, or the environment stays off with no switch left to turn it back on |
+| admin listing | 1 | `routes/featureFlags.js:309` — the flag's card, description and any UI that renders it |
+| catalog `maturity: 'flag:ff_a2a_delegation'` | 2 | UC2 and UC2.6 change maturity. What they become (`works`?) is a product call, and it changes how they render and whether they are armed |
+| arming mirrors | 2 | `services/demoStepPrerequisites.js` + `demo_api_ui/src/utils/requiredDemoFlags.js` — the A2A branch goes away entirely, including the `a2aDelegated` check added today |
+| step-verification fixtures | 30 | `data/step-verification/<vertical>/UC2{,.5,.6}.chip.unit-prereq.json`, 10 verticals × 3 — each records the flag as a prerequisite; they are generated, so regenerate rather than hand-edit |
+| UI copy referencing the flag by name | 8 files | `AIAgent.js`, `DelegationPage.js`, `DelegationChainValuePage.jsx`, `demoScript.js`, `DemoTourContext.js`, `demoUseCaseSteps.js`, `education/A2ADelegationPanel.js`, plus the tour hint |
+| tests asserting the gate | ~12 files | including `demoStepPrerequisites.test.js`, `requiredDemoFlags.parity.test.js` (a parity test across the two mirrors), and three `*.real.spec.js` live specs that arm it |
+
+The live E2E specs are the sharp edge: they arm the flag before running, so they
+fail on an unknown flag id rather than on the behaviour under test.
+
+**Real fix:** one PR, in this order — (1) make the five gates unconditional and
+delete `isA2aEnabled`; (2) drop the registry entry **with** a startup cleanup that
+removes a persisted value, so no environment is left off; (3) retire the two
+`maturity: flag:` markers; (4) regenerate the 30 fixtures; (5) strip the arming
+branches and their parity test; (6) sweep UI copy and live specs. Verify by
+running the three A2A use cases (UC2, UC2.5, UC2.6) plus UC37 on the real stack
+with no flag anywhere, and by confirming the group-policy decision board's
+delegated rows reach PERMIT — that path has never been exercised with A2A on
+(see the decision-board entry above).
+
+**Do not** delete the registry entry alone. `getEffective` falls back to the
+default only when nothing is persisted; an environment that already stored
+`'false'` keeps it, and with the switch gone there is no way to unset it.
+
 ### [ ] 2026-08-18 — Bug-hunt round 2: customer-dashboard UI + backend data plane (10 findings)
 
 A second audit scoped to the signed-in customer dashboard and the customer

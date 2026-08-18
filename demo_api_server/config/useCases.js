@@ -1748,7 +1748,33 @@ function deepFreeze(o) {
   return o;
 }
 
-const USE_CASES = Object.freeze(RAW_USE_CASES.map(deepFreeze));
+/**
+ * True when the entry's primary tool is only reachable through a two-hop A2A
+ * chain. Served to the UI so a tile can arm ff_a2a_delegation from the SoT flag
+ * instead of a hand-kept list of use-case ids — UC37 calls get_portfolio_summary
+ * and was missing from every such list, so it could be launched with A2A off and
+ * fail on an Authorize deny that looks nothing like a missing flag.
+ */
+function isA2aDelegatedPrimaryTool(tool) {
+  if (!tool) return false;
+  // Required lazily: this module is loaded by scripts with no need of the
+  // topology, and a load failure there must not take the catalog with it.
+  try {
+    return require('../services/scopeTopology').isA2aDelegatedTool(tool) === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+// Stamped on the CANONICAL array, before the freeze — not only on resolveUseCase's
+// output. The client mirror keys on this field, so an entry that reaches it
+// without the field silently loses the requirement; USE_CASES is passed raw in
+// places (requiredFlagsForUseCaseId, the parity test), and that path must carry it
+// too. resolveUseCase recomputes it because a perVertical override may change
+// primaryTool.
+const USE_CASES = Object.freeze(
+  RAW_USE_CASES.map((u) => deepFreeze({ ...u, a2aDelegated: isA2aDelegatedPrimaryTool(u.primaryTool) })),
+);
 
 // Tool→resource-server routing (mirrors demo_mcp_gateway disposition logic)
 const INVEST_TOOLS = new Set([
@@ -1777,7 +1803,11 @@ function resolveUseCase(id, vertical) {
   if (!base) return undefined;
   if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
     const { perVertical, match, ...rest } = base;
-    return { ...rest, resourceServer: resolveResourceServer(rest.primaryTool) };
+    return {
+      ...rest,
+      resourceServer: resolveResourceServer(rest.primaryTool),
+      a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+    };
   }
   const ov = base.perVertical[vertical];
   const merged = {
@@ -1786,7 +1816,11 @@ function resolveUseCase(id, vertical) {
     trigger: ov.trigger ? { ...base.trigger, ...ov.trigger } : base.trigger,
   };
   const { perVertical, match, ...rest } = merged;
-  return { ...rest, resourceServer: resolveResourceServer(rest.primaryTool) };
+  return {
+    ...rest,
+    resourceServer: resolveResourceServer(rest.primaryTool),
+    a2aDelegated: isA2aDelegatedPrimaryTool(rest.primaryTool),
+  };
 }
 
 /** All catalog entries resolved for a vertical. @returns {UseCase[]} */
