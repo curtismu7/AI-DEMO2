@@ -13,7 +13,7 @@ const request = require('supertest');
 const express = require('express');
 
 const {
-  AUTH_REQUIREMENTS, authLevelForUseCase, authLevelForRoute, isPublicUseCase, compareLevels,
+  AUTH_REQUIREMENTS, authLevelForUseCaseId, authLevelForRoute, isPublicUseCase, compareLevels,
 } = require('../config/authRequirements');
 const { USE_CASES } = require('../config/useCases');
 const useCasesRouter = require('../routes/useCases');
@@ -26,24 +26,24 @@ function makeApp() {
 
 describe('auth-requirements SoT', () => {
   test('UC24 is public — Act 1 is defined as needing no session', () => {
-    expect(authLevelForUseCase('UC24')).toBe('public');
+    expect(authLevelForUseCaseId('UC24')).toBe('public');
     expect(isPublicUseCase('UC24')).toBe(true);
   });
 
   test('money-moving and delegation use cases require a session', () => {
     for (const id of ['UC1', 'UC6', 'UC7', 'UC8', 'UC22']) {
-      expect(authLevelForUseCase(id)).toBe('user');
+      expect(authLevelForUseCaseId(id)).toBe('user');
       expect(isPublicUseCase(id)).toBe(false);
     }
   });
 
   test('admin demo steps require an admin token', () => {
-    expect(authLevelForUseCase('ADMIN1')).toBe('admin');
+    expect(authLevelForUseCaseId('ADMIN1')).toBe('admin');
   });
 
   // Omission must not open a door: an id nobody listed is treated as protected.
   test('an unknown id falls back to the default level, not public', () => {
-    expect(authLevelForUseCase('UC-DOES-NOT-EXIST')).toBe('user');
+    expect(authLevelForUseCaseId('UC-DOES-NOT-EXIST')).toBe('user');
     expect(isPublicUseCase('UC-DOES-NOT-EXIST')).toBe(false);
     expect(authLevelForRoute('/no/such/route')).toBe('user');
   });

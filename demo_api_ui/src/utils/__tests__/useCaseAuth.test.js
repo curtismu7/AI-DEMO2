@@ -3,15 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_USE_CASE_AUTH,
   runsSignedOut,
-  authLevelForUseCase,
+  authLevelOf,
   viewerMeetsUseCaseAuth,
 } from '../useCaseAuth';
 
 describe('useCaseAuth', () => {
   it('reads the level the BFF stamped on the catalog entry', () => {
-    expect(authLevelForUseCase({ id: 'UC24', auth: 'public' })).toBe('public');
-    expect(authLevelForUseCase({ id: 'UC1', auth: 'user' })).toBe('user');
-    expect(authLevelForUseCase({ id: 'ADMIN1', auth: 'admin' })).toBe('admin');
+    expect(authLevelOf({ id: 'UC24', auth: 'public' })).toBe('public');
+    expect(authLevelOf({ id: 'UC1', auth: 'user' })).toBe('user');
+    expect(authLevelOf({ id: 'ADMIN1', auth: 'admin' })).toBe('admin');
   });
 
   // Fail closed: an old BFF, a cached catalog, or a typo must not make a
@@ -22,8 +22,8 @@ describe('useCaseAuth', () => {
     ['non-string', { auth: true }],
     ['null entry', null],
   ])('defaults to %s -> user', (_label, uc) => {
-    expect(authLevelForUseCase(uc)).toBe(DEFAULT_USE_CASE_AUTH);
-    expect(authLevelForUseCase(uc)).toBe('user');
+    expect(authLevelOf(uc)).toBe(DEFAULT_USE_CASE_AUTH);
+    expect(authLevelOf(uc)).toBe('user');
     expect(runsSignedOut(uc)).toBe(false);
   });
 

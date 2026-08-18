@@ -26,14 +26,31 @@ export function PopOutPortal({ win, children, rootId = "dm-root" }) {
     const container = win.document.getElementById(rootId);
     if (!container) return;
     containerRef.current = container;
-    const root = createRoot(container);
+    // StrictMode double-invokes this effect. createRoot() on a container that
+    // already has a root warns and leaks, so store the root on the container and
+    // reuse it — and cancel any pending deferred-unmount from the prior cleanup
+    // so the re-mount keeps the same live root.
+    if (container.__dmUnmountTimer) {
+      clearTimeout(container.__dmUnmountTimer);
+      container.__dmUnmountTimer = null;
+    }
+    let root = container.__dmRoot;
+    if (!root) {
+      root = createRoot(container);
+      container.__dmRoot = root;
+    }
     rootRef.current = root;
     root.render(children);
     return () => {
       rootRef.current = null;
       containerRef.current = null;
-      // Defer unmount so React doesn't unmount during a commit
-      setTimeout(() => { try { root.unmount(); } catch (_) {} }, 0);
+      // Defer unmount so React doesn't unmount during a commit; keep the timer
+      // on the container so a StrictMode re-mount can cancel it and reuse root.
+      container.__dmUnmountTimer = setTimeout(() => {
+        container.__dmUnmountTimer = null;
+        try { root.unmount(); } catch (_) {}
+        if (container.__dmRoot === root) delete container.__dmRoot;
+      }, 0);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [win, rootId]);

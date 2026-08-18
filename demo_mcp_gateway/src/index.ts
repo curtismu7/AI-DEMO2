@@ -498,40 +498,6 @@ async function handleMessage(
       _origSend(s);
     };
 
-    // UC18: per-agent/per-tool rate limiting — WS parity with the HTTP path
-    // (authorizeMcpRequest.ts). Runs before token validation/introspection so a
-    // throttled burst never burns a validation or P1AZ round trip. No signature
-    // verification here — full validation happens in validateInboundToken below;
-    // a forged sub only wastes a slot in the attacker's own bucket, not a
-    // legitimate user's. Shares the HTTP path's limiter singleton (getRateLimiter)
-    // so the same agent/tool pair is throttled identically regardless of transport.
-    if (config.rateLimitEnabled) {
-      let _rlSub = 'unknown';
-      try {
-        const _rawPayload = token.split('.')[1];
-        if (_rawPayload) {
-          const _claims = JSON.parse(Buffer.from(_rawPayload, 'base64url').toString('utf-8'));
-          if (_claims?.sub) _rlSub = String(_claims.sub);
-        }
-      } catch { /* use 'unknown' sub */ }
-      const _rlTool = (msg.params as { name?: string } | undefined)?.name ?? 'unknown_tool';
-      const _rlKey = `${_rlSub}:${_rlTool}`;
-      const _rlResult = getRateLimiter(config).check(_rlKey);
-      if (!_rlResult.allowed) {
-        console.warn(`[GW] UC18 rate_limited key=${_rlKey} retryAfterMs=${_rlResult.retryAfterMs}`);
-        // Audit hook above is already installed — set operation/userId so the
-        // wrapped `send` records this denial (mirrors the HTTP path's own
-        // self-contained audit record, made unnecessary here by reusing it).
-        _audCtx.operation = _rlTool;
-        _audCtx.userId = _rlSub;
-        send(jsonRpcError(id, -32429, 'Tool call rate limit exceeded. Retry after the indicated interval.', {
-          error: 'rate_limited',
-          retryAfterMs: _rlResult.retryAfterMs,
-        }));
-        return;
-      }
-    }
-
     let decoded;
     try {
       decoded = await validateInboundToken(token, config.gatewayResourceUri);
@@ -557,6 +523,35 @@ async function handleMessage(
     // MayActSub for per-user delegation enforcement (ENFORCE_MAY_ACT in the policy).
     if (!decoded.may_act?.sub && bffMayActSub) {
       decoded = { ...decoded, may_act: { sub: bffMayActSub } };
+    }
+
+    // UC18: per-agent/per-tool rate limiting — WS parity with the HTTP path
+    // (authorizeMcpRequest.ts). Runs AFTER validateInboundToken so the bucket key
+    // is the SIGNATURE-VERIFIED subject (decoded.sub), never a value read from an
+    // unverified bearer. A forged/garbage-signed token carrying sub=<victim> is
+    // rejected by validateInboundToken above and never reaches this check, so an
+    // unauthenticated caller can only ever consume its OWN bucket — it can no
+    // longer deny a victim's. Still runs before the heavier introspection/policy
+    // pipeline (runWsAuthorizationPipeline) so a throttled burst never burns that
+    // round trip. Shares the HTTP path's limiter singleton (getRateLimiter) so the
+    // same agent/tool pair is throttled identically regardless of transport.
+    if (config.rateLimitEnabled) {
+      const _rlSub = decoded.sub ?? 'unknown';
+      const _rlTool = (msg.params as { name?: string } | undefined)?.name ?? 'unknown_tool';
+      const _rlKey = `${_rlSub}:${_rlTool}`;
+      const _rlResult = getRateLimiter(config).check(_rlKey);
+      if (!_rlResult.allowed) {
+        console.warn(`[GW] UC18 rate_limited key=${_rlKey} retryAfterMs=${_rlResult.retryAfterMs}`);
+        // Audit hook above is already installed — set operation/userId so the
+        // wrapped `send` records this denial.
+        _audCtx.operation = _rlTool;
+        _audCtx.userId = _rlSub;
+        send(jsonRpcError(id, -32429, 'Tool call rate limit exceeded. Retry after the indicated interval.', {
+          error: 'rate_limited',
+          retryAfterMs: _rlResult.retryAfterMs,
+        }));
+        return;
+      }
     }
 
     // BL-02: run the shared introspection + policy pipeline. The D-05

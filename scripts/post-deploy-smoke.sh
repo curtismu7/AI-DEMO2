@@ -63,7 +63,7 @@ fi
 # ── 3. log signatures (recent window) ───────────────────────────────────────
 echo "[3/3] recent logs free of chain-break signatures"
 SIGS='aud validation failed|Empty JWT payload|Invalid or expired token|gateway_auth_failed'
-for dep in mcp-server mcp-gateway banking-api-server; do
+for dep in mcp-server mcp-gateway demo-api-server; do
   HITS="$(kubectl -n "$NS" logs "deploy/$dep" --tail=200 --all-containers 2>/dev/null \
     | grep -niE "$SIGS" | tail -5 || true)"
   if [[ -n "$HITS" ]]; then

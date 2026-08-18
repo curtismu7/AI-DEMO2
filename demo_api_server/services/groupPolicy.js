@@ -158,21 +158,33 @@ function _manifestGroupsForUser(username, verticalId) {
 /**
  * The PingOne group names a user belongs to for a vertical.
  * When pingOneUserId is supplied and live lookup succeeds, directory wins over manifest.
+ *
+ * Returns `{ groups, source }`, never a bare array: `source: 'pingone'` is a real
+ * directory read, `source: 'manifest'` is what the vertical manifest says users
+ * like this one have. Those are not interchangeable — the manifest answered
+ * `["AI_Demo_Privileged","Banking_PremiumTier"]` for a user the live directory
+ * reported as being in ZERO groups, and that manifest answer was reported as
+ * verified live membership before `ff_authorize_group_policy` was enabled. A bare
+ * array cannot carry that distinction, so the caller cannot accidentally drop it.
+ *
+ * @returns {Promise<{ groups: string[], source: 'pingone'|'manifest' }>}
  */
 async function groupsForUser(username, verticalId = 'banking', { pingOneUserId = null } = {}) {
-  if (!username) return [];
+  if (!username) return { groups: [], source: 'manifest' };
 
   if (pingOneUserId) {
     try {
       const live = require('./pingOneGroupMembershipService');
       const names = await live.listUserGroupNamesForVertical(pingOneUserId, verticalId);
-      if (Array.isArray(names)) return names;
+      // An empty array from a SUCCESSFUL call is the live answer and wins; only
+      // a non-array (lookup failed) falls through to the manifest.
+      if (Array.isArray(names)) return { groups: names, source: 'pingone' };
     } catch {
       /* fall through to manifest */
     }
   }
 
-  return _manifestGroupsForUser(username, verticalId);
+  return { groups: _manifestGroupsForUser(username, verticalId), source: 'manifest' };
 }
 
 /** Synchronous manifest-only accessor (tests / simulated paths without PingOne id). */

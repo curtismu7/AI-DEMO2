@@ -815,6 +815,18 @@ export function buildTraceSteps(trace) {
     || findEvent(tokenEvents, "gw-filter-chain")
   );
   const exDone = exTok && (exTok.status !== "waiting" || traceComplete || exchangeProvenDownstream);
+  // The model answered from context without calling a tool. No tool call means
+  // no delegated token was ever needed, and none of the evidence exDone waits on
+  // will EVER arrive — so "active" left a finished run reading as though it were
+  // still exchanging, indefinitely. Observed live 2026-08-18 on the typed-chat
+  // path: node 9 rendered Reply while node 8 still said "in flight".
+  //
+  // Deliberately narrow. It requires a reply to exist (the run really did
+  // finish) and requires the absence of every downstream signal, so it cannot
+  // mask a run that is genuinely mid-exchange — that run has no reply yet — nor
+  // a failure, which sets exFailed and is checked first.
+  const exchangeNotRequired = !exDone && !exFailed
+    && Boolean(llmReply) && !exchangeProvenDownstream;
   const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
@@ -857,7 +869,8 @@ export function buildTraceSteps(trace) {
   }
 
   steps.push(makeStep("exchange",
-    exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
+    exFailed ? "error" : exDone ? "done" : exchangeNotRequired ? "notinpath"
+      : (exTok || ex1Tok) ? "active" : "pending",
     exDone || exFailed ? {
       why: exchangeWhy,
       request: exTok?.exchangeRequest
@@ -878,6 +891,18 @@ export function buildTraceSteps(trace) {
       ].filter(Boolean) : [],
       inspectToken: exTok ? "mcp" : undefined,
       tokenEvent: exTok || undefined,
+    } : exchangeNotRequired ? {
+      // Reuses the `notinpath` STATUS so every surface that already buckets
+      // statuses keeps working (TokenFlowDetailModal, TokenTopologyPanel,
+      // TraceStepCard, the presenter — roughly fifteen of them). A new status
+      // string would render unlabelled or unstyled on all of them: right code,
+      // wrong surface, which is the failure this chain work keeps hitting.
+      // Only the node rail's one-line fact is overridden, and only here.
+      notRequired: true,
+      // Say WHY the hop did not run rather than leaving it silent. A viewer must
+      // be able to tell "never happened" from "still working".
+      why: "No token exchange was needed — the agent answered from context "
+        + "without calling a tool, so no delegated MCP token was ever requested.",
     } : {}));
 
   // 7. authorize — prefer live ingestAuthorize evaluation; fall back to the

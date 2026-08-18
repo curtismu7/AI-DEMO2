@@ -29,6 +29,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 - Stage explicitly (`git add <files>`), never `git add -A`. Verify `git branch --show-current` before each commit.
 - A hard-block hook denies `Write`/`Edit` in the main checkout.
 - **After any PR merges, sync the shared main checkout:** `scripts/sync-main-checkout.sh` from repo root. Docker (`ai-demo-ui`/`ai-demo-api-server`) bind-mounts that checkout's files directly — a merge on GitHub does not update them, so the running demo silently serves stale code until something pulls. The script fast-forwards only; it backs off untouched if anything unexpected is dirty. A launchd job also runs it every 15 min to catch merges that land outside any agent session.
+- **To try your worktree's code in the running stack:** `npm run serve:worktree here` (status with no argument; `main` hands it back). It moves only the two source mounts — `ui` and `demo-api-server` are the only services that bind-mount source — and keeps `--project-directory` on the main checkout, so all 37 `env_file` entries still resolve. Never `docker compose up` from a worktree: it repoints the shared containers *and* starves every service of its `.env` (a worktree carries no gitignored files, and each entry is `required: false`, so Compose skips it silently). One stack, one owner — the status line names which checkout is being served.
 - **When sync backs off:** `npm run sync:status` says whether the checkout is stale and names the files blocking it (silent staleness is the failure mode — the launchd job logs where nobody looks). `npm run sync:unblock` (`scripts/park-main-edits.sh`) moves stray main-checkout edits onto a `wip/main-<timestamp>` branch and then syncs — nothing stashed, nothing discarded, recover with `git switch wip/main-<timestamp>`. Untracked top-level `.claude/*.md` notes no longer block sync at all.
 
 ## Project
@@ -77,7 +78,8 @@ Use **Super Sports** as the default vertical for manual validation and tests tha
    - Server, full: `cd demo_api_server && CI=true npm test -- --forceExit` — only when the change touches shared middleware (auth, session, token exchange, config store), spans more than ~3 route files, or a scoped run came back red in a way that suggests wider breakage.
    - UI → `cd demo_api_ui && npm run test:unit && npm run build`; cross-service → `npm run topology:verify` (run these only if you touched that surface).
    - A single-route fix, copy change, or one isolated test file needs the scoped run only. Say which scope you ran.
-2. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
+2. **Never conclude from a piped command's exit status.** `cmd | tail` exits with `tail`'s status, so a `deploy-live.sh` run that aborted with exit 1 reads as exit 0 — every "verified, exit 0" claim made through a pipe is unfounded, and the failure is silent by construction. Redirect to a file and read the file, or check `${PIPESTATUS[0]}`. Scripts under `scripts/` that run a subcommand whose failure should matter set `-o pipefail`.
+3. State ✅ or ❌ — no bare "done": tests/build green (evidence, not assertion) · every changed line traces to the request · staged explicitly on a worktree branch · emoji allowlist respected.
 
 ## AI-DLC (opt-in only)
 

@@ -945,11 +945,11 @@ async function runMcpToolPipeline(ctx) {
             try {
                 const groupPolicy = require('./groupPolicy');
                 if (groupPolicy.isEnabled(require('./configStore'))) {
-                    gatewayUserGroups = await groupPolicy.groupsForUser(
+                    ({ groups: gatewayUserGroups } = await groupPolicy.groupsForUser(
                         req.session?.user?.username,
                         sessionVertical,
                         { pingOneUserId: req.session?.user?.oauthId || req.session?.user?.sub || null },
-                    );
+                    ));
                 }
             } catch (_) { /* best-effort */ }
             ({ result, gwAuditTrail, gwMcpHandshake } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups }));

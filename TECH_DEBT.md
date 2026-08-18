@@ -7,6 +7,12 @@ log (`REGRESSION_PLAN.md` §4 is that); this is "should fix properly later."
 Reverse-chronological, newest first. Each entry: what's wrong, why it wasn't
 fixed now, what the real fix looks like.
 
+An entry that has since been paid off keeps its original text and gains a
+**RESOLVED** block naming the branch, what the issue actually turned out to be
+(not always what the entry guessed), and what the fix was. Entries are not
+deleted on resolution — the wrong guess is often the more useful half of the
+record.
+
 ### 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
 
 A five-service audit (BFF, UI, MCP gateway/proxy/resource, Python/Node agents,
@@ -319,6 +325,82 @@ check first) and return `null` on any comparison error, matching
   not exist (only `demo_mcp_resource_server/` and `oauth-mcp/`). Fold into the
   "reports/docs updated to current codebase" follow-up.
 
+### 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
+
+**Where:** `demo_authz_server/routes/decision.js` (12 `STEP_UP` / `HITL_CONSENT`
+sites) versus the cloud PingOne Authorize decision endpoint; 55 source files and
+40 test files reference the value.
+
+**What's wrong:** one word carries two unrelated meanings.
+
+- **Cloud P1AZ** returns `INDETERMINATE` when evaluation FAILED — missing
+  attribute, attribute provider unreachable, malformed payload. It should be
+  treated as an error and failed closed.
+- **`demo_authz_server`** returns it deliberately as a PAUSE: `reason=STEP_UP`
+  when an amount crosses the step-up band, `reason=HITL_CONSENT` between confirm
+  and step-up. UC7 and UC8 are built on it; `tests/decision.test.js` pins it with
+  26 assertions.
+
+Anyone acting on "INDETERMINATE means something is broken" deletes a working
+flow. Anyone acting on "INDETERMINATE means step-up" silently swallows a real
+cloud evaluation error. The meaning currently lives in `reason`, not `decision`,
+so nothing in the type tells a reader which they have.
+
+Baseline captured live 2026-08-18 (real subject and actor, five verticals):
+`$600 → INDETERMINATE/STEP_UP`, `$300 → INDETERMINATE/HITL_CONSENT`,
+`$100 → PERMIT`, `$2500 → DENY` ceiling. In 45 minutes of ordinary traffic
+`demo_authz_server` logged ZERO indeterminate and the cloud endpoint returned
+clean `PERMIT`s — today the value only ever appears as the intended pause, so
+this is a clarity defect rather than an outage.
+
+**Why not fixed now:** the user chose the full obligation-based rework over the
+cheaper rename, and asked for a plan before any code. Scope is 55 source files,
+40 test files and PingGateway's Groovy `p1az-decision`, in a REGRESSION_PLAN §1
+area covering UC7 and UC8 — not something to start at the end of a session.
+
+**Real fix:** `docs/superpowers/plans/2026-08-18-indeterminate-rework.md` — five
+independently-shippable phases beginning with characterisation tests that capture
+today's behaviour before anything moves. It also records the cheaper alternative
+(rename the pause to `CHALLENGE`/`PENDING`, no behavioural change, the 26
+assertions become a rename) in case the trade looks different on reading. Two
+traps apply directly: `obligatory:false` is NOT safe to treat as optional, and an
+INDETERMINATE with no obligation must resolve to DENY (#1310). Memory:
+`project-indeterminate-two-meanings`.
+
+### 2026-08-18 — The LMDB store is at 66% of a hard 128MB ceiling and nothing watches it
+
+**Where:** `demo_api_server/services/lmdb/openEnv.js` — `mapSize: 128 * 1024 * 1024`.
+
+**What's wrong:** LMDB's `mapSize` is a hard wall, not a hint. Every write past it
+throws `MDB_MAP_FULL`, and this env backs conversations, sessions, nav configs and
+the operator's persistent config — 14 named DBs. Measured today inside
+`ai-demo-api-server`:
+
+```
+-rw-r--r-- 1 appuser appgroup 88522752 Aug 18 03:47 data.mdb   # 84.4M of 128M
+```
+
+At the ceiling, every LMDB write path 500s at once, and `data.mdb` never shrinks
+back on its own — so the failure is permanent from the operator's point of view
+and looks like "the whole BFF broke" rather than "a disk-shaped limit was reached".
+The `maxDbs: 32` line above it carries a comment explaining its headroom;
+`mapSize` carries none, and no check, alert or startup log reports how close the
+store is.
+
+**Why not fixed now:** found while trying to reproduce the `hero-shown` 500 (see
+that entry), which is a plausible-but-unconfirmed symptom of exactly this. Raising
+the number is a one-character change with a real consequence — `mapSize` is the
+virtual address reservation, so it should be raised deliberately, not
+opportunistically, and the pruning question below is the more interesting half.
+
+**Real fix:** two parts. (1) Log the store's size against `mapSize` at startup and
+fail loudly above some fraction of it, so this shows up as a warning rather than
+as a fleet of unexplained 500s. (2) Establish why 84MB accumulated at all —
+`conversationStore` prunes at `MAX_MESSAGES_PER_THREAD = 500` per thread, and PR
+#1976 repaired a broken LMDB delete API, so some of this may be dead entries the
+old delete never removed. Measure per-DB sizes before raising the ceiling; a
+compaction may be the actual fix.
+
 ### 2026-08-18 — `authLevelForUseCase` names two different functions, one taking an id and one taking an object
 
 **Where:** `demo_api_server/config/authRequirements.js:32` takes a use-case **id**
@@ -338,6 +420,29 @@ rename touches SoT plumbing that four PRs had just stabilised.
 **Real fix:** name them for their input — `authLevelForUseCaseId(id)` on the
 server, `authLevelOf(uc)` in the UI — or let the UI helper accept either and
 normalise.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+
+*What the issue really was:* what the entry described, and its own framing is why
+this was worth paying off. Both helpers fail **closed and silently**, so a mix-up
+produces no error, no log and no failing test — it produces a sign-in prompt on a
+use case that should be public, or the reverse, and it reads as bad config.
+Nothing in the linter or the test suite could have caught it, because
+`authLevelForUseCase(x)` is a valid call on both sides of the boundary for any `x`.
+
+*What the fix was:* the entry's first option — name each helper for the input it
+accepts, so the collision cannot be written down.
+
+- `demo_api_server/config/authRequirements.js` → `authLevelForUseCaseId(id)`,
+  call sites updated in `routes/useCases.js` (3), `scripts/check-auth-requirements.js`
+  (2), `tests/authRequirements.test.js`.
+- `demo_api_ui/src/utils/useCaseAuth.js` → `authLevelOf(uc)`, call sites updated
+  in `components/AIAgent.js` and `utils/__tests__/useCaseAuth.test.js`.
+
+Rejected the "accept either and normalise" option: it keeps one name meaning two
+things and adds a branch whose wrong side is still silent. Behaviour unchanged —
+rename only. `scripts/check-auth-requirements.js` still reports
+`OK — 63 use cases, 153 routes, 1 public agent action(s)`.
 
 ### 2026-08-18 — The queued-question resume is held together by two tuned timeouts
 
@@ -397,6 +502,47 @@ makes real errors harder to spot, which is its own cost.
 
 **Real fix:** reproduce with a session, read the logged `err.message`, and either
 fix the store call or stop calling it with a placeholder `userId`.
+
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+The 500 could **not** be reproduced. What was fixed is the reason nobody could
+explain it.
+
+*What was actually tried:* the exact request replayed against the live stack with
+a real signed-in `demoUser` session (`tests/real/helpers/session.js`
+`resolveSession('enduser')`, run from inside `ai-demo-api-server` so it used the
+container's own env):
+
+| probe | result |
+|---|---|
+| `POST /api/conversations/me/retail/hero-shown`, synthetic body | `200 {"saved":true}` |
+| same, with the **real** payload from `GET /api/verticals/retail/hero` | `200` |
+| 8 concurrent POSTs to one thread (the StrictMode double-write shape) | `200` × 8 |
+| same request sent as `application/x-www-form-urlencoded` | `200` |
+| `conversationStore.saveMessage(...)` called directly in the container | `OK` |
+
+The `me` alias is therefore not the cause: `router.param('userId')` resolves it to
+`req.user.sub` before the handler runs (`routes/conversations.js:40`), and the
+store accepts everything the route can hand it.
+
+*What the issue really was — at least in part:* **the entry's premise was wrong.**
+It said "the handler's only 500 path is `conversationStore.saveMessage(...)`
+throwing, caught at line 249". There was a second path: `const { greeting, imageUrl }
+= req.body;` sat **above** the `try`, so a throw there escaped to Express's default
+error handler as a 500 that logged **nothing**. That is the only 500 this route
+could emit with no `[conversations.POST.hero-shown] Error` line to find — which
+fits a 500 seen once and never explained. (Not reachable on Express 4, which sets
+`req.body = {}`; `demo_api_server` pins `^4.18.2` and runs 4.22.2. It becomes
+reachable on Express 5, where an unmatched parser leaves `req.body` `undefined`.)
+
+*What the fix was:* `demo_api_server/routes/conversations.js` — body read moved
+inside the `try` and defaulted (`req.body || {}`), and the catch logs
+`err.stack || err.message` instead of `err.message` alone. The next occurrence
+names its own cause instead of costing another session.
+
+*Still open:* the original 500 has no confirmed cause. If it recurs the log line
+now says which layer failed. The most plausible remaining candidate is not
+specific to this route — see the new LMDB `mapSize` headroom entry at the top of
+this file.
 
 ### 2026-08-18 — The launcher's sign-in prompt is nearly unreachable, so nothing in the product exercises it
 
@@ -482,12 +628,31 @@ running stack, and the `*.real.spec.js` Playwright suites that could host it
 require `local.ping-devops.com:4000` and therefore never run in CI — which is
 why they caught none of this class today.
 
-**What the real fix looks like:** a small live smoke script, run deliberately
-rather than in CI, that drives one tool call and asserts the expected hop ids
-appear in the response's `tokenEvents` for the CURRENTLY CONFIGURED gateway. Cheap
-to write, and it is the only thing that would have caught #1977 before merge.
-Until then, treat "tests pass" on any chain hop as evidence about the model, not
-about what a demo will show.
+**RESOLVED 2026-08-18** — `demo_api_ui/tests/e2e/chain-hops-reachable.real.spec.js`.
+Two tests, run deliberately (`npm run test:e2e:real -- chain-hops-reachable`):
+one drives a tool call via `/api/agent/invoke` and asserts `mcp_challenge`,
+`gw-authorize` and `gw-filter-chain`; the other drives discovery via
+`/api/demo-agent/tools` and asserts the `tools/list` challenge plus
+`degraded === false` (the shape #1949 took). Hops that depend on which gateway is
+active are reported, never asserted, so the check does not encode today's
+deployment. Verified green live, 97 tools discovered.
+
+Two things had to be true for it to be worth anything, and both were measured:
+
+- It asserts only ids the preview fallback cannot synthesize.
+  `buildSessionPreviewTokenEvents` emits `user-token` / `exchange` /
+  introspection when the real chain fails to resolve, so an assertion on those
+  passes on a stack with no working gateway at all.
+- Run against the Inspector route — which passes `forceDirectMcpAudience: true`
+  and bypasses PingGateway — the same request returned 12 token events, the
+  entire two-exchange chain, and **none** of the three asserted ids. The
+  assertions discriminate.
+
+Still true, and the reason this is a smoke check rather than a CI gate: it needs
+`local.ping-devops.com:4000`, so nothing runs it automatically. A chain hop that
+passes unit tests is still evidence about the model, not about what a demo will
+show — run this before believing otherwise.
+
 ### 2026-08-18 — A piped verification command reports the pipe's exit code, so a failed deploy reads as success
 
 **Where:** every `./scripts/deploy-live.sh ... | tail`, `npm test | grep`,
@@ -513,6 +678,46 @@ already has `set -euo pipefail`, most helpers do not. (2) A stated rule in
 `CLAUDE.md`'s verification section: capture to a file and grep the file, or check
 `${PIPESTATUS[0]}` — never conclude from a piped command's status. Cheap to
 state, and it retires a whole class of false green.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`), with a
+deliberate scope reduction — read the audit before assuming the whole class is
+retired.**
+
+*What the issue really was:* the mechanism is exactly as the entry describes, but
+its premise about the blast radius was measurably wrong. It says "`deploy-live.sh`
+already has `set -euo pipefail`, most helpers do not". Audited all 39 scripts
+under `scripts/` for a `set -` line **anywhere in the file**, not just near the top:
+
+- **30 already set `pipefail`** — including `deploy-live.sh`, as the entry said.
+- **9 do not.** Of those, only 4 declare `set -e` at all — so only those 4 are
+  scripts where "a subcommand's failure should matter" is already the author's
+  stated intent.
+
+This was never a 39-script problem. It was a 4-script problem plus a habit.
+
+*What the fix was — part 1, the scripts:* added `-o pipefail` to the three that
+declare `set -e` and carry a pipeline whose first stage matters:
+
+- `scripts/load-secrets-docker.sh` — the real one. `op item get … | jq …`: when
+  `op` fails, `jq` reads empty input, succeeds, and the script continues with no
+  secrets loaded and exit 0.
+- `scripts/install-hooks.sh`, `scripts/install-master.sh`.
+
+**Deliberately not changed, and why:** `scripts/render-diagrams.sh` also has
+`set -e`, but line 20 is `FLOWS=$(ls …/*.mmd 2>/dev/null | wc -l | tr -d ' ')` — a
+deliberately tolerant `ls` whose failure is the normal "no diagrams" case.
+`pipefail` there converts a supported state into an abort: a behaviour change
+disguised as hardening. The other five (`demo-terminal.sh`, `llm-warmup.sh`,
+`pac-common.sh`, `ping-email.sh`, `preflight-demo.sh`) do not set `-e`, so
+`pipefail` would change nothing except the `$?` of pipelines whose status nothing
+reads — and `pac-common.sh` is **sourced**, so a `set` in it leaks into the
+caller's shell. Blanket-applying the entry's "every script under `scripts/`"
+would have been wrong in six places.
+
+*What the fix was — part 2, the habit:* added the rule to `CLAUDE.md`'s "Before
+claiming done" section as its own numbered step. The entry is right that the
+scripts are the smaller half — the ad-hoc `cmd | tail` an agent types to read a
+script's output is not fixed by anything inside the script.
 
 ### 2026-08-18 — A fresh worktree cannot verify anything, and every failure mode looks like a pass
 
@@ -570,6 +775,48 @@ already does internally, and make the manifest path impossible to mistake for a
 directory read. `project-group-policy-provision-before-flag` in memory says "live
 lookup beats manifest" for exactly this reason; the API should enforce it rather
 than rely on the caller remembering.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+
+*What the issue really was:* the entry called this a reporting gap — "only in what
+a caller can safely conclude" — and said "nothing is currently wrong in production
+behaviour, the callers that matter happen to pass `pingOneUserId`". Auditing every
+caller in order to change the return shape showed that was not true. There are
+four callers and the fourth is broken:
+
+```js
+// services/enterpriseMcpPolicyService.js:64, inside the SYNCHRONOUS demoGroupsForUser()
+const fromPolicy = groupPolicy.groupsForUser(username);   // async — returns a Promise
+if (fromPolicy.length) return fromPolicy;                 // Promise.length === undefined
+```
+
+`groupsForUser` is `async`, so `fromPolicy` is a Promise, `.length` is `undefined`,
+the branch is **never** taken, and the manifest fallback this function exists to
+provide has never once fired — it drops to the `getAllowedGroups()` username match
+instead. That is the entry's own thesis proving itself: an async array-returning
+helper is easy to misuse in a way nothing observes. It stayed invisible because
+both the right and the wrong answer are "some array".
+
+*What the fix was:* the entry's stated fix.
+
+- `services/groupPolicy.js` — `groupsForUser()` now returns `{ groups, source }`,
+  `source` being `'pingone'` for a real directory read and `'manifest'` for the
+  vertical manifest's claim about users like this one. The two no longer share a
+  shape, so a caller cannot silently conflate them. `groupsForUserSync()` is
+  unchanged: its name already says manifest-only and it is the honest choice on a
+  path with no PingOne id.
+- Destructured at the three real callers — `mcpToolAuthorizationService.js:779`,
+  `mcpToolPipeline.js:948`, `agentPreflightService.js:348`. Behaviour identical.
+- `enterpriseMcpPolicyService.js:64` switched to `groupsForUserSync(username)`,
+  which is what that synchronous function meant all along. **This is a real
+  behaviour change:** the manifest branch can now fire where it previously could
+  not. It affects only the demo fallback taken when the PingOne Management API is
+  unavailable.
+
+Kept the "an empty array from a *successful* live call still wins" rule and wrote
+it into the code as a comment, because `docs/LIVE-PINGONE-RUNBOOK.md:108` depends
+on it: enable `ff_authorize_group_policy` before the groups exist and "no gate"
+becomes "a gate that denies everyone".
 
 ### 2026-08-18 — Shared jest automocks let an assertion pass on a different test's call
 
@@ -760,6 +1007,25 @@ checkout's own HEAD blob is written (`git show <checkout-HEAD-sha>:<path>`).
 not a code change to make unilaterally — and tightening the hook to cover Bash
 writes would harden the workaround without removing the reason for it.
 
+**RESOLVED 2026-08-18 (PR #2009).** `npm run serve:worktree here` points the
+running stack at the calling worktree: `--project-directory` stays on the main
+checkout so all 37 `env_file` entries still resolve, and only the two source
+mounts move (`ui` and `demo-api-server` are the only services that bind-mount
+source). No argument prints which checkout each container is actually serving;
+`main` hands it back. Verified live end to end — repointed, proved the container
+read the worktree's files and Vite served its `src`, confirmed the BFF kept its
+178 env vars, then handed back.
+
+Deliberately NOT a per-worktree parallel stack: OAuth `redirect_uri` values are
+registered per port in PingOne, so a second stack on another port cannot sign in
+until someone edits the PingOne app. One stack with a visible owner is the shape
+that works.
+
+**Still true:** the hard-block hook covers `Write`/`Edit` only, and a `python3`
+heredoc via Bash still reaches the shared checkout. That is now a gap without a
+motive rather than a gap with one — the reason to go around the guardrail is
+gone. Original framing follows.
+
 **Real fix:** give sessions a sanctioned way to test against the running stack
 without touching the shared tree — a compose override or scratch bind-mount
 pointing at the requesting worktree. Two supporting fixes already landed:
@@ -892,6 +1158,29 @@ Either add the middleware and let the UI grouping mean what it looks like, or
 leave it open and note on the route that it is intentionally public so the next
 reader does not infer protection from the chip's placement. Generally: UI
 grouping is not an authorization boundary and should not be read as one.
+
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-batch2-0818`) — decided, not
+gated.**
+
+*The decision:* leave the endpoint open. It is a demo whose point is showing the
+tool surface, several callers already reach it without a session, and adding
+middleware to a route that many surfaces call unauthenticated is a behavioural
+change with no security benefit here — the inventory is names and JSON schemas,
+no execution and no account data.
+
+*What the issue really was:* not the openness. It was that **nothing said so**,
+while the UI actively implied the opposite by filing "MCP Tools" under
+`ACTION_GROUPS.admin`, where the whole group is stripped for non-admins. The
+control read as admin-gated while the data was public, so a reviewer who checks
+the chip's placement and stops there draws exactly the wrong conclusion. That is
+the inverse of the usual risk: the danger is a review that *does not happen*.
+
+*What the fix was:* `demo_api_server/routes/mcpInspector.js` — the `/tools` route
+now carries an explicit `INTENTIONALLY UNAUTHENTICATED` block recording the
+measured behaviour (200 with no cookie and no bearer), why it is deliberate, and
+the general rule this case exists to teach: **UI grouping is not an authorization
+boundary and must never be read as one.** If the inventory should ever be
+restricted, the middleware goes on the route, not in the menu.
 
 ### 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
 
@@ -1173,6 +1462,50 @@ descriptor must name a tool the vertical actually exposes. The suite currently
 checks descriptor shape, not descriptor reachability, which is why a borrowed-
 and-filtered tool set can accumulate these unnoticed.
 
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-batch2-0818`).**
+
+*What the issue really was:* the orphan count was right — 4, confirmed by loading
+every vertical and diffing `manifest.render` against the tools it actually
+exposes: `view_subscriptions`, `pause_subscription`, `view_price_alerts`,
+`remove_price_alert`. All four are retail tools that `ALLOWED_TOOL_NAMES` filters
+out of A&F.
+
+**But the entry's proposed assertion was wrong, and writing it as stated would
+have broken the build.** "Every descriptor must name a tool the vertical actually
+exposes" is false in this repo — a descriptor key is reached three ways, and the
+audit found live examples of all three:
+
+1. it names an exposed tool (the common case);
+2. a handler returns it explicitly — `return { result, render: 'portfolio_value' }`
+   — which is how `investment` reaches `portfolio_value`, `trades`,
+   `dividend_summary` and how `oauth-teaching` reaches `token_pair`;
+3. a **service-level** map names it for a tool no vertical lists — today
+   `A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' }` in
+   `services/demoAgentLangGraphService.js`, the only reason `investment`'s
+   `portfolio_summary` is live.
+
+Applied naively, the entry's rule flags 6 healthy descriptors across two
+verticals. The guard would have been reverted on its first red build and the
+lesson lost with it.
+
+*What the fix was:*
+
+- Dropped the 4 orphan descriptors from
+  `demo_api_server/config/verticals/abercrombie-fitch/manifest.json`.
+- Added `demo_api_server/src/__tests__/verticalRenderReachability.test.js`,
+  which encodes all three reachability sources and runs per-vertical. Across all
+  14 verticals with a `render` block it now reports zero orphans.
+
+One subtlety the test comments call out: source (2) is scanned **per-vertical,
+not through borrowed modules**. `retail/tools.js` does contain
+`render: 'pause_subscription'`, but that branch belongs to a tool A&F's allowlist
+removes — counting it would mark the exact orphans this test exists to catch as
+reachable.
+
+*Verified the guard bites:* injecting a `zz_orphan_probe` descriptor into the A&F
+manifest fails the suite with `Received + "zz_orphan_probe"`. A guard nobody has
+watched fail is not a guard.
+
 ### 2026-08-17 — Only the invest resource server has an audience no-drift gate; every other audience is still trust-by-convention
 
 **Where:** `scripts/check-resource-server-audience-drift.js` (`npm run
@@ -1265,6 +1598,42 @@ reaches every browser that never touched the control, and the key never needs
 another version suffix. Guarded by asserting that mounting the rail writes
 nothing to `localStorage`.
 
+**RESOLVED 2026-08-18 (branch `worktree-techdebt-small-batch-0818`).**
+
+*What the issue really was:* as described — `useEffect` runs after the first
+render, so an effect whose only job is "persist this state" cannot tell a value
+the user chose from a value the component defaulted to. It writes both. The cost
+is not the write; it is that from that moment the stored value **shadows the
+default forever**, which makes changing a default unreachable for every browser
+that ever loaded the page. `ud_token_rail_collapsed_v2` is the scar from the first
+time that bill came due, and the width effect one line above had the identical
+shape with the same bill waiting.
+
+*What the fix was:* `demo_api_ui/src/components/DashboardTokenRail.jsx` —
+persistence moved out of the effects and into the user actions.
+
+- The remaining `useEffect` reflects `collapsed`/`width` into the
+  `--ud-token-rail-width` CSS var only. No storage writes.
+- `persistTokenRailCollapsed()` moved into `handleToggle`, which computes `next`
+  from `collapsed` and depends on it — rather than writing from inside the
+  `setCollapsed` updater, which StrictMode may double-invoke.
+- `persistTokenRailWidth()` moved into the drag's `onUp`, with the in-flight width
+  held in a `dragWidth` ref so mouseup sees the final value. One write per drag
+  instead of one per mousemove.
+- `utils/tokenRailLayout.js` untouched — the key stays `ud_token_rail_collapsed_v2`
+  and an unset key still reads as collapsed.
+
+*What is now true that was not:* an absent key means "no preference", so the next
+default flip reaches every browser that never touched the control, and the key
+never needs another version suffix. `REGRESSION_PLAN.md` §1 recorded the
+workaround ("bump the key again if the default ever changes") as if it were the
+rule; that row now records the cause and the guard instead.
+
+*Guarded by* two new cases in `components/__tests__/DashboardTokenRail.test.jsx`:
+mounting writes neither key, and mounting does not overwrite an existing stored
+preference. Both assert through `localStorage.getItem` — deliberately **not** a
+spy, per the Node 22 CI / Node 26 local storage-spy trap.
+
 ### 2026-08-17 — `demo_agent_service` tests import `demo_api_server`'s vault across the package boundary
 
 **Where:** `demo_agent_service/tests/vault.test.ts` requires
@@ -1288,6 +1657,38 @@ dependency), or move the test to `demo_api_server`, where the code and its
 dependency already live. Whichever way, `demo_agent_service` should stop
 reaching into a sibling's `lib/` — a require path with `../` crossing a package
 root is the smell, and it will keep producing environment-dependent green.
+
+**STILL OPEN — but both fixes this entry proposes are wrong. Re-scoped
+2026-08-18 (branch `worktree-techdebt-batch2-0818`) after auditing the code.**
+
+*Why "move the test to `demo_api_server`" is wrong:* `vault.test.ts` tests
+`demo_agent_service`'s OWN loader — `loadVaultIntoEnv` from `../src/vault`, whose
+one behavioural delta from the gateway's copy is the `AGENT_` allowlist prefix.
+It only reaches across the boundary to *build the fixture vault* it then loads.
+Moving it would put a test of `demo_agent_service` code in another package.
+
+*Why "extract to a workspace package" is bigger than it looks:* the crossing is
+**deliberate at runtime**, not just in tests. `demo_agent_service/src/vault.ts:42`
+sets `VAULT_LIB_PATH = '../../demo_api_server/lib/vault'` and requires it on
+purpose, and `tests/vault.libUnavailable.test.ts` exists specifically to assert
+the behaviour when that sibling is **absent** — which is the normal case in the
+agent-service image, where `demo_api_server` is never shipped. Extracting the
+vault would change that runtime contract and the container layout that depends
+on it, not just a `require` path.
+
+*What is actually true today:* `.github/workflows/ci.yml` installs the sibling's
+deps (`npm install --prefix demo_api_server`) before the suite, with a comment
+pointing here. That works and is honest about why it exists. The residual cost is
+one full package install on a job that otherwise needs none.
+
+*Real fix, restated:* pick one deliberately — (a) publish the vault as a workspace
+package that BOTH services depend on explicitly, and update the image layout and
+`vault.libUnavailable.test.ts`'s premise with it; or (b) give
+`demo_agent_service` its own test-only fixture builder so the suite stops needing
+the sibling's `argon2` at all, leaving `src/vault.ts`'s deliberate runtime
+crossing as the only one. (b) is much the smaller change and removes the CI
+install; it costs a second implementation of the vault write path used only by
+tests.
 
 ### 2026-08-17 — `PG_GATEWAY_RESOURCE_ID` is both the token audience and the advertised RFC 9728 metadata URL
 
@@ -1626,3 +2027,80 @@ one reported bug — bigger surface than a bug fix warrants.
 itself must stay skip-shaped on the BFF side for gateway-authoritative
 requests — see `mcpToolPipeline.js:456`. Client-side normalization must not
 try to make the server stop being honest about that.
+
+**ALREADY RESOLVED — verified 2026-08-18. No code change needed; this entry was
+stale.**
+
+*What happened:* PR **#1795** (`refactor(trace): deduplicate gw-authorize fallback
+across 4 call sites`) landed the split fix this entry specified, one helper per
+side:
+
+- **Server** — `demo_api_server/utils/gwAuthorizeUtils.js` exports
+  `gwAuthorizeEventFrom(tokenEvents)`, now the single implementation behind
+  `stepVerificationExpectations.js:345` (consumer #3) and
+  `attackSimulatorService.js:315` (consumer #4).
+- **Client** — `tokenChainTrace/tokenChainTraceStore.js` gained
+  `_gwAuthorizeToAuthorize()` + `_syncGwAuthorize()`, which set `trace.authorize`
+  from the event after every `tokenEvents` mutation, exactly as the entry
+  proposed. Consumers now read `trace.authorize` and nothing else:
+  `ProofOfEnforcementContext.js:76` (consumer #2) records this in place —
+  "from the gw-authorize token event, so no separate fallback is needed here".
+
+`buildTraceSteps.js` (consumer #1) still contains `findEvent(tokenEvents,
+"gw-authorize")` at lines 813 and 1058, which reads like a survivor but is not:
+813 uses the event's mere existence as a downstream-liveness probe
+(`exchangeProvenDownstream`) and 1058 pulls `filterChain` off it. Neither
+re-derives the authorize decision, which is the fact this entry was about.
+
+### 2026-08-18 — The chain's Exchange hop reads "in flight" after a finished run
+
+**Where:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` — the
+`exDone` computation added by #1966.
+
+**What's wrong:** on the dashboard's typed-chat path (AG-UI, `POST
+/api/agent/run`), a completed run renders:
+
+```
+5 MCP  tools/list 401   status 401
+6 MCP  tools/list       tools permitted 20
+7 LLM  LLM              tokens used prompt 0
+8 BFF  Exchange         in flight      <-- never resolves
+9 LLM  Reply            no token change
+```
+
+The run is over — Reply is rendered — and the Exchange hop still reads "in
+flight". #1966 fixed the case where an exchange HAD completed by keying `exDone`
+on downstream evidence (`gw-authorize`, `gw-filter-chain`, an MCP result). Here
+the model answered without calling a tool, so no downstream evidence exists and
+none ever will, and the hop sits unresolved forever.
+
+**Why it matters:** a viewer cannot tell "still working" from "this never
+happened". That is the same complaint that started the visibility work — if the
+chain stops, it must say why.
+
+**RESOLVED 2026-08-18** — the wording was decided ("Not required") and the hop
+now reads `not required` with the reason attached: "No token exchange was needed
+— the agent answered from context without calling a tool, so no delegated MCP
+token was ever requested."
+
+Two things shaped the fix, and both are worth knowing before touching it again:
+
+- It reuses the existing `notinpath` STATUS rather than introducing a new one.
+  Roughly fifteen surfaces bucket statuses (TokenFlowDetailModal,
+  TokenTopologyPanel, TraceStepCard, TokenChainPresenter, the clinical panes…);
+  a new status string would have rendered unlabelled or unstyled on every one of
+  them. Only the node rail's one-line fact is overridden, keyed on
+  `detail.notRequired`.
+- `buildLiveTokenChainSteps` drops everything that is not active/done/error while
+  a trace is incomplete — and live traces usually never set `outcome`. Left
+  alone, the fix would have made the Exchange hop VANISH mid-run instead of
+  explaining itself, which is worse than the "in flight" it replaced. The filter
+  now keeps a hop that carries `notRequired`.
+
+Guarded by two tests in `FocusModeChainRenders.test.jsx` — one that the hop says
+"not required" after a reply with no tool call, one that a genuinely in-flight
+exchange still says "in flight" so the fix cannot over-reach. Verified to FAIL
+with the fix reverted.
+
+`npm run test:e2e:real -- chain-hops-visible` still prints
+`[ui] UNRESOLVED after reply:` if the old symptom ever returns live.
