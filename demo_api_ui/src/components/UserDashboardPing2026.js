@@ -3637,8 +3637,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               evidence to the narrowest column. TokenChainFilmstrip is a sibling
               over the same store — the shared TokenChainTraceRail, which mounts
               on ~20 other surfaces, is not modified. The 'bottom' and 'none'
-              branches below keep the vertical rail unchanged. */}
-          <TokenChainFilmstrip />
+              branches below keep the vertical rail unchanged.
+
+              Gated on showFilmstrip like the float-mode copy below. This render
+              was unconditional, so in Focus Mode — the default layout — the
+              More › Movie reel switch flipped state, persisted it, and changed
+              nothing on screen: it governed only the float branch, which does
+              not mount in this layout. The reel was never lost, the control
+              was simply wired to the copy you were not looking at. */}
+          {showFilmstrip && <TokenChainFilmstrip />}
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels

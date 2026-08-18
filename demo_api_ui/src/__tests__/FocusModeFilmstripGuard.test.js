@@ -64,4 +64,29 @@ describe("Focus Mode filmstrip guard", () => {
   test("AIAgent's own Movie reel state defaults ON to match", () => {
     expect(aiAgent).toMatch(/localStorage\.getItem\("ba_show_filmstrip"\)\s*!==\s*"0"/);
   });
+
+  // Locked 2026-08-18: the Focus Mode copy rendered UNCONDITIONALLY while only
+  // the float-mode copy was gated. Focus Mode is the default layout, so the
+  // More › Movie reel switch flipped state, persisted it, and changed nothing
+  // on screen — reported as "we lost movie roll". Both copies must be gated on
+  // the same state, or the control silently governs a branch nobody is looking
+  // at. Verified live: 25 `tcfs` nodes present with `.tcfs-float-host` absent,
+  // i.e. the copy on screen was the ungated one.
+  test("EVERY TokenChainFilmstrip render is gated on showFilmstrip", () => {
+    const renders = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
+    expect(renders.length).toBeGreaterThanOrEqual(2);
+    // No render may sit outside a showFilmstrip guard.
+    expect(p2026).not.toMatch(/\n\s*<TokenChainFilmstrip\s*\/>\s*\n\s*<\/div>\s*\n\s*\)\s*:/);
+    expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
+    expect(p2026).toMatch(/\{showFilmstrip && \(\s*\n\s*<div className="tcfs-float-host">/);
+  });
+
+  // The switch is only meaningful if turning it off removes the reel in the
+  // layout the user is actually in. Counting guards vs renders catches a future
+  // third render site added ungated.
+  test("filmstrip renders and showFilmstrip guards stay in balance", () => {
+    const renders = (p2026.match(/<TokenChainFilmstrip\s*\/>/g) || []).length;
+    const guards = (p2026.match(/showFilmstrip &&/g) || []).length;
+    expect(guards).toBeGreaterThanOrEqual(renders);
+  });
 });
