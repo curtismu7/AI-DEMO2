@@ -119,6 +119,114 @@ class TestChatHelixConstruction:
 
 
 # ---------------------------------------------------------------------------
+# Event-loop safety — _generate must never block the running loop
+# ---------------------------------------------------------------------------
+
+class TestEventLoopNotBlocked:
+    """
+    Regression for the bug where _generate, on a running event loop, submitted
+    asyncio.run(...) to a thread pool and then called future.result() — a
+    synchronous blocking wait ON the event-loop thread that froze every other
+    session's SSE/WebSocket traffic for the whole Helix round-trip (~35s).
+    """
+
+    def _make_helix(self):
+        return ChatHelix(
+            helix_base_url="https://openam-helix.forgeblocks.com",
+            helix_api_key="test-key",
+            helix_environment_id="env-uuid",
+            helix_agent_id="LLM2",
+            helix_prompt_field_id="textInputabc",
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_on_running_loop_refuses_without_blocking(self):
+        """
+        On a running loop, _generate must NOT drive the Helix round-trip
+        synchronously (which would block the loop). It refuses immediately and
+        directs callers to the async API — proven by never touching
+        _call_helix_async and by a concurrent coroutine keeping full progress.
+        """
+        import asyncio
+
+        llm = self._make_helix()
+        called = {"value": False}
+
+        async def _should_not_run(*args, **kwargs):
+            called["value"] = True
+            return "must-not-happen"
+
+        # If _generate blocked the loop, this ticker could not advance while the
+        # (synchronous) call was in flight on the loop thread.
+        llm._call_helix_async = _should_not_run
+
+        ticks = []
+
+        async def ticker():
+            for i in range(5):
+                await asyncio.sleep(0.01)
+                ticks.append(i)
+
+        tick_task = asyncio.create_task(ticker())
+        with pytest.raises(RuntimeError, match="running event loop"):
+            llm._generate([HumanMessage(content="hi")])
+
+        # _generate returned control to the loop instantly (it raised rather
+        # than blocking), so the concurrent coroutine runs to completion.
+        await tick_task
+        assert ticks == [0, 1, 2, 3, 4]
+        assert called["value"] is False  # never ran the coroutine on the loop thread
+
+    @pytest.mark.asyncio
+    async def test_agenerate_does_not_block_concurrent_coroutine(self):
+        """
+        The async path (used by ainvoke / astream) yields the loop while the
+        Helix round-trip is in flight: a concurrent coroutine keeps progressing.
+        """
+        import asyncio
+
+        llm = self._make_helix()
+
+        async def _slow_helix(*args, **kwargs):
+            # Simulates create-conversation + poll latency.
+            await asyncio.sleep(0.2)
+            return "Your balance is $500"
+
+        llm._call_helix_async = _slow_helix
+
+        ticks = []
+
+        async def ticker():
+            while len(ticks) < 5:
+                await asyncio.sleep(0.02)
+                ticks.append(len(ticks))
+
+        tick_task = asyncio.create_task(ticker())
+        result = await llm._agenerate([HumanMessage(content="balance?")])
+
+        assert result.generations[0].message.content == "Your balance is $500"
+        # The ticker advanced during the (awaited) round-trip — loop not blocked.
+        assert len(ticks) >= 3
+        await tick_task
+
+    def test_generate_sync_path_returns_value(self):
+        """
+        Off any running loop (a plain synchronous call), _generate still drives
+        the Helix round-trip to completion and returns a value — the non-loop
+        path is preserved.
+        """
+        llm = self._make_helix()
+
+        async def _fake(*args, **kwargs):
+            return "sync result"
+
+        llm._call_helix_async = _fake
+
+        result = llm._generate([HumanMessage(content="hi")])
+        assert result.generations[0].message.content == "sync result"
+
+
+# ---------------------------------------------------------------------------
 # llm_factory.get_llm — provider routing
 # ---------------------------------------------------------------------------
 
