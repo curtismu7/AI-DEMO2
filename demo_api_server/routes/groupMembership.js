@@ -182,8 +182,27 @@ router.get('/decision-board', requireSession, async (req, res) => {
       let tokenClaims = null;
       let tokenError = null;
       try {
-        const mcpToken = await agentMcpTokenService.resolveMcpAccessToken(req, t.tool);
-        if (mcpToken) tokenClaims = agentMcpTokenService.decodeJwtClaims(mcpToken);
+        // WithEvents, not resolveMcpAccessToken: the plain wrapper returns just
+        // the token, so a refusal arrived as a silent null and the row reported
+        // tokenPresented:false with no reason at all — "it didn't work" and
+        // nothing more. The blocked path sets need_auth / blockedReason on the
+        // result rather than throwing, so the only way to say WHY is to read it.
+        const minted = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(req, t.tool);
+        if (minted && minted.token) {
+          tokenClaims = agentMcpTokenService.decodeJwtClaims(minted.token);
+        } else if (minted) {
+          // Keep this a STRING. describeBlockedToken() returns an HTTP envelope
+          // ({ httpStatus, body }) meant for a route to send, not a message —
+          // dropping that object into the row would nest a whole response inside
+          // a field the UI renders as text.
+          tokenError = minted.blockCode
+            ? `${minted.blockCode}: ${minted.blockMessage || 'token minting blocked'}`
+            : minted.need_auth
+              ? 'need_auth: no usable user token in session for this tool'
+              : 'mint returned no token';
+        } else {
+          tokenError = 'mint returned no result';
+        }
       } catch (err) {
         // Keep going with no audience rather than dropping the row: a row that
         // says DENY/mcp-invalid-audience with tokenError set is still true, and

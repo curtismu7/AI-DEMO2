@@ -24,7 +24,7 @@ jest.mock('../services/pingOneGroupMembershipService', () => ({
   _resetCache: jest.fn(),
 }));
 jest.mock('../services/agentMcpTokenService', () => ({
-  resolveMcpAccessToken: jest.fn(),
+  resolveMcpAccessTokenWithEvents: jest.fn(),
   decodeJwtClaims: jest.fn(),
 }));
 
@@ -62,7 +62,7 @@ describe('decision-board presents a real token', () => {
   });
 
   it('forwards the minted token audience and act chain to the PDP', async () => {
-    agentMcpTokenService.resolveMcpAccessToken.mockResolvedValue('jwt.for.mcp');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: 'jwt.for.mcp' });
     agentMcpTokenService.decodeJwtClaims.mockReturnValue({
       aud: 'mcpgateway.ping.demo',
       act: { sub: 'agent-1', act: { sub: 'generalist-1' } },
@@ -79,21 +79,53 @@ describe('decision-board presents a real token', () => {
   });
 
   it('mints one token per row, for that row own tool', async () => {
-    agentMcpTokenService.resolveMcpAccessToken.mockResolvedValue('jwt.for.mcp');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: 'jwt.for.mcp' });
     agentMcpTokenService.decodeJwtClaims.mockReturnValue({ aud: 'mcpgateway.ping.demo' });
 
     const payload = await callBoard();
 
     // Compare as multisets: rows are sorted by displayName after evaluation,
     // so mint order and row order legitimately differ.
-    const tools = agentMcpTokenService.resolveMcpAccessToken.mock.calls.map((c) => c[1]).sort();
+    const tools = agentMcpTokenService.resolveMcpAccessTokenWithEvents.mock.calls.map((c) => c[1]).sort();
     expect(tools).toEqual(payload.rows.map((r) => r.tool).sort());
+  });
+
+  it('reports WHY the mint was refused instead of a silent tokenPresented:false', async () => {
+    // The blocked path resolves rather than throws, so the plain
+    // resolveMcpAccessToken wrapper turned a refusal into a bare null and the
+    // row said only "no token". Live, that left 13 rows unexplained.
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({
+      token: null,
+      blockCode: 'user_token_forwarding_disabled',
+      blockMessage: 'Raw user-token forwarding to MCP is disabled.',
+    });
+
+    const payload = await callBoard();
+
+    for (const row of payload.rows) {
+      expect(row.tokenPresented).toBe(false);
+      expect(row.tokenError).toBe(
+        'user_token_forwarding_disabled: Raw user-token forwarding to MCP is disabled.',
+      );
+      // A string the UI can render — never describeBlockedToken()'s HTTP envelope.
+      expect(typeof row.tokenError).toBe('string');
+    }
+  });
+
+  it('falls back to need_auth when there is no block code', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({
+      token: null, need_auth: true,
+    });
+
+    const payload = await callBoard();
+
+    expect(payload.rows[0].tokenError).toMatch(/need_auth/);
   });
 
   it('OMITS tokenAudience when the mint fails — never sends an empty string', async () => {
     // '' would claim the token was read and its audience was empty. Omission is
     // the honest encoding, and matches the PEP's C1 contract.
-    agentMcpTokenService.resolveMcpAccessToken.mockRejectedValue(new Error('no user token'));
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockRejectedValue(new Error('no user token'));
 
     const payload = await callBoard();
 

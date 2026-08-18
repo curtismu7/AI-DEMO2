@@ -155,7 +155,7 @@ function _pruneThreadIfNeeded(userId, vertical, prefix) {
       .slice(0, messages.length - MAX_MESSAGES_PER_THREAD);
 
     for (const { key } of toDelete) {
-      db.deleteSync(key);
+      db.removeSync(key);
     }
   }
 }
@@ -205,7 +205,7 @@ function clearHistory(userId, vertical) {
     start: prefix,
     end: `${prefix}￿`,
   })) {
-    db.deleteSync(key);
+    db.removeSync(key);
   }
 }
 
