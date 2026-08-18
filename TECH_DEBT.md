@@ -119,6 +119,16 @@ the top of the handler before any gate reads it, and add a test that
 paths. Consider rejecting unknown `type` values outright rather than treating
 "not in scope" as "no controls apply".
 
+**RESOLVED 2026-08-18 by PR #2007** (`fix(security): normalize transaction type
+before authorization gates`) — verified, not assumed.
+
+`demo_api_server/routes/transactions.js:430` now reads
+`type = String(type || '').toLowerCase().trim();` before any gate, with the
+re-read at `:450` normalised the same way. The commit message states the same
+failure this entry did: `"Transfer"` returned `type_not_in_scope` and skipped
+PingOne-Authorize DENY, HITL consent, step-up and write-scope while
+`applyTransfer` still moved funds.
+
 ### 2026-08-18 — SECURITY: MCP gateway rate-limit bucket is keyed on an unverified `sub`, so a forged token starves a victim
 
 **FIXED 2026-08-18 (PR #2008, pending merge).** The `check()` moved to AFTER token
@@ -147,6 +157,13 @@ to the gateway's request pipeline that needs its own blast-radius check.
 **Real fix:** key the limiter on the *verified* subject — move the `check()`
 after `validateInboundToken`, or fall back to the source IP for unverified
 tokens so an unauthenticated caller can only exhaust its own bucket.
+
+**RESOLVED — verified 2026-08-18.** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts:495-506`
+now reaches the limiter only after verification, and says so in place: *"inactive
+above and never reaches this check, so an unauthenticated caller can only ever
+consume its OWN bucket — it can no longer deny a victim's."* The key is still
+`${sub}:${tool}`, but `sub` is now a verified claim, which is the property this
+entry was about. Metering remains scoped to `tools/call`.
 
 ### 2026-08-18 — MCP gateway WS `close` cancels the call timeout without settling the promise, hanging the request forever
 
@@ -200,6 +217,13 @@ gateway-cache hardening and a test.
 
 **Real fix:** route this cache through the same `cacheInsertWithEviction` bound +
 periodic sweep the exchange cache already uses.
+
+**RESOLVED — verified 2026-08-18.** `demo_mcp_gateway/src/boundedTokenCache.ts`
+now owns the eviction policy (hard cap, sweep-expired, then FIFO-evict-oldest) and
+is imported by both `auth/GatewayIntrospectionClient.ts:15` and
+`auth/McpTokenExchangeClient.ts:28`. Its header records that the two call sites
+previously held a byte-for-byte-identical private copy, so the extraction also
+retired the duplication.
 
 ### 2026-08-18 — `demo_mcp_proxy` pins `MCP-Protocol-Version: 2025-03-26`, which the Node gateway hard-rejects
 
@@ -1448,6 +1472,12 @@ adding both the tool and the scope to the SoT and provisioning them in PingOne,
 which mutates a live environment. That decision belongs to whoever actually
 needs one of these tools routed, and the gate now forces them to make it.
 
+**RESOLVED 2026-08-18 by PR #1988** (`feat(topology): fail the build on tool
+scopes that exist nowhere`) — verified. `scripts/topology-verify.sh:96` runs
+`node scripts/check-tool-scope-registration.js || fail=1`, so the check is a build
+gate rather than an advisory script, and `npm run topology:verify` is the entry
+point the root `CLAUDE.md` already tells you to run for cross-service changes.
+
 ### 2026-08-17 — A guessed authorization outcome is indistinguishable from a real one in the ledger
 
 **Where:** `ping-gateway/scripts/groovy/transaction-hop.groovy` (~line 71,
@@ -1986,6 +2016,27 @@ client/connection state rather than "the request body has been read." Needs
 a scoped repro against a real (non-supertest) client to confirm the new
 listener still aborts on a genuine client disconnect before landing.
 
+**ALREADY RESOLVED — verified 2026-08-18. No code change needed; this entry was
+stale.**
+
+*What happened:* PR **#1975** (`fix(mastra): abort on res close, not req close —
+req fires when the body lands`) landed the exact fix this entry specified.
+`mastra_agent/src/runHandler.ts:46` now reads `res.on('close', () =>
+abortController.abort())`, carrying a comment with the same diagnosis this entry
+made.
+
+*Confirmed, not assumed:* the full suite through the CI harness —
+`bash scripts/test-service-suite.sh mastra-agent` → `36 passed, 0 failed, 36
+total`; `tests/runHandler.test.ts` alone is green. Those are the three assertions
+the entry named as failing.
+
+*Bookkeeping note:* this block was supposed to land in PR #2004, whose body and
+commit message both claim it. It did not — it was dropped when the annotation
+script was rewritten mid-task, and only the accompanying `.github/workflows/ci.yml`
+comment fix actually shipped. Recorded here rather than quietly patched, because
+"the PR says it was annotated" is exactly the kind of second-hand claim this file
+exists to stop people trusting.
+
 ### 2026-08-12 — oauth-mcp encrypted-storage CBC mode has no integrity check
 
 **Where:** `oauth-mcp/src/utils/encryption.ts` — uses `aes-256-cbc`.
@@ -2010,6 +2061,18 @@ fails deterministically — and cryptographically meaningfully — on a wrong
 key/tampered ciphertext instead of a ~1-in-256 chance of silent corruption.
 Needs a decision on migrating already-encrypted data vs. accepting a
 one-time invalidation.
+
+**RESOLVED — verified 2026-08-18.** `oauth-mcp/src/utils/encryption.ts` now
+writes **AES-256-GCM** with a versioned layout —
+`[0x01][salt(32)][iv(12)][authTag(16)][ciphertext]` — and `decrypt()` dispatches on
+that version byte, keeping `_decryptCbc` as a **read-only** path for ciphertext
+written before the change.
+
+That also answers the migration question this entry flagged as the reason not to
+fix it in passing: existing encrypted data is neither invalidated nor rewritten,
+it is simply still readable, and every new write is authenticated. Wrong-key
+decryption now fails deterministically on the auth tag instead of ~1-in-256
+returning corrupted plaintext.
 
 ### 2026-08-12 — oauth-mcp DCR: two follow-ups from the final review
 
