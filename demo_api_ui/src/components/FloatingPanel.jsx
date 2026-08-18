@@ -1,44 +1,57 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import ReactDOM, { createPortal } from 'react-dom';
+import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import './FloatingPanel.css';
 
 /**
- * Renders children into a pop-out window using a real React root so that
- * all state, event listeners, and live data work correctly.
- * Uses a retry mechanism to handle the race between document.write/close
- * and React portal mounting.
+ * Renders children into a pop-out window using a SEPARATE React root created in
+ * the popup's own document. A bare createPortal into a foreign window's DOM
+ * leaves synthetic events bound to the main-window root, so every button/input
+ * inside the popup (including "Bring back") is dead. The separate root gives the
+ * popup its own event-delegation tree. Mirrors DraggableModal's PopOutPortal.
  */
 function PopOutPortal({ win, children }) {
-  const [container, setContainer] = useState(() => {
-    try {
-      return win.document.getElementById('fp-popout-root') || null;
-    } catch { return null; }
-  });
+  const rootRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    if (container) return;
-    // Retry finding the container — document.write may not have flushed yet
-    let attempts = 0;
-    const maxAttempts = 20;
-    const interval = setInterval(() => {
-      attempts++;
-      try {
-        const el = win.document.getElementById('fp-popout-root');
-        if (el) {
-          setContainer(el);
-          clearInterval(interval);
-        } else if (attempts >= maxAttempts) {
-          clearInterval(interval);
-        }
-      } catch {
-        clearInterval(interval);
-      }
-    }, 50);
-    return () => clearInterval(interval);
-  }, [win, container]);
+    const container = win.document.getElementById('fp-popout-root');
+    if (!container) return;
+    containerRef.current = container;
+    // StrictMode double-invokes this effect. createRoot() on a container that
+    // already has a root warns and leaks, so store the root on the container and
+    // reuse it — and cancel any pending deferred-unmount from the prior cleanup
+    // so the re-mount keeps the same live root.
+    if (container.__fpUnmountTimer) {
+      clearTimeout(container.__fpUnmountTimer);
+      container.__fpUnmountTimer = null;
+    }
+    let root = container.__fpRoot;
+    if (!root) {
+      root = createRoot(container);
+      container.__fpRoot = root;
+    }
+    rootRef.current = root;
+    root.render(children);
+    return () => {
+      rootRef.current = null;
+      containerRef.current = null;
+      // Defer unmount so React doesn't unmount during a commit; keep the timer
+      // on the container so a StrictMode re-mount can cancel it and reuse root.
+      container.__fpUnmountTimer = setTimeout(() => {
+        container.__fpUnmountTimer = null;
+        try { root.unmount(); } catch (_) {}
+        if (container.__fpRoot === root) delete container.__fpRoot;
+      }, 0);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [win]);
 
-  if (!container) return null;
-  return createPortal(children, container);
+  useEffect(() => {
+    if (rootRef.current) rootRef.current.render(children);
+  }, [children]);
+
+  return null;
 }
 
 /**
