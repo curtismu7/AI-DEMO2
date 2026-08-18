@@ -12,6 +12,7 @@
 import { createHash } from 'node:crypto';
 import axios from 'axios';
 import type { GatewayConfig } from '../config';
+import { cacheInsertWithEviction } from '../boundedTokenCache';
 
 export interface IntrospectionResult {
   active: boolean;
@@ -30,6 +31,11 @@ const _cache = new Map<string, { result: IntrospectionResult; expiresAt: number 
 // dev keeps 30s to limit AS round trips during demos. Document this in
 // bff-sessions skill.
 const CACHE_TTL_MS = process.env.NODE_ENV === 'production' ? 5_000 : 30_000;
+// HI-06 sibling: bound the introspection cache with the same cap + sweep+FIFO
+// eviction as the exchange cache. Without a cap, every distinct inbound token
+// (they rotate per login/exchange, and garbage tokens' {active:false} results
+// get cached too) is a permanent map entry.
+const INTROSPECTION_CACHE_MAX = 1000;
 
 function cacheKey(token: string): string {
   // Full hex digest — the cosmetic .slice(0, 24) is a 96-bit collision
@@ -127,8 +133,13 @@ export class GatewayIntrospectionClient {
 
     const key = cacheKey(token);
     const cached = _cache.get(key);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.result;
+    if (cached) {
+      if (cached.expiresAt > Date.now()) {
+        return cached.result;
+      }
+      // Prune on access: delete the expired entry rather than only skipping it,
+      // so a rotated-out token does not linger in the map until eviction.
+      _cache.delete(key);
     }
 
     // Authenticate introspection request using the gateway's configured
@@ -152,7 +163,7 @@ export class GatewayIntrospectionClient {
       try {
         const response = await axios.post(this.config.introspectionEndpoint, body, { headers, timeout: 5000 });
         const result = this.toResult(response.data as Record<string, unknown>);
-        _cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+        cacheInsertWithEviction(_cache, key, { result, expiresAt: Date.now() + CACHE_TTL_MS }, INTROSPECTION_CACHE_MAX);
         return result;
       } catch (err) {
         lastErr = err;
@@ -173,7 +184,7 @@ export class GatewayIntrospectionClient {
         const result = this.toResult(response.data as Record<string, unknown>);
         console.warn(`[GatewayIntrospection] Configured auth method "${method}" rejected (401) — "${fallback}" worked, switching to it for future calls`);
         this.workingAuthMethod = fallback;
-        _cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+        cacheInsertWithEviction(_cache, key, { result, expiresAt: Date.now() + CACHE_TTL_MS }, INTROSPECTION_CACHE_MAX);
         return result;
       } catch (fallbackErr) {
         lastErr = fallbackErr;
