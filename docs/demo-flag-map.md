@@ -18,7 +18,7 @@ Beat order and `SECURITY_DEMO_USE_CASE_IDS` agree (10 steps).
 | # | Use case | What it shows | Step-specific flag | Gateway floor |
 |---|---|---|---|---|
 | 1 | `UC1` — Delegated access with proof | Agent reads the user's balance on their behalf — the baseline delegated call. | — | yes |
-| 2 | `UC2` — A2A delegation | Generalist agent hands the job to a specialist agent — delegation across a second hop. | — (always on; `ff_a2a_delegation` removed) | yes |
+| 2 | `UC2` — A2A delegation | Generalist agent hands the job to a specialist agent — delegation across a second hop. | — | yes |
 | 3 | `UC24` — Act 1 — Public catalog access | Agent answers from public branch data (Austin, Dallas, Houston, Miami, Denver) — no user | — | yes |
 | 4 | `UC6` — Authz denied | Agent attempts a transfer over the policy ceiling — PingOne Authorize decides, not the a | — | yes |
 | 5 | `UC8` — HITL consent | Same transfer, under the ceiling but over the auto-approve line — a human must consent. | — | yes |
@@ -33,7 +33,7 @@ Every step that dispatches an MCP tool needs it. Armed on run like the rest —
 but it is the one that took 22 use cases down when the UI mirror stopped
 arming it (PR #886), so it is called out separately rather than repeated.
 
-Step-specific flags across the whole demo: `ff_dpop`, `ff_rar`. (`ff_a2a_delegation` was removed — A2A delegation is always on.)
+Step-specific flags across the whole demo: `ff_dpop`, `ff_rar`.
 
 ## Ambient — must be true BEFORE you start
 
