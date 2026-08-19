@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import ToolsTable from '../components/privilege/ToolsTable';
+import JsonHighlight from '../components/shared/JsonHighlight';
 import DraggableModal from '../components/DraggableModal';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
@@ -927,7 +928,7 @@ export default function PrivilegeMcpClientPage() {
                 {rawRpcResult && (
                   <div className="cur-result-block">
                     <span className="cur-result-label">Response</span>
-                    <pre className="cur-code-output">{rawRpcResult}</pre>
+                    <pre className="cur-code-output jh-dark"><JsonHighlight value={rawRpcResult} deep /></pre>
                   </div>
                 )}
               </div>
@@ -1087,7 +1088,7 @@ export default function PrivilegeMcpClientPage() {
                           <span className="cur-result-item-tool">{r.tool}</span>
                           <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
                         </div>
-                        <pre className="cur-result-item-body">{r.result}</pre>
+                        <pre className="cur-result-item-body jh-dark"><JsonHighlight value={r.result} deep /></pre>
                       </div>
                     ))
                   )}
