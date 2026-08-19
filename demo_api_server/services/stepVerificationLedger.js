@@ -31,6 +31,32 @@ const REQUIRED_FIELDS = ['vertical', 'useCaseId', 'triggerType', 'mode', 'status
 
 const STATUSES = ['PASS', 'UNPROVEN', 'FAIL'];
 
+// Day granularity (below) makes a SAME-day re-run byte-identical, but a re-run
+// on any later day still rewrote every ledger file with only the date changed —
+// measured 2026-08-18: one full suite run produced a 537-file diff of pure
+// checkedAt churn. In the main checkout those tracked-file modifications also
+// make sync-main-checkout.sh back off, which is the silently-stale-stack
+// failure mode. So an unchanged verdict is only re-stamped once its stored date
+// is older than this — half of check-step-verification.js's MAX_AGE_DAYS (30,
+// warn-only), so a row that keeps re-verifying refreshes ~fortnightly and can
+// never reach the staleness warning, while day-to-day runs leave the tree clean.
+const REFRESH_AGE_DAYS = 15;
+
+/**
+ * Key-order-independent stringify, so "unchanged" survives caller field order.
+ * Skips undefined-valued keys exactly as JSON.stringify does — callers pass
+ * optional fields as undefined, and the stored file has no such keys, so
+ * keeping them would make every comparison miss.
+ */
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).filter((k) => value[k] !== undefined).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 /**
  * Fields a writer stamps on itself to say its PASS is not runtime evidence.
  * Read in one place so the rule cannot be honoured by some writers and forgotten
@@ -82,6 +108,20 @@ function writeLedgerEntry(entry) {
     ? 'UNPROVEN'
     : entry.status;
   const record = { ...entry, status, checkedAt: String(entry.checkedAt).slice(0, 10) };
+  if (fs.existsSync(file)) {
+    try {
+      const { checkedAt: prevAt, ...prevRest } = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const { checkedAt: _nextAt, ...nextRest } = record;
+      const ageDays = (Date.now() - Date.parse(prevAt)) / 86400000;
+      if (
+        stableStringify(prevRest) === stableStringify(nextRest)
+        && Number.isFinite(ageDays)
+        && ageDays < REFRESH_AGE_DAYS
+      ) {
+        return file; // unchanged verdict, fresh date — no churn
+      }
+    } catch (_) { /* unreadable existing file — fall through and rewrite it */ }
+  }
   fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n', 'utf8');
   return file;
 }

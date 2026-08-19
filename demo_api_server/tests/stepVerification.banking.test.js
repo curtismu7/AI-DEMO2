@@ -170,13 +170,12 @@ describe('step verification — banking amount-gated decisions (check 5, catalog
 });
 
 describe('step verification — reference-only banking use cases', () => {
+  // UC22 is deliberately NOT here: stepVerification.uc22.test.js owns its
+  // unit-ref row (with the superset verifiedBy incl. pingOneAuthorizeRetry).
+  // A duplicate entry here made the two suites ping-pong the same ledger file
+  // with different verifiedBy strings on every full run — last writer won,
+  // nondeterministically.
   const REFERENCE_ONLY = [
-    {
-      id: 'UC22',
-      primaryTool: 'create_transfer',
-      verifiedBy:
-        'demo_api_server/src/__tests__/ciba.test.js, cibaService.test.js, cibaSimulatedService.test.js',
-    },
     {
       id: 'UC27',
       primaryTool: 'create_transfer',
