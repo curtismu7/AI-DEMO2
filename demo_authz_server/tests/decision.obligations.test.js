@@ -1,19 +1,26 @@
 'use strict';
 
 /**
- * PHASE 2 of the INDETERMINATE rework — the PDP now emits an explicit
- * obligation alongside every pause, so consumers can eventually branch on the
- * obligation instead of on `decision === 'INDETERMINATE'`.
+ * Obligation contract for a pause, spanning phase 2 (obligations introduced)
+ * through phase 4 (INDETERMINATE retired — a pause is PERMIT+obligation).
  * Plan: docs/superpowers/plans/2026-08-18-indeterminate-rework.md
  *
- * Nothing consumes the obligation yet (phase 3 moves consumers one at a time);
- * this file pins the ADDITIVE contract:
+ * Originally pinned `decision === 'INDETERMINATE'` for a pause as the
+ * ADDITIVE, phase-2 contract ("nothing consumes the obligation yet"). Phase 4
+ * changed that: this mock no longer emits INDETERMINATE at all (see
+ * routes/decision.js's file-header comment and pausePermit()'s doc comment for
+ * why PERMIT, not DENY, was the forced choice — a DENY-with-obligation is
+ * silently dropped by both consumers of this endpoint). Updated in place
+ * rather than deleted, since it is still the narrowest test of the obligation
+ * SHAPE itself (id/type/obligatory/fulfilled) — the phase-1 baseline file's
+ * `assertPauses` duplicates this at the higher, per-vertical level.
+ *
  *   - every pause carries exactly one obligation, `obligatory: true` and
  *     `fulfilled: false` — the #1310 / llm-path-approval-gate traps say an
  *     "optional" pause is not a pause, so obligatory:false here is a bug;
- *   - PERMIT and DENY carry no obligations;
- *   - decision / reason / statements are untouched (the phase-1 baseline file
- *     asserts those and must stay green unchanged).
+ *   - a genuine PERMIT and a DENY both carry no obligations — which, post
+ *     phase 4, is the ONLY thing distinguishing a real permit from a pause,
+ *     since both now say `decision: 'PERMIT'`.
  */
 
 const { test, beforeEach, afterEach, mock } = require('node:test');
@@ -98,21 +105,21 @@ afterEach(() => {
 
 test('STEP_UP pause carries a single obligatory step-up obligation', async () => {
   const r = await decide(params(600));
-  assert.strictEqual(r.decision, 'INDETERMINATE');
+  assert.strictEqual(r.decision, 'PERMIT', 'phase 4: a pause is PERMIT+obligation, never INDETERMINATE');
   assert.strictEqual(r.reason, 'STEP_UP');
   assertObligation(r, 'step-up', 'STEP_UP', '$600');
 });
 
 test('HITL_CONSENT pause carries a single obligatory hitl-consent obligation', async () => {
   const r = await decide(params(300));
-  assert.strictEqual(r.decision, 'INDETERMINATE');
+  assert.strictEqual(r.decision, 'PERMIT', 'phase 4: a pause is PERMIT+obligation, never INDETERMINATE');
   assert.strictEqual(r.reason, 'HITL_CONSENT');
   assertObligation(r, 'hitl-consent', 'HITL_CONSENT', '$300');
 });
 
 test('ELICITATION pause carries a single obligatory elicitation obligation', async () => {
   const r = await decide(params(100, { ToolDestructive: 'true', ElicitationConfirmed: '' }));
-  assert.strictEqual(r.decision, 'INDETERMINATE');
+  assert.strictEqual(r.decision, 'PERMIT', 'phase 4: a pause is PERMIT+obligation, never INDETERMINATE');
   assert.strictEqual(r.reason, 'ELICITATION');
   assertObligation(r, 'elicitation-confirm', 'ELICITATION', 'destructive');
 });

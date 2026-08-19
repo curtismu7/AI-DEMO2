@@ -146,8 +146,11 @@ test('WIRE-2: a DENY decision emits a hop with outcome deny and carries the deny
   assert.strictEqual(hop.decision.reason, body.reason, 'hop reason must match the response reason');
 });
 
-test('WIRE-3: an INDETERMINATE decision emits outcome n/a, NOT deny (false-violation guard)', async () => {
-  // Write-tool amount at/over the step-up threshold -> INDETERMINATE(STEP_UP).
+test('WIRE-3: a pause (PERMIT+obligation, phase 4) emits outcome permit, NOT deny (false-violation guard)', async () => {
+  // Write-tool amount at/over the step-up threshold -> PERMIT+STEP_UP obligation
+  // (pre-phase-4 this was decision:'INDETERMINATE', hop outcome:'n/a'; phase 4
+  // retired both — see routes/decision.js's pausePermit() doc comment for why
+  // PERMIT was the forced choice over DENY).
   const body = await decide(
     baseWriteParams({
       ToolName: 'create_transfer',
@@ -156,10 +159,11 @@ test('WIRE-3: an INDETERMINATE decision emits outcome n/a, NOT deny (false-viola
     }),
     'cid-indeterminate-1',
   );
-  assert.strictEqual(body.decision, 'INDETERMINATE', 'expected INDETERMINATE: ' + JSON.stringify(body));
+  assert.strictEqual(body.decision, 'PERMIT', 'expected PERMIT+obligation: ' + JSON.stringify(body));
+  assert.strictEqual(body.reason, 'STEP_UP');
   assert.strictEqual(calls.length, 1, 'expected exactly one hop emitted');
   const hop = calls[0].body;
-  assert.strictEqual(hop.decision.outcome, 'n/a', 'INDETERMINATE must map to n/a, not deny');
+  assert.strictEqual(hop.decision.outcome, 'permit', 'a pause must map to permit, not deny — the point this guard exists to catch');
   assert.notStrictEqual(hop.decision.outcome, 'deny');
 });
 
@@ -229,7 +233,7 @@ test('WIRE-9: an ELICITATION (destructive tool, unconfirmed) response emits a ho
     baseWriteParams({ ToolDestructive: 'true' }),
     'cid-elicitation-1',
   );
-  assert.strictEqual(body.decision, 'INDETERMINATE', 'expected INDETERMINATE: ' + JSON.stringify(body));
+  assert.strictEqual(body.decision, 'PERMIT', 'expected PERMIT+obligation (phase 4): ' + JSON.stringify(body));
   assert.strictEqual(body.reason, 'ELICITATION');
   assert.strictEqual(calls.length, 1, 'expected exactly one hop emitted');
   const hop = calls[0].body;

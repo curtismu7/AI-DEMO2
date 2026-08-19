@@ -3,7 +3,18 @@
 /**
  * PingOne Authorize Decision — POST /governance/pap/alpha/policy/:workerId/decision
  *
- * Evaluates an MCP request and returns PERMIT, DENY, or INDETERMINATE.
+ * Evaluates an MCP request and returns PERMIT or DENY. A pause (step-up MFA,
+ * HITL consent, elicitation confirmation) is PERMIT carrying an unfulfilled
+ * `obligations[]` entry — matching live cloud PingOne Authorize, which returns
+ * exactly this shape for the same three cases (confirmed live 2026-08-18,
+ * demo_api_server/scripts/probe-uc7-uc8-live.js). This mock never emits
+ * INDETERMINATE (phase 4 of docs/superpowers/plans/2026-08-18-indeterminate-
+ * rework.md) — that value is reserved, on the real engine, for "evaluation
+ * failed" (missing attribute, unreachable attribute provider), which a
+ * simulator with no external attribute sources cannot produce. A caller must
+ * still treat a bare INDETERMINATE from EITHER engine as a policy-engine fault
+ * and fail closed to DENY (phase 5) — both consumers of this endpoint already
+ * do (PingOneAuthorizeClient.ts:468-478, p1az-decision.groovy ~1053/1181).
  * This is the exact endpoint the MCP Gateway calls when MCP_GW_P1AZ_ENABLED=true.
  *
  * Request body (matches what buildAuthorizeParameters() sends):
@@ -30,7 +41,7 @@
  *   }
  *
  * Response (matches PingOne Authorize format):
- *   { decision: 'PERMIT' | 'DENY' | 'INDETERMINATE', reason?: string,
+ *   { decision: 'PERMIT' | 'DENY', reason?: string, obligations?: [...],
  *     decision_id: string, policy_version: string }
  */
 
@@ -940,33 +951,33 @@ module.exports = async function decisionHandler(req, res) {
       ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved
       && !a2aDelegationVerified;
     if (overStepUp || declaresStepUp) {
-      log(`[AuthzServer/decision] INDETERMINATE — STEP_UP: "${ToolName}" amount=$${amount} declaresStepUp=${declaresStepUp}`);
-      return indeterminate(res, 'STEP_UP', 'step-up-required');
+      log(`[AuthzServer/decision] PERMIT+obligation — STEP_UP: "${ToolName}" amount=$${amount} declaresStepUp=${declaresStepUp}`);
+      return pausePermit(res, 'STEP_UP', 'step-up-required');
     }
     if (overConfirm || declaresConsent) {
-      log(`[AuthzServer/decision] INDETERMINATE — HITL_CONSENT: "${ToolName}" amount=$${amount} confirm=$${CONFIRM_AMOUNT} declaresConsent=${declaresConsent}`);
+      log(`[AuthzServer/decision] PERMIT+obligation — HITL_CONSENT: "${ToolName}" amount=$${amount} confirm=$${CONFIRM_AMOUNT} declaresConsent=${declaresConsent}`);
       // Cloud parity: the snapshot splits these into two statements —
       // tool-name-driven consent ("MCP Require HITL Consent for sensitive tools")
       // emits HITL, while the amount-threshold rule ("Require Consent for
       // Mid-Value Transactions") emits HITL_CONSENT. `reason` stays HITL_CONSENT
       // for both, unchanged. The two branches are mutually exclusive:
       // declaresConsent requires !hasAmount, overConfirm requires hasAmount.
-      return indeterminate(res, 'HITL_CONSENT', declaresConsent ? 'HITL' : 'HITL_CONSENT');
+      return pausePermit(res, 'HITL_CONSENT', declaresConsent ? 'HITL' : 'HITL_CONSENT');
     }
   }
 
   // ── Rule 4.5: Elicitation — require confirmation for destructive tool calls ──────
   // When the gateway marks a tool as destructive (ToolDestructive='true') and the
-  // caller has not yet confirmed (ElicitationConfirmed!='true'), return INDETERMINATE
-  // with an ELICITATION statement so the client can prompt the user for confirmation.
+  // caller has not yet confirmed (ElicitationConfirmed!='true'), PERMIT with an
+  // ELICITATION obligation so the client can prompt the user for confirmation.
   // HITL/STEP_UP rules above take precedence; this fires only when those don't apply.
   if (params.ToolDestructive === 'true' && params.ElicitationConfirmed !== 'true') {
-    log(`[AuthzServer/decision] INDETERMINATE — ELICITATION: tool="${ToolName}" is destructive, confirmation absent`);
+    log(`[AuthzServer/decision] PERMIT+obligation — ELICITATION: tool="${ToolName}" is destructive, confirmation absent`);
     const decisionId = randomId();
-    const record = auditDecision('INDETERMINATE', 'ELICITATION', { decisionId, policyVersion: 'mock-v1' });
-    _emitDecisionHop('n/a', 'ELICITATION', record);
+    const record = auditDecision('PERMIT', 'ELICITATION', { decisionId, policyVersion: 'mock-v1' });
+    _emitDecisionHop('permit', 'ELICITATION', record);
     return res.json({
-      decision: 'INDETERMINATE',
+      decision: 'PERMIT',
       reason: 'ELICITATION',
       obligations: obligationFor('ELICITATION'),
       statements: statementsFor('ELICITATION'),
@@ -1097,15 +1108,15 @@ function deny(res, reason, code) {
 
 /**
  * Phase 2 of the INDETERMINATE rework (docs/superpowers/plans/
- * 2026-08-18-indeterminate-rework.md): every pause response now ALSO carries an
- * explicit obligation, so consumers can eventually branch on the obligation
- * instead of on `decision === 'INDETERMINATE'` (whose cloud meaning is
- * "evaluation failed"). Nothing consumes these yet — additive only, the
- * decision/reason/statements contract is byte-identical.
+ * 2026-08-18-indeterminate-rework.md): every pause response carries an explicit
+ * obligation, so consumers branch on the obligation instead of on
+ * `decision === 'INDETERMINATE'` (whose cloud meaning is "evaluation failed").
  *
  * Two recorded traps shape the fields (#1310, llm-path-approval-gate-open):
- * `obligatory` is ALWAYS true — an "optional" pause is not a pause — and a
- * future INDETERMINATE carrying NO obligation must resolve to DENY.
+ * `obligatory` is ALWAYS true — an "optional" pause is not a pause — and an
+ * INDETERMINATE carrying NO obligation must resolve to DENY (both consumers of
+ * this engine already enforce that: PingOneAuthorizeClient.ts:468-478,
+ * p1az-decision.groovy ~1053/1181).
  * @param {'STEP_UP'|'HITL_CONSENT'|'ELICITATION'} reason
  */
 function obligationFor(reason) {
@@ -1113,12 +1124,35 @@ function obligationFor(reason) {
   return [{ id, type: reason, obligatory: true, fulfilled: false }];
 }
 
-function indeterminate(res, reason, code) {
+/**
+ * Phase 4 of the same rework: a pause is now PERMIT-with-an-unfulfilled-
+ * obligation, not INDETERMINATE. NOT a free choice of PERMIT vs DENY — it is
+ * forced by both existing consumers of this engine's `/decision` endpoint,
+ * confirmed by reading their code before making this change:
+ *
+ *   - Node gateway (PingOneAuthorizeClient.ts toDecision): an `outcome==='DENY'`
+ *     response is flattened to a terminal deny WITHOUT ever consulting
+ *     `obligations`/`statements` — an obligation riding on a DENY would be
+ *     silently dropped and the call would hard-fail instead of pausing.
+ *   - Groovy (p1az-decision.groovy ~1053): `obligationKind` is forced `null`
+ *     whenever `outcome === 'DENY'`, for the identical reason.
+ *
+ * Both already have a correctly-tested branch for `outcome === 'PERMIT'` with
+ * an obligation (gateway: PingOneAuthorizeClient.ts:441-451, covered by
+ * authorizeObligations.test.ts "does NOT permit a PERMIT that carries a
+ * consent obligation"; Groovy: obligationKind is derived normally when
+ * outcome !== 'DENY') — because that is exactly the shape live cloud PingOne
+ * Authorize sends for these three pauses today (confirmed live 2026-08-18,
+ * probe-uc7-uc8-live.js: `"decision":"PERMIT","statements":[{"code":
+ * "step-up-required",...}]`). PERMIT-with-obligation is not a new invention;
+ * it is cloud parity.
+ */
+function pausePermit(res, reason, code) {
   const decisionId = randomId();
-  const record = auditDecision('INDETERMINATE', reason, { decisionId, policyVersion: 'mock-v1' });
-  _emitDecisionHop('n/a', reason, record);
+  const record = auditDecision('PERMIT', reason, { decisionId, policyVersion: 'mock-v1' });
+  _emitDecisionHop('permit', reason, record);
   res.json({
-    decision: 'INDETERMINATE', reason,
+    decision: 'PERMIT', reason,
     obligations: obligationFor(reason),
     statements: statementsFor(code),
     policy_source: POLICY_SOURCE,

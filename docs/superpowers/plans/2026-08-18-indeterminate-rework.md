@@ -233,7 +233,71 @@ Each phase ships independently and leaves the suite green.
      Wiring the UI onto `obligations[]` has no functional payoff until phase 4
      actually changes what `decision` says — deferred there rather than done
      speculatively now.
-4. **Flip the PDP** to stop emitting INDETERMINATE for the pause.
+4. ~~**Flip the PDP**~~ **DONE 2026-08-18.** `demo_authz_server/routes/decision.js`
+   no longer has any code path that emits `decision: 'INDETERMINATE'` — grep the
+   file; the only remaining occurrence is a doc comment. A structural test
+   (`decision.indeterminateBaseline.test.js`, "phase 5 (mock half)") pins this
+   as a fact rather than a runtime check: it reads the file's own source and
+   asserts the literal `decision: 'INDETERMINATE'` never appears.
+
+   **The design decision this phase actually turned on: PERMIT, not DENY.**
+   A pause is now `decision: 'PERMIT'` carrying an unfulfilled obligation —
+   NOT `decision: 'DENY'`, which was the plan's own working assumption (stated
+   in phase 1's helper-seam comment, and baked into the UI migration in #2141's
+   commit message: *"a phase-4 pause arrives as DENY carrying an unfulfilled
+   obligation"*). That assumption was checked, not just changed, and it was
+   **wrong**:
+
+   - **Node gateway** (`PingOneAuthorizeClient.ts` `toDecision`): an
+     `outcome === 'DENY'` response is flattened to a terminal deny WITHOUT ever
+     consulting `obligations`/`statements`. A DENY-carrying-an-obligation would
+     have its obligation silently dropped and the call would hard-fail instead
+     of pausing — the opposite of what phase 4 is for.
+   - **Groovy** (`p1az-decision.groovy` ~1053): `obligationKind` is forced
+     `null` whenever `outcome === 'DENY'`, for the identical reason.
+   - Both already have a correctly-tested branch for `outcome === 'PERMIT'`
+     with an obligation (Node gateway: covered by
+     `authorizeObligations.test.ts` *"does NOT permit a PERMIT that carries a
+     consent obligation"*) — because that is exactly the shape **live cloud
+     PingOne Authorize sends today** for these three pauses (see phase 4's own
+     live probe below: `"decision":"PERMIT","statements":[{"code":
+     "step-up-required",...}]`).
+
+   So PERMIT-with-obligation is not a new invention — it is cloud parity, and
+   it is the only shape that does not silently break both existing gateway
+   consumers. Full rationale, with file:line citations, lives in
+   `pausePermit()`'s doc comment in `routes/decision.js`.
+
+   **The seam did its job.** Phase 1's three helpers
+   (`assertPauses`/`assertPermits`/`assertDenies`) were rewritten as designed —
+   `assertPauses` now checks `decision==='PERMIT'` + a matching obligation;
+   `assertPermits` now ALSO asserts no obligation rode along, since `PERMIT`
+   alone is no longer sufficient proof of a genuine permit. The per-vertical
+   table is untouched. 57 other assertions across 5 pre-existing
+   `demo_authz_server` test files hardcoded `decision === 'INDETERMINATE'` for
+   a pause and needed the same swap (`decision.test.js`, `decision.obligations.
+   test.js`, `decision.transactionHop.test.js`, `decision.contract.test.js`,
+   `decision.ruleStore.test.js`) — mechanical everywhere except
+   `decision.transactionHop.test.js`'s WIRE-3, which also had to change its
+   hop-outcome expectation from `'n/a'` to `'permit'` (the pause sites now call
+   `_emitDecisionHop('permit', ...)`, matching `permit()`'s own convention).
+   Verified the guard bites: reverted only `routes/decision.js` and confirmed
+   15 of the (then) 25 baseline-file tests failed; restored and re-verified
+   green. Full suite: **266/266**.
+
+   **Not in scope, confirmed by grep, not assumed:** `demo_api_server` (the
+   BFF) has ZERO code paths referencing `authz-server`, port `9001`, or the
+   `PINGAUTHORIZE_ENDPOINT`/`PINGAUTHORIZE_MOCK_BASE` env vars — it never talks
+   to `demo_authz_server` directly, confirming the live probe below. Its own
+   `mcpToolPipeline.js` still checks `decision === 'INDETERMINATE'` in several
+   places — that is NOT stale code needing a phase-4 update. It is reading the
+   **gateway's own outward decision contract**, which deliberately continues to
+   report `'INDETERMINATE'` as ITS stable external signal for "pause" (see
+   `toDecision`'s two branches, both of which construct
+   `{ decision: 'INDETERMINATE', reason, obligation, ... }` regardless of
+   whether the upstream engine's own wire value was `PERMIT` or the old-shape
+   `INDETERMINATE`). Only the upstream engine's internal vocabulary changed;
+   the gateway's downstream contract did not, and does not need to.
 
    **Live probe 2026-08-18 — this phase's blast radius is NARROWER than the plan
    assumed, and the verification gate below is aimed at the wrong flow.**
@@ -272,9 +336,53 @@ Each phase ships independently and leaves the suite green.
    silently turns step-up off. This is the `llm-path-approval-gate-open` trap
    observed in production data rather than inferred; pinned by
    `demo_api_server/src/__tests__/authorizeObligations.test.js`.
-5. **Add the guard** the plan actually wants: any INDETERMINATE from either
-   engine is now unambiguously an error — log it loudly, fail closed, and
-   surface the missing attribute.
+5. ~~**Add the guard**~~ **CONFIRMED ALREADY IN PLACE 2026-08-18 — nothing new
+   required for either direct consumer of `demo_authz_server`.** Read, not
+   assumed:
+
+   - **Node gateway**: `PingOneAuthorizeClient.ts:468-478` — an
+     `outcome === 'INDETERMINATE'` response with no classifiable obligation
+     `console.warn`s and returns `{ decision: 'DENY', reason:
+     'indeterminate_no_obligation: ...' }`. **Already has its own passing
+     test**: `authorizeObligations.test.ts` *"resolves an INDETERMINATE with
+     no obligation to DENY (fail closed)"* — this is phase 5's exact
+     acceptance criterion, written and green before this session started this
+     phase.
+   - **Groovy**: `p1az-decision.groovy` ~1053 — `obligationKind` is derived
+     from `classifyStatements(obligations ?? statements)` for any outcome
+     except `DENY`; when nothing classifies, the pause branches at ~1196 never
+     fire and the request falls through to a generic deny. The in-file comment
+     names the same invariant explicitly: *"live P1AZ answers bare
+     INDETERMINATE only when it could not evaluate the policy ... that must
+     fail closed to DENY below ... Same invariant the BFF
+     (`pingOneAuthorizeService.js` `_normalizeDecision`, #1310) and the Node
+     gateway ... already enforce."* No Groovy test harness exists in this repo
+     (live-verify-only, per the top of this plan).
+   - **BFF's own separate cloud engine** (out of scope for this rework, but
+     checked for completeness while reading `pingOneAuthorizeService.js`):
+     `_normalizeDecision`'s `_INDETERMINATE_EFFECTS` branch already collapses
+     any raw `decision: 'indeterminate'` from live P1AZ straight to `DENY`,
+     unconditionally — the exact #1310 incident (`create_withdrawal` as
+     PrivateBanking with no `Amount`, probed live 2026-08-03) that motivated
+     this whole rework.
+
+   So for the engine this rework actually touches (the mock PDP and its two
+   direct consumers), phase 5's guard was built independently, ahead of this
+   phase, as a side effect of #2129 (gateway) and #2133 (Groovy) — each
+   citing the same underlying trap (#1310 / `llm-path-approval-gate-open`)
+   without coordinating with each other or with this plan by name. Phase 4's
+   own contribution to phase 5 is structural rather than behavioural: since
+   the mock can no longer emit `INDETERMINATE` at all (see phase 4 above), the
+   "any INDETERMINATE is an error" property holds here as a fact about what
+   the code can produce, not a runtime branch that could regress.
+
+   **What phase 5 does NOT cover, left explicitly open:** "surface the missing
+   attribute" — naming WHICH attribute a live cloud evaluation failure was
+   missing. Neither the gateway's warn line nor Groovy's comment surfaces
+   that; both know only that classification failed, not why. That is real,
+   separately-scoped work (probably reading `raw.reason`/`raw.details` off the
+   live P1AZ response, which today the gateway logs but does not parse for
+   this purpose) — worth its own entry if it becomes a demo need.
 
 ## Verification gates
 

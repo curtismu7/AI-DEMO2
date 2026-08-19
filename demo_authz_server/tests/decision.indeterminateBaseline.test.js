@@ -76,26 +76,47 @@ async function decide(params) {
   return res.body;
 }
 
-// ── The one seam the rework moves ────────────────────────────────────────────
-// Today a pause is `decision=INDETERMINATE` + `reason=<kind>`. After the rework
-// it becomes an obligation on a DENY/PERMIT. Rewrite THESE THREE helpers then —
-// nothing below them.
+// ── The seam the rework moves — REWRITTEN for phase 4 ────────────────────────
+// Before phase 4: a pause was `decision=INDETERMINATE` + `reason=<kind>`.
+// After phase 4: a pause is `decision=PERMIT` carrying an unfulfilled
+// `obligations[]` entry of type <kind> — matching live cloud PingOne Authorize
+// for these three cases (confirmed live, probe-uc7-uc8-live.js) and the shape
+// forced by both consumers of this endpoint (a DENY-with-obligation is
+// silently dropped by each — see routes/decision.js's pausePermit() doc
+// comment). `decision=PERMIT` alone is no longer sufficient to prove "really
+// permitted" — assertPermits below must also prove NO obligation rode along,
+// or it would pass on a pause by accident.
 
 function assertPauses(result, kind, label) {
   assert.strictEqual(
-    result.decision, 'INDETERMINATE',
-    `${label}: expected a PAUSE, got ${result.decision} (${result.reason})`
+    result.decision, 'PERMIT',
+    `${label}: expected a PAUSE (PERMIT+obligation), got ${result.decision} (${result.reason})`
   );
   assert.strictEqual(
     result.reason, kind,
     `${label}: expected pause kind ${kind}, got ${result.reason}`
   );
+  assert.ok(
+    Array.isArray(result.obligations) && result.obligations.length === 1,
+    `${label}: expected exactly one obligation, got ${JSON.stringify(result.obligations)}`
+  );
+  const ob = result.obligations[0];
+  assert.strictEqual(ob.type, kind, `${label}: obligation type mismatch`);
+  assert.strictEqual(ob.obligatory, true, `${label}: obligatory must be true — an "optional" pause is not a pause (#1310)`);
+  assert.strictEqual(ob.fulfilled, false, `${label}: a freshly-issued pause cannot already be fulfilled`);
 }
 
 function assertPermits(result, label) {
   assert.strictEqual(
     result.decision, 'PERMIT',
     `${label}: expected PERMIT, got ${result.decision} (${result.reason})`
+  );
+  // The half of this check phase 4 makes necessary: PERMIT is now ALSO what a
+  // pause returns, so proving "really permitted" means proving no obligation
+  // rode along, not just checking the decision string.
+  assert.ok(
+    !result.obligations || result.obligations.length === 0,
+    `${label}: expected a genuine PERMIT with no obligation, got ${JSON.stringify(result.obligations)}`
   );
 }
 
@@ -204,21 +225,49 @@ test('baseline edges: $2000 exactly is NOT denied — ceiling is exclusive, so i
   assertDenies(await decide(paramsFor(entry, 2000.01)), 'amount_exceeds_ceiling', 'edge $2000.01');
 });
 
-// ── The two meanings, stated as a test ───────────────────────────────────────
-// This is the defect the rework removes. While it still holds, it is recorded
-// here so the day it stops holding is a visible, deliberate change rather than
-// a silent one. Phase 4 (flip the PDP) is expected to REPLACE this test.
+// ── The two meanings, no longer conflated — phase 4's replacement test ───────
+// The original version of this test recorded the DEFECT: both pauses carried
+// `decision: 'INDETERMINATE'`, the same value cloud P1AZ uses for "evaluation
+// failed" — indistinguishable by decision alone. Phase 4 removed the overload
+// at the source: this mock literally cannot emit `decision: 'INDETERMINATE'`
+// anymore (grep the whole file — the only remaining occurrence is a doc
+// comment). This test now proves the replacement property instead of the
+// defect: every pause is PERMIT, distinguishable from a genuine PERMIT only by
+// the presence of an obligation, and the two pause kinds stay distinguishable
+// from EACH OTHER by that obligation's type.
 
-test('baseline: today a PAUSE is indistinguishable from an evaluation error by `decision` alone', async () => {
+test('phase 4: pauses are PERMIT+obligation, never INDETERMINATE, and stay distinguishable by obligation type', async () => {
   const stepUp = await decide(paramsFor(VERTICAL_TOOLS[0], 600));
   const consent = await decide(paramsFor(VERTICAL_TOOLS[0], 300));
+  const permit = await decide(paramsFor(VERTICAL_TOOLS[0], 100));
 
-  // Both pauses carry the SAME decision value that cloud P1AZ uses for a failed
-  // evaluation. Only `reason` separates them — which is the overload itself.
-  assert.strictEqual(stepUp.decision, 'INDETERMINATE');
-  assert.strictEqual(consent.decision, 'INDETERMINATE');
+  for (const [label, r] of [['step-up', stepUp], ['consent', consent], ['permit', permit]]) {
+    assert.notStrictEqual(r.decision, 'INDETERMINATE', `${label}: this mock must never emit INDETERMINATE (phase 4)`);
+    assert.strictEqual(r.decision, 'PERMIT', `${label}: expected PERMIT`);
+  }
+
   assert.notStrictEqual(
-    stepUp.reason, consent.reason,
-    'the two pause kinds must remain distinguishable by reason'
+    stepUp.obligations[0].type, consent.obligations[0].type,
+    'the two pause kinds must remain distinguishable by obligation type'
+  );
+  assert.ok(
+    !permit.obligations || permit.obligations.length === 0,
+    'a genuine permit must carry no obligation — otherwise it is indistinguishable from a pause'
+  );
+});
+
+// Structural guard for the mock half of phase 5: since this engine has no
+// external attribute sources, it cannot fail to evaluate the way cloud P1AZ
+// can — so it must never claim it did. A future code path that reintroduces
+// `decision: 'INDETERMINATE'` breaks this, which is the point: the property
+// phase 5 wants ("a bare INDETERMINATE is always an error") holds here as a
+// STRUCTURAL fact, not a runtime check, because the value is unreachable.
+test('phase 5 (mock half): grep-equivalent guard — this file never emits decision: INDETERMINATE', () => {
+  const src = fs.readFileSync(require.resolve('../routes/decision.js'), 'utf8');
+  const codeOnly = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.ok(
+    !/decision:\s*'INDETERMINATE'/.test(codeOnly),
+    'routes/decision.js must not construct a decision:\'INDETERMINATE\' response — ' +
+    'that value is reserved for a genuine evaluation failure this simulator cannot produce'
   );
 });
