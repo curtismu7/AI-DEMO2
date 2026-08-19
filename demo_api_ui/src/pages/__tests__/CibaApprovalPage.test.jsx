@@ -184,3 +184,56 @@ describe('CibaApprovalPage — Approve / Deny actions', () => {
     );
   });
 });
+
+// The phone used to be a dead end in every non-pending state. footer was
+// `undefined`, and DraggableModal (DraggableModal.jsx:240) reads an undefined
+// footer as "render my default Close footer" — so the user's Approve/Deny were
+// silently replaced by a lone Close with no explanation and no way forward,
+// while the dashboard kept polling. The mock above renders nothing for an
+// undefined footer, which is why the real dead end was invisible to these tests.
+describe('CibaApprovalPage — non-pending states are not dead ends', () => {
+  const details = { amount: 300, from_account_label: 'Checking', to_account_label: 'Savings' };
+
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+
+  it('offers a retry when the load itself failed', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 500 });
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument(),
+    );
+  });
+
+  it('retry re-requests the challenge and can recover into pending', async () => {
+    global.fetch
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => details });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument(),
+    );
+    const callsBefore = global.fetch.mock.calls.length;
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    // A second GET goes out, and the page reaches a state where approval is
+    // possible again — the recovery the old page could never make.
+    await waitFor(() => expect(global.fetch.mock.calls.length).toBeGreaterThan(callsBefore));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument(),
+    );
+  });
+
+  it('expiry says where a new request comes from rather than "try again"', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 410 });
+    renderPage();
+    // Expiry is terminal for this request — the BFF deleted it, so a retry here
+    // cannot help and must not be offered.
+    await waitFor(() =>
+      expect(screen.getByText(/Start the transfer again from the dashboard/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+});

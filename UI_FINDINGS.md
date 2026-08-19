@@ -22,6 +22,7 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 | 8 | User prompt bubble layout broken | UI | Medium | OPEN | |
 | 9 | Home and Dashboard are two different apps | IA | Low | OPEN | |
 | 10 | `/dashboard` shows no banking data; `/api/token-chain` 401 on cold load | UI + BFF | Low | OPEN | |
+| 11 | CIBA phone simulator is a dead end in every non-pending state | UI | High | FIXED | PR #2158 — reported by the user as "never accepts Approve" |
 
 ---
 
@@ -121,11 +122,34 @@ For "Super Banking" the whole main area is agent chat + token chain: no balances
 
 Related: `/api/token-chain` 401s on every cold page load (fetch fires before the session cookie is live). Harmless, but it is the first thing in the console.
 
+### 11. CIBA phone simulator is a dead end in every non-pending state — FIXED (PR #2158)
+
+Reported by the user as "CIBA is broken, it never accepts Approve and keeps looping". Reproduced on the live stack: the phone renders with **no Approve button at all** — only Close.
+
+**Mechanism.** `CibaApprovalPage.js` builds its footer as `status === "pending" && details ? <Approve/Deny> : undefined`. `DraggableModal.jsx:240` reads an **undefined** footer as "render my default Close footer", not as "render nothing". So in `loading`, `error` and `expired` the user's Approve/Deny are silently swapped for a lone Close, with no explanation and no way forward — while the dashboard keeps polling `/poll/:authReqId` every 5s. That polling is the "looping".
+
+Two things made that state easy to reach and impossible to leave:
+
+- The page fetched the challenge **once on mount** (`useEffect` deps `[authReqId, apiBase]`) and never again, so its state was a snapshot that could not recover.
+- The simulated engine auto-approves after 60s (`SIMULATED_APPROVE_DELAY_MS`) while the request lives 300s, so an Approve click races a timer that would approve anyway. Live logs bear this out: the poll response goes 41 → 88 bytes at the 60s mark with **zero `/approve-now` POSTs** in the window. The approval the user saw land was never their click.
+
+**Fixed:** `error` now offers a working **Try again** that re-runs the load (`loadAttempt` in the effect deps) and can recover into `pending`. `expired` stops saying "please try again" — which reads as "press something here" when expiry is terminal and the BFF has already deleted the challenge — and instead says where a new request comes from. Retry is deliberately *not* offered on `expired` for that reason.
+
+**Also fixed, a §0 violation found here:** the phone frame re-skins the panel dark (`#1c1c1e`) but the body text kept `DraggableModal`'s dark-on-light colour, so every message rendered grey on near-black. `§0` forbids muted modal text. `.ciba-phone-modal .dm-scroll` now sets an explicit high-contrast colour.
+
+**Why the tests missed it.** `CibaApprovalPage.test.jsx` mocks `DraggableModal` as `{footer && <div>…</div>}`, which renders *nothing* for an undefined footer — the opposite of the real component's default-Close substitution. The test double diverged from the real component in exactly the place the bug lived. The 3 new tests assert the recovery path rather than the mock's shape.
+
+**Evidence:** full UI suite 389 files / 3322 tests pass, build exit 0. The 3 new tests were confirmed to fail against the pre-fix page (stashed the component, re-ran, `3 failed | 12 passed` — exactly the three).
+
+**Left alone deliberately:** the 60s auto-approve. `/approve-now` is *built on* it (it backdates `initiatedAt` past the delay rather than setting a flag), so removing it needs a replacement approved-by-user flag plus server test changes. It makes Approve feel broken even when it works, so it is worth doing — but it is a demo-behaviour change, not part of this bug.
+
 ## Not covered
 
 Dark mode · narrow/mobile widths · the other 11 verticals · every admin surface.
 
 ## Changelog
+
+- 2026-08-19 — #11 added and FIXED (PR #2158): the CIBA phone simulator's dead-end footer, the single-fetch that could never recover, and a §0 muted-text violation in the same modal.
 
 - 2026-08-19 — #3 rescoped again: my "zero POST in the BFF logs" evidence was void (the BFF container restarted after the failure, so I queried logs from a container that was not running at the time). Reproduction method corrected to pin container StartedAt before and after a run.
 - 2026-08-19 — #4 FIXED (PR #2155), #3 rescoped. Investigating #3 disproved two of its three original claims and showed the confirm never reaches the BFF; #4's premise about the 401s was also wrong, though its badge defect was real. Corrections recorded in place rather than quietly dropped.
