@@ -213,6 +213,15 @@ describe('LiveUseCaseWorkbenchPage CSS — narrow-viewport drawer revert', () =>
     expect(ruleMatch).not.toBeNull();
     expect(ruleMatch[1]).toMatch(/grid-column:\s*-2\s*\/\s*-1/);
   });
+
+  it('caps the live agent transcript and scrolls long responses internally', () => {
+    const ruleMatch = cssText.match(
+      /\.luw-agent-host\s+\.banking-agent-panel\s+\.banking-agent-messages\s*\{([^}]*)\}/,
+    );
+    expect(ruleMatch).not.toBeNull();
+    expect(ruleMatch[1]).toMatch(/max-height:\s*clamp\(240px,\s*48dvh,\s*520px\)/);
+    expect(ruleMatch[1]).toMatch(/overflow-y:\s*auto/);
+  });
 });
 
 // Minimal BroadcastChannel spy: every `new BroadcastChannel('demo-script')`

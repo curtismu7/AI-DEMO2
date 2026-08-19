@@ -413,6 +413,14 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   box-shadow: none !important;
 }
 
+/* Keep long live responses inside the transcript instead of letting them grow
+   the entire workbench. The viewport-aware ceiling stays usable on laptops
+   while leaving the prompt and agent controls outside the scroll region. */
+.luw-agent-host .banking-agent-panel .banking-agent-messages {
+  max-height: clamp(240px, 48dvh, 520px);
+  overflow-y: auto;
+}
+
 .luw-glance {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr;

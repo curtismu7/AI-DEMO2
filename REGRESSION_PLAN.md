@@ -648,6 +648,26 @@ successfully minted specialist token.
 
 **Verify:** focused A2A Jest suites, including `--detectOpenHandles`; server unit
 suite; `npm run topology:verify`; `npm run authz:verify`.
+### 2026-08-19 — Live workbench response transcript grew without a ceiling
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`,
+`demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`
+
+**What was broken:** The live workbench agent transcript had vertical overflow
+enabled but no height ceiling, so each response expanded the entire agent and
+page instead of scrolling inside the response region.
+
+**What was fixed:** Added a workbench-scoped, viewport-aware 240–520px maximum
+height to the agent message transcript and pinned its internal vertical scroll
+behavior in the page's CSS regression tests.
+
+**Do not break:** Keep the cap scoped to `.luw-agent-host`; floating, dashboard,
+and bottom-dock agents retain their existing sizing. The prompt and controls
+must remain outside the scrolling transcript.
+
+**Verify:** Workbench test — 25 passed. Full UI run — 388 files / 3325
+tests passed, 24 skipped, with one unrelated `App.structure.test.js` timeout;
+that file passed 32/32 on immediate focused rerun. `npm run build` — exit 0.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 
