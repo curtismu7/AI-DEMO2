@@ -42,6 +42,15 @@ jest.mock('../../services/tokenChainService', () => ({
   trackTokenEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../services/hitlServiceClient', () => ({
+  getChallengeStatus: jest.fn(),
+  respondToChallenge: jest.fn(),
+}));
+
+jest.mock('../../services/cibaTransactionReceipt', () => ({
+  record: jest.fn(),
+}));
+
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
     const defaults = {

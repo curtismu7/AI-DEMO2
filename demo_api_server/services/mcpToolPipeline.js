@@ -1450,6 +1450,7 @@ async function runMcpToolPipeline(ctx) {
                     error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
                     tool,
                     step_up_method: declaredStepUpMethod,
+                    hitlChallengeId: err.rpcData?.challengeId || null,
                     tokenEvents,
                     requestJson,
                     ...(gwEval ? { mcpAuthorizeEvaluation: gwEval } : {}),

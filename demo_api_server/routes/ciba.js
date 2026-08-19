@@ -34,6 +34,8 @@ const configStore = require('../services/configStore');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { trackTokenEvent } = require('../services/tokenChainService');
+const hitlServiceClient = require('../services/hitlServiceClient');
+const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 
@@ -128,6 +130,25 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   const amount = req.body.amount != null ? Number(req.body.amount) : null;
   const fromAccountLabel = field('from_account_label', 'fromAccountLabel') || null;
   const toAccountLabel = field('to_account_label', 'toAccountLabel') || null;
+  const hitlChallengeId = field('hitl_challenge_id', 'hitlChallengeId') || null;
+
+  let hitlChallenge = null;
+  if (hitlChallengeId) {
+    try {
+      hitlChallenge = await hitlServiceClient.getChallengeStatus(hitlChallengeId);
+    } catch (_) {
+      return res.status(400).json({ error: 'invalid_hitl_challenge' });
+    }
+    const requestUserId = req.user?.id || req.user?.sub;
+    const challengeAmount = Number(hitlChallenge.context?.amount);
+    if (
+      hitlChallenge.status !== 'pending'
+      || hitlChallenge.userId !== requestUserId
+      || (amount != null && (!Number.isFinite(challengeAmount) || challengeAmount !== amount))
+    ) {
+      return res.status(400).json({ error: 'invalid_hitl_challenge' });
+    }
+  }
 
   // Validate binding_message length and content (prevents log injection / oversized payloads)
   if (binding_message !== undefined) {
@@ -218,6 +239,8 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       fromAccountLabel,
       toAccountLabel,
       delegationId,
+      hitlChallengeId,
+      hitlChallengeTool: hitlChallenge?.tool || null,
     };
 
     res.json({
@@ -366,6 +389,17 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       return res.json({ status: 'pending', engine: 'simulated' });
     }
 
+    if (pending.hitlChallengeId) {
+      try {
+        await hitlServiceClient.respondToChallenge(pending.hitlChallengeId, 'approved', req.id);
+      } catch (_) {
+        return res.status(502).json({ error: 'hitl_approval_failed' });
+      }
+      if (pending.hitlChallengeTool && pending.amount != null) {
+        cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
+      }
+    }
+
     _markCibaApproved(pending);
     req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
     // CIBA out-of-band approval IS a human-in-the-loop event, so it discharges
@@ -419,6 +453,17 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
 
   try {
     const tokens = await cibaService.pollForTokens(authReqId);
+
+    if (pending.hitlChallengeId) {
+      try {
+        await hitlServiceClient.respondToChallenge(pending.hitlChallengeId, 'approved', req.id);
+      } catch (_) {
+        return res.status(502).json({ error: 'hitl_approval_failed' });
+      }
+      if (pending.hitlChallengeTool && pending.amount != null) {
+        cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
+      }
+    }
 
     // Store tokens server-side (Backend-for-Frontend (BFF) pattern — never expose raw tokens to browser)
     req.session.oauthTokens = {

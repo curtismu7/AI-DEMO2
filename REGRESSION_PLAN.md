@@ -105,6 +105,30 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-19 — CIBA approval retried without its gateway HITL receipt and immediately challenged again
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/routes/ciba.js`, `demo_api_ui/src/components/AIAgent.js`, and focused tests.
+
+**What was broken:** PingGateway minted a bound HITL challenge, but the BFF dropped
+its id when converting the gateway HITL response to UC22's declared CIBA step-up.
+CIBA approval set only BFF session flags; the resumed gateway request therefore
+carried no `_hitl_challenge_id`, so PingGateway and PingOne Authorize correctly
+issued another HITL challenge and the UI looped back into CIBA.
+
+**What was fixed:** the original challenge id now survives the CIBA response,
+initiation, approval, poll, and retry. The CIBA route validates the pending
+challenge against the authenticated user and amount, approves that exact canonical
+HITL record, and records the existing downstream bearer-hop receipt. The retry
+presents the opaque challenge id, so PingGateway's existing consuming verification
+remains authoritative.
+
+**Do not break:** never replace the challenge receipt with a trusted boolean or
+skip PingGateway verification. User, agent, tool, amount, account, expiry, and
+single-use binding remain fail-closed in the canonical HITL service.
+
+**Verify:** focused BFF pipeline tests (54/54), CIBA route tests (61/61), and UI CIBA tests (3/3); UI build required.
+
 ### 2026-08-19 — Signed-out public UC24 was stranded before dispatch because guest vertical hydration resolved empty
 
 **Files changed:** `demo_api_ui/src/vertical/VerticalProvider.jsx`,
