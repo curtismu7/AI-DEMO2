@@ -130,7 +130,7 @@ describe('every amount-gated chip reaches the amount policy', () => {
     }
     // …and the tool it dispatches must be one the gate actually evaluates.
     const tool = toolFor(action);
-    if (!Object.prototype.hasOwnProperty.call(WRITE_TOOL_TYPE_MAP, tool)) {
+    if (!Object.hasOwn(WRITE_TOOL_TYPE_MAP, tool)) {
       throw new Error(
         `${vertical}: UC6 resolves action "${action}" -> tool "${tool}", which is NOT in ` +
           `WRITE_TOOL_TYPE_MAP — the chip routes but the amount policy NEVER fires (silent ` +

@@ -12,7 +12,7 @@ export const HERO_VARIANTS = {
   'code-search': {
     backgroundColor: '#059669',
     backgroundEndColor: '#047857',
-    label: 'Code Search',
+    label: 'Protected RAG',
   },
   'oauth-academy': {
     backgroundColor: '#6366f1',

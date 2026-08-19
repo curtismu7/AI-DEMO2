@@ -3,7 +3,7 @@
  * Shared by UseCaseLauncherPage (/use-cases Demo section) and the agent
  * "Demo steps" dropdown so both lists stay identical.
  *
- * Primary = all 21 steps shown in the visible grid.
+ * Primary = all steps shown in the visible grid.
  * Advanced = empty (nothing hidden).
  * Attacks + Testing chips live in the Actions popout, not here.
  */
@@ -30,6 +30,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope
   'UC38',  // Personal Agent Concierge — MFA + Agent Builder + RFC 8693 delegation
+  'UC-TOOL1', // Protected RAG — code:search + PingOne Authorize
 ];
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];

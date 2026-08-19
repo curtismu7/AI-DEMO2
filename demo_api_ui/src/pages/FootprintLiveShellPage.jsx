@@ -15,6 +15,7 @@ const PATH_TO_CATEGORY = {
   "chatgpt-desktop": "chatgpt",
   "saas-embedded": "saas",
   "coding-agent": "coding",
+  "claude-desktop": "claude-desktop",
 };
 
 /**
@@ -56,7 +57,7 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
         variant={variant}
         onExit={() => navigate("/demo/footprint-picks")}
       >
-        <PrivilegeShellPanel skin={category} />
+        <PrivilegeShellPanel skin={category === "claude-desktop" ? "claude-desktop" : category} />
       </FootprintChrome>
     </div>
   );

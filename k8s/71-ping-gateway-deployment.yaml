@@ -62,6 +62,10 @@ spec:
           value: "http://mcp-server:8080"
         - name: PG_INVEST_BACKEND_URL
           value: "http://mcp-resource-server:8081"
+        - name: PG_WEATHER_BACKEND_URL
+          value: "http://mcp-weather:8896"
+        - name: PG_BRAVE_BACKEND_URL
+          value: "http://mcp-brave:8897"
         # In-cluster BFF vault bridge. Host URL from refresh-service-envs
         # (api.ping.demo) resolves to 127.0.0.1 inside the pod → bridge 0.
         # demo-api-server is ClusterIP DNS; HostnameVerifier in apikey-dispatch

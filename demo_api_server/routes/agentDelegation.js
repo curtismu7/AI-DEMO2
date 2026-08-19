@@ -93,7 +93,7 @@ router.post('/delegate', express.json(), async (req, res) => {
 
   // --- Scope handling: intersect requested with token scopes ---
   const tokenScopes = claims.scope ? claims.scope.split(' ') : [];
-  let requestedScope = req.body?.scope;
+  const requestedScope = req.body?.scope;
   let finalScopes;
   if (requestedScope) {
     const requested = typeof requestedScope === 'string' ? requestedScope.split(' ') : requestedScope;

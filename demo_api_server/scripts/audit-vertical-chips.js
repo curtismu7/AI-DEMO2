@@ -54,10 +54,17 @@ function seedIdsByCollection(vertical) {
   const seedPath = path.join(REPO, 'demo_api_server', 'config', 'verticals', vertical, 'seed.json');
   if (!fs.existsSync(seedPath)) return null;
   const collect = (node, into) => {
-    if (Array.isArray(node)) return node.forEach((n) => collect(n, into));
+    if (Array.isArray(node)) {
+      node.forEach((n) => {
+        collect(n, into);
+      });
+      return;
+    }
     if (node && typeof node === 'object') {
       if (node.id != null) into.add(String(node.id));
-      Object.values(node).forEach((n) => collect(n, into));
+      Object.values(node).forEach((n) => {
+        collect(n, into);
+      });
     }
   };
   const seed = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
@@ -183,7 +190,8 @@ if (!findings.length) {
 }
 
 const byKind = findings.reduce((acc, f) => {
-  (acc[f.kind] = acc[f.kind] || []).push(f);
+  acc[f.kind] = acc[f.kind] || [];
+  acc[f.kind].push(f);
   return acc;
 }, {});
 

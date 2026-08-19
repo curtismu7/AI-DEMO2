@@ -655,7 +655,6 @@ router.get('/rate-limit-status', async (req, res) => {
     let rateLimitLayer = 'off';
     if (usePing && igArmed) rateLimitLayer = 'ig';
     else if (!usePing && gatewayEnabled) rateLimitLayer = 'gateway';
-    else if (!usePing && bffFlag && gatewayEnabled) rateLimitLayer = 'both';
 
     const aligned = usePing
         ? (bffFlag && igArmed)

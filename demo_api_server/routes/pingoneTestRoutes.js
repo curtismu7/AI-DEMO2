@@ -182,13 +182,13 @@ router.post('/worker-config', async (req, res) => {
 
         // Update or add the environment variables
         const lines = envContent.split('\n');
-        let updatedLines = [];
+        const updatedLines = [];
         let foundClientId = false;
         let foundClientSecret = false;
         let foundAuthMethod = false;
         let foundExchangeAuthMethod = false;
 
-        for (let line of lines) {
+        for (const line of lines) {
           if (line.startsWith('PINGONE_WORKER_TOKEN_CLIENT_ID=')) {
             updatedLines.push(`PINGONE_WORKER_TOKEN_CLIENT_ID=${clientId}`);
             foundClientId = true;

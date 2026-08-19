@@ -5,7 +5,7 @@
  * Provides comprehensive logging for admin token usage and administrative operations.
  */
 
-const { writeExchangeEvent } = require('./exchangeAuditStore');
+const { writeExchangeEvent, readExchangeEvents } = require('./exchangeAuditStore');
 
 /**
  * Admin action types for categorization
@@ -192,7 +192,31 @@ function logAdminSecurityAction(event, req) {
  * @returns {Promise<Array>} - Array of audit events
  */
 async function getAdminAuditTrail(adminSub, options = {}) {
-  throw new Error('getAdminAuditTrail is not implemented');
+  const {
+    limit = 200,
+    startDate,
+    endDate,
+    actionTypes
+  } = options;
+  const start = startDate ? new Date(startDate).getTime() : -Infinity;
+  const end = endDate ? new Date(endDate).getTime() : Infinity;
+  const allowedTypes = actionTypes
+    ? new Set(Array.isArray(actionTypes) ? actionTypes : [actionTypes])
+    : null;
+
+  const events = await readExchangeEvents();
+  return events
+    .filter(event => {
+      const timestamp = new Date(event.timestamp).getTime();
+      return (
+        event.adminSub === adminSub &&
+        timestamp >= start &&
+        timestamp <= end &&
+        (!allowedTypes || allowedTypes.has(event.type))
+      );
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, Math.max(0, Number(limit) || 0));
 }
 
 /**
@@ -213,15 +237,40 @@ async function generateAdminActivityReport(options = {}) {
     adminSubs
   });
 
-  // TODO: Implement actual report generation
-  // This would aggregate audit data and generate metrics
+  const events = (await readExchangeEvents()).filter(event => {
+    const timestamp = new Date(event.timestamp).getTime();
+    return (
+      timestamp >= new Date(startDate).getTime() &&
+      timestamp <= new Date(endDate).getTime() &&
+      (adminSubs.length === 0 || adminSubs.includes(event.adminSub))
+    );
+  });
+  const actionsByType = {};
+  const actionsByAdmin = {};
+  const actionCounts = {};
+
+  for (const event of events) {
+    actionsByType[event.type] = (actionsByType[event.type] || 0) + 1;
+    actionsByAdmin[event.adminSub] = (actionsByAdmin[event.adminSub] || 0) + 1;
+    if (event.action) actionCounts[event.action] = (actionCounts[event.action] || 0) + 1;
+  }
+
+  const topActions = Object.entries(actionCounts)
+    .sort(([, a], [, b]) => b - a)
+    .map(([action, count]) => ({ action, count }));
+  const securityEvents = events.filter(event =>
+    event.type === ADMIN_ACTION_TYPES.SECURITY_ACTION ||
+    event.type === 'security-monitoring-event' ||
+    event.type.startsWith('security')
+  );
+
   return {
     period: { startDate, endDate },
-    totalActions: 0,
-    actionsByType: {},
-    actionsByAdmin: {},
-    topActions: [],
-    securityEvents: []
+    totalActions: events.length,
+    actionsByType,
+    actionsByAdmin,
+    topActions,
+    securityEvents
   };
 }
 
@@ -230,10 +279,27 @@ async function generateAdminActivityReport(options = {}) {
  * @param {string} adminSub - Admin subject identifier
  * @param {string} action - Action to perform
  * @param {string} resource - Resource being accessed
+ * @param {string[]} scopes - Optional scopes to evaluate against the policy
  * @returns {object} - Permission validation result
  */
-function validateAdminActionPermissions(adminSub, action, resource) {
-  throw new Error('validateAdminActionPermissions is not implemented');
+function validateAdminActionPermissions(adminSub, action, resource, scopes = []) {
+  const normalizedScopes = new Set(Array.isArray(scopes) ? scopes : [scopes]);
+  const normalizedAction = String(action || '').toLowerCase();
+  const requiredScopes = normalizedAction === 'delete'
+    ? ['admin:delete', 'users:manage']
+    : ['read', 'view', 'lookup', 'search', 'export'].includes(normalizedAction)
+      ? ['admin:read']
+      : ['admin:write'];
+  const hasScopes = requiredScopes.every(scope => normalizedScopes.has(scope));
+
+  return {
+    allowed: Boolean(adminSub) && hasScopes,
+    adminSub: adminSub || null,
+    action: normalizedAction,
+    resource: resource || null,
+    requiredScopes,
+    missingScopes: requiredScopes.filter(scope => !normalizedScopes.has(scope))
+  };
 }
 
 module.exports = {

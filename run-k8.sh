@@ -232,6 +232,9 @@ tag_k8_images() {
     "ai-demo-tier-manager:ai-demo-k8-tier-manager"
     "ai-demo-mcp-code-search:ai-demo-k8-mcp-code-search"
     "ai-demo-llamaindex-agent:ai-demo-k8-llamaindex-agent"
+    "${K8_COMPOSE_PROJECT}-mcp-weather:ai-demo-k8-mcp-weather"
+    "${K8_COMPOSE_PROJECT}-mcp-brave:ai-demo-k8-mcp-brave"
+    "${K8_COMPOSE_PROJECT}-mcp-jwt-verifier:ai-demo-k8-mcp-jwt-verifier"
   )
   for entry in "${pairs[@]}"; do
     local src="${entry%%:*}" dst="${entry##*:}"
@@ -254,7 +257,9 @@ build() {
   # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
     demo-api-server ui mcp-server langchain-agent agent-service \
-    hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway
+    hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
+    mcp-weather mcp-brave
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   tag_k8_images
   success "Images built and tagged for K8."
@@ -603,6 +608,31 @@ se_status() {
   K8S_NAMESPACE="$ns" bash "$K8S_DIR/deploy.sh" status
 }
 
+se_rag() {
+  local action="${1:-on}"
+  [[ "$action" == "on" || "$action" == "off" ]] \
+    || die "RAG action must be 'on' or 'off'"
+  local ns
+  ns="$(derive_se_namespace)"
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "$ctx" != "us" && "$ctx" != "ping-dev-aws-us-east-2-oidc" ]]; then
+    info "Switching kubectl context to 'us' (ping-dev-aws-us-east-2)..."
+    kubectl config use-context us
+  fi
+  kubens "$ns"
+  info "SE cluster RAG $action → namespace: $ns"
+  if [[ "$action" == "on" ]]; then
+    check_ghcr_env
+  fi
+  if [[ "$action" == "off" ]]; then
+    K8S_NAMESPACE="$ns" bash "$K8S_DIR/deploy.sh" rag off
+  else
+    K8S_NAMESPACE="$ns" RAG_ACTION="$action" \
+      bash "$K8S_DIR/aws/deploy-rag.sh"
+  fi
+}
+
 se_deploy_banner() {
   local ns="$1"
   echo ""
@@ -652,7 +682,7 @@ sim() {
   sim_deploy
   forward
   success "Sim deploy complete — running GHCR images on local K8s."
-  success "Access at https://api.ping.demo:4000"
+  success "Access at https://local.ping-devops.com:4000"
 }
 
 show_help() {
@@ -694,6 +724,7 @@ case "${1:-all}" in
   se-deploy)   se_deploy ;;
   se-all)      aws_build; se_deploy ;;
   se-status)   se_status ;;
+  se-rag)      se_rag "${2:-on}" ;;
   se-undeploy) se_undeploy ;;
   aws-build)  aws_build ;;
   aws-deploy) aws_deploy; aws_finish ;;
@@ -701,7 +732,7 @@ case "${1:-all}" in
   aws-status) aws_status ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-status|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
+    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-status|se-rag|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
     exit 1
     ;;
 esac

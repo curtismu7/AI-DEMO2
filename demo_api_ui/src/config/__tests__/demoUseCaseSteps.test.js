@@ -32,6 +32,7 @@ describe('demoUseCaseSteps', () => {
       'UC31',
       'UC32',
       'UC38',
+      'UC-TOOL1',
     ]);
   });
 
@@ -73,8 +74,8 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 22 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(22);
+  it('primary list has 23 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(23);
   });
 
   it('advanced list is empty (nothing hidden)', () => {

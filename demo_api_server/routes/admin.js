@@ -282,7 +282,7 @@ router.get('/activity/user/:username', requireAdmin, requireScopes(['admin']), (
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 50);
 
-    let logs = dataStore.getActivityLogsByUsername(username);
+    const logs = dataStore.getActivityLogsByUsername(username);
 
     // Sort by timestamp (newest first)
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -319,7 +319,7 @@ router.get('/activity/userid/:userId', requireAdmin, requireScopes(['admin']), (
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 50);
 
-    let logs = dataStore.getActivityLogsByUserId(userId);
+    const logs = dataStore.getActivityLogsByUserId(userId);
 
     // Sort by timestamp (newest first)
     logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));

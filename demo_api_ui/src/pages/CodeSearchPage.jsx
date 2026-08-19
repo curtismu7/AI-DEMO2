@@ -261,6 +261,19 @@ export function CodeSearchPage() {
 
   return (
     <div className="code-search-page">
+      <section className="protected-rag-banner" aria-labelledby="protected-rag-title">
+        <div>
+          <span className="protected-rag-eyebrow">Identity-governed retrieval</span>
+          <h1 id="protected-rag-title">Protected RAG</h1>
+          <p>Use this workspace to manage and inspect the indexed corpus. The Demo Steps chip retrieves through RFC 8693 delegation, the <strong>code:search</strong> scope, the Agent Gateway, and PingOne Authorize.</p>
+        </div>
+        <div className="protected-rag-controls" aria-label="Protected RAG enforcement chain">
+          <span>Delegated token</span>
+          <span>code:search</span>
+          <span>Policy decision</span>
+          <span>Grounded source</span>
+        </div>
+      </section>
       <div className="search-container" style={{ '--cs-left-w': `${leftPanelWidth}px` }}>
         <div className="search-panel-left">
           <CodebaseUploader

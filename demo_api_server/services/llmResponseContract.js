@@ -12,7 +12,7 @@
 /** Collapse control chars and cap length so raw output is loggable/renderable. */
 function snippet(raw, max = 200) {
   return String(raw ?? '')
-    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(new RegExp('[\\u0000-\\u001f\\u007f]+', 'g'), ' ')
     .replace(/\s{2,}/g, ' ')
     .trim()
     .slice(0, max);

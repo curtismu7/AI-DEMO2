@@ -813,8 +813,8 @@ class RFC9728ComplianceAuditService {
       educational: 0.15
     };
 
-    let totalScore = 0;
-    let totalWeight = 0;
+    const totalScore = 0;
+    const totalWeight = 0;
 
     // This would be calculated from the actual compliance results
     // For now, we'll return a placeholder

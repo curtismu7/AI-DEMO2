@@ -30,7 +30,7 @@ class PingOneErrorClassifier {
     }
 
     // Network errors: connection refused, timeout, etc.
-    if (this._isNetworkError(err)) {
+    if (PingOneErrorClassifier._isNetworkError(err)) {
       return {
         category: 'TRANSIENT',
         code: 'NETWORK_ERROR',
@@ -82,7 +82,7 @@ class PingOneErrorClassifier {
     // HTTP 401 with invalid_grant: User needs to re-authenticate
     if (
       err.response?.status === 401 &&
-      this._isPingOneApiError(err) &&
+      PingOneErrorClassifier._isPingOneApiError(err) &&
       err.response?.data?.error === 'invalid_grant'
     ) {
       return {
@@ -100,7 +100,7 @@ class PingOneErrorClassifier {
     }
 
     // Token expired
-    if (this._isTokenExpired(err)) {
+    if (PingOneErrorClassifier._isTokenExpired(err)) {
       return {
         category: 'USER',
         code: 'TOKEN_EXPIRED',
@@ -116,7 +116,7 @@ class PingOneErrorClassifier {
     }
 
     // Token revoked
-    if (this._isTokenRevoked(err)) {
+    if (PingOneErrorClassifier._isTokenRevoked(err)) {
       return {
         category: 'USER',
         code: 'TOKEN_REVOKED',
@@ -132,7 +132,7 @@ class PingOneErrorClassifier {
     }
 
     // Scope mismatch
-    if (this._isScopeMismatch(err)) {
+    if (PingOneErrorClassifier._isScopeMismatch(err)) {
       const requiredScopes = err.classification?.requiredScopes || [];
       const missingScopes = err.classification?.missingScopes || [];
       return {
@@ -151,7 +151,7 @@ class PingOneErrorClassifier {
     }
 
     // Audience mismatch
-    if (this._isAudienceMismatch(err)) {
+    if (PingOneErrorClassifier._isAudienceMismatch(err)) {
       return {
         category: 'CONFIG',
         code: 'AUDIENCE_MISMATCH',
@@ -167,7 +167,7 @@ class PingOneErrorClassifier {
     }
 
     // Issuer mismatch
-    if (this._isIssuerMismatch(err)) {
+    if (PingOneErrorClassifier._isIssuerMismatch(err)) {
       return {
         category: 'CONFIG',
         code: 'ISSUER_MISMATCH',
@@ -183,7 +183,7 @@ class PingOneErrorClassifier {
     }
 
     // JWKS error
-    if (this._isJwksError(err)) {
+    if (PingOneErrorClassifier._isJwksError(err)) {
       return {
         category: 'CONFIG',
         code: 'JWKS_UNAVAILABLE',
@@ -203,7 +203,7 @@ class PingOneErrorClassifier {
     }
 
     // Invalid signature
-    if (this._isInvalidSignature(err)) {
+    if (PingOneErrorClassifier._isInvalidSignature(err)) {
       return {
         category: 'CONFIG',
         code: 'INVALID_SIGNATURE',
@@ -219,7 +219,7 @@ class PingOneErrorClassifier {
     }
 
     // Delegation claim missing
-    if (this._isDelegationMissing(err)) {
+    if (PingOneErrorClassifier._isDelegationMissing(err)) {
       return {
         category: 'CONFIG',
         code: 'DELEGATION_CLAIM_MISSING',
@@ -235,7 +235,7 @@ class PingOneErrorClassifier {
     }
 
     // Token exchanger misconfigured
-    if (this._isTokenExchangeError(err)) {
+    if (PingOneErrorClassifier._isTokenExchangeError(err)) {
       return {
         category: 'CONFIG',
         code: 'TOKEN_EXCHANGE_FAILED',

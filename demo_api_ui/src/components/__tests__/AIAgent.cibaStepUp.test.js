@@ -170,18 +170,22 @@ function stepUpError(method) {
     transaction_amount: 600,
     fromAccountId: "acct-from",
     toAccountId: "acct-to",
+    hitlChallengeId: "challenge-ciba-1",
   });
 }
 
 let fetchCalls;
+let fetchBodies;
 
 beforeEach(() => {
   localStorage.clear();
   callMcpTool.mockReset();
   fetchCalls = [];
+  fetchBodies = [];
   vi.spyOn(window, "open").mockReturnValue({ location: { href: "" }, close: vi.fn() });
-  global.fetch = vi.fn((url) => {
+  global.fetch = vi.fn((url, options = {}) => {
     fetchCalls.push(String(url));
+    fetchBodies.push(options.body ? JSON.parse(options.body) : null);
     return Promise.resolve({
       ok: true,
       status: 200,
@@ -202,6 +206,8 @@ describe("runAction mcp_step_up_required — CIBA vs MFA", () => {
     await clickMcpChip();
 
     await waitFor(() => expect(called("/api/auth/ciba/initiate")).toBe(true));
+    const cibaCallIndex = fetchCalls.findIndex((url) => url.includes("/api/auth/ciba/initiate"));
+    expect(fetchBodies[cibaCallIndex]).toMatchObject({ hitl_challenge_id: "challenge-ciba-1" });
     expect(called("/api/auth/mfa/challenge")).toBe(false);
   });
 

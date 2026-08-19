@@ -34,7 +34,9 @@ test('getTools returns list_pingone_tools and call_pingone_tool with read scope'
   expect(names).toContain('call_pingone_tool');
   expect(names).not.toContain('discover_oas_operations');
   expect(names).not.toContain('call_pingone_operation');
-  tools.forEach((t) => expect(t.scopes).toEqual(['read']));
+  tools.forEach((t) => {
+    expect(t.scopes).toEqual(['read']);
+  });
 });
 
 test('list_pingone_tools returns live tool list with source: live', async () => {

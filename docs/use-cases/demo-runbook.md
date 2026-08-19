@@ -17,6 +17,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `show my balance` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my mortgage` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -27,6 +28,7 @@
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `Can you waive the fee on my checking account?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## healthcare
@@ -35,6 +37,7 @@
 |---|---|---|---|
 | UC1 | `check my coverage` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive patient records` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my health records` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -45,6 +48,7 @@
 | UC24 | `What clinics are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a copy of my records?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## retail
@@ -53,6 +57,7 @@
 |---|---|---|---|
 | UC1 | `list my orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my large purchase` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -63,6 +68,7 @@
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a price adjustment on my order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## abercrombie-fitch
@@ -71,6 +77,7 @@
 |---|---|---|---|
 | UC1 | `show my A&F orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive A&F order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my saved items at A&F` | `PERMIT` | Same delegated token, a different A&F tool — the act claim proves the agent through the saved-styles lookup, not just order history. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -81,6 +88,7 @@
 | UC24 | `What A&F stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a price adjustment on my A&F order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## government
@@ -89,6 +97,7 @@
 |---|---|---|---|
 | UC1 | `show my permits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive tax record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my permit status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -99,6 +108,7 @@
 | UC24 | `What city offices are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you submit my permit filing?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## university
@@ -107,6 +117,7 @@
 |---|---|---|---|
 | UC1 | `show my enrolled courses` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `access my sensitive student finance` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my enrollment status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -117,6 +128,7 @@
 | UC24 | `What campus locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request campus housing for me?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## workforce
@@ -125,6 +137,7 @@
 |---|---|---|---|
 | UC1 | `my benefits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive payroll details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my expense report` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -135,6 +148,7 @@
 | UC24 | `What office locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a schedule change for me?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## sporting-goods
@@ -143,6 +157,7 @@
 |---|---|---|---|
 | UC1 | `my gear` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive membership details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my gear warranty` | `PERMIT` | Same delegated token, a different product — the act claim proves the agent all the way to a warranty lookup, not just the gear list. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -153,6 +168,7 @@
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you price-match my last order?` | `PERMIT` | The agent can only submit a price-match request for human review — it has no tool that actually approves one, so it cannot hallucinate a discount into existence. |
 
 ## manufacturing
@@ -161,6 +177,7 @@
 |---|---|---|---|
 | UC1 | `show my work orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive supplier contract` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my work order status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -171,6 +188,7 @@
 | UC24 | `What plant locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a spec exception?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## investment
@@ -179,6 +197,7 @@
 |---|---|---|---|
 | UC1 | `show my portfolios` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive holdings` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my portfolio` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -189,6 +208,7 @@
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a fee tier review?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## airlines
@@ -197,6 +217,7 @@
 |---|---|---|---|
 | UC1 | `show my reservations` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
 | UC2 | `show my sensitive passenger record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `what is the status of flight UA328` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
@@ -207,4 +228,6 @@
 | UC24 | `What airports are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
+| UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
+| UC38 | `have my agent use my miles for an upgrade` | `PERMIT` | MFA proved, personal agent verified, miles redeemed — cabin upgraded. |
 

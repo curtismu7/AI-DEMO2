@@ -55,7 +55,7 @@ function validateBundle(bundle, filename) {
   if (bundle['@context'] !== REQUIRED_CONTEXT) {
     errors.push(`${filename}: @context must be "${REQUIRED_CONTEXT}", got "${bundle['@context']}"`);
   }
-  if (typeof bundle.id !== 'string' || !/^urn:knowledge:[a-z0-9\-]+:[a-z0-9\-]+:[0-9a-f\-]{36}$/.test(bundle.id)) {
+  if (typeof bundle.id !== 'string' || !/^urn:knowledge:[a-z0-9-]+:[a-z0-9-]+:[0-9a-f-]{36}$/.test(bundle.id)) {
     errors.push(`${filename}: id must match urn:knowledge:<org>:<domain>:<uuid> pattern`);
   }
   if (typeof bundle.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(bundle.version)) {

@@ -17,7 +17,7 @@ const INSUFFICIENT_USER_AUTHENTICATION = 'insufficient_user_authentication';
 /** Quote a param value per RFC 7235 quoted-string (escape backslash + dquote; strip control chars — res.set throws on them). */
 function quote(value) {
   return `"${String(value)
-    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .replace(new RegExp('[\\x00-\\x1f\\x7f]', 'g'), ' ')
     .replace(/\\/g, '\\\\')
     .replace(/"/g, '\\"')}"`;
 }
@@ -50,13 +50,14 @@ function parseChallengeHeader(value) {
   const paramsPart = value.trim().replace(/^Bearer\s+/i, '');
   const out = { scheme: 'Bearer' };
   const re = /([a-zA-Z_]+)\s*=\s*"((?:[^"\\]|\\.)*)"/g;
-  let m;
-  while ((m = re.exec(paramsPart)) !== null) {
+  let m = re.exec(paramsPart);
+  while (m !== null) {
     const key = m[1];
     const raw = m[2].replace(/\\(.)/g, '$1');
     if (key === 'acr_values') out.acr_values = raw.split(/\s+/).filter(Boolean);
     else if (key === 'max_age') out.max_age = Number(raw);
     else out[key] = raw;
+    m = re.exec(paramsPart);
   }
   return out.error ? out : null;
 }

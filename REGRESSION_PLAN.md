@@ -103,32 +103,135 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
-
 Reverse-chronological, newest first.
 
-### 2026-08-19 — CIBA approval completed in the popup but did not wake the agent
+### 2026-08-19 — PingAWS deployed dotenvx ciphertext as OAuth secrets and broke every sign-in
 
-**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
-`demo_api_ui/src/pages/CibaApprovalPage.js`, and focused CIBA UI tests.
+**Files changed:** `k8s/create-secrets.sh`.
 
-**What was broken:** the approval page updated only its own React state. The
-agent depended on a scheduled poll, so a lost/stale timer left the original
-action waiting indefinitely and repeated the approval prompt.
+**What was broken:** after the dotenvx cutover, SE deployment sourced encrypted
+`.env` files directly and copied literal `encrypted:...` strings into Kubernetes
+Secrets. The BFF then sent ciphertext as the user and worker client secrets;
+PingOne returned `invalid_client`, breaking OAuth callbacks and management reads.
 
-**What was fixed:** the approval page emits a same-origin storage event after a
-successful approval/denial. The opener wakes the matching poller immediately;
-the inline Approve action does the same. The agent still calls the authenticated
-CIBA poll endpoint and only refires the original action after it receives
-`approved`.
+**What was fixed:** encrypted service env files are decrypted into permissioned
+temporary files before Kubernetes Secret generation, using the primary checkout's
+`.env.keys`; the temporary plaintext is deleted immediately. Missing key or
+dotenvx tooling now fails deployment instead of shipping unusable credentials.
 
-**Do not break:** approval notifications are only a wake-up hint. Never treat a
-popup event as proof of approval; `/api/auth/ciba/poll/:authReqId` remains the
-source of truth and the original action must be refired only after that poll
-returns `approved`.
+**Do not break:** never commit, print, or persist decrypted values. Plaintext env
+files retain the existing path, and OAuth client ids, redirects, and guards are
+unchanged.
 
-**Verify:** CibaApprovalPage tests, CIBA server route tests, and `npm run build`.
+**Verify:** shell syntax check; dry-run with a fake kubectl proves generated Secret data is plaintext while command output contains no secret values.
+
+### 2026-08-19 — Privilege MCP Client results stacked and alternate skins hid request details
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, `demo_api_ui/src/components/aiFootprintMocks/{ChromeFrames.jsx,FootprintSkinPicker.jsx,PrivilegeShellPanel.jsx,PrivilegeShellPanel.css,chrome.css,mockSelection.js}`, `demo_api_ui/src/components/privilege/ToolsTable.jsx`, tests.
+
+**What was broken:** The Cursor RESULTS terminal appended cards from different tools instead of replacing the old response. The skin picker exposed 13 unrelated mock costumes, had no Claude Desktop option, and its alternate shells omitted tool schemas and the submitted request/result pair.
+
+**What was fixed:** The picker now offers Cursor, Visual Studio Code, Claude Terminal, and Claude Desktop. Claude Desktop has dedicated desktop chrome, every alternate shell uses the full live tools table, and each Run shows the latest submitted request beside its result. Cursor keeps only the newest RESULTS response.
+
+**Do not break:** All skins use the same Privilege MCP session and live `/state`, `/tools/list`, and `/tools/call` endpoints. Keep tool schemas, editable arguments, Run controls, request/result evidence, success/error state, and result replacement visible in every skin.
+
+**Verify:** Focused Vitest — 11 passed; full `npm run test:unit` — 389 files / 3326 passed / 24 skipped; `npm run build` exit 0; live Playwright confirmed all four routes and exactly four picker options. Live Run controls require an authenticated Privilege session.
+
+### 2026-08-19 — CIBA approval retried without its gateway HITL receipt and immediately challenged again
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/routes/ciba.js`, `demo_api_ui/src/components/AIAgent.js`, and focused tests.
+
+**What was broken:** PingGateway minted a bound HITL challenge, but the BFF dropped
+its id when converting the gateway HITL response to UC22's declared CIBA step-up.
+CIBA approval set only BFF session flags; the resumed gateway request therefore
+carried no `_hitl_challenge_id`, so PingGateway and PingOne Authorize correctly
+issued another HITL challenge and the UI looped back into CIBA.
+
+**What was fixed:** the original challenge id now survives the CIBA response,
+initiation, approval, poll, and retry. The CIBA route validates the pending
+challenge against the authenticated user and amount, approves that exact canonical
+HITL record, and records the existing downstream bearer-hop receipt. The retry
+presents the opaque challenge id, so PingGateway's existing consuming verification
+remains authoritative.
+
+**Do not break:** never replace the challenge receipt with a trusted boolean or
+skip PingGateway verification. User, agent, tool, amount, account, expiry, and
+single-use binding remain fail-closed in the canonical HITL service.
+
+**Verify:** focused BFF pipeline tests (54/54), CIBA route tests (61/61), and UI CIBA tests (3/3); UI build required.
+
+### 2026-08-19 — Signed-out public UC24 was stranded before dispatch because guest vertical hydration resolved empty
+
+**Files changed:** `demo_api_ui/src/vertical/VerticalProvider.jsx`,
+`demo_api_ui/src/vertical/__tests__/VerticalProvider.test.jsx`.
+
+**What was broken:** `auth-requirements.json` correctly declared UC24 `public`, and
+the catalog correctly served `auth: "public"`, but `VerticalProvider` never fetched
+the public, redacted `/api/verticals/me` endpoint for a guest. Its timer instead
+resolved the vertical context with `activeId: null`. The queued-question resume
+therefore handed UC24 back to the input as "I couldn't finish loading this
+workspace" before the public chip could run.
+
+**What was fixed:** the guest path now calls the existing vertical refetch while
+retaining the 1500ms empty-state fallback for a stalled request. The public `/me`
+response supplies the active vertical and redacted manifest, so UC24 can dispatch
+signed out through the same SOT auth gate. A regression test proves `/me` hydrates
+`banking` without an auth event.
+
+**Do not break:** use-case sign-in requirements remain owned exclusively by
+`demo_api_server/config/auth-requirements.json`; this change does not infer public
+access from login state. Anonymous `/me` responses must remain redacted and must
+never include `demoUsers` or password hints. Protected use cases still require
+their declared `user` or `admin` level.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --run src/vertical/__tests__/VerticalProvider.test.jsx` (11/11); `npm run build` (exit 0); root `npm run authz:verify` (63 use cases, 153 routes).
+
+### 2026-08-19 — Admin audit query/report functions were stubs
+
+**Files changed:** `demo_api_server/services/adminAuditService.js`, `demo_api_server/src/__tests__/adminAuditService.test.js`
+
+**What was broken:** Admin audit trail and activity report calls threw or returned empty metrics, and permission validation was unimplemented.
+
+**What was fixed:** Added exchange-audit filtering/report aggregation and a scope-evaluation result for callers that provide scopes.
+
+**Do not break:** Existing route middleware remains the authorization boundary; the helper must not treat an admin subject alone as authorization.
+
+**Verify:** `CI=true npx jest src/__tests__/adminAuditService.test.js --forceExit` — 8 passed. Repository lint remains blocked by 103 pre-existing errors and 1,714 warnings; no lint changes were applied.
+
+### 2026-08-19 — Learning Hub cards carried no-op action stubs
+
+**Files changed:** `demo_api_ui/src/components/LearningHub.tsx`
+
+**What was broken:** Learning Hub items declared no-op `action` callbacks even though their real handlers were maintained separately in `categoryActionMap`, leaving the card data misleading and allowing unfinished entries to appear actionable.
+
+**What was fixed:** Removed the unused no-op callbacks and the unused `LearningItem.action` field so every card uses the existing education, tour, or route handler through `handleItemClick`.
+
+**Do not break:** Preserve the existing `categoryActionMap` handlers, including education panel tabs, demo tour startup, custom education events, and route navigation.
+
+**Verify:** No no-op action stubs remain; `cd demo_api_ui && npm run test:unit -- --reporter=dot` — 389 files / 3325 tests passed, 24 skipped; `npm run build` exit 0.
+### 2026-08-19 — Privilege MCP boolean arguments were sent as empty strings
+
+**Files changed:** `demo_api_ui/src/components/privilege/ToolsTable.jsx`,
+`demo_api_ui/src/components/privilege/ToolsTable.css`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.css`, and `ToolsTable.test.jsx`.
+
+**What was broken:** Tool argument templates initialized every schema property as
+an empty string, so untouched boolean fields failed MCP input validation.
+
+**What was fixed:** Boolean schema properties now initialize as `false`; JSON
+results use the shared syntax highlighter and larger code text.
+
+**Do not break:** Non-boolean argument templates remain editable strings, and
+tool execution still forwards the parsed JSON object without changing auth or
+session behavior.
+
+**Verify:** `npm run test:unit -- src/components/privilege/ToolsTable.test.jsx`
+and `npm run build`.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
+
 
 **Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,
 `demo_api_ui/src/components/VerifiedBanner.css`, tests

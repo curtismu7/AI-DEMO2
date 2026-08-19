@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-jwt-verifier
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-jwt-verifier
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: mcp-jwt-verifier
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: mcp-jwt-verifier
+    spec:
+      containers:
+      - name: mcp-jwt-verifier
+        image: ai-demo-k8-mcp-jwt-verifier:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8083
+          name: http
+        env:
+        - name: MCP_JWT_VERIFIER_HOST
+          value: "0.0.0.0"
+        - name: MCP_JWT_VERIFIER_PORT
+          value: "8083"
+        - name: MCP_JWTVERIFIER_RESOURCE_URI
+          value: "mcp-jwt-verifier.ping.demo"
+        - name: PINGONE_ISSUER
+          value: "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as"
+        envFrom:
+        - configMapRef:
+            name: ai-demo-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8083
+          initialDelaySeconds: 15
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8083
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-jwt-verifier
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: mcp-jwt-verifier
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8083
+    targetPort: 8083
+    protocol: TCP
+    name: http
+  selector:
+    app: ai-demo
+    component: mcp-jwt-verifier

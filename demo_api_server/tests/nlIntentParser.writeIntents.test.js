@@ -36,6 +36,11 @@ describe('extractIntentAndConfidence — per-vertical write intents (UC6 chips)'
     expect(r.toolName).toBe(tool);
   });
 
+  test('Protected RAG resolves code_search with high confidence', () => {
+    const r = extractIntentAndConfidence('find where the BFF performs MCP token exchange');
+    expect(r).toEqual({ intent: 'code_search', toolName: 'code_search', confidence: 0.95 });
+  });
+
   // Banking's existing high-confidence writes are untouched.
   test('banking transfer keeps create_transfer @0.95', () => {
     const r = extractIntentAndConfidence('transfer $2500 from checking to savings');

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import ToolsTable from '../components/privilege/ToolsTable';
+import JsonHighlight from '../components/shared/JsonHighlight';
 import DraggableModal from '../components/DraggableModal';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
@@ -90,8 +91,8 @@ export default function PrivilegeMcpClientPage() {
     try { localStorage.setItem('cur_priv_theme', pageTheme); } catch { /* storage disabled */ }
   }, [pageTheme]);
   const [terminalTab, setTerminalTab] = useState('events');
-  // Tool-call results collected into the RESULTS terminal tab. resultNonce bumps
-  // on each new result to flash the tab so the user notices output arrived.
+  // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
+  // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
   const [resultNonce, setResultNonce] = useState(0);
   // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
@@ -380,9 +381,7 @@ export default function PrivilegeMcpClientPage() {
   // also records it in the RESULTS terminal tab (which flashes so the user sees
   // fresh output land).
   const recordResult = useCallback((name, result, ok) => {
-    // Keep only the latest result per tool — re-running a tool replaces its prior
-    // entry instead of stacking a duplicate (the RESULTS panel is tight).
-    setToolResults((prev) => [{ tool: name, result, ok, ts: new Date().toISOString() }, ...prev.filter((r) => r.tool !== name)].slice(0, 50));
+    setToolResults([{ tool: name, result, ok, ts: new Date().toISOString() }]);
     setResultNonce((n) => n + 1);
     setTerminalTab('results');
   }, []);
@@ -927,7 +926,7 @@ export default function PrivilegeMcpClientPage() {
                 {rawRpcResult && (
                   <div className="cur-result-block">
                     <span className="cur-result-label">Response</span>
-                    <pre className="cur-code-output">{rawRpcResult}</pre>
+                    <pre className="cur-code-output jh-dark"><JsonHighlight value={rawRpcResult} deep /></pre>
                   </div>
                 )}
               </div>
@@ -1087,7 +1086,7 @@ export default function PrivilegeMcpClientPage() {
                           <span className="cur-result-item-tool">{r.tool}</span>
                           <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
                         </div>
-                        <pre className="cur-result-item-body">{r.result}</pre>
+                        <pre className="cur-result-item-body jh-dark"><JsonHighlight value={r.result} deep /></pre>
                       </div>
                     ))
                   )}

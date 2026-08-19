@@ -45,26 +45,33 @@ describe("PrivilegeShellPanel", () => {
     Object.defineProperty(window, "location", { configurable: true, value: original });
   });
 
-  it("lists discovered tools and calls one", async () => {
+  it("shows tool schemas and the request and result from Run", async () => {
     apiClient.get.mockResolvedValue({
       data: {
         oauth: { authenticated: true, scope: "openid mcp:tools" },
-        tools: [{ name: "list_safes", description: "List privilege safes" }],
+        tools: [{
+          name: "list_safes",
+          description: "List privilege safes",
+          inputSchema: { properties: { owner: { type: "string" } }, required: ["owner"] },
+        }],
       },
     });
     apiClient.post.mockResolvedValue({ data: { ok: true, safes: [] } });
     renderPanel();
-    const tool = await screen.findByText("list_safes");
+    expect(await screen.findByText("list_safes")).toBeInTheDocument();
+    expect(screen.getByText("owner*")).toBeInTheDocument();
     expect(screen.getByText("mcp:tools")).toBeInTheDocument();
-    fireEvent.click(tool);
-    fireEvent.click(screen.getByRole("button", { name: "Call tool" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
     await waitFor(() =>
       expect(apiClient.post).toHaveBeenCalledWith("/api/privilege-mcp/tools/call", {
         name: "list_safes",
-        arguments: {},
+        arguments: { owner: "" },
       }),
     );
-    expect(await screen.findByText(/"ok": true/)).toBeInTheDocument();
+    const exchange = await screen.findByRole("region", { name: "Latest tool request and result" });
+    expect(exchange).toHaveTextContent('"owner": ""');
+    expect(exchange).toHaveTextContent('"ok": true');
+    expect(exchange).toHaveTextContent("Success");
   });
 
   it("shows the OAuth error carried back on the redirect query", async () => {

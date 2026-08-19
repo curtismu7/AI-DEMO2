@@ -12,7 +12,9 @@ describe('oauth-teaching P4 — registration', () => {
     // free-text "demonstrate ..." phrases are routed to a specific
     // demonstrate_* tool via getHeuristics() (see the routing test below).
     ['demonstrate_token_exchange', 'demonstrate_scope_denial', 'demonstrate_hitl']
-      .forEach((n) => expect(plugin.isLocalTool(n)).toBe(true));
+      .forEach((n) => {
+        expect(plugin.isLocalTool(n)).toBe(true);
+      });
   });
 
   it('advertises the three tools with an inputSchema', () => {
@@ -21,7 +23,9 @@ describe('oauth-teaching P4 — registration', () => {
       ['demonstrate_token_exchange', 'demonstrate_scope_denial', 'demonstrate_hitl']));
     plugin.getTools()
       .filter((t) => t.name.startsWith('demonstrate_'))
-      .forEach((t) => expect(t.inputSchema).toBeDefined());
+      .forEach((t) => {
+        expect(t.inputSchema).toBeDefined();
+      });
   });
 
   it('routes demonstrate phrases to the right tool', () => {

@@ -140,7 +140,7 @@ describe('RFC 9728 Documentation Verification Tests', () => {
       const summary = fs.readFileSync(summaryPath, 'utf8');
       
       // Check for consistent URL patterns
-      const urlPattern = /https?:\/\/[^\s\)]+/g;
+      const urlPattern = /https?:\/\/[^\s)]+/g;
       const urls = summary.match(urlPattern) || [];
       
       // URLs should be consistent

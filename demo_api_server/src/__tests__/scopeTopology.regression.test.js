@@ -41,8 +41,12 @@ describe('scope-topology manifest', () => {
     const OIDC = new Set(['openid', 'profile', 'email', 'offline_access']);
     const refs = new Set();
     const addRef = (s) => { if (!OIDC.has(s)) refs.add(norm(s)); };
-    Object.values(m.tools).forEach(t => (t.requiredScopes || []).forEach(addRef));
-    Object.values(m.apps).forEach(a => (a.grantedScopes || []).forEach(addRef));
+    Object.values(m.tools).forEach(t => {
+      (t.requiredScopes || []).forEach(addRef);
+    });
+    Object.values(m.apps).forEach(a => {
+      (a.grantedScopes || []).forEach(addRef);
+    });
     Object.values(m.resources).forEach(r => {
       (r.scopes || []).forEach(addRef);
       (r.mirroredScopes || []).forEach(addRef);

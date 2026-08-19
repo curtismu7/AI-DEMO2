@@ -160,7 +160,7 @@ const UC_WRONG_AUD = {
 
 // Link-type UC (developer tool) — navigates to a page instead of running an agent.
 const UC_LINK = {
-  id: 'UC-TOOL1',
+  id: 'UC-TOOL-LINK',
   useCaseId: 'code-search',
   track: 'tools',
   title: 'RAG code search',

@@ -30,7 +30,7 @@ const TAG_P1AZ = '[p1az-probe]';
  * Skips TLS verification when MCP_GATEWAY_REJECT_UNAUTHORIZED=0 (same flag as mcpGatewayClient).
  */
 function _probeGateway(baseUrl, timeoutMs) {
-  return new Promise(function (resolve) {
+  return new Promise((resolve) => {
     var url;
     try { url = new URL('/health', baseUrl); } catch (e) {
       return resolve({ ok: false, error: 'invalid URL: ' + baseUrl });
@@ -48,16 +48,16 @@ function _probeGateway(baseUrl, timeoutMs) {
         timeout: timeoutMs,
         rejectUnauthorized,
       },
-      function (res) {
+      (res) => {
         res.resume(); // drain so socket closes
         if (!done) { done = true; resolve({ ok: res.statusCode < 500, status: res.statusCode, ms: Date.now() - t0 }); }
       }
     );
-    req.on('timeout', function () {
+    req.on('timeout', () => {
       req.destroy();
       if (!done) { done = true; resolve({ ok: false, error: 'timeout after ' + timeoutMs + 'ms' }); }
     });
-    req.on('error', function (e) {
+    req.on('error', (e) => {
       if (!done) { done = true; resolve({ ok: false, error: e.message }); }
     });
     req.end();
@@ -114,7 +114,7 @@ async function probeP1AZEndpoints() {
     return { ok: false, error: e.message };
   }
 
-  const liveIds = new Set((liveEndpoints || []).map(function (ep) { return ep.id; }));
+  const liveIds = new Set((liveEndpoints || []).map((ep) => ep.id));
 
   const toCheck = [
     { key: 'authorize_decision_endpoint_id',     label: 'Transaction decision endpoint' },
@@ -124,14 +124,14 @@ async function probeP1AZEndpoints() {
   var allOk = true;
   const results = [];
 
-  for (var i = 0; i < toCheck.length; i++) {
-    var item = toCheck[i];
-    var id = configStore.getEffective(item.key) || process.env[item.key.toUpperCase()];
+  for (let i = 0; i < toCheck.length; i++) {
+    const item = toCheck[i];
+    const id = configStore.getEffective(item.key) || process.env[item.key.toUpperCase()];
     if (!id) {
       results.push({ label: item.label, skipped: true, reason: 'not_configured' });
       continue;
     }
-    var exists = liveIds.has(id);
+    const exists = liveIds.has(id);
     if (exists) {
       console.log(TAG_P1AZ + ' OK — ' + item.label + ' (' + id.slice(0, 8) + '…) exists in PingOne Authorize');
     } else {

@@ -15,6 +15,9 @@
     "mastra-agent":     { "host": "mastra-agent",        "port": 8892, "scheme": "http" },
     "pydantic-agent":   { "host": "pydantic-agent",      "port": 8893, "scheme": "http" },
     "mcp-proxy":        { "host": "mcp-proxy",           "port": 8895, "scheme": "http" },
+    "mcp-weather":      { "host": "mcp-weather",         "port": 8896, "scheme": "http" },
+    "mcp-brave":        { "host": "mcp-brave",           "port": 8897, "scheme": "http" },
+    "mcp-jwt-verifier": { "host": "mcp-jwt-verifier",    "port": 8083, "scheme": "http" },
     "ping-gateway":     { "host": "ping-gateway",         "port": 8080, "scheme": "http" }
   },
   "public": {
@@ -48,6 +51,9 @@
     "MCP_RESOURCE_URL": "http:mcp-server",
     "MCP_GATEWAY_HTTP_URL": "url:mcp-gateway",
     "MCP_PINGGATEWAY_URL": "url:ping-gateway",
+    "MCP_WEATHER_BACKEND_URL": "url:mcp-weather",
+    "MCP_BRAVE_BACKEND_URL": "url:mcp-brave",
+    "MCP_GW_JWTVERIFIER_HTTP_URL": "url:mcp-jwt-verifier",
     "HITL_SERVICE_URL": "url:hitl-service",
     "MCP_GW_PASSTHROUGH_TO_MCP_SERVER": "flag:MCP_GW_PASSTHROUGH_TO_MCP_SERVER",
     "MCP_SERVER_HOST": "literal:0.0.0.0",
@@ -61,6 +67,7 @@
     "AGUI_HTTP_HOST": "literal:0.0.0.0",
     "CHAT_WS_HOST": "literal:0.0.0.0",
     "MCP_SERVER_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
+    "MCP_RESOURCE_SERVER_RESOURCE_URI": "literal:mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo",
     "MCP_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
     "MCP_GW_RESOURCE_URI": "literal:mcpgateway.ping.demo,https://api.ping.demo:3036/mcp",
     "PINGONE_RESOURCE_MCP_GATEWAY_URI": "aud:mcpGateway",
