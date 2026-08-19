@@ -1151,6 +1151,19 @@ one file over.
 
 ### [ ] 2026-08-18 — `INDETERMINATE` means "evaluation failed" from the cloud and "pause for step-up" locally
 
+**PHASE 2 SHIPPED 2026-08-18 (branch `worktree-indeterminate-phase2`) — entry
+stays open; phases 3–5 remain.** Per the plan's Option B sequence, the PDP now
+emits `obligations: [{ id, type, obligatory: true, fulfilled: false }]` on every
+pause (STEP_UP / HITL_CONSENT via `indeterminate()`, plus the inline
+ELICITATION site) alongside the unchanged `decision`/`reason`. Nothing consumes
+it yet. `obligatory` is hard-coded true (#1310 / llm-path-approval-gate: an
+"optional" pause is not a pause). Pinned by `tests/decision.obligations.test.js`
+(5 tests); the phase-1 baseline (24) and the 26-assertion contract suite are
+untouched and green. Next: phase 3 moves consumers one at a time
+(`transactionConsentChallenge` → `mcpToolPipeline` → `hitlClient.ts` → Groovy →
+UI), then phase 4 flips the PDP, phase 5 adds the fail-closed guard. Original
+entry follows.
+
 **Where:** `demo_authz_server/routes/decision.js` (12 `STEP_UP` / `HITL_CONSENT`
 sites) versus the cloud PingOne Authorize decision endpoint; 55 source files and
 40 test files reference the value.

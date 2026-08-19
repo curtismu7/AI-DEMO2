@@ -137,8 +137,16 @@ Each phase ships independently and leaves the suite green.
    edge test (23/24). Pre-existing suite state is unchanged — 10 failures in
    `importSnapshot.parity` / `introspect.*` occur identically with and without
    this file (236→260 tests, +24 all passing).
-2. **Introduce the obligation.** PDP emits a step-up / consent obligation
-   alongside today's INDETERMINATE. Nothing consumes it yet. Suite green.
+2. ~~**Introduce the obligation.**~~ **DONE 2026-08-18** — every pause response
+   (STEP_UP / HITL_CONSENT via the `indeterminate()` helper, plus the inline
+   ELICITATION site) now also carries
+   `obligations: [{ id, type, obligatory: true, fulfilled: false }]`.
+   `obligatory` is hard-coded true per the #1310 / llm-path-approval-gate traps
+   (an "optional" pause is not a pause). Nothing consumes it yet. Pinned by
+   `tests/decision.obligations.test.js` (5 tests: three pause kinds each carry
+   exactly one obligatory unfulfilled obligation; PERMIT and DENY carry none);
+   the phase-1 baseline file is untouched and green — decision/reason/
+   statements byte-identical.
 3. **Move consumers one at a time**, each with its own test flip:
    `transactionConsentChallenge` → `mcpToolPipeline` → `hitlClient.ts` →
    Groovy `p1az-decision` → the UI surfaces that read the decision.

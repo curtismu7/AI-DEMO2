@@ -968,6 +968,7 @@ module.exports = async function decisionHandler(req, res) {
     return res.json({
       decision: 'INDETERMINATE',
       reason: 'ELICITATION',
+      obligations: obligationFor('ELICITATION'),
       statements: statementsFor('ELICITATION'),
       advice: [{ id: 'elicitation-prompt', value: `Confirm ${ToolName}?` }],
       policy_source: POLICY_SOURCE,
@@ -1094,12 +1095,31 @@ function deny(res, reason, code) {
   });
 }
 
+/**
+ * Phase 2 of the INDETERMINATE rework (docs/superpowers/plans/
+ * 2026-08-18-indeterminate-rework.md): every pause response now ALSO carries an
+ * explicit obligation, so consumers can eventually branch on the obligation
+ * instead of on `decision === 'INDETERMINATE'` (whose cloud meaning is
+ * "evaluation failed"). Nothing consumes these yet — additive only, the
+ * decision/reason/statements contract is byte-identical.
+ *
+ * Two recorded traps shape the fields (#1310, llm-path-approval-gate-open):
+ * `obligatory` is ALWAYS true — an "optional" pause is not a pause — and a
+ * future INDETERMINATE carrying NO obligation must resolve to DENY.
+ * @param {'STEP_UP'|'HITL_CONSENT'|'ELICITATION'} reason
+ */
+function obligationFor(reason) {
+  const id = { STEP_UP: 'step-up', HITL_CONSENT: 'hitl-consent', ELICITATION: 'elicitation-confirm' }[reason];
+  return [{ id, type: reason, obligatory: true, fulfilled: false }];
+}
+
 function indeterminate(res, reason, code) {
   const decisionId = randomId();
   const record = auditDecision('INDETERMINATE', reason, { decisionId, policyVersion: 'mock-v1' });
   _emitDecisionHop('n/a', reason, record);
   res.json({
     decision: 'INDETERMINATE', reason,
+    obligations: obligationFor(reason),
     statements: statementsFor(code),
     policy_source: POLICY_SOURCE,
     decision_id: decisionId, policy_version: 'mock-v1',
