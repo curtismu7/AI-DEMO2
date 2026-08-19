@@ -106,6 +106,57 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — authz-server: undecrypted container-level ciphertext failed every real PingOne user lookup
+
+**Files changed:** `demo_authz_server/index.js`, new `demo_authz_server/
+dotenvxBootstrap.js` + `dotenvxBootstrap.test.js`, `demo_authz_server/
+package.json` (+`@dotenvx/primitives`), `docker-compose.yml` (authz-server's
+`env_file:` list).
+
+**What was broken:** found while live-verifying the INDETERMINATE rework
+phases 4/5 (previous entry) — every decision requiring a real PingOne user
+lookup (Rule 0a2) failed with `user_lookup_failed: unable to verify user
+status`, in production, independent of that change. Root cause:
+`docker-compose.yml`'s `env_file:` mechanism injects the encrypted
+`demo_mcp_gateway/.env` / `demo_authz_server/.env` / `demo_api_server/.env`
+directly into this container's `process.env` at creation — Docker itself
+reads those files, ciphertext included, before Node starts — and this
+service had no decrypt path at all. `PINGONE_WORKER_CLIENT_SECRET` arrived
+as the literal string `encrypted:...`, was sent to PingOne as a
+`client_credentials` secret, and failed with `invalid_client`, masked
+downstream as `user_lookup_failed`. Third occurrence of the dotenvx-cutover
+incident class in one session (after the original BFF bootstrap and the
+CLI-scripts loader), independently missed by both because this container has
+a genuinely different runtime shape: no `.env` file on disk at all (not
+COPY'd — gitignored, excluded from the build context), so there is nothing
+to re-parse from disk, only ciphertext already in `process.env` to decrypt
+in place.
+
+**What was fixed:** `dotenvxBootstrap.js` decrypts in place via
+`@dotenvx/primitives`'s public `decrypt(privateKey, cipher)` — the same
+primitive dotenvx's own `config()` uses internally
+(`decryptKeyValue.js`), reached directly here because that internal path is
+NOT part of the package's public `exports` map and would throw
+`ERR_PACKAGE_PATH_NOT_EXPORTED` if required. Wired as the first require in
+`index.js`. `docker-compose.yml` now also lists `./.env.keys` in
+authz-server's `env_file:` — the private key was never delivered to this
+container either, so decryption could not have worked with only the
+application-code half fixed.
+
+**Do not break:** `dotenvxBootstrap.js` must stay the first require in
+`index.js`, before anything else reads `process.env`. It must never throw —
+a decrypt failure (wrong/missing key, malformed ciphertext) logs and leaves
+the value as ciphertext, matching the two existing bootstraps' contract.
+
+**Verify:** `cd demo_authz_server && CI=true npm test` — 271/271 (was
+266; +5). Guard proven to bite: reverted the function to a no-op, confirmed
+exactly the 2 decrypt-path tests failed; restored, re-verified green. Built
+the actual image (`docker build -f demo_authz_server/Dockerfile .`, same
+Dockerfile `deploy-live.sh` uses) and ran an end-to-end smoke test inside it
+with a real `DOTENV_PRIVATE_KEY` and a real ciphertext
+`PINGONE_WORKER_CLIENT_SECRET` pulled from the live `.env` — confirmed
+decrypted in place, key cleared after use.
+
 ### 2026-08-19 — INDETERMINATE rework phases 4+5: the mock PDP no longer emits INDETERMINATE for a pause; both consumers' fail-closed guard confirmed already in place
 
 **Files changed:** `demo_authz_server/routes/decision.js` (the 3 pause-emission
