@@ -35,7 +35,7 @@ minimal diff.
 | OAuth admin login | `routes/oauth.js`, `config/oauth.js`, `demo_api_server/.env` |
 | OAuth user login | `routes/oauthUser.js`, `config/oauthUser.js` |
 | PingOne authorize `resource` + mixed scopes | `utils/oauthAuthorizeResource.js`, `routes/oauthUser.js`, `routes/oauth.js` |
-| CRA proxy setup | `demo_api_ui/src/setupProxy.js`, `demo_api_ui/.env` |
+| Dev proxy setup | `demo_api_ui/vite.config.js`, `demo_api_ui/.env` |
 | Session persistence | `server.js`, `routes/oauth.js` (`req.session.save()`) |
 | Session store callback discipline | `services/lmdb/sessionStore.js` — must call `cb(err)` on every store op |
 | Token audience check | `middleware/auth.js` — never hardcode `aud` defaults |
