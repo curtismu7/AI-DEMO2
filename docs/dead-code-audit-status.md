@@ -1,6 +1,8 @@
 # Dead code removal — status & restart notes
 
-Working branch chain (each stacked on the last): `worktree-dead-code-stage1` → `dead-code-stage2` → `dead-code-stage3` (current, in progress, not yet pushed/committed).
+Working branch chain (each stacked on the last): `worktree-dead-code-stage1` → `dead-code-stage2` → `dead-code-stage3` (done, PR open — see below).
+
+**Stage 3 is DONE as of the second update to this file.** Everything below the "Done — merged/open PRs" section was written mid-stage-3 and is kept for the lessons learned, but treat the file list / "not yet applied" language as historical — it all landed. Skip to "Not started at all" for what's actually still open.
 
 Worktree: `.claude/worktrees/dead-code-stage1` in `curtismu7/AI-DEMO2`.
 
@@ -8,8 +10,11 @@ Worktree: `.claude/worktrees/dead-code-stage1` in `curtismu7/AI-DEMO2`.
 
 - **PR #2149** (`worktree-dead-code-stage1` → `main`) — Stage 1: 3 unused Python imports, 5 duplicate JS exports collapsed, 11 unused npm deps removed from `demo_api_ui`. Tests green. **Open, not merged.**
 - **PR #2152** (`dead-code-stage2` → `worktree-dead-code-stage1`) — Stage 2: 58 unused `demo_api_ui` files + 17 companion CSS files deleted, verified against dynamic-import risk (none exist in this codebase) and doc/config references. Tests green. **Open, not merged.**
+- **PR TBD** (`dead-code-stage3` → `dead-code-stage2`) — Stage 3: 43 unused exports (kept the underlying binding, just removed `export`) + 1 file (`diagram/DiagramLegend.jsx`, after removing its dead re-export from `diagram/index.js`) + 3 orphaned-default-export files initially flagged for deletion but **restored** (`MFALogsModal.jsx`, `MFATestCard.jsx`, `OAuthHealthDashboard.jsx` — see blind-spot note below). Tests green. **Push + PR still needed — see "Immediate next step" below if resuming.**
 
-Both PRs are independently revertible (`git revert <sha>` per commit); nothing has touched `main`.
+**Root-cause lesson from stage 3, read this before doing any more file/export deletions in this repo**: every grep this session used `--include='*.js' --include='*.jsx'`, which silently skips `.tsx`/`.ts` files. This repo is almost entirely JS but has ~14 stray `.tsx` files under `demo_api_ui/src/components/` (find them with `find demo_api_ui/src -iname "*.ts" -o -iname "*.tsx"`). Two real usages hid there and nearly shipped as deletions: `MFATestPage.tsx` imports `MFATestCard`/`MFALogsModal`, and `Configuration/UnifiedConfigurationPage.tsx` uses `INDUSTRY_PRESETS` via a `require()` call (not even an `import`). Both were caught only because the full `test:unit` run was treated as non-negotiable before every commit — static grep alone would have shipped both breaks. `knip.json`'s own `project` glob has the identical gap (`src/**/*.{js,jsx}`, no `.ts/.tsx`), so Knip's own findings silently inherit this blind spot too — its final rerun still flags those same files/exports as unused for that reason, and always will until someone widens the glob. **Any future grep-based verification pass in this repo must include `.ts`/`.tsx` explicitly, or better, widen `knip.json`'s `project` glob and re-run it as the source of truth instead of hand-rolled grep.**
+
+All three PRs are independently revertible (`git revert <sha>` per commit); nothing has touched `main`.
 
 ## In progress — Stage 3 (unused exports), NOT yet committed
 
@@ -94,11 +99,24 @@ All three: zero references anywhere in `src` outside their own file (verified wi
 - Full `npm run test:unit` + `npm run build` verification after edits — not run yet for stage 3
 - Whether removing these exports needs any companion CSS cleanup (unlikely, these are almost all non-component utility/service files, but double-check the 3 new file deletions)
 
+## Immediate next step (if resuming right now)
+
+Stage 3 is committed locally on `dead-code-stage3` but **not pushed and no PR opened yet**. Run:
+
+```
+cd .claude/worktrees/dead-code-stage1
+git push -u origin dead-code-stage3
+gh pr create --base dead-code-stage2 --title "chore: dead code stage 3 — unused exports" --body "..."
+```
+
+(Same pattern as PR #2152 — base is the prior stage's branch, stacked.)
+
 ## Not started at all
 
 - `demo_api_server` (CommonJS/Express) — no dead-code tool run yet
 - `oauth-mcp`, `demo_mcp_gateway`, `demo_mcp_resource_server` (TypeScript) — no dead-code tool run yet
 - `demo_mcp_proxy`, `demo_authz_server` (plain JS) — no dead-code tool run yet
+- Fixing `knip.json`'s `project` glob to include `.ts`/`.tsx` (see blind-spot note above) — worth doing before any future Knip-driven pass in this repo
 
 ## How to resume
 
