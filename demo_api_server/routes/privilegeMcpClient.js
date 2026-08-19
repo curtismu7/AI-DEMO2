@@ -548,7 +548,16 @@ async function beginOAuthFlow(session, req) {
 // GET /state — current session state
 router.get('/state', (req, res) => {
   const session = getClientSession(req);
-  const mainAppAuth = Boolean(req.session?.oauthTokens?.accessToken);
+  // The dashboard can restore an authenticated identity from the signed _auth
+  // cookie after the express session expires. That path deliberately uses the
+  // `_cookie_session` token stub, so checking only for a real OAuth access
+  // token made the Privilege client incorrectly report the dashboard user as
+  // signed out and skip prompt=none silent sign-in.
+  const mainAppToken = req.session?.oauthTokens?.accessToken;
+  const mainAppAuth = Boolean(
+    (mainAppToken && mainAppToken !== '_cookie_session')
+    || (req.session?.user && req.session?._restoredFromCookie && mainAppToken === '_cookie_session'),
+  );
   // Known gateway frontends the UI offers as presets. The agent URL defaults to
   // the registered opensearch app; override with PRIVILEGE_AGENT_MCPGW_URL when
   // a different app is registered in the Privilege console.

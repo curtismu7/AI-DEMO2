@@ -105,6 +105,23 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-19 — Privilege client missed cookie-restored dashboard authentication
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js` and the
+Privilege silent-auth regression test.
+
+**What was broken:** the client treated the dashboard as signed out whenever
+the dashboard identity had been restored from `_auth` and used the
+`_cookie_session` token stub, so it skipped silent Privilege sign-in.
+
+**What was fixed:** recognize that restored authenticated session when deciding
+whether to send `prompt=none`; real OAuth-token sessions remain unchanged.
+
+**Do not break:** OAuth PKCE exchange, session cookie persistence, and token
+audience/role enforcement.
+
+**Verify:** Privilege silent-auth suite (7/7).
+
 ### 2026-08-19 — CIBA popup approval did not wake the waiting agent
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
