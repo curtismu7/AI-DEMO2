@@ -287,7 +287,6 @@ describe("CSS/JS monospace regression", () => {
         f.includes("ProofStrip.css") ||                   // evidence chain step id display (intentional)
         f.includes("VerifiedBanner.css") ||                // evidence chain step id display (intentional)
         f.includes("ApiExplorerPanel.css") ||             // HTTP method/path badge display (intentional)
-        f.includes("CitationPill.css") ||                // knowledge-graph citation id pill display (intentional)
         f.includes("LearningLogLearnPane.css") ||        // correlation id display (intentional)
         f.includes("McpGatewayOauthFlowPage.css") ||     // OAuth flow code/token display (intentional)
         f.includes("TokenSecurityTester.css") ||         // security tester tree/token display (intentional)
