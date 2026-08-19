@@ -10,14 +10,16 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 ## Foundations
 
 - [**UC1** — Delegated access with proof](./delegated-access-with-proof.md) ✅ 🛡️
-- [**UC2** — A2A delegation](./a2a-delegation.md) 🚩 🛡️
+- [**UC2** — A2A delegation](./a2a-delegation.md) ✅ 🛡️
 - [**UC2.5** — A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) ✅ 🛡️
+- [**UC2.6** — A2A generalist mismatch](./a2a-generalist-mismatch.md) ✅ 🛡️
 - [**UC3** — act gate](./may-act-gate.md) ✅ 🛡️
 - [**UC19** — Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) ✅ 🛡️
 - [**UC20** — Audit trail / traceability](./audit-trail.md) ✅ 🛡️
 - [**UC33** — My mortgage](./mortgage-delegated-access.md) ✅ 🛡️
 - [**UC34** — Spot unusual patterns](./ai-spot-unusual-patterns.md) ✅ 🛡️
 - [**UC35** — Why was that blocked?](./ai-explain-last-denial.md) ✅ 🛡️
+- [**UC38** — Personal Agent Concierge](./personal-agent-concierge.md) 🚩 🛡️
 
 ## Demo
 
@@ -61,7 +63,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 
 ## Tools
 
-- [**UC-TOOL1** — RAG code search](./code-search.md) ✅
+- [**UC-TOOL1** — Protected RAG](./code-search.md) ✅ 🛡️
 - [**UC-TOOL2** — Code Explorer](./code-explorer.md) ✅
 
 ## Learn
