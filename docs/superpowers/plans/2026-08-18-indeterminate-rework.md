@@ -150,6 +150,41 @@ Each phase ships independently and leaves the suite green.
 3. **Move consumers one at a time**, each with its own test flip:
    `transactionConsentChallenge` → `mcpToolPipeline` → `hitlClient.ts` →
    Groovy `p1az-decision` → the UI surfaces that read the decision.
+
+   **Progress 2026-08-18 (phase 3a):**
+   - **Discovery that re-scopes this phase:** the BFF consumers are already
+     obligation-first — `demo_api_server/services/authorizeObligations.js` (the
+     H2 fix) is the single classifier both engines route through, and the Node
+     gateway independently grew the same architecture
+     (`demo_mcp_gateway/src/auth/authorizeObligations.ts`, statements-based,
+     with the INDETERMINATE-no-obligation fail-closed DENY that phase 5 wants
+     already in place for that consumer). What remained was wiring the
+     EXPLICIT phase-2 `obligations[]` into those classifiers.
+   - **Node gateway DONE:** `PingOneAuthorizeClient.toDecision` now classifies
+     `data.obligations` FIRST (the phase-2 structural contract), statements as
+     fallback; explicit wins on disagreement. 5 new tests in
+     `tests/authorizeObligations.test.ts` (obligations-only responses for all
+     three pause kinds — previously those hit the fail-closed DENY branch —
+     plus precedence and fallback-intact). Full gateway suite 776/776.
+   - **Remaining in this phase:** BFF `pingOneAuthorizeService` /
+     `simulatedAuthorizeService` explicit-obligations pass-through audit,
+     Groovy `p1az-decision`, and the UI decision surfaces.
+   - **Groovy consumer DONE (#2133, stacked on this branch)** — and it closed a
+     REAL trap that two investigations found independently the same evening:
+     `classifyStatements` had no `ELICITATION` in its vocabulary (unlike the
+     Node gateway and BFF classifiers), so a real cloud ELICITATION obligation
+     classified to null — live `PERMIT + statements` shape forwarded the
+     destructive call UNGATED — and the mock half survived only via the
+     `simulated || failoverUsed` escape hatch on bare INDETERMINATE, which
+     phase 4 would have silently killed along with the whole destructive-tool
+     confirmation gate on the PingGateway path. #2133 adds `ELICITATION` (+
+     `st.type` read, explicit `obligations[]` preferred, matching the Node
+     client exactly), routes `obligationKind == 'elicitation'` through the
+     human-approval branch, and RETIRES the engine-aware escape hatch — the
+     gate now derives from classification alone, engine-agnostic. Verified in
+     review 2026-08-18: vocabulary, precedence (elicitation lowest, never
+     co-occurs), and handler are all present; the elicitation-confirmed
+     arg/header plumbing (~333-373) was already in place.
 4. **Flip the PDP** to stop emitting INDETERMINATE for the pause.
 5. **Add the guard** the plan actually wants: any INDETERMINATE from either
    engine is now unambiguously an error — log it loudly, fail closed, and
