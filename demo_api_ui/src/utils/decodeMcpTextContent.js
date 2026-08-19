@@ -32,5 +32,3 @@ export function decodeMcpTextContent(value) {
 
   return decodedAny ? { ...value, content } : value;
 }
-
-export default decodeMcpTextContent;

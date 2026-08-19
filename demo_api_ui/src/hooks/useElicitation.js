@@ -6,7 +6,7 @@ import bffAxios from '../services/bffAxios';
  * Listens for elicitation events from the MCP tool pipeline SSE stream
  * and manages the submit/cancel flow.
  */
-export function useElicitation() {
+function useElicitation() {
   const [elicitation, setElicitation] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const elicitationTimeoutRef = useRef(null);

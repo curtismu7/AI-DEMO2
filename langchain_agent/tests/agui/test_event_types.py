@@ -2,7 +2,7 @@ import pytest
 from src.agui.event_types import (
     RunStarted, RunFinished, TextMessageStart, TextMessageContent,
     TextMessageEnd, ToolCallStart, ToolCallArgs, ToolCallEnd,
-    StateDelta, CustomEvent, ErrorEvent,
+    CustomEvent, ErrorEvent,
 )
 
 
