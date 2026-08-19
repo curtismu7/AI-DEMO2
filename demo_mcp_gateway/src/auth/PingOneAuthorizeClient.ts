@@ -118,6 +118,65 @@ export interface TratClaims {
  * act:{sub:generalist}} → depth 2. The Authorize policy DENYs a2aDelegated tools
  * below depth 2 (the generalist cannot call a specialist-only tool directly).
  */
+/**
+ * Human-readable diagnostics for an INDETERMINATE the classifier could not turn
+ * into a pause — phase 5's "surface the missing attribute" half.
+ *
+ * PingOne does NOT return a dedicated `missingAttribute` field. What it does
+ * return, observed live 2026-08-19 against the real decision endpoint, is a
+ * `statements[]` entry whose `payload` names the problem in prose:
+ *
+ *   {"code": "mcp-missing-user-id",
+ *    "payload": "{\"reason\":\"missing-user-id\",\"message\":\"No user identity
+ *                 found in the MCP token delegation chain. UserId is required
+ *                 for all Super Banking MCP tool invocations.\"}"}
+ *
+ * So this surfaces what is actually there — statement codes, their payload
+ * `reason`/`message` when the payload is JSON, the engine's own `reason`, and
+ * the PingOne `status` — instead of parsing for a field that does not exist.
+ * The previous behaviour discarded ALL of it and logged one bare sentence, so
+ * the next person debugging a fail-closed deny had nothing to go on.
+ *
+ * Never throws: a malformed/non-JSON payload degrades to the raw string, and an
+ * absent statements array degrades to "(no statements)". A diagnostic that
+ * crashes the decision path would be worse than the gap it closes.
+ */
+export function summarizeIndeterminate(data: unknown): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d: any = data;
+  const parts: string[] = [];
+
+  const statements = Array.isArray(d?.statements) ? d.statements : [];
+  if (statements.length === 0) {
+    parts.push('statements=(none)');
+  } else {
+    const described = statements.map((st: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s: any = st;
+      const code = s?.code ?? s?.name ?? s?.type ?? s?.id ?? '(unnamed)';
+      let detail = '';
+      if (typeof s?.payload === 'string' && s.payload) {
+        try {
+          const payload = JSON.parse(s.payload);
+          // `message` carries the prose that names the attribute; `reason` is
+          // its short machine form. Prefer message, fall back to reason.
+          detail = payload?.message ?? payload?.reason ?? '';
+        } catch {
+          detail = s.payload; // not JSON — surface it raw rather than dropping it
+        }
+      }
+      return detail ? `${code}: ${detail}` : String(code);
+    });
+    parts.push(`statements=[${described.join(' | ')}]`);
+  }
+
+  if (d?.reason) parts.push(`reason=${d.reason}`);
+  const statusCode = d?.status?.code;
+  if (statusCode) parts.push(`status=${statusCode}`);
+
+  return parts.join(' ');
+}
+
 export function actChainDepth(act: unknown): number {
   let depth = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -471,11 +530,27 @@ export class PingOneAuthorizeClient {
         // PDP returning its "could not evaluate" outcome). That is a policy
         // engine fault, not a business decision. Fail closed: an unknown
         // outcome must never widen access.
+        //
+        // Phase 5's second half (docs/superpowers/plans/2026-08-18-indeterminate-
+        // rework.md): "surface the missing attribute". Everything the response
+        // carries is surfaced rather than discarded, because PingOne names the
+        // offending attribute in `statements[].payload` — observed live
+        // 2026-08-19 on a DENY from this same endpoint:
+        //   {"code":"mcp-missing-user-id","payload":"{\"reason\":\"missing-user-id\",
+        //    \"message\":\"No user identity found ... UserId is required ...\"}"}
+        // No `missingAttribute` field exists to parse, so nothing is invented:
+        // the statement codes and payloads ARE the channel, and they are logged
+        // verbatim for whoever reads this line next.
+        const diagnostics = summarizeIndeterminate(data);
         console.warn(
           `[GW] PingAuthorize returned INDETERMINATE with no classifiable obligation (engine=${engine}) — ` +
-          'fail-closed: treating as DENY.',
+          `fail-closed: treating as DENY. ${diagnostics}`,
         );
-        return { decision: 'DENY', reason: `indeterminate_no_obligation: ${data?.reason ?? 'unknown'}`, ...meta };
+        return {
+          decision: 'DENY',
+          reason: `indeterminate_no_obligation: ${data?.reason ?? 'unknown'}`,
+          ...meta,
+        };
       }
       // Preserve the engine's specific DENY reason (e.g. the mock's
       // 'unknown_tool: no policy defined' = policy drift) instead of flattening
