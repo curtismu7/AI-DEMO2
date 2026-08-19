@@ -1159,7 +1159,22 @@ if (outcome == 'PERMIT' && !obligationKind) {
 // Mint a challenge and answer 428 Precondition Required so the agent can drive the
 // consent and retry with `_hitl_challenge_id`. A DENY still falls through to 403
 // below: only the PDP decides which of the two this is.
-if (outcome == 'INDETERMINATE' || obligationKind == 'consent' || obligationKind == 'hitl') {
+//
+// `outcome == 'INDETERMINATE'` alone must NOT reach this branch when the
+// backend was the REAL cloud: live P1AZ answers bare INDETERMINATE only when
+// it could not evaluate the policy (missing attribute, unreachable attribute
+// provider) — that must fail closed to DENY below, not mint a human-approval
+// challenge for a request nobody can approve their way out of. Same fix
+// already applied on the BFF (pingOneAuthorizeService.js `_normalizeDecision`,
+// #1310) and the Node gateway (PingOneAuthorizeClient.ts:448-471) — this file
+// was the one path that still treated the two engines' INDETERMINATE as the
+// same signal. The mock backend's bare INDETERMINATE stays gated in: its
+// ELICITATION pause (destructive-tool confirmation) carries a statement code
+// that `classifyStatements` does not recognize, so `obligationKind` alone
+// would drop it to DENY — `simulated`/`failoverUsed` mark exactly the
+// responses that actually came from the mock engine, real backend or not.
+if (obligationKind == 'consent' || obligationKind == 'hitl' ||
+    (outcome == 'INDETERMINATE' && (simulated || failoverUsed))) {
     // Anti-loop: a receipt that verified above and STILL yields INDETERMINATE means
     // the policy never discharges consent (misconfiguration). Re-challenging would
     // spin the agent forever, so fail distinctly (mirrors both Node gateway paths).
