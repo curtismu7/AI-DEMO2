@@ -1182,6 +1182,26 @@ cheaper rename, and asked for a plan before any code. Scope is 55 source files,
 40 test files and PingGateway's Groovy `p1az-decision`, in a REGRESSION_PLAN §1
 area covering UC7 and UC8 — not something to start at the end of a session.
 
+**UPDATE 2026-08-19 — the live fail-open half is FIXED, scope was smaller than
+this entry assumed.** Auditing every consumer before starting the rework found
+two of the three boundaries already disambiguate correctly (BFF
+`pingOneAuthorizeService.js:_normalizeDecision`, #1310; Node gateway
+`PingOneAuthorizeClient.ts:448-471`). The real remaining live gap was one line
+in `ping-gateway/scripts/groovy/p1az-decision.groovy:1162` — fixed, see
+REGRESSION_PLAN §4 2026-08-19 entry. Of the ~57 files that reference the
+literal string, only 2 remaining consumers propagate the (now-fixed) Groovy
+mislabel for **display only** — `demo_api_server/routes/verticalManifest.js`
+(`/check-chip`, admin badge) and `demo_api_ui/src/vertical/AdminEditor/VerticalPipelineMap.jsx`
+(cosmetic edge color in a read-only admin diagram) — neither grants access,
+both cosmetic. Everything else is safe by construction (local-only mock
+engines, or already downstream of a normalized decision).
+
+**What's still open — the vocabulary overload itself.** The word still means
+two things in the source; the live security gap is closed, but the plan
+below's Option B (move step-up/HITL off the decision channel entirely, for
+both engines) is what actually retires the overload rather than just guarding
+every consumer against it. Not started.
+
 **Real fix:** `docs/superpowers/plans/2026-08-18-indeterminate-rework.md` — five
 independently-shippable phases beginning with characterisation tests that capture
 today's behaviour before anything moves. It also records the cheaper alternative

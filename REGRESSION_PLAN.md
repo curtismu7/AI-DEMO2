@@ -106,6 +106,52 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — PingGateway treated a genuine cloud P1AZ eval-failure as a step-up/HITL pause (#1310, gateway path)
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`
+
+**What was broken:** `INDETERMINATE` carries two unrelated meanings — cloud PingOne
+Authorize returns it when evaluation FAILED (missing attribute, unreachable
+attribute provider), `demo_authz_server`'s local mock returns it deliberately as
+a step-up/HITL pause. Two of the three consumer boundaries already
+disambiguated this correctly (`demo_api_server/services/pingOneAuthorizeService.js`
+`_normalizeDecision`, #1310; the Node gateway's `PingOneAuthorizeClient.ts:448-471`).
+The Groovy PingGateway script did not: its HITL-challenge/428 branch matched on
+`outcome == 'INDETERMINATE'` alone, with no obligation gate, so a genuine cloud
+eval-failure with no classifiable obligation statement minted a HITL challenge
+and answered 428 instead of failing closed to 403 DENY — investigated while
+scoping the larger "fix INDETERMINATE" TECH_DEBT entry, which turned out to be
+based on an out-of-date picture (the 55-file/5-phase rework it called for is
+mostly unnecessary; this was the one real live gap).
+
+**What was fixed:** the `outcome=='INDETERMINATE'` fallback is now scoped to
+`simulated || failoverUsed` responses only (the mock engine, whichever way it's
+reached) — real cloud INDETERMINATE with no obligation now falls through to
+the existing DENY/403 path. The mock engine's ELICITATION pause
+(destructive-tool confirmation) has an unclassifiable statement code, so it
+needed the explicit backend carve-out rather than relying on obligation
+classification alone — confirmed by tracing all three of
+`demo_authz_server/routes/decision.js`'s INDETERMINATE emission sites; STEP_UP
+and HITL_CONSENT already classify via `statements[]` and are unaffected either
+way.
+
+**Do not break:** UC7 (step-up, $600) and UC8 (HITL consent, $300) still route
+through this exact `if` block on the obligation-classified arms
+(`obligationKind == 'stepUp'/'consent'/'hitl'`), which this change does not
+touch. `simulated`/`failoverUsed` mark exactly the mock-sourced responses —
+don't widen the carve-out to "any non-DENY", that reopens the fail-open for
+any cloud response the classifier can't parse.
+
+**Verify:** no Groovy test harness exists in this repo (live-verify-only, per
+`docs/superpowers/plans/2026-08-18-indeterminate-rework.md`). Live-probed
+pre-fix and post-fix via `POST /api/mcp-gateway/test` as a signed-in customer
+(`ff_authorize_real`+`ff_mcp_gateway_pinggateway` both ON — real cloud path):
+`create_transfer` $600 → `428 hitl_required`, byte-identical before and after
+— confirms no regression on the branch's legitimately-obligated arms. The
+actual fail-open scenario (genuine cloud eval-failure) is verified by code
+tracing against the two already-tested sibling implementations, not live
+fault injection.
+
 ### 2026-08-18 — ff_a2a_delegation removed; A2A delegation is unconditional
 
 **Files changed:** `demo_api_server/services/{a2aDelegationService,a2aProtocolServer,verticalDispatch,demoAgentLangGraphService,demoStepPrerequisites,configStore,stepVerificationExpectations}.js`, `routes/{agentTool,featureFlags,useCases,groupMembership}.js`, `config/useCases.js`, `config/verticals/a2a/index.js`, `server.js`, `demo_api_ui/src/utils/requiredDemoFlags.js` + 7 UI copy files, 30 regenerated step-verification fixtures, ~12 test files, 4 live specs.
