@@ -3628,6 +3628,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               user={user}
               agentPlacement={agentPlacement}
             />
+            {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
+            {showFilmstrip && (
+              <div className="tcfs-float-host">
+                <TokenChainFilmstrip />
+              </div>
+            )}
           </>
         ) : (
           // Float mode ('none'): 2-column layout — token rail + content; FAB is a

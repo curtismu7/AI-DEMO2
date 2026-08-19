@@ -74,11 +74,18 @@ describe("Focus Mode filmstrip guard", () => {
   // i.e. the copy on screen was the ungated one.
   test("EVERY TokenChainFilmstrip render is gated on showFilmstrip", () => {
     const renders = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
-    expect(renders.length).toBeGreaterThanOrEqual(2);
+    expect(renders).toHaveLength(3);
     // No render may sit outside a showFilmstrip guard.
     expect(p2026).not.toMatch(/\n\s*<TokenChainFilmstrip\s*\/>\s*\n\s*<\/div>\s*\n\s*\)\s*:/);
     expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
-    expect(p2026).toMatch(/\{showFilmstrip && \(\s*\n\s*<div className="tcfs-float-host">/);
+    const hostedGuards = p2026.match(/\{showFilmstrip && \(\s*\n\s*<div className="tcfs-float-host">/g) || [];
+    expect(hostedGuards).toHaveLength(2);
+  });
+
+  test("bottom-dock layout renders the enabled filmstrip below the dock", () => {
+    expect(p2026).toMatch(
+      /<EmbeddedAgentDock[\s\S]*?agentPlacement=\{agentPlacement\}[\s\S]*?\{showFilmstrip && \([\s\S]*?<TokenChainFilmstrip\s*\/>/,
+    );
   });
 
   // The switch is only meaningful if turning it off removes the reel in the

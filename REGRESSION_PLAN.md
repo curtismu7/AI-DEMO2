@@ -668,6 +668,27 @@ must remain outside the scrolling transcript.
 **Verify:** Workbench test — 25 passed. Full UI run — 388 files / 3325
 tests passed, 24 skipped, with one unrelated `App.structure.test.js` timeout;
 that file passed 32/32 on immediate focused rerun. `npm run build` — exit 0.
+### 2026-08-19 — Movie reel toggle had no render target in bottom-dock layout
+
+**Files changed:** `demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js`, dashboard render
+test harnesses in `demo_api_ui/src/components/__tests__/`
+
+**What was broken:** The Movie reel toggle updated and persisted
+`ba_show_filmstrip`, but the dashboard's `agentPlacement === "bottom"` branch
+never rendered `TokenChainFilmstrip`, so the enabled reel was missing in that
+layout.
+
+**What was fixed:** Added the same `showFilmstrip`-guarded filmstrip host used by
+the floating layout below the embedded bottom dock, and pinned all three
+dashboard layout render sites in the guard test.
+
+**Do not break:** Unset filmstrip preference still defaults to shown; explicit
+`"0"` still hides every copy; the middle, bottom-dock, and floating layouts must
+each keep exactly one guarded render target.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --reporter=dot` — 389
+files / 3326 tests passed, 24 skipped; `npm run build` — exit 0.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 

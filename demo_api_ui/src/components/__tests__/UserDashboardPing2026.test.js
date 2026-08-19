@@ -159,6 +159,7 @@ vi.mock("../agent-clinical/AgentClinicalHost", () => ({
 
 // ── Mock TokenChainTraceRail — polls /api/token-chain and portals modals ──
 vi.mock("../TokenChainTraceRail", () => ({ default: () => null }));
+vi.mock("../TokenChainFilmstrip", () => ({ default: () => null }));
 
 // ── Wrapper with all required providers ────────────────────────────────────
 function Wrapper({ children }) {
