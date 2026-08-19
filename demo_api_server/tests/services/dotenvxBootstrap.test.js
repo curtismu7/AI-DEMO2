@@ -203,6 +203,24 @@ describe('encrypted .env + DOTENV_PRIVATE_KEY (post-cutover)', () => {
     expect(env.PLAIN_CONFIG).toBe('container-value');
   });
 
+  test('NO key at all + container ciphertext: still loud (the silent case)', () => {
+    // The gap the first guard missed. With no key there is no success line
+    // either — bootstrapDotenvx logged NOTHING while every secret stayed
+    // ciphertext and sign-in was broken. Silence is the worst possible output
+    // for this state, so it must report regardless of the key.
+    const env = { PINGONE_USER_CLIENT_SECRET: ciphertext };
+    const logger = mockLogger();
+
+    bootstrapDotenvx({ envPaths: [path.join(tmpRoot, 'does-not-exist.env')], env, logger });
+
+    const [msg] = logger.error.mock.calls.find(([m]) => m.includes('STILL ciphertext')) || [];
+    expect(msg).toBeDefined();
+    expect(msg).toContain('PINGONE_USER_CLIENT_SECRET');
+    // Must name the ACTUAL cause for this variant, not the mid-rewrite one.
+    expect(msg).toContain('DOTENV_PRIVATE_KEY is NOT set');
+    expect(msg).not.toContain(ciphertext);
+  });
+
   test('fully decrypted boot logs no incident', () => {
     const env = { DOTENV_PRIVATE_KEY: privateKey, SECRET_ONE: ciphertext };
     const logger = mockLogger();
