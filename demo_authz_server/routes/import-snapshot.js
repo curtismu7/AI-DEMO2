@@ -151,33 +151,37 @@ module.exports = async function importSnapshot(req, res) {
     // this check compare the SoT's 2 known audiences against the tracked
     // snapshot's real 3, reporting a false mcp_audience_mismatch on every
     // snapshot that correctly includes A2A.
-    // Must stay in step with the generator's own list
-    // (snapshots/gen-authorize-snapshot.js GATEWAY_RESOURCE_NAMES) — these are
-    // two hand-maintained copies of the same set, and they DID drift: the
-    // API-Key PingGateway identity was added to the SoT and the generator but
-    // not here, so this validator rejected the correctly-generated snapshot
-    // with a false mcp_audience_mismatch (409). That is the same omission the
-    // comment above records fixing once for the A2A gateway — second time for
-    // this list. Adding a gateway resource to the SoT means adding it in BOTH
-    // places.
-    const GATEWAY_RESOURCE_NAMES = [
-      'Super Banking MCP Gateway',
-      'Super Banking PingGateway MCP',
-      'Super Banking PingGateway MCP - API-Key',
-      'Super Banking A2A MCP Gateway',
-    ];
-    const sotGatewayAuds = GATEWAY_RESOURCE_NAMES
-      .map((n) => manifest.resources && manifest.resources[n] && manifest.resources[n].uri)
+    // DERIVED from the SoT: every resource marked `"role": "mcp-gateway"`.
+    // This was a hand-written name list, as were the copies in
+    // snapshots/gen-authorize-snapshot.js and
+    // snapshots/authorizeSnapshotCloudDelta.test.js, and the set drifted twice
+    // — the A2A gateway (see the comment above), then the API-Key PingGateway
+    // identity, which reached the SoT and the generator but not this file, so
+    // this validator rejected the generator's own output with a false
+    // mcp_audience_mismatch 409. Adding a gateway to the SoT is now the only
+    // edit required.
+    const GATEWAY_ROLE = 'mcp-gateway';
+    const gatewayResources = Object.keys(manifest.resources || {})
+      .filter((n) => manifest.resources[n] && manifest.resources[n].role === GATEWAY_ROLE);
+    const sotGatewayAuds = gatewayResources
+      .map((n) => manifest.resources[n].uri)
       .filter(Boolean)
       .sort();
     const audCond = conditions.find((c) => c.name === 'HasValidMcpAudience');
-    if (sotGatewayAuds.length !== GATEWAY_RESOURCE_NAMES.length) {
+    // Fail closed when the gateway set cannot be determined. Two ways now:
+    // no resource carries the role at all (a marker typo, or the field dropped
+    // in an SoT edit — the schema's closed enum should catch the typo first),
+    // or a marked resource has no `uri` to compare against. Either way we
+    // cannot tell a correct snapshot from a wrong one, so we do not try.
+    if (!gatewayResources.length || sotGatewayAuds.length !== gatewayResources.length) {
       conflicts.push({
         type: 'mcp_audience_sot_missing',
         sot: sotGatewayAuds,
-        message:
-          `scope-topology.json resources does not define every accepted gateway identity ` +
-          `(${GATEWAY_RESOURCE_NAMES.join(', ')}) — cannot validate HasValidMcpAudience; failing closed.`,
+        message: !gatewayResources.length
+          ? `No scope-topology.json resource carries "role": "${GATEWAY_ROLE}" — cannot determine the ` +
+            'accepted gateway identities to validate HasValidMcpAudience against; failing closed.'
+          : `Some scope-topology.json resource marked "role": "${GATEWAY_ROLE}" has no uri ` +
+            `(${gatewayResources.join(', ')}) — cannot validate HasValidMcpAudience; failing closed.`,
       });
     } else if (!audCond) {
       conflicts.push({

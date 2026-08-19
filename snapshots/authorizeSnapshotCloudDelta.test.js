@@ -56,32 +56,59 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
   const cond = findById(reconciled(), COND.HasValidMcpAudience);
   assert.ok(cond, 'HasValidMcpAudience must exist');
 
+  // DELIBERATELY LITERAL — do not "simplify" this to the same
+  // role === 'mcp-gateway' filter the generator and the validator now use.
+  //
+  // The generator derives this set from scope-topology.json (`"role":
+  // "mcp-gateway"`), which removed the hand-maintained name lists that drifted
+  // twice. This test is the independent backstop ON that derivation: if a
+  // resource silently loses its marker in an SoT edit, every derived consumer
+  // agrees with every other derived consumer and the set is quietly one short —
+  // which looks correct everywhere except here. Naming the resources by hand is
+  // the whole point; the cost is one edit when a gateway is genuinely added.
+  //
+  // Order matches the SoT's declaration order, which is what the generator now
+  // emits. The emitted OR is order-independent semantically; this pins it only
+  // so an accidental reordering is visible rather than silent.
   const sotResources = readSot().resources;
   const expected = [
     sotResources['Super Banking MCP Gateway'].uri,
+    sotResources['Super Banking A2A MCP Gateway'].uri,
     sotResources['Super Banking PingGateway MCP'].uri,
     sotResources['Super Banking PingGateway MCP - API-Key'].uri,
-    sotResources['Super Banking A2A MCP Gateway'].uri,
   ];
-  // Literal pin: the identities the runtime accepts — MCP_GW_RESOURCE_URI on the
-  // Node gateway and p1az-decision.groovy's acceptedAuds (PG_GATEWAY_RESOURCE_URI,
+  // The identities the runtime accepts — MCP_GW_RESOURCE_URI on the Node gateway
+  // and p1az-decision.groovy's acceptedAuds (PG_GATEWAY_RESOURCE_URI,
   // PG_GATEWAY_RESOURCE_ID, PG_APIKEY_RESOURCE_ID) carry exactly these four.
   //
-  // The A2A entry was MISSING here and in GATEWAY_RESOURCE_NAMES once before.
-  // Its resource was added to the SoT after both were written, so the generated
+  // The A2A entry was MISSING here and in the generator's list once before. Its
+  // resource was added to the SoT after both were written, so the generated
   // snapshot accepted only 2 of the 3 identities the runtime accepted at the
   // time. Importing it would have made HasValidMcpAudience false for every A2A
   // token — and rule 45678901-0004 denies NOT that condition — so ALL A2A
-  // TRAFFIC WOULD HAVE BEEN DENIED. Same all-or-nothing shape is why the
-  // api-key-disposition identity (/mcp/apikey — see 00-mcp-apikey.json's
-  // McpProtectionFilter.resourceId) is pinned here too, not just derived: a
-  // derivation that silently drops a resource looks correct.
+  // TRAFFIC WOULD HAVE BEEN DENIED. The api-key-disposition identity
+  // (/mcp/apikey — see 00-mcp-apikey.json's McpProtectionFilter.resourceId)
+  // went the same way a second time, reaching the SoT and the generator but not
+  // the validator.
   assert.deepStrictEqual(expected, [
     'mcpgateway.ping.demo',
+    'mcpgateway-a2a.ping.demo',
     'https://api.ping.demo:3036/mcp',
     'https://api.ping.demo:3036/mcp/apikey',
-    'mcpgateway-a2a.ping.demo',
   ]);
+
+  // The marker and this literal must describe the same set. Without this, a
+  // resource losing its `role` is invisible: `expected` above is built from
+  // NAMES, so it stays four entries long while the generator emits three.
+  const marked = Object.keys(sotResources)
+    .filter((n) => sotResources[n].role === 'mcp-gateway')
+    .map((n) => sotResources[n].uri)
+    .sort();
+  assert.deepStrictEqual(
+    marked, [...expected].sort(),
+    'every resource named above must carry "role": "mcp-gateway" in scope-topology.json, and no other resource may — ' +
+    'the generator and demo_authz_server/routes/import-snapshot.js both derive the accepted audience set from that marker',
+  );
 
   const branches = cond.condition.or.conditions;
   assert.deepStrictEqual(
@@ -569,16 +596,44 @@ test('structure: all seven deny rules run before the MCP catch-all permit, in or
   assert.deepStrictEqual(childIds.slice(permitIdx - denies.length, permitIdx), denies);
 });
 
-test('step 0: deriveSot fails loudly when a gateway resource is missing from the SoT', () => {
+// The intent here is unchanged and non-negotiable: a gateway identity going
+// missing must ABORT generation, never emit a partial HasValidMcpAudience —
+// a partial rule denies that gateway's traffic wholesale.
+//
+// What changed is WHERE each half of that is caught. The accepted set is now
+// derived from `"role": "mcp-gateway"` in the SoT rather than a hand-written
+// name list, and a derivation cannot notice a resource that was deleted
+// outright, because the deletion takes the marker with it. So:
+//
+//   * a marked resource with no `uri`, and a SoT with nothing marked at all,
+//     still abort generation here (below);
+//   * a gateway resource DELETED or silently UNMARKED is caught by the step-0
+//     literal pin at the top of this file, which names all four by hand and
+//     cross-checks them against the marker.
+//
+// Neither failure is silent. Do not collapse the step-0 pin into the marker
+// filter to "remove duplication" — that pin is the only thing standing between
+// an unmarked resource and a quietly one-short audience set.
+test('step 0: deriveSot aborts rather than emitting a partial or empty audience rule', () => {
   const sot = readSot();
-  delete sot.resources['Super Banking PingGateway MCP'];
+  delete sot.resources['Super Banking PingGateway MCP'].uri;
   assert.throws(
     () => deriveSot(sot),
     /Super Banking PingGateway MCP/,
-    'a missing gateway resource must abort generation, not emit a partial rule',
+    'a marked gateway resource with no uri must abort generation, not emit a partial rule',
   );
 
   const sot2 = readSot();
-  delete sot2.resources['Super Banking MCP Gateway'];
+  delete sot2.resources['Super Banking MCP Gateway'].uri;
   assert.throws(() => deriveSot(sot2), /Super Banking MCP Gateway/);
+
+  // Nothing marked at all — the empty-OR case, which on import would make
+  // HasValidMcpAudience false for EVERY caller and deny all MCP traffic.
+  const sot3 = readSot();
+  for (const r of Object.values(sot3.resources)) delete r.role;
+  assert.throws(
+    () => deriveSot(sot3),
+    /role/,
+    'an SoT with no mcp-gateway resource must abort generation, not emit an empty rule that denies everything',
+  );
 });
