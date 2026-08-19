@@ -15,6 +15,7 @@ const path = require('path');
 const {
   SECRET_NAMES,
   ADDITIONAL_SECRET_NAMES,
+  DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES,
   BFF_BOOTSTRAP_MARKER,
   assertBffDecryptCapable,
   encryptArgs,
@@ -30,19 +31,15 @@ function tmpFile(name, contents) {
 }
 
 describe('SECRET_NAMES', () => {
-  test('includes vault allowlist secrets and the four service-key names, deduped', () => {
+  test('includes vault allowlist secrets, deduped, with no duplicate entries', () => {
     // From vault-migrate's allowlist:
     expect(SECRET_NAMES).toContain('HELIX_API_KEY');
     expect(SECRET_NAMES).toContain('BFF_INTERNAL_SECRET');
     expect(SECRET_NAMES).toContain('SESSION_SECRET');
-    // The four service keys (two legacy aliases included):
-    expect(SECRET_NAMES).toContain('DEMO_API_RESOURCE_SERVER_KEY');
-    expect(SECRET_NAMES).toContain('DEMO_MCP_RESOURCE_SERVER_KEY');
-    expect(SECRET_NAMES).toContain('DEMO_INVEST_SERVICE_KEY');
-    expect(SECRET_NAMES).toContain('DEMO_MORTGAGE_SERVICE_KEY');
-    // Deduped — DEMO_API_RESOURCE_SERVER_KEY is in both sources but appears once.
-    const count = SECRET_NAMES.filter((n) => n === 'DEMO_API_RESOURCE_SERVER_KEY').length;
-    expect(count).toBe(1);
+    // The three-way union (vault allowlist + service-key names + additional
+    // secrets, several of which deliberately overlap) never yields a duplicate
+    // entry.
+    expect(new Set(SECRET_NAMES).size).toBe(SECRET_NAMES.length);
     // Never encrypt non-secret config.
     expect(SECRET_NAMES).not.toContain('NODE_ENV');
     expect(SECRET_NAMES).not.toContain('PINGONE_ENVIRONMENT_ID');
@@ -76,6 +73,23 @@ describe('SECRET_NAMES', () => {
     expect(SECRET_NAMES).not.toContain('DEMO_USER_PASSWORD');
     expect(SECRET_NAMES).not.toContain('DEMO_ADMIN_PASSWORD');
     expect(SECRET_NAMES).not.toContain('DEMO_DELEGATE_PASSWORD');
+  });
+
+  test('excludes the four DEMO_*_KEY names hit by the dotenvx duplicate-value bug', () => {
+    // Live incident 2026-08-18: these four share one identical value
+    // (ensure-service-keys.js — one API key, four aliases) and dotenvx failed to
+    // decrypt them post-encryption (dotenvx/dotenvx#757). They stay plaintext —
+    // the same protection level they had before this migration, not a
+    // regression — until the upstream bug is fixed or a real workaround exists.
+    for (const name of DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES) {
+      expect(SECRET_NAMES).not.toContain(name);
+    }
+    expect(DOTENVX_DUP_VALUE_BUG_EXCLUDED_NAMES).toEqual([
+      'DEMO_API_RESOURCE_SERVER_KEY',
+      'DEMO_MCP_RESOURCE_SERVER_KEY',
+      'DEMO_INVEST_SERVICE_KEY',
+      'DEMO_MORTGAGE_SERVICE_KEY',
+    ]);
   });
 });
 

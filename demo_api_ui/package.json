@@ -96,6 +96,9 @@
       "react-app",
       "react-app/jest"
     ],
+    "env": {
+      "es2020": true
+    },
     "rules": {
       "no-restricted-globals": [
         "warn",
@@ -117,7 +120,8 @@
             }
           ]
         }
-      ]
+      ],
+      "import/first": "warn"
     },
     "overrides": [
       {
@@ -128,6 +132,33 @@
         ],
         "rules": {
           "no-restricted-imports": "off"
+        }
+      },
+      {
+        "files": [
+          "src/**/__tests__/**",
+          "src/**/*.test.*",
+          "src/setupTests.js",
+          "src/test-utils/**"
+        ],
+        "globals": {
+          "vi": "readonly"
+        },
+        "rules": {
+          "testing-library/no-node-access": "warn",
+          "testing-library/prefer-screen-queries": "warn",
+          "testing-library/prefer-find-by": "warn",
+          "testing-library/render-result-naming-convention": "warn",
+          "testing-library/no-container": "warn",
+          "testing-library/no-wait-for-multiple-assertions": "warn",
+          "testing-library/no-unnecessary-act": "warn",
+          "testing-library/no-wait-for-side-effects": "warn",
+          "testing-library/prefer-presence-queries": "warn",
+          "testing-library/no-render-in-setup": "warn",
+          "testing-library/await-async-query": "warn",
+          "testing-library/no-await-sync-query": "warn",
+          "jest/no-conditional-expect": "warn",
+          "jest/valid-expect": "off"
         }
       }
     ]
