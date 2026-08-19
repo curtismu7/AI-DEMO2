@@ -32,6 +32,56 @@
 
 ---
 
+## BLOCKER — Docker bind-mount requirement (do not skip; found live 2026-08-19)
+
+**Only `demo_api_server` (the BFF) has its source directory bind-mounted into its
+container** (`docker-compose.yml`: `./demo_api_server:/app`). `demo_mcp_gateway`,
+`demo_agent_service`, and `oauth-mcp` do NOT — their containers have no `.env`
+file on disk at all (`docker exec <container> ls /app/.env` → "No such file or
+directory").
+
+Each of the four services' dotenvx bootstrap (Tasks 2-5) calls
+`@dotenvx/dotenvx`'s `config()`, which reads a physical `.env` file from disk. For
+the three un-mounted services this ALWAYS fails
+(`☠ [MISSING_ENV_FILE] missing file (.env)`) and silently falls through — the app
+then reads whatever Compose's `env_file:` directive already injected as discrete
+container env vars. Before this migration that was the real plaintext value
+(harmless, matches intent). **After Step B encrypts those services' `.env` files,
+`env_file:` injects the literal ciphertext string instead, and the app uses that
+ciphertext as if it were the real secret** — every encrypted secret in those three
+files breaks silently, not just one. It surfaced live as
+`PINGONE_MCP_EXCHANGER_CLIENT_SECRET` failing oauth-mcp's own downstream banking
+exchange ("Step 9 token exchange failed... Invalid client credentials") — but that
+was one symptom of many; nothing else had been exercised yet to surface the rest.
+
+**This is NOT caught by Step D.1's log-based check** — grepping for a ciphertext
+signature in log output only proves a value wasn't PRINTED, not that it decrypted
+correctly; a silently-substituted ciphertext credential produces no log signature
+at all until something calls PingOne with it and gets `invalid_client`.
+
+**Do not encrypt `demo_mcp_gateway/.env`, `demo_agent_service/.env`, or
+`oauth-mcp/.env`** until one of these is true:
+- Each service's container bind-mounts its own source directory (mirroring the
+  BFF), so `dotenvx.config()` can find a real file — the straightforward fix,
+  but changes `docker-compose.yml`'s dev/prod parity for those three services;
+  weigh that before doing it as a quick patch.
+- Or each service's `.env` file is bind-mounted individually (narrower — one
+  extra `volumes:` line per service, no full source-dir mount), mirroring how
+  `secrets.vault` is mounted read-only into the BFF today.
+- Or the bootstrap is changed to decrypt from `process.env` directly (dotenvx
+  supports a `processEnv` option — see `demo_api_server/services/dotenvxBootstrap.js`
+  for the pattern already probed) rather than requiring a file, so Compose's
+  `env_file:`-injected ciphertext can be decrypted in place without a physical
+  file on disk.
+
+Until one of these ships and is verified (per-service, with an actual functional
+call that exercises a real credential — not just log absence), **the BFF is the
+only service where dotenvx encryption is safe to enable.** The other three stay
+on plaintext `.env`, which is the current live state as of 2026-08-19 (rolled
+back after the live incident this section documents).
+
+---
+
 ## Preconditions
 
 ```bash
