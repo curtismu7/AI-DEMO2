@@ -105,6 +105,26 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-19 — PingAWS deployed dotenvx ciphertext as OAuth secrets and broke every sign-in
+
+**Files changed:** `k8s/create-secrets.sh`.
+
+**What was broken:** after the dotenvx cutover, SE deployment sourced encrypted
+`.env` files directly and copied literal `encrypted:...` strings into Kubernetes
+Secrets. The BFF then sent ciphertext as the user and worker client secrets;
+PingOne returned `invalid_client`, breaking OAuth callbacks and management reads.
+
+**What was fixed:** encrypted service env files are decrypted into permissioned
+temporary files before Kubernetes Secret generation, using the primary checkout's
+`.env.keys`; the temporary plaintext is deleted immediately. Missing key or
+dotenvx tooling now fails deployment instead of shipping unusable credentials.
+
+**Do not break:** never commit, print, or persist decrypted values. Plaintext env
+files retain the existing path, and OAuth client ids, redirects, and guards are
+unchanged.
+
+**Verify:** shell syntax check; dry-run with a fake kubectl proves generated Secret data is plaintext while command output contains no secret values.
+
 ### 2026-08-19 — CIBA approval retried without its gateway HITL receipt and immediately challenged again
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
