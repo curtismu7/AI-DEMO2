@@ -202,6 +202,41 @@
 .pvs-actions button:hover { background: rgba(128, 128, 128, 0.26); }
 .pvs-actions button:disabled { opacity: 0.5; cursor: default; }
 
+.pvs .ptt {
+  min-height: 280px;
+  max-height: 58vh;
+  border: 1px solid rgba(128, 128, 128, 0.32);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pvs-exchange {
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 6px;
+  background: rgba(128, 128, 128, 0.08);
+  overflow: hidden;
+}
+
+.pvs-exchange > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 9px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.pvs-exchange > header span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.pvs-exchange > header .is-ok { color: #28845a; }
+.pvs-exchange > header .is-error { color: #c64b47; }
+.pvs-exchange-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.pvs-exchange-grid > div { min-width: 0; padding: 8px; }
+.pvs-exchange-grid > div + div { border-left: 1px solid rgba(128, 128, 128, 0.3); }
+.pvs-exchange-grid span { display: block; margin-bottom: 5px; opacity: 0.65; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.pvs-exchange-grid pre { max-height: 220px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 10.5px/1.45 "SF Mono", ui-monospace, Menlo, monospace; }
+
+.pvs--claude-desktop { color: #2d2926; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.pvs--claude-desktop .pvs-head strong { font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
+
 /* Coding (Claude Code terminal) — monospace all the way. */
 .pvs--coding {
   font-family: "SF Mono", ui-monospace, Menlo, monospace;
@@ -217,6 +252,11 @@
 .pvs--coding .pvs-tool.is-on {
   border-color: #7c4a2d;
   background: rgba(124, 74, 45, 0.25);
+}
+
+@media (max-width: 760px) {
+  .pvs-exchange-grid { grid-template-columns: 1fr; }
+  .pvs-exchange-grid > div + div { border-left: 0; border-top: 1px solid rgba(128, 128, 128, 0.3); }
 }
 
 /* ChatGPT — roomier, rounder, chat-like. */

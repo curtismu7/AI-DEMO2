@@ -72,9 +72,9 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
     });
   };
 
-  const run = async (name) => {
+  const run = async (name, tool) => {
     setBusyTool(name);
-    const result = await onExecute(name, argsByTool[name] ?? '{}');
+    const result = await onExecute(name, argsByTool[name] ?? seedArgs(tool));
     setResultByTool((m) => ({ ...m, [name]: result }));
     setBusyTool('');
   };
@@ -140,7 +140,7 @@ export default function ToolsTable({ tools, presentMode = false, onExecute, onCl
                   onArgs={(v) => setArgsByTool((m) => ({ ...m, [t.name]: v }))}
                   result={resultByTool[t.name]}
                   busy={busyTool === t.name}
-                  onRun={() => run(t.name)}
+                  onRun={() => run(t.name, t)}
                 />
               );
             })}

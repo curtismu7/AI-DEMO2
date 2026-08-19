@@ -125,6 +125,18 @@ unchanged.
 
 **Verify:** shell syntax check; dry-run with a fake kubectl proves generated Secret data is plaintext while command output contains no secret values.
 
+### 2026-08-19 — Privilege MCP Client results stacked and alternate skins hid request details
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, `demo_api_ui/src/components/aiFootprintMocks/{ChromeFrames.jsx,FootprintSkinPicker.jsx,PrivilegeShellPanel.jsx,PrivilegeShellPanel.css,chrome.css,mockSelection.js}`, `demo_api_ui/src/components/privilege/ToolsTable.jsx`, tests.
+
+**What was broken:** The Cursor RESULTS terminal appended cards from different tools instead of replacing the old response. The skin picker exposed 13 unrelated mock costumes, had no Claude Desktop option, and its alternate shells omitted tool schemas and the submitted request/result pair.
+
+**What was fixed:** The picker now offers Cursor, Visual Studio Code, Claude Terminal, and Claude Desktop. Claude Desktop has dedicated desktop chrome, every alternate shell uses the full live tools table, and each Run shows the latest submitted request beside its result. Cursor keeps only the newest RESULTS response.
+
+**Do not break:** All skins use the same Privilege MCP session and live `/state`, `/tools/list`, and `/tools/call` endpoints. Keep tool schemas, editable arguments, Run controls, request/result evidence, success/error state, and result replacement visible in every skin.
+
+**Verify:** Focused Vitest — 11 passed; full `npm run test:unit` — 389 files / 3326 passed / 24 skipped; `npm run build` exit 0; live Playwright confirmed all four routes and exactly four picker options. Live Run controls require an authenticated Privilege session.
+
 ### 2026-08-19 — CIBA approval retried without its gateway HITL receipt and immediately challenged again
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
