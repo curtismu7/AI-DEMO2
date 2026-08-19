@@ -117,10 +117,29 @@ function bootstrapDotenvx({
     }
   }
 
+  // Anything still ciphertext at this point is an incident, not a detail: the
+  // key was available, so a leftover `encrypted:` value means the .env was
+  // missing or mid-rewrite when we read it. Consumers then use the literal
+  // string — end-user login sends it as the client secret and PingOne answers
+  // `invalid_client`, so NOBODY can sign in. Seen live 2026-08-19: the BFF came
+  // up at 10:13:21 having decrypted 0 values, every login failed for 3.5
+  // minutes, and the only log line was the cheerful success message below.
+  // Names only — never values.
+  const stillEncrypted = privateKey
+    ? Object.keys(env).filter((n) => typeof env[n] === 'string' && env[n].startsWith(ENCRYPTED_PREFIX)).sort()
+    : [];
+
   if (privateKey) {
     delete env.DOTENV_PRIVATE_KEY;
     logger.log(`[dotenvx] bootstrap: decrypted .env applied — ${applied} value(s) set, `
       + `${decrypted} replaced container-level ciphertext; DOTENV_PRIVATE_KEY cleared from env`);
+    if (stillEncrypted.length) {
+      logger.error('[dotenvx] bootstrap: ⚠️ DOTENV_PRIVATE_KEY was present but '
+        + `${stillEncrypted.length} value(s) are STILL ciphertext: ${stillEncrypted.join(', ')}. `
+        + 'Consumers will read the literal "encrypted:..." string — end-user login will fail '
+        + 'with invalid_client. Usual cause: the .env file was absent or mid-rewrite at start. '
+        + 'Restart this service once the file is settled.');
+    }
   }
 
   return { loaded: true, applied, decrypted };
