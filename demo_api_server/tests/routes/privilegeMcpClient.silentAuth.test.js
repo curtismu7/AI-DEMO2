@@ -95,6 +95,12 @@ describe('privilege silent auth — prompt=none', () => {
       expect(authUrl.searchParams.get('prompt')).toBe('none');
     });
 
+    test('uses the dashboard identity when its token field is absent', async () => {
+      const app = buildApp({ user: { id: 'customer-1', role: 'customer' } });
+      const state = await request(app).get('/api/privilege-mcp/state').expect(200);
+      expect(state.body.mainAppAuthenticated).toBe(true);
+    });
+
     test('omits prompt=none when privilegePromptNoneFailed is set', async () => {
       const app = buildApp({ oauthTokens: { accessToken: 'main-app-token' }, privilegePromptNoneFailed: true });
       await configure(app);

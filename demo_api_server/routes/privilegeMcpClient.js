@@ -556,7 +556,7 @@ router.get('/state', (req, res) => {
   const mainAppToken = req.session?.oauthTokens?.accessToken;
   const mainAppAuth = Boolean(
     (mainAppToken && mainAppToken !== '_cookie_session')
-    || (req.session?.user && req.session?._restoredFromCookie && mainAppToken === '_cookie_session'),
+    || (req.session?.user && (!mainAppToken || req.session?._restoredFromCookie)),
   );
   // Known gateway frontends the UI offers as presets. The agent URL defaults to
   // the registered opensearch app; override with PRIVILEGE_AGENT_MCPGW_URL when
