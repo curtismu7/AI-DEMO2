@@ -399,7 +399,7 @@ const introspectTokenWithRetry = async (token, oauthConfig, maxRetries = 3, requ
       
       // Wait before retry (exponential backoff)
       if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+        const delay = 2 ** (attempt - 1) * 1000; // 1s, 2s, 4s
         
         logger.debug(LOG_CATEGORIES.TOKEN_INTROSPECTION, `Waiting ${delay}ms before retry`, {
           method,

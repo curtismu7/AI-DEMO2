@@ -299,8 +299,8 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   }
   // Privilege Cloud requires x-procyon-session-id on every request
   if (targetUrl.hostname === 'privilege.pingone.com' || targetUrl.hostname.endsWith('.applications.privilege.pingone.com')) {
-    headers['x-procyon-session-id'] = session.config._procyonSessionId ||
-      (session.config._procyonSessionId = crypto.randomUUID());
+    if (!session.config._procyonSessionId) session.config._procyonSessionId = crypto.randomUUID();
+    headers['x-procyon-session-id'] = session.config._procyonSessionId;
   }
   // MCP spec requires mcp-protocol-version on all non-initialize requests
   if (body?.method && body.method !== 'initialize') {
@@ -378,8 +378,8 @@ async function discoverAuth(session) {
   const discoverHeaders = {};
   const mcpUrlParsed = new URL(session.config.mcpUrl);
   if (mcpUrlParsed.hostname === 'privilege.pingone.com' || mcpUrlParsed.hostname.endsWith('.applications.privilege.pingone.com')) {
-    discoverHeaders['x-procyon-session-id'] = session.config._procyonSessionId ||
-      (session.config._procyonSessionId = crypto.randomUUID());
+    if (!session.config._procyonSessionId) session.config._procyonSessionId = crypto.randomUUID();
+    discoverHeaders['x-procyon-session-id'] = session.config._procyonSessionId;
   }
   // An unreachable MCP URL must NOT abort discovery: the PingOne OIDC fallback
   // below can still resolve the endpoints. Unguarded, this fetch threw straight
@@ -989,7 +989,7 @@ router.put('/env', express.json(), requireAdminSession, (req, res) => {
     const existing = readExistingEnvVars();
     const filtered = {};
     for (const key of PINGONE_ENV_ALLOWED_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(existing, key)) {
+      if (Object.hasOwn(existing, key)) {
         filtered[key] = String(existing[key]);
       }
     }

@@ -167,7 +167,7 @@ function contentPreview(text, max = 300) {
   return s.length > max ? `${s.slice(0, max)}...` : s;
 }
 
-var QUOTA_REPLY_RE = /\b(?:token\ )?quota\ (?:exceeded|exhausted)\b|\bout\ of\ (?:tokens|quota|credits?)\b|\binsufficient\ (?:tokens|quota|credits?)\b/i;
+var QUOTA_REPLY_RE = /\b(?:token )?quota (?:exceeded|exhausted)\b|\bout of (?:tokens|quota|credits?)\b|\binsufficient (?:tokens|quota|credits?)\b/i;
 
 function isQuotaReply(text) {
   return typeof text === 'string' && QUOTA_REPLY_RE.test(text);

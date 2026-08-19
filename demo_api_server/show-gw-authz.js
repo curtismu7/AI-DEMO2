@@ -49,7 +49,7 @@ async function main() {
     console.log(JSON.stringify(gwSteps, null, 2));
   } else {
     console.log('\n(no gateway/authorize token events — full tokenEvents:)');
-    te.forEach(e => console.log(' -', e.id, '|', e.label, '|', e.status));
+    te.forEach(e => { console.log(' -', e.id, '|', e.label, '|', e.status); });
   }
 }
 

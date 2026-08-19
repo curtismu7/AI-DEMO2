@@ -573,7 +573,7 @@ async function main() {
 
     // Step 3: For each resource, list scopes and check against expected
     let totalIssues = 0;
-    let resourceMap = {};
+    const resourceMap = {};
 
     for (const resource of resources) {
       const resourceId = resource.id;

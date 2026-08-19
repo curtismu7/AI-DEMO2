@@ -95,10 +95,11 @@ function parseFlowAnnotation(jsdocComment) {
 function extractJSDocComments(fileContent) {
   const regex = /\/\*\*\s*([\s\S]*?)\*\//g;
   const comments = [];
-  let match;
+  let match = regex.exec(fileContent);
 
-  while ((match = regex.exec(fileContent)) !== null) {
+  while (match !== null) {
     comments.push({ body: match[1], following: fileContent.slice(regex.lastIndex, regex.lastIndex + 400) });
+    match = regex.exec(fileContent);
   }
 
   return comments;
@@ -126,9 +127,10 @@ function resolveMountPrefixes() {
   const varToFile = {};
 
   const requireRegex = /const\s+(\w+)\s*=\s*require\(['"]\.\/routes\/([\w-]+)['"]\)/g;
-  let match;
-  while ((match = requireRegex.exec(content)) !== null) {
+  let match = requireRegex.exec(content);
+  while (match !== null) {
     varToFile[match[1]] = `${match[2]}.js`;
+    match = requireRegex.exec(content);
   }
 
   // Tolerates extra middleware args between the mount path and the router
@@ -138,9 +140,11 @@ function resolveMountPrefixes() {
   // that direct match fails, and [^;] keeps it from tunneling past this
   // statement's own semicolon into an unrelated later app.use() call.
   const useRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*(?:[^;]*?,\s*)??(\w+)\s*\)/g;
-  while ((match = useRegex.exec(content)) !== null) {
+  match = useRegex.exec(content);
+  while (match !== null) {
     const file = varToFile[match[2]];
     if (file && !prefixes[file]) prefixes[file] = match[1];
+    match = useRegex.exec(content);
   }
 
   return prefixes;

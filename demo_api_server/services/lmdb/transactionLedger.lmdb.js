@@ -127,7 +127,7 @@ function getRecord(correlationId) {
  */
 function listRecords(opts = {}) {
   const limit = Number.isFinite(opts.limit) ? opts.limit : 100;
-  const hasPrincipalFilter = Object.prototype.hasOwnProperty.call(opts, 'principal');
+  const hasPrincipalFilter = Object.hasOwn(opts, 'principal');
   const out = [];
   for (const { value } of _db().getRange()) {
     if (!value) continue;

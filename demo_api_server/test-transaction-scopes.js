@@ -191,7 +191,7 @@ async function main() {
   process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
   
   let passCount = 0;
-  let totalCount = testScenarios.length;
+  const totalCount = testScenarios.length;
   
   for (const scenario of testScenarios) {
     try {

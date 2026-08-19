@@ -156,7 +156,9 @@ describe('Agent token exchange flow integration', () => {
       'PINGONE_RESOURCE_MCP_GATEWAY_URI',
       'AI_AGENT_INTERMEDIATE_AUDIENCE',
       'PINGONE_RESOURCE_TWO_EXCHANGE_URI',
-    ].forEach(k => delete process.env[k]);
+    ].forEach(k => {
+      delete process.env[k];
+    });
   });
 
   it('getErrorDetails returns structured error info', () => {

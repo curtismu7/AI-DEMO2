@@ -204,7 +204,7 @@ router.get('/callback', async (req, res) => {
       const errorDesc = String(req.query.error_description || '').toLowerCase();
       if (errorDesc.includes('redirect') || error === 'access_denied' || error === 'invalid_request') {
         const { ensureAllRedirectUris } = require('../services/pingoneAppConfigService');
-        ensureAllRedirectUris().catch(function (e) {
+        ensureAllRedirectUris().catch((e) => {
           console.warn('[redirect-uri-guard] admin recovery attempt failed:', e.message);
         });
       }

@@ -67,7 +67,7 @@ async function initiateBackchannelAuthWithRetry(
       }
       
       // Exponential backoff
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+      const delay = Math.min(1000 * 2 ** (attempt - 1), 5000);
       logger.warn(`CIBA initiation failed, retrying in ${delay}ms`, {
         attempt,
         error: error.message

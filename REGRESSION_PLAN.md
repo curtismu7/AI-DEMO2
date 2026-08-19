@@ -103,9 +103,81 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
-
 Reverse-chronological, newest first.
 
+### 2026-08-19 — CIBA approval retried without its gateway HITL receipt and immediately challenged again
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/routes/ciba.js`, `demo_api_ui/src/components/AIAgent.js`, and focused tests.
+
+**What was broken:** PingGateway minted a bound HITL challenge, but the BFF dropped
+its id when converting the gateway HITL response to UC22's declared CIBA step-up.
+CIBA approval set only BFF session flags; the resumed gateway request therefore
+carried no `_hitl_challenge_id`, so PingGateway and PingOne Authorize correctly
+issued another HITL challenge and the UI looped back into CIBA.
+
+**What was fixed:** the original challenge id now survives the CIBA response,
+initiation, approval, poll, and retry. The CIBA route validates the pending
+challenge against the authenticated user and amount, approves that exact canonical
+HITL record, and records the existing downstream bearer-hop receipt. The retry
+presents the opaque challenge id, so PingGateway's existing consuming verification
+remains authoritative.
+
+**Do not break:** never replace the challenge receipt with a trusted boolean or
+skip PingGateway verification. User, agent, tool, amount, account, expiry, and
+single-use binding remain fail-closed in the canonical HITL service.
+
+**Verify:** focused BFF pipeline tests (54/54), CIBA route tests (61/61), and UI CIBA tests (3/3); UI build required.
+
+### 2026-08-19 — Signed-out public UC24 was stranded before dispatch because guest vertical hydration resolved empty
+
+**Files changed:** `demo_api_ui/src/vertical/VerticalProvider.jsx`,
+`demo_api_ui/src/vertical/__tests__/VerticalProvider.test.jsx`.
+
+**What was broken:** `auth-requirements.json` correctly declared UC24 `public`, and
+the catalog correctly served `auth: "public"`, but `VerticalProvider` never fetched
+the public, redacted `/api/verticals/me` endpoint for a guest. Its timer instead
+resolved the vertical context with `activeId: null`. The queued-question resume
+therefore handed UC24 back to the input as "I couldn't finish loading this
+workspace" before the public chip could run.
+
+**What was fixed:** the guest path now calls the existing vertical refetch while
+retaining the 1500ms empty-state fallback for a stalled request. The public `/me`
+response supplies the active vertical and redacted manifest, so UC24 can dispatch
+signed out through the same SOT auth gate. A regression test proves `/me` hydrates
+`banking` without an auth event.
+
+**Do not break:** use-case sign-in requirements remain owned exclusively by
+`demo_api_server/config/auth-requirements.json`; this change does not infer public
+access from login state. Anonymous `/me` responses must remain redacted and must
+never include `demoUsers` or password hints. Protected use cases still require
+their declared `user` or `admin` level.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --run src/vertical/__tests__/VerticalProvider.test.jsx` (11/11); `npm run build` (exit 0); root `npm run authz:verify` (63 use cases, 153 routes).
+
+### 2026-08-19 — Admin audit query/report functions were stubs
+
+**Files changed:** `demo_api_server/services/adminAuditService.js`, `demo_api_server/src/__tests__/adminAuditService.test.js`
+
+**What was broken:** Admin audit trail and activity report calls threw or returned empty metrics, and permission validation was unimplemented.
+
+**What was fixed:** Added exchange-audit filtering/report aggregation and a scope-evaluation result for callers that provide scopes.
+
+**Do not break:** Existing route middleware remains the authorization boundary; the helper must not treat an admin subject alone as authorization.
+
+**Verify:** `CI=true npx jest src/__tests__/adminAuditService.test.js --forceExit` — 8 passed. Repository lint remains blocked by 103 pre-existing errors and 1,714 warnings; no lint changes were applied.
+
+### 2026-08-19 — Learning Hub cards carried no-op action stubs
+
+**Files changed:** `demo_api_ui/src/components/LearningHub.tsx`
+
+**What was broken:** Learning Hub items declared no-op `action` callbacks even though their real handlers were maintained separately in `categoryActionMap`, leaving the card data misleading and allowing unfinished entries to appear actionable.
+
+**What was fixed:** Removed the unused no-op callbacks and the unused `LearningItem.action` field so every card uses the existing education, tour, or route handler through `handleItemClick`.
+
+**Do not break:** Preserve the existing `categoryActionMap` handlers, including education panel tabs, demo tour startup, custom education events, and route navigation.
+
+**Verify:** No no-op action stubs remain; `cd demo_api_ui && npm run test:unit -- --reporter=dot` — 389 files / 3325 tests passed, 24 skipped; `npm run build` exit 0.
 ### 2026-08-19 — Privilege MCP boolean arguments were sent as empty strings
 
 **Files changed:** `demo_api_ui/src/components/privilege/ToolsTable.jsx`,
@@ -127,6 +199,7 @@ session behavior.
 and `npm run build`.
 
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
+
 
 **Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,
 `demo_api_ui/src/components/VerifiedBanner.css`, tests

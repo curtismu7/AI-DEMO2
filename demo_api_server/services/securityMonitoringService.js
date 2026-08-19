@@ -176,7 +176,7 @@ function trackClientBehavior(clientId, event, metadata = {}) {
     behavior.user_agents.add(metadata.userAgent);
   }
   if (metadata.scopes) {
-    metadata.scopes.forEach(scope => behavior.scopes_used.add(scope));
+    metadata.scopes.forEach(scope => { behavior.scopes_used.add(scope); });
   }
 
   // Update counters
@@ -295,8 +295,7 @@ function detectAnomalies(clientId, event, metadata = {}) {
   // Check for scope escalation attempts
   const scopeHistory = behavior.events
     .filter(e => e.event === 'token_request' && (Date.now() - e.timestamp) < SECURITY_CONFIG.windows.day)
-    .map(e => e.metadata.scopes || [])
-    .flat();
+    .flatMap(e => e.metadata.scopes || []);
 
   const uniqueScopes = new Set(scopeHistory);
   const highRiskScopes = Array.from(uniqueScopes).filter(scope => 
@@ -357,7 +356,7 @@ function monitorTokenUsage(tokenData, usageData, metadata = {}) {
 
   if (highRiskScopes.length > 0) {
     const usageKey = `high_risk_token:${tokenId}`;
-    let usage = securityEvents.get(usageKey) || { count: 0, first_seen: Date.now() };
+    const usage = securityEvents.get(usageKey) || { count: 0, first_seen: Date.now() };
     usage.count++;
     usage.last_seen = Date.now();
     securityEvents.set(usageKey, usage);

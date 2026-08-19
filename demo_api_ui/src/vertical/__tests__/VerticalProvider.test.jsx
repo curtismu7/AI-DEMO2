@@ -74,18 +74,15 @@ describe('VerticalProvider', () => {
     expect((await findByTestId('probe')).textContent).toBe('banking');
   });
 
-  test('makes no /api/verticals request before a session exists', async () => {
+  test('hydrates the active vertical for a guest', async () => {
     const { FakeES } = setupMocks({ manifest: BANKING });
-    render(
+    const { findByTestId } = render(
       <MemoryRouter><VerticalProvider><Probe /></VerticalProvider></MemoryRouter>
     );
-    // Signed out, both endpoints only 401 — so neither is touched.
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(FakeES.last).toBeUndefined();
 
-    signIn();
-    await waitFor(() => expect(FakeES.last).toBeDefined());
-    expect(FakeES.last.url).toBe('/api/verticals/stream');
+    expect((await findByTestId('probe')).textContent).toBe('banking');
+    expect(global.fetch).toHaveBeenCalledWith('/api/verticals/me', { credentials: 'include' });
+    expect(FakeES.last).toBeUndefined();
   });
 
   test('SSE vertical-switched triggers refetch', async () => {

@@ -1965,7 +1965,7 @@ app.post('/api/mcp/tool', express.json(), requireSession, transactionTurnMiddlew
     // buffered the body by the time this route handler runs.
     // DO NOT attempt to re-read the request stream — this causes memory leaks when the stream
     // doesn't end properly. The request stream has been fully consumed by middleware already.
-    let parsedBody = req.body || {};
+    const parsedBody = req.body || {};
     // If req.body is unavailable, it's likely a middleware parsing error — proceed with empty body.
     // The 400 response below will catch this as missing tool and return an error to the client.
     if (!parsedBody.tool && req.readableLength > 0) {
@@ -2397,7 +2397,7 @@ app.post('/api/rpc', express.json(), requireSession, async (req, res) => {
         // Paths with a file extension that weren't served by express.static don't exist — 404 them
         // rather than falling through to the SPA (which would show the app instead of an error).
         app.get('*', (req, res) => {
-            if (/\.[^\/]+$/.test(req.path)) {
+            if (/\.[^/]+$/.test(req.path)) {
                 return res.status(404).send('Not Found');
             }
             res.set('Cache-Control', 'no-store');
@@ -2851,7 +2851,7 @@ if (require.main === module) {
                 validateEndpoints().then(({ results, errors }) => {
                   if (errors.length > 0) {
                     console.warn('\n⚠️  [ENDPOINT VALIDATION] Some OAuth endpoints are unreachable:');
-                    errors.forEach(e => console.warn(`   → ${e}`));
+                    errors.forEach(e => { console.warn(`   → ${e}`); });
                     console.warn('   → Tool discovery will fail. Check authz server logs and endpoint configuration.\n');
                   }
                   Object.entries(results).forEach(([key, result]) => {

@@ -30,6 +30,13 @@ tt {
   max-width: 480px;
   min-width: 320px;
 }
+.Toastify__toast-container--bottom-left {
+  left: 1rem;
+  bottom: 1rem;
+  width: auto;
+  max-width: 480px;
+  min-width: 320px;
+}
 
 /* Toasts use a dark background app-wide (deliberate exception to the light UI palette).
    Type identity is preserved via a colored left accent + icon color, not the body fill.

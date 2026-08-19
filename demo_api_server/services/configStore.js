@@ -1172,7 +1172,6 @@ class ConfigStore {
       // Direct aliases for the renamed env vars so getEffective(lowercased-new-name) works.
       pingone_ai_agent_actor_client_id:      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID'],
       pingone_ai_agent_actor_client_secret:  ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET'],
-      pingone_par_endpoint:                  ['PINGONE_PAR_ENDPOINT'],
       pingone_ai_agent_actor_redirect_uri:   ['PINGONE_AI_AGENT_ACTOR_REDIRECT_URI'],
       // Current main agent app — mapped from refresh-service-envs.js provisioning.
       pingone_agent_client_id:       ['PINGONE_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],

@@ -67,7 +67,7 @@ function getUserRedirectUri(req, opts) {
  * @returns {string}
  */
 function normalizeOrigin(raw) {
-  return String(raw || '').trim().replace(/[\/\r\n]+$/, '');
+  return String(raw || '').trim().replace(/[/\r\n]+$/, '');
 }
 
 /**

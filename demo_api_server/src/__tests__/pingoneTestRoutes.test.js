@@ -346,7 +346,9 @@ describe('pingoneTestRoutes — new Phase 151 endpoints', () => {
       const res = await request(app).post('/api/pingone-test/update-scopes');
       expect(res.status).toBe(200);
       expect(res.body.results).toHaveLength(2); // banking + mcp both not found
-      res.body.results.forEach(r => expect(r.status).toBe('not_found'));
+      res.body.results.forEach(r => {
+        expect(r.status).toBe('not_found');
+      });
     });
 
     it('reports all scopes already present when no additions needed', async () => {
@@ -358,7 +360,9 @@ describe('pingoneTestRoutes — new Phase 151 endpoints', () => {
       const res = await request(app).post('/api/pingone-test/update-scopes');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      res.body.results.forEach(r => expect(r.added).toHaveLength(0));
+      res.body.results.forEach(r => {
+        expect(r.added).toHaveLength(0);
+      });
       expect(managementService.createScopes).not.toHaveBeenCalled();
     });
 
@@ -429,7 +433,9 @@ describe('pingoneTestRoutes — new Phase 151 endpoints', () => {
 
       // every SoT-modelled app with a grant should be in steps (all present → ok)
       expect(res.body.steps).toHaveLength(SOT.requiredNames.length);
-      res.body.steps.forEach(s => expect(s.status).toBe('ok'));
+      res.body.steps.forEach(s => {
+        expect(s.status).toBe('ok');
+      });
 
       // AI_AGENT apps returned for discovery
       expect(res.body.aiAgentApps).toHaveLength(2); // MCP Exchanger + AI Agent App
@@ -458,7 +464,9 @@ describe('pingoneTestRoutes — new Phase 151 endpoints', () => {
       managementService.enableResourceServer.mockResolvedValue({ success: false, error: 'Grant failed' });
 
       const res = await request(app).post('/api/pingone-test/update-apps');
-      res.body.steps.forEach(s => expect(s.status).toBe('failed'));
+      res.body.steps.forEach(s => {
+        expect(s.status).toBe('failed');
+      });
     });
 
     it('returns 500 on unexpected error', async () => {

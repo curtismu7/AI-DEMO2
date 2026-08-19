@@ -12,7 +12,7 @@ const uuidv4 = () => crypto.randomUUID();
 
 // Use Redis stream for append-only immutable log
 // Or fallback to in-memory with timestamp ordering
-let auditLogs = {}; // Maps agent_id -> array of events (sorted by timestamp)
+const auditLogs = {}; // Maps agent_id -> array of events (sorted by timestamp)
 
 /**
  * Record a kill switch event (immutable append)

@@ -14,11 +14,9 @@ module.exports = {
     code: 'NO_CUSTOMER_LOADED',
   },
 
-  reasoningUnavailable: function(reason = 'unknown') {
-    return {
+  reasoningUnavailable: (reason = 'unknown') => ({
       userMessage: REASON_CODES[reason] || REASON_CODES.unknown,
       code: 'REASONING_UNAVAILABLE_' + reason.toUpperCase(),
       operatorNote: '[reason: ' + reason + ']',
-    };
-  },
+    }),
 };

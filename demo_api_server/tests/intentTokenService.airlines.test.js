@@ -42,7 +42,7 @@ describe('intent token — airlines', () => {
 
   test('the airlines intents are declared, not inherited from the prototype', () => {
     for (const tool of AIRLINES_TOOLS) {
-      expect(Object.prototype.hasOwnProperty.call(INTENT_TO_PERMITTED_TOOLS, tool)).toBe(true);
+      expect(Object.hasOwn(INTENT_TO_PERMITTED_TOOLS, tool)).toBe(true);
     }
   });
 
