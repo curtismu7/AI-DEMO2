@@ -1285,9 +1285,22 @@ via `scripts/lmdb-compact.js` (new; header documents the stop-copy-compact-swap
 recipe for the `ai-demo_ai-demo-bff-data` volume). Post-compaction the store
 sits at ~23% of the 128MB map with a bounded growth driver, so raising
 `mapSize` is unnecessary — the part-(1) startup watcher warns at 80% if that
-ever changes. The live volume was NOT swapped from this session (operator
-action, stack was mid-demo); the recipe is one command sequence away. Original
-entry follows.
+ever changes.
+
+**Live volume swap DONE 2026-08-19 (operator-run, this session).** Hit and fixed
+in the process, added to the script's own recipe (part 3): `docker cp`-ing the
+compacted file back into the container preserved the HOST user's numeric UID,
+which does not match `appuser` (UID 1001) inside the container — the mismatch
+made `openEnv()` throw `Permission denied: Attempting to open main database
+file` and `demo-api-server` crash-loop, surfacing as an unrelated-looking FATAL
+`[VERTICAL GUARD]` error (every vertical "failed to resolve" — the actual cause
+was one directory down in the log, not in that message). No data loss — the
+compacted file itself was correct, only its owner was wrong. Fixed with
+`docker run --rm -v ai-demo_ai-demo-bff-data:/data alpine chown 1001:1001
+/data/lmdb/data.mdb` against the volume directly (works even while the
+container is down), then a restart. Live post-fix confirmation:
+`[lmdb] data.mdb 29.5MB of 128MB mapSize (23%)` and `[VERTICAL GUARD] OK`.
+Original entry follows.
 
 **PARTLY RESOLVED 2026-08-18 (branch `worktree-lmdb-mapsize-watch`) — part (1)
 only.** `openEnv()` now stats `data.mdb` at startup and logs size vs `mapSize`;

@@ -15,7 +15,20 @@
  *   2. docker cp ai-demo-api-server:/app/data/persistent/lmdb /tmp/lmdb-live
  *   3. node scripts/lmdb-compact.js /tmp/lmdb-live /tmp/lmdb-compacted
  *   4. docker cp /tmp/lmdb-compacted/data.mdb ai-demo-api-server:/app/data/persistent/lmdb/data.mdb
- *   5. docker compose start demo-api-server  — the startup watcher (openEnv)
+ *   5. FIX OWNERSHIP — step 3 wrote the file as your HOST user, and `docker cp`
+ *      preserves that numeric UID into the container. The app runs as
+ *      appuser:appgroup, UID:GID 1001:1001 (Dockerfile: `adduser -S appuser -u
+ *      1001 -G appgroup`) — a mismatched owner makes openEnv() throw
+ *      "Permission denied: Attempting to open main database file" and the
+ *      container crash-loops, which the FATAL [VERTICAL GUARD] log reports
+ *      but does not name the actual cause of. Fix via a throwaway container on
+ *      the same volume (works even while demo-api-server is down):
+ *        docker run --rm -v ai-demo_ai-demo-bff-data:/data alpine \
+ *          chown 1001:1001 /data/lmdb/data.mdb
+ *      Confirmed live 2026-08-19: this is the exact failure this step
+ *      prevents, recovered with no data loss (the compacted file itself was
+ *      already correct — only its owner was wrong).
+ *   6. docker compose start demo-api-server  — the startup watcher (openEnv)
  *      logs the new size; verify it dropped before calling this done.
  *
  * Measured 2026-08-18: 84.4MB -> 29.5MB (65% reclaimed); only ~21MB was live.
