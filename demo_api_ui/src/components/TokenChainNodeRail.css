@@ -323,14 +323,9 @@
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node-title { color: #90a0c2; }
 :root[data-theme="dark"] .tcnr[data-density="compact"] .tcnr-node--sel .tcnr-node-title { color: #eaf0fb; }
 
-/* Node facts describe the CHANGE, so the scope diff is legible at node size:
-   what survived the narrowing stays readable, what was dropped is struck. */
-.tcnr-fact-kept { margin-right: 4px; }
-.tcnr-fact-gone {
-  margin-right: 4px;
-  text-decoration: line-through;
-  opacity: 0.65;
-}
+/* Node facts describe the CHANGE. The scope diff is stated as a shape
+   ("narrowed 9 → 3") rather than chip-by-chip: at node width the per-scope
+   chips wrapped into an unreadable block, and the full diff already has a
+   home in the step detail panel. */
+.tcnr-node-fact--narrowed { font-weight: 650; }
 .tcnr-node-fact--nochange { font-style: italic; opacity: 0.8; }
-
-:root[data-theme="dark"] .tcnr-fact-gone { opacity: 0.6; }

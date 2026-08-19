@@ -101,17 +101,32 @@ function NodeFact({ step }) {
   const d = step?.detail || {};
   const ran = ["done", "active", "denied", "error"].includes(step?.status);
 
-  // Scope narrowing is the most legible change in the chain — show what went.
+  // Scope narrowing is the most legible change in the chain — but a ~130px map
+  // card cannot hold nine scope chips, and it used to try: every `before` scope
+  // was rendered inline, so a real exchange came out as one unreadable run of
+  // text (see UI_FINDINGS.md #5). The map states the SHAPE of the change; the
+  // full chip-by-chip diff already lives in the step detail panel, which has
+  // the room for it.
   if (ran && Array.isArray(d.scopeDiff?.before) && Array.isArray(d.scopeDiff?.after)) {
-    const after = new Set(d.scopeDiff.after);
+    const { before, after } = d.scopeDiff;
+    const afterSet = new Set(after);
+    const dropped = before.filter((s) => !afterSet.has(s));
+    const title = `before: ${before.join(" ") || "(none)"}\nafter: ${after.join(" ") || "(none)"}`;
+
+    // "narrowed 9 → 3" is the claim this demo exists to make, so say it in
+    // those words when it is true rather than leaving the reader to count.
+    const label = dropped.length
+      ? `scope narrowed ${before.length} → ${after.length}`
+      : before.length === after.length
+        ? "scope unchanged"
+        : `scope ${before.length} → ${after.length}`;
+
     return (
-      <span className="tcnr-node-fact">
-        scope{" "}
-        {d.scopeDiff.before.map((s) => (
-          <span key={s} className={after.has(s) ? "tcnr-fact-kept" : "tcnr-fact-gone"}>
-            {s}
-          </span>
-        ))}
+      <span
+        className={`tcnr-node-fact${dropped.length ? " tcnr-node-fact--narrowed" : ""}`}
+        title={title}
+      >
+        {label}
       </span>
     );
   }

@@ -16,7 +16,7 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 | 2 | Pill covers the Sign Out button | UI | High | FIXED | PR #2155 — overlay moved below the 60px TopNav |
 | 3 | `consent-challenge/:id/confirm` 404s during a live drive | unknown | High | OPEN | Rescoped twice; 3 of 4 claims withdrawn, incl. my own log evidence |
 | 4 | Chain badge was a hardcoded string, so an errored run looked clean | UI | Medium | FIXED | PR #2155 — badge derives from `runStory.outcome` |
-| 5 | Scope diff on chain step 10 is unreadable | UI | Medium | OPEN | Highest demo-value fix |
+| 5 | Scope diff on the chain map card is unreadable | UI | Medium | FIXED | PR #2160 — map states the shape, detail panel keeps the chips |
 | 6 | 25 sidebar groups, 7 ways to start a demo, Sign Out ×3 | IA | Medium | OPEN | |
 | 7 | Button colours carry no hierarchy | UI | Low | OPEN | |
 | 8 | User prompt bubble layout broken | UI | Medium | OPEN | |
@@ -88,11 +88,17 @@ The BFF container restarted *after* the failure, so I was reading the logs of a 
 
 **Evidence:** 4 new tests in `buildTraceSteps.test.js` (94 pass in that file); full UI suite 389 files / 3319 tests pass; build exit 0.
 
-### 5. Step 10's scope diff is unreadable — OPEN
+### 5. Scope diff on the chain map card is unreadable — FIXED (PR #2160)
 
-Renders as `scope ai:agent:readreadtransferopenidprofileoffline_accesswriteemailmortgage:read` — no separators, added and removed scopes mashed into one string, strikethrough landing mid-token. This is the money slide for token exchange and it is currently noise.
+**One of my claims was wrong.** I said the scopes had "no separators". They did: `.tcnr-fact-gone` and `.tcnr-fact-kept` both carry `margin-right: 4px`. What I read as a spacing bug was the accessibility snapshot concatenating adjacent spans — an artifact of how I captured the page, not of the page.
 
-**Fix:** split on whitespace, render as chips, colour added vs removed.
+**The real defect is density.** `TokenChainNodeRail.jsx` rendered one chip per `before` scope into a ~130px map card. A real exchange has nine, so they wrapped into an unreadable block with strikethrough running through it. The card is a *map*; it cannot hold a chip-by-chip diff.
+
+**Fixed:** the map now states the shape of the change — `scope narrowed 9 → 3` — with the full before/after on the element's `title`. That is also the claim the demo exists to make, said in words instead of left for the viewer to count. Widening reads as `scope 1 → 2` and an identical set reads `scope unchanged`, so a narrowing is never asserted unless scopes were actually dropped.
+
+The chip-by-chip diff was already implemented and already good, in the step detail panel (`TraceStepCard.jsx:348`, `tctr-sc--kept` / `tctr-sc--gone`) — which has the room for it. Nothing was lost; the two surfaces now do different jobs.
+
+**Evidence:** 4 new tests in `TokenChainNodeRail.test.jsx`, confirmed to fail against the pre-fix renderer (stashed, re-ran, `4 failed | 12 passed` — exactly the four). Full UI suite 389 files / 3325 tests pass, build exit 0.
 
 ### 6. 25 collapsible sidebar groups, and 7 competing ways to start a demo — OPEN
 
@@ -148,6 +154,8 @@ Two things made that state easy to reach and impossible to leave:
 Dark mode · narrow/mobile widths · the other 11 verticals · every admin surface.
 
 ## Changelog
+
+- 2026-08-19 — #5 FIXED (PR #2160). Also withdrew its "no separators" claim: the chips were spaced, and the run-on text was an artifact of how I captured the page. The real defect was nine chips in a 130px card.
 
 - 2026-08-19 — #11 added and FIXED (PR #2158): the CIBA phone simulator's dead-end footer, the single-fetch that could never recover, and a §0 muted-text violation in the same modal.
 
