@@ -169,3 +169,58 @@ describe('PingOneAuthorizeClient — a live PERMIT can still carry a gate', () =
     expect(d.decision).toBe('DENY');
   });
 });
+
+// INDETERMINATE-rework phase 3: the demo PDP now sends an EXPLICIT
+// `obligations: [{ id, type, obligatory, fulfilled }]` array on every pause
+// (phase 2). The client prefers it over statement inference — the structural
+// contract the rework migrates everything onto — with statements kept as the
+// fallback for engines that have not adopted it.
+describe('explicit obligations[] (phase 2 contract) is preferred over statement inference', () => {
+  const pauses: Array<[string, string, string]> = [
+    ['step-up', 'STEP_UP', 'stepUp'],
+    ['hitl-consent', 'HITL_CONSENT', 'consent'],
+    ['elicitation-confirm', 'ELICITATION', 'elicitation'],
+  ];
+
+  it.each(pauses)('classifies a pause from obligations[] alone (no statements): %s', async (id, type, kind) => {
+    // Before this change, obligations-only responses hit the fail-closed DENY
+    // branch — the pause was only readable through statements.
+    mockedAxios.post.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        decision: 'INDETERMINATE',
+        reason: type,
+        obligations: [{ id, type, obligatory: true, fulfilled: false }],
+      },
+    });
+    const client = new PingOneAuthorizeClient(baseConfig);
+    const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
+    expect(d.decision).toBe('INDETERMINATE');
+    expect(d.obligation).toBe(kind);
+  });
+
+  it('explicit obligation wins when statements disagree', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      status: 200,
+      data: {
+        decision: 'INDETERMINATE',
+        obligations: [{ id: 'step-up', type: 'STEP_UP', obligatory: true, fulfilled: false }],
+        statements: [{ code: 'HITL_CONSENT' }],
+      },
+    });
+    const client = new PingOneAuthorizeClient(baseConfig);
+    const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
+    expect(d.obligation).toBe('stepUp');
+  });
+
+  it('statements still classify when no obligations[] is present (fallback intact)', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      status: 200,
+      data: { decision: 'INDETERMINATE', statements: [{ code: 'HITL_CONSENT' }] },
+    });
+    const client = new PingOneAuthorizeClient(baseConfig);
+    const d = await client.evaluate(decoded, 'tools/call', 'create_transfer');
+    expect(d.decision).toBe('INDETERMINATE');
+    expect(d.obligation).toBe('consent');
+  });
+});

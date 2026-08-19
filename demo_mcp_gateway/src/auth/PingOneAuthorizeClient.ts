@@ -428,7 +428,15 @@ export class PingOneAuthorizeClient {
       };
       // Real-first: a live PERMIT can still carry a gate in `statements[]`.
       // Reading only the label forwarded exactly the calls the PDP held.
-      const obligation = classifyStatements(data?.statements);
+      //
+      // INDETERMINATE-rework phase 3 (docs/superpowers/plans/
+      // 2026-08-18-indeterminate-rework.md): the demo PDP now emits an EXPLICIT
+      // `obligations[]` array on every pause (phase 2). Prefer it — it is the
+      // structural contract the rework migrates everything onto — and keep the
+      // statements inference as the fallback for engines that have not adopted
+      // it (live P1AZ statements, older mocks). When both are present the
+      // explicit obligation wins.
+      const obligation = classifyStatements(data?.obligations) ?? classifyStatements(data?.statements);
       // Elicitation advice: surfaced so the handler can include the prompt in -32003.
       const elicitationAdvice = obligation === 'elicitation'
         ? (Array.isArray(data?.advice) ? data.advice as Array<{ id: string; value?: string }> : [])

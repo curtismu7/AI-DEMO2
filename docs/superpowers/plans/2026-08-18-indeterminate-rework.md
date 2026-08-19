@@ -150,6 +150,25 @@ Each phase ships independently and leaves the suite green.
 3. **Move consumers one at a time**, each with its own test flip:
    `transactionConsentChallenge` → `mcpToolPipeline` → `hitlClient.ts` →
    Groovy `p1az-decision` → the UI surfaces that read the decision.
+
+   **Progress 2026-08-18 (phase 3a):**
+   - **Discovery that re-scopes this phase:** the BFF consumers are already
+     obligation-first — `demo_api_server/services/authorizeObligations.js` (the
+     H2 fix) is the single classifier both engines route through, and the Node
+     gateway independently grew the same architecture
+     (`demo_mcp_gateway/src/auth/authorizeObligations.ts`, statements-based,
+     with the INDETERMINATE-no-obligation fail-closed DENY that phase 5 wants
+     already in place for that consumer). What remained was wiring the
+     EXPLICIT phase-2 `obligations[]` into those classifiers.
+   - **Node gateway DONE:** `PingOneAuthorizeClient.toDecision` now classifies
+     `data.obligations` FIRST (the phase-2 structural contract), statements as
+     fallback; explicit wins on disagreement. 5 new tests in
+     `tests/authorizeObligations.test.ts` (obligations-only responses for all
+     three pause kinds — previously those hit the fail-closed DENY branch —
+     plus precedence and fallback-intact). Full gateway suite 776/776.
+   - **Remaining in this phase:** BFF `pingOneAuthorizeService` /
+     `simulatedAuthorizeService` explicit-obligations pass-through audit,
+     Groovy `p1az-decision`, and the UI decision surfaces.
 4. **Flip the PDP** to stop emitting INDETERMINATE for the pause.
 5. **Add the guard** the plan actually wants: any INDETERMINATE from either
    engine is now unambiguously an error — log it loudly, fail closed, and
