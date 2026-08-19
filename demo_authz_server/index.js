@@ -15,10 +15,20 @@
  *
  *   2. PingOne Authorize decisions   — POST /governance/pap/alpha/policy/:workerId/decision
  *      Evaluates: scope, act claim, HITL for write tools.
- *      Returns: { decision: 'PERMIT' | 'DENY' | 'INDETERMINATE' }
+ *      Returns: { decision: 'PERMIT' | 'DENY' } — a pause (step-up MFA, HITL
+ *      consent, elicitation) is PERMIT carrying an unfulfilled obligation, not
+ *      a third decision value (INDETERMINATE rework phase 4, 2026-08-19 —
+ *      see routes/decision.js's file header and pausePermit() doc comment).
  *
  * Port: AUTHZ_PORT (default 9001)
  */
+
+// FIRST require, before anything else touches process.env: docker-compose's
+// env_file mechanism injects PINGONE_WORKER_CLIENT_ID/SECRET (and others) as
+// raw container-level env, ciphertext included post-dotenvx-cutover — see
+// dotenvxBootstrap.js for why this container needs its own decrypt-in-place
+// bootstrap rather than reusing demo_api_server's file-based one.
+require('./dotenvxBootstrap').bootstrapDotenvx();
 
 const express = require('express');
 const dotenv = require('dotenv');
@@ -26,6 +36,10 @@ const path = require('path');
 const multer = require('multer');
 const cors = require('cors');
 
+// demo_authz_server/.env is gitignored and not present in this container's
+// build context — Dockerfile has no COPY for it, so this reads nothing in
+// production. Kept for local/native runs where the file exists; override:false
+// means it can never re-shadow a value bootstrapDotenvx already decrypted.
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
