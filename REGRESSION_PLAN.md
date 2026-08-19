@@ -567,7 +567,25 @@ and `npm run build`.
 - Added an `extend_rental` case to the write/confirmation block.
 - `atm: true` kept only on the 7 Super Banking branches.
 
+- **UC10 cross-owner read was PERMITted by PingOne Authorize; only the data plane stopped it.**
+  `resolveResourceOwnerId()` is populated for the BFF's own authorize gate, and that gate is
+  **skipped** when the gateway is authoritative (the live default) — so the value was computed and
+  dropped. `X-Resource-Owner-Id` did not exist and `ResourceOwnerId` appeared nowhere in
+  `p1az-decision.groovy`'s 34-key parameter set. Authorize returned
+  `{decision:'PERMIT', outcome:'PERMIT'}` because it had nothing to decide on, so the step's
+  "Used: PingOne Authorize" claim was decorative and ProofStrip scored it `Mismatch`.
+  Fixed the same way the tier ceiling already works: `mcpGatewayClient` sends
+  `X-Resource-Owner-Id` (omitted when unresolvable — C1 rule 3), and `p1az-decision.groovy` adds
+  `ResourceOwnerId` to the parameter set and denies locally when it differs from `sub`.
+  **The groovy half is not live-verified:** `serve:worktree` moves only the `ui` and
+  `demo-api-server` mounts, so `ai-demo-ping-gateway` keeps running the main checkout's script.
+  Re-run UC10 after deploy — expect `authorize.decision: DENY`.
+
 **Do not break:**
+- `X-Resource-Owner-Id` must stay **omitted** when ownership cannot be resolved. Sending an empty
+  or placeholder value makes the gateway's backstop deny every call whose owner simply could not
+  be looked up. The resolve is wrapped in try/catch for the same reason — a store miss must never
+  block a tool call.
 - The infra-fault distinction: a bare `Unauthorized` with no `correlationId` must stay
   `gateway_misconfigured` (503, "fix the gateway") and must NOT get a synthesized DENY.
   `_syntheticBackstopDenyTrail` returns `null` for that shape — keep it that way.
@@ -588,7 +606,7 @@ Live, sporting-goods: UC6 → `Authz denied — Verified (as expected)` with `gw
 **Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,
 `demo_api_ui/src/components/VerifiedBanner.css`, tests
 `VerifiedBanner.test.jsx` (2 added). Found by driving the live UI — logged as
-`UI_FINDINGS.md` #1 and #2.
+`docs/UI_FINDINGS.md` #1 and #2.
 
 **What was broken:** the banner collapsed to a pill after 6s and then stayed
 there for the rest of the session. Because the pill is portaled to

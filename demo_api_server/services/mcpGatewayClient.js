@@ -247,6 +247,23 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             }
         } catch (_) { /* best-effort */ }
     }
+    // Resource ownership — pre-resolved here for the same reason as the tier above:
+    // the account_id in a tool's params means nothing to a policy engine without the
+    // store lookup that maps it to an owner, and neither gateway can do that lookup.
+    // Without this header ResourceOwnerId never reached the gateway's parameter set
+    // at all, so on the gateway-authoritative path (the live default) PingOne
+    // Authorize was structurally blind to ownership and PERMITted cross-owner reads —
+    // UC10's DENY came from the data plane instead, which is why the step scored
+    // "Mismatch". The BFF already resolved this for its OWN gate; that gate is
+    // skipped when the gateway is authoritative, so the value was computed and
+    // dropped. Additive: used only to DENY, never to widen a decision.
+    if (tool && params) {
+        try {
+            const { resolveResourceOwnerId } = require('./mcpToolAuthorizationService');
+            const ownerId = resolveResourceOwnerId(tool, params);
+            if (ownerId) headers['X-Resource-Owner-Id'] = String(ownerId);
+        } catch (_) { /* best-effort — never block a tool call on the lookup */ }
+    }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.

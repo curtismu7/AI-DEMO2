@@ -30,12 +30,12 @@ sign-in works), signed in as Demo User (Customer), Agent mode Heuristics.
 | 9 | Home and Dashboard are two different apps | IA | Low | OPEN | |
 | 10 | `/dashboard` shows no banking data; `/api/token-chain` 401 on cold load | UI + BFF | Low | OPEN | |
 | 11 | CIBA phone simulator is a dead end in every non-pending state | UI | High | FIXED | PR #2158 — reported by the user as "never accepts Approve" |
-| 13 | UC6 intentional DENY scores itself "Incomplete / Run failed" | BFF + UI | High | FIXED | `85971fabd` — gateway backstop DENY now carries authorize evidence |
-| 14 | UC8 flips green → "Mismatch" the moment the human approves | UI | High | FIXED | `85971fabd` — skip-shaped evaluation no longer wipes the gate |
-| 15 | UC10 cross-owner DENY renders "Mismatch" | BFF | Medium | OPEN | Authorize genuinely PERMITs; needs a product decision (see below) |
+| 13 | UC6 intentional DENY scores itself "Incomplete / Run failed" | BFF + UI | High | FIXED | branch `worktree-demo-steps-verdict-fixes`, PR pending — gateway backstop DENY now carries authorize evidence |
+| 14 | UC8 flips green → "Mismatch" the moment the human approves | UI | High | FIXED | branch `worktree-demo-steps-verdict-fixes`, PR pending — skip-shaped evaluation no longer wipes the gate |
+| 15 | UC10 cross-owner DENY renders "Mismatch" | BFF + gateway | High | FIXED* | branch `worktree-demo-steps-verdict-fixes`, PR pending — `ResourceOwnerId` never reached the gateway at all. *BFF half unit-tested; groovy half needs a gateway deploy to verify |
 | 16 | UC22 CIBA "Approve" loops instead of completing | BFF + UI | High | OPEN | Duplicate waiting cards accumulate every ~60s |
-| 17 | Super Sports stores advertise an "ATM" badge | data | Low | FIXED | `85971fabd` — `atm: true` was hard-coded on all non-banking locations |
-| 18 | "Here are your extend rental." | BFF | Low | FIXED | `85971fabd` — 70 sibling actions still affected, see `TECH_DEBT.md` |
+| 17 | Super Sports stores advertise an "ATM" badge | data | Low | FIXED | branch `worktree-demo-steps-verdict-fixes`, PR pending — `atm: true` was hard-coded on all non-banking locations |
+| 18 | "Here are your extend rental." | BFF | Low | FIXED | branch `worktree-demo-steps-verdict-fixes`, PR pending — 70 sibling actions still affected, see `TECH_DEBT.md` |
 | 19 | UC18/UC29 don't demonstrate the defense they claim | BFF | Medium | OPEN | Declare `DENY_429`/`DENY_503`, both return plain `403` |
 | 20 | `/personal-agent` greets with airlines copy in every vertical | UI | Low | OPEN | "your MileagePlus account… upcoming flights" under Super Sports |
 | 21 | Approval strips claim "then permitted" before the human answers | UI | Low | OPEN | Shown while the consent modal is still open |
@@ -220,7 +220,7 @@ Two things made that state easy to reach and impossible to leave:
 **Evidence:** full UI suite 389 files / 3322 tests pass, build exit 0. The 3 new tests were confirmed to fail against the pre-fix page (stashed the component, re-ran, `3 failed | 12 passed` — exactly the three).
 
 **Left alone deliberately:** the 60s auto-approve. `/approve-now` is *built on* it (it backdates `initiatedAt` past the delay rather than setting a flag), so removing it needs a replacement approved-by-user flag plus server test changes. It makes Approve feel broken even when it works, so it is worth doing — but it is a demo-behaviour change, not part of this bug.
-### 13. UC6's intentional DENY reported itself as a failed run — FIXED (`85971fabd`)
+### 13. UC6's intentional DENY reported itself as a failed run — FIXED (branch `worktree-demo-steps-verdict-fixes`, PR pending)
 
 `extend my rental $2500` is *supposed* to be denied. The chat said so correctly ("declined by
 the gateway's authorization policy — no changes were made"), but three other surfaces called it
@@ -241,7 +241,7 @@ group array to a tier, and crediting Authorize would be theatre.
 Note this is vertical-dependent: banking's `$2500` transfer *does* return a full P1AZ trail. The
 gap only shows where the gateway's own rule fires first.
 
-### 14. Approving UC8's consent turned the green box amber — FIXED (`85971fabd`)
+### 14. Approving UC8's consent turned the green box amber — FIXED (branch `worktree-demo-steps-verdict-fixes`, PR pending)
 
 Tick "I have reviewed the details above and authorize this action" → **Agree & Continue** → the
 rental really is extended (`success: true`, a correct **Rental Extended** card). The proof strip
@@ -259,26 +259,46 @@ genuine later block. UC7's step-up shares this path.
 **Not a defect, though first suspected:** both consent modals disable their primary CTA until the
 review checkbox is ticked. That is correct UX — my first harness just wasn't ticking it.
 
-### 15. UC10's cross-owner DENY renders "Mismatch" — OPEN, needs a product decision
+### 15. UC10's cross-owner DENY rendered "Mismatch" — FIXED (branch `worktree-demo-steps-verdict-fixes`), one half still to verify
 
-`cross-owner-account → 403 DENY / requested resource belongs to a different user` is exactly the
-declared `expectedOutcome`. The strip still says `Mismatch`. Measured cause — the same catalog
-shape, opposite verdict, one field apart:
+Severity raised from Medium to High on investigation. This was **not** a display bug, and the
+"honest vs cosmetic fix" framing in my first write-up was itself wrong — it assumed
+`ResourceOwnerId` was reaching PingOne Authorize and simply not being acted on. It was not
+reaching it at all.
 
-| | UC13 `rogue-actor` (green) | UC10 `cross-owner-account` (amber) |
-|---|---|---|
-| `authorize` | `{decision:"DENY", outcome:"DENY"}` | **`{decision:"PERMIT", outcome:"PERMIT"}`** |
-| what blocked it | PingOne Authorize | the tool/API layer |
+`resolveResourceOwnerId()` is populated for the BFF's **own** authorize gate. That gate is
+**skipped** whenever the gateway is authoritative — the live default. So the value was computed
+and dropped: `X-Resource-Owner-Id` did not exist, and `ResourceOwnerId` appears nowhere in
+`p1az-decision.groovy`'s parameter set. Dumping the live P1AZ parameters confirms it — 34 keys
+sent (`ToolName`, `ActClientId`, `Amount`, `TokenAudActual`, `RarAuthorizationDetails`, …) and no
+ownership attribute among them.
 
-**The strip is telling the truth.** PingOne Authorize genuinely permits the cross-owner read and
-the data plane catches it — `attackSimulatorService.js`'s own comment already flags the gap
-("Prefer Authorize ResourceOwnerId DENY when the BFF gate populates ResourceOwnerId for this
-tool"). Two fixes, not equivalent:
+**PingOne Authorize was structurally blind to resource ownership on the live path.** It returned
+`{decision:'PERMIT', outcome:'PERMIT'}` because it had nothing to decide on; the cross-owner read
+was stopped by the data plane instead. Nothing leaked — but the control the step advertises did
+not exist, and "Used: PingOne Authorize" was decorative. The amber Mismatch was the only honest
+signal in the run.
 
-- **Honest:** populate `ResourceOwnerId` so Authorize actually denies. The step's "Used: PingOne
-  Authorize" claim becomes true and it goes green on its own.
-- **Cosmetic:** teach `computeVerdict` to accept a data-plane deny. Green box, demo keeps
-  claiming an enforcement point that never fired. Not recommended.
+**Fixed** the same way the tier ceiling already works, since it exists for exactly this reason
+(a policy engine cannot map an account_id to an owner, or a group array to a tier, without a
+store lookup):
+
+1. `mcpGatewayClient` sends `X-Resource-Owner-Id`, resolved through the existing
+   `resolveResourceOwnerId`. Omitted entirely when it cannot be resolved — C1 rule 3, omission
+   means "unknown"; asserting a value would make the backstop deny every unresolvable call.
+2. `p1az-decision.groovy` adds `ResourceOwnerId` to the parameter set when the header is present,
+   and denies locally when it is present and differs from `sub`.
+
+**Verification status — half of this is not yet proven live.** The BFF half has 3 unit tests
+(`mcpGatewayClient.resourceOwnerHeader.test.js`: header sent, omitted when unresolvable, lookup
+failure never blocks the call). The groovy half is **not** live-verified: `serve:worktree` moves
+only the `ui` and `demo-api-server` mounts, so `ai-demo-ping-gateway` keeps running the **main
+checkout's** script, and the project hard-blocks writes there on purpose. Re-run UC10 after this
+merges and the gateway restarts — expect `authorize.decision: DENY` and a green
+`Verified (as expected)`, where today it still reads `PERMIT`.
+
+A cloud P1AZ rule on `ResourceOwnerId` would be better still than the gateway backstop; that
+needs a policy import file rather than a code change.
 
 ### 16. UC22's CIBA "Approve" never completes — OPEN
 
@@ -296,14 +316,14 @@ Four `/api/agent/invoke` calls, every one returning `step_up_required`. The copy
 will continue automatically in about a minute") fires but only re-issues the same challenge, so
 duplicate cards accumulate. Verdict pill reads `MISMATCH`; no inline proof strip.
 
-### 17. Super Sports stores advertised an ATM — FIXED (`85971fabd`)
+### 17. Super Sports stores advertised an ATM — FIXED (branch `worktree-demo-steps-verdict-fixes`, PR pending)
 
 Not a render bug — `atm: true` was hard-coded on **every** non-banking location in the public
 catalog (16 entries, duplicated in `demo_api_server/data/publicBranchCatalog.js` and
 `oauth-mcp/src/tools/handlers/publicCatalogHandlers.ts`). Retail stores and university campuses
 had it too. Now only the 7 Super Banking branches keep it.
 
-### 18. "Here are your extend rental." — FIXED for one action, 70 still open (`85971fabd`)
+### 18. "Here are your extend rental." — FIXED for one action, 70 still open (`worktree-demo-steps-verdict-fixes`)
 
 The reply-heading builder hand-cases 10 write actions and falls everything else through to
 `Here are your ${noun}.`. **71 write actions across all 12 verticals** hit it: "Here are your pay
@@ -371,7 +391,8 @@ Dark mode · narrow/mobile widths · the other 11 verticals · every admin surfa
 
 - 2026-08-19 — #11 added and FIXED (PR #2158): the CIBA phone simulator's dead-end footer, the single-fetch that could never recover, and a §0 muted-text violation in the same modal.
 
-- 2026-08-19 — findings #13–#23 added from a second drive: all 22 Demo Steps, vertical Super Sports. #13, #14, #17, #18 FIXED in `85971fabd` (same commit as this status update). #22 and #23 recorded INVALID — both were my own harness (a page reload between steps that wiped session-scoped evidence; a query that raced the popout's catalog fetch), not the product. #13 was also narrower than first written up: banking returns a full P1AZ trail, only the gateway-local backstop path lost its evidence.
+- 2026-08-19 — #15 FIXED and re-scoped, severity Medium → High. Investigating it disproved my own framing: I had offered an "honest vs cosmetic fix" choice that assumed `ResourceOwnerId` was reaching PingOne Authorize. It was never sent to the gateway at all, so Authorize was structurally blind to ownership on the live path and the amber Mismatch was the only truthful thing in the run. BFF half unit-tested; groovy half awaits a gateway deploy.
+- 2026-08-19 — findings #13–#23 added from a second drive: all 22 Demo Steps, vertical Super Sports. #13, #14, #17, #18 FIXED on branch `worktree-demo-steps-verdict-fixes` (same commit as this status update). #22 and #23 recorded INVALID — both were my own harness (a page reload between steps that wiped session-scoped evidence; a query that raced the popout's catalog fetch), not the product. #13 was also narrower than first written up: banking returns a full P1AZ trail, only the gateway-local backstop path lost its evidence.
 - 2026-08-19 — #3 rescoped again: my "zero POST in the BFF logs" evidence was void (the BFF container restarted after the failure, so I queried logs from a container that was not running at the time). Reproduction method corrected to pin container StartedAt before and after a run.
 - 2026-08-19 — #4 FIXED (PR #2155), #3 rescoped. Investigating #3 disproved two of its three original claims and showed the confirm never reaches the BFF; #4's premise about the 401s was also wrong, though its badge defect was real. Corrections recorded in place rather than quietly dropped.
 - 2026-08-19 — #1 and #2 FIXED (PR #2155). `VerifiedBanner` gained a `banner → pill → gone` cycle and moved below the TopNav.
