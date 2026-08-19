@@ -3,7 +3,7 @@ import httpx
 import respx
 from pydantic_ai import ModelRetry
 from src.models import BffDeps
-from src.bff_tool_adapter import build_tool_functions, BffToolError
+from src.bff_tool_adapter import build_tool_functions
 
 SCHEMA = {
     "name": "get_accounts",

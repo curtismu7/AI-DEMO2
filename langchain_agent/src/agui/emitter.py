@@ -15,7 +15,7 @@ from .event_types import (
     RunStarted, RunFinished,
     TextMessageStart, TextMessageContent, TextMessageEnd,
     ToolCallStart, ToolCallArgs, ToolCallEnd,
-    StateDelta, ErrorEvent,
+    ErrorEvent,
 )
 
 logger = logging.getLogger(__name__)
