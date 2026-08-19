@@ -9,7 +9,7 @@ metadata:
 spec:
   # Off by default — mirrors Docker's demo-auth profile. demo-sync scales to 1
   # when Quick Flag ff_mcp_gateway_pinggateway selects the demo Node gateway.
-  replicas: 1
+  replicas: 0
   # Zero-downtime rollouts: bring new pod healthy before terminating old one.
   # maxSurge:1 transiently adds one pod (100m CPU / 128Mi) during rollouts only —
   # well within the 8 CPU quota (k8s/01-namespace.yaml). maxUnavailable:0 ensures
@@ -60,6 +60,12 @@ spec:
           value: "https://demo-api-server:3001/internal/id-token"
         - name: BANKING_RESOURCE_SERVER_BASE_URL
           value: "https://demo-api-server:3001"
+        - name: MCP_WEATHER_BACKEND_URL
+          value: "http://mcp-weather:8896"
+        - name: MCP_BRAVE_BACKEND_URL
+          value: "http://mcp-brave:8897"
+        - name: MCP_GW_JWTVERIFIER_HTTP_URL
+          value: "http://mcp-jwt-verifier:8083"
         # Transaction-trace hop ingest — mirrors docker-compose's BFF_TRANSACTION_HOP_URL.
         # Without this, gatewayAudit.ts's emitHop() silently no-ops (missing url/secret
         # guard), so MCP gateway hops never appear on /transaction-trace.

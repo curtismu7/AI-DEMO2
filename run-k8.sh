@@ -232,6 +232,9 @@ tag_k8_images() {
     "ai-demo-tier-manager:ai-demo-k8-tier-manager"
     "ai-demo-mcp-code-search:ai-demo-k8-mcp-code-search"
     "ai-demo-llamaindex-agent:ai-demo-k8-llamaindex-agent"
+    "${K8_COMPOSE_PROJECT}-mcp-weather:ai-demo-k8-mcp-weather"
+    "${K8_COMPOSE_PROJECT}-mcp-brave:ai-demo-k8-mcp-brave"
+    "${K8_COMPOSE_PROJECT}-mcp-jwt-verifier:ai-demo-k8-mcp-jwt-verifier"
   )
   for entry in "${pairs[@]}"; do
     local src="${entry%%:*}" dst="${entry##*:}"
@@ -254,7 +257,9 @@ build() {
   # Parallel builds of 10+ images can crash OrbStack's Docker daemon; one at a time.
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build \
     demo-api-server ui mcp-server langchain-agent agent-service \
-    hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway
+    hitl-service mcp-resource-server api-resource-server mcp-proxy authz-server mcp-gateway \
+    mcp-weather mcp-brave
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile demo-auth build mcp-jwt-verifier
   COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml --profile k8-build build tier-manager-k8 llm-proxy
   tag_k8_images
   success "Images built and tagged for K8."
@@ -652,7 +657,7 @@ sim() {
   sim_deploy
   forward
   success "Sim deploy complete — running GHCR images on local K8s."
-  success "Access at https://api.ping.demo:4000"
+  success "Access at https://local.ping-devops.com:4000"
 }
 
 show_help() {

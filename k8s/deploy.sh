@@ -25,7 +25,7 @@
 #
 # Access after deploy:
 #   Port-forward: ./k8s/deploy.sh forward
-#   UI:           https://api.ping.demo:4000
+#   UI:           https://local.ping-devops.com:4000
 #   BFF:          https://api.ping.demo:3001
 
 set -e
@@ -94,6 +94,9 @@ deploy() {
   kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/58-mcp-brave-deployment.yaml"
+  kubectl apply -f "$SCRIPT_DIR/59-mcp-jwt-verifier-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
   kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (replicas:0 until `rag on`)
@@ -117,19 +120,14 @@ deploy() {
     kubectl rollout restart deployment -n "$NS" $pre_existing
   fi
 
-  # Scale agents in parallel: only the selected agent runs (replicas:1), others 0.
-  # This overrides whatever the manifests hardcode so langchain:1 in the manifest
-  # doesn't accidentally run when a different agent is selected.
+  # Start every agent runtime. AGENT_SELECTION still controls the default route;
+  # the others remain available for live framework switching and comparison.
   case " $ALL_AGENTS " in *" $AGENT_SELECTION "*) ;; *)
     die "Unknown --agent value '$AGENT_SELECTION'. Valid: $ALL_AGENTS"
   ;; esac
-  info "Agent selection: ${AGENT_SELECTION}-agent (all others scaled to 0)"
+  info "Agent selection: ${AGENT_SELECTION}-agent (all agent products scaled to 1)"
   for _agent in $ALL_AGENTS; do
-    if [ "$_agent" = "$AGENT_SELECTION" ]; then
-      kubectl scale "deployment/${_agent}-agent" -n "$NS" --replicas=1 &
-    else
-      kubectl scale "deployment/${_agent}-agent" -n "$NS" --replicas=0 &
-    fi
+    kubectl scale "deployment/${_agent}-agent" -n "$NS" --replicas=1 &
   done
   wait
 
@@ -138,9 +136,9 @@ deploy() {
   # and exit codes, then report any failures at the end.
   info "Waiting for rollouts in parallel (timeout 3m each)..."
   local _pids=() _deps=()
-  for dep in jaeger mcp-server mcp-resource-server api-resource-server hitl-service \
+  for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
              demo-api-server ping-gateway agent-service \
-             "${AGENT_SELECTION}-agent" frontend; do
+             langchain-agent mastra-agent openai-agent pydantic-agent frontend; do
     kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s &
     _pids+=($!)
     _deps+=("$dep")
@@ -174,14 +172,32 @@ deploy() {
   _maybe_apply_yotuo_models
 
   demo_sync_cmd
+  kubectl scale deployment/mcp-proxy -n "$NS" --replicas=1
+  kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-search deployment/llamaindex-agent -n "$NS" --replicas=1
 
-  success "Core deployments ready (${AGENT_SELECTION}-agent on; others off)."
+  if kubectl get secret ping-mcpgw-secrets -n "$NS" >/dev/null 2>&1; then
+    kubectl scale deployment/ping-mcpgw -n "$NS" --replicas=1
+  else
+    warn "PingOne Privilege MCPGW not started — ping-mcpgw-secrets is absent"
+  fi
+
+  info "Waiting for optional product rollouts..."
+  for dep in mcp-proxy weaviate embeddings mcp-code-search llamaindex-agent mastra-agent openai-agent pydantic-agent; do
+    kubectl rollout status "deployment/$dep" -n "$NS" --timeout=300s \
+      || die "$dep failed to roll out"
+  done
+  if kubectl get secret ping-mcpgw-secrets -n "$NS" >/dev/null 2>&1; then
+    kubectl rollout status deployment/ping-mcpgw -n "$NS" --timeout=300s \
+      || die "ping-mcpgw failed to roll out"
+  fi
+
+  success "All available product deployments ready (${AGENT_SELECTION}-agent is the default route)."
   show_status
   # run-k8.sh owns the final "next step" line (it points at ./run-k8.sh forward),
   # so suppress ours when invoked through it — otherwise the user sees two
   # forward instructions pointing at two different scripts. Direct callers of
   # this script still get the hint.
-  [ -n "${RUNK8:-}" ] || success "Deploy complete — to open the UI, run:  ./k8s/deploy.sh forward   (https://api.ping.demo:4000)"
+  [ -n "${RUNK8:-}" ] || success "Deploy complete — to open the UI, run:  ./k8s/deploy.sh forward   (https://local.ping-devops.com:4000)"
 }
 
 show_commands() {
@@ -205,7 +221,7 @@ show_commands() {
   demo_box_close "${WHITE}"
   echo ""
   demo_box_open "${GREEN}" "URLS"
-  demo_box_row "${GREEN}" "[WEB]  App   ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
+  demo_box_row "${GREEN}" "[WEB]  App   ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
   demo_box_row "${GREEN}" "[BFF]  API   ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
   demo_box_close "${GREEN}"
   echo ""
@@ -362,8 +378,12 @@ forward_specs_for_profile() {
         "svc/frontend           4000:4000"
         "svc/demo-api-server 3001:3001"
         "svc/mcp-server         8080:8080"
-        "svc/mcp-resource-server         8081:8081"
-        "svc/api-resource-server   8082:8082"
+         "svc/mcp-resource-server         8081:8081"
+         "svc/api-resource-server   8082:8082"
+         "svc/mcp-jwt-verifier      8083:8083"
+         "svc/mcp-weather           8896:8896"
+         "svc/mcp-brave             8897:8897"
+
         "svc/mcp-gateway        3005:3005"
         "svc/ping-gateway       3036:8080"
         "svc/mcp-proxy          8895:8895"
@@ -440,13 +460,13 @@ port_forward() {
       ;;
     core)
       demo_box_open "${GREEN}" "FORWARD"
-      demo_box_row "${GREEN}" "[WEB]  ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
+      demo_box_row "${GREEN}" "[WEB]  ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
       demo_box_row "${GREEN}" "[BFF]  ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
       demo_box_close "${GREEN}"
       ;;
     *)
       demo_box_open "${GREEN}" "FORWARD"
-      demo_box_row "${GREEN}" "[WEB]  ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
+      demo_box_row "${GREEN}" "[WEB]  ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
       demo_box_row "${GREEN}" "[BFF]  ${YELLOW}${BOLD}https://api.ping.demo:3001${RESET}"
       demo_box_close "${GREEN}"
       ;;
