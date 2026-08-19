@@ -149,6 +149,13 @@ fi
 info "Waiting for llamaindex-agent rollout..."
 kubectl rollout status deployment/llamaindex-agent -n "$NS" --timeout=180s || warn "llamaindex-agent rollout not ready yet"
 
+if kubectl get deployment demo-api-server -n "$NS" &>/dev/null; then
+  info "Restarting demo-api-server to start the default Protected RAG index..."
+  kubectl rollout restart deployment/demo-api-server -n "$NS"
+  kubectl rollout status deployment/demo-api-server -n "$NS" --timeout=180s \
+    || warn "demo-api-server rollout slow — check the default index status after it becomes ready"
+fi
+
 echo
 info "Pod status:"
 kubectl get pods -n "$NS" -l 'component in (weaviate,embeddings,mcp-code-search,llamaindex-agent)' -o wide || true
@@ -160,6 +167,6 @@ info "Indexed codebases:"
 kubectl exec -n "$NS" deploy/mcp-code-search -- wget -qO- http://localhost:8095/codebases 2>/dev/null || echo "(could not list)"
 echo
 success "RAG stack deploy finished for $NS"
-echo "Next: open https://ai-demo.ping-devops.com/code-search , refresh, select a codebase, retry Ask."
-echo "If the list is empty, Upload & Index a ZIP/folder first (SE cluster has no /repo default index)."
+echo "Next: open https://ai-demo.ping-devops.com/code-search and wait for the API Server index to report ready."
+echo "If the list is empty: kubectl logs -n $NS deploy/demo-api-server --tail=120"
 echo "If Ask still fails: kubectl logs -n $NS deploy/llamaindex-agent --tail=80"

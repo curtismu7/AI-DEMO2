@@ -608,6 +608,31 @@ se_status() {
   K8S_NAMESPACE="$ns" bash "$K8S_DIR/deploy.sh" status
 }
 
+se_rag() {
+  local action="${1:-on}"
+  [[ "$action" == "on" || "$action" == "off" ]] \
+    || die "RAG action must be 'on' or 'off'"
+  local ns
+  ns="$(derive_se_namespace)"
+  local ctx
+  ctx="$(kubectl config current-context 2>/dev/null || true)"
+  if [[ "$ctx" != "us" && "$ctx" != "ping-dev-aws-us-east-2-oidc" ]]; then
+    info "Switching kubectl context to 'us' (ping-dev-aws-us-east-2)..."
+    kubectl config use-context us
+  fi
+  kubens "$ns"
+  info "SE cluster RAG $action → namespace: $ns"
+  if [[ "$action" == "on" ]]; then
+    check_ghcr_env
+  fi
+  if [[ "$action" == "off" ]]; then
+    K8S_NAMESPACE="$ns" bash "$K8S_DIR/deploy.sh" rag off
+  else
+    K8S_NAMESPACE="$ns" RAG_ACTION="$action" \
+      bash "$K8S_DIR/aws/deploy-rag.sh"
+  fi
+}
+
 se_deploy_banner() {
   local ns="$1"
   echo ""
@@ -699,6 +724,7 @@ case "${1:-all}" in
   se-deploy)   se_deploy ;;
   se-all)      aws_build; se_deploy ;;
   se-status)   se_status ;;
+  se-rag)      se_rag "${2:-on}" ;;
   se-undeploy) se_undeploy ;;
   aws-build)  aws_build ;;
   aws-deploy) aws_deploy; aws_finish ;;
@@ -706,7 +732,7 @@ case "${1:-all}" in
   aws-status) aws_status ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-status|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
+    echo "Usage: $0 {all|build|deploy|forward|forward-api|forward-bg|kill|stop|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-status|se-rag|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
     exit 1
     ;;
 esac

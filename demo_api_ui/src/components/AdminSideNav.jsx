@@ -975,7 +975,7 @@ export default function AdminSideNav({
       icon: "tst",
       children: [
         { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
-        { label: "Code Search", path: "/code-search", icon: "srch" },
+        { label: "Protected RAG", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
         { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
       ],

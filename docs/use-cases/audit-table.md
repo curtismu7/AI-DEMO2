@@ -10,7 +10,9 @@
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
 | UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
+| UC2 | [A2A delegation](./a2a-delegation.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
+| UC2.6 | [A2A generalist mismatch](./a2a-generalist-mismatch.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC3 | [act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
 | UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC20 | [Audit trail / traceability](./audit-trail.md) | foundations | ✅ works | 🛡️ T8 |  |
@@ -35,8 +37,10 @@
 | UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC31 | [Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC32 | [Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) | controls | ✅ works | 🛡️ T6 |  |
-| UC-TOOL1 | [RAG code search](./code-search.md) | tools | ✅ works |  |  |
+| UC-TOOL1 | [Protected RAG](./code-search.md) | tools | ✅ works | 🛡️ T2, T6 |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
+| UC-NHI1 | [Multi-source NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
+| UC-NHI2 | [Agent lifecycle export (JML)](./nhi-lifecycle-export.md) | nhi | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
 | UC-LEARN2 | [PingOne MCP Inspector](./pingone-mcp-inspector.md) | learn | ✅ works |  |  |
 | UC-LEARN3 | [Generic MCP Inspector](./demo-mcp-inspector.md) | learn | ✅ works |  |  |
@@ -55,7 +59,6 @@
 
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
-| UC2 | [A2A delegation](./a2a-delegation.md) | foundations | 🚩 flag-gated (ff_a2a_delegation) | 🛡️ T9, T13 |  |
 | UC9 | [Group / entitlement check](./group-entitlement-check.md) | controls | 🚩 flag-gated (ff_authorize_group_policy) | 🛡️ T3 |  |
 | UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ciba_enabled) | 🛡️ T10 |  |
 | UC12 | [Token theft / replay defense](./token-theft-replay.md) | attacks | 🚩 flag-gated (ff_dpop) | 🛡️ T9 |  |
@@ -63,6 +66,7 @@
 | UC14b | [PAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
+| UC38 | [Personal Agent Concierge](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
 
 ## 🏗️ Needs build (`needs-build`)
 
@@ -75,8 +79,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 41 |
+| ✅ Works | 45 |
 | 🚩 Flag-gated | 8 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **51** |
+| **Total** | **55** |

@@ -315,6 +315,40 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       };
     }
 
+    if (action === 'code_search') {
+      const tokenEvents = [];
+      const sessionId = req?.sessionID || '';
+      const query = typeof params.query === 'string' ? params.query.trim() : '';
+      const limit = Math.min(25, Math.max(1, Number(params.limit) || 5));
+      const rawResult = await executeBffTool({
+        name: 'code_search',
+        args: { query, limit },
+        userId,
+        userToken,
+        req,
+        tokenEvents,
+        sessionId,
+      });
+      let result = rawResult;
+      if (typeof rawResult === 'string' && /^[{[]/.test(rawResult.trim())) {
+        try { result = JSON.parse(rawResult); } catch (_) { result = rawResult; }
+      }
+      if (result && typeof result === 'object' && (result.error || result.isError || result.success === false)) {
+        const errMsg = result?.content?.[0]?.text || result?.error_description || result?.message || result?.error || 'Protected RAG retrieval failed.';
+        return { reply: `❌ ${errMsg}`, success: false, toolsCalled: ['code_search'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
+      const reply = typeof result === 'string' ? result : result?.text;
+      return {
+        reply: reply || 'No protected code matches found.',
+        success: true,
+        toolsCalled: ['code_search'],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents,
+      };
+    }
+
     // READ actions — route through the full token-exchange → gateway → MCP server
     // pipeline so PingAuthorize evaluates every call (same path as the chip/action UI).
     // executeBffTool does RFC 8693 token exchange, calls the tool executor with the

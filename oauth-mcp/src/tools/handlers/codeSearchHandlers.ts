@@ -1,7 +1,7 @@
 import type { HandlerFn } from './types';
 
 const BASE = () => process.env.MCP_CODE_SEARCH_URL || 'http://demo-mcp-code-search:8095';
-const CODEBASE_ID = 'ai-demo2';
+const CODEBASE_ID = 'ai-demo2-server';
 
 async function call(path: string, body: unknown): Promise<any> {
   const res = await fetch(`${BASE()}${path}`, {
@@ -24,9 +24,16 @@ export const executeCodeSearch: HandlerFn = async (_deps, _token, params) => {
     const limit = Math.min(25, Math.max(1, Number(params.limit) || 10));
     const data = await call('/search', { query: params.query, codebase_id: CODEBASE_ID, limit });
     const results = data.results || [];
-    const text = results.length
-      ? results.map((r: any) => `${r.file}:${r.line_start}-${r.line_end} (${Math.round((r.relevance || 0) * 100)}%)\n${r.snippet}`).join('\n\n---\n\n')
-      : 'No matches found.';
+    if (!results.length) {
+      return {
+        type: 'text',
+        text: 'No grounded code matches were found in the protected corpus.',
+        success: false,
+        error: 'no_grounded_results',
+        structuredContent: { results },
+      };
+    }
+    const text = results.map((r: any) => `${r.file}:${r.line_start}-${r.line_end} (${Math.round((r.relevance || 0) * 100)}%)\n${r.snippet}`).join('\n\n---\n\n');
     return { type: 'text', text, success: true, structuredContent: { results } };
   } catch (err) { return errorResult(err); }
 };
