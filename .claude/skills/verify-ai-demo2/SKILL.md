@@ -24,9 +24,17 @@ the real stack and a fresh worktree (2026-07-11).
 
 A fresh worktree under `.claude/worktrees/` has no `node_modules` — every
 `package-lock.json` in this repo is gitignored, so worktrees never inherit
-installed deps. Fix: `npm install` in the relevant service directory (e.g.
-`demo_api_server`), or symlink `node_modules` back to the main checkout if one
-already exists elsewhere (faster, and how the existing worktrees do it).
+installed deps. **Fix: `bash scripts/bootstrap-worktree.sh` from inside the
+worktree** — it symlinks every Node service's `node_modules` from the main
+checkout AND verifies every dep the worktree's package.json declares resolves
+through the link, naming the `npm --prefix <main-svc> install` to run when the
+main tree predates a new dependency. Do NOT hand-symlink per service: one
+session's `ls … | head -1 || ln -s …` one-liner had its failure swallowed by
+the pipe, the link was never created, and a full suite "failed" on
+MODULE_NOT_FOUND that read as a code problem; its first real run also caught
+five services whose main node_modules were missing newly-declared deps
+(dotenvx, the OpenTelemetry trio, posthog-node) — five latent build breaks.
+`--check` verifies without changing anything.
 
 **The non-obvious trap, and why the old fix is now the bigger hazard.**
 `jest.config.js`'s `testPathIgnorePatterns` excludes any path containing
@@ -165,7 +173,7 @@ one stash stack.
 | Different disjoint suites fail on each run of the same code | Parallel-load contention, not a regression | `--maxWorkers=4`, re-run the failing suite in isolation, compare to a stashed baseline |
 | `topology:verify` fails at step 6/7, `sh: jest: command not found` | Worktree has no `demo_mcp_gateway/node_modules` | Symlink it from the main checkout — this is a worktree gap, not drift |
 | `graphify query` errors in a worktree | `graphify-out/graph.json` (~44MB) exists only in the main checkout | Use grep/Read and say so; run `graphify update .` in the main checkout after merge |
-| jest can't find `node_modules` in a worktree | worktrees don't inherit installed deps (lockfiles are gitignored repo-wide) | `npm install` in the service dir, or symlink to the main checkout's `node_modules` |
+| jest can't find `node_modules` in a worktree | worktrees don't inherit installed deps (lockfiles are gitignored repo-wide) | `bash scripts/bootstrap-worktree.sh` — links every service and verifies declared deps resolve |
 | `.env` change doesn't take effect after `docker compose restart` | env vars are baked in at container creation | `docker compose up -d <service>` (recreate, not restart) |
 | commit touching `configStore.js` regenerates an unrelated file | pre-commit hook | expected on commit — don't fight it |
 | a feature is correct, tested, merged — and does nothing | the code sits on a path the request never takes | `docker logs <service> \| grep <marker>` before instrumenting; see "Code existing is not evidence it runs" |
