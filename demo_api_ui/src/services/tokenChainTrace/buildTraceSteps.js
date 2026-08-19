@@ -2,6 +2,7 @@
 // TokenChainTraceRail. No I/O, no store access — unit-testable in isolation.
 
 import { EDU } from "../../components/education/educationIds";
+import { isPause } from "./pauseObligation";
 
 export const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
@@ -399,8 +400,11 @@ function buildAuthorizeReplay(azEval, azRequestPayload) {
  * off `trace.authorizeEvaluations`) so both render identically. */
 function buildAuthorizeDetail(evalObj) {
   const decision = evalObj.decision != null ? String(evalObj.decision).toUpperCase() : "";
-  const isDeny = decision === "DENY";
-  const isChallenge = decision === "INDETERMINATE" || decision === "STEP_UP" || decision === "HITL_REQUIRED";
+  // Obligation-first (phase 3c). After phase 4 a pause arrives as DENY carrying
+  // an unfulfilled obligation, so the obligation must be consulted BEFORE the
+  // decision — otherwise `isDeny` wins and a step-up renders as a hard denial.
+  const isChallenge = isPause(decision, evalObj);
+  const isDeny = decision === "DENY" && !isChallenge;
   const requestPayload = evalObj.request
     ? ((evalObj.request.body && evalObj.request.body.parameters)
         || evalObj.request.parameters
@@ -969,7 +973,11 @@ export function buildTraceSteps(trace) {
     const m = /HTTP\s+(\d+)/i.exec(azDeniedPhase.detail);
     if (m) azDeniedHttp = Number(m[1]) || 0;
   }
-  const azIsChallenge = azDecision === "INDETERMINATE" || azDeniedHttp === 428;
+  // Obligation-first (phase 3c): a phase-4 pause is DENY + unfulfilled
+  // obligation, which would otherwise fall through to the `azIsDeny` error arm.
+  // The 428 check stays — it is the transport-level signal, independent of the
+  // decision payload and still correct after the flip.
+  const azIsChallenge = isPause(azDecision, azEval) || azDeniedHttp === 428;
   const azStatus = azIsSkipped ? "notinpath"
     : azIsPermit ? "done"
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
@@ -1011,9 +1019,12 @@ export function buildTraceSteps(trace) {
       // hitlAlreadyVerified) — render it as done, same as the single-decision
       // path already does via `traceComplete`, so a finished run never shows a
       // stale "must approve" card.
-      const status = decision === "DENY" ? "error"
-        : (decision === "INDETERMINATE" || decision === "STEP_UP" || decision === "HITL_REQUIRED")
-          ? (traceComplete ? "done" : "active")
+      // Obligation-first (phase 3c) — and the pause test must come BEFORE the
+      // DENY test, because a phase-4 pause IS a DENY carrying an unfulfilled
+      // obligation. Order reversed here for exactly that reason.
+      const isChallengeRow = isPause(decision, evalObj);
+      const status = isChallengeRow ? (traceComplete ? "done" : "active")
+        : decision === "DENY" ? "error"
         : "done";
       const step = makeStep("authorize", status, evalObj ? buildAuthorizeDetail(evalObj) : {});
       step.id = idx === 0 ? "authorize" : `authorize:${idx + 1}`;
