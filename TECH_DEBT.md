@@ -263,7 +263,14 @@ delegated rows reach PERMIT — that path has never been exercised with A2A on
 default only when nothing is persisted; an environment that already stored
 `'false'` keeps it, and with the switch gone there is no way to unset it.
 
-### [ ] 2026-08-18 — Bug-hunt round 2: customer-dashboard UI + backend data plane (10 findings)
+### [x] 2026-08-18 — Bug-hunt round 2: customer-dashboard UI + backend data plane (10 findings)
+
+**ALL 10 FINDINGS RESOLVED — bookkeeping tick 2026-08-18 (branch
+`worktree-techdebt-bookkeeping`).** Every child entry below is independently
+`[x]` and carries its own FIXED/RESOLVED block (PRs #2022, #2028, #2031,
+#2036; the #2037 DashboardQuickNav mount was tried, glanced at live, and
+deliberately reverted to its accepted end state). Nothing was outstanding —
+this heading was just never ticked. No code change in this commit.
 
 A second audit scoped to the signed-in customer dashboard and the customer
 data-plane routes/services surfaced 10 fresh defects not already in this file.
@@ -689,7 +696,16 @@ Related: `project-deploy-live-explicit-range-skips-sync` in memory records the
 opposite hazard (explicit range does NOT sync). Both are the same shape: the
 script cannot observe the thing it reports on, so it reports on what it can see.
 
-### [ ] 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
+### [x] 2026-08-18 — Multi-service bug-hunt audit (findings deferred here; scripts/agents/UI fixes went out as separate PRs)
+
+**ALL 15 DEFERRED FINDINGS RESOLVED — bookkeeping tick 2026-08-18 (branch
+`worktree-techdebt-bookkeeping`).** Every child entry below is independently
+`[x]` with its own FIXED/RESOLVED block, including both flagged SECURITY items
+(the capitalised-`type` authz bypass, PR #2007; the MCP rate-limit forgery, PR
+#2008) and the pkce cookie crash (verified during its own fix to have a SECOND
+throw path beyond the one originally described, both closed). Nothing was
+outstanding — this heading was just never ticked. No code change in this
+commit.
 
 A five-service audit (BFF, UI, MCP gateway/proxy/resource, Python/Node agents,
 scripts/gateway) surfaced ~27 fresh defects not already in this file. The
