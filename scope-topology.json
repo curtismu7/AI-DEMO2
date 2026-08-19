@@ -209,11 +209,32 @@
     },
     "Super Banking MCP Server": {
       "uri": "mcpserver.ping.demo",
+      "audienceEnv": {
+        "var": "MCP_SERVER_RESOURCE_URI",
+        "surfaces": [
+          { "file": "docker-compose.yml", "kind": "yaml" },
+          { "file": "k8s/02-configmap.yaml", "kind": "yaml" }
+        ]
+      },
       "scopes": ["mcp:invoke", "code:search"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read", "code:search"]
     },
     "Super Banking MCP Invest": {
       "uri": "mcp-invest.ping.demo",
+      "audienceEnv": {
+        "var": "MCP_RESOURCE_SERVER_RESOURCE_URI",
+        "surfaces": [
+          { "file": "docker-compose.yml", "kind": "yaml" },
+          { "file": "k8s/02-configmap.yaml", "kind": "yaml" },
+          { "file": "privilege/ai-demo-whole-stack/ai-demo-stack/templates/02-configmap.yaml", "kind": "yaml" },
+          { "file": "demo_mcp_resource_server/.env.example", "kind": "env" },
+          { "file": "demo_api_server/scripts/refresh-service-envs.js", "kind": "js" }
+        ],
+        "sourcePin": {
+          "file": "demo_mcp_resource_server/src/server/acceptedAudiences.ts",
+          "mustInclude": "RESOURCE_URI_ENV = 'MCP_RESOURCE_SERVER_RESOURCE_URI'"
+        }
+      },
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["invest:read", "airlines:read", "airlines:write", "pnr:read", "read"]
     },
@@ -224,6 +245,14 @@
     "Super Banking MCP Gateway": {
       "uri": "mcpgateway.ping.demo",
       "role": "mcp-gateway",
+      "audienceEnv": {
+        "var": "MCP_GW_RESOURCE_URI",
+        "surfaces": [
+          { "file": "docker-compose.yml", "kind": "yaml" },
+          { "file": "k8s/02-configmap.yaml", "kind": "yaml" },
+          { "file": "demo_mcp_gateway/.env.example", "kind": "env" }
+        ]
+      },
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search"]
     },

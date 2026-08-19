@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
- * Negative tests for check-resource-server-audience-drift.js.
+ * Negative tests for check-resource-server-audience-drift.js (table-driven
+ * form: bindings are declared in scope-topology.json resources[*].audienceEnv).
  * Run: node --test scripts/check-resource-server-audience-drift.test.js
  *
  * Each case builds a minimal fixture tree and points the checker at it with
  * RS_AUDIENCE_DRIFT_ROOT, so the assertions never depend on live repo contents.
  * A gate that only ever passes proves nothing — these cases prove it fails on
- * each shape of drift it claims to catch.
+ * each shape of drift it claims to catch, and that a SECOND declared binding is
+ * enforced with no checker change.
  */
 
 'use strict';
@@ -28,11 +30,29 @@ after(() => {
   for (const dir of tmpRoots) fs.rmSync(dir, { recursive: true, force: true });
 });
 
+/** The invest binding as the fixtures declare it, mirroring the real topology. */
+function investBinding() {
+  return {
+    var: OWN_VAR,
+    surfaces: [
+      { file: 'docker-compose.yml', kind: 'yaml' },
+      { file: 'k8s/02-configmap.yaml', kind: 'yaml' },
+      { file: 'privilege/ai-demo-whole-stack/ai-demo-stack/templates/02-configmap.yaml', kind: 'yaml' },
+      { file: 'demo_mcp_resource_server/.env.example', kind: 'env' },
+      { file: 'demo_api_server/scripts/refresh-service-envs.js', kind: 'js' },
+    ],
+    sourcePin: {
+      file: 'demo_mcp_resource_server/src/server/acceptedAudiences.ts',
+      mustInclude: `RESOURCE_URI_ENV = '${OWN_VAR}'`,
+    },
+  };
+}
+
 /**
  * Build a fixture tree. `overrides` replaces the value written for a given
  * surface; `omit` drops the var from that surface entirely.
  */
-function makeRoot({ uri = 'mcp-invest.ping.demo', overrides = {}, omit = [], ownVarInSrc = true } = {}) {
+function makeRoot({ uri = 'mcp-invest.ping.demo', overrides = {}, omit = [], ownVarInSrc = true, extraResources = {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-aud-drift-'));
   tmpRoots.push(dir);
 
@@ -42,7 +62,12 @@ function makeRoot({ uri = 'mcp-invest.ping.demo', overrides = {}, omit = [], own
     fs.writeFileSync(abs, body);
   };
 
-  write('scope-topology.json', JSON.stringify({ resources: { 'Super Banking MCP Invest': { uri } } }));
+  write('scope-topology.json', JSON.stringify({
+    resources: {
+      'Super Banking MCP Invest': { uri, audienceEnv: investBinding() },
+      ...extraResources,
+    },
+  }));
 
   const val = (name) => overrides[name] ?? GOOD;
   const has = (name) => !omit.includes(name);
@@ -50,7 +75,8 @@ function makeRoot({ uri = 'mcp-invest.ping.demo', overrides = {}, omit = [], own
   write(
     'docker-compose.yml',
     ['services:', '  mcp-resource-server:', '    environment:',
-      has('compose') ? `      ${OWN_VAR}: "${val('compose')}"` : '      OTHER: "x"'].join('\n'),
+      has('compose') ? `      ${OWN_VAR}: "${val('compose')}"` : '      OTHER: "x"',
+      ...(overrides.composeExtra ? [overrides.composeExtra] : [])].join('\n'),
   );
   write(
     'k8s/02-configmap.yaml',
@@ -125,14 +151,52 @@ describe('check-resource-server-audience-drift', () => {
   it('fails when the server goes back to preferring the shared banking name', () => {
     const res = run(makeRoot({ ownVarInSrc: false }));
     assert.equal(res.status, 1);
-    assert.match(res.stderr, /RESOURCE_URI_ENV must be/);
+    assert.match(res.stderr, /must contain/);
   });
 
-  it('exits 1 with a clear message when the topology resource is missing', () => {
+  it('exits 1 with a clear message when NO binding is declared (vacuity guard)', () => {
     const dir = makeRoot();
     fs.writeFileSync(path.join(dir, 'scope-topology.json'), JSON.stringify({ resources: {} }));
     const res = run(dir);
     assert.equal(res.status, 1);
-    assert.match(res.stderr, /no resources\["Super Banking MCP Invest"\]\.uri/);
+    assert.match(res.stderr, /NO audienceEnv bindings/);
+  });
+
+  it('a SECOND declared binding is enforced with no checker change', () => {
+    // Declare a banking-server binding whose compose value drifts; the invest
+    // binding stays green — the failure must name the second binding's var.
+    const dir = makeRoot({
+      overrides: { composeExtra: '      MCP_SERVER_RESOURCE_URI: "wrong.ping.demo,mcpgateway.ping.demo"' },
+      extraResources: {
+        'Super Banking MCP Server': {
+          uri: 'mcpserver.ping.demo',
+          audienceEnv: {
+            var: 'MCP_SERVER_RESOURCE_URI',
+            surfaces: [{ file: 'docker-compose.yml', kind: 'yaml' }],
+          },
+        },
+      },
+    });
+    const res = run(dir);
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /MCP_SERVER_RESOURCE_URI starts with "wrong\.ping\.demo"/);
+  });
+
+  it('validates EVERY occurrence of the var on a surface, not just the first', () => {
+    const dir = makeRoot({
+      overrides: { composeExtra: `      ${OWN_VAR}: "sneaky-second.ping.demo"` },
+    });
+    const res = run(dir);
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /starts with "sneaky-second\.ping\.demo"/);
+  });
+
+  it('fails when a binding names a resource with no uri', () => {
+    const dir = makeRoot({
+      extraResources: { 'No URI Resource': { audienceEnv: { var: 'X_VAR', surfaces: [] } } },
+    });
+    const res = run(dir);
+    assert.equal(res.status, 1);
+    assert.match(res.stderr, /has no uri/);
   });
 });
