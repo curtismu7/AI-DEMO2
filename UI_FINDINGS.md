@@ -14,8 +14,8 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 |---|---------|------|----------|--------|-------|
 | 1 | Verification pill never dismisses | UI | High | FIXED | PR #2155 — `banner → pill → gone` cycle |
 | 2 | Pill covers the Sign Out button | UI | High | FIXED | PR #2155 — overlay moved below the 60px TopNav |
-| 3 | `consent-challenge/:id/confirm` 404s twice, demo still scores ✅ | BFF + verdict | High | OPEN | |
-| 4 | Chain badged `CHAINED` while carrying 401s | UI | Medium | OPEN | |
+| 3 | `consent-challenge/:id/confirm` 404s — request never reaches the BFF | BFF/proxy | High | OPEN | Rescoped 2026-08-19; two of the three original claims were wrong |
+| 4 | Chain badge was a hardcoded string, so an errored run looked clean | UI | Medium | FIXED | PR #2155 — badge derives from `runStory.outcome` |
 | 5 | Scope diff on chain step 10 is unreadable | UI | Medium | OPEN | Highest demo-value fix |
 | 6 | 25 sidebar groups, 7 ways to start a demo, Sign Out ×3 | IA | Medium | OPEN | |
 | 7 | Button colours carry no hierarchy | UI | Low | OPEN | |
@@ -41,17 +41,34 @@ Worst case in front of a customer: a green checkmark parked over a broken flow.
 
 **Fixed:** both `.verified-banner` and `.verified-pill` moved to `top: 72px`, clearing the nav. `TopNav.css` untouched — it is a `REGRESSION_PLAN.md` §1 protected surface, and the overlay is the thing that was in the wrong place.
 
-### 3. `POST /api/transactions/consent-challenge/:id/confirm` 404s twice, demo still reports success — OPEN
+### 3. `POST /api/transactions/consent-challenge/:id/confirm` 404s — OPEN, rescoped
 
-Console showed two 404s on the same challenge id ~3.5s apart. Route exists (`demo_api_server/routes/transactions.js:198`), so `txConsent.confirmChallenge` did not find the challenge in session — and the button fired twice with no in-flight guard. The verdict engine scored "approval was required" ✅ without ever checking that the transfer executed.
+**The 404 is real.** Two on the same challenge id, ~3.5s apart, during a live UC8 run.
 
-**Fix:** disable confirm while in-flight; make the UC8 verdict require the terminal outcome, not just that a challenge was raised.
+**Two of the three original claims were wrong, and are withdrawn:**
 
-### 4. Token chain says `CHAINED` while carrying `tools/call 401` and `MCP error` — OPEN
+- ~~"the button fired twice with no in-flight guard"~~ — `TransactionConsentModal.tsx:317` guards on `submitting` and returns early. The double-fire has another cause.
+- ~~"the verdict scored green without checking the transfer executed"~~ — by design. UC8's `expectedOutcome` is `HITL_REQUIRED`, which `ProofOfEnforcementContext.js:18` maps to the `denied-as-expected` family. The verdict proves *enforcement* — that the approval gate fired — not that the transaction succeeded. A decline is still a pass, correctly. `handleDenialConfirm` already records the decline via `tokenChainTraceStore.ingestApprovalDeclined()`.
 
-Steps 16 and 17 are red failures inside a chain badged green `CHAINED`. The badge means "steps are linked"; the audience reads "it worked".
+**What was actually established:**
 
-**Fix:** rename to `LINKED`, or make the badge reflect worst-step status.
+`docker logs ai-demo-api-server` over a 120-minute window covering the failing run contains **zero** `POST /api/transactions` of any kind — no challenge create, no confirm. The container had not restarted (up since ~02:42), so the window is intact. `GET /api/transactions/my` from the same page *does* appear. So the confirm never reached the BFF, and the 404 came from something in front of it.
+
+That rules out the whole server-side branch of the original theory: it is not `txConsent.confirmChallenge` failing its session lookup, because that code never ran.
+
+**Also ruled out:** the `#2148` authz-server dotenvx bug (per ai-demo2-54: the fixed container was serving from 02:50:39Z, ~16 min before the failing run, and that bug produced a DENY, not a 404). And the hitl-service challenge store — this endpoint's challenges live in the **BFF session** (`transactionConsentChallenge.js` `store(req.session)`), not hitl-service.
+
+**Not fixed, and deliberately not guessed at.** Two attempts to reproduce failed: the llama.cpp agent stalled mid-run both times and the consent modal never opened. The remaining candidates need a clean reproduction to separate — whether `bffAxios` resolves a different base for POST than GET, and whether the dev proxy is answering 404 without forwarding. Touching `routes/transactions.js` or `transactionConsentChallenge.js` on a guess would be editing a `REGRESSION_PLAN.md` §1 protected surface to fix a fault that the evidence says is not there.
+
+### 4. Chain badge was a hardcoded string, so an errored run looked clean — FIXED (PR #2155)
+
+**Original claim partly wrong:** the `tools/list 401` / `tools/call 401` steps are *not* failures. They are the RFC 9728 challenge probe, and a 401 there is the gateway refusing an anonymous call — the control working. `buildTraceSteps.js` paints them `done` deliberately, and says so.
+
+**The real defect:** `CHAINED` was a literal string in both chain surfaces (`TokenChainTraceRail.jsx`, `TokenChainFilmstrip.jsx`). It never reflected anything, so a run that ended in a genuine error step (step 17, `MCP · error`) wore exactly the same confident badge as a clean one.
+
+**Fixed:** new `chainBadge(trace, steps)` helper in `buildTraceSteps.js`, used by both surfaces. It derives tone from `buildRunStory().outcome`, so it inherits that function's existing judgement — an *expected* DENY stays `CHAINED` because the control worked, and the by-design 401s stay `done`. Only a genuine error step flips the badge to `RUN ERROR` in red.
+
+**Evidence:** 4 new tests in `buildTraceSteps.test.js` (94 pass in that file); full UI suite 389 files / 3319 tests pass; build exit 0.
 
 ### 5. Step 10's scope diff is unreadable — OPEN
 
@@ -93,5 +110,6 @@ Dark mode · narrow/mobile widths · the other 11 verticals · every admin surfa
 
 ## Changelog
 
+- 2026-08-19 — #4 FIXED (PR #2155), #3 rescoped. Investigating #3 disproved two of its three original claims and showed the confirm never reaches the BFF; #4's premise about the 401s was also wrong, though its badge defect was real. Corrections recorded in place rather than quietly dropped.
 - 2026-08-19 — #1 and #2 FIXED (PR #2155). `VerifiedBanner` gained a `banner → pill → gone` cycle and moved below the TopNav.
 - 2026-08-19 — initial pass, 10 findings, all OPEN.

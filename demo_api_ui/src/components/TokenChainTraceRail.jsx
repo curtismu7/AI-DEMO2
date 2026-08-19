@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, buildRunStory, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { buildA2aChainDetail } from "../utils/a2aChainDetail";
@@ -380,6 +380,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
   );
   const runStory = buildRunStory(trace, snap.steps);
+  const badge = chainBadge(trace, snap.steps);
 
   // Drop Trust selection if the use case ends while that tab is open.
   useEffect(() => {
@@ -511,7 +512,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             <span className={`tctr-dot tctr-dot--${d.cls}`} /> {d.label}
           </React.Fragment>
         ))}
-        <span className="tctr-badge">CHAINED</span>
+        <span className={`tctr-badge tctr-badge--${badge.tone}`}>{badge.label}</span>
       </div>
 
       {tab === "chain" ? (
