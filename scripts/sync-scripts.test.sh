@@ -75,6 +75,19 @@ out="$(bash scripts/sync-status.sh 2>&1)"; rc=$?
 check "sync:status reports in sync" "in sync" "$out"
 check "sync:status exits 0 when clean" "0" "$rc"
 
+echo "== C1: a dead sync daemon cannot hide behind a stale local ref =="
+cd "$ROOT/seed"; echo "v2b" > app.js; git commit -qam v2b; git push -q origin main
+cd "$ROOT/main"
+# Deliberately NO sync/fetch here — the daemon is "dead". sync-status used to
+# count HEAD..origin/main against the LAST-FETCHED ref and print "in sync" in
+# exactly this scenario; it must fetch for itself and say STALE.
+out="$(bash scripts/sync-status.sh 2>&1)"; rc=$?
+check "sync:status detects upstream moved with no local fetch" "STALE" "$out"
+check "sync:status exits 1 when the daemon is dead" "1" "$rc"
+# Recover so the following blocks start from a clean, current checkout.
+out="$(bash scripts/sync-main-checkout.sh 2>&1)"
+check "recovery sync fast-forwards" "fast-forwarded" "$out"
+
 echo "== B2: a DIVERGED untracked note is kept as .local, never lost =="
 cd "$ROOT/seed"; echo "upstream edit" > .claude/HANDOFF-two.md; git add -A; git commit -qm two; git push -q origin main
 cd "$ROOT/main"; echo "my local version" > .claude/HANDOFF-two.md

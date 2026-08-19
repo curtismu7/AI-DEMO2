@@ -20,12 +20,21 @@ if [ ! -f "$STATUS_FILE" ]; then
   exit 1
 fi
 
+# The scenario this script exists to surface is a DEAD sync daemon — but the
+# local origin/main ref is exactly what that daemon updates. Counting against
+# it without fetching printed "in sync" while GitHub was ahead, in precisely
+# that scenario. Fetch first; when the fetch fails (offline), say the verdict
+# is against a possibly-stale ref instead of implying certainty.
+FETCHED=1
+git fetch --quiet origin main 2>/dev/null || FETCHED=0
 BEHIND="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
 
-STATUS_FILE="$STATUS_FILE" BEHIND="$BEHIND" node -e '
+STATUS_FILE="$STATUS_FILE" BEHIND="$BEHIND" FETCHED="$FETCHED" node -e '
   const fs = require("node:fs");
   const s = JSON.parse(fs.readFileSync(process.env.STATUS_FILE, "utf8"));
   const behind = Number(process.env.BEHIND || 0);
+  const fetched = process.env.FETCHED === "1";
+  const staleRef = fetched ? "" : " (fetch failed — count is against the last-fetched origin/main and may miss newer commits)";
   const ago = (iso) => {
     if (!iso) return "never";
     const mins = Math.round((Date.now() - Date.parse(iso)) / 60000);
@@ -48,8 +57,8 @@ STATUS_FILE="$STATUS_FILE" BEHIND="$BEHIND" node -e '
     process.exit(1);
   }
   if (behind > 0) {
-    console.log(`[sync-status] STALE — last run said "${s.outcome}" ${ago(s.checkedAt)}, but the checkout is now ${behind} commit(s) behind origin/main.`);
+    console.log(`[sync-status] STALE — last run said "${s.outcome}" ${ago(s.checkedAt)}, but the checkout is now ${behind} commit(s) behind origin/main.${staleRef}`);
     process.exit(1);
   }
-  console.log(`[sync-status] in sync — last successful sync ${ago(s.lastSuccessAt)} (${(s.remoteSha || "").slice(0, 12)}).`);
+  console.log(`[sync-status] in sync — last successful sync ${ago(s.lastSuccessAt)} (${(s.remoteSha || "").slice(0, 12)}).${staleRef}`);
 '
