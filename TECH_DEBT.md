@@ -1301,6 +1301,22 @@ rename only. `scripts/check-auth-requirements.js` still reports
 
 ### [ ] 2026-08-18 — The queued-question resume is held together by two tuned timeouts
 
+**PARTLY RESOLVED 2026-08-18 (branch `worktree-resume-readiness`) — the
+load-bearing timeout is now a backstop, not the mechanism.** `VerticalProvider`
+reports `verticalStatus` ('loading' | 'resolved' | 'failed') through
+`useVertical` — every hydration path concludes it, including the 401 +
+`/api/verticals/active` follow-up settling either way. The resume now hands a
+question back IMMEDIATELY when the vertical question is answered-empty
+(waiting cannot change a concluded answer) and waits only while genuinely
+'loading', with `RESUME_VERTICAL_WAIT_MS` kept solely as the visible-expiry
+backstop for a signal that never arrives. Tests:
+`AIAgent.resumeVerticalReadiness.test.jsx` (4 — the two concluded-empty cases
+are impossible under the old code) + 4 `verticalStatus` transition tests in
+`VerticalProvider.test.jsx`. STILL OPEN: the 300ms floating-instance claim
+delay (#1967) — left deliberately; the read-and-remove `claimPendingNl` guard
+does the real work there, and the instance-registration handshake the entry
+sketches remains the un-built half. Original entry follows.
+
 **Where:** `demo_api_ui/src/components/AIAgent.js` — the 300ms floating-instance
 claim delay (#1967) and `RESUME_VERTICAL_WAIT_MS = 8000` (#1986).
 

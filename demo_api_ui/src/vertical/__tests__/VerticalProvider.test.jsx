@@ -187,4 +187,65 @@ describe('VerticalProvider', () => {
     const probe = await findByTestId('null-probe');
     expect(probe.textContent).toBe('true');
   });
+
+  // verticalStatus lets consumers (the queued-question resume) tell "still
+  // loading" from "concluded with no vertical" instead of racing a wall-clock
+  // deadline (TECH_DEBT "held together by two tuned timeouts").
+  describe('verticalStatus', () => {
+    function StatusProbe() {
+      const v = useVertical();
+      return <div data-testid="status-probe">{`${v.verticalStatus}:${v.activeId ?? 'none'}`}</div>;
+    }
+
+    test('successful /me concludes as resolved', async () => {
+      const { FakeES } = setupMocks({ manifest: BANKING });
+      const { findByTestId } = render(
+        <MemoryRouter><VerticalProvider><StatusProbe /></VerticalProvider></MemoryRouter>
+      );
+      hydrate(FakeES);
+      await waitFor(async () => {
+        expect((await findByTestId('status-probe')).textContent).toBe('resolved:banking');
+      });
+    });
+
+    test('network error concludes as failed', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('offline'));
+      const FakeES = fireableES();
+      const { findByTestId } = render(
+        <MemoryRouter><VerticalProvider><StatusProbe /></VerticalProvider></MemoryRouter>
+      );
+      hydrate(FakeES);
+      await waitFor(async () => {
+        expect((await findByTestId('status-probe')).textContent).toBe('failed:none');
+      });
+    });
+
+    test('401 stays loading until the /active follow-up answers, then resolves with its id', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({ ok: false, status: 401 })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'retail' }) });
+      const FakeES = fireableES();
+      const { findByTestId } = render(
+        <MemoryRouter><VerticalProvider><StatusProbe /></VerticalProvider></MemoryRouter>
+      );
+      hydrate(FakeES);
+      await waitFor(async () => {
+        expect((await findByTestId('status-probe')).textContent).toBe('resolved:retail');
+      });
+    });
+
+    test('401 with a failing /active follow-up still concludes (resolved, no vertical)', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({ ok: false, status: 401 })
+        .mockRejectedValueOnce(new Error('offline'));
+      const FakeES = fireableES();
+      const { findByTestId } = render(
+        <MemoryRouter><VerticalProvider><StatusProbe /></VerticalProvider></MemoryRouter>
+      );
+      hydrate(FakeES);
+      await waitFor(async () => {
+        expect((await findByTestId('status-probe')).textContent).toBe('resolved:none');
+      });
+    });
+  });
 });
