@@ -834,14 +834,14 @@ export const DEMO_SCENARIOS = [
   },
   {
     id: "code-search-rag",
-    title: "19. Semantic Code Search (RAG over Weaviate)",
+    title: "19. Protected RAG (Weaviate + PingOne Authorize)",
     description:
-      "A retrieval capability, not an authorization flow: the agent recognizes a 'find code' intent and uses semantic code search backed by Weaviate. No token exchange — it is an internal read-only tool.",
-    applicableSteps: ["agent-llm-reasoning"],
+      "The agent retrieves grounded code only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize decision at the Agent Gateway.",
+    applicableSteps: ["user-authentication", "token-exchange", "pingauthorize-policy", "mcp-tool-execution", "agent-llm-reasoning"],
     steps: [
       {
-        action: "Open Code Search and index a codebase",
-        prompt: 'Nav → "Code Search" (/code-search), then upload a codebase',
+        action: "Open Protected RAG and index a codebase",
+        prompt: 'Nav → "Protected RAG" (/code-search), then upload a codebase',
         explanation:
           "Each file is split into chunks; every chunk is embedded by the llama.cpp nomic-embed-text-v1.5 service and its vector is stored in Weaviate's CodeChunk class (bring-your-own-vectors — Weaviate does no embedding itself).",
         watch: [
@@ -850,13 +850,13 @@ export const DEMO_SCENARIOS = [
         ],
       },
       {
-        action: "Ask by meaning, not keywords",
-        prompt: 'Select the codebase, enter e.g. "find authentication logic"',
+        action: "Run the Protected RAG Demo Step",
+        prompt: 'Choose Protected RAG, then run "find where the BFF performs MCP token exchange"',
         explanation:
-          "The query is embedded with the SAME model, then Weaviate returns the nearest vectors (HNSW approximate nearest-neighbor), filtered by codebase_id. No exact keyword match is required.",
+          "The BFF exchanges the user token for code:search, the Agent Gateway enforces that scope and obtains a PingOne Authorize decision, then the MCP server queries Weaviate for the ai-demo2-server corpus.",
         watch: [
-          "Results come back even when the exact words differ",
-          "Semantic matches: 'auth logic' surfaces login / PKCE / token code",
+          "Token Chain shows RFC 8693 delegation with code:search",
+          "Authorize evidence shows a PERMIT before code_search is dispatched",
         ],
       },
       {

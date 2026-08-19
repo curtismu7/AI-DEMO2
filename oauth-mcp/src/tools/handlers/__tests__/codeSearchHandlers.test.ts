@@ -12,6 +12,8 @@ describe('code-search handlers', () => {
     expect(r.type).toBe('text');
     expect(r.structuredContent!.results).toHaveLength(1);
     expect(r.text).toContain('a.ts');
+    const body = JSON.parse((global as any).fetch.mock.calls[0][1].body);
+    expect(body).toMatchObject({ query: 'find x', codebase_id: 'ai-demo2-server', limit: 5 });
   });
 
   test('code_search clamps limit to 1-25', async () => {
@@ -20,6 +22,14 @@ describe('code-search handlers', () => {
     await executeCodeSearch(deps, 'tok', { query: 'q', limit: 100000 });
     const body = JSON.parse(f.mock.calls[0][1].body);
     expect(body.limit).toBe(25);
+  });
+
+  test('code_search fails closed when retrieval returns no grounded source', async () => {
+    (global as any).fetch = okFetch({ results: [] });
+    const r = await executeCodeSearch(deps, 'tok', { query: 'missing' });
+    expect(r.success).toBe(false);
+    expect(r.error).toBe('no_grounded_results');
+    expect(r.structuredContent!.results).toEqual([]);
   });
 
   test('get_code returns the code range', async () => {

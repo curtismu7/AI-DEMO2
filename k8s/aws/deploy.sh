@@ -205,6 +205,7 @@ for manifest in \
   64-api-resource-server-deployment.yaml \
   62-hitl-service-deployment.yaml \
   56-llm-stack.yaml \
+  72-rag-stack.yaml \
   20-api-server-deployment.yaml \
   60-mcp-gateway-deployment.yaml \
   71-ping-gateway-deployment.yaml \

@@ -6,6 +6,23 @@ const {
   parseHeuristic,
 } = require('../services/nlIntentParser');
 
+describe('Protected RAG routing', () => {
+  it('routes the exact Demo Step to code_search with bounded parameters', () => {
+    expect(parseHeuristic('find where the BFF performs MCP token exchange', 'banking')).toEqual({
+      kind: 'banking',
+      banking: {
+        action: 'code_search',
+        params: { query: 'BFF MCP token exchange', limit: 5 },
+      },
+    });
+  });
+
+  it('does not capture unrelated generic search prompts', () => {
+    const result = parseHeuristic('find a nearby coffee shop', 'banking');
+    expect(result?.banking?.action).not.toBe('code_search');
+  });
+});
+
 describe('capability catalog', () => {
   it('exports CAPABILITY_CATALOG as a non-empty string array', () => {
     expect(Array.isArray(CAPABILITY_CATALOG)).toBe(true);
