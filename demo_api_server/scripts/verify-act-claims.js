@@ -14,7 +14,9 @@
  *   - Token exchange grant enabled in PingOne
  */
 
-require('dotenv').config();
+// loadDemoEnv rather than raw dotenv: a bare config() is CWD-relative, and
+// post-dotenvx-cutover returns `encrypted:...` ciphertext even when it finds .env.
+require('./loadDemoEnv').loadDemoEnv();
 const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
 
 /**

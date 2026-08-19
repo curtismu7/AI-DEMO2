@@ -34,8 +34,9 @@ const vaultLib = require('../lib/vault');
 // false` means an already-set process.env wins, mirroring dotenv's normal
 // precedence used elsewhere in this repo.
 try {
-  require('dotenv').config({ path: path.resolve(__dirname, '..', '..', '.env'), override: false });
-  require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), override: false });
+  // loadDemoEnv covers the same root-then-service precedence and ALSO decrypts:
+  // post-dotenvx-cutover a plain config() returns `encrypted:...` ciphertext.
+  require('./loadDemoEnv').loadDemoEnv();
 } catch (_e) {
   // dotenv missing is fatal for migration — bail loudly.
   console.error('vault-migrate: dotenv is required to load .env values');
