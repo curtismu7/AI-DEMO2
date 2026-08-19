@@ -234,6 +234,44 @@ Each phase ships independently and leaves the suite green.
      actually changes what `decision` says — deferred there rather than done
      speculatively now.
 4. **Flip the PDP** to stop emitting INDETERMINATE for the pause.
+
+   **Live probe 2026-08-18 — this phase's blast radius is NARROWER than the plan
+   assumed, and the verification gate below is aimed at the wrong flow.**
+
+   Driven against the running stack as a real signed-in `demoUser`, two
+   transfers on their own accounts (both correctly blocked, no money moved):
+
+   | amount | result |
+   |---|---|
+   | $600 | `HTTP 401` `error: step_up_required` (UC7) |
+   | $300 | `HTTP 428` `error: hitl_required` (UC8) |
+
+   What the logs show underneath:
+
+   - **UC7/UC8 transfers do NOT touch `demo_authz_server`.** `POST /api/transactions`
+     goes to **cloud PingOne Authorize** (`[BFF→P1AZ]`); the authz-server container
+     logged *zero* decisions across the whole window. So flipping the mock PDP
+     cannot break UC7/UC8 transfer enforcement — the two are not connected.
+   - **The cloud never returns INDETERMINATE for these.** It returns
+     `decision: "PERMIT"` plus `statements[]` (`step-up-required`, `HITL_CONSENT`),
+     and the BFF's obligation classifier turns those into 401/428. The transfer
+     path has therefore been obligation-driven all along.
+   - **The BFF response carries no `decision` field to the client at all** — the UI
+     transfer flow consumes HTTP status + error code, so it is decision-agnostic
+     by construction.
+
+   Consequence: phase 4's real risk surface is the **MCP/agent tool path** (the
+   gateway → `demo_authz_server` decision endpoint), not transfers. The gate
+   "UC7 and UC8 driven through the UI" below should be *kept* as a
+   non-regression check but is NOT the thing that proves phase 4 — a paused MCP
+   tool call is.
+
+   **Trap confirmed live, in writing:** every cloud statement above carries
+   `obligatory: false` — including the step-up one. The BFF gates anyway because
+   it ignores that field. Anyone who "fixes" a classifier to honour `obligatory`
+   silently turns step-up off. This is the `llm-path-approval-gate-open` trap
+   observed in production data rather than inferred; pinned by
+   `demo_api_server/src/__tests__/authorizeObligations.test.js`.
 5. **Add the guard** the plan actually wants: any INDETERMINATE from either
    engine is now unambiguously an error — log it loudly, fail closed, and
    surface the missing attribute.
