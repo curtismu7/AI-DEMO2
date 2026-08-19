@@ -142,6 +142,10 @@ describe('CibaApprovalPage — Approve / Deny actions', () => {
       expect.stringContaining('/api/auth/ciba/approve-now/req-123'),
       expect.objectContaining({ method: 'POST' }),
     );
+    expect(JSON.parse(localStorage.getItem('ciba-approval-result'))).toMatchObject({
+      authReqId: 'req-123',
+      status: 'approved',
+    });
   });
 
   it('transitions to denied state after clicking Deny', async () => {

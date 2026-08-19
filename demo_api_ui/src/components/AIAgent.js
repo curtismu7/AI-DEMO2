@@ -493,6 +493,21 @@ export default function BankingAgent({
   // button while the request is in flight; at most one CIBA request pending
   // per session, so a single value suffices).
   const [cibaApproving, setCibaApproving] = useState(null);
+  // Keep the active poll callback reachable from the inline Approve button.
+  // The separate-device page and this agent share a session, but approval can
+  // land between scheduled polls; waking the exact in-flight poller makes the
+  // retry deterministic instead of waiting on (or losing) its next timer.
+  const cibaPollersRef = useRef(new Map());
+  useEffect(() => {
+    const wakeCibaPoller = (event) => {
+      try {
+        const payload = JSON.parse(event.newValue || '{}');
+        if (payload.authReqId) cibaPollersRef.current.get(payload.authReqId)?.();
+      } catch (_) { /* ignore unrelated storage events */ }
+    };
+    window.addEventListener('storage', wakeCibaPoller);
+    return () => window.removeEventListener('storage', wakeCibaPoller);
+  }, []);
   const prewarmGuardRef = useRef(null);
   if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
   const [modelAdvisory, setModelAdvisory] = useState(null);
@@ -4905,7 +4920,6 @@ export default function BankingAgent({
                   amount: normalized.transaction_amount ?? undefined,
                   from_account_label: fromLabel,
                   to_account_label: toLabel,
-                  hitl_challenge_id: normalized.hitlChallengeId || normalized.challengeId || undefined,
                 }),
               });
               if (!initRes.ok)
@@ -4923,13 +4937,7 @@ export default function BankingAgent({
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
               setLoading(false);
-              pollCibaStepUp(
-                auth_req_id,
-                (interval || 5) * 1000,
-                actionId,
-                form,
-                normalized.hitlChallengeId || normalized.challengeId || null,
-              );
+              pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
             } catch (err) {
               console.error("[BankingAgent] CIBA initiation failed:", err);
               if (cibaTab) cibaTab.close();
@@ -5597,7 +5605,6 @@ export default function BankingAgent({
                 amount: err.transaction_amount ?? undefined,
                 from_account_label: fromLabel,
                 to_account_label: toLabel,
-                hitl_challenge_id: err.hitlChallengeId || err.challengeId || undefined,
               }),
             });
             if (!initRes.ok)
@@ -5615,13 +5622,7 @@ export default function BankingAgent({
             toast.dismiss(toastId);
             agentFlowDiagram.completeMfaChallenge(null);
             setLoading(false);
-            pollCibaStepUp(
-              auth_req_id,
-              (interval || 5) * 1000,
-              actionId,
-              form,
-              err.hitlChallengeId || err.challengeId || null,
-            );
+            pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
           } catch (cibaErr) {
             console.error("[BankingAgent] CIBA initiation failed:", cibaErr);
             if (cibaTab) cibaTab.close();
@@ -8556,6 +8557,7 @@ export default function BankingAgent({
         credentials: "include",
       });
       if (!res.ok) throw new Error(`approve-now failed: ${res.status}`);
+      cibaPollersRef.current.get(authReqId)?.();
     } catch (err) {
       console.error("[BankingAgent] CIBA approve-now failed:", err);
       setCibaApproving(null);
@@ -8569,7 +8571,7 @@ export default function BankingAgent({
    * poll contract in routes/ciba.js: 200 body { status: 'pending' | 'approved' }
    * while waiting; 403/404/410 are terminal (denied/unknown/expired).
    */
-  const pollCibaStepUp = (authReqId, intervalMs, actionId, form, cibaHitlChallengeId = null) => {
+  const pollCibaStepUp = (authReqId, intervalMs, actionId, form) => {
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
@@ -8595,6 +8597,7 @@ export default function BankingAgent({
         );
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
+        cibaPollersRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8607,6 +8610,7 @@ export default function BankingAgent({
         );
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
+        cibaPollersRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8616,15 +8620,14 @@ export default function BankingAgent({
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
-        runAction(actionId, form, {
-          isRefire: true,
-          hitlRetryChallengeId: cibaHitlChallengeId,
-        });
+        cibaPollersRef.current.delete(authReqId);
+        runAction(actionId, form, { isRefire: true });
         return;
       }
       // still pending
       setTimeout(poll, intervalMs);
     };
+    cibaPollersRef.current.set(authReqId, poll);
     setTimeout(poll, intervalMs);
   };
 
@@ -8680,7 +8683,6 @@ export default function BankingAgent({
             amount: response.transactionAmount ?? undefined,
             from_account_label: fromLabel,
             to_account_label: toLabel,
-            hitl_challenge_id: response.hitlChallengeId || response.challengeId || undefined,
           }),
         });
         if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
@@ -8695,13 +8697,7 @@ export default function BankingAgent({
           { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
-        pollCibaThenResumeNl(
-          auth_req_id,
-          (interval || 5) * 1000,
-          text,
-          useCaseId,
-          response.hitlChallengeId || response.challengeId || null,
-        );
+        pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
         if (cibaTab) cibaTab.close();
@@ -8949,7 +8945,7 @@ export default function BankingAgent({
    * mirrors pollCibaStepUp's runAction(actionId, form, { isRefire: true })
    * resume shape, but there is no actionId/form here, only the original text.
    */
-  const pollCibaThenResumeNl = (authReqId, intervalMs, text, useCaseId, cibaHitlChallengeId = null) => {
+  const pollCibaThenResumeNl = (authReqId, intervalMs, text, useCaseId) => {
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
@@ -8973,6 +8969,7 @@ export default function BankingAgent({
         );
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
+        cibaPollersRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8985,6 +8982,7 @@ export default function BankingAgent({
         );
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
+        cibaPollersRef.current.delete(authReqId);
         settled = true;
         return;
       }
@@ -8994,6 +8992,7 @@ export default function BankingAgent({
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
+        cibaPollersRef.current.delete(authReqId);
         setNlLoading(true);
         try {
           emitResumeDispatch("sent", { text, useCaseId: useCaseId || null, exit: "ciba-retry" });
@@ -9001,7 +9000,6 @@ export default function BankingAgent({
             vertical: effectiveVerticalId,
             useCaseId,
             forceHeuristic: !!useCaseId,
-            hitlChallengeId: cibaHitlChallengeId,
           });
           // sendAgentMessage's own beginTrace() (fired at the top of that call,
           // to clear the prior turn's trace) wipes the 'ciba-poll' event the
@@ -9029,6 +9027,7 @@ export default function BankingAgent({
       // still pending
       setTimeout(poll, intervalMs);
     };
+    cibaPollersRef.current.set(authReqId, poll);
     setTimeout(poll, intervalMs);
   };
 

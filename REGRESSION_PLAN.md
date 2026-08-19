@@ -105,6 +105,20 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 Reverse-chronological, newest first.
 
+### 2026-08-19 — CIBA popup approval did not wake the waiting agent
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/pages/CibaApprovalPage.js`, and CIBA UI tests.
+
+**What was broken:** approval updated only the popup state while the opener
+waited on a scheduled poll, leaving the original action stuck.
+
+**What was fixed:** the popup emits a same-origin approval event and the opener
+wakes the matching poller immediately. The agent still verifies the decision via
+`/api/auth/ciba/poll/:authReqId` before refiring the action.
+
+**Verify:** CIBA server routes, CIBA approval UI tests, and `npm run build`.
+
 ### 2026-08-19 — PingAWS deployed dotenvx ciphertext as OAuth secrets and broke every sign-in
 
 **Files changed:** `k8s/create-secrets.sh`.
