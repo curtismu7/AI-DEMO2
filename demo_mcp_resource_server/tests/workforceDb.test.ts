@@ -8,7 +8,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'workforce-db-'));
 process.env.WORKFORCE_DB_PATH = path.join(tmpDir, 'workforce.db');
 process.env.WORKFORCE_SEED_PATH = path.join(__dirname, '..', 'seed', 'workforce.seed.json');
 
-import { getExpense, listExpenses, withDb } from '../src/db/workforceDb';
+import { getExpense, listExpenses, withDb, insertExpense } from '../src/db/workforceDb';
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -48,5 +48,30 @@ describe('workforceDb', () => {
 
     const updated = getExpense('204');
     expect(updated!.status).toBe('Approved');
+  });
+
+  // The divergence this closes: before submit_expense was routed here it wrote
+  // the BFF's in-memory store, so a filed expense was invisible to the very
+  // next list_expenses.
+  it('a submitted expense is visible to listExpenses immediately and sorts to the top', () => {
+    const before = listExpenses().length;
+    const filed = insertExpense({ category: 'Travel', amount: 100 });
+
+    expect(filed.status).toBe('Submitted');
+    expect(filed.description).toBe('Travel');
+    expect(listExpenses()).toHaveLength(before + 1);
+    expect(listExpenses()[0].id).toBe(filed.id);
+    expect(getExpense(filed.id)).not.toBeNull();
+  });
+
+  it('a deleted middle row cannot make a later insert reuse a live id', () => {
+    const a = insertExpense({ category: 'Meals', amount: 20 });
+    const b = insertExpense({ category: 'Lodging', amount: 300 });
+    withDb((db) => db.prepare('DELETE FROM expenses WHERE id = ?').run(a.id));
+
+    const c = insertExpense({ category: 'Transit', amount: 15 });
+    expect(c.id).not.toBe(b.id);
+    expect(getExpense(c.id)).not.toBeNull();
+    expect(getExpense(b.id)).not.toBeNull();
   });
 });

@@ -102,6 +102,10 @@ const UNIVERSITY_TOOLS = new Set([
 // identically-named handler silently answers instead.
 const WORKFORCE_TOOLS = new Set([
   'list_expenses',
+  // Write, routed for the same reason retail's checkout is: it creates the very
+  // expenses list_expenses returns, so on the BFF a filed expense never showed
+  // up in the list. Name is unique to workforce.
+  'submit_expense',
 ]);
 const ANF_TOOLS = new Set([
   'list_anf_orders',

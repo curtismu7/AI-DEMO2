@@ -138,8 +138,30 @@ describe('Workforce tools', () => {
       expect(t.intentHints!.length).toBeGreaterThanOrEqual(3);
     }
     expect(WORKFORCE_TOOLS.find((t) => t.name === 'list_expenses')?.requiredScopes).toContain('read');
+    // Write tool routed here 2026-08-19 — gated on write, per scope-topology.json.
+    expect(WORKFORCE_TOOLS.find((t) => t.name === 'submit_expense')?.requiredScopes).toContain('write');
     expect(WORKFORCE_TOOLS.find((t) => t.name === 'get_expense')?.requiredScopes).toContain('workforce:read');
   });
+  it('submit_expense files an expense the very next list_expenses returns', async () => {
+    const before = await dispatchWorkforceTool('list_expenses', {}) as any;
+    const filed = await dispatchWorkforceTool('submit_expense', { category: 'Lodging', amount: 425 }) as any;
+
+    expect(filed.render).toBe('submit_expense');
+    expect(filed.status).toBe('Submitted');
+    expect(filed.category).toBe('Lodging');
+    expect(filed.amount).toBe(425);
+
+    const after = await dispatchWorkforceTool('list_expenses', {}) as any;
+    expect(after.expenses).toHaveLength(before.expenses.length + 1);
+    expect(after.expenses.some((e: any) => e.id === filed.id)).toBe(true);
+  });
+
+  it('submit_expense defaults category and amount like the BFF did', async () => {
+    const filed = await dispatchWorkforceTool('submit_expense', {}) as any;
+    expect(filed.category).toBe('Travel');
+    expect(filed.amount).toBe(100);
+  });
+
   it('list_expenses returns expenses array, stamped for the chip-facing manifest descriptor', async () => {
     const r = await dispatchWorkforceTool('list_expenses', {}) as any;
     expect(Array.isArray(r.expenses)).toBe(true);

@@ -55,3 +55,14 @@ describe('retail checkout — the write half of list_orders', () => {
     expect(getScopesForGatewayTool('checkout')).toEqual(['write']);
   });
 });
+
+describe('workforce submit_expense — the write half of list_expenses', () => {
+  test('lands on the SAME backend as the read it must stay consistent with', () => {
+    expect(routeTool('submit_expense')).toBe('invest');
+    expect(routeTool('submit_expense')).toBe(routeTool('list_expenses'));
+  });
+
+  test('is gated on write, matching scope-topology.json', () => {
+    expect(getScopesForGatewayTool('submit_expense')).toEqual(['write']);
+  });
+});

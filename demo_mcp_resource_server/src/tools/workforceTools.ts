@@ -34,6 +34,26 @@ export const WORKFORCE_TOOLS: McpToolDef[] = [
     readOnly: true,
     intentHints: ['get expense details', 'check expense status', 'show expense report'],
   },
+  {
+    // The write half of list_expenses' entity. Routed here (router.ts
+    // WORKFORCE_TOOLS) so a filed expense lands in the SAME database the list
+    // is read from — previously submit_expense wrote the BFF's in-memory store
+    // and the expense was invisible to the next list_expenses.
+    name: 'submit_expense',
+    description: 'Submit a new expense for approval. Requires confirmation.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: { type: 'string', description: 'Expense category (optional — defaults to Travel)' },
+        amount: { type: 'number', description: 'Expense amount (optional — defaults to 100)' },
+        description: { type: 'string', description: 'Free-text description (optional — defaults to the category)' },
+      },
+      required: [],
+    },
+    requiredScopes: ['write'],
+    readOnly: false,
+    intentHints: ['submit an expense', 'file an expense report', 'expense this', 'claim reimbursement'],
+  },
 ];
 
 export { dispatchWorkforceTool };
