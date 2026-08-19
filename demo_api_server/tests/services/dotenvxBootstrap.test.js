@@ -174,6 +174,61 @@ describe('encrypted .env + DOTENV_PRIVATE_KEY (post-cutover)', () => {
     // The incident signature is loud but non-fatal (vault path still boots us).
     expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('continuing with existing env'));
   });
+
+  test('key present but .env unreadable: leftover ciphertext is reported as an incident', () => {
+    // The 2026-08-19 live outage, reproduced. The BFF started while .env was
+    // absent/mid-rewrite: existsSync() was false, the loop `continue`d, and the
+    // only output was the success line saying "0 value(s) set". The container
+    // env still held `encrypted:...` for the login client secret, so every
+    // end-user sign-in failed `invalid_client` for 3.5 minutes with nothing in
+    // the log naming the cause.
+    const env = {
+      DOTENV_PRIVATE_KEY: privateKey,
+      PINGONE_USER_CLIENT_SECRET: ciphertext, // container-level, never decrypted
+      PLAIN_CONFIG: 'container-value',
+    };
+    const logger = mockLogger();
+
+    bootstrapDotenvx({ envPaths: [path.join(tmpRoot, 'does-not-exist.env')], env, logger });
+
+    // Loud, and it must name the variable — a count alone sends you reading the
+    // wrong service. Values are never logged.
+    const [msg] = logger.error.mock.calls.find(([m]) => m.includes('STILL ciphertext')) || [];
+    expect(msg).toBeDefined();
+    expect(msg).toContain('PINGONE_USER_CLIENT_SECRET');
+    expect(msg).toContain('invalid_client');
+    expect(msg).not.toContain(ciphertext);
+    // Non-fatal by design: the vault path may still supply secrets and a
+    // plaintext rollback must never be blocked here.
+    expect(env.PLAIN_CONFIG).toBe('container-value');
+  });
+
+  test('NO key at all + container ciphertext: still loud (the silent case)', () => {
+    // The gap the first guard missed. With no key there is no success line
+    // either — bootstrapDotenvx logged NOTHING while every secret stayed
+    // ciphertext and sign-in was broken. Silence is the worst possible output
+    // for this state, so it must report regardless of the key.
+    const env = { PINGONE_USER_CLIENT_SECRET: ciphertext };
+    const logger = mockLogger();
+
+    bootstrapDotenvx({ envPaths: [path.join(tmpRoot, 'does-not-exist.env')], env, logger });
+
+    const [msg] = logger.error.mock.calls.find(([m]) => m.includes('STILL ciphertext')) || [];
+    expect(msg).toBeDefined();
+    expect(msg).toContain('PINGONE_USER_CLIENT_SECRET');
+    // Must name the ACTUAL cause for this variant, not the mid-rewrite one.
+    expect(msg).toContain('DOTENV_PRIVATE_KEY is NOT set');
+    expect(msg).not.toContain(ciphertext);
+  });
+
+  test('fully decrypted boot logs no incident', () => {
+    const env = { DOTENV_PRIVATE_KEY: privateKey, SECRET_ONE: ciphertext };
+    const logger = mockLogger();
+
+    bootstrapDotenvx({ envPaths: [encryptedEnvPath], env, logger });
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
 });
 
 describe('server.js load order (static)', () => {

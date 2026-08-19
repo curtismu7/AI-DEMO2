@@ -47,6 +47,35 @@ const SERVICE_ENV_PATH = path.resolve(__dirname, '..', '.env');
 const ENCRYPTED_PREFIX = 'encrypted:';
 
 /**
+ * Report any env value that is STILL ciphertext once the bootstrap is done.
+ *
+ * Runs on EVERY exit path, key or no key. The no-key case is the one that
+ * actually hurts: without it this function logged nothing at all — not even the
+ * success line, which is gated on the key — so a BFF holding ciphertext secrets
+ * booted in total silence. Consumers then use the literal `encrypted:...`
+ * string; end-user login sends it as the client secret and PingOne answers
+ * `invalid_client`, so nobody can sign in and no log says why.
+ *
+ * Names only — never values.
+ */
+function reportLeftoverCiphertext(env, logger, privateKey) {
+  const names = Object.keys(env)
+    .filter((n) => typeof env[n] === 'string' && env[n].startsWith(ENCRYPTED_PREFIX))
+    .sort();
+  if (!names.length) return names;
+
+  logger.error(`[dotenvx] bootstrap: ⚠️ ${names.length} env value(s) are STILL ciphertext: `
+    + `${names.join(', ')}. `
+    + (privateKey
+      ? 'DOTENV_PRIVATE_KEY was present, so the .env file was most likely absent or '
+        + 'mid-rewrite when it was read. '
+      : 'DOTENV_PRIVATE_KEY is NOT set, so nothing could be decrypted at all. ')
+    + 'Consumers will read the literal "encrypted:..." string — end-user sign-in fails '
+    + 'with invalid_client. Restart this service with the key set and the .env settled.');
+  return names;
+}
+
+/**
  * Load (and, when DOTENV_PRIVATE_KEY is present, decrypt) the env files into
  * `env`. Options exist for tests only — production call sites pass nothing.
  */
@@ -66,6 +95,7 @@ function bootstrapDotenvx({
         + 'DOTENV_PRIVATE_KEY is set — encrypted .env values CANNOT be decrypted. '
         + 'Run `npm install` in demo_api_server.');
     }
+    reportLeftoverCiphertext(env, logger, env.DOTENV_PRIVATE_KEY);
     return { loaded: false, applied: 0, decrypted: 0, reason: 'module_unavailable' };
   }
 
@@ -122,6 +152,13 @@ function bootstrapDotenvx({
     logger.log(`[dotenvx] bootstrap: decrypted .env applied — ${applied} value(s) set, `
       + `${decrypted} replaced container-level ciphertext; DOTENV_PRIVATE_KEY cleared from env`);
   }
+
+  // Seen live 2026-08-19: the BFF came up at 10:13:21 having decrypted 0 values
+  // (the .env was absent or mid-rewrite), sign-in failed `invalid_client` for
+  // 3.5 minutes, and the ONLY log line was the cheerful success message above.
+  // Checked unconditionally — with no key there is no success line either, so
+  // that path was completely silent.
+  reportLeftoverCiphertext(env, logger, privateKey);
 
   return { loaded: true, applied, decrypted };
 }
