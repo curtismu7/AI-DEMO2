@@ -569,9 +569,13 @@ async function main() {
   }
 
   // Step 7 — post-import health check
-  // Reload .env so configStore picks up the imported SESSION_SECRET / CONFIG_ENCRYPTION_KEY
+  // Reload .env so configStore picks up the imported SESSION_SECRET / CONFIG_ENCRYPTION_KEY.
+  // override:true is load-bearing here — the whole point is to replace the values
+  // already in process.env with the ones the import just wrote. loadDemoEnv rather
+  // than raw dotenv so an ENCRYPTED imported .env is decrypted rather than handed
+  // back as `encrypted:...`, which would make configStore re-init with ciphertext.
   if (fs.existsSync(ENV_FILE)) {
-    require('dotenv').config({ path: ENV_FILE, override: true });
+    require('./loadDemoEnv').loadDemoEnv({ override: true });
   }
 
   // Clear cached module so it re-initialises with the new .env values

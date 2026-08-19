@@ -37,28 +37,13 @@
  * Exit 0 only when every vertical satisfies: depth-2 PERMIT and depth-1 DENY.
  */
 
-const path = require('path');
-
-// demo_api_server/.env is gitignored, so a git WORKTREE does not have one and a
-// bare relative path silently loads nothing — dotenv reports "injected env (0)"
-// rather than throwing. Derive the main checkout from git (same fix as
-// tests/e2e/helpers/repoRoots.js) and fall back to the local path.
-function envPath() {
-  const local = path.resolve(__dirname, '..', '.env');
-  if (require('fs').existsSync(local)) return local;
-  try {
-    const common = require('child_process')
-      .execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-        { cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
-      .trim();
-    if (common) {
-      const candidate = path.join(path.dirname(common), 'demo_api_server', '.env');
-      if (require('fs').existsSync(candidate)) return candidate;
-    }
-  } catch (_) { /* git unavailable */ }
-  return local;
-}
-require('dotenv').config({ path: envPath() });
+// Env loading (including the worktree fallback this script used to hand-roll)
+// lives in loadDemoEnv, which ALSO decrypts. Post-dotenvx-cutover a plain
+// `dotenv.config()` here returned the worker secret as the literal string
+// `encrypted:...`, and the run failed at the token endpoint with
+// `invalid_client` (HTTP 401) — indistinguishable from genuinely bad
+// credentials, and it read as a policy problem rather than a loader one.
+require('./loadDemoEnv').loadDemoEnv();
 
 const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
 

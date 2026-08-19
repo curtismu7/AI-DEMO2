@@ -27,7 +27,9 @@
 
 'use strict';
 
-require('dotenv').config();
+// loadDemoEnv rather than raw dotenv: a bare config() is CWD-relative, and
+// post-dotenvx-cutover returns `encrypted:...` ciphertext even when it finds .env.
+require('./loadDemoEnv').loadDemoEnv();
 
 const axios = require('axios');
 const configStore = require('../services/configStore');

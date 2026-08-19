@@ -24,8 +24,10 @@
 
 'use strict';
 
-// Load environment variables from .env file
-require('dotenv').config();
+// Load environment variables from .env file. loadDemoEnv rather than raw dotenv:
+// a bare config() is CWD-relative, and post-dotenvx-cutover returns
+// `encrypted:...` ciphertext even when it finds .env.
+require('./loadDemoEnv').loadDemoEnv();
 
 const https = require('https');
 const scopeTopology = require('../services/scopeTopology');

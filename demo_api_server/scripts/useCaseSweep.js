@@ -74,7 +74,11 @@ function loadFlagView() {
     // and invented a 9-row cluster. A preflight tool that manufactures failures
     // is worse than no preflight tool.
     try {
-      require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: false });
+      // loadDemoEnv rather than raw dotenv: post-dotenvx-cutover a plain
+      // config() returns `encrypted:...` ciphertext, which would make every
+      // env-pinned flag read as its ciphertext string — the same class of
+      // manufactured failure this block exists to prevent.
+      require('./loadDemoEnv').loadDemoEnv();
     } catch (_) { /* dotenv absent or .env missing — reported via source below */ }
     const configStore = require('../services/configStore');
     return {

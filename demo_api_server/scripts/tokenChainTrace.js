@@ -14,8 +14,9 @@
  */
 
 const path = require('path');
-const dotenv = require('dotenv');
-dotenv.config({ path: path.resolve(__dirname, '../.env'), override: false });
+// loadDemoEnv rather than raw dotenv: post-dotenvx-cutover a plain config()
+// returns `encrypted:...` ciphertext for every secret.
+require('./loadDemoEnv').loadDemoEnv();
 
 // Bridge demo-user creds → the names resolveSession expects.
 if (!process.env.PINGONE_TEST_USER && process.env.DEMO_USER_USERNAME) {

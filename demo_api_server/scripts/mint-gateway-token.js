@@ -49,7 +49,10 @@
 
 'use strict';
 
-require('dotenv').config();
+// loadDemoEnv rather than raw dotenv: a bare config() reads .env relative to the
+// CWD (so it silently loads nothing when run from anywhere but demo_api_server),
+// and post-dotenvx-cutover it returns `encrypted:...` ciphertext even when found.
+require('./loadDemoEnv').loadDemoEnv();
 
 const configStore = require('../services/configStore');
 const oauthService = require('../services/oauthService');
