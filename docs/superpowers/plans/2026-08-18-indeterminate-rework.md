@@ -166,9 +166,28 @@ Each phase ships independently and leaves the suite green.
      `tests/authorizeObligations.test.ts` (obligations-only responses for all
      three pause kinds — previously those hit the fail-closed DENY branch —
      plus precedence and fallback-intact). Full gateway suite 776/776.
-   - **Remaining in this phase:** BFF `pingOneAuthorizeService` /
+   - ~~**Remaining in this phase:** BFF `pingOneAuthorizeService` /
      `simulatedAuthorizeService` explicit-obligations pass-through audit,
-     Groovy `p1az-decision`, and the UI decision surfaces.
+     Groovy `p1az-decision`, and the UI decision surfaces.~~ **PHASE 3
+     COMPLETE 2026-08-18 (phase 3b):**
+     - **BFF audit result:** already explicit-obligations-first —
+       `_classifyRawObligations` merges `raw.obligations` at the HEAD of its
+       source list (the H2 architecture predates this rework), and the
+       simulated engine's `mcpCandidates` carry classifier-compatible `type`
+       fields (`STEP_UP` / `HITL_CONSENT`). One real gap found and fixed: the
+       unrecognised-gate WARNING predicate lacked `ELICITATION` while the
+       classifier enforced it, so a phase-2 elicitation obligation was enforced
+       and simultaneously warned "not enforced" — a false alarm on exactly the
+       warning that exists to catch renamed gate codes. Pinned by
+       `tests/services/pingOneAuthorizeElicitationWarning.test.js` (enforced
+       kinds never warn; a genuinely unknown type still does).
+     - **UI decision surfaces — deliberately re-scoped to phase 4:** they are
+       display-level (labels/icons/challenge detection), correct against the
+       CURRENT wire shape, and must move IN THE SAME CHANGE as the PDP flip or
+       they would describe a shape that does not exist yet. Enumerated for
+       phase 4: `MockAuthzRulesPage.jsx:80`, `AuthorizeRulesPanel.jsx:576`,
+       `TokenFlowDetailModal.jsx:293/523/630`, `TraceStepCard.jsx:329`,
+       `services/tokenChainTrace/buildTraceSteps.js:403/972`.
    - **Groovy consumer DONE (#2133, stacked on this branch)** — and it closed a
      REAL trap that two investigations found independently the same evening:
      `classifyStatements` had no `ELICITATION` in its vocabulary (unlike the

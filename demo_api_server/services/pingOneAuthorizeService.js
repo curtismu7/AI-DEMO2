@@ -1549,7 +1549,13 @@ function _classifyRawObligations(raw) {
   const isUnrecognisedGate = (ob) => {
     const key = String((ob && (ob.type || ob.id || ob.code)) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!key) return false;
-    return !key.includes('HITL') && !key.includes('STEPUP') && !key.includes('HUMANAPPROVAL');
+    // Keep in step with classifyObligation's vocabulary — ELICITATION was
+    // missing here while the classifier enforced it, so a phase-2
+    // `{type:'ELICITATION'}` obligation was enforced AND simultaneously warned
+    // as "not enforced" (a false alarm that trains people to ignore the real
+    // warning this exists for).
+    return !key.includes('HITL') && !key.includes('STEPUP') && !key.includes('HUMANAPPROVAL')
+      && !key.includes('ELICITATION');
   };
   const unrecognised = [
     ...obligationsAndAdvice.filter(isUnrecognisedGate),
@@ -1611,6 +1617,7 @@ async function checkPolicyReadiness() {
 }
 
 module.exports = {
+  _classifyRawObligations,
   _normalizeDecision,
   _isPolicyNotFoundEffect,
   _decisionError,
