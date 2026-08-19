@@ -60,7 +60,10 @@ test('does NOT stop when the same call yields a CHANGED result (state progress)'
     { type: 'final', answer: 'Balance updated to $50.' },
   ]);
   let bal = 100;
-  const executeTool = jest.fn(async () => JSON.stringify({ balance: (bal -= 50) }));
+  const executeTool = jest.fn(async () => {
+    bal -= 50;
+    return JSON.stringify({ balance: bal });
+  });
   const r = await runReasonLoop(baseParams(executeTool));
   expect(r.ok).toBe(true);
   expect(r.answer).toBe('Balance updated to $50.');

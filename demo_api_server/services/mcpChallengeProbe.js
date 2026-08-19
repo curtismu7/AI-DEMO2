@@ -52,8 +52,11 @@ function parseWwwAuthenticate(raw) {
     const scheme = raw.trim().split(/\s+/)[0] || '';
     const params = {};
     const re = /([a-zA-Z_][a-zA-Z0-9_-]*)\s*=\s*"([^"]*)"/g;
-    let m;
-    while ((m = re.exec(raw)) !== null) params[m[1].toLowerCase()] = m[2];
+    let m = re.exec(raw);
+    while (m !== null) {
+        params[m[1].toLowerCase()] = m[2];
+        m = re.exec(raw);
+    }
     return { scheme, ...params, raw };
 }
 

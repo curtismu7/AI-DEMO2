@@ -23,7 +23,7 @@ const FALLBACK_CHIPS = {
 async function loadFallbackChips(verticalId) {
   // hasOwnProperty: verticalId is request-supplied, so a bare lookup would
   // resolve inherited keys like "constructor".
-  if (!Object.prototype.hasOwnProperty.call(FALLBACK_CHIPS, verticalId)) {
+  if (!Object.hasOwn(FALLBACK_CHIPS, verticalId)) {
     return null;
   }
 

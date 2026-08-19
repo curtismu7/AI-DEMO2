@@ -159,7 +159,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'invalid_binding_message', message: 'binding_message must not exceed 256 characters.' });
     }
     // Strip control characters (log injection prevention)
-    binding_message = binding_message.replace(/[\x00-\x1f\x7f]/g, '');
+    binding_message = binding_message.replace(new RegExp('[\\x00-\\x1f\\x7f]', 'g'), '');
   }
 
   let result;

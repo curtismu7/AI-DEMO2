@@ -23,7 +23,7 @@ const {
 
 /** Build a minimal Express-like mock response that tracks Set-Cookie headers. */
 function mockRes() {
-  let cookie = undefined;
+  let cookie ;
   return {
     getHeader: (name) => (name.toLowerCase() === 'set-cookie' ? cookie : undefined),
     setHeader: (name, value) => {

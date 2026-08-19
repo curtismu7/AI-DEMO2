@@ -1411,7 +1411,7 @@ class PingOneProvisionService {
       }
       // The above can't cheaply resolve cross-resource scope IDs to names.
       // Simpler: pre-fetch ALL resources' scopes once.
-      let allOtherNames = new Set();
+      const allOtherNames = new Set();
       for (const g of existingGrants) {
         if (g.resource?.id === resourceId) continue;
         const otherScopes = (await this.makeRequest('GET', `/resources/${g.resource.id}/scopes`))
@@ -1638,7 +1638,7 @@ class PingOneProvisionService {
   async writeEnvFile(config, provisioned) {
     const envPath = path.resolve(__dirname, '..', '.env');
 
-    let preserved = {};
+    const preserved = {};
     let existingText = '';
     try {
       existingText = await fs.readFile(envPath, 'utf8');
@@ -2104,11 +2104,11 @@ class PingOneProvisionService {
         
         const _adminRedirectUris = Array.from(new Set(
           KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-            .flatMap(function (o) { return [o + '/api/auth/oauth/callback', o + '/dashboard']; })
+            .flatMap((o) => [o + '/api/auth/oauth/callback', o + '/dashboard'])
         ));
         const _adminLogoutUris = Array.from(new Set(
           KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-            .map(function (o) { return o + '/logout'; })
+            .map((o) => o + '/logout')
         ));
         await this.updateApplication(adminAppResult.application.id, {
           redirectUris: _adminRedirectUris,
@@ -2162,13 +2162,13 @@ class PingOneProvisionService {
           // Additive: keep existing URIs and add all known origins + the current targets.
           if (needsUriUpdate) {
             const allAdminUris = KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-              .flatMap(function (o) { return [o + '/api/auth/oauth/callback', o + '/dashboard']; });
+              .flatMap((o) => [o + '/api/auth/oauth/callback', o + '/dashboard']);
             patch.redirectUris = Array.from(new Set(currentUris.concat(allAdminUris)));
           }
           // Additive: keep any existing signoff URLs (e.g. legacy hosts), add canonical.
           if (needsLogoutUriUpdate) {
             const allAdminLogout = KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-              .map(function (o) { return o + '/logout'; });
+              .map((o) => o + '/logout');
             patch.postLogoutRedirectUris = Array.from(new Set(currentLogoutUris.concat(allAdminLogout)));
           }
           if (needsAuthMethodUpdate) patch.tokenEndpointAuthMethod = 'client_secret_post';
@@ -2229,11 +2229,11 @@ class PingOneProvisionService {
 
         const _userRedirectUris = Array.from(new Set(
           KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-            .flatMap(function (o) { return [o + '/api/auth/oauth/user/callback', o + '/dashboard']; })
+            .flatMap((o) => [o + '/api/auth/oauth/user/callback', o + '/dashboard'])
         ));
         const _userLogoutUris = Array.from(new Set(
           KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-            .map(function (o) { return o + '/logout'; })
+            .map((o) => o + '/logout')
         ));
         await this.updateApplication(userAppResult.application.id, {
           redirectUris: _userRedirectUris,
@@ -2273,13 +2273,13 @@ class PingOneProvisionService {
           // Additive: keep existing URIs and add all known origins + the current targets.
           if (needsUriUpdate) {
             const allUserUris = KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-              .flatMap(function (o) { return [o + '/api/auth/oauth/user/callback', o + '/dashboard']; });
+              .flatMap((o) => [o + '/api/auth/oauth/user/callback', o + '/dashboard']);
             patch.redirectUris = Array.from(new Set(currentUris.concat(allUserUris)));
           }
           // Additive: preserve existing signoff URLs, add canonical.
           if (needsLogoutUriUpdate) {
             const allUserLogout = KNOWN_REDIRECT_ORIGINS.concat([config.publicAppUrl])
-              .map(function (o) { return o + '/logout'; });
+              .map((o) => o + '/logout');
             patch.postLogoutRedirectUris = Array.from(new Set(currentLogoutUris.concat(allUserLogout)));
           }
           if (needsAuthMethodUpdate) patch.tokenEndpointAuthMethod = 'client_secret_post';
@@ -3692,7 +3692,7 @@ class PingOneProvisionService {
         .flatMap((d) => Object.values(d.categories).map((c) => c.name)),
     );
     // Legacy banking-only names from pre-vertical group bootstrap.
-    ['BankDelegates', 'PrivilegedBanking', 'PrivateBanking'].forEach((n) => DEMO_GROUPS.add(n));
+    ['BankDelegates', 'PrivilegedBanking', 'PrivateBanking'].forEach((n) => { DEMO_GROUPS.add(n); });
     const DEMO_ATTRS = new Set(['isDelegate', 'mayAct', 'delegatedTo', 'bankingPrincipalUserId', 'agentRestrictions']);
     const DEMO_USERS = new Set(['demoUser', 'demoAdmin', 'demoDelegate']);
 

@@ -196,7 +196,7 @@ function gatewayBlockAuthEval(gwAuditTrail, outcome, ctx, decision = 'INDETERMIN
 
 async function runMcpToolPipeline(ctx) {
   const { tool, req, deps } = ctx;
-  let params = { ...ctx.params };
+  const params = { ...ctx.params };
   // Resolved once and reused for the gateway's X-Active-Vertical header. Same
   // resolver the MCP authz gate uses, so the policy input the gateway sees
   // matches the one the BFF authorized against. Best-effort: a resolver failure

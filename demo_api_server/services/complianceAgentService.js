@@ -115,7 +115,7 @@ async function processComplianceMessage(message, transaction, userId, tokenEvent
     const assessment = result.data.data;
 
     // Build narrative reply based on assessment
-    let reply = buildComplianceReply(assessment);
+    const reply = buildComplianceReply(assessment);
 
     return {
       success: true,

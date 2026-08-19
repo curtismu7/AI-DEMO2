@@ -58,7 +58,7 @@ function isGatewayCall(opts) {
  * (simulates unreachable gateway). Supertest's own loopback calls pass through.
  */
 function stubHttpRequestError() {
-    return jest.spyOn(http, 'request').mockImplementation(function (opts, cb) {
+    return jest.spyOn(http, 'request').mockImplementation((opts, cb) => {
         if (!isGatewayCall(opts)) {
             return _realHttpRequest(opts, cb);
         }
@@ -77,7 +77,7 @@ function stubHttpRequestError() {
  * Stub http.request so gateway push calls return 200. Supertest loopback passes through.
  */
 function stubHttpRequestSuccess() {
-    return jest.spyOn(http, 'request').mockImplementation(function (opts, cb) {
+    return jest.spyOn(http, 'request').mockImplementation((opts, cb) => {
         if (!isGatewayCall(opts)) {
             return _realHttpRequest(opts, cb);
         }

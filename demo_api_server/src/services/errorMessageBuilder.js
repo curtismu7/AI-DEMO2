@@ -67,7 +67,7 @@ export default class ErrorMessageBuilder {
         endpoint: context.endpoint || 'unknown',
         method: context.method || 'unknown',
         expected_claim_shape: 'act.sub (current actor), optional act.act.sub (prior actor)',
-        chain_note: this.describeActChainShape(),
+        chain_note: ErrorMessageBuilder.describeActChainShape(),
       },
     };
   }
@@ -140,14 +140,14 @@ export default class ErrorMessageBuilder {
    */
   static getAllBuilders() {
     return {
-      TOKEN_TYPE_MISMATCH: this.buildTokenTypeMismatch,
-      SCOPE_VIOLATION: this.buildScopeViolation,
-      AUDIENCE_MISMATCH: this.buildAudienceMismatch,
-      DELEGATION_CLAIM_MISSING: this.buildDelegationClaimMissing,
-      TOKEN_EXPIRED: this.buildTokenExpired,
-      RATE_LIMIT_EXCEEDED: this.buildRateLimitExceeded,
-      INSUFFICIENT_PERMISSIONS: this.buildInsufficientPermissions,
-      POLICY_VIOLATION: this.buildPolicyViolation,
+      TOKEN_TYPE_MISMATCH: ErrorMessageBuilder.buildTokenTypeMismatch,
+      SCOPE_VIOLATION: ErrorMessageBuilder.buildScopeViolation,
+      AUDIENCE_MISMATCH: ErrorMessageBuilder.buildAudienceMismatch,
+      DELEGATION_CLAIM_MISSING: ErrorMessageBuilder.buildDelegationClaimMissing,
+      TOKEN_EXPIRED: ErrorMessageBuilder.buildTokenExpired,
+      RATE_LIMIT_EXCEEDED: ErrorMessageBuilder.buildRateLimitExceeded,
+      INSUFFICIENT_PERMISSIONS: ErrorMessageBuilder.buildInsufficientPermissions,
+      POLICY_VIOLATION: ErrorMessageBuilder.buildPolicyViolation,
     };
   }
 }

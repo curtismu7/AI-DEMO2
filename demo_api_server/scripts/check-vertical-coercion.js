@@ -343,7 +343,7 @@ async function checkLoaderNeverSubstitutes(verticals) {
   // A manifest vertical with no fallback module of its own must also get null,
   // not a stand-in.
   for (const { vertical } of verticals) {
-    if (Object.prototype.hasOwnProperty.call(FALLBACK_CHIPS, vertical)) continue;
+    if (Object.hasOwn(FALLBACK_CHIPS, vertical)) continue;
     const chips = await loadFallbackChips(vertical);
     if (chips && chips.length) {
       fail('loader-never-substitutes',

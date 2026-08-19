@@ -379,7 +379,7 @@ function formatForLog(v) {
 
 // Strip ANSI escape codes so the log file is grep-friendly. Children may emit
 // colored output even when not on a TTY (e.g. FORCE_COLOR set).
-const ANSI_RE = /\x1b\[[0-9;]*m/g;
+const ANSI_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 function stripAnsi(s) { return s.replace(ANSI_RE, ''); }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1457,10 +1457,14 @@ async function buildCodeGraph() {
   const stdout = r.stdout ? r.stdout.toString().trim() : '';
   const stderr = r.stderr ? r.stderr.toString().trim() : '';
 
-  if (stdout) stdout.split('\n').forEach(l => console.log(' ', l));
+  if (stdout) stdout.split('\n').forEach(l => {
+    console.log(' ', l);
+  });
 
   if (r.status !== 0) {
-    if (stderr) stderr.split('\n').forEach(l => console.warn(' ', l));
+    if (stderr) stderr.split('\n').forEach(l => {
+      console.warn(' ', l);
+    });
     console.warn('⚠  CodeGraph indexer exited non-zero — agent will start without search index');
     return;
   }
@@ -1486,9 +1490,13 @@ async function buildCodeGraph() {
     { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
   const rsOut = rs.stdout ? rs.stdout.toString().trim() : '';
   const rsErr = rs.stderr ? rs.stderr.toString().trim() : '';
-  if (rsOut) rsOut.split('\n').forEach(l => console.log(' ', l));
+  if (rsOut) rsOut.split('\n').forEach(l => {
+    console.log(' ', l);
+  });
   if (rs.status !== 0) {
-    if (rsErr) rsErr.split('\n').forEach(l => console.warn(' ', l));
+    if (rsErr) rsErr.split('\n').forEach(l => {
+      console.warn(' ', l);
+    });
     console.warn('⚠  Source staging exited non-zero — image will lack repo-src (grep/read_file tools degraded)');
     return;
   }

@@ -123,7 +123,7 @@ describe('airlines vertical', () => {
       ];
       for (const [envVar, storeKey] of cases) {
         const sentinel = `sentinel-${spec.appKey}-${envVar}`;
-        const had = Object.prototype.hasOwnProperty.call(process.env, envVar);
+        const had = Object.hasOwn(process.env, envVar);
         const prev = process.env[envVar];
         process.env[envVar] = sentinel;
         try {

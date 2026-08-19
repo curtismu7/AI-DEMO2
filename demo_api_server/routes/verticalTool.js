@@ -38,7 +38,10 @@ const TOOL_VERTICALS_MAP = (() => {
     const plugin = verticalManifest.plugins.get(id);
     if (!plugin) continue;
     for (const t of plugin.getTools()) {
-      if (t && t.name) (map[t.name] = map[t.name] || []).push(id);
+      if (t && t.name) {
+        map[t.name] = map[t.name] || [];
+        map[t.name].push(id);
+      }
     }
   }
   return map;
