@@ -1273,9 +1273,9 @@ const RAW_USE_CASES = [
     whatLong: 'The chip routes deterministically to code_search. The BFF performs RFC 8693 token exchange for the narrow code:search scope, the Agent Gateway validates that scope and asks PingOne Authorize whether this tool call is permitted, and only then does the MCP server query the ai-demo2-server index in Weaviate. The returned file and line ranges prove the answer came from the protected corpus.',
     businessValue: 'Organizations can add RAG without turning an indexed source corpus into an ungoverned side door: the same delegated identity, least-privilege scope, policy decision, and audit evidence protect retrieval.',
     productRoles: {
-      pingone: 'Issues the user and delegated tokens used to preserve caller identity.',
-      authorize: 'Evaluates the code_search tool request and returns the visible PERMIT or DENY decision.',
-      gateway: 'Enforces code:search and the PingOne Authorize decision before forwarding retrieval.',
+      idp: 'Issues the user and delegated tokens used to preserve caller identity.',
+      authz: 'Evaluates the code_search tool request and returns the visible PERMIT or DENY decision.',
+      gw: 'Enforces code:search and the PingOne Authorize decision before forwarding retrieval.',
     },
     primaryTool: 'code_search',
   },
