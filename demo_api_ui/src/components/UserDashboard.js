@@ -1516,35 +1516,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     }
   };
 
-  // Simulate a transaction locally (demo mode only)
-  const applyDemoTransaction = (type, amount, fromId, toId, description) => {
-    const now = new Date().toISOString();
-    const newTx = {
-      id: `demo-${Date.now()}`,
-      type,
-      amount,
-      description: description || `Demo ${type}`,
-      accountInfo: (() => {
-        const acc = accounts.find((a) => a.id === (fromId || toId));
-        return acc
-          ? `${acc.accountType.charAt(0).toUpperCase() + acc.accountType.slice(1)} - ${acc.accountNumber}`
-          : "Demo Account";
-      })(),
-      createdAt: now,
-      clientType: "enduser",
-      performedBy: user?.name || user?.username || "Demo User",
-      _demo: true,
-    };
-    setTransactions((prev) => [newTx, ...prev]);
-    setAccounts((prev) =>
-      prev.map((a) => {
-        if (a.id === fromId)
-          return { ...a, balance: Math.max(0, a.balance - amount) };
-        if (a.id === toId) return { ...a, balance: a.balance + amount };
-        return a;
-      }),
-    );
-  };
 
   const handleTransfer = async (e) => {
     e.preventDefault();
@@ -1562,19 +1533,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       return;
     }
 
-    if (isDemoMode) {
-      applyDemoTransaction(
-        "transfer",
-        parseFloat(transferForm.amount),
-        selectedAccount.id,
-        transferForm.toAccountId,
-        transferForm.description || "Demo transfer",
-      );
-      setTransferForm({ toAccountId: "", amount: "", description: "" });
-      setSelectedAccount(null);
-      notifySuccess("Demo transfer completed!");
-      return;
-    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -1674,19 +1632,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       return;
     }
 
-    if (isDemoMode) {
-      applyDemoTransaction(
-        "deposit",
-        parseFloat(depositForm.amount),
-        null,
-        depositAccount.id,
-        depositForm.description || "Demo deposit",
-      );
-      setDepositForm({ amount: "", description: "" });
-      setDepositAccount(null);
-      notifySuccess("Demo deposit completed!");
-      return;
-    }
 
     try {
       await apiClient.post("/api/transactions", {
@@ -1785,24 +1730,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       return;
     }
 
-    if (isDemoMode) {
-      const amt = parseFloat(withdrawForm.amount);
-      if (amt > withdrawAccount.balance) {
-        notifyWarning("Insufficient demo balance");
-        return;
-      }
-      applyDemoTransaction(
-        "withdrawal",
-        amt,
-        withdrawAccount.id,
-        null,
-        withdrawForm.description || "Demo withdrawal",
-      );
-      setWithdrawForm({ amount: "", description: "" });
-      setWithdrawAccount(null);
-      notifySuccess("Demo withdrawal completed!");
-      return;
-    }
 
     try {
       await apiClient.post("/api/transactions", {

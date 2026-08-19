@@ -63,7 +63,9 @@ class TokenCache:
             ttl_seconds: Time-to-live in seconds. Uses default if not provided.
         """
         async with self._lock:
-            ttl = ttl_seconds or self.default_ttl_seconds
+            # `is None`, not falsy: ttl_seconds=0 means "expire immediately",
+            # and the `or` form silently promoted it to the default TTL.
+            ttl = self.default_ttl_seconds if ttl_seconds is None else ttl_seconds
             now = datetime.now(timezone.utc)
             expires_at = now + timedelta(seconds=ttl)
             

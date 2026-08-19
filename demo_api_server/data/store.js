@@ -483,8 +483,17 @@ class DataStore {
     const prev = this._transferLocks.get(key);
     const gate = new Promise(resolve => { releaseFn = resolve; });
     this._transferLocks.set(key, gate);
-    // Wait for previous lock holder to finish, then return a release function
-    return prev.then(() => releaseFn);
+    // Wait for previous lock holder to finish, then return a release function.
+    // The release cleans up its own map entry — but only when no later caller
+    // has chained behind this gate. applyTransfer used to delete the key
+    // unconditionally in its finally, which severed the queue: a waiter held
+    // the old chain while the next arrival started a fresh one, so two holders
+    // could be "inside" at once the moment anything ever awaits in the
+    // critical section (TECH_DEBT bug-hunt honourable mention, 2026-08-18).
+    return prev.then(() => () => {
+      releaseFn();
+      if (this._transferLocks.get(key) === gate) this._transferLocks.delete(key);
+    });
   }
 
   async applyTransfer({ fromAccountId, toAccountId, amount, userId, description }) {
@@ -522,9 +531,9 @@ class DataStore {
       await this.persistAllData();
       return { ok: true, fromBalance: from ? from.balance : undefined, toBalance: to ? to.balance : undefined };
     } finally {
-      // Release all individual account locks
+      // Release all individual account locks; each release cleans up its own
+      // map entry iff nobody queued behind it (see _acquireLock).
       for (const release of releases) release();
-      for (const key of lockKeys) this._transferLocks.delete(key);
     }
   }
 

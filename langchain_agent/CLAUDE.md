@@ -26,7 +26,7 @@ src/agent/ src/agents/    LangGraph graph + node definitions
 src/agui/                  AG-UI protocol adapter
 src/api/                   FastAPI-style HTTP surface
 src/authentication/        PingOne token handling for the agent
-src/mcp/                   MCP client calls into demo_mcp_server / gateway
+src/mcp/                   MCP client calls into the banking MCP server (oauth-mcp) / gateway
 frontend/                   separate npm project — own test:ci, not pytest
 tests/                       pytest specs
 ```
