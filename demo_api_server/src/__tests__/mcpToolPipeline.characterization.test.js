@@ -694,6 +694,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
         code: 'mcp_tool_error',
         httpStatus: 428,
         gatewayErrorCode: 'hitl_required',
+        rpcData: { challengeId: 'challenge-ciba-1' },
         gwAuditTrail: { authorize: { decision: 'PERMIT', backend: 'real', rawResponse: {} } },
       });
     });
@@ -701,6 +702,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     // same declared-method rule _applyTransactionPolicy uses on the local path.
     const outcome = await runMcpToolPipeline(makeCtx({ deps, tool: 'create_transfer', useCaseId: 'step-up-required' }));
     expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({ decision: 'INDETERMINATE', outcome: 'STEP_UP' });
+    expect(outcome.body.hitlChallengeId).toBe('challenge-ciba-1');
   });
 
   test('gateway 428 step_up_required with audit trail → evaluation outcome STEP_UP on the body', async () => {

@@ -4905,6 +4905,7 @@ export default function BankingAgent({
                   amount: normalized.transaction_amount ?? undefined,
                   from_account_label: fromLabel,
                   to_account_label: toLabel,
+                  hitl_challenge_id: normalized.hitlChallengeId || normalized.challengeId || undefined,
                 }),
               });
               if (!initRes.ok)
@@ -4922,7 +4923,13 @@ export default function BankingAgent({
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
               setLoading(false);
-              pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
+              pollCibaStepUp(
+                auth_req_id,
+                (interval || 5) * 1000,
+                actionId,
+                form,
+                normalized.hitlChallengeId || normalized.challengeId || null,
+              );
             } catch (err) {
               console.error("[BankingAgent] CIBA initiation failed:", err);
               if (cibaTab) cibaTab.close();
@@ -5590,6 +5597,7 @@ export default function BankingAgent({
                 amount: err.transaction_amount ?? undefined,
                 from_account_label: fromLabel,
                 to_account_label: toLabel,
+                hitl_challenge_id: err.hitlChallengeId || err.challengeId || undefined,
               }),
             });
             if (!initRes.ok)
@@ -5607,7 +5615,13 @@ export default function BankingAgent({
             toast.dismiss(toastId);
             agentFlowDiagram.completeMfaChallenge(null);
             setLoading(false);
-            pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
+            pollCibaStepUp(
+              auth_req_id,
+              (interval || 5) * 1000,
+              actionId,
+              form,
+              err.hitlChallengeId || err.challengeId || null,
+            );
           } catch (cibaErr) {
             console.error("[BankingAgent] CIBA initiation failed:", cibaErr);
             if (cibaTab) cibaTab.close();
@@ -8555,7 +8569,7 @@ export default function BankingAgent({
    * poll contract in routes/ciba.js: 200 body { status: 'pending' | 'approved' }
    * while waiting; 403/404/410 are terminal (denied/unknown/expired).
    */
-  const pollCibaStepUp = (authReqId, intervalMs, actionId, form) => {
+  const pollCibaStepUp = (authReqId, intervalMs, actionId, form, cibaHitlChallengeId = null) => {
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
@@ -8602,7 +8616,10 @@ export default function BankingAgent({
         settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
-        runAction(actionId, form, { isRefire: true });
+        runAction(actionId, form, {
+          isRefire: true,
+          hitlRetryChallengeId: cibaHitlChallengeId,
+        });
         return;
       }
       // still pending
@@ -8663,6 +8680,7 @@ export default function BankingAgent({
             amount: response.transactionAmount ?? undefined,
             from_account_label: fromLabel,
             to_account_label: toLabel,
+            hitl_challenge_id: response.hitlChallengeId || response.challengeId || undefined,
           }),
         });
         if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
@@ -8677,7 +8695,13 @@ export default function BankingAgent({
           { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
-        pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
+        pollCibaThenResumeNl(
+          auth_req_id,
+          (interval || 5) * 1000,
+          text,
+          useCaseId,
+          response.hitlChallengeId || response.challengeId || null,
+        );
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
         if (cibaTab) cibaTab.close();
@@ -8925,7 +8949,7 @@ export default function BankingAgent({
    * mirrors pollCibaStepUp's runAction(actionId, form, { isRefire: true })
    * resume shape, but there is no actionId/form here, only the original text.
    */
-  const pollCibaThenResumeNl = (authReqId, intervalMs, text, useCaseId) => {
+  const pollCibaThenResumeNl = (authReqId, intervalMs, text, useCaseId, cibaHitlChallengeId = null) => {
     const apiBase = process.env.REACT_APP_API_URL || "";
     let settled = false;
     const poll = async () => {
@@ -8977,6 +9001,7 @@ export default function BankingAgent({
             vertical: effectiveVerticalId,
             useCaseId,
             forceHeuristic: !!useCaseId,
+            hitlChallengeId: cibaHitlChallengeId,
           });
           // sendAgentMessage's own beginTrace() (fired at the top of that call,
           // to clear the prior turn's trace) wipes the 'ciba-poll' event the
