@@ -151,9 +151,19 @@ module.exports = async function importSnapshot(req, res) {
     // this check compare the SoT's 2 known audiences against the tracked
     // snapshot's real 3, reporting a false mcp_audience_mismatch on every
     // snapshot that correctly includes A2A.
+    // Must stay in step with the generator's own list
+    // (snapshots/gen-authorize-snapshot.js GATEWAY_RESOURCE_NAMES) — these are
+    // two hand-maintained copies of the same set, and they DID drift: the
+    // API-Key PingGateway identity was added to the SoT and the generator but
+    // not here, so this validator rejected the correctly-generated snapshot
+    // with a false mcp_audience_mismatch (409). That is the same omission the
+    // comment above records fixing once for the A2A gateway — second time for
+    // this list. Adding a gateway resource to the SoT means adding it in BOTH
+    // places.
     const GATEWAY_RESOURCE_NAMES = [
       'Super Banking MCP Gateway',
       'Super Banking PingGateway MCP',
+      'Super Banking PingGateway MCP - API-Key',
       'Super Banking A2A MCP Gateway',
     ];
     const sotGatewayAuds = GATEWAY_RESOURCE_NAMES
