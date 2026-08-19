@@ -373,18 +373,38 @@ describe("resuming a queued step after sign-in", () => {
     expect(sendAgentMessage).not.toHaveBeenCalled();
   });
 
-  // Arming needs ADMIN, not just a session. A customer's PATCH 403s, and that
-  // failure used to be swallowed — the flag stayed off and the step quietly
-  // misbehaved with nothing said. Reading flags is not gated, so check instead
-  // of writing and speak up only about a flag that is genuinely off.
-  it("tells a customer which flag is off instead of failing silently", async () => {
+  // Arming needs a SESSION, not admin: featureFlagsAuthGate routes mutations
+  // through authenticateToken with no role check. The UI used to believe a
+  // customer's PATCH 403s and never even tried — the step then ran with the
+  // flag off and quietly misbehaved. A signed-in customer now arms exactly
+  // like an admin does.
+  it("arms the flags for a signed-in customer instead of refusing to try", async () => {
     global.fetch = vi.fn(() => Promise.resolve({
       ok: true, status: 200, json: () => Promise.resolve({}),
     }));
     // UC1 declares a primaryTool, so the flag it needs is the gateway runtime
     // one — not ff_rar. Mocking the wrong id makes this pass for the
-    // wrong reason (nothing off, so nothing said).
+    // wrong reason (nothing to arm, so nothing written).
     expect(requiredFlagsForUseCase(UC1)).toContain("ff_mcp_gateway_pinggateway");
+
+    renderAt("/dashboard", CUSTOMER);
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(apiPatch).toHaveBeenCalledWith(
+        "/api/admin/feature-flags",
+        { updates: expect.objectContaining({ ff_mcp_gateway_pinggateway: true }) },
+        { _noAuthBanner: true },
+      );
+    });
+    expect(document.body.textContent).not.toMatch(/could not be turned on/i);
+  });
+
+  it("tells the customer when arming fails and a needed flag is genuinely off", async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, status: 200, json: () => Promise.resolve({}),
+    }));
+    apiPatch.mockRejectedValue(new Error("500"));
     apiGet.mockResolvedValue({
       data: { flags: [{ id: "ff_mcp_gateway_pinggateway", value: false }] },
     });
@@ -393,22 +413,21 @@ describe("resuming a queued step after sign-in", () => {
     await runStep(UC1);
 
     await waitFor(() => {
-      expect(screen.getByText(/requires an admin sign-in/i)).toBeInTheDocument();
+      expect(screen.getByText(/could not be turned on automatically/i)).toBeInTheDocument();
     });
-    // The doomed write is not attempted at all.
-    expect(apiPatch).not.toHaveBeenCalled();
   });
 
-  it("stays quiet for a customer when the flags are already on", async () => {
+  it("signed out: checks instead of writing and says sign-in is needed", async () => {
     apiGet.mockResolvedValue({
-      data: { flags: [{ id: "ff_mcp_gateway_pinggateway", value: true }] },
+      data: { flags: [{ id: "ff_mcp_gateway_pinggateway", value: false }] },
     });
 
-    renderAt("/dashboard", CUSTOMER);
+    renderAt("/dashboard", null);
     await runStep(UC1);
     await settle();
 
-    expect(document.body.textContent).not.toMatch(/requires an admin sign-in/i);
+    // Whether the guest sees the flag notice or the sign-in prompt first,
+    // no write is ever attempted while signed out.
     expect(apiPatch).not.toHaveBeenCalled();
   });
 

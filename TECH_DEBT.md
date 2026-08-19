@@ -2345,7 +2345,23 @@ the general rule this case exists to teach: **UI grouping is not an authorizatio
 boundary and must never be read as one.** If the inventory should ever be
 restricted, the middleware goes on the route, not in the menu.
 
-### [ ] 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
+### [x] 2026-08-18 — Flag arming needs admin, but the steps that need flags are run by any role
+
+**RESOLVED 2026-08-18 (branch `worktree-presenter-flag-arming`) — the premise
+had gone stale, and the fix was smaller than any option the entry proposed.**
+Investigation: `PATCH /api/admin/feature-flags` is NOT admin-gated —
+`middleware/featureFlagsAuthGate.js` routes mutations through plain
+`authenticateToken` with no role check, and the server-side chip dispatch
+(`routes/useCases.js` auto-arm loop) already arms as any role. The only place
+"arming needs admin" existed was `ensureRequiredDemoFlags` in `AIAgent.js`,
+which believed a customer's PATCH would 403 and never even tried — producing
+exactly the "working demo, subtly wrong output" failure this entry predicted.
+Fix: any signed-IN user now attempts the PATCH (customer or admin); on write
+failure it falls back to the read-and-inform path; signed OUT keeps the
+check-and-inform behavior (a session is genuinely required to write). No
+server change, no new endpoint, no gate change. Regression tests: customer
+arms; failed arm informs; guest never writes
+(`AIAgent.protectedStepLogin.test.jsx`, 14 passed). Original entry follows.
 
 **Where:** `demo_api_ui/src/components/AIAgent.js` `ensureRequiredDemoFlags`,
 against the admin-gated `PATCH /api/admin/feature-flags`.

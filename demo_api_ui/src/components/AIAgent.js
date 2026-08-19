@@ -7422,14 +7422,15 @@ export default function BankingAgent({
     }
     if (!Object.keys(updates).length) return;
 
-    // Arming needs ADMIN, not just a session — a signed-in customer's PATCH
-    // 403s. That failure was swallowed, so the flag stayed off and the step
-    // quietly misbehaved with nothing said. Reading the flags is not gated
-    // (GET answers for anyone), so check instead of writing, and only speak up
-    // when a flag this step needs is actually off. Silent when they are already
-    // on, which is the common case — otherwise every tool chip would nag, since
-    // they all require ff_mcp_gateway_pinggateway.
-    if (!isAdminUser) {
+    // Arming needs a SESSION, not admin: featureFlagsAuthGate routes mutations
+    // through authenticateToken with no role check, and the server-side chip
+    // dispatch (routes/useCases.js) auto-arms as any role too. This branch used
+    // to believe "a signed-in customer's PATCH 403s" and never even tried — a
+    // customer-run step then presented as a working demo with subtly wrong
+    // output the first time a flag was off (TECH_DEBT 2026-08-18 "Flag arming
+    // needs admin"). Signed OUT is the only state that genuinely cannot arm:
+    // reads are open, so check and speak up instead of writing.
+    if (!isLoggedIn) {
       try {
         const { data } = await apiClient.get("/api/admin/feature-flags", { _silent: true });
         const off = Object.keys(updates).filter(
@@ -7438,7 +7439,7 @@ export default function BankingAgent({
         if (off.length) {
           addMessage(
             "assistant",
-            `${reason} needs ${off.join(", ")} enabled, and turning flags on requires an admin sign-in. `
+            `${reason} needs ${off.join(", ")} enabled, and turning flags on requires signing in. `
             + "The step will still run, but it may not behave as scripted.",
           );
         }
@@ -7447,15 +7448,29 @@ export default function BankingAgent({
     }
 
     try {
-      // _noAuthBanner: arming is best effort and the route is admin-gated, so
-      // any signed-out caller 401s here. That 401 is about this call, not the
-      // session. Public use cases skip arming entirely (see the caller), but
-      // this keeps a guest reaching it by another path from being told their
-      // session expired.
+      // _noAuthBanner: arming is best effort; a race where the session just
+      // expired 401s here. That 401 is about this call, not the session —
+      // don't raise the re-auth banner for it.
       await apiClient.patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true });
       console.log(`[ensureRequiredDemoFlags] Auto-enabled ${Object.keys(updates).join(", ")} for ${reason}`);
     } catch (e) {
       console.warn(`[ensureRequiredDemoFlags] Could not auto-enable flags for ${reason}:`, e.message);
+      // The write failed (expired session, server error) — fall back to the
+      // read-and-inform path so the presenter hears about a flag that is off
+      // instead of the step quietly misbehaving.
+      try {
+        const { data } = await apiClient.get("/api/admin/feature-flags", { _silent: true });
+        const off = Object.keys(updates).filter(
+          (id) => data?.flags?.find((f) => f.id === id)?.value === false,
+        );
+        if (off.length) {
+          addMessage(
+            "assistant",
+            `${reason} needs ${off.join(", ")} enabled, but they could not be turned on automatically. `
+            + "The step will still run, but it may not behave as scripted.",
+          );
+        }
+      } catch (_) { /* best effort */ }
     }
   }
 
