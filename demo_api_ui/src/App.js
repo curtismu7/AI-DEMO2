@@ -555,7 +555,7 @@ function AppWithAuth() {
             >
               <OfflineBanner />
               <ToastContainer
-                position={isOnDashboard ? "bottom-left" : "top-center"}
+                position="bottom-left"
                 autoClose={toastContainerAutoCloseMs}
                 hideProgressBar={false}
                 newestOnTop
