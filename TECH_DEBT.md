@@ -16,6 +16,47 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
+
+**Where:** `snapshots/gen-authorize-snapshot.js` `GATEWAY_RESOURCE_NAMES` (~118)
+and `demo_authz_server/routes/import-snapshot.js` `GATEWAY_RESOURCE_NAMES` (~154).
+
+**What's wrong:** the same set — "which `scope-topology.json` resources are
+accepted MCP gateway audiences" — is written out longhand in both files, and
+the generator and the validator must agree or the validator rejects the
+generator's own output. They have now disagreed twice:
+
+1. the A2A gateway was added to the SoT and the generator but not the validator
+   (recorded in the validator's own comment: "made this check compare the SoT's
+   2 known audiences against the tracked snapshot's real 3");
+2. the API-Key PingGateway identity, same omission, same false
+   `mcp_audience_mismatch` 409 — fixed 2026-08-18 in the commit that added this
+   entry, found only because the `demo_authz_server` suite was being run as the
+   INDETERMINATE rework's verification gate.
+
+Nothing derives one list from the other, and nothing derives either from the
+SoT, so the third occurrence is already possible. Neither file is wrong in
+isolation — that is what makes this a design gap rather than a bug.
+
+**Why not fixed now:** the honest fix needs a way to mark a resource as a
+gateway identity in `scope-topology.json`, which is an SoT schema change and a
+provisioning question (`bootstrapPingOne.js` and `pingoneProvisionService.js`
+both carry their own name lists), not something to fold into a test-baseline
+commit. The one-line list repair plus the CI filter that would have caught it
+were in scope; the schema change was not.
+
+**Real fix:** give each gateway resource a marker in `scope-topology.json`
+(e.g. `role: 'mcp-gateway'`), derive `GATEWAY_RESOURCE_NAMES` from that marker
+in both files, and delete both literals — at which point adding a gateway to
+the SoT is the only edit required and the two copies cannot disagree. Cheaper
+interim if the schema change is unwanted: a single test that asserts the two
+literals are equal, which is small and catches occurrence three.
+
+**Related:** the CI gap that let occurrence 2 land green is fixed separately —
+`decision-services` in `.github/workflows/ci.yml` did not list
+`scope-topology.json`, so a SoT-only PR never ran the suite whose existing test
+already caught this.
+
 ### [ ] 2026-08-18 — customer-dashboard banking column is the one dashboard pane without a resize handle
 
 **Where:** `demo_api_ui/src/components/UserDashboard.css` `.ud-body--dashboard-split3`
