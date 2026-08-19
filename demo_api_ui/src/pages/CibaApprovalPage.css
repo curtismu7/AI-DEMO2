@@ -12,6 +12,13 @@
     0 0 0 2px rgba(255, 255, 255, 0.06) inset;
 }
 
+/* The phone frame re-skins the panel dark, but the body text kept
+   DraggableModal's dark-on-light colour — grey-on-near-black, which §0 forbids
+   ("no muted modal text"). Set it explicitly for the dark frame. */
+.ciba-phone-modal .dm-scroll {
+  color: #f4f4f5;
+}
+
 .ciba-phone-modal .dm-titlebar {
   border-radius: 14px 14px 0 0;
 }
