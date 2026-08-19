@@ -596,7 +596,18 @@ differing only in a trailing id) are exactly this shape.
 
 **Real fix:** key by index (or a stable bullet id) rather than a text-prefix slice.
 
-**Honourable mentions (not counted):** `demo_api_server/data/store.js` `applyTransfer`
+**Honourable mentions — BOTH RESOLVED 2026-08-18 (branch
+`worktree-leftovers-sweep`):** the `_transferLocks` delete is now conditional —
+release cleans up its own entry iff no waiter chained behind it (the
+unconditional finally-delete severed the queue; pinned by
+`tests/services/storeTransferLock.test.js`, incl. serialization across an await
+in the critical section). And `applyDemoTransaction` + its three `isDemoMode`
+call branches are DELETED from both dashboard files (the branch was unreachable
+— every caller behind `if (!user) return` while isDemoMode is only true signed
+out — and hid an unguarded money-creation shape); UserDashboard sha256 canary
+re-baselined with the rationale. Original text follows.
+
+`demo_api_server/data/store.js` `applyTransfer`
 deletes the per-account `_transferLocks` entry unconditionally in `finally`, breaking
 mutual exclusion — but the critical section is fully synchronous so the event loop
 already serialises it and no overdraft results (redundant lock, buggy delete, no

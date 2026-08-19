@@ -313,7 +313,12 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-08-18 (2): register both resize drags' teardown in a
+  // Re-baselined 2026-08-18 (3): removed the dead applyDemoTransaction path —
+  // every caller sits behind `if (!user) return` while isDemoMode is only true
+  // signed OUT, so the branch was unreachable; it hid an unguarded
+  // money-creation shape (`to` credited in full, `from` clamped at 0) worth
+  // deleting before it was ever wired live (bug-hunt honourable mention).
+  // Earlier 2026-08-18 (2): register both resize drags' teardown in a
   // dragCleanupRef invoked on unmount, so a route change mid-drag no longer
   // leaks document listeners / a stuck body cursor (same fix as
   // EmbeddedAgentDock). Earlier 2026-08-18: customer-dashboard step-up lifecycle fixes —
@@ -327,7 +332,7 @@ test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "56153c286455abb0bc35f8b560ebb8a49b1bfef3ee0c343811a926f6697e25c5";
+    "38d582cc111923483854c3ae32101d170e08a5060f3bfaafa77b602cf2a46bee";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);
