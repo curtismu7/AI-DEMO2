@@ -135,4 +135,41 @@ describe('classifyObligations (list -> highest-gate-wins flags)', () => {
     expect(r.consentRequired).toBe(true);
     expect(r.classified.consent).toHaveLength(1);
   });
+
+  // Identifier-field parity with the Node gateway's classifier
+  // (demo_mcp_gateway/src/auth/authorizeObligations.ts), which reads
+  // type || id || code || name. `name` was missing here, and that divergence
+  // failed in the DANGEROUS direction: an obligation carrying only `name`
+  // gated on the gateway path and passed UNGATED on the BFF path, from the
+  // same PDP response. Same class as the ELICITATION vocabulary gap #2133
+  // fixed in the Groovy classifier.
+  describe('identifier field parity with the gateway classifier', () => {
+    it.each([
+      ['name', { name: 'STEP_UP' }, 'stepUpRequired'],
+      ['type', { type: 'STEP_UP' }, 'stepUpRequired'],
+      ['id', { id: 'STEP_UP' }, 'stepUpRequired'],
+      ['code', { code: 'step-up-required' }, 'stepUpRequired'],
+    ])('classifies an obligation identified only by %s', (_field, ob, flag) => {
+      expect(classifyObligations([ob])[flag]).toBe(true);
+    });
+
+    it('classifies every pause kind carried under name alone', () => {
+      expect(classifyObligations([{ name: 'HITL_CONSENT' }]).consentRequired).toBe(true);
+      expect(classifyObligations([{ name: 'HITL' }]).hitlRequired).toBe(true);
+      expect(classifyObligations([{ name: 'ELICITATION' }]).elicitationRequired).toBe(true);
+    });
+
+    // The phase-2 wire shape from demo_authz_server carries obligatory/fulfilled
+    // alongside the identifier. Neither is read, deliberately: the recorded trap
+    // (llm-path-approval-gate-open) is that `obligatory: false` is NOT safe to
+    // treat as optional, so ignoring both fields fails CLOSED. Pinned so a later
+    // phase cannot start honouring them without this test going red first.
+    it('gates on a phase-2 shaped obligation regardless of obligatory/fulfilled', () => {
+      const phase2 = { id: 'STEP_UP', type: 'STEP_UP', obligatory: true, fulfilled: false };
+      expect(classifyObligations([phase2]).stepUpRequired).toBe(true);
+
+      const notObligatory = { ...phase2, obligatory: false, fulfilled: true };
+      expect(classifyObligations([notObligatory]).stepUpRequired).toBe(true);
+    });
+  });
 });
