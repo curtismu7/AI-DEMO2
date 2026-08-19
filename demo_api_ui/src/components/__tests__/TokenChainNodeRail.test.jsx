@@ -42,14 +42,47 @@ describe("TokenChainNodeRail", () => {
     expect(screen.getByText(/act \+agent-001/)).toBeInTheDocument();
   });
 
-  it("strikes the scopes an exchange dropped and keeps the ones it did not", () => {
-    const steps = [{
-      id: "exchange", title: "Token exchange", lane: "BFF", status: "done",
-      detail: { scopeDiff: { before: ["read", "write"], after: ["write"] } },
-    }];
-    render(<TokenChainNodeRail steps={steps} activeId={null} onSelect={() => {}} />);
-    expect(document.querySelector(".tcnr-fact-gone").textContent).toBe("read");
-    expect(document.querySelector(".tcnr-fact-kept").textContent).toBe("write");
+  // The map card is ~130px wide. It used to render every `before` scope inline,
+  // which on a real exchange produced one unreadable run of text. It now states
+  // the shape of the change; the chip-by-chip diff lives in the detail panel.
+  const exchangeStep = (before, after) => [{
+    id: "exchange", title: "Token exchange", lane: "BFF", status: "done",
+    detail: { scopeDiff: { before, after } },
+  }];
+
+  it("names the narrowing rather than listing every scope", () => {
+    render(
+      <TokenChainNodeRail
+        steps={exchangeStep(
+          ["ai:agent:read", "read", "transfer", "openid", "profile", "offline_access", "write", "email", "mortgage:read"],
+          ["read", "transfer", "write"],
+        )}
+        activeId={null}
+        onSelect={() => {}}
+      />,
+    );
+    expect(screen.getByText("scope narrowed 9 → 3")).toBeInTheDocument();
+    // The old rendering concatenated the scope names with no separator.
+    expect(screen.queryByText(/ai:agent:readread/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the full before/after reachable on hover", () => {
+    render(<TokenChainNodeRail steps={exchangeStep(["read", "write"], ["write"])} activeId={null} onSelect={() => {}} />);
+    expect(screen.getByText("scope narrowed 2 → 1")).toHaveAttribute(
+      "title",
+      "before: read write\nafter: write",
+    );
+  });
+
+  it("does not claim a narrowing when nothing was dropped", () => {
+    render(<TokenChainNodeRail steps={exchangeStep(["read"], ["read"])} activeId={null} onSelect={() => {}} />);
+    expect(screen.getByText("scope unchanged")).toBeInTheDocument();
+  });
+
+  it("reports a widened exchange as a change, never as a narrowing", () => {
+    render(<TokenChainNodeRail steps={exchangeStep(["read"], ["read", "write"])} activeId={null} onSelect={() => {}} />);
+    expect(screen.getByText("scope 1 → 2")).toBeInTheDocument();
+    expect(screen.queryByText(/narrowed/)).not.toBeInTheDocument();
   });
 
   it("says a finished transport hop changed nothing, but never says it of one still running", () => {
