@@ -106,6 +106,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-19 — CIBA approval completed in the popup but did not wake the agent
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/pages/CibaApprovalPage.js`, and focused CIBA UI tests.
+
+**What was broken:** the approval page updated only its own React state. The
+agent depended on a scheduled poll, so a lost/stale timer left the original
+action waiting indefinitely and repeated the approval prompt.
+
+**What was fixed:** the approval page emits a same-origin storage event after a
+successful approval/denial. The opener wakes the matching poller immediately;
+the inline Approve action does the same. The agent still calls the authenticated
+CIBA poll endpoint and only refires the original action after it receives
+`approved`.
+
+**Do not break:** approval notifications are only a wake-up hint. Never treat a
+popup event as proof of approval; `/api/auth/ciba/poll/:authReqId` remains the
+source of truth and the original action must be refired only after that poll
+returns `approved`.
+
+**Verify:** CibaApprovalPage tests, CIBA server route tests, and `npm run build`.
+
 ### 2026-08-19 — The proof-of-enforcement pill never dismissed and sat over TopNav Sign Out
 
 **Files changed:** `demo_api_ui/src/components/VerifiedBanner.jsx`,

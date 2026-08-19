@@ -128,6 +128,16 @@ export default function CibaApprovalPage() {
           : `${apiBase}/api/auth/ciba/deny/${authReqId}`;
       const res = await fetch(endpoint, { method: "POST", credentials: "include" });
       if (res.ok) {
+        // Wake the waiting agent in the opener immediately. The agent still
+        // verifies approval through /poll, but must not wait for a stale timer
+        // or lose the handoff when the popup is the device that approved.
+        try {
+          localStorage.setItem("ciba-approval-result", JSON.stringify({
+            authReqId,
+            status: action === "approve" ? "approved" : "denied",
+            at: Date.now(),
+          }));
+        } catch (_) { /* storage may be unavailable in private mode */ }
         setStatus(action === "approve" ? "approved" : "denied");
       } else {
         setStatus("error");
