@@ -103,5 +103,3 @@ export function buildSequenceSource(flowSpec, results = [], currentStep = null) 
 
   return lines.join('\n');
 }
-
-export default buildSequenceSource;

@@ -11,7 +11,7 @@ import './ErrorBoundary.css';
  *   <YourComponent />
  * </ErrorBoundary>
  */
-export class ErrorBoundary extends React.Component {
+class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = {

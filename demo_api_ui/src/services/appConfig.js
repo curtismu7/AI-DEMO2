@@ -4,7 +4,7 @@
  * Update here to change thresholds, timeouts, and retry behavior across the app.
  */
 
-export const APP_CONFIG = {
+const APP_CONFIG = {
   // ══════════════════════════════════════════════════════════════════════════
   // Session & Timing
   // ══════════════════════════════════════════════════════════════════════════
