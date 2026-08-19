@@ -65,7 +65,7 @@ function readPrimaryToolFor(activeId) {
   // truthy, so the caller's `if (activityTool)` passed and handed executeTool a
   // FUNCTION where a tool name belongs. Same guard, same reason, as
   // config/fallback-chips/loader.js.
-  if (Object.prototype.hasOwnProperty.call(READ_PRIMARY_TOOL_BY_VERTICAL, activeId)) {
+  if (Object.hasOwn(READ_PRIMARY_TOOL_BY_VERTICAL, activeId)) {
     return READ_PRIMARY_TOOL_BY_VERTICAL[activeId];
   }
   return activeId === 'banking' ? 'get_my_transactions' : null;
@@ -198,7 +198,7 @@ function _messageFingerprint(msg) {
  */
 function sanitizeAccountLabel(value) {
   return String(value == null ? '' : value)
-    .replace(/[\u0000-\u001f\u007f]/g, '') // control chars
+    .replace(new RegExp('[\\u0000-\\u001f\\u007f]', 'g'), '') // control chars
     .replace(/[`$<>{}\\]/g, '')            // template / markup injection chars
     .replace(/\s+/g, ' ')
     .trim()
@@ -312,6 +312,40 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         tokenEvents,
         branches: result.branches,
         publicCatalog: true,
+      };
+    }
+
+    if (action === 'code_search') {
+      const tokenEvents = [];
+      const sessionId = req?.sessionID || '';
+      const query = typeof params.query === 'string' ? params.query.trim() : '';
+      const limit = Math.min(25, Math.max(1, Number(params.limit) || 5));
+      const rawResult = await executeBffTool({
+        name: 'code_search',
+        args: { query, limit },
+        userId,
+        userToken,
+        req,
+        tokenEvents,
+        sessionId,
+      });
+      let result = rawResult;
+      if (typeof rawResult === 'string' && /^[{[]/.test(rawResult.trim())) {
+        try { result = JSON.parse(rawResult); } catch (_) { result = rawResult; }
+      }
+      if (result && typeof result === 'object' && (result.error || result.isError || result.success === false)) {
+        const errMsg = result?.content?.[0]?.text || result?.error_description || result?.message || result?.error || 'Protected RAG retrieval failed.';
+        return { reply: `❌ ${errMsg}`, success: false, toolsCalled: ['code_search'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
+      const reply = typeof result === 'string' ? result : result?.text;
+      return {
+        reply: reply || 'No protected code matches found.',
+        success: true,
+        toolsCalled: ['code_search'],
+        tokensUsed: 0,
+        requiresConsent: false,
+        agentConfigured: true,
+        tokenEvents,
       };
     }
 
@@ -1681,7 +1715,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // ARCHITECTURE-TRUTHS T-3). There is no "fell through with a result" case,
     // so on the LLM-fallback path heuristicFallbackResult stays null and the
     // reasoning_unavailable branch uses the generic message.
-    let heuristicFallbackResult = null;
+    const heuristicFallbackResult = null;
     const rawMode = configStore.getEffective('agent_mode');
     const _agentMode = rawMode
       ? resolveAgentMode(

@@ -56,6 +56,32 @@ describe('WR-07 — heuristic write error handling + description sanitization (r
     ]);
   });
 
+  test('Protected RAG dispatches code_search with the exact query and returns grounded hits', async () => {
+    const req = { sessionID: 'session-1', body: { useCaseId: 'code-search' } };
+    mockExecuteBffTool.mockResolvedValue('demo_api_server/services/agentMcpTokenService.js:1239-1260\nrequiredScopes');
+
+    const result = await dispatchBankingAction(
+      'code_search',
+      { query: 'BFF MCP token exchange', limit: 5 },
+      'user-1',
+      { userToken: 'tok-1', req, isAdmin: false },
+    );
+
+    expect(mockExecuteBffTool).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'code_search',
+      args: { query: 'BFF MCP token exchange', limit: 5 },
+      userId: 'user-1',
+      userToken: 'tok-1',
+      req,
+      sessionId: 'session-1',
+    }));
+    expect(result).toMatchObject({
+      success: true,
+      toolsCalled: ['code_search'],
+    });
+    expect(result.reply).toContain('agentMcpTokenService.js:1239-1260');
+  });
+
   test('(a) a non-Error throw from the write tool call is surfaced and not swallowed', async () => {
     mockExecuteBffTool.mockImplementation(() => { throw 'string-failure-not-an-error'; });
 

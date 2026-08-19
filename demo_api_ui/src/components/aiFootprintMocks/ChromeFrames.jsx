@@ -97,6 +97,38 @@ function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onEx
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
+function ClaudeDesktopChrome({ hostRef, preview = false, onExit, children }) {
+  return (
+    <div className="afm-claude-desktop" data-variant="desktop">
+      <div className="afm-claude-title">
+        <div className="afm-vcs-dots" aria-hidden="true"><i /><i /><i /></div>
+        <strong>Claude</strong>
+        <SimulatedBadge pill />
+        {onExit ? <button type="button" className="afm-badge afm-badge--pill" onClick={onExit}>Exit</button> : null}
+      </div>
+      <div className="afm-claude-body">
+        <aside className="afm-claude-side">
+          <button type="button" className="afm-claude-new">New chat</button>
+          <div className="afm-claude-section">Recents</div>
+          <div className="afm-claude-thread is-on">Privilege MCP tools</div>
+          <div className="afm-claude-thread">Review transfer policy</div>
+          <div className="afm-claude-thread">Token exchange notes</div>
+          <div className="afm-claude-project">Projects</div>
+        </aside>
+        <main className="afm-claude-main">
+          <header className="afm-claude-chat-head">
+            <div><strong>Privilege MCP tools</strong><span>Claude Desktop</span></div>
+            <span className="afm-claude-connected">MCP connected</span>
+          </header>
+          <div ref={hostRef} className={`afm-host${preview ? " afm-host--preview" : ""}`}>
+            {hostContent(children, preview)}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
 function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onExit, children }) {
   const light = variant === "desktop-light";
   const web = variant === "web";
@@ -356,6 +388,9 @@ export function FootprintChrome({ category, variant, hostRef, preview, onExit, c
   }
   if (category === "coding") {
     return <CodingChrome variant={variant} hostRef={hostRef} preview={preview} onExit={onExit}>{children}</CodingChrome>;
+  }
+  if (category === "claude-desktop") {
+    return <ClaudeDesktopChrome hostRef={hostRef} preview={preview} onExit={onExit}>{children}</ClaudeDesktopChrome>;
   }
   return null;
 }

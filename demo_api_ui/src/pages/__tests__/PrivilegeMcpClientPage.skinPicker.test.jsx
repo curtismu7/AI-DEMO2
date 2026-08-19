@@ -50,20 +50,22 @@ function renderShell(category = "coding") {
 }
 
 describe("costume picker on the Privilege client page", () => {
-  it("defaults to the client page and lists every costume variant", () => {
+  it("defaults to Cursor and lists only the four supported client skins", () => {
     const select = renderClientPage();
     expect(select).toHaveValue("");
-    // 4 categories x 3 variants + the client-page option
-    expect(screen.getAllByRole("option")).toHaveLength(13);
+    expect(screen.getAllByRole("option")).toHaveLength(4);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Cursor",
+      "Visual Studio Code",
+      "Claude Terminal",
+      "Claude Desktop",
+    ]);
   });
 
-  it("selecting a costume persists the pick and loads that shell immediately", () => {
-    fireEvent.change(renderClientPage(), { target: { value: "chatgpt:web" } });
-    expect(readMockSelection().chatgpt).toBe("web");
-    // Variant rides in the URL (?v=) so switching within a group re-renders — see
-    // FootprintSkinPicker (#1560). Only variant picks carry it; the client-page
-    // default navigates bare.
-    expect(navigate).toHaveBeenCalledWith("/demo/chatgpt-desktop?v=web");
+  it("selecting a skin persists the pick and loads that shell immediately", () => {
+    fireEvent.change(renderClientPage(), { target: { value: "claude-desktop:desktop" } });
+    expect(readMockSelection()["claude-desktop"]).toBe("desktop");
+    expect(navigate).toHaveBeenCalledWith("/demo/claude-desktop?v=desktop");
   });
 });
 
@@ -71,15 +73,15 @@ describe("costume picker inside a live shell", () => {
   it("shows the costume currently being worn", () => {
     localStorage.setItem(
       "ai-footprint-mock-selection-v1",
-      JSON.stringify({ coding: "cursor" }),
+      JSON.stringify({ coding: "claude-code" }),
     );
-    expect(renderShell("coding")).toHaveValue("coding:cursor");
+    expect(renderShell("coding")).toHaveValue("coding:claude-code");
   });
 
   it("switches to another costume without backing out", () => {
-    fireEvent.change(renderShell("coding"), { target: { value: "saas:glean" } });
-    expect(readMockSelection().saas).toBe("glean");
-    expect(navigate).toHaveBeenCalledWith("/demo/saas-embedded?v=glean");
+    fireEvent.change(renderShell("coding"), { target: { value: "vscode:classic-dark" } });
+    expect(readMockSelection().vscode).toBe("classic-dark");
+    expect(navigate).toHaveBeenCalledWith("/demo/vscode-copilot?v=classic-dark");
   });
 
   it("returns to the client page via the default option", () => {

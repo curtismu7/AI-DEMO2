@@ -110,7 +110,7 @@ function testSpecificScopeRequirements(userType, tokenScopes) {
   console.log(`    Specific Requirements:`);
   
   switch (userType) {
-    case 'admin':
+    case 'admin': {
       const hasAdminScope = tokenScopes.includes(BANKING_SCOPES.ADMIN);
       console.log(`      Has admin: ${hasAdminScope ? '✅ YES' : '❌ NO'}`);
       
@@ -123,23 +123,26 @@ function testSpecificScopeRequirements(userType, tokenScopes) {
       ].every(scope => tokenScopes.includes(scope));
       console.log(`      Has all banking scopes: ${hasAllBankingScopes ? '✅ YES' : '❌ NO'}`);
       break;
+    }
       
-    case 'customer':
+    case 'customer': {
       const hasWriteAccess = tokenScopes.some(scope => scope.includes('write'));
       console.log(`      Has write access: ${hasWriteAccess ? '✅ YES' : '❌ NO'}`);
       
       const lacksAdminScope = !tokenScopes.includes(BANKING_SCOPES.ADMIN);
       console.log(`      Lacks admin scope: ${lacksAdminScope ? '✅ YES' : '❌ NO'}`);
       break;
+    }
       
-    case 'readonly':
+    case 'readonly': {
       const onlyReadScopes = !tokenScopes.some(scope => 
         scope.includes('write') || scope === BANKING_SCOPES.ADMIN
       );
       console.log(`      Only read scopes: ${onlyReadScopes ? '✅ YES' : '❌ NO'}`);
       break;
+    }
       
-    case 'ai_agent':
+    case 'ai_agent': {
       const hasAIAgentScope = tokenScopes.includes(BANKING_SCOPES.AI_AGENT);
       console.log(`      Has ai_agent scope: ${hasAIAgentScope ? '✅ YES' : '❌ NO'}`);
       
@@ -147,6 +150,7 @@ function testSpecificScopeRequirements(userType, tokenScopes) {
                                    tokenScopes.includes(BANKING_SCOPES.BANKING_WRITE);
       console.log(`      Has full banking access: ${hasFullBankingAccess ? '✅ YES' : '❌ NO'}`);
       break;
+    }
   }
 }
 

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+import ToolsTable from "../privilege/ToolsTable";
 import "./PrivilegeShellPanel.css";
 
 const API_BASE = "/api/privilege-mcp";
@@ -22,9 +23,7 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
   const [phase, setPhase] = useState("loading"); // loading | signed-out | ready
   const [scopes, setScopes] = useState([]);
   const [tools, setTools] = useState([]);
-  const [selected, setSelected] = useState("");
-  const [args, setArgs] = useState("{}");
-  const [result, setResult] = useState("");
+  const [latestCall, setLatestCall] = useState(null);
   const [busy, setBusy] = useState(false);
   // Force light/dark on the panel independent of the costume skin's own
   // brightness ("even if the skin is the opposite"). auto = inherit the skin.
@@ -85,20 +84,21 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
     }
   };
 
-  const runTool = async () => {
-    setBusy(true);
-    setResult("");
+  const runTool = async (name, argsStr) => {
+    const request = argsStr || "{}";
     try {
-      const parsed = JSON.parse(args || "{}");
+      const parsed = JSON.parse(request);
       const { data } = await apiClient.post(`${API_BASE}/tools/call`, {
-        name: selected,
+        name,
         arguments: parsed,
       });
-      setResult(JSON.stringify(data, null, 2));
+      const response = JSON.stringify(data, null, 2);
+      setLatestCall({ name, request, response, ok: !data?.error && !data?.result?.isError });
+      return response;
     } catch (err) {
-      setResult(JSON.stringify({ error: errText(err) }, null, 2));
-    } finally {
-      setBusy(false);
+      const response = JSON.stringify({ error: errText(err) }, null, 2);
+      setLatestCall({ name, request, response, ok: false });
+      return response;
     }
   };
 
@@ -123,8 +123,7 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
     }
     setTools([]);
     setScopes([]);
-    setSelected("");
-    setResult("");
+    setLatestCall(null);
     setPhase("signed-out");
     setBusy(false);
   };
@@ -179,44 +178,23 @@ export function PrivilegeShellPanel({ skin = "vscode" }) {
               ))}
             </div>
           ) : null}
-          <div className="pvs-tools">
-            {tools.map((t) => (
-              <button
-                key={t.name}
-                type="button"
-                className={`pvs-tool${t.name === selected ? " is-on" : ""}`}
-                onClick={() => {
-                  setSelected(t.name);
-                  setResult("");
-                }}
-              >
-                <span className="pvs-tool-name">{t.name}</span>
-                {t.description ? (
-                  <span className="pvs-tool-desc">{t.description}</span>
-                ) : null}
-              </button>
-            ))}
-            {tools.length === 0 ? (
-              <div className="pvs-empty">No tools discovered.</div>
-            ) : null}
-          </div>
-          {selected ? (
-            <div className="pvs-call">
-              <label>
-                <span>Arguments (JSON) — {selected}</span>
-                <textarea
-                  value={args}
-                  onChange={(e) => setArgs(e.target.value)}
-                  rows={3}
-                  spellCheck={false}
-                />
-              </label>
-              <button type="button" onClick={runTool} disabled={busy}>
-                Call tool
-              </button>
-            </div>
+          {tools.length ? (
+            <ToolsTable tools={tools} onExecute={runTool} />
+          ) : (
+            <div className="pvs-empty">No tools discovered.</div>
+          )}
+          {latestCall ? (
+            <section className="pvs-exchange" aria-label="Latest tool request and result">
+              <header>
+                <strong>{latestCall.name}</strong>
+                <span className={latestCall.ok ? "is-ok" : "is-error"}>{latestCall.ok ? "Success" : "Error"}</span>
+              </header>
+              <div className="pvs-exchange-grid">
+                <div><span>Request</span><pre>{latestCall.request}</pre></div>
+                <div><span>Result</span><pre>{latestCall.response}</pre></div>
+              </div>
+            </section>
           ) : null}
-          {result ? <pre className="pvs-result">{result}</pre> : null}
         </>
       ) : null}
     </div>

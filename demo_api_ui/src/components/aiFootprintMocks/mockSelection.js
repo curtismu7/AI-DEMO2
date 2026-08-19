@@ -3,7 +3,7 @@
 
 const STORAGE_KEY = "ai-footprint-mock-selection-v1";
 
-/** @typedef {'vscode'|'chatgpt'|'saas'|'coding'} MockCategory */
+/** @typedef {'vscode'|'chatgpt'|'saas'|'coding'|'claude-desktop'} MockCategory */
 
 export const MOCK_CATALOG = {
   vscode: {
@@ -42,13 +42,28 @@ export const MOCK_CATALOG = {
       { id: "vscode-inline", name: "Inline assistant", blurb: "VS Code with inline ghost suggestion strip" },
     ],
   },
+  "claude-desktop": {
+    label: "Claude Desktop",
+    route: "/demo/claude-desktop",
+    variants: [
+      { id: "desktop", name: "Claude Desktop", blurb: "Claude desktop workspace with connected MCP tools" },
+    ],
+  },
 };
+
+export const PRIVILEGE_CLIENT_SKINS = [
+  { id: "", name: "Cursor", route: "/privilege-mcp-client" },
+  { id: "vscode:classic-dark", name: "Visual Studio Code", route: "/demo/vscode-copilot?v=classic-dark" },
+  { id: "coding:claude-code", name: "Claude Terminal", route: "/demo/coding-agent?v=claude-code" },
+  { id: "claude-desktop:desktop", name: "Claude Desktop", route: "/demo/claude-desktop?v=desktop" },
+];
 
 const DEFAULTS = {
   vscode: "light",
   chatgpt: "desktop-light",
   saas: "generic",
   coding: "claude-code",
+  "claude-desktop": "desktop",
 };
 
 /** Locked SE demo costumes (picker + live shells). */

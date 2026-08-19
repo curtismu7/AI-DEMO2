@@ -78,16 +78,16 @@ export function VerticalProvider({ children }) {
     } catch (_) {
       // Network errors: hydrate with empty state so children render. SSE will
       // trigger another refetch when the server becomes reachable.
-      setState((cur) => cur ?? {
-        activeId: null,
-        pageManifest: null,
-        pageMockData: null,
-        adminManifest: null,
-        isAdmin: false,
+      setState((cur) => ({
+        activeId: cur?.activeId ?? null,
+        pageManifest: cur?.pageManifest ?? null,
+        pageMockData: cur?.pageMockData ?? null,
+        adminManifest: cur?.adminManifest ?? null,
+        isAdmin: cur?.isAdmin ?? false,
         // Concluded, unsuccessfully — waiting longer will not produce a vertical
         // until SSE triggers a refetch.
         verticalStatus: 'failed',
-      });
+      }));
     }
   }, []);
 
@@ -106,9 +106,7 @@ export function VerticalProvider({ children }) {
 
   useEffect(() => {
     if (!authed) {
-      // No session yet. Same timing as the authed fallback below, but hydrate
-      // the empty state directly instead of asking /me for it — that request
-      // could only 401, which is what it did on every guest page load.
+      refetch();
       const guestFallback = setTimeout(() => {
         setState((cur) => cur ?? {
           activeId: null,

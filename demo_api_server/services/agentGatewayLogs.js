@@ -31,7 +31,7 @@ const MAX_TAIL = 2000;
 /** Redact bearer tokens / access_token values from a log chunk. */
 function redact(text) {
   return String(text)
-    .replace(/(Bearer\s+)[A-Za-z0-9._\-]+/gi, '$1<redacted>')
+    .replace(/(Bearer\s+)[A-Za-z0-9._-]+/gi, '$1<redacted>')
     .replace(/("access_token"\s*:\s*")[^"]+(")/gi, '$1<redacted>$2')
     .replace(/(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,})/g, '<redacted-jwt>');
 }

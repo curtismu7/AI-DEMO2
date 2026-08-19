@@ -215,7 +215,9 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
     if (savedDemoGwEnv !== undefined) process.env.MCP_DEMO_GATEWAY_URL = savedDemoGwEnv;
     // doMock registrations here are NOT wrapped in isolateModules (see below),
     // so clear them before the next describe block runs.
-    MOCKED_PATHS.forEach((p) => jest.dontMock(p));
+    MOCKED_PATHS.forEach((p) => {
+      jest.dontMock(p);
+    });
     jest.resetModules();
   });
 

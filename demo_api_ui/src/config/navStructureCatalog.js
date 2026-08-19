@@ -175,7 +175,7 @@ export const NAV_STRUCTURE_CATALOG = [
   },
   {
     label: "Developer Tools",
-    children: ["Code Explorer", "Code Search", "Graphify", "Mgmt API Runner"],
+    children: ["Code Explorer", "Protected RAG", "Graphify", "Mgmt API Runner"],
   },
   {
     label: "System Tools",

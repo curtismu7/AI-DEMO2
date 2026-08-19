@@ -91,13 +91,11 @@ async function runStartupValidation() {
     }
 
     const resources = resourceResult.resourceValidation;
-    const resourceIssues = resources.filter(function (r) {
-      return r.status === 'MISSING' || r.status === 'CONFIG_ERROR';
-    });
+    const resourceIssues = resources.filter((r) => r.status === 'MISSING' || r.status === 'CONFIG_ERROR');
 
     if (resourceIssues.length > 0) {
       console.warn(TAG + ' Resource server issues detected:');
-      resourceIssues.forEach(function (r) {
+      resourceIssues.forEach((r) => {
         if (r.status === 'MISSING') {
           console.warn(TAG + '   MISSING  "' + r.name + '" — expected audience: ' + r.expectedAudience);
         } else {
@@ -108,20 +106,20 @@ async function runStartupValidation() {
     }
 
     // Step 2: audit scopes on resources that were found
-    const presentResources = resources.filter(function (r) { return r.status !== 'MISSING'; });
+    const presentResources = resources.filter((r) => r.status !== 'MISSING');
     const scopeResult = await auditResourceScopes(presentResources);
     if (scopeResult.status === 'error') {
       console.warn(TAG + ' Scope audit failed: ' + scopeResult.error);
       return;
     }
 
-    const scopeIssues = scopeResult.scopeAudit.filter(function (r) { return r.status !== 'CORRECT'; });
-    var autoFixCount = 0;
-    var autoFixFailed = 0;
+    const scopeIssues = scopeResult.scopeAudit.filter((r) => r.status !== 'CORRECT');
+    let autoFixCount = 0;
+    let autoFixFailed = 0;
 
     if (scopeIssues.length > 0) {
       // Fetch token once for all create calls
-      var token, apiBase;
+      let token, apiBase;
       try {
         const envId  = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
         const region = configStore.getEffective('PINGONE_REGION') || 'com';
@@ -133,15 +131,15 @@ async function runStartupValidation() {
         token = null;
       }
 
-      for (var i = 0; i < scopeIssues.length; i++) {
-        var r = scopeIssues[i];
-        var m = r.mismatches || {};
+      for (let i = 0; i < scopeIssues.length; i++) {
+        const r = scopeIssues[i];
+        const m = r.mismatches || {};
 
         if (m.missing && m.missing.length > 0) {
           if (token && r.resourceId) {
             console.log(TAG + ' Auto-creating ' + m.missing.length + ' missing scope(s) on "' + r.name + '": ' + m.missing.join(', '));
-            for (var j = 0; j < m.missing.length; j++) {
-              var fix = await _createScope(r.resourceId, m.missing[j], apiBase, token);
+            for (let j = 0; j < m.missing.length; j++) {
+              const fix = await _createScope(r.resourceId, m.missing[j], apiBase, token);
               if (fix.ok) {
                 console.log(TAG + '   created scope "' + fix.scopeName + '" on "' + r.name + '"');
                 autoFixCount++;

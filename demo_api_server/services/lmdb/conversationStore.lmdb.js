@@ -68,19 +68,24 @@ function _extractSummary(messages) {
   const fullText = messages.map((m) => m.content || '').join('\n');
 
   // Extract account numbers
-  let match;
-  while ((match = ACCOUNT_PATTERN.exec(fullText)) !== null) {
+  let match = ACCOUNT_PATTERN.exec(fullText);
+  while (match !== null) {
     accountNumbers.add(match[1]);
+    match = ACCOUNT_PATTERN.exec(fullText);
   }
 
   // Extract amounts
-  while ((match = AMOUNT_PATTERN.exec(fullText)) !== null) {
+  match = AMOUNT_PATTERN.exec(fullText);
+  while (match !== null) {
     amounts.add(match[1]);
+    match = AMOUNT_PATTERN.exec(fullText);
   }
 
   // Extract action keywords
-  while ((match = ACTION_KEYWORDS.exec(fullText)) !== null) {
+  match = ACTION_KEYWORDS.exec(fullText);
+  while (match !== null) {
     actions.add(match[0].toLowerCase());
+    match = ACTION_KEYWORDS.exec(fullText);
   }
 
   // Build a human-readable summary snippet from the last assistant message

@@ -253,6 +253,8 @@ kubectl get namespace ping-devops-cmuir   # triggers browser login — complete 
 
 ```bash
 ./run-pingaws.sh status
+./run-pingaws.sh rag on    # build, push, and start the RAG stack
+./run-pingaws.sh rag off   # stop RAG pods; preserve indexes in PVCs
 # or:
 kubectl get pods -n ping-devops-cmuir
 kubectl get ingress -n ping-devops-cmuir

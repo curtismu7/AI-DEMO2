@@ -62,7 +62,7 @@ function sanitizeNlResult(result, originalMessage) {
     if (action === 'balance') {
       const t = String(originalMessage || '').toLowerCase();
       const asksForBalances = /\bbalances\b/.test(t) || /account balances/.test(t);
-      let params = { ...(result.banking?.params || {}) };
+      const params = { ...(result.banking?.params || {}) };
       const accountId = params.accountId || params.account_id;
       if (asksForBalances && !accountId) {
         return {

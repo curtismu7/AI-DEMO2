@@ -33,7 +33,9 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-  Object.keys(process.env).forEach(k => delete process.env[k]);
+  Object.keys(process.env).forEach(k => {
+    delete process.env[k];
+  });
   Object.assign(process.env, ENV_SNAPSHOT);
 });
 

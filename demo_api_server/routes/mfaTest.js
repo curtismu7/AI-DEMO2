@@ -1107,7 +1107,7 @@ router.get('/integration/fido2-policy-diag', async (req, res) => {
     const fido2Devices = (Array.isArray(devices) ? devices : []).filter(d => String(d.type||'').includes('FIDO'));
     // Fetch MFA policies
     let policies = [];
-    let policyDetail = null;
+    const policyDetail = null;
     try {
       const { data: polData } = await axios.get(`${apiBase}/mfaPolicies`, {
         headers: { Authorization: `Bearer ${(await require('../services/oauthService').getWorkerToken?.()) || ''}` },

@@ -16,7 +16,9 @@ describe('langchainConfig agent_mode', () => {
   beforeEach(() => {
     jest.resetModules();
     const cs = require('../services/configStore');
-    if (cs.__store) Object.keys(cs.__store).forEach((k) => delete cs.__store[k]);
+    if (cs.__store) Object.keys(cs.__store).forEach((k) => {
+      delete cs.__store[k];
+    });
     app = express();
     app.use(express.json());
     app.use((req, _r, n) => { req.session = {}; n(); });

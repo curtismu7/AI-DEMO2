@@ -141,7 +141,7 @@ function formatMarkdown(run) {
       // Exchange steps (RFC 8693 multi-leg token exchange)
       if (evt.exchangeSteps && evt.exchangeSteps.length > 0) {
         md += `\n**Exchange Steps:**\n\n`;
-        evt.exchangeSteps.forEach(function(step, si) {
+        evt.exchangeSteps.forEach((step, si) => {
           md += `  ${si + 1}. **${step.step || 'Step ' + (si + 1)}** — ${step.description || ''}\n`;
           if (step.timestamp) md += `     _${new Date(step.timestamp).toLocaleTimeString()}_\n`;
         });
@@ -458,7 +458,7 @@ function formatHtml(run) {
       // Exchange steps (RFC 8693 multi-leg token exchange)
       if (evt.exchangeSteps && evt.exchangeSteps.length > 0) {
         html += `\n          <div class="exchange-steps"><div class="claims-title">Exchange Steps</div>`;
-        evt.exchangeSteps.forEach(function(step, si) {
+        evt.exchangeSteps.forEach((step, si) => {
           const stepTime = step.timestamp ? new Date(step.timestamp).toLocaleTimeString() : '';
           html += `<div class="exchange-step"><span class="exchange-step-num">${si + 1}</span><span class="exchange-step-body"><strong>${(step.step || '').replace(/</g, '&lt;')}</strong>${step.description ? ' — ' + step.description.replace(/</g, '&lt;') : ''}${stepTime ? ' <em>' + stepTime + '</em>' : ''}</span></div>`;
         });

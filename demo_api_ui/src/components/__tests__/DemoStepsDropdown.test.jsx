@@ -95,6 +95,7 @@ describe('DemoStepsDropdown', () => {
       'aria-label',
       'Explain step 9: UC2 — Title for UC2',
     );
+    expect(screen.getByTestId('demo-step-UC-TOOL1')).toBeInTheDocument();
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {

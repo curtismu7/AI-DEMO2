@@ -171,7 +171,9 @@ async function createApplication(metadata) {
   };
 
   // Remove undefined values to avoid PingOne validation errors
-  Object.keys(appPayload).forEach(k => appPayload[k] === undefined && delete appPayload[k]);
+  Object.keys(appPayload).forEach(k => {
+    if (appPayload[k] === undefined) delete appPayload[k];
+  });
 
   const url = `https://api.pingone.${region}/v1/environments/${envId}/applications`;
   const response = await axios.post(url, appPayload, {

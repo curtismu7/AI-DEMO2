@@ -301,6 +301,68 @@
   flex-shrink: 0;
 }
 
+.afm-claude-desktop {
+  --claude-ink: #2d2926;
+  --claude-muted: #77716d;
+  --claude-line: #dedbd5;
+  --claude-paper: #f7f6f2;
+  --claude-rail: #ebe9e3;
+  --claude-accent: #c15f3c;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 320px;
+  overflow: hidden;
+  color: var(--claude-ink);
+  background: var(--claude-paper);
+  border: 1px solid #cbc7bf;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.afm-claude-title {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: #f1efe9;
+  border-bottom: 1px solid var(--claude-line);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.afm-claude-title strong { flex: 1; text-align: center; font-weight: 600; }
+.afm-claude-body { flex: 1; display: flex; min-height: 0; }
+.afm-claude-side {
+  width: 218px;
+  flex-shrink: 0;
+  padding: 14px 10px;
+  background: var(--claude-rail);
+  border-right: 1px solid var(--claude-line);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.afm-claude-new {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d0ccc4;
+  border-radius: 9px;
+  color: var(--claude-ink);
+  background: #f8f7f3;
+  text-align: left;
+  font: inherit;
+}
+
+.afm-claude-section { margin: 20px 8px 6px; color: var(--claude-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.afm-claude-thread { padding: 8px 10px; border-radius: 7px; color: #5c5753; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.afm-claude-thread.is-on { color: var(--claude-ink); background: #ddd9d1; }
+.afm-claude-project { margin: 18px 8px 0; padding-top: 14px; border-top: 1px solid #d6d2ca; color: var(--claude-muted); font-size: 12px; }
+.afm-claude-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #faf9f6; }
+.afm-claude-chat-head { height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--claude-line); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.afm-claude-chat-head div { display: flex; flex-direction: column; gap: 2px; }
+.afm-claude-chat-head strong { font-size: 14px; }
+.afm-claude-chat-head div span { color: var(--claude-muted); font-size: 11px; }
+.afm-claude-connected { padding: 4px 8px; border: 1px solid #c9bfb7; border-radius: 999px; color: #7e402b; background: #f5e7df; font-size: 10px; }
+
 /* ── ChatGPT ── */
 .afm-cgpt {
   --bg: #212121;

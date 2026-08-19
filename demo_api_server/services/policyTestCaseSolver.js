@@ -145,7 +145,7 @@ function satisfy(node, index, out, base) {
   if (node.not) return violate(node.not.condition, index, out, base);
   if (node.comparison) return applyComparison(node.comparison, index, out, base, 'satisfy');
   if (node.or) return satisfy(node.or.conditions[0], index, out, base);
-  if (node.and) { node.and.conditions.forEach((c) => satisfy(c, index, out, base)); return; }
+  if (node.and) { node.and.conditions.forEach((c) => { satisfy(c, index, out, base); }); return; }
   throw new Error(`Unrecognized condition node: ${JSON.stringify(node)}`);
 }
 
@@ -159,7 +159,7 @@ function violate(node, index, out, base) {
     const [target, ...rest] = node.and.conditions;
     // Best-effort realism first, so the falsifying write below always wins
     // on any attribute the two share (e.g. two NotEquals checks on UserId).
-    rest.forEach((c) => satisfy(c, index, out, base));
+    rest.forEach((c) => { satisfy(c, index, out, base); });
     violate(target, index, out, base);
     return;
   }
@@ -175,8 +175,8 @@ function collectAttributeNames(node, index, acc = new Set()) {
     if (node.comparison.right.attribute !== undefined) acc.add(index.get(node.comparison.right.attribute.id).name);
     return acc;
   }
-  if (node.and) { node.and.conditions.forEach((c) => collectAttributeNames(c, index, acc)); return acc; }
-  if (node.or) { node.or.conditions.forEach((c) => collectAttributeNames(c, index, acc)); return acc; }
+  if (node.and) { node.and.conditions.forEach((c) => { collectAttributeNames(c, index, acc); }); return acc; }
+  if (node.or) { node.or.conditions.forEach((c) => { collectAttributeNames(c, index, acc); }); return acc; }
   throw new Error(`Unrecognized condition node: ${JSON.stringify(node)}`);
 }
 

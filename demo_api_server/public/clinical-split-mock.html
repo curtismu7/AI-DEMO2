@@ -425,7 +425,7 @@ html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; font-siz
 
     <div class="ac-rail-right">
       <span class="ac-session"><span class="ac-session-led"></span>SESSION · 04:23</span>
-      <button class="ac-icn" title="Search">⌕</button>
+      <button class="ac-icn" title="Search" type="button">⌕</button>
       <span class="ac-avatar">JD</span>
     </div>
   </div>
@@ -460,7 +460,7 @@ html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; font-siz
           </div>
           <div class="chat-input-row">
             <textarea class="chat-input" placeholder="Ask anything about your account…"></textarea>
-            <button class="chat-send">↑</button>
+            <button class="chat-send" type="button">↑</button>
           </div>
         </div>
         <div class="talk-timeline">
@@ -545,7 +545,7 @@ const PANES = { talk:'pane-talk', inspect:'pane-inspect', tokens:'pane-tokens', 
 
 function switchTab(name, btn) {
   Object.values(PANES).forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
-  document.querySelectorAll('.ac-tab').forEach(b => b.classList.remove('ac-tab--on'));
+  document.querySelectorAll('.ac-tab').forEach(b => { b.classList.remove('ac-tab--on'); });
   const pane = document.getElementById(PANES[name]);
   if (pane) pane.style.display = '';
   if (btn) btn.classList.add('ac-tab--on');

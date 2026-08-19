@@ -163,7 +163,8 @@
 .ptt-execute:disabled { opacity: 0.5; cursor: default; }
 .ptt-result {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.6;
   color: #ffffff;
   background: #0d1117;
   border: 1px solid #30363d;

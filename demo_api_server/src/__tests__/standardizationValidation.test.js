@@ -630,13 +630,6 @@ async function run100StandardizationValidation() {
   return results;
 }
 
-// Export for use in tests and other modules
-module.exports = {
-  StandardizationValidator,
-  STANDARDIZATION_RULES,
-  run100StandardizationValidation
-};
-
 describe('StandardizationValidator', () => {
   test('should export validator class and rules', () => {
     expect(StandardizationValidator).toBeDefined();

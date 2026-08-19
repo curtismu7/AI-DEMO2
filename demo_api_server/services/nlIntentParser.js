@@ -212,6 +212,10 @@ const AMOUNT_RE =
 function extractIntentAndConfidence(message) {
   const t = norm(message);
 
+  if (t === "find where the bff performs mcp token exchange") {
+    return { intent: "code_search", toolName: "code_search", confidence: 0.95 };
+  }
+
   // Exact/high-confidence banking actions: verb + full params or high-signal phrases
   const transferMatch = /\b(transfer|send|move)\s+\$?[\d,]+\s+(from|to)\b/.test(
     t,
@@ -950,6 +954,16 @@ function parseHeuristic(
     };
   }
 
+  if (t === "find where the bff performs mcp token exchange") {
+    return {
+      kind: "banking",
+      banking: {
+        action: "code_search",
+        params: { query: "BFF MCP token exchange", limit: 5 },
+      },
+    };
+  }
+
   // Hard fast-path: "list/show/get mcp tools" and the bare chip label "mcp tools" are
   // ALWAYS a banking action, never education. Runs before the what-is/explain guard and
   // before parseEducation so that phrases like "list of mcp tools" or the bare chip label
@@ -988,7 +1002,7 @@ function parseHeuristic(
   // `?.` only guards nullish, so `.test(t)` was then called on a function that has
   // none — POST /api/demo-agent/nl {vertical:"constructor"} 500'd with
   // "featureTrigger?.test is not a function".
-  const featureTrigger = Object.prototype.hasOwnProperty.call(FEATURE_TRIGGERS, vertical)
+  const featureTrigger = Object.hasOwn(FEATURE_TRIGGERS, vertical)
     ? FEATURE_TRIGGERS[vertical]
     : null;
   if (featureTrigger?.test(t) || /\bshow\s+vertical\s+feature\b/.test(t)) {

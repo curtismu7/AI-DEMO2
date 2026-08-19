@@ -42,6 +42,15 @@ jest.mock('../../services/tokenChainService', () => ({
   trackTokenEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../services/hitlServiceClient', () => ({
+  getChallengeStatus: jest.fn(),
+  respondToChallenge: jest.fn(),
+}));
+
+jest.mock('../../services/cibaTransactionReceipt', () => ({
+  record: jest.fn(),
+}));
+
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
     const defaults = {
@@ -285,7 +294,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       .send({ binding_message: dirty });
     const callArgs = cibaService.initiateBackchannelAuth.mock.calls[0];
     // binding_message (2nd arg) should have no control chars
-    expect(callArgs[1]).not.toMatch(/[\x00-\x1f]/);
+    expect([...callArgs[1]].every((char) => char.charCodeAt(0) > 31)).toBe(true);
   });
 
   // ── Successful initiation ─────────────────────────────────────────────────
@@ -484,7 +493,7 @@ describe('POST /api/auth/ciba/initiate', () => {
         .set('x-test-user', USER_HDR)
         .send({ bindingMessage: 'Transfer\n\r\x00approved' });
       const callArgs = cibaService.initiateBackchannelAuth.mock.calls[0];
-      expect(callArgs[1]).not.toMatch(/[\x00-\x1f]/);
+      expect([...callArgs[1]].every((char) => char.charCodeAt(0) > 31)).toBe(true);
     });
   });
 });

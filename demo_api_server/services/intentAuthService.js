@@ -64,8 +64,8 @@ async function evaluateIntentAuthorization(intentContext) {
   const maxAmountLowConfidence = parseFloat(configStore.getEffective('intent_max_amount_low_confidence')) || 100;
 
   // Compute risk and authority scores (async)
-  let riskScore = undefined;
-  let authorityScore = undefined;
+  let riskScore ;
+  let authorityScore ;
   try {
     const riskAndAuthority = await evaluateRiskAndAuthority({
       intent: normalizedIntent,

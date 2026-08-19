@@ -30,7 +30,9 @@ const MESSAGE = 'Policy not found, please contact administrator.';
 const runtimeSettings = { get: (k) => ({ stepUpAcrValue: 'mfa', stepUpMethod: 'ciba' }[k]) };
 
 const setCfg = (map) => {
-  Object.keys(_cfg).forEach((k) => delete _cfg[k]);
+  Object.keys(_cfg).forEach((k) => {
+    delete _cfg[k];
+  });
   Object.assign(_cfg, map);
 };
 

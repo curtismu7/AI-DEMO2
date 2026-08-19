@@ -109,19 +109,36 @@ secret_from_envfile() {
     return
   fi
 
+  local source_file="$env_file" decrypted_file=""
+  if grep -qE '^[A-Za-z_][A-Za-z0-9_]*=encrypted:' "$env_file"; then
+    local key_file="$ASSET_ROOT/.env.keys"
+    local dotenvx_bin="$ASSET_ROOT/demo_api_server/node_modules/.bin/dotenvx"
+    [ -f "$key_file" ] || die "Encrypted $env_file requires $key_file"
+    [ -x "$dotenvx_bin" ] || die "Encrypted $env_file requires $dotenvx_bin (run npm install in demo_api_server)"
+    local private_key
+    private_key="$(source "$key_file" && printf '%s' "$DOTENV_PRIVATE_KEY")"
+    [ -n "$private_key" ] || die "DOTENV_PRIVATE_KEY is missing from $key_file"
+    decrypted_file="$(mktemp)"
+    cp "$env_file" "$decrypted_file"
+    DOTENV_PRIVATE_KEY="$private_key" "$dotenvx_bin" decrypt -f "$decrypted_file" >/dev/null \
+      || { rm -f "$decrypted_file"; die "Could not decrypt $env_file"; }
+    source_file="$decrypted_file"
+  fi
+
   # Collect declared variable names (ignore comments/blank lines)
   local keys=()
   while IFS= read -r k; do
     [ -n "$k" ] && keys+=("$k")
-  done < <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$env_file" | sed 's/=$//' | sort -u)
+  done < <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$source_file" | sed 's/=$//' | sort -u)
 
   # Source the file so quote-wrapped values are unquoted by the shell, then read
   # each declared key's value back. Sourcing here (right before reading) keeps
   # values correct even when two .env files share a key name.
   set -o allexport
   # shellcheck disable=SC1090
-  source "$env_file"
+  source "$source_file"
   set +o allexport
+  [ -z "$decrypted_file" ] || rm -f "$decrypted_file"
 
   local args=()
   for k in "${keys[@]}"; do

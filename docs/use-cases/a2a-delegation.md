@@ -3,7 +3,7 @@
 # UC2 — A2A delegation
 
 **Track:** foundations  
-**Maturity:** 🚩 `flag:ff_a2a_delegation`  
+**Maturity:** ✅ `works`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T9, T13 · Sections: §4.2.3, §4.3
 
 ## Buyer Story

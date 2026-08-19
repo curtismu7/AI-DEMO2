@@ -2,9 +2,7 @@
 // Costume switcher shared by the Privilege MCP client page and the live shells,
 // so a skin can be changed from inside a costume without backing out first.
 import { useNavigate } from "react-router-dom";
-import { MOCK_CATALOG, writeMockSelection } from "./mockSelection";
-
-const CLIENT_ROUTE = "/privilege-mcp-client";
+import { PRIVILEGE_CLIENT_SKINS, writeMockSelection } from "./mockSelection";
 
 /**
  * @param {{
@@ -25,32 +23,23 @@ export function FootprintSkinPicker({
 
   const onChange = (e) => {
     const next = e.target.value;
-    if (!next) {
-      navigate(CLIENT_ROUTE);
-      return;
+    const skin = PRIVILEGE_CLIENT_SKINS.find((item) => item.id === next);
+    if (!skin) return;
+    if (next) {
+      const [nextCategory, nextVariant] = next.split(":");
+      writeMockSelection(nextCategory, nextVariant);
     }
-    const [nextCategory, nextVariant] = next.split(":");
-    if (!nextCategory || !nextVariant) return;
-    writeMockSelection(nextCategory, nextVariant);
-    // Carry the variant in the URL. Every category reuses one route, so without
-    // a changing query, switching variants within a group navigates to the same
-    // path — a React Router no-op — and only the first variant ever rendered.
-    navigate(`${MOCK_CATALOG[nextCategory].route}?v=${encodeURIComponent(nextVariant)}`);
+    navigate(skin.route);
   };
 
   return (
     <label className={className}>
       <span>{label}</span>
-      <select value={value} onChange={onChange} title="Switch costume shell">
-        <option value="">Cursor IDE (client page)</option>
-        {Object.entries(MOCK_CATALOG).map(([cat, meta]) => (
-          <optgroup key={cat} label={meta.label}>
-            {meta.variants.map((v) => (
-              <option key={v.id} value={`${cat}:${v.id}`}>
-                {v.name}
-              </option>
-            ))}
-          </optgroup>
+      <select value={value} onChange={onChange} title="Switch client skin">
+        {PRIVILEGE_CLIENT_SKINS.map((skin) => (
+          <option key={skin.id || "cursor"} value={skin.id}>
+            {skin.name}
+          </option>
         ))}
       </select>
     </label>

@@ -195,7 +195,7 @@ describe('request-supplied vertical id cannot resolve an inherited prototype mem
         userId: 'u1', sessionId: 's1', prompt: 'p', intent: 'unknown', confidence: 0.3, vertical: 'constructor',
       });
       const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
-      expect(Object.prototype.hasOwnProperty.call(claims, 'permitted_tools')).toBe(true);
+      expect(Object.hasOwn(claims, 'permitted_tools')).toBe(true);
       expect(Array.isArray(claims.permitted_tools)).toBe(true);
       expect(claims.permitted_tools.length).toBeGreaterThan(0);
     });
