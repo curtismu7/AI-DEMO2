@@ -536,6 +536,26 @@ export default function BankingAgent({
    * re-invoke, so the claim is made once and consumed once.
    */
   const claimedPendingNlRef = useRef(null);
+  /**
+   * Single observation point for every queued-question (resume) OUTCOME.
+   *
+   * TECH_DEBT 2026-08-18 "Two dispatch paths converge on the resume state but
+   * leave through different send functions": three producers queue into
+   * nlResumeAfterAuth, and the value can leave as a resume-effect send, a
+   * CIBA-approval retry, a hand-back to the composer, or a failed send. Two
+   * sessions probed DIFFERENT exits, measured the same feature, got
+   * contradictory numbers — and both were right. Every outcome now announces
+   * itself here: instrument the `agent-resume-dispatch` window event (or the
+   * `[resume-dispatch]` debug tag), never an individual exit.
+   * Outcomes: 'sent' | 'handed_back' | 'failed', with `exit` naming the path.
+   */
+  const emitResumeDispatch = (outcome, detail = {}) => {
+    try {
+      window.dispatchEvent(new CustomEvent("agent-resume-dispatch", { detail: { outcome, ...detail } }));
+      // eslint-disable-next-line no-console
+      console.debug(`[resume-dispatch] ${outcome}`, detail);
+    } catch (_) { /* observability only — never break the send */ }
+  };
   /** The auth level a queued step still needs ('user' | 'admin'), or null when it is
    *  already satisfied. The resume effect waits for THAT level rather than firing on
    *  guest-chat eligibility — or on any session, which would send an admin step from
@@ -8105,6 +8125,7 @@ export default function BankingAgent({
         }
       }
       const stranded = nlResumeAfterAuth;
+      emitResumeDispatch("handed_back", { text: stranded, exit: "vertical-unavailable" });
       resumeVerticalDeadlineRef.current = null;
       setNlResumeAfterAuth(null);
       pendingNlResumeRef.current = null;
@@ -8139,6 +8160,7 @@ export default function BankingAgent({
         if (cancelled) return;
       }
       const signal = beginAbortableSend();
+      emitResumeDispatch("sent", { text, useCaseId: useCaseId || null, exit: "resume-effect" });
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
       try {
@@ -8162,6 +8184,7 @@ export default function BankingAgent({
       } catch (e) {
         if (isAbortError(e)) return;
         if (!cancelled) {
+          emitResumeDispatch("failed", { text, exit: "resume-effect", error: e.message });
           reportNlFailure(e);
           // Dispatch error event to EventStream
           addEvent({
@@ -8923,6 +8946,7 @@ export default function BankingAgent({
         setCibaApproving(null);
         setNlLoading(true);
         try {
+          emitResumeDispatch("sent", { text, useCaseId: useCaseId || null, exit: "ciba-retry" });
           const response = await sendAgentMessage(text, null, {
             vertical: effectiveVerticalId,
             useCaseId,

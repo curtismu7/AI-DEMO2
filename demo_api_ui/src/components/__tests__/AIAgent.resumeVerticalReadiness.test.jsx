@@ -138,13 +138,22 @@ describe("queued-question resume vs vertical readiness", () => {
   test("concluded-empty vertical hands the question back immediately, not after 8s", async () => {
     mockVertical = { activeId: null, verticalStatus: "resolved" };
     sessionStorage.setItem("bx_agent_pending_nl", "What is my balance?");
+    // The single resume observation seam (agent-resume-dispatch) must announce
+    // this outcome — instruments listen HERE, never at an individual exit.
+    const outcomes = [];
+    const onDispatch = (e) => outcomes.push(e.detail);
+    window.addEventListener("agent-resume-dispatch", onDispatch);
 
     renderAgent();
     await settle();
+    window.removeEventListener("agent-resume-dispatch", onDispatch);
 
     // Well inside the old RESUME_VERTICAL_WAIT_MS window: already handed back.
     expect(screen.getByText(HANDED_BACK)).toBeInTheDocument();
     expect(sendAgentMessage).not.toHaveBeenCalled();
+    expect(outcomes).toEqual([
+      expect.objectContaining({ outcome: "handed_back", exit: "vertical-unavailable", text: "What is my balance?" }),
+    ]);
   });
 
   test("'failed' status also concludes — handed back immediately", async () => {
@@ -173,6 +182,9 @@ describe("queued-question resume vs vertical readiness", () => {
   test("vertical resolving mid-wait releases the send", async () => {
     mockVertical = { activeId: null, verticalStatus: "loading" };
     sessionStorage.setItem("bx_agent_pending_nl", "What is my balance?");
+    const outcomes = [];
+    const onDispatch = (e) => outcomes.push(e.detail);
+    window.addEventListener("agent-resume-dispatch", onDispatch);
 
     const view = renderAgent();
     await settle();
@@ -196,5 +208,10 @@ describe("queued-question resume vs vertical readiness", () => {
       expect.anything(),
     );
     expect(screen.queryByText(HANDED_BACK)).not.toBeInTheDocument();
+    window.removeEventListener("agent-resume-dispatch", onDispatch);
+    // The seam announced the send, from the resume-effect exit.
+    expect(outcomes).toEqual([
+      expect.objectContaining({ outcome: "sent", exit: "resume-effect", text: "What is my balance?" }),
+    ]);
   });
 });
