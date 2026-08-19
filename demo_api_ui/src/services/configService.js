@@ -16,7 +16,7 @@ const STORE_NAME = 'config';
 const DB_VERSION = 1;
 
 /** Fields safe to cache in IndexedDB (no secrets). */
-export const PUBLIC_FIELDS = [
+const PUBLIC_FIELDS = [
   'pingone_environment_id',
   'pingone_region',
   'admin_client_id',
@@ -108,7 +108,7 @@ export async function loadPublicConfig() {
 }
 
 /** Wipe the IndexedDB cache (e.g. on reset). */
-export async function clearConfig() {
+async function clearConfig() {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
@@ -167,7 +167,7 @@ function validateHostnameFormat(hostname) {
  * @returns {Promise<string>} hostname (e.g., 'https://demo-api-server:3001')
  * @throws {Error} if API request fails
  */
-export const getHostname = async () => {
+const getHostname = async () => {
   try {
     const response = await bffAxios.get('/api/admin/config/hostname');
     return response.data.hostname;
@@ -184,7 +184,7 @@ export const getHostname = async () => {
  * @returns {Promise<string>} updated hostname
  * @throws {Error} if hostname validation fails or API error occurs
  */
-export const setHostname = async (hostname) => {
+const setHostname = async (hostname) => {
   // Validate locally first
   validateHostnameFormat(hostname);
 
@@ -206,4 +206,4 @@ export const setHostname = async (hostname) => {
   }
 };
 
-export const validateHostname = validateHostnameFormat;
+const validateHostname = validateHostnameFormat;

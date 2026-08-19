@@ -86,6 +86,6 @@ export function clearStatusCache() {
 /**
  * Clear a specific status endpoint from cache.
  */
-export function clearStatusCacheFor(url) {
+function clearStatusCacheFor(url) {
   delete cache[url];
 }

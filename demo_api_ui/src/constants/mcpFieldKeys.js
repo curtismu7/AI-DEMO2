@@ -35,12 +35,12 @@ export const ACCOUNT_ID_KEYS = new Set([
 /**
  * Keys whose values come from lookup_customer result.
  */
-export const USER_ID_KEYS = new Set([MCP_FIELD_KEYS.USER_ID]);
+const USER_ID_KEYS = new Set([MCP_FIELD_KEYS.USER_ID]);
 
 /**
  * Keys whose values come from get_customer_accounts result.
  */
-export const ADMIN_ACCOUNT_ID_KEYS = new Set([MCP_FIELD_KEYS.ACCOUNT_ID_ADMIN]);
+const ADMIN_ACCOUNT_ID_KEYS = new Set([MCP_FIELD_KEYS.ACCOUNT_ID_ADMIN]);
 
 /**
  * Per-tool description suggestions shown as clickable chips.

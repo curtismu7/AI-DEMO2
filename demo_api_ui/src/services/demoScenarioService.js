@@ -67,7 +67,7 @@ export async function persistAgentUi(state) {
  * @param {'floating' | 'embedded' | 'both'} mode
  * @returns {Promise<boolean>}
  */
-export async function persistAgentUiMode(mode) {
+async function persistAgentUiMode(mode) {
   const state =
     mode === 'embedded'
       ? { placement: 'bottom', fab: false }

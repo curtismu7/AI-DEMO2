@@ -86,7 +86,7 @@ export function normalizeAccount(account) {
  * @param {number} maxTransactions - Maximum transactions to accept
  * @returns {array|null} - Validated transactions array or null
  */
-export function extractTransactions(data, maxTransactions = 500) {
+function extractTransactions(data, maxTransactions = 500) {
   try {
     if (!data || typeof data !== 'object') {
       console.warn('[ApiValidation] Invalid response structure for transactions');
@@ -169,13 +169,3 @@ export async function safeResponseJson(response, endpoint = 'unknown') {
     return null;
   }
 }
-
-const apiResponseValidator = {
-  extractAccounts,
-  normalizeAccount,
-  extractTransactions,
-  validateHttpResponse,
-  safeResponseJson,
-};
-
-export default apiResponseValidator;

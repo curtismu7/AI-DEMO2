@@ -34,7 +34,7 @@ export const AGENT_MODES = [
 ];
 
 /** Friendly chat badge for /nl `source` (and related agent paths). */
-export const SOURCE_LABELS = {
+const SOURCE_LABELS = {
   heuristic: "Heuristic",
   helix: "Helix",
   helix_fallback: "Helix",

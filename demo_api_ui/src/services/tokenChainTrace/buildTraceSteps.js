@@ -4,7 +4,7 @@
 import { EDU } from "../../components/education/educationIds";
 import { isPause } from "./pauseObligation";
 
-export const LANES = {
+const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
   "tools-list-challenge": "MCP", "tools-list": "MCP", llm: "LLM",
   "agent-token": "BFF", "exchange-1": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
@@ -304,7 +304,7 @@ const DECISION_CONTEXT_LABELS = {
 };
 const friendlyDecisionContext = (ctx) => (ctx && DECISION_CONTEXT_LABELS[ctx]) || ctx;
 
-export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
+const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
 // Accepts multiple ids: the BFF emits a different event vocabulary per exchange
@@ -615,7 +615,7 @@ export function buildGatewayStages(filterChain, denyingFilter) {
   });
 }
 
-export function buildChallengeStep(id, phase, events, traceComplete) {
+function buildChallengeStep(id, phase, events, traceComplete) {
   const challenge = findEventByTypeAndPhase(events, phase, "mcp_challenge");
   const metadata = findEventByTypeAndPhase(events, phase, "mcp_resource_metadata");
   const metadataErr = findEventByTypeAndPhase(events, phase, "mcp_resource_metadata_error");

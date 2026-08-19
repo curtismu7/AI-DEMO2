@@ -80,4 +80,4 @@ function makePalette([id, name, primary, onPrimary, secondary, accent, foregroun
 export const PALETTES = RAW.map(makePalette);
 
 /** Look up a palette by id. */
-export const getPalette = (id) => PALETTES.find((p) => p.id === id) || null;
+const getPalette = (id) => PALETTES.find((p) => p.id === id) || null;

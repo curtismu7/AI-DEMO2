@@ -171,7 +171,7 @@ export function appendTrafficEntry(entry) {
   notify();
 }
 
-export function clearTraffic() {
+function clearTraffic() {
   entries = [];
   if (_persistTimer) {
     clearTimeout(_persistTimer);
@@ -192,10 +192,10 @@ export function clearTraffic() {
   });
 }
 
-export function setPaused(val) {
+function setPaused(val) {
   paused = !!val;
 }
-export function isPausedNow() {
+function isPausedNow() {
   return paused;
 }
 export function getAll() {
@@ -215,7 +215,7 @@ export function subscribe(fn) {
  * Cancel pending debounce timers. Called during HMR teardown or test cleanup
  * to prevent stale callbacks firing after the module is re-evaluated.
  */
-export function teardown() {
+function teardown() {
   if (_persistTimer) { clearTimeout(_persistTimer); _persistTimer = null; }
   if (_notifyTimer) { clearTimeout(_notifyTimer); _notifyTimer = null; }
 }

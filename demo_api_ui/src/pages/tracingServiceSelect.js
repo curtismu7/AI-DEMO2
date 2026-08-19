@@ -4,7 +4,7 @@
 export const TRACING_SERVICE_STORAGE_KEY = "tracing.selectedService";
 
 /** Services most likely to emit demo traffic — probed first (cap applied after merge). */
-export const PREFERRED_TRACE_SERVICES = [
+const PREFERRED_TRACE_SERVICES = [
   "demo-api-server",
   "mcp-gateway",
   "agent-service",

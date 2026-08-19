@@ -45,7 +45,7 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-export function clearDecisions() {
+function clearDecisions() {
   decisions = [];
   notify();
 }

@@ -80,5 +80,3 @@ export function resolveCorrelationId(row) {
     null
   );
 }
-
-export { CATEGORY_HUES };

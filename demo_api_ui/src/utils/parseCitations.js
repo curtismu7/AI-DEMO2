@@ -276,8 +276,4 @@ export {
   extractCitationIds,
   hasCitations,
   createCitationResolver,
-  createUseCitationHook,
-  CITATION_PATTERN,
-  MAX_ASSERTION_NUM,
-  createCitationRegex,
 };

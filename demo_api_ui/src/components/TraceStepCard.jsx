@@ -9,7 +9,7 @@ import "./shared/JsonHighlight.css";
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
 
 /** Combined request+response size above which we push the learner to pop-out. */
-export const EVIDENCE_POPOUT_CHARS = 1200;
+const EVIDENCE_POPOUT_CHARS = 1200;
 
 // d.request.text / d.response.text are pre-formatted display strings (often a
 // narrative prefix line + embedded JSON, not pure JSON) — tokenize() colors

@@ -9,7 +9,7 @@ const SAMPLE_TS = `export async function createTransfer(req) {
 }`;
 
 /** Honesty badge shared by all costume shells. */
-export function SimulatedBadge({ pill = false }) {
+function SimulatedBadge({ pill = false }) {
   return (
     <span className={`afm-badge${pill ? " afm-badge--pill" : ""}`}>
       Simulated shell · Ping Privilege MCP client
@@ -26,7 +26,7 @@ function hostContent(children, preview) {
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onExit, children }) {
+function VsCodeChrome({ variant = "classic-dark", hostRef, preview = false, onExit, children }) {
   const light = variant === "light";
   const studio = variant === "copilot-studio";
   const cls = [
@@ -97,7 +97,7 @@ export function VsCodeChrome({ variant = "classic-dark", hostRef, preview = fals
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onExit, children }) {
+function ChatGptChrome({ variant = "desktop-dark", hostRef, preview = false, onExit, children }) {
   const light = variant === "desktop-light";
   const web = variant === "web";
   const cls = [
@@ -184,7 +184,7 @@ const SAAS_COPY = {
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit, children }) {
+function SaasChrome({ variant = "zendesk", hostRef, preview = false, onExit, children }) {
   const copy = SAAS_COPY[variant] || SAAS_COPY.zendesk;
   return (
     <div className={`afm-saas afm-saas--${variant}`} data-variant={variant}>
@@ -231,7 +231,7 @@ export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onEx
 /**
  * @param {{ variant: string, hostRef?: (el: HTMLElement|null) => void, preview?: boolean, onExit?: () => void }} props
  */
-export function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExit, children }) {
+function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExit, children }) {
   if (variant === "claude-code") {
     return (
       <div className="afm-code afm-code--claude" data-variant={variant}>

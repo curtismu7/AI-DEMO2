@@ -46,7 +46,7 @@ const APIKEY_TOOLS = new Set([
   'show_gear_order', 'show_expense_report', 'show_permit', 'show_enrollment', 'show_work_order',
 ]);
 
-export function resolveTargetServer(toolName) {
+function resolveTargetServer(toolName) {
   if (INVEST_TOOLS.has(toolName)) return 'invest';
   if (APIKEY_TOOLS.has(toolName)) return 'apikey';
   return 'olb';
@@ -61,7 +61,7 @@ const TOOL_TO_VERTICAL = {
   show_large_purchase: 'largePurchase',
 };
 
-export function buildRsRoute(toolName) {
+function buildRsRoute(toolName) {
   const rs = resolveTargetServer(toolName);
   if (rs === 'invest') return `/rs/invest?tool=${encodeURIComponent(toolName)}`;
   if (rs === 'apikey') {

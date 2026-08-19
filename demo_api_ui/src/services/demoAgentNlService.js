@@ -14,7 +14,7 @@ export async function fetchNlStatus() {
  * @param {string} [provider='auto'] - 'auto', 'helix', 'lmstudio', etc.
  * @returns {Promise<{ source: string, result: object }>}
  */
-export async function parseNaturalLanguage(message, provider = 'auto') {
+async function parseNaturalLanguage(message, provider = 'auto') {
   const opts = {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

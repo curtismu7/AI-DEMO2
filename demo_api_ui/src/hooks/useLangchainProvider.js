@@ -36,7 +36,7 @@ function _broadcastProvider(provider) {
 
 // The providers we expose in the UI. groq exists server-side but is
 // intentionally not surfaced (out of scope for this spec).
-export const PROVIDER_OPTIONS = [
+const PROVIDER_OPTIONS = [
   { id: "helix",              label: "Helix (model-agnostic wrapper)" },
   { id: "anthropic-lmstudio", label: "LM Studio (Anthropic API, local)" },
   { id: "llamacpp",           label: "llama.cpp (local, native tool-calling)" },

@@ -22,7 +22,7 @@ import {
 } from '@microsoft/agents-copilotstudio-client';
 
 /** Config keys (public) read from loadPublicConfig(). */
-export const COPILOT_CONFIG_KEYS = [
+const COPILOT_CONFIG_KEYS = [
   'copilot_entra_client_id',
   'copilot_entra_tenant_id',
   'copilot_environment_id',
@@ -111,7 +111,7 @@ export function messageTextsFrom(activities) {
 }
 
 /** Sign out of the Entra session for the active account (best-effort). */
-export async function signOut(cfg) {
+async function signOut(cfg) {
   try {
     if (!_msal) return;
     const account = _msal.getActiveAccount() || _msal.getAllAccounts()[0];

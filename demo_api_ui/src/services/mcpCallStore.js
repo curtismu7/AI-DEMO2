@@ -59,7 +59,7 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-export function clearCalls() {
+function clearCalls() {
   calls = [];
   notify();
 }

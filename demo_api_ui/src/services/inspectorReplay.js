@@ -11,7 +11,7 @@
 // read, and any stragglers (tab closed before the page ran) are swept by age.
 
 const KEY_PREFIX = "tctr:replay:";
-export const REPLAY_PARAM = "replay";
+const REPLAY_PARAM = "replay";
 /** Stale-entry sweep horizon — a handoff is consumed within seconds or never. */
 const MAX_AGE_MS = 5 * 60 * 1000;
 

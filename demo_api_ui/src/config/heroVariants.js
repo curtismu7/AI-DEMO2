@@ -26,4 +26,4 @@ export const HERO_VARIANTS = {
   },
 };
 
-export const DEFAULT_HERO_VARIANT = 'code-explorer';
+const DEFAULT_HERO_VARIANT = 'code-explorer';

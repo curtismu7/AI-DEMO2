@@ -4,7 +4,7 @@ import { loadPublicConfig } from "../services/configService";
 // Event dispatched by useAuth.js after a successful /api/admin/config fetch
 // + IDB write — useAppFlags listens for it so the IDB-vs-HTTP race on cold
 // visits doesn't leave flags stuck at hard-coded defaults.
-export const PUBLIC_CONFIG_UPDATED_EVENT = "publicConfigUpdated";
+const PUBLIC_CONFIG_UPDATED_EVENT = "publicConfigUpdated";
 
 function mapCfgToFlags(cfg) {
   const isAdvanced = cfg.agent_ui_mode === "advanced";

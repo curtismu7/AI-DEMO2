@@ -427,4 +427,4 @@ function buildCollapsedGraph(jaegerResponse, opts = {}) {
   return { nodes: collapsedNodes, edges: collapsedEdges, totalDurationMs, traceId, isCollapsed: true };
 }
 
-export { buildGraph, buildCollapsedGraph, SERVICE_CLUSTERS, CLUSTER_ORDER };
+export { buildGraph, buildCollapsedGraph, CLUSTER_ORDER };

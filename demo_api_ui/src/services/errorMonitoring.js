@@ -227,8 +227,4 @@ class ErrorMonitor {
   }
 }
 
-// Singleton instance
-const errorMonitor = new ErrorMonitor();
-
-export default errorMonitor;
 export { ErrorMonitor };
