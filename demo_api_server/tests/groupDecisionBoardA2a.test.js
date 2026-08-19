@@ -135,8 +135,8 @@ describe('decision-board delegates for a2aDelegated tools', () => {
     expect(new Set(expected.map((p) => p.split(':')[1])).size).toBeLessThan(expected.length);
   });
 
-  it('falls back to the one-hop mint when A2A is off, and says so', async () => {
-    // ff_a2a_delegation defaults to FALSE, so this is the default path. Presenting
+  it('falls back to the one-hop mint when delegation fails, and says so', async () => {
+    // Delegation can fail (missing Agent 2 credentials, exchange error). Presenting
     // no token would make the PDP answer mcp-invalid-audience — less informative
     // than the mcp-invalid-a2a-generalist it returns when it can see a real
     // one-hop chain. Keep the better verdict, and explain the shortfall.

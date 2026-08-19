@@ -321,7 +321,6 @@ const FIELD_DEFS = {
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
   ff_rar_gateway_enforcement:      { public: true, default: 'false' }, // UC14b: when ON, also arm the gateway's local requireRarIntent check; default OFF so PingOne Authorize (RarMaxAmount rule) is the sole RAR enforcement point
   ff_require_act_for_agent_tools: { public: true, default: 'true' }, // UC16: deny agent-mediated tool calls that carry no act claim (impersonation block); default ON — the act-based replacement for the removed may_act-based checks
-  ff_a2a_delegation:       { public: true, default: 'true' }, // Enable agent-to-agent (A2A) specialist delegation — Investment Advisor (Agent 2) via chained RFC 8693 nested act; authorization decided by Authorize over the act chain (no may_act)
   ff_inject_audience:      { public: true, default: 'false' }, // BFF-add mcp_resource_uri to aud claim snapshot when absent (demo/dev — no PingOne change needed)
   ff_inject_scopes:        { public: true, default: 'false' }, // BFF-inject read write scopes when absent from user token (demo/dev — no PingOne change needed)
   ff_skip_token_exchange:  { public: true, default: 'false' }, // Demo-only deny path for raw user-token forwarding; never passes the user token to MCP
@@ -1159,7 +1158,6 @@ class ConfigStore {
       agent_mcp_allowed_scopes: ['AGENT_MCP_ALLOWED_SCOPES'],
       ff_heuristic_enabled:            ['FF_HEURISTIC_ENABLED'],
       ff_prompt_injection_guard:       ['FF_PROMPT_INJECTION_GUARD'],
-      ff_a2a_delegation:               ['FF_A2A_DELEGATION'],
       ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
       ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
       ff_aam:                          ['FF_AAM'],
@@ -2190,7 +2188,6 @@ async function syncOAuthEndpointsToLmdb() {
   const FF_ENV_MAP = {
     ff_heuristic_enabled:       'FF_HEURISTIC_ENABLED',
     ff_prompt_injection_guard:  'FF_PROMPT_INJECTION_GUARD',
-    ff_a2a_delegation:          'FF_A2A_DELEGATION',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
     ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
     ff_aam:                     'FF_AAM',

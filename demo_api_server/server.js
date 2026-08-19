@@ -1156,7 +1156,7 @@ app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // A2A Protocol wire surface (Agent Cards + JSON-RPC). PingOne Bearer only —
-// no session cookie. Gated inside the router by ff_a2a_delegation.
+// no session cookie. Always mounted: A2A delegation is a required subsystem.
 app.use('/a2a/specialists', createA2aProtocolRouter());
 // Support Agent: customer support via Mastra framework
 app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
@@ -2518,33 +2518,23 @@ async function runBackgroundStartupTasks() {
         console.warn('[lmdb-sync] OAuth endpoint sync failed (non-fatal):', err.message);
     }
 
-    // ── A2A delegation: un-stick an environment that persisted OFF ───────────
-    // ff_a2a_delegation now defaults ON because the tools flagged a2aDelegated in
-    // scope-topology are reachable ONLY through a two-hop chain — Authorize denies
-    // ActChainDepth < 2 for exactly those tools, so with A2A off they cannot
-    // succeed by any path, and they fail as a policy DENY that looks nothing like
-    // a missing flag.
-    //
-    // Changing the registry default is not enough on its own. getEffective prefers
-    // a persisted value over the default, so any environment that ever stored
-    // 'false' stays off forever and the new default never reaches it. Measured on
-    // the live demo stack: the flag read 'false' with the default already flipped
-    // to 'true' and no FF_A2A_DELEGATION env var anywhere — a stored value was the
-    // only thing it could be.
-    //
-    // Only a stored FALSE is removed. A stored 'true' is left alone (same outcome,
-    // and no reason to touch it), and this never writes a value — it deletes the
-    // override so the default governs.
+    // ── A2A delegation: clean up the retired ff_a2a_delegation flag ──────────
+    // The flag was removed outright: the tools flagged a2aDelegated in
+    // scope-topology are reachable ONLY through a two-hop chain — Authorize
+    // denies ActChainDepth < 2 for exactly those tools — so the OFF state broke
+    // the demo as a policy DENY that looks nothing like a missing flag. With the
+    // registry entry gone, ANY persisted value is an orphan a future re-use of
+    // the key could trip over, so delete it regardless of value. This never
+    // writes; it only removes the leftover override.
     try {
         const cfg = require('./services/configStore');
         await cfg.ensureInitialized();
-        const stored = String(cfg.get('ff_a2a_delegation') ?? '').trim().toLowerCase();
-        if (stored === 'false') {
+        if (cfg.get('ff_a2a_delegation') !== undefined && cfg.get('ff_a2a_delegation') !== null) {
             cfg.deleteRaw('ff_a2a_delegation');
-            console.log('[a2a] cleared a persisted ff_a2a_delegation=false; the ON default now applies');
+            console.log('[a2a] removed the retired ff_a2a_delegation key from the store (A2A is always on)');
         }
     } catch (err) {
-        console.warn('[a2a] could not reconcile ff_a2a_delegation (non-fatal):', err.message);
+        console.warn('[a2a] could not clean up retired ff_a2a_delegation key (non-fatal):', err.message);
     }
 
     // ── Credential rotation detector ─────────────────────────────────────────

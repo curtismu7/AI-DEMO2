@@ -14,44 +14,37 @@ const {
 } = require('../../services/demoStepPrerequisites');
 
 describe('demoStepPrerequisites', () => {
-  test('UC2 declares ff_a2a_delegation, MCP gateway flags, and needs Agent 2 credentials', () => {
+  test('UC2 declares MCP gateway flags and needs Agent 2 credentials (no A2A flag — delegation is always on)', () => {
     const uc = resolveUseCase('UC2', 'banking');
-    expect(requiredFlagsForUseCase(uc)).toEqual(
-      expect.arrayContaining([
-        'ff_a2a_delegation',
-        'ff_mcp_gateway_pinggateway',
-      ]),
-    );
+    const flags = requiredFlagsForUseCase(uc);
+    expect(flags).toEqual(expect.arrayContaining(['ff_mcp_gateway_pinggateway']));
+    expect(flags).not.toContain('ff_a2a_delegation');
     expect(needsA2aCredentials(uc)).toBe(true);
   });
 
-  test('UC2.5 (maturity works) still requires ff_a2a_delegation regardless of primaryTool', () => {
+  test('UC2.5 (maturity works) needs only the MCP gateway runtime flags', () => {
     // PR #830 (83d8e0231c) gave UC2.5 a primaryTool ('get_portfolio_summary')
     // so the A2A explain modal has real Ping products/Authorize/Gateway copy
-    // to show — an intentional feature completion, not a regression. That
-    // also means it now needs the MCP gateway runtime flags, but the thing
-    // actually under test — ff_a2a_delegation is required regardless of
-    // primaryTool — still holds.
+    // to show. ff_a2a_delegation was removed — delegation is always on — so
+    // the gateway runtime flags are all that remains to arm.
     const uc = resolveUseCase('UC2.5', 'banking');
     expect(uc.maturity).toBe('works');
     expect(uc.primaryTool).toBe('get_portfolio_summary');
-    expect(requiredFlagsForUseCase(uc)).toEqual(
-      expect.arrayContaining([
-        'ff_a2a_delegation',
-        'ff_mcp_gateway_pinggateway',
-      ]),
-    );
+    const flags = requiredFlagsForUseCase(uc);
+    expect(flags).toEqual(expect.arrayContaining(['ff_mcp_gateway_pinggateway']));
+    expect(flags).not.toContain('ff_a2a_delegation');
   });
 
-  test('requiredFlagsForUseCaseId resolves A2A slug without full catalog match extras', () => {
+  test('requiredFlagsForUseCaseId resolves A2A slug to the gateway runtime flags only', () => {
     expect(requiredFlagsForUseCaseId('a2a-delegation', USE_CASES)).toEqual(
-      expect.arrayContaining(['ff_a2a_delegation']),
+      expect.arrayContaining(['ff_mcp_gateway_pinggateway']),
     );
+    expect(requiredFlagsForUseCaseId('a2a-delegation', USE_CASES)).not.toContain('ff_a2a_delegation');
   });
 
   test('requiredFlagsForUseCaseId resolves a2a-generalist-mismatch slug', () => {
     expect(requiredFlagsForUseCaseId('a2a-generalist-mismatch', USE_CASES)).toEqual(
-      expect.arrayContaining(['ff_a2a_delegation']),
+      expect.arrayContaining(['ff_mcp_gateway_pinggateway']),
     );
   });
 

@@ -114,7 +114,29 @@ discipline already required of scripts under `scripts/`. Better: have
 status describing something other than the thing you care about, with the real
 state visible only if you look for it deliberately.
 
-### 2026-08-18 — `ff_a2a_delegation` should not exist as a switch at all
+### [x] 2026-08-18 — `ff_a2a_delegation` should not exist as a switch at all
+
+**RESOLVED 2026-08-18 (branch `worktree-remove-ff-a2a`) — the entry's own 6-step
+plan, executed in one PR.** (1) The five gates are unconditional and `isA2aEnabled`
+is deleted; `a2aProtocolServer`'s 404-when-off middleware is gone (grep found no
+consumer of its `a2a_disabled` shape — the admin PATCH also silently skips unknown
+flag ids, so stale clients are harmless). (2) Registry entry + both
+`FF_A2A_DELEGATION` env-alias rows removed, and the existing server.js startup
+reconciliation was repurposed to delete ANY persisted `ff_a2a_delegation` value
+(not just `'false'`) — the persisted-orphan trap the entry warned about. (3) UC2 +
+UC2.6 maturity `flag:ff_a2a_delegation` → `works` ('works' is the only coherent
+value once the flag id no longer exists). (4) The 30 step-verification fixtures
+regenerated via their own test suites — one wrinkle: making UC2/UC2.6 maturity
+`works` pulled them into the works-chip parse gate, and UC2.6's chip is
+intercepted by the (now always-on) A2A overlay mismatch heuristic, so
+`stepVerificationExpectations` got an overlay-phrase exclusion mirroring the
+existing `/specialist/` one. (5) Both arming mirrors stripped; the parity test now
+pins the flag's ABSENCE. (6) UI copy (8 files), admin card, ~12 test files and 4
+live specs swept; the never-produced `a2a_delegation_disabled` chat copy removed.
+Verified: 11 touched server suites + all 18 step-verification suites green; UI
+unit 383 files/3261 tests green; UI build exit 0; full server suite run.
+Live UC2/UC2.5/UC2.6/UC37 chip verification on the running stack remains the
+post-merge manual check. Original entry follows.
 
 **Where:** `demo_api_server/services/configStore.js` (registry),
 `services/a2aDelegationService.js` (`isA2aEnabled`), and its five runtime gates.

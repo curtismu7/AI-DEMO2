@@ -33,11 +33,6 @@ jest.mock('../services/demoAgentLangGraphService', () => ({
   executeA2aDelegation: (...a) => mockExecuteA2aDelegation(...a),
 }));
 
-let mockA2aEnabled = true;
-jest.mock('../services/a2aDelegationService', () => ({
-  isA2aEnabled: () => mockA2aEnabled,
-}));
-
 const SESSION = {
   user: { id: 'user-1' },
   oauthTokens: { accessToken: 'tok' },
@@ -61,7 +56,6 @@ function buildApp() {
 describe('/internal/agent-tool — A2A fast-path', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockA2aEnabled = true;
   });
 
   const post = (app, body) =>
@@ -92,13 +86,4 @@ describe('/internal/agent-tool — A2A fast-path', () => {
     expect(mockExecuteA2aDelegation).not.toHaveBeenCalled();
   });
 
-  it('skips the fast-path when ff_a2a_delegation is off (direct call, DENY is the answer)', async () => {
-    mockA2aEnabled = false;
-    const app = buildApp();
-    const res = await post(app, { tool: 'sensitive_patient_records', args: {}, sessionId: 's1' });
-
-    expect(res.status).toBe(200);
-    expect(mockExecuteBffTool).toHaveBeenCalledTimes(1);
-    expect(mockExecuteA2aDelegation).not.toHaveBeenCalled();
-  });
 });

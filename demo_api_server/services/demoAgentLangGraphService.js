@@ -1111,8 +1111,7 @@ function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, ses
     // the reason-loop caller renders the same clean card delegate_to_specialist
     // produces (buildA2aReplyEnvelope), not the model's own DENY narration.
     const { isA2aDelegatedTool } = require('./scopeTopology');
-    const { isA2aEnabled } = require('./a2aDelegationService');
-    if (isA2aEnabled() && isA2aDelegatedTool(name)) {
+    if (isA2aDelegatedTool(name)) {
       const json = await executeA2aDelegation(activeId, { tool: name, args }, { req, tokenEvents, sessionId });
       if (a2aResultRef) {
         try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
@@ -1298,14 +1297,13 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   const { vertical, action } = heuristic;
   let { params } = heuristic;
 
-  // A2A fast-path: if ff_a2a_delegation is on AND the resolved action is declared
-  // a2aDelegated in scope-topology, skip the BFF preflight and route directly
-  // through the RFC 8693 nested-act delegation service. Authorization happens at
-  // the gateway using the specialist token — the generalist token alone is DENIED.
+  // A2A fast-path: if the resolved action is declared a2aDelegated in
+  // scope-topology, skip the BFF preflight and route directly through the
+  // RFC 8693 nested-act delegation service. Authorization happens at the
+  // gateway using the specialist token — the generalist token alone is DENIED.
   if (action !== 'delegate_to_specialist' && action !== 'a2a_generalist_mismatch') {
     const { isA2aDelegatedTool } = require('./scopeTopology');
-    const { isA2aEnabled } = require('./a2aDelegationService');
-    if (isA2aEnabled() && isA2aDelegatedTool(action)) {
+    if (isA2aDelegatedTool(action)) {
       const a2aJson = await executeA2aDelegation(vertical, { tool: action }, { req, tokenEvents, sessionId });
       let a2aResult;
       try { a2aResult = JSON.parse(a2aJson); } catch (_) { a2aResult = { delegated: false, error: a2aJson }; }

@@ -203,17 +203,6 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(ex2.actPresent).toBe(true);
   });
 
-  test('is a no-op when ff_a2a_delegation is off', async () => {
-    const { oauthService, calls } = makeOauth();
-    const result = await a2a.delegateToSpecialist(reqWithToken(), {
-      vertical: 'banking',
-      deps: { ...bankingDeps({ ff_a2a_delegation: 'false' }), oauthService },
-    });
-    expect(result.token).toBeNull();
-    expect(result.error).toMatch(/disabled/i);
-    expect(calls.exchanges).toHaveLength(0);
-  });
-
   test('errors when the vertical has no specialist', async () => {
     const { oauthService, calls } = makeOauth();
     const result = await a2a.delegateToSpecialist(reqWithToken(), {

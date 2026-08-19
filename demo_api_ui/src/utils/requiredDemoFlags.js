@@ -41,19 +41,10 @@ export function requiredFlagsForUseCase(uc) {
     const id = uc.maturity.slice('flag:'.length).trim();
     if (id) flags.add(id);
   }
-  if (
-    // Served by the catalog from scope-topology's a2aDelegated flag. This is the
-    // load-bearing check: a tool reachable only through a two-hop chain cannot
-    // succeed with A2A off, and it denies on policy in a way that looks nothing
-    // like a missing flag. UC37 was exactly that case — an a2aDelegated primary
-    // tool absent from every hand-kept list below.
-    uc.a2aDelegated === true
-    || A2A_USE_CASE_IDS.has(uc.useCaseId)
-    || uc.id === 'UC2.5'
-    || uc.primaryTool === 'delegate_to_specialist'
-  ) {
-    flags.add('ff_a2a_delegation');
-  }
+  // This used to also arm ff_a2a_delegation for A2A use cases. That flag was
+  // removed — delegation is always on (the a2aDelegated tools have no
+  // non-delegated path), so there is nothing left to arm. Kept in sync with
+  // demo_api_server/services/demoStepPrerequisites.js.
   if (needsMcpGatewayRuntime(uc)) {
     for (const f of MCP_GATEWAY_RUNTIME_FLAGS) flags.add(f);
   }

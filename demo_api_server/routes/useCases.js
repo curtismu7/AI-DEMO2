@@ -137,7 +137,7 @@ router.post('/demo/run', optionalAuthenticateToken, async (req, res) => {
 
   // Auto-arm every feature flag this use case declares it needs, so running any
   // step "just works" without manual preflight toggling. That is the maturity
-  // 'flag:<name>' gate (UC2 → ff_a2a_delegation, UC14b → ff_rar) AND the two
+  // 'flag:<name>' gate (e.g. UC14b → ff_rar) AND the two
   // MCP_GATEWAY_RUNTIME_FLAGS any tool-dispatching chip needs — without those,
   // Exchange #2 fails invalid_scope and the agent shows the opaque
   // "That step couldn't be completed". Do not narrow this back to maturity only:

@@ -36,14 +36,14 @@ test.describe('A2A delegation demo steps (live, current flags)', () => {
     }
     await page.close();
 
-    // The delegation heuristic lives in the A2A overlay, merged only when
-    // ff_a2a_delegation is on — the UI demo-step runner auto-enables it the
-    // same way (handleDemoStepSelect). ff_heuristic_enabled=true is a
-    // deployment invariant (agent-demo-triage).
+    // The delegation heuristic lives in the A2A overlay, always merged for
+    // specialist verticals (ff_a2a_delegation was removed — delegation is
+    // unconditional). ff_heuristic_enabled=true is a deployment invariant
+    // (agent-demo-triage).
     const arm = await ctx.request.patch('/api/admin/feature-flags', {
-      data: { updates: { ff_a2a_delegation: true, ff_heuristic_enabled: true } },
+      data: { updates: { ff_heuristic_enabled: true } },
     });
-    expect(arm.ok(), 'arm ff_a2a_delegation + ff_heuristic_enabled').toBe(true);
+    expect(arm.ok(), 'arm ff_heuristic_enabled').toBe(true);
   });
 
   test.afterAll(async () => {

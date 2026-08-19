@@ -96,7 +96,7 @@ describe('pingone-admin tool-filter phrase (ADMIN7 modal output)', () => {
 describe('step verification — pingone-admin prerequisites', () => {
   test('ADMIN steps require no feature flags or A2A credentials', () => {
     // Admin steps run against the PingOne MCP server directly — no
-    // ff_mcp_gateway / ff_a2a_delegation flags needed, no amount gates.
+    // ff_mcp_gateway runtime flags needed, no amount gates.
     for (const s of ADMIN_DEMO_STEPS) {
       writeLedgerEntry({
         vertical: VERTICAL,

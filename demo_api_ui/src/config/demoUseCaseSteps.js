@@ -45,7 +45,7 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [];
  */
 export const SECURITY_DEMO_USE_CASE_IDS = [
   'UC1',   // show my balance → PERMIT (act claim)
-  'UC2',   // hand off to a specialist → PERMIT (nested-act A2A chain), ff_a2a_delegation
+  'UC2',   // hand off to a specialist → PERMIT (nested-act A2A chain)
   'UC24',  // branches near me → public PERMIT (no exchange)
   'UC6',   // transfer $2500 → DENY
   'UC8',   // transfer $300 → HITL

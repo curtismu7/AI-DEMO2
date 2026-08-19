@@ -1,7 +1,6 @@
 'use strict';
 
 const { verticalManifest } = require('./verticalManifest');
-const { isA2aEnabled } = require('./a2aDelegationService');
 const { specialistForVertical } = require('../config/a2aSpecialists');
 const { ACCOUNT_NICKNAME_HEURISTIC } = require('../config/verticals/shared/bankingChipHeuristics');
 
@@ -9,15 +8,16 @@ const { ACCOUNT_NICKNAME_HEURISTIC } = require('../config/verticals/shared/banki
 const PLUGIN_OVERLAY_IDS = ['admin'];
 
 /**
- * True when the A2A overlay should augment `activeId`: the feature flag is on AND
- * the active vertical has a registered specialist. Generic across verticals (like
- * the admin overlay, but gated by ff_a2a_delegation rather than the admin role).
+ * True when the A2A overlay should augment `activeId`: the active vertical has a
+ * registered specialist. Generic across verticals (like the admin overlay, but
+ * keyed on specialist registration rather than the admin role — A2A delegation
+ * is a required subsystem, not a feature flag).
  * Note: 'a2a' is intentionally NOT in PLUGIN_OVERLAY_IDS — delegate_to_specialist is
  * intercepted by the agent loop, not delegated to MCP via isPluginToolName.
  */
 function a2aActiveFor(activeId) {
   try {
-    return isA2aEnabled() && !!specialistForVertical(activeId);
+    return !!specialistForVertical(activeId);
   } catch (_e) {
     return false;
   }

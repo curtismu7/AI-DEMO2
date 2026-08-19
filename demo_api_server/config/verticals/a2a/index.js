@@ -2,7 +2,7 @@
 
 /**
  * A2A (agent-to-agent) overlay — a generic, vertical-agnostic capability (like the
- * `admin` role overlay). When ff_a2a_delegation is on AND the active vertical has a
+ * `admin` role overlay). When the active vertical has a
  * specialist (see config/a2aSpecialists.js), this overlay merges a single tool
  * `delegate_to_specialist` + a delegation heuristic + a system-prompt hint into the
  * active vertical's agent.
@@ -58,7 +58,7 @@ const HEURISTICS = [
     // RFC 8693 teaching question — parseEducation routes it to the token-exchange
     // panel — but `delegate .* agent` matched it, and inside the plugin branch the
     // overlay heuristics run BEFORE parseEducation, so the overlay won. It only
-    // surfaced when ff_a2a_delegation defaulted ON and these heuristics started
+    // surfaced once A2A delegation became always-on and these heuristics started
     // being registered. Delegating a TOKEN is not delegating to a specialist.
     re: /\b(delegate|hand\s*(off|over)|escalate)\b(?!\s+(a|the|this|my)?\s*tokens?\b).*\b(specialist|advisor|agent|expert)\b|\b(ask|consult|involve|bring\s+in)\b.{0,20}\b(specialist|advisor|expert)\b|\bsecond\s+agent\b|\bspecialist\s+agent\b/i,
     action: 'delegate_to_specialist',

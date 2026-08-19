@@ -210,6 +210,10 @@ function worksChipExpectationsFor(vertical) {
     const t = uc.trigger || {};
     if (t.type !== 'chip' || !t.text) continue;
     if (/specialist/i.test(t.text)) continue;
+    // Same class as the specialist exclusion: the (always-on) A2A overlay's
+    // mismatch heuristic intercepts these phrases before tool routing, so the
+    // parse yields the overlay action, not the catalog primaryTool (UC2.6).
+    if (/\bagent\s+(identity\s+)?mismatch\b|\bunregistered\s+agent\b/i.test(t.text)) continue;
     if (!uc.primaryTool) continue;
     out.push(expectationFromUseCase(uc));
   }
