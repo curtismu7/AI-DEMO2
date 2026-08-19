@@ -97,43 +97,91 @@ function scopeDescription(scope) {
 // PingOne API Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function getManagementToken(clientId, clientSecret, region = 'com', envId) {
+const MGMT_TOKEN_SCOPE = 'p1:read:resource p1:read:resource_scope';
+
+/** One token attempt with a specific token-endpoint auth method. */
+function requestManagementToken({ clientId, clientSecret, region, envId, method }) {
   return new Promise((resolve, reject) => {
-    const hostname = `auth.pingone.${region}`;
-    const path = `/${envId}/as/token`;
-    const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    // URLSearchParams so the scope's SPACE is encoded. The previous body was
+    // built by string concatenation and sent
+    // `scope=p1:read:resource p1:read:resource_scope` with a raw space — invalid
+    // in an application/x-www-form-urlencoded body. PingOne then mis-parsed the
+    // request and answered with errors about the AUTH METHOD and the GRANT TYPE,
+    // neither of which was actually wrong, which is about as misleading as a
+    // failure gets.
+    const form = new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: MGMT_TOKEN_SCOPE,
+    });
 
-    const options = {
-      hostname,
-      path,
+    if (method === 'client_secret_basic') {
+      headers.Authorization = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
+    } else {
+      form.set('client_id', clientId);
+      form.set('client_secret', clientSecret);
+    }
+    const body = form.toString();
+
+    const req = https.request({
+      hostname: `auth.pingone.${region}`,
+      path: `/${envId}/as/token`,
       method: 'POST',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    };
-
-    const req = https.request(options, (res) => {
+      headers,
+    }, (res) => {
       let data = '';
-      res.on('data', chunk => data += chunk);
+      res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
+        let json;
         try {
-          const json = JSON.parse(data);
-          if (json.access_token) {
-            resolve(json.access_token);
-          } else {
-            reject(new Error(`No access_token in response: ${data}`));
-          }
+          json = JSON.parse(data);
         } catch (e) {
-          reject(new Error(`Failed to parse token response: ${e.message}`));
+          return reject(new Error(`Failed to parse token response: ${e.message}`));
         }
+        if (json.access_token) return resolve(json.access_token);
+        // Carry the parsed error so the caller can decide whether to retry with
+        // the other method rather than re-parsing a string.
+        const err = new Error(`No access_token in response: ${data}`);
+        err.oauthError = json.error;
+        err.oauthDescription = json.error_description || '';
+        return reject(err);
       });
     });
 
     req.on('error', reject);
-    req.write('grant_type=client_credentials&scope=p1:read:resource p1:read:resource_scope');
+    req.write(body);
     req.end();
   });
+}
+
+/**
+ * A PingOne Worker app's token endpoint auth method is per-app configuration —
+ * client_secret_basic or client_secret_post — and nothing in .env records which.
+ * This script sent Basic only, so an app configured for POST failed with
+ * `invalid_client: Unsupported authentication method`, which reads as bad
+ * credentials rather than "right secret, wrong envelope".
+ *
+ * Same shape as demo_authz_server's introspection fallback
+ * (introspect.authMethodFallback.test.js), in the other direction: try the
+ * configured/likelier method, and on an auth-method-shaped rejection try the
+ * other once before giving up.
+ */
+async function getManagementToken(clientId, clientSecret, region = 'com', envId) {
+  const methods = ['client_secret_basic', 'client_secret_post'];
+  let lastErr;
+  for (const method of methods) {
+    try {
+      return await requestManagementToken({ clientId, clientSecret, region, envId, method });
+    } catch (err) {
+      lastErr = err;
+      // Only an auth-METHOD rejection is worth retrying. A genuinely wrong
+      // secret returns invalid_client too, so retrying costs one extra call —
+      // acceptable; retrying a network error or a 5xx is not.
+      const looksLikeMethodMismatch = err.oauthError === 'invalid_client';
+      if (!looksLikeMethodMismatch) throw err;
+    }
+  }
+  throw lastErr;
 }
 
 async function listResources(envId, token, region = 'com') {
@@ -430,8 +478,34 @@ async function main() {
   const shouldFix = args.includes('--fix');
 
   const envId = process.env.PINGONE_ENVIRONMENT_ID;
-  const clientId = process.env.PINGONE_MGMT_CLIENT_ID;
-  const clientSecret = process.env.PINGONE_MGMT_CLIENT_SECRET;
+  // Reading only the PINGONE_MGMT_* pair made this script exit 1 with "not set"
+  // on an environment that HAS working Management API credentials — they are
+  // configured under the Worker names, and a PingOne Worker app IS the
+  // Management API client. That nearly sent a session off to create a second
+  // Worker app in the console that was never needed.
+  //
+  // Resolved as a PAIR, not two independent lookups: taking the id from one
+  // prefix and the secret from another yields a mismatched pair that fails as
+  // `invalid_client`, which reads as a bad secret rather than a bad pairing.
+  // (configStore's own chains at ~1106-1107 resolve the two independently and
+  // have the same latent hazard — noted, not changed here.)
+  //
+  // PINGONE_ADMIN_* is deliberately NOT in this list even though configStore
+  // includes it: in this environment that is "Demo AI App - Admin Login", a
+  // WEB_APP whose grants are AUTHORIZATION_CODE / REFRESH_TOKEN / TOKEN_EXCHANGE
+  // with no CLIENT_CREDENTIALS. Preferring it over the Worker produced
+  // `unauthorized_client: Unsupported grant type: client_credentials` — an error
+  // about the grant when the real problem was picking a login app to do a
+  // machine-to-machine call.
+  const CRED_PREFIXES = [
+    'PINGONE_MGMT', 'PINGONE_MANAGEMENT', 'PINGONE_WORKER_TOKEN', 'PINGONE_WORKER',
+  ];
+  let clientId; let clientSecret; let credSource;
+  for (const prefix of CRED_PREFIXES) {
+    const id = process.env[`${prefix}_CLIENT_ID`];
+    const secret = process.env[`${prefix}_CLIENT_SECRET`];
+    if (id && secret) { clientId = id; clientSecret = secret; credSource = `${prefix}_CLIENT_ID/_SECRET`; break; }
+  }
   const region = process.env.PINGONE_REGION || 'com';
 
   // Validate inputs
@@ -441,12 +515,15 @@ async function main() {
   }
 
   if (!clientId || !clientSecret) {
-    logError('PINGONE_MGMT_CLIENT_ID or PINGONE_MGMT_CLIENT_SECRET not set');
-    log('To create a worker app in PingOne:');
+    logError('No Management API credentials found');
+    log(`Checked for a complete _CLIENT_ID + _CLIENT_SECRET pair under: ${CRED_PREFIXES.join(', ')}`);
+    log('');
+    log('If you have no Worker app yet, create one in PingOne:');
     log('  Admin → Applications → Create Application (type: Worker)');
-    log('  Copy Client ID and Secret into .env as PINGONE_MGMT_CLIENT_ID and PINGONE_MGMT_CLIENT_SECRET');
+    log('  Put its Client ID/Secret in .env as PINGONE_WORKER_CLIENT_ID / PINGONE_WORKER_CLIENT_SECRET');
     process.exit(1);
   }
+  logInfo(`Management credentials: ${credSource}`);
 
   if (shouldFix && !clientId) {
     logError('--fix requires PINGONE_MGMT_CLIENT_ID and PINGONE_MGMT_CLIENT_SECRET');
