@@ -16,7 +16,45 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
+### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
+
+**RESOLVED 2026-08-18, same session — and the entry undercounted.** It was
+**three** hand-written copies, not two: the third is the step-0 literal in
+`snapshots/authorizeSnapshotCloudDelta.test.js` (~60). The generator's comment
+also promised a guard file, `snapshotAudienceParity.test.js`, that has never
+existed — the real guard was step 0 of that cloud-delta test all along.
+
+*What the fix was:* the entry's first option — a marker in the SoT. Gateway
+resources carry `"role": "mcp-gateway"` in `scope-topology.json`, and
+`gen-authorize-snapshot.js` plus `demo_authz_server/routes/import-snapshot.js`
+both derive from it. `scope-topology.schema.json` declares `role` as a CLOSED
+enum (the resource schema is `additionalProperties: false`, so it had to be
+declared anyway) — a typo'd value now fails schema validation instead of
+silently dropping a gateway from every derived consumer.
+
+*What the entry got wrong:* it proposed deriving in **all** consumers and
+deleting **both** literals. Doing that to the cloud-delta pin would have been a
+mistake, and that file's own comment already said so: once every consumer reads
+one field, they all agree with each other even when the field is wrong, so a
+resource that quietly loses its marker is missing *everywhere* and nothing
+notices. The pin stays literal and now cross-checks the marker too. Verified by
+mutation — removing the API-Key resource's `role` fails it with a message naming
+the cause.
+
+*Relocated, not dropped:* `deriveSot` used to abort when a gateway resource was
+deleted, because it looked resources up by name. A marker cannot detect a
+deletion (the deletion removes the marker). That guarantee now lives in the pin;
+`deriveSot` still aborts on a marked resource with no `uri` and on an SoT with
+nothing marked — the empty-OR case that would deny all MCP traffic on import.
+Both directions still fail loudly, which was the property worth keeping.
+
+*Cost:* the generated snapshot changed by exactly one line — same four
+audiences, order now following the SoT's declaration order, condition version
+re-derived from content by `ver()` as designed. An OR of equality comparisons is
+order-independent.
+
+Verified: `npm run topology:verify` PASSED 10/10 · `demo_authz_server` 260/260 ·
+`npm run test:snapshots` 44/44. Original entry follows.
 
 **Where:** `snapshots/gen-authorize-snapshot.js` `GATEWAY_RESOURCE_NAMES` (~118)
 and `demo_authz_server/routes/import-snapshot.js` `GATEWAY_RESOURCE_NAMES` (~154).
