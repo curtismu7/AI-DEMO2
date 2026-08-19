@@ -1,6 +1,12 @@
-# Live UI Findings — Super Banking demo
+# Live UI Findings
 
-Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19**, signed in as Demo User (Customer), vertical Super Banking, Agent mode Heuristics. Ran UC8 (HITL consent transfer, $300 checking→savings) to a terminal decline, then reviewed Home and `/dashboard`.
+Findings from live Playwright drives of `https://local.ping-devops.com:4000` (the only host where
+sign-in works), signed in as Demo User (Customer), Agent mode Heuristics.
+
+- **#1–#10** — 2026-08-19, vertical **Super Banking**. Ran UC8 (HITL consent transfer, $300
+  checking→savings) to a terminal decline, then reviewed Home and `/dashboard`.
+- **#11–#21** — 2026-08-19, vertical **Super Sports** (`sporting-goods`), all 22 entries of the
+  **Demo Steps** script driven end to end, including the HITL / step-up / CIBA approval controls.
 
 **Working rule:** when a finding is fixed, flip its Status row to `FIXED` with the PR number and evidence **in the same commit as the fix**, and add a Changelog line. A status column that lags the code is the same false-green failure as finding #1.
 
@@ -24,6 +30,26 @@ Source: Playwright drive of `https://local.ping-devops.com:4000` on **2026-08-19
 | 9 | Home and Dashboard are two different apps | IA | Low | OPEN | |
 | 10 | `/dashboard` shows no banking data; `/api/token-chain` 401 on cold load | UI + BFF | Low | OPEN | |
 | 11 | CIBA phone simulator is a dead end in every non-pending state | UI | High | FIXED | PR #2158 — reported by the user as "never accepts Approve" |
+| 13 | UC6 intentional DENY scores itself "Incomplete / Run failed" | BFF + UI | High | FIXED | `85971fabd` — gateway backstop DENY now carries authorize evidence |
+| 14 | UC8 flips green → "Mismatch" the moment the human approves | UI | High | FIXED | `85971fabd` — skip-shaped evaluation no longer wipes the gate |
+| 15 | UC10 cross-owner DENY renders "Mismatch" | BFF | Medium | OPEN | Authorize genuinely PERMITs; needs a product decision (see below) |
+| 16 | UC22 CIBA "Approve" loops instead of completing | BFF + UI | High | OPEN | Duplicate waiting cards accumulate every ~60s |
+| 17 | Super Sports stores advertise an "ATM" badge | data | Low | FIXED | `85971fabd` — `atm: true` was hard-coded on all non-banking locations |
+| 18 | "Here are your extend rental." | BFF | Low | FIXED | `85971fabd` — 70 sibling actions still affected, see `TECH_DEBT.md` |
+| 19 | UC18/UC29 don't demonstrate the defense they claim | BFF | Medium | OPEN | Declare `DENY_429`/`DENY_503`, both return plain `403` |
+| 20 | `/personal-agent` greets with airlines copy in every vertical | UI | Low | OPEN | "your MileagePlus account… upcoming flights" under Super Sports |
+| 21 | Approval strips claim "then permitted" before the human answers | UI | Low | OPEN | Shown while the consent modal is still open |
+| 22 | UC2/UC2.5 "Incomplete — Waiting on user-token" | — | — | INVALID | Harness artifact; correct in the real flow (see below) |
+| 23 | UC2/UC20/UC38 demo-step buttons missing | — | — | INVALID | Harness raced the popout's catalog fetch |
+
+Findings 13–23 come from a second drive on **2026-08-19**: all 22 entries of the **Demo Steps**
+script, vertical **Super Sports** (`sporting-goods`), signed in as `demoUser`, Agent mode
+Heuristics. Evidence (29 screenshots, raw response bodies, driver scripts) in
+`/Users/cmuir/Development/ai-demo2-demo-steps-run/`; full write-up in
+`.claude/DEMO_STEPS_LIVE_RUN.md`.
+
+Tally for that drive: 10 PASS · 6 FAIL · 6 WARN, then 4 fixed. Two of the eleven turned out to
+be my own harness, not the product — recorded above as INVALID rather than dropped.
 
 ---
 
@@ -194,6 +220,142 @@ Two things made that state easy to reach and impossible to leave:
 **Evidence:** full UI suite 389 files / 3322 tests pass, build exit 0. The 3 new tests were confirmed to fail against the pre-fix page (stashed the component, re-ran, `3 failed | 12 passed` — exactly the three).
 
 **Left alone deliberately:** the 60s auto-approve. `/approve-now` is *built on* it (it backdates `initiatedAt` past the delay rather than setting a flag), so removing it needs a replacement approved-by-user flag plus server test changes. It makes Approve feel broken even when it works, so it is worth doing — but it is a demo-behaviour change, not part of this bug.
+### 13. UC6's intentional DENY reported itself as a failed run — FIXED (`85971fabd`)
+
+`extend my rental $2500` is *supposed* to be denied. The chat said so correctly ("declined by
+the gateway's authorization policy — no changes were made"), but three other surfaces called it
+broken at once: TopNav pill `AUTHZ-DENIED — INCOMPLETE / no evidence yet`, proof strip
+`Incomplete / Run failed before authorize-decision`, Token Chain badge red **RUN ERROR**.
+
+PingGateway's local backstop (`denyLocal`, `p1az-decision.groovy:444`) answers 403 with a bare
+`{error, message, tool}` body and **no** `X-Gw-Audit-Trail`, so all ~8 of its reasons
+(`tier_amount_exceeded`, `insufficient_scope`, `invalid_iat`, …) arrived with no authorize
+evidence. Same chip on a PERMIT carried `gw-introspection` + `gw-authorize` + `gw-mcp-audit` +
+`gw-mtls` + `gw-filter-chain`; the DENY carried none of them.
+
+**Fixed:** synthesize the authorize DENY block BFF-side (`_syntheticBackstopDenyTrail`), so it
+also holds for a gateway that has not been redeployed. Labelled `gateway-backstop`, **not**
+`pingone` — the tier ceiling is a gateway-local rule precisely because P1AZ cannot map a PingOne
+group array to a tier, and crediting Authorize would be theatre.
+
+Note this is vertical-dependent: banking's `$2500` transfer *does* return a full P1AZ trail. The
+gap only shows where the gateway's own rule fires first.
+
+### 14. Approving UC8's consent turned the green box amber — FIXED (`85971fabd`)
+
+Tick "I have reviewed the details above and authorize this action" → **Agree & Continue** → the
+rental really is extended (`success: true`, a correct **Rental Extended** card). The proof strip
+then flipped from `Verified (as expected)` to `Mismatch — Result did not match the expected
+outcome`. Approving made a correct run look wrong.
+
+On the gateway-authoritative path the BFF answers with a **skip-shaped** evaluation carrying no
+`decision` at all (`{ran:false, skipped:true, skipReason:'gateway_authoritative'}`) — the real
+PERMIT arrives separately as the `gw-authorize` token event. `ingestAuthorize`'s gate-carry guard
+required `decision === 'PERMIT'`, so it never fired and the `HITL_REQUIRED` gate was overwritten.
+
+**Fixed:** the guard now also accepts an absent `decision`. `!evaluation.outcome` still excludes a
+genuine later block. UC7's step-up shares this path.
+
+**Not a defect, though first suspected:** both consent modals disable their primary CTA until the
+review checkbox is ticked. That is correct UX — my first harness just wasn't ticking it.
+
+### 15. UC10's cross-owner DENY renders "Mismatch" — OPEN, needs a product decision
+
+`cross-owner-account → 403 DENY / requested resource belongs to a different user` is exactly the
+declared `expectedOutcome`. The strip still says `Mismatch`. Measured cause — the same catalog
+shape, opposite verdict, one field apart:
+
+| | UC13 `rogue-actor` (green) | UC10 `cross-owner-account` (amber) |
+|---|---|---|
+| `authorize` | `{decision:"DENY", outcome:"DENY"}` | **`{decision:"PERMIT", outcome:"PERMIT"}`** |
+| what blocked it | PingOne Authorize | the tool/API layer |
+
+**The strip is telling the truth.** PingOne Authorize genuinely permits the cross-owner read and
+the data plane catches it — `attackSimulatorService.js`'s own comment already flags the gap
+("Prefer Authorize ResourceOwnerId DENY when the BFF gate populates ResourceOwnerId for this
+tool"). Two fixes, not equivalent:
+
+- **Honest:** populate `ResourceOwnerId` so Authorize actually denies. The step's "Used: PingOne
+  Authorize" claim becomes true and it goes green on its own.
+- **Cosmetic:** teach `computeVerdict` to accept a data-plane deny. Green box, demo keeps
+  claiming an enforcement point that never fired. Not recommended.
+
+### 16. UC22's CIBA "Approve" never completes — OPEN
+
+`extend my rental $150` → `step_up_required / ciba` and a **Approve** button. Watched 170s after
+clicking:
+
+| t | what happened |
+|---|---|
+| 1 s | button flips to "Approving…" |
+| 5 s | reverts to "Approve" — the approval failed |
+| 68 s | a **second** waiting card + Approve appears (auto-retry) |
+| 129 s | a **third** appears |
+
+Four `/api/agent/invoke` calls, every one returning `step_up_required`. The copy's promise ("it
+will continue automatically in about a minute") fires but only re-issues the same challenge, so
+duplicate cards accumulate. Verdict pill reads `MISMATCH`; no inline proof strip.
+
+### 17. Super Sports stores advertised an ATM — FIXED (`85971fabd`)
+
+Not a render bug — `atm: true` was hard-coded on **every** non-banking location in the public
+catalog (16 entries, duplicated in `demo_api_server/data/publicBranchCatalog.js` and
+`oauth-mcp/src/tools/handlers/publicCatalogHandlers.ts`). Retail stores and university campuses
+had it too. Now only the 7 Super Banking branches keep it.
+
+### 18. "Here are your extend rental." — FIXED for one action, 70 still open (`85971fabd`)
+
+The reply-heading builder hand-cases 10 write actions and falls everything else through to
+`Here are your ${noun}.`. **71 write actions across all 12 verticals** hit it: "Here are your pay
+bill.", "Here are your withdraw.", "Here are your transfer.", "Here are your redeem miles."
+
+Only `extend_rental` — the one this drive named — was fixed. The obvious generic rule ("no read
+verb ⇒ write") misclassifies genuine reads like `afford_check`, `biggest_purchase`, `browse_gear`,
+and a copy change touching every vertical does not belong in a bug-fix PR. Real fix and the full
+list are in `TECH_DEBT.md`.
+
+### 19. UC18 and UC29 don't demonstrate the defense they advertise — OPEN
+
+Catalog declares `DENY_429` (rate limit) and `DENY_503` (introspection outage / fail-closed); both
+sims return plain `403` with the generic "Gateway policy denied the tool call". Both still render
+**green**, because each one's evidence chain is only `["user-token"]` and both expectations are in
+`DENIED_LIKE_OUTCOMES`, so the outcome-family check is skipped entirely. Right colour, wrong
+reason, and the specific defense each step claims is never actually shown.
+
+### 20. `/personal-agent` greets with airlines copy in every vertical — OPEN
+
+Loads under Super Sports branding, then: *"Hello! I'm your personal agent. I can access your
+**MileagePlus** account and help manage your upcoming **flights**."* UC38's landing page.
+
+### 21. Approval gates claim "then permitted" before the human answers — OPEN
+
+UC8 and UC7 render `Human approval required as expected — **then permitted**` /
+`Step-up MFA required as expected — **then permitted**` at the moment the gate opens, while the
+consent modal or OTP picker is still on screen and unanswered. `computeVerdict` has a
+`gateDeclined` branch for a refusal but no pending state, so it asserts an outcome that has not
+happened yet.
+
+### 22. UC2/UC2.5 "Waiting on user-token" — INVALID (my harness)
+
+Reported as a failure; it is not. `user-token` is a **session-scoped** card that `beginTrace`
+carries across traces (`SESSION_EVENT_IDS`). My first harness reloaded the page before every
+step, wiping the in-memory store, so UC2 ran with no `user-token` and its evidence chain could
+not match. Driven the way a presenter actually drives it — UC1, then UC2, then UC2.5, no reload:
+
+```
+### UC1   -> ["Delegated access with proof — Verified"]
+### UC2   -> ["A2A delegation — Verified"]
+### UC2.5 -> ["A2A Orchestrator — Interactive Learning — Verified"]
+```
+
+Left alone rather than "fixed" — the real flow is correct. Residual rough edge worth knowing: a
+presenter who hard-reloads and clicks UC2 first *will* see amber.
+
+### 23. UC2/UC20/UC38 step buttons "missing" — INVALID (my harness)
+
+`[data-testid="demo-step-UC2"]` returned 0 elements. The popout fetches `/api/use-cases` on open
+and takes >1.5s to populate; I queried too early. With a wait for the list to reach 22 entries,
+all 22 render and every one runs.
 
 ## Not covered
 
@@ -209,6 +371,7 @@ Dark mode · narrow/mobile widths · the other 11 verticals · every admin surfa
 
 - 2026-08-19 — #11 added and FIXED (PR #2158): the CIBA phone simulator's dead-end footer, the single-fetch that could never recover, and a §0 muted-text violation in the same modal.
 
+- 2026-08-19 — findings #13–#23 added from a second drive: all 22 Demo Steps, vertical Super Sports. #13, #14, #17, #18 FIXED in `85971fabd` (same commit as this status update). #22 and #23 recorded INVALID — both were my own harness (a page reload between steps that wiped session-scoped evidence; a query that raced the popout's catalog fetch), not the product. #13 was also narrower than first written up: banking returns a full P1AZ trail, only the gateway-local backstop path lost its evidence.
 - 2026-08-19 — #3 rescoped again: my "zero POST in the BFF logs" evidence was void (the BFF container restarted after the failure, so I queried logs from a container that was not running at the time). Reproduction method corrected to pin container StartedAt before and after a run.
 - 2026-08-19 — #4 FIXED (PR #2155), #3 rescoped. Investigating #3 disproved two of its three original claims and showed the confirm never reaches the BFF; #4's premise about the 401s was also wrong, though its badge defect was real. Corrections recorded in place rather than quietly dropped.
 - 2026-08-19 — #1 and #2 FIXED (PR #2155). `VerifiedBanner` gained a `banner → pill → gone` cycle and moved below the TopNav.

@@ -92,10 +92,10 @@ const HEALTHCARE = Object.freeze([
 ]);
 
 const RETAIL = Object.freeze([
-  { id: 'store-austin', name: 'Super Retail Austin Store', city: 'Austin', state: 'TX', address: '2901 S Capital of Texas Hwy, Austin, TX 78746', hours: 'Daily 10:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1516274626895-055a99214f08?w=400&h=300&fit=crop' },
-  { id: 'store-dallas', name: 'Super Retail Dallas Store', city: 'Dallas', state: 'TX', address: '13350 Dallas Pkwy, Dallas, TX 75240', hours: 'Daily 10:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1705951504397-9fe0c883b57e?w=400&h=300&fit=crop' },
-  { id: 'store-miami', name: 'Super Retail Miami Store', city: 'Miami', state: 'FL', address: '701 S Miami Ave, Miami, FL 33130', hours: 'Daily 10:00–22:00', atm: true, image: 'https://images.unsplash.com/photo-1654490960639-4170f6583da7?w=400&h=300&fit=crop' },
-  { id: 'store-denver', name: 'Super Retail Denver Store', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1576354998198-99dc1d2c3d36?w=400&h=300&fit=crop' },
+  { id: 'store-austin', name: 'Super Retail Austin Store', city: 'Austin', state: 'TX', address: '2901 S Capital of Texas Hwy, Austin, TX 78746', hours: 'Daily 10:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1516274626895-055a99214f08?w=400&h=300&fit=crop' },
+  { id: 'store-dallas', name: 'Super Retail Dallas Store', city: 'Dallas', state: 'TX', address: '13350 Dallas Pkwy, Dallas, TX 75240', hours: 'Daily 10:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1705951504397-9fe0c883b57e?w=400&h=300&fit=crop' },
+  { id: 'store-miami', name: 'Super Retail Miami Store', city: 'Miami', state: 'FL', address: '701 S Miami Ave, Miami, FL 33130', hours: 'Daily 10:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1654490960639-4170f6583da7?w=400&h=300&fit=crop' },
+  { id: 'store-denver', name: 'Super Retail Denver Store', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1576354998198-99dc1d2c3d36?w=400&h=300&fit=crop' },
 ]);
 
 const ABERCROMBIE_FITCH = Object.freeze([
@@ -113,10 +113,10 @@ const GOVERNMENT = Object.freeze([
 ]);
 
 const UNIVERSITY = Object.freeze([
-  { id: 'campus-austin', name: 'Riverbend University Austin Campus', city: 'Austin', state: 'TX', address: '2100 Speedway, Austin, TX 78712', hours: 'Mon–Fri 7:00–22:00, Sat 9:00–17:00', atm: true, image: 'https://images.unsplash.com/photo-1731349219592-60ca16964631?w=400&h=300&fit=crop' },
-  { id: 'campus-dallas', name: 'Riverbend University Dallas Hall', city: 'Dallas', state: 'TX', address: '6425 Boaz Ln, Dallas, TX 75205', hours: 'Mon–Fri 8:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1641160616553-a9d21a846e49?w=400&h=300&fit=crop' },
+  { id: 'campus-austin', name: 'Riverbend University Austin Campus', city: 'Austin', state: 'TX', address: '2100 Speedway, Austin, TX 78712', hours: 'Mon–Fri 7:00–22:00, Sat 9:00–17:00', atm: false, image: 'https://images.unsplash.com/photo-1731349219592-60ca16964631?w=400&h=300&fit=crop' },
+  { id: 'campus-dallas', name: 'Riverbend University Dallas Hall', city: 'Dallas', state: 'TX', address: '6425 Boaz Ln, Dallas, TX 75205', hours: 'Mon–Fri 8:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1641160616553-a9d21a846e49?w=400&h=300&fit=crop' },
   { id: 'campus-houston', name: 'Riverbend University Houston Library', city: 'Houston', state: 'TX', address: '4333 University Dr, Houston, TX 77204', hours: 'Daily 8:00–24:00', atm: false, image: 'https://images.unsplash.com/photo-1632988663082-4bac2c1847a0?w=400&h=300&fit=crop' },
-  { id: 'campus-denver', name: 'Riverbend University Denver Campus', city: 'Denver', state: 'CO', address: '2199 S University Blvd, Denver, CO 80208', hours: 'Mon–Fri 7:30–21:00', atm: true, image: 'https://images.unsplash.com/photo-1728206313441-281ef4ea5d62?w=400&h=300&fit=crop' },
+  { id: 'campus-denver', name: 'Riverbend University Denver Campus', city: 'Denver', state: 'CO', address: '2199 S University Blvd, Denver, CO 80208', hours: 'Mon–Fri 7:30–21:00', atm: false, image: 'https://images.unsplash.com/photo-1728206313441-281ef4ea5d62?w=400&h=300&fit=crop' },
 ]);
 
 const WORKFORCE = Object.freeze([
@@ -127,10 +127,10 @@ const WORKFORCE = Object.freeze([
 ]);
 
 const SPORTING_GOODS = Object.freeze([
-  { id: 'sg-austin', name: 'Super Sports Austin Outfitter', city: 'Austin', state: 'TX', address: '9607 Research Blvd, Austin, TX 78759', hours: 'Mon–Sat 9:00–21:00, Sun 10:00–19:00', atm: true, image: 'https://images.unsplash.com/photo-1779091188677-24c724eb7cd3?w=400&h=300&fit=crop' },
-  { id: 'sg-dallas', name: 'Super Sports Dallas Store', city: 'Dallas', state: 'TX', address: '7700 W Northwest Hwy, Dallas, TX 75225', hours: 'Mon–Sat 9:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1781194533125-6306b9d6175f?w=400&h=300&fit=crop' },
-  { id: 'sg-houston', name: 'Super Sports Houston Store', city: 'Houston', state: 'TX', address: '5000 Westheimer Rd, Houston, TX 77056', hours: 'Daily 10:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1762971812776-2d7c3911f876?w=400&h=300&fit=crop' },
-  { id: 'sg-denver', name: 'Super Sports Denver Outfitter', city: 'Denver', state: 'CO', address: '1000 Broadway, Denver, CO 80203', hours: 'Mon–Sat 9:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1779598366072-93c7e5fb64d0?w=400&h=300&fit=crop' },
+  { id: 'sg-austin', name: 'Super Sports Austin Outfitter', city: 'Austin', state: 'TX', address: '9607 Research Blvd, Austin, TX 78759', hours: 'Mon–Sat 9:00–21:00, Sun 10:00–19:00', atm: false, image: 'https://images.unsplash.com/photo-1779091188677-24c724eb7cd3?w=400&h=300&fit=crop' },
+  { id: 'sg-dallas', name: 'Super Sports Dallas Store', city: 'Dallas', state: 'TX', address: '7700 W Northwest Hwy, Dallas, TX 75225', hours: 'Mon–Sat 9:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1781194533125-6306b9d6175f?w=400&h=300&fit=crop' },
+  { id: 'sg-houston', name: 'Super Sports Houston Store', city: 'Houston', state: 'TX', address: '5000 Westheimer Rd, Houston, TX 77056', hours: 'Daily 10:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1762971812776-2d7c3911f876?w=400&h=300&fit=crop' },
+  { id: 'sg-denver', name: 'Super Sports Denver Outfitter', city: 'Denver', state: 'CO', address: '1000 Broadway, Denver, CO 80203', hours: 'Mon–Sat 9:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1779598366072-93c7e5fb64d0?w=400&h=300&fit=crop' },
 ]);
 
 const MANUFACTURING = Object.freeze([
@@ -148,11 +148,11 @@ const INVESTMENT = Object.freeze([
 ]);
 
 const AIRLINES = Object.freeze([
-  { id: 'airport-austin', name: 'Austin-Bergstrom International Airport — United Terminal', city: 'Austin', state: 'TX', address: '3600 Presidential Blvd, Austin, TX 78719', hours: 'Ticket counter daily 4:00–20:00', atm: true, image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?w=400&h=300&fit=crop' },
-  { id: 'airport-dallas', name: 'Dallas/Fort Worth International Airport — United Terminal E', city: 'Dallas', state: 'TX', address: '2400 Aviation Dr, DFW Airport, TX 75261', hours: 'Ticket counter daily 4:00–22:00', atm: true, image: 'https://images.unsplash.com/photo-1561101904-da649fcbf03f?w=400&h=300&fit=crop' },
-  { id: 'airport-houston', name: 'George Bush Intercontinental Airport — United Terminal C', city: 'Houston', state: 'TX', address: '2800 N Terminal Rd, Houston, TX 77032', hours: 'Ticket counter daily 4:00–23:00', atm: true, image: 'https://images.unsplash.com/photo-1549897411-b06572cdf806?w=400&h=300&fit=crop' },
-  { id: 'airport-denver', name: 'Denver International Airport — United Concourse B', city: 'Denver', state: 'CO', address: '8500 Peña Blvd, Denver, CO 80249', hours: 'Ticket counter daily 4:00–22:00', atm: true, image: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?w=400&h=300&fit=crop' },
-  { id: 'airport-miami', name: 'Miami International Airport — United Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: true, image: 'https://images.unsplash.com/photo-1580285198593-af9f402c676a?w=400&h=300&fit=crop' },
+  { id: 'airport-austin', name: 'Austin-Bergstrom International Airport — United Terminal', city: 'Austin', state: 'TX', address: '3600 Presidential Blvd, Austin, TX 78719', hours: 'Ticket counter daily 4:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?w=400&h=300&fit=crop' },
+  { id: 'airport-dallas', name: 'Dallas/Fort Worth International Airport — United Terminal E', city: 'Dallas', state: 'TX', address: '2400 Aviation Dr, DFW Airport, TX 75261', hours: 'Ticket counter daily 4:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1561101904-da649fcbf03f?w=400&h=300&fit=crop' },
+  { id: 'airport-houston', name: 'George Bush Intercontinental Airport — United Terminal C', city: 'Houston', state: 'TX', address: '2800 N Terminal Rd, Houston, TX 77032', hours: 'Ticket counter daily 4:00–23:00', atm: false, image: 'https://images.unsplash.com/photo-1549897411-b06572cdf806?w=400&h=300&fit=crop' },
+  { id: 'airport-denver', name: 'Denver International Airport — United Concourse B', city: 'Denver', state: 'CO', address: '8500 Peña Blvd, Denver, CO 80249', hours: 'Ticket counter daily 4:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?w=400&h=300&fit=crop' },
+  { id: 'airport-miami', name: 'Miami International Airport — United Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1580285198593-af9f402c676a?w=400&h=300&fit=crop' },
 ]);
 
 const CATALOG_BY_VERTICAL = Object.freeze({

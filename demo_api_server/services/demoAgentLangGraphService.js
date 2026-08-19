@@ -1260,6 +1260,11 @@ function buildVerticalReply(action, data, render, verticalCtx) {
     const amount = data && data.amount;
     return `Order placed${product ? ` for ${product}` : ''}${amount != null ? ` ($${amount})` : ''}.`;
   }
+  if (action === 'extend_rental') {
+    const item = data && (data.item || data.rental?.item);
+    const due = data && (data.dueDate || data.rental?.dueDate);
+    return `Your rental${item ? ` of ${item}` : ''} has been extended${due ? ` — now due ${due}` : ''}.`;
+  }
   if (action === 'submit_expense') {
     const category = data && data.category;
     const amount = data && data.amount;

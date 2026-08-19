@@ -228,6 +228,37 @@ test("carries an unfulfilled HITL_REQUIRED gate the same way", () => {
   expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBe("HITL_REQUIRED");
 });
 
+test("a SKIP-shaped gateway-authoritative evaluation does not wipe the gate (UC8 approve)", () => {
+  // Measured live 2026-08-18, sporting-goods UC8 "extend my rental $300": after the
+  // human ticks the consent box and the transfer completes, the BFF answers with a
+  // SKIP-shaped evaluation carrying NO decision at all —
+  //   { ran:false, skipped:true, skipReason:'gateway_authoritative', ... }
+  // — because on this path the gateway is the PDP and the real PERMIT arrives
+  // separately as the gw-authorize token event. The old guard required
+  // `decision === 'PERMIT'`, so it never fired, the gate was overwritten, and
+  // ProofStrip flipped from "Verified (as expected)" to "Mismatch" the moment the
+  // approval succeeded — the opposite of what approving should do.
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "HITL_REQUIRED" });
+  tokenChainTraceStore.ingestAuthorize({
+    ran: false, skipped: true, skipReason: "gateway_authoritative",
+    decisionContext: "McpFirstTool", useCaseId: "hitl-consent", vertical: "sporting-goods",
+  });
+  tokenChainTraceStore.ingestTokenEvent({ id: "gw-authorize", decision: "PERMIT", backend: "real" });
+  const { authorize } = tokenChainTraceStore.getState().trace;
+  expect(authorize.outcome).toBe("HITL_REQUIRED");
+  expect(authorize.priorGate).toBe("HITL_REQUIRED");
+  expect(authorize.decision).toBe("PERMIT");
+});
+
+test("a real block evaluation still replaces the gate rather than inheriting it", () => {
+  // The guard above must not swallow a genuine later DENY: a block evaluation
+  // carries its own `outcome`, which is what excludes it.
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "HITL_REQUIRED" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "DENY", outcome: "DENY" });
+  expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBe("DENY");
+  expect(tokenChainTraceStore.getState().trace.authorize.priorGate).toBeUndefined();
+});
+
 test("a gw-authorize PERMIT fills a carried gate's missing decision (gateway-authoritative resume)", () => {
   // Airlines-style run: the gate carried by beginTrace has outcome/priorGate but
   // NO decision; the gateway's real PERMIT must land on trace.authorize instead

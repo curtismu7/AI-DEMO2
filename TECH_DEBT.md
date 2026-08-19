@@ -81,6 +81,67 @@ stale lock on this stack turns into a worse outage than the race it prevents.
 before and after any live drive, and treat the run as void — not as a finding —
 if either moved. That one check is the difference between a bug report and an
 hour in the routing layer.
+### [ ] 2026-08-19 — 71 write actions across all 12 verticals reply "Here are your <verb noun>."
+
+Found while fixing UC8's "Here are your extend rental." (`REGRESSION_PLAN.md` §4,
+2026-08-19). The reply-heading builder in
+`demo_api_server/services/demoAgentLangGraphService.js` hand-cases 10 write actions
+(`book_appointment`, `checkout`, `submit_expense`, …) and falls through everything else to
+`Here are your ${noun}.`, where `noun` is the action name with a read prefix stripped. Any
+write action without its own case therefore produces an ungrammatical confirmation:
+
+```
+pay_bill        -> "Here are your pay bill."          (healthcare)
+withdraw        -> "Here are your withdraw."          (banking, investment)
+transfer        -> "Here are your transfer."          (banking)
+redeem_miles    -> "Here are your redeem miles."      (airlines)
+cancel_order    -> "Here are your cancel order."      (retail, sporting-goods)
+buy_security    -> "Here are your buy security."      (investment)
+```
+
+71 actions in total, spanning every vertical. Only `extend_rental` was fixed, because that
+is the one the UC8 finding named.
+
+**Why not fixed now:** the obvious generic rule — "no read verb ⇒ write confirmation" —
+misclassifies genuine reads that simply lack a read verb (`afford_check`, `biggest_purchase`,
+`browse_gear`, `loyalty_balance`), so it would trade 71 broken confirmations for a different
+set of broken headings. Getting it right needs an authoritative action→write map, and a
+copy change touching every vertical's agent replies is not something to slip into a
+bug-fix PR unreviewed.
+
+**Real fix:** derive write-ness from the tool the action resolves to —
+`scope-topology.json` already marks write tools via `requiredScopes: ['write']`, which is the
+same signal `p1az-decision.groovy`'s tier check uses (`isWriteToolLocal`). Thread that into
+the reply builder and give writes a single neutral confirmation template, keeping the 10
+hand-written cases for the ones that read better. Scan that produced these numbers:
+`scratchpad/scan-writes.py` in the 2026-08-19 Demo Steps run.
+
+### [ ] 2026-08-19 — `serve:worktree` reports a state file, not the actual container mounts, and leaves the BFF without its gitignored config
+
+Two separate gaps, both hit while live-verifying the 2026-08-19 Demo Steps fixes.
+
+1. **The status line lied.** `npm run serve:worktree here` reported
+   `UI worktree /…/demo-steps-verdict-fixes/demo_api_ui` while
+   `docker inspect ai-demo-ui` still showed `/Users/cmuir/Development/AI-DEMO2/demo_api_ui/src -> /app/src`.
+   The UI change under test was therefore not being served, and the verification run
+   reported the *old* behaviour as a failed fix. A second `serve:worktree here` fixed the
+   mount. Verify with `docker inspect`, never with the script's own status output.
+2. **A worktree carries no gitignored files, and the BFF needs them.** After pointing the
+   stack at the worktree, every OAuth login failed with
+   `invalid_client — Request denied: Invalid client credentials`: the BFF reads
+   `demo_api_server/.env` from its own bind-mounted directory, and the worktree has none.
+   `data/persistent/*.db` is missing for the same reason. CLAUDE.md says
+   `--project-directory` stays on the main checkout so all 37 `env_file` entries resolve —
+   true for Compose, but it does not cover the per-service `.env` the BFF loads itself
+   (see `project-privilege-env-stale-vs-runtime-drift`).
+
+**Why not fixed now:** out of scope for the fix that found it, and the workaround is two
+`cp` commands.
+
+**Real fix:** have `serve-worktree.sh` (a) read the live mount from `docker inspect` for its
+status output and re-apply if it disagrees, and (b) symlink or copy the main checkout's
+`demo_api_server/.env` and `data/persistent/*.db` into the target worktree when switching to
+it — the same way `node_modules` already has to be linked in.
 
 ### [x] 2026-08-18 — the accepted-gateway-identity list is maintained by hand in two places, and has now drifted twice
 
